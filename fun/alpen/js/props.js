@@ -1884,7 +1884,11 @@ function growTussockPatch(THREE, seed, geos) {
    lets each section take the normal of the ground under its own feet. The
    caps are real thin solids rather than a texture, so their white line reads
    from both sides and casts the small broken shadow that separates one slat
-   from the next. */
+   from the next.
+
+   Both are stand-ins now, drawn until the modelled ones land (see "The same
+   furniture and the scrub, modelled" below) — and the snow bridge's
+   collision is still this section's box. */
 function avalancheFenceGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
   const steel = '#454b57';
@@ -1922,6 +1926,16 @@ function avalancheFenceGeometry(THREE) {
 
   const geometry = compose(THREE, parts);
   box.dispose();
+  return grained(THREE, geometry);
+}
+
+/* `alpineMat` lays its world-space plank grain on as much of a surface as
+   `aGrain` says. These two stand-ins wear it everywhere, as they always
+   have; the modelled ones that replace them (see `roleGeometry`) say per
+   role — all of it on timber, a little on painted steel, none on snow. */
+function grained(THREE, geometry) {
+  const grain = new Float32Array(geometry.attributes.position.count).fill(1);
+  geometry.setAttribute('aGrain', new THREE.BufferAttribute(grain, 1));
   return geometry;
 }
 
@@ -1942,7 +1956,7 @@ function waymarkGeometry(THREE) {
     { geo: box, color: SNOW, pos: [0, 3.045, 0], scale: [1.50, 0.11, 0.28] },
   ]);
   box.dispose();
-  return geometry;
+  return grained(THREE, geometry);
 }
 
 /* One side of a race gate: an inner and an outer pole with the panel slung
@@ -1989,11 +2003,14 @@ function raceGatePanelGeometry(THREE) {
   const parts = [];
   for (const x of [0, width]) {
     parts.push({ geo: shaft, color: '#ffffff', pos: [x, 0, 0] });
-    parts.push({ geo: collar, color: '#25282e', pos: [x, 0, 0] });
+    parts.push({ geo: collar, color: '#25282e', pos: [x, 0, 0], own: OWN_SNOW });
     parts.push({ geo: cap, color: '#f2f2f2', pos: [x, 0, 0] });
   }
   parts.push({ geo: cloth, color: '#ffffff' });
   const geometry = compose(THREE, parts);
+  // `gateMat` walks the race colour back off whatever is not the gate's to
+  // wear — here, the collars (see GATE_LOOKS for the modelled panel's)
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
   const pos = geometry.attributes.position;
   const flutter = new Float32Array(pos.count);
   for (let i = 0; i < pos.count; i++) {
@@ -2007,56 +2024,195 @@ function raceGatePanelGeometry(THREE) {
   return geometry;
 }
 
-/* YOUNG TREES, as impostors of real ones.
+/* ==========================================================================
+   The same furniture and the scrub, modelled
 
-   The Poly Haven fir and pine saplings (CC0 photogrammetry-grade models) are
-   125 to 160 thousand triangles each, because every needle is geometry —
-   about eighteen thousand separate needles on the tallest fir. No mesh
-   simplifier survives that: it can only delete needles or melt them into a
-   green blob, and a young tree is nothing but its needles.
+   Everything above in this part of the file is a stand-in now. The gate
+   panel, the piste marker and the snow bridge are modelled in Blender by
+   `tools/blender/piste.py` (`assets/models/piste/piste-furniture.glb`), the
+   willow-and-alder scrub, the dwarf mountain pine, the heath patch and the
+   tussock by `tools/blender/shrubs.py` (`assets/models/nature/alpine-
+   shrubs.glb`) — see assets/models/MODELS.md for what each one is. The
+   builders above draw until the file lands, and go on drawing if it never
+   does; the pools' collision is still taken from them, so the models are
+   made to their sizes and footprints.
 
-   So they were rendered instead — assets/models/MODELS.md describes the
-   bake: each sapling drawn from three bearings sixty degrees apart as
-   albedo, with the crown's own occlusion (a needle deep inside the envelope
-   of its height band sees less sky) and a light snow load on up-facing
-   exposed needles, packed with its alpha into one atlas. In game each view
-   is a card through the trunk at the bearing it was drawn from, so from any
-   side at least one card is facing the lens with the photographed tree on
-   it. Twenty-four triangles a tree.
+   A modelled node carries geometry and a material name per primitive and
+   nothing else: the name is a ROLE, and these tables are what each role is
+   drawn as — its colour, and one number per role that the material it is
+   drawn with reads per vertex. For the gate that number is `surfaceOwn`,
+   how much of the race colour the instance tint may put on it: the pole,
+   the cloth and its sleeves wear it all, the printed sponsor field half of
+   it (a lighter band, as the printed panels are), and the hinges and the
+   snow none. For the marker and the snow bridge it is `aGrain`, how much of
+   `alpineMat`'s world-space plank grain the surface takes — on the
+   galvanised steel a little, as the weathering it reads as, on paint
+   hardly any, on snow none. For the scrub it is the flora's `surfaceOwn`:
+   how much bark grain and procedural snow a role takes (see `floraMat`). */
+const GATE_LOOKS = {
+  pole: ['#ffffff', 1], cap: ['#e6e6e6', 1], hinge: ['#202328', 0], snow: [SNOW, 0],
+  cloth: ['#ffffff', 1], sleeve: ['#dcdcdc', 1], hem: ['#c6c6c6', 1], print: ['#f3f5f7', 0.45],
+};
+// the panel's fabric: what ripples, and the frame its weight is measured in
+const GATE_CLOTH = new Set(['cloth', 'hem', 'print']);
+const WAYMARK_LOOKS = {
+  markPole: ['#c4271d', 0.15], markBand: ['#eef1f4', 0.08], plate: ['#c4271d', 0.06],
+  plateBorder: ['#eef1f4', 0.04], numeral: ['#eef1f4', 0.04], plateBack: ['#9ea3a9', 0.3],
+  clamp: ['#3a3d42', 0.3], snow: [SNOW, 0],
+};
+const FENCE_LOOKS = {
+  girder: ['#55585d', 0.3], beam: ['#5c5f64', 0.3], strut: ['#55585d', 0.3],
+  footing: ['#34363a', 0.25], anchor: ['#3b3d40', 0.25], snow: [SNOW, 0],
+};
+/* The scrub's roles, as the trackside flora's are (see FLORA_LOOKS): bark
+   owns all of itself, the needles nearly all, the straw hardly any — a
+   ribbon turned to the sky takes the flora snow and vanishes into the
+   slope. The snow the model carries is the props' snow and owns nothing. */
+const SHRUB_LOOKS = {
+  alderBark: ['#6d665c', 1.0], alderTwig: ['#6a4d3e', 1.0], willowBark: ['#7a3d2b', 0.9],
+  catkin: ['#6b4b3f', 0.6], cone: ['#3b2b22', 0.6],
+  pineNeedle: ['#26402c', 0.9], pineShoot: ['#35553a', 0.85], pineWood: ['#4b3d33', 1.0],
+  heath: ['#4c4038', 0.85], crowberry: ['#27321f', 0.85], azalea: ['#55372b', 0.85],
+  thatch: ['#6f6650', 0.5], straw: ['#9c7646', 0.1], strawPale: ['#b39a6a', 0.1],
+  strawDark: ['#6c5232', 0.1], seed: ['#56412d', 0.3], snow: [SNOW, 0],
+};
+// Which node replaces which pool's stand-in: the first two shrub slots
+// (the third is the stump's), then the two plant patches.
+const SHRUB_NODES = ['shrub_alderScrub', 'shrub_mountainPine'];
+const PLANT_NODES = ['plant_heath', 'plant_tussock'];
+
+/* One modelled node as pool geometry: positions and normals as the file
+   has them, each role's colour as vertex colour, and its number from the
+   looks table as the per-vertex attribute `ownName`. Indexed. */
+function roleGeometry(THREE, node, looks, file, ownName) {
+  let verts = 0;
+  let indices = 0;
+  for (const p of node.prims) {
+    verts += p.attributes.POSITION.length / 3;
+    indices += p.index.length;
+  }
+  const position = new Float32Array(verts * 3);
+  const normal = new Float32Array(verts * 3);
+  const color = new Float32Array(verts * 3);
+  const own = new Float32Array(verts);
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+  const c = new THREE.Color();
+  let v = 0;
+  let o = 0;
+  for (const p of node.prims) {
+    const look = looks[p.role];
+    if (!look) throw new Error(`${file}: no look for ${p.role}`);
+    c.set(look[0]);
+    const n = p.attributes.POSITION.length / 3;
+    position.set(p.attributes.POSITION, v * 3);
+    normal.set(p.attributes.NORMAL, v * 3);
+    for (let i = 0; i < n; i++) {
+      color[(v + i) * 3] = c.r;
+      color[(v + i) * 3 + 1] = c.g;
+      color[(v + i) * 3 + 2] = c.b;
+      own[v + i] = look[1];
+    }
+    for (let i = 0; i < p.index.length; i++) index[o + i] = p.index[i] + v;
+    v += n;
+    o += p.index.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute(ownName, new THREE.BufferAttribute(own, 1));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  return g;
+}
+
+/* The modelled gate panel, in the stand-in's frame (inner pole on the
+   origin, outer at GATE_PANEL.width, fabric facing ±Z), with the same
+   flutter weight derived the same way — sin(πx/width) across the fabric,
+   and zero on anything that is not fabric or is within three centimetres
+   of a pole, so the sleeves round the poles hold still and the cloth
+   ripples out of them. */
+function gatePanelGeometry(THREE, node) {
+  const { width } = GATE_PANEL;
+  const g = roleGeometry(THREE, node, GATE_LOOKS, 'piste-furniture.glb', 'surfaceOwn');
+  const pos = g.attributes.position;
+  const flutter = new Float32Array(pos.count);
+  let v = 0;
+  for (const p of node.prims) {
+    const n = p.attributes.POSITION.length / 3;
+    if (GATE_CLOTH.has(p.role)) {
+      for (let i = v; i < v + n; i++) {
+        const x = pos.getX(i);
+        flutter[i] = x > 0.03 && x < width - 0.03 ? Math.sin(Math.PI * (x / width)) : 0;
+      }
+    }
+    v += n;
+  }
+  g.setAttribute('aFlutter', new THREE.BufferAttribute(flutter, 1));
+  return g;
+}
+
+/* YOUNG TREES, as impostors of modelled ones.
+
+   They used to be photographs of Poly Haven's fir and pine sapling scans —
+   a hundred and fifty thousand triangles a tree, every needle geometry,
+   which no simplifier survives, so they were rendered instead. What they
+   rendered was a scrawny nursery fir and a garden pine, and a young tree at
+   the Alpine treeline is neither. These are the forest's own four species,
+   grown young by `tools/blender/saplings.py` with the forest's kit: a stem,
+   whorls of branches to the ground, sprig cards cut from the same
+   `alpine-sprigs.webp` the grown trees wear at about life size, and a young
+   tree's history — the side its light comes from, uneven years, a sweep at
+   the foot where the snow bent it, and for one spruce the deer, which have
+   bitten its leader back until it went bushy with three. A Norway spruce,
+   a silver fir in the stand's shade and the browsed spruce are the three
+   the placement puts in shelter; two Swiss stone pines (one with three
+   stems, as they grow at the treeline) and a bare European larch take the
+   exposed ground (`pine`).
+
+   The bake is the forest's impostor bake: each sapling photographed from
+   three bearings sixty degrees apart, orthographic across the card that
+   stands there in the game, as albedo — the sprig atlas's own colour times
+   the crown's occlusion, cast by rays through the finished tree — keyed
+   and dilated into the gutter, one sapling per row of a 1024 × 2048 atlas.
+   In game each view is a card through the trunk at the bearing it was
+   drawn from, so from any side at least one card faces the lens with the
+   tree on it. Twenty-four triangles a tree.
 
    `R` and `H` are the model's own half-width and height in metres, which is
    the frame each view was drawn in; `views` are the three UV rectangles
-   [u0, v0, u1, v1] in three's flipY space. */
+   [u0, v0, u1, v1] in three's flipY space. The script prints this table. */
 const SAPLINGS = [
-  { name: 'fir_sapling_a', R: 0.4799, H: 1.3007, pine: false, views: [
-    [0.00781, 0.79932, 0.29883, 0.99609],
-    [0.30664, 0.79932, 0.59766, 0.99609],
-    [0.60547, 0.79932, 0.89648, 0.99609],
+  { name: 'spruce_sapling_a', species: 'spruce', R: 1.2860, H: 2.4175, pine: false, views: [
+    [0.00586, 0.84424, 0.33105, 0.99707],
+    [0.33691, 0.84424, 0.66211, 0.99707],
+    [0.66797, 0.84424, 0.99316, 0.99707],
   ] },
-  { name: 'fir_sapling_b', R: 0.435, H: 0.9516, pine: false, views: [
-    [0.00781, 0.65137, 0.27148, 0.79541],
-    [0.27930, 0.65137, 0.54297, 0.79541],
-    [0.55078, 0.65137, 0.81445, 0.79541],
+  { name: 'fir_sapling_a', species: 'fir', R: 1.2489, H: 1.8153, pine: false, views: [
+    [0.00586, 0.71240, 0.33105, 0.83057],
+    [0.33691, 0.71240, 0.66211, 0.83057],
+    [0.66797, 0.71240, 0.99316, 0.83057],
   ] },
-  { name: 'fir_sapling_c', R: 0.3911, H: 0.7357, pine: false, views: [
-    [0.00781, 0.53613, 0.24414, 0.64746],
-    [0.25195, 0.53613, 0.48828, 0.64746],
-    [0.49609, 0.53613, 0.73242, 0.64746],
+  { name: 'spruce_sapling_b', species: 'spruce', R: 0.7926, H: 1.3282, pine: false, views: [
+    [0.00586, 0.52783, 0.33105, 0.66406],
+    [0.33691, 0.52783, 0.66211, 0.66406],
+    [0.66797, 0.52783, 0.99316, 0.66406],
   ] },
-  { name: 'pine_sapling_small_a', R: 0.44, H: 1.299, pine: true, views: [
-    [0.00781, 0.33545, 0.27441, 0.53223],
-    [0.28223, 0.33545, 0.54883, 0.53223],
-    [0.55664, 0.33545, 0.82324, 0.53223],
+  { name: 'pine_sapling_a', species: 'pine', R: 0.9392, H: 2.1164, pine: true, views: [
+    [0.00586, 0.33691, 0.29102, 0.49756],
+    [0.29688, 0.33691, 0.58203, 0.49756],
+    [0.58789, 0.33691, 0.87305, 0.49756],
   ] },
-  { name: 'pine_sapling_small_b', R: 0.3843, H: 1.0456, pine: true, views: [
-    [0.00781, 0.17334, 0.24023, 0.33154],
-    [0.24805, 0.17334, 0.48047, 0.33154],
-    [0.48828, 0.17334, 0.72070, 0.33154],
+  { name: 'pine_sapling_b', species: 'pine', R: 0.5642, H: 1.3164, pine: true, views: [
+    [0.00586, 0.17041, 0.28125, 0.33105],
+    [0.28711, 0.17041, 0.56250, 0.33105],
+    [0.56836, 0.17041, 0.84375, 0.33105],
   ] },
-  { name: 'pine_sapling_small_c', R: 0.3026, H: 0.9613, pine: true, views: [
-    [0.00781, 0.02393, 0.19141, 0.16943],
-    [0.19922, 0.02393, 0.38281, 0.16943],
-    [0.39062, 0.02393, 0.57422, 0.16943],
+  { name: 'larch_sapling_a', species: 'larch', R: 1.2203, H: 2.7218, pine: true, views: [
+    [0.00586, 0.00391, 0.29395, 0.16455],
+    [0.29980, 0.00391, 0.58789, 0.16455],
+    [0.59375, 0.00391, 0.88184, 0.16455],
   ] },
 ];
 
@@ -2502,16 +2658,19 @@ export function createProps(THREE, shading) {
      flag), coloured by the instance, and the fabric moving in the same wind
      as the forest. The ripple runs across the panel from the poles, which
      hold it, and grows with the weather's wind; the poles, collars and caps
-     carry a flutter weight of zero and never move. */
+     carry a flutter weight of zero and never move. The race colour reaches
+     only as far as `surfaceOwn` lets it: the hinges and the snow at the
+     poles' feet keep their own, the printed field takes half. */
   const gateMat = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>
+        .replace('#include <common>', `#include <common>${OWN_DECL}
         attribute float aFlutter;
         uniform float uAirTime;
         uniform vec2 uAirWind;`)
+        .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
         if (aFlutter > 0.0) {
           float n64Ph = 0.0;
@@ -2542,14 +2701,17 @@ export function createProps(THREE, shading) {
      Everything else is borrowed from the trees: the back-face normal flip is
      undone because the baked canopy normals are right from either side, the
      crowns sway in the forest's wind, and a storm settles snow on every
-     up-facing part of the crown by the dial the ground answers to. */
-  const saplingMat = (atlas) => {
+     up-facing part of the crown by the dial the ground answers to. The
+     sway is measured against each sapling's own height (`spec.H`, which is
+     what its card stands in the model's metres), so one material per kind,
+     all on the one compiled program, as the forest pools do it. */
+  const saplingMat = (atlas, swayHeight = 1.3) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas, alphaTest: 0.42, side: THREE.DoubleSide,
     });
     m.alphaToCoverage = true;
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: 1.3 } });
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: swayHeight } });
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${AIR_DECL}`)
         .replace('#include <begin_vertex>', SWAY);
@@ -3107,7 +3269,10 @@ export function createProps(THREE, shading) {
      heath in pink bloom and a bilberry hung with fruit, both on snow in the
      middle of winter; the young trees and the deadwood below took their
      place. What is left is the bare willow and alder scrub, the dwarf mountain
-     pine and a cut stump — see `SHRUB_PICK` for how often each is chosen. */
+     pine and a cut stump — see `SHRUB_PICK` for how often each is chosen.
+     The scrub, the pine and both plant patches are grown here as stand-ins
+     for their Blender models (`SHRUB_NODES`, `PLANT_NODES`), which swap in
+     once alpine-shrubs.glb lands; their hulls are taken from these. */
   const shrubVariants = [
     growShrub(THREE, 0x2b7f41, geos),
     growDwarfPine(THREE, 0x2b7f41 + 9913, geos),
@@ -3279,7 +3444,7 @@ export function createProps(THREE, shading) {
      object, all Poly Haven (CC0); see assets/models/MODELS.md.
 
      The saplings are impostor cards off one atlas (see `SAPLINGS`), six
-     pools sharing one material, casting through the same banded shadow
+     pools on one compiled program, casting through the same banded shadow
      prefix as the trees. The logs are real scans at their own scale, solid
      and low enough to jump. The branches are pure scatter: no collision, no
      shadow, and invisible until their file lands, because nothing depends
@@ -3288,18 +3453,19 @@ export function createProps(THREE, shading) {
   // fragment, so a sapling is simply not there yet rather than a grey card.
   const clearTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
   clearTex.needsUpdate = true;
-  const saplingMaterial = saplingMat(clearTex);
+  // A material per kind, each swaying about its own modelled height.
+  const saplingMaterials = SAPLINGS.map((spec) => saplingMat(clearTex, spec.H));
   texLoader.load(
     new URL('../assets/textures/tree/sapling-impostors.webp', import.meta.url).href,
     (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
       t.anisotropy = 4;
-      saplingMaterial.map = t;
+      for (const m of saplingMaterials) m.map = t;
     },
   );
-  const saplingPools = SAPLINGS.map((spec) => {
-    const pool = new Pool(THREE, saplingCardGeometry(THREE, spec), saplingMaterial,
+  const saplingPools = SAPLINGS.map((spec, i) => {
+    const pool = new Pool(THREE, saplingCardGeometry(THREE, spec), saplingMaterials[i],
       Math.ceil(bands * YOUNG.candidates * 0.5) + 16, true);
     pool.mesh.name = `sapling-${spec.name}`;
     return pool;
@@ -3344,10 +3510,14 @@ export function createProps(THREE, shading) {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, { uWoodTex: woodPlanksTex });
+      // `aGrain`: how much of the plank grain a surface takes — see `grained`
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
-        varying vec3 vAlpineWorldPos;`)
+        attribute float aGrain;
+        varying vec3 vAlpineWorldPos;
+        varying float vAlpineGrain;`)
         .replace('#include <project_vertex>', `#include <project_vertex>
+        vAlpineGrain = aGrain;
         #ifdef USE_INSTANCING
           vAlpineWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
         #else
@@ -3356,10 +3526,11 @@ export function createProps(THREE, shading) {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
         varying vec3 vAlpineWorldPos;
+        varying float vAlpineGrain;
         uniform sampler2D uWoodTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
         vec3 woodSample = texture2D(uWoodTex, vAlpineWorldPos.xy * 0.45 + vAlpineWorldPos.yz * 0.45).rgb;
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.9, 0.65);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.9, 0.65 * vAlpineGrain);`);
     };
     return shading.apply(m, { streamFade: true });
   })();
@@ -3412,11 +3583,53 @@ export function createProps(THREE, shading) {
 
   const fenceGeometry = avalancheFences.mesh.geometry;
   if (!fenceGeometry.boundingBox) fenceGeometry.computeBoundingBox();
-  const fenceBox = fenceGeometry.boundingBox;
+  // The stand-in's box, kept: the modelled bridge below is built to its
+  // footprint, and swapping the drawing must not move the collision.
+  const fenceBox = fenceGeometry.boundingBox.clone();
   const fenceCells = 5;
   const fenceCellWidth = (fenceBox.max.x - fenceBox.min.x) / fenceCells;
   const fenceCenterY = (fenceBox.min.y + fenceBox.max.y) * 0.5;
   const fenceCenterZ = (fenceBox.min.z + fenceBox.max.z) * 0.5;
+
+  /* THE MODELLED FURNITURE AND SCRUB (see the note above GATE_LOOKS). Each
+     file swaps its pools' geometry in place once it lands — every node
+     built before any is swapped, so a file missing one leaves all of its
+     pools as they were — and the band rebuild goes on writing the same
+     matrices into them. The collision stays the stand-ins': the hulls and
+     the snow bridge's cells above were taken from them, and the models are
+     built to their sizes. If a file fails, its stand-ins simply stay. */
+  const adopt = (url, file, build) => fetch(url)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+    .then(parseGlb)
+    .then((nodes) => {
+      const node = (name) => {
+        if (!nodes[name]) throw new Error(`${file}: no ${name}`);
+        return nodes[name];
+      };
+      for (const [pool, g] of build(node)) {
+        const old = pool.mesh.geometry;
+        pool.mesh.geometry = g;
+        old.dispose();
+        // a culled pool's sphere was taken round the old drawing
+        if (pool.cullable && pool.n > 0) pool.mesh.computeBoundingSphere();
+      }
+    });
+  adopt(new URL('../assets/models/piste/piste-furniture.glb', import.meta.url).href,
+    'piste-furniture.glb', (node) => [
+      [gatePanels, gatePanelGeometry(THREE, node('gate_panel'))],
+      [waymarks, roleGeometry(THREE, node('waymark'), WAYMARK_LOOKS, 'piste-furniture.glb', 'aGrain')],
+      [avalancheFences,
+        roleGeometry(THREE, node('snow_bridge'), FENCE_LOOKS, 'piste-furniture.glb', 'aGrain')],
+    ])
+    .catch((err) => console.warn('Alpen: keeping the stand-in gates, markers and snow bridges —', err));
+  adopt(new URL('../assets/models/nature/alpine-shrubs.glb', import.meta.url).href,
+    'alpine-shrubs.glb', (node) => [
+      ...SHRUB_NODES.map((name, i) => [shrubPools[i],
+        roleGeometry(THREE, node(name), SHRUB_LOOKS, 'alpine-shrubs.glb', 'surfaceOwn')]),
+      ...PLANT_NODES.map((name, i) => [plantPools[i],
+        roleGeometry(THREE, node(name), SHRUB_LOOKS, 'alpine-shrubs.glb', 'surfaceOwn')]),
+    ])
+    .catch((err) => console.warn('Alpen: keeping the grown scrub —', err));
 
   const pools = [
     ...plantPools, ...shrubPools, ...decorPools, ...rockPools, ...cragPools,
@@ -4238,7 +4451,12 @@ export function createProps(THREE, shading) {
         if (occupied(x, z)) continue;
         const y = heightAt(x, z) + 0.06;
         normalFrom(heightAt, x, z, bankNormal);
-        const yaw = courseYawAt(z, fenceSide) + Math.PI / 2
+        /* A quarter turn puts the section's long axis along the course; which
+           way the turn goes decides which face looks up the bank. The bank
+           rises outward on both sides, and a snow bridge holds its snowpack
+           on its uphill (+Z) face with its struts behind, so the turn is
+           mirrored with the side: from the piste, every one shows its struts. */
+        const yaw = courseYawAt(z, fenceSide) + fenceSide * Math.PI / 2
           + (hash2(b, 2020 + i, 141) - 0.5) * 0.10;
         const sy = scale * (0.94 + hash2(b, 2030 + i, 141) * 0.12);
         if (avalancheFences.addOnSlope(

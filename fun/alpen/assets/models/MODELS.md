@@ -56,34 +56,41 @@ The logs are solid and low enough to jump (a capsule of three circles
 along the trunk). The branches have no collision and no shadow. The
 granite stones join the scenic stone families.
 
-## Sapling impostor atlas
+## Sapling impostor atlas (built in Blender)
 
-`assets/textures/tree/sapling-impostors.webp` (1024 × 2048, RGBA) is a
-render of the Poly Haven **fir_sapling** and **pine_sapling_small** models
-(CC0, three saplings each). Their needles are real geometry, at 125–157k
-triangles per sapling, so they cannot be simplified to a game budget
-without losing the needles. Instead, each sapling was drawn in a headless
-three.js page from three bearings 60° apart. Each view is an orthographic
-camera looking along the normal of a vertical card through the trunk,
-with image-right along the card, at 768 px wide.
+`assets/textures/tree/sapling-impostors.webp` (1024 × 2048, RGBA) is
+rendered by `tools/blender/saplings.py` from young trees modelled with the
+forest's own kit (`trees.py`'s `Tree`, its sprig cards cut from
+`alpine-sprigs.webp`, its occlusion bake and impostor material), from the
+repository root:
 
-The bake shader outputs albedo times:
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/saplings.py -- --out fun/alpen/assets
 
-- a crown-occlusion term (0.42–1.0, from how deep a needle sits inside
-  its height band's 92nd-percentile envelope, times 0.72–1.0 towards the
-  foot);
-- a hemisphere term (0.8 + 0.2·nᵧ).
+It renders with Cycles on the CPU, so it builds without a GPU, and prints
+the `SAPLINGS` table for `js/props.js` (each sapling's frame `R`, `H` and
+its three UV rectangles), which has to be pasted over the old one after a
+rebuild. It replaced a render of Poly Haven's fir and pine sapling scans.
 
-Needle colour is desaturated 18% and cooled by (0.74, 0.84, 0.82). A snow
-load goes on up-facing, exposed needles in two scales of hashed clumps.
+Six young trees of the forest's four species, grown as young trees rather
+than small old ones — crowns to the ground with the lowest branches lying
+on the snow, broad for their height, sprigs drawn at about life size — each
+with a young tree's history (`Youth`: its light side, uneven years, the
+odd broken branch, a stem swept at the foot by snow creep): a Norway spruce
+(2.4 m), a silver fir in the stand's shade (1.8 m, level two-ranked
+plates), a spruce the deer have browsed into a bushy three-leader (1.3 m) —
+the three the placement puts in shelter — and a Swiss stone pine (2.1 m), a
+three-stemmed treeline stone pine (1.3 m) and a bare European larch
+(2.7 m) for the exposed ground.
 
-The views are downsampled with premultiplied box filtering to 310 texels
-per metre and colour-dilated into the transparent gutter, then packed one
-sapling per row with 8 px padding. The atlas is WebP at quality 82 with
-lossless alpha. The UV rectangles and each sapling's frame (half-width
-`R` and height `H`, in metres) are the `SAPLINGS` table in `js/props.js`.
-In game, each view is a 3 × 3 card at the bearing it was drawn from:
-24 triangles per young tree.
+Each is photographed from three bearings 60° apart, orthographic across
+the card `saplingCardGeometry` stands there, framed from the snow line to
+its top and to its crown's widest reach, as albedo — the sprig atlas's
+colour times the baked crown occlusion — keyed like the forest's cards,
+packed one sapling per 341 px row and colour-dilated into the gutter;
+WebP at quality 90 with alpha. Frost twins of the sprigs give the snow
+load. In game each view is a 3 × 3 card at the bearing it was drawn from:
+24 triangles per young tree, each kind with its own sway height.
 
 ## nature/alpine-trees.glb — the Alpine forest (built in Blender)
 
@@ -215,6 +222,70 @@ stride shader reads. The legs turn about the elbow and the stifle, where
 they leave the body, so a full gallop bends the skin round them by no more
 than a couple of centimetres. If the file fails to load, the sculpted
 animals stay.
+
+## piste/piste-furniture.glb — gate panel, piste marker, snow bridge (built in Blender)
+
+Written by `tools/blender/piste.py` (no rendering needed; `--preview <dir>`
+renders a Cycles contact sheet):
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/piste.py -- --out fun/alpen/assets/models/piste
+
+Three nodes, each at its own origin in the frame its procedural stand-in in
+`props.js` uses:
+
+- `gate_panel` (368 triangles) — a giant-slalom panel: two 32 mm flex poles
+  screwed into black spring hinges on their drilled bases, caps, a snow
+  collar at each foot, and the panel slid over both poles by its sleeves,
+  with stitched hems and a printed sponsor field. Inner pole on the origin,
+  outer at `GATE_PANEL.width`, fabric facing ±Z; `props.js#gatePanelGeometry`
+  derives the flutter weight from the fabric roles.
+- `waymark` (216 triangles) — a Swiss piste marker: a run-red fibreglass
+  pole with reflective white bands and the run sign on top, a square
+  aluminium plate in the run's red with a white border and the run number,
+  clamped to the pole and facing +Z (up the hill); snow along the sign's top
+  edge and drifted round the foot. 3.05 m tall.
+- `snow_bridge` (1140 triangles) — one six-metre section of a steel snow
+  bridge: two H-section girders carrying eight I-section grate beams on
+  their uphill (+Z) face, leaning 8° downhill of the slope's normal; tubular
+  struts behind to steel footings, tension anchors into the slope; the
+  snowpack held against the lower beams and new snow on the upper ones.
+  Built to the stand-in's footprint, whose box the collision is still cut
+  from.
+
+Materials are roles; `GATE_LOOKS`, `WAYMARK_LOOKS` and `FENCE_LOOKS` in
+`props.js` give each its colour and how much race tint (`surfaceOwn`, on
+the gate) or plank grain (`aGrain`, on `alpineMat`) it takes. Until the
+file loads, and if it fails, the procedural stand-ins draw.
+
+## nature/alpine-shrubs.glb — scrub, dwarf pine and plant patches (built in Blender)
+
+Written by `tools/blender/shrubs.py` (no rendering needed):
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/shrubs.py -- --out fun/alpen/assets/models/nature
+
+The shrub and plant pools' models, one node each, sized like the grown
+stand-ins whose bounding spheres the game still collides with:
+
+- `shrub_alderScrub` (1367 triangles) — leafless green alder (*Alnus
+  viridis*) and willow: grey-brown stems pressed down at the foot by the
+  snow and rising in arcs, forked into redder twigs, the alder's winter
+  catkins in threes and old cones, a few straight red willow wands, a drift
+  at the foot and snow lodged in low forks.
+- `shrub_mountainPine` (1334 triangles) — dwarf mountain pine (*Pinus
+  mugo*): a dome of upturned, star-sectioned needle brushes over a dark
+  core, prostrate stems running out at the rim, snow pillows on top.
+- `plant_heath` (476 triangles) — a wind-scoured heath patch: clusters of
+  little heather, crowberry and trailing-azalea bushes, a dead grass tuft
+  with its seed head, snow banked in the lee.
+- `plant_tussock` (482 triangles) — a tussock in winter straw: a crown of
+  thatch, a fountain of arching blades, two standing culms, snow in its
+  middle.
+
+Materials are roles; `SHRUB_LOOKS` in `props.js` gives each its colour and
+its `surfaceOwn` for the shared flora material (bark grain and procedural
+snow). The grown stand-ins draw until the file loads, and if it fails.
 
 ## backdrop/alps.glb — the mountains round the run (built in Blender)
 
