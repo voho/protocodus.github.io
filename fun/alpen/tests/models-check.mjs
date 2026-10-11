@@ -566,6 +566,116 @@ for (const spec of props.SAPLINGS) {
   }
 }
 
+/* The modelled versions of the same (`tools/blender/piste.py` →
+   piste-furniture.glb, `shrubs.py` → alpine-shrubs.glb, `saplings.py` →
+   sapling-impostors.webp), read through the game's own reader. The gate
+   keeps the stand-in's frame and its flutter rule (only fabric ripples,
+   never within 3 cm of a pole) and lets the race colour onto its pole and
+   cloth but not its hinges; the marker stands on its foot, 3 m tall, sign
+   to +Z; the snow bridge's steel stays inside the box its collision is
+   cut from, with snow loading its upper beams; each piece of scrub is
+   footed at the origin, in budget and about the size of the stand-in hull
+   the game still collides with; and the saplings are the four species in
+   six non-overlapping rows of a 1024 × 2048 WebP. The stand-ins carry
+   what the materials now read (`aGrain`, the gate's `surfaceOwn`). */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const m = await load('props.js', ['gatePanelGeometry', 'roleGeometry', 'raceGatePanelGeometry',
+    'avalancheFenceGeometry', 'waymarkGeometry', 'GATE_PANEL', 'GATE_LOOKS', 'WAYMARK_LOOKS',
+    'FENCE_LOOKS', 'SHRUB_LOOKS', 'SHRUB_NODES', 'PLANT_NODES', 'SAPLINGS']);
+  const glb = async (path) => {
+    const b = await readFile(new URL(path, base));
+    return parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  };
+  const piste = await glb('assets/models/piste/piste-furniture.glb');
+  const W = m.GATE_PANEL.width;
+
+  const gate = m.gatePanelGeometry(THREE, piste.gate_panel);
+  assert.ok(valid('modelled gate panel', gate) <= 400, 'modelled gate triangle budget');
+  const gp = gate.attributes.position;
+  const gf = gate.attributes.aFlutter;
+  const gown = gate.attributes.surfaceOwn;
+  let ripple = 0;
+  let hinges = 0;
+  for (let i = 0; i < gp.count; i++) {
+    const x = gp.getX(i);
+    if (Math.abs(x) < 0.03 || Math.abs(x - W) < 0.03) assert.equal(gf.getX(i), 0, 'modelled poles never flutter');
+    if (gf.getX(i) > 0) {
+      ripple++;
+      assert.ok(gp.getY(i) > m.GATE_PANEL.bottom - 0.01 && gp.getY(i) < m.GATE_PANEL.top + 0.01,
+        'only the panel ripples');
+      assert.ok(gown.getX(i) > 0.4, 'the panel takes the race colour');
+    }
+    if (gp.getY(i) > 0.02 && gp.getY(i) < 0.2 && gown.getX(i) === 0) hinges++;
+  }
+  assert.ok(ripple > 20, 'the modelled fabric ripples');
+  assert.ok(hinges > 8, 'the hinges keep their own colour');
+  gate.computeBoundingBox();
+  assert.ok(Math.abs(gate.boundingBox.min.x) < 0.1 && Math.abs(gate.boundingBox.max.x - W) < 0.1,
+    'inner pole on the origin, outer at the panel width');
+  assert.ok(gate.boundingBox.max.y > 1.9 && gate.boundingBox.max.y < 2.0, 'poles stand their height');
+
+  const mark = m.roleGeometry(THREE, piste.waymark, m.WAYMARK_LOOKS, 'piste-furniture.glb', 'aGrain');
+  assert.ok(valid('modelled marker', mark) <= 300, 'modelled marker triangle budget');
+  assert.ok(mark.boundingBox.max.y > 2.9 && mark.boundingBox.max.y < 3.2, 'the marker stands three metres');
+  assert.ok(Math.max(-mark.boundingBox.min.x, mark.boundingBox.max.x, -mark.boundingBox.min.z,
+    mark.boundingBox.max.z) < 0.35, 'the marker stands on its foot');
+  const numeral = piste.waymark.prims.find((p) => p.role === 'numeral');
+  assert.ok(numeral && numeral.attributes.NORMAL.filter((_, i) => i % 3 === 2).every((z) => z > 0.9),
+    'the run sign faces up the hill (+Z)');
+
+  const bridge = m.roleGeometry(THREE, piste.snow_bridge, m.FENCE_LOOKS, 'piste-furniture.glb', 'aGrain');
+  assert.ok(valid('modelled snow bridge', bridge) <= 1200, 'modelled snow bridge triangle budget');
+  const standIn = m.avalancheFenceGeometry(THREE);
+  standIn.computeBoundingBox();
+  const box = standIn.boundingBox.clone().expandByScalar(0.1);
+  let loaded = 0;
+  for (const p of piste.snow_bridge.prims) {
+    const a = p.attributes.POSITION;
+    for (let i = 0; i < a.length; i += 3) {
+      if (p.role === 'snow') {
+        if (a[i + 1] > 2.6) loaded++;
+        continue;
+      }
+      if (a[i + 1] < 0) continue;   // anchors and footings run on under the snow
+      assert.ok(box.containsPoint(new THREE.Vector3(a[i], a[i + 1], a[i + 2])),
+        'the bridge steel stays inside the box its collision is cut from');
+    }
+  }
+  assert.ok(loaded > 8, 'snow loads the upper beams');
+  for (const g of [standIn, m.waymarkGeometry(THREE)]) {
+    assert.ok(g.attributes.aGrain.array.every((v) => v === 1), 'the stand-ins keep the plank grain');
+  }
+  const oldGate = m.raceGatePanelGeometry(THREE);
+  assert.ok(oldGate.attributes.surfaceOwn.array.some((v) => v === 0)
+    && oldGate.attributes.surfaceOwn.array.some((v) => v === 1), 'the stand-in gate says what is tinted');
+
+  // The stand-ins' collision hulls (bounding spheres of growShrub,
+  // growDwarfPine, growPlantPatch and growTussockPatch at their seeds).
+  const shrubs = await glb('assets/models/nature/alpine-shrubs.glb');
+  const hulls = [0.88, 1.15, 0.78, 0.45];
+  [...m.SHRUB_NODES, ...m.PLANT_NODES].forEach((name, i) => {
+    assert.ok(shrubs[name], 'a modelled ' + name);
+    const g = m.roleGeometry(THREE, shrubs[name], m.SHRUB_LOOKS, 'alpine-shrubs.glb', 'surfaceOwn');
+    const tris = valid('shrubs.' + name, g);
+    assert.ok(tris <= (i < 2 ? 1500 : 500), `${name}: budget ${tris}`);
+    assert.ok(g.attributes.surfaceOwn.array.every((v) => v >= 0 && v <= 1), name + ': ownership in range');
+    assert.ok(g.boundingBox.min.y > -0.25 && g.boundingBox.max.y < 1.2, name + ': stands on the snow line');
+    const r = g.boundingSphere.radius;
+    assert.ok(r > hulls[i] * 0.75 && r < hulls[i] * 1.3, `${name}: about its hull's size (${r.toFixed(2)})`);
+  });
+
+  assert.deepEqual([...new Set(m.SAPLINGS.map((s) => s.species))].sort(), ['fir', 'larch', 'pine', 'spruce'],
+    'the young forest is the four species');
+  const rows = m.SAPLINGS.map((s) => [Math.min(...s.views.map((v) => v[1])), Math.max(...s.views.map((v) => v[3]))])
+    .sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i][0] >= rows[i - 1][1], 'sapling rows do not overlap');
+  const atlas = await readFile(new URL('assets/textures/tree/sapling-impostors.webp', base));
+  assert.equal(atlas.toString('ascii', 0, 4) + atlas.toString('ascii', 8, 12), 'RIFFWEBP', 'the atlas is a WebP');
+  assert.equal(atlas.toString('ascii', 12, 16), 'VP8X', 'the atlas carries alpha');
+  assert.deepEqual([1 + atlas.readUIntLE(24, 3), 1 + atlas.readUIntLE(27, 3)], [1024, 2048], 'atlas size');
+}
+
 const namespace = { ...THREE, TextureLoader: class {
   load() { return new THREE.Texture(); }
 } };

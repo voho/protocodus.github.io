@@ -99,6 +99,19 @@ run, and the two maps are WebPs of the sizes the shader assumes.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+It reads their modelled replacements too: the gate panel, piste marker and
+snow bridge of `assets/models/piste/piste-furniture.glb` (from
+`tools/blender/piste.py`) — the gate in the stand-in's frame, only its fabric
+rippling and never within 3 cm of a pole, the race tint kept off its hinges;
+the marker three metres tall on its foot with its sign facing +Z; the
+bridge's steel inside the box its collision is cut from, snow on its upper
+beams; all in budget — the scrub and plant patches of
+`assets/models/nature/alpine-shrubs.glb` (from `shrubs.py`: in budget,
+footed on the snow line, about the size of the stand-in hulls the game still
+collides with), and the sapling atlas from `saplings.py` (the four species,
+rows that do not overlap, a 1024 × 2048 WebP with alpha). The stand-ins
+carry the attributes the materials now read (`aGrain`, the gate's
+`surfaceOwn`).
 It checks the ground the props keep off around each hut (`onHutGround`) too:
 every corner of the roof, the woodpile and the terrace is on it, turned the
 way the hut is turned, and the open snow twelve metres to one side is not.
