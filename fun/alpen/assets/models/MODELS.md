@@ -201,6 +201,48 @@ ice cover (2048 × 512). `js/backdrop.js` reads all three and draws the range
 — into the frame and into the sky probe the fog reads; if any of them fails
 to load the procedural ranges in `sky.js` stand instead.
 
+## huts/mountain-hut.glb — the mountain hut (built in Blender)
+
+Written by `tools/blender/hut.py` (no rendering is needed to build it, so
+it builds anywhere; `--preview DIR` adds Cycles CPU renders, and `--debug`
+paints every back face magenta, which is how winding mistakes are found):
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/hut.py -- --out fun/alpen/assets/models/huts
+
+One node, `hut`, about 5.5k triangles (it is instanced three times). An
+Alpine Berghütte on a slope: a rubble-stone storey with dressed quoins, a
+drip-cut coping and barred cellar openings, standing two to four metres
+out of the snow downhill; a log storey in Blockbau — squared, chamfered
+logs, their ends crossing past every corner, the side walls' top logs
+stepping out as corbels under the wall plates; a 30° roof on ridge, middle
+and wall-plate purlins with carved heads and struts under the long front
+overhang, rafters and boarding, verge boards, half a metre of snow that
+rolls over each eave into a cornice with icicles under it; boarded gables
+with sawn teeth, an attic window and a heart; the parlour's windows with
+open green shutters, a shuttered window on two sides, a herringbone door
+with its transom and the yellow "HÜTTE" sign; the terrace on stilts with a
+sawn-board balustrade, a table, benches, the lantern's frame, skis by the
+door, a woodpile on its own footing, and snow on every ledge.
+
+The building is drawn where `js/huts.js` and `js/config.js` say a hut is:
+the deck at `TERRACE_DECK`, the stone `PLINTH_DEPTH` deep, the chimney's
+top at `CHIMNEY`, and every window opening exactly the glass `HUT_LIGHT`
+lists (the panes, the lantern and the light they throw are drawn by the
+game from that table). The node's extras carry those numbers
+(`chimney`, `deck`, `plinthDepth`, `glass`, `bounds`) and the model check
+holds the two files to each other — and casts rays out through each pane.
+
+Materials are roles (`log`, `masonry`, `snow`, `shutter`…), painted and
+classified by `huts.js#HUT_LOOKS`. `TEXCOORD_0` is what the hut material
+samples: the plank photograph along each member's grain (a log mapped onto
+exactly one plank of `alpine-wood-planks.jpg`), the slate photograph and a
+procedural coursed-rubble pattern in metres for stone, a field of sawn
+ends for the woodpile, rings for end grain. `_SHADE` is each piece's tone
+times ambient occlusion baked by casting rays through the finished hut.
+`huts.js#hutModelGeometry` builds the shell from it; if the file fails to
+load, the procedural hut stays.
+
 ## Card conifer atlas (fallback)
 
 The needled tree species were card conifers built at runtime by
