@@ -165,6 +165,46 @@ over the ground either side, each its own size, turn and lean. Both are
 placed in every streamed band but drawn only for the nearest four rings
 (at least 160 m ahead), dissolving out between 115 m and 150 m.
 
+## wildlife/alpine-wildlife.glb — the hare, the deer and the wolf (built in Blender)
+
+Written by `tools/blender/wildlife.py`; nothing is rendered unless asked,
+so it builds anywhere:
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/wildlife.py -- --out fun/alpen/assets/models/wildlife
+
+(`--preview <dir>` adds a turnaround sheet per animal, drawn with Cycles on
+the CPU; `--only hare,hind,stag,wolf` picks which.)
+
+One node per instanced pool in `js/wildlife.js`, each in the game's own
+frame — facing −Z, feet on y = 0:
+
+| node | animal | triangles | extras |
+|---|---|---|---|
+| `wild_hare` | mountain hare (*Lepus timidus*) in its white winter coat, crouched in its form: long furred hind feet flat under it, short black-tipped ears | 4136 | `eyes` — the two eye centres the eye-shine sits on |
+| `wild_deerBody` | red deer (*Cervus elaphus*), winter coat, withers down: deep narrow chest, tucked loin, buff rump patch, long fine legs with the hock pointing back | 1960 | `withers` — where the heads hang (the root of the neck, inside the chest); `legs` — each leg's pivot (y, z) |
+| `wild_hindHead` | a hind's neck and head, from that pivot | 694 | |
+| `wild_stagHead` | a stag's: the heavier dark-maned neck and a royal's antlers — brow, bez and trez tines and a three-point crown, twelve points | 1316 | |
+| `wild_wolf` | grey wolf (*Canis lupus*, Alpine population), winter coat: the ruff, the dark saddle, pale cheeks and throat, the dark stripe down each foreleg, the low brush | 2890 | `legs` — as the deer's |
+
+Each animal is a set of tubes — elliptical sections along a spline, one
+clean ring per sample, so a leg is a stack of rings from the shoulder to
+the hoof — fused into one skin with Blender's exact boolean, so legs,
+haunches and ears grow out of the body rather than through it; eyes, nose,
+hooves and antlers are laid on unfused. 288 KB in all.
+
+Materials carry only a role (`fur`, `coat`, `earInner`, `eye`, `nose`,
+`hoof`, `antler`). Two per-vertex weights, `_PALE` and `_DARK`, mark the
+soft-edged markings; the look tables in `wildlife.js` give each role a base
+and the pale and dark shades they mix in. The deer body and the wolf also
+carry `_LEG` (1 fore −X, 2 fore +X, 3 hind −X, 4 hind +X) and `_SWING`, how
+much of a vertex swings with that leg; with the pivots in `extras.legs` and
+the game's gait tables, `modelledAnimal` turns them into the `aLimb` the
+stride shader reads. The legs turn about the elbow and the stifle, where
+they leave the body, so a full gallop bends the skin round them by no more
+than a couple of centimetres. If the file fails to load, the sculpted
+animals stay.
+
 ## backdrop/alps.glb — the mountains round the run (built in Blender)
 
 Written by `tools/blender/backdrop.py`, with its two maps

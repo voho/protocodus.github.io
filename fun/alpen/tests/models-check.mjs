@@ -38,7 +38,9 @@ function valid(name, geo) {
 
 const wildlifeNames = ['rabbitGeometry', 'deerBodyGeometry', 'deerHeadGeometry', 'wolfGeometry'];
 const wildlife = await load('wildlife.js',
-  [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL', 'SLOPE_PITCH_MAX', 'SLOPE_ROLL_MAX']);
+  [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL', 'SLOPE_PITCH_MAX', 'SLOPE_ROLL_MAX',
+    'modelledAnimal', 'HARE_LOOK', 'DEER_LOOK', 'WOLF_LOOK', 'DEER_GAIT', 'WOLF_GAIT',
+    'RABBIT_EYES', 'DEER_WITHERS', 'DEER_BROWSE', 'STAG_BROWSE']);
 const triangleBudgets = [4500, 2000, 1200, 3200];
 for (const key of wildlifeNames) {
   const triangles = valid(key, wildlife[key](THREE, true));
@@ -93,7 +95,16 @@ for (const key of wildlifeNames) {
   const StubTHREE = { ...THREE, TextureLoader: class {
     load() { return new THREE.Texture(); }
   } };
+  // The sculpted animals, quietly: node cannot fetch a file: URL, and the
+  // modelled ones are checked below
+  const realFetch = globalThis.fetch;
+  const warn = console.warn;
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  console.warn = () => {};
   const life = (await load('wildlife.js')).createWildlife(StubTHREE, { apply: (m) => m, uniforms: {} });
+  globalThis.fetch = realFetch;
+  await life.modelled;
+  console.warn = warn;
   const rabbits = life.group.children[0];
   const reveal = rabbits.geometry.attributes.aReveal;
   assert.ok(reveal && rabbits.customDepthMaterial, 'hares carry an arrival value into both passes');
@@ -102,6 +113,203 @@ for (const key of wildlifeNames) {
   assert.ok(rabbits.count > 0 && reveal.array[0] < 0.1, 'a hare placed this frame has not yet arrived');
   for (let i = 0; i < 80; i++) life.update(1 / 60, rider, () => {}, () => {});
   assert.equal(reveal.array[0], 1, 'a hare is fully there after its arrival time');
+}
+
+/* The modelled animals (`tools/blender/wildlife.py` → alpine-wildlife.glb).
+   Every pool has its node, inside its budget, standing on the snow and
+   facing −Z, with a look for every role; the hare's eye-shine sits on its
+   eyes. The deer's and the wolf's legs swing: every vertex goes with one leg
+   or none, never with a leg on the other side of the animal, the lower legs
+   are rigid and the back is still, and a full stride at any phase stretches
+   no edge by more than a few centimetres — a leg torn from its flank, or
+   two legs sharing a seam, would stretch by tens. A lowered head keeps its
+   muzzle, and a stag's antlers, out of the snow and never heaves its neck
+   up over the withers. And the game swaps them all in over the sculpted
+   ones, keeping each pool's instance buffers — or keeps the sculpted ones,
+   whole, when the file does not come. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const glbUrl = new URL('assets/models/wildlife/alpine-wildlife.glb', base);
+  const bytes = await readFile(glbUrl);
+  const glbBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const nodes = parseGlb(glbBuffer);
+  const node = (name) => {
+    assert.ok(nodes[name], 'a modelled ' + name);
+    return nodes[name];
+  };
+  const W = wildlife;
+  const built = {
+    hare: [W.modelledAnimal(THREE, node('wild_hare'), W.HARE_LOOK), 4500],
+    deerBody: [W.modelledAnimal(THREE, node('wild_deerBody'), W.DEER_LOOK, W.DEER_GAIT), 2000],
+    hindHead: [W.modelledAnimal(THREE, node('wild_hindHead'), W.DEER_LOOK), 1200],
+    // the one raised budget: a royal's twelve points are most of a stag
+    stagHead: [W.modelledAnimal(THREE, node('wild_stagHead'), W.DEER_LOOK), 1400],
+    wolf: [W.modelledAnimal(THREE, node('wild_wolf'), W.WOLF_LOOK, W.WOLF_GAIT), 3200],
+  };
+  for (const [name, [g, budget]] of Object.entries(built)) {
+    const tris = valid('modelled ' + name, g);
+    assert.ok(tris <= budget, name + ': triangle budget ' + tris);
+    assert.ok(g.attributes.color.array.every((c) => c >= 0 && c <= 1), name + ': painted');
+  }
+  // On the snow, symmetric, nose to −Z and tail to +Z
+  const roleCentre = (n, role, side = 0) => {
+    const c = [0, 0, 0];
+    let k = 0;
+    for (const p of n.prims.filter((q) => q.role === role)) {
+      const P = p.attributes.POSITION;
+      for (let i = 0; i < P.length; i += 3) {
+        if (side * P[i] < 0) continue;
+        c[0] += P[i]; c[1] += P[i + 1]; c[2] += P[i + 2]; k++;
+      }
+    }
+    return c.map((x) => x / k);
+  };
+  for (const [name, key] of [['hare', 'wild_hare'], ['deerBody', 'wild_deerBody'], ['wolf', 'wild_wolf']]) {
+    const g = built[name][0];
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    assert.ok(Math.abs(bb.min.y) < 0.01, name + ': feet on the snow');
+    assert.ok(Math.abs(bb.min.x + bb.max.x) < 0.01, name + ': left and right alike');
+    assert.ok(-bb.min.z > 0.3 && bb.max.z > 0.25, name + ': a body along z');
+    if (name !== 'deerBody') assert.ok(roleCentre(node(key), 'nose')[2] < bb.min.z + 0.03, name + ': nose first');
+  }
+  // The eye-shine is on the eyes: each offset is its eye's centre
+  const eyes = node('wild_hare').extras.eyes;
+  for (const [i, side] of [[0, -1], [1, 1]]) {
+    const c = roleCentre(node('wild_hare'), 'eye', side);
+    assert.ok(Math.hypot(c[0] - eyes[i][0], c[1] - eyes[i][1], c[2] - eyes[i][2]) < 0.006, 'the glint is in the eye');
+  }
+  // The legs
+  for (const [name, gait, foot, still] of [['deerBody', W.DEER_GAIT, 0.30, 1.0], ['wolf', W.WOLF_GAIT, 0.15, 0.62]]) {
+    const g = built[name][0];
+    const pivots = node(name === 'wolf' ? 'wild_wolf' : 'wild_deerBody').extras.legs;
+    const pos = g.attributes.position;
+    const limb = g.attributes.aLimb;
+    assert.ok(limb, name + ': the legs can swing');
+    // which of the four legs (fore −X, fore +X, hind −X, hind +X) a vertex
+    // swings with, by its pivot and phase; −1 for none
+    const legOf = (i) => {
+      if (limb.getZ(i) === 0) return -1;
+      const L = pivots.findIndex((pv, j) => Math.abs(pv[0] - limb.getX(i)) < 1e-6
+        && Math.abs(pv[1] - limb.getY(i)) < 1e-6 && Math.abs(gait[j] - limb.getW(i)) < 1e-6);
+      assert.ok(L >= 0, name + ': a swinging vertex belongs to one of the four legs');
+      return L;
+    };
+    const legs = new Set();
+    for (let i = 0; i < pos.count; i++) {
+      const w = limb.getZ(i);
+      assert.ok(w >= 0 && w <= 1, name + ': a swing weight');
+      const L = legOf(i);
+      if (L >= 0) {
+        legs.add(L);
+        assert.ok(pos.getX(i) * (L % 2 ? 1 : -1) > -0.005, name + ': no vertex swings with the other side');
+        assert.ok(pos.getZ(i) * pivots[L][1] > 0, name + ': fore legs in front, hind legs behind');
+      }
+      if (pos.getY(i) < foot) assert.equal(w, 1, name + ': the lower leg is rigid');
+      if (pos.getY(i) > still) assert.equal(w, 0, name + ': the back stays still');
+    }
+    assert.equal(legs.size, 4, name + ': four legs');
+    // a full stride, as the shader does it, at four phases
+    const index = g.index.array;
+    let worst = 0;
+    for (const t of [0, Math.PI / 2, Math.PI, 1.5 * Math.PI]) {
+      const moved = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const a = 0.5 * limb.getZ(i) * Math.sin(t + limb.getW(i));
+        const dy = pos.getY(i) - limb.getX(i);
+        const dz = pos.getZ(i) - limb.getY(i);
+        moved[i * 3] = pos.getX(i);
+        moved[i * 3 + 1] = limb.getX(i) + Math.cos(a) * dy - Math.sin(a) * dz;
+        moved[i * 3 + 2] = limb.getY(i) + Math.sin(a) * dy + Math.cos(a) * dz;
+      }
+      for (let f = 0; f < index.length; f += 3) {
+        for (let e = 0; e < 3; e++) {
+          const i = index[f + e];
+          const j = index[f + (e + 1) % 3];
+          const before = Math.hypot(pos.getX(i) - pos.getX(j), pos.getY(i) - pos.getY(j), pos.getZ(i) - pos.getZ(j));
+          const after = Math.hypot(moved[i * 3] - moved[j * 3], moved[i * 3 + 1] - moved[j * 3 + 1],
+            moved[i * 3 + 2] - moved[j * 3 + 2]);
+          worst = Math.max(worst, Math.abs(after - before));
+        }
+      }
+    }
+    console.log('  ' + name + ': a full stride stretches no edge by more than ' + (worst * 100).toFixed(1) + ' cm');
+    assert.ok(worst < 0.04, name + ': a stride tears nothing (' + worst.toFixed(3) + ' m)');
+  }
+  // The heads: alert and browsing, muzzle and antlers clear of the snow and
+  // the neck under the withers
+  const withers = node('wild_deerBody').extras.withers;
+  assert.ok(node('wild_stagHead').prims.some((p) => p.role === 'antler')
+    && !node('wild_hindHead').prims.some((p) => p.role === 'antler'), 'antlers on the stag only');
+  for (const [name, key, browse] of [['hind', 'wild_hindHead', W.DEER_BROWSE], ['stag', 'wild_stagHead', W.STAG_BROWSE]]) {
+    for (const angle of [0, browse]) {
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      let low = Infinity;
+      let lowAntler = Infinity;
+      let hump = -Infinity;
+      for (const p of node(key).prims) {
+        const P = p.attributes.POSITION;
+        for (let i = 0; i < P.length; i += 3) {
+          const y = P[i + 1] * c - P[i + 2] * s;
+          const z = P[i + 1] * s + P[i + 2] * c;
+          if (p.role === 'antler') lowAntler = Math.min(lowAntler, y);
+          else low = Math.min(low, y);
+          if (z > 0.05) hump = Math.max(hump, y);
+        }
+      }
+      assert.ok(withers[1] + low > 0.15, name + ': the muzzle stays out of the snow');
+      if (name === 'stag') assert.ok(withers[1] + lowAntler > 0.15, 'a browsing stag keeps its antlers out of the snow');
+      assert.ok(hump < 0.15, name + ': no hump over the withers');
+    }
+  }
+  const antlerBox = new THREE.Box3();
+  for (const p of node('wild_stagHead').prims.filter((q) => q.role === 'antler')) {
+    const P = p.attributes.POSITION;
+    for (let i = 0; i < P.length; i += 3) antlerBox.expandByPoint(new THREE.Vector3(P[i], P[i + 1], P[i + 2]));
+  }
+  assert.ok(antlerBox.max.x - antlerBox.min.x > 0.6 && antlerBox.max.y - antlerBox.min.y > 0.6,
+    'a royal spread, not a pair of spikes');
+
+  // Swapped in, keeping every pool's instance buffers…
+  const StubTHREE = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+  const shading = { apply: (m) => m, uniforms: {} };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => glbBuffer.slice(0) });
+  const life = W.createWildlife(StubTHREE, shading);
+  globalThis.fetch = realFetch;
+  const [rabbits, deerBodies, deerHeads, stagHeads, wolves] = life.group.children;
+  const kept = [rabbits, deerBodies, deerHeads, stagHeads, wolves].map((m) => m.geometry.attributes.aReveal);
+  const strides = [deerBodies, wolves].map((m) => m.geometry.attributes.aGait);
+  assert.equal(await life.modelled, true, 'the modelled animals arrive');
+  const pools = [[rabbits, 'hare'], [deerBodies, 'deerBody'], [deerHeads, 'hindHead'], [stagHeads, 'stagHead'],
+    [wolves, 'wolf']];
+  pools.forEach(([mesh, name], i) => {
+    assert.equal(mesh.geometry.index.count, built[name][0].index.count, name + ': drawn modelled');
+    assert.equal(mesh.geometry.attributes.aReveal, kept[i], name + ': keeps its arrival buffer');
+  });
+  assert.equal(deerBodies.geometry.attributes.aGait, strides[0], 'the deer keep their stride buffer');
+  assert.equal(wolves.geometry.attributes.aGait, strides[1], 'the wolves keep theirs');
+  assert.deepEqual(W.RABBIT_EYES, eyes, 'the eye-shine follows the modelled hare');
+  assert.deepEqual(W.DEER_WITHERS, withers, 'the heads hang from the modelled withers');
+  const rider = { pos: new THREE.Vector3(0, 0, -600), distance: 2000, speed: 0, vel: new THREE.Vector3() };
+  life.placeHerd(rider);
+  life.placePack(rider);
+  for (let i = 0; i < 30; i++) life.update(1 / 60, rider, () => {}, () => {});
+  assert.ok(rabbits.count > 0 && deerBodies.count > 0 && wolves.count > 0, 'the modelled pools are drawn');
+  for (const mesh of [rabbits, deerBodies, deerHeads, stagHeads, wolves]) {
+    assert.ok(mesh.instanceMatrix.array.every(Number.isFinite), 'every modelled instance is placed');
+  }
+  // …or not at all: without the file every pool stays sculpted, whole.
+  const warn = console.warn;
+  console.warn = () => {};
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  const bare = W.createWildlife(StubTHREE, shading);
+  globalThis.fetch = realFetch;
+  const sculpted = bare.group.children.map((m) => m.geometry.index?.count);
+  assert.equal(await bare.modelled, false, 'a missing file is not fatal');
+  console.warn = warn;
+  assert.deepEqual(bare.group.children.map((m) => m.geometry.index?.count), sculpted, 'the sculpted animals stay');
 }
 
 /* One decode per photograph: the same URL hands every caller the same

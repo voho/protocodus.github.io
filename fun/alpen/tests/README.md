@@ -149,7 +149,19 @@ edge. That edge is now 24 bands (960 m) out and moves with the rider
 continuously. Only props carry the fade term, and it reads the view direction
 after it is declared. The model check also covers wildlife arrival: a hare
 placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
-passes read the same value, so its shadow arrives with it. The canopy field (`canopy.js`) is checked too. A crown hides
+passes read the same value, so its shadow arrives with it. The modelled
+animals (`alpine-wildlife.glb`, from `tools/blender/wildlife.py`) are
+checked too: each pool's node is inside its budget (hare 4500, deer body
+2000, hind head 1200, stag head 1400 for its twelve points, wolf 3200), on
+the snow, symmetric and nose-first, every role has a look, and the hare's
+eye-shine offsets are its eyes' centres. Every deer and wolf vertex swings
+with one leg or none and never with a leg on the other side, the lower legs
+are rigid and the back still, and a full stride at four phases stretches no
+edge by 4 cm or more (it is about 2.5; a torn flank is tens). A browsing
+head keeps its muzzle, and a stag's antlers, out of the snow without heaving
+its neck over the withers. The game swaps all five pools to the file while
+keeping their arrival and stride buffers, follows its eyes and withers, and
+without the file keeps every sculpted animal whole. The canopy field (`canopy.js`) is checked too. A crown hides
 about half the sky at its trunk and nothing beyond its reach. A thicket is
 darker than one tree but never black, and a bare snag hides much less. It takes
 direct light only as the sun's shadows fade. The window stays on the world's
