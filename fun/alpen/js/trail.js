@@ -1057,8 +1057,11 @@ export function createTrail(THREE, shading) {
     // In the snow's own plane: on the touchdown frame the board's right axis
     // is still the air attitude, and a tilted lateral stood the wide lanes of
     // the mark's first section up off the slope.
-    lat.addScaledVector(rider.normal, -lat.dot(rider.normal)).normalize();
-    if (lat.lengthSq() < 0.5) lat.set(1, 0, 0);
+    // Measured before normalising, which would turn any remnant into a unit
+    // vector pointing nowhere in particular.
+    lat.addScaledVector(rider.normal, -lat.dot(rider.normal));
+    if (lat.lengthSq() < 0.25) lat.copy(prevLat);
+    else lat.normalize();
 
     if (open) {
       if (lat.dot(prevLat) < 0) lat.negate();

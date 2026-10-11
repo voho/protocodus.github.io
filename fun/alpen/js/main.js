@@ -587,7 +587,7 @@ function pause() {
 
 let lastPassedGate = null;
 
-let resetPropDensity = false;
+let rearmProps = false;
 
 function restart(fullReset = false) {
   /* A restart resumes from the last gate taken — the run is a course now,
@@ -645,7 +645,7 @@ function restart(fullReset = false) {
      snow stayed at the dimmed ember, and both lead indicators pointed past the
      gate directly ahead at one further down the hill. */
   props.reopenGatesBelow(rider.pos.z);
-  resetPropDensity = false;
+  rearmProps = false;
   props.reset(rider.pos.z, 1);
   terrain.reset(rider.pos.x, rider.pos.z);
 }
@@ -906,9 +906,9 @@ rider.on('fall', (cause, into = 0, reason = '') => {
   game.flowHold = 0;
   syncCombo();
   game.flowMaxAnnounced = false;
-  // Rebuild after this physics batch; mutating the collision list from inside
-  // a strike would replace the array while `collide()` is still walking it.
-  resetPropDensity = true;
+  // Re-armed after this physics batch: cleared from inside a strike, the
+  // flags would let the solid just hit strike again in the same step.
+  rearmProps = true;
   if (game.mode !== 'playing') return;
 
   const physical = Math.max(0, Math.min(1, into / RIDER.hardImpact));
@@ -1101,9 +1101,9 @@ function checkGates() {
        to thread — which could be kilometres uphill. It respawns on the line
        itself, which is the middle of the groomed ribbon. */
     lastPassedGate = { x: g.x, z: g.z - 3.0 };
-    // A body tumbling through the panels did not ride them: no payout, and
-    // the run of linked gates ends as it would on a miss.
-    if (rider.state === 'fall') {
+    // A body tumbling through the panels, or still getting up, did not ride
+    // them: no payout, and the run of linked gates ends as it would on a miss.
+    if (rider.state === 'fall' || rider.state === 'rise') {
       game.gateRun = 0;
       continue;
     }
@@ -1594,11 +1594,11 @@ function frame(now) {
       steps += 1;
     }
     if (steps >= 8) lastStep = 0;
-    if (resetPropDensity) {
-      // A crash is the one safe moment to repopulate the streamed window at
-      // low-speed density: the wipeout already masks the otherwise visible swap.
-      props.reset(rider.pos.z, 1);
-      resetPropDensity = false;
+    if (rearmProps) {
+      // Once down, everything is solid again: what put the rider over can put
+      // them over afresh once they are up.
+      props.rearm();
+      rearmProps = false;
     }
 
     /* The environment is rendered, so its positional half uses the same

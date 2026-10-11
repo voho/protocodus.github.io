@@ -1957,6 +1957,8 @@ export function createStreaks(THREE) {
   let placed = false;
   let posDirty = false;
   let idle = false;
+  // The speed share the field is drawn at — see `update`.
+  let shownT = 0;
 
   /* A streak is a fixed point in the world with a ribbon drawn back along the
      direction of travel. It does not move — the rider passes it — which is
@@ -2023,6 +2025,10 @@ export function createStreaks(THREE) {
 
     const t = Math.min(1, Math.max(0, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
     const active = Math.round(n * t * t);
+    // The field is drawn at this, which falls on the streaks' own fade clock:
+    // read raw, a drop below `STREAKS.from` — a crash — zeroed every fading
+    // streak's alpha and width in one frame.
+    shownT = t >= shownT ? t : Math.max(t, shownT - dt * 9);
     // Density reaches full strength at `STREAKS.full`; line length may keep
     // communicating more speed, but it cannot grow all the way to the W cap
     // forever or each streak eventually becomes a screen-filling white bar.
@@ -2046,7 +2052,7 @@ export function createStreaks(THREE) {
     // buffer actually in use: held at a literal count, the ribbons were a
     // third of the intended width on a 4K frame — the same sub-pixel
     // hairline failure `WEATHER.wide` was already converted away from.
-    material.uniforms.uWidth.value = (1.4 + t * 1.9)
+    material.uniforms.uWidth.value = (1.4 + shownT * 1.9)
       * Math.max(1, RENDER.buffer.height / 288);
     material.uniforms.uScale.value = pointScale(camera);
     /* And they are the colour of the air rather than white.
@@ -2117,7 +2123,7 @@ export function createStreaks(THREE) {
 
          And every streak has its own brightness, so the field has depth in
          it rather than being one flat sheet of identical marks. */
-      const a = 0.30 * t * jitter[i]
+      const a = 0.30 * shownT * jitter[i]
         * (0.3 + 0.7 * radial[i])
         * Math.min(1, age[i] * 9);
       const v = i * 4;
