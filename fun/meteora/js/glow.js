@@ -78,29 +78,37 @@ export function createGlowBatch(scene, capacity = 4096) {
   mesh.renderOrder = 10;
   scene.add(mesh);
 
-  let n = 0, camX = 0, camY = 0, camZ = 0, haveCamera = false;
+  let n = 0, camX = 0, camY = 0, camZ = 0, fwdX = 0, fwdY = 0, fwdZ = -1, haveCamera = false;
   return {
     mesh,
     get count() { return n; },
-    // Where the camera is this frame, for the near-camera fade.
-    setCamera(x, y, z) { camX = x; camY = y; camZ = z; haveCamera = true; },
+    // Where the camera is and which way it looks this frame, for the fade.
+    setCamera(x, y, z, fx = 0, fy = 0, fz = -1) {
+      camX = x; camY = y; camZ = z; fwdX = fx; fwdY = fy; fwdZ = fz; haveCamera = true;
+    },
     begin() { n = 0; },
     // Position, half-width, colour × intensity, and an optional stretch axis.
     add(x, y, z, size, r, g, b, intensity, ax = 0, ay = 0, az = 0, length = 0) {
       if (n >= capacity || intensity <= 0) return;
-      // A sprite reaching the camera would fill the screen, several layers
-      // deep with additive blending — the player's own plume can reach back
-      // that far. Fade by the clearance from the nearest point of the
-      // sprite (along its streak, if stretched) and drop it before contact.
+      // The chase camera sits inside the length of the player's own plume.
+      // A sprite level with the camera plane, or behind it, projects to a
+      // degenerate quad that can cover the whole screen — several layers
+      // deep with additive blending — so it is dropped; one close to the
+      // camera fades. Both are judged at the sprite's nearest point (the
+      // nearer end of a streak): its depth along the view, and its
+      // clearance from the camera.
       if (haveCamera) {
         let px = x - camX, py = y - camY, pz = z - camZ;
+        let depth = px * fwdX + py * fwdY + pz * fwdZ;
         if (length > 0) {
+          const end = Math.abs(ax * fwdX + ay * fwdY + az * fwdZ) * length / 2;
+          depth -= end;
           const along = Math.max(-length / 2, Math.min(length / 2, -(px * ax + py * ay + pz * az)));
           px += ax * along; py += ay * along; pz += az * along;
         }
         const clearance = Math.sqrt(px * px + py * py + pz * pz) - size;
-        if (clearance <= 0.5) return;
-        intensity *= Math.min(1, clearance / (size * 3));
+        if (clearance <= 0.5 || depth - size <= 0.5) return;
+        intensity *= Math.min(1, clearance / (size * 3), (depth - size) / (size * 3));
       }
       const i = n * 4;
       center[i] = x; center[i + 1] = y; center[i + 2] = z; center[i + 3] = size;

@@ -248,7 +248,8 @@ function frame(now) {
     null, world.state === 'attract');
 
   glow.begin();
-  glow.setCamera(camera.position.x, camera.position.y, camera.position.z);
+  camera.getWorldDirection(tmpV);
+  glow.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
   if (p.alive) {
     const { power, boost } = plumes.add(p, playerMesh, world.time, dt);
     // The plume lights the tail of the hull it comes out of.

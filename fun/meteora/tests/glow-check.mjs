@@ -46,6 +46,29 @@ test('a streak passing beside the camera is judged by its nearest point', () => 
   g.end();
   assert.equal(g.count, 0);
 });
+test('a sprite beside the camera, level with it, is dropped', () => {
+  // 4 m below the camera at the camera's own depth: clear of the camera, but
+  // its quad would straddle the camera plane and project to a giant sliver.
+  const g = batch();
+  g.add(0, -4, 0, 1.2, 1, 1, 1, 5);
+  g.end();
+  assert.equal(g.count, 0);
+});
+test('a sprite behind the camera is dropped', () => {
+  const g = batch();
+  g.add(0, 0, 30, 1, 1, 1, 1, 5);
+  g.end();
+  assert.equal(g.count, 0);
+});
+test('a sprite in front of a camera looking another way is judged along that view', () => {
+  const g = createGlowBatch(new THREE.Scene(), 8);
+  g.setCamera(0, 0, 0, 1, 0, 0);       // looking down +X
+  g.begin();
+  g.add(100, 0, 0, 2, 1, 1, 1, 5);     // ahead
+  g.add(0, 0, -100, 2, 1, 1, 1, 5);    // beside: level with the camera plane
+  g.end();
+  assert.equal(g.count, 1); near(intensityOf(g, 0), 5, 1e-9);
+});
 test('without a camera set, sprites are left alone (no NaN from a streak)', () => {
   const g = createGlowBatch(new THREE.Scene(), 8);
   g.begin();

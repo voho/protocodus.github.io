@@ -49,12 +49,15 @@ const keyOf = (ix, iy, iz) => ((ix + OFFSET) * SPAN + (iy + OFFSET)) * SPAN + (i
 
 function createHash(cell) {
   const cells = new Map();
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   return {
-    cell, cells,
+    cell, cells, lo, hi,
     insert(id, x, y, z, r) {
       const x0 = Math.floor((x - r) / cell), x1 = Math.floor((x + r) / cell);
       const y0 = Math.floor((y - r) / cell), y1 = Math.floor((y + r) / cell);
       const z0 = Math.floor((z - r) / cell), z1 = Math.floor((z + r) / cell);
+      lo[0] = Math.min(lo[0], x0); lo[1] = Math.min(lo[1], y0); lo[2] = Math.min(lo[2], z0);
+      hi[0] = Math.max(hi[0], x1); hi[1] = Math.max(hi[1], y1); hi[2] = Math.max(hi[2], z1);
       for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) for (let k = z0; k <= z1; k++) {
         const key = keyOf(i, j, k);
         let list = cells.get(key);
@@ -73,6 +76,28 @@ function createHash(cell) {
       }
     },
   };
+}
+
+/* Once the belt is placed it never changes, so the hash is frozen into a
+   flat grid: the rock ids of every cell laid end to end in one Int32Array,
+   and each cell's start in another. A query is then plain index arithmetic
+   over typed arrays — no Map lookups on 48-bit keys, no callback per rock —
+   which matters because the enemy pilots sweep the belt hundreds of times a
+   second looking for rocks to dodge. */
+function freezeHash(hash) {
+  const { cell, lo, hi } = hash;
+  if (lo[0] > hi[0]) return { cell, x0: 0, y0: 0, z0: 0, nx: 0, ny: 0, nz: 0, start: new Int32Array(1), items: new Int32Array(0) };
+  const nx = hi[0] - lo[0] + 1, ny = hi[1] - lo[1] + 1, nz = hi[2] - lo[2] + 1;
+  const start = new Int32Array(nx * ny * nz + 1);
+  const index = key => {
+    const k = key % SPAN, rest = (key - k) / SPAN, j = rest % SPAN, i = (rest - j) / SPAN;
+    return ((i - OFFSET - lo[0]) * ny + (j - OFFSET - lo[1])) * nz + (k - OFFSET - lo[2]);
+  };
+  for (const [key, list] of hash.cells) start[index(key) + 1] = list.length;
+  for (let c = 0; c < nx * ny * nz; c++) start[c + 1] += start[c];
+  const items = new Int32Array(start[nx * ny * nz]);
+  for (const [key, list] of hash.cells) items.set(list, start[index(key)]);
+  return { cell, x0: lo[0], y0: lo[1], z0: lo[2], nx, ny, nz, start, items };
 }
 
 /* ---------- generation ---------- */
@@ -167,7 +192,7 @@ export function generateBelt(seed, cfg = FIELD) {
       k++;
     }
   }
-  belt.hash = hash;
+  belt.grid = freezeHash(hash);
   belt.big = big;
   return belt;
 }
@@ -199,10 +224,21 @@ export function createField(seed, cfg = FIELD) {
     nextId: 0,
   };
 
+  const grid = belt.grid, start = grid.start, items = grid.items;
   const collectBox = (minX, minY, minZ, maxX, maxY, maxZ) => {
-    belt.hash.visitBox(minX, minY, minZ, maxX, maxY, maxZ, id => {
-      if (stamp[id] !== stampId) { stamp[id] = stampId; candidates.push(id); }
-    });
+    const i0 = Math.max(Math.floor(minX / grid.cell) - grid.x0, 0), i1 = Math.min(Math.floor(maxX / grid.cell) - grid.x0, grid.nx - 1);
+    const j0 = Math.max(Math.floor(minY / grid.cell) - grid.y0, 0), j1 = Math.min(Math.floor(maxY / grid.cell) - grid.y0, grid.ny - 1);
+    const k0 = Math.max(Math.floor(minZ / grid.cell) - grid.z0, 0), k1 = Math.min(Math.floor(maxZ / grid.cell) - grid.z0, grid.nz - 1);
+    if (i0 > i1 || j0 > j1 || k0 > k1) return;
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        const row = (i * grid.ny + j) * grid.nz;
+        for (let s = start[row + k0], e = start[row + k1 + 1]; s < e; s++) {
+          const id = items[s];
+          if (stamp[id] !== stampId) { stamp[id] = stampId; candidates.push(id); }
+        }
+      }
+    }
   };
   const nextStamp = () => {
     candidates.length = 0;
@@ -254,7 +290,7 @@ export function createField(seed, cfg = FIELD) {
     const length = Math.sqrt(A);
     // Long segments are walked in hash-cell-sized chunks so the cell count
     // grows with the length, not with the cube of its bounding box.
-    const chunks = Math.max(1, Math.ceil(length / belt.hash.cell));
+    const chunks = Math.max(1, Math.ceil(length / grid.cell));
     nextStamp();
     for (let c = 0; c < chunks; c++) {
       const t0 = c / chunks, t1 = (c + 1) / chunks;

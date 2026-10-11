@@ -119,13 +119,19 @@ layout.
   on screen for a pebble as for a boulder), capped at 2.5 km; landmarks keep
   full detail. That draws 12–37 % fewer triangles than a single 2 km switch
   (spawn 1.53M → 1.02M, densest clump 1.26M → 0.79M).
-- Glow sprites fade out as they near the camera and are dropped before they
-  reach it, so the player's own afterburner plume cannot fill the screen
-  with layers of additive glow.
+- Glow sprites are judged against the camera: anything level with the
+  camera plane or behind it is dropped, and anything close fades. The chase
+  camera sits inside the length of the player's own plume, whose nearest
+  sprites used to project to screen-sized quads: measured at 1920×1080 on
+  full afterburner, the glow pass now covers 0.07 screens of pixels per
+  frame instead of 2.07.
 - The pixel ratio adapts to frame time between 0.6 and 1.5, judged against
   the display's own refresh rate.
-- The simulation runs at 120 Hz; a ten-enemy fight averages under 0.1 ms per
-  step.
+- The belt's spatial hash is frozen into a flat grid (two typed arrays)
+  once the belt is placed, so the enemy pilots' rock-avoidance sweeps walk
+  index ranges instead of Map lookups: a 30 s ten-enemy fight takes 30 %
+  less CPU (median of seven interleaved runs, 434 → 302 ms; about 84 µs per
+  120 Hz step).
 - `node tools/bench.mjs` measures the simulation, the per-frame effects work
   and culling in Node. `?debug` shows frame time, draw calls, triangles,
   rocks drawn and the pixel ratio in the browser; `?debug&autopilot` flies a
