@@ -453,6 +453,22 @@ test('scouting: re-scout routes stand off from towers, damaged rovers repair and
   assert(fresh.s.entities.some(e=>e.team===1&&e.queue?.some(q=>entityRole(q.type)==='scout')),'A commander without a rover trains one');
 });
 
+test('scouting: rovers watch an unguarded main from a distance, skip a point that hurt them, and cadet rovers drive home',()=>{
+  const {s,unit,remember,enemyCore,field}=scene();
+  remember(enemyCore);field(30,44,5);
+  const scout=unit('scout',54,14);s.ai.intel={index:0,next:0};
+  think(s,[enemyCore]);
+  const route=s.ai.intel.route,core=center(enemyCore);
+  assert(route?.length>=2&&Math.hypot(route[0].x-core.x,route[0].y-core.y)>=8,'The rover looks in on an unguarded main from beyond its guards');
+  scout.hp=scout.maxHp*.4;think(s,[enemyCore]);
+  assert(s.ai.intel.repair&&s.ai.intel.index===1,'The point that cost the rover its armour is skipped');
+  // A cadet does not re-scout: its rover, finding the enemy main, drives home instead of attack-moving through it.
+  const cadet=scene({difficulty:'easy'});cadet.remember(cadet.enemyCore);
+  const rover=cadet.unit('scout',9,41);
+  think(cadet.s,[cadet.enemyCore]);
+  assert.equal(rover.order.type,'move','A cadet rover leaves the enemy base on a plain move order');
+});
+
 test('two commanders think half an interval apart',()=>{
   const s=createGame('stagger','hard',{width:72,height:56,aiTeams:[0,1]});
   while(s.time<3.1)updateGame(s,.05);

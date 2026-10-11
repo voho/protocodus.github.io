@@ -126,8 +126,11 @@ export function addToCareer(career, report, key) {
   next.seconds += Math.round(report.time);
   next.kills += report.kills;
   if (report.you) { next.trained += report.you.trained; next.lost += report.you.lost; next.built += report.you.built; next.mined += Math.round(report.you.mined); }
-  next.bestScore = Math.max(next.bestScore, report.score || 0);
-  if (!next.bestGrade || GRADES.findIndex(([grade]) => grade === report.grade) < GRADES.findIndex(([grade]) => grade === next.bestGrade)) next.bestGrade = report.grade;
+  // Last Light keeps its own best: a survival score and grade measure seconds and kills, not a rated operation.
+  if (report.survival === undefined) {
+    next.bestScore = Math.max(next.bestScore, report.score || 0);
+    if (!next.bestGrade || GRADES.findIndex(([grade]) => grade === report.grade) < GRADES.findIndex(([grade]) => grade === next.bestGrade)) next.bestGrade = report.grade;
+  }
   if (report.status === 'victory' && (next.fastestVictory === null || report.time < next.fastestVictory)) next.fastestVictory = Math.round(report.time);
   return next;
 }

@@ -89,7 +89,8 @@ export function idleSummary(game, team = 0, away = 12) {
     else if (role === 'engineer') { if (!e.repairTargetId) result.engineers.push(e); }
     else if (UNITS[e.type]?.damage > 0 && !e.targetId && !e.retaliationTargetId && !e.defendReturning) combat.push(e);
   }
-  for (const e of combat) if (!structures.some(p => Math.hypot(p.x - e.x, p.y - e.y) <= away)) result.combat.push(e);
+  // Without structures (a strike team) nothing is 'away from base', so no armed unit counts as idle.
+  if (structures.length) for (const e of combat) if (!structures.some(p => Math.hypot(p.x - e.x, p.y - e.y) <= away)) result.combat.push(e);
   return result;
 }
 

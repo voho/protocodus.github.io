@@ -100,6 +100,8 @@ test('idle summary lists only the player’s waiting forces and production', () 
   assert.deepEqual(summary.combat.map(e => e.id), [far.id], 'Only the friendly unit away from base is listed; enemies never are');
   assert.deepEqual(summary.engineers.map(e => e.id), [engineer.id]);
   assert.deepEqual(summary.constructors.map(e => e.id), [constructor.id]);
+  const strike = structuredClone(s); strike.entities = strike.entities.filter(e => e.kind === 'unit');
+  assert.equal(idleSummary(strike).combat.length, 0, 'Without structures no armed unit is away from base');
   issueOrder(s, [far.id], {type: 'move', x: far.x - 2, y: far.y});
   assert.equal(idleSummary(s).combat.length, 0, 'Units under orders are not idle');
   barracks.queue.push({type: raceUnit(s, 0, 'rifle'), progress: 0});

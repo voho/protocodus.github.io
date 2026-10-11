@@ -216,8 +216,7 @@ export function createObjectivesHud({ focus, transmit } = {}) {
 // Fills the pause menu's objective box for the current operation.
 export function menuObjective(s) {
   const box = $('objective'), heading = box.querySelector('span'), text = box.querySelector('p');
-  let list = box.querySelector('ul');
-  if (!list) { list = document.createElement('ul'); box.insertBefore(list, text); }
+  const list = box.querySelector('ul') || document.createElement('ul');
   list.replaceChildren();
   const table = objectiveRows(s);
   box.dataset.mode = table ? 'operation' : 'skirmish';
@@ -227,13 +226,16 @@ export function menuObjective(s) {
     list.append(li);
   };
   if (!table) {
+    // The objective leads; the commander's goals are optional extras and follow it.
     heading.textContent = 'Objective';
     text.textContent = 'Destroy all enemy nexuses and construction vehicles.';
+    text.after(list);
     const goals = commanderGoals(s);
-    if (goals) for (const goal of goals.filter(goal => !goal.done).slice(0, 3)) row(goal.label, 'secondary', `${fmt(goal.progress)} / ${fmt(goal.target)}`);
+    if (goals) for (const goal of goals.filter(goal => !goal.done).slice(0, 3)) row(`Optional · ${goal.label}`, 'secondary', `${fmt(goal.progress)} / ${fmt(goal.target)}`);
     list.hidden = !list.children.length;
     return;
   }
+  box.insertBefore(list, text);
   const { def } = table;
   heading.textContent = def.score === 'survival' ? `${def.name} · ${clock(missionTime(s))}` : `${def.name} · objectives`;
   const rules = (def.fail ?? [{ type: 'coreLost' }]).map(rule => failRule(rule) || (rule.type === 'timeLimit' ? `The operation window closes at ${clock(rule.seconds)}.` : rule.type === 'rivalHold' ? `${rule.label || 'The rival'} wins by holding the ${rule.zone} for ${clock(rule.seconds)}.` : `Losing ${(rule.label || 'the mission asset').replace(/^The /, 'the ')} ends the operation.`));

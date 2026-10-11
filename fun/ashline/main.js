@@ -69,7 +69,12 @@ const randomSeed = () => `ASH-${crypto.getRandomValues(new Uint32Array(1))[0].to
 const entityCenter = e => ({ x: e.x + (e.kind === 'building' ? e.size / 2 : 0), y: e.y + (e.kind === 'building' ? e.size / 2 : 0) });
 const selectedEntities = () => game.entities.filter(e => e.team === 0 && e.hp > 0 && view.selected.has(e.id));
 const selectedUnits = () => selectedEntities().filter(e => e.kind === 'unit');
-const researchText = def => def.description.replaceAll('Pike striker', UNITS[raceUnit(game, 0, 'striker')].name).replace('Rifle and rocket infantry', 'Light and heavy infantry');
+// Research descriptions name Organics units; an AI Unity commander reads its own machines.
+const UNITY_TERMS = [['haulers and engineers', 'carriers and mender drones'], ['Rocket infantry and siege crawlers', 'Breach automatons and arc siege walkers']];
+const researchText = def => {
+  const text = def.description.replaceAll('Pike striker', UNITS[raceUnit(game, 0, 'striker')].name).replace('Rifle and rocket infantry', 'Light and heavy infantry');
+  return teamRace(game, 0) === 'aiUnity' ? UNITY_TERMS.reduce((line, [organics, unity]) => line.replace(organics, unity), text) : text;
+};
 const isProducer = e => e.kind === 'building' && ['barracks', 'factory', 'refinery'].includes(buildingRole(e));
 const selectedProducers = () => selectedEntities().filter(isProducer);
 // The HUD passes its own producer list so a refresh scans the entity list once, not once per card.
@@ -195,7 +200,8 @@ function drawAlertPings(now) {
   const ctx = $('minimap').getContext('2d'), { s, ox, oy } = renderer.minimapLayout(game);
   ctx.save(); ctx.setTransform(renderer.dpr, 0, 0, renderer.dpr, 0, 0); ctx.lineWidth = 1.5;
   for (const alert of alerts) {
-    const age = (now - alert.at) / 1000;
+    // Alerts are stamped after the frame's ticks, later than this frame's timestamp, so a fresh one starts at age 0.
+    const age = Math.max(0, (now - alert.at) / 1000);
     if (age > 8) continue;
     const phase = age % 1.4 / 1.4;
     ctx.globalAlpha = (1 - phase) * (1 - age / 8); ctx.strokeStyle = alert.tone === 'loss' ? '#d9a764' : '#e29677';
@@ -643,7 +649,7 @@ function setOrderHint() {
   }
   if (view.placement === 'wall') {
     const plan = view.wallPlan;
-    $('order-hint-text').textContent = `Wall line · ${plan?.count ?? 1} segments · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · Drag to build'}`;
+    $('order-hint-text').textContent = `Wall line · ${plan?.count ?? 1} segment${(plan?.count ?? 1) === 1 ? '' : 's'} · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · Drag to build'}`;
     return;
   }
   if (orderMode === 'ability') {
@@ -788,7 +794,8 @@ function updateHUD() {
     else { reserved += e.queue.length + (e.haulerPending ? 1 : 0); if (buildingRole(e) === 'core' && e.progress >= 1) nexuses++; }
   }
   const capacity = unitCapacity(game, 0);
-  $('army').textContent = `${deployed} / ${capacity}`;
+  // Operations without a nexus (a convoy, a strike team) have no population limit to show.
+  $('army').textContent = capacity ? `${deployed} / ${capacity}` : `${deployed}`;
   $('army').closest('.resource').title = `${deployed} deployed · ${reserved} reserved · ${nexuses} completed nexuses × ${UNIT_CAP_PER_NEXUS} slots · maximum ${UNIT_CAP}. Deploy another nexus to expand capacity.`;
   $('mission-time').textContent = minutes(game.time);
   campaign.hud(game);
@@ -936,7 +943,8 @@ function buildingActivity(e, power) {
   const role = buildingRole(e), d = BUILDINGS[e.type], job = e.queue?.[0];
   const pace = productionRate(game, 0, power) * (e.upgrades?.speed ? 1.25 : 1), activity = [];
   if (e.research) activity.push(`${RESEARCH[e.research.id].name} ${Math.floor(e.research.progress * 100)}% · ${seconds(RESEARCH[e.research.id].time * (1 - e.research.progress) / pace)}`);
-  else if (job) activity.push(`${UNITS[job.type].name} ${Math.floor(job.progress * 100)}% · ${seconds(UNITS[job.type].trainTime * (1 - job.progress) / pace)}${e.queue.length > 1 ? ` · ${e.queue.length - 1} queued` : ''}`);
+  // A finished unit waits in the bay while the population is full (a nexus was lost after it was paid for).
+  else if (job) activity.push(`${UNITS[job.type].name} ${job.progress >= 1 && game.entities.filter(u => u.team === 0 && u.kind === 'unit' && u.hp > 0).length >= unitCapacity(game, 0) ? 'ready · unit limit reached' : `${Math.floor(job.progress * 100)}% · ${seconds(UNITS[job.type].trainTime * (1 - job.progress) / pace)}`}${e.queue.length > 1 ? ` · ${e.queue.length - 1} queued` : ''}`);
   else if (isProducer(e) && role !== 'refinery') activity.push('Idle · bay empty');
   else if (role === 'lab') activity.push('Idle · choose a research project');
   if (role === 'capacitor') activity.push(`${Math.round(e.reserve || 0)} stored · ${power.usingReserve && e.reserve > 0 ? 'Reserve available' : e.reserve >= d.reserveCapacity ? 'Fully charged' : power.supply > power.demand ? `Charging ${Math.round(capacitorCharge(e, power))}/s` : 'Waiting for spare power'}`);
@@ -1181,6 +1189,8 @@ function showMenu(finished = false, guide = false) {
   campaign.menu(game, finished);
   // Opening focuses the first button, which on a short screen scrolls the title, briefing or debrief out of view.
   if (!$('menu').open) { $('menu').showModal(); $('menu').scrollTop = 0; }
+  // The ? button asks for the field guide, which sits below the objectives and settings.
+  if (guide) $('full-guide').scrollIntoView({ block: 'start' });
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
   refreshSaveControls(); updateHUD();
 }
@@ -1486,7 +1496,7 @@ canvas.addEventListener('pointerup', event => {
   if (active.wall && view.wallStart && view.placement === 'wall') {
     const result = buildWallLine(game, 0, view.wallStart.x, view.wallStart.y, Math.floor(world.x), Math.floor(world.y));
     view.wallStart = null; view.wallPlan = null; view.drag = null;
-    notify(result.count ? `${result.count} wall segments ordered · ${result.cost} credits${result.reason ? ` · ${result.reason}` : ''}` : result.reason || 'Wall line could not be placed.', result.count ? 'info' : 'warning');
+    notify(result.count ? `${result.count} wall segment${result.count === 1 ? '' : 's'} ordered · ${result.cost} credits${result.reason ? ` · ${result.reason}` : ''}` : result.reason || 'Wall line could not be placed.', result.count ? 'info' : 'warning');
     if (result.count) playSound('build'); updateHUD(); setOrderHint(); return;
   }
   if (active.dragged) {
@@ -1744,6 +1754,10 @@ function frame(now) {
   frameRequest = 0;
   if (!launched || loading || !game) return;
   if (paused) { updateHUD(); return; }
+  // One failing draw or HUD update must not stop the loop for good; the error still reaches the console.
+  try { frameStep(now); } finally { requestFrame(); }
+}
+function frameStep(now) {
   const elapsed = Math.min((now - lastTime) / 1000, .2); lastTime = now;
   if (!busy()) {
     // Speed controls fixed simulation time; input/rendering still get a turn
@@ -1784,7 +1798,6 @@ function frame(now) {
   }
   expireToasts(now);
   if (barkUntil && now > barkUntil) { $('comms').classList.add('leaving'); if (now > barkUntil + 400) { $('comms').hidden = true; barkUntil = 0; } }
-  requestFrame();
 }
 
 $('seed').value = randomSeed();

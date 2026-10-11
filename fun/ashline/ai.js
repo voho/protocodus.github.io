@@ -629,6 +629,8 @@ function scoutAI(s,team,ai,v,k,ctx){
   if(!scout)return;
   ctx.claimed.add(scout.id);
   if(scout.hp/scout.maxHp<.45||intel.repair&&scout.hp/scout.maxHp<.9){
+    // The point that cost the rover its armour is not tried again on this route.
+    if(!intel.repair&&intel.route&&++intel.index>=intel.route.length){delete intel.route;intel.index=0;intel.next=s.time+k.rescout;}
     intel.repair=true;const point=aiRetreatPoint(s,v.buildings,scout,v.enemies);
     if(point&&distance(scout,point)>1.5&&!bound(scout,point,'move'))issueOrder(s,[scout.id],{type:'move',...point});
     return;
@@ -643,7 +645,13 @@ function scoutAI(s,team,ai,v,k,ctx){
     if(!bound(scout,point,'move'))issueOrder(s,[scout.id],{type:'move',...point});
     ai.mode='Scouting the sector';return;
   }
-  if(!k.rescout){ctx.claimed.delete(scout.id);return;}
+  // Without re-scouting the tour ends at first contact. The rover drives home before it joins the army: released where
+  // it stands, the army's attack-move home would keep it fighting inside the enemy base. A wave or raid it has since
+  // joined keeps it.
+  if(!k.rescout){
+    if(!ctx.reserved.has(scout.id)&&distance(scout,ctx.rally)>6){if(!bound(scout,ctx.rally,'move'))issueOrder(s,[scout.id],{type:'move',...ctx.rally});return;}
+    ctx.claimed.delete(scout.id);return;
+  }
   if(!intel.route){
     if(s.time<intel.next){if(scout.order.type==='idle'&&distance(scout,ctx.rally)>6)issueOrder(s,[scout.id],{type:'move',...ctx.rally});return;}
     const home=v.cores.map(center),enemyCore=v.knownBuildings.filter(m=>entityRole(m.type)==='core').sort((a,b)=>distance(a,enemyAnchor(s,team))-distance(b,enemyAnchor(s,team))||a.id-b.id)[0];
@@ -651,12 +659,14 @@ function scoutAI(s,team,ai,v,k,ctx){
     const stale=v.knownBuildings.filter(m=>s.time-m.seenAt>60&&entityRole(m.type)!=='wall').sort((a,b)=>a.seenAt-b.seenAt||a.id-b.id).slice(0,2);
     // A commander that has lost every nexus looks in from its rally instead.
     const base=v.core?center(v.core):ctx.rally;
-    intel.route=[enemyCore||enemyAnchor(s,team),...fields,...stale].map(p=>{
-      // Rovers out-see towers: look in from just beyond the nearest remembered tower's reach.
+    const look=(p,standoff)=>{
+      // Rovers out-see towers: look in from just beyond the nearest remembered tower's reach. Structures without a
+      // tower are watched from nine tiles, inside the rover's sight but beyond the reach of the guards around them.
       const tower=v.knownTowers.filter(m=>distance(m,p)<11).sort((a,b)=>distance(a,p)-distance(b,p)||a.id-b.id)[0];
-      if(!tower)return onMap(s,{x:p.x,y:p.y});
-      const away=direction(base.x-tower.x,base.y-tower.y);return onMap(s,{x:tower.x+away.x*11.5,y:tower.y+away.y*11.5});
-    });
+      const from=tower||p,reach=tower?11.5:standoff,away=direction(base.x-from.x,base.y-from.y);
+      return onMap(s,{x:from.x+away.x*reach,y:from.y+away.y*reach});
+    };
+    intel.route=[look(enemyCore||enemyAnchor(s,team),9),...fields.map(p=>look(p,0)),...stale.map(p=>look(p,9))];
     intel.index=0;
   }
   const point=intel.route[intel.index];

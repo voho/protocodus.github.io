@@ -524,6 +524,8 @@ delete MISSIONS['check-broken'];
   let career=addToCareer(emptyCareer(),report,'k1');career=addToCareer(career,report,'k1');
   assert.equal(career.operations,1);assert.equal(career.victories,1);assert.equal(career.kills,report.kills);assert.equal(career.bestGrade,report.grade);
   assert.equal(career.fastestVictory,Math.round(report.time));
+  const survived=addToCareer(career,{status:'defeat',time:681,kills:182,you:null,survival:12394,score:12394,grade:'S'},'k2');
+  assert.equal(survived.operations,2);assert.equal(survived.bestScore,career.bestScore,'A Last Light score never becomes the best rated score');assert.equal(survived.bestGrade,career.bestGrade);
   assert.deepEqual(readCareer(JSON.parse(JSON.stringify(career))),career);assert.deepEqual(readCareer({operations:-1,bestGrade:'Z'}),emptyCareer());
 }
 // Commander's goals read only the player's own statistics and never un-tick; old saves have none.
