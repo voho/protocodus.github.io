@@ -55,6 +55,10 @@ spending that energy.
   fly the same physics as you, fire in bursts only when the shot would land,
   break off and come round again, jink when hit or locked, and steer around
   the rocks.
+- Collisions have mass and spin: ramming a drifting fragment shoves it
+  (momentum is conserved), a heavy fighter shoves a light interceptor, a
+  scrape along a rock spins the ship through friction, fragments knock each
+  other aside, and missile blasts push ships and rocks away.
 - The shield absorbs damage first and recharges after three quiet seconds;
   the hull does not. Ramming a rock faster than 8 m/s costs hull. Kills score
   100 × the wave; broken rocks score 10, 25 or 50 by size. The best score is
@@ -107,13 +111,24 @@ layout.
 
 ## Performance
 
-- The belt is culled per frame (cells, then rocks; about 0.15 ms) and drawn
-  in one call per rock size and detail level — ten calls in all.
+- The belt is culled per frame (cells, then rocks; about 0.1 ms) and drawn
+  in one call per rock size and detail level — ten calls in all — packed
+  nearest cell first, so the depth test rejects hidden rocks before they
+  are shaded.
+- Each rock switches to its far mesh at 100 of its own radii (the same size
+  on screen for a pebble as for a boulder), capped at 2.5 km; landmarks keep
+  full detail. That draws 12–37 % fewer triangles than a single 2 km switch
+  (spawn 1.53M → 1.02M, densest clump 1.26M → 0.79M).
+- Glow sprites fade out as they near the camera and are dropped before they
+  reach it, so the player's own afterburner plume cannot fill the screen
+  with layers of additive glow.
 - The pixel ratio adapts to frame time between 0.6 and 1.5, judged against
   the display's own refresh rate.
 - The simulation runs at 120 Hz; a ten-enemy fight averages under 0.1 ms per
   step.
-- `?debug` shows frame time, draw calls, triangles, rocks drawn and the pixel
-  ratio. `?debug&autopilot` flies a scripted pattern.
+- `node tools/bench.mjs` measures the simulation, the per-frame effects work
+  and culling in Node. `?debug` shows frame time, draw calls, triangles,
+  rocks drawn and the pixel ratio in the browser; `?debug&autopilot` flies a
+  scripted pattern.
 
 The design and the implementation plan are in `docs/`.

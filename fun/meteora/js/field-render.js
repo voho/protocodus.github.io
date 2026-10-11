@@ -1,7 +1,7 @@
 /* Meteora — drawing the belt.
 
    Twenty-one thousand rocks in ten draw calls: one per rock size for the
-   near mesh and one for the far mesh. Every frame cull.js picks the rocks
+   near mesh and one for the far mesh, packed nearest first. Every frame cull.js picks the rocks
    the camera can see, and their per-instance data — position and scale,
    tumble axis and rate, phase — is packed into the front of each size's
    instance buffers. A destroyed rock simply stops being picked.
@@ -13,8 +13,6 @@
 
 import * as THREE from 'three';
 import { createCuller } from './cull.js';
-
-const LOD_DISTANCE = 2000;
 
 const TUMBLE_HEAD = /* glsl */`
 attribute vec4 aOffset;   // position xyz, scale
@@ -60,7 +58,7 @@ export function createFieldRender(scene, field, rocks, time) {
   const group = new THREE.Group();
   group.name = 'belt';
   scene.add(group);
-  const culler = createCuller(belt, cfg, { lodDistance: LOD_DISTANCE });
+  const culler = createCuller(belt, cfg);
   const counts = cfg.types.map(() => 0);
   for (let i = 0; i < belt.count; i++) counts[belt.type[i]]++;
 

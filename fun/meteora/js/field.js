@@ -246,8 +246,10 @@ export function createField(seed, cfg = FIELD) {
     return t >= 0 && t <= 1 ? t : -1;
   };
 
+  const sweepDir = [0, 0, 0];
   field.sweepSphere = (p0, p1, r) => {
-    const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+    const d = sweepDir;
+    d[0] = p1[0] - p0[0]; d[1] = p1[1] - p0[1]; d[2] = p1[2] - p0[2];
     const A = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
     const length = Math.sqrt(A);
     // Long segments are walked in hash-cell-sized chunks so the cell count

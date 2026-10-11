@@ -242,8 +242,13 @@ function frame(now) {
   const p = world.player;
   place(playerMesh, p.ship, alpha);
   playerMesh.visible = p.alive && !(chase.mode === 'nose' && world.state === 'flying');
+  // The camera moves first, so everything drawn this frame — the glow
+  // batch's near-camera fade included — sees where it really is.
+  chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
+    null, world.state === 'attract');
 
   glow.begin();
+  glow.setCamera(camera.position.x, camera.position.y, camera.position.z);
   if (p.alive) {
     const { power, boost } = plumes.add(p, playerMesh, world.time, dt);
     // The plume lights the tail of the hull it comes out of.
@@ -276,8 +281,6 @@ function frame(now) {
     }
   }
 
-  chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
-    null, world.state === 'attract');
   if (!paused) beltTime.value += dt;
   sky.update(camera, paused ? 0 : dt, glow);
   glow.end();

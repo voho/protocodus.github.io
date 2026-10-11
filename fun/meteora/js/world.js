@@ -50,6 +50,16 @@ export function createWorld({ seed = 1234, storage = null, fieldCfg = FIELD } = 
     score: 0, wave: 0, waveTimer: 0, kills: 0, best: loadBest(storage), state: 'attract',
     lock: null, target: null, nextId: 1, leaving: false, speedLock: false,
   };
+  const threat = { locked: false, missileInbound: false };
+  world.scratch = {
+    entities: [], controls: {}, aim: [0, 0, 0], from: [0, 0, 0], threat,
+    aiCtx: { field: world.field, player: null, threat, wasHit: false },
+    weaponsCtx: {
+      field: world.field, entities: null, events: world.events,
+      damage: (target, amount, point, dir) => applyDamage(target, amount, world.events, point, dir),
+    },
+  };
+  world.scratch.weaponsCtx.entities = world.scratch.entities;
   resetWorld(world);
   return world;
 }
@@ -108,7 +118,12 @@ function spawnWave(world) {
 export function stepWorld(world, input, dt) {
   const ev = world.events, field = world.field, p = world.player;
   world.time += dt;
-  const entities = [p, ...world.enemies];
+  // Scratch reused every step: a step allocates nothing it can avoid.
+  const scratch = world.scratch;
+  const entities = scratch.entities;
+  entities.length = 0;
+  entities.push(p);
+  for (const e of world.enemies) entities.push(e);
   for (const e of entities) {
     const s = e.ship;
     s.prevPos[0] = s.pos[0]; s.prevPos[1] = s.pos[1]; s.prevPos[2] = s.pos[2];
@@ -126,11 +141,10 @@ export function stepWorld(world, input, dt) {
       // target, hands the throttle back.
       if (input.toggleSpeedLock) world.speedLock = !world.speedLock && !!world.target;
       if (input.throttleDelta || input.throttleZero || !world.target) world.speedLock = false;
-      const overrides = {};
-      if (world.speedLock) overrides.speedSet = len(world.target.ship.vel);
+      controls = Object.assign(scratch.controls, input);
+      controls.speedSet = world.speedLock ? len(world.target.ship.vel) : (input.speedSet ?? null);
       // Mouse flight: an aim point replaces the stick's pitch and yaw.
-      if (input.aimPoint) Object.assign(overrides, aimCommands(p.ship, sub([0, 0, 0], input.aimPoint, p.ship.pos)));
-      controls = { ...input, ...overrides };
+      if (input.aimPoint) aimCommands(p.ship, sub(scratch.aim, input.aimPoint, p.ship.pos), controls);
     }
     stepShip(p.ship, controls, dt);
     if (flying) {
@@ -140,7 +154,7 @@ export function stepWorld(world, input, dt) {
         // Both guns converge on the aim point (within their gimbal).
         let aim = null;
         if (input.aimPoint) {
-          const from = qRotate([0, 0, 0], p.ship.q, muzzle.pos);
+          const from = qRotate(scratch.from, p.ship.q, muzzle.pos);
           for (let k = 0; k < 3; k++) from[k] += p.ship.pos[k];
           aim = sub(from, input.aimPoint, from);
         }
@@ -160,11 +174,16 @@ export function stepWorld(world, input, dt) {
   }
 
   // The enemies.
+  const threat = scratch.threat, aiCtx = scratch.aiCtx;
+  aiCtx.player = p;
   for (const e of world.enemies) {
     if (!e.alive) continue;
-    const missileInbound = world.weapons.missiles.some(m => m.targetId === e.id);
-    const threat = { locked: world.lock.locked && world.lock.targetId === e.id, missileInbound };
-    const c = thinkEnemy(e.brain, e, { field, player: p, threat, wasHit: e.sinceHit < 0.1 }, dt);
+    let missileInbound = false;
+    for (const m of world.weapons.missiles) if (m.targetId === e.id) { missileInbound = true; break; }
+    threat.locked = world.lock.locked && world.lock.targetId === e.id;
+    threat.missileInbound = missileInbound;
+    aiCtx.wasHit = e.sinceHit < 0.1;
+    const c = thinkEnemy(e.brain, e, aiCtx, dt);
     stepShip(e.ship, c, dt);
     const shooting = c.fire && p.alive && world.state === 'flying';
     if (triggerGun(e.gun, shooting, dt)) {
@@ -175,14 +194,12 @@ export function stepWorld(world, input, dt) {
   }
 
   for (const e of entities) {
-    e.rcsFired = e.alive ? selectRcsPorts(ANCHORS[e.kind].rcs, e.ship.accelLocal, e.ship.alphaLocal, e.stats) : [];
+    if (e.alive) selectRcsPorts(ANCHORS[e.kind].rcs, e.ship.accelLocal, e.ship.alphaLocal, e.stats, e.rcsFired);
+    else e.rcsFired.length = 0;
   }
 
   const before = ev.length;
-  stepWeapons(world.weapons, {
-    field, entities, events: ev,
-    damage: (target, amount, point, dir) => applyDamage(target, amount, ev, point, dir),
-  }, dt);
+  stepWeapons(world.weapons, scratch.weaponsCtx, dt);
   for (let i = before; i < ev.length; i++) {
     const e = ev[i];
     if (e.type === 'rockBreak' && e.team === 0 && !e.crumble) world.score += scoreRock(e.rockType);
@@ -215,7 +232,9 @@ export function stepWorld(world, input, dt) {
   }
 
   if (world.state === 'flying') {
-    if (world.enemies.some(e => e.alive)) world.waveTimer = COMBAT.wave.delay;
+    let anyAlive = false;
+    for (const e of world.enemies) if (e.alive) { anyAlive = true; break; }
+    if (anyAlive) world.waveTimer = COMBAT.wave.delay;
     else {
       world.waveTimer -= dt;
       if (world.waveTimer <= 0) { spawnWave(world); world.waveTimer = COMBAT.wave.delay; }

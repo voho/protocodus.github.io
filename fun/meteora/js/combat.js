@@ -85,9 +85,11 @@ function collisionDamage(entity, approach, events, contact, normal) {
   events.push({ type: 'collision', id: entity.id, team: entity.team, speed: approach, pos: contact });
 }
 
+const contacts = [];
 export function resolveShipRock(entity, field, events) {
   const C = COMBAT.collision, ship = entity.ship;
-  for (const h of field.queryRadius(ship.pos, entity.radius)) {
+  contacts.length = 0;
+  for (const h of field.queryRadius(ship.pos, entity.radius, contacts)) {
     const n = normalize([0, 0, 0], sub([0, 0, 0], ship.pos, h.pos));
     if (n[0] === 0 && n[1] === 0 && n[2] === 0) n[1] = 1;
     const reach = h.radius + entity.radius;

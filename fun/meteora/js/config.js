@@ -68,6 +68,8 @@ export const FIELD = {
   scale: [0.7, 1.4], collide: 0.85, gap: 0.95,
   destructible: 3, hpPerRadius: 5,   // hp = 5 · r^1.5 for types 0–2
   density: 1200,                      // kg/m³: porous carbonaceous rubble
+  lodScale: 100,                      // far mesh beyond 100 radii (~9 px radius at 1080p)…
+  lodCap: 2500,                       // …but never further than this, except for landmarks
   restitution: 0.5,
 };
 

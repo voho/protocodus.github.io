@@ -15,7 +15,9 @@ const frustum = eye => [
   [SQ, 0, -SQ, -(SQ * eye[0] - SQ * eye[2])], [-SQ, 0, -SQ, -(-SQ * eye[0] - SQ * eye[2])],
   [0, -SQ, -SQ, -(-SQ * eye[1] - SQ * eye[2])], [0, SQ, -SQ, -(SQ * eye[1] - SQ * eye[2])],
 ].flat();
-const MARGIN = 1.15, LOD = 2000;
+const MARGIN = 1.15;
+// The far mesh takes over at 100 radii, capped for ordinary rocks; landmarks never coarsen.
+const lodDistance = i => (b.landmark[i] ? Infinity : Math.min(b.radius[i] * FIELD.lodScale, FIELD.lodCap));
 
 function brute(eye, planes, alive) {
   const near = new Set(), far = new Set();
@@ -28,7 +30,7 @@ function brute(eye, planes, alive) {
     for (let k = 0; k < 6 && inside; k++) {
       if (planes[4 * k] * p[0] + planes[4 * k + 1] * p[1] + planes[4 * k + 2] * p[2] + planes[4 * k + 3] < -r) inside = false;
     }
-    if (inside) (d > LOD ? far : near).add(i);
+    if (inside) (d > lodDistance(i) ? far : near).add(i);
   }
   return { near, far };
 }
@@ -42,7 +44,7 @@ function collect(culler, eye, alive) {
   return { near, far };
 }
 
-const culler = createCuller(b, FIELD, { lodDistance: LOD, margin: MARGIN });
+const culler = createCuller(b, FIELD, { margin: MARGIN });
 for (const eye of [[0, 0, 0], [2500, 300, 1800], [-3800, -600, 3900], [0, 0, 9000]]) {
   test(`the visible lists match brute force from ${eye.join(', ')}`, () => {
     const got = collect(culler, eye, field.alive), want = brute(eye, frustum(eye), field.alive);
@@ -60,9 +62,30 @@ test('destroyed rocks are not drawn', () => {
   assert.ok(!after.near.has(victim) && !after.far.has(victim));
   assert.equal(after.near.size, seen.near.size - 1);
 });
-test('small rocks are not drawn past their draw distance', () => {
-  const { far } = collect(culler, [0, 0, 0], field.alive);
-  for (const i of far) assert.ok(b.type[i] >= 1 || false, 'no 1.5 m rock beyond 2 km');
+test('rocks switch to the far mesh by size, capped, and landmarks never do', () => {
+  const eye = [0, 0, 0];
+  const { near, far } = collect(culler, eye, field.alive);
+  const d = i => Math.hypot(b.pos[3 * i] - eye[0], b.pos[3 * i + 1] - eye[1], b.pos[3 * i + 2] - eye[2]);
+  for (const i of near) assert.ok(d(i) <= lodDistance(i) + 1e-6);
+  for (const i of far) assert.ok(d(i) > lodDistance(i));
+  assert.ok([...far].some(i => b.type[i] === 0 && d(i) < 1000), 'pebbles go coarse close in');
+  for (const i of far) assert.ok(!b.landmark[i], 'a landmark never coarsens');
+  for (const i of near) assert.ok(b.landmark[i] || d(i) <= FIELD.lodCap + 1e-6, 'no ordinary rock keeps full detail past the cap');
+});
+test('each draw list runs near to far by cell, so the depth test rejects hidden rocks early', () => {
+  const eye = [300, 100, 200];
+  const out = culler.cull(frustum(eye), eye, field.alive);
+  for (const lists of out) {
+    for (const list of [lists.near, lists.far]) {
+      let previous = -Infinity;
+      for (let k = 0; k < list.count; k++) {
+        const c = culler.cellCenter(culler.cellOf[list.index[k]]);
+        const dc = Math.hypot(c[0] - eye[0], c[1] - eye[1], c[2] - eye[2]);
+        assert.ok(dc >= previous - 1e-6, 'cells out of order');
+        previous = dc;
+      }
+    }
+  }
 });
 test('culling the whole belt is quick', () => {
   const t0 = performance.now();
