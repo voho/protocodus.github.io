@@ -19,10 +19,20 @@ const point = (page, x, y) => page.evaluate(({ x, y }) => {
   const p = ashline.renderer.worldToScreen(x, y, ashline.view), rect = document.querySelector('#world').getBoundingClientRect();
   return { x: p.x + rect.x, y: p.y + rect.y };
 }, { x, y });
-const clickWorld = async (page, x, y, button = 'left') => { const p = await point(page, x, y); await page.mouse.click(p.x, p.y, { button }); };
-const baseWorld = (page, x, y) => page.evaluate(({x, y}) => {
-  const core = ashline.state.entities.find(e => e.team === 0 && e.type === 'core');
-  return {x: core.x + x - 10, y: core.y + y - 35};
+// A turned base can put a fixture's point under the HUD or off screen: the camera then centres on it first.
+const reveal = async (page, x, y) => {
+  const covered = await page.evaluate(({ x, y }) => {
+    const p = ashline.renderer.worldToScreen(x, y, ashline.view), rect = document.querySelector('#world').getBoundingClientRect();
+    if (document.elementFromPoint(p.x + rect.x, p.y + rect.y)?.id === 'world') return false;
+    ashline.view.x = x; ashline.view.y = y; return true;
+  }, { x, y });
+  if (covered) await page.waitForTimeout(120);
+};
+const clickWorld = async (page, x, y, button = 'left') => { await reveal(page, x, y); const p = await point(page, x, y); await page.mouse.click(p.x, p.y, { button }); };
+// Points of the original deployment's frame (nexus corner at 10, 35), turned with this sector's base.
+const baseWorld = (page, x, y) => page.evaluate(async ({x, y}) => {
+  const { basePoint } = await import('./terrain.js');
+  return basePoint(ashline.state, 0, x - 11.5, y - 36.5);
 }, {x, y});
 const clickBase = async (page, x, y, button = 'left') => { const p = await baseWorld(page, x, y); await clickWorld(page, p.x, p.y, button); };
 async function construct(page, type) {
@@ -256,7 +266,12 @@ try {
       const loser = outcome === 'victory' ? 1 : 0;
       const core = s.entities.find(e => e.team === loser && buildingRole(e) === 'core');
       const attacker = s.entities.find(e => e.team !== loser && unitRole(e) === 'rifle');
-      core.hp = 1; attacker.x = core.x - .6; attacker.y = core.y + 1.5; attacker.cooldown = 0;
+      // Beside the nexus on a side where it is the nearest target, whichever way the base was turned.
+      const centre = e => e.kind === 'building' ? { x: e.x + e.size / 2, y: e.y + e.size / 2 } : e, others = s.entities.filter(e => e.team === loser && e !== core).map(centre);
+      const ring = [2.6, 3.3, 4].flatMap(r => Array.from({ length: 16 }, (_, k) => ({ x: core.x + 1.5 + Math.cos(k * Math.PI / 8) * r, y: core.y + 1.5 + Math.sin(k * Math.PI / 8) * r })))
+        .filter(p => !s.blocked[Math.floor(p.y) * s.width + Math.floor(p.x)]);
+      const side = ring.find(p => others.every(o => Math.hypot(o.x - p.x, o.y - p.y) > Math.hypot(core.x + 1.5 - p.x, core.y + 1.5 - p.y) + .5)) ?? ring[0];
+      core.hp = 1; attacker.x = side.x; attacker.y = side.y; attacker.cooldown = 0;
       s.fogClock = 0;
       issueOrder(s, [attacker.id], { type: 'attackMove', x: core.x + 1.5, y: core.y + 1.5 });
     }, outcome);
@@ -284,6 +299,7 @@ try {
   assert(await mobile.evaluate(before => ashline.state.explored[0].reduce((n, tile) => n + tile, 0) > before, exploredBefore), 'Touch exploration reveals new terrain');
   await mobile.screenshot({ path: `${output}/auto-explore-mobile.png` });
   const groundDestination = await baseWorld(mobile, 18, 31);
+  await reveal(mobile, groundDestination.x, groundDestination.y);
   const destination = await point(mobile, groundDestination.x, groundDestination.y); await mobile.touchscreen.tap(destination.x, destination.y);
   assert.equal(await mobile.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, mobileScout.id), 'move');
   assert.equal(await mobile.locator('#explore-order').getAttribute('aria-pressed'), 'false');

@@ -253,19 +253,35 @@ test('enemy contact sounds only for visible rival units, after a quiet gap and c
   assert.equal(contact(), 1, 'Fresh contact after the cooldown is announced again');
 });
 
-test('ambient beds follow the view: visible lava only, wider views are windier, busy friendly industry hums', () => {
+test('ambient beds follow the view: wider views are windier and hear the distant front, busy friendly industry hums', () => {
   const s = field(), {audio, view, frame, advance} = rig(s, {view: {x: 20, y: 20, zoom: 48}});
-  for (let y = 18; y < 24; y++) for (let x = 24; x < 32; x++) s.terrain[y * s.width + x] = 3;
   frame();
-  assert.equal(audio.ambient.lava.gain, 0, 'Unseen lava is silent');
+  assert.deepEqual(Object.keys(audio.ambient).sort(), ['front', 'industry', 'wind'], 'Wind, industry and the distant front are the beds');
   assert.equal(audio.ambient.industry.gain, 0, 'Idle bays are silent');
-  const near = audio.ambient.wind.gain;
-  reveal(s, 24, 18, 32, 24); view.zoom = 24; advance(.3); frame();
-  assert(audio.ambient.lava.gain > .5 && audio.ambient.lava.pan > 0, 'Visible lava to the right rumbles from the right');
-  assert(audio.ambient.wind.gain > near, 'Zooming out raises the wind');
+  assert.equal(audio.ambient.front.gain, 0, 'Close in and in calm, the front is silent');
+  const near = {...audio.ambient};
+  view.zoom = 24; advance(.3); frame();
+  assert(audio.ambient.wind.gain > near.wind.gain, 'Zooming out raises the wind');
+  assert(audio.ambient.front.gain > .1, 'A wide view hears the distant front');
   const refinery = s.entities.find(e => e.team === 0 && e.type === 'refinery');
   view.x = refinery.x; view.y = refinery.y; refinery.processingAmount = 50; advance(.3); frame();
   assert(audio.ambient.industry.gain > .2, 'A refinery processing shards hums');
+});
+
+test('the distant front swells with combat the player hears, never with hidden fighting or hidden enemies', () => {
+  const s = field(), {audio, scape, frame, advance} = rig(s, {view: {x: 20, y: 20, zoom: 48}});
+  reveal(s, 10, 10, 30, 30);
+  frame();
+  const calm = audio.ambient.front.gain;
+  for (let i = 0; i < 6; i++) addEntity(s, 1, 'unit', 'unityTank', 50 + i, 45);
+  for (let i = 0; i < 20; i++) shot(s, 1, 'tank', {x: 50, y: 45}, {x: 56, y: 45});
+  scape.tick(s); advance(.3); frame();
+  assert.equal(audio.ambient.front.gain, calm, 'A hidden army and its fight leave the front unchanged');
+  for (let i = 0; i < 20; i++) shot(s, 0, 'tank', {x: 20, y: 20}, {x: 25, y: 20});
+  scape.tick(s); advance(.3); frame();
+  assert(audio.ambient.front.gain > calm + .2, 'Visible fighting swells the front');
+  s.time += 30; scape.tick(s); advance(.3); frame();
+  assert(audio.ambient.front.gain < calm + .05, 'The front settles once the fighting stops');
 });
 
 test('combat intensity rises with heard combat, ignores hidden fights and decays', () => {

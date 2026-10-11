@@ -1,18 +1,19 @@
-import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, MAP_PROFILES, EVENT_KINDS, TEAM_STATS, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
+import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, MAP_SIZES, MAP_PROFILES, EVENT_KINDS, TEAM_STATS, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
 import {DOCTRINES} from './ai.js';
 import {ABILITIES, abilityFor} from './abilities.js';
 import {MISSIONS} from './campaign.js';
 
 export const SAVE_KEY = 'ashline.save.v1';
 const VERSION = 1, MAX_BYTES = 16_000_000, MAX_EFFECTS = Math.max(4096, UNIT_CAP * 8);
-const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites', 'mission', 'reveals'];
+const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'layout', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites', 'mission', 'reveals'];
 const GRIDS = {terrain: Uint8Array, minerals: Float32Array, mineralTypes: Uint8Array, blocked: Uint8Array, regions: Uint16Array};
 const fail = reason => { throw new Error(reason); };
 const valid = condition => { if (!condition) fail('Saved operation is damaged or incompatible.'); };
 const number = (value, min = -1e12, max = 1e12) => Number.isFinite(value) && value >= min && value <= max;
 const integer = (value, min = 0, max = 1e12) => Number.isInteger(value) && number(value, min, max);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-const dimensions = value => object(value) && [[72,56],[144,112],[192,144],[224,168]].some(([width,height])=>value.width===width&&value.height===height);
+// Compact 72 × 56 operations predate the size table and still load.
+const dimensions = value => object(value) && [{width: 72, height: 56}, ...Object.values(MAP_SIZES)].some(size => value.width === size.width && value.height === size.height);
 const inBounds = (value, width, height) => object(value) && number(value.x, 0, width) && number(value.y, 0, height);
 const label = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
 
@@ -30,11 +31,20 @@ function validateTree(value, depth = 0) {
   }
 }
 
+// A stored layout: integer anchors inside the map, the rival's the exact mirror of the home anchor, and a dihedral frame.
+function validateLayout(s) {
+  const {layout} = s, inside = p => object(p) && integer(p.x, 1, s.width) && integer(p.y, 1, s.height);
+  valid(object(layout) && inside(layout.start) && inside(layout.end) && layout.end.x === s.width + 1 - layout.start.x && layout.end.y === s.height + 1 - layout.start.y);
+  const f = layout.frame;
+  valid(Array.isArray(f) && f.length === 4 && f.every(v => [-1, 0, 1].includes(v)) && Math.abs(f[0] * f[3] - f[1] * f[2]) === 1 && f[0] * f[1] + f[2] * f[3] === 0 && Math.abs(f[0]) + Math.abs(f[1]) === 1);
+}
+
 function validateGame(s) {
   valid(dimensions(s));
   const {width, height} = s, cells = width * height, point = value => inBounds(value, width, height);
   valid(typeof s.seed === 'string' && ['easy', 'normal', 'hard'].includes(s.difficulty));
   if(s.mapProfile!==undefined)valid(Object.keys(MAP_PROFILES).includes(s.mapProfile));
+  if(s.layout!==undefined)validateLayout(s);
   if(s.alertAt!==undefined)valid(number(s.alertAt,0,s.time));
   valid(['playing', 'victory', 'defeat'].includes(s.status) && number(s.time, 0));
   valid(integer(s.rng, 1, 0xffffffff) && integer(s.nextId, 1) && integer(s.navVersion) && integer(s.navBuilt, -1) && s.navBuilt <= s.navVersion && number(s.fogClock, -1, 1));
@@ -166,7 +176,7 @@ function validateGame(s) {
       if(i.route!==undefined)valid(Array.isArray(i.route)&&i.route.length<=8&&i.route.every(point)&&i.index<i.route.length);
     }
     if(ai.shelled!==undefined){const f=ai.shelled;valid(point(f)&&moment(f.at)&&integer(f.hits,1,1e6));if(f.answered!==undefined)valid(moment(f.answered)&&number(f.bx,-1.000001,1.000001)&&number(f.by,-1.000001,1.000001));}
-    if(ai.miningSites!==undefined)valid(Array.isArray(ai.miningSites)&&ai.miningSites.length<=64&&ai.miningSites.every(site=>point(site)&&number(site.amount,0,1e6)&&number(site.seenAt,0,s.time)));
+    if(ai.miningSites!==undefined)valid(Array.isArray(ai.miningSites)&&ai.miningSites.length<=128&&ai.miningSites.every(site=>point(site)&&number(site.amount,0,1e6)&&number(site.seenAt,0,s.time)));
     if(ai.outpostId!==undefined)valid(integer(ai.outpostId,1,s.nextId-1));
     if(ai.outpostOre!==undefined)valid(point(ai.outpostOre));
     if(ai.expansion!==undefined){
@@ -198,7 +208,7 @@ function validateGame(s) {
     if(e.count!==undefined)valid(integer(e.count,1,UNIT_CAP*2));
   }
   if(s.sites!==undefined){
-    valid(Array.isArray(s.sites)&&s.sites.length<=64);
+    valid(Array.isArray(s.sites)&&s.sites.length<=128);
     const siteIds=new Set();
     for(const site of s.sites){valid(object(site)&&label(site.id,40)&&!siteIds.has(site.id)&&label(site.kind,40)&&label(site.name,60)&&point(site)&&number(site.r,0,Math.max(width,height)));siteIds.add(site.id);}
   }
@@ -255,6 +265,8 @@ export function decodeGame(text) {
   if (rememberedBuildings.length) validateGame({...data.game, entities: rememberedBuildings});
   valid(Array.isArray(knownOre) && knownOre.length === cells && knownOre.every(value => number(value, 0, 1e6)));
   for (const [key, Type] of Object.entries(GRIDS)) data.game[key] = new Type(data.game[key]);
+  // Lava is gone from Tephra: a molten pool from an older save cools to raised rock, which blocks movement just as it did.
+  data.game.terrain.forEach((type, i, terrain) => { if (type === 3) terrain[i] = 1; });
   for (const key of ['visible', 'explored']) data.game[key] = data.game[key].map(values => new Uint8Array(values));
   return {game: data.game, view: data.view, savedAt: data.savedAt, rememberedBuildings, knownOre: new Float32Array(knownOre)};
 }

@@ -77,6 +77,20 @@ ASHLINE_SCENES=duel ASHLINE_TICKS=18000 node tests/performance-benchmark.mjs
 
 The state digest covers every saved field. Typed events and team statistics, added after this pass, therefore change the digests relative to `4563439`; with team statistics removed and events reduced to text, team and time, all four scenes still match it.
 
+## Larger sectors, 2026-10-11
+
+New skirmishes default to the 256 × 192 Expanse, and 320 × 240 Wilds is the largest size. One Veteran AI-versus-AI game per size, stepped at 50 ms, on the shared 4-core container while other checks ran:
+
+| Size | Ticks | Median / p95 / max (ms/tick) |
+| --- | --- | --- |
+| Frontier 192 × 144 | 9,834 (victory at 492 s) | 0.41 / 1.79 / 26.8 |
+| Expanse 256 × 192 | 16,124 (victory at 806 s) | 0.76 / 2.39 / 32.6 |
+| Wilds 320 × 240 | 18,000 (still playing at 900 s) | 0.48 / 1.61 / 28.5 |
+
+In a survey of 1,050 sectors (30 seeds × 7 profiles × 5 sizes), average generation times ranged from 31 to 89 ms, and no sector kept a fairness issue after its re-rolls. In Chromium the Expanse terrain bake took about 3.2 s and produced a 3,345 × 2,509 terrain canvas.
+
+The lava pools, their flow textures, heat light and embers that the sections below measure have since been removed.
+
 ## Rendering, 2026-10-10
 
 `tests/render-benchmark.mjs` instruments `CanvasRenderingContext2D` in headless Chromium and counts the operations of one battlefield frame (minimap overlay included, full minimap rebuild excluded) on the vast `PERF-VAST-2026` rift at 1440 × 900, DPR 1, with every cell visible. The scenes add 0, 200 and 2,000 mixed units of both teams near the camera, with a quarter of that number in shots, rockets, shells and explosions; some units are firing, damaged, freshly hit or selected. Counts are deterministic. Frame times come from 30 draws per scene in a software-rasterised headless browser on the shared 4-core container (load average 10–14 during the runs, so individual runs vary by up to ±40%); baseline (`cfd3dab`) and new runs alternated three times each, and the table gives the median and the best of the three per-run medians.
@@ -124,7 +138,6 @@ Run against a local HTTP server with an existing Playwright/Chrome installation:
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/memory-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/resource-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/rank-browser-check.mjs
-ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/lava-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/fog-save-browser-check.mjs
 ```
 

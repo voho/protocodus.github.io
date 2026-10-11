@@ -83,13 +83,16 @@ const dirtyLoaded = decodeGame(encodeGame(dirty)).game;
 advance(dirty, 1); advance(dirtyLoaded, 1);
 assert.deepEqual(stateJSON(dirtyLoaded), stateJSON(dirty));
 
+// Lava is gone: a molten tile in an older save loads as raised rock, impassable as before, with a pending rebuild.
 const lava = createGame('save-lava'), lavaCell = 25 * lava.width + 35;
-lava.terrain[lavaCell] = 3; lava.minerals[lavaCell] = 0; lava.navVersion++;
-const lavaLoaded = decodeGame(encodeGame(lava)).game;
-assert.deepEqual(lavaLoaded.terrain, lava.terrain, 'Lava terrain round-trips exactly with a pending navigation rebuild');
+lava.terrain[lavaCell] = 3; lava.minerals[lavaCell] = 0; lava.blocked[lavaCell] = 1;
+const olderSave = encodeGame(lava), lavaLoaded = decodeGame(olderSave).game;
+lava.terrain[lavaCell] = 1; lava.navVersion++; lavaLoaded.navVersion++;
+assert.equal(lavaLoaded.terrain[lavaCell], 1, 'Saved lava cools to raised rock');
+assert.ok(!lavaLoaded.terrain.includes(3), 'No molten ground survives loading');
 advance(lava, 3); advance(lavaLoaded, 3);
-assert.equal(lavaLoaded.blocked[lavaCell], 1, 'Loaded lava remains impassable');
-assert.deepEqual(stateJSON(lavaLoaded), stateJSON(lava), 'Lava maps continue deterministically');
+assert.equal(lavaLoaded.blocked[lavaCell], 1, 'The cooled pool remains impassable');
+assert.deepEqual(stateJSON(lavaLoaded), stateJSON(lava), 'Former lava maps continue deterministically');
 
 const trees = createGame('save-scattered-trees'), treeCell = 25 * trees.width + 35;
 trees.terrain[treeCell] = 4; trees.minerals[treeCell] = 0; trees.navVersion++;
@@ -100,7 +103,7 @@ assert.equal(treesLoaded.blocked[treeCell], 1, 'Saved tree roots remain navigati
 assert.deepEqual(stateJSON(treesLoaded), stateJSON(trees), 'Tree maps continue deterministically');
 
 // Both map sizes can load and advance in one session without sharing coordinate/grid bounds.
-const large = createGame('expanded-save'), small = createGame('legacy-size-save', 'hard', {width: 72, height: 56});
+const large = createGame('expanded-save', 'normal', {...MAP_SIZES.frontier}), small = createGame('legacy-size-save', 'hard', {width: 72, height: 56});
 assert.deepEqual([large.width, large.height], [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]);
 assert.deepEqual([small.width, small.height], [72, 56]);
 large.ai.nextThink = 1e12; large.terrain.fill(0); large.minerals.fill(0); large.navVersion++;
@@ -384,11 +387,21 @@ for (const corrupt of [
   g => { g.events[0].entityId = 1.5; }, g => { g.events[0].entityId = g.nextId; }, g => { g.events[0].role = 'dragon'; },
   g => { g.events[0].rank = 4; }, g => { g.events[0].amount = -1; }, g => { g.events[0].mineralType = 4; },
   g => { g.events[0].speaker = 'x'.repeat(41); }, g => { g.events[0].status = 3; },
-  g => { g.sites = {}; }, g => { g.sites = Array.from({length: 65}, (_, i) => ({...g.sites[0], id: `site-${i}`})); },
+  g => { g.sites = {}; }, g => { g.sites = Array.from({length: 129}, (_, i) => ({...g.sites[0], id: `site-${i}`})); },
   g => { g.sites[1].id = g.sites[0].id; }, g => { g.sites[0].x = g.width + 1; }, g => { g.sites[0].r = -1; },
   g => { g.sites[0].name = ''; }, g => { g.sites[0].kind = 3; }, g => { g.sites[0].id = 'x'.repeat(41); },
 ]) {
   const broken = JSON.parse(profiledRaw); corrupt(broken.game);
   assert.throws(() => decodeGame(JSON.stringify(broken)), 'Typed events, statistics, doctrines and sites are validated');
+}
+// Stored layouts round-trip, and damaged ones are refused: anchors on the map, the rival's mirrored, a dihedral frame.
+const laid = createGame('save-layout', 'normal', {...MAP_SIZES.standard}), laidRaw = encodeGame(laid);
+assert.deepEqual(decodeGame(laidRaw).game.layout, laid.layout, 'The seeded layout survives a save');
+for (const corrupt of [
+  g => { g.layout = []; }, g => { g.layout.start.x = 0; }, g => { g.layout.start.y = g.height + 1; }, g => { g.layout.end.x += 1; },
+  g => { g.layout.start.x = 1.5; }, g => { g.layout.frame = [1, 1, 0, 1]; }, g => { g.layout.frame = [1, 0, 1, 0]; }, g => { g.layout.frame = [2, 0, 0, 1]; }, g => { g.layout.frame = [1, 0, 0]; },
+]) {
+  const broken = JSON.parse(laidRaw); corrupt(broken.game);
+  assert.throws(() => decodeGame(JSON.stringify(broken)), 'Stored layouts are validated');
 }
 console.log('Ashline save checks passed: deterministic active-match/rocket-flight/traffic/veterancy continuation, camera, typed maps/fog, remembered buildings/ore, queues/rallies, unloading/processing/pause, cargo/AI, pending navigation, typed events/statistics/doctrines/sites, old/invalid saves and unavailable/full storage.');

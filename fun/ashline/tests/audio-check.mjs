@@ -27,9 +27,11 @@ try {
   await page.route('**/audio-check.html', route => route.fulfill({ contentType: 'text/html', body: '<button id="enable">Enable audio</button>' }));
   await page.goto(new URL('audio-check.html', base).href);
   await page.evaluate(async () => {
-    window.generated = []; window.pans = []; window.longTasks = [];
+    window.generated = []; window.pans = []; window.longTasks = []; window.convolvers = [];
     const createBuffer = AudioContext.prototype.createBuffer;
     AudioContext.prototype.createBuffer = function (...args) { const buffer = createBuffer.apply(this, args); generated.push(buffer); return buffer; };
+    const createConvolver = AudioContext.prototype.createConvolver;
+    AudioContext.prototype.createConvolver = function () { const node = createConvolver.call(this); convolvers.push(node); return node; };
     const createStereoPanner = AudioContext.prototype.createStereoPanner;
     AudioContext.prototype.createStereoPanner = function () { const node = createStereoPanner.call(this); pans.push(node); return node; };
     const createMediaElementSource = AudioContext.prototype.createMediaElementSource;
@@ -61,6 +63,13 @@ try {
   assert.equal(buffers.length, bank.size, 'Every recipe variant has exactly one generated buffer');
   assert.equal(bank.loaded, bank.size);
   assert(buffers.every(buffer => buffer.finite && buffer.peak > .03 && buffer.peak < 1 && buffer.rms > .001), 'Generated effects are audible, finite, and do not clip');
+  // One shared convolver: its stereo impulse comes from the worker and is attached in a task of its own.
+  await page.waitForFunction(() => sound.status.reverb?.ready, null, { timeout: 10000 });
+  const space = await page.evaluate(() => ({ ...sound.status.reverb, ms: sound.status.startup.reverbMs, convolvers: convolvers.length, impulse: convolvers[0]?.buffer && { rate: convolvers[0].buffer.sampleRate, context: convolvers[0].context.sampleRate } }));
+  assert.equal(space.convolvers, 1, 'One convolver serves the whole mix');
+  assert(space.channels === 2 && space.seconds >= 2.5 && space.seconds <= 3.5 && space.impulse.rate === space.impulse.context, `A stereo ${space.seconds.toFixed(2)} s impulse at the context's rate`);
+  assert(space.ms < 150, `Attaching the impulse is a short one-off task (${space.ms.toFixed(1)} ms)`);
+  assert(space.sends.distant >= 3 * space.sends.weapons && space.sends.ui <= .05 && space.sends.impacts > 0 && space.sends.alerts > 0 && !('voice' in space.sends), 'Distant combat is far wetter than nearby fire; the interface stays nearly dry and unit voices dry');
 
   // Every cue plays; full categories steal their quietest voice instead of dropping new sounds.
   const played = await page.evaluate(() => audioModule.SOUND_KINDS.filter(kind => sound.play(kind)).length);
@@ -69,6 +78,8 @@ try {
   for (const [category, cap] of Object.entries(await page.evaluate(() => audioModule.VOICE_CAPS))) assert((status.voicesByCategory[category] || 0) <= cap, `${category} voices stay within ${cap}`);
   assert(status.stolen > 0 && status.dropped === 0, 'Saturated categories steal voices');
   assert(status.ducking.combat > .3 && status.ducking.music > .2, 'Alerts duck combat and music');
+  await page.waitForFunction(() => sound.status.reverb.combat < .8, null, { timeout: 2000 });
+  assert(await page.evaluate(() => sound.status.reverb.combat < .8 && sound.status.ducking.combat > .3), 'Ducking pulls the battle\'s reverb down with it');
   assert.equal(await page.evaluate(() => sound.play('organics.artillery')), false, 'Repeated combat effects are rate limited');
   assert(await page.evaluate(() => sound.status.aggregated) > 0, 'A repeated shot reinforces the voice already playing');
   assert.equal(await page.evaluate(async () => {
@@ -112,8 +123,9 @@ try {
   assert.equal(await page.evaluate(() => sound.voice('voice.human.wall.select')), false, 'Unknown voice keys are rejected');
 
   // Ambient beds run beside the voice budget and stop with mute or pause.
-  await page.evaluate(() => sound.setAmbient({ wind: { gain: .5 }, lava: { gain: .4, pan: .5 } }));
+  await page.evaluate(() => sound.setAmbient({ wind: { gain: .5 }, front: { gain: .4 }, lava: { gain: .4, pan: .5 } }));
   await page.waitForFunction(() => sound.status.ambientActive === 2);
+  assert.deepEqual(await page.evaluate(() => Object.keys(sound.status.ambient).sort()), ['front', 'industry', 'wind'], 'Wind, industry and the distant front are the beds; lava has none');
   assert.equal(await page.evaluate(() => sound.status.activeVoices <= 1), true, 'Ambient beds are not voices');
   await page.evaluate(() => sound.setSfxEnabled(false));
   status = await page.evaluate(() => sound.status);
@@ -235,11 +247,13 @@ try {
     await audio.unlock(); window.Worker = Worker;
     const started = performance.now();
     while (!audio.status.bank.ready && performance.now() - started < 30000) await new Promise(resolve => setTimeout(resolve, 50));
-    const { bank } = audio.status, played = audio.play('select');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const { bank, reverb } = audio.status, played = audio.play('select');
     audio.dispose();
-    return { ...bank, played };
+    return { ...bank, played, reverb: reverb?.ready };
   });
   assert(fallback.mode === 'main' && fallback.ready && fallback.played, 'The bank falls back to main-thread rendering');
+  assert(fallback.reverb, 'The fallback renders the reverb impulse too');
   assert(fallback.longestMs < 80, `Fallback rendering yields between recipes (longest step ${fallback.longestMs.toFixed(1)} ms)`);
   await page.close();
 
@@ -319,5 +333,5 @@ try {
     await game.close();
   }
   assert.deepEqual(errors, []);
-  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread), voice caps and stealing, aggregation, ducking, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, five original tracks decoded, playlist transitions and wrapping, pause/mute position retention, and in-game events heard once, one reply per click, combat, ambience and mix sliders. Screenshots: ${output}`);
+  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread, ${bank.setupMs.toFixed(1)} ms setup), a shared ${space.seconds.toFixed(1)} s stereo reverb (${space.ms.toFixed(1)} ms to attach) with wetter distant combat, voice caps and stealing, aggregation, ducking with the reverb, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, five original tracks decoded, playlist transitions and wrapping, pause/mute position retention, and in-game events heard once, one reply per click, combat, ambience and mix sliders. Screenshots: ${output}`);
 } finally { await browser.close(); }

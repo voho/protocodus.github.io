@@ -3,11 +3,11 @@
 // their data in campaign.js) and unit abilities in abilities.js; all of them build on these exports.
 import {createFlockSnapshot,flockSteering} from './flocking.js';
 import {findTrafficDetour} from './traffic.js';
-import {MAP_SIZES,MAP_PROFILES,mapLayout,hash,generateMap} from './terrain.js';
+import {MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout,basePoint,hash,generateMap} from './terrain.js';
 import {newAI,aiState,thinkAI,teamPace} from './ai.js';
 import {missionDefinition,missionSettings,createMissionState,updateMission,settleMission,missionAllows,noteDelivery,noteTrained,missionDeployment,noteTagLost} from './mission.js';
 import {ABILITIES,abilitySpeed,abilityRange,abilityDamageTaken,endHeldAbility} from './abilities.js';
-export {MAP_SIZES,MAP_PROFILES,mapLayout};
+export {MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout};
 export const UNIT_CAP=2000;
 export const UNIT_CAP_PER_NEXUS=200,NEXUS_DEPLOY_RANGE=4;
 export const BUILDINGS = {
@@ -91,7 +91,7 @@ export const BUILDING_UPGRADES = {
   advancedProduction:{name:'Advanced assembly bay',cost:260,time:35,types:['factory'],requires:['lab'],description:'This foundry can build Pike strikers after Advanced ballistics research.'},
 };
 
-export const MAP_WIDTH=MAP_SIZES.frontier.width,MAP_HEIGHT=MAP_SIZES.frontier.height;
+export const MAP_WIDTH=MAP_SIZES[DEFAULT_MAP_SIZE].width,MAP_HEIGHT=MAP_SIZES[DEFAULT_MAP_SIZE].height;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const sq=(x)=>x*x;
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -314,14 +314,14 @@ export function createGame(seed='ASH-001',difficulty='normal',options={}){
   s.teams.forEach((team,index)=>{team.race=races[index];});s.aiTeams=[...aiTeams];
   if(aiTeams.includes(0))s.aiByTeam={0:newAI(level,aiProfiles[0],{seed:String(seed),team:0})};
   generateMap(s);
-  const {start,end}=mapLayout(s);
   for(let team=0;team<2;team++){
     if(operation?.start?.[team]==='none')continue;
-    const building=(role,x,y)=>{const type=raceBuilding(s,team,role);return addEntity(s,team,'building',type,team?end.x+11-x-BUILDINGS[type].size:start.x+x-12,team?end.y+36-y-BUILDINGS[type].size:start.y+y-37);};
-    const unit=(role,x,y)=>addEntity(s,team,'unit',raceUnit(s,team,role),team?end.x+11-x:start.x+x-12,team?end.y+36-y:start.y+y-37);
-    building('core',10,35);building('reactor',6,35);building('refinery',15,38);
-    for(let j=0;j<3;j++)unit('rifle',11+j,33.7);
-    unit('scout',15.5,33);
+    // Offsets from the nexus centre in the original frame; basePoint turns them with the sector and mirrors the rival.
+    const building=(role,dx,dy)=>{const type=raceBuilding(s,team,role),size=BUILDINGS[type].size,p=basePoint(s,team,dx,dy);return addEntity(s,team,'building',type,Math.round(p.x-size/2),Math.round(p.y-size/2));};
+    const unit=(role,dx,dy)=>{const p=basePoint(s,team,dx,dy);return addEntity(s,team,'unit',raceUnit(s,team,role),p.x,p.y);};
+    building('core',0,0);building('reactor',-4.5,-.5);building('refinery',5,3);
+    for(let j=0;j<3;j++)unit('rifle',j-.5,-2.8);
+    unit('scout',4,-3.5);
   }
   // Initial footprints must never contain shards, including the generated field fringe.
   for(const e of s.entities)if(e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++){s.terrain[y*W+x]=0;s.minerals[y*W+x]=0;}
@@ -348,7 +348,7 @@ export function rebuildNavigation(s){
   const {width:W,height:H}=s,N=W*H;
   if(s.navBuilt===s.navVersion&&s.regionSize){if(!clearanceGrids.has(s))rebuildClearance(s);return;}
   const {terrain,blocked}=s;
-  for(let i=0;i<N;i++)blocked[i]=terrain[i]===1||terrain[i]===3||terrain[i]===4?1:0;
+  for(let i=0;i<N;i++)blocked[i]=terrain[i]===1||terrain[i]===4?1:0;
   for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)blocked[y*W+x]=1;
   // Connected regions let haulers skip isolated mineral pockets without repeated A* failures.
   const regions=s.regions=new Uint16Array(N),queue=new Int32Array(N);let region=0,tail=0;
@@ -406,7 +406,7 @@ export function placementCheck(s,team,type){
     if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
     rebuildNavigation(s);
     for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
-      const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+      const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
     }
     if(unitInArea(x,y))return bad('Unit in construction area');
     finished??=own(s,team).filter(e=>e.kind==='building'&&e.progress>=1);
@@ -437,7 +437,7 @@ export function deploymentStatus(s,team,unitId,x,y){
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++)if(!s.explored[team][yy*s.width+xx])return bad('Explore the deployment site first');
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
     const i=yy*s.width+xx;
-    if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+    if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
   }
   if(s.entities.some(e=>e!==u&&alive(e)&&e.kind==='unit'&&e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3))return bad('Unit in construction area');
   return good();
@@ -1025,14 +1025,17 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   });
   if(blocker){
     u.moveSpeed=0;
+    u.trafficBlockedAt??=s.time;
+    // The two waits below are courtesies with a time limit: units that wait on each other in a ring would
+    // otherwise stand forever, so after two seconds a blocked unit goes on to the bypasses and re-plans.
+    const patient=s.time-u.trafficBlockedAt<2;
     // Let one committed bypass finish. Reciprocal detours otherwise keep moving
     // the obstacle each vehicle is circling and can carry both far off route.
-    if(blocker.team===u.team&&blocker.id<u.id&&blocker.path.some(p=>p.trafficId===u.id))return false;
+    if(patient&&blocker.team===u.team&&blocker.id<u.id&&blocker.path.some(p=>p.trafficId===u.id))return false;
     // A safe bypass can need a tighter turn than the body can drive through.
     // Finish that turn against the same clear leg instead of replacing its
     // waypoint every tick as the current heading points into the neighbor.
-    if(p.trafficId&&segmentDistance(u,p,blocker)>=Math.min(unitSpacing(u,blocker,s.time),distance(u,blocker))-.001)return false;
-    u.trafficBlockedAt??=s.time;
+    if(patient&&p.trafficId&&segmentDistance(u,p,blocker)>=Math.min(unitSpacing(u,blocker,s.time),distance(u,blocker))-.001)return false;
     // Near a parking slot, chaining one-body doglegs can circle the entire
     // parked formation. Search the crowd once a bypass reaches a second body.
     if(p.trafficId&&p.trafficId!==blocker.id&&(blocker.order.type==='idle'||blocker.formationReady)&&Math.hypot(tx-u.x,ty-u.y)<6&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
@@ -1049,7 +1052,8 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
       while(u.path[0]?.flock)u.path.shift();
       u.path.unshift(...detour.points);u.steerSide=detour.side;u.steerUntil=s.time+4;
       intent.traffic=false;
-    }else if(!detour&&blocker.team===u.team)intent.passTargetId=blocker.id;
+    // A bypass that stays occupied (a guard planted in it) counts as no bypass once patience runs out.
+    }else if((!detour||!patient)&&blocker.team===u.team)intent.passTargetId=blocker.id;
     else if(s.time-u.trafficBlockedAt>.5&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
       u.crowdPlanAt=s.time+1;pathBudget--;
       const crowd=nearbyEntities(s,u,8).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<8);
@@ -1285,6 +1289,9 @@ function finishOrder(u,type='idle'){
   const {formation,x,y}=u.order;
   u.order=formation?{type,x,y,formation}:{type};
 }
+// Parked allies can wedge a unit short of its parking slot for good. Blocked for four seconds within a few tiles of
+// the slot, it parks where it stands instead of re-planning forever.
+const wedged=(s,u,x,y)=>s.time-(u.trafficBlockedAt??s.time)>=4&&Math.hypot(x-u.x,y-u.y)<3;
 function finishMovement(u,dt,movement,type='idle'){
   if(u.order.facing!==undefined){
     turnUnit(u,u.order.facing,dt);
@@ -1350,7 +1357,7 @@ function stepUnit(s,u,dt,movement,power){
   const d=UNITS[u.type],order=u.order;
   if(order.type==='move'){
     if(entityRole(u)==='engineer'){u.repairActive=false;u.repairTargetId=null;}
-    const arrived=navigate(s,u,order.x,order.y,dt,.08,movement);
+    const arrived=navigate(s,u,order.x,order.y,dt,.08,movement)||wedged(s,u,order.x,order.y);
     // Movement goals are reachable parking slots; traffic must not cancel an unfinished delivery move.
     if(arrived)finishMovement(u,dt,movement,entityRole(u)==='harvester'?'harvest':'idle');
     return;
@@ -1364,7 +1371,7 @@ function stepUnit(s,u,dt,movement,power){
       if(u.repairActive){const c=center(target);turnUnit(u,Math.atan2(c.y-u.y,c.x-u.x),dt,true);return;}
     }
     if(order.type==='explore')explore(s,u,dt,movement);
-    else if(['attack','attackMove'].includes(order.type)&&navigate(s,u,order.x,order.y,dt,.08,movement))finishMovement(u,dt,movement);
+    else if(['attack','attackMove'].includes(order.type)&&(navigate(s,u,order.x,order.y,dt,.08,movement)||order.type==='attackMove'&&wedged(s,u,order.x,order.y)))finishMovement(u,dt,movement);
     return;
   }
   if(order.type==='idle'&&militaryUnit(u)){idleMilitary(s,u,dt,movement);return;}
@@ -1393,7 +1400,7 @@ function stepUnit(s,u,dt,movement,power){
   if(order.type==='attackMove'||order.type==='attack'){
     // A concealed building's centre is solid ground: stop at its edge instead of searching the whole map.
     const goal=order.type==='attack'?getEntity(s,order.targetId):null,stop=order.type==='attackMove'?.08:goal?.kind==='building'?goal.size*.71+.75:.45;
-    if(navigate(s,u,order.x,order.y,dt,stop,movement))finishMovement(u,dt,movement);
+    if(navigate(s,u,order.x,order.y,dt,stop,movement)||order.type==='attackMove'&&wedged(s,u,order.x,order.y))finishMovement(u,dt,movement);
   }
 }
 
@@ -1496,7 +1503,7 @@ function step(s,dt){
       if(e.research){e.research.progress=Math.min(1,e.research.progress+dt/RESEARCH[e.research.id].time*pace);if(e.research.progress>=1)finishResearch(s,e);}
       if(e.upgrade){e.upgrade.progress=Math.min(1,e.upgrade.progress+dt/BUILDING_UPGRADES[e.upgrade.id].time*productionRate(s,e.team,powers[e.team]));if(e.upgrade.progress>=1){const id=e.upgrade.id;e.upgrades??={};e.upgrades[id]=true;delete e.upgrade;event(s,`${BUILDING_UPGRADES[id].name}: upgrade complete`,e.team,{kind:'upgradeComplete',...subject(e)});}}
       deliverRefineryHauler(s,e);
-      const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*pace);if(q.progress>=1){if(spawnAt(s,e,q.type))e.queue.shift();else if(Math.floor(s.time/10)!==Math.floor((s.time-dt)/10))event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team,{kind:'bayBlocked',...subject(e)});}}
+      const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*pace);if(q.progress>=1){if(spawnAt(s,e,q.type))e.queue.shift();else if(Math.floor(s.time/10)!==Math.floor((s.time-dt)/10)&&own(s,e.team).filter(u=>u.kind==='unit').length<unitCapacity(s,e.team))event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team,{kind:'bayBlocked',...subject(e)});}}
       if(BUILDINGS[e.type].damage){e.cooldown=Math.max(0,e.cooldown-dt*rate);const target=acquire(s,e,BUILDINGS[e.type].range);e.targetId=target?.id??null;if(target&&e.cooldown<=0&&powers[e.team].ratio>=1)shoot(s,e,target);}
     }else{
       const angle=e.angle,x=e.x,y=e.y;stepUnit(s,e,dt,movement,powers[e.team]);

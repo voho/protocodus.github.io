@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createGame, UNITS, issueOrder, updateGame} from '../sim.js';
+import {createGame, UNITS, MAP_SIZES, addEntity, issueOrder, mapLayout, rebuildNavigation, updateGame} from '../sim.js';
 
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const turn=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
@@ -164,4 +164,23 @@ for(const side of [3,5])test(`${side*side}-unit compact assignment keeps rough o
   units.forEach((u,i)=>{u.x=30+(units.length-i)*.1;u.y=25+(i%side)*.8;});
   issueOrder(s,units.map(u=>u.id).reverse(),{type:'move',x:50,y:25});
   assert.deepEqual(units.map(u=>u.order),goals,'Reissued destinations remain stable even if unit ranks change en route');
+});
+
+// A mixed group crowding into a pass used to leave a few bodies waiting on each other, or wedged beside a parked
+// ally a tile from their slots, for the rest of the game.
+test('a large mixed group ordered into a pass all arrives instead of waiting on each other forever',()=>{
+  const s=createGame('TRAFFIC-deadwood','normal',{...MAP_SIZES.frontier,profile:'deadwood',aiTeams:[]});
+  s.entities=s.entities.filter(e=>e.team===0);rebuildNavigation(s);
+  // Haulers stand among them and stay behind, so the group has to thread past them.
+  const {start}=mapLayout(s),roles=['rifle','rocket','tank','scout','artillery','engineer','striker','harvester'],placed=[];
+  for(let k=0;placed.length<40&&k<400;k++){
+    const x=Math.floor(start.x+6+k%8*1.1)+.5,y=Math.floor(start.y-8+Math.floor(k/8)*1.1)+.5;
+    let open=true;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(s.blocked[(Math.floor(y)+dy)*s.width+Math.floor(x)+dx])open=false;
+    if(open&&!s.entities.some(o=>o.kind==='unit'&&distance(o,{x,y})<.9))placed.push(addEntity(s,0,'unit',roles[placed.length%roles.length],x,y));
+  }
+  const ids=placed.filter(e=>e.type!=='harvester').map(e=>e.id),pass=s.sites.filter(p=>['pass','ford','gate'].includes(p.kind)).sort((a,b)=>distance(a,start)-distance(b,start))[0];
+  issueOrder(s,ids,{type:'move',x:pass.x,y:pass.y});
+  while(s.time<150)updateGame(s,.25);
+  const waiting=s.entities.filter(e=>ids.includes(e.id)&&e.order.type!=='idle').map(e=>`${e.type}#${e.id}`);
+  assert.deepEqual(waiting,[],'Every unit finishes its move');
 });

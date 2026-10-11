@@ -1,7 +1,7 @@
 // Optional browser QA for render-only effects. Uses ASHLINE_PLAYWRIGHT, ASHLINE_URL, ASHLINE_BROWSER and ASHLINE_SCREENSHOTS.
 // Covers tick interpolation (fog-safe, frozen while paused, snapping, no step back on resume), projectiles that
 // finish their flight on the drawn clock, shell kills shown on landing, screen shake gating, explosions, wrecks
-// (including unfinished structures), structure collapses, hit flashes, burning vehicles, ash-fall, lava embers,
+// (including unfinished structures), structure collapses, hit flashes, burning vehicles, ash-fall,
 // mission zones and site labels on the battlefield and tactical map, ability visuals, the ability preview and
 // live-loop hooks.
 import assert from 'node:assert/strict';
@@ -292,22 +292,6 @@ try {
     renderer.pendingTime = .05; render(); result.rocketTail.after = renderer.landed.length;
     s.effects = []; s.time += 4; render(); renderer.particles.length = 0; renderer.shakes.length = 0;
 
-    // Embers rise only over visible lava.
-    const lavaState = createGame('render-embers'); lavaState.terrain.fill(0); lavaState.minerals.fill(0); lavaState.entities = []; lavaState.effects = [];
-    for (let y = 29; y <= 32; y++) for (let x = 28; x <= 33; x++) lavaState.terrain[y * lavaState.width + x] = 3;
-    const lavaRenderer = new Renderer(mapWorld, null); lavaRenderer.createTerrain(lavaState);
-    const emberPixels = visibleGrid => {
-      const c = document.createElement('canvas'); c.width = 40 * 32; c.height = 40 * 32; const g = c.getContext('2d'), saved = lavaRenderer.ctx;
-      lavaRenderer.ctx = g; let n = 0;
-      for (let k = 0; k < 24; k++) {
-        g.clearRect(0, 0, c.width, c.height); lavaRenderer.drawEmbers(lavaState, visibleGrid, k * .37, 20, 20, 40, 40);
-        const data = g.getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < data.length; i += 4) if (data[i]) n++;
-      }
-      lavaRenderer.ctx = saved; c.width = c.height = 0; return n;
-    };
-    const lavaVisible = new Uint8Array(lavaState.width * lavaState.height).fill(1), lavaHidden = new Uint8Array(lavaState.width * lavaState.height);
-    result.embers = { visible: emberPixels(lavaVisible), hidden: emberPixels(lavaHidden) };
-
     // Ground-targeting preview, as main.js describes it: reach rings, then the target area in amber when valid and
     // warning orange when not.
     s.effects = []; s.entities = []; const noPreview = render();
@@ -401,7 +385,6 @@ try {
   const t = checks.rocketTail;
   assert(t.landed === 1 && t.held && t.blastWaits && t.drawn > 10 && t.after === 0,
     `A rocket finishes its flight on the drawn clock and its blast waits for it (${JSON.stringify(t)})`);
-  assert(checks.embers.visible > 0 && checks.embers.hidden === 0, `Embers rise only over visible lava (${JSON.stringify(checks.embers)})`);
   const pv = checks.preview;
   assert(pv.reach > 100 && pv.valid > 100 && pv.invalid > 100 && pv.validWarmth > 0 && pv.invalidWarmth > 0 && pv.validAmber > pv.invalidAmber * 1.5,
     `The ability preview draws reach rings and its target area, amber when valid and orange when not (${JSON.stringify(pv)})`);

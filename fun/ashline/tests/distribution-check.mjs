@@ -23,12 +23,13 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
       const neighbors=[i-1,i+1,i-s.width,i+s.width].filter(j=>s.minerals[j]>0).length;if(neighbors<=1)loose++;
     }
   }
-  assert(trees>=4*area&&trees<=70*area,'Trees remain sparse at either map size');assert(quadrants.size>=(s.width===72?2:4),'Mirrored trees cover open sectors; compact legacy clearings can occupy two quadrants');
+  assert(trees>=4*area&&trees<=80*area,'Trees remain sparse at every map size');assert(quadrants.size>=(s.width===72?2:4),'Mirrored trees cover open sectors; compact legacy clearings can occupy two quadrants');
   assert(minerals>=150&&minerals/s.terrain.length>.015&&minerals/s.terrain.length<.065,'Mineral patches remain sparse while larger sectors gain expansion reserves');
   assert(loose/minerals>.2,'Loose patches include satellite deposits, rather than only solid disks');
   for(let i=0;i<s.minerals.length;i++)if(s.minerals[i]>0){const density=s.mineralTypes[i]===3?2:1;assert(s.minerals[i]>=320*density&&s.minerals[i]<620*density,'Rich red fields have exactly twice the reserve range');if(s.width>72)assert.equal(s.minerals[i],s.minerals[s.minerals.length-1-i],'New-map factions receive identical reserves');}
-  const local=[start,end].map(p=>s.minerals.reduce((n,v,i)=>n+(Math.hypot(i%s.width-p.x,Math.floor(i/s.width)-p.y)<14?v:0),0));
-  if(s.width>72){assert(Math.min(...local)>14000);assert(Math.max(...local)/Math.min(...local)<1.35,'Nearby resources remain balanced between starting bases');} // Compact legacy anchors predate map-centre symmetry; stored saves keep their original deposits.
+  // Measured from tile centres to the two nexus centres (half a tile inside each anchor), which mirror each other exactly.
+  const local=[start,end].map(p=>s.minerals.reduce((n,v,i)=>n+(Math.hypot(i%s.width+.5-(p.x-.5),Math.floor(i/s.width)+.5-(p.y-.5))<14?v:0),0));
+  if(s.width>72){assert(Math.min(...local)>14000);assert.equal(local[0],local[1],'Nearby resources remain balanced between starting bases');} // Compact legacy anchors predate map-centre symmetry; stored saves keep their original deposits.
   if(seed<3){
     s.ai.nextThink=1e12;for(let i=0;i<1800&&!s.teams.every(t=>t.credits>=2600);i++)updateGame(s,.05);
     assert(s.teams.every(t=>t.credits>=2600),'Both automatic haulers complete several real deliveries');
@@ -38,8 +39,9 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
 
 // Every profile scatters isolated trees and loose, reachable, mirrored deposits. The basin grows slightly more deadwood
 // than the rift (its root chance is higher), and deadwood groves may grow far denser,
-// within their own bound, without sealing ground or touching base clearings and deposits.
-const treeCap={basin:85,deadwood:170};
+// within their own bound, without sealing ground or touching base clearings and deposits. Each seed also varies
+// its profile's root chance by up to a third, so the bounds leave room for a wooded sector.
+const treeCap={basin:100,deadwood:190};
 for(const profile of Object.keys(MAP_PROFILES))for(const size of Object.values(MAP_SIZES))for(let seed=0;seed<2;seed++){
   const s=createGame(`distribution-${profile}-${seed}`,'normal',{...size,profile}),area=s.width*s.height/(72*56),{start,end}=mapLayout(s),label=`${profile} ${s.width}x${s.height} seed ${seed}`;
   const scouts=s.entities.filter(e=>e.type==='scout'),region=s.regions[Math.floor(scouts[0].y)*s.width+Math.floor(scouts[0].x)],quadrants=new Set();
@@ -53,7 +55,7 @@ for(const profile of Object.keys(MAP_PROFILES))for(const size of Object.values(M
     }
     if(s.minerals[i]>0){minerals++;assert.equal(s.regions[i],region,`${label}: deposits are reachable`);assert.equal(s.minerals[i],s.minerals[s.minerals.length-1-i]);if([i-1,i+1,i-s.width,i+s.width].filter(j=>s.minerals[j]>0).length<=1)loose++;}
   }
-  assert(trees>=4*area&&trees<=(treeCap[profile]??70)*area,`${label}: tree count ${trees} within the profile's bound`);assert(quadrants.size>=4);
+  assert(trees>=4*area&&trees<=(treeCap[profile]??80)*area,`${label}: tree count ${trees} within the profile's bound`);assert(quadrants.size>=4);
   if(profile==='deadwood')assert(trees>=75*area,`${label}: deadwood grows groves`);
   assert(minerals>=150&&minerals/s.terrain.length>.015&&minerals/s.terrain.length<.065,`${label}: deposits stay sparse`);assert(loose/minerals>.2,`${label}: loose satellites remain`);
   // Measured around the two nexus centres, which mirror each other exactly.

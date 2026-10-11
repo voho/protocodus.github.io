@@ -51,10 +51,10 @@ const first=army(),second=army();assert.deepEqual(first.entities,second.entities
   run(s,25);arrived([far,near],goals);
 }
 
-// A blocked click avoids rocks, lava, a real building and an already parked heavy unit.
+// A blocked click avoids rocks, tree roots, a real building and an already parked heavy unit.
 {
   const{s,add,refinery}=scene('obstructed');refinery.x=90;refinery.y=72;s.entities.push(refinery);
-  for(let y=73;y<=77;y++)for(let x=91;x<=95;x++)s.terrain[y*s.width+x]=(x+y)%2?1:3;
+  for(let y=73;y<=77;y++)for(let x=91;x<=95;x++)s.terrain[y*s.width+x]=(x+y)%2?1:4;
   const parked=add('tank',89.5,74.5),original={x:parked.x,y:parked.y};
   const units=Array.from({length:12},(_,i)=>add(Object.keys(UNITS)[i%6],82.5+i%4,73.5+Math.floor(i/4)));
   const goals=command(s,units,{x:92.4,y:74.3},'attackMove');

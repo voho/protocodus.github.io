@@ -1,6 +1,6 @@
 // Ashline's audio engine. soundbank.js synthesizes every effect (in a worker when the browser allows it);
 // the original, locally hosted soundtrack is credited in assets/audio/CREDITS.md.
-import { RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, RATE, renderKind, renderVoice, parseVoiceKey, VOICE_RECIPE, TRANSMISSION_RECIPE } from './soundbank.js';
+import { RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, RATE, renderKind, renderVoice, renderImpulse, parseVoiceKey, VOICE_RECIPE, TRANSMISSION_RECIPE } from './soundbank.js';
 
 export { SOUND_KINDS, AMBIENT_KINDS };
 export const SETTINGS_KEY = 'ashline.audio.v1';
@@ -20,7 +20,10 @@ export const BANK_SIZE = Object.values(RECIPES).reduce((sum, recipe) => sum + (r
 // Slider values map through a square law; these bases keep the default mix near the original levels.
 const BASE = { master: 1, music: .28, effects: .85, voices: .9, ambient: .55 };
 const BUS_LEVELS = { ui: .75, alerts: .95, weapons: .72, impacts: .85, voice: 1, ambient: .7 };
-const BEDS = ['wind', 'lava', 'industry'];
+// Reverb sends per bus into the one shared convolver. Unit voices stay dry; combat beyond the view keeps
+// only part of its dry signal and sends most of it into the space, so it sounds far away.
+const REVERB_SENDS = { ui: .04, alerts: .2, weapons: .14, impacts: .22, distant: .7 }, REVERB_SECONDS = 2.8, DISTANT_DRY = .7;
+const BEDS = ['wind', 'industry', 'front'];
 const TERMINAL = new Set(['victory', 'defeat']);
 const QUEUE_LIMIT = 12, VOICE_CACHE = 160;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -60,9 +63,20 @@ function bankJobs() {
   return jobs;
 }
 
+// The shared reverb's stereo impulse (soundbank.js) at the context's own rate. The AudioBuffer constructor
+// keeps it apart from the effect bank; engines without it use createBuffer.
+function impulseBuffer(context, channels) {
+  const length = channels[0].length, sampleRate = context.sampleRate;
+  let buffer;
+  try { buffer = new AudioBuffer({ length, numberOfChannels: 2, sampleRate }); } catch { buffer = context.createBuffer(2, length, sampleRate); }
+  channels.forEach((data, channel) => buffer.copyToChannel(data, channel));
+  return buffer;
+}
+
 // Turns recipes into AudioBuffers lazily. A module worker renders the samples; without one, the main thread
-// renders in short timer slices. Voice lines are rendered on demand and kept in a bounded cache.
-function createBank(context, onReady) {
+// renders in short timer slices. Voice lines are rendered on demand and kept in a bounded cache. The reverb
+// impulse is the first job, built once per context at its sample rate and handed to onImpulse.
+function createBank(context, onReady, onImpulse) {
   const buffers = new Map(), voices = new Map(), wanted = new Map(), queue = [], flight = new Map();
   const stats = { mode: 'main', total: BANK_SIZE, loaded: 0, voices: 0, mainMs: 0, longestMs: 0, failed: 0 };
   let worker = null, timer = 0, nextId = 1, closed = false;
@@ -103,9 +117,10 @@ function createBank(context, onReady) {
     do {
       const job = queue.shift(), started = performance.now();
       try {
+        if (job.impulse) { const channels = renderImpulse(job.variant, job.seconds); account(performance.now() - started); onImpulse(channels); continue; }
         const samples = job.voice ? renderVoice(job.name, job.variant) : renderKind(job.name, job.variant);
         account(performance.now() - started); store(job, samples);
-      } catch { fail(job); }
+      } catch { if (!job.impulse) fail(job); }
     } while (queue.length && performance.now() < end && !closed);
     pump();
   }
@@ -120,12 +135,15 @@ function createBank(context, onReady) {
             const job = flight.get(data.id);
             if (!job) return;
             flight.delete(data.id);
-            if (data.error) fail(job); else store(job, data.samples);
+            // Without an impulse the mix simply stays dry.
+            if (job.impulse) { if (data.channels && !closed) onImpulse(data.channels); }
+            else if (data.error) fail(job); else store(job, data.samples);
             pump();
           };
           worker.onerror = event => { event.preventDefault?.(); fallback(); };
         } catch { worker = null; stats.mode = 'main'; }
       }
+      queue.push({ name: 'impulse', variant: context.sampleRate, seconds: REVERB_SECONDS, impulse: true });
       for (const job of bankJobs()) this.request(job.name, job.variant);
     },
     get(name, variant, voice = false) {
@@ -158,7 +176,8 @@ export function createAudio({ storage = defaultStorage() } = {}) {
   let musicIndex = 0;
   let unlocked = false, sfxEnabled = settings.sfxEnabled, musicEnabled = settings.musicEnabled, paused = false, disposed = false, musicError = '';
   let played = 0, dropped = 0, stolen = 0, aggregated = 0, queued = 0, expired = 0, intensity = 0, ambientLevels = {};
-  const startup = { contextMs: 0, setupMs: 0 };
+  let reverb = null, reverbReturn = null, combatSend = null, impulse = null, reverbTimer = 0;
+  const startup = { contextMs: 0, setupMs: 0, reverbMs: 0 }, sends = {};
   let speaking = null, transmitting = null;
   const voices = new Set(), lastPlayed = new Map(), lastVariant = new Map(), beds = new Map(), ducks = {};
   let pending = [];
@@ -193,16 +212,26 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       weapons: gain(BUS_LEVELS.weapons, combatDuck), impacts: gain(BUS_LEVELS.impacts, combatDuck),
       voice: gain(BUS_LEVELS.voice, groups.voices), ambient: gain(BUS_LEVELS.ambient, groups.ambient),
     };
-    // Combat beyond the view shares one muffling lowpass instead of a filter per voice.
+    // Combat beyond the view shares one muffling lowpass instead of a filter per voice. Each cue brings its
+    // own bus level; the dry path runs below unity and the rest goes into the space, so a shot leaving the
+    // view never gets louder, only farther.
     const distance = context.createBiquadFilter(); distance.type = 'lowpass'; distance.frequency.value = 2200; distance.Q.value = .5;
-    // It runs at unity: each cue brings its own bus level, so a shot leaving the view never gets louder.
-    distance.connect(combatDuck); buses.distant = gain(1, distance);
+    distance.connect(gain(DISTANT_DRY, combatDuck)); buses.distant = gain(1, distance);
+    // One shared convolver; its impulse arrives from the bank. Combat sends pass through their own duck, so an
+    // alert pulls the battle's reverb down along with its dry sound.
+    reverb = context.createConvolver(); reverb.normalize = false;
+    reverbReturn = gain(1, groups.effects); reverb.connect(reverbReturn);
+    combatSend = gain(1, reverb);
+    for (const [name, level] of Object.entries(REVERB_SENDS)) {
+      sends[name] = gain(level, name === 'ui' || name === 'alerts' ? reverb : combatSend);
+      (name === 'distant' ? distance : buses[name]).connect(sends[name]);
+    }
     musicFade = gain(1, musicDuck); musicLevel = gain(1, musicFade);
     musicFilter = context.createBiquadFilter(); musicFilter.type = 'lowpass'; musicFilter.Q.value = .5; musicFilter.connect(musicLevel);
     musicFilter.frequency.value = musicCutoff(intensity); musicLevel.gain.value = musicGain(intensity);
     applyVolumes(.001);
     context.addEventListener?.('statechange', flush);
-    bank = createBank(context, flush);
+    bank = createBank(context, flush, attachImpulse);
     bank.start();
     music = new Audio(new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href);
     music.preload = 'none';
@@ -236,6 +265,33 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     voices.clear(); lastPlayed.clear(); speaking = transmitting = null;
     pending = pending.filter(cue => TERMINAL.has(cue.name) && paused);
   }
+  // The impulse arrives from the bank. Handing it to the convolver prepares its FFT partitions on this
+  // thread, so that runs as a task of its own rather than inside a buffer hand-off.
+  function attachImpulse(channels) {
+    impulse = impulseBuffer(context, channels);
+    setTimeout(() => {
+      if (disposed || context.state === 'closed') return;
+      const started = performance.now();
+      reverb.buffer = impulse;
+      startup.reverbMs = performance.now() - started;
+    }, 0);
+  }
+  // A paused context would freeze the battle's reverb mid-tail and resume it later. The return closes with
+  // the effects, and once it is silent the convolver restarts empty: a fresh impulse clears its stored tail.
+  // An engine that refuses a second impulse keeps the return closed until the tail has drained.
+  function resetReverb() {
+    if (!reverb?.buffer) return;
+    const fade = reverbReturn.gain;
+    fade.cancelScheduledValues(context.currentTime); fade.setTargetAtTime(0, context.currentTime, .01);
+    clearTimeout(reverbTimer);
+    reverbTimer = setTimeout(() => {
+      reverbTimer = 0;
+      if (disposed || context.state === 'closed') return;
+      let drained = 0;
+      try { reverb.buffer = impulse; } catch { drained = REVERB_SECONDS; }
+      fade.cancelScheduledValues(context.currentTime); fade.setTargetAtTime(1, context.currentTime + drained, .02);
+    }, 80);
+  }
   function stopAmbient() {
     for (const bed of beds.values()) { bed.gain.gain.setTargetAtTime(0, context.currentTime, .05); try { bed.source.stop(context.currentTime + .3); } catch { /* Already stopped. */ } }
     beds.clear();
@@ -244,13 +300,15 @@ export function createAudio({ storage = defaultStorage() } = {}) {
   // length, then release. Overlapping cues keep the deepest dip until the last one ends.
   function duck(depth, seconds) {
     const now = context.currentTime;
-    for (const [name, node, scale] of [['combat', combatDuck, 1], ['music', musicDuck, .7]]) {
+    for (const [name, nodes, scale] of [['combat', [combatDuck, combatSend], 1], ['music', [musicDuck], .7]]) {
       const state = ducks[name] ??= { depth: 0, until: 0 }, amount = depth * scale;
       state.depth = now < state.until ? Math.max(state.depth, amount) : amount;
       state.until = Math.max(state.until, now + seconds);
-      node.gain.cancelScheduledValues(now);
-      node.gain.setTargetAtTime(1 - state.depth, now, .03);
-      node.gain.setTargetAtTime(1, state.until, .25);
+      for (const node of nodes) {
+        node.gain.cancelScheduledValues(now);
+        node.gain.setTargetAtTime(1 - state.depth, now, .03);
+        node.gain.setTargetAtTime(1, state.until, .25);
+      }
     }
   }
   function start(name, buffer, recipe, category, options) {
@@ -422,7 +480,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       if (!bank) return;
       for (const key of keys) if (parseVoiceKey(key)) for (let variant = 0; variant < VOICE_RECIPE.variants; variant++) bank.request(key, variant, true);
     },
-    // Looping beds: {wind, lava, industry} → {gain 0–1, pan −1–1}. They never count as voices.
+    // Looping beds: {wind, industry, front} → {gain 0–1, pan −1–1}. They never count as voices.
     setAmbient(levels = {}) {
       ambientLevels = levels;
       if (blocked(false) || context.state !== 'running' || volumes.ambient <= 0) return;
@@ -473,7 +531,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       const was = paused;
       paused = Boolean(value);
       if (paused) {
-        stopEffects();
+        stopEffects(); resetReverb();
         if (context) stopAmbient();
         if (!was && music && !music.paused) {
           fadeMusicThenPause(.3);
@@ -497,12 +555,16 @@ export function createAudio({ storage = defaultStorage() } = {}) {
         musicPlaying: Boolean(music && !music.paused), musicTrack: MUSIC_TRACKS[musicIndex], musicError, contextState: context?.state || 'locked',
         volumes: { ...volumes }, intensity, startup: { ...startup }, ducking: { combat: duckDepth('combat'), music: duckDepth('music') },
         ambient: Object.fromEntries(BEDS.map(name => [name, beds.get(name)?.target ?? 0])), ambientActive: beds.size, ambientRequested: ambientLevels,
+        reverb: reverb ? {
+          ready: Boolean(reverb.buffer), seconds: reverb.buffer?.duration ?? 0, channels: reverb.buffer?.numberOfChannels ?? 0, combat: combatSend.gain.value, open: reverbReturn.gain.value,
+          sends: Object.fromEntries(Object.entries(sends).map(([name, node]) => [name, node.gain.value])),
+        } : null,
         bank: bank ? { ...bank.stats, ready: bank.stats.loaded === bank.stats.total } : { mode: 'idle', total: BANK_SIZE, loaded: 0, voices: 0, mainMs: 0, longestMs: 0, failed: 0, ready: false },
       };
     },
     dispose() {
       disposed = true; stopEffects(); pending = [];
-      clearTimeout(pauseTimer); clearTimeout(musicTimer);
+      clearTimeout(pauseTimer); clearTimeout(musicTimer); clearTimeout(reverbTimer);
       if (context) stopAmbient();
       bank?.close(); music?.pause();
       if (music) { music.removeAttribute('src'); music.load(); }

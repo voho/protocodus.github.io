@@ -240,18 +240,11 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
       }
       if (wall >= nextAmbient) { nextAmbient = wall + .25; this.ambience(view, screen); }
     },
-    // Ambient beds from what the camera shows: wind grows as the view widens, lava only from cells the
-    // player currently sees, industry from friendly refineries processing shards and busy production bays.
+    // Ambient beds from what the camera shows and the player has heard: wind grows as the view widens, the
+    // distant front with the view's width and with the combat intensity (fed only by fighting the player
+    // could see), industry from friendly refineries processing shards and busy production bays. No bed reads
+    // hidden state.
     ambience(view, screen) {
-      const halfWidth = screen.width / 2 / view.zoom, halfHeight = screen.height / 2 / view.zoom, width = game.width;
-      const x0 = Math.max(0, Math.floor(view.x - halfWidth)), x1 = Math.min(width, Math.ceil(view.x + halfWidth));
-      const y0 = Math.max(0, Math.floor(view.y - halfHeight)), y1 = Math.min(game.height, Math.ceil(view.y + halfHeight));
-      const step = (x1 - x0) * (y1 - y0) > 6000 ? 2 : 1, sight = game.visible[0], terrain = game.terrain;
-      let lava = 0, lavaX = 0;
-      for (let y = y0; y < y1; y += step) for (let x = x0; x < x1; x += step) {
-        const index = y * width + x;
-        if (terrain[index] === 3 && sight[index]) { lava++; lavaX += x + .5; }
-      }
       let industry = 0, industryPan = 0;
       for (const e of game.entities) {
         if (e.team !== 0 || e.kind !== 'building' || e.hp <= 0 || (e.progress ?? 1) < 1) continue;
@@ -261,11 +254,10 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
         industry += at.gain; industryPan += at.pan * at.gain;
       }
       const levels = screen.levels, far = levels?.length ? 1 - clamp((view.zoom - levels[0]) / Math.max(1e-6, levels.at(-1) - levels[0]), 0, 1) : .5;
-      const lavaCells = lava * step * step;
       audio.setAmbient?.({
         wind: { gain: .3 + .45 * far, pan: 0 },
-        lava: { gain: lavaCells ? Math.min(1, Math.sqrt(lavaCells / 60)) * .9 : 0, pan: lava ? clamp((lavaX / lava - view.x) / Math.max(1, halfWidth) * .8, -.8, .8) : 0 },
         industry: { gain: Math.min(.9, industry * .35), pan: industry ? clamp(industryPan / industry, -.8, .8) : 0 },
+        front: { gain: Math.min(.7, .22 * far + .6 * intensity), pan: 0 },
       });
       audio.setIntensity?.(intensity);
     },

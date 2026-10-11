@@ -16,12 +16,13 @@
 // gives the rival commander the doctrine its story describes (docs/BALANCE.md records the winnability probes).
 
 // The players' cast. Speakers stay within 40 characters for saved dialogue events.
-const VALE='Cmdr. Vale',TESK='Chief Orrun-Tesk',KADE='Auditor Kade',DACE='Captain Dace Mor',UNITY='Unity';
+const VALE='Cmdr. Vale',TESK='Chief Orrun-Tesk',KADE='Auditor Kade',DACE='Captain Dace Mor',HALE='Sgt. Iver Hale',UNITY='Unity';
 const say=(speaker,text)=>({say:{speaker,text}});
 const CORE_ECONOMY={buildings:['reactor','refinery','barracks'],units:['rifle','scout','harvester'],research:[],upgrades:[]};
 const DEFENSES={buildings:[...CORE_ECONOMY.buildings,'wall','turret','capacitor'],units:[...CORE_ECONOMY.units,'rocket'],research:[],upgrades:[]};
 const FOUNDRY={buildings:[...DEFENSES.buildings,'lab','factory'],units:[...DEFENSES.units,'tank','engineer'],research:['infantryWeapons','infantryArmor','vehicleWeapons','mobility'],upgrades:[]};
 const EXPANSION={buildings:FOUNDRY.buildings,units:[...FOUNDRY.units,'constructor'],research:[...FOUNDRY.research,'gridEfficiency'],upgrades:['speed','efficiency']};
+const SIEGE={...EXPANSION,units:[...EXPANSION.units,'artillery']};
 
 export const SKIRMISH_MODES=[
   {id:'annihilation',name:'Annihilation',description:'Destroy every hostile nexus and construction vehicle. A side left without either loses its claim to the sector.'},
@@ -30,7 +31,7 @@ export const SKIRMISH_MODES=[
 ];
 
 // The campaign plays these operations in order; finishing one unlocks the next.
-export const CAMPAIGN=['landfall','hold-the-line','signal-in-the-ash','convoy','red-ledger','dead-signal','hold-the-relay','severance'];
+export const CAMPAIGN=['landfall','hold-the-line','signal-in-the-ash','convoy','red-ledger','dead-signal','the-fifth','long-guns','hold-the-relay','severance'];
 
 export const MISSIONS={
   drill:{
@@ -69,7 +70,7 @@ export const MISSIONS={
   landfall:{
     id:'landfall',name:'Landfall',location:'Kessel flats',seed:'LANDFALL-07',par:300,
     summary:'Walk the ground, raise a barracks and clear the Unity picket watching the landing.',
-    story:['Expedition 07 is down on Tephra with a nexus, a reactor, one refinery and a handful of squads. Under the Charter the sector is ours for as long as that nexus keeps running.','Unity already knows we are here. A survey picket of Needle cohorts sits on the lane east of the landing. Learn the ground, get the economy turning, then clear it.'],
+    story:['Expedition 07 is down on Tephra with a nexus, a reactor, one refinery and a handful of squads. Under the Charter the sector is ours for as long as that nexus keeps running.','Unity already knows we are here. A survey picket of Needle cohorts sits on the lane ahead of the landing. Learn the ground, get the economy turning, then clear it.'],
     briefing:'Expedition 07 makes landfall. Survey the ground, raise a barracks and clear the Unity picket.',
     opening:'Expedition 07 is down on Tephra. Command online.',
     victoryText:'Picket cleared. Expedition 07 holds its landing ground.',
@@ -91,7 +92,7 @@ export const MISSIONS={
       {id:'first-steps',when:{time:8,objectiveActive:'marker'},do:[say(VALE,'First, walk the ground. Select two units, then right-click or tap the survey marker; the locate button beside the objective finds it.')]},
       {id:'ground',when:{objectiveDone:'marker'},do:[{reveal:'barracks'},say(VALE,'Ground holds. Open the command console, choose the Field barracks and place it within reach of the base.')]},
       {id:'recruit',when:{objectiveDone:'barracks'},do:[{reveal:'rifles'},{reveal:'shards'},say(VALE,'Barracks online. Train three rifle squads. Your hauler is already working the mint field; keep the credits coming.')]},
-      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Clearing it closes the operation, so finish the rover\'s survey first. Gather the squads and attack-move with Attack or Q.')]},
+      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane ahead of us. Clearing it closes the operation, so finish the rover\'s survey first. Gather the squads and attack-move with Attack or Q.')]},
       {id:'classified',when:{zoneEntered:'picket'},do:[say(UNITY,'Unregistered claim detected. Classification: interference.')]},
       {id:'pressure',when:{tagsLeft:{tag:'picket',count:2}},do:[say(VALE,'They hold their ground and fire at anything in range. Keep the pressure on.')]},
     ],
@@ -263,7 +264,7 @@ export const MISSIONS={
       {id:'insert',when:{time:1},do:[say(VALE,'Dead Signal is a commando run: no base, no reinforcements. Three spires feed the relay complex. Take them out one at a time.'),say(VALE,'The engineer carries four hundred credits of parts. Spend them keeping the rovers running.')]},
       {id:'crest',when:{time:8},do:[say(TESK,'My launchers are rested and angry. Spires first; a mainframe without power is a deaf thing.')]},
       {id:'reroute',when:{tagsLeft:{tag:'spire',count:2}},do:[say(UNITY,'Resonance loss detected. Rerouting.')]},
-      {id:'cache',when:{time:40},do:[{reveal:'cache'},say(VALE,'Expedition 05 buried a survey cache south of the lane before Unity caught them. If anyone passes it, bring the logs home.')]},
+      {id:'cache',when:{time:40},do:[{reveal:'cache'},say(VALE,'Expedition 05 buried a survey cache off the lane before Unity caught them. If anyone passes it, bring the logs home.')]},
       {id:'logs',when:{objectiveDone:'cache'},do:[say(TESK,'Expedition 05 logs recovered. They mapped every spire in this basin. Someone will read their names tonight.')]},
       {id:'last-spire',when:{tagsLeft:{tag:'spire',count:1}},do:[say(TESK,'One spire left. Every node in the complex drinks from it alone.')]},
       {id:'exposed',when:{objectiveDone:'spires'},do:[{reveal:'relay'},say(UNITY,'Relay integrity failing. All cohorts return to the mainframe.'),{rally:{team:1,at:'relay'}}]},
@@ -288,10 +289,101 @@ export const MISSIONS={
     },
   },
 
+  'the-fifth':{
+    id:'the-fifth',name:'The Fifth',location:'Hale\'s hollow',seed:'THE-FIFTH',par:600,
+    summary:'Break through to Expedition 05\'s last crew and hold their crater hollow until the lift lands.',
+    story:['The survey logs from Dead Signal carried more than spire positions. Their last entry is nineteen days old and still repeating: a crew of Expedition 05 is alive in a crater hollow on the flank of the basin.','Sergeant Iver Hale holds it with what Unity left of the Fifth, and Unity has found them. Armor breaks through, then the hollow is held until the lift can land. Their rifles are ranked; bring them home.'],
+    briefing:'Break through to Expedition 05\'s survivors with three tanks and hold their hollow until the lift lands.',
+    opening:'Signal confirmed from Hale\'s hollow. Expedition 07, go and get them.',
+    victoryText:'The lift is up. Expedition 05 is coming home.',
+    width:192,height:144,profile:'steppe',races:['organics','aiUnity'],aiTeams:[],start:['standard','none'],credits:[2600,0],
+    allow:EXPANSION,
+    zones:[{id:'hollow',label:'Hale\'s hollow',at:{at:'lane:0.55',dx:4,dy:-24},r:7},{id:'battery',label:'Unity siege battery',at:{at:'hollow',dx:10,dy:-5},r:5}],
+    objectives:[
+      {id:'reach',type:'reachZone',zone:'hollow',roles:['tank'],count:3,label:'Break through to Hale\'s hollow with three Vanguard tanks'},
+      {id:'hold',type:'holdZone',zone:'hollow',seconds:180,hidden:true,label:'Hold the hollow for 3:00 until the lift lands'},
+      {id:'crew',type:'protectTagged',tag:'fifth',all:true,secondary:true,hidden:true,label:'Bring every survivor of the Fifth home'},
+      {id:'battery',type:'destroyTagged',tag:'battery',zone:'battery',secondary:true,hidden:true,label:'Silence the siege battery shelling the hollow'},
+      {id:'losses',type:'limitLosses',units:10,secondary:true,label:'Lose no more than ten units'},
+    ],
+    // The crew climbs out to meet the column, so the operation fails only if every survivor falls after that.
+    fail:[{type:'coreLost'},{type:'tagLost',tag:'fifth',label:'Expedition 05'}],
+    triggers:[
+      {id:'logs',when:{time:1},do:[say(VALE,'Dead Signal\'s logs were still transmitting. A crew of Expedition 05 is alive in a crater hollow on the flank, and Unity has them pinned. We are going to get them.')]},
+      {id:'hale',when:{time:9},do:[say(HALE,'Hale, Expedition 05. Nineteen days in this hole. If that is the Seventh on my scope, bring armor. Everything between us is theirs.')]},
+      {id:'armor',when:{time:17,objectiveActive:'reach'},do:[say(VALE,'Build a War foundry and lead with Vanguards. Three tanks inside the hollow clear the ground for the lift; the rest of the column keeps them alive.')]},
+      {id:'probe',when:{time:150},do:[{spawn:{team:1,units:[['rifle',3],['scout',1]],at:'fogEdge',order:'attackBase',tag:'probe',text:'Unity probe moving on the base.'}}]},
+      {id:'contact',when:{zoneEntered:'hollow'},do:[say(HALE,'Compact plates on the rim. Fifth, on your feet.'),{spawn:{team:0,units:[['rifle',3],['rocket',2],['engineer',1]],at:'hollow',tag:'fifth',kills:6,text:'Expedition 05 survivors have joined the column.'}},{reveal:'crew'}]},
+      {id:'lift',when:{objectiveDone:'reach'},do:[{reveal:'hold'},{reveal:'battery'},say(VALE,'Lift is inbound. It needs three minutes over a hollow with no Unity inside it. Hold the rim.'),say(UNITY,'Expedition 05 remnant located. Correction resumes.')]},
+      {id:'converge',when:{objectiveDone:'reach',time:20,every:30},do:[{spawn:{team:1,units:[['rifle',3,.6],['rocket',1,.4],['scout',1,.25],['tank',0,.4,2]],at:'fogEdge',order:{zone:'hollow'},tag:'converge',cap:70,text:'Unity cohorts converging on the hollow.'}}]},
+      {id:'final',when:{after:{trigger:'lift',seconds:120}},do:[say(VALE,'Lift on final approach. One more minute.')]},
+      {id:'losing',when:{tagsLeft:{tag:'fifth',count:3}},do:[say(HALE,'We are losing people out here, Seven. Close the gaps.')]},
+      {id:'silenced',when:{objectiveDone:'battery'},do:[say(HALE,'That battery has shelled us for nine days. Thank you.')]},
+    ],
+    setup(s,api){
+      api.clearArea('hollow',4);
+      // Besiegers ring the hollow; the battery sits on its rim with a skimmer to spot for it.
+      api.spawn(1,'rifle',4,{at:'hollow',dx:-6,dy:3},{stance:'defend'});
+      api.spawn(1,'rocket',2,{at:'hollow',dx:-4,dy:-5},{stance:'defend'});
+      api.spawn(1,'tank',1,{at:'hollow',dx:-8,dy:-1},{stance:'defend'});
+      api.spawn(1,'artillery',2,'battery',{tag:'battery'});
+      api.spawn(1,'scout',1,{at:'battery',dx:-3,dy:2},{tag:'battery',stance:'defend'});
+    },
+  },
+
+  'long-guns':{
+    id:'long-guns',name:'Long Guns',location:'Varn bastion',seed:'LONG-GUNS',par:720,
+    summary:'Shell a walled Unity bastion from beyond its towers with the Compact\'s first siege crawlers.',
+    story:['Unity has walled the road to the central relay with a bastion: Lance nodes and launch batteries behind slag walls, fed by their own reactors. Armor that walks into that line does not walk out.','The yard has cleared siege crawlers. Their guns were built to crack mountain rock and outrange every tower Unity builds. Light the batteries with rovers or a flare, shell them from beyond their reach, then take the bastion mainframe.'],
+    briefing:'Break the Varn bastion: destroy its six batteries with siege crawlers, then its mainframe.',
+    opening:'Siege crawlers cleared for the line. Expedition 07, open fire on Varn.',
+    victoryText:'The Varn bastion is rubble. The road to the relay is open.',
+    width:192,height:144,profile:'highlands',races:['organics','aiUnity'],aiTeams:[],start:['standard','none'],credits:[3200,0],
+    allow:SIEGE,
+    zones:[{id:'bastion',label:'Varn bastion',at:'lane:0.66',r:12}],
+    objectives:[
+      {id:'batteries',type:'destroyTagged',tag:'battery',zone:'bastion',label:'Destroy the bastion\'s six batteries'},
+      {id:'keep',type:'destroyTagged',tag:'keep',hidden:true,label:'Destroy the bastion mainframe'},
+      {id:'guns',type:'protectTagged',tag:'guns',all:true,secondary:true,label:'Keep both lead crawlers running'},
+      {id:'grid',type:'destroyTagged',tag:'grid',secondary:true,label:'Black out the bastion: destroy both of its reactors'},
+      {id:'losses',type:'limitLosses',units:12,secondary:true,label:'Lose no more than twelve units'},
+    ],
+    triggers:[
+      {id:'line',when:{time:1},do:[say(VALE,'That bastion closes the road to the relay. Six batteries, two reactors and a mainframe behind slag walls. Tanks alone will not get through.')]},
+      {id:'reach',when:{time:9},do:[say(TESK,'Crawlers outrange every tower on that line, but they shoot only what someone can see. Light a battery with a rover or a flare, then shell it from beyond its reach.')]},
+      {id:'barrage',when:{time:17},do:[say(VALE,'A crawler\'s Barrage drops four shells on ground you have seen: press F or tap the ability button, then pick the target. Keep the crawlers behind the tanks.')]},
+      {id:'subtract',when:{zoneEntered:'bastion'},do:[say(UNITY,'Bastion integrity is a fixed quantity. Intruders will be subtracted.')]},
+      {id:'half',when:{tagsLeft:{tag:'battery',count:3}},do:[say(TESK,'Half the line is down. Their rails are whistling at nothing now.')]},
+      {id:'breach',when:{objectiveDone:'batteries'},do:[{reveal:'keep'},say(VALE,'Batteries silent. The mainframe sits behind the line. Finish it.')]},
+      {id:'dark',when:{tagDestroyed:'grid'},do:[say(TESK,'Both reactors down. Whatever still fires in there is running on its reserve.')]},
+      {id:'counter',when:{time:300},do:[say(UNITY,'Counter-battery protocol engaged.'),{spawn:{team:1,units:[['artillery',2],['scout',1],['tank',2]],at:'bastion',order:'attackBase',tag:'counter',text:'Unity siege walkers moving on the base.'}}]},
+      {id:'sorties',when:{time:120,every:110,limit:6},do:[{spawn:{team:1,units:[['rifle',3,.5],['rocket',1,.34],['scout',1]],at:'bastion',order:'attackBase',tag:'sortie',cap:50,text:'Bastion cohorts moving on the base.'}}]},
+    ],
+    setup(s,api){
+      api.clearArea('bastion',12);
+      api.spawn(0,'artillery',2,{at:'start',dx:5,dy:-6},{tag:'guns'});
+      api.spawn(0,'scout',2,{at:'start',dx:7,dy:-3});
+      api.spawn(0,'tank',2,{at:'start',dx:6,dy:-1});
+      // Slag walls face the approach with a gate in the middle; the batteries stand behind them and the mainframe
+      // and its grid at the back, all turned with the sector.
+      for(let dy=-8;dy<=8;dy++)if(Math.abs(dy)>1)api.spawn(1,'wall',1,{at:'bastion',dx:-8,dy});
+      for(const [dx,dy] of [[-5,-6],[-5,5],[-4,-2],[-4,2]])api.spawn(1,'turret',1,{at:'bastion',dx,dy},{tag:'battery'});
+      for(const [dx,dy] of [[-1,-5],[-1,4]])api.spawn(1,'rocketTower',1,{at:'bastion',dx,dy},{tag:'battery'});
+      api.spawn(1,'core',1,{at:'bastion',dx:5,dy:0},{tag:'keep'});
+      api.spawn(1,'reactor',1,{at:'bastion',dx:4,dy:-6},{tag:'grid'});
+      api.spawn(1,'reactor',1,{at:'bastion',dx:4,dy:6},{tag:'grid'});
+      api.spawn(1,'capacitor',1,{at:'bastion',dx:8,dy:3});
+      api.spawn(1,'rifle',5,{at:'bastion',dx:0,dy:0},{stance:'defend'});
+      api.spawn(1,'rocket',3,{at:'bastion',dx:1,dy:3},{stance:'defend'});
+      api.spawn(1,'tank',2,{at:'bastion',dx:2,dy:-3},{stance:'defend'});
+      api.spawn(1,'artillery',1,{at:'bastion',dx:3,dy:1});
+    },
+  },
+
   'hold-the-relay':{
     id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:600,aiStep:1,
     summary:'Seize the central relay and hold it for four minutes against Unity\'s veteran cohorts.',
-    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here under Bastion mind OR-4, which walls in its sentries and garrisons the relay from the first minute, then reinforces it with walkers. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
+    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here under Bastion mind OR-4, which walls in its sentries and garrisons the relay from the first minute, then reinforces it with walkers. Rocket towers, Pike strikers and the last research are now cleared.'],
     briefing:'Hold the lit central relay for four minutes in total before Unity can hold it for as long.',
     opening:'Relay traffic intercepted. Expedition 07, take the relay.',
     victoryText:'The relay is ours. Unity\'s eastern cohorts are cut off.',
@@ -323,7 +415,7 @@ export const MISSIONS={
     opening:'All Compact forces committed. Expedition 07, begin Severance.',
     victoryText:'Severance complete. The eastern cohorts fall silent and the Ashline moves east.',
     width:224,height:168,profile:'highlands',races:['organics','aiUnity'],aiTeams:[1],aiProfiles:{1:{doctrine:'prospector'}},credits:[3000,3000],
-    zones:[{id:'north',label:'North mainframe',at:{at:'lane:0.7',dx:-6,dy:-30},r:6},{id:'south',label:'South mainframe',at:{at:'lane:0.75',dx:14,dy:26},r:6}],
+    zones:[{id:'north',label:'Spur mainframe',at:{at:'lane:0.7',dx:-6,dy:-30},r:6},{id:'south',label:'Shelf mainframe',at:{at:'lane:0.75',dx:14,dy:26},r:6}],
     objectives:[
       {id:'sever',type:'annihilate',label:'Destroy every Unity mainframe and constructor'},
       {id:'outliers',type:'destroyTagged',tag:'outlier',secondary:true,label:'Destroy both outlying mainframes'},
@@ -396,7 +488,7 @@ export const MISSIONS={
 export const ARCHIVE={
   world:[
     {title:'Tephra',text:'A frontier world at the edge of Charter space. Its forests died in the Burn, and its ash plains cover the richest shard veins ever surveyed.'},
-    {title:'The Burn',text:'A cascade of rift eruptions that ran for eleven years. It left the deadwood, ash plains, craters and lava basins, and it cracked open the shard veins.'},
+    {title:'The Burn',text:'A cascade of rift eruptions that ran for eleven years. It left the deadwood, ash plains, craters and basalt dikes, and it cracked open the shard veins.'},
     {title:'Shards',text:'Crystallised geothermal charge. Mint shards are common, blue shards mark deep reserves, and red seam crystal is dense and twice charged. Refined, shards are both currency and power.'},
     {title:'The Ashline',text:'The moving front between claims. It runs wherever two nexuses can see each other\'s smoke.'},
   ],
@@ -414,6 +506,7 @@ export const ARCHIVE={
     {title:'Chief Orrun-Tesk',text:'Launcher chief of the Vael Third Crest. Speaks for the launcher teams and remembers every one of them by name.'},
     {title:'Auditor Senna Kade',text:'Charter auditor. She does not take sides; she takes notes, and her notes decide who owns a sector.'},
     {title:'Captain Dace Mor',text:'Master of the Red Ledger crews. Jumps claims for a living and keeps careful books on every loss.'},
+    {title:'Sgt. Iver Hale',text:'Last ranking soldier of Expedition 05. Held a crater hollow for nineteen days on scavenged power and refused every order to fall back.'},
   ],
   flavor:{
     rifle:'Compact infantry carry rifles older than their sergeants. They still shoot straight.',

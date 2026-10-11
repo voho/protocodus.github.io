@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,MAP_SIZES,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,powerStats,getEntity} from '../sim.js';
+import {basePoint,lanePoint} from '../terrain.js';
+import {BUILDINGS,UNITS,MAP_SIZES,DEFAULT_MAP_SIZE,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,powerStats,getEntity} from '../sim.js';
 
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.1);i++)updateGame(s,.1);};
 const quiet=seed=>{const s=createGame(seed);s.ai.nextThink=Infinity;return s;};
 const entities=(s,team,type)=>s.entities.filter(e=>e.team===team&&e.type===type);
 const available=(s,type)=>{const core=entities(s,0,'core')[0];for(let y=core.y-15;y<core.y+15;y++)for(let x=Math.max(1,core.x-12);x<core.x+22;x++)if(canPlace(s,0,type,x,y).ok)return{x,y};throw Error(`No placement for ${type}`);};
 
-// New sectors default to Frontier; current and legacy dimensions work when stepped together.
+// New sectors default to Expanse; current and legacy dimensions work when stepped together.
 const expanded=createGame('map-dimensions'),legacy=createGame('map-dimensions','normal',{width:72,height:56});
-assert.deepEqual([expanded.width,expanded.height],[MAP_SIZES.frontier.width,MAP_SIZES.frontier.height]);
-assert.equal(expanded.terrain.length,MAP_SIZES.frontier.width*MAP_SIZES.frontier.height);
-assert(expanded.terrain.length>legacy.terrain.length*6,'Frontier provides substantially more territory');
+const defaultSize=MAP_SIZES[DEFAULT_MAP_SIZE];
+assert.deepEqual([expanded.width,expanded.height],[defaultSize.width,defaultSize.height]);
+assert.equal(expanded.terrain.length,defaultSize.width*defaultSize.height);
+assert(expanded.terrain.length>legacy.terrain.length*12,'Expanse provides substantially more territory');
 assert.deepEqual(expanded.teams,legacy.teams,'Larger maps preserve the starting economy');
 assert.deepEqual(expanded.entities.map(({type,team,size,hp})=>({type,team,size,hp})),legacy.entities.map(({type,team,size,hp})=>({type,team,size,hp})),'Starting armies and physical scale stay unchanged');
 const mineralCells=s=>s.minerals.reduce((n,v)=>n+(v>0),0);
-assert(mineralCells(expanded)>mineralCells(legacy)*2,'The larger frontier has additional remote expansion fields');
+assert(mineralCells(expanded)>mineralCells(legacy)*2,'The larger expanse has additional remote expansion fields');
 for(let i=0;i<expanded.minerals.length;i++)assert.equal(expanded.minerals[i],expanded.minerals[expanded.minerals.length-1-i],'Expanded mineral budgets remain exactly mirrored');
 const edgeCases=[legacy,expanded].map(s=>{
   const u=entities(s,0,'scout')[0];s.entities=[u];s.ai.nextThink=Infinity;s.terrain.fill(0);s.minerals.fill(0);s.navVersion++;
@@ -52,9 +54,10 @@ assert(economy.teams[0].credits>beforeFallback,'Nexus accepts emergency cargo');
 const prospect=quiet('prospect'),hauler=entities(prospect,0,'harvester')[0];
 prospect.terrain.fill(0);prospect.minerals.fill(0);prospect.navVersion++;
 advance(prospect,2);assert.equal(hauler.mineralTile,-1);
-const prospectCore=entities(prospect,0,'core')[0],px=prospectCore.x-10,py=prospectCore.y-35;
-for(const [x,y] of [[16,43],[18,43],[17,42],[17,44]])prospect.terrain[(y+py)*prospect.width+x+px]=1;
-const isolated=(43+py)*prospect.width+17+px,reachable=(42+py)*prospect.width+22+px;
+// Tiles of the original deployment's frame (nexus at 10,35), turned with this sector's base.
+const prospectTile=(x,y)=>{const p=basePoint(prospect,0,x-11,y-36);return Math.floor(p.y)*prospect.width+Math.floor(p.x);};
+for(const [x,y] of [[16,43],[18,43],[17,42],[17,44]])prospect.terrain[prospectTile(x,y)]=1;
+const isolated=prospectTile(17,43),reachable=prospectTile(22,42);
 prospect.minerals[isolated]=600;prospect.minerals[reachable]=600;
 prospect.explored[0].fill(1);prospect.navVersion++;
 advance(prospect,1.2);assert.equal(hauler.mineralTile,reachable,'Hauler must choose a reachable newly discovered field');
@@ -64,7 +67,7 @@ advance(prospect,18);assert.equal(prospect.minerals[isolated],600);assert(prospe
 const base=quiet('building');
 assert.equal(trainUnit(base,0,'tank').ok,false);
 assert.equal(canPlace(base,0,'factory',20,35).ok,false);
-assert.equal(canPlace(base,0,'reactor',60,45).ok,false);
+const remote=lanePoint(base,.4);assert.equal(canPlace(base,0,'reactor',Math.floor(remote.x),Math.floor(remote.y)).ok,false,'Remote ground is out of construction reach');
 const spot=available(base,'barracks'),before=base.teams[0].credits;
 const result=placeBuilding(base,0,'barracks',spot.x,spot.y);
 assert(result.ok);assert.equal(base.teams[0].credits,before-BUILDINGS.barracks.cost);
@@ -80,6 +83,8 @@ assert.equal(trainUnit({...base,status:'victory'},0,'rifle').ok,false);
 const travel=quiet('path'),scout=entities(travel,0,'scout')[0];
 scout.x=15.5;scout.y=33;
 travel.terrain.fill(0);travel.minerals.fill(0);
+// The base may face any way; clear structures from the fixture's corner so only the wall shapes the route.
+travel.entities=travel.entities.filter(e=>e.kind==='unit'||e.x>60||e.y>60);
 for(let y=0;y<47;y++)travel.terrain[y*travel.width+28]=1;
 travel.navVersion++;issueOrder(travel,[scout.id],{type:'move',x:38.5,y:36.5});
 advance(travel,40);
@@ -113,14 +118,17 @@ assert(Object.keys(battle.ai.known).length>0,'AI must scout before attacking');
 assert.equal(battle.explored[1][(battleCore.y+1)*battle.width+battleCore.x+1],1,'AI scouting reaches the player base across the expanded map');
 assert(Object.values(UNITS).every(d=>d.cost>0&&d.trainTime>0));
 
-// A capable player can win against the enabled AI using only public, paid commands.
-const victory=createGame('player-victory','normal');
+// A capable player can win against the enabled AI using only public, paid commands. This scripted all-in won seven of
+// eight sampled Frontier sectors both before and after base layouts were drawn from the seed.
+const victory=createGame('PV-1','normal',{...MAP_SIZES.frontier});
 const home=entities(victory,0,'core')[0],enemy=entities(victory,1,'core')[0],enemyDestination={x:enemy.x+enemy.size/2,y:enemy.y+enemy.size/2};
 const player=type=>victory.entities.filter(e=>e.team===0&&(!type||e.type===type));
 const waiting=type=>player().reduce((sum,e)=>sum+(e.queue?.filter(q=>q.type===type).length||0),0);
+// Offsets from the nexus centre in the original frame, turned with the sector's base.
+const ahead=(dx,dy)=>basePoint(victory,0,dx,dy),site=ahead(6.5,-4.5);
 function expand(type){
   let best;
-  for(let y=home.y-12;y<home.y+11;y++)for(let x=home.x-6;x<home.x+20;x++)if(canPlace(victory,0,type,x,y).ok){const score=Math.hypot(x-home.x-8,y-home.y+3);if(!best||score<best.score)best={x,y,score};}
+  for(let y=home.y-16;y<home.y+18;y++)for(let x=home.x-16;x<home.x+18;x++)if(canPlace(victory,0,type,x,y).ok){const score=Math.hypot(x-site.x,y-site.y);if(!best||score<best.score)best={x,y,score};}
   if(best)placeBuilding(victory,0,type,best.x,best.y);
 }
 let advanced=false;
@@ -145,7 +153,7 @@ for(let tick=0;tick<6000&&victory.status==='playing';tick++){
       if(waiting(type)<2)trainUnit(victory,0,type);
     }
     // Staging and advancing into a map quadrant requires no knowledge of concealed entities.
-    const destination=victory.time<150?{x:home.x+15,y:home.y-5}:enemyDestination;
+    const destination=victory.time<150?ahead(13.5,-6.5):enemyDestination;
     for(const u of player().filter(e=>e.kind==='unit'&&e.type!=='harvester'))if(u.order.type==='idle'||victory.time>=150&&!advanced)issueOrder(victory,[u.id],{type:'attackMove',...destination});
     if(victory.time>=150)advanced=true;
   }

@@ -445,3 +445,31 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
 .archive-entry .archive-meta{font:11px/1.5 var(--mono);color:var(--amber)}
 .archive-entry .archive-flavor{color:#c6d4d1;font-style:italic;margin:0}
 @media(max-width:680px){.archive-head{padding:18px 16px 8px}.archive-tabs{padding:0 12px}.archive-body{grid-template-columns:1fr;padding:12px 16px 18px}}
+/* Landscape phones narrower than 681 px keep the short-landscape layout. The portrait rules above would stack the
+   console above a tall selection panel, which leaves a 360-px screen no console at all. Here the console fills the
+   right column (its own × closes it), a compact selection panel sits between the tactical map and that column, and
+   the newest message shows above the panel. */
+@media(max-width:680px) and (max-height:500px){
+  .tactical-map{width:118px}
+  .sidebar,body[data-selection=true] .sidebar{top:58px;bottom:auto;max-height:calc(100dvh - 70px)}
+  #command-toggle,body[data-selection=true] #command-toggle{top:60px;bottom:auto}
+  body[data-commands=true] #command-toggle,body[data-selection=true] #select-army{display:none}
+  .objectives{max-width:calc(100% - 270px)}
+  .commandbar,.commandbar:has(#unit-stance:not([hidden])){left:138px;right:130px;min-height:0;display:flex;flex-wrap:wrap;gap:6px;padding:6px}
+  .commandbar .selection-info{flex:1 1 100%;max-width:none}
+  .unit-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;width:100%}
+  .unit-actions button{height:32px}
+  #unit-stance{display:flex;flex:1 1 100%;gap:6px;padding-top:5px}
+  .stance-summary{display:none}
+  .stance-options button{min-height:32px}
+  body #order-hint,body:has(#repair-building:not([hidden])) #order-hint{left:138px;right:130px;bottom:calc(var(--selection-height,0px) + 18px);max-width:none;transform:none}
+  #notifications,body[data-selection=true] #notifications,body[data-commands=true] #notifications,body[data-commands=true][data-selection=true] #notifications{top:auto;bottom:calc(var(--selection-height,0px) + 18px);left:138px;right:130px;width:auto}
+  body:has(#order-hint:not([hidden])) #notifications{bottom:calc(var(--selection-height,0px) + var(--order-hint-height,54px) + 24px)}
+  #notifications .toast:nth-last-child(n+2){display:none}
+  /* An open console takes the right column, so the panel, the hint and the message stop at its edge. */
+  body[data-commands=true] .commandbar,body[data-commands=true] .commandbar:has(#unit-stance:not([hidden])),body[data-commands=true] #order-hint,body[data-commands=true]:has(#repair-building:not([hidden])) #order-hint,body[data-commands=true] #notifications,body[data-commands=true][data-selection=true] #notifications{right:248px}
+}
+/* The shortest phones cannot stack a message above the selection panel and a targeting hint; it waits out the hint. */
+@media(max-width:680px) and (max-height:340px){body:has(#order-hint:not([hidden])) #notifications{display:none}}
+/* On short landscape screens the selection panel sits beside the console, so the console keeps its full height. */
+@media(min-width:681px) and (max-width:900px) and (max-height:500px){body[data-selection=true] .sidebar{max-height:calc(100dvh - 70px)}}

@@ -31,6 +31,8 @@ const fixture = page => page.evaluate(async () => {
   const m = await import('./sim.js'), s = ashline.state;
   s.aiTeams = []; s.teams[0].credits = 40000; s.visible[0].fill(1); s.explored[0].fill(1); s.fogClock = 1e9;
   const core = s.entities.find(e => e.team === 0 && m.buildingRole(e) === 'core');
+  // Offsets below are written for a south-west base; the seeded layout may put the base anywhere, so they turn toward the centre.
+  const flip = { x: core.x < s.width / 2 ? 1 : -1, y: core.y > s.height / 2 ? 1 : -1 };
   const build = role => {
     const type = m.raceBuilding(s, 0, role);
     for (let y = core.y - 12; y < core.y + 13; y++) for (let x = core.x - 12; x < core.x + 14; x++) if (m.canPlace(s, 0, type, x, y).ok) {
@@ -43,9 +45,9 @@ const fixture = page => page.evaluate(async () => {
   const engineer = unit('engineer', 5, -3), constructor = unit('constructor', 6, -4), artillery = unit('artillery', 4, -5);
   const rifles = s.entities.filter(e => e.team === 0 && m.unitRole(e) === 'rifle').map(e => e.id);
   const scout = s.entities.find(e => e.team === 0 && m.unitRole(e) === 'scout').id;
-  const far = unit('tank', 40, -30);
+  const far = unit('tank', 40 * flip.x, -30 * flip.y);
   s.events.length = 0; ashline.view.selected.clear();
-  return { core: { x: core.x + 1.5, y: core.y + 1.5 }, barracks: barracks.id, factory: factory.id, lab: lab.id, engineer: engineer.id, constructor: constructor.id, artillery: artillery.id, rifles, scout, far: far.id, rifleType: m.raceUnit(s, 0, 'rifle') };
+  return { core: { x: core.x + 1.5, y: core.y + 1.5 }, flip, barracks: barracks.id, factory: factory.id, lab: lab.id, engineer: engineer.id, constructor: constructor.id, artillery: artillery.id, rifles, scout, far: far.id, rifleType: m.raceUnit(s, 0, 'rifle') };
 });
 
 try {
@@ -74,14 +76,15 @@ try {
   if (await desktop.locator('#command-console').isHidden()) await desktop.locator('#command-toggle').click();
 
   // Message log: kinds pick tones, repeats collapse, the newest four stay, and alerts jump the camera.
-  await desktop.evaluate(async ({ core }) => {
+  const alertAt = { x: ids.core.x + 20 * ids.flip.x, y: ids.core.y - 20 * ids.flip.y };
+  await desktop.evaluate(async ({ alertAt }) => {
     const { event } = await import('./sim.js'), s = ashline.state;
     event(s, 'All hostile nexuses and construction vehicles destroyed. Sector secured.', 0, { kind: 'victory' });
-    event(s, 'Field barracks under attack', 0, { kind: 'underAttack', x: core.x + 20, y: core.y - 20 });
-    event(s, 'Field barracks under attack', 0, { kind: 'underAttack', x: core.x + 20, y: core.y - 20 });
+    event(s, 'Field barracks under attack', 0, { kind: 'underAttack', ...alertAt });
+    event(s, 'Field barracks under attack', 0, { kind: 'underAttack', ...alertAt });
     event(s, 'Rifle squad lost', 0, { kind: 'unitLost' });
     event(s, 'Rival transmission.', 1, { kind: 'dialogue', speaker: 'Rival' });
-  }, ids);
+  }, { alertAt });
   await desktop.waitForFunction(() => document.querySelectorAll('#notifications .toast').length >= 3);
   let log = await tones(desktop);
   assert.equal(log.find(t => /Sector secured/.test(t.text)).tone, 'success', 'Victory is not styled as a warning');
@@ -97,10 +100,10 @@ try {
   await desktop.locator('#home').click();
   await desktop.locator('#notifications .toast-jump').first().click();
   let camera = await desktop.evaluate(() => ({ x: ashline.view.x, y: ashline.view.y }));
-  assert(Math.hypot(camera.x - ids.core.x - 20, camera.y - ids.core.y + 20) < 1, 'Clicking a located message centers the camera');
+  assert(Math.hypot(camera.x - alertAt.x, camera.y - alertAt.y) < 1, 'Clicking a located message centers the camera');
   await desktop.locator('#home').click(); await desktop.locator('#world').focus(); await desktop.keyboard.press('Backspace');
   camera = await desktop.evaluate(() => ({ x: ashline.view.x, y: ashline.view.y }));
-  assert(Math.hypot(camera.x - ids.core.x - 20, camera.y - ids.core.y + 20) < 1, 'Backspace jumps to the latest alert');
+  assert(Math.hypot(camera.x - alertAt.x, camera.y - alertAt.y) < 1, 'Backspace jumps to the latest alert');
   // Screen readers get the same collapsed burst as the visible log, and the hidden log keeps its jump
   // marks out of the tab order (Backspace serves the keyboard).
   await desktop.evaluate(async () => {
@@ -222,23 +225,23 @@ try {
   await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.scout);
   await desktop.waitForFunction(() => /Flare|Sensor probe/.test(document.querySelector('#ability-label').textContent));
   await desktop.keyboard.press('f');
-  const away = await mapPoint(desktop, scout.x + 20, scout.y + 20);
+  const away = await mapPoint(desktop, scout.x + 20 * ids.flip.x, scout.y - 20 * ids.flip.y);
   await desktop.mouse.click(away.x, away.y, { button: 'right' });
   assert(await desktop.locator('#order-hint').isHidden(), 'Right click on the tactical map cancels targeting');
   assert.notEqual((await entity(desktop, ids.scout)).order.type, 'move', 'The cancelling right click sends no move order');
   await desktop.keyboard.press('f');
-  const flareAt = await mapPoint(desktop, scout.x + 6, scout.y - 4);
+  const flareAt = await mapPoint(desktop, scout.x + 6 * ids.flip.x, scout.y - 4 * ids.flip.y);
   await desktop.mouse.click(flareAt.x, flareAt.y);
   const reveal = await desktop.evaluate(() => ashline.state.reveals?.[0]);
-  assert(reveal && reveal.team === 0 && Math.hypot(reveal.x - scout.x - 6, reveal.y - scout.y + 4) < 1, 'A tactical-map click aims the flare');
+  assert(reveal && reveal.team === 0 && Math.hypot(reveal.x - scout.x - 6 * ids.flip.x, reveal.y - scout.y + 4 * ids.flip.y) < 1, 'A tactical-map click aims the flare');
   assert(await desktop.locator('#order-hint').isHidden());
 
   // Tactical map orders: right click moves the selection; Q then a map click attack-moves.
   await desktop.evaluate(rifles => { ashline.view.selected = new Set(rifles); }, ids.rifles);
-  const target = await mapPoint(desktop, ids.core.x + 12, ids.core.y - 10);
+  const target = await mapPoint(desktop, ids.core.x + 12 * ids.flip.x, ids.core.y - 10 * ids.flip.y);
   await desktop.mouse.click(target.x, target.y, { button: 'right' });
   let order = (await entity(desktop, ids.rifles[0])).order;
-  assert(order.type === 'move' && Math.hypot(order.x - ids.core.x - 12, order.y - ids.core.y + 10) < 4, 'Right click on the tactical map orders the selection');
+  assert(order.type === 'move' && Math.hypot(order.x - ids.core.x - 12 * ids.flip.x, order.y - ids.core.y + 10 * ids.flip.y) < 4, 'Right click on the tactical map orders the selection');
   await desktop.keyboard.press('q'); await desktop.mouse.click(target.x, target.y);
   assert.equal((await entity(desktop, ids.rifles[0])).order.type, 'attackMove', 'Attack move accepts a tactical-map click');
   await desktop.keyboard.press('h');
@@ -298,13 +301,13 @@ try {
   assert((await tones(desktop)).some(t => /promoted to rank 1/.test(t.text) && t.jump), 'A seen promotion is announced at once with a location');
 
   // Signals intercept: five or more visible armed rivals closing on a structure name their commander.
-  const column = await desktop.evaluate(async core => {
+  const column = await desktop.evaluate(async ({ core, flip }) => {
     const m = await import('./sim.js'), s = ashline.state, ids = [];
-    for (let i = 0; i < 6; i++) { const e = m.addEntity(s, 1, 'unit', m.raceUnit(s, 1, 'rifle'), core.x + 15 + i % 2, core.y - 2 + i); e.angle = Math.PI; e.cooldown = 1e6; e.hp = e.maxHp = 1e6; ids.push(e.id); }
+    for (let i = 0; i < 6; i++) { const e = m.addEntity(s, 1, 'unit', m.raceUnit(s, 1, 'rifle'), core.x + (15 + i % 2) * flip.x, core.y - 2 + i); e.angle = flip.x > 0 ? Math.PI : 0; e.cooldown = 1e6; e.hp = e.maxHp = 1e6; ids.push(e.id); }
     // The fixture silences the rival; a commander is named only while an AI leads that side. The
     // column outlasts the base's return fire for the few seconds the check needs.
     s.aiTeams = [1]; s.ai.nextThink = 1e9; return ids;
-  }, ids.core);
+  }, ids);
   // The deployed rival is AI Unity, so its commander goes by machine designation.
   await desktop.waitForFunction(commander => document.querySelector('#notifications').textContent.includes(`Intercept: ${commander} column advancing · 6 contacts`), setup.unity, { timeout: 8000 });
   assert(await desktop.evaluate(() => document.querySelector('#notifications .toast[data-tone=warning] .toast-speaker')?.textContent === 'Signals'));

@@ -25,15 +25,14 @@ try {
     await (await import('./assets.js')).startAssets();
     window.worldSurfaces = () => {
       const r = ashline.renderer;
-      return [r.terrain, r.decals, r.fog, r.fogLow, r.fogTint, r.minimapBase, r.miniTiles,
-        ...(r.lavaPools || []).flatMap(pool => [pool.surface, pool.flow, pool.mask, pool.innerShade])].filter(Boolean);
+      return [r.terrain, r.decals, r.fog, r.fogLow, r.fogTint, r.minimapBase, r.miniTiles].filter(Boolean);
     };
     window.retiredSurfaces = [];
     window.rememberWorldSurfaces = () => { retiredSurfaces = worldSurfaces(); };
     window.assertReleased = () => {
       const r = ashline.renderer;
       if (retiredSurfaces.some(surface => surface.width || surface.height)) throw Error('Retired world canvas retains its backing store');
-      if (r.terrainSource || r.knownOre || r.knownMineralTypes || r.fogNoise || r.fogVisible || r.fogExplored || r.rockProps.length || r.lavaPools.length || r.rememberedBuildings.size || r.unitPositions?.size) throw Error('Setup retains world state');
+      if (r.terrainSource || r.knownOre || r.knownMineralTypes || r.fogNoise || r.fogVisible || r.fogExplored || r.rockProps.length || r.rememberedBuildings.size || r.unitPositions?.size) throw Error('Setup retains world state');
       retiredSurfaces = [];
     };
   });
@@ -71,13 +70,10 @@ try {
   await page.evaluate(async saved => {
     const { SAVE_KEY } = await import('./save.js');
     localStorage.setItem(SAVE_KEY, saved);
-    // Reused terrain/fog canvas objects will be resized again, but old pool stores must die.
-    retiredSurfaces = ashline.renderer.lavaPools.flatMap(pool => [pool.surface, pool.flow, pool.mask, pool.innerShade]);
   }, saved);
   await page.locator('#resume').click(); await page.locator('#pause').click();
   await page.locator('#load-game').click();
   await page.waitForFunction(() => !ashline.loading && document.querySelector('#menu').open, null, { timeout: 120000 });
-  assert(await page.evaluate(() => retiredSurfaces.every(surface => surface.width === 0 && surface.height === 0)), 'A replacement load releases old lava pools immediately');
   await page.evaluate(() => { previousTerrain = null; retiredSurfaces = []; });
   const reloadedMemory = await memory();
   assert(reloadedMemory.bytes <= deployedMemory.bytes + 2 * MiB, 'Loading a save must not retain a second world');
