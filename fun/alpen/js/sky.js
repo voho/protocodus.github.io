@@ -3192,8 +3192,8 @@ export function createSky(THREE) {
     bu.uClarity.value = 80000 * (1 - 0.85 * ramp(w.storm, 0.05, 0.6))
       * (1 - 0.35 * ramp(w.cloud, 0.3, 1));
     bu.uWhiteout.value = Math.max(ramp(w.storm, 0.28, 0.82), 1 - backdropShown);
-    // the valleys fill as the fog closes in
-    bu.uValley.value = 0.94 + 0.06 * (1 - ramp(w.fogFar, 300, 1000));
+    // the valley floors are the same air as the curtain, all the way
+    bu.uValley.value = 1;
     bu.uLateral.value = lateral;
     backdrop.setSun(w.azimuth);
     backdrop.group.visible = backdropShown > 0.001;

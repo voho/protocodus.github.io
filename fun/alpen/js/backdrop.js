@@ -270,8 +270,18 @@ const BACKDROP_FRAG = `
     /* The air in the valleys. The game's own ground is gone into the haze
        by a kilometre; the valley it falls into is the same air, so ground
        well under the eye goes the same way, and the range stands up out of
-       it. */
-    c = mix(c, uHaze, smoothstep(150.0, -950.0, vReal.y) * uValley);
+       it.
+
+       And the ground just past the game's own, below the eye, goes the
+       whole way. The fogged terrain in front of it is exactly the haze, so
+       anything less here was a step in colour along the line where the two
+       meet — a pale flat "lake" with a grey shore round it, the foot of the
+       shoulder the run is on. Only what stands above the eye stays clear
+       that close. */
+    float valleyVeil = smoothstep(150.0, -950.0, vReal.y) * uValley;
+    float nearVeil = (1.0 - smoothstep(${BACKDROP.distance[0].toFixed(1)}, 7500.0, vDist))
+      * smoothstep(250.0, -250.0, vReal.y);
+    c = mix(c, uHaze, max(valleyVeil, nearVeil));
 
     // and its foot stands on the curtain the game's ground ends in
     float elevation = vDir.y / length(vDir.xz);
