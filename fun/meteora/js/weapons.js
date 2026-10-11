@@ -15,6 +15,7 @@
    closing at 800 m/s, two samples can straddle the target. */
 
 import { MISSILE } from './config.js';
+import { rockMass } from './field.js';
 import { addScaled, cross, dot, len, normalize, qRotate, scale, sub } from './vec.js';
 
 export function createWeapons() { return { bolts: [], missiles: [], nextId: 1 }; }
@@ -109,6 +110,7 @@ export function launchMissile(weapons, shooter, launcherLocal, targetId) {
 }
 
 export const blastDamage = d => Math.max(0, MISSILE.damage * (1 - d / MISSILE.blast));
+export const blastPush = d => Math.max(0, MISSILE.push * (1 - d / MISSILE.blast));
 
 /* Intercept point for a shot that inherits the shooter's velocity: the
    smallest t > 0 with |r + vr·t| = speed·t, in the shooter's frame. */
@@ -197,18 +199,26 @@ function damageRockTagged(ctx, ref, amount, point, impulse, team) {
 
 function explode(ctx, m, point, targetId, kind) {
   ctx.events.push({ type: kind, pos: [...point], targetId: targetId ?? null, team: m.team });
+  // The blast pushes as well as burns: an impulse falling off with distance
+  // like the damage, so a near miss still throws a ship off its line.
   for (const e of ctx.entities) {
     if (!e.alive) continue;
     const toward = sub([0, 0, 0], e.ship.pos, point);
-    const amount = blastDamage(len(toward));
-    if (amount > 0) ctx.damage(e, amount, [...point], normalize(toward, toward));
+    const d = len(toward);
+    const amount = blastDamage(d);
+    if (amount <= 0) continue;
+    normalize(toward, toward);
+    addScaled(e.ship.vel, e.ship.vel, toward, blastPush(d) / e.ship.stats.mass);
+    ctx.damage(e, amount, [...point], toward);
   }
   for (const h of ctx.field.queryRadius(point, MISSILE.blast)) {
     const toward = sub([0, 0, 0], h.pos, point);
-    const amount = blastDamage(Math.max(0, len(toward) - h.radius));
+    const reach = Math.max(0, len(toward) - h.radius);
+    const amount = blastDamage(reach);
     if (amount > 0) {
       normalize(toward, toward);
-      damageRockTagged(ctx, h, amount, point, scale(toward, toward, amount * 60), m.team);
+      if (h.kind === 'dynamic') addScaled(h.rock.vel, h.rock.vel, toward, blastPush(reach) / rockMass(h.rock.radius));
+      damageRockTagged(ctx, h, amount, point, scale(toward, toward, blastPush(reach)), m.team);
     }
   }
 }

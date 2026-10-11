@@ -5,12 +5,16 @@
    by one ship each time up to ten, spawned out of the player's view so the
    first sign of a wave is the radar, not a ship popping into existence.
 
-   Collisions are momentum, not scripted bounces: the ship is pushed out of
-   the rock, keeps 35 % of the speed it hit with and 85 % of its slide, and
+   Collisions are momentum, not scripted bounces (see physics.js): ships and
+   drifting fragments have mass, so ramming a pebble shoves it and a heavy
+   fighter shoves a light interceptor; a scrape along a rock spins the ship
+   through friction; 35 % of the closing speed comes back as bounce, and
    anything faster than a docking bump (8 m/s) costs hull. */
 
 import { COMBAT } from './config.js';
 import { dot, len, normalize, sub } from './vec.js';
+import { STATIC, pointBody, resolveContact, shipBody } from './physics.js';
+import { rockMass } from './field.js';
 
 export function applyDamage(entity, amount, events = [], point = null, dir = null) {
   if (!entity.alive || !(amount > 0)) return { shield: 0, hull: 0, killed: false };
@@ -72,45 +76,54 @@ export function saveBest(storage, score) {
   } catch { /* private mode or full storage: the best score just isn't kept */ }
 }
 
-function bounce(entity, normal, otherVel, events, contact) {
-  const C = COMBAT.collision, vel = entity.ship.vel;
-  const rel = sub([0, 0, 0], vel, otherVel);
-  const approach = -dot(rel, normal);
-  if (approach <= 0) return 0;
-  const along = dot(rel, normal);
-  for (let k = 0; k < 3; k++) {
-    const tangent = rel[k] - normal[k] * along;
-    vel[k] = otherVel[k] + tangent * C.friction + normal[k] * approach * C.restitution;
-  }
+// Hull damage from a contact, by the closing speed along the normal.
+function collisionDamage(entity, approach, events, contact, normal) {
+  const C = COMBAT.collision;
+  if (approach <= 0) return;
   const damage = Math.max(0, approach - C.safe) * C.perMs;
   if (damage > 0) applyDamage(entity, damage, events, contact, normal);
   events.push({ type: 'collision', id: entity.id, team: entity.team, speed: approach, pos: contact });
-  return approach;
 }
 
-const still = [0, 0, 0];
 export function resolveShipRock(entity, field, events) {
-  const ship = entity.ship;
+  const C = COMBAT.collision, ship = entity.ship;
   for (const h of field.queryRadius(ship.pos, entity.radius)) {
     const n = normalize([0, 0, 0], sub([0, 0, 0], ship.pos, h.pos));
     if (n[0] === 0 && n[1] === 0 && n[2] === 0) n[1] = 1;
     const reach = h.radius + entity.radius;
-    for (let k = 0; k < 3; k++) ship.pos[k] = h.pos[k] + n[k] * reach;
-    const contact = h.pos.map((c, k) => c + n[k] * h.radius);
-    bounce(entity, n, h.kind === 'dynamic' ? h.rock.vel : still, events, contact);
+    const rock = h.kind === 'dynamic' ? h.rock : null;
+    if (rock) {
+      // Share the overlap by inverse mass: a pebble gives way, a boulder doesn't.
+      const im = 1 / ship.stats.mass, ir = 1 / rockMass(rock.radius);
+      const depth = reach - Math.sqrt((ship.pos[0] - h.pos[0]) ** 2 + (ship.pos[1] - h.pos[1]) ** 2 + (ship.pos[2] - h.pos[2]) ** 2);
+      for (let k = 0; k < 3; k++) { ship.pos[k] += n[k] * depth * im / (im + ir); rock.pos[k] -= n[k] * depth * ir / (im + ir); }
+    } else {
+      for (let k = 0; k < 3; k++) ship.pos[k] = h.pos[k] + n[k] * reach;
+    }
+    const arm = [-n[0] * entity.radius, -n[1] * entity.radius, -n[2] * entity.radius];
+    const contact = [ship.pos[0] + arm[0], ship.pos[1] + arm[1], ship.pos[2] + arm[2]];
+    const other = rock ? pointBody(rock.vel, rockMass(rock.radius)) : STATIC;
+    collisionDamage(entity, resolveContact(shipBody(ship), other, n, arm, C.restitution, C.mu), events, contact, n);
   }
 }
 
 export function resolveShipShip(a, b, events) {
+  const C = COMBAT.collision;
   const d = sub([0, 0, 0], a.ship.pos, b.ship.pos);
   const dist = len(d), reach = a.radius + b.radius;
   if (dist >= reach) return;
   const n = dist > 1e-9 ? normalize(d, d) : [0, 1, 0];
-  const push = (reach - dist) / 2;
-  for (let k = 0; k < 3; k++) { a.ship.pos[k] += n[k] * push; b.ship.pos[k] -= n[k] * push; }
+  const ia = 1 / a.ship.stats.mass, ib = 1 / b.ship.stats.mass;
+  const depth = reach - dist;
+  for (let k = 0; k < 3; k++) {
+    a.ship.pos[k] += n[k] * depth * ia / (ia + ib);
+    b.ship.pos[k] -= n[k] * depth * ib / (ia + ib);
+  }
   const contact = b.ship.pos.map((c, k) => c + n[k] * b.radius);
-  const va = [...a.ship.vel], vb = [...b.ship.vel];
-  // Equal masses: each bounces off the other's pre-impact velocity.
-  bounce(a, n, vb, events, contact);
-  bounce(b, n.map(v => -v), va, events, contact);
+  // Hulls meet at the rim of their spheres, so the normal impulse passes
+  // through both centres; each ship is a point mass here.
+  const approach = resolveContact(pointBody(a.ship.vel, a.ship.stats.mass), pointBody(b.ship.vel, b.ship.stats.mass),
+    n, [0, 0, 0], C.restitution, C.mu);
+  collisionDamage(a, approach, events, contact, n);
+  collisionDamage(b, approach, events, contact, n.map(v => -v));
 }

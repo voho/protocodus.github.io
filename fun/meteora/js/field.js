@@ -24,6 +24,9 @@ import { FIELD } from './config.js';
 import { fbm3, makeRng, noise3 } from './rng.js';
 import { normalize, qIntegrate } from './vec.js';
 
+// Mass of a rock of bounding radius r: porous rubble filling its sphere.
+export const rockMass = (r, density = FIELD.density) => density * (4 / 3) * Math.PI * r * r * r;
+
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -372,7 +375,31 @@ export function createField(seed, cfg = FIELD) {
         const reach = h.radius + rock.collide;
         for (let k = 0; k < 3; k++) rock.pos[k] = h.pos[k] + n[k] * reach;
         const vn = rock.vel[0] * n[0] + rock.vel[1] * n[1] + rock.vel[2] * n[2];
-        if (vn < 0) for (let k = 0; k < 3; k++) rock.vel[k] -= 1.5 * vn * n[k];
+        if (vn < 0) for (let k = 0; k < 3; k++) rock.vel[k] -= (1 + cfg.restitution) * vn * n[k];
+      }
+    }
+    // Fragments knock each other aside: equal and opposite impulses, shared
+    // by inverse mass, so the pair's momentum is exactly what it was.
+    const dyn = field.dynamic;
+    for (let i = 0; i < dyn.length; i++) {
+      const a = dyn[i];
+      for (let j = i + 1; j < dyn.length; j++) {
+        const b = dyn[j];
+        const dx = a.pos[0] - b.pos[0], dy = a.pos[1] - b.pos[1], dz = a.pos[2] - b.pos[2];
+        const reach = a.collide + b.collide;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 >= reach * reach) continue;
+        const d = Math.sqrt(d2);
+        const nx = d > 1e-9 ? dx / d : 0, ny = d > 1e-9 ? dy / d : 1, nz = d > 1e-9 ? dz / d : 0;
+        const ia = 1 / rockMass(a.radius, cfg.density), ib = 1 / rockMass(b.radius, cfg.density);
+        const share = (reach - d) / (ia + ib);
+        a.pos[0] += nx * share * ia; a.pos[1] += ny * share * ia; a.pos[2] += nz * share * ia;
+        b.pos[0] -= nx * share * ib; b.pos[1] -= ny * share * ib; b.pos[2] -= nz * share * ib;
+        const vn = (a.vel[0] - b.vel[0]) * nx + (a.vel[1] - b.vel[1]) * ny + (a.vel[2] - b.vel[2]) * nz;
+        if (vn >= 0) continue;
+        const jn = -(1 + cfg.restitution) * vn / (ia + ib);
+        a.vel[0] += nx * jn * ia; a.vel[1] += ny * jn * ia; a.vel[2] += nz * jn * ia;
+        b.vel[0] -= nx * jn * ib; b.vel[1] -= ny * jn * ib; b.vel[2] -= nz * jn * ib;
       }
     }
   };
