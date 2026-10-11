@@ -201,13 +201,83 @@ ASPECT = CELL_W / 0.25   # a card's width over its length, as drawn
 SNOW = {'spruce': 0.85, 'fir': 0.82, 'pine': 0.75, 'larch': 0.5}
 
 
-def stem_line(H, lean, rnd, top=1.0):
-    """The leader, leaning a little with height, and a point on it."""
+# ---------------------------------------------------------------------------
+# How a real tree grows: irregularly. Two trees of one species on one slope
+# are not one tree twice — the light came from a different side for each,
+# they had different good years and bad ones, one lost a branch to a slide
+# and the other its top to lightning. That history is what the eye reads as
+# "natural" long before it reads the species, so every tree carries one.
+# ---------------------------------------------------------------------------
+
+class Growth:
+    """One tree's history, as the few numbers that make it itself rather
+    than its species: which side the light comes from (the crown is longer
+    and fuller there), a vigour that swells and thins up the stem (good
+    years and bad ones, which are bulges and waists in the crown), how often
+    a branch has been lost, how far up the lower crown has died back, and
+    the sweep and wobble of the stem. Built from the tree's own seed."""
+
+    def __init__(self, rnd, asym=(0.10, 0.36), gap=(0.06, 0.22), dead=(0.04, 0.3),
+                 sweep=(0.0, 0.045), wobble=(0.0, 0.012)):
+        self.rnd = rnd
+        a = rnd.random() * TAU
+        self.light = Vector((math.cos(a), 0, math.sin(a)))
+        self.asym = rnd.uniform(*asym)
+        self.gap = rnd.uniform(*gap)
+        self.dead = rnd.uniform(*dead)
+        self.sweep = rnd.uniform(*sweep)
+        self.wobble = rnd.uniform(*wobble)
+        self.waves = [(rnd.uniform(1.1, 2.4), rnd.random() * TAU, rnd.uniform(0.07, 0.15)),
+                      (rnd.uniform(3.5, 6.5), rnd.random() * TAU, rnd.uniform(0.04, 0.09))]
+
+    def vigour(self, f):
+        return 1.0 + sum(a * math.sin(k * f * TAU + p) for k, p, a in self.waves)
+
+    def reach(self, out, f):
+        """How long a branch on bearing `out` at height `f` grew."""
+        return self.vigour(f) * (1.0 + self.asym * out.dot(self.light))
+
+    def lost(self, out, f):
+        """Whether this branch is gone — more often on the shaded side, and
+        low in the crown, where the stand's own shade kills them."""
+        shade = 0.5 - 0.5 * out.dot(self.light)
+        return self.rnd.random() < self.gap * (0.5 + shade) * (1.3 - 0.6 * f)
+
+    def bare(self, f):
+        """A dead branch: still on the stem, its needles long gone."""
+        if f >= self.dead:
+            return False
+        return self.rnd.random() < 0.2 + 0.6 * (1 - f / self.dead)
+
+    def heights(self, n, lo, hi, power=1.0):
+        """`n` whorl heights from `lo` to `hi`, spaced as the years were good
+        or bad rather than evenly."""
+        steps = [self.rnd.uniform(0.55, 1.5) for _ in range(n)]
+        total = sum(steps[:-1]) or 1.0
+        acc, out = 0.0, []
+        for i in range(n):
+            out.append(lo + (hi - lo) * min(1.0, acc / total) ** power)
+            acc += steps[i]
+        return out
+
+
+def stem_line(H, lean, rnd, top=1.0, sweep=0.0, wobble=0.0):
+    """The leader and a point on it. It leans a little with height, and a
+    tree that grew on a slope has a sweep at its foot — the snow creeping
+    downhill bent it as a sapling, and it has been straightening ever since
+    — and a gentle wobble where the leader was lost and replaced."""
     yaw = rnd.random() * TAU
     off = Vector((math.cos(yaw), 0, math.sin(yaw))) * (H * lean)
+    yaw2 = yaw + rnd.uniform(-1.2, 1.2)
+    sw = Vector((math.cos(yaw2), 0, math.sin(yaw2))) * (H * sweep)
+    yaw3 = rnd.random() * TAU
+    wb = Vector((math.cos(yaw3), 0, math.sin(yaw3))) * (H * wobble)
+    phase = rnd.random() * TAU
+
     def at(y):
         f = max(0.0, y / H)
-        return Vector((off.x * f * f, y, off.z * f * f))
+        bend = off * (f * f) + sw * (1 - math.exp(-f / 0.12)) + wb * (math.sin(f * 3 * math.pi + phase) * f)
+        return Vector((bend.x, y, bend.z))
     # the trunk starts well under the snow line: props.js beds every tree by
     # its root ring, and a trunk that stops short of it floats on a slope
     ys = [-1.4, 0.0, H * 0.06, H * 0.2, H * 0.38, H * 0.56, H * 0.72, H * 0.86, H * top]
@@ -230,6 +300,13 @@ def trunk(t, at, pts, ys, H, r0, bark, sides=7, lobes=5):
         f = max(0.0, y / H)
         radii.append(max(0.02, r0 * (1.0 - f) ** 1.1 * (1.08 if y < 0 else 1.0)))
     t.tube(pts, radii, sides, bark, v_per_m=1.0 / (r0 * TAU * 2.2), flare=root_flare(lobes, 0.6))
+
+
+def dead_branch(t, path, r, bark):
+    """A branch that died: bark only, thinning to a snapped tip."""
+    pts = path[::2]
+    radii = [r * (1 - i / max(1, len(pts) - 1)) * 0.9 + 0.006 for i in range(len(pts))]
+    t.tube(pts, radii, 3, bark)
 
 
 def spray(L, k, lo, hi, rnd):
@@ -267,37 +344,91 @@ def bough(t, root, out, slope, L, tan, species, rnd, look, snow_odds, width=1.0)
     return along
 
 
-def norway_spruce(seed, H=17.0):
+def spire(t, at, y, species, n, size, rnd, lean=None):
+    """The leader's own tuft: a few cards standing up round the top of the
+    stem. `lean` tilts it, for a leader that has turned up off a side
+    branch."""
+    up = Vector((0, 1, 0))
+    for k in range(n):
+        a = k * 2.4 + rnd.random() * 0.6
+        o = Vector((math.cos(a), 0, math.sin(a)))
+        d = (up + o * 0.22 + (lean or Vector())).normalized()
+        t.card(at(y + k * 0.35 * size), d, o.cross(up), 0.85 * size * ASPECT, (1.1 - 0.15 * k) * size,
+               cell(species, k % 2), out=o)
+
+
+def crown_top(t, at, H, top_kind, species, r0, rnd):
+    """How the tree ends. Most have a leader; an old one may carry a dead
+    spike above its living crown, a second leader where the first forked,
+    or a new top grown up out of a side branch after the old one broke."""
+    up = Vector((0, 1, 0))
+    if top_kind == 'leader':
+        spire(t, at, H * 0.86, species, 4, 1.0, rnd)
+    elif top_kind == 'dead':
+        # a grey spike of bare stem standing out of the green
+        for k in range(3):
+            a = k * 2.2 + rnd.random()
+            o = Vector((math.cos(a), 0, math.sin(a)))
+            y = H * (0.88 + 0.03 * k)
+            dead_branch(t, bend_path(at(y), (o + up * 0.1).normalized(), 0.5 + rnd.random() * 0.4, 2,
+                                     droop=0.3), 0.025, BARK[species])
+    elif top_kind == 'fork':
+        spire(t, at, H * 0.85, species, 3, 0.9, rnd)
+        a = rnd.random() * TAU
+        o = Vector((math.cos(a), 0, math.sin(a)))
+        p0 = at(H * 0.76)
+        stem = [p0, p0 + (o * 0.35 + up).normalized() * H * 0.09, p0 + o * H * 0.05 + up * H * 0.17]
+        t.tube(stem, [r0 * 0.22 + 0.02, r0 * 0.14 + 0.012, 0.012], 5, BARK[species])
+        spire(t, lambda y, b=stem[-1]: b + up * (y - H * 0.86), H * 0.86, species, 3, 0.75, rnd, lean=o * 0.25)
+    elif top_kind == 'broken':
+        # the old top snapped at the stem's end; a side branch has turned up
+        a = rnd.random() * TAU
+        o = Vector((math.cos(a), 0, math.sin(a)))
+        p0 = at(H * 0.84)
+        stem = [p0, p0 + o * H * 0.05 + up * H * 0.03, p0 + o * H * 0.07 + up * H * 0.11]
+        t.tube(stem, [r0 * 0.16 + 0.02, r0 * 0.1 + 0.012, 0.01], 5, BARK[species])
+        spire(t, lambda y, b=stem[-1]: b + up * (y - H * 0.86), H * 0.86, species, 3, 0.8, rnd, lean=o * 0.35)
+
+
+def norway_spruce(seed, H=17.0, top_kind='leader', growth=None):
     """The narrow subalpine spire: level boughs turned up at the ends, and
     the curtains of second-order shoots hanging from them."""
     rnd = random.Random(seed)
+    g = growth or Growth(rnd)
     t = Tree()
-    at, pts, ys = stem_line(H, 0.012, rnd)
+    stem_top = 0.88 if top_kind == 'broken' else (0.96 if top_kind == 'dead' else 1.0)
+    at, pts, ys = stem_line(H, 0.012, rnd, top=stem_top, sweep=g.sweep, wobble=g.wobble)
     r0 = 0.008 * H + 0.08
     trunk(t, at, pts, ys, H, r0, BARK['spruce'])
     base = H * rnd.uniform(0.05, 0.12)
     reach = H * rnd.uniform(0.15, 0.175)
-    whorls = 20
+    green_top = H * (0.84 if top_kind in ('dead', 'broken') else 0.94)
     up = Vector((0, 1, 0))
-    for w in range(whorls):
-        f = w / (whorls - 1)
-        y = base + (H * 0.94 - base) * f ** 0.92
+    for y in g.heights(20, base, green_top, 0.92):
+        f = (y - base) / (H * 0.94 - base)
         R = reach * (1 - f) ** 0.92 + 0.45
         k = 4 if f > 0.6 else 5
         phase = rnd.random() * TAU
         for b in range(k):
-            ang = phase + b / k * TAU + rnd.uniform(-0.35, 0.35)
+            ang = phase + b / k * TAU + rnd.uniform(-0.5, 0.5)
             out = Vector((math.cos(ang), 0, math.sin(ang)))
-            L = R * rnd.uniform(0.85, 1.08)
-            d0 = (out + Vector((0, -0.12 - 0.25 * (1 - f), 0))).normalized()
-            path = bend_path(at(y) + out * 0.05, d0, L, 4, droop=0.35 * (1 - f), rise=0.55)
+            if g.lost(out, f):
+                continue
+            L = R * rnd.uniform(0.8, 1.12) * g.reach(out, f)
+            d0 = (out + Vector((0, -0.12 - 0.25 * (1 - f) + rnd.uniform(-0.08, 0.08), 0))).normalized()
+            path = bend_path(at(y) + out * 0.05, d0, L, 4, droop=0.35 * (1 - f) * rnd.uniform(0.6, 1.5),
+                             rise=0.55 * rnd.uniform(0.6, 1.3))
+            if g.bare(f):
+                dead_branch(t, bend_path(at(y) + out * 0.05, d0, L * 0.7, 4, droop=0.2), r0 * 0.12 + 0.02,
+                            BARK['spruce'])
+                continue
             if f < 0.3:
                 t.tube(path[:2], [r0 * 0.14 + 0.015, 0.015], 3, BARK['spruce'])
             tan = up.cross(out).normalized()
             loaded = SNOW['spruce'] * (0.45 + 0.45 * f)
             # the bough itself, a skirt from the trunk sloping down the way a
             # snow-loaded subalpine bough does — steeper low in the crown
-            slope = 0.32 + 0.38 * (1 - f) + rnd.uniform(-0.08, 0.08)
+            slope = 0.32 + 0.38 * (1 - f) + rnd.uniform(-0.12, 0.12)
             root = at(y) + out * 0.15
             along = bough(t, root, out, slope, L, tan, 'spruce', rnd, out + up * 0.6, loaded)
             # the curtains of shoots hanging off it, facing out of the crown:
@@ -305,36 +436,31 @@ def norway_spruce(seed, H=17.0):
             if f < 0.9:
                 for c in range(1 if L < 1.6 else 2):
                     p = root + along * L * (0.55 + 0.4 * c)
-                    hang = (-up + out * 0.3).normalized()
+                    hang = (-up + out * rnd.uniform(0.15, 0.45)).normalized()
                     face = out + tan * rnd.uniform(-0.45, 0.45)
                     size = spray(L, 0.6, 1.1, 2.2, rnd)
                     t.card(p + up * 0.2, hang, face, size * 0.85 * ASPECT, size,
                            cell('spruce', rnd.randrange(2)), out=out)
-    for k in range(4):
-        y = H * (0.86 + 0.035 * k)
-        a = k * 2.4
-        o = Vector((math.cos(a), 0, math.sin(a)))
-        t.card(at(y), (up + o * 0.22).normalized(), o.cross(up), 0.9 * ASPECT, 1.1 - 0.15 * k,
-               cell('spruce', k % 2), out=o)
+    crown_top(t, at, H, top_kind, 'spruce', r0, rnd)
     return t
 
 
-def silver_fir(seed, H=19.0, nest=False):
+def silver_fir(seed, H=19.0, nest=False, growth=None):
     """Level tiers of flat sprays, broader than the spruce; an old one's top
     gives up its leader and flattens into a stork's nest."""
     rnd = random.Random(seed)
+    g = growth or Growth(rnd, asym=(0.08, 0.28))
     t = Tree()
     top = 0.9 if nest else 1.0
-    at, pts, ys = stem_line(H, 0.008, rnd, top=top)
+    at, pts, ys = stem_line(H, 0.008, rnd, top=top, sweep=g.sweep * 0.7, wobble=g.wobble)
     r0 = 0.009 * H + 0.09
     trunk(t, at, pts, ys, H, r0, BARK['fir'], lobes=4)
     base = H * rnd.uniform(0.12, 0.2)
     reach = H * rnd.uniform(0.2, 0.23)
-    whorls = 16
     up = Vector((0, 1, 0))
-    for w in range(whorls):
-        f = w / (whorls - 1)
-        y = base + (H * top * 0.97 - base) * f
+    span = H * top * 0.97 - base
+    for y in g.heights(16, base, H * top * 0.97):
+        f = (y - base) / span
         if nest:
             R = reach * min(1.0, (1 - f) ** 0.55 * 1.05) + 0.6
         else:
@@ -342,19 +468,24 @@ def silver_fir(seed, H=19.0, nest=False):
         k = 4 if f > 0.6 else 5
         phase = rnd.random() * TAU
         for b in range(k):
-            ang = phase + b / k * TAU + rnd.uniform(-0.3, 0.3)
+            ang = phase + b / k * TAU + rnd.uniform(-0.4, 0.4)
             out = Vector((math.cos(ang), 0, math.sin(ang)))
-            L = R * rnd.uniform(0.88, 1.05)
+            if g.lost(out, f):
+                continue
+            L = R * rnd.uniform(0.85, 1.08) * g.reach(out, f)
             rise = 0.25 if not nest or f < 0.8 else 0.7
             path = bend_path(at(y) + out * 0.05, (out + Vector((0, -0.05, 0))).normalized(), L, 4,
-                             droop=0.12 * (1 - f), rise=rise)
+                             droop=0.12 * (1 - f) * rnd.uniform(0.5, 1.6), rise=rise)
+            if g.bare(f):
+                dead_branch(t, path, r0 * 0.12 + 0.02, BARK['fir'])
+                continue
             if f < 0.35:
                 t.tube(path[:2], [r0 * 0.14 + 0.015, 0.015], 3, BARK['fir'])
             tan = up.cross(out).normalized()
             loaded = SNOW['fir'] * (0.45 + 0.45 * f)
             root = at(y) + out * 0.15
             # a near-level skirt for the tier, sloping a little at its rim
-            slope = 0.14 + 0.12 * (1 - f)
+            slope = 0.14 + 0.12 * (1 - f) + rnd.uniform(-0.05, 0.05)
             along = bough(t, root, out, slope, L, tan, 'fir', rnd, out + up * 0.8, loaded)
             if L > 1.6:
                 skirt(t, root + along * L * 0.3 + up * 0.18, out * math.cos(slope * 1.8) - up * math.sin(slope * 1.8),
@@ -376,22 +507,20 @@ def silver_fir(seed, H=19.0, nest=False):
                        cell('fir', rnd.randrange(2)), out=out + up * 0.8,
                        snow=rnd.random() < loaded)
     if not nest:
-        for k in range(3):
-            y = H * (0.88 + 0.04 * k)
-            o = Vector((math.cos(k * 2.1), 0, math.sin(k * 2.1)))
-            t.card(at(y), (up + o * 0.2).normalized(), o.cross(up), 0.8 * ASPECT, 1.0,
-                   cell('fir', k % 2), out=o)
+        spire(t, at, H * 0.88, 'fir', 3, 0.9, rnd)
     return t
 
 
-def stone_pine(seed, H=11.0, leaders=1, flag=0.0):
+def stone_pine(seed, H=11.0, leaders=1, flag=0.0, growth=None):
     """The treeline pine: a dense column with a rounded top, branches to the
     ground climbing at forty degrees, foliage in upturned brushes at their
     ends — and, often, two or three leaders where lightning or snow broke
     the first."""
     rnd = random.Random(seed)
+    g = growth or Growth(rnd, asym=(0.12, 0.42), gap=(0.04, 0.16), dead=(0.0, 0.15),
+                         sweep=(0.01, 0.07), wobble=(0.004, 0.02))
     t = Tree()
-    at, pts, ys = stem_line(H, 0.02, rnd, top=0.9)
+    at, pts, ys = stem_line(H, 0.02, rnd, top=0.9, sweep=g.sweep, wobble=g.wobble)
     # Thick for its height — but the pools stand it up to twice as tall, and
     # the trunk grows with it.
     r0 = 0.016 * H + 0.09
@@ -399,20 +528,20 @@ def stone_pine(seed, H=11.0, leaders=1, flag=0.0):
     up = Vector((0, 1, 0))
     stems = [at]
     for k in range(leaders - 1):
-        fork = H * rnd.uniform(0.45, 0.6)
+        fork = H * rnd.uniform(0.4, 0.62)
         a = rnd.random() * TAU
         o = Vector((math.cos(a), 0, math.sin(a)))
         p0 = at(fork)
-        ys2 = [0, (H * 0.9 - fork) * 0.5, H * 0.9 - fork]
-        pts2 = [p0 + o * (y * 0.18) + Vector((0, y, 0)) for y in ys2]
+        spread = rnd.uniform(0.12, 0.3)
+        top = H * rnd.uniform(0.78, 0.95)
+        ys2 = [0, (top - fork) * 0.5, top - fork]
+        pts2 = [p0 + o * (y * spread) + Vector((0, y, 0)) for y in ys2]
         t.tube(pts2, [r0 * 0.4, r0 * 0.28, 0.04], 6, BARK['pine'])
-        stems.append(lambda y, p0=p0, o=o, fork=fork: p0 + o * (max(0, y - fork) * 0.18)
+        stems.append(lambda y, p0=p0, o=o, fork=fork, spread=spread: p0 + o * (max(0, y - fork) * spread)
                      + Vector((0, max(0, y - fork), 0)))
     base = H * 0.03
-    whorls = 14
-    for w in range(whorls):
-        f = w / (whorls - 1)
-        y = base + (H * 0.9 - base) * f
+    for w, y in enumerate(g.heights(14, base, H * 0.9)):
+        f = (y - base) / (H * 0.9 - base)
         # ovoid: widest a third of the way up, rounded at the top
         prof = math.sqrt(max(0.0, 1 - ((f - 0.32) / 0.72) ** 2)) if f > 0.32 else 0.86 + 0.14 * f / 0.32
         R = H * 0.25 * prof + 0.4
@@ -420,16 +549,21 @@ def stone_pine(seed, H=11.0, leaders=1, flag=0.0):
         k = 5
         phase = rnd.random() * TAU
         for b in range(k):
-            ang = phase + b / k * TAU + rnd.uniform(-0.4, 0.4)
+            ang = phase + b / k * TAU + rnd.uniform(-0.5, 0.5)
             out = Vector((math.cos(ang), 0, math.sin(ang)))
             # A flagged tree has lost its windward branches to the wind and
             # the rime: the crown grows on the lee side only.
             if flag and out.x > 0.3 and rnd.random() < flag:
                 continue
-            L = R * rnd.uniform(0.78, 1.05) * (1 + flag * 0.4 * max(0.0, -out.x))
-            climb = 0.5 + 0.35 * f
+            if g.lost(out, f):
+                continue
+            L = R * rnd.uniform(0.74, 1.08) * g.reach(out, f) * (1 + flag * 0.4 * max(0.0, -out.x))
+            climb = (0.5 + 0.35 * f) * rnd.uniform(0.7, 1.3)
             path = bend_path(stem(y) + out * 0.08, (out + up * climb).normalized(), L, 3,
-                             droop=0.25, rise=0.3)
+                             droop=0.25 * rnd.uniform(0.5, 1.6), rise=0.3)
+            if g.bare(f):
+                dead_branch(t, path, r0 * 0.15 + 0.02, BARK['pine'])
+                continue
             if f < 0.4:
                 t.tube(path[:2], [r0 * 0.2 + 0.02, 0.03], 3, BARK['pine'])
             tan = up.cross(out).normalized()
@@ -455,62 +589,68 @@ def stone_pine(seed, H=11.0, leaders=1, flag=0.0):
                    s * ASPECT, s, cell('pine', rnd.randrange(2)), out=out + up * 0.4)
     for k in range(5):
         stem = stems[k % len(stems)]
-        a = k / 5 * TAU
+        a = k / 5 * TAU + rnd.random()
         o = Vector((math.cos(a), 0, math.sin(a)))
-        t.card(stem(H * 0.86) + o * 0.3, (up + o * 0.5).normalized(), o + o.cross(up) * 0.3,
+        t.card(stem(H * rnd.uniform(0.8, 0.9)) + o * 0.3, (up + o * 0.5).normalized(), o + o.cross(up) * 0.3,
                1.1 * ASPECT, 1.3, cell('pine', k % 2), out=o + up)
     return t
 
 
-def european_larch(seed, H=18.0):
+def european_larch(seed, H=18.0, growth=None):
     """Bare for the winter: an open cone of level branches, long twigs
-    drooping from them. The branches are the tree, so they are drawn."""
+    drooping from them. The branches are the tree, so they are drawn —
+    and a larch's are the least regular of the four: long sweeping limbs
+    beside short ones, gaps where the snow broke them off."""
     rnd = random.Random(seed)
+    g = growth or Growth(rnd, asym=(0.12, 0.4), gap=(0.12, 0.28), dead=(0.0, 0.2),
+                         sweep=(0.0, 0.05), wobble=(0.004, 0.018))
     t = Tree()
-    at, pts, ys = stem_line(H, 0.015, rnd)
+    at, pts, ys = stem_line(H, 0.015, rnd, sweep=g.sweep, wobble=g.wobble)
     r0 = 0.009 * H + 0.08
     trunk(t, at, pts, ys, H, r0, BARK['larch'], lobes=4)
     up = Vector((0, 1, 0))
     base = H * rnd.uniform(0.15, 0.28)
     reach = H * rnd.uniform(0.17, 0.2)
-    whorls = 13
-    for w in range(whorls):
-        f = w / (whorls - 1)
-        y = base + (H * 0.96 - base) * f
+    for y in g.heights(13, base, H * 0.96):
+        f = (y - base) / (H * 0.96 - base)
         R = reach * (1 - f) ** 0.85 + 0.4
         k = 4 if f > 0.6 else 5
         phase = rnd.random() * TAU
         for b in range(k):
-            if rnd.random() < 0.12:
-                continue
-            ang = phase + b / k * TAU + rnd.uniform(-0.4, 0.4)
+            ang = phase + b / k * TAU + rnd.uniform(-0.5, 0.5)
             out = Vector((math.cos(ang), 0, math.sin(ang)))
-            L = R * rnd.uniform(0.78, 1.1)
-            path = bend_path(at(y) + out * 0.05, (out + up * 0.05).normalized(), L, 4,
-                             droop=0.5, rise=0.35)
+            if g.lost(out, f):
+                continue
+            L = R * rnd.uniform(0.7, 1.2) * g.reach(out, f)
+            path = bend_path(at(y) + out * 0.05, (out + up * rnd.uniform(-0.05, 0.2)).normalized(), L, 4,
+                             droop=0.5 * rnd.uniform(0.6, 1.5), rise=0.35 * rnd.uniform(0.5, 1.4))
             t.tube(path[::2], [r0 * 0.2 * (1 - f) + 0.03, 0.018, 0.008], 3, BARK['larch'])
+            if g.bare(f):
+                continue
             tan = up.cross(out).normalized()
             root = at(y) + out * 0.15
             # the fine grey haze a bare larch is from any distance: a skirt of
             # twigs along every branch, and long ones hanging from it
-            slope = 0.3 + 0.25 * (1 - f)
+            slope = 0.3 + 0.25 * (1 - f) + rnd.uniform(-0.1, 0.1)
             along = bough(t, root, out, slope, L, tan, 'larch', rnd, out + up * 0.5,
                           SNOW['larch'] * (0.45 + 0.45 * f))
             s = spray(L, 0.7, 1.3, 2.4, rnd)
             for c in range(2 if L > 1.5 else 1):
                 p, dd = point_on(path, 0.45 + 0.45 * c)
-                hang = (-up + out * 0.35).normalized()
+                hang = (-up + out * rnd.uniform(0.2, 0.5)).normalized()
                 t.card(p + up * 0.1, hang, out + tan * rnd.uniform(-0.5, 0.5), s * ASPECT, s,
                        cell('larch', rnd.randrange(2)), out=out)
     return t
 
 
-# One tree per slot of `props.js`'s SPECIES table, which its 24 pools take in
-# turn (pool i is slot i % 12). The slot names were written for a forest of
-# one spruce in different proportions; here each becomes the real tree it
-# stands for, and the mix comes out the way a subalpine forest in the Alps
-# actually runs — spruce first, stone pine at the edges, fir in the
-# shelter, larch scattered through.
+# Two trees per slot of `props.js`'s SPECIES table — 24, one for each of its
+# pools (pool i is slot i % 12; the second dozen read `tree_<slot>_2`). The
+# slot names were written for a forest of one spruce in different
+# proportions; here each becomes the real tree it stands for, and the mix
+# comes out the way a subalpine forest in the Alps actually runs — spruce
+# first, stone pine at the edges, fir in the shelter, larch scattered
+# through. The second of each pair is the same kind of tree with a
+# different history: another light, another top.
 SLOTS = [
     ('swissHighPine', 'pine', lambda: stone_pine(61, 11.5)),
     ('toweringAlpineSpruce', 'spruce', lambda: norway_spruce(23, 21.0)),
@@ -518,14 +658,26 @@ SLOTS = [
     ('glacierWhitePine', 'pine', lambda: stone_pine(67, 12.5, leaders=2)),
     ('montaneSilverFir', 'fir', lambda: silver_fir(41, 19.0)),
     ('highAlpineLarch', 'larch', lambda: european_larch(71, 18.0)),
-    ('weepingHighSpruce', 'spruce', lambda: norway_spruce(11, 17.0)),
+    ('weepingHighSpruce', 'spruce', lambda: norway_spruce(11, 17.0, top_kind='fork')),
     ('crestedRidgePine', 'pine', lambda: stone_pine(73, 10.5, leaders=3)),
     ('stormHighPine', 'pine', lambda: stone_pine(79, 9.0, leaders=1, flag=0.8)),
     ('frostHighPine', 'spruce', lambda: norway_spruce(37, 15.0)),
-    ('nobleHighSpruce', 'spruce', lambda: norway_spruce(43, 19.0)),
+    ('nobleHighSpruce', 'spruce', lambda: norway_spruce(43, 19.0, top_kind='dead')),
     # not a larch: the game dresses this slot as an evergreen, so it is the
     # tall clear-stemmed timber spruce of a sheltered valley floor
     ('alpineTimberPine', 'spruce', lambda: norway_spruce(83, 22.0)),
+    ('swissHighPine_2', 'pine', lambda: stone_pine(161, 10.5, leaders=2)),
+    ('toweringAlpineSpruce_2', 'spruce', lambda: norway_spruce(123, 20.0, top_kind='broken')),
+    ('monarchCathedralPine_2', 'fir', lambda: silver_fir(153, 21.0)),
+    ('glacierWhitePine_2', 'pine', lambda: stone_pine(167, 12.0, leaders=1, flag=0.4)),
+    ('montaneSilverFir_2', 'fir', lambda: silver_fir(141, 18.0, nest=True)),
+    ('highAlpineLarch_2', 'larch', lambda: european_larch(171, 16.5)),
+    ('weepingHighSpruce_2', 'spruce', lambda: norway_spruce(111, 18.0)),
+    ('crestedRidgePine_2', 'pine', lambda: stone_pine(173, 11.0, leaders=2)),
+    ('stormHighPine_2', 'pine', lambda: stone_pine(179, 8.5, leaders=2, flag=0.6)),
+    ('frostHighPine_2', 'spruce', lambda: norway_spruce(137, 14.0, top_kind='fork')),
+    ('nobleHighSpruce_2', 'spruce', lambda: norway_spruce(143, 20.0)),
+    ('alpineTimberPine_2', 'spruce', lambda: norway_spruce(183, 23.0, top_kind='dead')),
 ]
 
 
@@ -643,7 +795,7 @@ def export_trees(path):
 # Impostors: every tree photographed from three bearings, for the far forest
 # ---------------------------------------------------------------------------
 
-IMPOSTOR_PX = (2048, 1024)       # atlas: one column per tree, one row per view
+IMPOSTOR_PX = (4096, 1024)       # atlas: one column per tree, one row per view
 IMPOSTOR_VIEWS = 3               # bearings 0°, 60°, 120° — three crossed cards
 IMPOSTOR_ASPECT = 0.5            # a cell's width over its height
 

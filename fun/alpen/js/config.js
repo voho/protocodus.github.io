@@ -206,15 +206,24 @@ export const HUT_LIGHT = {
   side: 2.65,            // and of the side window's
   /* Each pane's centre and size in its own plane, u across and v up (u is x
      on the front and z on the side), and whether it has a cross of glazing
-     bars through its centre. */
+     bars through its centre.
+
+     These are the modelled hut's windows (`tools/blender/hut.py` copies
+     this table, and the model check holds the two together): parlour
+     windows of seventy centimetres, which is what a log wall at this
+     height is cut for, set apart so that each keeps a pair of shutters
+     that open flat against the logs — the old metre-wide pair stood so
+     close that their middle shutters had nowhere to go. The door moved
+     out with them, and the transom over it sits in its frame now rather
+     than standing proud of a slab. */
   glass: {
     front: [
-      { at: [0.35, 1.75], size: [0.98, 0.86], bars: true },
-      { at: [1.85, 1.75], size: [0.98, 0.86], bars: true },
-      // over the door, and standing proud of it
-      { at: [-1.3, 2.35], size: [0.72, 0.3], bars: false, proud: 0.04 },
+      { at: [-0.05, 1.75], size: [0.70, 0.84], bars: true },
+      { at: [1.70, 1.75], size: [0.70, 0.84], bars: true },
+      // over the door
+      { at: [-1.70, 2.36], size: [0.70, 0.28], bars: false },
     ],
-    side: [{ at: [0.3, 1.75], size: [0.98, 0.86], bars: true }],
+    side: [{ at: [0.3, 1.75], size: [0.70, 0.84], bars: true }],
   },
   bar: 0.045,
   terrace: { top: 0.55, x: [-2.65, 2.65], z: [-4.4, -2.2] },

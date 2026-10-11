@@ -99,9 +99,30 @@ run, and the two maps are WebPs of the sizes the shader assumes.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+It reads their modelled replacements too: the gate panel, piste marker and
+snow bridge of `assets/models/piste/piste-furniture.glb` (from
+`tools/blender/piste.py`) — the gate in the stand-in's frame, only its fabric
+rippling and never within 3 cm of a pole, the race tint kept off its hinges;
+the marker three metres tall on its foot with its sign facing +Z; the
+bridge's steel inside the box its collision is cut from, snow on its upper
+beams; all in budget — the scrub and plant patches of
+`assets/models/nature/alpine-shrubs.glb` (from `shrubs.py`: in budget,
+footed on the snow line, about the size of the stand-in hulls the game still
+collides with), and the sapling atlas from `saplings.py` (the four species,
+rows that do not overlap, a 1024 × 2048 WebP with alpha). The stand-ins
+carry the attributes the materials now read (`aGrain`, the gate's
+`surfaceOwn`).
 It checks the ground the props keep off around each hut (`onHutGround`) too:
 every corner of the roof, the woodpile and the terrace is on it, turned the
 way the hut is turned, and the open snow twelve metres to one side is not.
+The modelled hut (`assets/models/huts/mountain-hut.glb`, from
+`tools/blender/hut.py`) is read the way the game reads it: 4–6k triangles,
+every role has a look and a surface kind, the procedural fallback is all
+kind 0; its extras agree with `CHIMNEY`, `TERRACE_DECK`, `PLINTH_DEPTH` and
+`HUT_LIGHT`, the stone reaches the depth the site search assumes, the deck
+is at the deck height, a ray from the room out through every pane meets
+nothing while one beside it meets the wall, and everything below head
+height but the snow lies inside the collision boxes.
 And it checks `weld`, which the prop pools, the forest cards and the animals
 draw through: every corner keeps every attribute bit for bit through the
 index, shared corners really are merged, and a pool still waiting on its
@@ -124,6 +145,17 @@ shared texture cache hands every caller one texture per file, the forest's
 gust field is sampled at the wavelengths its drift wraps at, and the other
 riders respawn beyond the clear-day fog and get up from a tumble without a
 cut (both of those fail against the previous `mountainLife.js`).
+The modelled lift and snow guns (`assets/models/resort/lift.glb`, from
+`tools/blender/lift.py`) are loaded through `mountainLife.js`'s own fetch:
+the cabin (with its glass) stays under 1500 triangles, the tower under 2500,
+a sheave train under 600 and the gun under 2500; the cabin, tower and gun
+carry snow that faces up; every sheave turns about its own axle and the rope
+lies on all six. Adopted, the file reuses the meshes already drawing (the
+resort stays at most 24), the hardware patch lands in three's Lambert shader
+and turns the sheaves, every train lies along the rope between its
+neighbouring towers with its frame inboard, every cabin hangs from the rope
+by its grip with its door outboard, and the guns spray from their own nozzle
+rings along their barrels. Without the file the procedural line stands.
 The graphics check also loads the modelled range (`assets/models/backdrop`)
 through the sky: it arrives as its 24 sectors, drawn after the ground and
 before the haze cone, retires the relief shell and the far ribbons at every
@@ -149,7 +181,19 @@ edge. That edge is now 24 bands (960 m) out and moves with the rider
 continuously. Only props carry the fade term, and it reads the view direction
 after it is declared. The model check also covers wildlife arrival: a hare
 placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
-passes read the same value, so its shadow arrives with it. The canopy field (`canopy.js`) is checked too. A crown hides
+passes read the same value, so its shadow arrives with it. The modelled
+animals (`alpine-wildlife.glb`, from `tools/blender/wildlife.py`) are
+checked too: each pool's node is inside its budget (hare 4500, deer body
+2000, hind head 1200, stag head 1400 for its twelve points, wolf 3200), on
+the snow, symmetric and nose-first, every role has a look, and the hare's
+eye-shine offsets are its eyes' centres. Every deer and wolf vertex swings
+with one leg or none and never with a leg on the other side, the lower legs
+are rigid and the back still, and a full stride at four phases stretches no
+edge by 4 cm or more (it is about 2.5; a torn flank is tens). A browsing
+head keeps its muzzle, and a stag's antlers, out of the snow without heaving
+its neck over the withers. The game swaps all five pools to the file while
+keeping their arrival and stride buffers, follows its eyes and withers, and
+without the file keeps every sculpted animal whole. The canopy field (`canopy.js`) is checked too. A crown hides
 about half the sky at its trunk and nothing beyond its reach. A thicket is
 darker than one tree but never black, and a bare snag hides much less. It takes
 direct light only as the sun's shadows fade. The window stays on the world's

@@ -248,10 +248,13 @@ def foothills(x, z):
     return 1 - smoothstep(0.75, 1.3, reach)
 
 
-def valley_floor(x, z):
+def valley_floor(x, z, level=False):
     """The valleys as one surface: for every point the lowest of the
-    troughs it is near, each a flat floor with walls rising off it."""
+    troughs it is near, each a flat floor with walls rising off it. With
+    `level`, also the altitude of that trough's own floor — the level the
+    ground round a point drains to."""
     best = np.full_like(x, 1e9)
+    lev = np.zeros_like(x)
     for nodes, half, steep in VALLEYS:
         dist = np.full_like(x, 1e18)
         floor = np.zeros_like(x)
@@ -272,8 +275,10 @@ def valley_floor(x, z):
         # U-shaped: steep off the floor, easing onto the shoulders above,
         # with fans and terraces on the floor itself
         wall = steep * out + 0.00022 * out * out
-        best = np.minimum(best, floor + wall + 22 * (fbm(x / 900, z / 900, 3, 917) + 0.6))
-    return best
+        cand = floor + wall + 22 * (fbm(x / 900, z / 900, 3, 917) + 0.6)
+        lev = np.where(cand < best, floor, lev)
+        best = np.minimum(best, cand)
+    return (best, lev) if level else best
 
 
 def gullies(along, down, seed):
@@ -414,11 +419,16 @@ def mass(x, z):
 
 def altitude(x, z):
     """Metres above the sea at world (x, z)."""
-    floor = valley_floor(x, z)
+    floor, level = valley_floor(x, z, level=True)
     h = smin(mass(x, z), floor, 220.0)
     h = smax(h, smin(landmarks(x, z), floor + 40, 160.0), 180.0)
+    # the near range at a quarter of its relief over its own valleys —
+    # ridges stay ridges and valleys stay valleys, but the ridges either
+    # side of the run stand below the eye, forested to their crests, and
+    # the rider looks out over them
     low = foothills(x, z)
-    h = np.where(h > 1150, 1150 + (h - 1150) * (1 - 0.58 * low), h)
+    base = np.minimum(level, h)
+    h = base + (h - base) * (1 - 0.7 * low)
     cap, hold = home(x, z)
     h = h + (smin(h, cap, 220.0) - h) * hold
     floor = np.minimum(floor, h)
@@ -437,13 +447,16 @@ def curvature_drop(d):
 # --------------------------------------------------------------------------
 # The cover: what each piece of ground is wearing in January.
 
-def cover(h, ny, x, z):
+def cover(h, ny, x, z, gx=None, gz=None):
     """(snow, forest, ice, rock) for ground at altitude `h` whose normal
-    has vertical component `ny`. Snow holds on the gentle ground and on
-    ledges; faces steeper than about forty degrees show their rock; the
-    forest climbs to a treeline near 1950 m on anything it can stand on and
-    lies in patches across the valley floors between the fields; glaciers
-    fill the gentle ground of the high cirques."""
+    has vertical component `ny` (and, if given, whose slope falls along
+    (gx, gz)). Snow holds on the gentle ground and on ledges; faces steeper
+    than about forty degrees show their rock. The forest is what makes a
+    valley read from above: a dark belt up every slope to a treeline near
+    1950 m, cut by the white chutes of avalanche paths running straight
+    down it, and thinning out on the valley floors, which are open snow —
+    the meadows and fields — with only a few stands and strips of wood
+    left on them. Glaciers fill the gentle ground of the high cirques."""
     steep = np.sqrt(np.clip(1 - ny * ny, 0, 1))      # sine of the slope
     wob = fbm(x / 900, z / 900, 3, 503)
     rock = smoothstep(0.70 + 0.06 * wob, 0.84 + 0.05 * wob, steep)
@@ -455,12 +468,28 @@ def cover(h, ny, x, z):
     # couloirs, so a north face is dark rock laced with white, not a slab
     ledges = smoothstep(0.05, 0.45, fbm(x / 110, z / 110, 3, 519) + 0.2 * fbm(x / 40, z / 40, 2, 523))
     rock = rock * (1 - 0.6 * ledges * (1 - smoothstep(0.86, 0.95, steep)))
-    treeline = 1950 + 160 * fbm(x / 1700, z / 1700, 3, 509)
-    patches = smoothstep(-0.25, 0.25, fbm(x / 520, z / 520, 3, 521) + 0.45)
-    fields = smoothstep(-0.2, 0.2, fbm(x / 650, z / 650, 3, 527))
-    flat = 1 - smoothstep(0.08, 0.20, steep)
-    forest = (smoothstep(treeline + 40, treeline - 160, h)
-              * (1 - smoothstep(0.72, 0.82, steep)) * patches * (1 - flat * (1 - fields) * 0.85))
+    # a ragged treeline: tongues of forest up the ribs, bays of open snow
+    # down the hollows, a couple of hundred metres either way
+    treeline = 1950 + 160 * fbm(x / 1700, z / 1700, 3, 509) + 140 * fbm(x / 420, z / 420, 3, 531)
+    # the belt itself: closed on the slopes, broken only into stands near its top
+    belt = smoothstep(treeline + 30, treeline - 160, h)
+    stands = smoothstep(-0.55, -0.05, fbm(x / 300, z / 300, 3, 521) + 0.35 * (1 - belt))
+    flat = 1 - smoothstep(0.06, 0.18, steep)
+    # on the valley floors, open snow — the meadows and fields — with strips
+    # of wood along the streams and the odd stand
+    floor_wood = smoothstep(0.30, 0.55, fbm(x / 420, z / 1300, 3, 527)) * 0.9
+    forest = belt * stands * (1 - smoothstep(0.74, 0.84, steep)) * (1 - flat + flat * floor_wood)
+    if gx is not None:
+        # Avalanche paths: chutes straight down the fall line, a few tens of
+        # metres wide, cleared of trees from the treeline to the valley. A
+        # field read across the slope (along its contours) fast and down it
+        # slowly draws exactly that — stripes that run downhill.
+        g = np.sqrt(gx * gx + gz * gz) + 1e-6
+        across = (x * -gz + z * gx) / g
+        down = (x * gx + z * gz) / g
+        chute = smoothstep(0.62, 0.78, 1 - np.abs(fbm(across / 140, down / 2200, 2, 541)))
+        chute *= smoothstep(0.25, 0.45, steep) * smoothstep(-0.2, 0.3, fbm(x / 2500, z / 2500, 2, 547))
+        forest *= 1 - chute
     ice = (smoothstep(2850, 3150, h) * (1 - smoothstep(0.30, 0.48, steep))
            * smoothstep(-0.1, 0.3, fbm(x / 1400, z / 1400, 3, 517)))
     forest = forest * (1 - rock)
@@ -708,7 +737,7 @@ def bake_maps():
     # metres per metre of spacing — gullies dark, crests bright
     lap = (hp[2:] + hp[:-2] - 2 * h) / (Dm * dT) ** 2 * (Dm * dT)
     cav = 0.5 + np.clip(-lap * 0.9, -0.5, 0.5)
-    snow, forest, ice, rock = cover(h, n[..., 1], x, z)
+    snow, forest, ice, rock = cover(h, n[..., 1], x, z, gx, gz)
     shape = np.stack([0.5 + 0.5 * n[..., 0], 0.5 + 0.5 * n[..., 2], cav], -1)
     cov = np.stack([snow, forest, ice], -1)
     return shape, cov
@@ -838,9 +867,8 @@ def build_maps(out_dir):
     shape, cov = bake_maps()
     tex = os.path.join(out_dir, 'textures', 'backdrop')
     os.makedirs(tex, exist_ok=True)
-    # The cover's edges are cut again in the shader, so it can be coarser.
     save_map(os.path.join(tex, 'alps-shape.webp'), shape, quality=84)
-    save_map(os.path.join(tex, 'alps-cover.webp'), cov, quality=88, half=True)
+    save_map(os.path.join(tex, 'alps-cover.webp'), cov, quality=86)
 
 
 if __name__ == '__main__' and '--' in sys.argv and '--out' in sys.argv:

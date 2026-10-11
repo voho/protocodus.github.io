@@ -1601,8 +1601,14 @@ export function createSky(THREE) {
      Cirrus, deck, glow, peaks: a fogged ridge goes into the colour of what
      is behind it. Below the skyline the dome keeps the curtain's haze — see
      the probe's branch in DOME_FRAG. */
-  const PROBE_W = 256;
-  const PROBE_H = 128;
+  /* At a degree and a half to the texel this was fine for a sky, which
+     has nothing sharp in it below the clouds; with the modelled range drawn
+     in, the far edge of the ground dissolved into a thirty-pixel blur of
+     it — soft grey hills in front of crisp mountains. A third of a degree
+     is a few pixels on a desktop panel, so the fade lands on the range
+     itself. */
+  const PROBE_W = 1024;
+  const PROBE_H = 512;
   const probe = new THREE.WebGLRenderTarget(PROBE_W, PROBE_H, {
     type: THREE.HalfFloatType,
     minFilter: THREE.LinearFilter,
@@ -3185,7 +3191,7 @@ export function createSky(THREE) {
     bu.uGroundFill.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity);
     bu.uAlpenglow.value.copy(sunlit).multiplyScalar(0.3);
     bu.uHaze.value.copy(atmosphere.haze);
-    bu.uAir.value.copy(atmosphere.haze).lerp(atmosphere.horizon, 0.4).lerp(atmosphere.mid, 0.1);
+    bu.uAir.value.copy(atmosphere.haze).lerp(atmosphere.horizon, 0.3).lerp(atmosphere.mid, 0.3);
     bu.uGlow.value.copy(atmosphere.glow);
     bu.uGlowStrength.value = 1 - w.storm * 0.8;
     bu.uCurtain.value = -(pitch + 0.015);
@@ -3193,7 +3199,11 @@ export function createSky(THREE) {
       * (1 - 0.35 * ramp(w.cloud, 0.3, 1));
     bu.uWhiteout.value = Math.max(ramp(w.storm, 0.28, 0.82), 1 - backdropShown);
     // the valleys fill as the fog closes in
-    bu.uValley.value = 0.94 + 0.06 * (1 - ramp(w.fogFar, 300, 1000));
+    bu.uValley.value = 0.65 * (1 - ramp(w.fogFar, 250, 900));
+    /* The near ground's swing, as a change of slope: the model's shoulder
+       falls from the eye at about 0.195 at its foot, and the ground's far
+       edge stands at the curtain's pitch. */
+    bu.uShear.value = pitch + 0.02 - 0.195;
     bu.uLateral.value = lateral;
     backdrop.setSun(w.azimuth);
     backdrop.group.visible = backdropShown > 0.001;

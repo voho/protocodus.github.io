@@ -35,9 +35,17 @@
    pitch about the hare's own lateral axis. The models themselves are much
    heavier than they were — the game renders at native resolution now, and
    the budget that justified four identical cylinders for legs no longer
-   exists. */
+   exists.
+
+   AND THEY ARE MODELLED NOW. The animals are built in Blender by
+   `tools/blender/wildlife.py` and arrive as `alpine-wildlife.glb` (see
+   MODELS.md and `modelledAnimal` below): a mountain hare in its white coat,
+   a red deer's body with a hind's head and a royal stag's, and a grey wolf.
+   The sculpted builders further down are what stands until that file has
+   arrived, and what stays if it never does. */
 
 import { compose, sculpt, weld } from './geom.js';
+import { parseGlb } from './glb.js';
 import { WILDLIFE } from './config.js';
 import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js';
 
@@ -202,6 +210,14 @@ function rabbitGeometry(THREE) {
   ]);
 }
 
+/* The centres of a hare's eyes, for the eye-shine (see EYE-SHINE in
+   createWildlife). These are the sculpted hare's beads above — the figures
+   here once belonged to an older, larger hare, and the glints floated in
+   front of this one's face — and the modelled hare replaces them in place
+   with its own (`extras.eyes`) when it arrives, so the two can never drift
+   apart again. */
+const RABBIT_EYES = [[-0.048, 0.293, -0.29], [0.048, 0.293, -0.29]];
+
 /* A red deer, facing -Z, feet at y = 0 — and only from the withers down.
 
    The head is a separate mesh and that is the whole reason the deer are worth
@@ -229,11 +245,11 @@ function deerBodyGeometry(THREE) {
   const hoof = new THREE.SphereGeometry(0.5, 8, 5);
 
   /* Each leg swings about the top of its forearm or gaskin, where it leaves
-     the body (see `aGait` in createWildlife). A gallop's phases: the fronts
-     a beat apart, the hinds a beat apart, the pairs half a stride apart. */
+     the body (see `aGait` in createWildlife), in the phase `DEER_GAIT`
+     gives it. */
   const legs = {
-    '-1': [[0.86, -0.36, 0], [0.76, 0.46, Math.PI]],
-    1: [[0.86, -0.36, 0.5], [0.76, 0.46, Math.PI + 0.5]],
+    '-1': [[0.86, -0.36, DEER_GAIT[0]], [0.76, 0.46, DEER_GAIT[2]]],
+    1: [[0.86, -0.36, DEER_GAIT[1]], [0.76, 0.46, DEER_GAIT[3]]],
   };
 
   // One skin from the withers to the tail, the upper legs swelling out of it
@@ -322,13 +338,23 @@ function deerHeadGeometry(THREE, antlers) {
 }
 
 /* Where the neck joins the body, in the body's own space. Everything about
-   the head instance is this offset turned by the animal's yaw. */
+   the head instance is this offset turned by the animal's yaw. These are
+   the sculpted deer's; the modelled body brings its own (`extras.withers`,
+   lower and further forward — the root of the neck rather than the top of
+   the withers, so its base turns inside the chest) and replaces them in
+   place when it arrives. */
 const DEER_WITHERS = [0, 1.10, -0.40];
 /* And how far forward the neck swings to put the muzzle in the snow. A deer
    in winter is browsing rather than grazing — it is reaching for what is
-   sticking out of the drift, not cropping a lawn — so the nose comes down to
-   about knee height and not to the ground. */
-const DEER_BROWSE = -2.05;
+   sticking out of the drift, not cropping a lawn — so the nose comes down
+   short of the ground: to about knee height on the sculpted deer, to a
+   hand's breadth above the snow, well ahead of the forelegs, on the
+   modelled one. A stag stops short of that: a royal's antlers reach as far
+   forward as its nose when its head is down, and at the hind's angle their
+   points would be in the snow — at this one they clear it by a quarter of
+   a metre. */
+const DEER_BROWSE = -1.85;
+const STAG_BROWSE = -1.75;
 
 /* A wolf, facing -Z, feet at y = 0.
 
@@ -349,10 +375,10 @@ function wolfGeometry(THREE) {
   const cannon = new THREE.CylinderGeometry(0.5, 0.42, 1, 8, 1, true);
   const bead = new THREE.SphereGeometry(0.5, 10, 8);
 
-  // A trot: the legs swing in diagonal pairs (see the deer for the pivots)
+  // A trot (`WOLF_GAIT`; see the deer for the pivots)
   const legs = {
-    '-1': [[0.48, -0.3, 0], [0.45, 0.4, Math.PI]],
-    1: [[0.48, -0.3, Math.PI], [0.45, 0.4, 0]],
+    '-1': [[0.48, -0.3, WOLF_GAIT[0]], [0.45, 0.4, WOLF_GAIT[2]]],
+    1: [[0.48, -0.3, WOLF_GAIT[1]], [0.45, 0.4, WOLF_GAIT[3]]],
   };
 
   const skin = sculpt(THREE, [
@@ -397,6 +423,130 @@ function wolfGeometry(THREE) {
     { geo: bead, color: WOLF_SADDLE, pos: [-0.07, 0.8, -0.64], rot: [-0.10, -0.25, -0.16], scale: [0.06, 0.12, 0.035] },
     { geo: bead, color: WOLF_SADDLE, pos: [0.07, 0.8, -0.64], rot: [-0.10, 0.25, 0.16], scale: [0.06, 0.12, 0.035] },
   ], { limb: true });
+}
+
+/* THE MODELLED ANIMALS.
+
+   `alpine-wildlife.glb` holds one node per pool — `wild_hare`,
+   `wild_deerBody`, `wild_hindHead`, `wild_stagHead`, `wild_wolf` — each in
+   this file's own frame (facing −Z, feet on y = 0, the heads from the base
+   of the neck), and each made of tubes of clean rings fused into one skin,
+   so a leg is a stack of rings from the shoulder to the hoof and bends where
+   the gait wants it to: over its top, nowhere else.
+
+   Colour is a role, as it is for the riders. Every primitive is named for
+   what it is (`fur`, `coat`, `hoof`, `antler`…) and the tables below say
+   what each looks like — a base, and the pale and dark shades the file's
+   two per-vertex weights mix in, `_PALE` and `_DARK`, because the markings
+   that make these animals legible are soft-edged: a wolf's saddle and pale
+   cheeks and the dark stripe down its forelegs, a deer's buff rump patch and
+   darker legs, a stag's winter mane, the black of a hare's ear tip.
+
+   The legs are the file's too, as far as where they are goes: `_LEG` says
+   which leg a vertex swings with (1 fore −X, 2 fore +X, 3 hind −X, 4 hind
+   +X) and `_SWING` how much of it does, and `extras.legs` the pivot each
+   turns about. How they move is the game's: the phase of each leg in a
+   stride is the gait below, and the shader turns all of it into the same
+   `aLimb` the sculpted bodies carry. */
+const WILDLIFE_GLB = new URL('../assets/models/wildlife/alpine-wildlife.glb', import.meta.url).href;
+
+/* The phase each leg swings in, in the file's leg order (fore −X, fore +X,
+   hind −X, hind +X), for the modelled bodies and the sculpted ones alike.
+   A deer's gallop: the fronts a beat apart, the hinds a beat apart, the
+   pairs half a stride apart. A wolf's trot: diagonal pairs together. */
+const DEER_GAIT = [0, 0.5, Math.PI, Math.PI + 0.5];
+const WOLF_GAIT = [0, Math.PI, Math.PI, 0];
+
+/* role → [base, pale, dark], the last two mixed in by `_PALE`/`_DARK`.
+   The mountain hare's "pale" is the bluer shade its white coat turns where
+   it goes under, against the snow; its dark is only the ear tips. */
+const HARE_LOOK = {
+  fur: ['#eef3fb', '#cbd5e5', '#16191f'],
+  earInner: ['#e9dedd', '#e9dedd', '#16191f'],
+  eye: ['#140f0c'],
+  nose: ['#9b8585'],
+};
+const DEER_LOOK = {
+  coat: [DEER_COAT, '#cbbd9e', '#352d27'],
+  earInner: ['#b5a893', '#b5a893', '#352d27'],
+  hoof: [DEER_HOOF],
+  eye: ['#100c0a'],
+  nose: ['#1c1714'],
+  antler: ['#5a4734', '#e7ddc6', '#2a2019'],
+};
+const WOLF_LOOK = {
+  coat: ['#88827a', '#d5ccba', '#322e2a'],
+  earInner: ['#cdc3b0', '#cdc3b0', '#322e2a'],
+  eye: ['#4a3214'],
+  nose: ['#151413'],
+};
+
+/* One node of the file as pool geometry: its primitives welded into one
+   indexed buffer, painted from `look`, and — given a `gait` — carrying the
+   `aLimb` the stride shader reads (pivot, weight, phase; zeros for anything
+   that does not swing). */
+function modelledAnimal(THREE, node, look, gait) {
+  let verts = 0;
+  let indices = 0;
+  for (const p of node.prims) {
+    verts += p.attributes.POSITION.length / 3;
+    indices += p.index.length;
+  }
+  const position = new Float32Array(verts * 3);
+  const normal = new Float32Array(verts * 3);
+  const color = new Float32Array(verts * 3);
+  const limb = gait ? new Float32Array(verts * 4) : null;
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+  const pivots = node.extras.legs;
+  if (gait && !(Array.isArray(pivots) && pivots.length === 4)) {
+    throw new Error('alpine-wildlife.glb: no leg pivots');
+  }
+  const base = new THREE.Color();
+  const pale = new THREE.Color();
+  const dark = new THREE.Color();
+  const c = new THREE.Color();
+  let v = 0;
+  let k = 0;
+  for (const p of node.prims) {
+    const said = look[p.role];
+    if (!said) throw new Error('alpine-wildlife.glb: no look for ' + p.role);
+    base.set(said[0]);
+    pale.set(said[1] ?? said[0]);
+    dark.set(said[2] ?? said[0]);
+    const n = p.attributes.POSITION.length / 3;
+    position.set(p.attributes.POSITION, v * 3);
+    normal.set(p.attributes.NORMAL, v * 3);
+    const P = p.attributes._PALE;
+    const D = p.attributes._DARK;
+    const L = p.attributes._LEG;
+    const S = p.attributes._SWING;
+    for (let i = 0; i < n; i++) {
+      c.copy(base);
+      if (P) c.lerp(pale, P[i]);
+      if (D) c.lerp(dark, D[i]);
+      color[(v + i) * 3] = c.r;
+      color[(v + i) * 3 + 1] = c.g;
+      color[(v + i) * 3 + 2] = c.b;
+      const leg = limb && L && S ? Math.round(L[i]) : 0;
+      if (leg > 0 && S[i] > 0) {
+        limb[(v + i) * 4] = pivots[leg - 1][0];
+        limb[(v + i) * 4 + 1] = pivots[leg - 1][1];
+        limb[(v + i) * 4 + 2] = S[i];
+        limb[(v + i) * 4 + 3] = gait[leg - 1];
+      }
+    }
+    for (let i = 0; i < p.index.length; i++) index[k + i] = p.index[i] + v;
+    v += n;
+    k += p.index.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  if (limb) g.setAttribute('aLimb', new THREE.BufferAttribute(limb, 4));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingSphere();
+  return g;
 }
 
 /* FOR THE UNBUILT BEAR — see the header. Kept so its eventual builder does
@@ -579,6 +729,58 @@ export function createWildlife(THREE, shading) {
   const stagReveal = revealOf.get(stagHeads);
   const wolfReveal = revealOf.get(wolves);
 
+  /* THE MODELLED ANIMALS, SWAPPED IN WHEN THEY ARRIVE. Every pool is built
+     from the file before any is swapped, so a file missing one animal leaves
+     the whole menagerie sculpted rather than half of it. A swap keeps the
+     mesh, its material, its shadow pass and its instances: the new geometry
+     takes over the per-instance arrival and stride buffers — the very arrays
+     the update loop writes into — and the old one gives them up before it is
+     disposed, so they are never freed from under it. The eye-shine offsets
+     and the withers the heads hang from follow the model. `modelled` settles
+     true once the file is in, false if the sculpted animals stay. */
+  const swapIn = (mesh, g) => {
+    const old = mesh.geometry;
+    for (const name of ['aReveal', 'aGait']) {
+      const a = old.getAttribute(name);
+      if (!a) continue;
+      g.setAttribute(name, a);
+      old.deleteAttribute(name);
+    }
+    mesh.geometry = g;
+    old.dispose();
+  };
+  const modelled = fetch(WILDLIFE_GLB)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+    .then(parseGlb)
+    .then((nodes) => {
+      const node = (name) => {
+        if (!nodes[name]) throw new Error('alpine-wildlife.glb: no ' + name);
+        return nodes[name];
+      };
+      const hare = node('wild_hare');
+      const body = node('wild_deerBody');
+      const eyeAt = hare.extras.eyes;
+      const { withers } = body.extras;
+      if (!(Array.isArray(eyeAt) && eyeAt.length === 2) || !(Array.isArray(withers) && withers.length === 3)) {
+        throw new Error('alpine-wildlife.glb: no eyes or withers');
+      }
+      const built = [
+        [rabbits, modelledAnimal(THREE, hare, HARE_LOOK)],
+        [deerBodies, modelledAnimal(THREE, body, DEER_LOOK, DEER_GAIT)],
+        [deerHeads, modelledAnimal(THREE, node('wild_hindHead'), DEER_LOOK)],
+        [stagHeads, modelledAnimal(THREE, node('wild_stagHead'), DEER_LOOK)],
+        [wolves, modelledAnimal(THREE, node('wild_wolf'), WOLF_LOOK, WOLF_GAIT)],
+      ];
+      built.forEach(([mesh, g]) => swapIn(mesh, g));
+      eyeAt.forEach((eye, i) => { RABBIT_EYES[i] = eye.slice(0, 3); });
+      DEER_WITHERS.splice(0, 3, ...withers);
+      return true;
+    })
+    .catch((err) => {
+      console.warn('Alpen: keeping the sculpted animals —', err);
+      return false;
+    });
+
   /* EYE-SHINE. An animal caught in a head torch answers it: the tapetum
      throws the beam straight back, and two green points in the dark are how
      every real night walker meets its wildlife long before it resolves a
@@ -590,8 +792,8 @@ export function createWildlife(THREE, shading) {
      The lamp itself lives three modules away on the rider's head, so this
      mesh defaults to invisible and stays that way until someone calls
      `setLamp` each frame with the headlamp's level, origin and direction —
-     see the wiring note on the returned object. */
-  const RABBIT_EYES = [[-0.076, 0.352, -0.388], [0.076, 0.352, -0.388]];
+     see the wiring note on the returned object. Where the eyes are is
+     `RABBIT_EYES`, which follows whichever hare is drawn. */
   const EYE_MAX = WILDLIFE.rabbits * 2;
   const EYE_REACH = 45;
   const eyeGeo = new THREE.PlaneGeometry(1, 1);
@@ -989,7 +1191,7 @@ export function createWildlife(THREE, shading) {
         ev.set(DEER_WITHERS[0], DEER_WITHERS[1], DEER_WITHERS[2]).applyMatrix4(m);
         // The head carries the body's lie on the slope too, or the neck
         // would leave the withers at a kink on every hillside.
-        e.set(DEER_BROWSE * feeding + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
+        e.set((d.stag ? STAG_BROWSE : DEER_BROWSE) * feeding + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
         q.setFromEuler(e);
         m.compose(ev, q, s);
         if (d.stag) {
@@ -1100,8 +1302,9 @@ export function createWildlife(THREE, shading) {
   // `eyes` is exposed for one reason: main.js feeds every hand-fogged
   // material from a single per-frame loop, and this is one of them.
   // `herd` and `pack` join them for the same reason, and so a test can put a
-  // herd on the hill without waiting out its spawn clock.
+  // herd on the hill without waiting out its spawn clock. `modelled` is the
+  // promise of the Blender animals (true once they are drawn).
   return {
-    group, update, reset, setLamp, hares, beasts, eyes, herd, pack, placeHerd, placePack,
+    group, update, reset, setLamp, hares, beasts, eyes, herd, pack, placeHerd, placePack, modelled,
   };
 }

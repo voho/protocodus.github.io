@@ -38,7 +38,9 @@ function valid(name, geo) {
 
 const wildlifeNames = ['rabbitGeometry', 'deerBodyGeometry', 'deerHeadGeometry', 'wolfGeometry'];
 const wildlife = await load('wildlife.js',
-  [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL', 'SLOPE_PITCH_MAX', 'SLOPE_ROLL_MAX']);
+  [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL', 'SLOPE_PITCH_MAX', 'SLOPE_ROLL_MAX',
+    'modelledAnimal', 'HARE_LOOK', 'DEER_LOOK', 'WOLF_LOOK', 'DEER_GAIT', 'WOLF_GAIT',
+    'RABBIT_EYES', 'DEER_WITHERS', 'DEER_BROWSE', 'STAG_BROWSE']);
 const triangleBudgets = [4500, 2000, 1200, 3200];
 for (const key of wildlifeNames) {
   const triangles = valid(key, wildlife[key](THREE, true));
@@ -93,7 +95,16 @@ for (const key of wildlifeNames) {
   const StubTHREE = { ...THREE, TextureLoader: class {
     load() { return new THREE.Texture(); }
   } };
+  // The sculpted animals, quietly: node cannot fetch a file: URL, and the
+  // modelled ones are checked below
+  const realFetch = globalThis.fetch;
+  const warn = console.warn;
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  console.warn = () => {};
   const life = (await load('wildlife.js')).createWildlife(StubTHREE, { apply: (m) => m, uniforms: {} });
+  globalThis.fetch = realFetch;
+  await life.modelled;
+  console.warn = warn;
   const rabbits = life.group.children[0];
   const reveal = rabbits.geometry.attributes.aReveal;
   assert.ok(reveal && rabbits.customDepthMaterial, 'hares carry an arrival value into both passes');
@@ -102,6 +113,203 @@ for (const key of wildlifeNames) {
   assert.ok(rabbits.count > 0 && reveal.array[0] < 0.1, 'a hare placed this frame has not yet arrived');
   for (let i = 0; i < 80; i++) life.update(1 / 60, rider, () => {}, () => {});
   assert.equal(reveal.array[0], 1, 'a hare is fully there after its arrival time');
+}
+
+/* The modelled animals (`tools/blender/wildlife.py` → alpine-wildlife.glb).
+   Every pool has its node, inside its budget, standing on the snow and
+   facing −Z, with a look for every role; the hare's eye-shine sits on its
+   eyes. The deer's and the wolf's legs swing: every vertex goes with one leg
+   or none, never with a leg on the other side of the animal, the lower legs
+   are rigid and the back is still, and a full stride at any phase stretches
+   no edge by more than a few centimetres — a leg torn from its flank, or
+   two legs sharing a seam, would stretch by tens. A lowered head keeps its
+   muzzle, and a stag's antlers, out of the snow and never heaves its neck
+   up over the withers. And the game swaps them all in over the sculpted
+   ones, keeping each pool's instance buffers — or keeps the sculpted ones,
+   whole, when the file does not come. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const glbUrl = new URL('assets/models/wildlife/alpine-wildlife.glb', base);
+  const bytes = await readFile(glbUrl);
+  const glbBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const nodes = parseGlb(glbBuffer);
+  const node = (name) => {
+    assert.ok(nodes[name], 'a modelled ' + name);
+    return nodes[name];
+  };
+  const W = wildlife;
+  const built = {
+    hare: [W.modelledAnimal(THREE, node('wild_hare'), W.HARE_LOOK), 4500],
+    deerBody: [W.modelledAnimal(THREE, node('wild_deerBody'), W.DEER_LOOK, W.DEER_GAIT), 2000],
+    hindHead: [W.modelledAnimal(THREE, node('wild_hindHead'), W.DEER_LOOK), 1200],
+    // the one raised budget: a royal's twelve points are most of a stag
+    stagHead: [W.modelledAnimal(THREE, node('wild_stagHead'), W.DEER_LOOK), 1400],
+    wolf: [W.modelledAnimal(THREE, node('wild_wolf'), W.WOLF_LOOK, W.WOLF_GAIT), 3200],
+  };
+  for (const [name, [g, budget]] of Object.entries(built)) {
+    const tris = valid('modelled ' + name, g);
+    assert.ok(tris <= budget, name + ': triangle budget ' + tris);
+    assert.ok(g.attributes.color.array.every((c) => c >= 0 && c <= 1), name + ': painted');
+  }
+  // On the snow, symmetric, nose to −Z and tail to +Z
+  const roleCentre = (n, role, side = 0) => {
+    const c = [0, 0, 0];
+    let k = 0;
+    for (const p of n.prims.filter((q) => q.role === role)) {
+      const P = p.attributes.POSITION;
+      for (let i = 0; i < P.length; i += 3) {
+        if (side * P[i] < 0) continue;
+        c[0] += P[i]; c[1] += P[i + 1]; c[2] += P[i + 2]; k++;
+      }
+    }
+    return c.map((x) => x / k);
+  };
+  for (const [name, key] of [['hare', 'wild_hare'], ['deerBody', 'wild_deerBody'], ['wolf', 'wild_wolf']]) {
+    const g = built[name][0];
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    assert.ok(Math.abs(bb.min.y) < 0.01, name + ': feet on the snow');
+    assert.ok(Math.abs(bb.min.x + bb.max.x) < 0.01, name + ': left and right alike');
+    assert.ok(-bb.min.z > 0.3 && bb.max.z > 0.25, name + ': a body along z');
+    if (name !== 'deerBody') assert.ok(roleCentre(node(key), 'nose')[2] < bb.min.z + 0.03, name + ': nose first');
+  }
+  // The eye-shine is on the eyes: each offset is its eye's centre
+  const eyes = node('wild_hare').extras.eyes;
+  for (const [i, side] of [[0, -1], [1, 1]]) {
+    const c = roleCentre(node('wild_hare'), 'eye', side);
+    assert.ok(Math.hypot(c[0] - eyes[i][0], c[1] - eyes[i][1], c[2] - eyes[i][2]) < 0.006, 'the glint is in the eye');
+  }
+  // The legs
+  for (const [name, gait, foot, still] of [['deerBody', W.DEER_GAIT, 0.30, 1.0], ['wolf', W.WOLF_GAIT, 0.15, 0.62]]) {
+    const g = built[name][0];
+    const pivots = node(name === 'wolf' ? 'wild_wolf' : 'wild_deerBody').extras.legs;
+    const pos = g.attributes.position;
+    const limb = g.attributes.aLimb;
+    assert.ok(limb, name + ': the legs can swing');
+    // which of the four legs (fore −X, fore +X, hind −X, hind +X) a vertex
+    // swings with, by its pivot and phase; −1 for none
+    const legOf = (i) => {
+      if (limb.getZ(i) === 0) return -1;
+      const L = pivots.findIndex((pv, j) => Math.abs(pv[0] - limb.getX(i)) < 1e-6
+        && Math.abs(pv[1] - limb.getY(i)) < 1e-6 && Math.abs(gait[j] - limb.getW(i)) < 1e-6);
+      assert.ok(L >= 0, name + ': a swinging vertex belongs to one of the four legs');
+      return L;
+    };
+    const legs = new Set();
+    for (let i = 0; i < pos.count; i++) {
+      const w = limb.getZ(i);
+      assert.ok(w >= 0 && w <= 1, name + ': a swing weight');
+      const L = legOf(i);
+      if (L >= 0) {
+        legs.add(L);
+        assert.ok(pos.getX(i) * (L % 2 ? 1 : -1) > -0.005, name + ': no vertex swings with the other side');
+        assert.ok(pos.getZ(i) * pivots[L][1] > 0, name + ': fore legs in front, hind legs behind');
+      }
+      if (pos.getY(i) < foot) assert.equal(w, 1, name + ': the lower leg is rigid');
+      if (pos.getY(i) > still) assert.equal(w, 0, name + ': the back stays still');
+    }
+    assert.equal(legs.size, 4, name + ': four legs');
+    // a full stride, as the shader does it, at four phases
+    const index = g.index.array;
+    let worst = 0;
+    for (const t of [0, Math.PI / 2, Math.PI, 1.5 * Math.PI]) {
+      const moved = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const a = 0.5 * limb.getZ(i) * Math.sin(t + limb.getW(i));
+        const dy = pos.getY(i) - limb.getX(i);
+        const dz = pos.getZ(i) - limb.getY(i);
+        moved[i * 3] = pos.getX(i);
+        moved[i * 3 + 1] = limb.getX(i) + Math.cos(a) * dy - Math.sin(a) * dz;
+        moved[i * 3 + 2] = limb.getY(i) + Math.sin(a) * dy + Math.cos(a) * dz;
+      }
+      for (let f = 0; f < index.length; f += 3) {
+        for (let e = 0; e < 3; e++) {
+          const i = index[f + e];
+          const j = index[f + (e + 1) % 3];
+          const before = Math.hypot(pos.getX(i) - pos.getX(j), pos.getY(i) - pos.getY(j), pos.getZ(i) - pos.getZ(j));
+          const after = Math.hypot(moved[i * 3] - moved[j * 3], moved[i * 3 + 1] - moved[j * 3 + 1],
+            moved[i * 3 + 2] - moved[j * 3 + 2]);
+          worst = Math.max(worst, Math.abs(after - before));
+        }
+      }
+    }
+    console.log('  ' + name + ': a full stride stretches no edge by more than ' + (worst * 100).toFixed(1) + ' cm');
+    assert.ok(worst < 0.04, name + ': a stride tears nothing (' + worst.toFixed(3) + ' m)');
+  }
+  // The heads: alert and browsing, muzzle and antlers clear of the snow and
+  // the neck under the withers
+  const withers = node('wild_deerBody').extras.withers;
+  assert.ok(node('wild_stagHead').prims.some((p) => p.role === 'antler')
+    && !node('wild_hindHead').prims.some((p) => p.role === 'antler'), 'antlers on the stag only');
+  for (const [name, key, browse] of [['hind', 'wild_hindHead', W.DEER_BROWSE], ['stag', 'wild_stagHead', W.STAG_BROWSE]]) {
+    for (const angle of [0, browse]) {
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      let low = Infinity;
+      let lowAntler = Infinity;
+      let hump = -Infinity;
+      for (const p of node(key).prims) {
+        const P = p.attributes.POSITION;
+        for (let i = 0; i < P.length; i += 3) {
+          const y = P[i + 1] * c - P[i + 2] * s;
+          const z = P[i + 1] * s + P[i + 2] * c;
+          if (p.role === 'antler') lowAntler = Math.min(lowAntler, y);
+          else low = Math.min(low, y);
+          if (z > 0.05) hump = Math.max(hump, y);
+        }
+      }
+      assert.ok(withers[1] + low > 0.15, name + ': the muzzle stays out of the snow');
+      if (name === 'stag') assert.ok(withers[1] + lowAntler > 0.15, 'a browsing stag keeps its antlers out of the snow');
+      assert.ok(hump < 0.15, name + ': no hump over the withers');
+    }
+  }
+  const antlerBox = new THREE.Box3();
+  for (const p of node('wild_stagHead').prims.filter((q) => q.role === 'antler')) {
+    const P = p.attributes.POSITION;
+    for (let i = 0; i < P.length; i += 3) antlerBox.expandByPoint(new THREE.Vector3(P[i], P[i + 1], P[i + 2]));
+  }
+  assert.ok(antlerBox.max.x - antlerBox.min.x > 0.6 && antlerBox.max.y - antlerBox.min.y > 0.6,
+    'a royal spread, not a pair of spikes');
+
+  // Swapped in, keeping every pool's instance buffers…
+  const StubTHREE = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+  const shading = { apply: (m) => m, uniforms: {} };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => glbBuffer.slice(0) });
+  const life = W.createWildlife(StubTHREE, shading);
+  globalThis.fetch = realFetch;
+  const [rabbits, deerBodies, deerHeads, stagHeads, wolves] = life.group.children;
+  const kept = [rabbits, deerBodies, deerHeads, stagHeads, wolves].map((m) => m.geometry.attributes.aReveal);
+  const strides = [deerBodies, wolves].map((m) => m.geometry.attributes.aGait);
+  assert.equal(await life.modelled, true, 'the modelled animals arrive');
+  const pools = [[rabbits, 'hare'], [deerBodies, 'deerBody'], [deerHeads, 'hindHead'], [stagHeads, 'stagHead'],
+    [wolves, 'wolf']];
+  pools.forEach(([mesh, name], i) => {
+    assert.equal(mesh.geometry.index.count, built[name][0].index.count, name + ': drawn modelled');
+    assert.equal(mesh.geometry.attributes.aReveal, kept[i], name + ': keeps its arrival buffer');
+  });
+  assert.equal(deerBodies.geometry.attributes.aGait, strides[0], 'the deer keep their stride buffer');
+  assert.equal(wolves.geometry.attributes.aGait, strides[1], 'the wolves keep theirs');
+  assert.deepEqual(W.RABBIT_EYES, eyes, 'the eye-shine follows the modelled hare');
+  assert.deepEqual(W.DEER_WITHERS, withers, 'the heads hang from the modelled withers');
+  const rider = { pos: new THREE.Vector3(0, 0, -600), distance: 2000, speed: 0, vel: new THREE.Vector3() };
+  life.placeHerd(rider);
+  life.placePack(rider);
+  for (let i = 0; i < 30; i++) life.update(1 / 60, rider, () => {}, () => {});
+  assert.ok(rabbits.count > 0 && deerBodies.count > 0 && wolves.count > 0, 'the modelled pools are drawn');
+  for (const mesh of [rabbits, deerBodies, deerHeads, stagHeads, wolves]) {
+    assert.ok(mesh.instanceMatrix.array.every(Number.isFinite), 'every modelled instance is placed');
+  }
+  // …or not at all: without the file every pool stays sculpted, whole.
+  const warn = console.warn;
+  console.warn = () => {};
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  const bare = W.createWildlife(StubTHREE, shading);
+  globalThis.fetch = realFetch;
+  const sculpted = bare.group.children.map((m) => m.geometry.index?.count);
+  assert.equal(await bare.modelled, false, 'a missing file is not fatal');
+  console.warn = warn;
+  assert.deepEqual(bare.group.children.map((m) => m.geometry.index?.count), sculpted, 'the sculpted animals stay');
 }
 
 /* One decode per photograph: the same URL hands every caller the same
@@ -128,20 +336,123 @@ for (const key of wildlifeNames) {
   assert.notEqual(other, a, 'a stubbed namespace never shares with a real one');
 }
 
-const huts = await load('huts.js', ['hutGeometry', 'paneGeometry', 'siteAt']);
+const huts = await load('huts.js', ['hutGeometry', 'paneGeometry', 'siteAt', 'hutModelGeometry',
+  'CHIMNEY', 'TERRACE_DECK', 'PLINTH_DEPTH', 'HUT_BOXES']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
+/* The modelled hut (`assets/models/huts/mountain-hut.glb`, built by
+   `tools/blender/hut.py`), read with the game's own reader and built into
+   the shell's geometry the way `createHuts` builds it. */
+const hutNode = await (async () => {
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/huts/mountain-hut.glb', base));
+  return parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)).hut;
+})();
+assert.ok(hutNode, 'mountain-hut.glb has its hut');
+const hutModel = huts.hutModelGeometry(THREE, hutNode);
+hutModel.computeBoundingBox();
+const hutBox = hutModel.boundingBox;
+{
+  const tris = valid('hutModel', hutModel);
+  assert.ok(tris >= 4000 && tris <= 6000, 'modelled hut triangle budget: ' + tris);
+  for (const p of hutNode.prims) {
+    assert.ok(huts.HUT_LOOKS[p.role], 'every role of the hut has a look: ' + p.role);
+    assert.ok(p.attributes.TEXCOORD_0 && p.attributes._SHADE, p.role + ': UVs and shade');
+    assert.ok(p.attributes._SHADE.every((s) => s > 0.2 && s <= 1.2), p.role + ': shade in range');
+  }
+  // the two huts are drawn by one material: both carry what it reads
+  const proc = huts.hutGeometry(THREE);
+  assert.ok(proc.attributes.aHutKind.array.every((k) => k === 0), 'the procedural hut is classified by colour');
+  assert.ok(hutModel.attributes.aHutKind.array.every((k) => Number.isInteger(k) && k >= 1 && k <= 8),
+    'every modelled surface says what it is');
+
+  /* The contracts the rest of huts.js and config.js lean on, which the file
+     carries as extras: the smoke leaves from the chimney's top, the deck is
+     where the site search lifts it to, the stone goes as deep as the site
+     search assumed it does, and the glass is exactly HUT_LIGHT's. */
+  const { HUT_LIGHT } = await import(new URL('js/config.js', base).href);
+  const ex = hutNode.extras;
+  const C = huts.CHIMNEY;
+  assert.ok(Math.hypot(ex.chimney[0] - C.x, ex.chimney[1] - C.y, ex.chimney[2] - C.z) < 1e-3,
+    'the smoke leaves from the modelled chimney');
+  assert.ok(hutBox.max.y < C.y && hutBox.max.y > C.y - 0.2, 'nothing stands over the smoke, and the cap is under it');
+  assert.equal(ex.deck, huts.TERRACE_DECK);
+  assert.equal(ex.plinthDepth, huts.PLINTH_DEPTH);
+  assert.ok(Math.abs(hutBox.min.y + huts.PLINTH_DEPTH) < 0.01, 'the stone goes as deep as the site search assumes');
+  assert.equal(ex.glass.front, HUT_LIGHT.front);
+  assert.equal(ex.glass.side, HUT_LIGHT.side);
+  const panes = (list) => list.map((p) => [p.at[0], p.at[1], p.size[0], p.size[1]]);
+  assert.deepEqual(ex.glass.panesFront, panes(HUT_LIGHT.glass.front), 'front glass is HUT_LIGHT\'s');
+  assert.deepEqual(ex.glass.panesSide, panes(HUT_LIGHT.glass.side), 'side glass is HUT_LIGHT\'s');
+
+  /* …and the windows really are there: a ray from the room out through
+     each pane (clear of its glazing bars) meets nothing of the hut, so the
+     light the shader sends through that glass leaves through a hole in the
+     model; and a ray a little beside each pane meets the wall, so the hole
+     is in a wall rather than in the air. */
+  const pos = hutModel.attributes.position.array;
+  const idx = hutModel.index.array;
+  const hits = (o, d, far) => {
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+      const e1 = [pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]];
+      const e2 = [pos[c] - pos[a], pos[c + 1] - pos[a + 1], pos[c + 2] - pos[a + 2]];
+      const p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]];
+      const det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
+      if (Math.abs(det) < 1e-12) continue;
+      const s = [o[0] - pos[a], o[1] - pos[a + 1], o[2] - pos[a + 2]];
+      const u = (s[0] * p[0] + s[1] * p[1] + s[2] * p[2]) / det;
+      if (u < 0 || u > 1) continue;
+      const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]];
+      const v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) / det;
+      if (v < 0 || u + v > 1) continue;
+      const dist = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
+      if (dist > 0 && dist < far) return true;
+    }
+    return false;
+  };
+  const glassRays = [
+    ...HUT_LIGHT.glass.front.map((p) => ({ p, at: (u, v) => [u, v, HUT_LIGHT.front + 0.15], out: [0, 0, -1] })),
+    ...HUT_LIGHT.glass.side.map((p) => ({ p, at: (u, v) => [HUT_LIGHT.side - 0.15, v, u], out: [1, 0, 0] })),
+  ];
+  for (const { p, at, out } of glassRays) {
+    for (const [fu, fv] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) {
+      const o = at(p.at[0] + fu * p.size[0], p.at[1] + fv * p.size[1]);
+      assert.ok(!hits(o, out, 0.9), `light leaves through the pane at ${p.at} (${fu}, ${fv})`);
+    }
+    const beside = at(p.at[0] + p.size[0] / 2 + 0.3, p.at[1]);
+    assert.ok(hits(beside, out, 0.9), `the pane at ${p.at} is in a wall`);
+  }
+
+  /* The terrace boards' top is the deck the site search plants the hut by,
+     and everything a rider could run into below head height is inside the
+     collision boxes, seen from above — the snow excepted. */
+  let deckTop = -Infinity;
+  for (const p of hutNode.prims) {
+    const P = p.attributes.POSITION;
+    for (let i = 0; i < P.length; i += 3) {
+      const [x, y, z] = [P[i], P[i + 1], P[i + 2]];
+      if (p.role === 'board' && z < -2.5 && z > -4.3 && Math.abs(x) < 2.6 && y < 0.7) deckTop = Math.max(deckTop, y);
+      if (y > 2.5 || huts.HUT_LOOKS[p.role][1] === 1) continue;
+      assert.ok(huts.HUT_BOXES.some((b) => Math.abs(x - b.x) <= b.hw + 0.02 && Math.abs(z - b.z) <= b.hd + 0.02),
+        `${p.role} at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}) is inside a collision box`);
+    }
+  }
+  assert.ok(Math.abs(deckTop - huts.TERRACE_DECK) < 0.002, 'the deck is at TERRACE_DECK: ' + deckTop);
+}
 /* The props keep off a hut's ground, so that ground has to cover the hut:
-   every corner of the building's roof, the woodpile and the terrace, turned
-   the way the hut was turned, and not the open snow beside it. */
+   every corner of the modelled hut — its eaves' cornices, the woodpile, the
+   lantern on the terrace rail, the purlin heads behind — turned the way the
+   hut was turned, and not the open snow beside it. */
 {
   let found = 0;
+  const { min, max } = hutBox;
   for (let b = 1; b < 40 && found < 6; b++) {
     const h = huts.siteAt(b);
     if (!h) continue;
     found++;
     const c = Math.cos(h.yaw);
     const s = Math.sin(h.yaw);
-    for (const [lx, lz] of [[-3.73, -4.4], [3.3, -4.4], [-3.73, 2.8], [3.3, 2.8]]) {
+    for (const [lx, lz] of [[min.x, min.z], [max.x, min.z], [min.x, max.z], [max.x, max.z]]) {
       assert.ok(huts.onHutGround(h.x + lx * c + lz * s, h.z - lx * s + lz * c),
         `hut ${b}: corner (${lx}, ${lz}) is on its ground`);
     }
@@ -566,6 +877,116 @@ for (const spec of props.SAPLINGS) {
   }
 }
 
+/* The modelled versions of the same (`tools/blender/piste.py` →
+   piste-furniture.glb, `shrubs.py` → alpine-shrubs.glb, `saplings.py` →
+   sapling-impostors.webp), read through the game's own reader. The gate
+   keeps the stand-in's frame and its flutter rule (only fabric ripples,
+   never within 3 cm of a pole) and lets the race colour onto its pole and
+   cloth but not its hinges; the marker stands on its foot, 3 m tall, sign
+   to +Z; the snow bridge's steel stays inside the box its collision is
+   cut from, with snow loading its upper beams; each piece of scrub is
+   footed at the origin, in budget and about the size of the stand-in hull
+   the game still collides with; and the saplings are the four species in
+   six non-overlapping rows of a 1024 × 2048 WebP. The stand-ins carry
+   what the materials now read (`aGrain`, the gate's `surfaceOwn`). */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const m = await load('props.js', ['gatePanelGeometry', 'roleGeometry', 'raceGatePanelGeometry',
+    'avalancheFenceGeometry', 'waymarkGeometry', 'GATE_PANEL', 'GATE_LOOKS', 'WAYMARK_LOOKS',
+    'FENCE_LOOKS', 'SHRUB_LOOKS', 'SHRUB_NODES', 'PLANT_NODES', 'SAPLINGS']);
+  const glb = async (path) => {
+    const b = await readFile(new URL(path, base));
+    return parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  };
+  const piste = await glb('assets/models/piste/piste-furniture.glb');
+  const W = m.GATE_PANEL.width;
+
+  const gate = m.gatePanelGeometry(THREE, piste.gate_panel);
+  assert.ok(valid('modelled gate panel', gate) <= 400, 'modelled gate triangle budget');
+  const gp = gate.attributes.position;
+  const gf = gate.attributes.aFlutter;
+  const gown = gate.attributes.surfaceOwn;
+  let ripple = 0;
+  let hinges = 0;
+  for (let i = 0; i < gp.count; i++) {
+    const x = gp.getX(i);
+    if (Math.abs(x) < 0.03 || Math.abs(x - W) < 0.03) assert.equal(gf.getX(i), 0, 'modelled poles never flutter');
+    if (gf.getX(i) > 0) {
+      ripple++;
+      assert.ok(gp.getY(i) > m.GATE_PANEL.bottom - 0.01 && gp.getY(i) < m.GATE_PANEL.top + 0.01,
+        'only the panel ripples');
+      assert.ok(gown.getX(i) > 0.4, 'the panel takes the race colour');
+    }
+    if (gp.getY(i) > 0.02 && gp.getY(i) < 0.2 && gown.getX(i) === 0) hinges++;
+  }
+  assert.ok(ripple > 20, 'the modelled fabric ripples');
+  assert.ok(hinges > 8, 'the hinges keep their own colour');
+  gate.computeBoundingBox();
+  assert.ok(Math.abs(gate.boundingBox.min.x) < 0.1 && Math.abs(gate.boundingBox.max.x - W) < 0.1,
+    'inner pole on the origin, outer at the panel width');
+  assert.ok(gate.boundingBox.max.y > 1.9 && gate.boundingBox.max.y < 2.0, 'poles stand their height');
+
+  const mark = m.roleGeometry(THREE, piste.waymark, m.WAYMARK_LOOKS, 'piste-furniture.glb', 'aGrain');
+  assert.ok(valid('modelled marker', mark) <= 300, 'modelled marker triangle budget');
+  assert.ok(mark.boundingBox.max.y > 2.9 && mark.boundingBox.max.y < 3.2, 'the marker stands three metres');
+  assert.ok(Math.max(-mark.boundingBox.min.x, mark.boundingBox.max.x, -mark.boundingBox.min.z,
+    mark.boundingBox.max.z) < 0.35, 'the marker stands on its foot');
+  const numeral = piste.waymark.prims.find((p) => p.role === 'numeral');
+  assert.ok(numeral && numeral.attributes.NORMAL.filter((_, i) => i % 3 === 2).every((z) => z > 0.9),
+    'the run sign faces up the hill (+Z)');
+
+  const bridge = m.roleGeometry(THREE, piste.snow_bridge, m.FENCE_LOOKS, 'piste-furniture.glb', 'aGrain');
+  assert.ok(valid('modelled snow bridge', bridge) <= 1200, 'modelled snow bridge triangle budget');
+  const standIn = m.avalancheFenceGeometry(THREE);
+  standIn.computeBoundingBox();
+  const box = standIn.boundingBox.clone().expandByScalar(0.1);
+  let loaded = 0;
+  for (const p of piste.snow_bridge.prims) {
+    const a = p.attributes.POSITION;
+    for (let i = 0; i < a.length; i += 3) {
+      if (p.role === 'snow') {
+        if (a[i + 1] > 2.6) loaded++;
+        continue;
+      }
+      if (a[i + 1] < 0) continue;   // anchors and footings run on under the snow
+      assert.ok(box.containsPoint(new THREE.Vector3(a[i], a[i + 1], a[i + 2])),
+        'the bridge steel stays inside the box its collision is cut from');
+    }
+  }
+  assert.ok(loaded > 8, 'snow loads the upper beams');
+  for (const g of [standIn, m.waymarkGeometry(THREE)]) {
+    assert.ok(g.attributes.aGrain.array.every((v) => v === 1), 'the stand-ins keep the plank grain');
+  }
+  const oldGate = m.raceGatePanelGeometry(THREE);
+  assert.ok(oldGate.attributes.surfaceOwn.array.some((v) => v === 0)
+    && oldGate.attributes.surfaceOwn.array.some((v) => v === 1), 'the stand-in gate says what is tinted');
+
+  // The stand-ins' collision hulls (bounding spheres of growShrub,
+  // growDwarfPine, growPlantPatch and growTussockPatch at their seeds).
+  const shrubs = await glb('assets/models/nature/alpine-shrubs.glb');
+  const hulls = [0.88, 1.15, 0.78, 0.45];
+  [...m.SHRUB_NODES, ...m.PLANT_NODES].forEach((name, i) => {
+    assert.ok(shrubs[name], 'a modelled ' + name);
+    const g = m.roleGeometry(THREE, shrubs[name], m.SHRUB_LOOKS, 'alpine-shrubs.glb', 'surfaceOwn');
+    const tris = valid('shrubs.' + name, g);
+    assert.ok(tris <= (i < 2 ? 1500 : 500), `${name}: budget ${tris}`);
+    assert.ok(g.attributes.surfaceOwn.array.every((v) => v >= 0 && v <= 1), name + ': ownership in range');
+    assert.ok(g.boundingBox.min.y > -0.25 && g.boundingBox.max.y < 1.2, name + ': stands on the snow line');
+    const r = g.boundingSphere.radius;
+    assert.ok(r > hulls[i] * 0.75 && r < hulls[i] * 1.3, `${name}: about its hull's size (${r.toFixed(2)})`);
+  });
+
+  assert.deepEqual([...new Set(m.SAPLINGS.map((s) => s.species))].sort(), ['fir', 'larch', 'pine', 'spruce'],
+    'the young forest is the four species');
+  const rows = m.SAPLINGS.map((s) => [Math.min(...s.views.map((v) => v[1])), Math.max(...s.views.map((v) => v[3]))])
+    .sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i][0] >= rows[i - 1][1], 'sapling rows do not overlap');
+  const atlas = await readFile(new URL('assets/textures/tree/sapling-impostors.webp', base));
+  assert.equal(atlas.toString('ascii', 0, 4) + atlas.toString('ascii', 8, 12), 'RIFFWEBP', 'the atlas is a WebP');
+  assert.equal(atlas.toString('ascii', 12, 16), 'VP8X', 'the atlas carries alpha');
+  assert.deepEqual([1 + atlas.readUIntLE(24, 3), 1 + atlas.readUIntLE(27, 3)], [1024, 2048], 'atlas size');
+}
+
 const namespace = { ...THREE, TextureLoader: class {
   load() { return new THREE.Texture(); }
 } };
@@ -583,6 +1004,169 @@ resort.traverse(node => {
   if (node.isInstancedMesh) assert.ok(node.instanceMatrix.array.every(Number.isFinite));
 });
 assert.ok(meshes <= 24, 'resort draw-call budget');
+
+/* The lift and the snow guns as modelled (`tools/blender/lift.py` →
+   assets/models/resort/lift.glb). The file keeps its budgets, carries snow
+   on top of what snow lies on, and sets every sheave under the rope on its
+   own axle. Loaded through the game's own fetch it swaps into the meshes
+   already drawing — not one more draw call — and then every sheave train
+   lies along the rope between its neighbouring towers with its frame
+   inboard, every cabin hangs from the rope by its grip with its door
+   outboard, the hardware patch lands in three's Lambert shader and turns
+   the sheaves, and the guns spray from their own nozzle rings along their
+   barrels. The procedural resort above had no file (node's fetch cannot
+   read one) and kept its own line. */
+{
+  assert.equal(await life.liftReady, false, 'without the file the procedural line stands');
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const bytes = await readFile(new URL('assets/models/resort/lift.glb', base));
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const nodes = parseGlb(buffer);
+  const tris = (name) => nodes[name].prims.reduce((n, p) => n + p.index.length / 3, 0);
+  assert.ok(tris('lift_cabin') + tris('lift_cabinGlass') <= 1500, 'cabin budget');
+  assert.ok(tris('lift_tower') <= 2500, 'tower budget');
+  assert.ok(tris('lift_sheaves') <= 600, 'sheave train budget');
+  assert.ok(tris('snowgun') <= 2500, 'snow gun budget');
+  for (const name of ['lift_cabin', 'lift_tower', 'snowgun']) {
+    const snow = nodes[name].prims.find((p) => p.role === 'snow');
+    assert.ok(snow, name + ' carries snow');
+    const at = snow.attributes.POSITION;
+    const [a, b, c] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    let up = 0;
+    let all = 0;
+    for (let t = 0; t < snow.index.length; t += 3) {
+      a.fromArray(at, snow.index[t] * 3);
+      b.fromArray(at, snow.index[t + 1] * 3).sub(a);
+      c.fromArray(at, snow.index[t + 2] * 3).sub(a);
+      const n = b.cross(c);
+      up += n.y;
+      all += n.length();
+    }
+    assert.ok(up / all > 0.6, name + ': the snow lies on top ' + (up / all).toFixed(2));
+  }
+  const { radius, bend, sheaves } = nodes.lift_sheaves.extras;
+  const axles = new Map();
+  for (const p of nodes.lift_sheaves.prims) {
+    const ax = p.attributes._AXLE;
+    const at = p.attributes.POSITION;
+    for (let i = 0; i < at.length / 3; i++) {
+      if (ax[i * 3 + 2] < 0.5) continue;
+      const y = ax[i * 3];
+      const z = ax[i * 3 + 1];
+      axles.set(z.toFixed(3), y);
+      assert.ok(Math.abs(at[i * 3]) < 0.08 && Math.hypot(at[i * 3 + 1] - y, at[i * 3 + 2] - z) < radius + 0.035,
+        'a sheave turns about its own axle');
+    }
+  }
+  assert.equal(axles.size, sheaves, 'every sheave has its axle');
+  for (const [z, y] of axles) {
+    assert.ok(Math.abs(y + radius + 0.05 + Math.abs(Number(z)) * Math.tan(bend / 2)) < 1e-3,
+      'the rope lies on every sheave');
+  }
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => buffer });
+  const scene = new THREE.Scene();
+  const shots = [];
+  const spray = { burst: (at, vx, vz, count, power) => shots.push({ at: { ...at }, vx, vz, count, power }) };
+  const modelled = mountainLife.createMountainLife(namespace, scene, { apply: (m) => m }, spray);
+  globalThis.fetch = realFetch;
+  const before = [];
+  scene.traverse((o) => { if (o.isMesh) before.push(o); });
+  assert.equal(await modelled.liftReady, true, 'the modelled lift loads');
+  const rider = { pos: new THREE.Vector3(0, 0, -300), distance: 300, state: 'ride', grace: 10 };
+  for (let i = 0; i < 20; i++) modelled.update(1 / 60, rider, { night: 0, snow: 0 });
+  const after = [];
+  scene.traverse((o) => { if (o.isMesh) after.push(o); });
+  assert.deepEqual(after, before, 'the same meshes, redrawn');
+  assert.ok(after.length <= 24, 'resort draw-call budget, modelled');
+
+  const pool = (n) => after.filter((o) => o.isInstancedMesh && o.instanceMatrix.count === n);
+  const [cabins] = pool(6).filter((o) => o.geometry.attributes.aSheen);
+  const [glass] = pool(6).filter((o) => !o.geometry.attributes.aSheen);
+  const [towers] = pool(11);
+  const [trains] = pool(22);
+  const [guns] = pool(12);
+  const [ropes] = pool(160);
+  for (const mesh of [cabins, towers, trains, guns]) {
+    valid('lift', mesh.geometry);
+    for (const a of ['normal', 'color', 'uv', 'aSheen', 'aGrain', 'aAxle']) assert.ok(mesh.geometry.attributes[a], 'lift ' + a);
+    assert.equal(mesh.material, cabins.material, 'one material for the modelled hardware');
+  }
+  valid('lift glass', glass.geometry);
+
+  const shader = {
+    uniforms: {},
+    vertexShader: THREE.ShaderLib.lambert.vertexShader,
+    fragmentShader: THREE.ShaderLib.lambert.fragmentShader,
+  };
+  cabins.material.onBeforeCompile(shader);
+  for (const patch of ['liftSpin( objectNormal.yz )', 'transformed.yz = aAxle.xy', 'vN64Sheen = aSheen']) {
+    assert.ok(shader.vertexShader.includes(patch), 'the hardware patch lands: ' + patch);
+  }
+  assert.ok(shader.fragmentShader.includes('0.35 * vLiftGrain'), 'the grain is per role');
+  const spun = shader.uniforms.uSheaveSpin.value;
+  modelled.update(1 / 60, rider, { night: 0, snow: 0 });
+  assert.notEqual(shader.uniforms.uSheaveSpin.value, spun, 'the sheaves turn');
+
+  const M = new THREE.Matrix4();
+  const P = new THREE.Vector3();
+  const Q = new THREE.Quaternion();
+  const S = new THREE.Vector3();
+  const towerAt = (i) => { towers.getMatrixAt(i, M); return new THREE.Vector3().setFromMatrixPosition(M); };
+  for (let i = 1; i < 10; i++) {
+    const t = towerAt(i);
+    const line = towerAt(i + 1).sub(towerAt(i - 1)).normalize();
+    for (let s = 0; s < 2; s++) {
+      const side = s === 0 ? -1 : 1;
+      trains.getMatrixAt(i * 2 + s, M);
+      M.decompose(P, Q, S);
+      assert.ok(P.distanceTo(new THREE.Vector3(t.x + side * 1.8, t.y + 10.5, t.z)) < 1e-3, 'a train sits on its rope');
+      assert.ok(new THREE.Vector3(0, 0, -side).applyQuaternion(Q).angleTo(line) < 1e-4, 'a train lies along the rope');
+      const outboard = new THREE.Vector3().crossVectors(line, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(side);
+      const x = new THREE.Vector3(1, 0, 0).applyQuaternion(Q);
+      assert.ok(x.dot(outboard) > 0.999 && x.x * side > 0, 'a train turns its frame inboard');
+    }
+  }
+
+  const chords = [];
+  for (let k = 0; k < ropes.instanceMatrix.count; k++) {
+    ropes.getMatrixAt(k, M);
+    chords.push(new THREE.Line3(new THREE.Vector3(0, -0.5, 0).applyMatrix4(M), new THREE.Vector3(0, 0.5, 0).applyMatrix4(M)));
+  }
+  const on = new THREE.Vector3();
+  for (let i = 0; i < 6; i++) {
+    cabins.getMatrixAt(i, M);
+    const grip = new THREE.Vector3(0, nodes.lift_cabin.extras.ropeY, 0).applyMatrix4(M);
+    let best = Infinity;
+    let rope = -1;
+    chords.forEach((c, k) => {
+      const d = c.closestPointToPoint(grip, true, on).distanceTo(grip);
+      if (d < best) { best = d; rope = k; }
+    });
+    assert.ok(best < 0.06, 'a cabin hangs from the rope by its grip: ' + best);
+    const side = Math.floor(rope / 8) % 2 ? 1 : -1;
+    assert.ok(new THREE.Vector3(1, 0, 0).transformDirection(M).x * side > 0.99, 'the cabin door faces outboard');
+    assert.ok(new THREE.Vector3(0, -2, 0).applyMatrix4(M).y < grip.y - 3, 'the cabin hangs under its grip');
+  }
+
+  const nozzle = new THREE.Vector3().fromArray(nodes.snowgun.extras.nozzle);
+  const aim = new THREE.Vector3().fromArray(nodes.snowgun.extras.aim);
+  const muzzles = [];
+  for (let k = 0; k < guns.instanceMatrix.count; k++) {
+    guns.getMatrixAt(k, M);
+    muzzles.push({ at: nozzle.clone().applyMatrix4(M), aim: aim.clone().transformDirection(M) });
+  }
+  const plumes = shots.filter((s) => s.count === 8 && s.power === 3.5);
+  assert.ok(plumes.length > 5, 'the guns are making snow');
+  for (const s of plumes) {
+    const at = new THREE.Vector3(s.at.x, s.at.y, s.at.z);
+    const gun = muzzles.reduce((a, b) => (a.at.distanceTo(at) < b.at.distanceTo(at) ? a : b));
+    assert.ok(gun.at.distanceTo(at) < 0.01, 'the spray leaves the nozzle ring');
+    const along = (s.vx * gun.aim.x + s.vz * gun.aim.z) / (Math.hypot(s.vx, s.vz) * Math.hypot(gun.aim.x, gun.aim.z));
+    assert.ok(along > 0.95, 'the spray goes where the barrel points: ' + along);
+  }
+}
 
 /* The other riders. Everyone started uphill of the player, so the first
    update sent them all back down the hill — and past the fog, which on the
@@ -837,7 +1421,13 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   const BARK_U = 0.116;   // where spruceMat starts keying black (SPRUCE_LAYOUT.bark.u1)
   let species = new Set();
   const impostorCols = new Set();
-  for (const spec of props.SPECIES) {
+  // two trees a slot: the second dozen of pools read the `_2` of each
+  const slots = props.SPECIES.flatMap((spec) => [spec, { ...spec, name: spec.name + '_2' }]);
+  for (let i = 0; i < 24; i++) {
+    const want = 'tree_' + props.SPECIES[i % 12].name + (i >= 12 ? '_2' : '');
+    assert.equal(props.alpineNode(nodes, i), nodes[want], `pool ${i} reads ${want}`);
+  }
+  for (const spec of slots) {
     const node = nodes['tree_' + spec.name];
     assert.ok(node, 'a modelled tree for ' + spec.name);
     species.add(node.extras.species);
@@ -880,7 +1470,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     // Its far-forest impostor: three crossed cards in the tree's own column
     // of alpine-impostors.webp, framed round the whole tree from under the
     // snow line, in the shape of the cell it was photographed into
-    // (2048 × 1024 over 12 columns and 3 views).
+    // (4096 × 1024 over 24 columns and 3 views).
     const [col] = node.extras.impostor;
     impostorCols.add(col);
     const card = props.treeImpostorGeometry(THREE, node, 24);
@@ -891,19 +1481,19 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     assert.ok(cb.min.y <= 0.05 && cb.min.y > -3, spec.name + ': impostor stands in the snow');
     const wide = Math.hypot(card.attributes.position.getX(1) - card.attributes.position.getX(0),
       card.attributes.position.getZ(1) - card.attributes.position.getZ(0));
-    const cell = Math.floor(2048 / 12) / Math.floor(1024 / 3);
+    const cell = Math.floor(4096 / 24) / Math.floor(1024 / 3);
     assert.ok(Math.abs(wide / (cb.max.y - cb.min.y) - cell) < 0.02, spec.name + ': impostor keeps the cell aspect');
     const cu = card.attributes.uv;
     for (let i = 0; i < cu.count; i++) {
-      const px = cu.getX(i) * 2048;
+      const px = cu.getX(i) * 4096;
       assert.ok(px > col * 170 && px < (col + 1) * 170, spec.name + ': impostor reads its own column');
       assert.ok(cu.getY(i) > 0 && cu.getY(i) < 1, spec.name + ': impostor inside the atlas');
     }
   }
-  assert.equal(impostorCols.size, props.SPECIES.length, 'every tree has its own impostor column');
+  assert.equal(impostorCols.size, slots.length, 'every tree has its own impostor column');
   assert.deepEqual([...species].sort(), ['fir', 'larch', 'pine', 'spruce'], 'four Alpine species');
   // The bare SPECIES stay bare: the larch slots get the larch.
-  props.SPECIES.forEach((spec) => {
+  slots.forEach((spec) => {
     if (!spec.foliage) assert.equal(nodes['tree_' + spec.name].extras.species, 'larch', spec.name + ' is a larch');
   });
 }
@@ -997,6 +1587,6 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-shape.webp', base))),
     [4096, 1024], 'the shape map');
   assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-cover.webp', base))),
-    [2048, 512], 'the cover map');
+    [4096, 1024], 'the cover map');
 }
 console.log('All model geometry checks passed.');

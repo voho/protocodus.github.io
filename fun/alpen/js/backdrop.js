@@ -131,6 +131,7 @@ const BACKDROP_VERT = `
   attribute vec4 aHorizonA;
   attribute vec4 aHorizonB;
   uniform float uLateral;
+  uniform float uShear;
   uniform vec4 uSunA;
   uniform vec4 uSunB;
 #ifdef SKY_PROBE
@@ -150,6 +151,14 @@ const BACKDROP_VERT = `
        turns a point d away by L/d, which at the radius it is drawn at is
        L·r/d. The near ridges slide across the far ones. */
     p.x -= uLateral * r / d;
+    /* And the near ground follows the run down. The model's own shoulder
+       falls away at a fixed grade, but the run's pitch changes by the
+       chapter; where it is steeper the game's ground drops below the
+       shoulder's foot and the eye looked down past its end into nothing
+       but haze. So the first few kilometres are swung down (or up) about
+       the eye until their foot meets the ground's far edge, easing back to
+       the model's true elevations by the valley floor. */
+    p.y -= r * uShear * (1.0 - smoothstep(${BACKDROP.distance[0].toFixed(1)}, 9000.0, d));
     vReal = position * (d / r);
     vDist = d;
     vDir = p;
@@ -213,34 +222,54 @@ const BACKDROP_FRAG = `
     float cavity = shape.b;
 
     /* Detail finer than the maps, at the real landscape's scale: a slow
-       field for the rock's tone, a fast one for grain, and the granite
-       strata on the rock, projected three ways so the cliffs are not
-       smeared. */
+       field for the rock's tone, a fast one and a fine one for grain, and
+       the granite strata on the rock, projected three ways so the cliffs
+       are not smeared — at two scales turned against each other, because
+       one photograph repeating every couple of hundred metres is a pattern
+       the eye finds at once on a slope a few kilometres off. */
     vec3 slow = texture2D(uNoise, vReal.xz / 2300.0).rgb;
     vec3 fast = texture2D(uNoise, vReal.xz / 160.0 + vec2(0.37, 0.11)).rgb;
+    float fine = texture2D(uNoise, mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0 + vec2(0.71, 0.23)).g;
+    /* …and all of it only near. A field that repeats every fifty or two
+       hundred metres is texture on a slope two kilometres off and a woven
+       pattern on one ten kilometres off, where a real forest or rock face
+       has no grain left at all, only tone — which the maps carry. */
+    float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
+    float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
+    fast = mix(vec3(0.5), fast, mid);
+    fine = mix(0.5, fine, near);
     vec3 an = abs(n) + 0.001;
-    vec3 strata = (texture2D(uRockDetail, vReal.zy / 180.0).rgb * an.x
-      + texture2D(uRockDetail, vReal.xz / 180.0).rgb * an.y
-      + texture2D(uRockDetail, vReal.xy / 180.0).rgb * an.z) / (an.x + an.y + an.z);
+    vec3 q = vReal / 230.0;
+    vec3 r = vec3(0.8 * vReal.x - 0.6 * vReal.z, vReal.y, 0.6 * vReal.x + 0.8 * vReal.z) / 61.0;
+    vec3 strata = ((texture2D(uRockDetail, q.zy).rgb + texture2D(uRockDetail, r.zy + 0.31).rgb) * an.x
+      + (texture2D(uRockDetail, q.xz).rgb + texture2D(uRockDetail, r.xz + 0.53).rgb) * an.y
+      + (texture2D(uRockDetail, q.xy).rgb + texture2D(uRockDetail, r.xy + 0.17).rgb) * an.z)
+      / (2.0 * (an.x + an.y + an.z));
+    strata = mix(vec3(0.42), strata, mid);
     float grain = dot(strata, vec3(0.2126, 0.7152, 0.0722));
 
-    float wob = (fast.r - 0.5) * 0.3;
-    float snow = smoothstep(0.25, 0.75, cover.r + wob);
-    float forest = smoothstep(0.25, 0.75, cover.g - wob);
+    /* The cover's edges are cut by those fields at their own scale, not by
+       the map's texels: magnified on the near ground a texel of the map is
+       ten metres, and a hard threshold on it drew the snow line as a
+       staircase. */
+    float wob = (fast.r - 0.5) * 0.32 + (fine - 0.5) * 0.36;
+    float snow = smoothstep(0.18, 0.82, cover.r + wob);
+    float forest = smoothstep(0.18, 0.82, cover.g - wob);
     float ice = smoothstep(0.25, 0.75, cover.b + wob * 0.5);
     float total = snow + forest + ice;
     if (total > 1.0) { snow /= total; forest /= total; ice /= total; }
     float rock = clamp(1.0 - snow - forest - ice, 0.0, 1.0);
 
-    vec3 rockColor = mix(uRockCool, uRockWarm, slow.r) * (0.45 + 1.3 * grain);
-    // a forest in January: dark crowns, a little snow lying between them
-    float crowns = smoothstep(0.3, 0.7, dot(texture2D(uRockDetail, vReal.xz / 70.0).rgb,
-      vec3(0.3333)) + (slow.b - 0.5) * 0.4);
-    vec3 forestColor = mix(uSnow * 0.8, uForest, 0.70 + 0.26 * crowns);
+    vec3 rockColor = mix(uRockCool, uRockWarm, slow.r) * (0.6 + 0.9 * grain);
+    /* A forest in January: dark crowns, a little snow lying between them.
+       A little: snow is forty times brighter than a spruce crown, so a
+       third of it was enough to turn a whole forest belt mid-grey. */
+    float crowns = smoothstep(0.3, 0.7, fine + (fast.g - 0.5) * 0.5);
+    vec3 forestColor = mix(uForest, uSnow * 0.8, 0.06 + 0.12 * (1.0 - crowns));
     vec3 albedo = uSnow * snow + forestColor * forest + uIce * ice + rockColor * rock;
 
     // and the strata tilt the light on the rock
-    n = normalize(n + vec3(strata.r - 0.5, 0.0, strata.g - 0.5) * 0.45 * rock);
+    n = normalize(n + vec3(strata.r - 0.5, 0.0, strata.g - 0.5) * 0.25 * rock);
 
     /* The key, and whether the land round this point hides it: the sun's
        elevation against the horizon on its bearing, softened by a degree
@@ -251,8 +280,12 @@ const BACKDROP_FRAG = `
     /* The fill is the sky's, blue, with only a little of the snow's bounce:
        a face in shadow a few kilometres off is lit by the sky over it, and
        that is what turns shaded snow blue against sunlit snow. */
+    /* Snow in shade at altitude is blue and still bright: the sky over it
+       is most of its light. So the occlusion takes only a little away, and
+       the fill is the sky's colour pushed a step further towards blue. */
     float open = clamp(vAO * (0.55 + 0.9 * cavity), 0.0, 1.0);
-    vec3 fill = mix(uGroundFill * 0.55, uSkyFill, 0.5 + 0.5 * n.y) * (0.20 + 0.55 * open);
+    vec3 fill = mix(uGroundFill * 0.55, uSkyFill, 0.5 + 0.5 * n.y) * (0.52 + 0.4 * open)
+      * vec3(0.78, 0.90, 1.14);
     vec3 c = albedo * (fill + uKeyLight * direct * 1.1) * 0.3183099;
     // the alpenglow is light arriving on snow, and it is added
     c += uAlpenglow * direct * (snow + ice);
@@ -267,11 +300,11 @@ const BACKDROP_FRAG = `
     float through = exp(-vDist * thick / uClarity);
     c = mix(air, c, through);
 
-    /* The air in the valleys. The game's own ground is gone into the haze
-       by a kilometre; the valley it falls into is the same air, so ground
-       well under the eye goes the same way, and the range stands up out of
-       it. */
-    c = mix(c, uHaze, smoothstep(150.0, -950.0, vReal.y) * uValley);
+    /* The air in the valleys: denser low down, so the valley floors are
+       hazed more than the slopes over them, and the range stands up out of
+       it. (The game's own fogged ground beyond a kilometre takes its colour
+       from this, through the sky probe, so the two meet without a seam.) */
+    c = mix(c, mix(uHaze, air, 0.5), smoothstep(150.0, -950.0, vReal.y) * uValley);
 
     // and its foot stands on the curtain the game's ground ends in
     float elevation = vDir.y / length(vDir.xz);
@@ -301,7 +334,7 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
     // Albedos, not lit colours: the light arrives in the three above.
     uSnow: { value: new THREE.Color('#e9eff7') },
     uRockCool: { value: new THREE.Color('#3d3f45') },
-    uRockWarm: { value: new THREE.Color('#544a42') },
+    uRockWarm: { value: new THREE.Color('#4f4844') },
     uIce: { value: new THREE.Color('#c9dbe8') },
     uForest: { value: new THREE.Color('#121c1c') },
     uHaze: { value: new THREE.Color('#d7e2ec') },
@@ -310,7 +343,8 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
     uGlowStrength: { value: 1 },
     uCurtain: { value: -0.2 },
     uClarity: { value: 26000 },
-    uValley: { value: 0.7 },
+    uValley: { value: 0.5 },
+    uShear: { value: 0 },
     uWhiteout: { value: 0 },
     uNoise: { value: noise },
     uRockDetail: rockDetail,

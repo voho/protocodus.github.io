@@ -39,6 +39,7 @@ import { compose } from './geom.js';
 import { RENDER } from './config.js';
 import { sharedTexture } from './textures.js';
 import { riderGeometry } from './riderAssets.js';
+import { parseGlb } from './glb.js';
 
 // Seconds a tumbled figure takes to come back round to its riding pose.
 const RECOVER = 0.5;
@@ -60,6 +61,20 @@ const SAG = 2.4;          // metres of droop at mid-span
    parabola to within four centimetres. */
 const ROPE_SEGMENTS = 8;
 const CABIN_SPEED = 11;   // m/s along the line
+/* Where things hang, in the frames the models are built in — and the
+   numbers `lift.glb` must agree with before it is drawn (see `adoptLift`).
+   A tower stands on its mid-height, the ropes cross it 21.5 m over the
+   ground, and a cabin's origin is 1.7 m under the rope it hangs from. */
+const TOWER_MID = 11;
+const ROPE_TOP = 21.5;
+const CABIN_HANG = 1.7;
+/* Radians a second the modelled sheaves turn. Not the rope's own speed
+   over a 0.4 m sheave, which is fifty: at sixty frames that is most of a
+   turn between frames, and five lightening holes stepping that far read as
+   a wheel turning slowly backwards. Seven reads as turning, and the right
+   way, at any frame rate the game runs at. */
+const SHEAVE_SPIN = 7;
+const LIFT_GLB = new URL('../assets/models/resort/lift.glb', import.meta.url).href;
 
 export function createMountainLife(THREE, scene, shading, spray, audio) {
   const root = new THREE.Group();
@@ -78,6 +93,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _b = new THREE.Vector3();
   const _qTurn = new THREE.Quaternion();
   const _qStill = new THREE.Quaternion();
+  // Turned yaw-then-pitch: a sheave train's heading along the line, then
+  // the rope's slope over the tower; a cabin's side of the loop, then its swing.
+  const _eLine = new THREE.Euler(0, 0, 0, 'YXZ');
 
   // Both plates are shared with the modules that also wear them — the
   // rider's weave and the boulders' slate — so each is decoded and uploaded
@@ -284,6 +302,244 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     placeCannon(c, 40 - i * CANNON_SPACING);
     cannons.push(c);
   }
+  /* The spray leaves from the nozzle ring, in the gun's own frame (origin at
+     its foot, barrel down +z), and goes where the barrel points. These are
+     the procedural gun's; the modelled one brings its own in its extras. */
+  const gunNozzle = new THREE.Vector3(0, 4.61, 1.45);
+  const gunAim = new THREE.Vector3(0, Math.sin(0.32), Math.cos(0.32));
+
+  /* --- the line and the guns as modelled ---------------------------------- */
+
+  /* THE LIFT AS MODELLED. `tools/blender/lift.py` builds the line's hardware
+     as `lift.glb`: an eight-seat detachable cabin with its grip and hanger,
+     the cabin's glazing on its own, a tapered steel tower with its deck and
+     ladder, one sheave train, and a fan gun on a tilting tower. Each goes
+     into the InstancedMesh its procedural stand-in already draws from, so
+     the resort keeps its draw calls and nothing below has to know which of
+     the two it is placing — except in the two places where the model knows
+     more than the primitives did, and says so: the sheave trains are pitched
+     to the rope and turn each sheave about its own axle, and the cabins hang
+     outboard-door-out on either rope and swing from their grips.
+
+     The file's materials are roles, as the riders' are; this table is where
+     a role becomes a colour, how much of the snow's sparkle it takes (snow
+     lying on a roof is snow, a painted panel is not) and how much of the
+     slate grain the hardware wears as weathering. Snow takes none of the
+     grain: a photograph of slate laid over a drift reads as dirt. */
+  const LIFT_LOOK = {
+    // role:       [colour, snow response, slate grain]
+    concrete: [0x9c9b95, 0.10, 1.0],
+    liftSteel: [0x77818a, 0.10, 0.9],
+    liftDark: [0x3a4249, 0.10, 0.7],
+    liftGrating: [0x59626a, 0.10, 1.0],
+    liftRail: [0x8d969c, 0.10, 0.8],
+    liftSign: [0xe9edf0, 0.10, 0.25],
+    trainFrame: [0x4d5861, 0.10, 0.8],
+    sheaveWheel: [0xa9b2b8, 0.10, 0.6],
+    sheaveHole: [0x6f7880, 0.10, 0.6],
+    sheaveLiner: [0x17191c, 0.10, 0.4],
+    cabinPaint: [0xb73b2d, 0.12, 0.35],
+    cabinRoof: [0xb4bec5, 0.12, 0.35],
+    cabinFloor: [0x26333c, 0.10, 0.6],
+    cabinFrame: [0x1b2127, 0.10, 0.4],
+    cabinTrim: [0xc4ced4, 0.10, 0.35],
+    rubber: [0x1a1d22, 0.10, 0.4],
+    hanger: [0x5b636b, 0.10, 0.7],
+    grip: [0x8e979d, 0.10, 0.7],
+    gripDark: [0x3b4148, 0.10, 0.6],
+    gunHousing: [0xe3a90c, 0.10, 0.35],
+    gunAccent: [0x1f5ab8, 0.10, 0.35],
+    gunTrim: [0x2a3036, 0.10, 0.5],
+    gunInterior: [0x15181c, 0.10, 0.3],
+    gunHub: [0x8a949b, 0.10, 0.5],
+    gunGrille: [0x3d444b, 0.10, 0.6],
+    gunNozzle: [0x2a63c4, 0.10, 0.35],
+    gunNozzleTip: [0xc2cbd0, 0.10, 0.4],
+    gunCabinet: [0x34576b, 0.10, 0.45],
+    gunScreen: [0x0e1a22, 0.10, 0.1],
+    gunLamp: [0xff8a1f, 0.10, 0.1],
+    gunLid: [0x4b5a4f, 0.10, 0.8],
+    hose: [0x1c1f23, 0.10, 0.5],
+    cable: [0x101214, 0.10, 0.3],
+    snow: [0xf1f5f9, 0.85, 0.0],
+  };
+  // The slate grain's repeat, per metre, laid on by box projection: the
+  // file carries no UVs, and weathering has no seams anyone follows.
+  const LIFT_UV = 0.45;
+
+  /* A node's primitives welded into one indexed geometry. With `look`, the
+     hardware's attributes: colour, `aSheen` and `aGrain` per role, `uv`
+     projected along each corner's dominant normal, and `aAxle` — the
+     sheave a corner turns with, as (y, z, 1), or nothing. Without, only the
+     shape, which is all the cabins' glass material reads. */
+  function liftGeometry(node, look) {
+    let verts = 0;
+    let indices = 0;
+    for (const p of node.prims) {
+      verts += p.attributes.POSITION.length / 3;
+      indices += p.index.length;
+    }
+    const position = new Float32Array(verts * 3);
+    const normal = new Float32Array(verts * 3);
+    const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+    const color = look && new Float32Array(verts * 3);
+    const sheen = look && new Float32Array(verts);
+    const grain = look && new Float32Array(verts);
+    const axle = look && new Float32Array(verts * 3);
+    const c = new THREE.Color();
+    let v = 0;
+    let k = 0;
+    for (const p of node.prims) {
+      const n = p.attributes.POSITION.length / 3;
+      position.set(p.attributes.POSITION, v * 3);
+      normal.set(p.attributes.NORMAL, v * 3);
+      for (let i = 0; i < p.index.length; i++) index[k + i] = p.index[i] + v;
+      if (look) {
+        const said = look[p.role];
+        if (!said) throw new Error(`lift.glb: no look for role ${p.role}`);
+        c.setHex(said[0]);
+        for (let i = 0; i < n; i++) {
+          color[(v + i) * 3] = c.r;
+          color[(v + i) * 3 + 1] = c.g;
+          color[(v + i) * 3 + 2] = c.b;
+          sheen[v + i] = said[1];
+          grain[v + i] = said[2];
+        }
+        if (p.attributes._AXLE) axle.set(p.attributes._AXLE, v * 3);
+      }
+      v += n;
+      k += p.index.length;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+    if (look) {
+      const uv = new Float32Array(verts * 2);
+      for (let i = 0; i < verts; i++) {
+        const ax = Math.abs(normal[i * 3]);
+        const ay = Math.abs(normal[i * 3 + 1]);
+        const az = Math.abs(normal[i * 3 + 2]);
+        const x = position[i * 3];
+        const y = position[i * 3 + 1];
+        const z = position[i * 3 + 2];
+        uv[i * 2] = (ay >= ax && ay >= az ? x : ax >= az ? z : x) * LIFT_UV;
+        uv[i * 2 + 1] = (ay >= ax && ay >= az ? z : y) * LIFT_UV;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      g.setAttribute('aSheen', new THREE.BufferAttribute(sheen, 1));
+      g.setAttribute('aGrain', new THREE.BufferAttribute(grain, 1));
+      g.setAttribute('aAxle', new THREE.BufferAttribute(axle, 3));
+    }
+    g.setIndex(new THREE.BufferAttribute(index, 1));
+    g.computeBoundingSphere();
+    return g;
+  }
+
+  /* One material for every modelled piece of hardware, the procedural one's
+     grain and all, and three things it did not do. `aSheen` hands the snow
+     response back per corner exactly as the riders' figures do, so a drift
+     on a cabin roof glints like the drift under it and the paint beside it
+     does not; `aGrain` sets how much weathering each role wears. And a
+     sheave turns: every corner whose `aAxle` says it belongs to one is
+     turned about that sheave's own axle — local x, through (y, z) — by
+     `uSheaveSpin`, before anything else is done to it. A train is a rigid
+     thing that cannot spin as a whole the way the old single wheel did, and
+     six instances per rope for six sheaves would have been six times the
+     matrices to write for something a vertex shader does for nothing. The
+     shadow pass draws them unturned, which no shadow of a sheave can show. */
+  const sheaveSpin = { value: 0 };
+  const liftMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: metalTex });
+  liftMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uSheaveSpin = sheaveSpin;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+      attribute float aSheen;
+      attribute float aGrain;
+      attribute vec3 aAxle;
+      uniform float uSheaveSpin;
+      varying float vLiftGrain;
+      vec2 liftSpin( vec2 p ) {
+        float c = cos( uSheaveSpin );
+        float s = sin( uSheaveSpin );
+        return vec2( c * p.x - s * p.y, s * p.x + c * p.y );
+      }`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+      if ( aAxle.z > 0.5 ) objectNormal.yz = liftSpin( objectNormal.yz );`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+      if ( aAxle.z > 0.5 ) transformed.yz = aAxle.xy + liftSpin( transformed.yz - aAxle.xy );`)
+      // After shading.js's own `vN64Sheen = 1.0`, as the figures' is.
+      .replace('#include <project_vertex>', `#include <project_vertex>
+      vN64Sheen = aSheen;
+      vLiftGrain = aGrain;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      varying float vLiftGrain;`)
+      .replace('#include <map_fragment>', `
+      #ifdef USE_MAP
+        vec3 hardwareGrain = texture2D( map, vMapUv ).rgb / vec3( 0.057, 0.064, 0.073 );
+        diffuseColor.rgb *= mix( vec3( 1.0 ), hardwareGrain, 0.35 * vLiftGrain );
+      #endif`);
+  };
+  // The snow response is all per corner now, so the material's own is 1.
+  const liftHardwareMat = shading.apply(liftMat, { sheen: 1 });
+  let liftModelled = false;
+
+  /* Swap the procedural lift and guns for the modelled ones. Everything is
+     built before anything is swapped, and the file is checked against the
+     frame this module hangs it in first — a tower built for another rope
+     height would put every sheave train a metre off its rope — so a file
+     that is wrong in any way leaves the procedural line standing whole. */
+  function adoptLift(nodes) {
+    const node = (name) => {
+      if (!nodes[name]) throw new Error(`lift.glb: no ${name}`);
+      return nodes[name];
+    };
+    const cabin = node('lift_cabin');
+    const tower = node('lift_tower');
+    const gun = node('snowgun');
+    const near = (a, b) => Number.isFinite(a) && Math.abs(a - b) < 1e-3;
+    if (!near(cabin.extras.ropeY, CABIN_HANG) || !near(tower.extras.ropeY, ROPE_TOP - TOWER_MID)
+      || !near(tower.extras.groundY, -TOWER_MID) || !near(tower.extras.gauge, CABLE_SIDE)) {
+      throw new Error('lift.glb: built for a different line');
+    }
+    const { nozzle, aim } = gun.extras;
+    if (!(nozzle?.length === 3 && aim?.length === 3 && [...nozzle, ...aim].every(Number.isFinite))) {
+      throw new Error('lift.glb: the snow gun has no nozzle');
+    }
+    const built = [
+      [cabinMesh, liftGeometry(cabin, LIFT_LOOK)],
+      [glassMesh, liftGeometry(node('lift_cabinGlass'), null)],
+      [pylonMesh, liftGeometry(tower, LIFT_LOOK)],
+      [wheelMesh, liftGeometry(node('lift_sheaves'), LIFT_LOOK)],
+      [cannonMesh, liftGeometry(gun, LIFT_LOOK)],
+    ];
+    for (const [mesh, geometry] of built) {
+      const old = mesh.geometry;
+      mesh.geometry = geometry;
+      old.dispose();
+      if (mesh !== glassMesh) mesh.material = liftHardwareMat;
+    }
+    gunNozzle.fromArray(nozzle);
+    gunAim.fromArray(aim).normalize();
+    liftModelled = true;
+  }
+
+  /* Fetched here, like the forest's trees, and swapped in whenever it
+     lands: the procedural line is drawing from the first frame, so this is
+     never a wait, and if the file never comes the mountain keeps it. */
+  const liftReady = (typeof fetch === 'function'
+    ? fetch(LIFT_GLB).then((res) => (res.ok ? res.arrayBuffer()
+      : Promise.reject(new Error(`${LIFT_GLB} ${res.status}`))))
+    : Promise.reject(new Error('no fetch')))
+    .then((buffer) => {
+      adoptLift(parseGlb(buffer));
+      return true;
+    })
+    .catch((err) => {
+      console.warn('Alpen: keeping the procedural lift —', err?.message ?? err);
+      return false;
+    });
 
   /* --- the other people --------------------------------------------------- */
 
@@ -841,20 +1097,51 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const pz = backZ - i * PYLON_SPACING;    // …to three slots ahead
         const px = cableXAt(pz);
         const py = heightAt(px, pz);
-        _m.makeTranslation(px, py + 11.0, pz);
+        _m.makeTranslation(px, py + TOWER_MID, pz);
         pylonMesh.setMatrixAt(i, _m);
         topX[i] = px;
-        topY[i] = py + 21.5;
+        topY[i] = py + ROPE_TOP;
         topZ[i] = pz;
+        if (liftModelled) continue;
         // The two sheaves counter-rotate, which is what a bull wheel does
         // and the only moving part on a tower you can read from the piste.
         for (let s = 0; s < 2; s++) {
           const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
           _e.set(0, 0, s === 0 ? wheelSpin : -wheelSpin);
           _q.setFromEuler(_e);
-          _p.set(px + off, py + 21.5, pz);
+          _p.set(px + off, py + ROPE_TOP, pz);
           _m.compose(_p, _q, _one);
           wheelMesh.setMatrixAt(i * 2 + s, _m);
+        }
+      }
+      /* The modelled trains lie along the rope. The rope over a tower runs
+         from the span behind into the span ahead; its mean direction there
+         is the chord between the two neighbouring towers, the sag of the two
+         spans cancelling — so each train takes that heading and that slope,
+         nineteen degrees down the hill on a typical tower, and the shallow
+         vee its sheaves are set in takes up the bend between the two spans.
+         The towers at either end have only one span, and take its tangent.
+         A train on the −x rope is the same train turned end for end, which
+         puts its frame on the inboard side there too and, the rope running
+         the other way, turns its sheaves the other way for free. */
+      if (liftModelled) {
+        sheaveSpin.value = (sheaveSpin.value - SHEAVE_SPIN * dt) % (Math.PI * 2);
+        for (let i = 0; i < NUM_PYLONS; i++) {
+          const a = Math.max(0, i - 1);
+          const b = Math.min(NUM_PYLONS - 1, i + 1);
+          const dx = topX[b] - topX[a];
+          const dz = topZ[b] - topZ[a];
+          const sag = i === 0 ? -4 * SAG : i === NUM_PYLONS - 1 ? 4 * SAG : 0;
+          const pitch = Math.atan((topY[b] - topY[a] + sag) / Math.hypot(dx, dz));
+          const heading = Math.atan2(-dx, -dz);
+          for (let s = 0; s < 2; s++) {
+            const side = s === 0 ? -1 : 1;
+            _eLine.set(side * pitch, heading + (side > 0 ? 0 : Math.PI), 0);
+            _q.setFromEuler(_eLine);
+            _p.set(topX[i] + side * CABLE_SIDE, topY[i], topZ[i]);
+            _m.compose(_p, _q, _one);
+            wheelMesh.setMatrixAt(i * 2 + s, _m);
+          }
         }
       }
       pylonMesh.instanceMatrix.needsUpdate = true;
@@ -889,9 +1176,20 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         if (g.at >= SPAN) g.at -= SPAN;
         const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
         ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
-        _e.set(0, 0, Math.sin(_p.z * 0.08 + g.at * 0.02) * 0.05);
-        _q.setFromEuler(_e);
-        _p.y -= 1.7;
+        const sway = Math.sin(_p.z * 0.08 + g.at * 0.02) * 0.05;
+        if (liftModelled) {
+          /* The modelled cabin has a door side, and it faces outboard: the
+             cabins coming back on the −x rope have been round the bull wheel
+             and are turned end for end. They swing from the grip, which is
+             where a cabin's pivot is — the hanger's, on the rope. */
+          _eLine.set(0, g.side > 0 ? 0 : Math.PI, sway);
+          _q.setFromEuler(_eLine);
+          _p.add(_a.set(0, -CABIN_HANG, 0).applyQuaternion(_q));
+        } else {
+          _e.set(0, 0, sway);
+          _q.setFromEuler(_e);
+          _p.y -= CABIN_HANG;
+        }
         _m.compose(_p, _q, _one);
         cabinMesh.setMatrixAt(i, _m);
         glassMesh.setMatrixAt(i, _m);
@@ -909,14 +1207,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           placeCannon(c, c.z + NUM_CANNONS * CANNON_SPACING);
         }
 
-        // Active snowmaking spray plumes
+        /* Active snowmaking spray plumes, out of the nozzle ring and along
+           the barrel: the gun's own nozzle and aim, turned by the yaw it was
+           placed with. These used to be offsets written in world terms,
+           which were right for exactly one gun on exactly one side. */
         if (spray && Math.abs(c.z - rz) < 240 && Math.random() < 24 * dt) {
-          const nozzleX = c.x + (c.side > 0 ? -1.2 : 1.2);
-          const nozzleY = c.y + 4.5;
-          const nozzleZ = c.z - 0.8;
-          const sprayVx = c.side > 0 ? -(8.0 + Math.random() * 4.0) : (8.0 + Math.random() * 4.0);
-          const sprayVz = -(4.0 + Math.random() * 3.0);
-          spray.burst({ x: nozzleX, y: nozzleY, z: nozzleZ }, sprayVx, sprayVz, 8, 3.5);
+          const cy = Math.cos(c.yaw);
+          const sy = Math.sin(c.yaw);
+          const ax = gunAim.x * cy + gunAim.z * sy;
+          const az = gunAim.z * cy - gunAim.x * sy;
+          const reach = Math.hypot(ax, az) || 1;
+          const speed = 10 + Math.random() * 4;
+          const fan = (Math.random() - 0.5) * 3;
+          spray.burst({
+            x: c.x + gunNozzle.x * cy + gunNozzle.z * sy,
+            y: c.y + gunNozzle.y,
+            z: c.z + gunNozzle.z * cy - gunNozzle.x * sy,
+          }, (ax * speed - az * fan) / reach, (az * speed + ax * fan) / reach, 8, 3.5);
         }
       }
       // A cannon is bolted to the hill: its matrix only changes on the frame
@@ -1118,6 +1425,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.hip = hip;
       });
     },
+    /* The lift and the guns as modelled: `liftReady` settles true once
+       `lift.glb` is drawn, false if the procedural line stays. `adoptLift`
+       takes parsed nodes directly, which is how the checks feed it. */
+    liftReady,
+    adoptLift,
     reset(riderZ = 0) {
       // A checkpoint restart teleports the datum; take the fresh one rather
       // than treating the jump as a slide to compensate.
