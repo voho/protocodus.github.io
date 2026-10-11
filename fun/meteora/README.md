@@ -55,6 +55,10 @@ spending that energy.
   fly the same physics as you, fire in bursts only when the shot would land,
   break off and come round again, jink when hit or locked, and steer around
   the rocks.
+- Collisions have mass and spin: ramming a drifting fragment shoves it
+  (momentum is conserved), a heavy fighter shoves a light interceptor, a
+  scrape along a rock spins the ship through friction, fragments knock each
+  other aside, and missile blasts push ships and rocks away.
 - The shield absorbs damage first and recharges after three quiet seconds;
   the hull does not. Ramming a rock faster than 8 m/s costs hull. Kills score
   100 × the wave; broken rocks score 10, 25 or 50 by size. The best score is
@@ -107,13 +111,36 @@ layout.
 
 ## Performance
 
-- The belt is culled per frame (cells, then rocks; about 0.15 ms) and drawn
-  in one call per rock size and detail level — ten calls in all.
+- The belt is culled per frame (cells, then rocks; about 0.1 ms) and drawn
+  in one call per rock size and detail level — ten calls in all — packed
+  nearest cell first, so the depth test rejects hidden rocks before they
+  are shaded.
+- Each rock switches to its far mesh at 100 of its own radii (the same size
+  on screen for a pebble as for a boulder), capped at 2.5 km; landmarks keep
+  full detail. That draws 12–37 % fewer triangles than a single 2 km switch
+  (spawn 1.53M → 1.02M, densest clump 1.26M → 0.79M).
+- Glow sprites are judged against the camera: anything level with the
+  camera plane or behind it is dropped, and anything close fades. The chase
+  camera sits inside the length of the player's own plume, whose nearest
+  sprites used to project to screen-sized quads: measured at 1920×1080 on
+  full afterburner, the glow pass now covers 0.07 screens of pixels per
+  frame instead of 2.07.
 - The pixel ratio adapts to frame time between 0.6 and 1.5, judged against
   the display's own refresh rate.
-- The simulation runs at 120 Hz; a ten-enemy fight averages under 0.1 ms per
-  step.
-- `?debug` shows frame time, draw calls, triangles, rocks drawn and the pixel
-  ratio. `?debug&autopilot` flies a scripted pattern.
+- The belt's spatial hash is frozen into a flat grid (two typed arrays)
+  once the belt is placed, so the enemy pilots' rock-avoidance sweeps walk
+  index ranges instead of Map lookups: a 30 s ten-enemy fight takes 30 %
+  less CPU (median of seven interleaved runs, 434 → 302 ms; about 84 µs per
+  120 Hz step).
+- Measured in a browser with `?bench` against `?bench&legacy` (same flight,
+  pixel ratio 1.5, a 745×1324 window): GPU time per frame 3.13 → 2.88 ms
+  mean and 4.20 → 3.80 ms at the 95th percentile, triangles 0.35M → 0.24M;
+  both held 60 fps, so on that machine the gain is headroom rather than
+  frames. The bench flight does not use the afterburner, so the glow fix is
+  not part of that comparison.
+- `node tools/bench.mjs` measures the simulation, the per-frame effects work
+  and culling in Node. `?debug` shows frame time, draw calls, triangles,
+  rocks drawn and the pixel ratio in the browser; `?debug&autopilot` flies a
+  scripted pattern.
 
 The design and the implementation plan are in `docs/`.

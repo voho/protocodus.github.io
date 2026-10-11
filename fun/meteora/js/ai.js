@@ -46,7 +46,7 @@ export function createBrain(seed) {
   };
 }
 
-const tmpA = [0, 0, 0], tmpB = [0, 0, 0];
+const tmpA = [0, 0, 0], tmpB = [0, 0, 0], gateLead = [0, 0, 0];
 
 /* Stick inputs that turn the nose toward a world direction, banking into
    large turns the way a pilot rolls the target onto the lift vector. */
@@ -202,7 +202,7 @@ function fireGate(brain, me, ctx) {
   const ship = me.ship, player = ctx.player;
   const range = len(sub(tmpA, player.ship.pos, ship.pos));
   if (range > ATTACK_RANGE) return false;
-  const lead = leadPoint([0, 0, 0], ship.pos, ship.vel, player.ship.pos, player.ship.vel, ENEMY_CANNON.speed);
+  const lead = leadPoint(gateLead, ship.pos, ship.vel, player.ship.pos, player.ship.vel, ENEMY_CANNON.speed);
   if (!lead) return false;
   const to = normalize(lead, sub(lead, lead, ship.pos));
   return Math.acos(clamp(dot(to, forward(tmpB, ship)), -1, 1)) <= FIRE_CONE;

@@ -62,15 +62,15 @@ export const forward = (o, ship) => qRotate(o, ship.q, [0, 0, -1]);
    left to the pilot. */
 const AIM_GAIN = 3, AIM_DEADZONE = 0.3 * Math.PI / 180;
 const aimLocal = [0, 0, 0];
-export function aimCommands(ship, dir) {
-  if (lenSq(dir) < 1e-12) return { pitch: 0, yaw: 0 };
+export function aimCommands(ship, dir, out = { pitch: 0, yaw: 0 }) {
+  out.pitch = 0; out.yaw = 0;
+  if (lenSq(dir) < 1e-12) return out;
   qRotateInv(aimLocal, ship.q, dir);
   const off = Math.acos(clamp(-aimLocal[2] / Math.sqrt(lenSq(aimLocal)), -1, 1));
-  if (off < AIM_DEADZONE) return { pitch: 0, yaw: 0 };
-  return {
-    pitch: clamp(Math.atan2(aimLocal[1], -aimLocal[2]) * AIM_GAIN, -1, 1),
-    yaw: clamp(Math.atan2(aimLocal[0], -aimLocal[2]) * AIM_GAIN, -1, 1),
-  };
+  if (off < AIM_DEADZONE) return out;
+  out.pitch = clamp(Math.atan2(aimLocal[1], -aimLocal[2]) * AIM_GAIN, -1, 1);
+  out.yaw = clamp(Math.atan2(aimLocal[0], -aimLocal[2]) * AIM_GAIN, -1, 1);
+  return out;
 }
 export const up = (o, ship) => qRotate(o, ship.q, [0, 1, 0]);
 export const right = (o, ship) => qRotate(o, ship.q, [1, 0, 0]);
@@ -154,9 +154,11 @@ export function stepShip(ship, c, dt) {
    that twist lines up with what the controller is asking for, scaled by
    how hard it is asking. */
 const push = [0, 0, 0], torque = [0, 0, 0], lin = [0, 0, 0], ang = [0, 0, 0];
-export function selectRcsPorts(ports, accel, alpha, S) {
+export function selectRcsPorts(ports, accel, alpha, S, out = []) {
   lin[0] = accel[0]; lin[1] = accel[1]; lin[2] = Math.max(0, accel[2]);
-  const linMag = len(lin), angMag = len(alpha), out = [];
+  const linMag = len(lin), angMag = len(alpha);
+  let n = 0;
+  out.length = 0;
   if (linMag < 1e-6 && angMag < 1e-6) return out;
   normalize(lin, lin);
   normalize(ang, alpha);
@@ -169,7 +171,14 @@ export function selectRcsPorts(ports, accel, alpha, S) {
     const l = linMag > 1e-6 ? dot(push, lin) * linScale : 0;
     const r = angMag > 1e-6 ? dot(torque, ang) * angScale : 0;
     const intensity = Math.min(1, Math.max(l, r));
-    if (intensity > 0.15 && (l > 0.5 * linScale || r > 0.3 * angScale)) out.push({ index, intensity });
+    if (intensity > 0.15 && (l > 0.5 * linScale || r > 0.3 * angScale)) {
+      // Entries are reused from step to step; only a new high-water mark allocates.
+      if (!out.pool) out.pool = [];
+      const entry = out.pool[n] ?? (out.pool[n] = { index: 0, intensity: 0 });
+      entry.index = index; entry.intensity = intensity;
+      out.push(entry);
+      n++;
+    }
   }
   return out;
 }

@@ -1,9 +1,11 @@
 // Run with: node tests/combat-check.mjs
 import { test, run, assert, near } from './harness.mjs';
-import { applyDamage, stepShield, waveSize, spawnPoints, loadBest, saveBest, scoreKill, scoreRock } from '../js/combat.js';
+import { applyDamage, stepShield, waveSize, spawnPoints, loadBest, saveBest, scoreKill, scoreRock, resolveShipRock, resolveShipShip } from '../js/combat.js';
+import { createField, rockMass } from '../js/field.js';
+import { createShip } from '../js/flight.js';
 import { createWorld, startRun, resetWorld, stepWorld, advance, drainEvents } from '../js/world.js';
 import { NEUTRAL_CONTROLS, forward } from '../js/flight.js';
-import { PLAYER, COMBAT, FIELD, MAX_STEPS, STEP as DT } from '../js/config.js';
+import { PLAYER, ENEMY, COMBAT, FIELD, MAX_STEPS, STEP as DT } from '../js/config.js';
 import { makeRng } from '../js/rng.js';
 import { dist, dot, len, normalize, sub } from '../js/vec.js';
 
@@ -70,6 +72,45 @@ test('ramming a rock bounces and costs (v_n − 8) × 1.2', () => {
   for (let k = 0; k < 4; k++) stepWorld(w, idle, DT);
   near(PLAYER.shield - p.shield, (30 - COMBAT.collision.safe) * COMBAT.collision.perMs, 1.5);
   assert.ok(p.ship.vel[2] > 0); near(p.ship.vel[2], 30 * COMBAT.collision.restitution, 1.5);
+});
+const EMPTY = { ...FIELD, types: FIELD.types.map(t => ({ ...t, count: 0 })), landmarks: { ...FIELD.landmarks, count: 0 } };
+const body = (stats, team, o = {}) => ({
+  id: team + 10, team, stats, radius: stats.radius, alive: true, sinceHit: 99,
+  shield: stats.shield, hull: stats.hull, maxShield: stats.shield, maxHull: stats.hull,
+  ship: Object.assign(createShip(stats, o), { fa: false }),
+});
+const momentum = (...pairs) => [0, 1, 2].map(k => pairs.reduce((s, [m, v]) => s + m * v[k], 0));
+
+test('a glancing scrape along a rock spins the ship, and friction is Coulomb-limited', () => {
+  const w = createWorld({ seed: 1234, storage: memory() });
+  const b = w.field.belt; const i = [...b.type].findIndex(t => t === 3);
+  const c = [b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]], R = b.collide[i];
+  const e = body(PLAYER, 0, { pos: [c[0], c[1], c[2] + R + PLAYER.radius - 0.05], vel: [40, 0, -5] });
+  resolveShipRock(e, w.field, []);
+  assert.ok(Math.hypot(...e.ship.w) > 0.05, `spin ${e.ship.w}`);
+  const jn = (1 + COMBAT.collision.restitution) * 5;          // normal Δv the bounce gives
+  assert.ok(e.ship.vel[0] < 40 && 40 - e.ship.vel[0] <= COMBAT.collision.mu * jn + 1e-9, `slide ${e.ship.vel[0]}`);
+  near(e.ship.vel[2], 5 * COMBAT.collision.restitution, 1e-9);
+});
+test('ramming a drifting fragment shoves it, and momentum is conserved', () => {
+  const field = createField(1, EMPTY);
+  const rock = field.addDynamicRock(0, [0, 0, -20], [0, 0, 0]);
+  const e = body(PLAYER, 0, { pos: [0, 0, -20 + rock.collide + PLAYER.radius - 0.05], vel: [0, 0, -20] });
+  const M = rockMass(rock.radius), m = PLAYER.mass;
+  const before = momentum([m, e.ship.vel], [M, rock.vel]);
+  resolveShipRock(e, field, []);
+  const after = momentum([m, e.ship.vel], [M, rock.vel]);
+  for (let k = 0; k < 3; k++) near(after[k], before[k], Math.abs(before[2]) * 1e-9 + 1e-6);
+  assert.ok(rock.vel[2] < -1, `fragment pushed: ${rock.vel[2]}`);
+});
+test('the heavier fighter shoves the lighter interceptor harder, momentum conserved', () => {
+  const a = body(PLAYER, 0, { pos: [0, 0, 0], vel: [0, 0, -30] });
+  const b2 = body(ENEMY, 1, { pos: [0, 0, -(PLAYER.radius + ENEMY.radius - 0.1)], vel: [0, 0, 30] });
+  const before = momentum([PLAYER.mass, a.ship.vel], [ENEMY.mass, b2.ship.vel]);
+  resolveShipShip(a, b2, []);
+  const after = momentum([PLAYER.mass, a.ship.vel], [ENEMY.mass, b2.ship.vel]);
+  near(after[2], before[2], 1e-3);
+  assert.ok(Math.abs(b2.ship.vel[2] - 30) > Math.abs(a.ship.vel[2] + 30), 'the lighter ship changes more');
 });
 test('reset after a fight restores the belt and clears everything', () => {
   const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);

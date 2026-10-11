@@ -1,6 +1,6 @@
 // Run with: node tests/field-check.mjs
 import { test, run, assert, near } from './harness.mjs';
-import { generateBelt, createField, densityAt } from '../js/field.js';
+import { generateBelt, createField, densityAt, rockMass } from '../js/field.js';
 import { FIELD } from '../js/config.js';
 import { makeRng } from '../js/rng.js';
 import { dist, len } from '../js/vec.js';
@@ -124,5 +124,16 @@ test('dynamic rocks drift and bounce off static rocks', () => {
   for (let k = 0; k < 240; k++) f.step(1 / 120, events);
   assert.ok(r.vel[0] > 0, 'bounced away');
   assert.ok(dist(r.pos, c) >= R + r.collide - 1e-6);
+});
+test('drifting fragments knock each other aside instead of passing through', () => {
+  const f = createField(SEED, EMPTY);
+  const a = f.addDynamicRock(1, [0, 0, 0], [6, 0, 0]);
+  const b = f.addDynamicRock(0, [a.collide + 3, 0.3, 0], [-6, 0, 0]);
+  const ma = rockMass(a.radius), mb = rockMass(b.radius);
+  const p0 = ma * a.vel[0] + mb * b.vel[0];
+  for (let k = 0; k < 120; k++) f.step(1 / 120, []);
+  near(ma * a.vel[0] + mb * b.vel[0], p0, Math.abs(p0) * 1e-9 + 1e-6, 'momentum along x');
+  assert.ok(b.vel[0] > 0, 'the light fragment bounced back');
+  assert.ok(dist(a.pos, b.pos) >= a.collide + b.collide - 1e-6, 'and they no longer overlap');
 });
 await run();

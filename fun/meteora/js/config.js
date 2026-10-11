@@ -14,6 +14,8 @@ export const MAX_STEPS = 8;
 
 export const PLAYER = {
   radius: 6,
+  mass: 30000,                    // kg
+  gyration: [3.2, 3.6, 2.2],      // radius of gyration about pitch, yaw, roll axes (m)
   accel: { forward: 45, reverse: 25, lateral: 22, boost: 120 },
   fa: { forwardSpeed: 180, boostSpeed: 320, strafeSpeed: 60, tau: 0.25, tauAngular: 0.06 },
   rate: [1.6, 1.1, 2.6],          // pitch, yaw, roll max rad/s
@@ -27,6 +29,8 @@ export const PLAYER = {
 export const ENEMY = {
   ...PLAYER,
   radius: 5,
+  mass: 18000,
+  gyration: [2.6, 3.0, 1.8],
   accel: { forward: 40, reverse: 25, lateral: 26, boost: 110 },
   fa: { forwardSpeed: 200, boostSpeed: 300, strafeSpeed: 70, tau: 0.25, tauAngular: 0.06 },
   rate: [1.9, 1.5, 3.0],
@@ -46,6 +50,7 @@ export const MISSILE = {
   capacity: 6, rearm: 8, lockCone: 15 * Math.PI / 180, lockRange: 3000, lockTime: 0.8,
   launchKick: 30, ignition: 0.25, accel: 220, maxSpeed: 650, navGain: 4, maxLateral: 350,
   life: 8, fuse: 12, damage: 80, blast: 30, radius: 0.6,
+  push: 3e5,                      // N·s of blast impulse at the centre, falling to 0 at the edge
 };
 
 export const FIELD = {
@@ -62,12 +67,16 @@ export const FIELD = {
   landmarks: { count: 6, scale: [6, 10] },
   scale: [0.7, 1.4], collide: 0.85, gap: 0.95,
   destructible: 3, hpPerRadius: 5,   // hp = 5 · r^1.5 for types 0–2
+  density: 1200,                      // kg/m³: porous carbonaceous rubble
+  lodScale: 100,                      // far mesh beyond 100 radii (~9 px radius at 1080p)…
+  lodCap: 2500,                       // …but never further than this, except for landmarks
+  restitution: 0.5,
 };
 
 export const COMBAT = {
   wave: { base: 2, cap: 10, near: 2500, far: 3500, viewCone: 60 * Math.PI / 180, delay: 6 },
   score: { kill: 100, rock: [10, 25, 50] },
-  collision: { safe: 8, perMs: 1.2, restitution: 0.35, friction: 0.85 },
+  collision: { safe: 8, perMs: 1.2, restitution: 0.35, mu: 0.4 },
   leaving: 3000,
 };
 

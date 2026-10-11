@@ -92,6 +92,16 @@ for (const [name, start, vel] of [
     assert.ok(ctx.damageLog.some(d => d.id === t.id && d.amount >= MISSILE.damage * (1 - MISSILE.fuse / MISSILE.blast) - 1e-9));
   });
 }
+test('a missile blast pushes ships away from it', () => {
+  const p = player(); const t = target([0, 0, -400]); t.ship.vel = [0, 0, 0];
+  const bystander = { id: 3, team: 1, alive: true, radius: ENEMY.radius, ship: createShip(ENEMY, { pos: [10, 0, -400] }) };
+  const ctx = ctxWith([p, t, bystander]); const w = createWeapons();
+  launchMissile(w, p, [0, 0, -3], t.id);
+  for (let i = 0; i < 240 && w.missiles.length; i++) stepWeapons(w, ctx, DT);
+  assert.ok(ctx.events.some(e => e.type === 'missileExplode'));
+  assert.ok(bystander.ship.vel[0] > 0.5, `pushed away: ${bystander.ship.vel}`);
+  assert.ok(bystander.ship.vel[0] <= MISSILE.push / ENEMY.mass + 1e-9, 'no more than a point-blank push');
+});
 test('blast damage falls off linearly to zero at 30 m', () => {
   near(blastDamage(0), 80, 1e-9); near(blastDamage(15), 40, 1e-9); assert.equal(blastDamage(30), 0); assert.equal(blastDamage(45), 0);
 });

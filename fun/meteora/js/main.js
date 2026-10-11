@@ -12,7 +12,16 @@
 
    `?debug` adds a read-out (frame time, draw calls, triangles, entities);
    `?debug&autopilot` flies a scripted pattern, which is how the game is
-   screenshotted in automation. */
+   screenshotted in automation.
+
+   `?bench` measures the running game: it flies the autopilot pattern with the
+   pixel ratio locked (`&ratio=1.5` to choose it), the player invulnerable, and
+   after three seconds of warm-up records twenty seconds of frame interval,
+   JavaScript time, GPU time (where the browser offers timer queries), draw
+   calls and triangles, then shows the summary and logs it as JSON.
+   `?bench&legacy` runs the same flight with the measured optimisations
+   switched back off — one 2 km detail switch for every rock and no glow
+   culling at the camera — so the two can be compared in the same browser. */
 
 import * as THREE from 'three';
 import { RENDER, STEP } from './config.js';
@@ -31,10 +40,15 @@ import { createPlumes } from './plumes.js';
 import { createProjectiles } from './projectiles.js';
 import { createHud } from './hud.js';
 import { createResolution } from './resolution.js';
+import { createFrameStats } from './frame-stats.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
-const AUTOPILOT = DEBUG && params.has('autopilot');
+const BENCH = params.has('bench');
+const LEGACY = BENCH && params.has('legacy');
+const BENCH_RATIO = Number(params.get('ratio')) || 1;
+const AUTOPILOT = (DEBUG && params.has('autopilot')) || BENCH;
+const BENCH_WARM = 3, BENCH_SPAN = 20;
 const SUN_DIR = new THREE.Vector3(-0.62, 0.32, -0.72).normalize();
 
 const canvas = document.getElementById('stage');
@@ -70,7 +84,7 @@ async function boot() {
     canvas, antialias: true, powerPreference: 'high-performance', reversedDepthBuffer: true,
   });
   resolution = createResolution({ devicePixelRatio: window.devicePixelRatio || 1 });
-  renderer.setPixelRatio(resolution.ratio);
+  renderer.setPixelRatio(BENCH ? BENCH_RATIO : resolution.ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -95,7 +109,9 @@ async function boot() {
     screens.error(`${error.message}. Check your connection and try again.`);
     return;
   }
-  fieldRender = createFieldRender(scene, world.field, models.rocks, beltTime);
+  // Legacy bench: every rock switches to its far mesh at 2 km, as before.
+  fieldRender = createFieldRender(scene, world.field, models.rocks, beltTime,
+    LEGACY ? { lodScale: Infinity, lodCap: 2000 } : {});
   playerMesh = instantiateShip(models.fighter);
   scene.add(playerMesh);
   engineLight = new THREE.PointLight(0x9fb8ff, 0, 60, 2);
@@ -218,7 +234,8 @@ function frame(now) {
   last = now;
   // Adaptive resolution, fed only with frames that say something about the
   // GPU: not while paused, hidden, or right after a stall.
-  if (!paused && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
+  const frameStart = performance.now();
+  if (!BENCH && !paused && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
     const ratio = resolution.frame(raw);
     if (ratio !== renderer.getPixelRatio()) {
       renderer.setPixelRatio(ratio);
@@ -242,8 +259,14 @@ function frame(now) {
   const p = world.player;
   place(playerMesh, p.ship, alpha);
   playerMesh.visible = p.alive && !(chase.mode === 'nose' && world.state === 'flying');
+  // The camera moves first, so everything drawn this frame — the glow
+  // batch's near-camera fade included — sees where it really is.
+  chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
+    null, world.state === 'attract');
 
   glow.begin();
+  camera.getWorldDirection(tmpV);
+  if (!LEGACY) glow.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
   if (p.alive) {
     const { power, boost } = plumes.add(p, playerMesh, world.time, dt);
     // The plume lights the tail of the hull it comes out of.
@@ -276,13 +299,13 @@ function frame(now) {
     }
   }
 
-  chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
-    null, world.state === 'attract');
   if (!paused) beltTime.value += dt;
   sky.update(camera, paused ? 0 : dt, glow);
   glow.end();
   fieldRender.update(camera);
+  const query = BENCH ? gpuBegin() : null;
   renderer.render(scene, camera);
+  gpuEnd(query);
 
   if (world.state === 'flying') {
     hud.draw(world, camera, {
@@ -292,6 +315,8 @@ function frame(now) {
   } else {
     hud.clear();
   }
+
+  if (BENCH) benchFrame(raw, performance.now() - frameStart);
 
   if (DEBUG) {
     frames++; frameMs += dt * 1000; debugTimer += dt;
@@ -308,6 +333,85 @@ function frame(now) {
       frames = 0; frameMs = 0; debugTimer = 0;
     }
   }
+}
+
+/* ---------- ?bench ---------- */
+
+const benchStats = createFrameStats();
+let benchClock = 0, benchDone = false, gpuTimer = null;
+const pendingQueries = [];
+
+function gpuBegin() {
+  const gl = renderer.getContext();
+  if (gpuTimer === null) gpuTimer = gl.getExtension('EXT_disjoint_timer_query_webgl2') || false;
+  if (!gpuTimer || pendingQueries.length > 8) return null;
+  const query = gl.createQuery();
+  gl.beginQuery(gpuTimer.TIME_ELAPSED_EXT, query);
+  return query;
+}
+function gpuEnd(query) {
+  if (!query) return;
+  renderer.getContext().endQuery(gpuTimer.TIME_ELAPSED_EXT);
+  pendingQueries.push({ query, measuring: benchClock >= BENCH_WARM && !benchDone });
+}
+// Timer results arrive a few frames late; collect whatever has landed.
+function gpuPoll() {
+  const gl = renderer.getContext();
+  while (pendingQueries.length) {
+    const { query, measuring } = pendingQueries[0];
+    if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) break;
+    const disjoint = gl.getParameter(gpuTimer.GPU_DISJOINT_EXT);
+    const ns = gl.getQueryParameter(query, gl.QUERY_RESULT);
+    pendingQueries.shift();
+    gl.deleteQuery(query);
+    if (measuring && !disjoint) benchStats.add('gpu', ns / 1e6);
+  }
+}
+
+function benchFrame(interval, jsMs) {
+  if (gpuTimer) gpuPoll();
+  if (benchDone || world.state !== 'flying') return;
+  // The same flight for both modes: the player cannot die mid-run.
+  world.player.hull = world.player.maxHull;
+  world.player.shield = world.player.maxShield;
+  benchClock += interval / 1000;
+  const info = renderer.info.render;
+  if (benchClock >= BENCH_WARM) {
+    benchStats.add('frame', interval);
+    benchStats.add('js', jsMs);
+    benchStats.add('draws', info.calls);
+    benchStats.add('triangles', info.triangles);
+  }
+  debugOut.hidden = false;
+  if (benchClock < BENCH_WARM + BENCH_SPAN) {
+    debugOut.textContent = `benchmark ${LEGACY ? '(legacy) ' : ''}— ${benchClock < BENCH_WARM ? 'warming up' : 'measuring'} ` +
+      `${Math.max(0, BENCH_WARM + BENCH_SPAN - benchClock).toFixed(0)} s`;
+    return;
+  }
+  benchDone = true;
+  // Let late GPU timer results land before summarising.
+  setTimeout(() => {
+    gpuPoll?.();
+    const summary = benchStats.summary();
+    const row = (label, m, unit = 'ms', digits = 2) => (m
+      ? `${label.padEnd(10)} mean ${m.mean.toFixed(digits)}  p50 ${m.p50.toFixed(digits)}  p95 ${m.p95.toFixed(digits)} ${unit}`
+      : `${label.padEnd(10)} n/a`);
+    const fps = summary.frame ? 1000 / summary.frame.mean : 0;
+    debugOut.textContent = [
+      `METEORA BENCH ${LEGACY ? 'legacy' : 'current'} · pixel ratio ${renderer.getPixelRatio()} · ${innerWidth}×${innerHeight}`,
+      `fps        ${fps.toFixed(1)}`,
+      row('frame', summary.frame),
+      row('js', summary.js),
+      row('gpu', summary.gpu),
+      row('draws', summary.draws, '', 0),
+      `triangles  mean ${summary.triangles ? (summary.triangles.mean / 1e6).toFixed(2) : 'n/a'}M`,
+      'Copy this, then compare with ?bench' + (LEGACY ? '' : '&legacy'),
+    ].join('\n');
+    console.log('METEORA_BENCH', JSON.stringify({
+      mode: LEGACY ? 'legacy' : 'current', pixelRatio: renderer.getPixelRatio(),
+      viewport: [innerWidth, innerHeight], userAgent: navigator.userAgent, summary,
+    }));
+  }, 300);
 }
 
 boot();
