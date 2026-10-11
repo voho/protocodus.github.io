@@ -1,17 +1,5 @@
 # Alpen imported model sources
 
-## nature/ — Quaternius low-poly set (*.gltf)
-
-Quaternius low-poly nature set (winter variants) — CC0 / public domain,
-by Quaternius (https://quaternius.com), downloaded 2026-08-07 from the
-MIT-licensed mirror https://github.com/flo-bit/tiny-planets
-(`public/lowpoly_nature/`). glTF 2.0 with embedded buffers, exported by
-FBX2glTF. No longer drawn: the needled species use the photo-textured
-card conifers below, and the bare species use card larches off a twig
-atlas `js/spruce.js#createTwigAtlas` draws on a canvas at boot. The
-loader path (`js/importedModels.js#upgrade`) is kept, though nothing calls
-it now.
-
 ## nature/alpine-boulders.glb, alpine-crags.glb — the rocks (built in Blender)
 
 Not downloaded: `tools/blender/rocks.py` builds both, from the repository
