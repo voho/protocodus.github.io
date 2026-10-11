@@ -53,12 +53,12 @@ function instancedFrom(base, capacity) {
   return { geometry: g, offset: attr('aOffset', 4), spin: attr('aSpin', 4), phase: attr('aPhase', 1) };
 }
 
-export function createFieldRender(scene, field, rocks, time) {
+export function createFieldRender(scene, field, rocks, time, cullOptions = {}) {
   const belt = field.belt, cfg = field.cfg;
   const group = new THREE.Group();
   group.name = 'belt';
   scene.add(group);
-  const culler = createCuller(belt, cfg);
+  const culler = createCuller(belt, cfg, cullOptions);
   const counts = cfg.types.map(() => 0);
   for (let i = 0; i < belt.count; i++) counts[belt.type[i]]++;
 
