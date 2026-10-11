@@ -336,20 +336,123 @@ for (const key of wildlifeNames) {
   assert.notEqual(other, a, 'a stubbed namespace never shares with a real one');
 }
 
-const huts = await load('huts.js', ['hutGeometry', 'paneGeometry', 'siteAt']);
+const huts = await load('huts.js', ['hutGeometry', 'paneGeometry', 'siteAt', 'hutModelGeometry',
+  'CHIMNEY', 'TERRACE_DECK', 'PLINTH_DEPTH', 'HUT_BOXES']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
+/* The modelled hut (`assets/models/huts/mountain-hut.glb`, built by
+   `tools/blender/hut.py`), read with the game's own reader and built into
+   the shell's geometry the way `createHuts` builds it. */
+const hutNode = await (async () => {
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/huts/mountain-hut.glb', base));
+  return parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)).hut;
+})();
+assert.ok(hutNode, 'mountain-hut.glb has its hut');
+const hutModel = huts.hutModelGeometry(THREE, hutNode);
+hutModel.computeBoundingBox();
+const hutBox = hutModel.boundingBox;
+{
+  const tris = valid('hutModel', hutModel);
+  assert.ok(tris >= 4000 && tris <= 6000, 'modelled hut triangle budget: ' + tris);
+  for (const p of hutNode.prims) {
+    assert.ok(huts.HUT_LOOKS[p.role], 'every role of the hut has a look: ' + p.role);
+    assert.ok(p.attributes.TEXCOORD_0 && p.attributes._SHADE, p.role + ': UVs and shade');
+    assert.ok(p.attributes._SHADE.every((s) => s > 0.2 && s <= 1.2), p.role + ': shade in range');
+  }
+  // the two huts are drawn by one material: both carry what it reads
+  const proc = huts.hutGeometry(THREE);
+  assert.ok(proc.attributes.aHutKind.array.every((k) => k === 0), 'the procedural hut is classified by colour');
+  assert.ok(hutModel.attributes.aHutKind.array.every((k) => Number.isInteger(k) && k >= 1 && k <= 8),
+    'every modelled surface says what it is');
+
+  /* The contracts the rest of huts.js and config.js lean on, which the file
+     carries as extras: the smoke leaves from the chimney's top, the deck is
+     where the site search lifts it to, the stone goes as deep as the site
+     search assumed it does, and the glass is exactly HUT_LIGHT's. */
+  const { HUT_LIGHT } = await import(new URL('js/config.js', base).href);
+  const ex = hutNode.extras;
+  const C = huts.CHIMNEY;
+  assert.ok(Math.hypot(ex.chimney[0] - C.x, ex.chimney[1] - C.y, ex.chimney[2] - C.z) < 1e-3,
+    'the smoke leaves from the modelled chimney');
+  assert.ok(hutBox.max.y < C.y && hutBox.max.y > C.y - 0.2, 'nothing stands over the smoke, and the cap is under it');
+  assert.equal(ex.deck, huts.TERRACE_DECK);
+  assert.equal(ex.plinthDepth, huts.PLINTH_DEPTH);
+  assert.ok(Math.abs(hutBox.min.y + huts.PLINTH_DEPTH) < 0.01, 'the stone goes as deep as the site search assumes');
+  assert.equal(ex.glass.front, HUT_LIGHT.front);
+  assert.equal(ex.glass.side, HUT_LIGHT.side);
+  const panes = (list) => list.map((p) => [p.at[0], p.at[1], p.size[0], p.size[1]]);
+  assert.deepEqual(ex.glass.panesFront, panes(HUT_LIGHT.glass.front), 'front glass is HUT_LIGHT\'s');
+  assert.deepEqual(ex.glass.panesSide, panes(HUT_LIGHT.glass.side), 'side glass is HUT_LIGHT\'s');
+
+  /* …and the windows really are there: a ray from the room out through
+     each pane (clear of its glazing bars) meets nothing of the hut, so the
+     light the shader sends through that glass leaves through a hole in the
+     model; and a ray a little beside each pane meets the wall, so the hole
+     is in a wall rather than in the air. */
+  const pos = hutModel.attributes.position.array;
+  const idx = hutModel.index.array;
+  const hits = (o, d, far) => {
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+      const e1 = [pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]];
+      const e2 = [pos[c] - pos[a], pos[c + 1] - pos[a + 1], pos[c + 2] - pos[a + 2]];
+      const p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]];
+      const det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
+      if (Math.abs(det) < 1e-12) continue;
+      const s = [o[0] - pos[a], o[1] - pos[a + 1], o[2] - pos[a + 2]];
+      const u = (s[0] * p[0] + s[1] * p[1] + s[2] * p[2]) / det;
+      if (u < 0 || u > 1) continue;
+      const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]];
+      const v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) / det;
+      if (v < 0 || u + v > 1) continue;
+      const dist = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
+      if (dist > 0 && dist < far) return true;
+    }
+    return false;
+  };
+  const glassRays = [
+    ...HUT_LIGHT.glass.front.map((p) => ({ p, at: (u, v) => [u, v, HUT_LIGHT.front + 0.15], out: [0, 0, -1] })),
+    ...HUT_LIGHT.glass.side.map((p) => ({ p, at: (u, v) => [HUT_LIGHT.side - 0.15, v, u], out: [1, 0, 0] })),
+  ];
+  for (const { p, at, out } of glassRays) {
+    for (const [fu, fv] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) {
+      const o = at(p.at[0] + fu * p.size[0], p.at[1] + fv * p.size[1]);
+      assert.ok(!hits(o, out, 0.9), `light leaves through the pane at ${p.at} (${fu}, ${fv})`);
+    }
+    const beside = at(p.at[0] + p.size[0] / 2 + 0.3, p.at[1]);
+    assert.ok(hits(beside, out, 0.9), `the pane at ${p.at} is in a wall`);
+  }
+
+  /* The terrace boards' top is the deck the site search plants the hut by,
+     and everything a rider could run into below head height is inside the
+     collision boxes, seen from above — the snow excepted. */
+  let deckTop = -Infinity;
+  for (const p of hutNode.prims) {
+    const P = p.attributes.POSITION;
+    for (let i = 0; i < P.length; i += 3) {
+      const [x, y, z] = [P[i], P[i + 1], P[i + 2]];
+      if (p.role === 'board' && z < -2.5 && z > -4.3 && Math.abs(x) < 2.6 && y < 0.7) deckTop = Math.max(deckTop, y);
+      if (y > 2.5 || huts.HUT_LOOKS[p.role][1] === 1) continue;
+      assert.ok(huts.HUT_BOXES.some((b) => Math.abs(x - b.x) <= b.hw + 0.02 && Math.abs(z - b.z) <= b.hd + 0.02),
+        `${p.role} at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}) is inside a collision box`);
+    }
+  }
+  assert.ok(Math.abs(deckTop - huts.TERRACE_DECK) < 0.002, 'the deck is at TERRACE_DECK: ' + deckTop);
+}
 /* The props keep off a hut's ground, so that ground has to cover the hut:
-   every corner of the building's roof, the woodpile and the terrace, turned
-   the way the hut was turned, and not the open snow beside it. */
+   every corner of the modelled hut — its eaves' cornices, the woodpile, the
+   lantern on the terrace rail, the purlin heads behind — turned the way the
+   hut was turned, and not the open snow beside it. */
 {
   let found = 0;
+  const { min, max } = hutBox;
   for (let b = 1; b < 40 && found < 6; b++) {
     const h = huts.siteAt(b);
     if (!h) continue;
     found++;
     const c = Math.cos(h.yaw);
     const s = Math.sin(h.yaw);
-    for (const [lx, lz] of [[-3.73, -4.4], [3.3, -4.4], [-3.73, 2.8], [3.3, 2.8]]) {
+    for (const [lx, lz] of [[min.x, min.z], [max.x, min.z], [min.x, max.z], [max.x, max.z]]) {
       assert.ok(huts.onHutGround(h.x + lx * c + lz * s, h.z - lx * s + lz * c),
         `hut ${b}: corner (${lx}, ${lz}) is on its ground`);
     }

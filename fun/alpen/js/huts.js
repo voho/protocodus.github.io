@@ -45,14 +45,23 @@
    terrace; on the convex lip a hut stands on, its rim hovered metres off the
    snow.
 
-   The hut itself is one baked geometry through `compose`, so all of it —
-   walls, roof, chimney, woodpile, bench, terrace — is one draw call, and the
-   three or four standing at once are one InstancedMesh. The roof is the part
-   worth pointing at: it is a three-sided cylinder lying on its side, which
-   is a complete gable, two pitches and both ends closed, out of a single
-   primitive. */
+   The hut itself is one geometry, so all of it — walls, roof, chimney,
+   woodpile, bench, terrace — is one draw call, and the three standing at
+   once are one InstancedMesh. It is modelled in Blender now
+   (`tools/blender/hut.py`, `assets/models/huts/mountain-hut.glb`): a
+   rubble-stone storey dug into the bank, a log storey in Blockbau with its
+   ends crossing at the corners, a shallow roof on purlins under half a
+   metre of snow that rolls into a cornice over the eaves, and the terrace,
+   the shutters, the woodpile and the sign the rider stops for. Until that
+   file arrives — and for good, if it never does — the hut is the one
+   `hutGeometry` bakes through `compose` out of boxes and prisms, whose roof
+   is the part of it worth pointing at: a three-sided cylinder lying on its
+   side, which is a complete gable out of a single primitive. Both carry the
+   same attributes and are drawn by the same material, so the one can
+   replace the other on any frame. */
 
 import { compose } from './geom.js';
+import { parseGlb } from './glb.js';
 import {
   heightAt, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
@@ -161,8 +170,11 @@ export const HUTS = {
 
 /* Where the chimney comes out, in the hut's own coordinates. The geometry
    and the smoke both read it, because a plume that starts anywhere else is
-   the kind of bug nobody spots for a week. */
-const CHIMNEY = { x: 1.75, y: 6.6, z: 0.9 };
+   the kind of bug nobody spots for a week. It is the modelled hut's stack —
+   up near the ridge, where a stove's flue goes, with the smoke starting a
+   hand over the snow on its cap — and `tools/blender/hut.py` writes the
+   same point onto the file, which the model check compares with this. */
+const CHIMNEY = { x: 0.85, y: 6.73, z: 0.9 };
 // The top of the terrace deck, and how far the stone base reaches below the
 // floor, both from the planting height; see the terrace and the plinth in
 // `hutGeometry`.
@@ -205,6 +217,10 @@ function hutGeometry(THREE) {
   const bank = bankCone.toNonIndexed();
   bankCone.dispose();
   bank.computeVertexNormals();
+
+  // The windows and the transom over the door, from the light's own table
+  const windowsFront = HUT_LIGHT.glass.front.filter((p) => p.bars);
+  const doorX = HUT_LIGHT.glass.front.find((p) => !p.bars).at[0];
 
   const stone = '#4a4d55';
   // The cellar storey's rubble: paler and warmer than the chimney's slate,
@@ -285,22 +301,26 @@ function hutGeometry(THREE) {
     },
 
     // --- chimney ------------------------------------------------------------
-    { geo: box, color: stone, pos: [CHIMNEY.x, 4.85, CHIMNEY.z], scale: [0.65, 2.9, 0.65] },
-    { geo: box, color: stoneDark, pos: [CHIMNEY.x, 6.15, CHIMNEY.z], scale: [0.75, 0.2, 0.75] },
-    { geo: box, color: snow, pos: [CHIMNEY.x, 6.4, CHIMNEY.z], scale: [0.82, 0.18, 0.82] },
+    // (its top a little under the smoke's origin, wherever that is)
+    { geo: box, color: stone, pos: [CHIMNEY.x, CHIMNEY.y - 1.75, CHIMNEY.z], scale: [0.65, 2.9, 0.65] },
+    { geo: box, color: stoneDark, pos: [CHIMNEY.x, CHIMNEY.y - 0.45, CHIMNEY.z], scale: [0.75, 0.2, 0.75] },
+    { geo: box, color: snow, pos: [CHIMNEY.x, CHIMNEY.y - 0.2, CHIMNEY.z], scale: [0.82, 0.18, 0.82] },
 
     // --- the front ----------------------------------------------------------
-    { geo: box, color: dark, pos: [-1.3, 1.62, -2.21], scale: [0.95, 2.05, 0.14] },
-    { geo: box, color: beam, pos: [-1.3, 0.58, -2.45], scale: [1.3, 0.14, 0.5] },
+    // The door is under the transom `HUT_LIGHT` lists, and so is the sign
+    { geo: box, color: dark, pos: [doorX, 1.62, -2.21], scale: [0.95, 2.05, 0.14] },
+    { geo: box, color: beam, pos: [doorX, 0.58, -2.45], scale: [1.3, 0.14, 0.5] },
     // The sign over the door is the same yellow as a kicker's lip, because it
     // is the same promise: this is a thing you are meant to ride at.
-    { geo: box, color: sign, pos: [-1.3, 2.86, -2.24], scale: [1.5, 0.34, 0.1] },
-    // Window frames. The glass itself is a separate geometry and a separate
-    // material — see `paneGeometry` — because it is the one part of the hut
-    // that must not be lit by the mountain's own light.
-    { geo: box, color: beam, pos: [0.35, 1.75, -2.19], scale: [1.24, 1.06, 0.12] },
-    { geo: box, color: beam, pos: [1.85, 1.75, -2.19], scale: [1.24, 1.06, 0.12] },
-    { geo: box, color: beam, pos: [2.59, 1.75, 0.3], scale: [0.12, 1.06, 1.24] },
+    { geo: box, color: sign, pos: [doorX, 2.86, -2.24], scale: [1.5, 0.34, 0.1] },
+    // Window frames, round the glass `HUT_LIGHT` lists. The glass itself is a
+    // separate geometry and a separate material — see `paneGeometry` —
+    // because it is the one part of the hut that must not be lit by the
+    // mountain's own light.
+    ...windowsFront.map((p) => ({ geo: box, color: beam, pos: [p.at[0], p.at[1], -2.19],
+      scale: [p.size[0] + 0.26, p.size[1] + 0.2, 0.12] })),
+    ...HUT_LIGHT.glass.side.map((p) => ({ geo: box, color: beam, pos: [2.59, p.at[1], p.at[0]],
+      scale: [0.12, p.size[1] + 0.2, p.size[0] + 0.26] })),
 
     // --- terrace ------------------------------------------------------------
     // On posts, because it hangs out over ground that is falling away towards
@@ -333,22 +353,24 @@ function hutGeometry(THREE) {
     { geo: log, color: snow, pos: [-3.15, 1.04, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.8, 1.96, 0.34] },
   ];
   // Open shutters, divided glass and exposed rafters give the facade scale.
-  for (const x of [0.35, 1.85]) {
+  for (const { at: [x, y], size: [w, h] } of windowsFront) {
     parts.push(
-      { geo: box, color: beam, pos: [x, 1.75, -2.32], scale: [0.045, 0.88, 0.055] },
-      { geo: box, color: beam, pos: [x, 1.75, -2.32], scale: [0.99, 0.045, 0.055] },
-      { geo: box, color: snow, pos: [x, 1.18, -2.33], scale: [1.29, 0.11, 0.30] },
+      { geo: box, color: beam, pos: [x, y, -2.32], scale: [0.045, h + 0.02, 0.055] },
+      { geo: box, color: beam, pos: [x, y, -2.32], scale: [w + 0.01, 0.045, 0.055] },
+      { geo: box, color: snow, pos: [x, y - h / 2 - 0.14, -2.33], scale: [w + 0.31, 0.11, 0.30] },
     );
     for (const s of [-1, 1]) {
-      parts.push({ geo: box, color: '#365954', pos: [x + s * 0.73, 1.75, -2.25],
-        rot: [0, s * 0.14, 0], scale: [0.32, 0.94, 0.07] });
+      parts.push({ geo: box, color: '#365954', pos: [x + s * (w / 2 + 0.24), y, -2.25],
+        rot: [0, s * 0.14, 0], scale: [0.32, h + 0.08, 0.07] });
     }
   }
-  parts.push(
-    { geo: box, color: beam, pos: [2.73, 1.75, 0.3], scale: [0.055, 0.88, 0.045] },
-    { geo: box, color: beam, pos: [2.73, 1.75, 0.3], scale: [0.055, 0.045, 0.99] },
-    { geo: box, color: '#bda877', pos: [-0.96, 1.56, -2.31], scale: [0.05, 0.16, 0.07] },
-  );
+  for (const { at: [z, y], size: [w, h] } of HUT_LIGHT.glass.side) {
+    parts.push(
+      { geo: box, color: beam, pos: [2.73, y, z], scale: [0.055, h + 0.02, 0.045] },
+      { geo: box, color: beam, pos: [2.73, y, z], scale: [0.055, 0.045, w + 0.01] },
+    );
+  }
+  parts.push({ geo: box, color: '#bda877', pos: [doorX + 0.34, 1.56, -2.31], scale: [0.05, 0.16, 0.07] });
   /* Icicles grow where meltwater leaves the roof, and that is the eaves —
      the two level edges the snow slides down to — not the sloping verge of
      the gable, where they used to hang in a row stepping up the rake like a
@@ -392,6 +414,13 @@ function hutGeometry(THREE) {
   }
   const geometry = compose(THREE, parts);
   for (const g of [box, post, log, prism, icicle, bank]) g.dispose();
+  /* Kind 0 everywhere: "tell me what you are by your colour", which is how
+     the material read this hut before there was a model with roles in it
+     (see `hutMat`). The attributes are there because the modelled hut
+     carries them and both are drawn by the one material. */
+  const n = geometry.attributes.position.count;
+  geometry.setAttribute('aHutUv', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+  geometry.setAttribute('aHutKind', new THREE.BufferAttribute(new Float32Array(n), 1));
   return geometry;
 }
 
@@ -420,6 +449,90 @@ function paneGeometry(THREE) {
     // and the lantern on the terrace rail, which is the bit you see first
     { geo: box, color: '#ffd28a', pos: lantern.at, scale: [0.22, 0.3, 0.22] },
   ]);
+}
+
+/* ==========================================================================
+   The modelled hut
+   ========================================================================== */
+
+/* What each role in `mountain-hut.glb` is drawn as: its colour, and the
+   kind of surface `hutMat` makes of it.
+
+     1  snow and ice, left as they are, bright enough for the snow's sheen
+     2  rubble masonry: coursed stones and their mortar, drawn from the UV
+        (metres along the wall), with the slate photograph in each stone
+     3  dressed stone — quoins, coping, the chimney's cap, the threshold —
+        the slate photograph alone
+     4  wood: the plank photograph along the grain the UV lays it on, and a
+        log on exactly one of its planks
+     5  painted wood, the shutters: the same, with less of the grain through
+     6  plain: iron, paint, the dark of a room behind glass, the curtains
+     7  the woodpile's face, a field of sawn ends
+     8  end grain, the rings of a sawn log end or a purlin head
+
+   The colours are the procedural hut's where it had the same part, so the
+   one does not change colour when the other replaces it. */
+export const HUT_LOOKS = {
+  snow: ['#f4f8ff', 1], drift: ['#e7effb', 1], ice: ['#dcebf1', 1],
+  masonry: ['#77736c', 2], quoin: ['#8a857c', 3], slate: ['#5a5d63', 3],
+  log: ['#6d4a30', 4], timber: ['#7a5636', 4], beam: ['#4a3221', 4], board: ['#866142', 4],
+  door: ['#5a3a24', 4], frame: ['#3f2a1a', 4], endgrain: ['#6a4e36', 8],
+  shutter: ['#365954', 5],
+  iron: ['#26272a', 6], sign: ['#ffab00', 6], ink: ['#2c1e14', 6], interior: ['#140e0a', 6],
+  curtain: ['#8e2b25', 6], glass: ['#1a2128', 6], soot: ['#0c0c0d', 6], ski: ['#a84931', 6],
+  woodpile: ['#ffffff', 7],
+};
+
+/* One node of the file as the shell's geometry: every primitive's role
+   painted from the table above and darkened by the file's own `_SHADE` —
+   each piece's tone (no two logs quite the same brown) times the occlusion
+   baked by casting rays through the finished building — and its UV and kind
+   handed to the material. */
+function hutModelGeometry(THREE, node) {
+  let verts = 0;
+  let indices = 0;
+  for (const p of node.prims) {
+    verts += p.attributes.POSITION.length / 3;
+    indices += p.index.length;
+  }
+  const position = new Float32Array(verts * 3);
+  const normal = new Float32Array(verts * 3);
+  const color = new Float32Array(verts * 3);
+  const uv = new Float32Array(verts * 2);
+  const kind = new Float32Array(verts);
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+  const c = new THREE.Color();
+  let v = 0;
+  let o = 0;
+  for (const p of node.prims) {
+    const look = HUT_LOOKS[p.role];
+    if (!look) throw new Error('mountain-hut.glb: no look for ' + p.role);
+    c.set(look[0]);
+    const n = p.attributes.POSITION.length / 3;
+    const shade = p.attributes._SHADE;
+    position.set(p.attributes.POSITION, v * 3);
+    normal.set(p.attributes.NORMAL, v * 3);
+    uv.set(p.attributes.TEXCOORD_0, v * 2);
+    for (let i = 0; i < n; i++) {
+      const s = shade ? shade[i] : 1;
+      color[(v + i) * 3] = c.r * s;
+      color[(v + i) * 3 + 1] = c.g * s;
+      color[(v + i) * 3 + 2] = c.b * s;
+      kind[v + i] = look[1];
+    }
+    for (let i = 0; i < p.index.length; i++) index[o + i] = p.index[i] + v;
+    v += n;
+    o += p.index.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute('aHutUv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('aHutKind', new THREE.BufferAttribute(kind, 1));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingSphere();
+  return g;
 }
 
 /* ==========================================================================
@@ -700,7 +813,31 @@ function searchSite(b) {
    crown off the eaves. Without it the props grew straight through about
    half the huts on a run: a spruce out of a roof, a boulder through a
    terrace, a sapling standing in the parlour. */
-const GROUND = { x: -0.2, z: -0.8, hw: 3.5 + 3, hd: 3.6 + 3 };
+/* The modelled hut reaches four metres either side — its eaves stand a
+   metre past the walls, and the cornice rolls on over them — and from the
+   lantern at the terrace's rail to the purlin heads behind, so the three
+   metres go round that. */
+const GROUND = { x: 0, z: -0.55, hw: 4.05 + 3, hd: 3.95 + 3 };
+
+/* THE HUT AS THE RIDER MEETS IT. It had no collider at all: a rider who
+   missed the stop went straight through the walls and out of the back.
+   Three boxes in the hut's own frame (metres, x across, z towards the
+   front, which is negative): the building on its plinth, the woodpile at
+   one end and the terrace. Boxes, not the circles every prop is, because
+   a hut can stand three metres off the groomed edge and circles large
+   enough to fill its walls bulge a metre past them, an invisible wall
+   right where a rider carves by. One contact for all three, so a hut is
+   one hit however many of them a line crosses. The building stands to its
+   chimney; the woodpile and the terrace rail can be cleared. The cocoa
+   radius is far outside all of it, so the stop is untouched. The boxes are
+   the modelled hut's: the building out to the log ends crossing at its
+   corners, the woodpile on its own footing and the terrace out to the
+   lantern on its rail. */
+const HUT_BOXES = [
+  { x: 0, z: 0, hw: 3.0, hd: 2.6, kind: HARD, top: CHIMNEY.y },
+  { x: -3.215, z: 0.5, hw: 0.35, hd: 1.2, kind: JUMPABLE, top: 1.3 },
+  { x: 0, z: -3.35, hw: 2.75, hd: 1.15, kind: JUMPABLE, top: 1.5 },
+];
 
 export function onHutGround(x, z) {
   const b = Math.floor(-z / HUTS.period);
@@ -751,6 +888,22 @@ export function createHuts(THREE, shading) {
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
     (t) => { stoneTex.value = t; });
 
+  /* The hut's one material, for both huts.
+
+     The modelled hut says what each surface is — `aHutKind`, from its
+     role, see `HUT_LOOKS` — and lays the photographs on with its own UVs:
+     a log along its length on a single plank, a board along its grain, the
+     door's boards in a herringbone, stone in metres along the wall. Its
+     rubble storey is drawn here as well, as courses of stones of their own
+     lengths and tones, each set a little high or low in its bed, with lime
+     mortar between them and the slate photograph in each stone; and the
+     woodpile's face as sawn ends stacked in staggered rows, bark round
+     each and dark in the gaps. That is a few dozen lines of shader where
+     modelling either would be thousands of triangles.
+
+     The procedural hut carries kind 0, which means "tell me what you are
+     by your colour" — the branches it was always drawn with, kept exactly
+     as they were below. */
   const hutMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
   hutMat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
@@ -759,21 +912,113 @@ export function createHuts(THREE, shading) {
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
+      attribute vec2 aHutUv;
+      attribute float aHutKind;
       varying vec3 vHutLocalPos;
-      varying vec3 vHutLocalNormal;`)
+      varying vec3 vHutLocalNormal;
+      varying vec2 vHutUv;
+      varying float vHutKind;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
       vHutLocalPos = transformed;
-      vHutLocalNormal = normalize(normal);`);
+      vHutLocalNormal = normalize(normal);
+      vHutUv = aHutUv;
+      vHutKind = aHutKind;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
       varying vec3 vHutLocalPos;
       varying vec3 vHutLocalNormal;
+      varying vec2 vHutUv;
+      varying float vHutKind;
       uniform sampler2D uWoodPlanksTex;
-      uniform sampler2D uStoneTex;`)
+      uniform sampler2D uStoneTex;
+      float n64HutHash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      /* Rubble at p, in metres along the wall: how far into its stone this
+         point is (in metres, 0 on a joint) and the stone's own number.
+
+         Each stone is a cell of a jittered grid — the nearest of nine
+         scattered centres — on a grid squashed to forty by twenty-four
+         centimetres, so the stones come out as irregular polygons lying
+         roughly in courses, wider than they are tall, which is how field
+         stone is laid. The first version laid regular courses of jittered
+         lengths and read, from any distance at all, as a block wall. The
+         distance to the joint is the gap between the nearest centre and
+         the second nearest, which is exact enough for a mortar line. */
+      vec2 n64HutRubble(vec2 p) {
+        vec2 cellSize = vec2(0.40, 0.24);
+        vec2 q = p / cellSize;
+        vec2 ip = floor(q);
+        vec2 fp = q - ip;
+        float d1 = 8.0;
+        float d2 = 8.0;
+        vec2 id = ip;
+        for (int j = -1; j <= 1; j++) {
+          for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j));
+            vec2 o = vec2(n64HutHash(ip + g), n64HutHash(ip + g + 17.3)) * vec2(0.7, 0.45)
+              + vec2(0.15, 0.275);
+            vec2 r = (g + o - fp) * cellSize;
+            float d = dot(r, r);
+            if (d < d1) { d2 = d1; d1 = d; id = ip + g; } else if (d < d2) { d2 = d; }
+          }
+        }
+        return vec2(0.5 * (sqrt(d2) - sqrt(d1)), n64HutHash(id + 5.1));
+      }
+      /* The woodpile's face: sawn ends in staggered rows, each its own
+         size, set and colour, rings in it, bark round it, dark between. */
+      vec3 n64HutLogEnds(vec2 p) {
+        vec2 q = p / 0.15;
+        float row = floor(q.y);
+        q.x += mod(row, 2.0) * 0.5 + n64HutHash(vec2(row, 4.2)) * 0.3;
+        vec2 cell = floor(q);
+        vec2 f = q - cell - 0.5;
+        float h = n64HutHash(cell + 11.0);
+        f += (vec2(n64HutHash(cell + 3.1), n64HutHash(cell + 7.7)) - 0.5) * 0.14;
+        float r = length(f);
+        float R = 0.40 + 0.09 * h;
+        vec3 wood = mix(vec3(0.20, 0.12, 0.06), vec3(0.42, 0.26, 0.12), h);
+        wood *= 0.86 + 0.14 * sin(r * 70.0 + h * 9.0);
+        vec3 c = mix(wood, vec3(0.05, 0.035, 0.025), smoothstep(R - 0.08, R - 0.04, r));
+        return mix(c, vec3(0.010, 0.008, 0.006), smoothstep(R - 0.015, R + 0.02, r));
+      }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+      float hutKind = floor(vHutKind + 0.5);
+      if (hutKind > 0.5) {
+        // snow and ice (1) and plain paint, iron and shadow (6) are left be
+        if (hutKind > 1.5 && hutKind < 3.5) {
+          vec3 slate = texture2D(uStoneTex, vHutUv * 0.45).rgb;
+          if (hutKind < 2.5) {
+            vec2 rub = n64HutRubble(vHutUv);
+            // a joint about two centimetres wide, and each stone's face
+            // falling away into it, so a stone reads as rounded rather than
+            // as a tile
+            float joint = 1.0 - smoothstep(0.006, 0.016, rub.x);
+            float face = smoothstep(0.0, 0.07, rub.x);
+            float pick = fract(rub.y * 7.31);
+            vec3 stone = diffuseColor.rgb * (0.78 + 0.5 * rub.y) * (0.72 + 0.28 * face)
+              * vec3(1.0 + 0.12 * (pick - 0.5), 1.0, 1.0 - 0.10 * (pick - 0.5));
+            stone = mix(stone, stone * slate * 5.9, 0.5);
+            vec3 mortar = diffuseColor.rgb * vec3(1.18, 1.12, 1.02) * (0.8 + 1.0 * slate.r);
+            diffuseColor.rgb = mix(stone, mortar, joint);
+          } else {
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * slate * 5.9, 0.75);
+          }
+        } else if (hutKind > 3.5 && hutKind < 5.5) {
+          vec3 grain = texture2D(uWoodPlanksTex, vHutUv).rgb;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * grain * 5.2,
+            hutKind < 4.5 ? 0.70 : 0.38);
+        } else if (hutKind > 6.5 && hutKind < 7.5) {
+          diffuseColor.rgb *= n64HutLogEnds(vHutUv);
+        } else if (hutKind > 7.5) {
+          float r = length(vHutUv);
+          diffuseColor.rgb *= (0.88 + 0.12 * sin(r * 110.0))
+            * mix(1.08, 0.80, smoothstep(0.02, 0.09, r));
+        }
+      } else {
       float hutLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
       vec3 nAbs = abs(vHutLocalNormal);
-      
+
       // 1. Pristine snow on roof, chimney cap, and woodpile: keep bright and clean
       if (hutLum > 0.70) {
         // Leave snow pure and sparkling with GGX sheen
@@ -809,6 +1054,7 @@ export function createHuts(THREE, shading) {
         vec2 woodUv = nAbs.x > 0.5 ? vHutLocalPos.zy * 0.40 : (nAbs.z > 0.5 ? vHutLocalPos.xy * 0.40 : vHutLocalPos.xz * 0.40);
         vec3 woodSample = texture2D(uWoodPlanksTex, woodUv).rgb;
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.2, 0.70);
+      }
       }`);
   };
 
@@ -846,6 +1092,24 @@ export function createHuts(THREE, shading) {
     mesh.count = 0;
     group.add(mesh);
   }
+
+  /* The modelled hut, swapped in when it arrives. Only the shell's geometry
+     changes: its instances, its material and the panes over its windows
+     stay as they are, and the windows are where the panes already were —
+     the model was built to `HUT_LIGHT` — so this can happen on any frame,
+     including one with three huts in view. If the file never comes, the
+     procedural hut it would have replaced simply stays. */
+  fetch(new URL('../assets/models/huts/mountain-hut.glb', import.meta.url).href)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+    .then(parseGlb)
+    .then((nodes) => {
+      if (!nodes.hut) throw new Error('mountain-hut.glb: no hut');
+      const g = hutModelGeometry(THREE, nodes.hut);
+      const old = shell.geometry;
+      shell.geometry = g;
+      old.dispose();
+    })
+    .catch((err) => console.warn('Alpen: keeping the procedural hut —', err));
 
   // --- smoke ---------------------------------------------------------------
   const smokeGeo = new THREE.BufferGeometry();
@@ -922,22 +1186,7 @@ export function createHuts(THREE, shading) {
      Placement
      ========================================================================== */
 
-  /* THE HUT AS THE RIDER MEETS IT. It had no collider at all: a rider who
-     missed the stop went straight through the walls and out of the back.
-     Three boxes in the hut's own frame (metres, x across, z towards the
-     front, which is negative): the building on its plinth, the woodpile at
-     one end and the terrace. Boxes, not the circles every prop is, because
-     a hut can stand three metres off the groomed edge and circles large
-     enough to fill its walls bulge a metre past them, an invisible wall
-     right where a rider carves by. One contact for all three, so a hut is
-     one hit however many of them a line crosses. The building stands to its
-     chimney; the woodpile and the terrace rail can be cleared. The cocoa
-     radius is far outside all of it, so the stop is untouched. */
-  const HUT_BOXES = [
-    { x: 0, z: 0, hw: 2.75, hd: 2.35, kind: HARD, top: 6.5 },
-    { x: -3.15, z: 0.5, hw: 0.58, hd: 1.1, kind: JUMPABLE, top: 1.25 },
-    { x: 0, z: -3.3, hw: 2.65, hd: 1.1, kind: JUMPABLE, top: 1.5 },
-  ];
+  // (the collision boxes are `HUT_BOXES`, beside the hut's ground above)
   const solids = [];
 
   function writeSolids() {

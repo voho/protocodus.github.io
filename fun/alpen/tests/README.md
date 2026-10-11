@@ -102,6 +102,14 @@ keep each tree's drawn aspect), and that a set file bakes only the named node.
 It checks the ground the props keep off around each hut (`onHutGround`) too:
 every corner of the roof, the woodpile and the terrace is on it, turned the
 way the hut is turned, and the open snow twelve metres to one side is not.
+The modelled hut (`assets/models/huts/mountain-hut.glb`, from
+`tools/blender/hut.py`) is read the way the game reads it: 4–6k triangles,
+every role has a look and a surface kind, the procedural fallback is all
+kind 0; its extras agree with `CHIMNEY`, `TERRACE_DECK`, `PLINTH_DEPTH` and
+`HUT_LIGHT`, the stone reaches the depth the site search assumes, the deck
+is at the deck height, a ray from the room out through every pane meets
+nothing while one beside it meets the wall, and everything below head
+height but the snow lies inside the collision boxes.
 And it checks `weld`, which the prop pools, the forest cards and the animals
 draw through: every corner keeps every attribute bit for bit through the
 index, shared corners really are merged, and a pool still waiting on its
