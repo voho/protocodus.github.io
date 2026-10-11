@@ -131,6 +131,7 @@ const BACKDROP_VERT = `
   attribute vec4 aHorizonA;
   attribute vec4 aHorizonB;
   uniform float uLateral;
+  uniform float uShear;
   uniform vec4 uSunA;
   uniform vec4 uSunB;
 #ifdef SKY_PROBE
@@ -150,6 +151,14 @@ const BACKDROP_VERT = `
        turns a point d away by L/d, which at the radius it is drawn at is
        L·r/d. The near ridges slide across the far ones. */
     p.x -= uLateral * r / d;
+    /* And the near ground follows the run down. The model's own shoulder
+       falls away at a fixed grade, but the run's pitch changes by the
+       chapter; where it is steeper the game's ground drops below the
+       shoulder's foot and the eye looked down past its end into nothing
+       but haze. So the first few kilometres are swung down (or up) about
+       the eye until their foot meets the ground's far edge, easing back to
+       the model's true elevations by the valley floor. */
+    p.y -= r * uShear * (1.0 - smoothstep(${BACKDROP.distance[0].toFixed(1)}, 9000.0, d));
     vReal = position * (d / r);
     vDist = d;
     vDir = p;
@@ -267,21 +276,11 @@ const BACKDROP_FRAG = `
     float through = exp(-vDist * thick / uClarity);
     c = mix(air, c, through);
 
-    /* The air in the valleys. The game's own ground is gone into the haze
-       by a kilometre; the valley it falls into is the same air, so ground
-       well under the eye goes the same way, and the range stands up out of
-       it.
-
-       And the ground just past the game's own, below the eye, goes the
-       whole way. The fogged terrain in front of it is exactly the haze, so
-       anything less here was a step in colour along the line where the two
-       meet — a pale flat "lake" with a grey shore round it, the foot of the
-       shoulder the run is on. Only what stands above the eye stays clear
-       that close. */
-    float valleyVeil = smoothstep(150.0, -950.0, vReal.y) * uValley;
-    float nearVeil = (1.0 - smoothstep(${BACKDROP.distance[0].toFixed(1)}, 7500.0, vDist))
-      * smoothstep(250.0, -250.0, vReal.y);
-    c = mix(c, uHaze, max(valleyVeil, nearVeil));
+    /* The air in the valleys: denser low down, so the valley floors are
+       hazed more than the slopes over them, and the range stands up out of
+       it. (The game's own fogged ground beyond a kilometre takes its colour
+       from this, through the sky probe, so the two meet without a seam.) */
+    c = mix(c, uHaze, smoothstep(150.0, -950.0, vReal.y) * uValley);
 
     // and its foot stands on the curtain the game's ground ends in
     float elevation = vDir.y / length(vDir.xz);
@@ -320,7 +319,8 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
     uGlowStrength: { value: 1 },
     uCurtain: { value: -0.2 },
     uClarity: { value: 26000 },
-    uValley: { value: 0.7 },
+    uValley: { value: 0.5 },
+    uShear: { value: 0 },
     uWhiteout: { value: 0 },
     uNoise: { value: noise },
     uRockDetail: rockDetail,
