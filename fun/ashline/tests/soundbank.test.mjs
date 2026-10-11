@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RATE, RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, VOICE_FAMILIES, VOICE_ROLES, VOICE_CONTEXTS, renderKind, renderVoice, voiceKey, voiceFamily, parseVoiceKey} from '../soundbank.js';
+import {RATE, RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, VOICE_FAMILIES, VOICE_ROLES, VOICE_CONTEXTS, renderKind, renderVoice, renderImpulse, voiceKey, voiceFamily, parseVoiceKey} from '../soundbank.js';
 
 const peak = data => data.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
 const rms = data => Math.sqrt(data.reduce((sum, value) => sum + value * value, 0) / data.length);
@@ -12,10 +12,32 @@ function similarity(a, b) {
 }
 // Zero crossings per second: a coarse brightness measure that separates dark rumbles from bright clicks.
 const crossings = data => { let count = 0; for (let i = 1; i < data.length; i++) if (data[i - 1] < 0 !== data[i] < 0) count++; return count / (data.length / RATE); };
+// RMS frequency (Hz) from the energy of the first difference. It weighs bright partials heavily, so a single
+// bleep in an otherwise dark cue raises it.
+function brightness(data, rate = RATE) {
+  let energy = 0, slope = 0;
+  for (let i = 1; i < data.length; i++) { energy += data[i] * data[i]; slope += (data[i] - data[i - 1]) ** 2; }
+  return rate / Math.PI * Math.asin(Math.min(1, Math.sqrt(slope / (energy || 1)) / 2));
+}
+// Share of loud samples whose neighbours form an exact geometric progression. Sample-and-hold (bit crushing)
+// leaves runs that only the output stage's DC filter changes, so y[i+1]·y[i-1] equals y[i]²; natural audio
+// almost never does.
+function heldShare(data) {
+  const top = peak(data);
+  let held = 0, loud = 0;
+  for (let i = 1; i < data.length - 1; i++) {
+    const y = data[i];
+    if (Math.abs(y) < .05 * top) continue;
+    loud++;
+    if (Math.abs(data[i + 1] * data[i - 1] - y * y) < 1e-5 * y * y) held++;
+  }
+  return held / Math.max(1, loud);
+}
+const INTERFACE = ['select', 'order', 'attackOrder', 'harvestOrder', 'rally', 'error', 'cancel', 'group', 'buildStart', 'buildComplete', 'unitReady', 'delivery', 'sell', 'repair'];
 
 test('every recipe renders finite, audible, normalized and click-free audio', () => {
   assert.deepEqual([...SOUND_KINDS, ...AMBIENT_KINDS].sort(), Object.keys(RECIPES).sort());
-  assert.deepEqual(AMBIENT_KINDS.sort(), ['ambient.industry', 'ambient.lava', 'ambient.wind']);
+  assert.deepEqual(AMBIENT_KINDS.sort(), ['ambient.front', 'ambient.industry', 'ambient.wind']);
   for (const [kind, recipe] of Object.entries(RECIPES)) {
     assert(['ui', 'weapons', 'impacts', 'alerts', 'ambient'].includes(recipe.bus), `${kind} routes to a mixer bus`);
     for (let variant = 0; variant < (recipe.variants || 1); variant++) {
@@ -54,8 +76,37 @@ test('renders are deterministic; variants and races sound different', () => {
   assert(RECIPES['death.building'].duration > RECIPES['death.vehicle'].duration && RECIPES['death.vehicle'].duration > RECIPES['death.infantry'].duration, 'Deaths scale with size');
 });
 
+test('interface cues are muffled console mechanics and stingers low brass and drums, never bright bleeps', () => {
+  for (const kind of INTERFACE) {
+    const hz = brightness(renderKind(kind));
+    assert(hz < 1500, `${kind} stays below a bleep's brightness (${hz.toFixed(0)} Hz)`);
+  }
+  for (const kind of ['select', 'order', 'attackOrder', 'harvestOrder', 'rally', 'error', 'cancel', 'group']) {
+    const hz = brightness(renderKind(kind));
+    assert(hz < 700, `${kind} is a low-mid knock, relay or latch (${hz.toFixed(0)} Hz)`);
+  }
+  for (const kind of [...SOUND_KINDS.filter(kind => kind.startsWith('alert.')), 'victory', 'defeat']) {
+    const hz = brightness(renderKind(kind));
+    assert(hz < 900, `${kind} is dark (${hz.toFixed(0)} Hz)`);
+  }
+});
+
+test('the reverb impulse is a dark, decaying, decorrelated stereo space', () => {
+  const rate = 48000, [left, right] = renderImpulse(rate, 2.8);
+  assert.equal(left.length, Math.round(2.8 * rate));
+  assert.equal(right.length, left.length);
+  assert(left.every(Number.isFinite) && right.every(Number.isFinite));
+  assert.deepEqual(renderImpulse(rate, 2.8)[1], right, 'The impulse renders identically every time');
+  const energy = (data, from, to) => { let sum = 0; for (let i = Math.round(from * rate); i < Math.round(to * rate); i++) sum += data[i] * data[i]; return sum; };
+  assert.equal(energy(left, 0, .008), 0, 'Nothing arrives before the first reflection');
+  assert(energy(left, 2.3, 2.8) < energy(left, .1, .6) * 1e-3, 'The tail decays by more than 30 dB');
+  assert(Math.abs(similarity(left, right)) < .1, 'The channels are decorrelated');
+  const early = brightness(left.subarray(0, .4 * rate), rate), late = brightness(left.subarray(1.2 * rate, 2 * rate), rate);
+  assert(early < 2500 && late < early * .7, `The space is dark and its highs die first (${early.toFixed(0)} Hz, then ${late.toFixed(0)} Hz)`);
+});
+
 test('every gameplay cue has a recipe', () => {
-  for (const kind of ['select', 'order', 'attackOrder', 'harvestOrder', 'rally', 'error', 'cancel', 'group', 'buildStart', 'buildComplete', 'unitReady', 'delivery', 'sell', 'repair', 'victory', 'defeat'])
+  for (const kind of [...INTERFACE, 'victory', 'defeat'])
     assert(RECIPES[kind], `${kind} interface cue`);
   for (const kind of ['underAttack', 'unitLost', 'structureLost', 'research', 'upgrade', 'promotion', 'powerDown', 'powerUp', 'reserve', 'objective', 'objectiveNew', 'objectiveFailed', 'wave', 'enemySpotted', 'warning', 'explored'])
     assert.equal(RECIPES[`alert.${kind}`]?.category, 'alert', `${kind} stinger`);
@@ -86,6 +137,15 @@ test('unit voices cover every family, role and context with bounded wordless lin
   assert.deepEqual(renderVoice('voice.unity.scout.move', 2), renderVoice('voice.unity.scout.move', 2));
   assert(Math.abs(similarity(renderVoice('voice.human.rifle.move', 0), renderVoice('voice.unity.rifle.move', 0))) < .5, 'Crews and machines speak differently');
   assert(crossings(renderVoice('voice.vael.rocket.select', 0)) < crossings(renderVoice('voice.human.scout.select', 0)), 'The Vael register sits below a human crew');
+});
+
+test('Unity machines speak in a low ring-modulated monotone, never bit-crushed chirps', () => {
+  for (const role of VOICE_ROLES) for (const context of VOICE_CONTEXTS) {
+    const data = renderVoice(voiceKey('unity', role, context), 1);
+    assert(heldShare(data) < .02, `Unity ${role} ${context} is not bit-crushed (${heldShare(data).toFixed(3)})`);
+    assert(brightness(data) < 1000, `Unity ${role} ${context} is a low machine voice (${brightness(data).toFixed(0)} Hz)`);
+  }
+  for (const key of ['voice.human.rifle.select', 'voice.vael.rocket.transmission']) assert(heldShare(renderVoice(key, 0)) < .02, `${key} is not bit-crushed`);
 });
 
 test('the full bank renders within a background budget', () => {
