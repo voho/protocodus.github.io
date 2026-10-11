@@ -9,7 +9,8 @@ import {encodeGame,decodeGame} from '../save.js';
 const snapshot=s=>JSON.parse(encodeGame(s)).game;
 const PLANS=['waves','harass','intel','shelled'];
 const duels=[
-  {seed:'DUEL-SWARM-1',races:['organics','aiUnity'],doctrines:['swarm','ironclad']},
+  // A sector whose Swarm commander raids the haulers early, so the hauler-raid plan is saved and resumed too.
+  {seed:'DUEL-SWARM-5',races:['organics','aiUnity'],doctrines:['swarm','ironclad']},
   {seed:'DUEL-PROSPECT-SIEGE',races:['aiUnity','organics'],doctrines:['prospector','siegebreaker']},
   {seed:'DUEL-RANDOM',races:['aiUnity','aiUnity'],doctrines:['random','balanced']},
   // Balanced's waves meet Siegebreaker's remembered towers and fall back from them (a regroup point once went NaN).

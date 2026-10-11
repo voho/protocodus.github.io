@@ -60,7 +60,7 @@ for(const race of ['organics','aiUnity']){
   for(const [px,py] of [[NaN,y],[x+.5,y],[-1,y],[s.width-1,y],[x+10,y]])reject(0,vehicle.id,px,py,'Grid, map bounds and deployment reach are enforced');
   const cell=y*s.width+x;
   s.explored[0][cell]=0;reject(0,vehicle.id,x,y,'Unexplored footprint is rejected');s.explored[0][cell]=1;
-  for(const terrain of [1,3,4,5]){s.terrain[cell]=terrain;s.navVersion++;reject(0,vehicle.id,x,y,'Rocks, lava, roots and craters cannot support a nexus');s.terrain[cell]=0;s.navVersion++;}
+  for(const terrain of [1,4,5]){s.terrain[cell]=terrain;s.navVersion++;reject(0,vehicle.id,x,y,'Rocks, roots and craters cannot support a nexus');s.terrain[cell]=0;s.navVersion++;}
   s.minerals[cell]=100;reject(0,vehicle.id,x,y,'Mineral deposits block construction');s.minerals[cell]=0;
   const blocker=addUnit(s,0,'rifle',x+.5,y+.5);reject(0,vehicle.id,x,y,'Another unit cannot be consumed or trapped by unfolding');s.entities=s.entities.filter(e=>e!==blocker);
   s.status='victory';reject(0,vehicle.id,x,y,'Deployment cannot alter a finished operation');s.status='playing';

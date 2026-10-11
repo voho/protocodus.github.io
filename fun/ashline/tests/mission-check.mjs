@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {lanePoint} from '../terrain.js';
 import {UNITS,MAP_SIZES,createGame,updateGame,canPlace,placeBuilding,trainUnit,researchStatus,buildingUpgradeStatus,issueOrder,getEntity,addEntity,sellBuilding,mapLayout,entityRole} from '../sim.js';
 import {MISSIONS,SKIRMISH_MODES} from '../campaign.js';
 import {MISSION_INTERVAL,missionOutcome,missionAllows,missionDirective} from '../mission.js';
@@ -47,8 +48,8 @@ const s=createGame('drill-check','normal',DRILL);
   assert.equal(s.entities.filter(e=>e.tag==='depot').map(e=>e.type).join(),'refinery');
   assert.equal(s.mission.counters['trained:harvester'],undefined,'Opening haulers are not training');
   assert.equal(s.events.at(-1).kind,'opening');assert.equal(s.events.at(-1).text,MISSIONS.drill.opening);
-  const {start,end}=mapLayout(s),muster=s.mission.zones.find(z=>z.id==='muster');
-  assert(Math.abs(muster.x-(start.x+(end.x-start.x)*.22))<1e-9,'Lane points follow the base anchors');
+  const muster=s.mission.zones.find(z=>z.id==='muster'),lane=lanePoint(s,.22);
+  assert(Math.hypot(muster.x-lane.x,muster.y-lane.y)<1e-9,'Lane points follow the centre lane');
   // The player is limited to the operation's roster; the rival and skirmish rules are not.
   const core=own(s,0,'core')[0];
   assert.equal(canPlace(s,0,'factory',core.x+5,core.y).reason,'Not authorized for this operation');
@@ -112,7 +113,11 @@ const midwave=decodeGame(encodeGame(s)).game;
 // Losing the nexus ends the operation in the same tick through the damage path.
 {
   const d=createGame('drill-defeat','normal',DRILL),core=own(d,0,'core')[0];
-  const tank=addEntity(d,1,'unit','unityTank',core.x+4.5,core.y+1.5);tank.cooldown=0;core.hp=1;
+  // Open ground beside the nexus, on a side where nothing else of the player's stands nearer, whichever way the base faces.
+  const centre=e=>e.kind==='building'?{x:e.x+e.size/2,y:e.y+e.size/2}:e,others=d.entities.filter(e=>e.team===0&&e!==core).map(centre);
+  const side=Array.from({length:8},(_,k)=>({x:core.x+1.5+Math.cos(k*Math.PI/4)*3.2,y:core.y+1.5+Math.sin(k*Math.PI/4)*3.2}))
+    .find(p=>!d.blocked[Math.floor(p.y)*d.width+Math.floor(p.x)]&&others.every(o=>Math.hypot(o.x-p.x,o.y-p.y)>Math.hypot(core.x+1.5-p.x,core.y+1.5-p.y)+1));
+  const tank=addEntity(d,1,'unit','unityTank',side.x,side.y);tank.cooldown=0;core.hp=1;
   for(let i=0;i<40&&d.status==='playing';i++)updateGame(d,.05);
   assert.equal(d.status,'defeat');assert(!getEntity(d,core.id));
   assert.equal(d.events.at(-1).kind,'defeat');assert.equal(d.events.at(-1).text,'All nexuses and construction vehicles lost. Operation failed.');

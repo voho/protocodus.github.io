@@ -11,7 +11,7 @@
 // such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally. A delivery
 // quota revealed during the operation keeps 'from:<objective>', the deliveries made before it appeared.
 import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,confirmedKills,seen as seenBy} from './sim.js';
-import {mapLayout,hash} from './terrain.js';
+import {mapLayout,lanePoint,frameOffset,hash} from './terrain.js';
 import {MISSIONS} from './campaign.js';
 
 export const MISSION_INTERVAL=.25;
@@ -26,9 +26,9 @@ const CONDITIONS=['time','every','limit','until','after','objectiveDone','object
 const ACTIONS=['say','spawn','reveal','credits','directive','rally'];
 const MAX_RADIUS=48,MAX_VETERANS=12;
 export const WAVE_SCALE={easy:.7,normal:1,hard:1.3};
-// A point along the line from the player's base anchor (0) to the rival's (1). The straight line follows the
-// lane on the classic profiles that every campaign operation using lane points plays; the skirmish modes use
-// none. An operation set on a curved-lane profile (terrain.js mapRoutes) would need the route sampled instead.
+// A point along the line of advance from the player's base (0) to the rival's (1): the centre lane, measured along
+// its length (terrain.js lanePoint). Offsets ({at, dx, dy}) are authored in the original frame, where the advance runs
+// east-north-east, and turn with the sector (terrain.js frameOffset), so a scripted layout keeps its shape.
 const LANE=/^lane:(0(?:\.\d+)?|1(?:\.0+)?)$/;
 
 export function missionDefinition(id){
@@ -149,7 +149,7 @@ function checkDefinition(def){
 const clampPoint=(s,x,y)=>({x:clamp(x,.5,s.width-.5),y:clamp(y,.5,s.height-.5)});
 function resolvePoint(s,spec,team=RIVAL){
   if(spec&&typeof spec==='object'){
-    if(spec.at!==undefined){const p=resolvePoint(s,spec.at,team);return clampPoint(s,p.x+(spec.dx||0),p.y+(spec.dy||0));}
+    if(spec.at!==undefined){const p=resolvePoint(s,spec.at,team),d=frameOffset(s,spec.dx||0,spec.dy||0);return clampPoint(s,p.x+d.x,p.y+d.y);}
     if(Number.isFinite(spec.x)&&Number.isFinite(spec.y))return clampPoint(s,spec.x,spec.y);
   }
   if(typeof spec==='string'){
@@ -161,7 +161,7 @@ function resolvePoint(s,spec,team=RIVAL){
       return clampPoint(s,side===0?0:side===1?s.width:p.x,side===2?0:side===3?s.height:p.y);
     }
     const lane=LANE.exec(spec);
-    if(lane){const t=Number(lane[1]);return{x:start.x+(end.x-start.x)*t,y:start.y+(end.y-start.y)*t};}
+    if(lane)return lanePoint(s,Number(lane[1]));
     const zone=s.mission?.zones.find(z=>z.id===spec);if(zone)return{x:zone.x,y:zone.y};
   }
   throw new RangeError(`Unknown mission point ${JSON.stringify(spec)}`);
@@ -200,11 +200,11 @@ function openGround(s,p,count){
     taken.push({x:x+.5,y:y+.5});return true;
   },count).map(t=>({x:t.x+.5,y:t.y+.5}));
 }
-// Clear construction ground for a scripted structure: no rock, roots, lava, crater, shards or bodies.
+// Clear construction ground for a scripted structure: no rock, roots, crater, shards or bodies.
 function buildingSite(s,size,p,wall){
   rebuildNavigation(s);
   const W=s.width,H=s.height,origin={x:p.x-size/2+.5,y:p.y-size/2+.5};
-  const solid=i=>[1,3,4].includes(s.terrain[i]);
+  const solid=i=>s.terrain[i]===1||s.terrain[i]===4;
   return nearestTiles(s,origin,30,(x,y)=>{
     if(x<1||y<1||x+size>=W||y+size>=H)return false;
     for(let yy=y;yy<y+size;yy++)for(let xx=x;xx<x+size;xx++){const i=yy*W+xx;if(s.blocked[i]||s.terrain[i]===5||s.minerals[i]>0)return false;}

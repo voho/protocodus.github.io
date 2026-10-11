@@ -1,18 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createGame,MAP_WIDTH,MAP_HEIGHT,MAP_SIZES,MAP_PROFILES,mapLayout,buildingRole} from '../sim.js';
-import {PROFILE_RELIEF,generateMap,mapRoutes,mapReport} from '../terrain.js';
+import {createGame,MAP_WIDTH,MAP_HEIGHT,MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout,buildingRole} from '../sim.js';
+import {PROFILE_RELIEF,generateMap,mapRoutes,mapReport,basePoint,lanePoint} from '../terrain.js';
 import {encodeGame,decodeGame} from '../save.js';
 
 const open=type=>type===0||type===2||type===5;
-const curved=Object.keys(MAP_PROFILES).filter(profile=>PROFILE_RELIEF[profile].lanes);
-const classic=Object.keys(MAP_PROFILES).filter(profile=>!PROFILE_RELIEF[profile].lanes);
+const profiles=Object.keys(MAP_PROFILES);
+// Profiles whose saves from before stored layouts kept three sinusoid routes.
+const classic=profiles.filter(profile=>PROFILE_RELIEF[profile].classic);
 const sizes=Object.entries(MAP_SIZES);
 function verifyMap(s){
   const n=s.width*s.height;
   assert.equal(s.terrain.length,n);
   assert.equal(s.minerals.length,n);
   assert.equal(s.mineralTypes.length,n);
+  assert.ok(s.terrain.every(type=>type!==3),'no lava anywhere');
+  const nexus=s.entities.find(e=>e.team===0&&buildingRole(e)==='core'),{start}=mapLayout(s);
+  assert.deepEqual([nexus.x+1.5,nexus.y+1.5],[start.x-.5,start.y-.5],'the home nexus stands on its layout anchor');
   const scout=s.entities.find(e=>e.team===0&&e.type==='scout');
   const main=s.regions[Math.floor(scout.y)*s.width+Math.floor(scout.x)];
   assert.ok(main,'starting scout has reachable ground');
@@ -51,9 +55,10 @@ function verifyMap(s){
   }
 }
 
-test('new operations default to the larger frontier and validate map options',()=>{
+test('new operations default to the larger expanse and validate map options',()=>{
   const s=createGame('DEFAULT');
-  assert.equal(s.width,192);assert.equal(s.height,144);
+  assert.equal(DEFAULT_MAP_SIZE,'expanse');
+  assert.equal(s.width,256);assert.equal(s.height,192);
   assert.equal(s.width,MAP_WIDTH);assert.equal(s.height,MAP_HEIGHT);
   assert.equal(s.mapProfile,'rift');
   assert.equal(Object.keys(MAP_PROFILES)[0],'rift','the volcanic rift stays the first and default profile');
@@ -63,6 +68,7 @@ test('new operations default to the larger frontier and validate map options',()
     assert.ok(Object.hasOwn(PROFILE_RELIEF,id),`${id} has generator rules`);
     assert.ok(profile.name.length>4&&profile.name.length<=24&&/^[A-Z][a-z]+ [a-z]+$/.test(profile.name),`${id} has a short normal-case name`);
     assert.ok(profile.description.length<=90&&/\.$/.test(profile.description)&&!profile.description.includes('!'),`${id} has terse briefing copy`);
+    assert.doesNotMatch(profile.description,/lava|molten/i,`${id} describes no lava`);
   }
 });
 
@@ -87,8 +93,9 @@ test('profiles change terrain structure and preserve the same starting resource 
   const count=(s,type)=>s.terrain.filter(t=>t===type).length;
   assert.ok(count(basin,2)>count(rift,2)*1.5,'basin has substantially more basalt');
   assert.ok(count(highlands,1)>count(basin,1)*1.25,'highlands has substantially more raised rock');
-  assert.ok(count(rift,3)>count(basin,3),'rift has more lava');
-  assert.ok(count(maps.ember,3)>count(basin,3)*2,'ember channels carry far more lava than the basin');
+  assert.ok(count(rift,1)>count(basin,1),'basalt dikes raise more rock in the rift than in the basin');
+  assert.ok(Object.values(maps).every(s=>!s.terrain.includes(3)),'no profile carries lava');
+  assert.ok(maps.ember.sites.filter(site=>site.kind==='ford').length===6,'a scarp crosses each half, cut once per lane');
   assert.ok(count(maps.steppe,5)>count(rift,5)*2,'the impact steppe is cratered');
   assert.ok(count(maps.steppe,1)<count(highlands,1)*.7,'the impact steppe is open ground');
   assert.ok(count(maps.deadwood,4)>count(rift,4)*1.5,'deadwood barrens are wooded');
@@ -100,15 +107,19 @@ test('profiles change terrain structure and preserve the same starting resource 
 test('original compact dimensions remain available for compatibility',()=>{
   const s=createGame('LEGACY','normal',{width:72,height:56});
   assert.equal(s.terrain.length,4032);
-  assert.deepEqual(mapLayout(s),{start:{x:12,y:37},end:{x:59,y:12},bend:10});
+  assert.deepEqual(mapLayout(s),{start:{x:12,y:37},end:{x:59,y:12},bend:10,frame:[1,0,0,1]});
+  assert.equal(s.layout,undefined,'compact maps keep their fixed anchors');
   assert.ok(s.entities.every(e=>e.x>=0&&e.y>=0&&e.x<s.width&&e.y<s.height));
   // Unmirrored compact anchors keep the sinusoid routes on every profile.
   for(const profile of ['rift','ember'])assert.equal(mapRoutes(createGame('LEGACY','normal',{width:72,height:56,profile}))[1].points[60].y,24.5);
 });
 
-test('classic profiles report exactly their original sinusoid routes',()=>{
-  for(const profile of classic)for(const [,dimensions] of sizes){
-    const s=createGame('ROUTES','normal',{...dimensions,profile}),{start,end,bend}=mapLayout(s),rules=PROFILE_RELIEF[profile];
+test('older saves of the classic profiles report exactly their original sinusoid routes',()=>{
+  for(const profile of classic)for(const [size,dimensions] of sizes.slice(0,3)){
+    // A save from before stored layouts: no layout field, so the original anchors and routes apply.
+    const {layout,...s}=createGame('ROUTES','normal',{...dimensions,profile}),{start,end,bend}=mapLayout(s),rules=PROFILE_RELIEF[profile];
+    assert.ok(layout,`${size} ${profile}: new sectors store a layout`);
+    assert.deepEqual(start,{x:Math.round(s.width/6),y:Math.round(s.height*.72)});
     assert.equal(bend,rules.bend*Math.min(s.width/72,s.height/56));
     for(const [index,route] of mapRoutes(s).entries()){
       const sign=index-1;
@@ -119,7 +130,7 @@ test('classic profiles report exactly their original sinusoid routes',()=>{
 });
 
 test('curved lanes are point-symmetric, start at both nexus centres, and are fixed by the seed',()=>{
-  for(const profile of curved)for(const [,dimensions] of sizes)for(const seed of ['LANES-1','LANES-2']){
+  for(const profile of profiles)for(const [,dimensions] of sizes)for(const seed of ['LANES-1','LANES-2']){
     const s=createGame(seed,'normal',{...dimensions,profile}),routes=mapRoutes(s),[left,centre,right]=routes,W=s.width,H=s.height;
     const nexus=[0,1].map(team=>s.entities.find(e=>e.team===team&&buildingRole(e)==='core')).map(e=>({x:e.x+e.size/2,y:e.y+e.size/2}));
     for(const route of routes){
@@ -135,7 +146,7 @@ test('curved lanes are point-symmetric, start at both nexus centres, and are fix
     // The flanks run well clear of the centre lane through the middle of the sector.
     for(let j=30;j<=90;j++)assert.ok(Math.hypot(left.points[j].x-centre.points[j].x,left.points[j].y-centre.points[j].y)>8,'lanes stay separate');
     const again=createGame(seed,'hard',{...dimensions,profile});
-    assert.deepEqual(mapRoutes(again),routes,'the lane plan depends only on the seed, profile and size');
+    assert.deepEqual(mapRoutes(again),routes,'the lane plan depends only on the seed, profile, size and layout');
     assert.deepEqual(mapRoutes({...again,terrain:null}),routes,'saved operations recover the same routes without their grids');
   }
 });
@@ -149,7 +160,7 @@ function gateWidth(s,route,j){
 }
 test('pinched lanes cut gates exactly their width through real obstacles',()=>{
   const seen={pass:0,ford:0,gate:0};
-  for(const profile of curved)for(const [size,dimensions] of sizes.slice(0,2))for(const seed of ['CHOKE-1','CHOKE-2','CHOKE-3']){
+  for(const profile of profiles)for(const [size,dimensions] of sizes.slice(0,2))for(const seed of ['CHOKE-1','CHOKE-2','CHOKE-3']){
     const s=createGame(seed,'normal',{...dimensions,profile}),routes=mapRoutes(s);
     for(const site of s.sites.filter(site=>['pass','ford','gate'].includes(site.kind))){
       seen[site.kind]++;
@@ -161,9 +172,9 @@ test('pinched lanes cut gates exactly their width through real obstacles',()=>{
       assert.ok(Math.min(...widths)>=2*r-1.2,`${site.id} keeps the lane's own width (${widths}) for radius ${r}`);
       assert.ok(Math.min(...widths)<=2*r+2.6,`${profile} ${size} ${seed}: ${site.id} is a real chokepoint, ${Math.min(...widths)} tiles wide for radius ${r}`);
       if(site.kind==='ford'){
-        let lava=0,basalt=0;
-        for(let y=Math.floor(site.y)-10;y<=site.y+10;y++)for(let x=Math.floor(site.x)-10;x<=site.x+10;x++)if(x>=0&&y>=0&&x<s.width&&y<s.height){const t=s.terrain[y*s.width+x];if(t===3)lava++;if(t===2&&Math.hypot(x+.5-site.x,y+.5-site.y)<4)basalt++;}
-        assert.ok(lava>=12,`${site.id} crosses a lava channel`);assert.ok(basalt>=4,`${site.id} is a basalt ford at least two tiles wide`);
+        let rock=0,basalt=0;
+        for(let y=Math.floor(site.y)-10;y<=site.y+10;y++)for(let x=Math.floor(site.x)-10;x<=site.x+10;x++)if(x>=0&&y>=0&&x<s.width&&y<s.height){const t=s.terrain[y*s.width+x];if(t===1)rock++;if(t===2&&Math.hypot(x+.5-site.x,y+.5-site.y)<4)basalt++;}
+        assert.ok(rock>=24,`${site.id} cuts through a rock scarp`);assert.ok(basalt>=4,`${site.id} is a basalt cut at least two tiles wide`);
       }
     }
   }
@@ -194,7 +205,7 @@ const SITE_KINDS=['centre','crown','natural','third','contested','outpost','pass
 test('strategic sites are named, valid, mirrored, deterministic and survive saving',()=>{
   for(const profile of Object.keys(MAP_PROFILES))for(const [size,dimensions] of sizes)for(const seed of ['SITES-1','SITES-2']){
     const s=createGame(seed,'normal',{...dimensions,profile}),W=s.width,H=s.height,label=`${profile} ${size} ${seed}`;
-    assert.ok(Array.isArray(s.sites)&&s.sites.length>=8&&s.sites.length<=64,`${label}: a bounded site list`);
+    assert.ok(Array.isArray(s.sites)&&s.sites.length>=8&&s.sites.length<=128,`${label}: a bounded site list`);
     assert.equal(new Set(s.sites.map(site=>site.id)).size,s.sites.length,'unique ids');
     assert.equal(new Set(s.sites.map(site=>site.name)).size,s.sites.length,'unique names');
     for(const site of s.sites){
@@ -212,15 +223,15 @@ test('strategic sites are named, valid, mirrored, deterministic and survive savi
     }
     assert.equal(s.sites.filter(site=>site.kind==='natural').length,2,`${label}: one natural expansion per side`);
     assert.ok(s.sites.some(site=>site.kind==='centre'||site.kind==='crown'),'the map centre is named');
-    if(PROFILE_RELIEF[profile].lanes)assert.ok(s.sites.some(site=>site.kind==='contested'),'curved sectors always offer a contested deposit');
+    assert.ok(s.sites.some(site=>site.kind==='contested'||site.kind==='crown'),'every sector offers a contested deposit');
     assert.deepEqual(createGame(seed,'hard',{...dimensions,profile}).sites,s.sites,'sites are deterministic');
     assert.equal(s.rng,createGame(seed,'normal',{width:72,height:56}).rng,'site names never draw from the simulation stream');
     if(seed==='SITES-1'&&size==='standard')assert.deepEqual(decodeGame(encodeGame(s)).game.sites,s.sites,'sites survive a save');
   }
 });
 
-test('the fairness report holds every curved sector to its bounds',()=>{
-  for(const profile of curved)for(const [size,dimensions] of sizes)for(const seed of ['FAIR-1','FAIR-2','FAIR-3','FAIR-4']){
+test('the fairness report holds every sector to its bounds',()=>{
+  for(const profile of profiles)for(const [size,dimensions] of sizes)for(const seed of ['FAIR-1','FAIR-2','FAIR-3','FAIR-4']){
     const s=createGame(seed,'normal',{...dimensions,profile}),r=mapReport(s),label=`${profile} ${size} ${seed}`;
     assert.deepEqual(r.issues,[],`${label}: no degenerate layout`);
     assert.equal(r.lanes,3,`${label}: three open lanes`);
@@ -233,21 +244,17 @@ test('the fairness report holds every curved sector to its bounds',()=>{
     assert.ok(r.fields.every(f=>f.nexus),`${label}: every expansion has an AI-legal nexus site`);
     for(const f of r.fields)if(f.side!==undefined)assert.equal(f.side===0,f.margin>=0,`${f.id} belongs to the nearer base`);
   }
-  for(const profile of classic){
-    const r=mapReport(createGame('FAIR-1','normal',{profile}));
-    assert.equal(r.lanes,3);assert.ok(r.minCorridor>=5);assert.equal(r.fields.filter(f=>f.kind==='natural').length,2);
-  }
 });
 
-test('degenerate curved sectors re-roll deterministically under a salted seed',()=>{
-  const blank=(seed,profile)=>{const {width,height}=MAP_SIZES.standard,N=width*height;return{width,height,seed,mapProfile:profile,terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N)};};
-  // This seed's first deadwood layout leaves no truly contested deposit once groves grow, so its second attempt is kept.
-  const a=blank('REROLL-55','deadwood'),b=blank('REROLL-55','deadwood');
+test('degenerate sectors re-roll deterministically under a salted seed',()=>{
+  const blank=(seed,profile,{width,height}=MAP_SIZES.standard)=>{const N=width*height;return{width,height,seed,mapProfile:profile,terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N)};};
+  // This seed's first rift attempt fails the fairness report, so its second attempt is kept.
+  const a=blank('REROLL-14','rift'),b=blank('REROLL-14','rift');
   assert.equal(generateMap(a),2);assert.equal(generateMap(b),2);
-  assert.deepEqual(a.terrain,b.terrain);assert.deepEqual(a.minerals,b.minerals);assert.deepEqual(a.sites,b.sites);
+  assert.deepEqual(a.terrain,b.terrain);assert.deepEqual(a.minerals,b.minerals);assert.deepEqual(a.sites,b.sites);assert.deepEqual(a.layout,b.layout);
   assert.deepEqual(mapReport(a).issues,[]);
-  assert.equal(generateMap(blank('ASH-001','rift')),1,'classic profiles never re-roll');
-  assert.deepEqual(mapRoutes(a),mapRoutes(createGame('REROLL-55','normal',{...MAP_SIZES.standard,profile:'deadwood'})),'routes ignore the attempt');
+  assert.equal(generateMap(blank('ASH-001','rift',{width:72,height:56})),1,'compact maps never re-roll');
+  assert.deepEqual(mapRoutes(a),mapRoutes(createGame('REROLL-14','normal',{...MAP_SIZES.standard,profile:'rift'})),'routes ignore the attempt');
   // The report flags what a re-roll repairs.
   const blocked=createGame('FAIR-1','normal',{...MAP_SIZES.standard,profile:'ember'}),centre=mapRoutes(blocked)[1].points[60];
   for(let y=Math.floor(centre.y)-6;y<=centre.y+6;y++)for(let x=Math.floor(centre.x)-6;x<=centre.x+6;x++){blocked.terrain[y*blocked.width+x]=1;blocked.terrain[blocked.terrain.length-1-(y*blocked.width+x)]=1;}
@@ -262,7 +269,56 @@ test('terrain generation is pure: it writes only the map grids and sites and nev
     const s={width,height,seed:'PURE',mapProfile:profile,rng:12345,terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N)};
     generateMap(s);
     assert.equal(s.rng,12345);
-    assert.deepEqual(Object.keys(s).sort(),['height','mapProfile','mineralTypes','minerals','rng','seed','sites','terrain','width']);
+    assert.deepEqual(Object.keys(s).sort(),['height','layout','mapProfile','mineralTypes','minerals','rng','seed','sites','terrain','width']);
     assert.deepEqual(s.terrain,createGame('PURE','normal',{width,height,profile}).terrain,'a created game keeps the generated terrain');
   }
+});
+
+test('new sectors draw their base positions from the seed: any bearing, a fair distance, room around the base',()=>{
+  for(const [size,dimensions] of sizes){
+    const {width:W,height:H}=dimensions,diagonal=Math.hypot(W,H),octants=new Set(),frames=new Set();
+    for(let i=0;i<48;i++){
+      const s={...dimensions,seed:`BEARING-${i}`,mapProfile:'basin'},N=W*H;
+      Object.assign(s,{terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N)});
+      generateMap(s);
+      const {start,end,frame}=mapLayout(s),x=start.x-.5-W/2,y=start.y-.5-H/2;
+      assert.deepEqual(end,{x:W+1-start.x,y:H+1-start.y},'the rival anchor mirrors the home anchor');
+      assert.ok(Math.min(start.x-.5,W-start.x+.5,start.y-.5,H-start.y+.5)>=16,`${size}: the nexus keeps 16 tiles from every edge`);
+      const apart=2*Math.hypot(x,y)/diagonal;
+      assert.ok(apart>=.49&&apart<=.67,`${size}: bases stand ${apart.toFixed(2)} of the diagonal apart`);
+      octants.add(Math.floor(((Math.atan2(y,x)+2*Math.PI)%(2*Math.PI))/(Math.PI/4)));frames.add(frame.join());
+    }
+    assert.ok(octants.size>=(size==='standard'?6:8),`${size}: bases face many bearings (${[...octants]})`);
+    assert.ok(frames.size>=6,`${size}: the base layout turns and mirrors with the sector`);
+  }
+});
+
+test('the opening deployment and starter fields turn with the layout and mirror for the rival',()=>{
+  for(const seed of ['TURN-1','TURN-2','TURN-3','TURN-4']){
+    const s=createGame(seed,'normal',{...MAP_SIZES.frontier,profile:'steppe'}),W=s.width,H=s.height;
+    const expected=[['core',0,0],['reactor',-4.5,-.5],['refinery',5,3]];
+    for(const [role,dx,dy] of expected)for(const team of [0,1]){
+      const e=s.entities.find(e=>e.team===team&&buildingRole(e)===role),p=basePoint(s,team,dx,dy);
+      assert.deepEqual([e.x+e.size/2,e.y+e.size/2],[p.x,p.y],`${seed}: team ${team} ${role} sits at its turned offset`);
+    }
+    for(const [dx,dy] of [[8.5,1.5],[.5,9.5]]){const p=basePoint(s,0,dx,dy);assert.ok(s.minerals[p.y*W+p.x]>0&&s.mineralTypes[p.y*W+p.x]===1,`${seed}: a mint starter field lies at its turned offset`);}
+    const rival=basePoint(s,1,8.5,1.5),home=basePoint(s,0,8.5,1.5);
+    assert.deepEqual([rival.x,rival.y],[W-home.x,H-home.y],'the rival basePoint is the point mirror');
+  }
+});
+
+test('lane points run along the centre lane on new sectors and the straight anchor line on older saves',()=>{
+  const s=createGame('LANE-POINTS','normal',{...MAP_SIZES.vast,profile:'deadwood'}),centre=mapRoutes(s)[1].points,W=s.width,H=s.height;
+  const near=(a,b,d=1e-6)=>Math.hypot(a.x-b.x,a.y-b.y)<d;
+  assert.ok(near(lanePoint(s,0),centre[0])&&near(lanePoint(s,1),centre[120]),'the ends are the two nexus centres');
+  assert.ok(near(lanePoint(s,.5),{x:W/2,y:H/2},.05),'the midpoint is the map centre');
+  for(const t of [.1,.3,.7,.9]){const p=lanePoint(s,t);assert.ok(open(s.terrain[Math.floor(p.y)*W+Math.floor(p.x)]),`lane:${t} stands on open ground`);}
+  const {layout,...old}=s,{start,end}=mapLayout(old);
+  assert.deepEqual(lanePoint(old,.25),{x:start.x+(end.x-start.x)*.25,y:start.y+(end.y-start.y)*.25});
+});
+
+test('one profile varies between seeds while every profile of one seed varies alike',()=>{
+  const share=(s,type)=>s.terrain.filter(t=>t===type).length/s.terrain.length;
+  const rock=['VARY-1','VARY-2','VARY-3','VARY-4','VARY-5','VARY-6'].map(seed=>share(createGame(seed,'normal',{...MAP_SIZES.standard,profile:'highlands'}),1));
+  assert.ok(Math.max(...rock)/Math.min(...rock)>1.15,`highlands ruggedness varies by seed (${rock.map(v=>v.toFixed(3))})`);
 });

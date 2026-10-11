@@ -681,22 +681,6 @@ export function drawIcon(canvas, type, team = 0, state = {}) {
   else unit(ctx, entity);
 }
 
-function lavaSurface(pool, time) {
-  if (pool.flowTime !== time) {
-    const ctx = pool.surface.getContext('2d');
-    ctx.clearRect(0, 0, pool.width, pool.height);
-    // Advect the cached folds under a stationary shore, rather than flashing their opacity.
-    const x = Math.sin(time * .1 + pool.phase) * 20, y = Math.sin(time * .08 + pool.phase * 1.7) * 14;
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(pool.flow, x - 24, y - 24, pool.width + 48, pool.height + 48);
-    ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(pool.mask, 0, 0);
-    // The rim shades the lowered surface, so the relief stays still as lava flows.
-    ctx.globalCompositeOperation = 'source-atop'; ctx.drawImage(pool.innerShade, 0, 0);
-    ctx.globalCompositeOperation = 'source-over'; pool.flowTime = time;
-  }
-  return pool.surface;
-}
-
 export class Renderer {
   constructor(canvas, minimapCanvas) {
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
@@ -806,15 +790,14 @@ export class Renderer {
   releaseTerrain() {
     // Clearing a canvas releases its backing store immediately, including GPU
     // surfaces; dropping JS references alone can retain them until a later GC.
-    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles, this.heat];
-    for (const pool of this.lavaPools || []) surfaces.push(pool.surface, pool.flow, pool.mask, pool.innerShade);
+    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles];
     surfaces.push(...this.rankBadges.values()); this.rankBadges.clear();
     for (const surface of surfaces) if (surface) surface.width = surface.height = 0;
     this.terrainSource = this.groundImage = null;
-    this.fogTint = this.minimapBase = this.miniTiles = this.heat = null;
+    this.fogTint = this.minimapBase = this.miniTiles = null;
     this.knownOre = this.knownMineralTypes = this.fogNoise = null;
     this.fogVisible = this.fogExplored = null;
-    this.rockProps = []; this.propRows = []; this.lavaPools = [];
+    this.rockProps = []; this.propRows = [];
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
     this.seenEffects = new WeakSet(); this.lastMinimap = -Infinity;
     if (this.vignette) this.vignette.width = this.vignette.height = 0;
@@ -919,11 +902,11 @@ export class Renderer {
     yield { value: .5, label: 'Scattering mineral fields and deadwood' };
     const scatteredTrees = state.terrain.includes(4);
     for (let y = 0; y < state.height; y++) {
-      yield { value: .5 + .18 * y / state.height, label: 'Scattering mineral fields and deadwood' };
+      yield { value: .5 + .5 * y / state.height, label: 'Scattering mineral fields and deadwood' };
       for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x, px = x * TILE, py = y * TILE;
       const n = noise(x, y, seed), type = state.terrain[i];
-      if (type === 3 || type === 5) continue;
+      if (type === 5) continue;
       // Irregular mineral stains remain when a field is exhausted.
       if (state.minerals[i] > 0) {
         const stain = ctx.createRadialGradient(px + 16, py + 18, 2, px + 16, py + 18, 33);
@@ -984,8 +967,6 @@ export class Renderer {
     }
     // The noise bake is only needed for the colours above; release its store now.
     base.width = base.height = 0;
-    yield { value: .68, label: 'Filling the lava basins' };
-    yield* this.lavaSteps(state);
     yield { value: 1, label: 'Battlefield ready' };
   }
 
@@ -1039,8 +1020,6 @@ export class Renderer {
     // A tighter blur keeps single rock tiles on the plate while corners still round.
     const rockMask = tileMask(i => state.terrain[i] === 1, 3);
     const basaltMask = tileMask((i, x, y) => coherentBasalt(state, i, x, y));
-    // One blurred scorch stain around every lava pool; the basalt banks later cover its inner part.
-    if (state.terrain.includes(3)) { const lavaMask = tileMask(i => state.terrain[i] === 3, 2); stamp(lavaMask, '#1d100b', 0, 0, .35, 10); release(lavaMask); }
     stamp(basaltMask, '#7a7d76', 0, -1, .18);
     yield* plate(basaltMask, (x, y, data, at) => {
       const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
@@ -1084,182 +1063,6 @@ export class Renderer {
       data[at] = r + grit; data[at + 1] = g + grit; data[at + 2] = b + grit; data[at + 3] = 255;
     });
     } finally { for (const c of owned) c.width = c.height = 0; }
-  }
-
-  *lavaSteps(state) {
-    this.lavaPools = [];
-    const visited = new Uint8Array(state.terrain.length), ctx = this.terrain.getContext('2d');
-    const palette = [[96, 28, 15], [191, 38, 8], [244, 85, 9], [255, 159, 20], [255, 220, 80]];
-    for (let start = 0; start < visited.length; start++) {
-      if (visited[start] || state.terrain[start] !== 3) continue;
-      yield { value: .68 + .3 * start / visited.length, label: 'Filling the lava basins' };
-      const cells = [start]; visited[start] = 1;
-      for (let at = 0; at < cells.length; at++) {
-        const i = cells[at], x = i % state.width, y = Math.floor(i / state.width);
-        for (const next of [x > 0 ? i - 1 : -1, x < state.width - 1 ? i + 1 : -1, y > 0 ? i - state.width : -1, y < state.height - 1 ? i + state.width : -1]) {
-          if (next >= 0 && !visited[next] && state.terrain[next] === 3) { visited[next] = 1; cells.push(next); }
-        }
-      }
-      const x0 = Math.min(...cells.map(i => i % state.width)), x1 = Math.max(...cells.map(i => i % state.width));
-      const y0 = Math.min(...cells.map(i => Math.floor(i / state.width))), y1 = Math.max(...cells.map(i => Math.floor(i / state.width)));
-      // The bank, alpha mask and padded molten texture are built once; live flow uses canvas blits.
-      const w = (x1 - x0 + 1) * TILE + 32, h = (y1 - y0 + 1) * TILE + 32;
-      const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
-      const m = mask.getContext('2d');
-      for (const i of cells) rect(m, (i % state.width - x0) * TILE + 16, (Math.floor(i / state.width) - y0) * TILE + 16, TILE, TILE, '#1d100b');
-      const layers = Array.from({ length: 4 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
-      const bank = layers[0].getContext('2d'); bank.filter = 'blur(9px)'; bank.drawImage(mask, 0, 0); bank.filter = 'none';
-      const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h), shade = m.createImageData(w, h);
-      const edges = new Float32Array(w * h), coverage = new Uint8Array(w * h);
-      for (let y = 0; y < h; y++) {
-        if (y % 8 === 0) yield;
-        for (let x = 0; x < w; x++) {
-        const i = (y * w + x) * 4, raw = pixels.data[i + 3];
-        coverage[y * w + x] = raw;
-        if (!raw) continue;
-        const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
-        // A broad wander plus fine grit turns the tile outline into an irregular shoreline.
-        const grain = smoothNoise(wx / 24, wy / 24, this.seed + 71) * .65 + smoothNoise(wx / 6, wy / 6, this.seed + 73) * .35;
-        edges[y * w + x] = raw - (grain - .5) * 100;
-      }
-      }
-      const edgeAt = (x, y) => x >= 0 && y >= 0 && x < w && y < h ? edges[y * w + x] : 0;
-      const coverageAt = (x, y) => x >= 0 && y >= 0 && x < w && y < h ? coverage[y * w + x] : 0;
-      const clamp01 = value => Math.max(0, Math.min(1, value));
-      for (let y = 0; y < h; y++) {
-        if (y % 8 === 0) yield;
-        for (let x = 0; x < w; x++) {
-        const i = (y * w + x) * 4, edge = edges[y * w + x];
-        const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
-        const grain = (pixels.data[i + 3] - edge) / 100 + .5, grit = noise(wx, wy, this.seed + 79);
-        // The floor is inset and six world pixels below the ground lip. Intersect
-        // with the opening so the near bank occludes it instead of casting outside.
-        const floorEdge = Math.min(edge, edgeAt(x, y - 6));
-        const alpha = Math.max(0, Math.min(255, (floorEdge - 150) * 5));
-        const gx = edgeAt(x + 2, y) - edgeAt(x - 2, y), gy = edgeAt(x, y + 2) - edgeAt(x, y - 2);
-        // Concave lighting: upper-left inner walls are shaded; the opposite
-        // slope catches a narrow ground-colored bevel, never a glowing outline.
-        const light = Math.max(0, -(gx + gy) / (Math.hypot(gx, gy) || 1) * Math.SQRT1_2);
-        const depth = clamp01((edge - 110) / 75), rim = Math.max(0, 1 - Math.abs(edge - 110) / 14);
-        const rock = 44 + grain * 10 + grit * 5 - depth * 20 + light * (depth * 15 + rim * 12);
-        const heatTint = clamp01((floorEdge - 142) / 60);
-        pixels.data.set([rock + heatTint * 12, rock * .94 + heatTint * 3, rock * .86, Math.max(0, Math.min(255, (edge - 84) * 5))], i);
-        shore.data.set([29, 16, 11, alpha], i);
-        // Shade from the basin outline, not its grit: fully open interiors stay hot.
-        const floorCoverage = Math.min(coverageAt(x, y), coverageAt(x, y - 6));
-        const contact = clamp01((235 - floorCoverage) / 70) * .4;
-        const cast = clamp01((coverageAt(x, y) - coverageAt(x - 4, y - 12)) / 100) * .6;
-        shade.data.set([13, 10, 8, Math.min(.75, contact + cast) * 255], i);
-      }
-      }
-      bank.putImageData(pixels, 0, 0);
-      m.putImageData(shore, 0, 0);
-      layers[3].getContext('2d').putImageData(shade, 0, 0);
-      // Keep the molten texture at its generated half resolution. Enlarging this
-      // cache adds no detail; the compositor scales it only for visible pools.
-      const flow = layers[2]; flow.width = (w + 48) / 2; flow.height = (h + 48) / 2;
-      const f = flow.getContext('2d'), heat = f.createImageData(flow.width, flow.height);
-      for (let y = 0; y < flow.height; y++) {
-        if (y % 8 === 0) yield;
-        for (let x = 0; x < flow.width; x++) {
-        const i = (y * flow.width + x) * 4, wx = x0 * TILE + x * 2 - 40, wy = y0 * TILE + y * 2 - 40;
-        // Swirled fractal folds: broad red/orange body, amber folds, yellow only on the hottest crests, sparse dark crust.
-        const warp = smoothNoise(wx / 64, wy / 56, this.seed + 37);
-        const swirl = smoothNoise(wx / 26 + Math.sin(wy / 31 + warp * 5) * 2.2, wy / 24 + Math.cos(wx / 37 + warp * 4) * 2.2, this.seed + 41);
-        const fold = swirl * .58 + smoothNoise(wx / 9, wy / 8, this.seed + 45) * .24 + warp * .12 + (smoothNoise(wx / 4.5, wy / 4.5, this.seed + 47) - .5) * .12;
-        const crust = smoothNoise(wx / 16, wy / 14, this.seed + 51);
-        const value = Math.max(0, Math.min(4, .15 + Math.max(0, fold) ** 1.05 * 5.15 - Math.max(0, crust - .62) * 7));
-        const index = Math.min(3, Math.floor(value)), blend = value - index;
-        for (let c = 0; c < 3; c++) heat.data[i + c] = palette[index][c] * (1 - blend) + palette[index + 1][c] * blend;
-        heat.data[i + 3] = 255;
-      }
-      }
-      f.putImageData(heat, 0, 0);
-      const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, innerShade: layers[3], phase: noise(start, 7, this.seed) * Math.PI * 2,
-        // Tile bounds and cell coordinates let each frame reject off-screen pools without scanning their cells.
-        tx0: x0, ty0: y0, tx1: x1 + 1, ty1: y1 + 1, cx: Int16Array.from(cells, i => i % state.width), cy: Int16Array.from(cells, i => Math.floor(i / state.width)) };
-      ctx.save();
-      ctx.drawImage(layers[0], pool.x, pool.y, pool.width, pool.height);
-      ctx.drawImage(lavaSurface(pool, 0), pool.x, pool.y, pool.width, pool.height); ctx.restore();
-      // The bank is baked into the terrain; its scratch surface is not needed afterwards.
-      layers[0].width = layers[0].height = 0;
-      this.lavaPools.push(pool);
-    }
-    // Restrained heat light: 2 px per tile, filled only for explored molten cells and blurred into
-    // a short warm falloff on the banks. It is rebuilt when exploration changes, never per frame.
-    this.heat = null; this.heatExplored = -1;
-    if (this.lavaPools.length) { this.heat = document.createElement('canvas'); this.heat.width = state.width * 2; this.heat.height = state.height * 2; }
-  }
-
-  updateHeat(state, explored) {
-    if (!this.heat) return;
-    let count = 0;
-    for (const pool of this.lavaPools) for (const i of pool.cells) if (!explored || explored[i]) count++;
-    if (count === this.heatExplored) return;
-    this.heatExplored = count;
-    const c = this.heat.getContext('2d');
-    c.clearRect(0, 0, this.heat.width, this.heat.height);
-    c.beginPath();
-    for (const pool of this.lavaPools) for (let j = 0; j < pool.cells.length; j++) if (!explored || explored[pool.cells[j]]) c.rect(pool.cx[j] * 2, pool.cy[j] * 2, 2, 2);
-    c.filter = 'blur(1.1px)'; c.fillStyle = '#ff7a26'; c.fill(); c.filter = 'none';
-    // The molten surface is already bright: keep most of the light on the surrounding banks.
-    c.globalCompositeOperation = 'destination-out'; c.globalAlpha = .85; c.fill();
-    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-  }
-
-  // Molten surfaces animate with simulation time only inside current vision. Pools outside the
-  // viewport are rejected by their tile bounds before any cell is visited.
-  drawLava(state, visible, time, x0, y0, x1, y1) {
-    const ctx = this.ctx, cells = this.lavaCells ??= [];
-    for (const pool of this.lavaPools) {
-      if (pool.tx1 <= x0 || pool.tx0 >= x1 || pool.ty1 <= y0 || pool.ty0 >= y1) continue;
-      cells.length = 0;
-      for (let j = 0; j < pool.cells.length; j++) {
-        const x = pool.cx[j], y = pool.cy[j];
-        if (x >= x0 && x < x1 && y >= y0 && y < y1 && (!visible || visible[pool.cells[j]])) cells.push(j);
-      }
-      if (!cells.length) continue;
-      ctx.save(); ctx.beginPath();
-      // The wandering shoreline overshoots its tiles; pad the clip so the live surface covers the whole fringe.
-      for (const j of cells) ctx.rect(pool.cx[j] * TILE - 8, pool.cy[j] * TILE - 8, TILE + 16, TILE + 16);
-      ctx.clip();
-      ctx.drawImage(lavaSurface(pool, time), pool.x, pool.y, pool.width, pool.height);
-      const bubble = glowSprite('#ffa44e75');
-      ctx.strokeStyle = '#f7b663'; ctx.lineWidth = 1;
-      for (const j of cells) {
-        const i = pool.cells[j], n = noise(i, 4, this.seed), age = (time * .18 + n) % 1;
-        if (age < .8) continue;
-        const p = (age - .8) * 5, x = (pool.cx[j] + .5) * TILE + (n - .5) * 10 + Math.sin(time * .1 + pool.phase) * 3;
-        const y = (pool.cy[j] + .5) * TILE + (noise(i, 8, this.seed) - .5) * 10 + Math.sin(time * .08 + pool.phase * 1.7) * 2;
-        ctx.globalAlpha = Math.sin(p * Math.PI) * .45;
-        stamp(ctx, bubble, x, y, 6); ctx.beginPath(); ctx.ellipse(x, y, 1 + p * 3, .8 + p * 2, 0, 0, Math.PI * 2); ctx.stroke();
-      }
-      ctx.restore();
-    }
-  }
-
-  // Sparse embers lift off currently visible molten cells; each cell's spark replays from simulation time.
-  drawEmbers(state, visible, time, x0, y0, x1, y1) {
-    const ctx = this.ctx;
-    ctx.beginPath();
-    let any = false;
-    for (const pool of this.lavaPools) {
-      if (pool.tx1 <= x0 || pool.tx0 >= x1 || pool.ty1 <= y0 || pool.ty0 >= y1) continue;
-      for (let j = 0; j < pool.cells.length; j++) {
-        const x = pool.cx[j], y = pool.cy[j], i = pool.cells[j];
-        if (x < x0 || x >= x1 || y < y0 || y >= y1 || visible && !visible[i]) continue;
-        const n = noise(i, 23, this.seed);
-        if (n > .3) continue;
-        const age = (time * (.32 + n * .5) + n * 17) % 1;
-        if (age > .7) continue;
-        const rise = age / .7, size = .9 + n * 1.6;
-        const px = (x + .2 + noise(i, 29, this.seed) * .6) * TILE + Math.sin(rise * 5 + n * 30) * 3 + rise * 6;
-        const py = (y + .3 + noise(i, 31, this.seed) * .5) * TILE - rise * 22;
-        ctx.rect(px, py, size * (1 - rise * .5), size * (1 - rise * .5)); any = true;
-      }
-    }
-    if (!any) return;
-    ctx.globalAlpha = .62; ctx.fillStyle = '#ffbe6a'; ctx.fill(); ctx.globalAlpha = 1;
   }
 
   drawDecals(state, visible, time, clock = time) {
@@ -1600,7 +1403,7 @@ export class Renderer {
   }
 
   // Screen-space ash-fall in three sparse layers. Gusts integrate analytically, so every mote is a pure
-  // function of the drawn clock and camera and paused frames hold still. Like the lava, ash only moves
+  // function of the drawn clock and camera and paused frames hold still. Ash only moves
   // over ground in current vision: remembered and unexplored areas show no live motion. Ash is nothing but
   // drift and parallax, so prefers-reduced-motion leaves it out.
   drawAsh(ctx, view, clock, state, visible, left, top) {
@@ -1823,8 +1626,7 @@ export class Renderer {
       this.byId.clear(); for (const e of state.entities) this.byId.set(e.id, e);
       this.byIdSource = state.entities; this.byIdLength = state.entities.length;
     }
-    const fogChanged = visible && explored ? this.updateFog(state, this.blending) : false;
-    if (this.heat && (fogChanged || this.heatExplored < 0)) this.updateHeat(state, explored);
+    if (visible && explored) this.updateFog(state, this.blending);
     this.readEvents(state, visible);
     this.updateShake(view, clock);
     const left = this.width / 2 - view.x * zoom + this.shakeX, top = this.height / 2 - view.y * zoom + this.shakeY;
@@ -1848,23 +1650,6 @@ export class Renderer {
     const world = () => ctx.setTransform(a, 0, 0, a, ox, oy);
     const at = (x, y) => ctx.setTransform(a, 0, 0, a, ox + a * x, oy + a * y);
     world();
-    this.drawLava(state, visible, time, x0, y0, x1, y1);
-    if (this.heat && this.heatExplored > 0) {
-      // Low-resolution warm light on explored banks, blended only around pools on screen. It never
-      // animates, so fog keeps nothing live.
-      let any = false;
-      ctx.beginPath();
-      for (const pool of this.lavaPools) {
-        const l = Math.max(x0, pool.tx0 - 2), t = Math.max(y0, pool.ty0 - 2), r = Math.min(x1, pool.tx1 + 2), b = Math.min(y1, pool.ty1 + 2);
-        if (r > l && b > t) { ctx.rect(l * TILE, t * TILE, (r - l) * TILE, (b - t) * TILE); any = true; }
-      }
-      if (any) {
-        ctx.save(); ctx.clip();
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .16; ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(this.heat, x0 * 2, y0 * 2, (x1 - x0) * 2, (y1 - y0) * 2, x0 * TILE, y0 * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
-        ctx.restore();
-      }
-    }
     // Drawable bodies: friendly or currently visible, posed once per frame for every layer.
     const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
     const live = [], visibleUnits = [];
@@ -2181,7 +1966,6 @@ export class Renderer {
       }
       ctx.globalAlpha = 1;
     }
-    this.drawEmbers(state, visible, clock, x0, y0, x1, y1);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.globalAlpha = 1;
     if (visible && explored) {
       ctx.imageSmoothingEnabled = true;
@@ -2476,8 +2260,9 @@ export class Renderer {
     const visible = state.visible?.[0], explored = state.explored?.[0];
     if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
     const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
-    // Ash, raised rock, basalt, lava, deadwood roots (warm grey-brown, so groves never read as rock walls), crater floors.
-    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [104, 92, 74], [69, 67, 58]];
+    // Ash, raised rock, basalt, retired lava (older saves load it as rock), deadwood roots (warm grey-brown, so groves never
+    // read as rock walls), crater floors.
+    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [139, 139, 130], [104, 92, 74], [69, 67, 58]];
     const ore = [[131, 213, 201], [131, 213, 201], [118, 183, 249], [247, 121, 153]];
     for (let i = 0; i < state.terrain.length; i++) {
       if (explored && !explored[i]) continue;

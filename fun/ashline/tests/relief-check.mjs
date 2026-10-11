@@ -3,8 +3,9 @@ import {createGame,MAP_SIZES,MAP_PROFILES,mapLayout} from '../sim.js';
 
 // Generated relief must stay one connected sector with pinned coverage and mirrored base surroundings.
 // The default rift is sampled densely; every other profile, including the curved-lane sectors, on fewer seeds.
-// The broad basin plains and the open impact steppe keep less raised ground than the walled profiles.
-const blockedRange={basin:[.11,.33],steppe:[.09,.3]};
+// The broad basin plains and the open impact steppe keep less raised ground than the walled profiles; the shattered
+// highlands, whose ruggedness each seed varies, may raise a little more.
+const blockedRange={basin:[.11,.33],steppe:[.09,.3],highlands:[.13,.37]};
 const cases=[];
 for(const size of [{width:72,height:56},...Object.values(MAP_SIZES)])for(let seed=0;seed<24;seed++)cases.push({size,seed,profile:'rift'});
 for(const profile of Object.keys(MAP_PROFILES).filter(profile=>profile!=='rift'))for(const size of Object.values(MAP_SIZES))for(let seed=0;seed<5;seed++)cases.push({size,seed,profile});
@@ -32,6 +33,8 @@ for(const {size,seed,profile} of cases){
   const {placeBuilding,trainUnit,updateGame}=await import('../sim.js');
   const core=s.entities.find(e=>e.team===0&&e.type==='core'),W=s.width;
   s.terrain.fill(0);s.minerals.fill(0);
+  // The base may face any way, so only the nexus stays beside the fixture's barracks.
+  s.entities=s.entities.filter(e=>e.kind==='unit'||e===core||e.team!==0);
   // A two-tile hole east of the barracks door, walled in by rock, sits nearest to the bay.
   const bx=core.x+4,by=core.y;
   for(const [x,y] of [[bx+3,by-1],[bx+3,by],[bx+3,by+1],[bx+3,by+2],[bx+2,by-1],[bx+2,by+2]])s.terrain[y*W+x]=1;

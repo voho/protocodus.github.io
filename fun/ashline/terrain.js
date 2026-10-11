@@ -5,12 +5,15 @@ export const MAP_SIZES={
   standard:{name:'Standard',width:144,height:112},
   frontier:{name:'Frontier',width:192,height:144},
   vast:{name:'Vast',width:224,height:168},
+  expanse:{name:'Expanse',width:256,height:192},
+  wilds:{name:'Wilds',width:320,height:240},
 };
+export const DEFAULT_MAP_SIZE='expanse';
 export const MAP_PROFILES={
-  rift:{name:'Volcanic rift',description:'Lava shores, broken ridges, and exposed rich central deposits.'},
+  rift:{name:'Volcanic rift',description:'Broken ridges, basalt dikes and exposed rich central deposits.'},
   basin:{name:'Basalt basin',description:'Broad open basalt plains, sheltered expansions, and scattered mesas.'},
   highlands:{name:'Shattered highlands',description:'Raised plateaus, defended passes, and valuable flanking expansions.'},
-  ember:{name:'Ember channels',description:'Chained lava channels cut every lane; narrow basalt fords decide each crossing.'},
+  ember:{name:'Fault scarps',description:'A rock scarp crosses each half of the sector; every lane climbs it through one cut.'},
   steppe:{name:'Impact steppe',description:'Open ash plains, crater belts across every lane, and wide flanking routes.'},
   deadwood:{name:'Deadwood barrens',description:'Dead groves screen the flanks, and walled passes guard the centre lane.'},
   crown:{name:'Caldera crown',description:'A walled central caldera holds a red seam both bases reach in equal time.'},
@@ -24,12 +27,52 @@ const smooth=t=>t*t*(3-2*t);
 // The same xorshift as the simulation's random(s), applied to a local {rng} stream object.
 function random(stream){let x=stream.rng|0;x^=x<<13;x^=x>>>17;x^=x<<5;stream.rng=x>>>0;return stream.rng/4294967296;}
 export function hash(seed){let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0||1;}
+
+// Base positions. A new sector stores its own in s.layout, drawn from the seed: the home nexus stands at any bearing
+// from the centre and the rival nexus is its exact point mirror, so both sides still face the same ground. `frame` is
+// the dihedral turn (a 2 × 2 matrix of −1, 0 and 1, row-major) that carries the original deployment, whose advance runs
+// east-north-east from the south-west, onto this sector's advance: base layouts and scripted offsets keep their shape.
+// Saves made before layouts were stored keep the original fixed anchors and frame.
+const IDENTITY=[1,0,0,1];
+const FRAMES=[[1,0,0,1],[0,-1,1,0],[-1,0,0,-1],[0,1,-1,0],[1,0,0,-1],[-1,0,0,1],[0,1,1,0],[0,-1,-1,0]];
+// The original advance from (W/6, 0.72H) toward the centre of a 4:3 sector.
+const ADVANCE=Math.atan2(-.165,1/3);
+// The nexus centre keeps at least this many tiles from every edge, which holds its clearing and starter fields.
+const EDGE_MARGIN=16;
 export function mapLayout(s){
-  if(s.width===72&&s.height===56)return{start:{x:12,y:37},end:{x:59,y:12},bend:10};
-  const start={x:Math.round(s.width/6),y:Math.round(s.height*.72)},end={x:s.width+1-start.x,y:s.height+1-start.y};
-  const bend=terrainProfile(s).bend*Math.min(s.width/72,s.height/56);
-  return{start,end,bend};
+  const legacy=legacySize(s),bend=legacy?10:PROFILE_RELIEF[profileId(s)].bend*Math.min(s.width/72,s.height/56);
+  if(s.layout&&!legacy)return{start:{...s.layout.start},end:{...s.layout.end},bend,frame:[...s.layout.frame]};
+  if(legacy)return{start:{x:12,y:37},end:{x:59,y:12},bend,frame:IDENTITY};
+  const start={x:Math.round(s.width/6),y:Math.round(s.height*.72)};
+  return{start,end:{x:s.width+1-start.x,y:s.height+1-start.y},bend,frame:IDENTITY};
 }
+function createLayout(s){
+  const {width:W,height:H}=s,rng={rng:hash(`${s.seed}:layout:${W}x${H}`)},diagonal=Math.hypot(W,H);
+  let start=null,forward=0;
+  // Bases sit a quarter to a third of the diagonal from the centre; bearings that leave too little room are redrawn.
+  for(let attempt=0;attempt<64&&!start;attempt++){
+    const angle=random(rng)*Math.PI*2,c=Math.cos(angle),sn=Math.sin(angle);
+    const reach=Math.min((W/2-EDGE_MARGIN)/Math.max(1e-9,Math.abs(c)),(H/2-EDGE_MARGIN)/Math.max(1e-9,Math.abs(sn)));
+    const near=.25*diagonal,far=Math.min(.33*diagonal,reach);
+    if(far<near)continue;
+    const r=near+random(rng)*(far-near);
+    start={x:Math.round(W/2+c*r+.5),y:Math.round(H/2+sn*r+.5)};forward=angle+Math.PI;
+  }
+  start??={x:Math.round(W/6),y:Math.round(H*.72)};
+  // Any frame that turns the original advance to within 30° of this one; the seed picks among them, so the
+  // starter fields and refinery fall on either hand of the advance.
+  const turned=frame=>{const x=frame[0]*Math.cos(ADVANCE)+frame[1]*Math.sin(ADVANCE),y=frame[2]*Math.cos(ADVANCE)+frame[3]*Math.sin(ADVANCE);return Math.cos(Math.atan2(y,x)-forward);};
+  const close=FRAMES.filter(frame=>turned(frame)>=Math.cos(Math.PI/6)),choices=close.length?close:[FRAMES.reduce((a,b)=>turned(b)>turned(a)?b:a)];
+  return{start,end:{x:W+1-start.x,y:H+1-start.y},frame:[...choices[Math.floor(random(rng)*choices.length)]]};
+}
+// A point given as an offset from the home nexus centre in the original frame, for either team: the rival's is the
+// point mirror. Opening structures, starter fields and scripted placements all go through it.
+export function basePoint(s,team,dx,dy){
+  const {start,end,frame:[a,b,c,d]}=mapLayout(s),x=a*dx+b*dy,y=c*dx+d*dy;
+  return team?{x:end.x-.5-x,y:end.y-.5-y}:{x:start.x-.5+x,y:start.y-.5+y};
+}
+// An offset authored in the original frame, turned into this sector's frame.
+export function frameOffset(s,dx,dy){const [a,b,c,d]=mapLayout(s).frame;return{x:a*dx+b*dy,y:c*dx+d*dy};}
 
 // Relief primitives: integer-hash value noise. Map generation never consumes combat RNG.
 const lat=(x,y,k)=>{let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(k|0,1274126177))|0;h=Math.imul(h^h>>>15,2246822519);h=Math.imul(h^h>>>13,3266489917);return((h^h>>>16)>>>0)/4294967296;};
@@ -38,29 +81,49 @@ function fbm(x,y,k,oct=3){let sum=0,amp=1,norm=0;for(let o=0;o<oct;o++){sum+=vno
 // Quantile of a numerically sorted TypedArray whose entries each stand for `copies` cells.
 const quantile=(sorted,q,copies=1)=>{const length=sorted.length*copies;return sorted[Math.floor(Math.min(length-1,Math.floor(length*q))/copies)];};
 // Per-profile generator knobs. Relief: noise `wavelength` and the ridge/mesa/basalt quantiles; `ring` base plateau
-// thickness; `route`/`flank` lane radii; `bend` flank bend per map scale; `trees` root chance; `lava` pool count and
-// `craters` bowl count per map scale; `outcrops` boulder count; `tint` the baked ground's warm shift.
-// Profiles without `lanes` keep the original pipeline (three sinusoid routes, fixed natural/central/flank fields), so
-// their maps stay byte-identical. `lanes` switches to seeded curved routes with expansion tiers chosen by path distance,
-// plus one signature feature: lava `channels` with basalt fords, crater `belts`, tree `groves` or a central `crown`.
+// thickness; `route`/`flank` lane radii; `bend` flank bend per map scale; `trees` root chance; `craters` bowl count per
+// map scale; `outcrops` boulder count; `tint` the baked ground's warm shift. `lanes` shapes the three seeded curved
+// routes; expansions are tiered by path distance. Signature features: basalt `dikes`, a `scarp` across each half with
+// one cut per lane, crater `belts`, tree `groves` or a central `crown`. Compact 72 × 56 maps use the original pipeline
+// (three sinusoid routes and fixed fields, with `flankField`); so did every `classic` profile before sectors stored
+// their layouts, and those older saves keep their sinusoid routes.
 export const PROFILE_RELIEF={
-  rift:{wavelength:23,ridges:.22,mesas:.045,basalt:.22,gap:.43,ring:2.4,route:2.9,flank:2.5,trees:.028,lava:7,outcrop:4.5,outcrops:6,bend:10,craters:4,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:0},
-  basin:{wavelength:29,ridges:.10,mesas:.07,basalt:.47,gap:.5,ring:1.9,route:3.9,flank:3.2,trees:.04,lava:2,outcrop:3.8,outcrops:6,bend:12,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:2},tint:-3},
-  highlands:{wavelength:19,ridges:.26,mesas:.08,basalt:.16,gap:.4,ring:3,route:2.7,flank:2.4,trees:.035,lava:3.5,outcrop:3.4,outcrops:6,bend:9,craters:5,craterRadius:[2.8,2.1],flankField:{y:.76,type:3},tint:4},
-  ember:{wavelength:21,ridges:.12,mesas:.035,basalt:.3,gap:.45,ring:2.2,route:2.7,flank:2.4,trees:.012,lava:2,outcrop:3.6,outcrops:4,bend:11,craters:2,craterRadius:[2.8,1.6],flankField:{y:.70,type:3},tint:6,
-    lanes:{swing:[.04,.09],flank:[.95,1.3],wobble:.2,pinch:2.3},channels:{t:[.3,.34],pool:[7,10],dike:[1.6,2.6],half:[2.5,3.2]}},
-  steppe:{wavelength:27,ridges:.07,mesas:.03,basalt:.27,gap:.5,ring:1.8,route:3.4,flank:3,trees:.016,lava:1,outcrop:4.2,outcrops:8,bend:12,craters:4,craterRadius:[2.8,3],flankField:{y:.70,type:2},tint:2,
+  rift:{wavelength:23,ridges:.2,mesas:.045,basalt:.22,gap:.43,ring:2.4,route:2.9,flank:2.5,trees:.028,outcrop:4.5,outcrops:6,bend:10,craters:4,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:0,classic:true,
+    lanes:{swing:[.02,.07],flank:[.9,1.25],wobble:.2},dikes:{count:2.2,length:[16,34],width:[1.1,1.7],gaps:[1,2]}},
+  basin:{wavelength:29,ridges:.10,mesas:.07,basalt:.47,gap:.5,ring:1.9,route:3.9,flank:3.2,trees:.04,outcrop:3.8,outcrops:6,bend:12,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:2},tint:-3,classic:true,
+    lanes:{swing:[0,.05],flank:[.95,1.3],wobble:.15}},
+  highlands:{wavelength:19,ridges:.24,mesas:.08,basalt:.16,gap:.4,ring:3,route:2.7,flank:2.4,trees:.035,outcrop:3.4,outcrops:6,bend:9,craters:5,craterRadius:[2.8,2.1],flankField:{y:.76,type:3},tint:4,classic:true,
+    lanes:{swing:[.03,.08],flank:[.85,1.2],wobble:.25}},
+  ember:{wavelength:21,ridges:.12,mesas:.035,basalt:.3,gap:.45,ring:2.2,route:2.7,flank:2.4,trees:.012,outcrop:3.6,outcrops:4,bend:11,craters:2,craterRadius:[2.8,1.6],flankField:{y:.70,type:3},tint:6,
+    lanes:{swing:[.04,.09],flank:[.95,1.3],wobble:.2,pinch:2.3},scarp:{t:[.3,.34],half:[2.5,3.2]}},
+  steppe:{wavelength:27,ridges:.07,mesas:.03,basalt:.27,gap:.5,ring:1.8,route:3.4,flank:3,trees:.016,outcrop:4.2,outcrops:8,bend:12,craters:4,craterRadius:[2.8,3],flankField:{y:.70,type:2},tint:2,
     lanes:{swing:[.03,.08],flank:[1,1.35],wobble:.25},belts:{t:[.27,.33],radius:[2.7,3.8],gap:[.2,1.4]}},
-  deadwood:{wavelength:22,ridges:.15,mesas:.045,basalt:.2,gap:.44,ring:2.2,route:2.8,flank:2.4,trees:.02,lava:2,outcrop:3.6,outcrops:5,bend:10,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:-2,
+  deadwood:{wavelength:22,ridges:.15,mesas:.045,basalt:.2,gap:.44,ring:2.2,route:2.8,flank:2.4,trees:.02,outcrop:3.6,outcrops:5,bend:10,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:-2,
     lanes:{swing:[.04,.09],flank:[.95,1.25],wobble:.2,pinch:2.3,pinchAt:[.34,.4],shoulder:12},groves:{scale:11,threshold:.5,density:.75}},
-  crown:{wavelength:24,ridges:.16,mesas:.04,basalt:.24,gap:.44,ring:2.2,route:2.8,flank:2.6,trees:.022,lava:3,outcrop:3.8,outcrops:5,bend:13,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:3,
+  crown:{wavelength:24,ridges:.16,mesas:.04,basalt:.24,gap:.44,ring:2.2,route:2.8,flank:2.6,trees:.022,outcrop:3.8,outcrops:5,bend:13,craters:3,craterRadius:[2.8,2.1],flankField:{y:.70,type:3},tint:3,
     lanes:{swing:[0,.03],flank:[1.1,1.4],wobble:.15},crown:{inner:5.5,ring:2.8,gate:2.4}},
 };
-const terrainProfile=s=>PROFILE_RELIEF[s.mapProfile]||PROFILE_RELIEF.rift;
+const profileId=s=>Object.hasOwn(PROFILE_RELIEF,s.mapProfile)?s.mapProfile:'rift';
 const legacySize=s=>s.width===72&&s.height===56;
-// Compact 72 × 56 anchors are not mirrored, so curved lanes only apply to the current map sizes.
-const curved=s=>!!terrainProfile(s).lanes&&!legacySize(s);
-// Every terrain mutation has a mirrored partner, including gates, mineral access, lava and tree roots.
+// A new sector varies its profile's relief and feature density by the seed alone, so two sectors of one profile differ
+// in ruggedness and cover as well as in shape, while every profile of one seed varies alike and keeps its character.
+const VARIETY={wavelength:[.85,1.18],ridges:[.78,1.25],mesas:[.7,1.35],basalt:[.8,1.25],trees:[.7,1.35],craters:[.7,1.45],outcrops:[.6,1.5],ring:[.8,1.25]};
+const varied=new Map();
+function terrainProfile(s){
+  const id=profileId(s),rules=PROFILE_RELIEF[id];
+  if(!s.layout||legacySize(s))return rules;
+  const key=`${id}:${s.seed}`;
+  if(!varied.has(key)){
+    const rng={rng:hash(`${s.seed}:variety`)},knobs={...rules};
+    for(const [knob,[low,high]] of Object.entries(VARIETY))knobs[knob]=rules[knob]*(low+random(rng)*(high-low));
+    if(varied.size>=16)varied.delete(varied.keys().next().value);
+    varied.set(key,knobs);
+  }
+  return varied.get(key);
+}
+// Sectors with stored layouts all run the curved pipeline. Compact 72 × 56 anchors are not mirrored, so they never curve.
+const curved=s=>!legacySize(s)&&(Boolean(s.layout)||!PROFILE_RELIEF[profileId(s)].classic);
+// Every terrain mutation has a mirrored partner, including gates, mineral access and tree roots.
 function mirroredTerrain(s,i,type){s.terrain[i]=type;s.terrain[s.terrain.length-1-i]=type;}
 
 function relief(s,key=s.seed){
@@ -85,7 +148,7 @@ function relief(s,key=s.seed){
   const copies=N%2?1:2,half=N/copies,heights=height.slice(0,half).sort(),open=ridge.slice(0,half).filter((_,i)=>gap[i]>rules.gap).sort();
   const mesa=quantile(heights,1-rules.mesas,copies),basin=quantile(heights,rules.basalt,copies),crest=open.length?quantile(open,Math.max(0,1-rules.ridges*N/(open.length*copies)),copies):Infinity;
   for(let i=0;i<N/2;i++)mirroredTerrain(s,i,ridge[i]>crest&&gap[i]>rules.gap||height[i]>mesa?1:height[i]<basin?2:0);
-  // Rounded satellite outcrops leave room for maneuver, and supply separate broad lava shores.
+  // Rounded satellite outcrops leave room for maneuver between them.
   const rng={rng:hash(`${key}:outcrops:${s.mapProfile}`)},target=Math.round(rules.outcrops*Math.sqrt(N/(72*56))),exclusion=19;
   const rockNear=(x,y,R)=>{for(let yy=Math.floor(y-R);yy<=y+R;yy++)for(let xx=Math.floor(x-R);xx<=x+R;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=R*R&&s.terrain[yy*W+xx]===1)return true;return false;};
   for(let attempt=0,placed=0;placed<target&&attempt<target*48;attempt++){
@@ -109,11 +172,12 @@ function plateauRing(s,protectedGround,key=s.seed){
     if(d>=ringIn&&d<=ringOut)mirroredTerrain(s,i,1);
   }
 }
-function mineralBowls(s,centers,key=s.seed){
+// Open bowls around every field; walls a profile keeps (keepRock: the crown ring, pass shoulders, scarps) stay raised.
+function mineralBowls(s,centers,key=s.seed,keepRock=null){
   const {width:W,height:H}=s,k=hash(`${key}:relief`)+60;
   for(const c of centers)for(let y=Math.max(0,Math.floor(c.y-7));y<=Math.min(H-1,c.y+7);y++)for(let x=Math.max(0,Math.floor(c.x-7));x<=Math.min(W-1,c.x+7);x++){
     const i=y*W+x,d=Math.hypot(x-c.x,y-c.y)+(vnoise(x/4,y/4,k)-.5)*2;
-    if(d<=5.7&&s.terrain[i]===1)mirroredTerrain(s,i,0);
+    if(d<=5.7&&s.terrain[i]===1&&!keepRock?.[i])mirroredTerrain(s,i,0);
   }
 }
 // One flood and one multi-source breadth-first search connect every large or resource-bearing pocket.
@@ -125,7 +189,7 @@ function breachPockets(s,clear){
   const neighbors=(i,visit)=>{const x=i%W;if(x>0)visit(i-1);if(x<W-1)visit(i+1);if(i>=W)visit(i-W);if(i<N-W)visit(i+W);};
   const flood=next=>{const t=terrain[next];if(!regions[next]&&(t===0||t===2||t===5)){regions[next]=id;queue[tail++]=next;}};
   for(let i=0;i<N;i++){
-    if(regions[i]||terrain[i]===1||terrain[i]===3||terrain[i]===4)continue;
+    if(regions[i]||terrain[i]===1||terrain[i]===4)continue;
     id=++count;tail=1;queue[0]=i;regions[i]=id;sizes[id]=0;resources[id]=false;
     for(let head=0;head<tail;head++){at=queue[head];sizes[id]++;if(s.minerals[at]>0)resources[id]=true;neighbors(at,flood);}
   }
@@ -146,21 +210,23 @@ function breachPockets(s,clear){
 // Mirrored mineral fields: a centre deposit plus seeded inner and outer satellites, each with hauler access.
 function fieldTools(s,clear,key=s.seed){
   const {width:W,height:H}=s,N=W*H,{start,end}=mapLayout(s),centers=[],placed=[],scatterRng={rng:hash(`${key}:mineral-scatter`)};
+  // Starter fields come first and always draw the unsalted stream, so a re-rolled attempt keeps every starting budget.
+  const starterRng=key===s.seed?scatterRng:{rng:hash(`${s.seed}:mineral-scatter`)};
   const access=(a,b)=>{const steps=Math.max(1,Math.ceil(distance(a,b)*2));for(let i=0;i<=steps;i++)clear(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,.95);};
   const field=(a,type,kind)=>{
-    const b={x:W-1-a.x,y:H-1-a.y},candidates=[];
+    const b={x:W-1-a.x,y:H-1-a.y},candidates=[],rng=kind==='starter'?starterRng:scatterRng;
     for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++){
       const radius=x*x+y*y;if(!radius||radius>22)continue;
       const points=[{x:a.x+x,y:a.y+y},{x:b.x-x,y:b.y-y}];
       if(points.some(p=>p.x<1||p.y<1||p.x>=W-1||p.y>=H-1||distance(p,start)<7||distance(p,end)<7))continue;
-      candidates.push({x,y,radius,score:random(scatterRng)});
+      candidates.push({x,y,radius,score:random(rng)});
     }
     candidates.sort((a,b)=>a.score-b.score);
     // Loose inner deposits and outer satellites retain visible gaps at every zoom.
     const offsets=[{x:0,y:0},...candidates.filter(p=>p.radius<=8).slice(0,10),...candidates.filter(p=>p.radius>8).slice(0,8)];
     centers.push(a,b);placed.push({a,b,type,kind});
     for(const p of offsets){
-      const x=a.x+p.x,y=a.y+p.y,i=y*W+x,amount=(320+Math.floor(random(scatterRng)*300))*(type===3?2:1);
+      const x=a.x+p.x,y=a.y+p.y,i=y*W+x,amount=(320+Math.floor(random(rng)*300))*(type===3?2:1);
       access(a,{x,y});s.minerals[i]=s.minerals[N-1-i]=amount;s.mineralTypes[i]=s.mineralTypes[N-1-i]=type;
     }
   };
@@ -168,11 +234,12 @@ function fieldTools(s,clear,key=s.seed){
 }
 
 const MAX_ATTEMPTS=4;
-// Returns how many attempts the sector took (1 unless a curved map was re-rolled).
+// Returns how many attempts the sector took (1 unless it was re-rolled). New sectors store their seeded layout first.
 export function generateMap(s){
-  if(!curved(s)){s.sites=classicMap(s);return 1;}
-  // A degenerate curved map re-rolls its noise, resources and features under a salted key; the lane plan
-  // stays keyed by the seed alone, so mapRoutes never needs to know which attempt was kept.
+  if(legacySize(s)){s.sites=compactMap(s);return 1;}
+  s.layout??=createLayout(s);
+  // A degenerate map re-rolls its noise, resources and features under a salted key; the layout and lane plan
+  // stay keyed by the seed alone, so mapRoutes never needs to know which attempt was kept.
   let best=null;
   for(let attempt=0;attempt<MAX_ATTEMPTS;attempt++){
     if(attempt){s.terrain.fill(0);s.minerals.fill(0);s.mineralTypes.fill(0);}
@@ -184,7 +251,8 @@ export function generateMap(s){
   return MAX_ATTEMPTS;
 }
 
-function classicMap(s){
+// The original pipeline, kept for compact 72 × 56 maps: three sinusoid routes and fixed fields.
+function compactMap(s){
   const {width:W,height:H}=s,N=W*H,{start,end,bend}=mapLayout(s),rules=terrainProfile(s);
   relief(s);
   const protectedGround=new Uint8Array(N);
@@ -212,7 +280,6 @@ function classicMap(s){
   }
   mineralBowls(s,centers);
   breachPockets(s,clear);
-  addLavaPools(s);
   // Each mirrored pair is isolated by an open neighbor ring, so roots cannot close a route.
   for(let i=W+1;i<N/2;i++){
     const x=i%W,y=Math.floor(i/W),mx=W-1-x,my=H-1-y,m=N-1-i;
@@ -248,44 +315,20 @@ function addCraters(s,protectedGround,fields,key=s.seed){
   }
 }
 
-// keepRock marks walls that must stay raised rock (the crown ring, pass shoulders); a formation touching existing lava would merge
-// into one oversized pool, so it stays rock too. Neither case occurs on classic maps.
-function addLavaPools(s,key=s.seed,keepRock=null){
-  const {width:W,height:H}=s,N=W*H,{start:base,end}=mapLayout(s),dx=end.x-base.x,dy=end.y-base.y,rules=terrainProfile(s);
-  // Recolor complete, compact formations; shorelines cannot obstruct an existing route.
-  const visited=new Uint8Array(N),pools=[],lavaRng={rng:hash(`${key}:lava:${s.mapProfile}`)};
-  for(let start=0;start<N;start++){
-    if(visited[start]||s.terrain[start]!==1)continue;
-    const tiles=[start];visited[start]=1;let minX=W,maxX=0,minY=H,maxY=0,maxAt=start,fixed=false;
-    for(let head=0;head<tiles.length;head++){
-      const at=tiles[head],x=at%W,y=Math.floor(at/W);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);maxAt=Math.max(maxAt,at);
-      if(keepRock?.[at])fixed=true;
-      for(const next of [x>0?at-1:-1,x<W-1?at+1:-1,y>0?at-W:-1,y<H-1?at+W:-1])if(next>=0){if(s.terrain[next]===3)fixed=true;else if(!visited[next]&&s.terrain[next]===1){visited[next]=1;tiles.push(next);}}
-    }
-    // Only select one member of a mirror pair, and keep long ridge walls as raised rock.
-    if(fixed||start>N-1-maxAt||tiles.length<12||tiles.length>220||minX<3||maxX>=W-3||minY<3||maxY>=H-3||tiles.length/((maxX-minX+1)*(maxY-minY+1))<.38)continue;
-    const x=(minX+maxX)/2,y=(minY+maxY)/2,routeDistance=Math.abs(-dy*(x-base.x)+dx*(y-base.y))/Math.hypot(dx,dy);
-    pools.push({tiles,score:Math.max(0,routeDistance-7)+random(lavaRng)*14});
-  }
-  pools.sort((a,b)=>a.score-b.score||a.tiles[0]-b.tiles[0]);
-  const count=Math.round(rules.lava*Math.sqrt(N/(72*56)));
-  for(const pool of pools.slice(0,count))for(const at of pool.tiles)mirroredTerrain(s,at,3);
-}
-
 // ---- Curved-lane profiles -------------------------------------------------------------------------------------
-// A sector plan holds everything derived from the seed alone: lane shapes and radii, and where the profile's
-// signature feature sits. Terrain passes read it, and mapRoutes reports its lanes for any saved operation.
+// A sector plan holds everything derived from the seed and layout alone: lane shapes and radii, and where the
+// profile's signature feature sits. Terrain passes read it, and mapRoutes reports its lanes for any saved operation.
 const plans=new Map();
 function sectorPlan(s){
-  const id=`${s.width}x${s.height}:${s.mapProfile}:${s.seed}`;
+  const {start,bend}=mapLayout(s),id=`${s.width}x${s.height}:${s.mapProfile}:${s.seed}:${start.x},${start.y}`;
   if(plans.has(id))return plans.get(id);
-  const rules=terrainProfile(s),L=rules.lanes,{width:W,height:H}=s,scale=Math.min(W/72,H/56),{start,bend}=mapLayout(s);
+  const rules=terrainProfile(s),L=rules.lanes,{width:W,height:H}=s,scale=Math.min(W/72,H/56);
   // Lanes join the two nexus centres, which are exact point mirrors of each other.
   const S={x:start.x-.5,y:start.y-.5},dx=W-2*S.x,dy=H-2*S.y,len=Math.hypot(dx,dy),u={x:dx/len,y:dy/len},n={x:-u.y,y:u.x},C={x:W/2,y:H/2};
   const rng={rng:hash(`${s.seed}:lanes:${s.mapProfile}`)},pick=([a,b])=>a+random(rng)*(b-a);
   const point=(t,v)=>({x:S.x+dx*t+n.x*v,y:S.y+dy*t+n.y*v});
-  const plan={S,len,u,n,C,scale,lanes:[],pinches:[],marks:[],channel:null,crown:null,belt:null};
-  if(rules.channels){const c=rules.channels;plan.channel={a:len*pick(c.t),amp:pick([1.5,3.5]),half:pick(c.half),pool:c.pool,dike:c.dike,k:hash(`${s.seed}:channel:${s.mapProfile}`)};}
+  const plan={S,len,u,n,C,scale,lanes:[],pinches:[],marks:[],scarp:null,crown:null,belt:null};
+  if(rules.scarp){const c=rules.scarp;plan.scarp={a:len*pick(c.t),amp:pick([1.5,3.5]),half:pick(c.half),k:hash(`${s.seed}:channel:${s.mapProfile}`)};}
   if(rules.belts){const b=rules.belts;plan.belt={a:len*pick(b.t),amp:pick([1.5,3]),radius:b.radius,gap:b.gap,k:hash(`${s.seed}:belt:${s.mapProfile}`)};}
   if(rules.crown){const c=rules.crown;plan.crown={inner:c.inner*scale,ring:c.ring,gate:c.gate,side:(random(rng)-.5)*.6};}
   const rC=rules.route,rF=rules.flank,outer=plan.crown?plan.crown.inner+plan.crown.ring+1:0;
@@ -307,21 +350,25 @@ function sectorPlan(s){
     }
     return true;
   };
+  // A stored layout can face a map edge on either hand, so its shapes shrink toward the centre lane before they
+  // are abandoned. Older saves draw exactly as before.
+  const floor=s.layout?.4:1,shrink=(shape,k)=>({swing:shape.swing*k,c2:shape.c2*k,b:shape.b*k,w:shape.w*k,phase:shape.phase});
   let shape=null;
   for(let attempt=0;attempt<24&&!shape;attempt++){
     const swing=len*pick(L.swing)*(random(rng)<.5?-1:1),b=bend*pick(L.flank),candidate={swing,c2:swing*(random(rng)-.5)*.5,b,w:b*(random(rng)*2-1)*L.wobble,phase:random(rng)*Math.PI*2};
-    if(fits(candidate))shape=candidate;
+    for(let k=1;k>=floor-1e-9&&!shape;k-=.1)if(fits(shrink(candidate,k)))shape=shrink(candidate,k);
   }
+  if(!shape&&s.layout)for(let b=bend;b>=rC+rF+6&&!shape;b-=.5){const candidate={swing:0,c2:0,b,w:0,phase:0};if(fits(candidate))shape=candidate;}
   shape??={swing:0,c2:0,b:Math.max(bend,outer+rF+8),w:0,phase:0};
   const v=offsets(shape);
   const lanes=[['left','flank',v.left,rF],['centre','centre',v.centre,rC],['right','flank',v.right,rF]].map(([id,kind,offset,r0])=>({id,kind,offset,r0,pinches:[],at:t=>point(t,offset(t))}));
   const lane=id=>lanes.find(l=>l.id===id);
   const pinch=(l,t,r,half,kind,extra)=>{const p={kind,lane:l.id,t,r,half,...l.at(t),...extra};l.pinches.push(p);plan.pinches.push(p);};
-  if(plan.channel){
-    // Lanes advance len tiles along the axis per unit t, so a lane meets the channel where its axial position equals
-    // the channel's wobbling centreline; the mirrored channel is the same curve rotated about the centre.
-    const ch=plan.channel,axial=sigma=>ch.a+ch.amp*(vnoise(sigma/9+3.7,1.3,ch.k)*2-1);
-    plan.channel.axial=axial;
+  if(plan.scarp){
+    // Lanes advance len tiles along the axis per unit t, so a lane meets the scarp where its axial position equals
+    // the scarp's wobbling centreline; the mirrored scarp is the same curve rotated about the centre.
+    const ch=plan.scarp,axial=sigma=>ch.a+ch.amp*(vnoise(sigma/9+3.7,1.3,ch.k)*2-1);
+    plan.scarp.axial=axial;
     for(const l of lanes)for(const mirrored of [false,true]){
       let t=mirrored?1-ch.a/len:ch.a/len;
       for(let k=0;k<8;k++)t=mirrored?(len-axial(-l.offset(t)))/len:axial(l.offset(t))/len;
@@ -360,9 +407,22 @@ function sectorPlan(s){
 function traceLane(lane,visit){const steps=Math.ceil(lane.arc/.4);for(let j=0;j<=steps;j++){const t=j/steps;visit(lane.at(t),lane.r(t),t);}}
 
 // Guaranteed routes as plain polylines: [{id:'left'|'centre'|'right', kind, points:[{x,y,r}]}]. Sides are relative to
-// team 0's advance; r is the guaranteed open radius. Classic profiles return their three sinusoids exactly.
+// team 0's advance; r is the guaranteed open radius. Compact maps and older saves of the classic profiles return their
+// three sinusoids exactly.
 export function mapRoutes(s){return curved(s)?structuredClone(sectorPlan(s).routes):classicRoutes(s);}
 const routesOf=s=>curved(s)?sectorPlan(s).routes:classicRoutes(s);
+// A point along the line of advance at t (0 at the home nexus, 1 at the rival's): the centre lane, measured by its
+// length, on sectors with stored layouts; the straight line between the base anchors on compact maps and older saves.
+export function lanePoint(s,t){
+  const {start,end}=mapLayout(s);
+  if(!s.layout||legacySize(s))return{x:start.x+(end.x-start.x)*t,y:start.y+(end.y-start.y)*t};
+  const points=routesOf(s).find(route=>route.id==='centre').points,lengths=[0];
+  for(let j=1;j<points.length;j++)lengths.push(lengths[j-1]+distance(points[j-1],points[j]));
+  const goal=Math.min(1,Math.max(0,t))*lengths.at(-1);let j=1;
+  while(j<points.length-1&&lengths[j]<goal)j++;
+  const a=points[j-1],b=points[j],k=(goal-lengths[j-1])/Math.max(1e-9,lengths[j]-lengths[j-1]);
+  return{x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k};
+}
 function classicRoutes(s){
   const {start,end,bend}=mapLayout(s),rules=terrainProfile(s);
   return[['left','flank',-bend,rules.flank],['centre','centre',0,rules.route],['right','flank',bend,rules.flank]].map(([id,kind,b,r])=>({id,kind,points:Array.from({length:121},(_,j)=>{const t=j/120;return{x:start.x+(end.x-start.x)*t,y:start.y+(end.y-start.y)*t+Math.sin(t*Math.PI)*b,r};})}));
@@ -378,18 +438,17 @@ function curvedMap(s,key){
   // Obstacles that lanes gate are raised first; carving then cuts each gate exactly to the lane's width.
   if(plan.crown)raiseCrown(s,plan,protectedGround,keepRock,key);
   for(const p of plan.pinches)if(p.shoulder)raiseShoulder(s,plan,p,protectedGround,keepRock,key);
-  const fords=plan.channel?cutChannel(s,plan,protectedGround,key):null;
+  const cuts=plan.scarp?raiseScarp(s,plan,protectedGround,keepRock):null;
+  if(terrainProfile(s).dikes)raiseDikes(s,plan,protectedGround,key);
   for(const lane of plan.lanes)traceLane(lane,(p,r)=>clear(p.x-.5,p.y-.5,r,true));
   if(plan.crown){
     const {dir,inner,ring,gate}=plan.crown;
     for(let d=inner-1.5;d<=inner+ring+3;d+=.4)clear(plan.C.x+dir.x*d-.5,plan.C.y+dir.y*d-.5,gate,true);
   }
-  if(fords)for(const i of fords)if(s.terrain[i]===0)mirroredTerrain(s,i,2);
-  const {centers,placed}=tieredFields(s,plan,clear,protectedGround,laneGround,key);
-  mineralBowls(s,centers,key);
+  if(cuts)for(const i of cuts)if(s.terrain[i]===0)mirroredTerrain(s,i,2);
+  const {centers,placed}=tieredFields(s,plan,clear,protectedGround,laneGround,keepRock,key);
+  mineralBowls(s,centers,key,keepRock);
   breachPockets(s,clear);
-  addLavaPools(s,key,keepRock);
-  settleLava(s);
   plantTrees(s,plan,protectedGround,key);
   addCraters(s,protectedGround,centers,key);
   if(plan.belt)craterBelt(s,plan,protectedGround,laneGround,key);
@@ -408,7 +467,7 @@ function raiseCrown(s,plan,protectedGround,keepRock,key){
   }
 }
 // A rock shoulder runs across a lane at its pinch, out until it meets existing rock or reaches its length. Like the
-// crown ring it stays raised rock, never a lava pool.
+// crown ring it stays raised rock: no mineral bowl breaches it.
 function raiseShoulder(s,plan,pinch,protectedGround,keepRock,key){
   const lane=plan.lanes.find(l=>l.id===pinch.lane),a=lane.at(Math.max(0,pinch.t-.01)),b=lane.at(Math.min(1,pinch.t+.01)),k=hash(`${key}:shoulder`);
   const length=Math.hypot(b.x-a.x,b.y-a.y),nx=-(b.y-a.y)/length,ny=(b.x-a.x)/length,{width:W}=s;
@@ -423,69 +482,56 @@ function raiseShoulder(s,plan,pinch,protectedGround,keepRock,key){
     }
   }
 }
-// Ember channels: a band of compact lava pools separated by rock dikes crosses the whole sector on each side.
-// Where a lane will pass, the band stays rock, so carving leaves a ford exactly the lane's width between rock banks.
-// Returns the ford tiles, which turn to basalt once the lanes are cut.
-function cutChannel(s,plan,protectedGround,key){
-  const {width:W,height:H}=s,N=W*H,ch=plan.channel,{S,u,n,len}=plan,rng={rng:hash(`${key}:channel-pools`)},pick=([a,b])=>a+random(rng)*(b-a);
+// Fault scarps: a band of raised rock with a ragged edge crosses the whole sector on each side. Where a lane will pass,
+// carving leaves a cut exactly the lane's width between rock banks. The band is kept rock, so no mineral bowl breaches
+// it. Returns the cut tiles, which turn to basalt once the lanes are cut.
+function raiseScarp(s,plan,protectedGround,keepRock){
+  const {width:W,height:H}=s,N=W*H,sc=plan.scarp,{S,u,n,len}=plan;
   const reach=new Uint8Array(N);
   for(const lane of plan.lanes)traceLane(lane,(p,r)=>{const R=r+1.5;for(let y=Math.floor(p.y-R);y<=p.y+R;y++)for(let x=Math.floor(p.x-R);x<=p.x+R;x++)if(inside(s,x,y)&&sq(x+.5-p.x)+sq(y+.5-p.y)<=R*R)reach[y*W+x]=1;});
   const corners=[[0,0],[W,0],[0,H],[W,H]].map(([x,y])=>(x-S.x)*n.x+(y-S.y)*n.y),low=Math.min(...corners)-2,bins=Math.ceil((Math.max(...corners)+2-low)/.5)+1;
-  const half=sigma=>ch.half*(1+.3*(vnoise(sigma/6,7.1,ch.k)-.5));
-  const band=[],ford=new Uint8Array(bins);
+  const half=sigma=>sc.half*(1+.3*(vnoise(sigma/6,7.1,sc.k)-.5));
+  const band=[],cut=new Uint8Array(bins);
   for(let i=0;i<N;i++){
     const x=i%W+.5,y=Math.floor(i/W)+.5,a=(x-S.x)*u.x+(y-S.y)*u.y;
-    if(a>len/2||Math.abs(a-ch.a)>ch.amp+ch.half*1.2+3)continue;
-    const sigma=(x-S.x)*n.x+(y-S.y)*n.y,offset=a-ch.axial(sigma),h=half(sigma);
+    if(a>len/2||Math.abs(a-sc.a)>sc.amp+sc.half*1.2+3)continue;
+    const sigma=(x-S.x)*n.x+(y-S.y)*n.y,offset=a-sc.axial(sigma),h=half(sigma);
     if(Math.abs(offset)>h+1.5)continue;
     const bin=Math.floor((sigma-low)/.5);
-    if(reach[i])ford[bin]=1;
-    band.push({i,sigma,offset,h,bin,core:Math.abs(offset)<=h});
+    if(reach[i])cut[bin]=1;
+    // A ragged rim, so the scarp reads as broken rock rather than a drawn band.
+    band.push({i,bin,core:Math.abs(offset)<=h+(vnoise(x/2.5,y/2.5,sc.k+5)-.5)*1.2});
   }
-  // Rock banks of about 1.5 tiles keep pools off the lane corridors.
-  const blocked=new Uint8Array(bins);for(let b=0;b<bins;b++)if(ford[b])for(let d=-3;d<=3;d++)if(b+d>=0&&b+d<bins)blocked[b+d]=1;
-  const pools=[];
-  for(let b=0;b<bins;){
-    if(blocked[b]){b++;continue;}
-    let end=b;while(end+1<bins&&!blocked[end+1])end++;
-    const from=low+b*.5,to=low+(end+1)*.5;
-    for(let at=from+pick(ch.dike)/2;;){
-      let length=pick(ch.pool);const rest=to-at-length;
-      if(rest<ch.dike[0]+ch.pool[0])length=to-at-ch.dike[0]/2;
-      if(length<5)break;
-      pools.push({centre:at+length/2,half:length/2});
-      at+=length+pick(ch.dike);if(at>=to-5)break;
-    }
-    b=end+1;
-  }
-  const poolOf=sigma=>pools.find(p=>Math.abs(sigma-p.centre)<p.half);
-  const lava=new Map(),fords=[];
+  const cuts=[];
   for(const tile of band){
-    const {i,sigma,offset,h}=tile;
-    if(protectedGround[i])continue;
-    if(ford[tile.bin]){fords.push(i);if(!tile.core)continue;}
-    if(!tile.core)continue;
-    const p=blocked[tile.bin]?null:poolOf(sigma),inPool=p&&Math.abs((sigma-p.centre)/p.half)**2.4+Math.abs(offset/h)**2.4<=1;
-    if(inPool){if(!lava.has(p))lava.set(p,[]);lava.get(p).push(i);}
-    mirroredTerrain(s,i,1);
+    if(protectedGround[tile.i])continue;
+    if(cut[tile.bin])cuts.push(tile.i);
+    if(tile.core){mirroredTerrain(s,tile.i,1);keepRock[tile.i]=keepRock[N-1-tile.i]=1;}
   }
-  // Pools that would touch the map margin stay as rock spurs, so every molten basin keeps its recessed banks.
-  for(const tiles of lava.values())if(tiles.every(i=>{const x=i%W,y=Math.floor(i/W);return x>=3&&y>=3&&x<W-3&&y<H-3;}))for(const i of tiles)mirroredTerrain(s,i,3);
-  return fords;
+  return cuts;
 }
-// Lava that a later pass cut, thinned or pushed out of bounds settles back into rock: blocked either way, so routes keep.
-// What remains is compact recessed pools of 12–220 tiles, the bound the renderer's per-pool surfaces rely on.
-function settleLava(s){
-  const {width:W,height:H}=s,N=W*H,{start,end}=mapLayout(s),seen=new Uint8Array(N);
-  for(let i=0;i<N;i++){
-    if(seen[i]||s.terrain[i]!==3)continue;
-    const group=[i];seen[i]=1;let valid=true,minX=W,maxX=0,minY=H,maxY=0;
-    for(let head=0;head<group.length;head++){
-      const at=group[head],x=at%W,y=Math.floor(at/W);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-      if(x<3||y<3||x>=W-3||y>=H-3||Math.hypot(x-start.x,y-start.y)<=11.5||Math.hypot(x-end.x,y-end.y)<=11.5||s.minerals[at]>0)valid=false;
-      for(const next of [x>0?at-1:-1,x<W-1?at+1:-1,y>0?at-W:-1,y<H-1?at+W:-1])if(next>=0&&!seen[next]&&s.terrain[next]===3){seen[next]=1;group.push(next);}
+// Basalt dikes: thin walls of raised rock that wander across the line of advance, broken by a gap or two. They rise
+// before the lanes, so every lane cuts its own way through, and they stay clear of both base clearings.
+function raiseDikes(s,plan,protectedGround,key){
+  const {width:W,height:H}=s,N=W*H,d=terrainProfile(s).dikes,rng={rng:hash(`${key}:dikes`)},k=hash(`${key}:dike-wander`),pick=([a,b])=>a+random(rng)*(b-a);
+  const {start,end}=mapLayout(s),across=Math.atan2(plan.n.y,plan.n.x),count=Math.round(d.count*Math.sqrt(N/(72*56)));
+  for(let made=0,attempt=0;made<count&&attempt<count*30;attempt++){
+    const length=pick(d.length),width=pick(d.width),heading=across+(random(rng)-.5)*1.1,from={x:4+random(rng)*(W-8),y:4+random(rng)*(H-8)};
+    const gaps=Array.from({length:Math.round(pick(d.gaps))},()=>({at:pick([.15,.85])*length,half:pick([1.5,2.5])}));
+    const steps=[];let x=from.x,y=from.y,ok=true;
+    for(let along=0;along<=length&&ok;along+=.5){
+      const turn=heading+(vnoise(along/9,made*7.3,k)-.5)*1.4;
+      x+=Math.cos(turn)*.5;y+=Math.sin(turn)*.5;
+      if(x<3||y<3||x>W-3||y>H-3||[start,end].some(base=>Math.hypot(x-base.x,y-base.y)<24))ok=false;
+      if(!gaps.some(g=>Math.abs(along-g.at)<g.half))steps.push({x,y});
     }
-    if(!valid||group.length<12||group.length>220||group.length/((maxX-minX+1)*(maxY-minY+1))<.3)for(const at of group)mirroredTerrain(s,at,1);
+    // A dike crossing its own mirror would close on itself through the centre.
+    if(!ok||Math.hypot(from.x-W/2,from.y-H/2)<length/2+6)continue;
+    made++;
+    for(const p of steps)for(let yy=Math.floor(p.y-width);yy<=p.y+width;yy++)for(let xx=Math.floor(p.x-width);xx<=p.x+width;xx++){
+      const i=yy*W+xx;
+      if(inside(s,xx,yy)&&!protectedGround[i]&&!protectedGround[N-1-i]&&sq(xx+.5-p.x)+sq(yy+.5-p.y)<=width*width)mirroredTerrain(s,i,1);
+    }
   }
 }
 // Deadwood groves: a low-frequency mask, strongest in two belts across the lanes, raises the root chance.
@@ -527,7 +573,7 @@ function craterBelt(s,plan,protectedGround,laneGround,key){
   }
 }
 
-// Travel distance in tiles over open ground (rock, lava and roots block; entities do not), or -1 when unreachable.
+// Travel distance in tiles over open ground (rock and roots block; entities do not), or -1 when unreachable.
 // Moves go eight ways: straight steps cost 1 and diagonal steps 1.5, never cutting a blocked corner. A bucket queue in
 // half-tile units keeps the search linear in map area.
 function pathDistances(s,from){
@@ -591,13 +637,15 @@ function nexusSpot(s,site,reach,accept=()=>true){
 
 // Expansion tiers by path distance from the home nexus; the rival's distance is the mirrored index (d1[i]=d0[N-1-i]).
 // Every field reserves an AI-legal nexus site that trees and craters must leave clear.
-function tieredFields(s,plan,clear,protectedGround,laneGround,key){
+function tieredFields(s,plan,clear,protectedGround,laneGround,keepRock,key){
   const {width:W,height:H}=s,N=W*H,{start,end}=mapLayout(s),[home,away]=anchors(s),d0=pathDistances(s,home),d1=rivalDistances(s,d0),D=Math.max(1,d0[away]);
   const laneNear=spread(s,i=>laneGround[i]===1),reserved=new Uint8Array(N),sites=[],rng={rng:hash(`${key}:fields:${s.mapProfile}`)};
   const tools=fieldTools(s,clear,key),{centers,field}=tools,S=plan.S;
   // Mint starter fields come first with the unsalted scatter stream order, so every profile keeps the same budget.
-  field({x:start.x+8,y:start.y+1},1,'starter');field({x:start.x,y:start.y+9},1,'starter');
-  const lavaNear=(a,r)=>{for(let y=a.y-r;y<=a.y+r;y++)for(let x=a.x-r;x<=a.x+r;x++)if(inside(s,x,y)&&s.terrain[y*W+x]===3)return true;return false;};
+  // They sit where the original deployment had them, turned with the base.
+  field(basePoint(s,0,8.5,1.5),1,'starter');field(basePoint(s,0,.5,9.5),1,'starter');
+  // A field hugging a wall the profile keeps (crown ring, shoulder, scarp) could carve its haul access through it.
+  const wallNear=(a,r)=>{for(let y=a.y-r;y<=a.y+r;y++)for(let x=a.x-r;x<=a.x+r;x++)if(inside(s,x,y)&&keepRock[y*W+x])return true;return false;};
   const stamp=new Int32Array(N);let generation=0;
   // Ground reachable from the field centre within a small box, so the reserved site joins the field's own region.
   const local=a=>{
@@ -621,7 +669,7 @@ function tieredFields(s,plan,clear,protectedGround,laneGround,key){
   };
   const reserve=site=>{for(let y=site.y-1;y<=site.y+3;y++)for(let x=site.x-1;x<=site.x+3;x++)if(inside(s,x,y)){const i=y*W+x;reserved[i]=reserved[N-1-i]=1;protectedGround[i]=protectedGround[N-1-i]=1;}sites.push({x:site.x+1,y:site.y+1},{x:W-2-site.x,y:H-2-site.y});};
   const spaced=(a,gap)=>{const b={x:W-1-a.x,y:H-1-a.y};return distance(a,b)>=gap&&[a,b].every(p=>centers.every(c=>distance(c,p)>=gap)&&sites.every(c=>distance(c,p)>=7.6));};
-  const usable=(a,lane=6)=>a.x>=6&&a.y>=6&&a.x<W-6&&a.y<H-6&&(s.terrain[a.y*W+a.x]===0||s.terrain[a.y*W+a.x]===2)&&d0[a.y*W+a.x]>=0&&laneNear[a.y*W+a.x]>=lane&&!lavaNear(a,6)&&spaced(a,12);
+  const usable=(a,lane=6)=>a.x>=6&&a.y>=6&&a.x<W-6&&a.y<H-6&&(s.terrain[a.y*W+a.x]===0||s.terrain[a.y*W+a.x]===2)&&d0[a.y*W+a.x]>=0&&laneNear[a.y*W+a.x]>=lane&&!wallNear(a,6)&&spaced(a,12);
   const place=(a,type,kind,avoid=[a])=>{const site=siteFor(a,avoid);if(!site)return false;reserve(site);field(a,type,kind);return true;};
   const ranked=(test,score)=>{const list=[];for(let i=0;i<N;i++){const x=i%W,y=Math.floor(i/W);if(test(i,x,y))list.push({x,y,score:score(i,x,y)+random(rng)*4});}return list.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);};
   if(plan.crown){
@@ -651,7 +699,7 @@ const PREFIXES=['Cinder','Ember','Slag','Tephra','Pumice','Scoria','Clinker','So
 const NOUNS={
   natural:['Hollow','Shelf','Terrace','Bench','Pocket','Ledge'],third:['Reach','Spur','Flats','Draw','Fold','Shoulder'],outpost:['Outcrop','Bluff','Knoll','Rest','Wells','Mesa'],
   contested:['Seam','Lode','Fault','Scar','Vein','Gash'],crown:['Crown','Caldera','Dais'],centre:['Cross','Meridian','Junction','Commons'],
-  pass:['Gate','Notch','Narrows','Throat','Saddle','Neck'],gate:['Gate','Arch','Breach','Postern'],ford:['Ford','Crossing','Causeway','Steps'],cover:['Line','Pits','Furrows','Trenches'],
+  pass:['Gate','Notch','Narrows','Throat','Saddle','Neck'],gate:['Gate','Arch','Breach','Postern'],ford:['Cut','Steps','Ramp','Stair'],cover:['Line','Pits','Furrows','Trenches'],
 };
 // Sites are plain saved data: {id, kind, x, y, r, name} plus `side` (0 or 1) for ground that belongs to one base.
 // Names come from their own seeded stream, never from s.rng.
@@ -674,7 +722,7 @@ function compileSites(s,placed,features,d0=pathDistances(s,anchors(s)[0])){
   for(const f of features)add(f.kind,f.x,f.y,f.kind==='cover'?f.r:f.r+2,f.side);
   for(const f of fields.filter(f=>f.kind==='outpost')){const own=f.margin>=0?0:1;add('outpost',f.a.x+.5,f.a.y+.5,5.5,own);add('outpost',f.b.x+.5,f.b.y+.5,5.5,1-own);}
   // Each name prefers an unused prefix, so one sector rarely repeats a word.
-  const kept=sites.slice(0,64),rng={rng:hash(`${s.seed}:names`)},used=new Set(),free=[...PREFIXES];
+  const kept=sites.slice(0,128),rng={rng:hash(`${s.seed}:names`)},used=new Set(),free=[...PREFIXES];
   for(const site of kept){
     const nouns=NOUNS[site.kind];let name='';
     for(let tries=0;!name||used.has(name);tries++){

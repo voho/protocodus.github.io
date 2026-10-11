@@ -19,7 +19,7 @@ function advance(s,u){
   for(let i=1;i<=segments;i++)for(const dx of [-.189,.189])for(const dy of [-.189,.189]){
     const x=before.x+(u.x-before.x)*i/segments+dx,y=before.y+(u.y-before.y)*i/segments+dy;
     assert(x>=0&&y>=0&&x<s.width&&y<s.height,'A smoothed segment remains in the map');
-    assert.equal(s.blocked[Math.floor(y)*s.width+Math.floor(x)],0,'A smoothed segment cannot cut rock, lava or building corners');
+    assert.equal(s.blocked[Math.floor(y)*s.width+Math.floor(x)],0,'A smoothed segment cannot cut rock, root or building corners');
   }
   const headingChange=turn(u.angle,before.angle);
   assert(headingChange<=Math.PI/6+1e-8,`Heading snaps by ${(headingChange*180/Math.PI).toFixed(1)} degrees in 50 ms`);
@@ -58,7 +58,7 @@ for(const angle of [0,Math.PI-.02]){
 {
   const{s,u,refinery}=scene();refinery.x=41;refinery.y=30;s.entities.push(refinery);
   for(let y=23;y<=30;y++)s.terrain[y*s.width+29]=1;
-  for(let y=26;y<=32;y++)for(let x=34;x<=37;x++)s.terrain[y*s.width+x]=3;
+  for(let y=26;y<=32;y++)for(let x=34;x<=37;x++)s.terrain[y*s.width+x]=4;
   const goal=move(s,u,{x:48.27,y:35.73});
   for(let i=0;i<40;i++)advance(s,u);
   const loaded=decodeGame(encodeGame(s)).game,restored=loaded.entities.find(e=>e.id===u.id);

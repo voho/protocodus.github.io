@@ -3,11 +3,11 @@
 // their data in campaign.js) and unit abilities in abilities.js; all of them build on these exports.
 import {createFlockSnapshot,flockSteering} from './flocking.js';
 import {findTrafficDetour} from './traffic.js';
-import {MAP_SIZES,MAP_PROFILES,mapLayout,hash,generateMap} from './terrain.js';
+import {MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout,basePoint,hash,generateMap} from './terrain.js';
 import {newAI,aiState,thinkAI,teamPace} from './ai.js';
 import {missionDefinition,missionSettings,createMissionState,updateMission,settleMission,missionAllows,noteDelivery,noteTrained,missionDeployment,noteTagLost} from './mission.js';
 import {ABILITIES,abilitySpeed,abilityRange,abilityDamageTaken,endHeldAbility} from './abilities.js';
-export {MAP_SIZES,MAP_PROFILES,mapLayout};
+export {MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout};
 export const UNIT_CAP=2000;
 export const UNIT_CAP_PER_NEXUS=200,NEXUS_DEPLOY_RANGE=4;
 export const BUILDINGS = {
@@ -91,7 +91,7 @@ export const BUILDING_UPGRADES = {
   advancedProduction:{name:'Advanced assembly bay',cost:260,time:35,types:['factory'],requires:['lab'],description:'This foundry can build Pike strikers after Advanced ballistics research.'},
 };
 
-export const MAP_WIDTH=MAP_SIZES.frontier.width,MAP_HEIGHT=MAP_SIZES.frontier.height;
+export const MAP_WIDTH=MAP_SIZES[DEFAULT_MAP_SIZE].width,MAP_HEIGHT=MAP_SIZES[DEFAULT_MAP_SIZE].height;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const sq=(x)=>x*x;
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -314,14 +314,14 @@ export function createGame(seed='ASH-001',difficulty='normal',options={}){
   s.teams.forEach((team,index)=>{team.race=races[index];});s.aiTeams=[...aiTeams];
   if(aiTeams.includes(0))s.aiByTeam={0:newAI(level,aiProfiles[0],{seed:String(seed),team:0})};
   generateMap(s);
-  const {start,end}=mapLayout(s);
   for(let team=0;team<2;team++){
     if(operation?.start?.[team]==='none')continue;
-    const building=(role,x,y)=>{const type=raceBuilding(s,team,role);return addEntity(s,team,'building',type,team?end.x+11-x-BUILDINGS[type].size:start.x+x-12,team?end.y+36-y-BUILDINGS[type].size:start.y+y-37);};
-    const unit=(role,x,y)=>addEntity(s,team,'unit',raceUnit(s,team,role),team?end.x+11-x:start.x+x-12,team?end.y+36-y:start.y+y-37);
-    building('core',10,35);building('reactor',6,35);building('refinery',15,38);
-    for(let j=0;j<3;j++)unit('rifle',11+j,33.7);
-    unit('scout',15.5,33);
+    // Offsets from the nexus centre in the original frame; basePoint turns them with the sector and mirrors the rival.
+    const building=(role,dx,dy)=>{const type=raceBuilding(s,team,role),size=BUILDINGS[type].size,p=basePoint(s,team,dx,dy);return addEntity(s,team,'building',type,Math.round(p.x-size/2),Math.round(p.y-size/2));};
+    const unit=(role,dx,dy)=>{const p=basePoint(s,team,dx,dy);return addEntity(s,team,'unit',raceUnit(s,team,role),p.x,p.y);};
+    building('core',0,0);building('reactor',-4.5,-.5);building('refinery',5,3);
+    for(let j=0;j<3;j++)unit('rifle',j-.5,-2.8);
+    unit('scout',4,-3.5);
   }
   // Initial footprints must never contain shards, including the generated field fringe.
   for(const e of s.entities)if(e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++){s.terrain[y*W+x]=0;s.minerals[y*W+x]=0;}
@@ -348,7 +348,7 @@ export function rebuildNavigation(s){
   const {width:W,height:H}=s,N=W*H;
   if(s.navBuilt===s.navVersion&&s.regionSize){if(!clearanceGrids.has(s))rebuildClearance(s);return;}
   const {terrain,blocked}=s;
-  for(let i=0;i<N;i++)blocked[i]=terrain[i]===1||terrain[i]===3||terrain[i]===4?1:0;
+  for(let i=0;i<N;i++)blocked[i]=terrain[i]===1||terrain[i]===4?1:0;
   for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)blocked[y*W+x]=1;
   // Connected regions let haulers skip isolated mineral pockets without repeated A* failures.
   const regions=s.regions=new Uint16Array(N),queue=new Int32Array(N);let region=0,tail=0;
@@ -406,7 +406,7 @@ export function placementCheck(s,team,type){
     if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
     rebuildNavigation(s);
     for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
-      const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+      const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
     }
     if(unitInArea(x,y))return bad('Unit in construction area');
     finished??=own(s,team).filter(e=>e.kind==='building'&&e.progress>=1);
@@ -437,7 +437,7 @@ export function deploymentStatus(s,team,unitId,x,y){
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++)if(!s.explored[team][yy*s.width+xx])return bad('Explore the deployment site first');
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
     const i=yy*s.width+xx;
-    if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+    if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
   }
   if(s.entities.some(e=>e!==u&&alive(e)&&e.kind==='unit'&&e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3))return bad('Unit in construction area');
   return good();

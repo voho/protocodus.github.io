@@ -8,7 +8,10 @@ function fixture(race='organics'){
   const s=createGame('WALL-FIXTURE','hard',{...MAP_SIZES.standard,races:[race,'organics'],aiTeams:[]});
   s.terrain.fill(0);s.minerals.fill(0);s.mineralTypes.fill(0);s.entities=s.entities.filter(e=>e.kind==='building');s.navVersion++;
   s.visible.forEach(grid=>grid.fill(1));s.explored.forEach(grid=>grid.fill(1));s.teams[0].credits=5000;
-  const core=s.entities.find(e=>e.team===0&&buildingRole(e)==='core');return{s,x:core.x-4,y:core.y+7};
+  // The original deployment's footprint on open ground west of centre, wherever the sector put the base.
+  const move=(role,x,y)=>Object.assign(s.entities.find(e=>e.team===0&&buildingRole(e)===role),{x,y});
+  move('reactor',36,50);move('refinery',45,53);
+  const core=move('core',40,50);return{s,x:core.x-4,y:core.y+7};
 }
 const advance=(s,seconds)=>{for(let i=0;i<seconds*4;i++)updateGame(s,.25);};
 

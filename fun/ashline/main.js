@@ -1,4 +1,4 @@
-import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, cancelResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, cancelTraining, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, productionRate, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, DEFAULT_MAP_SIZE, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, cancelResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, cancelTraining, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, productionRate, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { ABILITIES, abilityFor, abilityStatus, useAbility } from './abilities.js';
 import { DOCTRINES, doctrineOptions, randomDoctrine } from './ai.js';
 import { callsign, barkLine, rivalCommander, approachingColumn } from './character.js';
@@ -1139,7 +1139,7 @@ function updateHoverReadout() {
   if (known) {
     const ore = game.visible[0][at] ? game.minerals[at] : renderer.knownOre?.[at];
     if (ore > 0) { const type = renderer.knownMineralTypes?.[at] || game.mineralTypes[at] || 1; groundHint = `${['', 'Mint shards', 'Blue shards', 'Red shards · 2× density'][type]} · ${fmt(ore)} credits`; }
-    else groundHint = ({1:'Raised ridge · impassable', 3:'Molten lava · impassable', 4:'Twisted roots · obstructed', 5:'Crater · 15% direct-fire cover · no construction'})[game.terrain[at]] || '';
+    else groundHint = ({1:'Raised ridge · impassable', 4:'Twisted roots · obstructed', 5:'Crater · 15% direct-fire cover · no construction'})[game.terrain[at]] || '';
   }
   const entity = known && settings.tooltips && !view.placement && !orderMode ? entityAt(hover) : null;
   let entityHint = '';
@@ -1712,6 +1712,7 @@ $('loading-back').addEventListener('click', () => { if ($('loading-back').datase
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); });
 // Terrain choices follow the simulation's profile table; its first profile stays the default.
 $('map-profile').replaceChildren(...Object.entries(MAP_PROFILES).map(([id, profile]) => new Option(profile.name, id)));
+$('map-size').replaceChildren(...Object.entries(MAP_SIZES).map(([id, size]) => new Option(`${size.name} · ${size.width} × ${size.height}`, id, id === DEFAULT_MAP_SIZE, id === DEFAULT_MAP_SIZE)));
 // Rival commanders come from the AI table; the simulation resolves Random from the operation seed. The
 // campaign interface owns the skirmish mode select: a mode other than Annihilation runs as its operation.
 $('rival-doctrine').replaceChildren(...doctrineOptions().map(option => new Option(option.name, option.id)));

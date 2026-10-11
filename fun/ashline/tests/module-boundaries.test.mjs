@@ -79,8 +79,8 @@ test('sim.js re-exports the terrain module’s map tables and layout unchanged',
 });
 
 test('generateMap draws only on local streams and never touches the shared random stream', () => {
-  // Named map sites are the one documented field generation may add to a game.
-  const outputs = ['sites'];
+  // Named map sites and the seeded base layout are the documented fields generation may add to a game.
+  const outputs = ['sites', 'layout'];
   const sizes = [...Object.keys(terrain.MAP_PROFILES).map(profile => [profile, terrain.MAP_SIZES.standard]), ['rift', {width: 72, height: 56}]];
   for (const [profile, {width, height}] of sizes) {
     const plain = rng => ({width, height, seed: 'BOUNDARY-TERRAIN', mapProfile: profile, rng,

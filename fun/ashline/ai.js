@@ -10,7 +10,7 @@
 import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
   random,unitStats,unitRange,powerStats,raceBuilding,raceUnit,placementCheck,placeBuilding,trainUnit,issueOrder,stopUnits,setUnitStance,
   researchStatus,startResearch,buildingUpgradeStatus,startBuildingUpgrade,deploymentStatus,deployNexus,planWallLine,buildWallLine} from './sim.js';
-import {mapLayout,hash} from './terrain.js';
+import {mapLayout,basePoint,hash} from './terrain.js';
 import {ABILITIES,abilityFor,useAbility} from './abilities.js';
 import {missionDirective} from './mission.js';
 
@@ -112,6 +112,16 @@ const onMap=(s,p)=>({x:clamp(p.x,.5,s.width-.5),y:clamp(p.y,.5,s.height-.5)});
 const footprint=m=>{const size=BUILDINGS[m.type].size;return{x:Math.round(m.x-size/2),y:Math.round(m.y-size/2),size};};
 const memoryPower=m=>{const d=m.kind==='building'?BUILDINGS[m.type]:UNITS[m.type];return d.damage?Math.sqrt(m.hp*d.damage/d.interval):0;};
 const enemyAnchor=(s,team)=>{const {start,end}=mapLayout(s);return onMap(s,team===1?start:end);};
+// A scout's tour while it remembers no enemy structure: the centre, the front of the rival's structural start, both
+// wings of the sector and the far side of that start. Older saves keep the original fixed tour.
+function scoutWaypoints(s,team){
+  const {width:W,height:H}=s,{start,end}=mapLayout(s);
+  if(!s.layout)return[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}].map(p=>onMap(s,team===1?p:{x:W-p.x,y:H-p.y}));
+  const rival=team===1?0:1,advance=direction(end.x-start.x,end.y-start.y),C={x:W/2,y:H/2};
+  // Seven tenths of the way from the centre to the map edge, square to the line of advance.
+  const wing=sign=>{const x=-advance.y*sign,y=advance.x*sign,reach=Math.min(x?(x>0?W-C.x:C.x)/Math.abs(x):Infinity,y?(y>0?H-C.y:C.y)/Math.abs(y):Infinity)*.7;return{x:C.x+x*reach,y:C.y+y*reach};};
+  return[C,basePoint(s,rival,6.5,3.5),wing(1),wing(-1),basePoint(s,rival,-2.5,11.5)].map(p=>onMap(s,p));
+}
 // True while a unit already holds this order, or has finished it there: re-issuing it would only re-plan
 // the same parking slots through movementDestinations.
 function bound(u,p,type){
@@ -161,7 +171,7 @@ function survey(s,team,ai){
 function fairGround(s,team,v){
   if(v.fair)return v.fair;
   const {width:W,height:H}=s,N=W*H,grid=new Uint8Array(N),visible=s.visible[team],explored=s.explored[team],terrain=s.terrain;
-  for(let i=0;i<N;i++){const t=terrain[i];grid[i]=visible[i]?s.blocked[i]:explored[i]&&(t===1||t===3||t===4)?1:0;}
+  for(let i=0;i<N;i++){const t=terrain[i];grid[i]=visible[i]?s.blocked[i]:explored[i]&&(t===1||t===4)?1:0;}
   const mark=(x0,y0,size,hidden)=>{for(let y=Math.max(0,y0);y<Math.min(H,y0+size);y++)for(let x=Math.max(0,x0);x<Math.min(W,x0+size);x++)if(!hidden||!visible[y*W+x])grid[y*W+x]=1;};
   for(const b of v.buildings)mark(b.x,b.y,b.size,false);
   for(const m of v.knownBuildings){const f=footprint(m);mark(f.x,f.y,f.size,true);}
@@ -241,7 +251,7 @@ function rememberMiningSites(s,team,ai){
         const previous=bucketOf(site);Object.assign(site,point,{amount:minerals[i],seenAt:s.time});
         const next=bucketOf(site);if(next!==previous){const list=buckets.get(previous);list.splice(list.indexOf(match),1);file(match,next);}
       }
-    }else if(sites.length<64){sites.push({...point,amount:minerals[i],seenAt:s.time});file(sites.length-1,bucketOf(sites.at(-1)));}
+    }else if(sites.length<128){sites.push({...point,amount:minerals[i],seenAt:s.time});file(sites.length-1,bucketOf(sites.at(-1)));}
   }
   ai.miningSites=ai.miningSites.filter(site=>site.amount>100);
 }
@@ -626,9 +636,8 @@ function scoutAI(s,team,ai,v,k,ctx){
   delete intel.repair;
   if(intel.spot){if(s.time<intel.spot.until){const p={x:intel.spot.x,y:intel.spot.y};if(!bound(scout,p,'move'))issueOrder(s,[scout.id],{type:'move',...p});return;}delete intel.spot;}
   if(intel.explore){if(s.time<intel.explore){if(scout.order.type!=='explore')issueOrder(s,[scout.id],{type:'explore'});return;}delete intel.explore;}
-  const {width:W,height:H}=s,{start}=mapLayout(s);
   if(!v.knownBuildings.length){
-    const waypoints=[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}].map(p=>onMap(s,team===1?p:{x:W-p.x,y:H-p.y}));
+    const waypoints=scoutWaypoints(s,team);
     if(distance(scout,waypoints[ai.scoutIndex%waypoints.length])<3)ai.scoutIndex++;
     const point=waypoints[ai.scoutIndex%waypoints.length];
     if(!bound(scout,point,'move'))issueOrder(s,[scout.id],{type:'move',...point});
@@ -778,8 +787,7 @@ function pickTarget(s,team,ai,v,k,from,directive,exclude,guns=true){
   // Nothing remembered: probe the enemy's structural start, then the open sector.
   const anchor=enemyAnchor(s,team);
   if(!s.explored[team][cell(s,anchor.x,anchor.y)])return anchor;
-  const {width:W,height:H}=s,{start}=mapLayout(s);
-  const waypoints=[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}].map(p=>onMap(s,team===1?p:{x:W-p.x,y:H-p.y}));
+  const waypoints=scoutWaypoints(s,team);
   return waypoints[ai.scoutIndex++%waypoints.length];
 }
 function aim(wave,target){wave.tx=target.x;wave.ty=target.y;if(target.id)wave.targetId=target.id;else delete wave.targetId;}

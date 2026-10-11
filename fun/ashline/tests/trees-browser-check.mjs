@@ -66,7 +66,7 @@ try {
     // Variants come from per-tile noise, so the 16 trees of a legacy 72-wide map cannot promise all six (about 5.8 expected).
     const legacy = row.width < 144;
     assert(row.count > 6 && row.rocks > 6 && row.variants >= (legacy ? 4 : 6), `Tree variety retains basalt formations on width ${row.width}`);
-    assert.equal(row.invalid, 0, 'Scattered trees match their own root obstacles outside ore, lava and building footprints');
+    assert.equal(row.invalid, 0, 'Scattered trees match their own root obstacles outside ore and building footprints');
     assert.equal(row.count, row.treeTiles, 'Every generated tree is rendered once');
     assert(row.sectors >= (legacy ? 6 : 10), `Trees appear across the map rather than only in a few mountain groves on width ${row.width} (${row.sectors} of 16 sectors)`);
     assert(row.repeated && row.restored && row.varied && row.unchanged, 'Placement is seeded, save-stable and leaves simulation topology unchanged');
@@ -155,5 +155,5 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({placement, fog}, null, 2));
-  console.log(`Tree browser checks passed: six varieties, scattered root obstacles across sectors, seeded/save-stable placement, legacy groves, mineral/lava/building exclusion, fog and concealed-enemy opacity, desktop/mobile unit selection and zoom previews. Review: ${output}`);
+  console.log(`Tree browser checks passed: six varieties, scattered root obstacles across sectors, seeded/save-stable placement, legacy groves, mineral/building exclusion, fog and concealed-enemy opacity, desktop/mobile unit selection and zoom previews. Review: ${output}`);
 } finally { await browser.close(); }

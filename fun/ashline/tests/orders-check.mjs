@@ -60,7 +60,9 @@ assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,capacity);
 
 // Explicit movement can reposition haulers, then automatic harvesting resumes.
 const haulerField=seed=>{
-  const s=quiet(seed),u=entities(s,0,'harvester')[0],r=entities(s,0,'refinery')[0],x=r.x+7,y=r.y+5,tile=y*s.width+x;
+  // A deposit seven tiles beyond the refinery, on the side away from the nexus, whichever way the base faces.
+  const s=quiet(seed),u=entities(s,0,'harvester')[0],r=entities(s,0,'refinery')[0],c=entities(s,0,'core')[0];
+  const dx=r.x-c.x,dy=r.y-c.y,l=Math.hypot(dx,dy),x=Math.floor(r.x+1.5+dx/l*7),y=Math.floor(r.y+1.5+dy/l*7),tile=y*s.width+x;
   s.minerals[tile]=10000;s.explored[0].fill(1);u.x=x+.5;u.y=y+.5;u.path=[];
   return{s,u,tile};
 };

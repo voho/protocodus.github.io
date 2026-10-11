@@ -396,7 +396,7 @@ export const MISSIONS={
 export const ARCHIVE={
   world:[
     {title:'Tephra',text:'A frontier world at the edge of Charter space. Its forests died in the Burn, and its ash plains cover the richest shard veins ever surveyed.'},
-    {title:'The Burn',text:'A cascade of rift eruptions that ran for eleven years. It left the deadwood, ash plains, craters and lava basins, and it cracked open the shard veins.'},
+    {title:'The Burn',text:'A cascade of rift eruptions that ran for eleven years. It left the deadwood, ash plains, craters and basalt dikes, and it cracked open the shard veins.'},
     {title:'Shards',text:'Crystallised geothermal charge. Mint shards are common, blue shards mark deep reserves, and red seam crystal is dense and twice charged. Refined, shards are both currency and power.'},
     {title:'The Ashline',text:'The moving front between claims. It runs wherever two nexuses can see each other\'s smoke.'},
   ],
