@@ -332,7 +332,7 @@ export const MISSIONS={
   },
 
   'long-guns':{
-    id:'long-guns',name:'Long Guns',location:'Varn bastion',seed:'LONG-GUNS',par:900,
+    id:'long-guns',name:'Long Guns',location:'Varn bastion',seed:'LONG-GUNS',par:720,
     summary:'Shell a walled Unity bastion from beyond its towers with the Compact\'s first siege crawlers.',
     story:['Unity has walled the road to the central relay with a bastion: Lance nodes and launch batteries behind slag walls, fed by their own reactors. Armor that walks into that line does not walk out.','The yard has cleared siege crawlers. Their guns were built to crack mountain rock and outrange every tower Unity builds. Light the batteries with rovers or a flare, shell them from beyond their reach, then take the bastion mainframe.'],
     briefing:'Break the Varn bastion: destroy its six batteries with siege crawlers, then its mainframe.',

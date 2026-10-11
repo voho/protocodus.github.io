@@ -6,7 +6,9 @@ Engine SHA-256: `c1d77024d42608606c9d18e8ccccb1efeefb6a5273b4befe74062cdafd3e4d0
 
 **Doctrines.** Three doctrines were retuned and Balanced was left alone. Against Balanced, over 24 games each (calibration and fresh seeds): on Veteran Swarm 9–15, Ironclad 13–11, Prospector 13–11 and Siegebreaker 14–10; on Commander Swarm 5–19, Ironclad 17–7, Prospector 12–12 and Siegebreaker 15–9. Siegebreaker no longer dominates (it was 10–2 and 9–3 before), and no doctrine wins more than 58.3% on Veteran. Two imbalances remain open on Commander: Ironclad wins 70.8% (8–4 on the calibration seeds), above the 65% target, and Balanced beats Swarm in 79% of games.
 
-**Operations.** Red Ledger now meets a Swarm rival, Hold the Relay an Ironclad one and Severance a Prospector one; a scripted player wins each of them at the Commander setting.
+**Operations.** Red Ledger now meets a Swarm rival, Hold the Relay an Ironclad one and Severance a Prospector one; a scripted player wins each of them at the Commander setting. The Fifth and Long Guns, added later and without a rival commander, are also won at Commander by both scripted styles: the rush in 323 s and 191 s, the macro player in 681 s and 526 s, each failing the loss-limit secondary objective, so their medals need a more careful game (2026-10-11, on the engine with seeded layouts).
+
+These trials predate seeded base layouts, the Expanse and Wilds sizes and the removal of lava: a sector now draws its base bearing and relief variety from the seed, Rift raises basalt dikes and Ember became Fault scarps, so the commands below now play different sectors under a different engine hash. The figures here are the record of the engine named above.
 
 These results describe a fixed commander policy and seed sample. They do not establish balance for human play. The engine before these changes (`d53d0e2c…`) played exactly the matches recorded for engine `64baa92b…` in the previous report: Organics won 25 of the 30 Standard race trials, and against Balanced on Veteran Swarm went 6–6, Ironclad 8–4, Prospector 7–5 and Siegebreaker 10–2. The same engine on Commander, measured for this report, gave Swarm 0–12, Ironclad 11–1, Prospector 9–3 and Siegebreaker 9–3.
 
@@ -14,7 +16,7 @@ These results describe a fixed commander policy and seed sample. They do not est
 
 `tests/race-balance.mjs` creates complete, untouched games with `aiTeams: [0,1]`, independent commander state and fog knowledge for each side, normal starting credits, real research, power, mining and combat. There are no forced attacks, free reinforcements, healed nexuses or victory scores. Both sides run the same commander code; only the race (and, in doctrine trials, the doctrine) differs.
 
-Each seed and profile is played with Organics and AI Unity swapped between side 0 (lower left) and side 1 (upper right). Doctrine trials (`--doctrines a,b`) also swap which race carries which doctrine, so every seed yields four games and the races cancel out. A side wins under the Charter rule: the loser has neither a nexus nor a construction vehicle. A still-playing match at the time limit is a draw.
+Each seed and profile is played with Organics and AI Unity swapped between side 0 and side 1 (the lower-left and upper-right bases when these trials ran). Doctrine trials (`--doctrines a,b`) also swap which race carries which doctrine, so every seed yields four games and the races cancel out. A side wins under the Charter rule: the loser has neither a nexus nor a construction vehicle. A still-playing match at the time limit is a draw.
 
 Race trials use Veteran (`--difficulty hard`) commanders; doctrine trials use Commander (`normal`) and Veteran. Games advance `updateGame` every 0.25 simulated seconds (stepped internally at no more than 0.05 seconds) with a 2,400-second limit and the game's population rule. Each match records the winner, length, peak and final army composition, research, raids, first-raid time, peak nexus count, haulers lost, seconds spent above 1,500 credits and minute-by-minute economy samples.
 
@@ -521,6 +523,7 @@ The operation probe prints one JSON line per game; `--mission`, `--doctrine` (do
 node tests/operation-probe.mjs --mission red-ledger --doctrine balanced,operation --style rush,macro
 node tests/operation-probe.mjs --mission hold-the-relay --doctrine balanced,operation --style rush,macro
 node tests/operation-probe.mjs --mission severance --doctrine balanced,operation --style rush,macro
+node tests/operation-probe.mjs --mission the-fifth,long-guns --style rush,macro
 ```
 
 The [complete recorded results](balance-results.json) hold every race and doctrine match with configuration snapshots, composition, research and economy samples. `tests/balance-docs.test.mjs` checks that the `race-balance` commands above play the profiles recorded there.

@@ -1,9 +1,10 @@
-// Winnability probe for the operations with a rival commander: a scripted Expedition 07 plays each operation
+// Winnability probe for the base-building operations: a scripted Expedition 07 plays each operation
 // through the public commands at a chosen Opposition setting (raised by the operation's aiStep, as the
 // briefing launches it). It builds an economy and an army, takes expansions when they are cleared, and either
 // pushes once 18 units stand (rush) or holds until 420 s and 30 units (macro); it expands only where an objective
 // asks for more nexuses. It knows where rival nexuses
-// stand, as a commander who has scouted would, and attacks the nearest; on Hold the Relay it takes the relay.
+// stand, as a commander who has scouted would, and attacks the nearest; on Hold the Relay it takes the relay. Without a
+// rival commander (The Fifth, Long Guns) it attacks the nearest target of an open primary objective, or takes its zone.
 // --doctrine replaces the operation's rival doctrine ('operation' keeps it), so doctrines can be compared.
 // A measurement tool, not a pass/fail check: it prints one JSON line per game.
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ import {launchSettings} from '../campaign-ui.js';
 const option=name=>{const i=process.argv.indexOf(name);return i<0?undefined:process.argv[i+1];};
 const missions=(option('--mission')||'red-ledger,hold-the-relay,severance').split(','),difficulty=option('--difficulty')||'normal';
 const styles=(option('--style')||'rush,macro').split(','),doctrines=(option('--doctrine')||'operation').split(','),limit=Number(option('--limit')||2400);
-assert.ok(missions.every(id=>MISSIONS[id]?.aiTeams?.includes(1)),'--mission takes operations with a rival commander');
+assert.ok(missions.every(id=>MISSIONS[id]&&MISSIONS[id].start?.[0]!=='none'),'--mission takes operations with a base');
 assert.ok(['easy','normal','hard'].includes(difficulty)&&styles.every(style=>['rush','macro'].includes(style)));
 assert.ok(doctrines.every(id=>id==='operation'||Object.hasOwn(DOCTRINES,id)),'--doctrine takes doctrine ids or operation');
 const research=['vehicleWeapons','infantryWeapons','gridEfficiency','infantryArmor','mobility','advancedBallistics'];
@@ -60,6 +61,11 @@ function play(mission,style,doctrine){
   };
   const target=()=>{
     const relay=s.mission.zones.find(z=>z.id==='relay');if(relay)return{x:relay.x,y:relay.y};
+    if(!def.aiTeams?.includes(1))for(const o of s.mission.objectives.filter(o=>o.state==='active')){
+      const goal=def.objectives.find(d=>d.id===o.id);if(goal.secondary)continue;
+      if(goal.type==='destroyTagged'){const left=s.entities.filter(e=>e.tag===goal.tag&&e.hp>0).sort((a,b)=>dist(center(a),home())-dist(center(b),home())||a.id-b.id);if(left[0])return center(left[0]);}
+      if(['reachZone','holdZone'].includes(goal.type)){const z=s.mission.zones.find(z=>z.id===goal.zone);return{x:z.x,y:z.y};}
+    }
     const h=home(),claims=s.entities.filter(e=>e.team===1&&e.hp>0&&['core','constructor'].includes(entityRole(e))).sort((a,b)=>dist(center(a),h)-dist(center(b),h)||a.id-b.id);
     return claims[0]?center(claims[0]):end;
   };
