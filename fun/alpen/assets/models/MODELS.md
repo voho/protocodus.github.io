@@ -215,6 +215,42 @@ second atlas drawn at boot (`createTwigAtlas`): two fractal twig sprigs
 as luminance values, with their snow drawn a shade bluer than grey so the
 card material can turn it back into the prop snow colour per texel.
 
+## resort/lift.glb — the gondola line and the snow guns (built in Blender)
+
+Written by `tools/blender/lift.py`. Building it renders nothing, so it runs
+anywhere; `--preview DIR` adds turnaround renders in Cycles on the CPU, with
+every back face painted magenta so a surface the game would cull shows up:
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/lift.py -- --out fun/alpen/assets/models/resort
+
+Five nodes, each swapped into the InstancedMesh `js/mountainLife.js` already
+draws its procedural stand-in with, so the resort's draw calls do not change:
+
+| node | what it is | triangles |
+|---|---|---|
+| `lift_cabin` | an eight-seat detachable cabin (Omega-style body with tumblehome, glazing pillars, double sliding door and its rail, rubbing strake, number plates, roof fairing, hanger, grip with jaws, spring pack and running wheels), snow on the roof | 1392 |
+| `lift_cabinGlass` | the cabin's glazing, drawn with the cabins' own glass material | 96 |
+| `lift_tower` | a 22 m tapered tubular tower: plinth, base flange with gussets and anchor nuts, two section flanges, T-head crossarm with stiffeners and the train brackets, a grated deck with toe boards, two-rail balustrade and struts, a ladder with a fall-arrest rail starting 2.4 m up, number plate; snow on the plinth, the deck and the arm | 1938 |
+| `lift_sheaves` | one six-sheave support train: rubber-lined sheaves cantilevered off rocker plates on a balance beam, the pivot pin, an outboard rope catcher | 536 |
+| `snowgun` | a fan gun on a tilting tower: footing, hinged mast with its hydraulic ram, slewing ring, yoke, yellow housing with blue nose, nozzle ring and nozzles, hub and stator, rear grille, water manifold and feed, control cabinet with beacon, hydrant pit with hose and cable; snow on the footing, the pit, the cabinet and the housing | 2050 |
+
+The coordinates are the game's (+Y up, −Z down the hill) and every node is at
+its own origin. The cabin hangs 1.7 m under the rope, which runs along Z
+over its origin, door on +X; the tower stands on its mid-height (ground at
+−11, ropes at +10.5, ±1.8 m either side); a train's origin is the rope's
+centre over its middle, +X outboard; the gun's is its foot, barrel down +Z.
+The node extras carry those numbers (`ropeY`, `groundY`, `gauge`, the
+train's `sheaves`, `radius` and `bend`, the gun's `nozzle`, `aim` and
+`nozzleRadius`), and `adoptLift` refuses a file that disagrees with its own.
+The sheaves carry the custom attribute `_AXLE` — their axle's y and z in the
+train's frame, and 1 — which the hardware material uses to turn each one
+about itself in the vertex shader while the train as a whole is pitched and
+headed along the rope over its tower. Materials are roles; `LIFT_LOOK` in
+`mountainLife.js` gives each a colour, a share of the snow response and a
+share of the slate grain. If the file fails to load, the procedural lift and
+guns stay.
+
 ## Vendored loaders
 
 `assets/vendor/GLTFLoader.js`, `assets/utils/BufferGeometryUtils.js` and

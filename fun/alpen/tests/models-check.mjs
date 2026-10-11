@@ -584,6 +584,169 @@ resort.traverse(node => {
 });
 assert.ok(meshes <= 24, 'resort draw-call budget');
 
+/* The lift and the snow guns as modelled (`tools/blender/lift.py` →
+   assets/models/resort/lift.glb). The file keeps its budgets, carries snow
+   on top of what snow lies on, and sets every sheave under the rope on its
+   own axle. Loaded through the game's own fetch it swaps into the meshes
+   already drawing — not one more draw call — and then every sheave train
+   lies along the rope between its neighbouring towers with its frame
+   inboard, every cabin hangs from the rope by its grip with its door
+   outboard, the hardware patch lands in three's Lambert shader and turns
+   the sheaves, and the guns spray from their own nozzle rings along their
+   barrels. The procedural resort above had no file (node's fetch cannot
+   read one) and kept its own line. */
+{
+  assert.equal(await life.liftReady, false, 'without the file the procedural line stands');
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const bytes = await readFile(new URL('assets/models/resort/lift.glb', base));
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const nodes = parseGlb(buffer);
+  const tris = (name) => nodes[name].prims.reduce((n, p) => n + p.index.length / 3, 0);
+  assert.ok(tris('lift_cabin') + tris('lift_cabinGlass') <= 1500, 'cabin budget');
+  assert.ok(tris('lift_tower') <= 2500, 'tower budget');
+  assert.ok(tris('lift_sheaves') <= 600, 'sheave train budget');
+  assert.ok(tris('snowgun') <= 2500, 'snow gun budget');
+  for (const name of ['lift_cabin', 'lift_tower', 'snowgun']) {
+    const snow = nodes[name].prims.find((p) => p.role === 'snow');
+    assert.ok(snow, name + ' carries snow');
+    const at = snow.attributes.POSITION;
+    const [a, b, c] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    let up = 0;
+    let all = 0;
+    for (let t = 0; t < snow.index.length; t += 3) {
+      a.fromArray(at, snow.index[t] * 3);
+      b.fromArray(at, snow.index[t + 1] * 3).sub(a);
+      c.fromArray(at, snow.index[t + 2] * 3).sub(a);
+      const n = b.cross(c);
+      up += n.y;
+      all += n.length();
+    }
+    assert.ok(up / all > 0.6, name + ': the snow lies on top ' + (up / all).toFixed(2));
+  }
+  const { radius, bend, sheaves } = nodes.lift_sheaves.extras;
+  const axles = new Map();
+  for (const p of nodes.lift_sheaves.prims) {
+    const ax = p.attributes._AXLE;
+    const at = p.attributes.POSITION;
+    for (let i = 0; i < at.length / 3; i++) {
+      if (ax[i * 3 + 2] < 0.5) continue;
+      const y = ax[i * 3];
+      const z = ax[i * 3 + 1];
+      axles.set(z.toFixed(3), y);
+      assert.ok(Math.abs(at[i * 3]) < 0.08 && Math.hypot(at[i * 3 + 1] - y, at[i * 3 + 2] - z) < radius + 0.035,
+        'a sheave turns about its own axle');
+    }
+  }
+  assert.equal(axles.size, sheaves, 'every sheave has its axle');
+  for (const [z, y] of axles) {
+    assert.ok(Math.abs(y + radius + 0.05 + Math.abs(Number(z)) * Math.tan(bend / 2)) < 1e-3,
+      'the rope lies on every sheave');
+  }
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => buffer });
+  const scene = new THREE.Scene();
+  const shots = [];
+  const spray = { burst: (at, vx, vz, count, power) => shots.push({ at: { ...at }, vx, vz, count, power }) };
+  const modelled = mountainLife.createMountainLife(namespace, scene, { apply: (m) => m }, spray);
+  globalThis.fetch = realFetch;
+  const before = [];
+  scene.traverse((o) => { if (o.isMesh) before.push(o); });
+  assert.equal(await modelled.liftReady, true, 'the modelled lift loads');
+  const rider = { pos: new THREE.Vector3(0, 0, -300), distance: 300, state: 'ride', grace: 10 };
+  for (let i = 0; i < 20; i++) modelled.update(1 / 60, rider, { night: 0, snow: 0 });
+  const after = [];
+  scene.traverse((o) => { if (o.isMesh) after.push(o); });
+  assert.deepEqual(after, before, 'the same meshes, redrawn');
+  assert.ok(after.length <= 24, 'resort draw-call budget, modelled');
+
+  const pool = (n) => after.filter((o) => o.isInstancedMesh && o.instanceMatrix.count === n);
+  const [cabins] = pool(6).filter((o) => o.geometry.attributes.aSheen);
+  const [glass] = pool(6).filter((o) => !o.geometry.attributes.aSheen);
+  const [towers] = pool(11);
+  const [trains] = pool(22);
+  const [guns] = pool(12);
+  const [ropes] = pool(160);
+  for (const mesh of [cabins, towers, trains, guns]) {
+    valid('lift', mesh.geometry);
+    for (const a of ['normal', 'color', 'uv', 'aSheen', 'aGrain', 'aAxle']) assert.ok(mesh.geometry.attributes[a], 'lift ' + a);
+    assert.equal(mesh.material, cabins.material, 'one material for the modelled hardware');
+  }
+  valid('lift glass', glass.geometry);
+
+  const shader = {
+    uniforms: {},
+    vertexShader: THREE.ShaderLib.lambert.vertexShader,
+    fragmentShader: THREE.ShaderLib.lambert.fragmentShader,
+  };
+  cabins.material.onBeforeCompile(shader);
+  for (const patch of ['liftSpin( objectNormal.yz )', 'transformed.yz = aAxle.xy', 'vN64Sheen = aSheen']) {
+    assert.ok(shader.vertexShader.includes(patch), 'the hardware patch lands: ' + patch);
+  }
+  assert.ok(shader.fragmentShader.includes('0.35 * vLiftGrain'), 'the grain is per role');
+  const spun = shader.uniforms.uSheaveSpin.value;
+  modelled.update(1 / 60, rider, { night: 0, snow: 0 });
+  assert.notEqual(shader.uniforms.uSheaveSpin.value, spun, 'the sheaves turn');
+
+  const M = new THREE.Matrix4();
+  const P = new THREE.Vector3();
+  const Q = new THREE.Quaternion();
+  const S = new THREE.Vector3();
+  const towerAt = (i) => { towers.getMatrixAt(i, M); return new THREE.Vector3().setFromMatrixPosition(M); };
+  for (let i = 1; i < 10; i++) {
+    const t = towerAt(i);
+    const line = towerAt(i + 1).sub(towerAt(i - 1)).normalize();
+    for (let s = 0; s < 2; s++) {
+      const side = s === 0 ? -1 : 1;
+      trains.getMatrixAt(i * 2 + s, M);
+      M.decompose(P, Q, S);
+      assert.ok(P.distanceTo(new THREE.Vector3(t.x + side * 1.8, t.y + 10.5, t.z)) < 1e-3, 'a train sits on its rope');
+      assert.ok(new THREE.Vector3(0, 0, -side).applyQuaternion(Q).angleTo(line) < 1e-4, 'a train lies along the rope');
+      const outboard = new THREE.Vector3().crossVectors(line, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(side);
+      const x = new THREE.Vector3(1, 0, 0).applyQuaternion(Q);
+      assert.ok(x.dot(outboard) > 0.999 && x.x * side > 0, 'a train turns its frame inboard');
+    }
+  }
+
+  const chords = [];
+  for (let k = 0; k < ropes.instanceMatrix.count; k++) {
+    ropes.getMatrixAt(k, M);
+    chords.push(new THREE.Line3(new THREE.Vector3(0, -0.5, 0).applyMatrix4(M), new THREE.Vector3(0, 0.5, 0).applyMatrix4(M)));
+  }
+  const on = new THREE.Vector3();
+  for (let i = 0; i < 6; i++) {
+    cabins.getMatrixAt(i, M);
+    const grip = new THREE.Vector3(0, nodes.lift_cabin.extras.ropeY, 0).applyMatrix4(M);
+    let best = Infinity;
+    let rope = -1;
+    chords.forEach((c, k) => {
+      const d = c.closestPointToPoint(grip, true, on).distanceTo(grip);
+      if (d < best) { best = d; rope = k; }
+    });
+    assert.ok(best < 0.06, 'a cabin hangs from the rope by its grip: ' + best);
+    const side = Math.floor(rope / 8) % 2 ? 1 : -1;
+    assert.ok(new THREE.Vector3(1, 0, 0).transformDirection(M).x * side > 0.99, 'the cabin door faces outboard');
+    assert.ok(new THREE.Vector3(0, -2, 0).applyMatrix4(M).y < grip.y - 3, 'the cabin hangs under its grip');
+  }
+
+  const nozzle = new THREE.Vector3().fromArray(nodes.snowgun.extras.nozzle);
+  const aim = new THREE.Vector3().fromArray(nodes.snowgun.extras.aim);
+  const muzzles = [];
+  for (let k = 0; k < guns.instanceMatrix.count; k++) {
+    guns.getMatrixAt(k, M);
+    muzzles.push({ at: nozzle.clone().applyMatrix4(M), aim: aim.clone().transformDirection(M) });
+  }
+  const plumes = shots.filter((s) => s.count === 8 && s.power === 3.5);
+  assert.ok(plumes.length > 5, 'the guns are making snow');
+  for (const s of plumes) {
+    const at = new THREE.Vector3(s.at.x, s.at.y, s.at.z);
+    const gun = muzzles.reduce((a, b) => (a.at.distanceTo(at) < b.at.distanceTo(at) ? a : b));
+    assert.ok(gun.at.distanceTo(at) < 0.01, 'the spray leaves the nozzle ring');
+    const along = (s.vx * gun.aim.x + s.vz * gun.aim.z) / (Math.hypot(s.vx, s.vz) * Math.hypot(gun.aim.x, gun.aim.z));
+    assert.ok(along > 0.95, 'the spray goes where the barrel points: ' + along);
+  }
+}
+
 /* The other riders. Everyone started uphill of the player, so the first
    update sent them all back down the hill — and past the fog, which on the
    clear day this falls back to is 560 m, so none of them popped into view.
