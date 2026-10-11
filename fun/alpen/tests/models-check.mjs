@@ -1587,6 +1587,6 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-shape.webp', base))),
     [4096, 1024], 'the shape map');
   assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-cover.webp', base))),
-    [2048, 512], 'the cover map');
+    [4096, 1024], 'the cover map');
 }
 console.log('All model geometry checks passed.');

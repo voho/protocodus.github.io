@@ -299,7 +299,9 @@ rendered, so it builds anywhere:
 It replaced the photographed sky panoramas. A real-sized Alpine landscape,
 modelled in numpy — a ridged-multifractal range with glacial valleys cut
 into it, the shoulder the run is on falling into the main valley eight
-kilometres ahead, and four landmarks no noise draws: a leaning horn
+kilometres ahead, the ridges either side of it pressed to a quarter of
+their relief over their own valleys so they stand forested below the eye,
+and four landmarks no noise draws: a leaning horn
 (4350 m, 15 km, 17° left of the fall line), a row of granite needles, a
 glaciated dome (4470 m, 23 km) and a north face off to the right. It is
 sampled on a log-polar grid round the eye (3072 bearings × 480 distances,
@@ -319,7 +321,7 @@ the range with them (the sun is behind the land when it is under the horizon
 on its bearing) and takes its sky occlusion from them. Everything else is
 in the maps, on the same frame (u the bearing, v the log of the distance):
 the normal's x and z and the cavity (4096 × 1024), and the snow, forest and
-ice cover (2048 × 512). `js/backdrop.js` reads all three and draws the range
+ice cover (4096 × 1024). `js/backdrop.js` reads all three and draws the range
 — into the frame and into the sky probe the fog reads; if any of them fails
 to load the procedural ranges in `sky.js` stand instead.
 
