@@ -99,6 +99,15 @@ run, and the two maps are WebPs of the sizes the shader assumes.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+It reads the modelled rocks and deadwood too (`alpine-boulders.glb`,
+`alpine-crags.glb`, `alpine-deadwood.glb`, built by `tools/blender/rocks.py`
+and `deadwood.py`): every node a pool asks for is there, inside its triangle
+budget, footed at the origin with its UVs in its one WebP atlas; every rock
+and trunk is a closed solid; the boulders and crags stand at exactly the
+height over half-width their colliders assume (`SCAN_ASPECT`, `CRAG_ASPECT`),
+the trunks lie along x at `DEADWOOD`'s length and height, the stump spreads
+wider than it is tall, and the three files together weigh less than the
+photoscans they replaced, none of which is still requested.
 It checks the ground the props keep off around each hut (`onHutGround`) too:
 every corner of the roof, the woodpile and the terrace is on it, turned the
 way the hut is turned, and the open snow twelve metres to one side is not.

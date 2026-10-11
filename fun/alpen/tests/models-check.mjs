@@ -530,6 +530,110 @@ assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
   }
 }
 
+/* The modelled rocks and deadwood (tools/blender/rocks.py and deadwood.py →
+   alpine-boulders.glb, alpine-crags.glb, alpine-deadwood.glb), read with the
+   game's own GLB reader. Every node a pool asks for is in its file, inside
+   its triangle budget, standing on y = 0 centred at the origin, with UVs
+   inside the atlas; every rock and trunk is a closed solid (welded by
+   position, each edge between exactly two triangles), because a hazard is
+   seen from every side. The boulders and crags stand at exactly the height
+   over half-width their colliders assume (SCAN_ASPECT and CRAG_ASPECT, local
+   to the pools in props.js, so read from its source); the trunks lie along
+   x at DEADWOOD's length and height; the stump is wider across its roots than
+   it is tall. Each file carries one WebP atlas, and the three together
+   weigh less than the photoscans they replaced (2.86 MB). */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const { DEADWOOD } = await load('props.js', ['DEADWOOD']);
+  const src = await readFile(new URL('js/props.js', base), 'utf8');
+  const table = (name) => JSON.parse(src.match(new RegExp(`const ${name} = (\\[[^\\]]*\\])`))[1]
+    .replace(/'/g, '"'));
+  const files = {};
+  let bytes = 0;
+  for (const file of ['alpine-boulders.glb', 'alpine-crags.glb', 'alpine-deadwood.glb']) {
+    const b = await readFile(new URL('assets/models/nature/' + file, base));
+    bytes += b.byteLength;
+    const json = JSON.parse(b.toString('utf8', 20, 20 + b.readUInt32LE(12)));
+    assert.equal(json.images?.length, 1, file + ': one atlas');
+    assert.equal(json.images[0].mimeType, 'image/webp', file + ': the atlas is WebP');
+    files[file] = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  }
+  assert.ok(bytes < 2.86e6, `the modelled props weigh ${(bytes / 1e6).toFixed(2)} MB`);
+  const solid = (name, node, budget, closed = true) => {
+    assert.ok(node, 'a modelled ' + name);
+    const prim = node.prims[0];
+    const p = prim.attributes.POSITION;
+    const uv = prim.attributes.TEXCOORD_0;
+    const n = prim.attributes.NORMAL;
+    assert.ok(uv && n, name + ': uvs and normals');
+    const tris = prim.index.length / 3;
+    assert.ok(tris <= budget, `${name}: ${tris} triangles, budget ${budget}`);
+    const lo = [Infinity, Infinity, Infinity];
+    const hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < p.length; i += 3) {
+      for (let a = 0; a < 3; a++) {
+        lo[a] = Math.min(lo[a], p[i + a]);
+        hi[a] = Math.max(hi[a], p[i + a]);
+      }
+      assert.ok(Math.abs(Math.hypot(n[i], n[i + 1], n[i + 2]) - 1) < 1e-3, name + ': unit normals');
+    }
+    assert.ok(uv.every((v) => v >= 0 && v <= 1), name + ': uvs inside the atlas');
+    assert.ok(Math.abs(lo[1]) < 1e-3, name + ': stands on y = 0');
+    assert.ok(Math.abs(lo[0] + hi[0]) < 2e-3 && Math.abs(lo[2] + hi[2]) < 2e-3, name + ': centred');
+    if (closed) {
+      const key = (i) => `${p[i * 3].toFixed(5)},${p[i * 3 + 1].toFixed(5)},${p[i * 3 + 2].toFixed(5)}`;
+      const ids = new Map();
+      const id = (i) => {
+        const k = key(i);
+        if (!ids.has(k)) ids.set(k, ids.size);
+        return ids.get(k);
+      };
+      const edges = new Map();
+      for (let t = 0; t < prim.index.length; t += 3) {
+        for (let e = 0; e < 3; e++) {
+          const a = id(prim.index[t + e]);
+          const c = id(prim.index[t + (e + 1) % 3]);
+          const k = a < c ? `${a}:${c}` : `${c}:${a}`;
+          edges.set(k, (edges.get(k) || 0) + 1);
+        }
+      }
+      assert.ok([...edges.values()].every((c) => c === 2), name + ': a closed solid');
+    }
+    return { size: hi.map((h, a) => h - lo[a]) };
+  };
+  const aspect = (size) => size[1] / (Math.max(size[0], size[2]) / 2);
+  const boulders = files['alpine-boulders.glb'];
+  table('SCAN_ASPECT').forEach((want, i) => {
+    const name = table('BOULDER_NODES')[i];
+    const { size } = solid(name, boulders[name], 2500);
+    assert.ok(Math.abs(aspect(size) - want) < 0.01 * want, `${name}: height over half-width ${aspect(size).toFixed(3)}`);
+    assert.equal(boulders[name].extras.aspect, want, name + ': built to its aspect');
+  });
+  const crags = files['alpine-crags.glb'];
+  table('CRAG_ASPECT').forEach((want, i) => {
+    const name = table('CRAG_NODES')[i];
+    const { size } = solid(name, crags[name], 5000);
+    assert.ok(Math.abs(aspect(size) - want) < 0.01 * want, `${name}: height over half-width ${aspect(size).toFixed(3)}`);
+    assert.equal(crags[name].extras.faces, '+z', name + ': faces the run the way the pool turns it');
+  });
+  const wood = files['alpine-deadwood.glb'];
+  for (const spec of DEADWOOD.logs) {
+    const { size } = solid(spec.node, wood[spec.node], 2500);
+    assert.ok(size[0] > 3 * size[2], spec.node + ': lies along x, the capsule axis');
+    assert.ok(Math.abs(size[0] - spec.length) < 0.03 * spec.length, `${spec.node}: ${size[0].toFixed(2)} m long`);
+    assert.ok(Math.abs(size[1] - spec.height) < 0.03 * spec.height, `${spec.node}: ${size[1].toFixed(2)} m high`);
+  }
+  const stump = solid('stump', wood.stump, 1800).size;
+  assert.ok(Math.min(stump[0], stump[2]) > 1.8 * stump[1], 'the stump spreads its roots wider than it is tall');
+  for (const name of DEADWOOD.branches) {
+    const { size } = solid(name, wood[name], 1200, false);
+    assert.ok(Math.max(...size) < 1.6 && size[1] < 0.4, name + ': a branch lying on the snow');
+  }
+  // Nothing in the game still asks for the photoscans these replaced.
+  assert.ok(!/rock_0[79]\.glb|stone_granite_set|rock_face_01|mountainside\.glb|boulder_01|tree_stump_01|fallen_(log|trunk)_0|deadfall_branches/
+    .test(src), 'no photoscan is still requested');
+}
+
 /* The race gate and the sapling impostors. The gate's fabric must be the only
    thing that flutters, and pinned at both poles; each sapling is three cards
    of eight triangles whose texture rectangles sit inside the atlas and keep

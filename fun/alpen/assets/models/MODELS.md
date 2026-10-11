@@ -9,52 +9,101 @@ MIT-licensed mirror https://github.com/flo-bit/tiny-planets
 FBX2glTF. No longer drawn: the needled species use the photo-textured
 card conifers below, and the bare species use card larches off a twig
 atlas `js/spruce.js#createTwigAtlas` draws on a canvas at boot. The
-loader path (`js/importedModels.js#upgrade`) is kept for the rocks.
+loader path (`js/importedModels.js#upgrade`) is kept, though nothing calls
+it now.
 
-## nature/ — Poly Haven photoscans (*.glb)
+## nature/alpine-boulders.glb, alpine-crags.glb — the rocks (built in Blender)
 
-CC0 photogrammetry from https://polyhaven.com, downloaded 2026-08-19 at
-1k texture resolution and processed offline for the instanced prop
-pipeline (glTF-Transform + meshoptimizer: welded, simplified to a game
-budget, quantized; ambient occlusion baked into the diffuse; textures
-re-encoded as WebP; single-file .glb):
+Not downloaded: `tools/blender/rocks.py` builds both, from the repository
+root (about eight minutes on the CPU, most of it the bake; no GPU needed):
 
-| file | source asset | in game as | tris |
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/rocks.py -- --out fun/alpen/assets/models/nature
+
+(`--preview DIR` renders each rock on the snow; `--only boulders|crags`
+builds one file; `--atlas 1024 --samples 8` is a quick draft.) They replace
+the Poly Haven photoscans that stood here (rock_07, rock_09, rock_face_01,
+mountainside, boulder_01 and the rock_moss_set_02 granites), one of which
+was a half-shell and two of which were open faces drawn double-sided.
+
+Each rock is a signed distance field in the game's space, written the way
+the stone was made (`tools/blender/fieldkit.py` holds the method): a body
+cut by its joint planes, its edges rounded by as much weathering as its
+rock allows, chipped where its edges stick out, bent a few centimetres over
+a metre. Granite is a jointed block with its corners weathered back and one
+or two young, crisp-edged faces (one has a frost crack); slate is a book of
+plates on edge, every face across the cleavage a staircase of plates; the
+"iron" boulder is a schist slab split along its foliation. The crags are the
+same rocks at the scale of a cliff — an envelope under a broken skyline,
+divided into blocks by bedding and two sets of cross-joints, each block set
+back and turned by its own amount, which leaves the ledges the snow holds and
+the clefts between them; a face of bedded gneiss, a jointed buttress, a
+granite tor. The field is meshed with surface nets on a narrow band (1.4 cm
+for a boulder, 6 cm for a crag), pulled onto the true surface, kept as the
+full-detail surface for the bake, and copied through Blender's voxel remesh
+and quadric decimation into the closed, low surface the game draws.
+
+The texture is baked in Cycles (CPU) from the full-detail surface onto the
+low one, as an emission pass carrying the albedo with the occlusion
+multiplied in, the way a photoscan's diffuse carries its own: granite's grain
+over the structure of `textures/rock/rock-granite.jpg`, slate and schist from
+`rock-slate.jpg` and `rock-granite.jpg` projected along their own cleavage,
+the faces' weathering, iron staining, the black drip lines down steep faces,
+pale crustose lichen mosaics, black crusts and map lichen (Rhizocarpon) on
+the faces that see the sky — none on a fresh scar or on the foot the snow
+lies against — and the soil at the foot. One 2048² WebP atlas per file, the
+buried foot (and a crag's back) given a fraction of the texels.
+
+| file | nodes (pool order) | tris | in game as |
 |---|---|---|---|
-| `rock_07.glb` | rock_07 | slate boulders | 2.6k |
-| `rock_09.glb` | rock_09 | iron boulders | 2.6k |
-| `rock_face_01.glb` | rock_face_01 | flank crag | 4.2k |
-| `mountainside.glb` | mountainside | flank crag | 5.2k |
-| `boulder_01.glb` | boulder_01 | flank crag | 3.6k |
-| `tree_stump_01.glb` | tree_stump_01 | forest-floor stumps | 1.8k |
+| `alpine-boulders.glb` | `boulder_slate`, `boulder_iron`, `boulder_granite_a`, `_b`, `_c` | 2450 each | verge hazard boulders and erratics (`rockPools`) |
+| `alpine-crags.glb` | `crag_face`, `crag_buttress`, `crag_block` | 4880–4900 each | flank crags (`cragPools`), looking down +z |
 
-At runtime `js/importedModels.js#upgradeTextured` world-bakes each scan
-into one buffer, keeps its UVs and baseColor map, normalises it to the
-grown variant's height and swaps it into the live pool; `props.js`'s
-`photoMat` adds the up-facing snow dusting and the shared scene shading.
+Every node stands on y = 0, centred, with no transform, and is built to the
+height over half-width its pool's collider assumes — `SCAN_ASPECT` [0.90,
+0.45, 0.70, 1.34, 1.20] and `CRAG_ASPECT` [1.44, 2.06, 1.10] in `props.js`;
+each node's extras carry its `rock`, `aspect` and `sink` (the crags also
+`faces: "+z"`). Each file is fed to its pools by
+`js/importedModels.js#upgradeTexturedSet`, which normalises every node to
+its grown stand-in's height and swaps it into the live pool;
+`props.js#photoMat` adds the up-facing snow dusting.
 
-### Forest floor and stones (added 2026-09-24)
+## nature/alpine-deadwood.glb — stump, logs and branches (built in Blender)
 
-Also CC0 from Poly Haven, downloaded 2026-09-24 as the 1k glTF packages.
-Processed the same way with glTF-Transform 4 + meshoptimizer: the wanted
-nodes isolated, welded, and simplified per node with
-`simplifyPrimitive`. Ambient occlusion (the ARM map's red channel) is
-multiplied into the diffuse in linear light at 0.7–0.8 strength and the
-colour is desaturated by 8–10%. The result is written as WebP inside the
-GLB, and the normal and ARM maps are dropped. A "set" file keeps several
-objects as named nodes sharing one texture. `upgradeTexturedSet` feeds
-one pool per node from it, so the texture loads once.
+Written by `tools/blender/deadwood.py` (the same kit, a couple of minutes):
 
-| file | source asset | nodes | in game as | tris |
-|---|---|---|---|---|
-| `fallen_log_01.glb` | dead_tree_trunk | `fallen_log_01` | fallen log, natural scale | 1.6k |
-| `fallen_trunk_02.glb` | dead_tree_trunk_02 | `fallen_trunk_02` | fallen broken trunk | 2.6k |
-| `deadfall_branches.glb` | dry_branches_medium_01 | `branch_a`, `branch_b`, `branch_c` | deadfall scatter | 1.2k / 0.7k / 0.7k |
-| `stone_granite_set.glb` | rock_moss_set_02 | `stone_10`, `stone_11`, `stone_13` (rocks 10, 11, 13) | granite stones | 1.3k each |
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/deadwood.py -- --out fun/alpen/assets/models/nature
 
-The logs are solid and low enough to jump (a capsule of three circles
-along the trunk). The branches have no collision and no shadow. The
-granite stones join the scenic stone families.
+It replaces the Poly Haven tree_stump_01, dead_tree_trunk, dead_tree_trunk_02
+and dry_branches_medium_01 scans. A Norway spruce's forest floor in winter:
+
+- `stump` — a sawn stump: the cut stepped at the faller's notch with the torn
+  hinge standing between the two levels, the face greyed and checked
+  radially, bark plates loose and gone in places, six buttress roots diving
+  under the snow (about twice as wide as it is tall; the game fits it to 0.4 m
+  and puts it in the last shrub slot). About 1750 tris.
+- `log_fallen` — a snapped spruce top, 3.03 m along x: bark in plates, gone
+  in strips along the grain, whorls of branch stubs, its top torn into a
+  tongue and splinters, its butt an old ragged break. About 2430 tris.
+- `log_windthrow` — an old windthrow, 4.05 m: the root flare with its torn
+  root stubs, one limb standing, most of its bark gone to silver-grey wood
+  checked along the grain, a long snap at the top. About 2420 tris.
+- `branch_a`, `branch_b`, `branch_c` — crooked spruce branches with their
+  twigs snapped short and forking, lying along z, 0.8–1.3 m, swept tubes
+  with their own UVs. 380–720 tris.
+
+Logs and stump are distance fields like the rocks (bark plates, checks,
+splintered and sawn ends, stubs and roots welded on); their baked texture
+maps `textures/tree/tree-bark.jpg` round the trunk (its seam blended on the
+underside), grains the bare wood with `textures/huts/alpine-wood-planks.jpg`
+laid along the trunk (its plank gaps read as checks), and adds end-grain
+rings, rot, the grey leafy lichen of dead spruce, wolf lichen and moss. One
+2048² WebP atlas. The trunks lie along +x at the sizes in `props.js`'s
+`DEADWOOD` table (its capsule follows that axis) and keep their own metres;
+the logs are solid and low enough to jump (a capsule of three circles), the
+branches have no collision and no shadow. One `upgradeTexturedSet` call
+feeds all six pools, each wearing its own snow amount over the one texture.
 
 ## Sapling impostor atlas
 
