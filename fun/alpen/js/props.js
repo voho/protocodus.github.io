@@ -1361,6 +1361,17 @@ function growTree(THREE, seed, spec, geos) {
   return { geometry, height: standing };
 }
 
+/* The height `growTree` gives a variant, without growing it: the same
+   stream, drawn the same way as far as the break. The pools are sized from
+   this at boot; the tree itself is grown only as the last fallback. */
+function grownHeight(seed, spec) {
+  const rnd = stream(seed);
+  const height = lerp(spec.height[0], spec.height[1], rnd());
+  rnd(); // the whorls
+  rnd(); // the wind
+  return height * (spec.broken ? lerp(0.54, 0.72, rnd()) : 1);
+}
+
 /* ==========================================================================
    Weathering, and the two things that needed it
 
@@ -2295,7 +2306,6 @@ class Pool {
        actual frustum without rebuilding or sorting an instance buffer. */
     this.shadowEnds = null;
     this.full = 0;
-    this.lastN = 0;
     /* And the opposite trade for the sparse furniture: a pool marked cullable
        gets a real bounding sphere from its written instances in `end()` and
        is handed back to three's frustum test, because a fence line
@@ -2340,11 +2350,24 @@ class Pool {
 
   end() {
     this.mesh.count = this.n;
-    if (this.n > 0 || this.lastN > 0) {
-      this.mesh.instanceMatrix.needsUpdate = true;
-      if (this.tinted && this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    /* Only the written prefix goes up. Told nothing else, three sends the
+       whole array, and these are sized for the fullest window the stream
+       could ever hold: 7.6 MB a rebuild, for 0.7 MB of instances. Nothing
+       past `n` is ever drawn, so an emptied pool needs no upload at all —
+       and a zero-length range must never be asked for, because WebGL reads
+       that as "to the end of the array". */
+    if (this.n > 0) {
+      const matrices = this.mesh.instanceMatrix;
+      matrices.clearUpdateRanges();
+      matrices.addUpdateRange(0, this.n * 16);
+      matrices.needsUpdate = true;
+      const colors = this.tinted ? this.mesh.instanceColor : null;
+      if (colors) {
+        colors.clearUpdateRanges();
+        colors.addUpdateRange(0, this.n * 3);
+        colors.needsUpdate = true;
+      }
     }
-    this.lastN = this.n;
     if (this.cullable && this.n > 0) {
       /* `InstancedMesh.computeBoundingSphere` walks the live instances against
          the geometry's own sphere, so the result hugs exactly what was
@@ -2585,10 +2608,17 @@ export function createProps(THREE, shading) {
      open and pale, painted in the same prop snow as everything else and
      routed into the sheen carve-out so the dusting sparkles like the ground
      while the stone under it stays matte. */
-  const photoMat = (map, snowAmount) => {
+  const photoMat = (map, snowAmount, fadeFar = null) => {
     const m = new THREE.MeshLambertMaterial({ map });
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, { uSnowAmount: { value: snowAmount } });
+      // the scrub's dissolve, for the stump that stands in a shrub pool
+      if (fadeFar) {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>', `
+        if (${LOD_HASH} < smoothstep(${fadeFar[0].toFixed(1)}, ${fadeFar[1].toFixed(1)},
+          length((vN64View * mat3(viewMatrix)).xz))) discard;
+        #include <clipping_planes_fragment>`);
+      }
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
         uniform float uSnowAmount;
@@ -2616,7 +2646,12 @@ export function createProps(THREE, shading) {
             clamp(n64Settle, 0.0, 0.96));
         }`);
     };
-    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
+    const out = shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
+    if (fadeFar) {
+      const key = out.customProgramCacheKey();
+      out.customProgramCacheKey = () => `${key}|photoFar:${fadeFar.join(',')}`;
+    }
+    return out;
   };
 
   /* Boulder snow uses the same mask without wind. A separate static program
@@ -2796,12 +2831,13 @@ export function createProps(THREE, shading) {
   const treeBare = [];
   for (let i = 0; i < PROPS.trees.variants; i++) {
     const spec = SPECIES[i % SPECIES.length];
-    const grown = growTree(THREE, 0x51ed27 + i * 7919, spec, geos);
-    treeHeights.push(grown.height);
+    const height = grownHeight(0x51ed27 + i * 7919, spec);
+    treeHeights.push(height);
     treeBare.push(!spec.foliage);
     // Capacity is generous: variants are chosen per tree by hash and the
-    // draw is short-circuited by `count`, so an unused pool costs nothing
-    const pool = new Pool(THREE, grown.geometry, treeMat(grown.height),
+    // draw is short-circuited by `count`, so an unused pool costs nothing.
+    // Nothing is grown yet: every pool stands in as a card tree below.
+    const pool = new Pool(THREE, new THREE.BufferGeometry(), treeMat(height),
       Math.ceil((bands * PROPS.treesPerBand + 60) / PROPS.trees.variants) * 3, true);
     /* One integer per streamed ring is the complete shadow-membership
        acceleration structure. It is rebuilt alongside the matrices, when
@@ -2810,6 +2846,90 @@ export function createProps(THREE, shading) {
     treePools.push(pool);
     shadowPools.push(pool);
     group.add(pool.mesh);
+  }
+
+  /* A trunk collides out to a fixed allowance, 0.5 + 0.45 of its scale, which
+     the low boughs of most trees hide. A few modelled ones are bare to well
+     over a rider's head, and round those the allowance was a hand's breadth
+     of air that put riders down. So once the modelled forest lands, each
+     variant's drawing is sliced every `RUNG` of its own height, and each tree
+     reads the rungs its own vertical scale and bedding put between the snow
+     at its foot and a head's height over it — widened by how far its longest
+     bough dips into that window on the downhill side of its lean. Where
+     nothing there reaches the allowance, the collider is the trunk itself:
+     the circle every rung of it holds round the axis, on the narrow side of
+     its oval, centred where the leaning trunk crosses the middle of the
+     window and shrunk by how far it drifts across it. */
+  const RUNG = 0.1;
+  const trunkReach = treePools.map(() => null);
+  function fitTrunk(t) {
+    const [, v, s, sy, oval, lift, x, z, ax, az] = t.fit;
+    const allowance = 0.5 + s * 0.45;
+    t.x = x;
+    t.z = z;
+    t.r = allowance;
+    const rungs = trunkReach[v];
+    if (!rungs) return;
+    const squash = Math.abs(oval);
+    const slant = Math.hypot(ax, az);
+    const dip = rungs.widest * s * (1 + squash) * slant;
+    const lo = Math.max(0, Math.floor((lift - dip) / sy / RUNG));
+    const hi = Math.ceil((lift + 2.1 + dip) / sy / RUNG);
+    if (hi >= rungs.wide.length) return;
+    let wide = 0;
+    for (let k = lo; k <= hi; k++) wide = Math.max(wide, rungs.wide[k]);
+    if (wide * s * (1 + squash) >= allowance) return;
+    let inner = Infinity;
+    const from = Math.floor(lift / sy / RUNG);
+    const to = Math.ceil((lift + 2.1) / sy / RUNG);
+    for (let k = from; k <= to; k++) inner = Math.min(inner, rungs.inner[k]);
+    if (!(inner < Infinity)) return;
+    const mid = lift + 1.05;
+    t.x = x + ax * mid;
+    t.z = z + az * mid;
+    t.r = Math.min(allowance, Math.max(0.25, inner * s * (1 - squash) - 1.05 * slant));
+  }
+  /* At every rung up to ten metres of a variant's own height: the farthest
+     its drawing reaches from the axis, and the circle round the axis it
+     holds (the nearest any slice edge comes to it). */
+  function reachByRung(geometry) {
+    const p = geometry.attributes.position;
+    const index = geometry.index;
+    const n = index ? index.count : p.count;
+    const count = Math.round(10 / RUNG) + 1;
+    const wide = new Float32Array(count);
+    const inner = new Float32Array(count).fill(Infinity);
+    const cut = [0, 0, 0, 0];
+    let widest = 0;
+    for (let t = 0; t < n; t += 3) {
+      const ids = [0, 1, 2].map((e) => (index ? index.getX(t + e) : t + e));
+      const ys = ids.map((i) => p.getY(i));
+      const from = Math.max(0, Math.ceil(Math.min(...ys) / RUNG));
+      const to = Math.min(count - 1, Math.floor(Math.max(...ys) / RUNG));
+      for (let k = from; k <= to; k++) {
+        const h = k * RUNG;
+        let m = 0;
+        for (let e = 0; e < 3 && m < 4; e++) {
+          const a = ids[e];
+          const c = ids[(e + 1) % 3];
+          const ya = ys[e];
+          const yc = ys[(e + 1) % 3];
+          if ((ya - h) * (yc - h) > 0 || ya === yc) continue;
+          const f = (h - ya) / (yc - ya);
+          cut[m++] = p.getX(a) + (p.getX(c) - p.getX(a)) * f;
+          cut[m++] = p.getZ(a) + (p.getZ(c) - p.getZ(a)) * f;
+        }
+        if (m < 4) continue;
+        const [ux, uz, vx, vz] = cut;
+        wide[k] = Math.max(wide[k], Math.hypot(ux, uz), Math.hypot(vx, vz));
+        const dx = vx - ux;
+        const dz = vz - uz;
+        const along = Math.min(1, Math.max(0, -(ux * dx + uz * dz) / (dx * dx + dz * dz || 1)));
+        inner[k] = Math.min(inner[k], Math.hypot(ux + dx * along, uz + dz * along));
+      }
+    }
+    for (let k = 0; k < count; k++) widest = Math.max(widest, wide[k]);
+    return { wide, inner, widest };
   }
 
   /* The model upgrader — the rocks and the deadwood take it below. The
@@ -3024,14 +3144,16 @@ export function createProps(THREE, shading) {
     return m;
   };
 
-  /* The bare species, first: card larches off a drawn atlas — see
-     `createTwigAtlas` — built now, because a canvas has nothing to wait for.
-     The two pools that wore the low-poly dead hardwoods keep every instance,
-     cast, sway and shadow exactly where it was. */
+  /* Card larches off a drawn atlas — see `createTwigAtlas` — built now,
+     because a canvas has nothing to wait for. They are the bare species, and
+     for the first moments they stand in for the needled ones too: a tree is
+     collided with from the first frame, so one must be drawn there, and
+     growing every procedural tree at boot cost eight-tenths of a second for
+     a forest the modelled one replaces as soon as it lands (see
+     `growConifers` for a connection too slow for that). */
   {
     const twig = createTwigAtlas(THREE);
     for (let i = 0; i < treePools.length; i++) {
-      if (!treeBare[i]) continue;
       const spec = SPECIES[i % SPECIES.length];
       const g = weld(THREE, growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i],
         twig.layout));
@@ -3044,13 +3166,43 @@ export function createProps(THREE, shading) {
     }
   }
 
+  /* The needled species grown procedurally, as they once all were: the last
+     resort if neither the modelled forest nor the card conifers' atlas
+     arrives, and the stand-in while the modelled forest is slow to — a
+     connection that has not delivered it within `CONIFER_PATIENCE` is one
+     the title will not wait for, and a forest of bare larches there reads
+     wrong. One variant a task, so the boot is never blocked for the whole
+     eight-tenths of a second, and none once a dressed forest has landed. */
+  const CONIFER_PATIENCE = 1500;
+  let forestDressed = false;
+  let coniferNext = -1;
+  const growConifers = () => {
+    if (coniferNext >= 0) return;
+    coniferNext = 0;
+    const step = () => {
+      while (coniferNext < treePools.length && treeBare[coniferNext]) coniferNext++;
+      if (forestDressed || coniferNext >= treePools.length) return;
+      const i = coniferNext++;
+      const grown = growTree(THREE, 0x51ed27 + i * 7919, SPECIES[i % SPECIES.length], geos);
+      const mesh = treePools[i].mesh;
+      const old = mesh.geometry;
+      mesh.geometry = weld(THREE, grown.geometry);
+      old.dispose();
+      mesh.material = treeMat(grown.height);
+      mesh.customDepthMaterial = undefined;
+      setTimeout(step, 0);
+    };
+    step();
+  };
+  setTimeout(() => { if (!forestDressed) growConifers(); }, CONIFER_PATIENCE);
+
   /* The needled species become photo-textured card conifers the moment
      their atlas lands: real fir sprigs on a few dozen instanced cards per
-     tree (see spruce.js). Until the file arrives (or if it never does) the
-     grown trees simply keep standing. This is now the fallback: see below. */
+     tree (see spruce.js). This is now the fallback: see below. */
   const cardConifers = () => texLoader.load(
     new URL('../assets/textures/tree/spruce-boughs-v2.png', import.meta.url).href,
     (t) => {
+      forestDressed = true;
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
       t.anisotropy = 8;
@@ -3065,6 +3217,8 @@ export function createProps(THREE, shading) {
         treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], t, 0.36, true);
       }
     },
+    undefined,
+    growConifers,
   );
 
   /* THE ALPINE FOREST, AS MODELLED.
@@ -3101,6 +3255,7 @@ export function createProps(THREE, shading) {
       if (!node) throw new Error('alpine-trees.glb: no tree for ' + SPECIES[i % SPECIES.length].name);
       return alpineTreeGeometry(THREE, node, treeHeights[i]);
     });
+    forestDressed = true;
     atlas.colorSpace = THREE.SRGBColorSpace;
     atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping;
     atlas.anisotropy = 8;
@@ -3114,7 +3269,9 @@ export function createProps(THREE, shading) {
       mesh.material = spruceMat(treeHeights[i], atlas,
         { colored: true, frost: true, alphaTest: cut, lod: !!impostors });
       mesh.customDepthMaterial = spruceDepth(treeHeights[i], atlas, cut, true);
+      trunkReach[i] = reachByRung(g);
     });
+    refit();
     if (!impostors) return;
     impostors.colorSpace = THREE.SRGBColorSpace;
     impostors.wrapS = impostors.wrapT = THREE.ClampToEdgeWrapping;
@@ -3256,7 +3413,11 @@ export function createProps(THREE, shading) {
      matrices. Small vegetation receives light but does not cast a flickering
      sub-pixel shadow. Boulder shadows use the same conservative band prefix
      as trees, so distant instances never enter the depth pass. */
-  const floraMaterial = floraMat();
+  /* The scrub and the plant patches are drawn only as far as the near forest
+     (TREE_RINGS) and dissolve where it does. Past that a bush is a pixel or
+     two tall, and drawn to the stream's far edge they were nearly half of
+     every prop triangle in the frame. */
+  const scrubMaterial = floraMat(TREE_LOD);
   const stoneMaterial = rockMat();
 
   const plantVariants = [
@@ -3264,7 +3425,7 @@ export function createProps(THREE, shading) {
     growTussockPatch(THREE, 0x63a91d + 3317, geos),
   ];
   const plantPools = plantVariants.map((grownGeo, i) => new Pool(
-    THREE, grownGeo, floraMaterial,
+    THREE, grownGeo, scrubMaterial,
     Math.ceil((bands * BIOMES.plantCandidates + 32) / plantVariants.length),
   ));
 
@@ -3282,9 +3443,10 @@ export function createProps(THREE, shading) {
     growWinterBramble(THREE, 0x2b7f41 + 19937, geos),
   ];
   const shrubPools = shrubVariants.map((grownGeo, i) => new Pool(
-    THREE, grownGeo, floraMaterial,
+    THREE, grownGeo, scrubMaterial,
     Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
   ));
+  const scrubPools = shrubPools.concat(plantPools);
 
   /* The trackside flora draws nothing until its file lands — an empty
      geometry is an InstancedMesh with nothing to submit — and is written by
@@ -3313,6 +3475,32 @@ export function createProps(THREE, shading) {
      fitted to that height then fills exactly the radius the rider collides
      with, and the stone is as tall as its own shape says. */
   const SCAN_ASPECT = [0.90, 0.45, 0.70, 1.34, 1.20];
+  /* …but a rock's outline is lobed, and one circle of 0.88 of its widest
+     reach stood up to a third of it clear of the narrow side of every stone —
+     a wall the rider could not see — while its lobes stood past it on the
+     other. So a stone collides as five circles in its own frame, per unit of
+     instance scale, flat `[x, z, r]` five times: one round the middle (it
+     carries the stone's contact shadow, see canopy.js) and four out in its
+     lobes. They were fitted by casting rays across each grown stand-in and
+     each model above the bed line: none stands more than 7.5 cm per metre
+     of scale past the rock that is drawn, and no lobe is left more than
+     13 cm per metre uncovered (18 on two of the stand-ins). The model's set
+     takes over when its file lands (see `refit`). */
+  const COVER_STAND_IN = [
+    [0, 0, 1.022, 0.02, 0.705, 0.626, 0.055, -0.621, 0.765, 0.531, 0.165, 0.658, -0.924, -0.274, 0.257],
+    [0, 0, 1.039, -0.447, 0.971, 0.393, 0.571, -0.416, 0.587, 0.321, 0.835, 0.281, -0.18, -0.135, 1.023],
+    [0, 0, 1.093, -0.251, -0.424, 0.686, -1.004, -0.009, 0.358, 0.955, -0.403, 0.33, 0.218, 0.173, 0.998],
+    [0, 0, 0.931, 0.646, -0.664, 0.389, -0.564, -0.876, 0.194, 0.288, 0.439, 0.577, -0.361, 0.121, 0.784],
+    [0, 0, 0.9, -0.79, 0.416, 0.329, 0.226, -0.59, 0.594, 0.619, -0.013, 0.626, -0.02, 0.288, 0.809],
+  ];
+  const COVER_MODEL = [
+    [0, 0, 1.135, 0.03, 0.059, 1.2, -0.564, 0.952, 0.419, 0.774, 0.766, 0.388, 0.182, -0.887, 0.429],
+    [0, 0, 0.927, -0.572, -0.214, 0.587, 0.194, -0.473, 0.868, 0.782, -0.699, 0.415, -0.031, 0.802, 0.506],
+    [0, 0, 1.04, -0.319, 0.066, 1.081, 0.93, 0.201, 0.415, -0.179, -0.831, 0.522, -0.721, 0.993, 0.387],
+    [0, 0, 0.99, -0.128, -0.237, 0.879, 0.124, 0.14, 1.04, 0.466, 0.411, 0.776, -0.708, 0.372, 0.6],
+    [0, 0, 0.893, 0.938, -0.526, 0.374, 0.557, -0.055, 0.818, -0.48, -0.26, 0.602, -0.881, -0.393, 0.384],
+  ];
+  const stoneCover = COVER_STAND_IN.slice();
   const BOULDER_NODES = ['boulder_slate', 'boulder_iron', 'boulder_granite_a', 'boulder_granite_b',
     'boulder_granite_c'];
   const boulderVariants = [
@@ -3397,6 +3585,7 @@ export function createProps(THREE, shading) {
   upgrader.upgradeTexturedSet('alpine-boulders.glb', BOULDER_NODES.map((node, i) => ({
     node, pool: rockPools[i], sink: i < 2 ? 0.16 : 0.14,
     height: heightOfGrown(boulderVariants[i].geometry),
+    onReady: () => { stoneCover[i] = COVER_MODEL[i]; refit(); },
   })), (map) => photoMat(map, 0.62));
 
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
@@ -3488,17 +3677,17 @@ export function createProps(THREE, shading) {
      car. Fitted to 0.4 m, the same scales give stumps from a stub of wood to
      an old-growth bole two metres across.
 
-     The shrubs' soft collider is a sphere round the pool's geometry,
-     measured when the pool is made — round the bramble that stands in until
-     the file lands. It is measured again round the stump once it has, so
-     the bands built from then on push the rider round what is drawn. */
+     The shrubs' soft collider is measured off the pool's geometry when the
+     pool is made — off the bramble that stands in until the file lands — and
+     again off the stump once it has, laid over every band streamed so far
+     (see `refit`). */
   const logMat = (map) => photoMat(map, 0.24);
   const branchMat = (map) => photoMat(map, 0.2);
   upgrader.upgradeTexturedSet('alpine-deadwood.glb', [
     {
       node: 'stump', pool: shrubPools[2], height: 0.4, sink: 0.06,
-      makeMaterial: (map) => photoMat(map, 0.55),
-      onReady: () => { shrubHulls[2] = sphereHull(shrubPools[2]); },
+      makeMaterial: (map) => photoMat(map, 0.55, TREE_LOD),
+      onReady: remeasureScrub,
     },
     ...DEADWOOD.logs.map((spec, k) => ({ node: spec.node, pool: logPools[k], makeMaterial: logMat })),
     ...DEADWOOD.branches.map((node, k) => ({
@@ -3555,20 +3744,22 @@ export function createProps(THREE, shading) {
 
   for (const p of [avalancheFences, waymarks, gatePanels]) p.cullable = true;
 
-  const sphereHull = (pool) => {
+  /* A soft prop collides as what is drawn of it: its box, laid on the ground
+     as the drawing is (see `fitSoft`). The sphere round it that this used to
+     be stood two or three times over a cushion of pine or heath, so a rider
+     who visibly cleared one still ploughed through it. */
+  const softHull = (pool) => {
     const geometry = pool.mesh.geometry;
-    if (!geometry.boundingSphere) geometry.computeBoundingSphere();
-    return {
-      center: geometry.boundingSphere.center.clone(),
-      radius: geometry.boundingSphere.radius,
-    };
+    geometry.computeBoundingBox();
+    return geometry.boundingBox.clone();
   };
-  const plantHulls = plantPools.map(sphereHull);
-  const shrubHulls = shrubPools.map(sphereHull);
+  const plantHulls = plantPools.map(softHull);
+  const shrubHulls = shrubPools.map(softHull);
   const hullUp = new THREE.Vector3(0, 1, 0);
   const hullScale = new THREE.Vector3();
   const hullOffset = new THREE.Vector3();
   const hullCorner = new THREE.Vector3();
+  const hullNormal = new THREE.Vector3();
   const hullQ = new THREE.Quaternion();
   const hullTurn = new THREE.Quaternion();
 
@@ -3579,12 +3770,70 @@ export function createProps(THREE, shading) {
     return hullQ.multiply(hullTurn);
   }
 
-  function placedSphereHull(hull, x, y, z, yaw, sx, sy, sz, normal) {
-    hullScale.set(sx, sy, sz);
-    hullOffset.copy(hull.center).multiply(hullScale)
-      .applyQuaternion(hullRotation(yaw, normal));
-    const r = hull.radius * Math.max(Math.abs(sx), Math.abs(sy), Math.abs(sz));
-    return { x: x + hullOffset.x, z: z + hullOffset.z, r, top: y + hullOffset.y + r };
+  /* A collider that depends on a drawing which can still be swapped keeps how
+     it was placed in `fit`, led by the function that lays it over the shape;
+     `refit` re-lays every solid streamed so far, cached bands included, so a
+     model landing mid-run is collided with as soon as it is drawn. */
+  /* The box's eight corners, scaled and tilted onto the bank exactly as the
+     drawing is: a bush leaning down a steep verge stands higher on one side
+     and reaches further over it than it does upright. The collider is the
+     circle across the wider of its two turned spans, and its top is the
+     highest corner. */
+  function fitSoft(s) {
+    const [, hulls, v, x, y, z, yaw, scale, sy, nx, ny, nz] = s.fit;
+    const box = hulls[v];
+    const turn = hullRotation(yaw, hullNormal.set(nx, ny, nz));
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    let uLo = Infinity;
+    let uHi = -Infinity;
+    let wLo = Infinity;
+    let wHi = -Infinity;
+    let top = -Infinity;
+    for (let c = 0; c < 8; c++) {
+      hullCorner.set(c & 1 ? box.max.x : box.min.x, c & 2 ? box.max.y : box.min.y,
+        c & 4 ? box.max.z : box.min.z)
+        .multiply(hullScale.set(scale, sy, scale)).applyQuaternion(turn);
+      // along the bush's own turned across (x) and along (z), on the level
+      const u = hullCorner.x * cos - hullCorner.z * sin;
+      const w = hullCorner.x * sin + hullCorner.z * cos;
+      uLo = Math.min(uLo, u);
+      uHi = Math.max(uHi, u);
+      wLo = Math.min(wLo, w);
+      wHi = Math.max(wHi, w);
+      top = Math.max(top, hullCorner.y);
+    }
+    const u = (uLo + uHi) / 2;
+    const w = (wLo + wHi) / 2;
+    s.x = x + u * cos + w * sin;
+    s.z = z - u * sin + w * cos;
+    s.r = Math.max(uHi - uLo, wHi - wLo) / 2;
+    s.top = y + top;
+  }
+  function softSolid(hulls, v, x, y, z, yaw, scale, sy, normal, type, drag) {
+    const s = {
+      x: 0, z: 0, r: 0, top: 0, type, kind: SOFT, drag,
+      fit: [fitSoft, hulls, v, x, y, z, yaw, scale, sy, normal.x, normal.y, normal.z],
+    };
+    fitSoft(s);
+    return s;
+  }
+  function refit() {
+    for (const rec of bandCache.values()) {
+      for (let i = 0; i < rec.solids.length; i++) {
+        const s = rec.solids[i];
+        if (s.fit) s.fit[0](s);
+      }
+    }
+    for (let i = 0; i < solids.length; i++) {
+      if (solids[i].fit) solids[i].fit[0](solids[i]);
+    }
+  }
+  // Every soft hull measured again, once a model has replaced its stand-in.
+  function remeasureScrub() {
+    shrubPools.forEach((p, i) => { shrubHulls[i] = softHull(p); });
+    plantPools.forEach((p, i) => { plantHulls[i] = softHull(p); });
+    refit();
   }
 
   const fenceGeometry = avalancheFences.mesh.geometry;
@@ -3601,9 +3850,9 @@ export function createProps(THREE, shading) {
      file swaps its pools' geometry in place once it lands — every node
      built before any is swapped, so a file missing one leaves all of its
      pools as they were — and the band rebuild goes on writing the same
-     matrices into them. The collision stays the stand-ins': the hulls and
-     the snow bridge's cells above were taken from them, and the models are
-     built to their sizes. If a file fails, its stand-ins simply stay. */
+     matrices into them. The snow bridge keeps the stand-in's cells, which
+     its model is built to; the scrub's soft hulls are measured again off the
+     models (see `remeasureScrub`). If a file fails, its stand-ins stay. */
   const adopt = (url, file, build) => fetch(url)
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
     .then(parseGlb)
@@ -3635,6 +3884,7 @@ export function createProps(THREE, shading) {
       ...PLANT_NODES.map((name, i) => [plantPools[i],
         roleGeometry(THREE, node(name), SHRUB_LOOKS, 'alpine-shrubs.glb', 'surfaceOwn')]),
     ])
+    .then(remeasureScrub)
     .catch((err) => console.warn('Alpen: keeping the grown scrub —', err));
 
   const pools = [
@@ -3777,6 +4027,32 @@ export function createProps(THREE, shading) {
   }
   function boulderTransform(v, groundY, sx, sy, sz) {
     return stoneTransform(boulderVariants[v], groundY, sx, sy, sz);
+  }
+  /* A stone's collider, from its cover (see COVER_STAND_IN): five circles
+     turned and scaled with the instance, one contact between them so a
+     stone is struck once. A stone is drawn at one scale across — the mean of
+     the two it is given — because a circle stretched with an oval stone
+     either stands past its narrow side or leaves its long one uncovered. Its
+     `r` above still beds it and spaces the band round it. */
+  function fitStone(s) {
+    const [, v, k, x, z, yaw, scale] = s.fit;
+    const cover = stoneCover[v];
+    const lx = cover[k * 3] * scale;
+    const lz = cover[k * 3 + 1] * scale;
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    s.x = x + lx * cos + lz * sin;
+    s.z = z - lx * sin + lz * cos;
+    s.r = cover[k * 3 + 2] * scale;
+  }
+  function pushStone(v, x, z, yaw, scale, stone, ao) {
+    const contact = { hit: false };
+    for (let k = 0; k < 5; k++) {
+      const s = { x, z, r: 0, ...stone, contact, fit: [fitStone, v, k, x, z, yaw, scale] };
+      if (k === 0) s.ao = ao;
+      fitStone(s);
+      solids.push(s);
+    }
   }
 
   /* WHERE A STONE ACTUALLY SITS, which is not what one terrain sample says.
@@ -3937,18 +4213,14 @@ export function createProps(THREE, shading) {
           const shape = boulderTransform(v, groundY, sx, sy, sz);
           // Only the hut test of `occupied`: the shoulder is where the
           // pillows are, and refusing those would thin the hazard out
+          const yaw = hash2(b, 3410, 227) * TAU;
           if (!onHutGround(x, z) && visibleFromApproach(x, z, shape.top)
-            && rockPools[v].add(
-              x, shape.y, z, hash2(b, 3410, 227) * TAU, sx, sy, sz,
-            )) {
-            const solid = {
-              key: `boulder:${b}`,
-              type: 'boulder', x, z, r: shape.r,
-              kind: HARD, groundY, top: shape.top, cameraPad: 0.55, volume: true,
-              ao: shape.top - groundY,
-            };
-            solids.push(solid);
-            bandHazards.push(solid);
+            && rockPools[v].add(x, shape.y, z, yaw, Math.sqrt(sx * sz), sy, Math.sqrt(sx * sz))) {
+            pushStone(v, x, z, yaw, Math.sqrt(sx * sz), {
+              key: `boulder:${b}`, type: 'boulder', kind: HARD, groundY, top: shape.top,
+              cameraPad: 0.55, volume: true,
+            }, shape.top - groundY);
+            bandHazards.push({ x, z, r: shape.r });
           }
         }
       }
@@ -4068,11 +4340,14 @@ export function createProps(THREE, shading) {
          body on through it at twelve, `fall` keeping the speed the rider
          brought, and a rider who got up from it, or steered back into one
          already grazed, rode straight through the tree. */
-      solids.push({
-        x, z, r: radius, kind: HARD, top: 99, volume: true,
+      const trunk = {
+        x, z, r: 0, kind: HARD, top: 99, volume: true,
         canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
         canopyDensity: treeBare[v] ? 0.35 : 1,
-      });
+        fit: [fitTrunk, v, s, sy, oval, y - bed, x, z, normal.x / normal.y, normal.z / normal.y],
+      };
+      fitTrunk(trunk);
+      solids.push(trunk);
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -4112,10 +4387,8 @@ export function createProps(THREE, shading) {
       const yaw = hash2(b, 3340 + i, 211) * TAU;
       const normal = setFloraNormal(x, z);
       if (!plantPools[pv].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
-      solids.push({
-        ...placedSphereHull(plantHulls[pv], x, y, z, yaw, s, sy, s, normal),
-        type: 'plant', kind: SOFT, drag: PROPS.shrubDrag * 0.5,
-      });
+      solids.push(softSolid(plantHulls, pv, x, y, z, yaw, s, sy, normal,
+        'plant', PROPS.shrubDrag * 0.5));
     }
 
     for (let i = 0; i < BIOMES.shrubCandidates; i++) {
@@ -4150,10 +4423,7 @@ export function createProps(THREE, shading) {
       const yaw = hash2(b, 3160 + i, 223) * TAU;
       const normal = setFloraNormal(x, z);
       if (!shrubPools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
-      solids.push({
-        ...placedSphereHull(shrubHulls[v], x, y, z, yaw, s, sy, s, normal),
-        type: 'shrub', kind: SOFT,
-      });
+      solids.push(softSolid(shrubHulls, v, x, y, z, yaw, s, sy, normal, 'shrub'));
     }
 
     /* THE TRACKSIDE FLORA. Small plants and stones along the run, in clumps
@@ -4281,14 +4551,11 @@ export function createProps(THREE, shading) {
       const shape = boulderTransform(v, groundY, sx, sy, sz);
       if (hash2(b, 3690 + i, 229) > density) continue;
       if (!clearOfBandHazards(x, z, shape.r, bandHazards, 1.0)) continue;
-      if (!rockPools[v].add(
-        x, shape.y, z, hash2(b, 3680 + i, 229) * TAU, sx, sy, sz,
-      )) continue;
-      solids.push({
-        type: 'rock', x, z, r: shape.r,
-        kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
-        ao: shape.top - groundY,
-      });
+      const yaw = hash2(b, 3680 + i, 229) * TAU;
+      if (!rockPools[v].add(x, shape.y, z, yaw, Math.sqrt(sx * sz), sy, Math.sqrt(sx * sz))) continue;
+      pushStone(v, x, z, yaw, Math.sqrt(sx * sz), {
+        type: 'rock', kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
+      }, shape.top - groundY);
     }
 
     /* Natural rock buttresses along the mountain flanks */
@@ -4730,6 +4997,7 @@ export function createProps(THREE, shading) {
       shadowPools[i].shadowEnds[0] = shadowPools[i].n;
     }
     let decorEnds = null;
+    let scrubEnds = null;
     for (let k = 1; k <= streamSpan; k++) {
       if (k <= behind) placeRemembered(bi + k);
       if (k <= ahead) placeRemembered(bi - k);
@@ -4737,6 +5005,7 @@ export function createProps(THREE, shading) {
         shadowPools[i].shadowEnds[k] = shadowPools[i].n;
       }
       if (k === DECOR_RINGS) decorEnds = decorPools.map((p) => p.n);
+      if (k === Math.min(TREE_RINGS, streamSpan)) scrubEnds = scrubPools.map((p) => p.n);
     }
 
     allPools.forEach((p) => p.end());
@@ -4749,6 +5018,8 @@ export function createProps(THREE, shading) {
     }
     // The flora past the nearest rings is placed but not drawn (see DECOR_RINGS).
     if (decorEnds) decorPools.forEach((p, i) => { p.mesh.count = Math.min(p.mesh.count, decorEnds[i]); });
+    // …and the scrub past the near forest's (see `scrubMaterial`); its colliders stay.
+    if (scrubEnds) scrubPools.forEach((p, i) => { p.mesh.count = Math.min(p.mesh.count, scrubEnds[i]); });
 
     const first = bi - ahead;
     const last = bi + behind;
@@ -4764,9 +5035,6 @@ export function createProps(THREE, shading) {
   }
 
   let currentBand = NaN;
-  /* Bands still carrying a stale density after a `reset`, retargeted one per
-     frame rather than all eighteen at once. See `reset`. */
-  let staleBands = null;
 
   /* Where the dissolve before the streaming edge finishes — see FRAG_STREAM
      in shading.js. The nearest the far edge of the window can ever be is
@@ -4785,32 +5053,7 @@ export function createProps(THREE, shading) {
   function update(riderZ, spacing = 1) {
     setStreamEdge(riderZ);
     const bi = Math.floor(riderZ / band);
-    /* Drain one retarget per frame, whatever else this frame is doing. A
-       reset asks every band to come back to full density, and doing that in
-       one go is the same eighteen-band stall this file just stopped paying
-       at band crossings — landed on the frame after a wipeout, which is the
-       worst possible moment for it. One band is retired here and the other
-       seventeen replay from cache, so the forest thickens over about a third
-       of a second instead of stalling the frame it was asked on.
-
-       Deliberately NOT gated on standing still in one band: a rider crossing
-       boundaries steadily would otherwise never drain the queue, and the far
-       field would keep the density it was given at speed indefinitely. At
-       most one rebuild happens per frame either way — the crossing below
-       does it if it fires, and the flag makes this do it if it does not. */
-    let drained = false;
-    if (staleBands && staleBands.size) {
-      const b = staleBands.values().next().value;
-      staleBands.delete(b);
-      spacingByBand.delete(b);
-      bandCache.delete(b);
-      if (!staleBands.size) staleBands = null;
-      drained = true;
-    }
-    if (bi === currentBand) {
-      if (drained) rebuild(riderZ, Math.max(1, spacing));
-      return;
-    }
+    if (bi === currentBand) return;
     /* Two metres of dead band on the boundary just crossed. A full rebuild
        regenerates all eighteen streamed bands in one frame, which is fine
        forty metres apart and pathological when a tumble bounces back and
@@ -4819,43 +5062,38 @@ export function createProps(THREE, shading) {
        streamed eleven ahead, so arriving two metres late costs nothing. */
     if (!Number.isNaN(currentBand)) {
       const edge = (bi > currentBand ? currentBand + 1 : currentBand) * band;
-      if (Math.abs(riderZ - edge) < 2) {
-        if (drained) rebuild(riderZ, Math.max(1, spacing));
-        return;
-      }
+      if (Math.abs(riderZ - edge) < 2) return;
     }
     currentBand = bi;
     rebuild(riderZ, Math.max(1, spacing));
   }
 
-  /* A reset restores full prop density — the streaming thins candidates with
-     speed, and a rider who has just stopped should not be looking at the
-     forest they had at forty metres a second.
-
-     It does NOT clear the snapshot cache. A band is a pure function of its
-     index and the world seed, and the seed cannot change inside a session:
-     `setWorldSeed` is called exactly once per page, and a new mountain is a
-     full page reload rather than a reseed. Clearing it only guaranteed that
-     every band missed and paid `place` again.
-
-     What does have to change is the frozen per-band spacing, and that is
-     retargeted lazily: the bands the rider can actually reach are re-placed
-     now, and the rest are queued for `update` to drain one per frame. */
+  /* A restart lays the window out afresh around a rider standing still, at
+     the density asked for. A band otherwise keeps the density it streamed in
+     with, so replaying the ones frozen at the speed they were passed at,
+     beside ones placed fresh, would stripe the forest round the checkpoint.
+     Re-placing the stale ones is paid once, on a restart, and never on a fall
+     — see `rearm`. */
   function reset(riderZ, spacing = 1) {
     setStreamEdge(riderZ);
     const want = Math.max(1, spacing);
+    for (const [b, s] of spacingByBand) if (s !== want) spacingByBand.delete(b);
     currentBand = Math.floor(riderZ / band);
-    staleBands = new Set();
-    for (const b of spacingByBand.keys()) {
-      if (Math.abs(b - currentBand) <= 1) {
-        spacingByBand.delete(b);
-        bandCache.delete(b);
-      } else if (spacingByBand.get(b) !== want) {
-        staleBands.add(b);
-      }
-    }
-    if (!staleBands.size) staleBands = null;
     rebuild(riderZ, want);
+  }
+
+  /* After a fall everything is solid again, and nothing more. It used to
+     re-place the window at full density as well — three bands at once and
+     then a full rebuild a frame for the rest, twenty-nine back to back after
+     a fall at speed. New bands take the density `update` is given — full
+     while the rider is down — so the window refills from its far edge, where
+     the stream fade hides the change. */
+  function rearm() {
+    for (let i = 0; i < solids.length; i++) {
+      const s = solids[i];
+      s.hit = false;
+      if (s.contact) s.contact.hit = false;
+    }
   }
 
   /* The frame's wind, handed over once by the caller. The time wraps at 200π
@@ -4895,7 +5133,7 @@ export function createProps(THREE, shading) {
     const hazards = [];
     for (let i = 0; i < solids.length; i++) {
       const s = solids[i];
-      if (s.type !== 'boulder') continue;
+      if (s.type !== 'boulder' || s.ao === undefined) continue;
       hazards.push({
         key: s.key,
         x: +s.x.toFixed(2), z: +s.z.toFixed(2),
@@ -4917,7 +5155,7 @@ export function createProps(THREE, shading) {
   }
 
   return {
-    group, update, reset, setAir, reopenGatesBelow,
+    group, update, reset, rearm, setAir, reopenGatesBelow,
     solids, gates, debugBiomes,
   };
 }

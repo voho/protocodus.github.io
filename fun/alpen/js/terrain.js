@@ -6,7 +6,7 @@
 
 import { snoise2, snoise2Smooth, noise2, hash2, getWorldSeed } from './noise.js';
 import { TERRAIN, RENDER } from './config.js';
-import { buildShadowRegion } from './shadow-cache.js';
+import { buildShadowRegion, buildShadowTiles } from './shadow-cache.js';
 
 /* THE SNOWPACK — what the ground is made of, as against how it is lit.
 
@@ -503,11 +503,22 @@ function courseCentreAt(z) {
   return wanderAt(z) + (hash2(b, 5501, 53) < 0.5 ? -s : s);
 }
 
+/* Remembered per slot, as the side hits are: every row asks for the gates
+   either side of it, and each answer is a chapter blend at the gate's own z —
+   a pure function of slot and seed that was being re-blended for every row. */
+const SLOT_CACHE = [0, 1, 2, 3].map(() => ({ seed: NaN, k: -1, off: 0 }));
+
 function gateSlotOff(k) {
+  const seed = getWorldSeed();
+  const e = SLOT_CACHE[k & 3];
+  if (e.k === k && e.seed === seed) return e.off;
   const z = gateSlotZ(k);
   // Capped so consecutive gates never ask for more than a carveable swing.
   const drift = Math.min(16, Math.max(0, corridorHalfAt(z) - guide.margin));
-  return (hash2(k, 397, 11) * 2 - 1) * drift;
+  e.k = k;
+  e.seed = seed;
+  e.off = (hash2(k, 397, 11) * 2 - 1) * drift;
+  return e.off;
 }
 
 function gateSlotX(k) {
@@ -884,6 +895,71 @@ function characterAt(z, ctx) {
   }
 }
 
+/* Where a drop and a knoll stand is a fact about its block and the seed, the
+   same purity rule the side hits follow, so it is remembered per block rather
+   than re-hashed and re-blended through the chapters for every row in range. */
+const CLIFF_CACHE = [0, 1, 2, 3].map(() => ({
+  seed: NaN, b: -1, on: false, lip: 0, drop: 0, x: 0,
+}));
+
+function cliffBlock(b) {
+  const seed = getWorldSeed();
+  const e = CLIFF_CACHE[b & 3];
+  if (e.b === b && e.seed === seed) return e.on ? e : null;
+  e.b = b;
+  e.seed = seed;
+  e.on = false;
+  /* The chapter dials the drop generator, and it is evaluated at the
+     block's own anchor rather than at this row — a cliff whose existence
+     varied row by row across a chapter edge would be a step in the height
+     field. Forested vales lose most of their drops; couloirs and glacier
+     walls gain them. */
+  const cliffGate = chapterTraitsAt(-(b * cliffs.period)).cliffs;
+  if (hash2(b, 5501, 61) > cliffs.chance * cliffGate) return null;
+  // Placed anywhere in its block that leaves room for the whole feature —
+  // the face and its runout — to finish before the next block starts
+  const lip = -(b * cliffs.period) - (cliffs.period - CLIFF_SPAN) * hash2(b, 173, 62);
+  e.lip = lip;
+  e.drop = cliffs.drop[0] + (cliffs.drop[1] - cliffs.drop[0]) * hash2(b, 907, 63);
+  // Placed against a branch of the route at the lip, never against x = 0 —
+  // the route wanders thirty metres and a drop pinned to the world would
+  // spend most of its life in the trees
+  const lipMid = wanderAt(lip);
+  const lipSplit = forkSplit(lip);
+  const side = hash2(b, 311, 64) < 0.5 ? -1 : 1;
+  const branch = lipSplit > 0 ? lipMid + side * lipSplit : lipMid;
+  const spread = (hash2(b, 613, 65) * 2 - 1) * corridorHalfAt(lip) * 0.55;
+  e.x = branch + spread;
+  e.on = true;
+  return e;
+}
+
+const KNOLL_CACHE = [0, 1, 2, 3, 4, 5, 6, 7].map(() => ({
+  seed: NaN, b: -1, on: false, cz: 0, rz: 0, lee: 0, rise: 0, rx: 0, x: 0,
+}));
+
+function knollBlock(b) {
+  const seed = getWorldSeed();
+  const e = KNOLL_CACHE[b & 7];
+  if (e.b === b && e.seed === seed) return e.on ? e : null;
+  e.b = b;
+  e.seed = seed;
+  e.on = false;
+  if (hash2(b, 4021, 81) > knolls.chance) return null;
+  e.cz = -(b * knolls.period) - knolls.period * hash2(b, 77, 82);
+  e.rz = knolls.radius[0] + (knolls.radius[1] - knolls.radius[0]) * hash2(b, 149, 83);
+  e.lee = knolls.lee[0] + (knolls.lee[1] - knolls.lee[0]) * hash2(b, 233, 84);
+  e.rise = knolls.rise[0] + (knolls.rise[1] - knolls.rise[0]) * hash2(b, 331, 85);
+  e.rx = e.rz * (1 + (hash2(b, 419, 86) * 2 - 1) * knolls.eccentric);
+  const half = corridorHalfAt(e.cz);
+  const mid = wanderAt(e.cz);
+  const sp = forkSplit(e.cz);
+  const branch = sp > 0 ? mid + (hash2(b, 503, 87) < 0.5 ? -sp : sp) : mid;
+  e.x = branch + (hash2(b, 601, 88) * 2 - 1) * half * knolls.spread;
+  e.on = true;
+  return e;
+}
+
 const ctxBandScratch = [0, 0];
 
 function rowContext(z, ctx) {
@@ -978,35 +1054,18 @@ function rowContext(z, ctx) {
   for (let k = 0; k <= 1; k++) {
     const b = b0 - k;
     if (b < 1) continue;   // the first stretch of the run is left alone
-    /* The chapter dials the drop generator, and it is evaluated at the
-       block's own anchor rather than at this row — a cliff whose existence
-       varied row by row across a chapter edge would be a step in the height
-       field. Forested vales lose most of their drops; couloirs and glacier
-       walls gain them. */
-    const cliffGate = chapterTraitsAt(-(b * cliffs.period)).cliffs;
-    if (hash2(b, 5501, 61) > cliffs.chance * cliffGate) continue;
-    // Placed anywhere in its block that leaves room for the whole feature —
-    // the face and its runout — to finish before the next block starts
-    const lip = -(b * cliffs.period) - (cliffs.period - CLIFF_SPAN) * hash2(b, 173, 62);
-    const t = lip - z;
+    const cliff = cliffBlock(b);
+    if (!cliff) continue;
+    const t = cliff.lip - z;
     if (t <= 0 || t >= CLIFF_SPAN) continue;
 
-    const drop = cliffs.drop[0] + (cliffs.drop[1] - cliffs.drop[0]) * hash2(b, 907, 63);
-    const amount = drop
+    // No floor under the amount: it already fades to nothing at both ends,
+    // and a one-centimetre floor was a one-centimetre step across the drop.
+    const amount = cliff.drop
       * smoothstep(0, cliffs.fall, t)
       * (1 - smoothstep(cliffs.fall, CLIFF_SPAN, t));
-    if (amount < 0.01) continue;
 
-    // Placed against a branch of the route at the lip, never against x = 0 —
-    // the route wanders thirty metres and a drop pinned to the world would
-    // spend most of its life in the trees
-    const lipMid = wanderAt(lip);
-    const lipSplit = forkSplit(lip);
-    const side = hash2(b, 311, 64) < 0.5 ? -1 : 1;
-    const branch = lipSplit > 0 ? lipMid + side * lipSplit : lipMid;
-    const spread = (hash2(b, 613, 65) * 2 - 1) * corridorHalfAt(lip) * 0.55;
-
-    ctx.cliffX[ctx.nCliffs] = branch + spread;
+    ctx.cliffX[ctx.nCliffs] = cliff.x;
     ctx.cliffA[ctx.nCliffs] = amount;
     ctx.nCliffs += 1;
   }
@@ -1023,16 +1082,13 @@ function rowContext(z, ctx) {
   for (let k = -3; k <= 3 && ctx.nKnolls < 4 && knollMix > 0.05; k++) {
     const b = k0 + k;
     if (b < 2) continue;
-    if (hash2(b, 4021, 81) > knolls.chance) continue;
-
-    const cz = -(b * knolls.period) - knolls.period * hash2(b, 77, 82);
-    const rz = knolls.radius[0] + (knolls.radius[1] - knolls.radius[0]) * hash2(b, 149, 83);
-    const lee = knolls.lee[0] + (knolls.lee[1] - knolls.lee[0]) * hash2(b, 233, 84);
+    const knoll = knollBlock(b);
+    if (!knoll) continue;
 
     // Downhill of the crest is z < cz, and that half is squashed so it falls
     // away far faster than it rose — which is what turns a bump into a lip
-    let dz = (z - cz) / rz;
-    if (dz < 0) dz /= lee;
+    let dz = (z - knoll.cz) / knoll.rz;
+    if (dz < 0) dz /= knoll.lee;
     if (dz <= -1 || dz >= 1) continue;
 
     // Height comes out of the radius, never on its own — see the note on
@@ -1045,18 +1101,10 @@ function rowContext(z, ctx) {
        Scaled rather than skipped, because a knoll that blinks out of existence
        at a chapter boundary is a step in the height field, and the rider's
        normals are central differences of that. */
-    const rise = knolls.rise[0] + (knolls.rise[1] - knolls.rise[0]) * hash2(b, 331, 85);
-    const height = rise * rz * knollMix;
-    const rx = rz * (1 + (hash2(b, 419, 86) * 2 - 1) * knolls.eccentric);
-    const half = corridorHalfAt(cz);
-    const mid = wanderAt(cz);
-    const sp = forkSplit(cz);
-    const branch = sp > 0 ? mid + (hash2(b, 503, 87) < 0.5 ? -sp : sp) : mid;
-
-    ctx.kx[ctx.nKnolls] = branch + (hash2(b, 601, 88) * 2 - 1) * half * knolls.spread;
-    ctx.krx[ctx.nKnolls] = rx;
+    ctx.kx[ctx.nKnolls] = knoll.x;
+    ctx.krx[ctx.nKnolls] = knoll.rx;
     ctx.kdz[ctx.nKnolls] = dz;
-    ctx.kh[ctx.nKnolls] = height;
+    ctx.kh[ctx.nKnolls] = knoll.rise * knoll.rz * knollMix;
     ctx.nKnolls += 1;
   }
 
@@ -1180,7 +1228,7 @@ function torsIn(ctx, x, past, cell) {
   const face = smoothstep(top + 6, top + 22, past)
     * (1 - smoothstep(top + 120, top + 170, past));
   const mask = Math.max(rocky, face);
-  return mask > 0.001 ? torAt(x, ctx.z, ctx.chapterTors, cell) * mask : 0;
+  return mask > 0 ? torAt(x, ctx.z, ctx.chapterTors, cell) * mask : 0;
 }
 
 /* |v| with its kink rounded into a parabola over ±e: the same value outside
@@ -1393,7 +1441,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
        62-metre exponential would be invisible anyway. */
     const rockZone = smoothstep(ctx.powderW, ctx.powderW + 12, past)
       * (1 - 0.7 * smooth01(Math.min(1, Math.max(0, past - ctx.bandW) / 90)));
-    if (rockZone > 0.001 && coarseDetail > 0.001) {
+    if (rockZone > 0 && coarseDetail > 0.001) {
       let bump = snoise2(x * 0.083, z * 0.083, 57) * zones.rockBump[0] * coarseDetail;
       if (fineDetail > 0.001) {
         bump += snoise2(x * 0.21, z * 0.21, 91) * zones.rockBump[1] * fineDetail;
@@ -1407,7 +1455,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     if (coarseDetail > 0.001 && past > 3) {
       const band = smoothstep(3, 8, past)
         * (1 - smoothstep(ctx.powderW - 6, ctx.powderW, past));
-      if (band > 0.001) h += pillowAt(x, z, ctx.chapterPillows) * band * coarseDetail;
+      if (band > 0) h += pillowAt(x, z, ctx.chapterPillows) * band * coarseDetail;
     }
   }
   const over = past - ctx.bandW;
@@ -1467,7 +1515,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
          metres out and would have kept the sharpening off everything but the
          skyline. */
       const crestScale = smoothstep(12, 70, w) * (0.35 + 0.65 * rise) * ctx.chapterCrest;
-      if (crestScale > 0.001) {
+      if (crestScale > 0) {
         const n1 = snoise2(w * 0.0105 + z * 0.0043, z * 0.0072 - w * 0.0021,
           left ? crests.seed : crests.seed + 7);
         const e1 = CREST_ROUND[0] * cell;
@@ -1510,8 +1558,11 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   /* Knolls and cliffs live outside the corridor entirely — a rideable run
      with a hidden three-metre ledge on it is an ambush, not terrain. They
      fade in with the powder band and are at full strength by the talus. */
+  /* Gated on zero, as are the landform weights above: each is exactly zero
+     wherever its work can be skipped, and a small epsilon instead left steps
+     of up to a centimetre and a half in the ground the physics stands on. */
   const beyondF = 1 - corridorF;
-  if (beyondF > 0.001) {
+  if (beyondF > 0) {
     for (let i = 0; i < ctx.nKnolls; i++) {
       const dx = (x - ctx.kx[i]) / ctx.krx[i];
       if (dx <= -1 || dx >= 1) continue;
@@ -1571,7 +1622,7 @@ export function pillowHeightAt(x, z) {
   if (past <= 3) return 0;
   const band = smoothstep(3, 8, past)
     * (1 - smoothstep(ctx.powderW - 6, ctx.powderW, past));
-  return band > 0.001 ? pillowAt(x, z, ctx.chapterPillows) * band : 0;
+  return band > 0 ? pillowAt(x, z, ctx.chapterPillows) * band : 0;
 }
 
 /* THE SNOW AS IT IS DRAWN, which is not the snow the physics stands on.
@@ -2214,7 +2265,49 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     });
   }
 
+  /* A restart on the same mountain keeps what the torus already holds: it is
+     world-fixed, so only tiles missing from the new window are built — here
+     where the chase camera can see them, by the worker for the row behind it.
+     Rebuilding all thirty froze every restart for half a second. */
+  function recentreShadowCache(x, z) {
+    startShadeWorker();
+    shadeCenterX = Math.floor(x / shadeTileSpan);
+    shadeCenterZ = Math.floor(z / shadeTileSpan);
+    const missing = [];
+    for (let tz = shadeCenterZ - shadeAheadZ; tz <= shadeCenterZ + shadeBehindZ; tz++) {
+      for (let tx = shadeCenterX - shadeRadiusX; tx <= shadeCenterX + shadeRadiusX; tx++) {
+        const slot = slotIndex(tx, tz);
+        wantedSlot[slot] = tileKey(tx, tz);
+        if (slotTileX[slot] === tx && slotTileZ[slot] === tz) continue;
+        if (shadeWorker && tz > shadeCenterZ + 1) continue;
+        missing.push({ x: tx, z: tz });
+      }
+    }
+    if (missing.length) {
+      for (const { tile, horizon, ground } of buildShadowTiles(shadowSpec, missing, heightAt)) {
+        installShadowRegion({
+          originTileX: tile.x,
+          originTileZ: tile.z,
+          tilesX: 1,
+          tilesZ: 1,
+          width: shadeTileSamples,
+          height: shadeTileSamples,
+          horizon,
+          ground,
+        }, false);
+      }
+      refreshShadeGutters();
+      shadeTexture.needsUpdate = true;
+      shadeHeightTexture.needsUpdate = true;
+    }
+    queueShadowTiles(shadeCenterX, shadeCenterZ);
+  }
+
   function initializeShadowCache(x, z) {
+    if (shadeReady && shadowSpec.worldSeed === getWorldSeed()) {
+      recentreShadowCache(x, z);
+      return;
+    }
     shadowSpec.worldSeed = getWorldSeed();
     /* Residency is centred on the tile containing the rider, with the
        6-deep torus's extra tile resident downhill. When the centre tile
@@ -2550,6 +2643,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         uniform float uTerrainMorphK;
         varying vec3 vWorld;
         varying vec2 vLocal;
+        varying float vLocalY;
         varying vec3 vSmoothNormal;
         varying float vDist;
         varying float vGroomed;
@@ -2585,6 +2679,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            double precision on the way in and already wrapped into its own tile.
            Nothing here ever forms the big number. */
         vLocal = transformed.xz;
+        vLocalY = transformed.y;
         vSmoothNormal = normalize(normalMatrix
           * (aSmoothNormal + aMorphDN * (2.0 * uTerrainMorphK)));
         vec4 n64Surface = aSurface + aMorphDS * uTerrainMorphK;
@@ -2605,6 +2700,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            space for the things that genuinely need it: the far field's phases
            and patch noise are read at world scale on purpose. */
         varying vec2 vLocal;
+        varying float vLocalY;
         uniform vec2 uTilePowderMacro;
         uniform vec2 uTilePowderDetail;
         uniform vec2 uTileIce;
@@ -2646,8 +2742,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64IronFoot = fwidth(n64IronC);
         float n64JointC = vWorld.x * 0.39 - vWorld.z * 0.27;
         float n64JointFoot = fwidth(n64JointC);
-        vec3 n64WorldDx = dFdx(vWorld);
-        vec3 n64WorldDy = dFdy(vWorld);
+        // The rock's gradients and facet are vWorld's own differences, taken
+        // from the mesh's coordinates: twenty kilometres down, vWorld moves in
+        // two-millimetre steps and its differences turn to noise.
+        vec3 n64WorldDx = dFdx(vec3(vLocal.x, vLocalY, vLocal.y));
+        vec3 n64WorldDy = dFdy(vec3(vLocal.x, vLocalY, vLocal.y));
         vec3 n64TriRaw = cross(n64WorldDx, n64WorldDy);
         vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
           * (vLocal / uSnowTile.y);
@@ -4190,6 +4289,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   const ANCHOR_MUL_MAX = 2;
   const ANCHOR_DWELL = 3;    // commits to hold a level before moving again
+  /* The anchor leads the rider by about one commit cycle of travel. Taken
+     where the rider stood when its build began, it was a cycle behind at the
+     commit and two by the next, and past forty metres a second the board ran
+     off the fine lattice onto coarse rings: drawn snow and trail no longer the
+     ground underfoot. Capped so the fine lattice still reaches past the camera. */
+  const ANCHOR_LEAD_SECONDS = 0.7;
+  const ANCHOR_LEAD_MAX = TERRAIN.uniformNear * 0.5;
+  let leadX = NaN;
+  let leadZ = NaN;
+  let leadVX = 0;
+  let leadVZ = 0;
   let anchorMul = 1;
   let anchorDwell = 0;
   let buildStartedAt = 0;
@@ -4198,6 +4308,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   // Fill the next lattice in short row batches while the current one stays
   // fixed in world space. Shadow tiles are prepared separately in a worker.
   const BUILD_BUDGET_MS = 4.0;
+  /* …and twice that while the rider is outrunning the fine lattice, which
+     only flow speeds do. Hurrying the morph instead shortened the cycle as
+     well, but snapped metres of re-measured ground in view and the snow
+     under the board with it; spending time is the one fix nobody can see. */
+  const BUILD_BUDGET_OUTRUN_MS = 8.0;
   /* The deadline is only tested between batches, so a batch is also the
      budget's overrun. Eight rows cost about 1.3 ms and turned a 4 ms budget
      into a measured 6; four rows halve the tail for no extra per-row work. */
@@ -4276,7 +4391,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     build.stage = 4;
   }
 
-  function advanceBuild() {
+  function advanceBuild(budget = BUILD_BUDGET_MS) {
     if (!build) return;
     if (build.stage === 2 && !build.morph) {
       if (morphT >= 1) commitBuild(build);
@@ -4292,7 +4407,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       build.row = 0;
     }
     const started = clockNow();
-    const deadline = started + BUILD_BUDGET_MS;
+    const deadline = started + budget;
     do {
       const rowTo = Math.min(vertsZ, build.row + BUILD_BATCH_ROWS);
       if (build.stage === 0) {
@@ -4327,6 +4442,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   }
 
   function update(x, z, dt = 1 / 60) {
+    if (dt > 0 && Number.isFinite(leadX)) {
+      const k = 1 - Math.exp(-dt / 0.25);
+      leadVX += ((x - leadX) / dt - leadVX) * k;
+      leadVZ += ((z - leadZ) / dt - leadVZ) * k;
+    }
+    leadX = x;
+    leadZ = z;
+    const outrun = Math.hypot(x - anchorX, z - anchorZ) > TERRAIN.uniformNear * 0.75;
     if (morphT < 1) {
       morphT = Math.min(1, morphT + Math.max(0, dt) / MORPH_SECONDS);
       // The lead walks the old mesh out to the new ground, the follow walks
@@ -4347,19 +4470,24 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
        proximity for frames, and the one thing it must never spend is the
        rider's own footing: past three quarters of the uniform near lattice
        the grid goes straight back to one stride whatever the duty cycle
-       thinks, and holds there for a dwell. Measured at thirty-five metres a
-       second the anchor trails by about thirty-five metres against a
-       seventy-two metre radius, so this is a guard against a runaway rather
-       than part of the ordinary cycle — but a controller with no bound on
-       the quantity it is allowed to degrade is not a controller. */
-    if (anchorMul > 1
-      && Math.hypot(x - anchorX, z - anchorZ) > TERRAIN.uniformNear * 0.75) {
+       thinks, and holds there for a dwell. With the anchor leading the rider
+       this is a guard against a runaway rather than part of the ordinary
+       cycle — but a controller with no bound on the quantity it is allowed
+       to degrade is not a controller. */
+    if (anchorMul > 1 && outrun) {
       anchorMul = 1;
       anchorDwell = ANCHOR_DWELL;
     }
     const step = stride * anchorMul;
-    const ax = Math.round(x / step) * step;
-    const az = Math.round(z / step) * step;
+    let leadDX = leadVX * ANCHOR_LEAD_SECONDS;
+    let leadDZ = leadVZ * ANCHOR_LEAD_SECONDS;
+    const lead = Math.hypot(leadDX, leadDZ);
+    if (lead > ANCHOR_LEAD_MAX) {
+      leadDX *= ANCHOR_LEAD_MAX / lead;
+      leadDZ *= ANCHOR_LEAD_MAX / lead;
+    }
+    const ax = Math.round((x + leadDX) / step) * step;
+    const az = Math.round((z + leadDZ) / step) * step;
 
     const ay = heightAt(ax, az);
     if (!Number.isFinite(anchorX)) {
@@ -4375,14 +4503,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       return;
     }
 
+    const budget = outrun ? BUILD_BUDGET_OUTRUN_MS : BUILD_BUDGET_MS;
     if (build) {
-      advanceBuild();
+      advanceBuild(budget);
       return;
     }
     if (ax === anchorX && az === anchorZ) return;
 
     beginBuild(ax, az, ay);
-    advanceBuild();
+    advanceBuild(budget);
   }
 
   function snapSnowReady() {
@@ -4399,6 +4528,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorMul = 1;
     anchorDwell = 0;
     buildIdleFrom = clockNow();
+    // A restart is a standing start: no speed to lead the anchor by.
+    leadX = NaN;
+    leadVX = 0;
+    leadVZ = 0;
     const ax = Math.round(x / stride) * stride;
     const az = Math.round(z / stride) * stride;
     const ay = heightAt(ax, az);

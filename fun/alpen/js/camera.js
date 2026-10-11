@@ -135,6 +135,10 @@ const treeBlockedAt = (world, rider, dx, dz, t) => {
   return world.blocked(cx, cz, foliage);
 };
 
+// Whether the lens itself, at fraction `t` of the boom, would be in a trunk.
+const lensBlockedAt = (world, rider, dx, dz, t) => world.blocked(
+  rider.pos.x + dx * t, rider.pos.z + dz * t, TREE_NEAR_RADIUS);
+
 const treeClearFraction = (world, rider, point) => {
   if (!world.blocked) return 1;
 
@@ -151,7 +155,29 @@ const treeClearFraction = (world, rider, point) => {
   if (wasBlocked) {
     previous = TREE_SUBJECT_RESCAN;
     wasBlocked = treeBlockedAt(world, rider, dx, dz, previous);
-    if (wasBlocked) return Math.max(TREE_MIN_BOOM, previous - 0.10);
+    if (wasBlocked) {
+      /* Crown all round: settle for a short boom, but never one whose lens
+         is inside a trunk. The fixed fallback landed exactly on a tree
+         standing two and a half to three and a half metres behind a slow
+         rider, and the frame was bark. Look for the last clear point in
+         front of the trunk, and failing that the first one past it. */
+      const fallback = Math.max(TREE_MIN_BOOM, previous - 0.10);
+      if (!lensBlockedAt(world, rider, dx, dz, fallback)) return fallback;
+      if (!lensBlockedAt(world, rider, dx, dz, TREE_MIN_BOOM)) {
+        let lo = TREE_MIN_BOOM;
+        let hi = fallback;
+        for (let j = 0; j < 5; j++) {
+          const mid = (lo + hi) * 0.5;
+          if (lensBlockedAt(world, rider, dx, dz, mid)) hi = mid;
+          else lo = mid;
+        }
+        return Math.max(TREE_MIN_BOOM, lo - TREE_GUARD);
+      }
+      for (let t = fallback + TREE_SAMPLE_STEP; t < 1; t += TREE_SAMPLE_STEP) {
+        if (!lensBlockedAt(world, rider, dx, dz, t)) return t;
+      }
+      return 1;
+    }
   }
 
   const count = Math.ceil((1 - previous) / TREE_SAMPLE_STEP);
@@ -284,8 +310,14 @@ export function createChaseCamera(THREE, camera) {
       flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
     }
     // In flight the board may spin several times while its landing line
-    // stays fixed. Remove its steering influence as the air frame opens.
-    const velocityBias = CAMERA.velocityBias + (1 - CAMERA.velocityBias) * airBlend;
+    // stays fixed. Remove its steering influence as the air frame opens —
+    // and as the board turns across its travel, where the stance-adjusted
+    // facing is least meaningful: a butter flips the stance at ninety
+    // degrees, which flipped that facing by half a turn and swung the whole
+    // chase position round behind the rider in a few frames.
+    const across = travel < 1e-4 ? 1
+      : Math.abs(tmp.x * rider.vel.x + tmp.z * rider.vel.z) / travel;
+    const velocityBias = 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
     dir.copy(flat).multiplyScalar(velocityBias)
       .addScaledVector(tmp, 1 - velocityBias).normalize();
 
@@ -416,11 +448,14 @@ export function createChaseCamera(THREE, camera) {
         / (SHORT_LOOK_START - SHORT_LOOK_FULL),
       0, 1,
     );
+    // Blended into the aim, not into the smoothed `look`: lerped into the
+    // state it compounded once per frame, so the framing depended on the
+    // frame rate and an uneven one rocked the pitch.
     if (shortLook > 0) {
       shortLook = shortLook * shortLook * (3 - 2 * shortLook);
       riderLook.copy(rider.pos);
       riderLook.y += 1.1;
-      look.lerp(riderLook, shortLook);
+      riderLook.lerpVectors(look, riderLook, shortLook);
     }
 
     // --- shake ------------------------------------------------------------
@@ -447,7 +482,7 @@ export function createChaseCamera(THREE, camera) {
     // Keep the actual lens above that path too, including landing shake.
     camera.position.y = Math.max(camera.position.y,
       world.height(camera.position.x, camera.position.z) + FLOOR);
-    camera.lookAt(look);
+    camera.lookAt(shortLook > 0 ? riderLook : look);
 
     /* How much the ground under the board tilts across the frame: the
        surface normal against the camera's own right-hand axis, which for a

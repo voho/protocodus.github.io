@@ -42,8 +42,11 @@ import { RENDER } from './config.js';
 import { sharedTexture } from './textures.js';
 import { riderGeometry } from './riderAssets.js';
 import { parseGlb } from './glb.js';
+import { onHutGround } from './huts.js';
 
-// Seconds a tumbled figure takes to come back round to its riding pose.
+// Seconds a figure spends in the snow after a collision, and then takes to
+// come back round to its riding pose.
+const TUMBLE = 3.5;
 const RECOVER = 0.5;
 
 /* THE OTHER RIDERS' ARMS.
@@ -271,6 +274,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const topZ = new Float64Array(NUM_PYLONS);
   // Where the cabin datum stood last frame — see the slide handover below.
   let lastBackZ = null;
+  // And where it stood when the towers and ropes were last laid out.
+  let lineBackZ = null;
   // A point on rope `off` of span `i`, `t` of the way along it: the chord
   // between the tower tops, dropped by the span's parabolic sag.
   const ropeAt = (i, off, t, out) => out.set(
@@ -340,12 +345,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     c.x = center + c.side * (band.half + 3.2);
     c.y = heightAt(c.x, cz);
     c.yaw = c.side > 0 ? -Math.PI * 0.65 : Math.PI * 0.65;
+    // A hut stands just past the groomed edge too, and a gun whose station
+    // falls on its ground is simply not built there rather than through it.
+    c.hidden = onHutGround(c.x, cz);
     cannonsDirty = true;
   }
 
   for (let i = 0; i < NUM_CANNONS; i++) {
     const c = {
-      side: i % 2 === 0 ? 1 : -1, z: 0, x: 0, y: 0, yaw: 0,
+      side: i % 2 === 0 ? 1 : -1, z: 0, x: 0, y: 0, yaw: 0, hidden: false,
     };
     placeCannon(c, 40 - i * CANNON_SPACING);
     cannons.push(c);
@@ -571,6 +579,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     gunNozzle.fromArray(nozzle);
     gunAim.fromArray(aim).normalize();
     liftModelled = true;
+    // The trains are laid along the rope on the next frame, slide or not
+    lineBackZ = null;
   }
 
   /* Fetched here, like the forest's trees, and swapped in whenever it
@@ -1274,6 +1284,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
      five people on it reads as an empty one. */
   const NUM_NPCS = 8;
   const npcs = [];
+  const npcCentres = [0, 0];
   for (let i = 0; i < NUM_NPCS; i++) {
     const isSkier = i % 2 === 0;
     const v = {
@@ -1312,6 +1323,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       recoverFrom: new THREE.Quaternion(),
       bodyFrom: new THREE.Quaternion(),
       sPhase: Math.random() * Math.PI * 2,
+      // which branch of a fork it is riding (−1, +1), 0 where there is none
+      branch: 0,
       // the arms' bones and what they know (see `rigBody`), and the turn
       // they answer: the sideways acceleration, smoothed
       arms: fig.arms,
@@ -1468,8 +1481,18 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       -0.40 * toe - 0.42 * heel + 0.5 * flail, 6, dt);
   }
 
+  /* A tumbling figure turns about its hip, held a little over hip height,
+     rather than about its boots — the group's origin — which drove head and
+     shoulders into the hill for most of the cartwheel. `k` hands it back to
+     the boots as it gets up. */
+  function hipPivot(npc, k) {
+    const hip = npc.hip * npc.mesh.scale.y;
+    _a.set(0, hip, 0).applyQuaternion(npc.mesh.quaternion);
+    npc.mesh.position.set(npc.x - _a.x * k, npc.y + (hip + 0.15 - _a.y) * k, npc.z - _a.z * k);
+  }
+
   return {
-    update(dt, rider, w = null) {
+    update(dt, rider, w = null, spareRider = false) {
       if (!rider) return;
       const rz = rider.pos.z;
 
@@ -1503,15 +1526,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         lastBackZ = backZ;
       }
       wheelSpin += 3.0 * dt;
+      /* The towers, the trains and the ropes are a function of the window
+         alone, so they are rebuilt when it slides rather than every frame —
+         eleven ground lookups and a hundred and sixty rope matrices that were
+         redone for nothing. Only the procedural sheaves turn in between. */
+      const lineMoved = backZ !== lineBackZ;
+      lineBackZ = backZ;
       for (let i = 0; i < NUM_PYLONS; i++) {
-        const pz = backZ - i * PYLON_SPACING;    // …to three slots ahead
-        const px = cableXAt(pz);
-        const py = heightAt(px, pz);
-        _m.makeTranslation(px, py + TOWER_MID, pz);
-        pylonMesh.setMatrixAt(i, _m);
-        topX[i] = px;
-        topY[i] = py + ROPE_TOP;
-        topZ[i] = pz;
+        if (lineMoved) {
+          const pz = backZ - i * PYLON_SPACING;    // …to three slots ahead
+          const px = cableXAt(pz);
+          const py = heightAt(px, pz);
+          _m.makeTranslation(px, py + TOWER_MID, pz);
+          pylonMesh.setMatrixAt(i, _m);
+          topX[i] = px;
+          topY[i] = py + ROPE_TOP;
+          topZ[i] = pz;
+        }
         if (liftModelled) continue;
         // The two sheaves counter-rotate, which is what a bull wheel does
         // and the only moving part on a tower you can read from the piste.
@@ -1519,7 +1550,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
           _e.set(0, 0, s === 0 ? wheelSpin : -wheelSpin);
           _q.setFromEuler(_e);
-          _p.set(px + off, py + ROPE_TOP, pz);
+          _p.set(topX[i] + off, topY[i], topZ[i]);
           _m.compose(_p, _q, _one);
           wheelMesh.setMatrixAt(i * 2 + s, _m);
         }
@@ -1536,7 +1567,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
          the other way, turns its sheaves the other way for free. */
       if (liftModelled) {
         sheaveSpin.value = (sheaveSpin.value - SHEAVE_SPIN * dt) % (Math.PI * 2);
-        for (let i = 0; i < NUM_PYLONS; i++) {
+        for (let i = 0; lineMoved && i < NUM_PYLONS; i++) {
           const a = Math.max(0, i - 1);
           const b = Math.min(NUM_PYLONS - 1, i + 1);
           const dx = topX[b] - topX[a];
@@ -1554,11 +1585,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           }
         }
       }
-      pylonMesh.instanceMatrix.needsUpdate = true;
-      wheelMesh.instanceMatrix.needsUpdate = true;
+      if (lineMoved) pylonMesh.instanceMatrix.needsUpdate = true;
+      if (lineMoved || !liftModelled) wheelMesh.instanceMatrix.needsUpdate = true;
 
       // The ropes, tower-top to tower-top, sagging as the cabins on them do.
-      for (let i = 0; i < NUM_PYLONS - 1; i++) {
+      for (let i = 0; lineMoved && i < NUM_PYLONS - 1; i++) {
         for (let s = 0; s < 2; s++) {
           const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
           for (let k = 0; k < ROPE_SEGMENTS; k++) {
@@ -1574,7 +1605,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           }
         }
       }
-      cableMesh.instanceMatrix.needsUpdate = true;
+      if (lineMoved) cableMesh.instanceMatrix.needsUpdate = true;
 
       /* Cabins ride the rope between towers: position interpolated along
          the span they are on, dropped by a touch of parabolic sag, hung by
@@ -1586,7 +1617,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         if (g.at >= SPAN) g.at -= SPAN;
         const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
         ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
-        const sway = Math.sin(_p.z * 0.08 + g.at * 0.02) * 0.05;
+        // Phased by where the cabin is, never by `at`: the slide above moves
+        // `at` a whole slot, and every cabin's swing used to jump with it.
+        const sway = Math.sin(_p.z * 0.06) * 0.05;
         if (liftModelled) {
           /* The modelled cabin has a door side, and it faces outboard: the
              cabins coming back on the −x rope have been round the bull wheel
@@ -1620,8 +1653,12 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         /* Active snowmaking spray plumes, out of the nozzle ring and along
            the barrel: the gun's own nozzle and aim, turned by the yaw it was
            placed with. These used to be offsets written in world terms,
-           which were right for exactly one gun on exactly one side. */
-        if (spray && Math.abs(c.z - rz) < 240 && Math.random() < 24 * dt) {
+           which were right for exactly one gun on exactly one side. Only
+           guns in front of the rider spray: the ring is shared with the
+           rider's own snow, and plumes behind the camera were spending a
+           fifth of the guns' share of it. */
+        if (spray && !c.hidden && c.z < rz + 20 && c.z > rz - 200
+          && Math.random() < 24 * dt) {
           const cy = Math.cos(c.yaw);
           const sy = Math.sin(c.yaw);
           const ax = gunAim.x * cy + gunAim.z * sy;
@@ -1644,7 +1681,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           _e.set(0, c.yaw, 0);
           _q.setFromEuler(_e);
           _p.set(c.x, c.y, c.z);
-          _m.compose(_p, _q, _one);
+          // Scaled to a point, not zeroed: w stays 1 (see `instanced`)
+          _m.compose(_p, _q, c.hidden ? _s.set(0, 0, 0) : _one);
           cannonMesh.setMatrixAt(i, _m);
         }
         cannonMesh.instanceMatrix.needsUpdate = true;
@@ -1682,6 +1720,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           npc.tumbled = false;
           npc.tumbleTimer = 0;
           npc.recover = 0;
+          npc.branch = 0;
           npc.vz = -(11 + (i % 4) * 3);
           npc.mesh.rotation.set(0, 0, 0);
         }
@@ -1693,10 +1732,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           npc.z += npc.vz * dt;
           npc.x += npc.vx * dt;
           npc.y = heightAt(npc.x, npc.z);
-          npc.mesh.position.set(npc.x, npc.y + 0.25, npc.z);
           npc.mesh.rotation.x += 4.5 * dt;
           npc.mesh.rotation.y += 3.2 * dt;
           npc.mesh.rotation.z += 5.0 * dt;
+          // (eased onto the hip over the first quarter second, from the boots)
+          hipPivot(npc, Math.min(1, (TUMBLE - npc.tumbleTimer) * 4));
           // Folded over the skis rather than riding above them.
           npc.body.position.y = npc.hip - 0.05;
           npc.body.rotation.set(0.55, 0, 0.30);
@@ -1722,16 +1762,26 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         }
 
         // Easy S-turns about the nearest branch line, so they stay on the
-        // corduroy through forks instead of skiing the island.
+        // corduroy through forks instead of skiing the island. Nearest where
+        // the run split, and held until it joins again: asked afresh every
+        // frame, a turn wider than the split crossed the midline, and the
+        // rider snapped round and shot across to the other branch.
         npc.sPhase += dt * TURN_RATE;
         const edge = Math.sin(npc.sPhase);
         const sTurn = edge * 12.0;
-        const targetX = nearestCenter(npc.x, npc.z) + sTurn;
+        centersAt(npc.z, npcCentres);
+        if (npcCentres[1] - npcCentres[0] < 1e-6) npc.branch = 0;
+        else if (!npc.branch) {
+          npc.branch = Math.abs(npc.x - npcCentres[0]) < Math.abs(npc.x - npcCentres[1]) ? -1 : 1;
+        }
+        const targetX = (npc.branch > 0 ? npcCentres[1] : npcCentres[0]) + sTurn;
         npc.vx = (targetX - npc.x) * TURN_GAIN;
 
         // How far back onto their feet they are: 0 the frame the tumble
         // ends, 1 once they are riding. Speed returns with it rather than
-        // in one frame, since nobody stands up already doing forty km/h.
+        // in one frame, since nobody stands up already doing forty km/h —
+        // across the hill as well, where steering back to a line the tumble
+        // threw them metres off was a sideways dart the frame they rose.
         let up = 1;
         let rising = false;
         if (npc.recover > 0) {
@@ -1741,10 +1791,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           up = t * t * (3 - 2 * t);
         }
 
-        npc.x += npc.vx * dt;
+        npc.x += npc.vx * dt * (0.25 + 0.75 * up);
         npc.z += npc.vz * dt * (0.25 + 0.75 * up);
         npc.y = heightAt(npc.x, npc.z);
-        npc.mesh.position.set(npc.x, npc.y + 0.25 * (1 - up), npc.z);
+        npc.mesh.position.set(npc.x, npc.y, npc.z);
 
         // Direction of travel (yaw) where 0 = straight downhill (-Z)
         const yaw = Math.atan2(npc.vx, -npc.vz);
@@ -1809,10 +1859,14 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           }
           npc.mesh.quaternion.premultiply(_qTurn.copy(npc.recoverFrom).slerp(_qStill, up));
           b.quaternion.premultiply(_qTurn.copy(npc.bodyFrom).slerp(_qStill, up));
+          // …and handed from the hip the tumble turned about back to the feet
+          hipPivot(npc, 1 - up);
         }
 
-        // A little carve spray off their turns
-        if (spray && Math.random() < 15 * dt) {
+        // A little carve spray off their turns, where it can be seen: the
+        // ring it comes out of is the rider's own as well, and three in four
+        // of these puffs used to be thrown more than 150 m off, or behind.
+        if (spray && npc.z < rz + 20 && npc.z > rz - 150 && Math.random() < 15 * dt) {
           spray.burst(npc.mesh.position, -npc.vx * 0.2, -npc.vz * 0.2, 3, 0.5);
         }
 
@@ -1820,12 +1874,13 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const dy = rider.pos.y - npc.y;
         const dz = rider.pos.z - npc.z;
         if (dx * dx + dz * dz < 2.5 && Math.abs(dy) < 2.2) {
-          // Both go down.
-          if (rider.state !== 'fall' && rider.grace <= 0) {
+          // Both go down — bar the attract loop's demo rider, whom the props
+          // spare as well.
+          if (!spareRider && rider.state !== 'fall' && rider.grace <= 0) {
             rider.fall('npc', 15.0);
           }
           npc.tumbled = true;
-          npc.tumbleTimer = 3.5;
+          npc.tumbleTimer = TUMBLE;
           npc.vx = (Math.random() - 0.5) * 14.0;
           npc.vz *= 0.2;
           if (spray) {
@@ -1864,6 +1919,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       // A checkpoint restart teleports the datum; take the fresh one rather
       // than treating the jump as a slide to compensate.
       lastBackZ = null;
+      lineBackZ = null;
       for (let i = 0; i < NUM_CANNONS; i++) {
         const c = cannons[i];
         placeCannon(c, riderZ + 40 - i * CANNON_SPACING);
@@ -1877,6 +1933,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.tumbled = false;
         npc.tumbleTimer = 0;
         npc.recover = 0;
+        npc.branch = 0;
         npc.vx = 0;
         npc.vz = -(11 + (i % 4) * 3);
         npc.mesh.rotation.set(0, 0, 0);

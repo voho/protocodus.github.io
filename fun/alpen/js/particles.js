@@ -242,10 +242,10 @@ export const WEATHER = {
 
    The ground under a grain is sampled from `heightAt` when it is placed and
    then carried along by the base grade, with a round-robin correction back
-   to the true surface. A tenth of the grains are corrected per frame, so the
-   whole sheet is right to within a few centimetres for about six height
-   samples a frame. Sampling every grain every frame was the first version
-   and it cost a third of a millisecond to fix an error nobody could see. */
+   to the true surface. A tenth of the grains are corrected per frame —
+   about forty height samples in a full storm — which holds the sheet's mean
+   error near twenty centimetres. Sampling every grain every frame was the
+   first version and it cost a third of a millisecond. */
 export const SPINDRIFT = {
   from: 0.34,           // dial below which the surface stays put
   full: 0.95,
@@ -284,6 +284,7 @@ export const SPRAY = {
   born: 0.9,            // × SNOW.spraySize
   fineSmall: 0.35,      // how much smaller dust starts than a thrown lump
   grow: [0.30, 1.05],   // and how much of itself each gains by the end
+  rateSpeed: 50,        // m/s past which the edge plume stops emitting faster
 };
 
 /* What the particles currently believe the sky is doing.
@@ -772,7 +773,9 @@ function snapAnchor(anchor, c) {
    something of its own. It is smoothed because the chase camera shakes, and
    an unsmoothed shake is a snowfield that flickers between two smear
    directions sixty times a second. And it is clamped, because a respawn
-   moves the camera a kilometre in one step and that is not a speed. */
+   moves the camera a kilometre in one step and that is not a speed — so a
+   step faster than any board is a cut, and starts the smear from rest:
+   clamped and fed in, a restart still smeared the snow for ten frames. */
 function cameraTracker(THREE) {
   const vel = new THREE.Vector3();
   const prev = new THREE.Vector3();
@@ -781,8 +784,13 @@ function cameraTracker(THREE) {
   return function track(camera, dt) {
     if (seen && dt > 0.0001) {
       step.subVectors(camera.position, prev).divideScalar(dt);
-      if (step.lengthSq() > 4900) step.setLength(70);
-      vel.lerp(step, 1 - Math.exp(-dt * 14));
+      const pace = step.lengthSq();
+      if (pace > 14400) {
+        vel.set(0, 0, 0);
+      } else {
+        if (pace > 4900) step.setLength(70);
+        vel.lerp(step, 1 - Math.exp(-dt * 14));
+      }
     }
     prev.copy(camera.position);
     seen = true;
@@ -1545,17 +1553,23 @@ export function createSpray(THREE, shading) {
 
     /* Counts per committed section. Poisson sampling keeps the expected mass
        constant per metre while removing the breadcrumb rhythm that a rounded
-       carry can reveal in a long, steady carve. */
+       carry can reveal in a long, steady carve.
+
+       …up to `rateSpeed`, past which the mass per metre thins instead: per
+       metre is more per second the faster he goes, and at the top of the
+       flow range that outran the pool, which recycled grains still in the
+       air — the max-flow crystals with them. */
+    const thin = Math.min(1, SPRAY.rateSpeed / Math.max(speed, 1));
     const grains = poisson(
-      carve * 0.05 + skid * 3.25 + chatter * activity * 0.60, 8,
+      (carve * 0.05 + skid * 3.25 + chatter * activity * 0.60) * thin, 8,
     );
     const mists = poisson(
-      carve * 3.00 + skid * (0.90 + brake * 0.72)
-        + chatter * activity * 0.16, 4,
+      (carve * 3.00 + skid * (0.90 + brake * 0.72)
+        + chatter * activity * 0.16) * thin, 4,
     );
     const chunks = poisson(
-      skid * (0.035 + brake * 0.16 + chatter * 0.10)
-        + carve * chatter * 0.035, 2,
+      (skid * (0.035 + brake * 0.16 + chatter * 0.10)
+        + carve * chatter * 0.035) * thin, 2,
     );
     /* And the curtain, which is the only one of the four whose *rate* is a
        function of speed rather than only its shape. Every other count here is
@@ -1568,7 +1582,7 @@ export function createSpray(THREE, shading) {
        it, and the plume grows with the run rather than merely lengthening. */
     const drive = clamp01((speed - 6) / 15);
     const tails = poisson(
-      drive * (carve * 3.7 + skid * 2.3 + chatter * activity * 0.45), 9,
+      drive * (carve * 3.7 + skid * 2.3 + chatter * activity * 0.45) * thin, 9,
     );
 
     for (let k = 0; k < grains; k++) {
@@ -1943,6 +1957,8 @@ export function createStreaks(THREE) {
   let placed = false;
   let posDirty = false;
   let idle = false;
+  // The speed share the field is drawn at — see `update`.
+  let shownT = 0;
 
   /* A streak is a fixed point in the world with a ribbon drawn back along the
      direction of travel. It does not move — the rider passes it — which is
@@ -2009,8 +2025,10 @@ export function createStreaks(THREE) {
 
     const t = Math.min(1, Math.max(0, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
     const active = Math.round(n * t * t);
-    geo.setDrawRange(0, active * 6);
-    lines.visible = active > 0;
+    // The field is drawn at this, which falls on the streaks' own fade clock:
+    // read raw, a drop below `STREAKS.from` — a crash — zeroed every fading
+    // streak's alpha and width in one frame.
+    shownT = t >= shownT ? t : Math.max(t, shownT - dt * 9);
     // Density reaches full strength at `STREAKS.full`; line length may keep
     // communicating more speed, but it cannot grow all the way to the W cap
     // forever or each streak eventually becomes a screen-filling white bar.
@@ -2034,7 +2052,7 @@ export function createStreaks(THREE) {
     // buffer actually in use: held at a literal count, the ribbons were a
     // third of the intended width on a 4K frame — the same sub-pixel
     // hairline failure `WEATHER.wide` was already converted away from.
-    material.uniforms.uWidth.value = (1.4 + t * 1.9)
+    material.uniforms.uWidth.value = (1.4 + shownT * 1.9)
       * Math.max(1, RENDER.buffer.height / 288);
     material.uniforms.uScale.value = pointScale(camera);
     /* And they are the colour of the air rather than white.
@@ -2056,10 +2074,9 @@ export function createStreaks(THREE) {
     }
 
     /* Below streaking speed there is nothing to age, nothing to fade and
-       nothing to re-home — one blanking pass zeroes the alphas, and after
-       that the field is asleep until the speed comes back. Most of a run is
-       spent below the threshold, so most frames skip the loop and both
-       uploads entirely. */
+       nothing to re-home — once the last streak has faded the field is
+       asleep until the speed comes back. Most of a run is spent below the
+       threshold, so most frames skip the loop and both uploads entirely. */
     if (active === 0 && idle) {
       if (posDirty) {
         geo.attributes.position.needsUpdate = true;
@@ -2067,11 +2084,15 @@ export function createStreaks(THREE) {
       }
       return;
     }
-    idle = active === 0;
 
+    // A streak past `active` fades out on the fade-in's own clock rather than
+    // being cut: a hard stop from 44 to 26 m/s switched two hundred of them
+    // off, at up to a third of full alpha, each in a single frame.
+    let drawn = 0;
     for (let i = 0; i < n; i++) {
       const j = i * 3;
-      if (i >= active) {
+      const leaving = i >= active;
+      if (leaving && age[i] <= 0) {
         blank(i);
         continue;
       }
@@ -2085,7 +2106,11 @@ export function createStreaks(THREE) {
         blank(i);
         continue;
       }
-      age[i] += dt;
+      age[i] = leaving ? Math.min(age[i], 1 / 9) - dt : age[i] + dt;
+      if (age[i] <= 0) {
+        blank(i);
+        continue;
+      }
       /* Three things hold the field back from being a white cage.
 
          It fades in over a tenth of a second, because a streak that appears
@@ -2098,12 +2123,16 @@ export function createStreaks(THREE) {
 
          And every streak has its own brightness, so the field has depth in
          it rather than being one flat sheet of identical marks. */
-      const a = 0.30 * t * jitter[i]
+      const a = 0.30 * shownT * jitter[i]
         * (0.3 + 0.7 * radial[i])
         * Math.min(1, age[i] * 9);
       const v = i * 4;
       alpha[v] = a; alpha[v + 1] = a; alpha[v + 2] = a; alpha[v + 3] = a;
+      drawn = i + 1;
     }
+    geo.setDrawRange(0, drawn * 6);
+    lines.visible = drawn > 0;
+    idle = drawn === 0;
 
     if (posDirty) {
       geo.attributes.position.needsUpdate = true;

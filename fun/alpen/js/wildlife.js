@@ -51,6 +51,7 @@ import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const range = ([lo, hi]) => lo + Math.random() * (hi - lo);
 /* Triangular on [-1, 1] rather than uniform: with a corridor this wide a
    uniform scatter puts most of the rabbits somewhere the rider is never
@@ -1156,6 +1157,7 @@ export function createWildlife(THREE, shading) {
         herd.x += herd.dir * sp * dt;
         herd.z -= sp * 0.45 * dt;
       }
+      const runYaw = Math.atan2(herd.dir, -0.45);
 
       for (const d of herd.members) {
         d.clock += dt;
@@ -1170,8 +1172,10 @@ export function createWildlife(THREE, shading) {
           * (1 - herd.alert);
         const gait = d.clock * 12;
         const bob = Math.sin(gait) * 0.055 * herd.alert;
-        // A running herd all faces the way it is going; a grazing one does not
-        const yaw = lerp(d.yaw, Math.atan2(herd.dir, -0.45), herd.alert);
+        // A running herd all faces the way it is going; a grazing one does
+        // not. The short way round: `d.yaw` is anywhere in a whole turn, and
+        // lerped straight at the heading a deer could pirouette a turn and more.
+        const yaw = lerp(d.yaw, d.yaw + wrapPi(runYaw - d.yaw), herd.alert);
         slopeUnder(x, z, yaw, 0.37 * d.scale, 0.20 * d.scale, slope);
         v.set(x, y + Math.abs(bob), z);
         e.set(Math.sin(gait * 2) * 0.05 * herd.alert + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
