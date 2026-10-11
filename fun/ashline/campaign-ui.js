@@ -45,7 +45,8 @@ export function readProgress(value) {
 function load(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
 function store(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
 
-export const isUnlocked = (progress, id) => { const index = CAMPAIGN.indexOf(id); return index === 0 || index > 0 && (progress.missions[CAMPAIGN[index - 1]]?.wins || 0) > 0; };
+// An operation already won stays open, so operations added to the campaign never lock one a player has cleared.
+export const isUnlocked = (progress, id) => { const index = CAMPAIGN.indexOf(id), won = key => (progress.missions[key]?.wins || 0) > 0; return index === 0 || index > 0 && (won(CAMPAIGN[index - 1]) || won(id)); };
 const better = (a, b) => MEDALS.indexOf(a) > MEDALS.indexOf(b) ? a : b;
 // Folds a finished operation into campaign progress: medals and best times only improve, Dead Signal
 // survivors become the veterans Severance deploys, and Last Light keeps its best score.

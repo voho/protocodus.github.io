@@ -8,7 +8,8 @@
 // 'rivalHold:<zone>' for the rival's cumulative hold of a contested zone. Tags keep 'tagged:<tag>' (members
 // ever tagged), 'mobile:<tag>' (members that are units or arrived after setup, so their total is never
 // published) and 'seen:<tag>' (members whose loss the player witnessed). An objective that cannot apply,
-// such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally. A delivery
+// such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally, until its group
+// joins during the operation. A delivery
 // quota revealed during the operation keeps 'from:<objective>', the deliveries made before it appeared.
 import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,confirmedKills,seen as seenBy} from './sim.js';
 import {mapLayout,lanePoint,frameOffset,hash} from './terrain.js';
@@ -221,6 +222,8 @@ function tagEntities(s,ids,tag){
     e.tag=tag;c[`tagged:${tag}`]=(c[`tagged:${tag}`]||0)+1;
     if(e.kind==='unit'||later)c[`mobile:${tag}`]=(c[`mobile:${tag}`]||0)+1;
   }
+  // A group that joins during the operation (a rescued crew) brings back the protect objective its absence voided.
+  if(later&&c[`tagged:${tag}`])for(const o of MISSIONS[s.mission.id].objectives)if(o.type==='protectTagged'&&o.tag===tag)delete c[`void:${o.id}`];
 }
 const livingUnits=(s,team)=>s.entities.reduce((n,e)=>n+(e.team===team&&e.kind==='unit'&&alive(e)?1:0),0);
 // Scripted forces: units on open ground around a point, structures on the nearest clear site. Units never

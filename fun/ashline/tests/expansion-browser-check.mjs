@@ -11,7 +11,7 @@ const ui=page=>page.waitForTimeout(200);
 async function launch(viewport,deviceScaleFactor=1){
   const page=await browser.newPage({viewport,deviceScaleFactor});page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
-  assert.equal(await page.locator('#map-size').inputValue(),'frontier');
+  assert.equal(await page.locator('#map-size').inputValue(),'expanse');
   await page.locator('#map-profile').selectOption('highlands');await page.locator('#map-size').selectOption('vast');
   assert.equal(await page.evaluate(()=>ashline.state),null,'Changing setup does not generate a preview world');
   await page.locator('#map-profile').selectOption('rift');await page.locator('#map-size').selectOption('frontier');

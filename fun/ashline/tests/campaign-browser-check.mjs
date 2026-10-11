@@ -41,7 +41,7 @@ try {
   await page.locator('#campaign-tab').click();
   assert(await page.locator('#campaign-panel').isVisible() && await page.locator('#skirmish-panel').isHidden());
   const list = await page.evaluate(() => [...document.querySelectorAll('.campaign-entry')].map(b => ({ id: b.dataset.mission, disabled: b.disabled })));
-  assert.equal(list.length, 8); assert.deepEqual(list.map(e => e.disabled), [false, true, true, true, true, true, true, true]);
+  assert.equal(list.length, 10); assert.deepEqual(list.map(e => e.disabled), [false, true, true, true, true, true, true, true, true, true]);
   assert.equal(await page.locator('#campaign-name').textContent(), 'Landfall');
   assert.match(await page.locator('#campaign-unlocks').textContent(), /Field barracks/);
   assert.equal(await page.locator('#campaign-par').textContent(), '05:00');
@@ -164,10 +164,10 @@ try {
   assert.equal(await page.evaluate(() => document.activeElement.id), 'campaign-start', 'Focus starts on the open tab\'s launch button, not the way out');
   const after = await page.evaluate(() => ({ entries: [...document.querySelectorAll('.campaign-entry')].map(b => ({ disabled: b.disabled, medal: b.querySelector('.medal').dataset.medal, pressed: b.getAttribute('aria-pressed') })),
     name: document.querySelector('#campaign-name').textContent, progress: document.querySelector('#campaign-progress').textContent, career: document.querySelector('#career-line').textContent }));
-  assert.deepEqual(after.entries.map(e => e.disabled), [false, false, false, true, true, true, true, true]);
+  assert.deepEqual(after.entries.map(e => e.disabled), [false, false, false, true, true, true, true, true, true, true]);
   // The remix launched last keeps Hold the Line selected; the unfinished remix records nothing.
   assert(after.entries.slice(0, 2).every(e => e.medal !== 'none')); assert.equal(after.entries[1].pressed, 'true'); assert.equal(after.name, 'Hold the Line');
-  assert.equal(after.progress, '2 / 8'); assert.match(after.career, /2 operations · 2 victories/);
+  assert.equal(after.progress, '2 / 10'); assert.match(after.career, /2 operations · 2 victories/);
   await page.screenshot({ path: `${output}/campaign-progress.png` });
 
   // Signal in the Ash: two speakers answer the same intrusion, and the tracker plays both lines in order.
@@ -180,7 +180,9 @@ try {
     const note = () => { if (!box.hidden && seen.at(-1) !== text.textContent) seen.push(text.textContent); };
     const watcher = new MutationObserver(note); watcher.observe(box, { subtree: true, childList: true, characterData: true, attributes: true });
     const s = ashline.state, outpost = s.mission.zones.find(z => z.id === 'outpost'), scout = s.entities.find(e => e.team === 0 && e.type === 'scout');
-    scout.x = outpost.x; scout.y = outpost.y;
+    // Just inside the outpost's rim on the side facing the base, so the garrison cannot cut it down before it is counted.
+    const core = s.entities.find(e => e.team === 0 && e.type === 'core'), dx = core.x + 1.5 - outpost.x, dy = core.y + 1.5 - outpost.y, d = Math.hypot(dx, dy);
+    scout.x = outpost.x + dx / d * (outpost.r - 1.5); scout.y = outpost.y + dy / d * (outpost.r - 1.5);
     for (let wait = 0; wait < 120 && !seen.some(line => /^Those two Lance nodes/.test(line)); wait++) await new Promise(resolve => setTimeout(resolve, 250));
     watcher.disconnect();
     return seen;
@@ -317,7 +319,7 @@ try {
   await blocked.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage is blocked', 'SecurityError'); } }); });
   await blocked.goto(url); await ready(blocked);
   await blocked.locator('#campaign-tab').click();
-  assert.deepEqual(await blocked.evaluate(() => [...document.querySelectorAll('.campaign-entry')].map(b => b.disabled)), [false, true, true, true, true, true, true, true]);
+  assert.deepEqual(await blocked.evaluate(() => [...document.querySelectorAll('.campaign-entry')].map(b => b.disabled)), [false, true, true, true, true, true, true, true, true, true]);
   await blocked.locator('#campaign-start').click(); await prestart(blocked);
   assert.equal(await blocked.evaluate(() => ashline.state.mission.id), 'landfall');
   await blocked.close();

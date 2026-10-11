@@ -30,7 +30,7 @@ const start=(id,seed,difficulty='normal',extra={})=>createGame(seed??MISSIONS[id
 const PLAYABLE=[...CAMPAIGN,'relay-control','last-light'];
 
 // ---- Data -----------------------------------------------------------------------------------------------
-assert.deepEqual(CAMPAIGN.map(id=>MISSIONS[id].name),['Landfall','Hold the Line','Signal in the Ash','Convoy to Cinder Gap','Red Ledger','Dead Signal','Hold the Relay','Severance']);
+assert.deepEqual(CAMPAIGN.map(id=>MISSIONS[id].name),['Landfall','Hold the Line','Signal in the Ash','Convoy to Cinder Gap','Red Ledger','Dead Signal','The Fifth','Long Guns','Hold the Relay','Severance']);
 for(const id of CAMPAIGN){
   const def=MISSIONS[id];
   assert(def.seed&&def.location&&def.summary&&def.briefing&&def.opening&&def.victoryText&&Array.isArray(def.story)&&def.story.length,`${id} carries its briefing copy`);
@@ -56,7 +56,9 @@ assert(archiveEntries('unity').every(e=>e.title&&e.text&&e.meta&&e.flavor));
 assert.deepEqual(newlyCleared('hold-the-line'),['Bulwark wall','Rail sentry','Grid capacitor','Rocket infantry']);
 assert(newlyCleared('signal-in-the-ash').includes('Signal laboratory')&&newlyCleared('signal-in-the-ash').includes('War foundry')&&newlyCleared('signal-in-the-ash').includes('Vanguard tank')&&newlyCleared('signal-in-the-ash').includes('Field engineer'));
 assert(newlyCleared('red-ledger').includes('Nexus construction vehicle'));
-assert(newlyCleared('hold-the-relay').includes('Rocket tower')&&!newlyCleared('hold-the-relay').includes('Command nexus'));
+assert.deepEqual(newlyCleared('the-fifth'),[],'The Fifth fields what Red Ledger cleared');
+assert.deepEqual(newlyCleared('long-guns'),['Siege crawler'],'Long Guns introduces the siege crawler');
+assert(newlyCleared('hold-the-relay').includes('Rocket tower')&&!newlyCleared('hold-the-relay').includes('Siege crawler')&&!newlyCleared('hold-the-relay').includes('Command nexus'));
 
 // ---- Every operation builds as plain data, on its own seed and on a remixed one --------------------------
 for(const id of PLAYABLE)for(const seed of [undefined,'REMIX-CHECK']){
@@ -264,6 +266,43 @@ const place=(s,type,near,radius=14)=>{
   const alone=start('dead-signal');destroy(alone.entities.filter(e=>e.team===0&&e.kind==='unit'&&entityRole(e)!=='engineer'));advance(alone,1);
   assert.equal(alone.status,'defeat');assert.equal(alone.events.at(-1).text,'All armed units lost. Operation failed.');
 }
+// The Fifth: three tanks break through to the hollow, the crew climbs out to meet them, and the hollow holds until the lift.
+{
+  const s=start('the-fifth'),hollow=zone(s,'hollow');
+  assert(!tagged(s,'fifth').length,'The crew waits in the hollow until the column arrives');
+  assert.equal(tagged(s,'battery').length,3);
+  const rifle=own(s,0,'rifle')[0];rifle.x=hollow.x;rifle.y=hollow.y;advance(s,2);
+  assert(s.mission.fired.contact,'The first unit on the rim brings the crew out');
+  const crew=tagged(s,'fifth');assert.equal(crew.length,6);assert(crew.every(e=>e.team===0&&e.kills===6),'The Fifth are ranked and under command');
+  assert.equal(objective(s,'reach').state,'active','Infantry alone do not clear the ground for the lift');
+  destroy(rivals(s).filter(e=>Math.hypot(e.x-hollow.x,e.y-hollow.y)<16));
+  for(let i=0;i<3;i++)addEntity(s,0,'unit','tank',hollow.x-1+i,hollow.y+1);
+  advance(s,2);
+  assert.equal(objective(s,'reach').state,'done');assert(objective(s,'hold').revealed&&objective(s,'battery').revealed);
+  for(let i=0;i<260&&s.status==='playing';i++){updateGame(s,1);for(const e of rivals(s))if(Math.hypot(e.x-hollow.x,e.y-hollow.y)<16)e.hp=0;}
+  win(s,'The Fifth');
+  assert.equal(objective(s,'hold').progress,180);assert.equal(objective(s,'crew').state,'done');
+  // Losing every survivor after they join the column fails the operation.
+  const lost=start('the-fifth'),rim=zone(lost,'hollow'),scout=own(lost,0,'scout')[0];scout.x=rim.x;scout.y=rim.y;advance(lost,2);
+  destroy(tagged(lost,'fifth'));advance(lost,1);
+  assert.equal(lost.status,'defeat');assert.equal(lost.events.at(-1).text,'Expedition 05 lost. Operation failed.');
+}
+// Long Guns: the six batteries fall, the bastion mainframe is revealed, and its fall wins.
+{
+  const s=start('long-guns');
+  assert.equal(tagged(s,'battery').length,6);assert.equal(tagged(s,'keep').length,1);assert.equal(tagged(s,'grid').length,2);
+  assert.equal(tagged(s,'guns').length,2);assert(tagged(s,'guns').every(e=>e.team===0&&entityRole(e)==='artillery'),'Two siege crawlers lead the operation');
+  assert(own(s,1,'wall').length>=10,'Slag walls face the approach');
+  assert.equal(trainUnit(s,0,'artillery').reason,'Requires War foundry','Siege crawlers are cleared');
+  assert.equal(progressText(s,'batteries'),'0 / 6','The batteries are published targets');
+  witness(s,tagged(s,'battery').slice(0,3));advance(s,1);assert(s.mission.fired.half);
+  witness(s,tagged(s,'battery'));advance(s,1);
+  assert.equal(objective(s,'batteries').state,'done');assert(objective(s,'keep').revealed);assert.equal(s.status,'playing');
+  destroy(tagged(s,'grid'));advance(s,1);assert.equal(objective(s,'grid').state,'done');
+  destroy(tagged(s,'keep'));advance(s,1);
+  win(s,'Long Guns');
+  assert.equal(objective(s,'guns').state,'done');
+}
 // Hold the Relay: armor holds the lit relay; rival units that enter are cleared.
 {
   const s=start('hold-the-relay');
@@ -435,13 +474,15 @@ delete MISSIONS['check-broken'];
 // ---- Campaign progress, medals, debrief and career ------------------------------------------------------
 {
   let progress=emptyProgress();
-  assert.deepEqual(CAMPAIGN.map(id=>isUnlocked(progress,id)),[true,false,false,false,false,false,false,false],'Only Landfall opens a new campaign');
+  assert.deepEqual(CAMPAIGN.map(id=>isUnlocked(progress,id)),CAMPAIGN.map((_,index)=>index===0),'Only Landfall opens a new campaign');
   const landfall=completed.landfall,report=matchReport(landfall);
   assert.equal(report.status,'victory');assert(report.rival,'The rival record appears once the operation ends');
   assert(report.rating>=50&&report.rating<=100&&report.score===report.rating*100&&'SABCD'.includes(report.grade));
   assert.equal(report.medal,medalFor(landfall));
   progress=recordResult(progress,landfall,report);
   assert(isUnlocked(progress,'hold-the-line')&&!isUnlocked(progress,'signal-in-the-ash'));
+  // An operation already won stays open, so operations inserted before it lock nothing a player has cleared.
+  assert(isUnlocked({...progress,missions:{...progress.missions,'hold-the-relay':{wins:1}}},'hold-the-relay')&&!isUnlocked(progress,'hold-the-relay'));
   assert.equal(progress.missions.landfall.wins,1);assert.equal(progress.missions.landfall.best,report.time);
   // A worse result never lowers the medal or the best time; a defeat counts as a play.
   const defeat=start('landfall');destroy(own(defeat,0,'core'));advance(defeat,1);assert.equal(defeat.status,'defeat');
