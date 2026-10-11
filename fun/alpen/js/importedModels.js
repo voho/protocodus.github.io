@@ -1,8 +1,9 @@
-/* Imported open-source models, folded into the instanced prop pipeline.
+/* Imported models, folded into the instanced prop pipeline.
 
-   Two families live under assets/models/nature: Poly Haven's CC0
-   photoscans (the rocks, crags, stumps, logs and deadfall — see MODELS.md,
-   and `upgradeTextured`/`upgradeTexturedSet` below), and Quaternius' CC0
+   Two families live under assets/models/nature: textured models — the
+   boulders, crags, stump, logs and deadfall, modelled and baked in Blender
+   by tools/blender/rocks.py and deadwood.py (see MODELS.md, and
+   `upgradeTextured`/`upgradeTexturedSet` below) — and Quaternius' CC0
    low-poly nature set (quaternius.com, via the flo-bit/tiny-planets
    mirror), which only the `upgrade` path still knows how to read. The
    low-poly models arrive as ordinary glTF scenes; what the game's pools
@@ -192,10 +193,10 @@ function smoothFacetedNormals(positions, normals, indices, first) {
 /* One merged, indexed geometry that keeps its texture coordinates.
 
    The value/palette bake above exists because the low-poly set carries its
-   colour in materials. A photoscan is the opposite: everything it knows is
-   in its texture, so here the job is only to world-bake the primitives into
-   one buffer and keep `uv` alive. The caller pairs the result with a
-   material built around the scan's own baseColor map. `surfaceOwn` and
+   colour in materials. A textured model is the opposite: everything it knows
+   is in its texture, so here the job is only to world-bake the primitives
+   into one buffer and keep `uv` alive. The caller pairs the result with a
+   material built around the model's own baseColor map. `surfaceOwn` and
    `color` still ride along so the shared prop shaders can carve snow and
    sheen the same way they do everywhere else. */
 export function bakeTexturedGeometry(THREE, root, only = null) {
@@ -271,7 +272,7 @@ export function createModelUpgrader(THREE) {
     }, undefined, () => { /* the grown variant simply remains */ });
   }
 
-  /* The photoscan path: keep the UVs, find the scan's own baseColor map,
+  /* The textured path: keep the UVs, find the model's own baseColor map,
      and let the caller wrap it in whichever patched material the pool
      should wear. Same hot-swap contract as `upgrade` otherwise — until the
      file lands the grown variant stands in, and a 404 changes nothing. */
@@ -292,11 +293,14 @@ export function createModelUpgrader(THREE) {
     }, undefined, () => { /* the grown variant simply remains */ });
   }
 
-  /* Several pools out of one file: a set of photoscans that share a texture
-     (the granite stones, the fallen branches) is one request, one decode and
-     one GPU texture, shared by every pool it feeds through one material.
-     Each entry names its node and says what height to normalise it to (null
-     keeps the scan's own metres) and how far to sink it. */
+  /* Several pools out of one file: a set of models that share a texture
+     atlas (the boulders, the crags, the deadwood) is one request, one decode
+     and one GPU texture, shared by every pool it feeds. Each entry names its
+     node and says what height to normalise it to (null keeps the model's own
+     metres) and how far to sink it. Pools that want a different material
+     over the same atlas — a stump holds more snow than a log does — bring
+     their own `makeMaterial`; each distinct one is called once, so pools
+     that share a maker share a material too. */
   function upgradeTexturedSet(name, entries, makeMaterial) {
     loader.load(url(name), (gltf) => {
       let map = null;
@@ -307,11 +311,18 @@ export function createModelUpgrader(THREE) {
         map.colorSpace = THREE.SRGBColorSpace;
         map.anisotropy = 4;
       }
-      const material = map && makeMaterial ? makeMaterial(map) : null;
+      const made = new Map();
+      const materialFor = (entry) => {
+        const make = entry.makeMaterial || makeMaterial;
+        if (!map || !make) return null;
+        if (!made.has(make)) made.set(make, make(map));
+        return made.get(make);
+      };
       for (const entry of entries) {
         const g = bakeTexturedGeometry(THREE, gltf.scene, entry.node);
         if (!g.attributes.position || g.attributes.position.count === 0) continue;
         swap(entry.pool, normalise(THREE, g, entry.height ?? null, entry.sink || 0));
+        const material = materialFor(entry);
         if (material) entry.pool.mesh.material = material;
         entry.onReady?.(entry.pool.mesh.geometry);
       }

@@ -388,13 +388,16 @@ const YOUNG = {
 /* Timber on the forest floor. A log is placed only where there is forest to
    have dropped it, lies along the ground it fell on, and is sunk `bury` of
    its height into the snow. `length` and `radius` shape the stand-in the
-   pool shows until the scan arrives and the collision capsule along its
-   axis; `height` is the scan's own, branch stubs included. */
+   pool shows until the model arrives and the collision capsule along its
+   axis; `height` is the model's own, stubs and roots included. Each `node`
+   is a trunk in alpine-deadwood.glb, lying along x at these sizes (the
+   model check holds the file to them): a snapped spruce top, and an old
+   windthrow with its torn root flare and one limb standing. */
 const DEADWOOD = {
   logCandidates: 3,
   logs: [
-    { file: 'fallen_log_01.glb', length: 3.05, radius: 0.15, height: 0.29, bury: 0.34, scale: [1.15, 1.75] },
-    { file: 'fallen_trunk_02.glb', length: 4.05, radius: 0.30, height: 1.06, bury: 0.20, scale: [0.85, 1.20] },
+    { node: 'log_fallen', length: 3.03, radius: 0.15, height: 0.30, bury: 0.34, scale: [1.15, 1.75] },
+    { node: 'log_windthrow', length: 4.05, radius: 0.30, height: 1.02, bury: 0.20, scale: [0.85, 1.20] },
   ],
   logNear: 3.0,
   logFar: 40,
@@ -2575,8 +2578,8 @@ export function createProps(THREE, shading) {
     return out;
   };
 
-  /* Photoscanned props wear their own scan. The baseColor map (diffuse with
-     the scan's ambient occlusion pre-multiplied) carries all the colour, so
+  /* Textured props wear their own baked map. The baseColor map (albedo with
+     the model's ambient occlusion pre-multiplied) carries all the colour, so
      this material's whole job is snow: a per-vertex mask from how much of
      the world's up a face sees, settled a little harder where the scan is
      open and pale, painted in the same prop snow as everything else and
@@ -2809,7 +2812,7 @@ export function createProps(THREE, shading) {
     group.add(pool.mesh);
   }
 
-  /* The photoscan upgrader — the rocks and the stump take it below. The
+  /* The model upgrader — the rocks and the deadwood take it below. The
      trees no longer do: every species is a card tree now. */
   const upgrader = createModelUpgrader(THREE);
 
@@ -3296,19 +3299,22 @@ export function createProps(THREE, shading) {
   ));
 
   /* The first two are the hazard families and stay first: the verge
-     boulder picks between them by index. The three after them are granite
-     from one Poly Haven set, stand-ins until the scans land. */
-  /* THE STONE YOU HIT IS THE STONE YOU SEE. Each pool's scan (see below)
-     replaces its grown stone at the grown stone's height, and every one of
-     them is flatter than the stone it replaces, while the collision is still
-     the grown stone's radius. Drawn, they reached 1.6 to 4 times that radius,
-     so a rider went through the outer half of a visible rock, and the flat
-     iron slab came out up to 31 m across. So each grown stone is first
-     brought to its scan's proportions: height over half-width, as each file
-     lies (rock_07, rock_09, then the granite set's stone_10, 11 and 13). A
-     scan fitted to that height then fills exactly the radius the rider
-     collides with, and the stone is as tall as its own shape says. */
+     boulder picks between them by index. The three after them are granite,
+     stand-ins until the modelled boulders land. */
+  /* THE STONE YOU HIT IS THE STONE YOU SEE. Each pool's model (see below)
+     replaces its grown stone at the grown stone's height, while the
+     collision is still the grown stone's radius — so the two must have the
+     same proportions or a rider goes through the outer half of a visible
+     rock (the photoscans these replaced were flatter than their stones and
+     drew up to four times the radius). So each grown stone is brought to
+     its model's height over half-width: slate, iron slab, then the three
+     granites of alpine-boulders.glb, which tools/blender/rocks.py builds to
+     exactly these numbers (and the model check holds it to them). A model
+     fitted to that height then fills exactly the radius the rider collides
+     with, and the stone is as tall as its own shape says. */
   const SCAN_ASPECT = [0.90, 0.45, 0.70, 1.34, 1.20];
+  const BOULDER_NODES = ['boulder_slate', 'boulder_iron', 'boulder_granite_a', 'boulder_granite_b',
+    'boulder_granite_c'];
   const boulderVariants = [
     growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
@@ -3325,18 +3331,20 @@ export function createProps(THREE, shading) {
     bands * (BIOMES.sideRockCandidates + 1) + 16,
   ));
   /* Natural rock buttresses along the mountain flanks */
-  /* The crags the same way, from the other side. Their scans are broad
-     faces and the grown stones pillars: fitted to the pillar's height,
-     rock_face_01 and boulder_01 drew 2.3 and 2.8 times the collision radius,
-     and every scan stood 2–4.6 m lower than its collision top, because a
-     scan is sunk a fifth of its height and the pillar less than a tenth. A
-     face that wide was also bedded against the ground under the pillar's
-     footprint, not its own. The faces are the composition, so here it is
-     the collision that moves: each grown crag takes its scan's half-width
-     (height over `CRAG_ASPECT`, as each file lies) and its sink, so it is
-     bedded, and collided with, as the face that is drawn. */
+  /* The crags the same way, from the other side. The modelled crags are
+     broad masses and the grown stones pillars, and a model is sunk a fifth
+     of its height where a pillar is sunk less than a tenth: fitted to the
+     pillar as it was, a crag would draw two or three times the collision
+     radius and stand metres lower than its collision top, bedded against
+     the ground under the pillar's footprint rather than its own. The faces
+     are the composition, so here it is the collision that moves: each grown
+     crag takes its model's half-width (height over `CRAG_ASPECT` — the face,
+     the buttress and the tor of alpine-crags.glb, built to these numbers by
+     tools/blender/rocks.py) and its sink, so it is bedded, and collided
+     with, as the rock that is drawn. */
   const CRAG_ASPECT = [1.44, 2.06, 1.10];
   const CRAG_SINK = 0.20;
+  const CRAG_NODES = ['crag_face', 'crag_buttress', 'crag_block'];
   const cragVariants = [
     growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
     growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
@@ -3345,7 +3353,7 @@ export function createProps(THREE, shading) {
     const height = grown.top - grown.bottom;
     const radius = height / CRAG_ASPECT[i];
     const k = radius / grown.radius;
-    // The stand-in, drawn until the scan lands, matches as well.
+    // The stand-in, drawn until the model lands, matches as well.
     grown.geometry.scale(k, 1, k);
     grown.geometry.translate(0, -height * CRAG_SINK - grown.bottom, 0);
     return {
@@ -3372,67 +3380,36 @@ export function createProps(THREE, shading) {
   rockPools[1].mesh.name = 'iron-boulders';
   for (let i = 2; i < rockPools.length; i++) rockPools[i].mesh.name = `granite-stones-${i - 2}`;
 
-  /* Real boulders — photoscanned ones now. Each pool trades its grown stone
-     for a Poly Haven scan at the same height, wearing the scan's own
-     texture with a snow dusting on every up-facing surface, sunk a little
-     below grade so its downhill edge never stands on air. */
+  /* Real boulders — modelled ones (tools/blender/rocks.py; see MODELS.md):
+     jointed granite blocks with their corners weathered back and their
+     edges chipped, a book of slate on edge, a schist slab, each a closed
+     solid wearing a texture baked from its full-detail surface — the
+     stone's grain, the lichen on the faces that see the sky, the drip
+     lines, the occlusion. All five come from one file and one atlas, so
+     they are one request, one texture and one material. Each pool trades
+     its grown stone for its model at the same height, with a snow dusting
+     on every up-facing surface, sunk a little below grade so its downhill
+     edge never stands on air. */
   const heightOfGrown = (grownGeo) => {
     grownGeo.computeBoundingBox();
     return grownGeo.boundingBox.max.y - grownGeo.boundingBox.min.y;
   };
-  {
-    const scans = ['rock_07.glb', 'rock_09.glb'];
-    for (let i = 0; i < scans.length; i++) {
-      upgrader.upgradeTextured(rockPools[i], scans[i],
-        heightOfGrown(boulderVariants[i].geometry),
-        (map) => photoMat(map, 0.62), 0.16);
-    }
-    upgrader.upgradeTexturedSet('stone_granite_set.glb', ['stone_10', 'stone_11', 'stone_13']
-      .map((node, k) => ({
-        node, pool: rockPools[2 + k], sink: 0.14,
-        height: heightOfGrown(boulderVariants[2 + k].geometry),
-      })), (map) => photoMat(map, 0.62));
-  }
+  upgrader.upgradeTexturedSet('alpine-boulders.glb', BOULDER_NODES.map((node, i) => ({
+    node, pool: rockPools[i], sink: i < 2 ? 0.16 : 0.14,
+    height: heightOfGrown(boulderVariants[i].geometry),
+  })), (map) => photoMat(map, 0.62));
 
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
 
-  /* The flank buttresses go the same way: cliff-face photoscans, less snow
-     — a near-vertical face holds a dusting at most.
-
-     Two of the three are faces and nothing else: rock_face_01 and
-     mountainside were scanned from the front, and under one per cent of
-     either faces away from it. They are turned to face the run, but from
-     the wall side — looking back from the quarterpipe — a single-sided
-     shell is not there at all, and what was left was a few black shards
-     standing in the air. Drawn from both sides, the inside of the face is
-     rock seen from behind. The boulder is closed and keeps its culling. */
-  {
-    const scans = ['rock_face_01.glb', 'mountainside.glb', 'boulder_01.glb'];
-    const open = [true, true, false];
-    for (let i = 0; i < cragPools.length; i++) {
-      upgrader.upgradeTextured(cragPools[i], scans[i],
-        heightOfGrown(cragVariants[i].geometry),
-        (map) => {
-          const m = photoMat(map, 0.42);
-          if (open[i]) m.side = THREE.DoubleSide;
-          return m;
-        }, CRAG_SINK);
-    }
-  }
-
-  /* The last shrub slot becomes a photoscanned stump: forest floor
-     furniture where the bramble used to be, same streaming, same bands. It
-     keeps the shrubs' no-shadow trade, and being under a metre it never
-     needed the wind.
-
-     Its height is its own, not the bramble's. The scan is 0.57 m tall and
-     two and a half times that across its roots, and fitted to the bramble's
-     metre it came out 2.6–2.9 m across before the shrubs' own scales
-     (0.6–2.2) took the biggest to six: a white heap the size of a car at the
-     foot of a spruce. Fitted to 0.4 m, the same scales give stumps from a
-     stub of wood to an old-growth bole two and a half metres across. */
-  upgrader.upgradeTextured(shrubPools[2], 'tree_stump_01.glb',
-    0.4, (map) => photoMat(map, 0.55), 0.06);
+  /* The flank buttresses go the same way, from alpine-crags.glb, with less
+     snow — a near-vertical face holds a dusting at most, and the ledges
+     between its blocks, which face the sky, take the rest. They are closed
+     solids, so the wall side — seen looking back from the quarterpipe — is
+     rock, not the back of a scanned shell, and they keep their culling. */
+  upgrader.upgradeTexturedSet('alpine-crags.glb', CRAG_NODES.map((node, i) => ({
+    node, pool: cragPools[i], sink: CRAG_SINK,
+    height: heightOfGrown(cragVariants[i].geometry),
+  })), (map) => photoMat(map, 0.42));
 
   /* --- the young forest and the deadwood --------------------------------
 
@@ -3441,14 +3418,14 @@ export function createProps(THREE, shading) {
      metre or three tall, crowding every gap the old ones leave — and the
      floor of it is timber: trunks that came down in a storm and lie half
      buried, and the branches the snow broke off above them. Four kinds of
-     object, all Poly Haven (CC0); see assets/models/MODELS.md.
+     object; see assets/models/MODELS.md.
 
      The saplings are impostor cards off one atlas (see `SAPLINGS`), six
-     pools on one compiled program, casting through the same banded shadow
-     prefix as the trees. The logs are real scans at their own scale, solid
-     and low enough to jump. The branches are pure scatter: no collision, no
-     shadow, and invisible until their file lands, because nothing depends
-     on them. */
+     pools, a material each so every kind sways about its own height,
+     casting through the same banded shadow prefix as the trees. The logs
+     are modelled at their own scale, solid and low enough to jump. The
+     branches are pure scatter: no collision, no shadow, and invisible until
+     their file lands, because nothing depends on them. */
   // Fully transparent until the atlas lands: the cutout discards every
   // fragment, so a sapling is simply not there yet rather than a grey card.
   const clearTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
@@ -3471,7 +3448,7 @@ export function createProps(THREE, shading) {
     return pool;
   });
 
-  /* A log before its scan arrives is a plain cylinder of the right size, so
+  /* A log before its model arrives is a plain cylinder of the right size, so
      a collider is never standing on nothing for the second it takes. */
   const logStandIn = (length, radius) => {
     const g = new THREE.CylinderGeometry(radius * 0.9, radius, length, 10, 1);
@@ -3484,8 +3461,7 @@ export function createProps(THREE, shading) {
   const logPools = DEADWOOD.logs.map((spec) => {
     const pool = new Pool(THREE, logStandIn(spec.length, spec.radius), logStandInMat,
       bands * DEADWOOD.logCandidates + 8);
-    pool.mesh.name = `fallen-${spec.file.replace('.glb', '')}`;
-    upgrader.upgradeTextured(pool, spec.file, null, (map) => photoMat(map, 0.24));
+    pool.mesh.name = `fallen-${spec.node}`;
     return pool;
   });
 
@@ -3496,9 +3472,39 @@ export function createProps(THREE, shading) {
     pool.mesh.userData.noShadow = true;
     return pool;
   });
-  upgrader.upgradeTexturedSet('deadfall_branches.glb', DEADWOOD.branches
-    .map((node, k) => ({ node, pool: branchPools[k], sink: 0.28 })),
-  (map) => photoMat(map, 0.2));
+
+  /* All the deadwood is one file and one atlas (tools/blender/deadwood.py):
+     the stump, the two trunks and the three branches, each with the snow
+     its kind holds — a stump's cut face carries a cap, a log a dusting, a
+     branch next to nothing. The trunks keep their own metres (null height);
+     the branches sink a little into the snow they fell on.
+
+     The last shrub slot becomes the stump: forest floor furniture where the
+     bramble used to be, same streaming, same bands, the shrubs' no-shadow
+     trade, and under a metre it never needed the wind. Its height is its
+     own, not the bramble's: the model is about twice as wide across its
+     roots as it is tall, and fitted to the bramble's metre the
+     shrubs' scales (0.6–2.2) would make the biggest a heap the size of a
+     car. Fitted to 0.4 m, the same scales give stumps from a stub of wood to
+     an old-growth bole two metres across.
+
+     The shrubs' soft collider is a sphere round the pool's geometry,
+     measured when the pool is made — round the bramble that stands in until
+     the file lands. It is measured again round the stump once it has, so
+     the bands built from then on push the rider round what is drawn. */
+  const logMat = (map) => photoMat(map, 0.24);
+  const branchMat = (map) => photoMat(map, 0.2);
+  upgrader.upgradeTexturedSet('alpine-deadwood.glb', [
+    {
+      node: 'stump', pool: shrubPools[2], height: 0.4, sink: 0.06,
+      makeMaterial: (map) => photoMat(map, 0.55),
+      onReady: () => { shrubHulls[2] = sphereHull(shrubPools[2]); },
+    },
+    ...DEADWOOD.logs.map((spec, k) => ({ node: spec.node, pool: logPools[k], makeMaterial: logMat })),
+    ...DEADWOOD.branches.map((node, k) => ({
+      node, pool: branchPools[k], sink: 0.28, makeMaterial: branchMat,
+    })),
+  ]);
 
   for (const p of rockPools.concat(cragPools, saplingPools, logPools)) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
