@@ -132,6 +132,12 @@ layout.
   index ranges instead of Map lookups: a 30 s ten-enemy fight takes 30 %
   less CPU (median of seven interleaved runs, 434 → 302 ms; about 84 µs per
   120 Hz step).
+- Measured in a browser with `?bench` against `?bench&legacy` (same flight,
+  pixel ratio 1.5, a 745×1324 window): GPU time per frame 3.13 → 2.88 ms
+  mean and 4.20 → 3.80 ms at the 95th percentile, triangles 0.35M → 0.24M;
+  both held 60 fps, so on that machine the gain is headroom rather than
+  frames. The bench flight does not use the afterburner, so the glow fix is
+  not part of that comparison.
 - `node tools/bench.mjs` measures the simulation, the per-frame effects work
   and culling in Node. `?debug` shows frame time, draw calls, triangles,
   rocks drawn and the pixel ratio in the browser; `?debug&autopilot` flies a
