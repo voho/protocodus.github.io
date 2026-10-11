@@ -196,9 +196,11 @@ def cell(species, row):
 
 ASPECT = CELL_W / 0.25   # a card's width over its length, as drawn
 
-# How likely a lying spray is to carry snow, before height raises it: the
-# figures `props.js` gives the species these trees stand in for.
-SNOW = {'spruce': 0.85, 'fir': 0.82, 'pine': 0.75, 'larch': 0.5}
+# How likely a lying spray is to carry snow, before height raises it. A
+# spruce after a week of snowfall is white on every bough that faces the
+# sky — the Christmas-card tree of every January photograph — so nearly
+# all of them do.
+SNOW = {'spruce': 0.95, 'fir': 0.92, 'pine': 0.85, 'larch': 0.5}
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +427,7 @@ def norway_spruce(seed, H=17.0, top_kind='leader', growth=None):
             if f < 0.3:
                 t.tube(path[:2], [r0 * 0.14 + 0.015, 0.015], 3, BARK['spruce'])
             tan = up.cross(out).normalized()
-            loaded = SNOW['spruce'] * (0.45 + 0.45 * f)
+            loaded = SNOW['spruce'] * (0.7 + 0.3 * f)
             # the bough itself, a skirt from the trunk sloping down the way a
             # snow-loaded subalpine bough does — steeper low in the crown
             slope = 0.32 + 0.38 * (1 - f) + rnd.uniform(-0.12, 0.12)
@@ -482,7 +484,7 @@ def silver_fir(seed, H=19.0, nest=False, growth=None):
             if f < 0.35:
                 t.tube(path[:2], [r0 * 0.14 + 0.015, 0.015], 3, BARK['fir'])
             tan = up.cross(out).normalized()
-            loaded = SNOW['fir'] * (0.45 + 0.45 * f)
+            loaded = SNOW['fir'] * (0.7 + 0.3 * f)
             root = at(y) + out * 0.15
             # a near-level skirt for the tier, sloping a little at its rim
             slope = 0.14 + 0.12 * (1 - f) + rnd.uniform(-0.05, 0.05)
@@ -567,7 +569,7 @@ def stone_pine(seed, H=11.0, leaders=1, flag=0.0, growth=None):
             if f < 0.4:
                 t.tube(path[:2], [r0 * 0.2 + 0.02, 0.03], 3, BARK['pine'])
             tan = up.cross(out).normalized()
-            loaded = SNOW['pine'] * (0.45 + 0.45 * f)
+            loaded = SNOW['pine'] * (0.7 + 0.3 * f)
             # the branch's own mass of brushes: a skirt climbing along it
             root = stem(y) + out * 0.15
             tip, dd = point_on(path, 1.0)
@@ -633,7 +635,7 @@ def european_larch(seed, H=18.0, growth=None):
             # twigs along every branch, and long ones hanging from it
             slope = 0.3 + 0.25 * (1 - f) + rnd.uniform(-0.1, 0.1)
             along = bough(t, root, out, slope, L, tan, 'larch', rnd, out + up * 0.5,
-                          SNOW['larch'] * (0.45 + 0.45 * f))
+                          SNOW['larch'] * (0.7 + 0.3 * f))
             s = spray(L, 0.7, 1.3, 2.4, rnd)
             for c in range(2 if L > 1.5 else 1):
                 p, dd = point_on(path, 0.45 + 0.45 * c)
