@@ -103,9 +103,20 @@ the narrow subalpine spire with hanging curtains of shoots), **silver fir**
 stork's nest), **Swiss stone pine** (*Pinus cembra*, a dense rounded column
 of upturned five-needle brushes, often with two or three leaders, one
 wind-flagged), and **European larch** (*Larix decidua*, bare in winter).
-One tree per slot of `props.js`'s `SPECIES` table (node `tree_<name>`,
-with `extras.height` and `extras.species`); the 24 pools scale them to
-their grown heights.
+Two trees per slot of `props.js`'s `SPECIES` table — 24, one per forest
+pool (node `tree_<name>` for the first dozen pools, `tree_<name>_2` for the
+second; `extras.height`, `extras.species`) — which the pools scale to their
+grown heights and stretch a little across, so the same tree met twice is
+two shapes.
+
+No two of them grew alike. Each carries a growth history (`Growth` in
+`trees.py`): the side its light came from (the crown is longer and fuller
+there), good and bad years up the stem (whorls unevenly spaced, the crown
+bulging and waisting), branches lost — more on the shaded side and low
+down — and a lower crown that has died back to bare grey branches; a stem
+swept at its foot by snow creep, with a gentle wobble above. Tops vary too:
+a leader, a dead spike above the living crown, a forked second leader, or a
+new top turned up out of a side branch where the old one broke.
 
 `tools/blender/sprigs.py` models each species' foliage needle by needle —
 spiralled spruce shoots, two-ranked fir sprays, pine fascicles of five,
@@ -124,12 +135,12 @@ the pines. Occlusion is baked in Blender by casting rays through the
 finished tree and exported as the custom attribute `_AO`; `_OWN` is the
 `surfaceOwn` contract (needles 1, snow 0, bark 0.35); normals are canopy
 normals. `props.js#alpineTreeGeometry` turns a node into pool geometry.
-744–1156 triangles a tree. If either file fails to load, the card conifers
+about 600–1000 triangles a tree. If either file fails to load, the card conifers
 below take over.
 
 The same script then photographs every finished tree from three bearings
 (0°, 60°, 120°) with an orthographic camera into
-`textures/tree/alpine-impostors.webp` (2048 × 1024, one 170 px column per
+`textures/tree/alpine-impostors.webp` (4096 × 1024, one 170 px column per
 tree, one row per bearing), and writes the frame each was drawn in to its
 node as `extras.impostor` = [column, half-width, bottom, top].
 `props.js#treeImpostorGeometry` stands those three photographs as crossed

@@ -837,7 +837,13 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   const BARK_U = 0.116;   // where spruceMat starts keying black (SPRUCE_LAYOUT.bark.u1)
   let species = new Set();
   const impostorCols = new Set();
-  for (const spec of props.SPECIES) {
+  // two trees a slot: the second dozen of pools read the `_2` of each
+  const slots = props.SPECIES.flatMap((spec) => [spec, { ...spec, name: spec.name + '_2' }]);
+  for (let i = 0; i < 24; i++) {
+    const want = 'tree_' + props.SPECIES[i % 12].name + (i >= 12 ? '_2' : '');
+    assert.equal(props.alpineNode(nodes, i), nodes[want], `pool ${i} reads ${want}`);
+  }
+  for (const spec of slots) {
     const node = nodes['tree_' + spec.name];
     assert.ok(node, 'a modelled tree for ' + spec.name);
     species.add(node.extras.species);
@@ -880,7 +886,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     // Its far-forest impostor: three crossed cards in the tree's own column
     // of alpine-impostors.webp, framed round the whole tree from under the
     // snow line, in the shape of the cell it was photographed into
-    // (2048 × 1024 over 12 columns and 3 views).
+    // (4096 × 1024 over 24 columns and 3 views).
     const [col] = node.extras.impostor;
     impostorCols.add(col);
     const card = props.treeImpostorGeometry(THREE, node, 24);
@@ -891,19 +897,19 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     assert.ok(cb.min.y <= 0.05 && cb.min.y > -3, spec.name + ': impostor stands in the snow');
     const wide = Math.hypot(card.attributes.position.getX(1) - card.attributes.position.getX(0),
       card.attributes.position.getZ(1) - card.attributes.position.getZ(0));
-    const cell = Math.floor(2048 / 12) / Math.floor(1024 / 3);
+    const cell = Math.floor(4096 / 24) / Math.floor(1024 / 3);
     assert.ok(Math.abs(wide / (cb.max.y - cb.min.y) - cell) < 0.02, spec.name + ': impostor keeps the cell aspect');
     const cu = card.attributes.uv;
     for (let i = 0; i < cu.count; i++) {
-      const px = cu.getX(i) * 2048;
+      const px = cu.getX(i) * 4096;
       assert.ok(px > col * 170 && px < (col + 1) * 170, spec.name + ': impostor reads its own column');
       assert.ok(cu.getY(i) > 0 && cu.getY(i) < 1, spec.name + ': impostor inside the atlas');
     }
   }
-  assert.equal(impostorCols.size, props.SPECIES.length, 'every tree has its own impostor column');
+  assert.equal(impostorCols.size, slots.length, 'every tree has its own impostor column');
   assert.deepEqual([...species].sort(), ['fir', 'larch', 'pine', 'spruce'], 'four Alpine species');
   // The bare SPECIES stay bare: the larch slots get the larch.
-  props.SPECIES.forEach((spec) => {
+  slots.forEach((spec) => {
     if (!spec.foliage) assert.equal(nodes['tree_' + spec.name].extras.species, 'larch', spec.name + ' is a larch');
   });
 }

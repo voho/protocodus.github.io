@@ -772,8 +772,8 @@ export function floraGeometry(THREE, node) {
 const TREE_RINGS = 6;
 const TREE_LOD = [170, 220];
 const LOD_HASH = 'fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453)';
-const IMPOSTOR_PX = [2048, 1024];
-const IMPOSTOR_COLS = 12;
+const IMPOSTOR_PX = [4096, 1024];
+const IMPOSTOR_COLS = 24;
 const IMPOSTOR_VIEWS = 3;
 
 /* One tree's impostor: a card per bearing (0°, 60°, 120°) standing through
@@ -818,6 +818,15 @@ export function treeImpostorGeometry(THREE, node, height) {
   g.setIndex(index);
   g.computeBoundingSphere();
   return g;
+}
+
+/* Pool i's modelled tree: slot i % 12 of SPECIES, and from the second
+   dozen on that slot's second tree — the same kind with its own history
+   (trees.py builds two of each). An older file with one tree a slot
+   serves both. */
+export function alpineNode(nodes, i) {
+  const name = 'tree_' + SPECIES[i % SPECIES.length].name;
+  return (i >= SPECIES.length && nodes[name + '_2']) || nodes[name];
 }
 
 const ALPINE_SNOW = [0.839, 0.890, 0.957];
@@ -2923,7 +2932,7 @@ export function createProps(THREE, shading) {
     // Every pool's tree is built before any is swapped: a file missing one
     // species leaves the whole forest as it was rather than half of it.
     const built = treePools.map((pool, i) => {
-      const node = nodes['tree_' + SPECIES[i % SPECIES.length].name];
+      const node = alpineNode(nodes, i);
       if (!node) throw new Error('alpine-trees.glb: no tree for ' + SPECIES[i % SPECIES.length].name);
       return alpineTreeGeometry(THREE, node, treeHeights[i]);
     });
@@ -2947,7 +2956,7 @@ export function createProps(THREE, shading) {
     impostors.anisotropy = 4;
     const cardMaterial = impostorMat(impostors);
     treePools.forEach((pool, i) => {
-      const node = nodes['tree_' + SPECIES[i % SPECIES.length].name];
+      const node = alpineNode(nodes, i);
       const cards = new THREE.InstancedMesh(
         treeImpostorGeometry(THREE, node, treeHeights[i]), cardMaterial, pool.capacity);
       // the same instances, read from the same buffers the pool writes
@@ -3826,7 +3835,11 @@ export function createProps(THREE, shading) {
       if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0) || occupied(x, z)) continue;
       const bed = beddedTreeY(x, z, y, treeHeights[v], s, sy);
-      if (!treePools[v].addOnSlope(x, bed, z, yaw, s, sy, s, normal, colour)) continue;
+      /* And no two crowns the same round: each is stretched a little one
+         way across and pinched the other, turned with the tree, so the same
+         model met twice is two shapes. */
+      const oval = 0.12 * (hash2(b, 3800 + i, 251) * 2 - 1);
+      if (!treePools[v].addOnSlope(x, bed, z, yaw, s * (1 + oval), sy, s * (1 - oval), normal, colour)) continue;
       /* `canopy` is the crown's radius, for the occlusion field the snow
          reads (canopy.js): a conifer's lowest whorl reaches about a quarter
          of its height out from the trunk. A bare snag hides much less sky
