@@ -72,8 +72,8 @@ a fall, and the line bot must still leave the ground at most twice a minute.
 The model check reads the modelled riders (`assets/models/riders`, built by
 `tools/blender/riders.py`) with the game's own reader: every role has a
 look, the budgets hold, each segment sits in its procedural frame (knee and
-elbow balls cover the bend, the gaiter falls over the boot, the lamp is
-where the beam starts), lead and rear limbs mirror, only the hem and upper
+elbow balls cover the bend, the gaiter falls over the boot, no lamp on the
+helmet), lead and rear limbs mirror, only the hem and upper
 sleeves flutter, the eight figures bake in their own colours on the hip the
 file carries — and under the rig the kneecaps face the toe edge and the
 elbows point behind, which is the bend-plane roll the IK now applies.

@@ -439,7 +439,7 @@ game's own three.js coordinates and the skeleton constants are copied from
 `js/riderModel.js`, so the two must move together.
 
 - `rider.glb` holds one node per rigid segment of the rig — pelvis, torso
-  (jacket, hood, pack), head (gaiter, goggles, helmet, headlamp), upper arm,
+  (jacket, hood, pack), head (gaiter, goggles, helmet), upper arm,
   forearm and thigh as lead/rear mirror pairs, shin, boot and binding —
   each at the origin of its segment's frame. The board's deck stays
   procedural (its flex shader and top-sheet mapping are built on it); the

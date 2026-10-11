@@ -30,6 +30,13 @@
 import { FOG_CURVE_GLSL } from './shading.js';
 
 export const HEADLAMP = {
+  /* Off. The rider no longer wears one: the night is ridden by the moon
+     and the snow's own light, as it is on a real mountain, and the lamp's
+     cone and pool were the most artificial thing in a night frame. Kept as
+     a switch rather than torn out, because the snowfall, the animals' eye
+     shine and the rig's spill all read its level — at zero they do what
+     they would without it. */
+  fitted: false,
   nightFrom: 0.22,      // begins to glow in blue hour / twilight
   nightFull: 0.65,      // fully established earlier for crisp night vision
   fadeIn: 4.5,          // responsive fade per second
@@ -450,8 +457,8 @@ export function createHeadlamp(THREE, shading, head) {
   }
 
   function update(weather, dt, rider, camera) {
-    const night = smooth01((weather.night - HEADLAMP.nightFrom)
-      / (HEADLAMP.nightFull - HEADLAMP.nightFrom));
+    const night = HEADLAMP.fitted ? smooth01((weather.night - HEADLAMP.nightFrom)
+      / (HEADLAMP.nightFull - HEADLAMP.nightFrom)) : 0;
     level = approach(level, night, night > level ? HEADLAMP.fadeIn : HEADLAMP.fadeOut, dt);
     if (level < 0.002) {
       distance = -1;

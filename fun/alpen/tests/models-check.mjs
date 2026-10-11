@@ -663,12 +663,12 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   r.grab = 0; r.state = 'ride'; r.grounded = true; r.vel.set(0, 0, -6);
   run(60);
 
-  /* The headlamp, on a plane falling away down -z. Dark by day; at night the
-     beam lands where a ray dropped `drop` below the line of travel lands,
-     the lit fan lies its lift above the snow with the snow's own normal, and
-     the snowfall's shared uniforms carry the same level. */
+  /* The headlamp is not fitted (HEADLAMP.fitted): dark by day and dark at
+     night, so nothing that reads its level — the snowfall, the eye shine,
+     the rig's spill — lights up either. */
   {
     const lamp = model.headlamp;
+    assert.equal(lampModule.HEADLAMP.fitted, false, 'no headlamp');
     const grade = 0.3;
     const height = (x, z) => grade * z;
     r.world = { height };
@@ -678,37 +678,16 @@ for (const [key, geo] of Object.entries(riderGeo)) {
     r.pos.set(0, 0, 0);
     r.vel.set(0, -grade * 15, -15);
     const camera = { position: new V(0, 3, 6) };
-    const night = (value, frames) => {
-      for (let i = 0; i < frames; i++) {
+    for (const value of [0, 1]) {
+      for (let i = 0; i < 120; i++) {
         r.pos.addScaledVector(r.vel, dt);
         r.pos.y = height(r.pos.x, r.pos.z);
         camera.position.set(r.pos.x, r.pos.y + 3, r.pos.z + 6);
         model.update(r, dt, { night: value, snow: 0.5 }, camera);
       }
-    };
-    night(0, 30);
-    assert.ok(lamp.level < 0.002 && !lamp.beam.visible && !lamp.pool.visible
-      && lamp.uniforms.uLamp.value.w === 0, 'no lamp by day');
-    night(1, 120);
-    assert.ok(lamp.level > 0.99, 'the lamp is up at night: ' + lamp.level);
-    const d = lamp.debug();
-    assert.ok(d.hit, 'the beam reaches the snow');
-    const o = lamp.origin;
-    const hit = o.clone().addScaledVector(lamp.direction, d.distance);
-    assert.ok(Math.abs(hit.y - height(hit.x, hit.z)) < 0.05, 'the march ends on the snow');
-    const above = (o.y - height(o.x, o.z)) * r.normal.y;
-    const expect = above / Math.sin(lampModule.HEADLAMP.drop);
-    assert.ok(Math.abs(d.distance - expect) < expect * 0.1,
-      `the beam lands at ${d.distance}, a dropped ray at ${expect}`);
-    const fan = lamp.pool.children[0].geometry.attributes;
-    for (let i = 0; i < fan.position.count; i++) {
-      const lift = fan.position.getY(i) - height(fan.position.getX(i), fan.position.getZ(i));
-      assert.ok(Math.abs(lift - 0.1) < 1e-4, 'the lit fan lies on the snow');
-      const n = new V().fromBufferAttribute(fan.normal, i);
-      assert.ok(n.dot(r.normal) > 0.999, 'with the snow\'s normal');
+      assert.ok(lamp.level < 0.002 && !lamp.beam.visible && !lamp.pool.visible
+        && lamp.uniforms.uLamp.value.w === 0, 'no lamp at night ' + value);
     }
-    assert.ok(lamp.uniforms.uLamp.value.clone().sub(new THREE.Vector4(o.x, o.y, o.z, lamp.level))
-      .length() < 1e-9, 'the snowfall sees the same lamp');
   }
 }
 
@@ -1267,14 +1246,14 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       'lead and rear are mirror images');
   }
   assert.ok(box(g.thighRear).max.z > box(g.thighRear).max.x, 'the rear pocket is on the outside (+Z)');
-  // The lamp housing sits where headlamp.js aims its beam from.
+  // No lamp housing on the helmet front any more (the headlamp is not fitted).
   {
     const p = g.head.attributes.position;
     let front = -Infinity;
     for (let i = 0; i < p.count; i++) {
       if (Math.abs(p.getY(i) - 0.205) < 0.015 && Math.abs(p.getZ(i)) < 0.015) front = Math.max(front, p.getX(i));
     }
-    assert.ok(front > 0.14 && front < 0.17, 'the lamp is on the helmet front: ' + front);
+    assert.ok(front < 0.135, 'no lamp on the helmet front: ' + front);
   }
   // The flutter: the hem is free, the chest and the back under the pack are not.
   {

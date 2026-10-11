@@ -679,7 +679,7 @@ def player_head():
     over it and a helmet over those: no face, which is both what a freerider
     on a cold day looks like and what keeps a figure this small out of the
     uncanny valley."""
-    return head_parts() + helmet_parts() + lamp_parts()
+    return head_parts() + helmet_parts()
 
 
 def helmet_parts():
@@ -725,17 +725,6 @@ def beanie_parts():
     parts.append(loft([{'y': -0.03, 'rx': 0.036}, {'y': 0.03, 'rx': 0.036}], 'trim', n=10,
                       dome=(0.02, 0.02)).xf(pos=(-0.040, 0.345, 0.0)))
     return parts
-
-
-def lamp_parts():
-    # The headlamp the night runs light from, on the front of the helmet where
-    # `headlamp.js` aims its beam (0.170, 0.205).
-    lamp = loft([{'y': -0.016, 'rx': 0.022, 'rz': 0.030, 'rnd': 0.5},
-                 {'y': 0.012, 'rx': 0.020, 'rz': 0.027, 'rnd': 0.5}], 'ink', n=12)
-    lens = loft([{'y': -0.002, 'rx': 0.013, 'rz': 0.013},
-                 {'y': 0.004, 'rx': 0.012, 'rz': 0.012}], 'steel', n=12, sub=0)
-    return [lamp.xf(pos=(0.138, 0.205, 0.0), rot=(0, 0, -math.pi / 2)),
-            lens.xf(pos=(0.152, 0.205, 0.0), rot=(0, 0, -math.pi / 2))]
 
 
 def head_parts():

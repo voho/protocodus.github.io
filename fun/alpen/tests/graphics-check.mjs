@@ -219,6 +219,9 @@ for (const fps of [30, 60, 144]) {
      out to be seen past it. */
   {
     const { createHeadlamp, HEADLAMP } = await import('../js/headlamp.js');
+    // The rider wears no lamp (HEADLAMP.fitted); its optics are still kept
+    // working, so they are checked fitted.
+    HEADLAMP.fitted = true;
     const plain = document.createElement;
     document.createElement = () => ({ getContext: () => ({
       createRadialGradient: () => ({ addColorStop() {} }), fillRect() {},
@@ -249,6 +252,7 @@ for (const fps of [30, 60, 144]) {
     const beam = headlamp.debug();
     assert.ok(beam.hit && Math.abs(beam.distance - 50) < 1 && beam.distance < HEADLAMP.reach,
       `the beam stops at a rise past 47 m: ${beam.distance}`);
+    HEADLAMP.fitted = false;
   }
 
   /* The canopy field: deepest at a trunk, gone past the crown's reach, a
