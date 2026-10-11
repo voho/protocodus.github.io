@@ -3205,6 +3205,13 @@ export function createSky(THREE) {
        edge stands at the curtain's pitch. */
     bu.uShear.value = pitch + 0.02 - 0.195;
     bu.uLateral.value = lateral;
+    /* The sea of cloud is a settled airmass's and a cold hour's: the same
+       damp the mist reads, under a high with no front in it, thinning as
+       the sun climbs (the mist's own `cold` term already does that). Its
+       level sags as it burns off. */
+    bu.uSea.value = (1 - (w.airmass ?? 1)) * ramp(w.mist, 0.08, 0.45) * (1 - ramp(w.storm, 0.12, 0.4));
+    bu.uSeaTop.value = -620 + 120 * ramp(w.mist, 0.08, 0.6);
+    bu.uSeaDrift.value.set(frac(time * 0.0009), frac(time * 0.0004));
     backdrop.setSun(w.azimuth);
     backdrop.group.visible = backdropShown > 0.001;
     if (dt > 0) warmSkyLayers = false;

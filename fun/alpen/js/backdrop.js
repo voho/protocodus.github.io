@@ -194,6 +194,9 @@ const BACKDROP_FRAG = `
   uniform float uCurtain;
   uniform float uClarity;
   uniform float uValley;
+  uniform float uSea;
+  uniform float uSeaTop;
+  uniform vec2 uSeaDrift;
   uniform float uWhiteout;
   uniform sampler2D uNoise;
   uniform sampler2D uRockDetail;
@@ -290,6 +293,31 @@ const BACKDROP_FRAG = `
     // the alpenglow is light arriving on snow, and it is added
     c += uAlpenglow * direct * (snow + ice);
 
+    /* THE SEA OF CLOUD. On a settled morning the cold air lies in the
+       valleys and fills them to a level, and the ridges stand out of it as
+       islands — the Nebelmeer, the best view the Alps have. It is a level a
+       few hundred metres under the eye, its top heaped into soft rolls by
+       the noise field and drifting on the wind, lit like a snowfield from
+       above: white where the sun is on it, blue in the hollows between the
+       rolls. Anything of the range under that level is under the cloud. */
+    if (uSea > 0.002) {
+      vec2 sp = vReal.xz / 2600.0 + uSeaDrift;
+      float roll = texture2D(uNoise, sp).r * 0.65 + texture2D(uNoise, sp * 3.1 + 0.37).g * 0.35;
+      float top = uSeaTop + (roll - 0.5) * 140.0;
+      float under = smoothstep(top + 25.0, top - 35.0, vReal.y);
+      if (under > 0.0) {
+        // the rolls' own slope, from the field, lights them like dunes
+        float e = 0.012;
+        float rx = texture2D(uNoise, sp + vec2(e, 0.0)).r - texture2D(uNoise, sp - vec2(e, 0.0)).r;
+        float rz = texture2D(uNoise, sp + vec2(0.0, e)).r - texture2D(uNoise, sp - vec2(0.0, e)).r;
+        vec3 cn = normalize(vec3(-rx * 2.2, 1.0, -rz * 2.2));
+        float sunOn = max(0.0, dot(cn, uSunDir) + 0.25) / 1.25;
+        vec3 cloudLight = uSkyFill * (0.75 + 0.25 * cn.y) + uKeyLight * sunOn * 1.15;
+        vec3 cloud = vec3(0.95, 0.96, 0.98) * cloudLight * 0.3183099;
+        c = mix(c, cloud, under * uSea);
+      }
+    }
+
     /* Aerial perspective, at the real distance. The air between is lit by
        the sky, and forward-scatters the sun, so the haze towards the sun is
        bright and warm and the haze away from it is blue. Denser over the
@@ -344,6 +372,9 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
     uCurtain: { value: -0.2 },
     uClarity: { value: 26000 },
     uValley: { value: 0.5 },
+    uSea: { value: 0 },
+    uSeaTop: { value: -560 },
+    uSeaDrift: { value: new THREE.Vector2() },
     uShear: { value: 0 },
     uWhiteout: { value: 0 },
     uNoise: { value: noise },
