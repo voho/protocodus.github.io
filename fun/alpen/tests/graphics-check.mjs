@@ -358,95 +358,64 @@ sky.update(skyPosition, { ...nightMode, cloud: 0.8 }, 0);
 assert.ok(star.material.uniforms.uAlpha.value < clearStars * 0.4,
   'cloud veils the star field even without falling snow');
 
-// Loaded plates must hide a sun behind their ridge, including an outgoing
-// photograph during crossfade. Synthetic images have an unambiguous skyline.
-const createCanvas = document.createElement;
-document.createElement = () => {
-  const canvas = createCanvas();
-  const context = canvas.getContext('2d');
-  let skylineY = 51;
-  context.drawImage = image => { skylineY = image.skylineY; };
-  context.getImageData = (x, y, width, height) => ({ data: Uint8ClampedArray.from(
-    { length: width * height * 4 }, (_, i) => Math.floor(i / 4 / width) < skylineY ? 20 : 220) });
-  canvas.getContext = () => context;
-  return canvas;
-};
-const plateSky = createSky({ ...THREE, TextureLoader: class {
-  load(url, ready) {
-    const texture = new THREE.Texture();
-    texture.image = { skylineY: url.includes('sunset') ? 63 : 51 };
-    ready?.(texture); return texture;
-  }
+/* The modelled range (backdrop.js), read from the real file: once it is in
+   it retires the relief shell and the far ribbons at every hour, it hides
+   the sun behind its own peaks — the horn stands about eight degrees over
+   the horizon seventeen degrees left of the fall line — and it lets a sun
+   above them show. Without it (every sky above, whose fetch of a file: URL
+   fails) the procedural horizon stands. */
+const glb = await readFile(new URL('../assets/models/backdrop/alps.glb', import.meta.url));
+const realFetch = globalThis.fetch;
+globalThis.fetch = async () => ({
+  ok: true,
+  arrayBuffer: async () => glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength),
+});
+const rangeSky = createSky({ ...THREE, TextureLoader: class {
+  load(url, ready) { const texture = new THREE.Texture(); ready?.(texture); return texture; }
 } });
-document.createElement = createCanvas;
-const disc = plateSky.group.children.find(object => object.material?.uniforms?.uMoon);
-const daylight = { ...modeWeather.check(0.48, 0), cloud: 0, elevation: 0.15 };
-for (let i = 0; i < 4; i++) plateSky.update(skyPosition, daylight, 1);
-assert.equal(disc.material.uniforms.uOpacity.value, 0, 'a photographed ridge occludes the disc');
-plateSky.update(skyPosition, { ...daylight, elevation: 0.6 }, 0);
-assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun above the ridge remains visible');
-const sunset = { ...daylight, tod: 0.66 };
-plateSky.update(skyPosition, sunset, 0.5);
-assert.equal(disc.material.uniforms.uOpacity.value, 0, 'an outgoing high ridge still hides the sun');
-/* The crossfade is eased over a fixed span: still under way at half of it,
-   no faster at its start than anywhere else, and a new wish cannot restart
-   it from a half-shown photograph. */
-const plateDome = plateSky.group.getObjectByName('sky-dome');
-const plateFade = () => plateDome.material.uniforms.uPanoFade.value;
-for (let i = 0; i < 6; i++) plateSky.update(skyPosition, sunset, 1 / 6);
-assert.ok(plateFade() < 0.2, `a plate swap does not rush its first second: ${plateFade()}`);
-for (let i = 0; i < 36; i++) plateSky.update(skyPosition, sunset, 1 / 6);
-const halfway = plateFade();
-assert.ok(halfway > 0.3 && halfway < 0.95, `a plate swap is still under way after seven seconds: ${halfway}`);
-plateSky.update(skyPosition, { ...daylight, tod: 0.45 }, 1 / 6);
-assert.ok(plateFade() >= halfway, 'a new wish does not restart a crossfade in flight');
-for (let i = 0; i < 60; i++) plateSky.update(skyPosition, sunset, 1 / 6);
-assert.equal(plateFade(), 1, 'the crossfade settles');
-assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun clears the incoming lower ridge');
-for (const tod of [0, 0.09, 0.86, 0.95]) {
-  const mode = modeWeather.check(tod, 0);
-  plateSky.update(skyPosition, mode, 1 / 60);
-  sky.update(skyPosition, mode, 1 / 60);
-  assert.ok(plateSky.group.children.filter(object => object.name === 'far-range')
-    .every(object => !object.visible), 'dim night photos must not revive fallback ribbons');
-  assert.ok(sky.group.children.filter(object => object.name === 'far-range')
-    .every(object => object.visible), 'missing photos retain the procedural skyline');
-  assert.equal(plateSky.group.getObjectByName('mid-distance massifs').visible, false,
-    'a revealed photograph retires the relief shell');
-  assert.equal(sky.group.getObjectByName('mid-distance massifs').visible, true,
-    'without photographs the relief shell stands');
+assert.equal(await rangeSky.backdropReady, true, 'the modelled range loads');
+globalThis.fetch = realFetch;
+const sectors = [];
+rangeSky.group.traverse(object => { if (object.name === 'backdrop-range') sectors.push(object); });
+assert.equal(sectors.length, 24, 'the range arrives as its sectors');
+for (const mesh of sectors) {
+  assert.equal(mesh.material.fog, false);
+  assert.ok(mesh.renderOrder > 0 && mesh.renderOrder < 0.7, 'drawn after the ground, before the cone');
 }
-
-/* A 16:9 landscape is laid across half the ring at its own aspect, mirrored,
-   with its median ridge stood at the panorama's ridge height — so a sun just
-   over that ridge down the run shows, and one under it is hidden. */
-document.createElement = () => {
-  const canvas = createCanvas();
-  const context = canvas.getContext('2d');
-  context.drawImage = () => {};
-  context.getImageData = (x, y, width, height) => ({ data: Uint8ClampedArray.from(
-    { length: width * height * 4 }, (_, i) => Math.floor(i / 4 / width) < 58 ? 20 : 220) });
-  canvas.getContext = () => context;
-  return canvas;
-};
-const landscapeSky = createSky({ ...THREE, TextureLoader: class {
-  load(url, ready) {
-    const texture = new THREE.Texture();
-    texture.image = url.endsWith('.jpg') ? { width: 1376, height: 768 } : { width: 1774, height: 887 };
-    ready?.(texture); return texture;
-  }
-} });
-document.createElement = createCanvas;
-const landscapeDisc = landscapeSky.group.children.find(object => object.material?.uniforms?.uMoon);
-const dusk = { ...daylight, tod: 0.7, azimuth: 0 };
-for (let i = 0; i < 60; i++) landscapeSky.update(skyPosition, { ...dusk, elevation: 0.10 }, 1 / 6);
-assert.equal(landscapeDisc.material.uniforms.uOpacity.value, 0, 'the landscape ridge hides a low sun');
-landscapeSky.update(skyPosition, { ...dusk, elevation: 0.26 }, 0);
-assert.ok(landscapeDisc.material.uniforms.uOpacity.value > 0.5, 'a sun over the landscape ridge shows');
-const landscapeDome = landscapeSky.group.getObjectByName('sky-dome');
-assert.equal(landscapeDome.material.uniforms.uLayoutClear.value.x, 1, 'the dusk plate is laid out as a landscape');
-close(landscapeDome.material.uniforms.uLayoutClear.value.y, Math.PI * 768 / 1376,
-  'a landscape keeps its own aspect ratio');
+rangeSky.snapBackdrop();
+const disc = rangeSky.group.children.find(object => object.material?.uniforms?.uMoon);
+const daylight = { ...modeWeather.check(0.48, 0), cloud: 0 };
+const horn = -17 * Math.PI / 180;
+for (let i = 0; i < 4; i++) rangeSky.update(skyPosition, { ...daylight, azimuth: horn, elevation: 0.06 }, 1);
+assert.equal(disc.material.uniforms.uOpacity.value, 0, 'the horn hides a low sun');
+rangeSky.update(skyPosition, { ...daylight, azimuth: horn, elevation: 0.45 }, 0);
+assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun above the peaks remains visible');
+const weights = sectors[0].material.uniforms;
+const total = [...weights.uSunA.value.toArray(), ...weights.uSunB.value.toArray()].reduce((a, b) => a + b, 0);
+assert.ok(Math.abs(total - 1) < 1e-5, 'the sun reads its horizon between two bearings');
+for (const tod of [0, 0.09, 0.48, 0.86, 0.95]) {
+  const mode = modeWeather.check(tod, 0);
+  rangeSky.update(skyPosition, mode, 1 / 60);
+  sky.update(skyPosition, mode, 1 / 60);
+  assert.ok(rangeSky.group.children.filter(object => object.name === 'far-range')
+    .every(object => !object.visible), 'the modelled range retires the fallback ribbons at every hour');
+  assert.ok(sky.group.children.filter(object => object.name === 'far-range')
+    .every(object => object.visible), 'without the model the procedural skyline stands');
+  assert.equal(rangeSky.group.getObjectByName('mid-distance massifs').visible, false,
+    'the modelled range retires the relief shell');
+  assert.equal(sky.group.getObjectByName('mid-distance massifs').visible, true,
+    'without the model the relief shell stands');
+  assert.equal(rangeSky.group.getObjectByName('backdrop').visible, true, 'the range stands at every hour');
+}
+// A storm takes it into the same white as everything else.
+rangeSky.update(skyPosition, modeWeather.check(0.48, 1), 1 / 60);
+assert.equal(sectors[0].material.uniforms.uWhiteout.value, 1, 'a whiteout takes the range');
+// Long travel moves nothing of it: the parallax is a bounded uniform.
+for (const distance of [0, 12000, 1000000]) {
+  rangeSky.update(new THREE.Vector3(100, -distance * 0.3, -distance), daylight, 1 / 60);
+  assert.ok(Math.abs(sectors[0].material.uniforms.uLateral.value) <= 140, 'the wander is bounded');
+  assert.ok(sectors[0].position.equals(new THREE.Vector3()), 'the range is never moved');
+}
 
 // Count actual render submissions and reject texture/attachment feedback.
 let target = null, submissions = 0, lastComposite = null, canvasSizes = 0, clears = 0;

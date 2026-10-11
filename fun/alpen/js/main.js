@@ -40,6 +40,7 @@ import {
   Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
 } from './rider.js';
 import { createRiderModel } from './riderModel.js';
+import { loadRiderModels } from './riderAssets.js';
 import { createRiderShadow, RIDER_SHADOW_LAYER } from './riderShadow.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
@@ -413,6 +414,17 @@ const riderShadow = createRiderShadow(THREE, renderer, shading);
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
 const mountainLife = createMountainLife(THREE, scene, shading, spray, audio);
+/* The modelled riders (see riderAssets.js). Both rigs are already drawing
+   their procedural selves, so this is a swap and never a wait: the boot
+   below gives it the same few seconds as the snow plates, so the title
+   normally opens on the modelled figures, and if the files never come the
+   mountain is just as playable with the riders it already has. */
+const ridersReady = loadRiderModels().then((m) => {
+  model.adopt(m.rider);
+  mountainLife.adopt(m.npcs);
+}).catch((err) => {
+  console.warn('Alpen: keeping the procedural riders —', err);
+});
 const hud = createHud(hudRoot);
 const touchPause = pad.querySelector('[data-action="pause"]');
 const touchMute = pad.querySelector('[data-action="mute"]');
@@ -2101,9 +2113,9 @@ function afterPaint(fn) {
    the honest thing for the read-out to say is that the wait is over, and the
    plate is welcome to arrive afterwards. */
 const SNOW_PATIENCE = 6000;
-// The sky's plates too, so the title opens on the photographed range
+// The modelled range too, so the title opens on the mountains
 const surfacesPromise = Promise.race([
-  Promise.all([terrain.surfacesReady, sky.platesReady]),
+  Promise.all([terrain.surfacesReady, sky.backdropReady, ridersReady]),
   new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
 ]);
 
@@ -2125,7 +2137,7 @@ afterPaint(async () => {
   await surfacesPromise;
   boot.step('snow');
   terrain.snapSnowReady();
-  sky.snapPlates();
+  sky.snapBackdrop();
 
   afterPaint(() => {
     /* Compile every currently resident world material, allocate the shadow

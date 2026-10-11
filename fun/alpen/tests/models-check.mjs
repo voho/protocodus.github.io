@@ -535,7 +535,8 @@ assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
    of eight triangles whose texture rectangles sit inside the atlas and keep
    the aspect ratio of the frame the tree was drawn in (1024 × 2048). */
 const props = await load('props.js',
-  ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL', 'SWAY', 'GUST_X', 'GUST_Z']);
+  ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL', 'SWAY', 'GUST_X', 'GUST_Z',
+    'SPECIES']);
 // The forest's gust field is sampled at the same wavelengths `setAir` wraps
 // its drift at — otherwise the wrap is a visible jump across every tree.
 assert.ok(props.SWAY.includes(`mod(n64At.x, ${props.GUST_X.toFixed(1)})`)
@@ -638,5 +639,364 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   const waiting = new THREE.BufferGeometry();
   assert.equal(weld(THREE, waiting), waiting, 'an empty geometry is left alone');
   assert.equal(waiting.index, null);
+}
+
+/* The modelled riders (`tools/blender/riders.py` → assets/models/riders).
+   Both files parse with the game's own reader, every role in them has a
+   look, every segment sits in the frame of the procedural one it replaces,
+   the jacket flutters where the procedural one did, the budgets hold, the
+   eight figures bake and ride — and under the rig, the knees and elbows
+   face the way they bend, which is what the bend-plane roll is for. */
+{
+  const { parseRiderGlb } = await import(new URL('js/riderAssets.js', base).href);
+  const glb = async (name) => {
+    const b = await readFile(new URL('assets/models/riders/' + name, base));
+    return parseRiderGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  };
+  const riderNodes = await glb('rider.glb');
+  const npcNodes = await glb('npcs.glb');
+  assert.throws(() => parseRiderGlb(new ArrayBuffer(32)), /not a GLB/, 'a stray file is refused');
+
+  const kit = rider.buildGeometries(THREE).kit;
+  const g = rider.adoptRiderModels(THREE, riderNodes, kit.deck);
+  const drawnTwice = new Set(['upperArm', 'shin']);
+  let drawn = 0;
+  for (const [key, geo] of Object.entries(g)) {
+    const t = valid('modelled.' + key, geo);
+    drawn += drawnTwice.has(key) ? 2 * t : t;
+    if (key !== 'board') {
+      assert.ok(geo.attributes.aCloth && geo.attributes.aFlap, 'modelled.' + key + ': cloth attributes');
+    }
+  }
+  assert.ok(drawn <= 17000, 'modelled rider triangle budget: ' + drawn);
+
+  const box = (geo) => { geo.computeBoundingBox(); return geo.boundingBox; };
+  assert.ok(box(g.shin).max.y > 0.09 && box(g.shin).max.y < 0.11, 'the knee ball covers the bend');
+  assert.ok(box(g.foreArmRear).max.y > 0.065, 'the elbow ball covers the bend');
+  assert.ok(box(g.shin).min.y < -rider.ANKLE_Y + rider.DECK_TOP - 0.12, 'the gaiter falls over the boot');
+  assert.ok(box(g.thighLead).max.y > 0.12, 'the thigh is domed into the seat');
+  assert.ok(box(g.foreArmRear).min.y < -0.33 && box(g.foreArmRear).min.y > -0.37, 'the glove ends past the hand centre');
+  assert.ok(box(g.rearBoot).max.y > rider.ANKLE_Y, 'the boot cuff rises past the ankle');
+  // left and right hands, and the cargo pocket on the outside of each leg
+  for (const [a, b] of [[g.foreArmLead, g.foreArmRear], [g.thighLead, g.thighRear]]) {
+    assert.ok(Math.abs(box(a).min.z + box(b).max.z) < 1e-4 && Math.abs(box(a).max.z + box(b).min.z) < 1e-4,
+      'lead and rear are mirror images');
+  }
+  assert.ok(box(g.thighRear).max.z > box(g.thighRear).max.x, 'the rear pocket is on the outside (+Z)');
+  // The lamp housing sits where headlamp.js aims its beam from.
+  {
+    const p = g.head.attributes.position;
+    let front = -Infinity;
+    for (let i = 0; i < p.count; i++) {
+      if (Math.abs(p.getY(i) - 0.205) < 0.015 && Math.abs(p.getZ(i)) < 0.015) front = Math.max(front, p.getX(i));
+    }
+    assert.ok(front > 0.14 && front < 0.17, 'the lamp is on the helmet front: ' + front);
+  }
+  // The flutter: the hem is free, the chest and the back under the pack are not.
+  {
+    const p = g.torso.attributes.position;
+    const f = g.torso.attributes.aFlap;
+    let hem = 0;
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) > 0.10) assert.equal(f.getX(i), 0, 'the chest does not flap');
+      if (p.getX(i) < -0.12 && Math.abs(p.getZ(i)) < 0.05) assert.equal(f.getX(i), 0, 'the pack pins the back');
+      if (p.getY(i) < -0.15 && p.getX(i) > 0.1) hem = Math.max(hem, f.getX(i));
+    }
+    assert.ok(hem > 0.9, 'the front hem is free');
+    const s = g.upperArm.attributes.aFlap.array;
+    assert.ok(Math.max(...s) > 0.25 && Math.max(...s) < 0.4, 'the sleeves stir a little');
+    for (const key of ['pelvis', 'head', 'foreArmLead', 'thighLead', 'shin', 'rearBoot']) {
+      assert.ok(g[key].attributes.aFlap.array.every((v) => v === 0), key + ': rigid');
+    }
+  }
+  // The glove is woven, the gold cuff a little, the helmet and goggles not at all.
+  {
+    const ink = new THREE.Color('#181c24');
+    const fore = g.foreArmRear;
+    let glove = 0;
+    for (let i = 0; i < fore.attributes.position.count; i++) {
+      const c = fore.attributes.color;
+      if (Math.abs(c.getX(i) - ink.r) + Math.abs(c.getY(i) - ink.g) < 1e-5) {
+        glove++;
+        assert.equal(fore.attributes.aCloth.getX(i), 1, 'the glove is cloth');
+      }
+    }
+    assert.ok(glove > 50, 'the forearm ends in a glove');
+    assert.ok(g.head.attributes.aCloth.array.some((v, i) => i % 2 === 0 && v === 0), 'the helmet is hard');
+  }
+
+  // Under the rig: ankles still in the bindings, and every limb rolled into
+  // its bend — the knee's +X runs towards the toe edge, the elbow's behind.
+  {
+    const prevDocument = globalThis.document;
+    globalThis.document = { createElement: () => ({
+      getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
+    }) };
+    const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+    const model = rider.createRiderModel(headless, {
+      apply: (m) => m,
+      uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
+    });
+    globalThis.document = prevDocument;
+    model.adopt(riderNodes);
+    assert.ok(model.modelled, 'the rig reports the modelled rider');
+    const V = THREE.Vector3;
+    const r = {
+      pos: new V(), vel: new V(0, 0, -15), yaw: 0, state: 'ride', grounded: true, fallTimer: 0,
+      touchdownIn: Infinity, grab: 0, grabKind: 0, tucking: false, pushing: false, charging: false,
+      charge: 0, lateral: 0, switchStance: false, press: 0, pressEnd: -1, compression: 0.33,
+      carveLoad: 0, edge: 0, bend: 0, slide: 0, spinVel: 0, tumble: 0, flip: 0, flipGlide: 0,
+      normal: new V(0, 1, 0), airUp: null, airTime: 0, roll: 0, gLoad: 1, pushPhase: 0,
+      world: { height: () => 0 },
+      get speed() { return this.vel.length(); },
+    };
+    for (let i = 0; i < 90; i++) {
+      r.pos.addScaledVector(r.vel, 1 / 60);
+      model.update(r, 1 / 60);
+    }
+    model.root.updateMatrixWorld(true);
+    // The rig built its own copies when it adopted the file; a segment is
+    // found by the shape of its buffers.
+    const same = (a, b) => a.attributes.position.count === b.attributes.position.count
+      && a.index?.count === b.index?.count
+      && a.attributes.position.array[0] === b.attributes.position.array[0];
+    const meshes = (geo) => {
+      const out = [];
+      model.root.traverse((o) => { if (o.isMesh && same(o.geometry, geo)) out.push(o); });
+      return out;
+    };
+    const board = model.root.children.find((c) => c.name === 'rider-board');
+    const toe = new V(1, 0, 0).transformDirection(board.matrixWorld);
+    const shins = meshes(g.shin);
+    assert.equal(shins.length, 2, 'both shins wear the modelled leg');
+    for (const shin of shins) {
+      const ankle = shin.localToWorld(new V(0, -0.40, 0));
+      const want = [-1, 1].map((s) => board.localToWorld(new V(rider.FOOT_X, rider.ANKLE_Y, s * rider.FOOT_Z)));
+      assert.ok(Math.min(...want.map((w) => w.distanceTo(ankle))) < 0.005, 'modelled ankle in its binding');
+      const knee = new V(1, 0, 0).transformDirection(shin.matrixWorld);
+      assert.ok(knee.dot(toe) > 0.3, 'the kneecap faces the toe edge: ' + knee.dot(toe));
+    }
+    for (const fore of [...meshes(g.foreArmLead), ...meshes(g.foreArmRear)]) {
+      const elbow = new V(1, 0, 0).transformDirection(fore.matrixWorld);
+      assert.ok(elbow.dot(toe) < 0, 'the point of the elbow is behind him: ' + elbow.dot(toe));
+    }
+    model.root.traverse((o) => assert.ok(o.matrixWorld.elements.every(Number.isFinite), 'finite modelled rig'));
+  }
+
+  // The eight figures: baked from the file in their own colours, two
+  // meshes each, hung from the hip the file carries, and riding.
+  {
+    const { createMountainLife } = await load('mountainLife.js');
+    const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+    const scene = new THREE.Scene();
+    const life = createMountainLife(headless, scene, { apply: (m) => m, uniforms: {} }, null, null);
+    const before = [];
+    scene.traverse((o) => { if (o.isMesh && o.geometry.attributes.aSheen) before.push(o); });
+    life.adopt(npcNodes);
+    const figures = [];
+    scene.traverse((o) => { if (o.isMesh && o.geometry.attributes.aSheen) figures.push(o); });
+    assert.equal(figures.length, 16, 'eight figures, two meshes each');
+    assert.deepEqual(figures, before, 'the same meshes, redrawn');
+    const jackets = new Set();
+    for (const m of figures) {
+      valid('npc', m.geometry);
+      for (const a of ['color', 'aSheen', 'uv']) assert.ok(m.geometry.attributes[a], 'npc ' + a);
+      jackets.add(Array.from(m.geometry.attributes.color.array.slice(0, 3)).join());
+    }
+    assert.ok(jackets.size > 4, 'the figures are dressed differently');
+    for (let i = 0; i < figures.length; i += 2) {
+      const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+      assert.ok(tris(figures[i]) + tris(figures[i + 1]) <= 4200, 'figure triangle budget');
+    }
+    for (const kind of ['skier', 'boarder']) {
+      const hip = npcNodes[`npc_${kind}_body`].extras.hip;
+      assert.ok(hip > 0.7 && hip < 0.95, kind + ' hip from the file');
+      const body = figures.find((m) => m.parent && m.position.y === hip);
+      assert.ok(body, kind + ': a body hangs at its hip');
+    }
+    const r = { pos: new THREE.Vector3(0, 0, -400), state: 'ride', grace: 1, fall() {} };
+    life.reset(-400);
+    for (let i = 0; i < 120; i++) life.update(1 / 60, r);
+    for (const m of figures) {
+      m.updateMatrixWorld(true);
+      assert.ok(m.matrixWorld.elements.every(Number.isFinite), 'figures ride');
+    }
+  }
+}
+/* The modelled Alpine forest (`tools/blender/trees.py` → alpine-trees.glb,
+   dressed from alpine-sprigs.webp). Every SPECIES slot has its tree, each
+   stands on its own trunk at the origin and inside its budget; every corner
+   is needles (1), snow (0) or bark (0.35); bark samples only the strip left
+   of the keyed foliage, foliage only the cells right of it, and a snow card
+   only the frost half; and the pool geometry the game builds from it stands
+   at the pool's grown height with its atlas read the right way up. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/nature/alpine-trees.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  const BARK_U = 0.116;   // where spruceMat starts keying black (SPRUCE_LAYOUT.bark.u1)
+  let species = new Set();
+  const impostorCols = new Set();
+  for (const spec of props.SPECIES) {
+    const node = nodes['tree_' + spec.name];
+    assert.ok(node, 'a modelled tree for ' + spec.name);
+    species.add(node.extras.species);
+    const g = props.alpineTreeGeometry(THREE, node, 24);
+    const tris = valid('alpine.' + spec.name, g);
+    assert.ok(tris <= 1200, spec.name + ': tree budget ' + tris);
+    g.computeBoundingBox();
+    assert.ok(Math.abs(g.boundingBox.max.y - 24) < 0.05, spec.name + ': stands at the pool height');
+    assert.ok(g.boundingBox.min.y < -0.5, spec.name + ': the trunk goes on under the snow line');
+    const p = g.attributes.position;
+    const uv = g.attributes.uv;
+    const own = g.attributes.surfaceOwn;
+    let foot = Infinity;
+    let bark = 0;
+    let snow = 0;
+    for (let i = 0; i < p.count; i++) {
+      const o = own.getX(i);
+      assert.ok(o === 0 || o === 1 || Math.abs(o - 0.35) < 1e-6, spec.name + ': ownership is needle, snow or bark');
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      assert.ok(u >= 0 && u <= 1 && v >= 0 && v <= 1, spec.name + ': uv inside the atlas');
+      if (Math.abs(o - 0.35) < 1e-6) {
+        bark++;
+        assert.ok(u <= BARK_U, spec.name + ': bark stays left of the keyed foliage');
+        if (Math.abs(p.getY(i)) < 0.05) foot = Math.min(foot, Math.hypot(p.getX(i), p.getZ(i)));
+      } else {
+        assert.ok(u > 0.125, spec.name + ': foliage samples a sprig cell');
+        if (o === 0) {
+          snow++;
+          assert.ok(v <= 0.5, spec.name + ': a snow card samples the frost half');
+        } else {
+          assert.ok(v >= 0.5, spec.name + ': a green card samples the green half');
+        }
+      }
+    }
+    assert.ok(bark > 50 && foot < 1.2, spec.name + ': a trunk on the axis at the foot (' + foot + ')');
+    if (node.extras.species !== 'larch') assert.ok(snow > 10, spec.name + ': snow lies on the boughs');
+    const c = g.attributes.color;
+    assert.ok(c.array.every((x) => x > 0.3 && x <= 1.0), spec.name + ': occlusion is a gentle value');
+    // Its far-forest impostor: three crossed cards in the tree's own column
+    // of alpine-impostors.webp, framed round the whole tree from under the
+    // snow line, in the shape of the cell it was photographed into
+    // (2048 × 1024 over 12 columns and 3 views).
+    const [col] = node.extras.impostor;
+    impostorCols.add(col);
+    const card = props.treeImpostorGeometry(THREE, node, 24);
+    assert.equal(valid('impostor.' + spec.name, card), 6, spec.name + ': three cards');
+    card.computeBoundingBox();
+    const cb = card.boundingBox;
+    assert.ok(cb.max.y >= 23.9, spec.name + ': the frame holds the crown');
+    assert.ok(cb.min.y <= 0.05 && cb.min.y > -3, spec.name + ': impostor stands in the snow');
+    const wide = Math.hypot(card.attributes.position.getX(1) - card.attributes.position.getX(0),
+      card.attributes.position.getZ(1) - card.attributes.position.getZ(0));
+    const cell = Math.floor(2048 / 12) / Math.floor(1024 / 3);
+    assert.ok(Math.abs(wide / (cb.max.y - cb.min.y) - cell) < 0.02, spec.name + ': impostor keeps the cell aspect');
+    const cu = card.attributes.uv;
+    for (let i = 0; i < cu.count; i++) {
+      const px = cu.getX(i) * 2048;
+      assert.ok(px > col * 170 && px < (col + 1) * 170, spec.name + ': impostor reads its own column');
+      assert.ok(cu.getY(i) > 0 && cu.getY(i) < 1, spec.name + ': impostor inside the atlas');
+    }
+  }
+  assert.equal(impostorCols.size, props.SPECIES.length, 'every tree has its own impostor column');
+  assert.deepEqual([...species].sort(), ['fir', 'larch', 'pine', 'spruce'], 'four Alpine species');
+  // The bare SPECIES stay bare: the larch slots get the larch.
+  props.SPECIES.forEach((spec) => {
+    if (!spec.foliage) assert.equal(nodes['tree_' + spec.name].extras.species, 'larch', spec.name + ' is a larch');
+  });
+}
+/* The trackside flora (`tools/blender/flora.py` → alpine-flora.glb): every
+   plant the game places is in the file, each is small, footed at the origin
+   and inside its budget, every role it is painted with has a look, and the
+   decor loop that places them registers no solids — they are decoration,
+   and a rider runs through them. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/nature/alpine-flora.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  for (const name of props.FLORA_PLANTS) {
+    const node = nodes['flora_' + name];
+    assert.ok(node, 'a modelled ' + name);
+    const g = props.floraGeometry(THREE, node);
+    const tris = valid('flora.' + name, g);
+    assert.ok(tris <= 500, name + ': budget ' + tris);
+    for (const a of ['color', 'surfaceOwn']) assert.ok(g.attributes[a], name + ': ' + a);
+    assert.ok(g.attributes.surfaceOwn.array.every((v) => v >= 0 && v <= 1), name + ': ownership in range');
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    assert.ok(bb.min.y > -0.25 && bb.max.y < 1.0, name + ': a small plant on the snow line');
+    assert.ok(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z) < 0.8, name + ': footed at the origin');
+  }
+  const src = await readFile(new URL('js/props.js', base), 'utf8');
+  const loop = src.slice(src.indexOf('THE TRACKSIDE FLORA. Small plants'),
+    src.indexOf('Occasional natural glacial erratics'));
+  assert.ok(loop.length > 500 && !loop.includes('solids.push'), 'the trackside flora is not a solid');
+}
+/* The modelled range (`tools/blender/backdrop.py` → alps.glb and its two
+   maps): the frame the file was built in is the frame backdrop.js reads it
+   in; every sector sits in the ring it is drawn in and keeps to its own
+   fifteen degrees, so none spans the sky probe's join at -x; it fits its
+   budget; and the skyline it gives the sun has the horn where it was put. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const bd = await import(new URL('js/backdrop.js', base).href);
+  const b = await readFile(new URL('assets/models/backdrop/alps.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  const names = Object.keys(nodes).filter((n) => n.startsWith('range_'));
+  assert.equal(names.length, 24, 'twenty-four sectors');
+  let verts = 0;
+  let tris = 0;
+  for (const name of names) {
+    const node = nodes[name];
+    const ex = node.extras;
+    assert.deepEqual(ex.distance, bd.BACKDROP.distance, name + ': the distances agree');
+    assert.deepEqual(ex.radius, bd.BACKDROP.radius, name + ': the radii agree');
+    assert.equal(ex.horizons, bd.BACKDROP.horizons, name + ': the horizon count agrees');
+    assert.equal(ex.horizonMax, bd.BACKDROP.horizonMax, name + ': the horizon scale agrees');
+    const g = bd.backdropGeometry(THREE, node.prims[0]);
+    tris += valid('backdrop.' + name, g);
+    const p = g.attributes.position;
+    verts += p.count;
+    const [from, to] = ex.bearing;
+    for (let i = 0; i < p.count; i++) {
+      const r = Math.hypot(p.getX(i), p.getZ(i));
+      assert.ok(r > bd.BACKDROP.radius[0] - 10 && r < bd.BACKDROP.radius[1] + 10, name + ': inside the ring');
+      let deg = Math.atan2(p.getX(i), -p.getZ(i)) * 180 / Math.PI;
+      if (deg < from - 180) deg += 360;
+      if (deg > to + 180) deg -= 360;
+      assert.ok(deg > from - 4 && deg < to + 4, name + ': keeps to its own bearings');
+    }
+    for (const a of ['aHorizonA', 'aHorizonB']) {
+      assert.ok(g.attributes[a].normalized && g.attributes[a].itemSize === 4, name + ': ' + a);
+    }
+    assert.ok(g.index.array instanceof Uint16Array, name + ': sixteen-bit indices');
+  }
+  assert.ok(verts < 120000 && tris < 220000, `backdrop budget: ${verts} vertices, ${tris} triangles`);
+  const skyline = bd.backdropSkyline(nodes);
+  const deg = (d) => bd.skylineAt(skyline, d * Math.PI / 180) * 180 / Math.PI;
+  assert.ok(deg(-17) > 6 && deg(-17) < 12, `the horn stands over the run: ${deg(-17).toFixed(1)}°`);
+  for (let d = 0; d < 360; d += 5) {
+    assert.ok(deg(d) > -2 && deg(d) < 20, `a believable skyline at ${d}°: ${deg(d).toFixed(1)}°`);
+  }
+  // The maps: WebP, at the sizes the shader's frame assumes (u round the
+  // ring, v out along it).
+  const webpSize = (buf) => {
+    assert.equal(buf.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(buf.toString('ascii', 8, 12), 'WEBP');
+    const kind = buf.toString('ascii', 12, 16);
+    if (kind === 'VP8 ') return [buf.readUInt16LE(26) & 0x3fff, buf.readUInt16LE(28) & 0x3fff];
+    if (kind === 'VP8X') return [1 + buf.readUIntLE(24, 3), 1 + buf.readUIntLE(27, 3)];
+    if (kind === 'VP8L') {
+      const bits = buf.readUInt32LE(21);
+      return [1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff)];
+    }
+    throw new Error('unknown WebP ' + kind);
+  };
+  assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-shape.webp', base))),
+    [4096, 1024], 'the shape map');
+  assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-cover.webp', base))),
+    [2048, 512], 'the cover map');
 }
 console.log('All model geometry checks passed.');
