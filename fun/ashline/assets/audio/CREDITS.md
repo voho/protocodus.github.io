@@ -1,15 +1,26 @@
 # Ashline audio
 
-## Soundtrack
+## Original soundtrack
 
-- **Space Adventure**, by **MintoDog**, published January 8, 2025.
-- Local file: `space-adventure.mp3` (original file, renamed only).
-- File verification: 5,214,163 bytes; 130.29 seconds; stereo MP3 at 44.1 kHz; SHA-256 `d778093ed7e826b8ad604f489cda3675b2d8203576d906a0d2553cfe20f0a93f`.
-- Creator's upload and license: https://opengameart.org/content/space-adventure
-- Original download: https://opengameart.org/sites/default/files/space_adventure_bpm140.mp3
-- License: **CC0 1.0 Universal (public domain dedication)**, https://creativecommons.org/publicdomain/zero/1.0/
-- Verified September 5, 2026: the creator's upload lists **CC0** under License(s), describes the track as synthwave, and states it is loopable. The music is hosted locally; gameplay does not contact OpenGameArt.
-- Courtesy credit: Music: “Space Adventure” by MintoDog (CC0).
+Original music created for Ashline and supplied for use in the game. The five locally hosted MP3s play in this order, returning to the first track after the fifth:
+
+| Track | Local file | Duration | Size |
+| --- | --- | --- | --- |
+| **Weight of the Iron Sky** | `Weight_Of_The_Iron_Sky.mp3` | 173.37 seconds | 4,167,117 bytes |
+| **Before the Fallen Spire** | `Before_the_Fallen_Spire.mp3` | 158.28 seconds | 3,804,747 bytes |
+| **Where Giants Fell** | `Where_Giants_Fell.mp3` | 174.39 seconds | 4,191,568 bytes |
+| **Throne of Blackened Glass** | `Throne_of_Blackened_Glass.mp3` | 173.45 seconds | 4,168,998 bytes |
+| **Vindex Ignis** | `Vindex_Ignis.mp3` | 63.27 seconds | 1,524,570 bytes |
+
+All five tracks are stereo MP3 at 44.1 kHz, verified October 11, 2026. Playback starts after a user gesture, advances when a track ends, and fades out when the game pauses or ends. Pause and music mute retain the current track and playback position for resuming. The existing music volume, combat intensity filter and alert/voice ducking apply to the whole playlist.
+
+SHA-256 file verification:
+
+- `Weight_Of_The_Iron_Sky.mp3`: `54f7810b5151d1d8143d94879c26d519a18c0454dbdfb31b2745b793b9f5ed79`
+- `Before_the_Fallen_Spire.mp3`: `d25a2c67ae74d519b74cf9e58de524ec0c949600c47d971fada7296caaf7858c`
+- `Where_Giants_Fell.mp3`: `d0f64666f6229efc981c6ffb7476625b29af0d56124a13a6e6649b4357eb3732`
+- `Throne_of_Blackened_Glass.mp3`: `ff01366d94e6f474afa3ca6c033550da0f3d66f8901ab804bbed23d1588d2fd7`
+- `Vindex_Ignis.mp3`: `33eb5af950b9975a5367c5e426d5fe04b16e67415bfa5cadd77268855fa44910`
 
 ## Original generated sound effects
 

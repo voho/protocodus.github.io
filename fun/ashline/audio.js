@@ -1,11 +1,18 @@
 // Ashline's audio engine. soundbank.js synthesizes every effect (in a worker when the browser allows it);
-// the locally hosted CC0 soundtrack is credited in assets/audio/CREDITS.md.
+// the original, locally hosted soundtrack is credited in assets/audio/CREDITS.md.
 import { RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, RATE, renderKind, renderVoice, parseVoiceKey, VOICE_RECIPE, TRANSMISSION_RECIPE } from './soundbank.js';
 
 export { SOUND_KINDS, AMBIENT_KINDS };
 export const SETTINGS_KEY = 'ashline.audio.v1';
 export const VOLUME_CHANNELS = ['master', 'music', 'effects', 'voices', 'ambient'];
 export const VOLUME_DEFAULTS = Object.freeze({ master: 1, music: .7, effects: .8, voices: .8, ambient: .7 });
+export const MUSIC_TRACKS = Object.freeze([
+  'Weight_Of_The_Iron_Sky.mp3',
+  'Before_the_Fallen_Spire.mp3',
+  'Where_Giants_Fell.mp3',
+  'Throne_of_Blackened_Glass.mp3',
+  'Vindex_Ignis.mp3',
+]);
 // Interface sounds keep their own reserve, so a large battle can never swallow a click. Alerts, result
 // stingers and unit voices have no cap: their recipes carry cooldowns instead.
 export const VOICE_CAPS = Object.freeze({ ui: 4, weapon: 12, impact: 8 });
@@ -148,6 +155,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
   const settings = readAudioSettings(storage), volumes = settings.volumes;
   let context, bank, master, groups, buses, combatDuck, musicDuck, musicFilter, musicLevel, musicFade, musicSource, music;
   let suspension = Promise.resolve(), pauseTimer = 0, musicTimer = 0;
+  let musicIndex = 0;
   let unlocked = false, sfxEnabled = settings.sfxEnabled, musicEnabled = settings.musicEnabled, paused = false, disposed = false, musicError = '';
   let played = 0, dropped = 0, stolen = 0, aggregated = 0, queued = 0, expired = 0, intensity = 0, ambientLevels = {};
   const startup = { contextMs: 0, setupMs: 0 };
@@ -196,8 +204,15 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     context.addEventListener?.('statechange', flush);
     bank = createBank(context, flush);
     bank.start();
-    music = new Audio(new URL('./assets/audio/space-adventure.mp3', import.meta.url).href);
-    music.loop = true; music.preload = 'none';
+    music = new Audio(new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href);
+    music.preload = 'none';
+    music.addEventListener('ended', () => {
+      if (disposed) return;
+      musicIndex = (musicIndex + 1) % MUSIC_TRACKS.length;
+      music.src = new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href;
+      musicError = '';
+      updateMusic();
+    });
     music.addEventListener('error', () => { musicError = 'Soundtrack could not be loaded.'; });
     musicSource = context.createMediaElementSource(music); musicSource.connect(musicFilter);
     Object.assign(startup, { contextMs: created - started, setupMs: performance.now() - created });
@@ -479,7 +494,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       return {
         supported: Boolean(AudioContext), unlocked, sfxEnabled, musicEnabled, paused, activeVoices: voices.size, voicesByCategory: byCategory,
         played, dropped, stolen, aggregated, queued, expired, pending: pending.length,
-        musicPlaying: Boolean(music && !music.paused), musicError, contextState: context?.state || 'locked',
+        musicPlaying: Boolean(music && !music.paused), musicTrack: MUSIC_TRACKS[musicIndex], musicError, contextState: context?.state || 'locked',
         volumes: { ...volumes }, intensity, startup: { ...startup }, ducking: { combat: duckDepth('combat'), music: duckDepth('music') },
         ambient: Object.fromEntries(BEDS.map(name => [name, beds.get(name)?.target ?? 0])), ambientActive: beds.size, ambientRequested: ambientLevels,
         bank: bank ? { ...bank.stats, ready: bank.stats.loaded === bank.stats.total } : { mode: 'idle', total: BANK_SIZE, loaded: 0, voices: 0, mainMs: 0, longestMs: 0, failed: 0, ready: false },

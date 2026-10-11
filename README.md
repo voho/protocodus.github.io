@@ -25,3 +25,13 @@
 - Positional stereo effects, layered explosions and a critical-hull alarm sit under the unchanged soundtrack.
 - Campaign progress saves automatically in the browser, including fire energy; the shop offers shared equipment upgrades after each sector.
 - The interface uses normal-case labels and locally served Chakra Petch for a consistent space-console feel.
+
+## Meteora
+
+[Play Meteora](fun/meteora/index.html) is a 3D space shooter set in a seeded asteroid belt of some twenty-one thousand rocks. The fighter flies with real momentum: flight assist holds the speed you ask for with thrusters that have honest limits, so a hard turn at speed slides before it bites.
+
+- Aim with the mouse: the ship turns toward the crosshair, and gimballed cannons swing up to 10° to meet it. Left click fires the cannons, right click a homing missile.
+- W/S set the speed, Q/E roll, Tab burns the afterburner, T cycles targets and Z locks your speed to the target's.
+- The targeting HUD frames the selected enemy with its distance and closing speed, points to it from the screen edge, and draws a lead marker solved from both ships' velocities.
+- The fighter, the interceptor and five asteroids are built by committed Blender scripts with baked textures; the sky is generated at load with the Milky Way, nebulae and galaxies under slowly drifting star layers.
+- See the [game guide](fun/meteora/README.md) for the flight model, the model pipeline and the checks.
