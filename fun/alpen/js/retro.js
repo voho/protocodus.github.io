@@ -689,7 +689,8 @@ export function createRetro(THREE, renderer) {
   // note on the floor in `updatePerformance`.
   let descentFrom = 0;
   let descentFrame = 0;
-  let capped = false;      // the last walk to the floor bought nothing
+  let capped = false;      // the last walk to the floor bought nothing…
+  let cappedFrame = 0;     // …and the frame time it found there
   let failedScale = 0;     // the scale that last proved too slow…
   let retryAfter = 6;      // …and the comfortable seconds owed before retrying it
   let sized = false;
@@ -844,6 +845,14 @@ export function createRetro(THREE, renderer) {
        Where it is not, the walk is judged when it reaches the floor: no
        faster than where it began means resolution was never the problem, so
        it goes back up and stays there until the frame rate is free again. */
+    // So does a frame clearly faster than the one the cap was found at: a cap
+    // that lifts onto a GPU that cannot hold 57 Hz never reads as fast, and
+    // left latched the walk that would now buy frames would never start. The
+    // slow time banked under the cap says nothing about what came after it.
+    if (capped && averageFrame < cappedFrame * 0.85) {
+      capped = false;
+      slowFor = 0;
+    }
     const gpuBound = gpuMs === null || gpuMs / 1000 > averageFrame * 0.6;
     let next = scale;
     if (slowFor > 1.6 && gpuBound && !capped) {
@@ -863,6 +872,7 @@ export function createRetro(THREE, renderer) {
       } else if (descentFrom && averageFrame > descentFrame * 0.92) {
         next = descentFrom;
         capped = true;
+        cappedFrame = averageFrame;
         descentFrom = 0;
         failedScale = 0;
       }

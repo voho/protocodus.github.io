@@ -563,6 +563,12 @@ assert.equal(retro.animating, false, 'resume fade settles normally');
   capped.setSize(1280, 720);
   for (let i = 0; i < 30 * 30; i++) capped.updatePerformance(1 / 30);
   assert.equal(capped.scale, RENDER.maxScale, 'a 30 fps cap ends at full resolution');
+  // …and when the cap lifts onto a GPU that cannot hold 57 Hz at full scale,
+  // the walk down is taken after all.
+  for (let i = 0; i < 60 * 20; i++) {
+    capped.updatePerformance(Math.max(1 / 60, (4 + 16 * capped.scale * capped.scale) / 1000));
+  }
+  assert.ok(capped.scale < RENDER.maxScale, 'a cap lifting onto a slow GPU walks down again');
   // Near the budget, a scale that fails again waits longer before its next
   // try instead of costing a second of dropped frames every few seconds.
   const edge = createRetro(THREE, renderer);
