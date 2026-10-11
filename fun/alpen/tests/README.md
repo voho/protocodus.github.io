@@ -145,6 +145,17 @@ shared texture cache hands every caller one texture per file, the forest's
 gust field is sampled at the wavelengths its drift wraps at, and the other
 riders respawn beyond the clear-day fog and get up from a tumble without a
 cut (both of those fail against the previous `mountainLife.js`).
+The modelled lift and snow guns (`assets/models/resort/lift.glb`, from
+`tools/blender/lift.py`) are loaded through `mountainLife.js`'s own fetch:
+the cabin (with its glass) stays under 1500 triangles, the tower under 2500,
+a sheave train under 600 and the gun under 2500; the cabin, tower and gun
+carry snow that faces up; every sheave turns about its own axle and the rope
+lies on all six. Adopted, the file reuses the meshes already drawing (the
+resort stays at most 24), the hardware patch lands in three's Lambert shader
+and turns the sheaves, every train lies along the rope between its
+neighbouring towers with its frame inboard, every cabin hangs from the rope
+by its grip with its door outboard, and the guns spray from their own nozzle
+rings along their barrels. Without the file the procedural line stands.
 The graphics check also loads the modelled range (`assets/models/backdrop`)
 through the sky: it arrives as its 24 sectors, drawn after the ground and
 before the haze cone, retires the relief shell and the far ribbons at every
