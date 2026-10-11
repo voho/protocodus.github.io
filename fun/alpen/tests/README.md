@@ -138,13 +138,34 @@ headlessly through a carve, a hard stop, all three grabs and a landing: every
 matrix stays finite, both ankles stay in their bindings, the indy hand still
 lands on the toe edge, the head leads each turn by less than the cap, a hard
 stop pitches the chest forwards and settles, and breathing never scales or
-shears the head. Deer and wolves are checked standing on the real terrain
+shears the head.
+The arms (`ARMS` in `riderModel.js`) are driven through the states they
+answer, and in every frame of it each glove stays out of the jacket and
+twelve centimetres from every leg bone (but in a grab), and each elbow keeps
+some bend, never folds flat and never points forwards into the chest. On a
+laid-over toeside carve the leading hand reaches down for the snow and sits
+lowest, heelside the trailing one does, and no hand goes into the snow, also
+riding switch; a pop throws both arms up; a tuck's hands are in a box in
+front of the chest; the arms lead a spin in the air and coil against it on
+the snow before the pop; a flip pulls them together; a held indy closes its
+glove on the toe edge while the free arm bones out; an unclean landing waves
+higher than a clean one of the same impact; a stop spreads the arms along the
+board; and a fall throws them out in front. The hands are their own wrist
+segments now, split off the forearm by role (`HAND_ROLES`), with open and
+fist morph targets. Deer and wolves are checked standing on the real terrain
 (fore and hind feet on the snow, most of the cross slope taken up, and the
 tilt capped on ground steeper than an animal carries its spine), the
 shared texture cache hands every caller one texture per file, the forest's
 gust field is sampled at the wavelengths its drift wraps at, and the other
 riders respawn beyond the clear-day fog and get up from a tumble without a
-cut (both of those fail against the previous `mountainLife.js`).
+cut (both of those fail against the previous `mountainLife.js`). Their upper
+halves are skinned to five bones (body, shoulders, hands) with every vertex
+fully weighted, still two meshes a figure; over sixteen seconds a skier's
+inside pole comes down to the snow at or ahead of the boots in the
+two-thirds of a second before every edge change (the lean going over, by a
+margin), the other arm at rest meanwhile, and no pole tip is ever in the
+snow; a boarder's leading arm goes into toeside turns and the trailing one
+out on heelside ones.
 The modelled lift and snow guns (`assets/models/resort/lift.glb`, from
 `tools/blender/lift.py`) are loaded through `mountainLife.js`'s own fetch:
 the cabin (with its glass) stays under 1500 triangles, the tower under 2500,

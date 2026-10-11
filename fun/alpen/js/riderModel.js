@@ -109,7 +109,7 @@
 
 import { compose } from './geom.js';
 import { RIDER } from './config.js';
-import { GRAB_NOSE, GRAB_METHOD } from './rider.js';
+import { GRAB_NOSE, GRAB_METHOD, SKETCHY, BAIL } from './rider.js';
 import { createHeadlamp } from './headlamp.js';
 import { sharedTexture } from './textures.js';
 import { riderGeometry } from './riderAssets.js';
@@ -230,8 +230,14 @@ const POSE = {
   stance: 0.34,       // radians the chest is opened towards the travelling nose
   look: 1.04,         // and how much further the head turns, to the fall line
   counter: 0.62,      // radians the shoulders wind back against a full steer
-  spinTrail: 0.55,    // radians the shoulders trail a full-rate spin
-  armTrail: 0.6,      // and radians the hands trail it, further still
+  /* In the air the shoulders *lead* a spin, and the hands lead it further.
+     They used to trail it, which drew a body being turned by its board; a
+     spin is thrown from the top down — the arms and the head go first, the
+     shoulders follow them and the board comes round last — and the trail
+     read as a rider resisting his own trick. See `ARMS.windUp` for the coil
+     that pays for it on the snow. */
+  spinLead: 0.30,     // radians the shoulders lead a full-rate spin
+  armLead: 0.62,      // and radians the hands lead it, further still
   angulate: 0.34,     // share of the body's lean the torso stands back up
   // Metres of hip travel per metre of leg-spring travel. It came down from
   // 1.15 when the stance below arrived: the two of them stack, and a full-grip
@@ -411,6 +417,149 @@ const POSE = {
   pressLean: 0.115,   // metres the hips travel towards the end being stood on
   pressChest: 0.20,   // radians the chest comes over it
 };
+
+/* THE ARMS, which are where a rider shows what he is doing.
+
+   For a long time the hands had three jobs — hang, grab, flail — and between
+   them the arms said almost nothing about the riding: a carve at ninety km/h
+   and a crawl across the flat drew the same two hands beside the hips. A
+   snowboarder's arms are his balance, and they are the most legible thing he
+   has. They come in as he gets faster, reach into a turn before the board
+   follows, drop to the snow on a laid-over carve, go out wide to stop, coil
+   before a spin and lead it once he is off the lip, tuck through a flip,
+   absorb a landing and windmill when one goes wrong. Every one of those is a
+   *place the hand wants to be* — the same idea as the rest of the rig — and
+   this table is the list of places.
+
+   Each point is written in the travel frame and relative to the shoulder it
+   belongs to, the convention the riding pose below already uses: +X is where
+   the chest faces, +Y is up, and −Z is whichever end of the board is leading.
+   `lead`/`rear` are the two arms in that frame, not the two shoulders: riding
+   switch the poses swap shoulders and nothing here changes. No point is put
+   further than `reach` from its shoulder, three centimetres inside the 0.58 m
+   the arm has, so the solver always keeps a bend in the elbow.
+
+   Nothing here snaps. The signals that pick between these points are all
+   smoothed against dt, and the hand targets they produce are run through a
+   critically damped spring per arm (`omega`), so a pop, a landing or a grab
+   arrives as a movement and never as a cut — and the spring stiffens through
+   a grab, so the hand still lands on the board's edge rather than near it. */
+const ARMS = {
+  reach: 0.555,
+  // The riding pose, at cruising speed: hanging, a hand's width from straight
+  // down, the leading one reaching a little towards the nose.
+  hangLead: [0.15, -0.47, -0.19],
+  hangRear: [0.07, -0.51, 0.14],
+  // …and at speed, compact: elbows bent, hands forward of the hips and in
+  // towards the midline. Blended in between `speedLo` and `speedHi` m/s.
+  fastLead: [0.25, -0.41, -0.11],
+  fastRear: [0.22, -0.44, 0.05],
+  speedLo: 10,
+  speedHi: 30,
+  speedShare: 0.85,
+  // Standing nearly still, every `idleEvery` seconds the leading arm is let
+  // swing out and back over `idleSpan` of them.
+  idleEvery: 7.3,
+  idleSpan: 1.7,
+  // Skating: the front arm reaches with the board, the rear swings back over
+  // the driving leg. Coiling for a pop: both back and down behind the heel
+  // edge, with a throw's length ahead of them. Airborne: up, in and bent.
+  skateLead: [0.28, -0.34, -0.34],
+  skateRear: [-0.16, -0.38, 0.29],
+  chargeLead: [-0.20, -0.42, -0.20],
+  chargeRear: [-0.22, -0.42, 0.18],
+  flightLead: [0.27, -0.24, -0.30],
+  flightRear: [0.23, -0.29, 0.27],
+  /* Tucked, the hands come in close in front of the knees, fists low and
+     together under the chest. This used to spread them wide along the board,
+     which is a rider holding his balance rather than a rider holding a tuck;
+     the narrow stance has already paid for the balance, and arms out in a
+     hundred-km/h wind are two sails. */
+  tuckLead: [0.36, -0.38, -0.02],
+  tuckRear: [0.33, -0.40, 0.04],
+  /* Carving. On a toeside turn the rider is facing the inside of it, and the
+     leading hand goes down to the snow beside the toe edge, ahead of the
+     front binding — the touch every laid-over carve photograph has. Heelside
+     his back is to the inside, so it is the trailing hand that drops behind
+     him to drag. Both points are on the snow beside the board, in the
+     board's own frame (x across, z along the travel), lifted `touchHover`
+     off it; the reach starts once the shown edge, weighted by its load, is
+     past `touchFrom`, and is full `touchSpan` later. At the lean the physics
+     allows the hand gets most of the way and not all of it, which is right —
+     a rider reaching for the snow and a rider lying on it are different
+     carves. `touchDrop` and `touchFold` are what the body gives to help:
+     a little lower, and folded over the side the hand is going to. */
+  touchToe: [0.70, -0.40],
+  touchHeel: [-0.52, 0.34],
+  touchHover: 0.06,
+  touchFrom: 0.30,
+  touchSpan: 0.45,
+  touchDrop: 0.12,
+  touchFold: 0.42,
+  touchFoldHeel: 0.12,
+  /* Stopping: arms out along the board, forward of the chest on the heel
+     edge (he is sitting back against it, and the hands are the counterweight)
+     and less so on the toes. `flail` is metres of balance wobble, at about a
+     cycle a second, for a hard stop, a chattering edge or a heavy landing. */
+  brakeLead: [0.22, -0.30, -0.37],
+  brakeRear: [0.12, -0.32, 0.35],
+  brakeHeel: 0.10,
+  flail: 0.065,
+  /* The spin. On the snow, coiling for a pop with the board already turning,
+     the arms wind *against* the turn the spin is about to go — up to
+     `windUp` radians about the spine, the chest a share of it — and in the
+     air they lead it (see `POSE.armLead`). `windRate` is the yaw rate that
+     counts as fully committed. */
+  windUp: 0.55,
+  windChest: 0.18,
+  windRate: 1.4,
+  // A flip pulls the arms in to the knees, which is what makes it go round.
+  flipLead: [0.33, -0.36, -0.05],
+  flipRear: [0.31, -0.38, 0.06],
+  // The free arm in a grab: up and out, and with time, boned out straight —
+  // the style half of the trick (`styleFrom`/`styleSpan` seconds of grab).
+  freeArm: [0.10, 0.10, 0.46],
+  styleArm: [0.05, 0.27, 0.49],
+  styleFrom: 0.15,
+  styleSpan: 0.55,
+  // Landing: the hands come forward and in as the legs take it.
+  absorb: [0.17, -0.02, 0.05],
+  // An unclean landing waves: a windmill this many metres across, at `waveRate`.
+  wave: 0.20,
+  waveRate: 8.5,
+  waveDecay: 1.5,
+  // Going down: the arms are thrown out ahead of the fall for its first
+  // `braceTime` seconds, then the tumble takes them.
+  braceLead: [0.40, -0.34, -0.20],
+  braceRear: [0.40, -0.36, 0.17],
+  braceTime: 0.7,
+  // The spring every target goes through: critically damped, ω in rad/s.
+  omega: 15,
+  omegaGrab: 34,
+};
+
+/* Where the hand hinges. The modelled glove starts inside the gold cuff, so a
+   wrist pivot two centimetres above the glove's top keeps the gauntlet's rim
+   inside the cuff through a bend; the hand's centre — where the IK aims — is
+   `FORE − WRIST` past it. */
+const WRIST = 0.205;
+
+/* The wrist's range, in radians, and how its two signs read: `flex` curls the
+   palm in towards the forearm (negative extends the back of the hand),
+   `dev` turns the hand towards the little finger (negative towards the
+   thumb). Hands lag the arm's motion by `lag` radians per metre a second,
+   which is the whole of why a flailing hand reads as a hand. */
+const WRIST_RANGE = { flexMin: -0.95, flexMax: 1.05, devMin: -0.30, devMax: 0.50, lag: 0.55, lagMax: 0.45 };
+
+/* The trunk, as the hands must see it: an elliptic column in the torso's
+   frame, from the seat of the trousers to the collar, already grown by a
+   glove's radius. Measured off the modelled jacket — 0.18 m of chest in
+   front of the spine, 0.19 m to each side at the waist — and centred a
+   little behind the spine, because the pack is back there and the hands
+   never are. A hand target inside it is moved out to its surface along the
+   radius; the head gets a sphere of its own. */
+const TRUNK = { x: -0.03, rx: 0.26, rz: 0.245, bottom: -0.30, top: 0.50, soft: 0.08 };
+const HEAD_KEEP = { y: NECK_Y + 0.15, r: 0.19 };
 
 /* ==========================================================================
    The shape kit
@@ -768,6 +917,66 @@ const BOOT = [
   { y: 0.272, x: 0.000, rx: 0.094, rz: 0.086, round: 0.9 },
 ];
 
+/* THE HAND OPENS AND CLOSES, as two morph targets on the glove: `open`
+   straightens the mitt's curl and spreads the thumb, `fist` rolls the
+   fingers in to the palm and wraps the thumb over them. A mitt has no
+   fingers to animate, but it does have a curl, and a flat hand reaching for
+   the snow, a fist round a board's edge and a mitt hanging relaxed are three
+   different shapes at any distance a hand is visible from.
+
+   Both are written as offsets from the rest shape (`morphTargetsRelative`),
+   in the wrist's frame, and both bend about the knuckle line rather than
+   moving anything rigidly: the weight eases in over four centimetres below
+   it, so the back of the hand stays where the wrist put it and only the
+   fingers go. `palm` is which way the palm faces down the glove's own Z —
+   +1 for the rear hand as modelled, −1 for the lead, which is its mirror.
+   three draws them in the shared material and in every depth pass that
+   material is shadowed through, so the hand's shadow closes with it. */
+const KNUCKLE = -0.285 + WRIST;
+function handMorphs(THREE, geometry, palm) {
+  const p = geometry.attributes.position;
+  const n = p.count;
+  const open = new Float32Array(n * 3);
+  const fist = new Float32Array(n * 3);
+  const bend = (out, i, x, y, z, a, w) => {
+    const dy = y - KNUCKLE;
+    const c = Math.cos(a * w);
+    const s = Math.sin(a * w);
+    out[i * 3 + 1] = (dy * c - z * s) - dy;
+    out[i * 3 + 2] = (dy * s + z * c) - z;
+  };
+  for (let i = 0; i < n; i++) {
+    const x = p.getX(i);
+    const y = p.getY(i);
+    const z = p.getZ(i);
+    const fingers = smooth01((KNUCKLE + 0.01 - y) / 0.04);
+    if (fingers > 0) {
+      // A curl towards the palm is a turn of −palm about X; opening is the
+      // other way, and less of it, because the mitt is modelled half-curled.
+      bend(open, i, x, y, z, 0.50 * palm, fingers);
+      bend(fist, i, x, y, z, -0.85 * palm, fingers);
+      open[i * 3] = x * 0.06 * fingers;
+    }
+    // The thumb sticks out past the mitt's side towards −X (the mitt itself
+    // ends at −0.046), the way the glove was modelled; the procedural one
+    // has none there, and keeps its own.
+    const thumb = smooth01((-0.050 - x) / 0.012) * smooth01((0.0 - y) / 0.03);
+    if (thumb > 0) {
+      open[i * 3] += -0.012 * thumb;
+      open[i * 3 + 2] += -0.008 * palm * thumb;
+      fist[i * 3] += 0.012 * thumb;
+      fist[i * 3 + 1] += -0.006 * thumb;
+      fist[i * 3 + 2] += 0.010 * palm * thumb;
+    }
+  }
+  geometry.morphAttributes.position = [
+    new THREE.BufferAttribute(open, 3),
+    new THREE.BufferAttribute(fist, 3),
+  ];
+  geometry.morphTargetsRelative = true;
+  return geometry;
+}
+
 function buildGeometries(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
   const scrap = [];
@@ -1080,7 +1289,14 @@ function buildGeometries(THREE) {
       { y: -0.290, rx: 0.019, rz: 0.017, round: 0.95, n: 12 },
     ], [0, 0.012])), color: INK, pos: [0.045, 0, -0.018], rot: [0, 0, -0.5], cloth: [1, 0] },
   ];
-  const foreArm = compose(THREE, foreArmParts);
+  /* …and split at the wrist. The glove is the last two parts — the mitt and
+     its thumb — and it hangs off its own pivot now (see `WRIST`), so the
+     forearm is the sleeve and the cuff and the hand is everything past
+     them, moved up so that the wrist is its origin. */
+  const sleeveParts = foreArmParts.slice(0, 3);
+  const gloveParts = foreArmParts.slice(3);
+  const foreArm = compose(THREE, sleeveParts);
+  const hand = compose(THREE, gloveParts).translate(0, WRIST, 0);
   // Domed at the hip, where the top of the thigh comes out of the seat on
   // the outside of every deep crouch and every grab.
   const thigh = compose(THREE, [
@@ -1221,7 +1437,9 @@ function buildGeometries(THREE) {
     torso: clad(torso, 1, 1, null, flapTorso),
     head: clad(head, 0, 0),
     upperArm: clad(upperArm, 1, 1, null, flapSleeve),
-    foreArm: clad(foreArm, 1, 1, foreArmParts),
+    foreArm: clad(foreArm, 1, 1, sleeveParts),
+    // woven, never quilted — see the glove in `foreArmParts`
+    hand: handMorphs(THREE, clad(hand, 1, 0), 1),
     thigh: clad(thigh, 1, 0),
     shin: clad(shin, 1, 0),
     // Not a segment: the bare deck the modelled bindings are bolted onto.
@@ -1269,6 +1487,8 @@ const GLOVE_ROLES = {
   ink: { color: INK, aCloth: [1, 0] },
   charcoal: { color: '#343c47', aCloth: [1, 0] },
 };
+// …and on the forearm, those three roles are the glove and nothing else.
+const HAND_ROLES = new Set(['ink', 'charcoal', 'trim']);
 
 /* The modelled jacket is longer than the procedural one — its hem drops to
    seventeen centimetres under the waist pivot at the back — so the loose
@@ -1287,7 +1507,8 @@ export function adoptRiderModels(THREE, nodes, deck) {
     return nodes[name];
   };
   const clothed = (names, roles = RIDER_ROLES, flap = null) => {
-    const g = riderGeometry(THREE, names.map(need), (role) => roles[role]);
+    const g = riderGeometry(THREE, names.map((n) => (typeof n === 'string' ? need(n) : n)),
+      (role) => roles[role]);
     const p = g.attributes.position;
     const f = new Float32Array(p.count);
     if (flap) for (let i = 0; i < p.count; i++) f[i] = flap(p.getX(i), p.getY(i), p.getZ(i));
@@ -1310,6 +1531,18 @@ export function adoptRiderModels(THREE, nodes, deck) {
   rearBoot.computeBoundingSphere();
   binding.dispose();
   boot.dispose();
+  /* The forearm is split at the wrist the way the procedural one is: the
+     glove's primitives — its ink, the charcoal palm and the mint tab on the
+     back of the hand — are the hand, moved up so that the wrist is its
+     origin, and everything else (the sleeve, the cuff and its tab) stays the
+     forearm. The file is not changed for this; the roles already say which
+     primitive is the glove. */
+  const half = (name, glove) => {
+    const node = need(name);
+    return { ...node, prims: node.prims.filter((p) => HAND_ROLES.has(p.role) === glove) };
+  };
+  const handOf = (name, palm) => handMorphs(THREE,
+    clothed([half(name, true)], GLOVE_ROLES).translate(0, WRIST, 0), palm);
   return {
     board,
     rearBoot,
@@ -1317,8 +1550,10 @@ export function adoptRiderModels(THREE, nodes, deck) {
     torso: clothed(['rider_torso'], RIDER_ROLES, flapModelTorso),
     head: clothed(['rider_head']),
     upperArm: clothed(['rider_upperArm'], RIDER_ROLES, flapModelSleeve),
-    foreArmLead: clothed(['rider_foreArm_lead'], GLOVE_ROLES),
-    foreArmRear: clothed(['rider_foreArm_rear'], GLOVE_ROLES),
+    foreArmLead: clothed([half('rider_foreArm_lead', false)], GLOVE_ROLES),
+    foreArmRear: clothed([half('rider_foreArm_rear', false)], GLOVE_ROLES),
+    handLead: handOf('rider_foreArm_lead', -1),
+    handRear: handOf('rider_foreArm_rear', 1),
     thighLead: clothed(['rider_thigh_lead']),
     thighRear: clothed(['rider_thigh_rear']),
     shin: clothed(['rider_shin']),
@@ -1825,6 +2060,29 @@ export function createRiderModel(THREE, shading) {
 
   const armLead = limb(torso, SHOULDER_Y, -SHOULDER_Z, geo.upperArm, geo.foreArm, UPPER);
   const armRear = limb(torso, SHOULDER_Y, SHOULDER_Z, geo.upperArm, geo.foreArm, UPPER);
+  /* The hands, each on its own wrist at the end of its forearm (see `WRIST`).
+     The wrist is a group rather than the mesh's own transform so that the
+     IK's hand centre — `FORE` down the forearm — is still a point in the
+     forearm's frame that the grab can aim at, and the hand bends about it.
+     `palm` is the sign the glove's palm faces down its own Z: the lead hand
+     is the mirror image of the rear one. Named, because the checks look
+     for them. */
+  const wrist = (arm, palm, name) => {
+    const w = new THREE.Group();
+    w.position.set(0, -WRIST, 0);
+    w.rotation.order = 'YXZ';
+    const mesh = new THREE.Mesh(geo.hand, cloth);
+    mesh.name = 'rider-hand-' + name;
+    w.add(mesh);
+    arm.fore.add(w);
+    arm.foreMesh.name = 'rider-forearm-' + name;
+    arm.upperMesh.name = 'rider-upperarm-' + name;
+    arm.wrist = w;
+    arm.handMesh = mesh;
+    arm.palm = palm;
+  };
+  wrist(armLead, -1, 'lead');
+  wrist(armRear, 1, 'rear');
   const legLead = limb(hips, 0, -HIP_Z, geo.thigh, geo.shin, THIGH);
   const legRear = limb(hips, 0, HIP_Z, geo.thigh, geo.shin, THIGH);
 
@@ -1981,6 +2239,187 @@ export function createRiderModel(THREE, shading) {
   const tRear = new THREE.Vector3();
   const pLead = new THREE.Vector3();
   const pRear = new THREE.Vector3();
+  const _ta = new THREE.Vector3();
+  const _tw = new THREE.Vector3();
+
+  /* The arms' small vocabulary, kept out of `update` so none of it is a
+     fresh closure every frame. `point` puts a hand at an `ARMS` place and
+     `toward` blends it part of the way there; `wish` does the same for a
+     wrist's curl, turn, openness and grip. */
+  const point = (v, a) => v.set(a[0], a[1], a[2]);
+  const toward = (v, a, t) => (t > 1e-4 ? v.lerp(_tw.set(a[0], a[1], a[2]), Math.min(t, 1)) : v);
+  const wish = (w, flex, dev, open, fist, t) => {
+    if (!(t > 1e-4)) return;
+    const k = Math.min(t, 1);
+    w.flex += (flex - w.flex) * k;
+    w.dev += (dev - w.dev) * k;
+    w.open += (open - w.open) * k;
+    w.fist += (fist - w.fist) * k;
+  };
+  /* A coil or a spin turns the arms about the *spine*, not each about its
+     own shoulder: a shoulder-relative point is carried out to the chest's
+     centre, turned, and brought back. `shoulderZ` is that shoulder's place in
+     the travel frame, −SHOULDER_Z for the leading one. */
+  const aboutSpine = (v, shoulderZ, angle) => {
+    if (angle === 0) return v;
+    v.z += shoulderZ;
+    v.applyAxisAngle(UP, angle);
+    v.z -= shoulderZ;
+    return v;
+  };
+  /* A point on the snow beside the board — `x` across it, `z` along the
+     travel — lifted `hover` off the hill along its normal (`_sn`, already in
+     the root's frame), carried through the hips and the chest (`mInv`, set by
+     the caller) into one shoulder's space in the travel frame, and held
+     inside the arm's reach. The grab does the same with a point on the
+     board. */
+  const toSnow = (out, x, z, shoulderZ, sw, hover) => {
+    out.set(x, 0, z * sw);
+    out.addScaledVector(_sn, hover - _sn.dot(out));
+    out.applyMatrix4(mInv);
+    out.y -= SHOULDER_Y;
+    out.z -= shoulderZ * sw;
+    out.z *= sw;
+    const d = out.length();
+    if (d > ARMS.reach) out.multiplyScalar(ARMS.reach / d);
+    return out;
+  };
+  /* Where the point of an elbow goes for a hand at `t`: back and down while
+     the hand hangs, turning to straight down as the hand comes up past the
+     chest, and always a little outboard — `side` is −1 for the leading
+     shoulder and +1 for the trailing one — so it never folds in through the
+     ribs. A fixed pole was right for hanging arms and wrong for raised ones,
+     where it pointed the elbows at the sky. */
+  const elbowPole = (out, t, side) => {
+    const raised = smooth01((t.y + 0.30) / 0.45);
+    return out.set(-0.75 + 0.55 * raised, -0.55 - 0.40 * raised, side * (0.15 + 0.25 * raised));
+  };
+  /* The legs' bones in the torso's frame — hip, knee and ankle, lead leg then
+     rear — and how far a glove's centre is kept from each: the trouser's
+     radius and the glove's. */
+  const legPts = [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3());
+  const LEG_KEEP = { thigh: 0.15, shin: 0.14 };
+  const _sb = new THREE.Vector3();
+  const _sc = new THREE.Vector3();
+  // Move `p` out to `R` from the segment a–b, along the line from its
+  // nearest point on it; nothing happens outside that radius.
+  const pushOut = (p, a, b, R) => {
+    _sb.subVectors(b, a);
+    const t = clamp(_sc.subVectors(p, a).dot(_sb) / Math.max(_sb.lengthSq(), 1e-9), 0, 1);
+    _sc.copy(a).addScaledVector(_sb, t);
+    const dx = p.x - _sc.x;
+    const dy = p.y - _sc.y;
+    const dz = p.z - _sc.z;
+    const d = Math.hypot(dx, dy, dz);
+    if (d >= R) return;
+    if (d < 1e-6) {
+      p.x = _sc.x + R;
+      return;
+    }
+    p.set(_sc.x + dx * (R / d), _sc.y + dy * (R / d), _sc.z + dz * (R / d));
+  };
+  // One substep of a critically damped spring towards `target`.
+  const spring = (st, target, w, h) => {
+    _sa.copy(target).sub(st.p).multiplyScalar(w * w).addScaledVector(st.v, -2 * w);
+    st.v.addScaledVector(_sa, h);
+    st.p.addScaledVector(st.v, h);
+  };
+  /* The body's limits on a hand target, in the torso's frame relative to the
+     shoulder at `side`·SHOULDER_Z (board frame: −1 is the nose-side one).
+     The shoulder: not more than a third of a metre behind its own plane and
+     not more than a decimetre across the chest, both loosened through a
+     grab, which reaches. The trunk and the head: see `TRUNK`. Every one of
+     these is a continuous function of the target, so a hand sliding along
+     the jacket slides — it never jumps.
+
+     The body and the reach are applied by turns, because they argue: a hand
+     pushed out of a knee can end up past the arm's reach, and pulled back
+     in it can end up in the knee again — when a leg is between the shoulder
+     and where the hand was going, which is most of a tumble. Each round
+     walks the target round the leg towards a point that is both reachable
+     and outside it, and the last word is the body's — held to a centimetre
+     and a half past the reach, so even then the elbow keeps some bend. */
+  const limitArm = (t, side, grab) => {
+    t.x = Math.max(t.x, -0.32 - 0.4 * grab);
+    const most = SHOULDER_Z + 0.10 + 0.4 * grab;
+    if (-side * t.z > most) t.z = -side * most;
+    // …and never further than the arm can reach with a bend still in it
+    // (a grab is allowed the last two centimetres: it has to arrive).
+    const far = ARMS.reach + 0.02 * grab;
+    for (let round = 0; round < 6; round++) {
+      const len = t.length();
+      if (len > far) t.multiplyScalar(far / len);
+      keepOut(t, side, grab);
+    }
+    const len = t.length();
+    if (len > far + 0.015) t.multiplyScalar((far + 0.015) / len);
+    return t;
+  };
+  const keepOut = (t, side, grab) => {
+    const shoulderZ = side * SHOULDER_Z;
+    const y = t.y + SHOULDER_Y;
+    const w = smooth01((y - TRUNK.bottom) / TRUNK.soft) * smooth01((TRUNK.top - y) / TRUNK.soft);
+    if (w > 0) {
+      const dx = t.x - TRUNK.x;
+      const dz = t.z + shoulderZ;
+      const e = Math.hypot(dx / TRUNK.rx, dz / TRUNK.rz);
+      if (e < w) {
+        if (e < 1e-6) {
+          t.x = TRUNK.x + TRUNK.rx * w;
+        } else {
+          t.x = TRUNK.x + dx * (w / e);
+          t.z = dz * (w / e) - shoulderZ;
+        }
+      }
+    }
+    _sa.set(t.x, y - HEAD_KEEP.y, t.z + shoulderZ);
+    const d = _sa.length();
+    if (d < HEAD_KEEP.r) {
+      if (d < 1e-6) _sa.set(1, 0, 0);
+      _sa.multiplyScalar(HEAD_KEEP.r / Math.max(d, 1e-6));
+      t.set(_sa.x, _sa.y + HEAD_KEEP.y - SHOULDER_Y, _sa.z - shoulderZ);
+    }
+    /* The legs, as four capsules (`legPts`, refreshed every frame once the
+       legs are solved): a hand reaching down past a driving knee goes round
+       it rather than through it. Not through a grab, whose whole point is a
+       glove between the boots. */
+    const legRoom = 1 - grab;
+    if (legRoom > 0.01) {
+      _sa.set(t.x, t.y + SHOULDER_Y, t.z + shoulderZ);
+      // (folded, the four overlap, and out of one can be into the next)
+      for (let pass = 0; pass < 3; pass++) {
+        for (let k = 0; k < 6; k += 3) {
+          pushOut(_sa, legPts[k], legPts[k + 1], LEG_KEEP.thigh * legRoom);
+          pushOut(_sa, legPts[k + 1], legPts[k + 2], LEG_KEEP.shin * legRoom);
+        }
+      }
+      t.set(_sa.x, _sa.y - SHOULDER_Y, _sa.z - shoulderZ);
+    }
+  };
+  /* A wrist: what the two travel roles want, blended onto this arm by
+     `front` the way the targets are, eased, clamped to the wrist's range,
+     plus the lag — the arm spring's velocity carried into the forearm's own
+     frame, so the glove trails whichever way the forearm is moving. */
+  const wristOf = (arm, st, a, b, t, dt) => {
+    st.flex = approach(st.flex, clamp(a.flex + (b.flex - a.flex) * t,
+      WRIST_RANGE.flexMin, WRIST_RANGE.flexMax), 10, dt);
+    st.dev = approach(st.dev, clamp(a.dev + (b.dev - a.dev) * t,
+      WRIST_RANGE.devMin, WRIST_RANGE.devMax), 10, dt);
+    st.open = approach(st.open, clamp(a.open + (b.open - a.open) * t, 0, 1), 8, dt);
+    st.fist = approach(st.fist, clamp(a.fist + (b.fist - a.fist) * t, 0, 1), 8, dt);
+    _qf.copy(arm.upper.quaternion).multiply(arm.fore.quaternion).invert();
+    _sa.copy(st.v).applyQuaternion(_qf);
+    const L = WRIST_RANGE.lag;
+    const M = WRIST_RANGE.lagMax;
+    st.lagX = approach(st.lagX, clamp(_sa.z * L, -M, M), 14, dt);
+    st.lagZ = approach(st.lagZ, clamp(-_sa.x * L, -M, M), 14, dt);
+    arm.wrist.rotation.set(-arm.palm * st.flex + st.lagX, 0, st.dev + st.lagZ);
+    const inf = arm.handMesh.morphTargetInfluences;
+    if (inf && inf.length >= 2) {
+      inf[0] = st.open * (1 - st.fist);
+      inf[1] = st.fist;
+    }
+  };
   const foot = new THREE.Vector3();
   const pole = new THREE.Vector3();
   const poleRear = new THREE.Vector3();
@@ -2034,7 +2473,30 @@ export function createRiderModel(THREE, shading) {
     // the slow copies of the two accelerations, then position and velocity
     // along the travel and across the board
     yawLast: 0, yawRate: 0, aF: 0, aL: 0, fx: 0, fv: 0, lx: 0, lv: 0,
+    // the arms' own signals: how far a hand is reaching for the snow, the
+    // brake, the balance wobble and an unclean landing's windmill (and when
+    // it started), the coil before a spin, a flip's tuck, a grab's style,
+    // the bracing at the start of a fall, an edge's chatter
+    touch: 0, brake: 0, flail: 0, heavy: 0, wave: 0, waveAt: 0, wind: 0,
+    flipTuck: 0, style: 0, brace: 0, chat: 0, landSeen: null,
   };
+  /* Each arm's target, as it comes out of its spring, and the spring's
+     velocity; the elbow's pole, eased; and the wrist's four numbers. All in
+     the torso's frame and relative to that arm's own shoulder, per arm as
+     drawn (lead is the nose-side shoulder whatever the stance). */
+  const armState = () => ({
+    p: new THREE.Vector3(), v: new THREE.Vector3(), pole: new THREE.Vector3(-0.75, -0.55, 0),
+    flex: 0, dev: 0, open: 0, fist: 0, lagX: 0, lagZ: 0,
+  });
+  const springLead = armState();
+  const springRear = armState();
+  // The wrist's wishes, in the travel frame: leading arm and trailing arm.
+  const wLead = { flex: 0, dev: 0, open: 0, fist: 0 };
+  const wRear = { flex: 0, dev: 0, open: 0, fist: 0 };
+  const _sn = new THREE.Vector3();
+  const _sa = new THREE.Vector3();
+  const _qi = new THREE.Quaternion();
+  const _qf = new THREE.Quaternion();
   const velPrev = new THREE.Vector3();
   const _acc = new THREE.Vector3();
   let seen = false;
@@ -2094,6 +2556,7 @@ export function createRiderModel(THREE, shading) {
     // the board is back on the snow within a tenth of a second of touchdown
     // whatever the hands are still doing
     const grab = s.grab * s.air * (1 - s.down);
+    s.shownGrab = grab;
     /* Which of the three reaches the hand went for, and how far the board is
        tilted up on one end. Both are read once, here, so every consumer below
        is looking at the same grab and the same press. */
@@ -2127,6 +2590,28 @@ export function createRiderModel(THREE, shading) {
       s.thump = 0;
       s.tumbleLag = rider.tumble;
     }
+
+    /* …and what kind of landing it was, which the spring's rate cannot say.
+       The physics keeps the last landing's summary (`lastLanding`), and a new
+       one is the event: a hard one — anything past `softImpact`, full by
+       three fifths of `hardImpact` — throws the arms out for balance, and an
+       unclean one (SKETCHY) sets them windmilling. Both decay on their own
+       clocks, and a bail is a fall and is drawn as one. */
+    const landed = rider.lastLanding;
+    if (landed && landed !== s.landSeen) {
+      s.landSeen = landed;
+      if (!snap && landed.verdict !== BAIL) {
+        s.heavy = Math.max(s.heavy, clamp((landed.impact - RIDER.softImpact)
+          / (RIDER.hardImpact * 0.6 - RIDER.softImpact), 0, 1));
+        if (landed.verdict === SKETCHY) {
+          s.wave = 1;
+          s.waveAt = s.clock;
+        }
+      }
+    }
+    s.heavy *= Math.exp(-2.4 * step);
+    s.wave *= Math.exp(-ARMS.waveDecay * step);
+    if (snap) s.heavy = s.wave = 0;
 
     /* --- the steering ---------------------------------------------------- */
 
@@ -2178,22 +2663,56 @@ export function createRiderModel(THREE, shading) {
     ), 9, sdt);
     const steer = s.steer * (1 - s.down);
 
+    /* --- what the arms are answering ---------------------------------------- */
+
+    /* Three of the arms' signals are needed before the arms are, because the
+       body helps with them: the hips sink and the chest folds towards a hand
+       reaching for the snow, and the chest coils with the arms before a spin.
+
+       THE REACH FOR THE SNOW is the shown edge weighted by its load — the same
+       measure the board is laid over by — so it only comes on in a carve the
+       snow is actually holding, never in a slow skid with the board on its
+       side. A tuck, a skate and a brake all have somewhere else for the hands
+       to be. Which hand goes is the edge: toeside it is the leading one, ahead
+       of the front foot, heelside the trailing one, behind the back foot.
+
+       THE COIL is the board's own yaw rate while he is crouched to pop: the
+       board is already turning the way the spin will go, so the arms wind
+       the other way, and it is let go the moment he leaves the snow — which
+       is exactly when the lead in the air takes over and swings them
+       through. */
+    s.brake = approach(s.brake, clamp(rider.brake || 0, 0, 1), 7, sdt);
+    const braking = s.brake * (1 - s.air) * (1 - s.down) * (1 - skate);
+    const onSnow = (1 - s.air) * (1 - s.down) * (1 - grab);
+    const carveDeep = smooth01(
+      (Math.abs(s.edge) * (0.4 + 0.6 * s.load) - ARMS.touchFrom) / ARMS.touchSpan,
+    );
+    s.touch = approach(s.touch,
+      carveDeep * onSnow * (1 - s.tuck) * (1 - skate) * (1 - braking), 5, sdt);
+    const touchToe = s.touch * smooth01(steer / 0.3);
+    const touchHeel = s.touch * smooth01(-steer / 0.3);
+    s.wind = approach(s.wind, rider.state === 'ride' && rider.grounded
+      ? clamp((rider.spinVel || 0) / ARMS.windRate, -1, 1) * s.charge : 0, 6, sdt);
+
     /* Counter-rotation.
 
        The hips are bolted to the board by the bindings, so every degree of
        this happens at the waist. On the snow the shoulders wind *against* the
        pelvis the back foot has just turned — that differential is the whole
        reason a snowboarder's shoulders and hips are never in the same plane.
-       In the air they trail the spin instead, which is what makes a 540 read
-       as a body being wound rather than a model being rotated. */
+       In the air they lead the spin instead, a step behind the arms, which is
+       what makes a 540 read as a body throwing a rotation rather than a model
+       being rotated — and on the snow, crouched to pop with the board
+       already turning, they coil against it first (`ARMS.windChest`). */
     const counter = POSE.counter * steer * sw * (0.45 + 0.55 * s.load);
-    // Positive, because the model's yaw runs against the physics' compass
+    // Negative, because the model's yaw runs against the physics' compass
     // one: a spin the physics calls positive turns the *model* negative, so
-    // shoulders that lag it are shoulders wound the other way.
-    const trail = clamp(rider.spinVel / RIDER.spinRate, -1, 1)
-      * POSE.spinTrail * (1 - grab * 0.65);
+    // shoulders that lead it are turned negative too — and the coil before
+    // it, which winds the other way, is positive.
+    const spinLead = clamp(rider.spinVel / RIDER.spinRate, -1, 1)
+      * POSE.spinLead * (1 - grab * 0.65);
     const idle = 1 - Math.max(
-      grab, s.down, s.tuck * 0.7, skate, Math.abs(steer) * 0.6,
+      grab, s.down, s.tuck * 0.7, skate, Math.abs(steer) * 0.6, braking, s.charge,
     );
     /* How much of the riding stance is still in force.
 
@@ -2206,7 +2725,8 @@ export function createRiderModel(THREE, shading) {
        standing lower, not a different rider. */
     const upright = (1 - grab) * (1 - s.down);
     s.twist = approach(s.twist,
-      POSE.stance * sw + counter * (1 - s.air) + trail * s.air
+      POSE.stance * sw + counter * (1 - s.air) - spinLead * s.air
+      + s.wind * ARMS.windChest
       + Math.sin(s.clock * 0.53) * 0.06 * idle, 7, sdt);
     // The body's own inclination, positive towards the toe edge. The physics
     // signs it the other way round because it is describing a turn direction
@@ -2567,6 +3087,8 @@ export function createRiderModel(THREE, shading) {
       - POSE.crouch * (1 - s.air * 0.4)
       - squat * POSE.hipPerSquat + stretch * POSE.hipPerStretch
       - s.tuck * POSE.tuckDrop - skate * POSE.pushDrop - s.down * POSE.fallDrop
+      // and a little lower while a hand is reaching for the snow
+      - ARMS.touchDrop * s.touch
       // the knees come up off the snow and the landing folds them; both are
       // events with their own decay, and neither is anything the leg spring's
       // own travel would ever have drawn
@@ -2652,7 +3174,10 @@ export function createRiderModel(THREE, shading) {
     // from reading as a man falling over sideways at a constant rate.
     const fold = -G.fold * grab - s.down * 0.5 * (1 - grab)
       + s.lean * POSE.angulate * (1 - grab)
-      - POSE.chestSide * upright * (1 - s.tuck * 0.7);
+      - POSE.chestSide * upright * (1 - s.tuck * 0.7)
+      // …and over the side a hand is reaching to the snow on: forwards over
+      // the toe edge, and a little back towards the heel one
+      - ARMS.touchFold * touchToe + ARMS.touchFoldHeel * touchHeel;
     /* Going over, he curls up and the chest trails the tumble by however far
        the roll has outrun the smoothed copy of it — and it flops sideways as
        well, which is the half that was missing. A body trailing a rotation in
@@ -2788,89 +3313,180 @@ export function createRiderModel(THREE, shading) {
        whichever end of the board is currently leading, and is mirrored into
        board space at the very bottom. That is the only way a switch landing
        stays one rider: the poses do not know which stance he is in, they know
-       front from back, and `sw` decides what that means this frame.
+       front from back, and `sw` decides what that means this frame. `hand` is
+       the leading arm and `other` the trailing one, each a point relative to
+       its own shoulder; the places they go are the `ARMS` table, and they are
+       layered below in a fixed order — every one a lerp towards a place or a
+       movement added on top — so any number of them can be partly on at once
+       and none ever has to hand over to another.
 
        Riding: down. Not out.
 
-       This pose has now been wrong twice for opposite reasons. Before the rig
-       it was arms held out sideways from a torso facing down the hill, a
-       T-pose with the corners knocked off. The rig replaced that with hands
-       spread along the board — 0.35 m towards the nose and 0.26 towards the
-       tail against 0.38 of drop, on an arm 0.58 m long — which is a different
-       shape and the same mistake: seen from behind, which is where the camera
-       lives, spread along the board *is* spread sideways, and what it read as
-       was a man being electrocuted.
-
-       An arm at rest hangs. Both of these are now within a hand's width of
-       straight down, the leading one reaching a little towards the nose and
-       the trailing one hanging past the hip, and both are held about 0.53 m
-       from the shoulder rather than 0.55 — three centimetres of slack that
-       the solver spends on keeping a bend in the elbow, because a straight
-       arm is a stick and a bent one is a person. */
-    hand.set(0.15, -0.47, -0.19);
-    other.set(0.07, -0.51, 0.14);
+       This pose has been wrong twice for opposite reasons: arms held out
+       sideways, a T-pose with the corners knocked off, and then hands spread
+       along the board, which seen from behind — where the camera lives — is
+       the same thing and read as a man being electrocuted. An arm at rest
+       hangs: within a hand's width of straight down, the leading one reaching
+       a little towards the nose, both held a few centimetres inside full
+       reach so the solver keeps a bend in the elbow, because a straight arm
+       is a stick and a bent one is a person. At speed they come in. */
+    const speedK = smooth01((rider.speed - ARMS.speedLo) / (ARMS.speedHi - ARMS.speedLo));
+    const compact = speedK * ARMS.speedShare * (1 - s.tuck);
+    // The legs as the hands have to keep out of them (`limitArm`): hip, knee
+    // and ankle of each, carried out of the hips' frame into the chest's.
+    mInv.copy(torso.matrix).invert();
+    for (let k = 0; k < 2; k++) {
+      const leg = k ? legRear : legLead;
+      const a = legPts[k * 3];
+      const b = legPts[k * 3 + 1];
+      const c = legPts[k * 3 + 2];
+      a.copy(leg.upper.position);
+      b.set(0, -THIGH, 0).applyQuaternion(leg.upper.quaternion).add(a);
+      _qf.copy(leg.upper.quaternion).multiply(leg.fore.quaternion);
+      c.set(0, -SHIN, 0).applyQuaternion(_qf).add(b);
+      a.applyMatrix4(mInv);
+      b.applyMatrix4(mInv);
+      c.applyMatrix4(mInv);
+    }
+    point(hand, ARMS.hangLead);
+    point(other, ARMS.hangRear);
+    toward(hand, ARMS.fastLead, compact);
+    toward(other, ARMS.fastRear, compact);
+    wish(wLead, 0.14, 0.16, 0.15, 0.10 + 0.35 * compact, 1);
+    wish(wRear, 0.14, 0.16, 0.15, 0.10 + 0.35 * compact, 1);
 
     /* And they never hold quite still.
 
-       A centimetre of drift on each hand, from four sines whose periods share
-       no common multiple — so the pattern does not repeat inside any run
-       anybody will ever ride, and it never has the tell of a loop. Arms are
-       the heaviest thing hanging off a body that is being shaken by a
-       mountain; they are the last part of a rider that would ever be
-       motionless, and holding them rigid is what makes a good rig read as a
-       puppet at rest.
-
-       It goes on before every other pose blends over it, so a grab still
-       arrives exactly on the board's edge and a tuck still puts the hands
-       exactly where a tuck puts them. `idle` takes it away whenever the arms
-       have somewhere specific to be — which now includes steering, because a
-       rider mid-carve is not idling. */
-    const sway = 0.011 * idle;
+       A centimetre of drift on each hand, from sines whose periods share no
+       common multiple, so the pattern never has the tell of a loop — more of
+       it slow, where nothing else is moving the arms. On top of that they
+       swing with the board: a board yawing under him leaves the hands behind
+       for a moment, the way anything hanging from a turning body is left. And
+       standing nearly still, every few seconds, one arm is let swing out and
+       back — the shake a rider gives an arm that has been holding the same
+       shape all the way down. `idle` takes all of it away whenever the arms
+       have somewhere specific to be. */
+    const slow = 1 - speedK;
+    const sway = 0.011 * idle * (1 + 0.7 * slow);
     hand.x += Math.sin(s.clock * 0.83) * sway;
     hand.y += Math.sin(s.clock * 1.27 + 1.1) * sway * 0.8;
     hand.z += Math.sin(s.clock * 0.61 + 2.4) * sway;
     other.x += Math.sin(s.clock * 0.71 + 2.2) * sway;
     other.y += Math.sin(s.clock * 1.09 + 0.4) * sway * 0.8;
     other.z += Math.sin(s.clock * 0.53 + 4.1) * sway;
+    const swing = clamp(s.yawRate * 0.07, -0.12, 0.12) * (1 - s.air) * upright * sw;
+    aboutSpine(hand, -SHOULDER_Z, swing);
+    aboutSpine(other, SHOULDER_Z, swing);
+    {
+      const at = s.clock % ARMS.idleEvery;
+      const g = at < ARMS.idleSpan ? Math.sin(Math.PI * at / ARMS.idleSpan) : 0;
+      const shake = g * idle * smooth01((4 - rider.speed) / 3) * (1 - s.air);
+      if (shake > 0) {
+        const ph = (at / ARMS.idleSpan) * TAU;
+        hand.z -= Math.sin(ph) * 0.10 * shake;
+        hand.x += Math.sin(ph) * 0.06 * shake;
+        hand.y += (1 - Math.cos(ph)) * 0.035 * shake;
+        wLead.dev -= 0.25 * shake;
+        wLead.open += 0.5 * shake;
+      }
+    }
 
     /* Carving, which is where the hands stop hanging and start working.
 
-       The leading hand comes up and reaches out over the nose and across the
-       edge he is going onto — which a rider's hands do a fraction of a second
-       before the board follows them round — and the trailing hand drops back
-       over the tail. That opposition is the arms' half of counter-rotation
-       and it is why a carve does not need the arms spread the rest of the
-       time: the contrast has to be spent somewhere, and this is where.
-
-       Every one of these lands the hand about 0.56 m from the shoulder at
-       full lock, three centimetres inside the 0.58 the arm has. Overshoot it
-       and the solver clamps to a straight arm pointing at the target, and a
-       carve with two straight arms in it is the pose this file started
-       with. */
-    const carve = Math.abs(steer);
-    hand.x += steer * 0.14;
-    hand.y += carve * 0.12;
-    hand.z -= carve * 0.14;
-    other.x += steer * 0.06;
-    other.z += carve * 0.08;
+       The leading hand goes into the turn first, a fraction of a second
+       before the board follows it round: out over the nose and, on the toe
+       edge, across towards the inside the rider is facing, and on the heel
+       edge forward of the chest, against a rider sitting back. On the toes the
+       trailing hand is the counterweight, up and back over the tail. Then, as
+       the edge goes
+       over and the snow takes the load, one hand goes all the way down to it:
+       the leading one beside the toe edge, the trailing one behind the heel
+       edge (`ARMS.touchToe`/`touchHeel`, and `s.touch` above). That point is
+       on the snow, so it is placed on the snow — in the root's frame, where
+       the hill's normal is known, then carried through the hips and the chest
+       into the reaching shoulder exactly as the grab carries its point — and
+       it is held inside the arm's reach, so a carve not laid over far enough
+       to touch is a hand reaching for the snow and stopping short of it. The
+       arms ride the chest's counter-rotation for free: everything here is in
+       the chest's own frame. */
+    const toe = Math.max(0, steer) * onSnow;
+    const heel = Math.max(0, -steer) * onSnow;
+    hand.x += 0.12 * toe + 0.09 * heel;
+    hand.y += 0.02 * toe + 0.07 * heel;
+    hand.z -= 0.12 * toe + 0.14 * heel;
+    other.x += -0.14 * toe - 0.05 * heel;
+    other.y += 0.30 * toe - 0.02 * heel;
+    other.z += 0.13 * toe + 0.07 * heel;
+    if (s.touch > 0.002) {
+      mInv.copy(hips.matrix).multiply(torso.matrix).invert();
+      _qi.copy(root.quaternion).invert();
+      _sn.copy(rider.normal).applyQuaternion(_qi);
+      const hover = ARMS.touchHover + s.sink;
+      if (touchToe > 0.002) {
+        hand.lerp(toSnow(_ta, ARMS.touchToe[0], ARMS.touchToe[1], -SHOULDER_Z, sw, hover), touchToe);
+        wish(wLead, -0.55, -0.05, 0.9, 0, touchToe);
+      }
+      if (touchHeel > 0.002) {
+        other.lerp(toSnow(_ta, ARMS.touchHeel[0], ARMS.touchHeel[1], SHOULDER_Z, sw, hover), touchHeel);
+        wish(wRear, -0.45, 0.2, 0.9, 0, touchHeel);
+      }
+    }
 
     // Skating puts the shoulders into opposition: the front arm reaches with
     // the board while the rear arm swings back over the driving leg.
-    hand.lerp(_f.set(0.28, -0.34, -0.34), skate * 0.86);
-    other.lerp(_f.set(-0.16, -0.38, 0.29), skate * 0.86);
+    toward(hand, ARMS.skateLead, skate * 0.86);
+    toward(other, ARMS.skateRear, skate * 0.86);
 
-    // Tucked: arms spread low and wide across the board, which is how a
-    // snowboarder actually holds a tuck — the hands go out for the balance
-    // the narrowed stance has just given up, not in against the chest the
-    // way a skier's do. Pulling them in was most of why the pose read wrong;
-    // reaching for a point further away than the arm is long was the rest,
-    // because a target out of reach is a straight arm by definition.
-    hand.lerp(_f.set(0.30, -0.40, -0.28), s.tuck);
-    other.lerp(_f.set(0.28, -0.42, 0.26), s.tuck);
+    // Tucked, the hands come in to the knees — see `ARMS.tuckLead`.
+    toward(hand, ARMS.tuckLead, s.tuck);
+    toward(other, ARMS.tuckRear, s.tuck);
+    wish(wLead, 0.25, 0.05, 0, 0.75, s.tuck);
+    wish(wRear, 0.25, 0.05, 0, 0.75, s.tuck);
+
+    /* Stopping. A speed check is the one time on the snow the arms go out:
+       wide along the board, palms open, and forward of the chest on a heel
+       edge, which he is sitting back against. A hard stop — the body being
+       slowed faster than three metres a second each second — sets them
+       wobbling about that, and so does an edge chattering on ice, and so
+       does a heavy landing, each on the same slow balance clock rather than
+       a buzz: about a cycle a second, never faster. */
+    const heelStop = clamp(-steer * 2, 0, 1);
+    toward(hand, ARMS.brakeLead, braking);
+    toward(other, ARMS.brakeRear, braking);
+    hand.x += ARMS.brakeHeel * heelStop * braking;
+    other.x += ARMS.brakeHeel * heelStop * braking;
+    wish(wLead, -0.25, -0.05, 0.85, 0, braking);
+    wish(wRear, -0.25, -0.05, 0.85, 0, braking);
+    s.chat = approach(s.chat, rider.chatter || 0, 6, sdt);
+    const shaken = Math.max(
+      clamp((-s.aF - 3) / 9, 0, 1) * braking,
+      s.chat * 0.6 * (1 - s.air) * (1 - s.down),
+      s.heavy * (1 - s.down),
+    );
+    s.flail = approach(s.flail, shaken, shaken > s.flail ? 6 : 2.2, sdt);
+    if (s.flail > 0.002) {
+      const a = ARMS.flail * s.flail;
+      hand.x += Math.sin(s.clock * 6.1) * a * 0.6;
+      hand.y += (1.3 + Math.sin(s.clock * 7.3 + 0.7)) * a;
+      hand.z += (Math.sin(s.clock * 5.3 + 1.9) - 1.2) * a;
+      other.x += Math.sin(s.clock * 5.7 + 2.3) * a * 0.6;
+      other.y += (1.3 + Math.sin(s.clock * 6.7 + 3.1)) * a;
+      other.z += (Math.sin(s.clock * 6.4 + 0.4) + 1.2) * a;
+      wish(wLead, -0.2, 0, 0.8, 0, s.flail);
+      wish(wRear, -0.2, 0, 0.8, 0, s.flail);
+    }
+
     // Coiling an ollie drags them back and down, behind the heel edge, where
-    // they have the whole length of a throw ahead of them
-    hand.lerp(_f.set(-0.20, -0.42, -0.20), s.charge);
-    other.lerp(_f.set(-0.22, -0.42, 0.18), s.charge);
+    // they have the whole length of a throw ahead of them; with the board
+    // already turning they wind against it, about the spine (`ARMS.windUp`).
+    toward(hand, ARMS.chargeLead, s.charge);
+    toward(other, ARMS.chargeRear, s.charge);
+    wish(wLead, 0.2, 0.1, 0, 0.45, s.charge);
+    wish(wRear, 0.2, 0.1, 0, 0.45, s.charge);
+    if (Math.abs(s.wind) > 1e-4) {
+      aboutSpine(hand, -SHOULDER_Z, s.wind * ARMS.windUp * sw);
+      aboutSpine(other, SHOULDER_Z, s.wind * ARMS.windUp * sw);
+    }
 
     /* Airborne, the hands come in off the hips and up in front of him.
 
@@ -2878,51 +3494,83 @@ export function createRiderModel(THREE, shading) {
        the arms hang because there is a board under them holding the rider up;
        in the air there is nothing to be still against, and every photograph
        of anybody off a lip has the hands up, in, and bent at the elbow —
-       balancing the rotation rather than hanging off it. It goes on before
-       the throw and before the spin trail, so a pop still fires through it
-       and a spin still drags it round. */
+       balancing the rotation rather than hanging off it. A flip pulls them
+       further in, to the knees, which is what makes it go round. */
     const flight = s.air * (1 - grab) * (1 - s.down);
-    hand.lerp(_f.set(0.27, -0.24, -0.30), flight);
-    other.lerp(_f.set(0.23, -0.29, 0.27), flight);
+    toward(hand, ARMS.flightLead, flight);
+    toward(other, ARMS.flightRear, flight);
+    wish(wLead, 0.05, 0.1, 0.4, 0, flight);
+    wish(wRear, 0.05, 0.1, 0.4, 0, flight);
+    s.flipTuck = approach(s.flipTuck,
+      clamp(Math.abs(rider.flipVel || 0) / RIDER.flipRate, 0, 1) * flight, 8, sdt);
+    toward(hand, ARMS.flipLead, s.flipTuck);
+    toward(other, ARMS.flipRear, s.flipTuck);
+    wish(wLead, 0.3, 0, 0, 0.8, s.flipTuck);
+    wish(wRear, 0.3, 0, 0, 0.8, s.flipTuck);
 
-    // …and the pop throws them up and forward over the leading tip, which is
-    // where the height comes from on a real one. It is added on top of
-    // whatever pose is underneath rather than blended into it, because a
-    // throw is a movement and not a shape.
-    hand.y += s.pop * 0.42 + s.thump * 0.26;
+    /* …and the pop throws them up and forward over the leading tip, which is
+       where the height comes from on a real one. It is added on top of
+       whatever pose is underneath rather than blended into it, because a
+       throw is a movement and not a shape. A landing is the opposite
+       movement: the legs fold, and the hands come forward and in to the
+       knees to keep the weight over the board (`ARMS.absorb`). */
+    hand.y += s.pop * 0.42;
     hand.z -= s.pop * 0.18;
     hand.x += s.pop * 0.16;
-    other.y += s.pop * 0.38 + s.thump * 0.30;
+    other.y += s.pop * 0.38;
     other.z -= s.pop * 0.10;
     other.x += s.pop * 0.10;
+    hand.x += ARMS.absorb[0] * s.thump;
+    hand.y += ARMS.absorb[1] * s.thump;
+    hand.z += ARMS.absorb[2] * s.thump;
+    other.x += ARMS.absorb[0] * s.thump;
+    other.y += ARMS.absorb[1] * s.thump;
+    other.z -= ARMS.absorb[2] * s.thump;
 
-    // In the air the hands trail the spin, further round than the shoulders
-    // do, and pull in as the rotation winds up. The angle is signed into the
-    // travel frame so that it still trails the *world* spin when he is riding
-    // switch, rather than politely leading it.
+    /* In the air the arms lead the spin, further round than the shoulders,
+       and pull in as the rotation winds up. The angle is signed into the
+       travel frame so that it still leads the *world* spin when he is riding
+       switch. */
     if (s.air > 0.002) {
-      const wind = clamp(rider.spinVel / RIDER.spinRate, -1, 1) * POSE.armTrail * s.air * sw;
-      const tight = 1 - Math.abs(wind) * 0.22;
-      hand.applyAxisAngle(UP, wind).multiplyScalar(tight);
-      other.applyAxisAngle(UP, wind).multiplyScalar(tight);
+      const spin = clamp(rider.spinVel / RIDER.spinRate, -1, 1) * s.air;
+      const turn = -spin * POSE.armLead * sw * (1 - grab * 0.5);
+      const tight = 1 - Math.abs(spin) * 0.22 * (1 - grab);
+      aboutSpine(hand, -SHOULDER_Z, turn).multiplyScalar(tight);
+      aboutSpine(other, SHOULDER_Z, turn).multiplyScalar(tight);
+    }
+
+    /* An unclean landing waves: both arms windmill in opposition, big and
+       slow, for the second or so it takes to get the board back under him.
+       The circle runs along the board, so from behind it reads as a rider
+       fighting for balance rather than waving at somebody. */
+    if (s.wave > 0.002) {
+      const a = ARMS.wave * s.wave * (1 - s.down);
+      const ph = (s.clock - s.waveAt) * ARMS.waveRate;
+      hand.y += (1.1 + 0.8 * Math.sin(ph)) * a;
+      hand.z += (-0.6 + 0.9 * Math.cos(ph)) * a;
+      hand.x -= 0.2 * a;
+      other.y += (1.1 - 0.8 * Math.sin(ph)) * a;
+      other.z += (0.6 - 0.9 * Math.cos(ph)) * a;
+      other.x -= 0.2 * a;
+      wish(wLead, -0.3, 0, 1, 0, s.wave);
+      wish(wRear, -0.3, 0, 1, 0, s.wave);
     }
 
     /* The hands are the heaviest thing on the end of the longest lever, so
        they carry the most follow-through: carried on forwards and across by
-       exactly the lag the chest took, a little more than one for one. It is
-       written in the travel frame like everything else here (−Z is the way
-       he is going) and it goes on *before* the grab and the fall, which both
-       lerp to where the hand has to be — so a grab still lands exactly on
-       the board's edge, however hard the landing that preceded it. */
+       exactly the lag the chest took, a little more than one for one. It goes
+       on *before* the grab and the fall, which both lerp to where the hand
+       has to be — so a grab still lands exactly on the board's edge, however
+       hard the landing that preceded it. */
     hand.z -= lagF * 1.4;
     other.z -= lagF * 1.4;
     hand.x += lagL * 1.1;
     other.x += lagL * 1.1;
 
-    // Elbows back and down while riding; up and back in a grab, so the arm
-    // hangs off the shoulder rather than hinging through the ribs
-    pole.set(-0.75, -0.55, -0.15);
-    poleRear.set(-0.75, -0.55, 0.15);
+    // The elbows go where the hands say: back and down while they hang, down
+    // and out as they come up past the chest.
+    elbowPole(pole, hand, -1);
+    elbowPole(poleRear, other, 1);
 
     /* The grab. The one pose expressed somewhere other than the shoulder:
        the target is a fixed point on the board, and the board is three
@@ -2933,14 +3581,13 @@ export function createRiderModel(THREE, shading) {
        WHICH SHOULDER IS PART OF THE GRAB, and it has to be, because the three
        of them do not use the same hand. An indy and a method are trailing-hand
        grabs and a nose grab is a leading-hand one, and that is not a naming
-       convention — it is where the hand can physically get to. Routed through
-       one arm for all three, the method sent the leading arm across the body
-       to the heel edge behind the rider, which is a shape nobody has ever
-       made on a snowboard.
+       convention — it is where the hand can physically get to.
 
        `gs` is the whole of it. The two shoulders sit at ∓SHOULDER_Z, the
        free arm's balance pose is its own mirror image, and one sign carries
-       all four. */
+       all four. The free arm is the style: up and out at once, and boned out
+       straight the longer the grab is held. The grabbing hand closes and its
+       wrist goes straight, so the glove is on the edge and not near it. */
     if (grab > 0.002) {
       const gs = G.lead ? 1 : -1;
       const reach = G.lead ? hand : other;
@@ -2955,25 +3602,46 @@ export function createRiderModel(THREE, shading) {
       _f.z *= sw;                 // …and back into the travel frame with the rest
       reach.lerp(_f, grab);
       reachPole.lerp(_u.set(-0.45, 0.75, -0.2 * gs), grab);
-      // the free hand goes up and out for balance, which is what makes a
-      // grab read as a rider tweaking rather than a rider bending over
-      free.lerp(_u.set(0.10, 0.10, 0.46 * gs), grab);
-      freePole.lerp(_u.set(-0.5, -0.2, 0.3 * gs), grab);
+      s.style = approach(s.style,
+        smooth01(((rider.grabTime || 0) - ARMS.styleFrom) / ARMS.styleSpan), 6, sdt);
+      const A = ARMS.freeArm;
+      const B = ARMS.styleArm;
+      const k = s.style;
+      free.lerp(_u.set(
+        A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k, (A[2] + (B[2] - A[2]) * k) * gs,
+      ), grab);
+      freePole.lerp(_u.set(-0.5, -0.2 - 0.3 * k, 0.3 * gs), grab);
+      const wReach = G.lead ? wLead : wRear;
+      const wFree = G.lead ? wRear : wLead;
+      wish(wReach, 0, 0, 0, 1, grab);
+      wish(wFree, -0.15 - 0.35 * k, -0.1, 0.6 + 0.4 * k, 0, grab);
+    } else {
+      s.style = approach(s.style, 0, 6, sdt);
     }
 
-    /* Falling: the arms stop being posed at all. They chase a point that is
+    /* Falling. For its first moments the arms are thrown out ahead of the
+       body to meet the snow — palms open, elbows soft, which is what anybody
+       does going over — and then the tumble takes them: they chase a point
        swung round by however far the body's rotation has outrun the smoothed
-       copy of it — so they genuinely trail the tumble, at an angle that grows
+       copy of it, so they genuinely trail the tumble, at an angle that grows
        with how fast he is going over, and flail on top of that. */
+    s.brace = approach(s.brace, rider.state === 'fall'
+      ? 1 - smooth01((rider.fallElapsed || 0) / ARMS.braceTime) : 0, 18, sdt);
     if (s.down > 0.002) {
+      const tumbleArms = s.down * (1 - s.brace);
       _f.set(0.05, -0.26, -0.44)
         .applyAxisAngle(AX, (-lag * 0.9 + Math.sin(s.clock * 7.1) * 0.22) * sw);
-      hand.lerp(_f, s.down);
+      hand.lerp(_f, tumbleArms);
       _f.set(0.05, -0.24, 0.42)
         .applyAxisAngle(AX, (-lag * 1.1 + Math.sin(s.clock * 6.3 + 2.1) * 0.22) * sw);
-      other.lerp(_f, s.down);
-      pole.lerp(_u.set(-0.4, 0.2, -0.5), s.down);
-      poleRear.lerp(_u.set(-0.4, 0.2, 0.5), s.down);
+      other.lerp(_f, tumbleArms);
+      const braced = s.down * s.brace;
+      toward(hand, ARMS.braceLead, braced);
+      toward(other, ARMS.braceRear, braced);
+      pole.lerp(_u.set(-0.4, 0.2 - 0.6 * s.brace, -0.5), s.down);
+      poleRear.lerp(_u.set(-0.4, 0.2 - 0.6 * s.brace, 0.5), s.down);
+      wish(wLead, -0.6 * s.brace, 0, 1, 0, s.down);
+      wish(wRear, -0.6 * s.brace, 0, 1, 0, s.down);
     }
     s.tumbleLag = approach(s.tumbleLag, rider.tumble, 7, sdt);
 
@@ -2995,8 +3663,60 @@ export function createRiderModel(THREE, shading) {
     pLead.copy(poleRear).lerp(pole, front);
     pRear.copy(pole).lerp(poleRear, front);
 
-    solve(armLead, UPPER, FORE, tLead, pLead);
-    solve(armRear, UPPER, FORE, tRear, pRear);
+    /* Through the springs, and inside the body's limits.
+
+       Every target above is continuous, but some of them move fast — a pop
+       is an instant, a landing is a frame — and a hand that teleports to its
+       new place is the one thing an eye always catches. So each target is the
+       rest point of a critically damped spring (ω `ARMS.omega`: settled in a
+       few tenths, never past its mark), and the spring is what the arm is
+       solved to. Through a grab it stiffens to `omegaGrab`, so the glove
+       still arrives on the board's edge and stays there, and most of the way
+       there while the arms are thrown out to break a fall, which nobody does
+       slowly. It is integrated in substeps for the same reason the
+       follow-through is.
+
+       Then the joints. The shoulder will not take a hand far behind the back
+       or more than a decimetre across the chest (a grab, which reaches, is
+       allowed further), and no hand ever goes into the trunk or the head:
+       a target inside them is moved out to their surface (`TRUNK`). The
+       elbow's own limit is the solver's: it only ever bends towards its pole,
+       so it cannot hyperextend, and the pole is eased so that it can never
+       flip. */
+    const omega = ARMS.omega + (ARMS.omegaGrab - ARMS.omega) * Math.max(grab, 0.6 * s.brace * s.down);
+    if (snap) {
+      springLead.p.copy(tLead);
+      springRear.p.copy(tRear);
+      springLead.v.set(0, 0, 0);
+      springRear.v.set(0, 0, 0);
+      springLead.pole.copy(pLead);
+      springRear.pole.copy(pRear);
+    } else {
+      const sub = Math.max(1, Math.ceil(step * 240));
+      const h = step / sub;
+      for (let i = 0; i < sub; i++) {
+        spring(springLead, tLead, omega, h);
+        spring(springRear, tRear, omega, h);
+      }
+      springLead.pole.lerp(pLead, 1 - Math.exp(-12 * step));
+      springRear.pole.lerp(pRear, 1 - Math.exp(-12 * step));
+    }
+    tLead.copy(springLead.p);
+    tRear.copy(springRear.p);
+    limitArm(tLead, -1, grab);
+    limitArm(tRear, 1, grab);
+
+    solve(armLead, UPPER, FORE, tLead, springLead.pole);
+    solve(armRear, UPPER, FORE, tRear, springRear.pole);
+
+    /* The wrists, last, because how a hand hangs off its forearm depends on
+       where the forearm went. What each arm wants (curl, turn, how open, how
+       closed) is blended onto its shoulder the way the targets were; then
+       the hand lags the arm's motion — the spring's velocity, carried into
+       the forearm's own frame — so a flail, a wave or a throw drags the
+       glove behind it and a still arm lets it hang. */
+    wristOf(armLead, springLead, wRear, wLead, front, sdt);
+    wristOf(armRear, springRear, wLead, wRear, front, sdt);
 
     /* --- shadow ------------------------------------------------------------ */
 
@@ -3079,6 +3799,11 @@ export function createRiderModel(THREE, shading) {
     swap(armRear.upperMesh, g.upperArm);
     swap(armLead.foreMesh, g.foreArmLead);
     swap(armRear.foreMesh, g.foreArmRear);
+    swap(armLead.handMesh, g.handLead);
+    swap(armRear.handMesh, g.handRear);
+    // the new gloves carry their own morph targets; the influences follow
+    armLead.handMesh.updateMorphTargets();
+    armRear.handMesh.updateMorphTargets();
     swap(legLead.upperMesh, g.thighLead);
     swap(legRear.upperMesh, g.thighRear);
     swap(legLead.foreMesh, g.shin);
@@ -3101,6 +3826,9 @@ export function createRiderModel(THREE, shading) {
     s.switched = 0;
     s.yawRate = 0;
     s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
+    // the arms' own signals; their springs are re-seeded by the snap
+    s.touch = s.brake = s.flail = s.heavy = s.wave = s.wind = 0;
+    s.flipTuck = s.style = s.brace = s.chat = 0;
     headlamp.reset();
   }
 
@@ -3117,6 +3845,11 @@ export function createRiderModel(THREE, shading) {
       push: s.push,
       rearBoot: rearBoot.position.toArray(),
       headlamp: headlamp.debug(),
+      // what the arms are answering this frame (see `ARMS`)
+      arms: {
+        grab: s.shownGrab || 0, touch: s.touch, brake: s.brake, flail: s.flail,
+        wave: s.wave, wind: s.wind, flip: s.flipTuck, style: s.style, brace: s.brace,
+      },
     }),
   };
 }
