@@ -1295,9 +1295,13 @@ function sweepBox(ax, az, bx, bz, s, radius, out) {
   return true;
 }
 
+// Stamped on a shared contact the rider began this step inside; see `collideWith`.
+let collideStep = 0;
+
 function collide() {
   const zLo = Math.min(prev.z, rider.pos.z) - RIDER.radius;
   const zHi = Math.max(prev.z, rider.pos.z) + RIDER.radius;
+  collideStep += 1;
   // The huts keep their own short list; see `HUT_BOXES` in huts.js.
   if (collideWith(props.solids, zLo, zHi)) return;
   collideWith(huts.solids, zLo, zHi);
@@ -1317,6 +1321,19 @@ function holdOut(restitution) {
 
 // One list's pass; true when the rider went down and the step is over.
 function collideWith(solids, zLo, zHi) {
+  /* A stone, a log or a fence is several circles sharing one contact, and
+     inside any of them is inside the whole thing. Marked before the pass,
+     whatever order the circles come in: a rider who came down into one
+     circle of a stone was struck by the next one they slid into. */
+  for (let i = 0; i < solids.length; i++) {
+    const s = solids[i];
+    if (!s.contact || s.hw !== undefined) continue;
+    if (s.z + s.r < zLo || s.z - s.r > zHi) continue;
+    const dx = prev.x - s.x;
+    const dz = prev.z - s.z;
+    const reach = s.r + RIDER.radius;
+    if (dx * dx + dz * dz <= reach * reach) s.contact.inside = collideStep;
+  }
   for (let i = 0; i < solids.length; i++) {
     const s = solids[i];
     if (s.z + s.r < zLo || s.z - s.r > zHi) continue;
@@ -1348,7 +1365,8 @@ function collideWith(solids, zLo, zHi) {
        sideways — often back up their own path and into a full-speed strike —
        so they ride off it instead. A hut's box is a building: landing on it
        is still a crash. */
-    if (sweepHit.t === 0 && !contact.hit && s.hw === undefined) continue;
+    if (!contact.hit && s.hw === undefined
+      && (sweepHit.t === 0 || contact.inside === collideStep)) continue;
     // A tumbling body is held out of what it slides into, and only held: the
     // wipeout has already happened. Left out, it slid through every trunk,
     // rock and hut wall in its path.

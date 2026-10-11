@@ -2851,41 +2851,85 @@ export function createProps(THREE, shading) {
   /* A trunk collides out to a fixed allowance, 0.5 + 0.45 of its scale, which
      the low boughs of most trees hide. A few modelled ones are bare to well
      over a rider's head, and round those the allowance was a hand's breadth
-     of air that put riders down. So once the modelled forest lands, the
-     drawing is sliced at four heights between the board and the head: where
-     nothing in it reaches the allowance, the collider is the trunk at its
-     narrowest there. */
-  const trunkReach = treePools.map(() => ({ narrow: Infinity, wide: Infinity }));
-  const trunkRadius = (v, s) => {
+     of air that put riders down. So once the modelled forest lands, each
+     variant's drawing is sliced every `RUNG` of its own height, and each tree
+     reads the rungs its own vertical scale and bedding put between the snow
+     at its foot and a head's height over it — widened by how far its longest
+     bough dips into that window on the downhill side of its lean. Where
+     nothing there reaches the allowance, the collider is the trunk itself:
+     the circle every rung of it holds round the axis, on the narrow side of
+     its oval, centred where the leaning trunk crosses the middle of the
+     window and shrunk by how far it drifts across it. */
+  const RUNG = 0.1;
+  const trunkReach = treePools.map(() => null);
+  function fitTrunk(t) {
+    const [, v, s, sy, oval, lift, x, z, ax, az] = t.fit;
     const allowance = 0.5 + s * 0.45;
-    const { narrow, wide } = trunkReach[v];
-    return wide * s >= allowance ? allowance : Math.max(0.25, narrow * s);
-  };
-  function fitTrunk(t) { t.r = trunkRadius(t.fit[1], t.fit[2]); }
-  function reachAtRiderHeight(geometry) {
+    t.x = x;
+    t.z = z;
+    t.r = allowance;
+    const rungs = trunkReach[v];
+    if (!rungs) return;
+    const squash = Math.abs(oval);
+    const slant = Math.hypot(ax, az);
+    const dip = rungs.widest * s * (1 + squash) * slant;
+    const lo = Math.max(0, Math.floor((lift - dip) / sy / RUNG));
+    const hi = Math.ceil((lift + 2.1 + dip) / sy / RUNG);
+    if (hi >= rungs.wide.length) return;
+    let wide = 0;
+    for (let k = lo; k <= hi; k++) wide = Math.max(wide, rungs.wide[k]);
+    if (wide * s * (1 + squash) >= allowance) return;
+    let inner = Infinity;
+    const from = Math.floor(lift / sy / RUNG);
+    const to = Math.ceil((lift + 2.1) / sy / RUNG);
+    for (let k = from; k <= to; k++) inner = Math.min(inner, rungs.inner[k]);
+    if (!(inner < Infinity)) return;
+    const mid = lift + 1.05;
+    t.x = x + ax * mid;
+    t.z = z + az * mid;
+    t.r = Math.min(allowance, Math.max(0.25, inner * s * (1 - squash) - 1.05 * slant));
+  }
+  /* At every rung up to ten metres of a variant's own height: the farthest
+     its drawing reaches from the axis, and the circle round the axis it
+     holds (the nearest any slice edge comes to it). */
+  function reachByRung(geometry) {
     const p = geometry.attributes.position;
     const index = geometry.index;
     const n = index ? index.count : p.count;
-    const slices = [0.3, 0.8, 1.3, 1.8];
-    const reach = slices.map(() => 0);
+    const count = Math.round(10 / RUNG) + 1;
+    const wide = new Float32Array(count);
+    const inner = new Float32Array(count).fill(Infinity);
+    const cut = [0, 0, 0, 0];
+    let widest = 0;
     for (let t = 0; t < n; t += 3) {
-      for (let e = 0; e < 3; e++) {
-        const a = index ? index.getX(t + e) : t + e;
-        const c = index ? index.getX(t + (e + 1) % 3) : t + (e + 1) % 3;
-        const ya = p.getY(a);
-        const yc = p.getY(c);
-        slices.forEach((h, k) => {
-          if ((ya - h) * (yc - h) > 0 || ya === yc) return;
+      const ids = [0, 1, 2].map((e) => (index ? index.getX(t + e) : t + e));
+      const ys = ids.map((i) => p.getY(i));
+      const from = Math.max(0, Math.ceil(Math.min(...ys) / RUNG));
+      const to = Math.min(count - 1, Math.floor(Math.max(...ys) / RUNG));
+      for (let k = from; k <= to; k++) {
+        const h = k * RUNG;
+        let m = 0;
+        for (let e = 0; e < 3 && m < 4; e++) {
+          const a = ids[e];
+          const c = ids[(e + 1) % 3];
+          const ya = ys[e];
+          const yc = ys[(e + 1) % 3];
+          if ((ya - h) * (yc - h) > 0 || ya === yc) continue;
           const f = (h - ya) / (yc - ya);
-          reach[k] = Math.max(reach[k], Math.hypot(p.getX(a) + (p.getX(c) - p.getX(a)) * f,
-            p.getZ(a) + (p.getZ(c) - p.getZ(a)) * f));
-        });
+          cut[m++] = p.getX(a) + (p.getX(c) - p.getX(a)) * f;
+          cut[m++] = p.getZ(a) + (p.getZ(c) - p.getZ(a)) * f;
+        }
+        if (m < 4) continue;
+        const [ux, uz, vx, vz] = cut;
+        wide[k] = Math.max(wide[k], Math.hypot(ux, uz), Math.hypot(vx, vz));
+        const dx = vx - ux;
+        const dz = vz - uz;
+        const along = Math.min(1, Math.max(0, -(ux * dx + uz * dz) / (dx * dx + dz * dz || 1)));
+        inner[k] = Math.min(inner[k], Math.hypot(ux + dx * along, uz + dz * along));
       }
     }
-    const cut = reach.filter((r) => r > 0);
-    return cut.length === slices.length
-      ? { narrow: Math.min(...cut), wide: Math.max(...cut) }
-      : { narrow: Infinity, wide: Infinity };
+    for (let k = 0; k < count; k++) widest = Math.max(widest, wide[k]);
+    return { wide, inner, widest };
   }
 
   /* The model upgrader — the rocks and the deadwood take it below. The
@@ -3225,7 +3269,7 @@ export function createProps(THREE, shading) {
       mesh.material = spruceMat(treeHeights[i], atlas,
         { colored: true, frost: true, alphaTest: cut, lod: !!impostors });
       mesh.customDepthMaterial = spruceDepth(treeHeights[i], atlas, cut, true);
-      trunkReach[i] = reachAtRiderHeight(g);
+      trunkReach[i] = reachByRung(g);
     });
     refit();
     if (!impostors) return;
@@ -3431,14 +3475,32 @@ export function createProps(THREE, shading) {
      fitted to that height then fills exactly the radius the rider collides
      with, and the stone is as tall as its own shape says. */
   const SCAN_ASPECT = [0.90, 0.45, 0.70, 1.34, 1.20];
-  /* …but a rock's outline is not round, and the collider is a circle. One of
-     0.88 of the widest reach stood up to a third of it clear of the narrow
-     side of every stone, a wall the rider could not see. So the circle is the
-     one the outline from above holds on every side, as a share of `radius`:
-     the smaller of the grown stand-in's and its model's, measured by casting
-     rays across both, less two per cent. A stone's widest lobes now stand
-     past it, which a rider can graze; nothing that is not drawn can stop one. */
-  const BOULDER_REACH = [0.66, 0.59, 0.64, 0.65, 0.61];
+  /* …but a rock's outline is lobed, and one circle of 0.88 of its widest
+     reach stood up to a third of it clear of the narrow side of every stone —
+     a wall the rider could not see — while its lobes stood past it on the
+     other. So a stone collides as five circles in its own frame, per unit of
+     instance scale, flat `[x, z, r]` five times: one round the middle (it
+     carries the stone's contact shadow, see canopy.js) and four out in its
+     lobes. They were fitted by casting rays across each grown stand-in and
+     each model above the bed line: none stands more than 7.5 cm per metre
+     of scale past the rock that is drawn, and no lobe is left more than
+     13 cm per metre uncovered (18 on two of the stand-ins). The model's set
+     takes over when its file lands (see `refit`). */
+  const COVER_STAND_IN = [
+    [0, 0, 1.022, 0.02, 0.705, 0.626, 0.055, -0.621, 0.765, 0.531, 0.165, 0.658, -0.924, -0.274, 0.257],
+    [0, 0, 1.039, -0.447, 0.971, 0.393, 0.571, -0.416, 0.587, 0.321, 0.835, 0.281, -0.18, -0.135, 1.023],
+    [0, 0, 1.093, -0.251, -0.424, 0.686, -1.004, -0.009, 0.358, 0.955, -0.403, 0.33, 0.218, 0.173, 0.998],
+    [0, 0, 0.931, 0.646, -0.664, 0.389, -0.564, -0.876, 0.194, 0.288, 0.439, 0.577, -0.361, 0.121, 0.784],
+    [0, 0, 0.9, -0.79, 0.416, 0.329, 0.226, -0.59, 0.594, 0.619, -0.013, 0.626, -0.02, 0.288, 0.809],
+  ];
+  const COVER_MODEL = [
+    [0, 0, 1.135, 0.03, 0.059, 1.2, -0.564, 0.952, 0.419, 0.774, 0.766, 0.388, 0.182, -0.887, 0.429],
+    [0, 0, 0.927, -0.572, -0.214, 0.587, 0.194, -0.473, 0.868, 0.782, -0.699, 0.415, -0.031, 0.802, 0.506],
+    [0, 0, 1.04, -0.319, 0.066, 1.081, 0.93, 0.201, 0.415, -0.179, -0.831, 0.522, -0.721, 0.993, 0.387],
+    [0, 0, 0.99, -0.128, -0.237, 0.879, 0.124, 0.14, 1.04, 0.466, 0.411, 0.776, -0.708, 0.372, 0.6],
+    [0, 0, 0.893, 0.938, -0.526, 0.374, 0.557, -0.055, 0.818, -0.48, -0.26, 0.602, -0.881, -0.393, 0.384],
+  ];
+  const stoneCover = COVER_STAND_IN.slice();
   const BOULDER_NODES = ['boulder_slate', 'boulder_iron', 'boulder_granite_a', 'boulder_granite_b',
     'boulder_granite_c'];
   const boulderVariants = [
@@ -3523,6 +3585,7 @@ export function createProps(THREE, shading) {
   upgrader.upgradeTexturedSet('alpine-boulders.glb', BOULDER_NODES.map((node, i) => ({
     node, pool: rockPools[i], sink: i < 2 ? 0.16 : 0.14,
     height: heightOfGrown(boulderVariants[i].geometry),
+    onReady: () => { stoneCover[i] = COVER_MODEL[i]; refit(); },
   })), (map) => photoMat(map, 0.62));
 
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
@@ -3681,20 +3744,14 @@ export function createProps(THREE, shading) {
 
   for (const p of [avalancheFences, waymarks, gatePanels]) p.cullable = true;
 
-  /* A soft prop collides as what is drawn of it: the mean half-width of its
-     box about the box's middle, and the box's top. The sphere round it that
-     this used to be stood two or three times over a cushion of pine or
-     heath, so a rider who visibly cleared one still ploughed through it. */
+  /* A soft prop collides as what is drawn of it: its box, laid on the ground
+     as the drawing is (see `fitSoft`). The sphere round it that this used to
+     be stood two or three times over a cushion of pine or heath, so a rider
+     who visibly cleared one still ploughed through it. */
   const softHull = (pool) => {
     const geometry = pool.mesh.geometry;
     geometry.computeBoundingBox();
-    const b = geometry.boundingBox;
-    return {
-      center: new THREE.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2,
-        (b.min.z + b.max.z) / 2),
-      radius: (b.max.x - b.min.x + b.max.z - b.min.z) / 4,
-      top: b.max.y,
-    };
+    return geometry.boundingBox.clone();
   };
   const plantHulls = plantPools.map(softHull);
   const shrubHulls = shrubPools.map(softHull);
@@ -3717,16 +3774,41 @@ export function createProps(THREE, shading) {
      it was placed in `fit`, led by the function that lays it over the shape;
      `refit` re-lays every solid streamed so far, cached bands included, so a
      model landing mid-run is collided with as soon as it is drawn. */
+  /* The box's eight corners, scaled and tilted onto the bank exactly as the
+     drawing is: a bush leaning down a steep verge stands higher on one side
+     and reaches further over it than it does upright. The collider is the
+     circle across the wider of its two turned spans, and its top is the
+     highest corner. */
   function fitSoft(s) {
     const [, hulls, v, x, y, z, yaw, scale, sy, nx, ny, nz] = s.fit;
-    const hull = hulls[v];
-    hullScale.set(scale, sy, scale);
-    hullOffset.copy(hull.center).multiply(hullScale)
-      .applyQuaternion(hullRotation(yaw, hullNormal.set(nx, ny, nz)));
-    s.x = x + hullOffset.x;
-    s.z = z + hullOffset.z;
-    s.r = hull.radius * scale;
-    s.top = y + hull.top * sy;
+    const box = hulls[v];
+    const turn = hullRotation(yaw, hullNormal.set(nx, ny, nz));
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    let uLo = Infinity;
+    let uHi = -Infinity;
+    let wLo = Infinity;
+    let wHi = -Infinity;
+    let top = -Infinity;
+    for (let c = 0; c < 8; c++) {
+      hullCorner.set(c & 1 ? box.max.x : box.min.x, c & 2 ? box.max.y : box.min.y,
+        c & 4 ? box.max.z : box.min.z)
+        .multiply(hullScale.set(scale, sy, scale)).applyQuaternion(turn);
+      // along the bush's own turned across (x) and along (z), on the level
+      const u = hullCorner.x * cos - hullCorner.z * sin;
+      const w = hullCorner.x * sin + hullCorner.z * cos;
+      uLo = Math.min(uLo, u);
+      uHi = Math.max(uHi, u);
+      wLo = Math.min(wLo, w);
+      wHi = Math.max(wHi, w);
+      top = Math.max(top, hullCorner.y);
+    }
+    const u = (uLo + uHi) / 2;
+    const w = (wLo + wHi) / 2;
+    s.x = x + u * cos + w * sin;
+    s.z = z - u * sin + w * cos;
+    s.r = Math.max(uHi - uLo, wHi - wLo) / 2;
+    s.top = y + top;
   }
   function softSolid(hulls, v, x, y, z, yaw, scale, sy, normal, type, drag) {
     const s = {
@@ -3943,12 +4025,34 @@ export function createProps(THREE, shading) {
       top: y + grown.top * sy,
     };
   }
-  /* A boulder's `r` beds it and spaces things from it, as it always has;
-     `hitR` is its collider, the circle its outline holds (BOULDER_REACH). */
   function boulderTransform(v, groundY, sx, sy, sz) {
-    const shape = stoneTransform(boulderVariants[v], groundY, sx, sy, sz);
-    shape.hitR = boulderVariants[v].radius * BOULDER_REACH[v] * Math.min(sx, sz);
-    return shape;
+    return stoneTransform(boulderVariants[v], groundY, sx, sy, sz);
+  }
+  /* A stone's collider, from its cover (see COVER_STAND_IN): five circles
+     turned and scaled with the instance, one contact between them so a
+     stone is struck once. A stone is drawn at one scale across — the mean of
+     the two it is given — because a circle stretched with an oval stone
+     either stands past its narrow side or leaves its long one uncovered. Its
+     `r` above still beds it and spaces the band round it. */
+  function fitStone(s) {
+    const [, v, k, x, z, yaw, scale] = s.fit;
+    const cover = stoneCover[v];
+    const lx = cover[k * 3] * scale;
+    const lz = cover[k * 3 + 1] * scale;
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    s.x = x + lx * cos + lz * sin;
+    s.z = z - lx * sin + lz * cos;
+    s.r = cover[k * 3 + 2] * scale;
+  }
+  function pushStone(v, x, z, yaw, scale, stone, ao) {
+    const contact = { hit: false };
+    for (let k = 0; k < 5; k++) {
+      const s = { x, z, r: 0, ...stone, contact, fit: [fitStone, v, k, x, z, yaw, scale] };
+      if (k === 0) s.ao = ao;
+      fitStone(s);
+      solids.push(s);
+    }
   }
 
   /* WHERE A STONE ACTUALLY SITS, which is not what one terrain sample says.
@@ -4109,16 +4213,13 @@ export function createProps(THREE, shading) {
           const shape = boulderTransform(v, groundY, sx, sy, sz);
           // Only the hut test of `occupied`: the shoulder is where the
           // pillows are, and refusing those would thin the hazard out
+          const yaw = hash2(b, 3410, 227) * TAU;
           if (!onHutGround(x, z) && visibleFromApproach(x, z, shape.top)
-            && rockPools[v].add(
-              x, shape.y, z, hash2(b, 3410, 227) * TAU, sx, sy, sz,
-            )) {
-            solids.push({
-              key: `boulder:${b}`,
-              type: 'boulder', x, z, r: shape.hitR,
-              kind: HARD, groundY, top: shape.top, cameraPad: 0.55, volume: true,
-              ao: shape.top - groundY,
-            });
+            && rockPools[v].add(x, shape.y, z, yaw, Math.sqrt(sx * sz), sy, Math.sqrt(sx * sz))) {
+            pushStone(v, x, z, yaw, Math.sqrt(sx * sz), {
+              key: `boulder:${b}`, type: 'boulder', kind: HARD, groundY, top: shape.top,
+              cameraPad: 0.55, volume: true,
+            }, shape.top - groundY);
             bandHazards.push({ x, z, r: shape.r });
           }
         }
@@ -4239,12 +4340,14 @@ export function createProps(THREE, shading) {
          body on through it at twelve, `fall` keeping the speed the rider
          brought, and a rider who got up from it, or steered back into one
          already grazed, rode straight through the tree. */
-      solids.push({
-        x, z, r: trunkRadius(v, s), kind: HARD, top: 99, volume: true,
+      const trunk = {
+        x, z, r: 0, kind: HARD, top: 99, volume: true,
         canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
         canopyDensity: treeBare[v] ? 0.35 : 1,
-        fit: [fitTrunk, v, s],
-      });
+        fit: [fitTrunk, v, s, sy, oval, y - bed, x, z, normal.x / normal.y, normal.z / normal.y],
+      };
+      fitTrunk(trunk);
+      solids.push(trunk);
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -4448,14 +4551,11 @@ export function createProps(THREE, shading) {
       const shape = boulderTransform(v, groundY, sx, sy, sz);
       if (hash2(b, 3690 + i, 229) > density) continue;
       if (!clearOfBandHazards(x, z, shape.r, bandHazards, 1.0)) continue;
-      if (!rockPools[v].add(
-        x, shape.y, z, hash2(b, 3680 + i, 229) * TAU, sx, sy, sz,
-      )) continue;
-      solids.push({
-        type: 'rock', x, z, r: shape.hitR,
-        kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
-        ao: shape.top - groundY,
-      });
+      const yaw = hash2(b, 3680 + i, 229) * TAU;
+      if (!rockPools[v].add(x, shape.y, z, yaw, Math.sqrt(sx * sz), sy, Math.sqrt(sx * sz))) continue;
+      pushStone(v, x, z, yaw, Math.sqrt(sx * sz), {
+        type: 'rock', kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
+      }, shape.top - groundY);
     }
 
     /* Natural rock buttresses along the mountain flanks */
@@ -5033,7 +5133,7 @@ export function createProps(THREE, shading) {
     const hazards = [];
     for (let i = 0; i < solids.length; i++) {
       const s = solids[i];
-      if (s.type !== 'boulder') continue;
+      if (s.type !== 'boulder' || s.ao === undefined) continue;
       hazards.push({
         key: s.key,
         x: +s.x.toFixed(2), z: +s.z.toFixed(2),
