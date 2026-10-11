@@ -14,6 +14,16 @@ const watch = page => {
 try {
   // The engine on a bare page: gesture unlock, lazy synthesis, mixer, voice manager, settings and result cues.
   const page = await browser.newPage(); watch(page);
+  // The local test server has no byte-range support. Supply it here so Chrome can seek to real endings.
+  await page.route('**/assets/audio/*.mp3', async route => {
+    const { range, ...headers } = route.request().headers();
+    const response = await route.fetch({ headers }), bytes = await response.body();
+    const responseHeaders = { ...response.headers(), 'accept-ranges': 'bytes' };
+    const match = range?.match(/^bytes=(\d+)-(\d*)$/);
+    if (!match) return route.fulfill({ response, headers: responseHeaders });
+    const start = Number(match[1]), end = match[2] ? Math.min(Number(match[2]), bytes.length - 1) : bytes.length - 1;
+    await route.fulfill({ status: 206, headers: { ...responseHeaders, 'content-range': `bytes ${start}-${end}/${bytes.length}`, 'content-length': String(end - start + 1) }, body: bytes.subarray(start, end + 1) });
+  });
   await page.route('**/audio-check.html', route => route.fulfill({ contentType: 'text/html', body: '<button id="enable">Enable audio</button>' }));
   await page.goto(new URL('audio-check.html', base).href);
   await page.evaluate(async () => {
@@ -22,6 +32,8 @@ try {
     AudioContext.prototype.createBuffer = function (...args) { const buffer = createBuffer.apply(this, args); generated.push(buffer); return buffer; };
     const createStereoPanner = AudioContext.prototype.createStereoPanner;
     AudioContext.prototype.createStereoPanner = function () { const node = createStereoPanner.call(this); pans.push(node); return node; };
+    const createMediaElementSource = AudioContext.prototype.createMediaElementSource;
+    AudioContext.prototype.createMediaElementSource = function (element) { window.soundtrack = element; return createMediaElementSource.call(this, element); };
     const audio = await import('./audio.js');
     Object.assign(window, { audioModule: audio, sound: audio.createAudio() });
     // Long tasks are counted from the end of the gesture: the bank must load without blocking input.
@@ -137,14 +149,68 @@ try {
   assert.deepEqual(settings.damaged, { volumes: await page.evaluate(() => audioModule.VOLUME_DEFAULTS), sfxEnabled: true, musicEnabled: true }, 'Damaged settings fall back to defaults');
   assert.equal(settings.blocked.volumes.master, .5, 'Blocked storage keeps the session settings');
 
-  const track = await page.evaluate(async () => {
-    const response = await fetch('./assets/audio/space-adventure.mp3');
-    const bytes = await response.arrayBuffer(), size = bytes.byteLength, context = new AudioContext();
-    const decoded = await context.decodeAudioData(bytes); await context.close();
-    return { ok: response.ok, bytes: size, duration: decoded.duration, channels: decoded.numberOfChannels };
-  });
-  assert(track.ok && track.bytes === 5214163 && track.duration > 120 && track.duration < 140 && track.channels === 2, 'Local CC0 music decodes as the complete stereo track');
+  const expectedTracks = [
+    ['Weight_Of_The_Iron_Sky.mp3', 4167117, 173.37],
+    ['Before_the_Fallen_Spire.mp3', 3804747, 158.28],
+    ['Where_Giants_Fell.mp3', 4191568, 174.39],
+    ['Throne_of_Blackened_Glass.mp3', 4168998, 173.45],
+    ['Vindex_Ignis.mp3', 1524570, 63.27],
+  ];
+  assert.deepEqual(await page.evaluate(() => audioModule.MUSIC_TRACKS), expectedTracks.map(([file]) => file), 'The playlist uses all five original tracks');
+  for (const [file, size, duration] of expectedTracks) {
+    const track = await page.evaluate(async file => {
+      const response = await fetch(`./assets/audio/${file}`);
+      const bytes = await response.arrayBuffer(), size = bytes.byteLength, context = new AudioContext();
+      try {
+        const decoded = await context.decodeAudioData(bytes);
+        return { ok: response.ok, bytes: size, duration: decoded.duration, channels: decoded.numberOfChannels };
+      } finally { await context.close(); }
+    }, file);
+    assert(track.ok && track.bytes === size && Math.abs(track.duration - duration) < .1 && track.channels === 2, `${file} decodes as the complete original stereo track`);
+  }
   assert.equal(await page.evaluate(() => sound.status.musicError), '');
+
+  // Seek to real media endings: every track advances, and the last returns to the first.
+  await page.evaluate(() => sound.setMusicEnabled(true));
+  for (let i = 0; i < expectedTracks.length; i++) {
+    await page.waitForFunction(() => sound.status.musicPlaying && soundtrack.readyState >= 2 && Number.isFinite(soundtrack.duration));
+    assert.equal(await page.evaluate(() => sound.status.musicTrack), expectedTracks[i][0]);
+    await page.evaluate(() => { soundtrack.currentTime = soundtrack.duration - .1; });
+    const next = expectedTracks[(i + 1) % expectedTracks.length][0];
+    await page.waitForFunction(file => sound.status.musicTrack === file && sound.status.musicPlaying && soundtrack.currentTime > 0 && soundtrack.currentTime < 5, next);
+  }
+  // An ending at a pause/mute boundary can select the next track, but must not restart playback.
+  for (const mode of ['pause', 'mute']) {
+    await page.waitForFunction(() => sound.status.musicPlaying && soundtrack.currentTime > .1);
+    const position = await page.evaluate(() => ({ track: sound.status.musicTrack, time: soundtrack.currentTime }));
+    await page.evaluate(mode => {
+      if (mode === 'pause') sound.setPaused(true); else sound.setMusicEnabled(false);
+    }, mode);
+    await page.waitForFunction(() => !sound.status.musicPlaying);
+    const stopped = await page.evaluate(() => ({ track: sound.status.musicTrack, time: soundtrack.currentTime }));
+    assert.equal(stopped.track, position.track, `${mode} preserves the selected track`);
+    assert(Math.abs(stopped.time - position.time) < (mode === 'pause' ? .6 : .1), `${mode} retains playback position after its fade`);
+    await page.waitForTimeout(150);
+    assert(Math.abs(await page.evaluate(() => soundtrack.currentTime) - stopped.time) < .01, 'Playback position stays fixed while stopped');
+    await page.evaluate(mode => {
+      if (mode === 'pause') sound.setPaused(false); else sound.setMusicEnabled(true);
+    }, mode);
+    await page.waitForFunction(time => soundtrack.currentTime > time, stopped.time);
+    assert.equal(await page.evaluate(() => sound.status.musicTrack), stopped.track, `${mode} resumes the same track`);
+
+    await page.evaluate(mode => {
+      if (mode === 'pause') sound.setPaused(true); else sound.setMusicEnabled(false);
+    }, mode);
+    await page.waitForFunction(() => !sound.status.musicPlaying);
+    const previous = await page.evaluate(() => sound.status.musicTrack);
+    await page.evaluate(() => soundtrack.dispatchEvent(new Event('ended')));
+    assert.notEqual(await page.evaluate(() => sound.status.musicTrack), previous);
+    assert.equal(await page.evaluate(() => sound.status.musicPlaying), false, `A track ending while ${mode}d stays silent`);
+    await page.evaluate(mode => {
+      if (mode === 'pause') sound.setPaused(false); else sound.setMusicEnabled(true);
+    }, mode);
+    await page.waitForFunction(() => sound.status.musicPlaying && soundtrack.currentTime > .1);
+  }
 
   // Result stingers play over the result menu while the soundtrack fades out and stays stopped.
   await page.evaluate(() => sound.setMusicEnabled(true));
@@ -160,6 +226,8 @@ try {
   await page.evaluate(() => sound.dispose());
   await page.waitForFunction(() => sound.status.contextState === 'closed' && !sound.status.musicPlaying);
   assert.equal(await page.evaluate(() => sound.unlock()), false, 'Disposed audio does not restart');
+  const disposedTrack = await page.evaluate(() => { const track = sound.status.musicTrack; soundtrack.dispatchEvent(new Event('ended')); return track; });
+  assert.equal(await page.evaluate(() => sound.status.musicTrack), disposedTrack, 'Disposed audio cannot advance or restart the playlist');
   // Without module workers the bank renders in short main-thread slices.
   const fallback = await page.evaluate(async () => {
     const Worker = window.Worker; window.Worker = undefined;
@@ -251,5 +319,5 @@ try {
     await game.close();
   }
   assert.deepEqual(errors, []);
-  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread), voice caps and stealing, aggregation, ducking, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, local CC0 track decoding, and in-game events heard once, one reply per click, combat, ambience and mix sliders. Screenshots: ${output}`);
+  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread), voice caps and stealing, aggregation, ducking, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, five original tracks decoded, playlist transitions and wrapping, pause/mute position retention, and in-game events heard once, one reply per click, combat, ambience and mix sliders. Screenshots: ${output}`);
 } finally { await browser.close(); }
