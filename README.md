@@ -34,4 +34,6 @@
 - W/S set the speed, Q/E roll, Tab burns the afterburner, T cycles targets and Z locks your speed to the target's.
 - The targeting HUD frames the selected enemy with its distance and closing speed, points to it from the screen edge, and draws a lead marker solved from both ships' velocities.
 - The fighter, the interceptor and five asteroids are built by committed Blender scripts with baked textures; the sky is generated at load with the Milky Way, nebulae and galaxies under slowly drifting star layers.
+- Kills burst into a flash that lights the rocks around them, a churning fireball, a shock ring, molten sparks, glowing hull plates and lit smoke, all carrying the wreck's momentum; rocks break into chips and dust, and the camera watches your own wreck drift away.
+- Synthesised 3D sound: an engine drone whose pitch glides with speed, the afterburner's roar, interceptors bending through doppler as they fly past, weapons, hits by what they strike, explosions, and the target and lock tones.
 - See the [game guide](fun/meteora/README.md) for the flight model, the model pipeline and the checks.

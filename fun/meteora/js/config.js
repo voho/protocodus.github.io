@@ -86,6 +86,17 @@ export const SHAKE = {
   shipShare: 0.35, maxImpact: 1.6,
 };
 
+/* Sound. Space carries none; the cockpit makes it from what the sensors
+   track (audio.js), so the speed of sound below belongs to no medium: it
+   only sets how far a passing ship's pitch bends. */
+export const AUDIO = {
+  soundSpeed: 1500,               // m/s: a 500 m/s pass drops the pitch an octave
+  shipRange: 1600, shipVoices: 4, // engines heard: the nearest four within 1.6 km
+  missileRange: 1500,
+  oneShots: 32,                   // most short sounds playing at once
+  master: 0.9,
+};
+
 export const RENDER = {
   far: 100000, near: 0.5, fov: 70, dprCap: 2,
   scaleMin: 0.6, scaleMax: 1, targetMs: 16.7,

@@ -1,9 +1,9 @@
 /* Meteora — assembly and the loop.
 
    Nothing here decides how the game plays; it wires the simulation to the
-   screen and keeps them in step:
+   screen and the speakers and keeps them in step:
 
-     keys → world (fixed 120 Hz) → events → flashes, callouts
+     keys → world (fixed 120 Hz) → events → explosions, sounds, shake, callouts
                                   ↘ interpolated ships, belt, sky, glow, HUD
 
    Before Launch the world already exists: the fighter idles in the belt and
@@ -24,7 +24,7 @@
    culling at the camera — so the two can be compared in the same browser. */
 
 import * as THREE from 'three';
-import { RENDER, STEP } from './config.js';
+import { COMBAT, RENDER, STEP } from './config.js';
 import { ANCHORS } from './anchors.js';
 import { NEUTRAL_CONTROLS } from './flight.js';
 import { advance, createWorld, drainEvents, resetWorld, startRun } from './world.js';
@@ -36,8 +36,12 @@ import { createInput } from './input.js';
 import { createScreens, loadSettings } from './screens.js';
 import { createSky } from './sky.js';
 import { createGlowBatch } from './glow.js';
+import { createSmokeBatch } from './smoke.js';
+import { createExplosions } from './explosions.js';
 import { createPlumes } from './plumes.js';
 import { createProjectiles } from './projectiles.js';
+import { createAudio } from './audio.js';
+import { createShake, kick, stepShake } from './shake.js';
 import { createHud } from './hud.js';
 import { createResolution } from './resolution.js';
 import { createFrameStats } from './frame-stats.js';
@@ -50,6 +54,8 @@ const BENCH_RATIO = Number(params.get('ratio')) || 1;
 const AUTOPILOT = (DEBUG && params.has('autopilot')) || BENCH;
 const BENCH_WARM = 3, BENCH_SPAN = 20;
 const SUN_DIR = new THREE.Vector3(-0.62, 0.32, -0.72).normalize();
+const EXPOSURE = 1.05;
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const canvas = document.getElementById('stage');
 const hudCanvas = document.querySelector('canvas.hud');
@@ -60,15 +66,19 @@ const controlState = createControlState(settings);
 let storage = null;
 try { storage = window.localStorage; } catch { /* no best score kept */ }
 
-let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight, input, resolution;
-let paused = false, deadTimer = 0, playerMesh;
+let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, smoke, fx, plumes, projectiles, hud, engineLight, input, resolution;
+let paused = false, deadTimer = 0, playerMesh, wreck = null, lastKnock = -Infinity;
+// Hits and blasts shake the camera; the ship's own vibration stays off.
+const shake = createShake(5), CALM = { fine: 0, rumble: 0, buffet: 0 };
+// Sound starts on the Launch click; the scripted flights stay silent.
+const audio = AUTOPILOT ? null : createAudio(settings.volume);
 const enemyMeshes = new Map();
 const beltTime = { value: 0 };
 
 const screens = createScreens(document, settings, {
   launch, resume: launch, restart, again: restart,
   retry: () => location.reload(),
-  settings: () => {},
+  settings: s => audio?.setVolume(s.volume),
 });
 
 function supportsWebGL2() {
@@ -87,7 +97,7 @@ async function boot() {
   renderer.setPixelRatio(BENCH ? BENCH_RATIO : resolution.ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = EXPOSURE;
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(RENDER.fov, 1, RENDER.near, RENDER.far);
@@ -118,6 +128,13 @@ async function boot() {
   scene.add(engineLight);
   chase = createChaseCamera(camera, ANCHORS.fighter.cockpit);
   glow = createGlowBatch(scene);
+  smoke = createSmokeBatch(scene, SUN_DIR);
+  fx = createExplosions(scene, glow, smoke, models.rocks[0], { reducedMotion: REDUCED_MOTION });
+  // Effects back to front: smoke, fireballs, glow, shock rings. three.js
+  // reverses its sorted draw lists under a reversed depth buffer —
+  // renderOrder included — so the order's sign follows the buffer in use.
+  const layer = renderer.capabilities.reversedDepthBuffer ? -1 : 1;
+  [smoke.mesh, fx.fireballs.lobes, glow.mesh, fx.fireballs.rings].forEach((mesh, k) => { mesh.renderOrder = (9 + k) * layer; });
   plumes = createPlumes(glow);
   projectiles = createProjectiles(glow);
   hud = createHud(hudCanvas);
@@ -148,6 +165,8 @@ function launch() {
   if (!world) return;
   if (world.state !== 'flying') startRun(world);
   paused = false;
+  audio?.start();
+  audio?.setPaused(false);
   dropAll(controlState);
   screens.show(null);
   // The Launch button keeps focus otherwise, and Space would press it again.
@@ -162,6 +181,10 @@ function restart() {
   for (const [id, mesh] of enemyMeshes) { scene.remove(mesh); plumes.forget(id); }
   enemyMeshes.clear();
   chase.reset();
+  fx.clear();
+  audio?.reset();
+  wreck = null;
+  lastKnock = -Infinity;
   deadTimer = 0;
   launch();
 }
@@ -169,6 +192,7 @@ function restart() {
 function pause() {
   if (AUTOPILOT || !world || world.state !== 'flying' || paused) return;
   paused = true;
+  audio?.setPaused(true);
   dropAll(controlState);
   // A held lock hides the cursor and sends every click to the canvas, so
   // the pause screen's buttons could never be pressed.
@@ -215,13 +239,35 @@ function say(message) {
   callout.textContent = message;
 }
 
+// An impact shake that falls off with the blast's distance from the camera.
+function jolt(pos, strength, reach) {
+  const d = camera.position.distanceTo(tmpV.set(pos[0], pos[1], pos[2]));
+  kick(shake, strength * (REDUCED_MOTION ? 0.5 : 1) / (1 + (d / reach) ** 2));
+}
+
 function handleEvents(events) {
   for (const e of events) {
+    fx.handle(e);
+    audio?.handle(e, world);
     switch (e.type) {
       case 'fire': projectiles.flash(e.pos, e.team); break;
       case 'wave': say(`Wave ${e.n} incoming · ${e.count} interceptors`); break;
-      case 'shipKilled': if (e.team === 1) say('Interceptor destroyed'); break;
+      case 'shipKilled':
+        if (e.team === 1) say('Interceptor destroyed');
+        else wreck = { pos: e.pos, vel: e.vel, t: 0 };
+        jolt(e.pos, e.team === 0 ? 2 : 1.1, 90);
+        break;
       case 'missileLaunch': say(e.locked ? 'Missile away · locked' : 'Missile away · unguided'); break;
+      case 'missileExplode': case 'missileExpire': jolt(e.pos, 0.9, 60); break;
+      case 'rockBreak': if (!e.crumble) jolt(e.pos, 0.05 * e.radius, 30); break;
+      case 'boltHit': if (e.targetId === world.player.id) jolt(e.pos, e.shielded ? 0.15 : 0.35, 30); break;
+      case 'collision':
+        // A scrape reports every step it lasts; it is felt as one knock.
+        if (e.team === 0 && e.speed > COMBAT.collision.safe && world.time - lastKnock > 0.25) {
+          lastKnock = world.time;
+          jolt(e.pos, Math.min(1.2, e.speed / 30), 30);
+        }
+        break;
     }
   }
 }
@@ -245,6 +291,9 @@ function frame(now) {
 
   const flying = world.state === 'flying' && !paused;
   document.body.classList.toggle('flying', flying);
+  // The aim is read through the camera, so it must see it without last
+  // frame's shake.
+  chase.steady();
   let controls = IDLE;
   if (flying) {
     controls = AUTOPILOT ? autopilot(world.time) : readInput(controlState, dt);
@@ -257,16 +306,25 @@ function frame(now) {
 
   const alpha = Math.min(1, world.accumulator / STEP);
   const p = world.player;
+  const step = paused ? 0 : dt;
   place(playerMesh, p.ship, alpha);
   playerMesh.visible = p.alive && !(chase.mode === 'nose' && world.state === 'flying');
   // The camera moves first, so everything drawn this frame — the glow
   // batch's near-camera fade included — sees where it really is.
-  chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
-    null, world.state === 'attract');
+  const jolted = shake.impact > 1e-3 ? stepShake(shake, CALM, step) : null;
+  if (wreck && world.state === 'dead') {
+    wreck.t += step;
+    chase.watch(wreck.pos, wreck.vel, wreck.t, step, jolted);
+  } else {
+    chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
+      jolted, world.state === 'attract');
+  }
 
   glow.begin();
+  smoke.begin();
   camera.getWorldDirection(tmpV);
   if (!LEGACY) glow.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
+  smoke.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
   if (p.alive) {
     const { power, boost } = plumes.add(p, playerMesh, world.time, dt);
     // The plume lights the tail of the hull it comes out of.
@@ -290,6 +348,10 @@ function frame(now) {
   }
   fieldRender.syncDynamic(world.field.dynamic);
   projectiles.add(world.weapons, alpha, dt);
+  // A close blast dazzles: a brief rise in exposure, as an eye or a camera
+  // would see it.
+  const { flash } = fx.update(step, camera);
+  renderer.toneMappingExposure = EXPOSURE * (1 + 0.6 * flash);
 
   if (world.state === 'dead') {
     deadTimer += dt;
@@ -302,6 +364,7 @@ function frame(now) {
   if (!paused) beltTime.value += dt;
   sky.update(camera, paused ? 0 : dt, glow);
   glow.end();
+  smoke.end();
   fieldRender.update(camera);
   const query = BENCH ? gpuBegin() : null;
   renderer.render(scene, camera);
@@ -316,6 +379,8 @@ function frame(now) {
     hud.clear();
   }
 
+  audio?.update(world, camera, step);
+
   if (BENCH) benchFrame(raw, performance.now() - frameStart);
 
   if (DEBUG) {
@@ -327,6 +392,7 @@ function frame(now) {
         `fps ${(frames / debugTimer).toFixed(0)}  ${(frameMs / frames).toFixed(1)} ms`,
         `draws ${info.calls}  tris ${(info.triangles / 1e6).toFixed(2)}M  glow ${glow.count}`,
         `rocks drawn ${fieldRender.stats.drawn}  pixel ratio ${renderer.getPixelRatio()}`,
+        `effects ${Object.entries(fx.counts).map(([k, n]) => `${k} ${n}`).join('  ')}  smoke ${smoke.count}`,
         `state ${world.state}  wave ${world.wave}  enemies ${world.enemies.filter(e => e.alive).length}`,
         `speed ${Math.hypot(...p.ship.vel).toFixed(0)} m/s  throttle ${p.ship.throttle.toFixed(2)}  FA ${p.ship.fa ? 'on' : 'off'}`,
       ].join('\n');
