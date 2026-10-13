@@ -96,8 +96,8 @@ export function createWarmup(renderer, { hdr = false, pause = () => Promise.reso
       renderer.setRenderTarget(stand);
       const compiled = Promise.all([renderer.compileAsync(scene, camera), renderer.compileAsync(samples, camera, scene)]);
       renderer.setRenderTarget(previous);
-      await compiled;
 
+      // The maps go up while the shaders compile.
       const maps = new Set();
       samples.traverse(o => {
         if (!o.isMesh) return;
@@ -110,6 +110,7 @@ export function createWarmup(renderer, { hdr = false, pause = () => Promise.reso
         upload(map);
         if (performance.now() - t > slice) { await pause(); t = performance.now(); }
       }
+      await compiled;
 
       // One frame with all of them in the scene: their buffers go up and
       // each shader is used once. It is drawn into the stand-in target,

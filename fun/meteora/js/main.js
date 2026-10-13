@@ -639,8 +639,12 @@ function looksOf(models) {
 async function getReady(models) {
   const list = looksOf(models);
   try {
-    await warmup.warm(scene, camera, list.map(([model, paint]) => entities.sample(model, paint)).filter(Boolean));
-    await targetView.warm(list);
+    // Side by side: the two renderers share nothing, and each mostly waits
+    // on its shaders.
+    await Promise.all([
+      warmup.warm(scene, camera, list.map(([model, paint]) => entities.sample(model, paint)).filter(Boolean)),
+      targetView.warm(list),
+    ]);
   } catch (error) {
     console.warn('meteora: getting ready', error);
   }

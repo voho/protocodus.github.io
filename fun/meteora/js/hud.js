@@ -77,6 +77,20 @@ export function createHud(canvas) {
   };
   const pixelsFor = (camera, radius, depth) => radius / Math.max(depth, 1) * (h / 2) / Math.tan(camera.fov * Math.PI / 360);
 
+  // Text widths, by font and text: the same few dozen strings are measured
+  // every frame, and a long objective cut to fit is measured once for
+  // every letter it loses.
+  const widths = new Map();
+  const measure = s => {
+    const key = `${ctx.font}|${s}`;
+    let width = widths.get(key);
+    if (width === undefined) {
+      if (widths.size > 4000) widths.clear();
+      width = ctx.measureText(s).width;
+      widths.set(key, width);
+    }
+    return width;
+  };
   const text = (s, x, y, size = 13, color = INK, align = 'center', weight = 500, family = FONT) => {
     ctx.font = `${weight} ${size}px ${family}`;
     ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
@@ -86,7 +100,7 @@ export function createHud(canvas) {
   // screen's width.
   const fitSize = (s, size, weight, family) => {
     ctx.font = `${weight} ${size}px ${family}`;
-    return Math.min(size, size * (w * 0.9) / Math.max(1, ctx.measureText(s).width));
+    return Math.min(size, size * (w * 0.9) / Math.max(1, measure(s)));
   };
   const shadowed = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 4; fn(); ctx.restore(); };
 
@@ -97,7 +111,7 @@ export function createHud(canvas) {
   const slots = [];
   const label = (s, x, y, size = 12, color = INK, weight = 500, must = false) => {
     ctx.font = `${weight} ${size}px ${FONT}`;
-    const half = ctx.measureText(s).width / 2 + 3, tall = size / 2;
+    const half = measure(s) / 2 + 3, tall = size / 2;
     // Never off the edge of the screen.
     x = Math.max(half + 6, Math.min(w - half - 6, x));
     y = Math.max(tall + 6, Math.min(h - tall - 6, y));
@@ -141,7 +155,7 @@ export function createHud(canvas) {
     if (label) {
       // Beside the arrow on its inner side, never over it or off screen.
       ctx.font = `500 12px ${FONT}`;
-      const half = ctx.measureText(label).width / 2 + 4;
+      const half = measure(label) / 2 + 4;
       const lx = Math.max(half + 6, Math.min(w - half - 6, x - dx * (24 + half * Math.abs(dx))));
       const ly = Math.max(14, Math.min(h - 14, y - dy * 26));
       text(label, lx, ly, 12, color);
@@ -426,7 +440,7 @@ export function createHud(canvas) {
     const timers = [...rt.timers.values()].filter(t => t.visible);
     const x = 22, y0 = 22;
     ctx.font = `500 12px ${FONT}`;
-    const longest = Math.max(0, ...list.map(o => ctx.measureText(`○  ${o.text}  00/00`).width));
+    const longest = Math.max(0, ...list.map(o => measure(`○  ${o.text}  00/00`)));
     const width = Math.min(Math.max(220, longest + 24), 380, w * 0.34);
     // The title, then a row each: the panel ends just under the last.
     const rows = list.length + timers.length + (bonus ? 1 : 0);
@@ -445,7 +459,7 @@ export function createHud(canvas) {
       const colour = o.state === 'done' ? GREEN : o.state === 'failed' ? RED : o.kind === 'bonus' ? 'rgba(255, 224, 102, 0.85)' : INK;
       const count = o.count && o.state === 'active' ? `  ${o.count.n}/${o.count.of}` : '';
       const fresh = rt.time - (o.shownAt ?? 0) < 1.2 && o.state === 'active';
-      const row = fitLine(`${icon}  ${o.text}`, width - 24 - (count ? ctx.measureText(count).width : 0));
+      const row = fitLine(`${icon}  ${o.text}`, width - 24 - (count ? measure(count) : 0));
       text(`${row}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left');
       y += 19;
     }
@@ -454,9 +468,9 @@ export function createHud(canvas) {
   }
   // A line cut to a width, with an ellipsis.
   function fitLine(s, width) {
-    if (ctx.measureText(s).width <= width) return s;
+    if (measure(s) <= width) return s;
     let t = s;
-    while (t.length > 4 && ctx.measureText(`${t}…`).width > width) t = t.slice(0, -1);
+    while (t.length > 4 && measure(`${t}…`) > width) t = t.slice(0, -1);
     return `${t.trimEnd()}…`;
   }
 
@@ -502,7 +516,7 @@ export function createHud(canvas) {
     let line = '';
     for (const word of words) {
       const t = line ? `${line} ${word}` : word;
-      if (ctx.measureText(t).width > width && line) { out.push(line); line = word; } else line = t;
+      if (measure(t) > width && line) { out.push(line); line = word; } else line = t;
     }
     if (line) out.push(line);
     if (wrapCache.size > 400) wrapCache.clear();
@@ -537,7 +551,7 @@ export function createHud(canvas) {
     panel(x0 - 12, y0 - 18, 214, 150);
     ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
-    text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
+    text('m/s', x0 + 8 + measure(`${speed.toFixed(0)}`), y0 + 16, 12, MUTED, 'left');
     const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
     bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
       world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%`);
@@ -662,7 +676,7 @@ export function createHud(canvas) {
     const tx = pic.x + pic.w + 12, tw = x + W - 10 - tx;
     ctx.font = `700 14px ${FONT}`;
     let name = target.name.toUpperCase();
-    while (name.length > 4 && ctx.measureText(name).width > tw) name = `${name.slice(0, -2)}…`;
+    while (name.length > 4 && measure(name) > tw) name = `${name.slice(0, -2)}…`;
     text(name, tx, y + 17, 14, colour, 'left', 700);
     text(target.proxy ? 'Torpedo in flight' : target.def?.type ?? '', tx, y + 33, 11, MUTED, 'left');
     const p = world.player.ship, t = target.ship;
@@ -793,7 +807,7 @@ export function createHud(canvas) {
     ctx.globalAlpha = a;
     ctx.font = `500 13px ${FONT}`;
     const rows = wrap(withKeys(hint.text), Math.min(520, w * 0.6));
-    const width = Math.max(...rows.map(r => ctx.measureText(r).width)) + 40, tall = rows.length * 17 + 15;
+    const width = Math.max(...rows.map(r => measure(r))) + 40, tall = rows.length * 17 + 15;
     const y = h - 214 - tall;
     ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y, width, tall);
     ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.strokeRect(w / 2 - width / 2 + 0.5, y + 0.5, width - 1, tall - 1);

@@ -253,11 +253,13 @@ export function createTargetView(canvas, library, { exposure = 1.05, pause = () 
       for (const entry of entries) group.add(entry.root);
       scene.add(group);
       try {
-        await renderer.compileAsync(group, camera, scene);
+        // The maps go up while the shaders compile.
+        const compiled = renderer.compileAsync(group, camera, scene);
         const upload = fastUpload(renderer);
         group.traverse(o => {
           if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const v of Object.values(m)) if (v?.isTexture) upload(v);
         });
+        await compiled;
         renderer.render(scene, camera);
         renderer.clear();
       } finally {
