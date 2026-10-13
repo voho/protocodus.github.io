@@ -55,7 +55,7 @@ for (const rock of ROCKS) {
   });
 }
 const SHIPS = [
-  { file: 'fighter.glb', key: 'fighter', tris: 12000, kb: 3500, length: [12.5, 15.5], nozzles: 2, muzzles: 2, rcs: 12 },
+  { file: 'fighter.glb', key: 'fighter', tris: 24000, kb: 3500, length: [12.5, 15.5], nozzles: 2, muzzles: 2, rcs: 12 },
   { file: 'interceptor.glb', key: 'interceptor', tris: 8000, kb: 2200, length: [9.5, 12.5], nozzles: 1, muzzles: 2, rcs: 8 },
 ];
 for (const ship of SHIPS) {

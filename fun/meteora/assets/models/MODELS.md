@@ -36,7 +36,7 @@ an emissive map.
 | `asteroid_3.glb` | `lod0` 1,144, `lod1` 286 | 1024² | 387 KB |
 | `asteroid_4.glb` | `lod0` 2,394, `lod1` 564 | 1024² | 479 KB |
 | `asteroid_5.glb` | `lod0` 3,832, `lod1` 948 | 1024² | 482 KB |
-| `fighter.glb` | `hull` 10,820 + `glass` 420 = 11,240 | base and normal 2048², MR and emissive 1024² | 1,166 KB |
+| `fighter.glb` | `hull` 20,512 + `glass` 684 = 21,196 | base and normal 2048², MR and emissive 1024² | 2,089 KB |
 | `interceptor.glb` | `hull` 3,650 | 1024² | 559 KB |
 | **all seven** | | | **3.23 MB** (budget 10 MB) |
 
@@ -78,7 +78,14 @@ edges).
 - `fighter.glb`: 14.4 m from nose to nozzle exits (15.1 m with the nose
   probe), 11.3 m span. Off-white `#d9d6cf` and graphite `#2b2d31` with an
   orange `#c8642a` accent; dark tinted glass canopy as the separate
-  `glass` node.
+  `glass` node. Detailed to be seen close in the hangar: split flaps,
+  ailerons and rudders with hinge gaps; cheek intakes with ducts, fans and
+  splitter plates; sixteen-petal nozzles over a turbine face and liner,
+  heat-sink rings; gimballed wingtip guns with slotted shrouds and muzzle
+  brakes; missiles on swept pylons; three-nozzle RCS clusters; a canopy
+  frame, sensor turret, antennas and beacons. The paint adds rivet rows,
+  hatches, the "01" of Lantern One, Lantern Wing and Watch markings,
+  stencils and warnings (from a decal image the bake reads), soot and wear.
 - `interceptor.glb`: 11.2 m long. Gunmetal `#4a4f55` and oxblood `#5e1a1d`
   with hazard stripes; red emissive sensor eye.
 
@@ -172,7 +179,7 @@ embedded images, file size):
 | `asteroid_5.glb` | 2 | 4,780 | 3 | 482 KB |
 | `colony.glb` | 10 | 30,044 | 10 | 3006 KB |
 | `drone.glb` | 3 | 2,722 | 4 | 421 KB |
-| `fighter.glb` | 2 | 11,240 | 4 | 1166 KB |
+| `fighter.glb` | 2 | 21,196 | 4 | 2089 KB |
 | `freighter.glb` | 1 | 9,110 | 6 | 1438 KB |
 | `halberd.glb` | 13 | 10,672 | 8 | 1495 KB |
 | `interceptor.glb` | 1 | 3,650 | 4 | 559 KB |
