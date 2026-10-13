@@ -8,7 +8,7 @@
    Lines go through the mission's own radio, so they look and sound like
    every other transmission. */
 
-const LINES = {
+export const LINES = {
   kill: {
     saint: ['Splash one.', 'Scratch one red eye.', 'That one\'s done.', 'Down he goes.', 'Another one for the scrapyard.'],
     wren: ['Got one!', 'He\'s down!', 'Kill! Did you see that?', 'Splash!', 'Got him, got him!'],

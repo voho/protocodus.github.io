@@ -1,7 +1,10 @@
 // Run with: node tests/voices-check.mjs
 // Casting the radio voices and pacing their lines.
 import { test, run, assert } from './harness.mjs';
-import { castVoices, createVoices, rateFor } from '../js/voices.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { castVoices, createVoices, rateFor, speakable, voiceKey } from '../js/voices.js';
+import { MISSIONS, SPECIAL_OPS, TRAINING } from '../js/campaign.js';
+import { PROLOGUE, RECAPS } from '../js/story.js';
 
 const V = (name, lang, localService = true) => ({ name, lang, localService });
 const MAC = [
@@ -65,5 +68,32 @@ test('in Node the radio is tracked but nothing is spoken', () => {
   assert.equal(voices.update(world, false), 0);
   world.mission.time = 9;
   assert.equal(voices.update(world, false), 1);
+});
+test('a line\'s recording is named by who says it and what, however it is written', () => {
+  assert.match(voiceKey('saint', 'Contacts!'), /^[0-9a-f]{8}$/);
+  assert.equal(voiceKey('saint', 'Thorns — they came'), voiceKey('saint', 'Thorns, they came'));
+  assert.notEqual(voiceKey('saint', 'Contacts!'), voiceKey('wren', 'Contacts!'));
+  assert.equal(speakable('▲ Signal… lost'), 'Signal... lost');
+});
+
+// tools/voices.mjs gathers the lines, tools/render_voices.py records them.
+const VOICE = new URL('../assets/voice/', import.meta.url);
+const index = JSON.parse(readFileSync(new URL('index.json', VOICE), 'utf8'));
+test('every briefing, recap, debrief and the prologue is recorded (re-record after editing them)', () => {
+  const missing = [];
+  const need = (who, text) => { if (text && !index[voiceKey(who, text)]) missing.push(`${who}: ${text.slice(0, 50)}`); };
+  for (const m of [...MISSIONS, ...SPECIAL_OPS, TRAINING]) {
+    for (const st of m.briefing?.stages ?? []) need(st.who ?? 'doukas', st.text);
+    for (const k of ['won', 'lost', 'died']) need('narrator', m.debrief?.[k]);
+    if (RECAPS[m.id]) for (const has of [() => true, () => false]) need('narrator', RECAPS[m.id](has));
+  }
+  for (const p of PROLOGUE) need('narrator', p.text);
+  assert.deepEqual(missing, []);
+});
+test('every recording listed is on disk, and short', () => {
+  for (const [key, [seconds]] of Object.entries(index)) {
+    assert.ok(existsSync(new URL(`${key}.mp3`, VOICE)), key);
+    assert.ok(seconds > 0.3 && seconds < 60, `${key}: ${seconds} s`);
+  }
 });
 await run();

@@ -428,8 +428,9 @@ export function createHud(canvas) {
     ctx.font = `500 12px ${FONT}`;
     const longest = Math.max(0, ...list.map(o => ctx.measureText(`○  ${o.text}  00/00`).width));
     const width = Math.min(Math.max(220, longest + 24), 380, w * 0.34);
-    const rows = list.length + timers.length + (bonus ? 1 : 0) + 1;
-    const height = 26 + rows * 19;
+    // The title, then a row each: the panel ends just under the last.
+    const rows = list.length + timers.length + (bonus ? 1 : 0);
+    const height = rows ? 44 + (rows - 1) * 19 : 26;
     panel(x - 10, y0 - 12, width, height);
     panels.push([x - 10, y0 - 12, x - 10 + width, y0 - 12 + height]);
     text(`${rt.def.number ? `MISSION ${rt.def.number} · ` : ''}${rt.def.title.toUpperCase()}`, x, y0 + 2, 11, AMBER, 'left', 600);

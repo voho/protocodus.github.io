@@ -1,0 +1,3667 @@
+[
+ {
+  "key": "006bbd79",
+  "who": "doukas",
+  "text": "Pass the last test, five drones weaving about the range, and you are a Lantern. Take your time.",
+  "kind": "brief",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "0116a44a",
+  "who": "okonkwo",
+  "text": "Commander, their transponders broadcast a registry. It's old. It's... formatted like ours.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "01891318",
+  "who": "doukas",
+  "text": "At least three transports must reach the Long Mercy. There is no more room anywhere else.",
+  "kind": "brief",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "0249682f",
+  "who": "wren",
+  "text": "Skiff 4 is down. I... God forgive us.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "027f870c",
+  "who": "saint",
+  "text": "Did you see that? They flinched. Every bomber, when the beacon touched it.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "02b028ce",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 1!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "02eff0a9",
+  "who": "convoy",
+  "text": "Skiff 6, coming through! 24 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "05db92f1",
+  "who": "okonkwo",
+  "text": "If you can, the reactor, the glowing heart. Three seconds of scan. Then run.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "06714659",
+  "who": "narrator",
+  "text": "When the Perpetua reached the red dwarf Pindus there was no home and no Vanguard, only a belt of dark, metal-rich stone. The settlers carved their towns into the largest rocks and named them after the monasteries that once clung to the cliffs of Meteora, on Earth: Varlaam, Roussanou, Stefanos.",
+  "kind": "story",
+  "missions": [
+   "menu"
+  ]
+ },
+ {
+  "key": "071eb16c",
+  "who": "okonkwo",
+  "text": "That relay is talking to something deeper in. Signal C. Go carefully.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "08c3a1e1",
+  "who": "narrator",
+  "text": "Lantern One never came home. The Watch logged the loss as \"unknown hostile action\" and sent the next pilot out with a wingman more.",
+  "kind": "story",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "08cb979b",
+  "who": "saint",
+  "text": "Bomb run on the Mule 11, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "08dfc0e2",
+  "who": "varlaam",
+  "text": "Skiff 6 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "08e2a6b8",
+  "who": "varlaam",
+  "text": "Last Skiff clear. Varlaam is... empty. Thank you, Lantern Wing.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "08fb7cbb",
+  "who": "saint",
+  "text": "Splash one.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "08fd8201",
+  "who": "okonkwo",
+  "text": "Mule 11 is gone. Its beacon didn't stop, it just stretched, and stretched.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "09126d6f",
+  "who": "saint",
+  "text": "Anchor 3 is down!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "0951cf1c",
+  "who": "varlaam",
+  "text": "Skiff 4 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "096f39b9",
+  "who": "varlaam",
+  "text": "Second impact, we can't take another!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "0ab31cc9",
+  "who": "wren",
+  "text": "I'm hit! I'm okay, I think!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "0b149368",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 9!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "0b58ffde",
+  "who": "varlaam",
+  "text": "Lantern, Varlaam Control. The rocks around us started glowing last night. We count eight.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "0d055e8b",
+  "who": "saint",
+  "text": "Down he goes.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "0d51a957",
+  "who": "saint",
+  "text": "Bomb run on the Mule 6, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "0da59385",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 11!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "0db6474f",
+  "who": "saint",
+  "text": "The white one's down! Lantern got the Ninth Hand!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "0ddd1924",
+  "who": "okonkwo",
+  "text": "We've lost Skiff 9. From out here it'll be falling for ever.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "0f45e522",
+  "who": "saint",
+  "text": "Anchor 2 is down!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "0f77bfd9",
+  "who": "wren",
+  "text": "Lantern Three on station. Let's get these rocks home.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "11e149cf",
+  "who": "saint",
+  "text": "Torpedo on the Mule 4! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "123cf3a5",
+  "who": "doukas",
+  "text": "The drive needs six minutes to spool. Keep the Harrow off her, and above all off the drive ring at her bow.",
+  "kind": "brief",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "1324d40b",
+  "who": "wren",
+  "text": "Hauler 5 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "13ed84f6",
+  "who": "varlaam",
+  "text": "First Skiff is boarding. God keep you, Lantern.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "14322d8a",
+  "who": "wren",
+  "text": "Launch bay destroyed!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "147672fa",
+  "who": "wren",
+  "text": "Torpedo inbound on the Long Mercy!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "14baa17c",
+  "who": "halo",
+  "text": "Vigil taking fire from that beam, we're holding!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "154eda75",
+  "who": "okonkwo",
+  "text": "The Eyes see heat and noise. Keep your speed down and your guns cold. Rocks are your friends today.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "155bceff",
+  "who": "narrator",
+  "text": "The seeds around Varlaam were written in the Perpetua's own machine-script, three centuries old. And they improvised: they flew at the station.",
+  "kind": "story",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "156f3193",
+  "who": "okonkwo",
+  "text": "\"Vanguard Seven. Perpetua Program. Task: prepare habitat. Status: in progress.\"",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "169ff7d2",
+  "who": "doukas",
+  "text": "The lane to the Perpetua is nine kilometres of cleared rock. The Mules are slow and they cannot fight. Saint and Wren fly with you.",
+  "kind": "brief",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "16e131e1",
+  "who": "saint",
+  "text": "They're on me, they're on me!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "18c87a25",
+  "who": "doukas",
+  "text": "Cut the line. Destroy both tugs and a hauler drifts dead; crack the core itself and it is gone. Stop at least four of the six.",
+  "kind": "brief",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "18e8ff28",
+  "who": "doukas",
+  "text": "Lantern, the Mules are yours. Roussanou to the Perpetua, nine kilometres, no detours.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "1a3e02a4",
+  "who": "saint",
+  "text": "Bomb run on the Mule 3, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "1aa2bc26",
+  "who": "doukas",
+  "text": "Then don't let them ripen. Lantern Wing, weapons free.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "1aba7c40",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 9!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "1ac1e0e5",
+  "who": "wren",
+  "text": "Kill! Did you see that?",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "1b26ef15",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Halberd Vigil!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "1b947c3e",
+  "who": "doukas",
+  "text": "Perpetua is in position. Every ship we have is here. Lantern, it has been an honour.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "1bd92858",
+  "who": "ferrante",
+  "text": "Ring is open! All wings, inside the ring, now, now, now!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "1bea232d",
+  "who": "varlaam",
+  "text": "Three of them just lit engines, they're falling on us!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "1cf46073",
+  "who": "saint",
+  "text": "Red eyes. I'm not sleeping tonight.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "1e47bd64",
+  "who": "narrator",
+  "text": "A dying tug told us everything. VG-07 is Vanguard Seven: the Harrow are the Vanguard, building a world out of ours, and the tug's memory says where their foreman waits. The white Thorn that learned to fly from our dead flies no more.",
+  "kind": "story",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "1e5faf8d",
+  "who": "doukas",
+  "text": "Lantern One, you're cleared to land. Good work out there.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "1f2e6c8a",
+  "who": "doukas",
+  "text": "Lantern, there's the line. Six haulers. Cut it.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "1f9548b8",
+  "who": "okonkwo",
+  "text": "We've lost Mule 7. From out here it'll be falling for ever.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "1fbf2876",
+  "who": "narrator",
+  "text": "Okonkwo watched your sensor log three times without speaking. Then: \"It's a factory. It builds them, out of rock, out of tugs, out of whatever it finds.\" The thing in the Deep was eight hundred metres long, and it had been asleep. Commander Doukas ordered every settlement in the belt to fortify. Varlaam, closest to the Deep, went first.",
+  "kind": "story",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "1fe9ebdd",
+  "who": "perpetua",
+  "text": "Second engine gone, we're losing way, we're drifting!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "21787806",
+  "who": "mule",
+  "text": "Lane's clear. Moving!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "21875ce0",
+  "who": "ember",
+  "text": "Ember wing, on the corvette. Keep the little ones off us.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "2283d6cb",
+  "who": "doukas",
+  "text": "Two Warden corvettes guard her. The Vigil and Halo wing will hold them and the fighters off you. Everything we have is in this, Lantern.",
+  "kind": "brief",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "247ea125",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 2!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "24fc9a35",
+  "who": "saint",
+  "text": "Both generators down, her shield's gone!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "253e1332",
+  "who": "doukas",
+  "text": "That's 125 people, Lantern. Now get yourself out of there.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "266932f7",
+  "who": "narrator",
+  "text": "The foreman is dead, and fourteen Mothers have come in its place. The Meteora is leaving. Roussanou went first: its convoy folded for the Long Mercy an hour ago.",
+  "kind": "story",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "288fb452",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 3! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "28a57d57",
+  "who": "wren",
+  "text": "Someone get this one off me!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "29010aac",
+  "who": "narrator",
+  "text": "Too much ore was lost in the lane. Varlaam rationed its smelters, and the Watch learned that the raiders want freighters more than fighters.",
+  "kind": "story",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "293f0ef7",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 6! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "2aa70db8",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 1!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "2ab813a8",
+  "who": "doukas",
+  "text": "Lantern, they're on top of us!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "2b31bb82",
+  "who": "saint",
+  "text": "Bomb run on the Mule 1, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "2c1459ca",
+  "who": "wren",
+  "text": "Hauler 6 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "2c3133b2",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Long Mercy!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "2ca1c891",
+  "who": "doukas",
+  "text": "Rules of engagement: weapons free if fired upon. Look, don't touch, until something touches you.",
+  "kind": "brief",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "2d7df988",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 9! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "30278e18",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 5, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "3038a675",
+  "who": "doukas",
+  "text": "Ember wing, two Anvils with Lances, flies with you. Keep them alive for the reactor. The bays launch fighters every half-minute: knock them out.",
+  "kind": "brief",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "30833137",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 4!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "3149c0a3",
+  "who": "halo",
+  "text": "More of them. They don't stop.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "31f5fcfc",
+  "who": "varlaam",
+  "text": "Another hit, the reactor housing is cracking!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "325f7471",
+  "who": "saint",
+  "text": "Contacts, both sides of the lane!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "329bc3a0",
+  "who": "convoy",
+  "text": "Mule 11, coming through! 36 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "32d01391",
+  "who": "doukas",
+  "text": "That's 186 people, Lantern. Now get yourself out of there.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "364d6a61",
+  "who": "saint",
+  "text": "Big ones, bombers! They're lining up on the station!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "3786a97e",
+  "who": "ferrante",
+  "text": "Long Mercy to all wings. Drive spooling. Six minutes. Forty-one thousand souls thank you.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "37ca2186",
+  "who": "convoy",
+  "text": "Skiff 9, coming through! 22 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "38456ad4",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 1, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "38462fbe",
+  "who": "doukas",
+  "text": "Okonkwo has traced the raiders' fold flashes to the Kalavryta Deep, rock so thick nobody has ever settled it. Three signals stand out. Find out what they are.",
+  "kind": "brief",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "38897f68",
+  "who": "narrator",
+  "text": "The Narrows took too many. The Long Mercy will fold with empty decks.",
+  "kind": "story",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "39f80506",
+  "who": "wren",
+  "text": "Got one!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "3a42f19e",
+  "who": "okonkwo",
+  "text": "A flight recorder, you found it before I had the ping. Twelve minutes of cutting noise, and one clear frame: letters round the red eye's lens.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "3a97da02",
+  "who": "varlaam",
+  "text": "We can't take many more of those!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "3b1853de",
+  "who": "doukas",
+  "text": "Convoy, divert, high lane, through the rock. Vigil, cover them. Lantern, keep them alive!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "3b3eda32",
+  "who": "saint",
+  "text": "Our Pulse guns won't dent that stone, Lead. You crack the rocks, Wren and I keep the Thorns off you.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "3b48372e",
+  "who": "doukas",
+  "text": "Sector Seven is ore country, quiet for eleven years. Nineteen days ago the Saint Amaro went silent. Her last frame showed something looking back.",
+  "kind": "brief",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "3cc35681",
+  "who": "wren",
+  "text": "More of them, high and behind!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "3d0cd85c",
+  "who": "okonkwo",
+  "text": "She's spooling a fold drive, she's going to run! Four minutes, maybe less!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "3d1eb8c7",
+  "who": "doukas",
+  "text": "Scan each signal and get out through the fold point. You fly alone; Wren waits at the edge of the Deep.",
+  "kind": "brief",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "3e9b986d",
+  "who": "wren",
+  "text": "Torpedo inbound on the Halberd Vigil!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "3f046bd7",
+  "who": "varlaam",
+  "text": "Reactor temperature climbing, keep them off us!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "3f38dd4a",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Perpetua!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "3f943c14",
+  "who": "narrator",
+  "text": "VANGUARD SEVEN. PERPETUA PROGRAM. TASK: PREPARE HABITAT. STATUS: IN PROGRESS. The Harrow are the Vanguard, the fabricators the Perpetua's builders sent a century ahead to make a home ready. They found no world, so they began to build one, from the outer belt, and they have been building for two hundred years. To them, we are debris in the construction zone. Okonkwo has found one more thing in the tug's memory: where the foreman is. A Mother, at the Deep Anchorage.",
+  "kind": "story",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "40daa188",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 12!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "41192e66",
+  "who": "okonkwo",
+  "text": "Those pylons, they're fold anchors. They pin space flat. While they stand, the drive cannot open!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "419d9afd",
+  "who": "saint",
+  "text": "Show-off.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "41fda7ca",
+  "who": "saint",
+  "text": "Torpedo on the Mule 1! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "4213a3ec",
+  "who": "saint",
+  "text": "Torpedo on the Mule 7! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "42680c78",
+  "who": "ferrante",
+  "text": "Folding. Godspeed, Perpetua.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "43493a73",
+  "who": "doukas",
+  "text": "Match a hulk's fall and hold your nose on it for a few seconds: a fold beacon latches and a Tender pulls them through. The deeper they are, the faster they fall. Choose.",
+  "kind": "brief",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "435ebe81",
+  "who": "saint",
+  "text": "Torpedo on the Mule 11! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "43b45fe0",
+  "who": "wren",
+  "text": "Torpedo inbound on the Halberd Ardent!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "45dbfd2a",
+  "who": "saint",
+  "text": "Seed 6 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "467d4332",
+  "who": "doukas",
+  "text": "Range is yours, Saint. Bring me back a pilot.",
+  "kind": "radio",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "483070ce",
+  "who": "doukas",
+  "text": "Varlaam is coming home with us. Six Skiffs, every soul on that rock. You hold the door, Lantern.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "48811868",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 3!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "48f3e6db",
+  "who": "saint",
+  "text": "Look at that wreck, Lantern. Under the red paint, that's rolled hull plate. Old gauge. Like the Perpetua's ribs.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "49041242",
+  "who": "saint",
+  "text": "Bomb run on the Perpetua, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "4a5245f8",
+  "who": "saint",
+  "text": "Never again, Lantern. Never, ever again.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "4aba0e49",
+  "who": "okonkwo",
+  "text": "Reactor logged. And there's a number cast into the housing, V-G, zero, seven. That's no registry of ours.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "4cbf081d",
+  "who": "doukas",
+  "text": "Half her turrets are dead and Halo wing is one ship. Lose two of her three engines and she drifts into the rock. Her life is in your hands.",
+  "kind": "brief",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "4d1c8888",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 12! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "4e9cc418",
+  "who": "saint",
+  "text": "Seed 4 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "4eb51da0",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 3!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "4eceebcd",
+  "who": "doukas",
+  "text": "All wings, this is it. The foreman. Generators first, then the heart.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "4ee57095",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 6, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "4f57cf32",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 3, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "5099cb77",
+  "who": "saint",
+  "text": "First wave to port: fighters and two bombers!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "512e92b6",
+  "who": "saint",
+  "text": "Torpedo on the Long Mercy! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "5249bf9c",
+  "who": "wren",
+  "text": "Lantern One, Wren! Coming in hot, keep running, I've got your tail!",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "52a98b47",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 6!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "52d4ae72",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Varlaam!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "5318825d",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 4! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "54840165",
+  "who": "okonkwo",
+  "text": "They're throwing rocks at us. Simple. Effective.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "5485a87a",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 5!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "54fb5784",
+  "who": "ferrante",
+  "text": "Drive is stalled at sixty seconds. We are pinned! Those anchors have to go!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "55c375f5",
+  "who": "doukas",
+  "text": "When a seed is ripe it splits open and lets out a swarm of Mites, small, fast drones. Destroy the seeds before they hatch.",
+  "kind": "brief",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "55e174c5",
+  "who": "convoy",
+  "text": "Mule 2, coming through! 44 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "57b2fa8c",
+  "who": "okonkwo",
+  "text": "They're leaving. All of them, at once. Like someone called them home.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "5850d697",
+  "who": "okonkwo",
+  "text": "It saw you. They'll come, move!",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "5a73d225",
+  "who": "okonkwo",
+  "text": "Mule 4's gone over the horizon.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "5ab9adb2",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 5!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "5bd2507b",
+  "who": "narrator",
+  "text": "Lantern One's beacon went silent before the job was done. A Tender found the wreck, the crews cut you out of it, and the Watch wrote the mission off. Commander Doukas wants you back in the cockpit before the Harrow come again.",
+  "kind": "story",
+  "missions": [
+   "m01",
+   "m02",
+   "m03",
+   "m04",
+   "m05",
+   "m06",
+   "m07",
+   "m08",
+   "m09",
+   "m10",
+   "m11",
+   "training"
+  ]
+ },
+ {
+  "key": "5c7bfa47",
+  "who": "doukas",
+  "text": "The Roussanou convoy folded for the Long Mercy an hour ago and never arrived. Okonkwo found its trace: Harrow anchors caught the fold in flight and dropped it on the Well.",
+  "kind": "brief",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "5c94b87d",
+  "who": "doukas",
+  "text": "The Mothers are eating the belt. Haulers, rock cores from Roussanou's mines, each towed by two Maul tugs, are dragging our metal to a fold point.",
+  "kind": "brief",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "5db40df1",
+  "who": "doukas",
+  "text": "Okonkwo has one more idea. Over Varlaam the Harrow flinched at the Perpetua's beacon; her full command code is still in the archive. If the Vanguard still listens to its makers, even for a moment, that moment is yours.",
+  "kind": "brief",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "606c9a36",
+  "who": "saint",
+  "text": "Torpedo on the Varlaam! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "608852b2",
+  "who": "narrator",
+  "text": "For a hundred and ninety years the belt lived quietly. The Perpetua herself, too big to land and too old to leave, became carrier, dockyard and hospital to them all. The Belt Watch was never an army: thirty pilots in refitted escort craft, chasing rockfalls and the odd claim-jumper.",
+  "kind": "story",
+  "missions": [
+   "menu"
+  ]
+ },
+ {
+  "key": "60d946d3",
+  "who": "saint",
+  "text": "Bombers, they're the priority.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "60f09f66",
+  "who": "doukas",
+  "text": "Then targets: let the scope pick one, switch it, put your guns on a drone and a missile on another. Nothing out there shoots back.",
+  "kind": "brief",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "61ab6d5d",
+  "who": "wren",
+  "text": "Movement in the rocks, they were waiting for us to stop!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "61eab237",
+  "who": "halo",
+  "text": "Fold flashes at the rally point, it's the Halberds! Ardent and Vigil!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "62b47811",
+  "who": "saint",
+  "text": "Anchor 1 is down!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "632007d4",
+  "who": "saint",
+  "text": "Seed 8 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "632ae43f",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 6!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "634bd881",
+  "who": "ember",
+  "text": "Ember 1 is down!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "63fa31a1",
+  "who": "okonkwo",
+  "text": "Its core is full of flight recorders. Ours. It learned to fly from the pilots it harvested.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "64ba84c0",
+  "who": "doukas",
+  "text": "Roussanou's ore keeps Varlaam's smelters burning. Three Mule freighters are loaded and waiting, and after the Saint Amaro, no one will fly them without an escort.",
+  "kind": "brief",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "6847db29",
+  "who": "doukas",
+  "text": "The gunship Vigil escorts them; Lantern Wing rides with the transports. The Harrow know we are leaving. Expect them everywhere.",
+  "kind": "brief",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "69dce492",
+  "who": "narrator",
+  "text": "A dying tug told us everything. VG-07 is Vanguard Seven: the Harrow are the Vanguard, building a world out of ours, and the tug's memory says where their foreman waits.",
+  "kind": "story",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "6a464e59",
+  "who": "saint",
+  "text": "Seed 1 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "6a48a693",
+  "who": "wren",
+  "text": "Seed 2 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "6a500860",
+  "who": "wren",
+  "text": "Hauler 4 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "6a5e584f",
+  "who": "wren",
+  "text": "Shields gone, still in it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "6aa2a14f",
+  "who": "convoy",
+  "text": "Skiff 15, coming through! 17 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "6b3da318",
+  "who": "halo",
+  "text": "Halo, with the ark. Stefanos, stay on our wing and pick your shots.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "6be42231",
+  "who": "saint",
+  "text": "Smooth. One more.",
+  "kind": "radio",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "6d60d098",
+  "who": "saint",
+  "text": "Good. Next one.",
+  "kind": "radio",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "6e40898b",
+  "who": "varlaam",
+  "text": "Skiff 5 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "6f1800df",
+  "who": "mule",
+  "text": "Mule 3 is gone! Keep them off the rest of us!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "6f2f7451",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 4!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "6fad7c2b",
+  "who": "narrator",
+  "text": "In the Deep, Lantern One found what builds the Harrow: a Mother, eight hundred metres long, asleep. It woke.",
+  "kind": "story",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "710bdcd8",
+  "who": "saint",
+  "text": "Bombers out of her bays, they're going for the ring!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "715050c2",
+  "who": "narrator",
+  "text": "The Perpetua went into the rock with three thousand people aboard. There is no worse sentence in the Watch's log.",
+  "kind": "story",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "72060964",
+  "who": "saint",
+  "text": "Hauler 4's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "72788b7c",
+  "who": "wren",
+  "text": "Lantern, the white one, it's on you. It's fast!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "74582b61",
+  "who": "wren",
+  "text": "Hauler 3 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "75089094",
+  "who": "wren",
+  "text": "Seed 1 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "75d464c5",
+  "who": "doukas",
+  "text": "... Say again, Doctor?",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "769c5908",
+  "who": "doukas",
+  "text": "Stefanos is the last settlement. Its people are aboard three Skiffs and two Mules, and the only way to the Long Mercy is the Narrows: eight kilometres of rock.",
+  "kind": "brief",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "76aad9df",
+  "who": "narrator",
+  "text": "The range will be there tomorrow. So will Saint.",
+  "kind": "story",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "76b79b2f",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 4!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "774e2c85",
+  "who": "doukas",
+  "text": "Lantern Wing, come home. All of you. Now.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "77952d20",
+  "who": "doukas",
+  "text": "Last night eight asteroids around Varlaam Deep began to glow. Okonkwo calls them seeds: Harrow fabricator growths threaded through the stone, ripening.",
+  "kind": "brief",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "7833a4bd",
+  "who": "wren",
+  "text": "Ejecting, I'm out, I'm out!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "786e7e3a",
+  "who": "saint",
+  "text": "Here they come. All of them.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "78c29bb9",
+  "who": "doukas",
+  "text": "Three signals, Lantern. Look, scan, leave. If anything with a red eye sees you, you were never there.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "791c31ca",
+  "who": "okonkwo",
+  "text": "They're... stopping. All of them. They recognise her!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "7a0caae8",
+  "who": "okonkwo",
+  "text": "Every one of them is falling, faster the deeper it gets. Match its fall, keep your nose on it till the beacon latches. The Tenders do the rest.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "7a9ab8dd",
+  "who": "saint",
+  "text": "Took a hard one, I'm all right.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "7bb28b3d",
+  "who": "halo",
+  "text": "Halo wing on Ember. Vigil, the corvettes are yours.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "7c15929d",
+  "who": "doukas",
+  "text": "Two shield generators sit on its upper flanks; with both down its shield falls. Then the reactor, behind its cage: only torpedoes and Breakers bite there.",
+  "kind": "brief",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "7c82b194",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 5! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "7ce065df",
+  "who": "doukas",
+  "text": "That's 210 people, Lantern. Now get yourself out of there.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "7d5c4620",
+  "who": "okonkwo",
+  "text": "Bring me a piece of it. Any piece.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "7e1ee04d",
+  "who": "doukas",
+  "text": "The Perpetua stays behind. She is too old to fold and too big to hide. I stay with her.",
+  "kind": "brief",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "7e91bfc7",
+  "who": "saint",
+  "text": "That hull wasn't shot. It was cut. Clean, like something wanted the metal.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "7eaabbfd",
+  "who": "okonkwo",
+  "text": "The tugs are shielded like nothing we've seen on a drone. Strip the shields, then the tug.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "7f1f80a8",
+  "who": "narrator",
+  "text": "Varlaam took one rock too many. The Watch pulled the survivors out through the wreckage, and the seeds kept ripening.",
+  "kind": "story",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "7ffc1f7c",
+  "who": "saint",
+  "text": "Nineteen days. If she's out there, she's cold.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "807390ad",
+  "who": "doukas",
+  "text": "The Harrow will come for the shuttles. Okonkwo expects something new: the Mother in the Deep was building heavier frames. Bombers.",
+  "kind": "brief",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "80a11a71",
+  "who": "okonkwo",
+  "text": "They're early. Lantern, there's no time left, the anchors, now!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "80d74ace",
+  "who": "okonkwo",
+  "text": "Seeds. Fabricator nodes grown into the stone. When they're ripe, they open.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "819fbe8d",
+  "who": "doukas",
+  "text": "Eyes watch the Deep: drifting sentries that see heat, speed and gunfire. Linger in an Eye's range and it calls for help. A rock between you hides you.",
+  "kind": "brief",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "81b9d24b",
+  "who": "doukas",
+  "text": "Fold point reached. Bring her home, Lantern.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "81f841ec",
+  "who": "narrator",
+  "text": "The Mother lived. In the Deep Anchorage, the Vanguard went back to work.",
+  "kind": "story",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "8223dbc2",
+  "who": "narrator",
+  "text": "Varlaam is empty: three thousand people asleep in the Perpetua's holds and corridors, and a rock with its lights still burning behind them. Wren flew home on a Tender's tow line and did not say a word until she had seen her mother's name on the manifest. The Harrow have bombers now. Every pilot in the Watch has seen the gun-camera footage of the Mauls lining up, and nobody is joking about red eyes any more. Okonkwo watches a different half-second of it, over and over: the Perpetua's beacon sweeping the formation, and every bomber checking its run.",
+  "kind": "story",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "8227bf9a",
+  "who": "wren",
+  "text": "Torpedo inbound on the Varlaam!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "82bc2b41",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 6!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "830f725c",
+  "who": "narrator",
+  "text": "The Narrows are behind us and the Long Mercy is as full as she will ever be: forty-one thousand people, three hundred years after the Perpetua brought their ancestors here. Skiff 4 had been boarded at the docks while it loaded; no one aboard survived the boarding. Okonkwo says the seeds in its hold were hours from opening. The drive is ready, or as ready as Okonkwo can make it. One jump left.",
+  "kind": "story",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "83d7e1ce",
+  "who": "saint",
+  "text": "One generator down! One to go!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "846a0e2d",
+  "who": "varlaam",
+  "text": "Skiff 3 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "84bb9723",
+  "who": "mule",
+  "text": "Rockslide in the lane! We can't push through that!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "84ef0b63",
+  "who": "halo",
+  "text": "Second corvette, starboard! Ember, can you take it?",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "85e5c228",
+  "who": "saint",
+  "text": "Leave some for the rest of us.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "86bcf726",
+  "who": "doukas",
+  "text": "It will take six minutes. The Harrow know where she is. Expect bombers in numbers: kill the Mauls first, shoot down what they launch.",
+  "kind": "brief",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "877a899c",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 9, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "88f4404f",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 15! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "895f7a40",
+  "who": "saint",
+  "text": "Bomb run on the Halberd Ardent, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "8978df6f",
+  "who": "doukas",
+  "text": "Lantern, Perpetua. Eight hulks are still sending. Get them out of there.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "8a32de0e",
+  "who": "convoy",
+  "text": "Mule 7, coming through! 31 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "8b2095db",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 2!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "8d40b677",
+  "who": "perpetua",
+  "text": "Fold flash, Mother-class, two thousand metres off the Mercy's bow!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "8e297a80",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 12!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9147359f",
+  "who": "wren",
+  "text": "Seed 6 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "919262a7",
+  "who": "okonkwo",
+  "text": "VG-07, Commander. Vanguard Seven. It was cast on the reactor in the Deep the whole time.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "92c40141",
+  "who": "saint",
+  "text": "Corvette on the line, and fighters. Mind those turrets.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "9331eb94",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 5!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9375d0be",
+  "who": "perpetua",
+  "text": "Fold flash in the Narrows, Mother-class, right across your route!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "93a32819",
+  "who": "doukas",
+  "text": "Weapons free, Lantern. Weapons free!",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "94215411",
+  "who": "saint",
+  "text": "Torpedo on the Mule 2! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9460b1bb",
+  "who": "doukas",
+  "text": "Varlaam is coming home with us. Six Skiffs will carry everyone on the rock to the Perpetua's fold point, one at a time, thirty-five seconds apart.",
+  "kind": "brief",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "94a693a5",
+  "who": "saint",
+  "text": "Bomb run on the Mule 4, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "957c1b21",
+  "who": "saint",
+  "text": "Right, rookie. Everything I know, and none of it twice. Let's start with flying in a straight line.",
+  "kind": "radio",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "95a5f610",
+  "who": "okonkwo",
+  "text": "They feel the pull too. Lead them down and let the Well have them.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "9628769e",
+  "who": "doukas",
+  "text": "Watch the pull. Below the red line nothing we fly climbs back out, not even you. I will not lose you to a hole in the sky, Lantern.",
+  "kind": "brief",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "962aaeea",
+  "who": "mule",
+  "text": "Perpetua in sight, and Talons on our tail! Missiles!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "964b1185",
+  "who": "okonkwo",
+  "text": "Reactor breach! She's going critical, get clear, everyone, a kilometre and a half, now!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "96a32fae",
+  "who": "saint",
+  "text": "That beam emitter is scrap. Nice.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "9756bf68",
+  "who": "saint",
+  "text": "Bomb run on the Mule 7, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "975be9f1",
+  "who": "saint",
+  "text": "Raiders on the fold lane, they want the Skiffs!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "97d82211",
+  "who": "okonkwo",
+  "text": "Its transponder changed. It's Harrow, boarded at the docks. That hold is full of seeds!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "98d01cc6",
+  "who": "doukas",
+  "text": "Hold the door until the last Skiff is away. Torpedoes in flight can be shot down, B targets the nearest one.",
+  "kind": "brief",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "995a3463",
+  "who": "saint",
+  "text": "Hauler 1's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "9a5e1551",
+  "who": "doukas",
+  "text": "Wardens escort them: corvettes with turrets, best avoided. And pilots have reported a white Thorn that flies like a person. They call it the Ninth Hand.",
+  "kind": "brief",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "9b383553",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 2! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9b79394a",
+  "who": "saint",
+  "text": "Bomb run on the Varlaam, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9b846d98",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Halberd Ardent!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9c9e0842",
+  "who": "narrator",
+  "text": "The ring closed. Behind it, the belt went dark.",
+  "kind": "story",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "9cfdca1f",
+  "who": "narrator",
+  "text": "The Saint Amaro was not attacked; she was harvested, cut into plates and carried off. The machines that ambushed you match nothing in the Watch's records: oxblood plating, red sensor eyes, no transmissions at all. Dr. Okonkwo has asked for every scrap of the wrecks you brought down. Commander Doukas has asked for something else: escorts. The ore runs from Roussanou start again tomorrow.",
+  "kind": "story",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "9d16a7a8",
+  "who": "saint",
+  "text": "Torpedo on the Halberd Ardent! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9d2f097a",
+  "who": "doukas",
+  "text": "Keep the raiders off them. At least two Mules must reach the Perpetua; the ore in the third is worth a month of air for Varlaam.",
+  "kind": "brief",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "9d306de9",
+  "who": "doukas",
+  "text": "Fifteen seconds. That's all she could buy. Go, Mercy. Go.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "9d992278",
+  "who": "narrator",
+  "text": "In the Deep, Lantern One found what builds the Harrow: a Mother, eight hundred metres long, asleep. It woke. Cast into its reactor was a registry no one can place: VG-07.",
+  "kind": "story",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "9ea1b426",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 3!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9eae8019",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 4!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "9f71f845",
+  "who": "okonkwo",
+  "text": "Lantern, that last tug. Its transponder dumped everything as it died. Give me a minute.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "9fc2ad92",
+  "who": "perpetua",
+  "text": "Perpetua sweeping the lane with the nav beacon. Painting them for you.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "9fcfbbdf",
+  "who": "perpetua",
+  "text": "Engine down! We can make it on two, not on one!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "a0248213",
+  "who": "okonkwo",
+  "text": "They're ours. The Harrow are the Vanguard. They never stopped working.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "a08a9d4c",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 7!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a0fbcbe1",
+  "who": "saint",
+  "text": "Torpedo on the Halberd Vigil! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a188aa20",
+  "who": "wren",
+  "text": "Tender's got me. Thanks for coming back for me.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "a241adc3",
+  "who": "doukas",
+  "text": "Copy, Saint. Her beacon pinged once more near Nav Beta. Take a look. Carefully.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "a3be4287",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 4, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a3c2e915",
+  "who": "saint",
+  "text": "Torpedo on the Mule 6! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a430a4fb",
+  "who": "wren",
+  "text": "Splash!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a446952b",
+  "who": "halo",
+  "text": "Halo Lead, on the Perpetua. Glad to have you, Lantern.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "a48e277b",
+  "who": "doukas",
+  "text": "That's 232 people, Lantern. Now get yourself out of there.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "a5a740d7",
+  "who": "halo",
+  "text": "Vigil won't fire on a transport without a kill order. Your call, Lantern, your shot.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "a60a4f54",
+  "who": "saint",
+  "text": "That's everything they've got. Hold on to something!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "a6f2b245",
+  "who": "saint",
+  "text": "Pulse on rock. We'll be here a while.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "a8dd83d7",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 15!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "a91a1aed",
+  "who": "wren",
+  "text": "Seed 4 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "a9b07662",
+  "who": "wren",
+  "text": "Torpedo inbound on the Perpetua!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "aabefae9",
+  "who": "doukas",
+  "text": "Lantern, Vigil. This is the last convoy. Get them through.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "ab2ba9f0",
+  "who": "mule",
+  "text": "Skiff 4 is off the lane, Skiff 4, respond!",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "abf74088",
+  "who": "narrator",
+  "text": "The ore tug Saint Amaro stopped answering in Sector Seven. Her last transmission was a single frame of video: a red eye, opening in the dark.",
+  "kind": "story",
+  "missions": [
+   "menu"
+  ]
+ },
+ {
+  "key": "ac9bbbeb",
+  "who": "doukas",
+  "text": "Later, Doctor.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "ac9c761f",
+  "who": "doukas",
+  "text": "Lantern, clear that lane. Breakers would be nice about now.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "add4f807",
+  "who": "doukas",
+  "text": "Okonkwo, now. Send the command code.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "aded3414",
+  "who": "saint",
+  "text": "Here they come, they're going for the freighters!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "ae2fd389",
+  "who": "okonkwo",
+  "text": "It flies like a person. Like it learned from us.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "b024c4df",
+  "who": "convoy",
+  "text": "Skiff 12, coming through! 18 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "b1c04977",
+  "who": "saint",
+  "text": "Seed 7 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "b2451318",
+  "who": "ferrante",
+  "text": "Long Mercy to convoy: we have you. Welcome aboard. Mind the hatches, they're still new.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "b26f9f27",
+  "who": "doukas",
+  "text": "Before you fly for the Watch, you fly for Saint. Out on the Perpetua's range, one thing at a time: steering, speed, the afterburner, rolling and sliding.",
+  "kind": "brief",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "b3350fd8",
+  "who": "saint",
+  "text": "Another one for the scrapyard.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "b3a46e36",
+  "who": "saint",
+  "text": "Bomb run on the Mule 5, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "b3f2506f",
+  "who": "doukas",
+  "text": "Her beacon pinged once more, two days later, near Nav Beta. Look there too. Then come home to the Perpetua.",
+  "kind": "brief",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "b46b63e1",
+  "who": "doukas",
+  "text": "The Well is Pindus's dead companion, a black hole. The convoy is broken hulks now, and every one of them is falling. There are people aboard eight of them.",
+  "kind": "brief",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "b47d6797",
+  "who": "varlaam",
+  "text": "Skiff 1 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "b62bf80f",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 15!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "b8c2c7a7",
+  "who": "wren",
+  "text": "Bombers inbound!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "b8df99e8",
+  "who": "varlaam",
+  "text": "Impact! Decks four through nine are open to space,",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "b97995da",
+  "who": "perpetua",
+  "text": "PERPETUA COMMAND AUTHORITY. ALL VANGUARD UNITS: HOLD. HOLD. HOLD.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "ba3ff2de",
+  "who": "doukas",
+  "text": "They are armoured rock. Pulse fire will barely scar them. Bring Breakers, bring Lances. Saint and Wren fly with you; Wren was born on Varlaam.",
+  "kind": "brief",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "ba9fa1a3",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 2!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "baa45986",
+  "who": "saint",
+  "text": "Scratch one red eye.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "bb1db797",
+  "who": "saint",
+  "text": "Hauler 5's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "bb3c0205",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 15, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "bbf6ef15",
+  "who": "doukas",
+  "text": "Fourteen Mothers are coming. We are leaving. The Long Mercy carries all who are left, forty-one thousand, and a fold drive built from Harrow wreckage.",
+  "kind": "brief",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "bc2cc111",
+  "who": "saint",
+  "text": "More of them, three on the approach!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "bc7bbed6",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 1!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "bc888ac9",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Mule 6!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "bcccd8b0",
+  "who": "saint",
+  "text": "Torpedo on the Skiff 1! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "c04c2c62",
+  "who": "saint",
+  "text": "Bomb run on the Long Mercy, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "c05ce472",
+  "who": "saint",
+  "text": "There she is. Or most of her.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "c1091c06",
+  "who": "narrator",
+  "text": "The Perpetua made the rally point. The Harrow transponders answer on her own survey band, with a handshake older than anyone alive. Okonkwo and the Commander talked for three hours.",
+  "kind": "story",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "c186dc57",
+  "who": "convoy",
+  "text": "Mule 4, coming through! 40 aboard, God bless you, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "c1948f91",
+  "who": "okonkwo",
+  "text": "There was no one left aboard. There wasn't, Wren.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "c2b0f75c",
+  "who": "wren",
+  "text": "Torpedo inbound on the Skiff 5!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "c3ad7b2b",
+  "who": "narrator",
+  "text": "The Saint Amaro was harvested, not attacked: cut into plates and carried off. Something in the belt wants metal.",
+  "kind": "story",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "c4c3afd5",
+  "who": "wren",
+  "text": "Not my home. Not today.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "c4cad0bb",
+  "who": "narrator",
+  "text": "Varlaam fell with people still aboard. The Watch will remember the names.",
+  "kind": "story",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "c595d054",
+  "who": "ember",
+  "text": "Shields are down! Ember, on the reactor, Lances away when you have tone!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "c68ee0e1",
+  "who": "doukas",
+  "text": "Well flown, all of you. Lantern, my cabin, when you're down. Bring Okonkwo.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "c693d1f3",
+  "who": "wren",
+  "text": "How are you doing that?",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "c6945735",
+  "who": "narrator",
+  "text": "Saint signed the range log with a flourish nobody could read and wrote one word under it: ready. Somewhere out in Sector Seven, an ore tug called the Saint Amaro is about to stop answering.",
+  "kind": "story",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "c6c32f5b",
+  "who": "saint",
+  "text": "Contacts! Thorns, they came to watch!",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "c7e61912",
+  "who": "wren",
+  "text": "Whoa, nice, Lead!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "c825a276",
+  "who": "wren",
+  "text": "Bombers low, swarm high!",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "c88f4b7b",
+  "who": "perpetua",
+  "text": "Proximity alarm, Mauls inside eight hundred metres! They were in the rocks!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "c8a43a6d",
+  "who": "narrator",
+  "text": "The Saint Amaro was harvested, not attacked: cut into plates and carried off. Something in the belt wants metal. Her recorder kept one frame of the red eye, with letters round the lens.",
+  "kind": "story",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "c91bea5c",
+  "who": "narrator",
+  "text": "The Halberds arrived on the minute and the Harrow broke off as if someone had called them home. The Perpetua is scarred but sailing. In the quiet afterwards Okonkwo brought her transcript to the Commander's cabin, and they did not come out for three hours.",
+  "kind": "story",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "ca28c9ad",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 11!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ca74fbf6",
+  "who": "mule",
+  "text": "Mule One to escort. We're slow and we're full. Don't let them near us.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "cc951c1a",
+  "who": "doukas",
+  "text": "This is the Mother you found asleep in the Deep. The tug's memory names it: Vanguard Seven's foreman. Kill it and the Harrow in this part of the belt lose their direction.",
+  "kind": "brief",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "ccd5e3d3",
+  "who": "narrator",
+  "text": "The foreman is dead, and fourteen Mothers have come in its place. The Meteora is leaving: every soul in the belt, to the Long Mercy.",
+  "kind": "story",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "ccd6a2aa",
+  "who": "saint",
+  "text": "Now speed. You'll want more of it.",
+  "kind": "radio",
+  "missions": [
+   "training"
+  ]
+ },
+ {
+  "key": "ccd7392f",
+  "who": "doukas",
+  "text": "Second group leaving Roussanou. Three more haulers.",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "cd91192c",
+  "who": "okonkwo",
+  "text": "Their torpedoes can be shot down. B targets the nearest one. And kill the bombers before they fire!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "cff73dcd",
+  "who": "halo",
+  "text": "Vigil here. Lantern, we'll take the big ones. You keep the small ones off the transports.",
+  "kind": "radio",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "d07b1724",
+  "who": "okonkwo",
+  "text": "Its eye, it's opening! Lantern, get out of there!",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "d0c398be",
+  "who": "wren",
+  "text": "More of them, high and to the side!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "d1c791f8",
+  "who": "doukas",
+  "text": "Convoy's in. That's ore for Varlaam's smelters and a great many grateful miners.",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "d2475e0d",
+  "who": "narrator",
+  "text": "The Long Mercy unfolded four light-years from Pindus, above a world no one had charted: blue, clouded, real. The Vanguard was right about one thing, there was a home. It was just further than they could see. The Perpetua's signal was received for eleven minutes after the jump, the old command code repeating on every channel, HOLD, HOLD, HOLD, until it stopped. Somebody had to tell them we were not debris., END,",
+  "kind": "story",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "d5b6847a",
+  "who": "system",
+  "text": "DETECTED, Harrow sensor lock.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "d6099208",
+  "who": "saint",
+  "text": "Torpedo on the Mule 3! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "d6cf2c3c",
+  "who": "saint",
+  "text": "Two more behind us, they were waiting!",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "d85d9dde",
+  "who": "saint",
+  "text": "Torpedo on the Mule 5! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "da3d788e",
+  "who": "wren",
+  "text": "Got him, got him!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "da974d47",
+  "who": "doukas",
+  "text": "The Perpetua's engines are three hundred years old and failing. She is carrying Varlaam's people to the rally point, where the Halberds Ardent and Vigil will meet her.",
+  "kind": "brief",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "db6b3ce4",
+  "who": "wren",
+  "text": "Starboard, Mauls with heavy escort. Talons!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "dbfb3ebe",
+  "who": "narrator",
+  "text": "Varlaam held. The seeds were fused stone and Harrow metal all the way through: Okonkwo found the same machine-script etched into every nodule, the same patient instructions, grow, ripen, open, in a grammar she had seen before, in the Perpetua's own fabricator archive, three hundred years old. Throwing three of them at the station was not in any instruction she could read. It was improvisation. That frightened her more than the swarms.",
+  "kind": "story",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "dcc882d6",
+  "who": "okonkwo",
+  "text": "Talons carry missiles. Watch for the lock warning.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "de18f080",
+  "who": "saint",
+  "text": "Nice shooting, Lantern.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "deb86b5d",
+  "who": "okonkwo",
+  "text": "Skiff 6's gone over the horizon.",
+  "kind": "radio",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "dec857ee",
+  "who": "saint",
+  "text": "Seed 2 just split open, Mites, a whole swarm!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "dee4068c",
+  "who": "narrator",
+  "text": "The Deep kept its secret a while longer, and Lantern One with it.",
+  "kind": "story",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "df3fa231",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 2, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "dfb46d98",
+  "who": "narrator",
+  "text": "Lantern Wing brought back what it could of the Roussanou convoy out of the Well. The Harrow can catch a fold in flight now, so Stefanos, the last settlement, will go the slow way.",
+  "kind": "story",
+  "missions": [
+   "m09"
+  ]
+ },
+ {
+  "key": "dfe9ec12",
+  "who": "ember",
+  "text": "Ember 2 is down!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "e0922ace",
+  "who": "saint",
+  "text": "Torpedo on the Perpetua! Somebody kill it!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "e11d445d",
+  "who": "saint",
+  "text": "Contacts! Three, low, unknown configuration!",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "e187e648",
+  "who": "okonkwo",
+  "text": "Mother-class signatures. Eleven... no. Fourteen.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "e19aa4a2",
+  "who": "narrator",
+  "text": "The foreman is dead, and for nineteen hours the Harrow in the belt simply stopped: drones drifting where they were, Eyes staring at nothing. Then the fold flares began at the belt's edge, and kept on beginning. Fourteen Mothers. The Commander called a council in the Perpetua's chapel, and when it ended she gave the order no one in the Meteora had ever imagined: we are leaving.",
+  "kind": "story",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "e39a9ef7",
+  "who": "wren",
+  "text": "Talons on the far rocks, they're guarding them!",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "e3a55065",
+  "who": "varlaam",
+  "text": "Lantern... thank you. Every candle in the chapel is lit for you tonight.",
+  "kind": "radio",
+  "missions": [
+   "m04"
+  ]
+ },
+ {
+  "key": "e4d288ed",
+  "who": "saint",
+  "text": "I'm hit. Still flying.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "e649fd2f",
+  "who": "ember",
+  "text": "Ember Lead, Lances armed. Clear us a path and we'll do the rest.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "e65ed07a",
+  "who": "saint",
+  "text": "Third strike, high! Talons with them!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "e6bf0744",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 7!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "e82f2204",
+  "who": "saint",
+  "text": "Bomb run on the Skiff 12, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ea257d3e",
+  "who": "varlaam",
+  "text": "Skiff 2 away.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "ea8bfbf9",
+  "who": "narrator",
+  "text": "The waves never stop. How long can you last?",
+  "kind": "story",
+  "missions": [
+   "survival"
+  ]
+ },
+ {
+  "key": "eab2419d",
+  "who": "wren",
+  "text": "Torpedo inbound on the Mule 2!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ebb351d1",
+  "who": "wren",
+  "text": "I'm hit, I can't steer, Lantern!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "ecf6415b",
+  "who": "doukas",
+  "text": "Lantern, come home. I want every frame of those sensor logs on my desk.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "ed3e919c",
+  "who": "saint",
+  "text": "Last push, everything they've got!",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "ed77e252",
+  "who": "wren",
+  "text": "Mauls! Going for the big ships!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ee130b5f",
+  "who": "narrator",
+  "text": "Varlaam is empty, its people asleep in the Perpetua's holds. Over the station the Harrow brought bombers, and the bombers flinched when the Perpetua's beacon swept them.",
+  "kind": "story",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "ee44b17a",
+  "who": "saint",
+  "text": "Hauler 2's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "eef88b72",
+  "who": "narrator",
+  "text": "Stefanos came through the Narrows, though the Vanguard knew how we leave. Forty-one thousand people are aboard the Long Mercy. One jump left.",
+  "kind": "story",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "ef0d12be",
+  "who": "narrator",
+  "text": "The ore reached Varlaam two days later and the smelters lit again. Okonkwo spent the night inside the wrecks you brought back and came out with two findings. The raiders fold in from a single direction, the Kalavryta Deep, where the belt is too dense for anyone to live: something out there is building them. And their hull plate is rolled to an Earth gauge nobody in the belt has used for a century. She would not say what she thought that meant.",
+  "kind": "story",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "ef2371de",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 3!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ef4d255a",
+  "who": "perpetua",
+  "text": "All wings, Perpetua. Fold flares at the belt's edge. Many of them.",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "f052b66e",
+  "who": "varlaam",
+  "text": "Tender launching for Lantern Three. Thirty seconds.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "f0b2413d",
+  "who": "wren",
+  "text": "He's down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "f134bb45",
+  "who": "narrator",
+  "text": "Too many haulers reached the fold point. Somewhere in the dark, a Mother grew heavier.",
+  "kind": "story",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "f1660c6a",
+  "who": "narrator",
+  "text": "The Well kept them. Somewhere above the horizon the Roussanou convoy is still falling, and will be, as far as anyone outside can see, for ever.",
+  "kind": "story",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "f1744ca4",
+  "who": "doukas",
+  "text": "When the ring opens, you will have seconds to be inside it. Do not be late, Lantern.",
+  "kind": "brief",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "f28b55c8",
+  "who": "doukas",
+  "text": "Fly to Nav Alpha, her last fix, with Saint on your wing. Scan whatever is left of her. Her flight recorder may still be pinging somewhere in the debris.",
+  "kind": "brief",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "f2f61851",
+  "who": "doukas",
+  "text": "Lantern One, Perpetua. Your first lead. The Saint Amaro's last fix is Nav Alpha. Look, don't touch.",
+  "kind": "radio",
+  "missions": [
+   "m01"
+  ]
+ },
+ {
+  "key": "f37c4e75",
+  "who": "wren",
+  "text": "That was incredible!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "f490a24c",
+  "who": "narrator",
+  "text": "The Tenders brought the hulks they reached back out of the Well, full of people who had already said their goodbyes. From outside, the ones we could not reach are still falling, slower and redder, and will be for ever; from inside, it was over in a moment. Okonkwo has said one thing since. The Harrow did not wreck that convoy: they caught its fold in flight and threw it. The Long Mercy will get one jump, and it had better be fast.",
+  "kind": "story",
+  "missions": [
+   "m11"
+  ]
+ },
+ {
+  "key": "f4baec03",
+  "who": "saint",
+  "text": "Heavy frames, lining up. Kill them first.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "f7339e1e",
+  "who": "saint",
+  "text": "Hauler 6's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "f7ebe552",
+  "who": "mule",
+  "text": "Perpetua in sight, and they're coming at us again!",
+  "kind": "radio",
+  "missions": [
+   "m02"
+  ]
+ },
+ {
+  "key": "f8028dfd",
+  "who": "narrator",
+  "text": "The ore came through. The raiders' wrecks were rolled from Earth-gauge plate, the gauge of the Perpetua's oldest frames, and every raid had folded in from the Kalavryta Deep.",
+  "kind": "story",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "f82fb5a3",
+  "who": "okonkwo",
+  "text": "Its eye is on you. Beam charging, break, break!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "fad3f5c5",
+  "who": "saint",
+  "text": "Hauler 3's core is cracked, scratch one!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "fb16fb3f",
+  "who": "narrator",
+  "text": "The generation ship Perpetua left Earth with forty thousand sleepers. A century ahead of her flew the Vanguard: self-building fabricator ships, sent to make a home ready.",
+  "kind": "story",
+  "missions": [
+   "menu"
+  ]
+ },
+ {
+  "key": "fb2801f0",
+  "who": "wren",
+  "text": "There's a torpedo heading for the Skiff 1!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "fb3cc644",
+  "who": "perpetua",
+  "text": "Fold flares at the edge, Mother-class, three of them. More behind.",
+  "kind": "radio",
+  "missions": [
+   "m10"
+  ]
+ },
+ {
+  "key": "fb507c31",
+  "who": "doukas",
+  "text": "All wings, Perpetua. Six minutes to the rally point. She can't run or hide. Keep everything off her.",
+  "kind": "radio",
+  "missions": [
+   "m06"
+  ]
+ },
+ {
+  "key": "fbd9cd13",
+  "who": "saint",
+  "text": "Bomb run on the Mule 2, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "fc38665a",
+  "who": "ember",
+  "text": "She's gone. The foreman is gone!",
+  "kind": "radio",
+  "missions": [
+   "m08"
+  ]
+ },
+ {
+  "key": "fd7fcdc6",
+  "who": "wren",
+  "text": "Hauler 2 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "fd8b40be",
+  "who": "wren",
+  "text": "Second bomber group, low on the far side!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "fe1f6349",
+  "who": "saint",
+  "text": "That one's done.",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "fe70fbd0",
+  "who": "varlaam",
+  "text": "Torpedo impact! Reactor shielding is buckling!",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ },
+ {
+  "key": "fea7a317",
+  "who": "wren",
+  "text": "Hauler 1 is dead in space!",
+  "kind": "radio",
+  "missions": [
+   "m07"
+  ]
+ },
+ {
+  "key": "ff532322",
+  "who": "saint",
+  "text": "They're... taking it apart. Plate by plate.",
+  "kind": "radio",
+  "missions": [
+   "m03"
+  ]
+ },
+ {
+  "key": "ff85437b",
+  "who": "saint",
+  "text": "Bomb run on the Halberd Vigil, shoot that thing down!",
+  "kind": "radio",
+  "missions": [
+   "chatter"
+  ]
+ },
+ {
+  "key": "ffab09bd",
+  "who": "okonkwo",
+  "text": "Machines don't flinch. Keep shooting, I'll think about it later.",
+  "kind": "radio",
+  "missions": [
+   "m05"
+  ]
+ }
+]

@@ -110,7 +110,7 @@ const audio = AUTOPILOT ? null : createAudio(settings.volume);
 const music = audio ? createMusic(audio, settings.music) : null;
 const beltTime = { value: 0 };
 const chatter = createChatter();
-const voices = createVoices({ volume: () => (AUTOPILOT ? 0 : settings.volume * (settings.voices ?? 0.9)) });
+const voices = createVoices({ volume: () => (AUTOPILOT ? 0 : settings.volume * (settings.voices ?? 0.9)), context: () => audio?.ctx });
 
 /* The scene behind the menus: your ship idling, your wing beside it, the
    Perpetua in the distance and a convoy crawling past. */
@@ -346,6 +346,7 @@ async function boot() {
       get renderer() { return renderer; },
       get library() { return library; },
       get music() { return music; },
+      get voices() { return voices; },
       // Rebuild a place's look and report how long it took, GPU included.
       look(key) {
         const t = performance.now();
@@ -361,6 +362,7 @@ async function boot() {
   screens.progress(1, 'Ready');
   screens.ready();
   screens.menu(progress);
+  voices.prepare('menu');
   mode = 'menu';
   // The rest of the fleet loads behind the menu; the bay gets ready for
   // the three hulls you can fly as soon as it and they are in.
@@ -506,6 +508,7 @@ function openBriefing(mission) {
   screens.briefing(mission, progress, progress.difficulty, key => { progress.difficulty = key; saveProgress(storage, progress); }, recap);
   screens.show('briefing');
   readStage(0);
+  voices.prepare(mission.id);
   // Start bringing in what the mission flies while the pilot reads.
   const models = flightModels(mission, hangarLoadout);
   library.preload(models).then(() => targetView.prefetch(looksOf(models)));
@@ -559,8 +562,10 @@ async function launch(mission, loadout) {
   audio?.setPaused(false);
   const def = mission ?? SURVIVAL;
   const title = mission ? mission.title : 'Survival';
-  // The flight's music comes down the wire while the drive spools.
+  // The flight's music and voices come down the wire while the drive spools.
   music?.prepare(def.soundtrack ?? null);
+  voices.prepare(def.id);
+  voices.prepare('chatter');
   const tip = HINTS[Math.floor(Math.random() * HINTS.length)];
   const where = mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7';
   screens.fold(title, where, 0, 'Spooling the drive', tip);

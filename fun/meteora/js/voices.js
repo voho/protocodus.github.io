@@ -1,8 +1,17 @@
 /* Meteora — radio voices.
 
-   The radio is spoken as well as shown, through the browser's own speech
-   synthesis (the Web Speech API): no recordings, like the rest of the
-   sound. Each speaker is cast once from the voices the system offers — by
+   The radio is spoken as well as shown. Every line the game can say is
+   recorded (tools/voices.mjs gathers them, tools/render_voices.py records
+   them with an open speech model, a voice for each speaker) and played
+   through the comms: the telephone band, a lift where speech is clearest,
+   a little overdrive, a hard compressor and a faint hiss under it, so it
+   sounds like a fighter's radio and cuts through a fight. The Harrow's
+   signal is ring-modulated besides, and slowed. Out of flight the briefing
+   and the story are heard clean. A mission's lines are fetched while it
+   loads (`prepare`).
+
+   A line without a recording falls back to the browser's own speech
+   synthesis (the Web Speech API). Each speaker is cast once from the voices the system offers — by
    the sex the script gives them where the voice's name tells (system
    voices are named, not labelled), by accent for variety (the Commander
    British, Wren American, Saint Australian, Okonkwo South African where
@@ -55,7 +64,18 @@ const PER_CHAR = 1 / 13;
 const sexOf = v => (FEMALE.test(v.name) ? 'f' : MALE.test(v.name) ? 'm' : null);
 const langOf = v => (v.lang ?? '').replace('_', '-');
 // Speakable text: dashes and ellipses as pauses, no symbols read aloud.
-const speakable = text => text.replace(/[▲△●◆]/g, '').replace(/\s*[—–]\s*/g, ', ').replace(/…/g, '... ').replace(/\s+/g, ' ').trim();
+export const speakable = text => text.replace(/[▲△●◆]/g, '').replace(/\s*[—–]\s*/g, ', ').replace(/…/g, '... ').replace(/\s+/g, ' ').trim();
+
+/* The name of a line's recording (assets/voice/<key>.mp3): who says it and
+   what, hashed (FNV-1a over the UTF-8 of the speakable text). */
+export function voiceKey(who, text) {
+  let h = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(`${who}\n${speakable(text)}`)) {
+    h ^= byte;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
 
 /* Who plays whom, from a list of voices (as getVoices returns them). */
 export function castVoices(voices) {
@@ -103,10 +123,121 @@ export function rateFor(text, room, base) {
   return Math.min(1.2, Math.max(base, natural / Math.max(1.5, room)));
 }
 
-export function createVoices({ volume = () => 1 } = {}) {
+const BASE = new URL('../assets/voice/', import.meta.url);
+const drive = k => {
+  const n = 1024, curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = (2 * i) / (n - 1) - 1; curve[i] = Math.tanh(k * x) / Math.tanh(k); }
+  return curve;
+};
+/* What a recording plays through: 'radio' the comms, 'signal' the Harrow's
+   (narrower, harder, ring-modulated), 'clean' only a gentle compressor. */
+function makeChain(ctx, kind) {
+  const out = ctx.createGain();
+  out.connect(ctx.destination);
+  const comp = ctx.createDynamicsCompressor();
+  comp.connect(out);
+  if (kind === 'clean') {
+    comp.threshold.value = -20; comp.ratio.value = 3;
+    return { input: comp, out, hiss: null };
+  }
+  comp.threshold.value = -30; comp.ratio.value = 8; comp.knee.value = 6; comp.attack.value = 0.002; comp.release.value = 0.15;
+  const signal = kind === 'signal';
+  const filter = (type, f, q, gain = 0) => {
+    const b = ctx.createBiquadFilter();
+    b.type = type; b.frequency.value = f; b.Q.value = q; b.gain.value = gain;
+    return b;
+  };
+  const hp = filter('highpass', signal ? 240 : 380, 0.8), presence = filter('peaking', 1800, 1, 5), lp = filter('lowpass', signal ? 2600 : 3300, 1.1);
+  const shaper = ctx.createWaveShaper();
+  shaper.curve = drive(signal ? 6 : 2.4);
+  shaper.oversample = '2x';
+  hp.connect(presence).connect(shaper).connect(lp).connect(comp);
+  let input = hp;
+  if (signal) {
+    // Ring modulation: the voice times a low sine.
+    const ring = ctx.createGain();
+    ring.gain.value = 0;
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 38;
+    osc.connect(ring.gain);
+    osc.start();
+    ring.connect(hp);
+    input = ring;
+  }
+  // The carrier's hiss, only while someone is talking.
+  const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const data = noise.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const bed = ctx.createBufferSource();
+  bed.buffer = noise; bed.loop = true; bed.start();
+  const hissLevel = ctx.createGain();
+  hissLevel.gain.value = 0;
+  bed.connect(filter('bandpass', 2400, 0.7)).connect(hissLevel).connect(out);
+  const to = (v, tau) => hissLevel.gain.setTargetAtTime(v, ctx.currentTime, tau);
+  return { input, out, hiss: { on: () => to(signal ? 0.03 : 0.012, 0.03), off: () => to(0, 0.12) } };
+}
+
+export function createVoices({ volume = () => 1, context = () => null } = {}) {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
   let cast = new Map();
   let mission = null, cursor = 0, queue = [], current = null;
+
+  // The recordings: which there are (key → [seconds, where...]), and the
+  // ones fetched so far.
+  let index = null, wanted = [];
+  const fetched = new Map();
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    fetch(new URL('index.json', BASE)).then(r => (r.ok ? r.json() : null)).then(j => {
+      index = j;
+      for (const w of wanted) prepare(w);
+    }).catch(() => { /* no recordings: speech synthesis only */ });
+  }
+  const fetchLine = key => {
+    let p = fetched.get(key);
+    if (!p) {
+      p = fetch(new URL(`${key}.mp3`, BASE)).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.arrayBuffer(); });
+      fetched.set(key, p);
+      p.catch(() => fetched.delete(key));
+    }
+    return p;
+  };
+  function prepare(where) {
+    if (!index) { wanted.push(where); return; }
+    for (const [key, entry] of Object.entries(index)) if (entry.includes(where)) fetchLine(key);
+  }
+  let chains = null;
+  const chainFor = (ctx, kind) => {
+    if (chains?.ctx !== ctx) chains = { ctx };
+    return (chains[kind] ??= makeChain(ctx, kind));
+  };
+  /* Play a line's recording, if it has one: a handle that is `current`
+     until it ends, or null (then the browser speaks it). */
+  function playRecording(who, text, { kind = 'radio', room = Infinity } = {}) {
+    const ctx = context();
+    const key = voiceKey(who, text);
+    const entry = index?.[key];
+    if (!ctx || ctx.state !== 'running' || !entry) return null;
+    const handle = {
+      recorded: true, source: null, stopped: false,
+      stop() { this.stopped = true; try { this.source?.stop(); } catch { /* not started */ } },
+    };
+    fetchLine(key).then(data => ctx.decodeAudioData(data.slice(0))).then(buffer => {
+      if (handle.stopped || current !== handle) return;
+      const chain = chainFor(ctx, who === 'harrow' && kind === 'radio' ? 'signal' : kind);
+      chain.out.gain.value = Math.min(1.6, volume() * 1.5);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      // A touch quicker when the line would outlast its time on screen.
+      const fit = Math.min(1.1, Math.max(1, entry[0] / Math.max(1, room)));
+      source.playbackRate.value = fit * (who === 'harrow' ? 0.86 : 1);
+      source.connect(chain.input);
+      chain.hiss?.on();
+      source.onended = () => { chain.hiss?.off(); if (current === handle) current = null; };
+      source.start();
+      handle.source = source;
+    }).catch(() => { if (current === handle) current = null; });
+    return handle;
+  }
 
   const recast = () => { cast = castVoices(synth.getVoices()); };
   // Not every engine announces its voices: look again when one is needed.
@@ -120,14 +251,18 @@ export function createVoices({ volume = () => 1 } = {}) {
 
   function silence() {
     queue = [];
+    current?.stop?.();
     current = null;
     if (synth && (synth.speaking || synth.pending)) synth.cancel();
   }
 
-  function speak(line) {
-    const part = partFor(line.who);
+  function speak(line, now) {
     const level = volume();
-    if (!part || !synth || level <= 0) return;
+    if (level <= 0) return;
+    const recording = playRecording(line.who, line.text, { room: line.at + line.dur - now });
+    if (recording) { current = recording; return; }
+    const part = partFor(line.who);
+    if (!part || !synth) return;
     const u = new SpeechSynthesisUtterance(speakable(line.text));
     u.voice = part.voice;
     u.lang = part.voice.lang;
@@ -142,7 +277,9 @@ export function createVoices({ volume = () => 1 } = {}) {
   return {
     get available() { return cast.size > 0; },
     // Whether a line is being read now (the music ducks under it).
-    get speaking() { return !!current && (!synth || synth.speaking || synth.pending); },
+    get speaking() { return !!current && (current.recorded || !synth || synth.speaking || synth.pending); },
+    /* Fetch the recordings of a mission's lines (or 'chatter', 'menu'). */
+    prepare,
     get cast() { return cast; },
     /* Once a frame in flight. Returns how many radio lines appeared this
        frame (each gets the squelch, voiced or not). */
@@ -152,7 +289,7 @@ export function createVoices({ volume = () => 1 } = {}) {
       if (!rt) return 0;
       if (paused) { silence(); return 0; }
       // Some engines never report the end of a line: trust what they say.
-      if (current && synth && !synth.speaking && !synth.pending) current = null;
+      if (current && !current.recorded && synth && !synth.speaking && !synth.pending) current = null;
       const now = rt.time;
       let started = 0;
       while (cursor < rt.radio.length && rt.radio[cursor].at <= now) {
@@ -162,7 +299,7 @@ export function createVoices({ volume = () => 1 } = {}) {
       }
       // A line whose time on screen is over is not worth starting.
       while (queue.length && now > queue[0].at + queue[0].dur) queue.shift();
-      if (!current && queue.length) speak(queue.shift());
+      if (!current && queue.length) speak(queue.shift(), now);
       return started;
     },
     /* Out of flight: read a text in a character's voice, cutting off
@@ -170,9 +307,12 @@ export function createVoices({ volume = () => 1 } = {}) {
        stop a single long utterance after about fifteen seconds. */
     narrate(who, text) {
       silence();
-      const part = partFor(who);
       const level = volume();
-      if (!part || !synth || level <= 0 || !text) return;
+      if (level <= 0 || !text) return;
+      const recording = playRecording(who, text, { kind: 'clean' });
+      if (recording) { current = recording; return; }
+      const part = partFor(who);
+      if (!part || !synth) return;
       const sentences = speakable(text).match(/[^.!?]+[.!?]*["'”’]?\s*/g) ?? [];
       for (const sentence of sentences) {
         const u = new SpeechSynthesisUtterance(sentence.trim());

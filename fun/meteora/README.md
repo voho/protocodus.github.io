@@ -188,9 +188,13 @@ under anything but Ion. The hangar's assessment says what is missing
 before you launch.
 
 The hangar is the Perpetua's flight deck: the hull you are fitting out
-turns on a pad under a gantry, lit by the deck's lamps and casting its
-shadow, the launch door open on the stars behind it (drag it to turn it
-yourself). The bay is a model of its own (`assets/models/hangar.glb`), a
+hovers over a pad under a gantry, lit by the deck's lamps and casting its
+shadow, the launch door open on the stars behind it, and the camera shows
+it off — three-quarter from the front, the profile, the engines, from
+above, close on the nose, low under it, each shot held and eased into the
+next. Drag to look round it yourself, scroll to come closer; left alone,
+the tour picks up again. Out of flight only the music and the buttons are
+heard. The bay is a model of its own (`assets/models/hangar.glb`), a
 scene of its own with its own lights (`js/hangar.js`), and the only thing
 in the game that casts a real shadow.
 
@@ -280,13 +284,22 @@ and lifted into combat when the Harrow close in:
 They stream from `assets/music/` (only what plays is downloaded; a
 mission's pieces are fetched while it loads) and duck under the radio.
 
-The radio is voiced through the browser's own speech synthesis. Each
-character is cast once from the system's English voices — by the sex the
-script gives them, by accent for variety, the better voices first — with a
-pitch and pace of their own, and a line is spoken as it appears, faster if
-it would outlast its time on screen. Commander Doukas reads each briefing
-aloud, and a narrator the prologue and the debrief. Without speech
-synthesis the radio is only read.
+The radio is recorded: every line the game can say — some four hundred,
+the scripted ones and those built from names and numbers — has a voice of
+its speaker's own, and plays through the comms: the telephone band, a lift
+where speech is clearest, a little overdrive, a hard compressor and a faint
+hiss, so it sounds like a fighter's radio and stays clear over a fight
+(the music and the effects step back while anyone speaks). The Harrow's
+signal is ring-modulated and slowed. Commander Doukas reads each briefing
+and a narrator the prologue and the debriefs, clean. A mission's lines are
+fetched while it loads.
+
+The lines are gathered by `tools/voices.mjs` (it flies every mission
+headless, at every difficulty, and keeps whatever reaches the radio, then
+adds the briefings, recaps, debriefs, prologue and the wing's chatter) and
+recorded by `tools/render_voices.py` with Kokoro, an open speech model
+(Apache-2.0), into `assets/voice/`. A line without a recording — a new
+one not yet recorded — falls back to the browser's speech synthesis.
 
 ## Models
 

@@ -56,7 +56,7 @@ const el = (doc, tag, props = {}, ...children) => {
   return e;
 };
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const SHOT_DOWN = 'Lantern One\'s beacon went silent before the job was done. A Tender found the wreck, the crews cut you out of it, and the Watch wrote the mission off. Commander Doukas wants you back in the cockpit before the Harrow come again.';
+export const SHOT_DOWN = 'Lantern One\'s beacon went silent before the job was done. A Tender found the wreck, the crews cut you out of it, and the Watch wrote the mission off. Commander Doukas wants you back in the cockpit before the Harrow come again.';
 const medal = (kind, big = false) => kind ? `<i class="medal ${kind}${big ? ' big' : ''}" aria-label="${kind} medal"></i>` : '';
 
 /* ---------- keys ---------- */
