@@ -25,6 +25,7 @@
 
 import * as THREE from 'three';
 import { cloneMaterial, tint } from './models.js';
+import { fastUpload } from './warmup.js';
 
 const MAP = 512;
 
@@ -253,8 +254,9 @@ export function createTargetView(canvas, library, { exposure = 1.05, pause = () 
       scene.add(group);
       try {
         await renderer.compileAsync(group, camera, scene);
+        const upload = fastUpload(renderer);
         group.traverse(o => {
-          if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v);
+          if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const v of Object.values(m)) if (v?.isTexture) upload(v);
         });
         renderer.render(scene, camera);
         renderer.clear();

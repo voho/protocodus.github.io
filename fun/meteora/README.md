@@ -386,6 +386,13 @@ meteora.pilot = createBot(7); meteora.speed = 3;
   ones the HDR frame asks for), its maps uploaded between frames and its
   buffers drawn once, out of sight. A mission's `models` must list every
   model it spawns; `tests/missions-check.mjs` checks it.
+- Colour maps go up the quick way. three.js makes a texture's storage
+  first and copies the picture in after; into an sRGB texture, ANGLE on
+  Metal takes about 30 ms for that copy of a 2048-pixel map, and 4 when
+  the copy makes the texture itself (`texImage2D`) — the same bytes, mip
+  levels and all. The warm-up and the target window upload them that way
+  (`fastUpload` in `js/warmup.js`): a launch from the briefing takes about
+  half a second instead of nine tenths.
 - The target window's renderer is a second WebGL context, so its hulls
   wear copies of their maps no larger than 512 pixels (shrunk one a frame
   while the briefing is read) and it is warmed the same way: the first
