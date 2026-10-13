@@ -1,4 +1,4 @@
-/* Mission 9 — The Well. Pull survivors out of a falling convoy.
+/* Special operation — The Well. Pull survivors out of a falling convoy.
 
    Pindus has a dead companion: a black hole, ten astronomical units out,
    the reason the belt is rubble and not a world. The Roussanou convoy
@@ -6,15 +6,18 @@
    caught the fold in flight and dropped it there. The ships are broken
    hulks now, falling, with people in them. Lantern Wing folds in after
    them: match each hulk's fall, hold the nose on it while a fold beacon
-   latches (three seconds), and a Tender pulls it through. The hulks fall
+   latches (a few seconds), and a Tender pulls it through. The hulks fall
    on their own clocks — the ones that came out with a little sideways
    speed swing in on long arcs and last longer — so the order is a choice.
 
    Everything here falls (well.js): the hulks, the debris, the Harrow who
    came to watch, and Lantern One, whose flight computer holds the ship
    against the pull until the pull outgrows the engines. Below the point of
-   no return, nothing climbs back out. File m11.js: added after the ten, it
-   flies ninth. */
+   no return, nothing climbs back out.
+
+   It is a special operation, outside the campaign's ten missions: it opens
+   once Mission 8 is won and falls, in the story, between the foreman's
+   death and the Narrows. */
 
 import { defineMission } from '../mission.js';
 import { belt } from './belt.js';
@@ -47,7 +50,7 @@ const unit = v => { const l = Math.hypot(v[0], v[1], v[2]); return v.map(x => x 
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 export default defineMission({
-  id: 'm11', number: 9, title: 'The Well', location: 'The Well, Pindus\'s dead companion', dateline: 'Day 37',
+  id: 'm11', number: 0, special: true, after: 'm08', title: 'The Well', location: 'The Well, Pindus\'s dead companion', dateline: 'Day 37',
   field: FIELD, fieldSeed: 1111, seed: 1111, par: 480, env: 'well', well: WELL,
   start: { pos: START, forward: dir(START, HOLE), speed: 60 },
   area: { centre: HOLE, radius: 30000 },

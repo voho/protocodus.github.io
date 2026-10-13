@@ -1,4 +1,4 @@
-/* Mission 11 (m10.js: The Well was added as the ninth) — Long Mercy. Guard the colony ship until it jumps.
+/* Mission 10 — Long Mercy. Guard the colony ship until it jumps.
 
    The belt's edge, and the last battle: every ship the Meteora has left
    against everything the Vanguard can send. The Long Mercy — forty-one
@@ -30,7 +30,7 @@ const FIELD = belt({
 const SPOOL = 360;
 
 export default defineMission({
-  id: 'm10', number: 11, title: 'Long Mercy', location: 'The belt\'s edge', dateline: 'Day 40',
+  id: 'm10', number: 10, title: 'Long Mercy', location: 'The belt\'s edge', dateline: 'Day 40',
   field: FIELD, fieldSeed: 10010, seed: 1010, par: 480, env: 'edge',
   start: { pos: START, forward: dir(START, MERCY), speed: 60 },
   area: { centre: [0, 0, 0], radius: 7000 },

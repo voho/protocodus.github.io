@@ -1,13 +1,13 @@
 # Meteora
 
 A space-combat campaign in the spirit of FreeSpace, played in the browser.
-Eleven missions in and around an asteroid belt at a red dwarf: escort
+Ten missions in and around an asteroid belt at a red dwarf: escort
 convoys, scout a sleeping enemy, break seeded asteroids, hold a station
 while it is evacuated, guard the old carrier through an eclipse, cut a
 line of haulers in open space, crack a capital ship's reactor in a fleet
-assault, pull survivors out of a convoy falling into a black hole and, at
-the end, keep a colony ark alive through the last battle until it can
-jump. Flight training first, if you like.
+assault and, at the end, keep a colony ark alive through the last battle
+until it can jump. Between them, a special operation: pull survivors out
+of a convoy falling into a black hole. Flight training first, if you like.
 [Play it](index.html) — no installation, no account.
 
 ## The story
@@ -31,7 +31,7 @@ a piece at a time: every mission adds evidence to the **case file** —
 letters round the red eye's lens, hull plate rolled to an old Earth gauge,
 a registry cast into a reactor, instructions written in the *Perpetua*'s
 own machine-script, bombers that flinch at her beacon — until Mission 7
-says outright what it all means, and Mission 11 makes use of it. Three
+says outright what it all means, and Mission 10 makes use of it. Three
 clues are found only by those who look for them (the bonus objectives
 that find them say so in the debrief). Each briefing after the first
 opens with the narrator's "previously"; the codex keeps the whole file.
@@ -120,9 +120,13 @@ print your keys.
 | 6 | The Long Night | Guard the *Perpetua* for six minutes against torpedo bombers, in the gas giant's shadow. |
 | 7 | Cut the Line | Stop the Harrow's ore haulers before they reach the fold point — in open space, no rock to hide behind. |
 | 8 | Heart of the Mother | A fleet assault: bring down a Mother's shields past her corvettes, crack her reactor, get clear. |
-| 9 | The Well | A convoy dropped on a black hole: match each falling hulk and latch a rescue beacon before it reaches the horizon — and do not go below your point of no return. |
-| 10 | The Narrows | The last convoy out of Stefanos — and not every ship in it is ours. |
-| 11 | Long Mercy | The last battle: every ship the belt has left against everything the Vanguard sends, until the ark can jump. |
+| 9 | The Narrows | The last convoy out of Stefanos — and not every ship in it is ours. |
+| 10 | Long Mercy | The last battle: every ship the belt has left against everything the Vanguard sends, until the ark can jump. |
+| ✦ | The Well | *Special operation, open once Mission 8 is won.* A convoy dropped on a black hole: match each falling hulk and latch a rescue beacon before it reaches the horizon — and do not go below your point of no return. |
+
+Special operations sit outside the ten: the campaign does not wait for
+them and they unlock nothing, but they earn medals, commendations and
+evidence for the case file, and the story notices when they were flown.
 
 Every place looks its own: its own sun, its own gas giant (or none), its
 own nebulae, Milky Way, light and dust. Sector Seven is home; the
@@ -299,8 +303,8 @@ it texture bakes; the previews want a GPU, so run it outside a sandbox):
 The simulation — flight, the belt, weapons, AI pilots, turrets, combat,
 detection, the Tender, missions and the campaign — imports nothing from
 three.js and runs in Node at a fixed 120 Hz. Missions are generator
-scripts (`js/missions/m01.js` … `m11.js`, and `training.js`; The Well,
-`m11.js`, flies ninth) over a small mission API, so each one can be played
+scripts (`js/missions/m01.js` … `m10.js`, the special operation `m11.js`
+and `training.js`) over a small mission API, so each one can be played
 headless. Where each mission
 happens — sky, light and dust — is in `js/environments.js`; the case file
 and the "previously" lines are in `js/story.js`. Run the checks from `fun/meteora`:

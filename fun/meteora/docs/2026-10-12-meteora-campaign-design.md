@@ -85,7 +85,7 @@ tell them we're not debris."
 
 ## 2. Campaign
 
-Ten missions, unlocked in order (eleven since The Well was added as the ninth); any won mission can be replayed from the
+Ten missions, unlocked in order, and a special operation outside them (The Well); any won mission can be replayed from the
 mission list at any difficulty. Each mission has a multi-stage briefing with
 a tactical map, primary objectives (all must succeed), bonus objectives
 (optional, they raise the medal), a recommended loadout with a reason, and
@@ -524,7 +524,7 @@ The game has to feel good every second and pull the player back. So:
   written in the *Perpetua*'s machine-script (M04), bombers that flinch at
   her beacon (M05), transponders in her format (M06), then Vanguard Seven
   (M07; the Ninth Hand's core as a bonus), a fold caught in flight (the
-  Well, m11) and the command code (M10, flown eleventh) that
+  Well, a special operation) and the command code (M10) that
   the flinch set up. Debriefs list new evidence and name a clue left
   behind; briefings open with the narrator's "previously".
 - **Places**: every mission has its own look (`js/environments.js`): sun
@@ -539,7 +539,9 @@ The game has to feel good every second and pull the player back. So:
   folding in on the horizon).
 - **Flight training** (menu): one skill a step, each waiting until done;
   five weaving drones to pass; counts for nothing in the campaign.
-- **The Well** (Mission 9, `m11.js`): a black hole, Pindus's dead
+- **The Well** (special operation, `m11.js`; opens after Mission 8,
+  outside the ten: no unlocks, the campaign does not wait for it, but
+  medals, a commendation and a case-file clue): a black hole, Pindus's dead
   companion. Harrow anchors catch the Roussanou convoy's fold and drop it
   there; eight hulks with survivors fall on staggered clocks (sideways
   speed fitted so they reach the horizon between about 1.5 and 6.5

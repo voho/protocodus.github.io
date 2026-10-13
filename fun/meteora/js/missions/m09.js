@@ -1,4 +1,4 @@
-/* Mission 10 (m09.js: The Well was added as the ninth) — The Narrows. Evacuation convoy, with surprises.
+/* Mission 9 — The Narrows. Evacuation convoy, with surprises.
 
    The last transports out of Stefanos — three Skiffs and two Mules, with
    the gunship Vigil — run the Narrows to the Long Mercy. Halfway, Skiff 4
@@ -23,7 +23,7 @@ const FIELD = belt({
 });
 
 export default defineMission({
-  id: 'm09', number: 10, title: 'The Narrows', location: 'Stefanos Narrows', dateline: 'Day 38',
+  id: 'm09', number: 9, title: 'The Narrows', location: 'Stefanos Narrows', dateline: 'Day 38',
   field: FIELD, fieldSeed: 9099, seed: 909, par: 540, env: 'narrows',
   start: { pos: START, forward: dir(ROUTE[0], ROUTE[1]), speed: 60 },
   area: { centre: [0, 0, 0], radius: 7500 },
@@ -36,7 +36,7 @@ export default defineMission({
   needs: { fighters: true, intercept: true, endurance: true },
   briefing: {
     stages: [
-      { text: 'Stefanos is the last settlement. Its people are aboard three Skiffs and two Mules, and after Roussanou nobody folds: the only way to the Long Mercy is the Narrows, eight kilometres of rock.', focus: ROUTE[1] },
+      { text: 'Stefanos is the last settlement. Its people are aboard three Skiffs and two Mules, and the only way to the Long Mercy is the Narrows: eight kilometres of rock.', focus: ROUTE[1] },
       { text: 'The gunship Vigil escorts them; Lantern Wing rides with the transports. The Harrow know we are leaving. Expect them everywhere.', focus: ROUTE[3] },
       { text: 'At least three transports must reach the Long Mercy. There is no more room anywhere else.', focus: MERCY },
     ],

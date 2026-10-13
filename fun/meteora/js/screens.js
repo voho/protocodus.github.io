@@ -14,7 +14,7 @@ import { ACTIONS, DEFAULT_KEYS, keysOf } from './controls.js';
 import { CLASSES, HULLS } from './catalog.js';
 import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, SECONDARIES, assess, bankCount, matchesRecommendation, normalizeLoadout, ratings } from './loadout.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './difficulty.js';
-import { MISSIONS, TRAINING, COMMENDATIONS, RANKS, isAvailable, missionLabel, nextMission, rankOf } from './campaign.js';
+import { MISSIONS, SPECIAL_OPS, TRAINING, COMMENDATIONS, RANKS, isAvailable, missionById, missionLabel, nextMission, rankOf } from './campaign.js';
 import { PROLOGUE, CODEX, HINTS, CASE_FILE } from './story.js';
 
 const KEY = 'meteora.settings';
@@ -344,6 +344,14 @@ export function createScreens(root, settings, handlers) {
         b.innerHTML = `<span class="num">MISSION ${m.number}</span><strong>${open ? m.title : 'Classified'}</strong><span>${open ? m.location : '—'}</span>${best ? `<span class="score">Best ${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
         if (open) b.addEventListener('click', () => onPick(m));
         box.append(b);
+        // A special operation, where it falls in the story.
+        for (const op of SPECIAL_OPS.filter(o => o.after === m.id)) {
+          const opBest = progress.best[op.id], opOpen = isAvailable(progress, op);
+          const s = el(doc, 'button', { type: 'button', class: 'mission special', disabled: !opOpen });
+          s.innerHTML = `<span class="num">SPECIAL OPERATION</span><strong>${opOpen ? op.title : 'Classified'}</strong><span>${opOpen ? op.location : `Opens after Mission ${m.number}`}</span>${opBest ? `<span class="score">Best ${opBest.score.toLocaleString('en')} · ${fmtTime(opBest.time)} · ${DIFFICULTIES[opBest.difficulty]?.name ?? ''}</span>${medal(opBest.medal)}` : ''}`;
+          if (opOpen) s.addEventListener('click', () => onPick(op));
+          box.append(s);
+        }
       }
     },
     /* ---------- the briefing ---------- */
@@ -531,6 +539,7 @@ export function createScreens(root, settings, handlers) {
       const next = $('[data-debrief-next]');
       next.innerHTML = survival ? 'Fly again <span aria-hidden="true">↻</span>'
         : res.won && mission?.training ? (progress.won.includes(MISSIONS[0].id) ? 'Back to the menu <span aria-hidden="true">→</span>' : 'Mission 1 <span aria-hidden="true">→</span>')
+        : res.won && mission?.special ? (progress.won.length < MISSIONS.length ? 'Back to the campaign <span aria-hidden="true">→</span>' : 'Back to the menu <span aria-hidden="true">→</span>')
         : res.won ? (hasNext ? 'Next mission <span aria-hidden="true">→</span>' : 'Service record <span aria-hidden="true">→</span>') : 'Retry <span aria-hidden="true">↻</span>';
       return story;
     },
@@ -556,11 +565,12 @@ export function createScreens(root, settings, handlers) {
         const file = el(doc, 'div', { class: 'evidence case-file' });
         file.append(el(doc, 'p', { class: 'muted', text: `${found.size} of ${CASE_FILE.length} pieces of evidence. Some are only found by those who look for them.` }));
         for (const c of CASE_FILE) {
-          const m = MISSIONS.find(x => x.id === c.mission);
+          const m = missionById(c.mission);
           const known = found.has(c.id), open = isAvailable(progress, m);
+          const flown = progress.won.includes(c.mission) || (progress.done ?? []).includes(c.mission);
           file.append(el(doc, 'div', { class: `clue${known ? '' : ' locked'}${known && progress.lastPlayed === c.mission ? ' new' : ''}` },
-            el(doc, 'b', { text: known ? c.title : `Mission ${m.number} · ${open ? m.title : 'Classified'}` }),
-            el(doc, 'p', { text: known ? c.text : c.requires && progress.won.includes(c.mission) ? 'A clue was left behind here.' : 'Not yet known.' })));
+            el(doc, 'b', { text: known ? c.title : `${missionLabel(m)} · ${open ? m.title : 'Classified'}` }),
+            el(doc, 'p', { text: known ? c.text : c.requires && flown ? 'A clue was left behind here.' : m.special && !flown ? 'Found only on a special operation.' : 'Not yet known.' })));
         }
         body.append(file);
       } else if (tab === 'craft') {
@@ -580,9 +590,9 @@ export function createScreens(root, settings, handlers) {
         body.append(el(doc, 'article', {}, el(doc, 'h4', { text: `${r.name} · ${progress.total.toLocaleString('en')} points` }), el(doc, 'p', { text: `${progress.won.length} of ${MISSIONS.length} missions won.` })));
         const t = el(doc, 'table');
         t.innerHTML = '<tr><th>Mission</th><th>Medal</th><th>Best</th><th>Time</th></tr>';
-        for (const m of MISSIONS) {
+        for (const m of [...MISSIONS, ...SPECIAL_OPS]) {
           const b = progress.best[m.id];
-          t.insertAdjacentHTML('beforeend', `<tr><td>${m.number}. ${isAvailable(progress, m) ? m.title : 'Classified'}</td><td>${b ? medal(b.medal) : '—'}</td><td>${b ? b.score.toLocaleString('en') : '—'}</td><td>${b ? fmtTime(b.time) : '—'}</td></tr>`);
+          t.insertAdjacentHTML('beforeend', `<tr><td>${m.special ? 'Special op' : `${m.number}.`} ${isAvailable(progress, m) ? m.title : 'Classified'}</td><td>${b ? medal(b.medal) : '—'}</td><td>${b ? b.score.toLocaleString('en') : '—'}</td><td>${b ? fmtTime(b.time) : '—'}</td></tr>`);
         }
         body.append(t);
         body.append(el(doc, 'h3', { class: 'section', text: 'Commendations' }));

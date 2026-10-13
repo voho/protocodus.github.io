@@ -4,7 +4,7 @@
 // break it; and the campaign's save, unlocks, ranks and medals hold up.
 import { test, run, assert } from './harness.mjs';
 import { STEP as DT } from '../js/config.js';
-import { MISSIONS, TRAINING, freshProgress, loadProgress, missionById, rankOf, recordResult, saveProgress, unlockedAfter, unlockedFor, loadoutFor } from '../js/campaign.js';
+import { MISSIONS, SPECIAL_OPS, TRAINING, freshProgress, isAvailable, loadProgress, missionById, nextMission, rankOf, recordResult, saveProgress, unlockedAfter, unlockedFor, loadoutFor } from '../js/campaign.js';
 import { DIFFICULTY_ORDER } from '../js/difficulty.js';
 import { results } from '../js/mission.js';
 import { createWorld, startRun, stepWorld, drainEvents, IDLE } from '../js/world.js';
@@ -16,7 +16,7 @@ import { CASE_FILE, RECAPS } from '../js/story.js';
 
 const quick = process.argv.includes('--quick');
 
-for (const mission of MISSIONS) {
+for (const mission of [...MISSIONS, ...SPECIAL_OPS]) {
   test(`${mission.id} ${mission.title}: the cheat pilot wins at every difficulty`, () => {
     for (const difficulty of quick ? ['pilot'] : DIFFICULTY_ORDER) {
       const r = play(mission, { difficulty, loadout: mission.recommend, seconds: 1500 });
@@ -139,9 +139,9 @@ test('the case file opens a mission at a time, its hidden clues only for those w
   // A loss finds nothing.
   assert.deepEqual(recordResult(progress, { id: 'm02', won: false, score: 0, time: 9, difficulty: 'pilot', objectives: [], stats: {} }).evidence, []);
   // Every mission holds evidence; every hidden clue names a real bonus objective.
-  for (const m of MISSIONS) assert.ok(CASE_FILE.some(c => c.mission === m.id), m.id);
+  for (const m of [...MISSIONS, ...SPECIAL_OPS]) assert.ok(CASE_FILE.some(c => c.mission === m.id), m.id);
   for (const c of CASE_FILE.filter(c => c.requires)) {
-    const m = MISSIONS.find(x => x.id === c.mission);
+    const m = missionById(c.mission);
     const world = createWorld({ seed: 1, mission: m, loadout: m.recommend, difficulty: 'pilot' });
     startRun(world);
     for (let i = 0; i < 120; i++) stepWorld(world, IDLE, DT);
@@ -152,8 +152,27 @@ test('the case file opens a mission at a time, its hidden clues only for those w
   store.setItem('meteora.campaign.v1', JSON.stringify({ ...freshProgress(), won: ['m01', 'm02'], caseFile: undefined }));
   const old = loadProgress(store);
   assert.deepEqual(old.caseFile.sort(), ['deep', 'harvested', 'plate']);
-  // And every mission after the first has a "previously".
-  for (const m of MISSIONS.slice(1)) assert.ok(RECAPS[m.id]?.(() => true)?.length > 40, m.id);
+  // And every mission after the first has a "previously" — the Narrows' own
+  // whether or not the Well was flown.
+  for (const m of [...MISSIONS.slice(1), ...SPECIAL_OPS]) assert.ok(RECAPS[m.id]?.(() => true)?.length > 40, m.id);
+  assert.notEqual(RECAPS.m09(() => true), RECAPS.m09(() => false));
+});
+test('the campaign is ten missions; a special operation opens on its own, unlocks nothing and is not waited for', () => {
+  assert.equal(MISSIONS.length, 10);
+  assert.deepEqual(MISSIONS.map(m => m.number), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  const well = missionById('m11');
+  assert.ok(well.special && SPECIAL_OPS.includes(well) && !MISSIONS.includes(well));
+  const p = freshProgress();
+  assert.equal(isAvailable(p, well), false);
+  p.won = MISSIONS.slice(0, 8).map(m => m.id);
+  assert.equal(isAvailable(p, well), true, 'open once Mission 8 is won');
+  assert.equal(nextMission(p).id, 'm09', 'the campaign goes on to Mission 9 regardless');
+  const change = recordResult(p, { id: 'm11', won: true, medal: 'gold', score: 9000, time: 400, difficulty: 'pilot', bonusDone: 2, bonusTotal: 2, stats: { hullTaken: 10, killCount: 3, kills: {}, shots: 0, accuracy: 0, bestStreak: 0, torpedoesDowned: 0, subsystems: 0 },
+    objectives: [{ id: 'rescue', state: 'done', kind: 'primary' }, { id: 'all', state: 'done', kind: 'bonus' }] });
+  assert.deepEqual(change.unlocks, []);
+  assert.equal(p.won.length, 8, 'not counted among the ten');
+  assert.ok(p.done.includes('m11') && p.best.m11 && p.caseFile.includes('caught'));
+  assert.ok(change.commendations.some(c => c.id === 'well'));
 });
 test('a corrupt or throwing save gives a fresh campaign', () => {
   const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('quota'); } };

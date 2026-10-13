@@ -164,6 +164,12 @@ const screens = createScreens(document, settings, {
   debriefNext: () => {
     const last = world.mission ? results(world) : null;
     if (survivalRun) { launch(null, currentLoadout); return; }
+    if (last?.won && currentMission?.special) {
+      // From a special operation back to the campaign, where it was.
+      if (progress.won.length < MISSIONS.length) openBriefing(nextMission(progress));
+      else toMenu();
+      return;
+    }
     if (last?.won && currentMission?.training) {
       // From the range to the war: Mission 1, unless it has been flown.
       if (!progress.won.includes(MISSIONS[0].id)) openBriefing(MISSIONS[0]);
@@ -629,7 +635,7 @@ function showDebrief() {
   }
   saveProgress(storage, progress);
   const i = MISSIONS.indexOf(currentMission);
-  const story = screens.debrief(res, survivalRun ? null : currentMission, change, progress, { hasNext: currentMission?.training || (i >= 0 && i + 1 < MISSIONS.length), survival, beyond: jumped });
+  const story = screens.debrief(res, survivalRun ? null : currentMission, change, progress, { hasNext: currentMission?.training || currentMission?.special || (i >= 0 && i + 1 < MISSIONS.length), survival, beyond: jumped });
   if (jumped) fade(false);
   if (!survivalRun) voices.narrate('narrator', story);
   screens.show('debrief', { remember: false });

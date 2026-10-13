@@ -22,14 +22,19 @@ import { HULLS } from './catalog.js';
 import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, defaultLoadout, normalizeLoadout } from './loadout.js';
 import { CASE_FILE } from './story.js';
 
-/* The order they are flown in. The Well (m11) was written after the ten and
-   flies ninth, between the foreman's death and the Narrows. */
-export const MISSIONS = [m01, m02, m03, m04, m05, m06, m07, m08, m11, m09, m10];
+/* The campaign: ten missions, flown in order. */
+export const MISSIONS = [m01, m02, m03, m04, m05, m06, m07, m08, m09, m10];
+/* Special operations: optional missions outside the ten, each opening once
+   the campaign reaches it (`after`) and set in the story where it falls —
+   The Well, between the foreman's death and the Narrows. They earn medals,
+   commendations and evidence for the case file, but no unlocks, and the
+   campaign does not wait for them. */
+export const SPECIAL_OPS = [m11];
 /* Flight training: flown from the menu, before or between missions; it
    counts for nothing in the campaign. */
 export const TRAINING = training;
-export const missionById = id => MISSIONS.find(m => m.id === id) ?? (id === 'training' ? TRAINING : null);
-export const missionLabel = m => (m.training ? 'Training' : `Mission ${m.number}`);
+export const missionById = id => MISSIONS.find(m => m.id === id) ?? SPECIAL_OPS.find(m => m.id === id) ?? (id === 'training' ? TRAINING : null);
+export const missionLabel = m => (m.training ? 'Training' : m.special ? 'Special operation' : `Mission ${m.number}`);
 
 /* What is in service once `done` missions have been won. */
 const SCHEDULE = [
@@ -117,7 +122,7 @@ const KEY = 'meteora.campaign.v1';
 export function freshProgress() {
   return {
     version: 1, difficulty: DEFAULT_DIFFICULTY, won: [], best: {}, loadouts: {}, commendations: {},
-    total: 0, seenPrologue: false, survival: {}, lastPlayed: null, caseFile: [],
+    total: 0, seenPrologue: false, survival: {}, lastPlayed: null, caseFile: [], done: [],
   };
 }
 const medalRank = { gold: 3, silver: 2, bronze: 1 };
@@ -128,6 +133,8 @@ export function loadProgress(storage) {
     if (!raw || typeof raw !== 'object' || raw.version !== 1) return freshProgress();
     const p = { ...freshProgress(), ...raw };
     p.won = Array.isArray(p.won) ? p.won.filter(id => MISSIONS.some(m => m.id === id)) : [];
+    // Special operations flown (kept apart from the campaign's wins).
+    p.done = Array.isArray(p.done) ? p.done.filter(id => SPECIAL_OPS.some(m => m.id === id)) : [];
     if (!DIFFICULTIES[p.difficulty]) p.difficulty = DEFAULT_DIFFICULTY;
     if (typeof p.total !== 'number' || !Number.isFinite(p.total)) p.total = 0;
     for (const k of ['best', 'loadouts', 'commendations', 'survival']) if (!p[k] || typeof p[k] !== 'object') p[k] = {};
@@ -147,6 +154,7 @@ export function nextMission(progress) {
   return MISSIONS.find(m => !progress.won.includes(m.id)) ?? MISSIONS[MISSIONS.length - 1];
 }
 export function isAvailable(progress, mission) {
+  if (mission.special) return progress.won.includes(mission.after) || (progress.done ?? []).includes(mission.id);
   const i = MISSIONS.indexOf(mission);
   return i === 0 || progress.won.includes(MISSIONS[i - 1].id) || progress.won.includes(mission.id);
 }
@@ -163,7 +171,9 @@ export function recordResult(progress, results) {
   const before = rankOf(progress.total);
   const wonBefore = progress.won.length;
   const out = { newBest: false, rankUp: null, unlocks: [], commendations: [] };
-  if (results.won && !progress.won.includes(results.id)) {
+  const special = SPECIAL_OPS.some(m => m.id === results.id);
+  if (results.won && special && !progress.done.includes(results.id)) progress.done.push(results.id);
+  if (results.won && !special && !progress.won.includes(results.id)) {
     progress.won.push(results.id);
     out.unlocks = unlocksOf(MISSIONS.findIndex(m => m.id === results.id));
   }

@@ -10,7 +10,7 @@
    Pilot or above does not need the player, which is a design bug.
 */
 import { STEP as DT } from '../js/config.js';
-import { MISSIONS } from '../js/campaign.js';
+import { MISSIONS, SPECIAL_OPS } from '../js/campaign.js';
 import { createWorld, startRun, stepWorld, drainEvents } from '../js/world.js';
 import { results } from '../js/mission.js';
 import { createBot } from '../tests/bot.mjs';
@@ -45,7 +45,7 @@ export function playOnce(mission, difficulty, loadout, k, { idle = false } = {})
 }
 
 if (process.argv[1]?.endsWith('balance.mjs')) {
-  for (const mission of MISSIONS.filter(m => !only.length || only.includes(m.id))) {
+  for (const mission of [...MISSIONS, ...SPECIAL_OPS].filter(m => !only.length || only.includes(m.id))) {
     const loadout = { ...mission.recommend, ...override };
     const line = [`${mission.id} ${mission.title.padEnd(20)}`];
     for (const d of diffs) {

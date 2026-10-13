@@ -99,7 +99,10 @@ export const RECAPS = {
   m07: () => 'The Perpetua made the rally point. The Harrow transponders answer on her own survey band, with a handshake older than anyone alive. Okonkwo and the Commander talked for three hours.',
   m08: has => `A dying tug told us everything. VG-07 is Vanguard Seven: the Harrow are the Vanguard, building a world out of ours — and the tug's memory says where their foreman waits.${has('ninth') ? ' The white Thorn that learned to fly from our dead flies no more.' : ''}`,
   m11: () => 'The foreman is dead, and fourteen Mothers have come in its place. The Meteora is leaving. Roussanou went first: its convoy folded for the Long Mercy an hour ago.',
-  m09: () => 'Lantern Wing brought back what it could of the Roussanou convoy out of the Well. The Harrow can catch a fold in flight now, so Stefanos, the last settlement, will go the slow way.',
+  // The Narrows follow the Well, when it was flown, or the foreman's death.
+  m09: has => (has('caught')
+    ? 'Lantern Wing brought back what it could of the Roussanou convoy out of the Well. The Harrow can catch a fold in flight now, so Stefanos, the last settlement, will go the slow way.'
+    : 'The foreman is dead, and fourteen Mothers have come in its place. The Meteora is leaving: every soul in the belt, to the Long Mercy.'),
   m10: () => 'Stefanos came through the Narrows, though the Vanguard knew how we leave. Forty-one thousand people are aboard the Long Mercy. One jump left.',
 };
 
