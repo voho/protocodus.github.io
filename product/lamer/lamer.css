@@ -1,0 +1,35 @@
+/* Lamer borrows the device's sage and warm ivory within the Protocodus layout. */
+.p-lamer { --signal: #b4cc88; --accent: #b4cc88; --accent-hover: #c4dba0; --accent-subtle: rgba(180, 204, 136, 0.1); }
+.p-lamer .instrument-layout { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.p-lamer .hero-title { max-width: 10ch; color: #f3e6cb; }
+.lamer-deck { margin-top: 1rem; font-size: clamp(1.4rem, 1.15rem + 0.8vw, 1.9rem); line-height: 1.3; letter-spacing: -0.035em; color: var(--signal); }
+.lamer-art { margin: 0; min-width: 0; }
+.lamer-art img { width: 100%; height: auto; border-radius: var(--radius-md); }
+.lamer-panel { margin-block: 2rem; }
+.p-lamer .shot img { border: 0; border-radius: 0; }
+.lamer-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 2.5rem; gap: 2.5rem 4rem; }
+.lamer-controls li { border: 0; padding-top: 0; }
+.lamer-controls h3, .lamer-ideas h3 { font-size: 1.25rem; font-weight: 500; line-height: 1.35; letter-spacing: -0.02em; }
+.lamer-ideas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem; }
+.idea-number { display: block; margin-bottom: 1.25rem; font-size: 0.875rem; color: var(--signal); }
+.lamer-ideas p { margin-top: 0.75rem; color: var(--fg-muted); }
+.lamer-practical { margin-top: 3rem; scroll-margin-top: calc(var(--header-height) + 1.5rem); }
+.lamer-notes > h3 { margin-bottom: 1.25rem; font-size: 1.5rem; font-weight: 500; letter-spacing: -0.025em; }
+.lamer-notes details { padding-block: 1rem; border-bottom: 1px solid var(--line); }
+.lamer-notes summary { cursor: pointer; min-height: 28px; color: var(--fg); }
+.lamer-notes summary::marker { color: var(--signal); }
+.lamer-notes summary:hover { color: var(--signal); }
+.lamer-notes details p { margin-top: 1rem; color: var(--fg-muted); font-size: 0.9375rem; }
+.p-lamer .platforms > div:last-child { border-bottom: 0; padding-bottom: 0; }
+@media (max-width: 880px) {
+  .p-lamer .instrument-layout { grid-template-columns: 1fr; }
+  .p-lamer .hero-title { max-width: none; }
+  .lamer-art { width: min(100%, 480px); justify-self: center; }
+  .lamer-controls { gap: 2rem; }
+  .lamer-ideas { grid-template-columns: 1fr; gap: 2rem; }
+  .idea-number { margin-bottom: 0.5rem; }
+}
+@media (max-width: 560px) {
+  .lamer-controls { grid-template-columns: 1fr; }
+  .lamer-panel { margin-block: 1.5rem; }
+}

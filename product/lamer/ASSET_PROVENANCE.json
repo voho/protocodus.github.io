@@ -1,0 +1,82 @@
+{
+  "product": "Lamer Degrader",
+  "source_version": "1.0.0f2",
+  "source_directory": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop",
+  "asset_origin": "Front and rear panels are composites of the shipped runtime assets at their default control states, not host captures. The thumbnail is the approved shop composition.",
+  "export_method": {
+    "png": "Byte-for-byte copy of the release shop asset.",
+    "webp": "Pillow lossless WebP export with lossless=True, quality=100, method=6; no resizing, retouching, or artwork changes.",
+    "pillow_version": "11.0.0"
+  },
+  "assets": [
+    {
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Front.png",
+      "source_sha256": "02d7826c251f4231f8b185741781fee85b48120bde5f1476f65ef40cb35e3ac2",
+      "dimensions": [
+        1600,
+        293
+      ],
+      "png": {
+        "file": "Lamer_Degrader_Front.png",
+        "sha256": "02d7826c251f4231f8b185741781fee85b48120bde5f1476f65ef40cb35e3ac2",
+        "bytes": 217789
+      },
+      "webp": {
+        "file": "lamer-panel.webp",
+        "sha256": "6217e0319e5a28336466128105f8df99d7e95b50baa7b20015a3b18dc36c1531",
+        "bytes": 144780,
+        "dimensions": [
+          1600,
+          293
+        ],
+        "decoded_pixels_match_source": true
+      }
+    },
+    {
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Back.png",
+      "source_sha256": "69db27bfe46ca7607f041a47e717344a85f2a408fda145a693b94584e4ef428e",
+      "dimensions": [
+        1600,
+        293
+      ],
+      "png": {
+        "file": "Lamer_Degrader_Back.png",
+        "sha256": "69db27bfe46ca7607f041a47e717344a85f2a408fda145a693b94584e4ef428e",
+        "bytes": 198561
+      },
+      "webp": {
+        "file": "lamer-rear.webp",
+        "sha256": "9eccefddd8e986b698825fbada72fac3ede74de84c6d8d696d368aa79e302972",
+        "bytes": 128168,
+        "dimensions": [
+          1600,
+          293
+        ],
+        "decoded_pixels_match_source": true
+      }
+    },
+    {
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Thumbnail_800.png",
+      "source_sha256": "4cc61ecce0d05cde9572d2320c84b9b5cc78abfdd1ddebd38fa213e079c479fd",
+      "dimensions": [
+        800,
+        800
+      ],
+      "png": {
+        "file": "Lamer_Degrader_Thumbnail_800.png",
+        "sha256": "4cc61ecce0d05cde9572d2320c84b9b5cc78abfdd1ddebd38fa213e079c479fd",
+        "bytes": 212148
+      },
+      "webp": {
+        "file": "lamer-card.webp",
+        "sha256": "0990ce35c48cfb47e3788264b13d5e808b3d78b2e3c8986ec3a9845b680c179e",
+        "bytes": 147970,
+        "dimensions": [
+          800,
+          800
+        ],
+        "decoded_pixels_match_source": true
+      }
+    }
+  ]
+}
