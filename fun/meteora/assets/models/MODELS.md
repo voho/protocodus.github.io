@@ -194,3 +194,18 @@ A mission loads the models it lists while the fold-in screen shows. Behind
 the menu the game preloads the fighter, the interceptor and the most common
 hulls (Swift, Anvil, Perpetua, Tender, Mule, Maul, Talon, Mite), so most
 launches start almost at once.
+
+## The hangar bay
+
+`hangar.glb` (`tools/blender/build_hangar.py`) is the flight deck behind
+the hangar screen: an 80 × 116 m bay with ribbed walls, catwalks and light
+strips, girders and light panels overhead, a gantry crane, crates, fuel and
+a torpedo rack, and the launch door open on a lit tube and the stars. Its
+surfaces wear small tiling textures — deck plates (8 m), wall panels (8 m),
+crate sides (2 m) and hazard stripes (1 m) — baked from procedural
+materials on a swatch and laid on in world units, so they stay sharp at any
+distance; the turntable pad has a texture of its own with the Watch's star
+and a lit rim. Two nodes: `bay` and `turntable` (which turns with the
+ship). Every face is one-sided, facing into the room or out of its solid.
+About 3,800 triangles and 520 KB; `tests/models-hangar-check.mjs` keeps it
+so.

@@ -61,6 +61,7 @@ import { canRenderHalfFloat, createBloom } from './bloom.js';
 import { createVoices } from './voices.js';
 import { createDust } from './dust.js';
 import { createWarmup } from './warmup.js';
+import { createHangar } from './hangar.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -87,7 +88,7 @@ try { storage = window.localStorage; } catch { /* nothing is kept */ }
 let progress = loadProgress(storage);
 
 let world, renderer, scene, camera, chase, fieldRender = null, library, sky, glow, smoke, fx, plumes, projectiles, hud, engineLight, input, resolution;
-let folds, shields, entities, bloom = null, fill, dust, warmup;
+let folds, shields, entities, bloom = null, fill, dust, warmup, hangar = null, hangarStage = null;
 // The place's look (environments.js) and the lights it sets.
 let look = null, lookKey = null, sunLight, hemiLight, ambientLight, holeLight;
 let targetView = null;
@@ -269,9 +270,9 @@ async function boot() {
   applyGraphics();
   let first;
   try {
-    await library.loadRocks((f, file) => screens.progress(0.15 + 0.4 * f, `Loaded ${file}`));
+    await library.loadRocks(f => screens.progress(0.15 + 0.4 * f, 'Charting the belt'));
     first = ['fighter', 'interceptor', 'perpetua', progress.loadouts?.last?.hull === 'swift' ? 'swift' : null, progress.loadouts?.last?.hull === 'anvil' ? 'anvil' : null].filter(Boolean);
-    await library.preload(first, (f, m) => screens.progress(0.55 + 0.35 * f, `Loaded ${m}`));
+    await library.preload(first, f => screens.progress(0.55 + 0.35 * f, 'Fuelling the wing'));
   } catch (error) {
     screens.error(`${error.message}. Check your connection and try again.`);
     return;
@@ -301,6 +302,15 @@ async function boot() {
   hud = createHud(hudCanvas);
   targetView = createTargetView(targetCanvas, library, { exposure: EXPOSURE, pause: nextPaint });
   hud.setKeys(keysOf(settings));
+  // The hangar bay, behind the hangar screen. Its key light is the only one
+  // anywhere that casts a shadow, so the flight's shaders do not change.
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  hangar = createHangar(renderer, library);
+  hangarStage = document.querySelector('[data-hangar-stage]');
+  hangarStage?.addEventListener('pointerdown', e => { hangarStage.setPointerCapture(e.pointerId); hangar.grab(true); });
+  hangarStage?.addEventListener('pointermove', e => { if (hangarStage.hasPointerCapture(e.pointerId)) hangar.turn(e.movementX); });
+  for (const type of ['pointerup', 'pointercancel']) hangarStage?.addEventListener(type, () => hangar.grab(false));
 
   input = createInput(canvas, controlState, {
     isFlying: () => mode === 'flight' && world.state === 'flying' && !paused,
@@ -335,6 +345,7 @@ async function boot() {
       get targetView() { return targetView; },
       get renderer() { return renderer; },
       get library() { return library; },
+      get music() { return music; },
       // Rebuild a place's look and report how long it took, GPU included.
       look(key) {
         const t = performance.now();
@@ -351,8 +362,12 @@ async function boot() {
   screens.ready();
   screens.menu(progress);
   mode = 'menu';
-  // The rest of the fleet loads behind the menu.
-  library.preload(['swift', 'anvil', 'perpetua', 'drone', 'freighter', 'maul', 'talon', 'mite']);
+  // The rest of the fleet loads behind the menu; the bay gets ready for
+  // the three hulls you can fly as soon as it and they are in.
+  const fleet = library.preload(['swift', 'anvil', 'perpetua', 'drone', 'freighter', 'maul', 'talon', 'mite']);
+  Promise.all([fleet, hangar.loaded]).then(() => {
+    if (hangar.ready) return warmup.warm(hangar.scene, hangar.camera, hangar.samples(['fighter', 'swift', 'anvil']));
+  }).catch(error => console.warn('meteora: the hangar was not made ready', error));
   requestAnimationFrame(frame);
 
   const direct = params.get('mission');
@@ -444,6 +459,7 @@ function toMenu() {
   screens.resetHistory();
   screens.menu(progress);
   screens.show('start', { remember: false });
+  music?.setSoundtrack(null);
   music?.setMood('menu', { force: true });
   fade(false);
 }
@@ -493,6 +509,7 @@ function openBriefing(mission) {
   // Start bringing in what the mission flies while the pilot reads.
   const models = flightModels(mission, hangarLoadout);
   library.preload(models).then(() => targetView.prefetch(looksOf(models)));
+  music?.setSoundtrack(null);
   music?.setMood(mission.number >= 8 ? 'tension' : 'menu', { force: true });
 }
 
@@ -516,6 +533,7 @@ function refreshHangar(loadout) {
   // The hull on the turntable.
   const model = CLASSES[hangarLoadout.hull].model;
   library.load(model);
+  hangar?.show(model);
   if (world.player?.cls !== hangarLoadout.hull) {
     resetWorld(world, { mission: MENU_SCENE, loadout: hangarLoadout, difficulty: progress.difficulty });
     entities.clear();
@@ -541,24 +559,27 @@ async function launch(mission, loadout) {
   audio?.setPaused(false);
   const def = mission ?? SURVIVAL;
   const title = mission ? mission.title : 'Survival';
+  // The flight's music comes down the wire while the drive spools.
+  music?.prepare(def.soundtrack ?? null);
   const tip = HINTS[Math.floor(Math.random() * HINTS.length)];
-  screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0, 'Spooling the drive', tip);
+  const where = mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7';
+  screens.fold(title, where, 0, 'Spooling the drive', tip);
   screens.show('loading');
   const models = flightModels(mission, currentLoadout);
-  await library.preload(models, (f, m) => { if (gen === launchGen) screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0.1 + 0.8 * f, `Loaded ${m}`); });
+  await library.preload(models, f => { if (gen === launchGen) screens.fold(title, where, 0.1 + 0.8 * f, 'Spooling the drive'); });
   if (gen !== launchGen) return;
   if (lookKey !== lookIdOf(def.env ?? 'sector7', def.well)) {
-    screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.92, 'Painting the sky');
+    screens.fold(title, where, 0.92, 'Painting the sky');
     await nextPaint();
     if (gen !== launchGen) return;
     applyLook(def.env ?? 'sector7', def.well);
   }
-  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.93, 'Pre-flight checks');
+  screens.fold(title, where, 0.93, 'Pre-flight checks');
   await nextPaint();
   if (gen !== launchGen) return;
   await getReady(models);
   if (gen !== launchGen) return;
-  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.97, 'Charting the belt');
+  screens.fold(title, where, 0.97, 'Charting the belt');
   await nextPaint();
   if (gen !== launchGen) return;
   resetWorld(world, { mission: def, loadout: currentLoadout, difficulty: BENCH ? 'veteran' : progress.difficulty });
@@ -578,6 +599,7 @@ async function launch(mission, loadout) {
   document.activeElement?.blur?.();
   audio?.start();
   music?.start();
+  music?.setSoundtrack(def.soundtrack ?? null);
   music?.setMood(def.music ?? 'calm', { force: true });
   dropAll(controlState);
   if (!AUTOPILOT) input.engage();
@@ -1031,7 +1053,12 @@ function tick(dt) {
   const query = BENCH ? gpuBegin() : null;
   // The bloom's passes are renders of their own: count the frame as a whole.
   renderer.info.reset();
-  renderer.render(scene, camera);
+  if (mode === 'menu' && screens.current === 'hangar' && hangar?.ready) {
+    // The hangar screen shows the bay instead, the stars through its door.
+    hangar.setSky(sky.environment);
+    hangar.update(dt, hangarStage?.getBoundingClientRect(), window.innerWidth, window.innerHeight);
+    renderer.render(hangar.scene, hangar.camera);
+  } else renderer.render(scene, camera);
   gpuEnd(query);
 
   if (flight && (world.state === 'flying' || world.state === 'dead') && playerObject) {
@@ -1045,6 +1072,7 @@ function tick(dt) {
 
   audio?.update(world, camera, step);
   music?.update(world, dt);
+  music?.duck(voices.speaking);
 }
 
 function autopilot(t) {

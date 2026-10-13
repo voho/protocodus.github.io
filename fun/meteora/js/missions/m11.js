@@ -56,6 +56,7 @@ export default defineMission({
   area: { centre: HOLE, radius: 30000 },
   models: ['fighter', 'freighter', 'shuttle', 'interceptor', 'talon', 'drone'],
   music: 'tension',
+  soundtrack: 'gravity',
   recommend: {
     hull: 'swift', primary: 'needle', secondaries: ['hornet'], reactor: 'forge',
     why: 'Speed. The hulks fall faster the deeper they get, and you will have to match them: the Swift is the quickest thing we fly, and a Forge keeps its afterburner burning.',

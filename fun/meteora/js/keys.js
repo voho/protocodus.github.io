@@ -30,9 +30,9 @@ export const KEY_GUIDE = [
   {
     title: 'Mouse',
     items: [
-      { caps: ['Mouse'], mouse: 'aim', label: 'Steer and aim: the ship turns toward the crosshair' },
+      { caps: ['Mouse'], mouse: 'aim', label: 'Steer and aim' },
       { caps: ['Left click'], mouse: 'left', label: 'Guns' },
-      { caps: ['Right click'], mouse: 'right', label: 'Secondary weapon (lock first)' },
+      { caps: ['Right click'], mouse: 'right', label: 'Secondary (lock first)' },
     ],
   },
   {
@@ -50,9 +50,9 @@ export const KEY_GUIDE = [
     title: 'Targets',
     items: [
       { actions: ['cycleTarget'], label: 'Next hostile' },
-      { actions: ['cycleFriendly'], label: 'Next friendly or objective' },
+      { actions: ['cycleFriendly'], label: 'Next friendly' },
       { actions: ['targetTorpedo'], label: 'Nearest incoming torpedo' },
-      { actions: ['cycleSub'], label: 'Next subsystem of the target' },
+      { actions: ['cycleSub'], label: 'Next subsystem' },
       { actions: ['cycleNav'], label: 'Next nav point' },
     ],
   },
@@ -61,8 +61,8 @@ export const KEY_GUIDE = [
     items: [
       { actions: ['cycleBank'], label: 'Switch secondary bank' },
       { actions: ['equalize'], label: 'Level the shields' },
-      { actions: ['repair'], label: 'Call a repair drone (hull below half)' },
-      { actions: ['wingAttack', 'wingCover', 'wingForm'], label: 'Wing: attack my target / cover me / form up' },
+      { actions: ['repair'], label: 'Call a Tender (below half hull)' },
+      { actions: ['wingAttack', 'wingCover', 'wingForm'], label: 'Wing: attack / cover / form up' },
       { caps: ['Esc'], label: 'Pause' },
     ],
   },
@@ -75,14 +75,14 @@ export const PAD_GUIDE = {
   title: 'Gamepad',
   items: [
     { caps: ['L stick'], label: 'Steer and aim' },
-    { caps: ['R stick'], label: 'Roll (left / right), speed (up / down)' },
-    { caps: ['RT', 'LT'], label: 'Guns / secondary weapon' },
+    { caps: ['R stick'], label: 'Roll and speed' },
+    { caps: ['RT', 'LT'], label: 'Guns / secondary' },
     { caps: ['A'], label: 'Afterburner (hold)' },
-    { caps: ['B'], label: 'Match the target\'s speed' },
-    { caps: ['X', 'Y'], label: 'Next hostile / nearest torpedo' },
+    { caps: ['B'], label: 'Match speed' },
+    { caps: ['X', 'Y'], label: 'Next hostile / torpedo' },
     { caps: ['LB', 'RB'], label: 'Switch bank / next subsystem' },
-    { caps: ['L3', 'R3'], label: 'Level the shields / call a repair drone' },
-    { caps: ['D-pad'], label: 'Wing: ↑ attack · → cover · ↓ form up; ← next nav point' },
-    { caps: ['View', 'Menu'], label: 'Chase / cockpit view; pause' },
+    { caps: ['L3', 'R3'], label: 'Level shields / Tender' },
+    { caps: ['D-pad'], label: 'Wing orders; ← next nav' },
+    { caps: ['View', 'Menu'], label: 'View; pause' },
   ],
 };

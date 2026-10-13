@@ -50,12 +50,12 @@ const TAP = 0.32, RAMP = 1.4;   // roll command = TAP + RAMP·held seconds, up t
 /* What the keyboard does, in the order the settings list it. */
 export const ACTIONS = [
   ['faster', 'Speed up'], ['slower', 'Slow down'], ['strafeLeft', 'Strafe left'], ['strafeRight', 'Strafe right'],
-  ['rollLeft', 'Roll left'], ['rollRight', 'Roll right'], ['boost', 'Afterburner (hold)'],
-  ['toggleSpeedLock', 'Match the target\'s speed'], ['toggleCamera', 'Chase / cockpit view'],
-  ['cycleTarget', 'Next hostile'], ['cycleFriendly', 'Next friendly or objective'], ['targetTorpedo', 'Nearest incoming torpedo'],
-  ['cycleSub', 'Next subsystem of the target'], ['cycleNav', 'Next nav point'], ['cycleBank', 'Switch secondary bank'],
-  ['equalize', 'Level the shields'], ['repair', 'Call a repair drone'],
-  ['wingAttack', 'Wing: attack my target'], ['wingCover', 'Wing: cover me'], ['wingForm', 'Wing: form up'],
+  ['rollLeft', 'Roll left'], ['rollRight', 'Roll right'], ['boost', 'Afterburner'],
+  ['toggleSpeedLock', 'Match speed'], ['toggleCamera', 'Camera view'],
+  ['cycleTarget', 'Next hostile'], ['cycleFriendly', 'Next friendly'], ['targetTorpedo', 'Nearest torpedo'],
+  ['cycleSub', 'Next subsystem'], ['cycleNav', 'Next nav point'], ['cycleBank', 'Switch bank'],
+  ['equalize', 'Level shields'], ['repair', 'Call a Tender'],
+  ['wingAttack', 'Wing: attack'], ['wingCover', 'Wing: cover'], ['wingForm', 'Wing: form up'],
 ];
 export const DEFAULT_KEYS = Object.freeze({
   faster: 'KeyW', slower: 'KeyS', strafeLeft: 'KeyA', strafeRight: 'KeyD', rollLeft: 'KeyQ', rollRight: 'KeyE', boost: 'Tab',

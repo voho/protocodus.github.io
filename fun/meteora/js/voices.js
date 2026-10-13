@@ -140,6 +140,8 @@ export function createVoices({ volume = () => 1 } = {}) {
 
   return {
     get available() { return cast.size > 0; },
+    // Whether a line is being read now (the music ducks under it).
+    get speaking() { return !!current && (!synth || synth.speaking || synth.pending); },
     get cast() { return cast; },
     /* Once a frame in flight. Returns how many radio lines appeared this
        frame (each gets the squelch, voiced or not). */

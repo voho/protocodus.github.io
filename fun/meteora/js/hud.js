@@ -120,12 +120,18 @@ export function createHud(canvas) {
     ctx.stroke();
   };
 
+  /* The panels round the edge, this frame: what the edge arrows keep off. */
+  const panels = [];
+  const blocked = (x, y, pad) => panels.some(r => x > r[0] - pad && x < r[2] + pad && y > r[1] - pad && y < r[3] + pad);
   const edgeArrow = (p, color, label, margin = 46) => {
     let dx = p.view[0], dy = -p.view[1];
     if (Math.hypot(dx, dy) < 1e-6) dy = 1;
     const len = Math.hypot(dx, dy); dx /= len; dy /= len;
     const cx = w / 2, cy = h / 2;
-    const s = Math.min((w / 2 - margin) / Math.max(Math.abs(dx), 1e-6), (h / 2 - margin) / Math.max(Math.abs(dy), 1e-6));
+    let s = Math.min((w / 2 - margin) / Math.max(Math.abs(dx), 1e-6), (h / 2 - margin) / Math.max(Math.abs(dy), 1e-6));
+    // Along the same bearing, in from the edge until no panel is under it
+    // or its label.
+    while (s > 60 && blocked(cx + dx * s, cy + dy * s, 26)) s -= 6;
     const x = cx + dx * s, y = cy + dy * s;
     ctx.save();
     ctx.translate(x, y); ctx.rotate(Math.atan2(dy, dx));
@@ -404,14 +410,28 @@ export function createHud(canvas) {
     text('RADAR', cx, cy + R + 12, 9, DIM);
   }
 
+  /* Directives, top left. While they are news — the first seconds of a
+     mission, and a while after any of them changes — every objective
+     shows; after that only what is still to do, and the bonus objectives
+     as a count. The pause screen always has the full list. Returns how far
+     down the panel reaches. */
+  let objectivesNews = 0;
   function directives(world) {
     const rt = world.mission;
-    if (!rt) return;
-    const list = rt.objectives.filter(o => o.state !== 'hidden');
+    if (!rt) return 0;
+    const all = rt.objectives.filter(o => o.state !== 'hidden');
+    const news = rt.time < 12 || rt.time - objectivesNews < 8;
+    const list = news ? all : all.filter(o => o.state === 'active' && o.kind !== 'bonus');
+    const bonus = news ? 0 : all.filter(o => o.state === 'active' && o.kind === 'bonus').length;
     const timers = [...rt.timers.values()].filter(t => t.visible);
-    const x = 22, y0 = 22, width = Math.min(360, w * 0.32);
-    const rows = list.length + timers.length + 1;
-    panel(x - 10, y0 - 12, width, 26 + rows * 19);
+    const x = 22, y0 = 22;
+    ctx.font = `500 12px ${FONT}`;
+    const longest = Math.max(0, ...list.map(o => ctx.measureText(`○  ${o.text}  00/00`).width));
+    const width = Math.min(Math.max(220, longest + 24), 380, w * 0.34);
+    const rows = list.length + timers.length + (bonus ? 1 : 0) + 1;
+    const height = 26 + rows * 19;
+    panel(x - 10, y0 - 12, width, height);
+    panels.push([x - 10, y0 - 12, x - 10 + width, y0 - 12 + height]);
     text(`${rt.def.number ? `MISSION ${rt.def.number} · ` : ''}${rt.def.title.toUpperCase()}`, x, y0 + 2, 11, AMBER, 'left', 600);
     let y = y0 + 22;
     for (const t of timers) {
@@ -424,34 +444,53 @@ export function createHud(canvas) {
       const colour = o.state === 'done' ? GREEN : o.state === 'failed' ? RED : o.kind === 'bonus' ? 'rgba(255, 224, 102, 0.85)' : INK;
       const count = o.count && o.state === 'active' ? `  ${o.count.n}/${o.count.of}` : '';
       const fresh = rt.time - (o.shownAt ?? 0) < 1.2 && o.state === 'active';
-      text(`${icon}  ${o.text}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left');
+      const row = fitLine(`${icon}  ${o.text}`, width - 24 - (count ? ctx.measureText(count).width : 0));
+      text(`${row}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left');
       y += 19;
     }
+    if (bonus) { text(`☆  ${bonus} bonus objective${bonus > 1 ? 's' : ''}`, x, y, 11, 'rgba(255, 224, 102, 0.7)', 'left'); y += 19; }
+    return y0 - 12 + height;
+  }
+  // A line cut to a width, with an ellipsis.
+  function fitLine(s, width) {
+    if (ctx.measureText(s).width <= width) return s;
+    let t = s;
+    while (t.length > 4 && ctx.measureText(`${t}…`).width > width) t = t.slice(0, -1);
+    return `${t.trimEnd()}…`;
   }
 
-  function radio(world) {
+  /* The radio, under the directives: laid out first (so the arrows and
+     labels keep off it), drawn last (over everything, the letterbox too). */
+  function radioPlan(world, top) {
     const rt = world.mission;
-    if (!rt) return;
+    if (!rt) return [];
     const now = rt.time;
     const lines = rt.radio.filter(l => l.at <= now && now < l.at + l.dur + 2.5).slice(-3);
-    const x = 22;
-    let y = 40 + 19 * (rt.objectives.filter(o => o.state !== 'hidden').length + [...rt.timers.values()].filter(t => t.visible).length + 1) + 18;
-    const width = Math.min(460, w * 0.4);
+    const x = 22, width = Math.min(460, w * 0.4);
+    let y = Math.max(34, top + 24);
+    const plan = [];
+    ctx.font = `500 13px ${FONT}`;
     for (const l of lines) {
-      const sp = SPEAKERS[l.who] ?? { name: l.who, colour: INK };
       const age = now - l.at;
-      const alpha = Math.min(1, age * 6) * Math.min(1, (l.dur + 2.5 - age) / 0.8);
-      // Typewriter: the line arrives a little faster than it is read.
+      // Typewriter: the line arrives a little faster than it is read; the
+      // box is as tall as the whole line from the start.
       const shown = l.text.slice(0, Math.ceil(l.text.length * Math.min(1, age / Math.max(0.6, l.dur * 0.5))));
+      const rows = wrap(shown, width - 20), tall = wrap(l.text, width - 20).length;
+      plan.push({ l, x, y, width, rows, tall, alpha: Math.min(1, age * 6) * Math.min(1, (l.dur + 2.5 - age) / 0.8) });
+      panels.push([x - 10, y - 12, x - 10 + width, y + 10 + tall * 17]);
+      y += 34 + tall * 17;
+    }
+    return plan;
+  }
+  function radio(plan) {
+    for (const { l, x, y, width, rows, tall, alpha } of plan) {
+      const sp = SPEAKERS[l.who] ?? { name: l.who, colour: INK };
       ctx.globalAlpha = alpha;
-      ctx.font = `500 13px ${FONT}`;
-      const wrapped = wrap(shown, width - 20);
-      panel(x - 10, y - 12, width, 22 + wrapped.length * 17);
+      panel(x - 10, y - 12, width, 22 + tall * 17);
       text(sp.name.toUpperCase(), x, y, 10, sp.colour, 'left', 700);
       let yy = y + 16;
-      for (const row of wrapped) { text(row, x, yy, 13, INK, 'left'); yy += 17; }
+      for (const row of rows) { text(row, x, yy, 13, INK, 'left'); yy += 17; }
       ctx.globalAlpha = 1;
-      y = yy + 12;
     }
   }
   const wrapCache = new Map();
@@ -476,6 +515,7 @@ export function createHud(canvas) {
     const width = 210, x = w - width - 18;
     let y = 22;
     panel(x - 8, y - 12, width + 16, 20 + list.length * 30);
+    panels.push([x - 8, y - 12, x + width + 8, y + 8 + list.length * 30]);
     text('PROTECT', x, y + 2, 11, GREEN, 'left', 600);
     y += 20;
     for (const e of list) {
@@ -497,7 +537,6 @@ export function createHud(canvas) {
     ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
     text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
-    text(`${p.loadout?.hull ? p.def.name.toUpperCase() : ''}`, x0 + 180, y0 + 12, 10, DIM, 'right', 600);
     const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
     bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
       world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%`);
@@ -580,6 +619,7 @@ export function createHud(canvas) {
     // the ship panel instead.
     const x0 = w >= 1000 ? 28 : w - 228, y0 = w >= 1000 ? h - 208 : h - 228;
     panel(x0 - 12, y0 - 18, 214, 62);
+    panels.push([x0 - 12, y0 - 18, x0 + 202, y0 + 44]);
     const fall = pull >= burn, heavy = pull >= thrust, strong = pull >= thrust * 0.5;
     const colour = fall ? RED : heavy ? (time % 0.5 < 0.25 ? RED : AMBER) : strong ? AMBER : CYAN;
     text(`THE WELL ${(r / 1000).toFixed(1)} km`, x0, y0, 11, MUTED, 'left', 600);
@@ -792,7 +832,7 @@ export function createHud(canvas) {
     },
     banner(title, sub, colour = INK, duration = Infinity) { banner = { title, sub, colour, age: 0, duration }; },
     clearBanner() { banner = null; },
-    reset() { callouts.length = 0; popups.length = 0; marks.length = 0; hurts.length = 0; streak = null; banner = null; lastHull = null; },
+    reset() { callouts.length = 0; popups.length = 0; marks.length = 0; hurts.length = 0; streak = null; banner = null; lastHull = null; objectivesNews = 0; },
     /* The simulation's events that the HUD shows. */
     handle(e, world) {
       switch (e.type) {
@@ -809,6 +849,7 @@ export function createHud(canvas) {
           }
           break;
         case 'objective':
+          objectivesNews = world.mission?.time ?? 0;
           if (e.state === 'done') this.callout(`${e.bonus ? 'BONUS · ' : ''}✓ ${e.text}`, 'rgba(93, 255, 143, A)');
           else if (e.state === 'failed') this.callout(`✕ ${e.text}`, 'rgba(255, 70, 60, A)');
           else if (e.state === 'active' && world.mission?.time > 0.5) this.callout(`${e.bonus ? 'BONUS · ' : 'NEW · '}${e.text}`, 'rgba(255, 224, 102, A)');
@@ -846,7 +887,22 @@ export function createHud(canvas) {
       const target = world.target && world.target.alive ? world.target : null;
       const range = target ? Math.max(1, Math.hypot(...target.ship.pos.map((c, i) => c - p.ship.pos[i])) - (target.big ? target.radius * 0.5 : 0)) : 1200;
       slots.length = 0;
+      panels.length = 0;
       viewRect = null;
+      if (instruments) {
+        // The fixed panels along the bottom, claimed before the arrows.
+        const R = Math.min(88, Math.max(58, h * 0.09)), wide = w >= 1000;
+        panels.push([16, h - 150, 230, h], [w - 240, h - 168, w - 8, h]);
+        panels.push(wide ? [234, h - 2 * R - 32, 242 + 2 * R + 8, h] : [12, h - 2 * R - 200, 2 * R + 24, h - 160]);
+        if (target && Math.min(340, w - 520) >= 250) panels.push([w / 2 - 170, h - 116, w / 2 + 170, h - 12]);
+      }
+      // The directives (and under them the radio) first, so the arrows know
+      // where they end.
+      const directivesEnd = instruments ? directives(world) : 0;
+      if (instruments) escorts(world);
+      const chatter = radioPlan(world, directivesEnd);
+      // Labels in the world keep off the panels too.
+      slots.push(...panels);
       if (p.alive && instruments) {
         const pip = flightMarks(world, camera, view, fwd, range);
         // The target's labels first, so the others make room for them.
@@ -871,13 +927,11 @@ export function createHud(canvas) {
         warnings(world);
       }
       if (instruments) {
-        directives(world);
-        escorts(world);
         hints(world);
         if (world.missionDef?.id === 'survival') {
           text(`SCORE  ${world.score.toLocaleString('en')}`, w / 2 - 70, 26, 13, INK);
           text(`WAVE  ${world.wave}`, w / 2 + 70, 26, 13, INK);
-        } else text(`${world.score.toLocaleString('en')}`, w - 24, h - 14, 11, DIM, 'right');
+        }
       }
       if (cine > 0) {
         const bar = Math.round(h * 0.1 * cine);
@@ -885,7 +939,7 @@ export function createHud(canvas) {
         ctx.fillRect(0, 0, w, bar);
         ctx.fillRect(0, h - bar, w, bar);
       }
-      radio(world);
+      radio(chatter);
       centreText(dt);
     },
   };

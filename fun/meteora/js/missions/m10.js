@@ -36,6 +36,8 @@ export default defineMission({
   area: { centre: [0, 0, 0], radius: 7000 },
   models: ['fighter', 'swift', 'anvil', 'interceptor', 'maul', 'talon', 'mite', 'warden', 'mother', 'anchor', 'colony', 'perpetua', 'halberd', 'torpedo', 'drone'],
   music: 'climax',
+  // The fleet's last stand opens and closes on its own piece.
+  soundtrack: { climax: 'grandeur' },
   recommend: {
     hull: 'kestrel', primary: 'breaker', secondaries: ['hornet', 'lance'], reactor: 'aegis',
     why: 'Everything at once. The fold anchors are armoured — Breakers and Lances crack them — but the sky will be full of fighters and bombers. A Kestrel with Breakers, Hornets and two Lances, and an Aegis to last.',

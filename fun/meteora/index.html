@@ -53,7 +53,7 @@
         <button type="button" class="menu-item" data-action="training">Flight training</button>
         <button type="button" class="menu-item" data-action="missions">Missions</button>
         <button type="button" class="menu-item" data-action="survival">Survival</button>
-        <button type="button" class="menu-item" data-action="codex">Codex &amp; service record</button>
+        <button type="button" class="menu-item" data-action="codex">Codex</button>
         <button type="button" class="menu-item" data-action="settings">Settings</button>
       </nav>
       <div class="rank" data-rank hidden></div>
@@ -84,10 +84,10 @@
   </section>
 
   <section class="screen" data-screen="campaign" role="dialog" aria-modal="true" aria-labelledby="meteora-campaign">
-    <div class="panel wide">
+    <div class="panel wide sheet">
       <p class="eyebrow">Belt Watch · Lantern Wing</p>
       <h2 class="title" id="meteora-campaign">Missions</h2>
-      <div class="missions" data-mission-list></div>
+      <div class="sheet-body missions" data-mission-list></div>
       <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
     </div>
   </section>
@@ -109,15 +109,15 @@
         </div>
         <h3 class="section">Objectives</h3>
         <ul class="objectives" data-brief-objectives></ul>
-        <h3 class="section">Recommended loadout</h3>
-        <p class="recommend" data-brief-recommend></p>
+        <h3 class="section">Recommended</h3>
+        <p class="chips" data-brief-recommend></p>
       </div>
       <div class="brief-map">
         <canvas class="map" data-brief-map aria-label="Tactical map"></canvas>
       </div>
     </div>
     <div class="brief-bar">
-      <label class="select">Difficulty <select data-brief-difficulty></select></label>
+      <div class="seg" role="radiogroup" aria-label="Difficulty" data-brief-difficulty></div>
       <span class="best" data-brief-best></span>
       <div class="go">
         <button type="button" class="ghost" data-action="back">Back</button>
@@ -139,54 +139,68 @@
       <h3 class="section">Reactor</h3>
       <div class="choices" data-hangar-reactors></div>
     </div>
+    <div class="hangar-stage" data-hangar-stage aria-hidden="true"></div>
     <div class="hangar-side">
-      <h3 class="section" data-hangar-name></h3>
+      <p class="eyebrow" data-hangar-type></p>
+      <h3 class="ship-name" data-hangar-name></h3>
       <p class="blurb" data-hangar-blurb></p>
       <div class="stats" data-hangar-stats></div>
       <div class="advice" data-hangar-advice></div>
+    </div>
+    <div class="hangar-bar">
+      <span class="hint" data-hangar-hint><span class="legend-dot" aria-hidden="true"></span> Recommended · drag to turn the ship</span>
       <div class="go">
-        <button type="button" class="ghost" data-action="useRecommended">Use recommended</button>
         <button type="button" class="ghost" data-action="back">Back</button>
+        <button type="button" class="ghost" data-action="useRecommended" data-hangar-recommend>Use recommended</button>
         <button type="button" class="launch" data-action="launchMission">Launch <span aria-hidden="true">↗</span></button>
       </div>
     </div>
   </section>
 
   <section class="screen" data-screen="pause" role="dialog" aria-modal="true" aria-labelledby="meteora-pause">
-    <div class="panel wide">
+    <div class="panel wide sheet pause">
       <p class="eyebrow" data-pause-eyebrow>Holding position</p>
       <h2 class="title" id="meteora-pause">Paused</h2>
-      <ul class="objectives" data-pause-objectives></ul>
+      <div class="tabs" role="tablist" data-pause-tabs>
+        <button type="button" class="tab" role="tab" aria-selected="true" data-pane="mission">Mission</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="controls">Controls</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="settings">Settings</button>
+      </div>
+      <div class="sheet-body">
+        <div data-pane-body="mission"><ul class="objectives" data-pause-objectives></ul></div>
+        <div data-pane-body="controls" hidden><div class="keys" data-keys role="group" aria-label="Controls"></div></div>
+        <div data-pane-body="settings" hidden><div class="settings" data-settings-form></div></div>
+      </div>
       <div class="go">
         <button class="launch" type="button" data-action="resume">Resume <span aria-hidden="true">↗</span></button>
-        <button class="ghost" type="button" data-action="restart">Restart mission</button>
-        <button class="ghost" type="button" data-action="abort">Abort to menu</button>
+        <button class="ghost" type="button" data-action="restart">Restart</button>
+        <button class="ghost" type="button" data-action="abort">Abort</button>
         <span class="hint"><kbd>Esc</kbd> resumes</span>
       </div>
-      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
-      <div class="settings" data-settings-form></div>
     </div>
   </section>
 
   <section class="screen" data-screen="debrief" role="dialog" aria-modal="true" aria-labelledby="meteora-debrief">
-    <div class="panel wide debrief">
+    <div class="panel wide sheet debrief">
       <p class="eyebrow" data-debrief-eyebrow></p>
       <h2 class="title" id="meteora-debrief" data-debrief-title></h2>
       <div class="medal-row" data-debrief-medal></div>
       <p class="story-text" data-debrief-text></p>
       <div class="evidence" data-debrief-evidence hidden></div>
-      <div class="debrief-grid">
-        <div>
-          <h3 class="section">Objectives</h3>
-          <ul class="objectives" data-debrief-objectives></ul>
+      <div class="sheet-body">
+        <div class="debrief-grid">
+          <div>
+            <h3 class="section">Objectives</h3>
+            <ul class="objectives" data-debrief-objectives></ul>
+          </div>
+          <div>
+            <h3 class="section">Record</h3>
+            <dl class="record" data-debrief-record></dl>
+          </div>
         </div>
-        <div>
-          <h3 class="section">Record</h3>
-          <dl class="record" data-debrief-record></dl>
-        </div>
+        <div class="awards" data-debrief-awards></div>
+        <div class="rank-bar" data-debrief-rank></div>
       </div>
-      <div class="awards" data-debrief-awards></div>
-      <div class="rank-bar" data-debrief-rank></div>
       <div class="go">
         <button class="launch" type="button" data-action="debriefNext" data-debrief-next>Continue <span aria-hidden="true">→</span></button>
         <button class="ghost" type="button" data-action="replay">Replay</button>
@@ -197,21 +211,20 @@
   </section>
 
   <section class="screen" data-screen="codex" role="dialog" aria-modal="true" aria-labelledby="meteora-codex">
-    <div class="panel wide">
+    <div class="panel wide sheet">
       <p class="eyebrow">Archive of the Perpetua</p>
       <h2 class="title" id="meteora-codex">Codex</h2>
       <div class="tabs" role="tablist" data-codex-tabs></div>
-      <div class="codex-body" data-codex-body></div>
+      <div class="sheet-body codex-body" data-codex-body></div>
       <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
     </div>
   </section>
 
   <section class="screen" data-screen="settings" role="dialog" aria-modal="true" aria-labelledby="meteora-settings">
-    <div class="panel">
+    <div class="panel wide sheet">
       <p class="eyebrow">Flight computer</p>
       <h2 class="title" id="meteora-settings">Settings</h2>
-      <div class="settings" data-settings-form></div>
-      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
+      <div class="sheet-body"><div class="settings" data-settings-form></div></div>
       <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
     </div>
   </section>

@@ -187,6 +187,13 @@ screen is about speed, and the tugs of mission 7 keep their shields up
 under anything but Ion. The hangar's assessment says what is missing
 before you launch.
 
+The hangar is the Perpetua's flight deck: the hull you are fitting out
+turns on a pad under a gantry, lit by the deck's lamps and casting its
+shadow, the launch door open on the stars behind it (drag it to turn it
+yourself). The bay is a model of its own (`assets/models/hangar.glb`), a
+scene of its own with its own lights (`js/hangar.js`), and the only thing
+in the game that casts a real shadow.
+
 ## Difficulty
 
 | | Recruit | Pilot | Veteran | Ace |
@@ -256,9 +263,22 @@ Every sound is synthesised at load from oscillators and noise — there are
 no audio files — and placed in 3D (Web Audio's HRTF panner, best on
 headphones). Engines glide in pitch with speed, other ships bend through
 doppler as they pass, hits sound by what they strike, and the cockpit adds
-lock tones, warnings, the radio and the Tender's welding. The music is
-generated live in eight moods — menu, calm, stealth, tension, combat,
-climax, victory, defeat — and lifts when a fight starts.
+lock tones, warnings, the radio and the Tender's welding.
+
+The soundtrack is six pieces made for the game, crossfaded with the mood
+and lifted into combat when the Harrow close in:
+
+| piece | plays |
+|---|---|
+| The Sea of Distant Suns | the menus and briefings |
+| Beneath Uncharted Skies | patrols, the flight home |
+| The Weight of Faraway Suns | stealth, tension, defeat |
+| Apex of the Armada | combat and the big fights |
+| Grandeur of the Fallen | victory, and the Long Mercy's last stand |
+| Gravity's Final Breath | The Well, all the way down |
+
+They stream from `assets/music/` (only what plays is downloaded; a
+mission's pieces are fetched while it loads) and duck under the radio.
 
 The radio is voiced through the browser's own speech synthesis. Each
 character is cast once from the system's English voices — by the sex the

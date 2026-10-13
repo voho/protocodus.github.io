@@ -58,15 +58,19 @@ export function createWarmup(renderer, { hdr = false, pause = () => Promise.reso
       }
 
       // One frame with all of them in the scene: their buffers go up and
-      // each shader is used once.
+      // each shader is used once. It is drawn into the stand-in target,
+      // where nobody sees it (without one, behind the camera).
       const group = new THREE.Group();
       for (const root of [...samples.children]) group.add(root);
       camera.updateMatrixWorld();
       group.position.copy(camera.getWorldDirection(behind)).multiplyScalar(-5000).add(camera.position);
       scene.add(group);
+      const target = renderer.getRenderTarget();
+      if (stand) renderer.setRenderTarget(stand);
       try {
         renderer.render(scene, camera);
       } finally {
+        renderer.setRenderTarget(target);
         scene.remove(group);
       }
     },

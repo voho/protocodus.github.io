@@ -166,47 +166,61 @@ export function createScreens(root, settings, handlers) {
     handlers[action]?.(b);
   });
   root.addEventListener('pointerover', e => { if (e.target.closest?.('button:not(:disabled)')) handlers.hover?.(); });
+  for (const t of screens.pause?.querySelectorAll('[data-pane]') ?? []) t.addEventListener('click', () => api.pauseTab(t.dataset.pane));
 
   /* ---------- settings ---------- */
   const settingsForms = [...root.querySelectorAll('[data-settings-form]')];
+  const changed = () => { saveSettings(settings); handlers.settingsChanged?.(settings); };
   const renderSettings = () => {
     for (const form of settingsForms) {
       form.textContent = '';
       const range = (key, text, min, max, step, show = v => `${Math.round(v * 100)}%`) => {
         const out = el(doc, 'output', { text: show(settings[key]) });
-        const input = el(doc, 'input', { type: 'range' });
+        const input = el(doc, 'input', { type: 'range', 'aria-label': text });
         Object.assign(input, { min, max, step, value: settings[key] });
-        input.addEventListener('input', () => {
-          settings[key] = Number(input.value); out.textContent = show(settings[key]);
-          saveSettings(settings); handlers.settingsChanged?.(settings);
-        });
+        input.addEventListener('input', () => { settings[key] = Number(input.value); out.textContent = show(settings[key]); changed(); });
         return el(doc, 'label', {}, el(doc, 'span', { class: 'row' }, el(doc, 'span', { text }), out), input);
       };
+      // One of a few, side by side; `title` says what each means.
+      const choose = (key, text, options, fallback) => {
+        const seg = el(doc, 'div', { class: 'seg', role: 'radiogroup', 'aria-label': text });
+        const paint = () => { for (const b of seg.children) b.setAttribute('aria-checked', String(b.dataset.value === (settings[key] ?? fallback))); };
+        for (const [value, name, title] of options) {
+          const b = el(doc, 'button', { type: 'button', role: 'radio', text: name, title, 'data-value': value });
+          b.addEventListener('click', () => { settings[key] = value; paint(); changed(); });
+          seg.append(b);
+        }
+        paint();
+        return el(doc, 'div', { class: 'field' }, el(doc, 'span', { text }), seg);
+      };
+      const toggle = (key, text, title, on = v => !!v, set = c => c) => {
+        const box = el(doc, 'input', { type: 'checkbox', checked: on(settings[key]) });
+        box.addEventListener('change', () => { settings[key] = set(box.checked); changed(); });
+        return el(doc, 'label', { class: 'switch', title }, el(doc, 'span', { text }), box);
+      };
+      const group = (title, ...items) => el(doc, 'div', { class: 'group' }, el(doc, 'h3', { class: 'section', text: title }), ...items);
       form.append(
-        range('volume', 'Sound volume', 0, 1, 0.05),
-        range('music', 'Music volume', 0, 1, 0.05),
-        range('voices', 'Radio voices', 0, 1, 0.05, v => (v > 0 ? `${Math.round(v * 100)}%` : 'Off')),
-        range('sensitivity', 'Mouse sensitivity', 0.5, 3, 0.1, v => `${v.toFixed(1)}×`),
-        range('fov', 'Field of view', 60, 100, 1, v => `${Math.round(v)}°`),
+        group('Sound',
+          range('volume', 'Effects', 0, 1, 0.05),
+          range('music', 'Music', 0, 1, 0.05),
+          range('voices', 'Radio voices', 0, 1, 0.05, v => (v > 0 ? `${Math.round(v * 100)}%` : 'Off'))),
+        group('Picture',
+          range('fov', 'Field of view', 60, 100, 1, v => `${Math.round(v)}°`),
+          choose('quality', 'Render quality', [
+            ['sharp', 'Sharp', 'Up to 1.5× pixels, lowered when frames run late'],
+            ['balanced', 'Balanced', 'Up to the screen\'s own pixels'],
+            ['fast', 'Fast', 'Three quarters of the screen\'s pixels'],
+          ], 'sharp'),
+          toggle('bloom', 'Bloom', 'Light bleeds around flames, bolts and fire', v => v !== false),
+          toggle('cutaways', 'Cutaways', 'The camera cuts to the big moments', v => v !== false)),
+        group('Flight',
+          range('sensitivity', 'Mouse sensitivity', 0.5, 3, 0.1, v => `${v.toFixed(1)}×`),
+          choose('steering', 'Mouse steering', [
+            ['direct', 'Direct', 'The ship follows the mouse'],
+            ['stick', 'Stick', 'The cursor stays where you leave it'],
+          ], 'direct'),
+          toggle('invertPitch', 'Invert up / down', 'Mouse up pitches the nose down')),
       );
-      const steer = el(doc, 'select');
-      for (const [value, text] of [['direct', 'Direct — the ship follows the mouse'], ['stick', 'Stick — the cursor stays where you leave it']]) {
-        steer.append(el(doc, 'option', { value, text, selected: settings.steering === value }));
-      }
-      steer.addEventListener('change', () => { settings.steering = steer.value; saveSettings(settings); handlers.settingsChanged?.(settings); });
-      form.append(el(doc, 'label', {}, el(doc, 'span', { text: 'Mouse steering' }), steer));
-      const quality = el(doc, 'select');
-      for (const [value, text] of [['sharp', 'Sharpest — up to 1.5× pixels, lowered when frames run late'], ['balanced', 'Balanced — up to the screen\'s own pixels'], ['fast', 'Fast — three quarters of them']]) {
-        quality.append(el(doc, 'option', { value, text, selected: (settings.quality ?? 'sharp') === value }));
-      }
-      quality.addEventListener('change', () => { settings.quality = quality.value; saveSettings(settings); handlers.settingsChanged?.(settings); });
-      form.append(el(doc, 'label', {}, el(doc, 'span', { text: 'Render quality' }), quality));
-      const inv = el(doc, 'input', { type: 'checkbox', checked: !!settings.invertPitch });
-      inv.addEventListener('change', () => { settings.invertPitch = inv.checked; saveSettings(settings); handlers.settingsChanged?.(settings); });
-      form.append(el(doc, 'label', { class: 'check' }, inv, el(doc, 'span', { text: 'Invert mouse up / down' })));
-      const glowBox = el(doc, 'input', { type: 'checkbox', checked: settings.bloom !== false });
-      glowBox.addEventListener('change', () => { settings.bloom = glowBox.checked; saveSettings(settings); handlers.settingsChanged?.(settings); });
-      form.append(el(doc, 'label', { class: 'check' }, glowBox, el(doc, 'span', { text: 'Bloom — light bleeds around flames, bolts and fire' })));
       // Keys: click one, then press the key it should be. A key already in
       // use swaps over; Esc leaves it as it was. Only changes are saved.
       const win = doc.defaultView ?? globalThis;
@@ -241,10 +255,7 @@ export function createScreens(root, settings, handlers) {
       }
       const resetKeys = el(doc, 'button', { type: 'button', class: 'ghost small', text: 'Default keys' });
       resetKeys.addEventListener('click', () => { delete settings.keys; saveSettings(settings); handlers.settingsChanged?.(settings); refreshKeys(); renderSettings(); });
-      form.append(el(doc, 'fieldset', { class: 'keys-set' }, el(doc, 'legend', { text: 'Keys — click one, then press a key' }), keyRows, resetKeys));
-      const cutBox = el(doc, 'input', { type: 'checkbox', checked: settings.cutaways !== false });
-      cutBox.addEventListener('change', () => { settings.cutaways = cutBox.checked; saveSettings(settings); handlers.settingsChanged?.(settings); });
-      form.append(el(doc, 'label', { class: 'check' }, cutBox, el(doc, 'span', { text: 'Cutaways — the camera cuts to the big moments' })));
+      form.append(el(doc, 'fieldset', { class: 'keys-set wide' }, el(doc, 'legend', { text: 'Keys · click one, then press a key' }), keyRows, resetKeys));
     }
   };
   renderSettings();
@@ -256,7 +267,8 @@ export function createScreens(root, settings, handlers) {
       if (back.length > 12) back.shift();
       current = name;
       for (const [key, e] of Object.entries(screens)) e.classList.toggle('on', key === name);
-      const target = name && (screens[name]?.querySelector('.launch:not(:disabled), .menu-item:not([hidden]), .card, .mission:not(:disabled)'));
+      const target = name && (screens[name]?.querySelector('.card.selected, .mission.next:not(:disabled)')
+        ?? screens[name]?.querySelector('.launch:not(:disabled), .menu-item:not([hidden]), .card, .mission:not(:disabled)'));
       if (target) target.focus({ preventScroll: true });
       if (name !== 'briefing') mapState = null;
     },
@@ -303,9 +315,9 @@ export function createScreens(root, settings, handlers) {
       box.textContent = '';
       for (const key of DIFFICULTY_ORDER) {
         const d = DIFFICULTIES[key];
-        const card = el(doc, 'button', { type: 'button', class: `card${key === selected ? ' selected' : ''}` },
+        const card = el(doc, 'button', { type: 'button', class: `card${key === selected ? ' selected' : ''}`, 'aria-pressed': String(key === selected) },
           el(doc, 'strong', { text: d.name }), el(doc, 'span', { text: d.blurb }),
-          el(doc, 'span', { text: `${d.repairDrones} Tender${d.repairDrones > 1 ? 's' : ''} per mission` }));
+          el(doc, 'span', { class: 'tag', text: `${d.repairDrones} Tender${d.repairDrones > 1 ? 's' : ''}` }));
         card.addEventListener('click', () => {
           // Progress to lose: the first click arms the card, the second starts over.
           if (won && !card.classList.contains('armed')) {
@@ -333,26 +345,25 @@ export function createScreens(root, settings, handlers) {
       const box = $('[data-mission-list]');
       box.textContent = '';
       const next = nextMission(progress);
-      const drill = el(doc, 'button', { type: 'button', class: 'mission training' });
-      drill.innerHTML = `<span class="num">TRAINING</span><strong>${TRAINING.title}</strong><span>${TRAINING.location}</span>`;
-      drill.addEventListener('click', () => onPick(TRAINING));
-      box.append(drill);
-      for (const m of MISSIONS) {
+      // The range and the special operations above, the campaign's ten below.
+      const card = (m, num, cls, open, where) => {
         const best = progress.best[m.id];
-        const open = isAvailable(progress, m);
-        const b = el(doc, 'button', { type: 'button', class: `mission${m === next && !best ? ' next' : ''}`, disabled: !open });
-        b.innerHTML = `<span class="num">MISSION ${m.number}</span><strong>${open ? m.title : 'Classified'}</strong><span>${open ? m.location : '—'}</span>${best ? `<span class="score">Best ${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
+        const b = el(doc, 'button', { type: 'button', class: `mission${cls}`, disabled: !open });
+        b.innerHTML = `<span class="num">${num}</span><strong>${open ? m.title : 'Classified'}</strong>${where ? `<span class="where">${where}</span>` : ''}${best ? `<span class="score">${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
         if (open) b.addEventListener('click', () => onPick(m));
-        box.append(b);
-        // A special operation, where it falls in the story.
-        for (const op of SPECIAL_OPS.filter(o => o.after === m.id)) {
-          const opBest = progress.best[op.id], opOpen = isAvailable(progress, op);
-          const s = el(doc, 'button', { type: 'button', class: 'mission special', disabled: !opOpen });
-          s.innerHTML = `<span class="num">SPECIAL OPERATION</span><strong>${opOpen ? op.title : 'Classified'}</strong><span>${opOpen ? op.location : `Opens after Mission ${m.number}`}</span>${opBest ? `<span class="score">Best ${opBest.score.toLocaleString('en')} · ${fmtTime(opBest.time)} · ${DIFFICULTIES[opBest.difficulty]?.name ?? ''}</span>${medal(opBest.medal)}` : ''}`;
-          if (opOpen) s.addEventListener('click', () => onPick(op));
-          box.append(s);
-        }
+        return b;
+      };
+      const extra = el(doc, 'div', { class: 'mission-extra' }, card(TRAINING, 'Training', ' training', true, TRAINING.location));
+      for (const op of SPECIAL_OPS) {
+        const open = isAvailable(progress, op), after = missionById(op.after);
+        extra.append(card(op, 'Special operation', ' special', open, open ? op.location : `Opens after Mission ${after?.number ?? ''}`));
       }
+      const grid = el(doc, 'div', { class: 'mission-grid' });
+      for (const m of MISSIONS) {
+        const open = isAvailable(progress, m);
+        grid.append(card(m, `Mission ${m.number}`, m === next && !progress.best[m.id] ? ' next' : '', open, open ? m.location : ''));
+      }
+      box.append(extra, grid);
     },
     /* ---------- the briefing ---------- */
     /* `recap`: the narrator's "previously" ahead of the Commander's stages. */
@@ -364,14 +375,25 @@ export function createScreens(root, settings, handlers) {
       obj.textContent = '';
       for (const o of mission.objectivesPreview) obj.append(el(doc, 'li', { class: o.bonus ? 'bonus' : '', text: o.text }));
       const r = mission.recommend;
-      const secs = (r.secondaries ?? []).map(k => SECONDARIES[k]?.short).join(' + ');
-      $('[data-brief-recommend]').innerHTML = `<b>${CLASSES[r.hull].name}</b> · ${PRIMARIES[r.primary].short} · ${secs} · ${REACTORS[r.reactor].name} reactor. ${r.why}`;
-      const sel = $('[data-brief-difficulty]');
-      sel.textContent = '';
-      for (const key of DIFFICULTY_ORDER) sel.append(el(doc, 'option', { value: key, text: DIFFICULTIES[key].name, selected: key === difficultyKey }));
-      sel.onchange = () => onDifficulty(sel.value);
+      const secs = r.secondaries ?? [];
+      const banks = secs.length > 1 && secs.every(k => k === secs[0]) ? [`${SECONDARIES[secs[0]]?.short} ×2`] : secs.map(k => SECONDARIES[k]?.short);
+      const rec = $('[data-brief-recommend]');
+      rec.textContent = '';
+      rec.title = r.why;
+      [CLASSES[r.hull].name, PRIMARIES[r.primary].short, ...banks, `${REACTORS[r.reactor].name} reactor`]
+        .forEach((name, i) => rec.append(el(doc, 'span', { class: `chip${i ? '' : ' lead'}`, text: name })));
+      const seg = $('[data-brief-difficulty]');
+      seg.textContent = '';
+      for (const key of DIFFICULTY_ORDER) {
+        const b = el(doc, 'button', { type: 'button', role: 'radio', text: DIFFICULTIES[key].name, title: DIFFICULTIES[key].blurb, 'aria-checked': String(key === difficultyKey) });
+        b.addEventListener('click', () => {
+          for (const o of seg.children) o.setAttribute('aria-checked', String(o === b));
+          onDifficulty(key);
+        });
+        seg.append(b);
+      }
       const best = progress.best[mission.id];
-      $('[data-brief-best]').innerHTML = best ? `${medal(best.medal)} Best ${best.score.toLocaleString('en')} on ${DIFFICULTIES[best.difficulty]?.name ?? ''}` : '';
+      $('[data-brief-best]').innerHTML = best ? `${medal(best.medal)} Best ${best.score.toLocaleString('en')} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}` : '';
       stage = 0;
       const stages = mission.briefing.stages;
       mapState = {
@@ -407,11 +429,14 @@ export function createScreens(root, settings, handlers) {
       const L = normalizeLoadout(loadout, unlocked);
       const rec = mission?.recommend ?? null;
       const match = matchesRecommendation(rec, L);
-      $('[data-hangar-eyebrow]').textContent = eyebrow ?? (mission ? `Hangar · ${missionLabel(mission)}: ${mission.title}` : 'Hangar');
-      const choice = (title, sub, selected, enabled, recommended, onClick, why = 'Not yet in service') => {
-        const b = el(doc, 'button', { type: 'button', class: `choice${selected ? ' selected' : ''}`, disabled: !enabled, 'aria-pressed': String(selected) },
-          el(doc, 'strong', { text: title }), el(doc, 'small', { text: enabled ? sub : why }));
-        if (recommended) b.append(el(doc, 'span', { class: 'rec', text: 'REC' }));
+      $('[data-hangar-eyebrow]').textContent = eyebrow ?? (mission ? `${missionLabel(mission)} · ${mission.title}` : 'Hangar');
+      // A locked choice shows its name and a lock; why it is locked is its
+      // tooltip, as what a choice does is for the others.
+      const choice = (title, sub, selected, enabled, recommended, onClick, why = 'Not yet in service', blurb = '') => {
+        const b = el(doc, 'button', { type: 'button', class: `choice${selected ? ' selected' : ''}${enabled ? '' : ' locked'}`, disabled: !enabled, 'aria-pressed': String(selected), title: enabled ? blurb : why },
+          el(doc, 'strong', { text: title }));
+        if (enabled && sub) b.append(el(doc, 'small', { text: sub }));
+        if (recommended) b.append(el(doc, 'span', { class: 'rec', text: 'REC', title: 'Recommended' }));
         b.addEventListener('click', onClick);
         return b;
       };
@@ -419,17 +444,18 @@ export function createScreens(root, settings, handlers) {
       hulls.textContent = '';
       for (const h of HULLS) {
         const c = CLASSES[h];
-        hulls.append(choice(c.name, c.type, L.hull === h, unlocked.hulls.includes(h), rec?.hull === h, () => onChange({ ...L, hull: h })));
+        hulls.append(choice(c.name, c.type, L.hull === h, unlocked.hulls.includes(h), rec?.hull === h, () => onChange({ ...L, hull: h }), undefined, c.blurb));
       }
       const prim = $('[data-hangar-primaries]');
       prim.textContent = '';
+      prim.classList.add('four');
       for (const [k, p] of Object.entries(PRIMARIES)) {
-        prim.append(choice(p.short, `${p.damage} × ${p.rate}/s`, L.primary === k, unlocked.primaries.includes(k), rec?.primary === k, () => onChange({ ...L, primary: k })));
+        prim.append(choice(p.short, `${p.damage} × ${p.rate}/s`, L.primary === k, unlocked.primaries.includes(k), rec?.primary === k, () => onChange({ ...L, primary: k }), undefined, p.blurb));
       }
       const banks = $('[data-hangar-banks]');
       banks.textContent = '';
       CLASSES[L.hull].banks.forEach((bank, i) => {
-        banks.append(el(doc, 'h3', { class: 'section', text: `Bank ${i + 1}${bank.heavy ? ' · heavy' : ''} · ${bank.capacity} units` }));
+        banks.append(el(doc, 'h3', { class: 'section', text: `Bank ${i + 1}${bank.heavy ? ' · heavy' : ''}` }));
         const row = el(doc, 'div', { class: 'choices' });
         for (const k of PLAYER_SECONDARIES) {
           const n = bankCount(bank, k);
@@ -437,35 +463,41 @@ export function createScreens(root, settings, handlers) {
           const inService = unlocked.secondaries.includes(k);
           row.append(choice(s.short, `× ${n}`, L.secondaries[i] === k, inService && n > 0, rec?.secondaries?.[i] === k, () => {
             const secondaries = [...L.secondaries]; secondaries[i] = k; onChange({ ...L, secondaries });
-          }, inService ? 'Heavy bank only' : 'Not yet in service'));
+          }, inService ? 'Heavy bank only' : 'Not yet in service', s.blurb));
         }
         banks.append(row);
       });
       const reac = $('[data-hangar-reactors]');
       reac.textContent = '';
+      reac.classList.add('four');
       for (const [k, r] of Object.entries(REACTORS)) {
-        reac.append(choice(r.name, r.type, L.reactor === k, unlocked.reactors.includes(k), rec?.reactor === k, () => onChange({ ...L, reactor: k })));
+        reac.append(choice(r.name, r.type, L.reactor === k, unlocked.reactors.includes(k), rec?.reactor === k, () => onChange({ ...L, reactor: k }), undefined, r.blurb));
       }
       const c = CLASSES[L.hull];
-      $('[data-hangar-name]').textContent = `${c.name} · ${c.type}`;
-      $('[data-hangar-blurb]').textContent = `${c.blurb} ${PRIMARIES[L.primary].blurb} ${REACTORS[L.reactor].blurb}`;
+      $('[data-hangar-type]').textContent = c.type;
+      $('[data-hangar-name]').textContent = c.name;
+      $('[data-hangar-blurb]').textContent = c.blurb;
       const R = ratings(L);
       const stats = $('[data-hangar-stats]');
       stats.textContent = '';
-      for (const [k, name] of [['speed', 'Speed'], ['agility', 'Agility'], ['shields', 'Shields'], ['hull', 'Hull'], ['guns', 'Guns'], ['armourBite', 'Armour bite'], ['ordnance', 'Ordnance'], ['stealth', 'Stealth']]) {
+      for (const [k, name] of [['speed', 'Speed'], ['agility', 'Agility'], ['shields', 'Shields'], ['hull', 'Hull'], ['guns', 'Guns'], ['armourBite', 'Pierce'], ['ordnance', 'Ordnance'], ['stealth', 'Stealth']]) {
         stats.append(el(doc, 'div', { class: 'stat' }, el(doc, 'span', { text: name }), el(doc, 'div', { class: 'meter', html: `<i style="width:${Math.round(Math.max(0.04, Math.min(1, R[k])) * 100)}%"></i>` })));
       }
+      // One word of advice: the worst problem, or that it is the recommendation.
       const advice = $('[data-hangar-advice]');
       advice.textContent = '';
       const notes = mission ? assess(mission.needs, L, DIFFICULTIES[difficulty] ?? null) : [];
       const all = match.hull && match.primary && match.reactor && match.secondaries.every(Boolean);
-      if (mission && all) advice.append(el(doc, 'p', { class: 'ok', text: 'This is the recommended loadout.' }));
-      for (const n of notes) advice.append(el(doc, 'p', { class: n.level === 'tip' ? 'tip' : '', text: n.text }));
-      if (mission && !all && !notes.length) advice.append(el(doc, 'p', { class: 'tip', text: `Recommended: ${rec.why}` }));
+      if (notes.length) advice.append(el(doc, 'p', { class: notes[0].level === 'tip' ? 'tip' : '', text: notes[0].text }));
+      else if (mission && all) advice.append(el(doc, 'p', { class: 'ok', text: 'The recommended loadout.' }));
+      else if (mission) advice.append(el(doc, 'p', { class: 'tip', text: rec.why }));
+      const useRec = $('[data-hangar-recommend]');
+      if (useRec) useRec.hidden = !mission || all;
       return L;
     },
     /* ---------- pause ---------- */
     pause(world) {
+      api.pauseTab('mission');
       const rt = world.mission;
       $('[data-pause-eyebrow]').textContent = rt?.def.number ? `Mission ${rt.def.number} · ${rt.def.title}` : 'Survival';
       const list = $('[data-pause-objectives]');
@@ -474,6 +506,11 @@ export function createScreens(root, settings, handlers) {
         if (o.state === 'hidden') continue;
         list.append(el(doc, 'li', { class: [o.kind === 'bonus' ? 'bonus' : '', o.state].join(' '), text: o.text + (o.count && o.state === 'active' ? ` (${o.count.n}/${o.count.of})` : '') }));
       }
+    },
+    // The pause screen's tabs: the mission, the controls, the settings.
+    pauseTab(name) {
+      for (const t of screens.pause.querySelectorAll('[data-pane]')) t.setAttribute('aria-selected', String(t.dataset.pane === name));
+      for (const p of screens.pause.querySelectorAll('[data-pane-body]')) p.hidden = p.dataset.paneBody !== name;
     },
     /* ---------- the debrief ---------- */
     debrief(res, mission, change, progress, { hasNext, survival = null, beyond = false }) {
@@ -486,7 +523,7 @@ export function createScreens(root, settings, handlers) {
       $('[data-debrief-title]').textContent = survival ? `Shot down in wave ${survival.wave}` : res.won ? 'Mission complete' : 'Mission failed';
       $('[data-debrief-medal]').innerHTML = survival
         ? `<div><strong>${survival.score.toLocaleString('en')} points</strong><br><span>${survival.newBest ? 'A new best for the ' : 'Best for the '}${survival.hull}: ${survival.best.toLocaleString('en')}</span></div>`
-        : res.won ? `${medal(res.medal, true)}<div><strong>${res.medal.toUpperCase()}</strong><br><span>${res.bonusDone} of ${res.bonusTotal} bonus objectives</span></div>` : `<div><strong>${res.reason ?? 'The mission failed.'}</strong></div>`;
+        : res.won ? `${medal(res.medal, true)}<div><strong>${res.medal.toUpperCase()}</strong><br><span>${res.bonusDone} of ${res.bonusTotal} bonus objectives</span></div>` : res.reason ? `<div><span>${res.reason}</span></div>` : '';
       // Shot down is its own story: the mission's 'lost' text tells what the
       // Harrow did when the objectives failed, not what happened to you.
       const story = !mission ? 'The waves never stop. How long can you last?'
@@ -514,13 +551,13 @@ export function createScreens(root, settings, handlers) {
       const row = (k, v, cls = '') => rec.append(el(doc, 'dt', { text: k }), el(doc, 'dd', { class: cls, text: v }));
       row('Time', fmtTime(res.time));
       row('Kills', kills);
-      row('Accuracy', res.stats.shots ? `${Math.round(res.stats.accuracy * 100)}% of ${res.stats.shots} shots` : '—');
-      row('Best streak', String(res.stats.bestStreak));
-      row('Torpedoes shot down', String(res.stats.torpedoesDowned));
-      row('Hull damage taken', String(Math.round(res.stats.hullTaken)));
-      row('Combat', res.combatScore.toLocaleString('en'));
-      if (res.won) { row('Objectives', res.objectiveScore.toLocaleString('en')); row('Time bonus', res.timeBonus.toLocaleString('en')); }
+      row('Accuracy', res.stats.shots ? `${Math.round(res.stats.accuracy * 100)}%` : '—');
+      if (res.stats.bestStreak > 1) row('Best streak', String(res.stats.bestStreak));
+      if (res.stats.torpedoesDowned) row('Torpedoes shot down', String(res.stats.torpedoesDowned));
       row('Score', res.score.toLocaleString('en'), 'total');
+      const parts = [`combat ${res.combatScore.toLocaleString('en')}`];
+      if (res.won) parts.push(`objectives ${res.objectiveScore.toLocaleString('en')}`, `time ${res.timeBonus.toLocaleString('en')}`);
+      if (res.won) rec.append(el(doc, 'dd', { class: 'parts', text: parts.join(' · ') }));
       const awards = $('[data-debrief-awards]');
       awards.textContent = '';
       if (change?.newBest && res.won) awards.append(el(doc, 'div', { class: 'award', html: '<b>New best score</b><span>for this mission</span>' }));
@@ -531,7 +568,7 @@ export function createScreens(root, settings, handlers) {
       for (const c of change?.commendations ?? []) awards.append(el(doc, 'div', { class: 'award', html: `<b>Commendation: ${c.name}</b><span>${c.text}</span>` }));
       if (change?.rankUp) awards.append(el(doc, 'div', { class: 'award', html: `<b>Promoted: ${change.rankUp}</b><span>by order of Commander Doukas</span>` }));
       const r = rankOf(progress.total);
-      $('[data-debrief-rank]').innerHTML = `<strong>${r.name}</strong><span>${progress.total.toLocaleString('en')} points in the service record${r.next ? ` · ${r.next} at ${RANKS[r.index + 1].score.toLocaleString('en')}` : ''}</span><div class="meter"><i style="width:${Math.round(r.progress * 100)}%"></i></div>`;
+      $('[data-debrief-rank]').innerHTML = `<strong>${r.name}</strong><span>${progress.total.toLocaleString('en')} points${r.next ? ` · ${r.next} at ${RANKS[r.index + 1].score.toLocaleString('en')}` : ''}</span><div class="meter"><i style="width:${Math.round(r.progress * 100)}%"></i></div>`;
       // After a loss the main button already retries; a second "Replay" would
       // do the same thing.
       const replay = $('[data-screen="debrief"] [data-action="replay"]');
@@ -574,17 +611,24 @@ export function createScreens(root, settings, handlers) {
         }
         body.append(file);
       } else if (tab === 'craft') {
+        // By side, with the numbers lined up.
         const t = el(doc, 'table');
-        t.innerHTML = '<tr><th>Craft</th><th>Role</th><th>Speed</th><th>Shield</th><th>Hull</th><th>Armour</th></tr>';
-        for (const [k, c] of Object.entries(CLASSES)) {
-          if (['wreck', 'recorder', 'boulder', 'hauler', 'target'].includes(k)) continue;
-          t.insertAdjacentHTML('beforeend', `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.flight.fa.forwardSpeed ? `${c.flight.fa.forwardSpeed} m/s` : '—'}</td><td>${c.shield}</td><td>${c.hull}</td><td>${Math.round((c.armor ?? 0) * 100)}%</td></tr>`);
+        t.innerHTML = '<tr><th>Craft</th><th>Role</th><th class="num">Speed</th><th class="num">Shield</th><th class="num">Hull</th><th class="num">Armour</th></tr>';
+        for (const [faction, title] of [['watch', 'The Watch'], ['civil', 'Civilian'], ['harrow', 'The Harrow']]) {
+          t.insertAdjacentHTML('beforeend', `<tr class="group"><th colspan="6">${title}</th></tr>`);
+          for (const [k, c] of Object.entries(CLASSES)) {
+            if (c.faction !== faction || ['wreck', 'recorder', 'boulder', 'hauler', 'target'].includes(k)) continue;
+            t.insertAdjacentHTML('beforeend', `<tr><td>${c.name}</td><td class="dim">${c.type}</td><td class="num">${c.flight.fa.forwardSpeed ? `${c.flight.fa.forwardSpeed} m/s` : '—'}</td><td class="num">${c.shield.toLocaleString('en')}</td><td class="num">${c.hull.toLocaleString('en')}</td><td class="num">${Math.round((c.armor ?? 0) * 100)}%</td></tr>`);
+          }
         }
         body.append(t);
       } else if (tab === 'weapons') {
-        for (const p of Object.values(PRIMARIES)) body.append(el(doc, 'article', {}, el(doc, 'h4', { text: p.name }), el(doc, 'p', { text: `${p.blurb} ${p.damage} damage, ${p.rate} shots a second, ${p.speed} m/s.` })));
-        for (const k of PLAYER_SECONDARIES) { const s = SECONDARIES[k]; body.append(el(doc, 'article', {}, el(doc, 'h4', { text: s.name }), el(doc, 'p', { text: `${s.blurb} ${s.damage}${s.salvo ? ` × ${s.salvo}` : ''} damage; lock ${s.lockTime} s.` }))); }
-        for (const r of Object.values(REACTORS)) body.append(el(doc, 'article', {}, el(doc, 'h4', { text: `${r.name} reactor · ${r.type}` }), el(doc, 'p', { text: r.blurb })));
+        const arm = (name, spec, blurb) => el(doc, 'div', { class: 'arm' }, el(doc, 'h4', { text: name }), el(doc, 'p', { class: 'spec', text: spec }), el(doc, 'p', { text: blurb }));
+        const section = (title, cards) => { body.append(el(doc, 'h3', { class: 'section', text: title }), el(doc, 'div', { class: 'arms' }, cards)); };
+        section('Guns', Object.values(PRIMARIES).map(p => arm(p.name, `${p.damage} damage · ${p.rate}/s · ${p.speed} m/s`, p.blurb)));
+        section('Ordnance', PLAYER_SECONDARIES.map(k => SECONDARIES[k]).map(s => arm(s.name, `${s.damage}${s.salvo ? ` × ${s.salvo}` : ''} damage · lock ${s.lockTime} s`, s.blurb)));
+        section('Reactors', Object.values(REACTORS).map(r => arm(r.name, r.type, r.blurb)));
+        body.firstChild.style.marginTop = '0';
       } else if (tab === 'record') {
         const r = rankOf(progress.total);
         body.append(el(doc, 'article', {}, el(doc, 'h4', { text: `${r.name} · ${progress.total.toLocaleString('en')} points` }), el(doc, 'p', { text: `${progress.won.length} of ${MISSIONS.length} missions won.` })));
