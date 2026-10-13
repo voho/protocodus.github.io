@@ -424,6 +424,10 @@ function applyLook(key, well = null) {
   fill.intensity = L.fill;
   holeLight.intensity = well ? L.hole ?? 6 : 0;
   if (well) holeLight.position.set(well.pos[0], well.pos[1], well.pos[2]);
+  // Only the Well needs it. Anywhere else it would cost every lit pixel a
+  // light that adds nothing; it is set with the look, before the warm-up,
+  // so the number of lights never changes mid-flight.
+  holeLight.visible = !!well;
   look = next;
   lookKey = id;
   lookEffects();
