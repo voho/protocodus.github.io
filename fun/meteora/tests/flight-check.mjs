@@ -1,6 +1,6 @@
 // Run with: node tests/flight-check.mjs
 import { test, run, assert, near } from './harness.mjs';
-import { createShip, stepShip, NEUTRAL_CONTROLS, selectRcsPorts, forward, aimCommands } from '../js/flight.js';
+import { createShip, stepShip, NEUTRAL_CONTROLS, selectRcsPorts, forward, aimCommands, BURN_BUILD } from '../js/flight.js';
 import { PLAYER, STEP as DT } from '../js/config.js';
 import { qRotateInv, qRotate, qFromAxisAngle, len, normalize } from '../js/vec.js';
 
@@ -48,12 +48,24 @@ test('FA off: thrust keeps accelerating past the FA speed', () => {
 test('afterburner: accel, drain, dry-out, regen delay and relock', () => {
   const s = createShip(PLAYER); s.throttle = 1;
   fly(s, ctl({ boost: true }), 1);
-  near(len(s.vel), PLAYER.accel.boost, 1.5); near(s.boost, 75, 0.5); assert.equal(s.afterburner, true);
+  // The thrust builds from 1× to 2× over BURN_BUILD: a second in, the
+  // speed is the integral, 1 + 1 / (2 BURN_BUILD) times the base thrust.
+  near(len(s.vel), PLAYER.accel.boost * (1 + 1 / (2 * BURN_BUILD)), 1.5); near(s.boost, 75, 0.5); assert.equal(s.afterburner, true);
   fly(s, ctl({ boost: true }), 3.2);
   assert.equal(s.afterburner, false); near(s.boost, 0, 0.01);
   fly(s, ctl(), 1.2); near(s.boost, 0, 0.01);
   fly(s, ctl(), 1.0); near(s.boost, PLAYER.boost.regen * 0.9, 0.3);
   fly(s, ctl({ boost: true }), 0.1); assert.equal(s.afterburner, false, 'locked until 20');
+});
+test('the longer the afterburner is held, the harder it pushes and the faster it goes', () => {
+  const s = createShip({ ...PLAYER, boost: { ...PLAYER.boost, capacity: 1000 } }); s.throttle = 1;
+  fly(s, ctl({ boost: true }), 0.2);
+  const early = s.burnRamp;
+  fly(s, ctl({ boost: true }), BURN_BUILD + 6);
+  assert.ok(early < 0.1 && s.burnRamp === 1);
+  near(-local(s)[2], PLAYER.fa.boostSpeed * 1.35, 2, 'a third more than the plain boost speed');
+  fly(s, ctl(), 0.1);
+  assert.equal(s.burnRamp, 0, 'letting go starts the build-up over');
 });
 test('afterburner raises the FA target to boost speed', () => {
   const s = createShip(PLAYER); s.throttle = 1;

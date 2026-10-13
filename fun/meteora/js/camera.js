@@ -24,7 +24,9 @@
 
    Whatever the shot, a rock or a hull between the fighter and the camera
    pulls the camera in front of it at once (`setObstruction` says how far
-   along that line is clear); it eases back out when the way is free.
+   along that line is clear); it eases back out when the way is free. A
+   cutaway and the watch over a wreck keep clear of rocks the same way —
+   only of rocks, as the ship they frame would otherwise block itself.
 
    A big moment elsewhere gets a cutaway (`cutaway`): a cut to a shot the
    caller frames, and after a few seconds a cut back to the chase view. */
@@ -61,9 +63,9 @@ export function createChaseCamera(camera, cockpit) {
   // Keeping clear of rocks: the share of the wanted distance in use.
   let obstruct = null, reach = 1;
   const wanted = new THREE.Vector3();
-  const keepClear = (pos, dt) => {
+  const keepClear = (pos, dt, rocksOnly = false) => {
     if (!obstruct) return;
-    const t = obstruct(pos, camera.position);
+    const t = obstruct(pos, camera.position, rocksOnly);
     const len = wanted.copy(camera.position).sub(pos).length();
     // Never closer than the fighter's own length allows.
     const least = Math.min(1, 9 * self.scale / Math.max(len, 1e-3));
@@ -95,6 +97,9 @@ export function createChaseCamera(camera, cockpit) {
        at and which way is up, k going 0 → 1 over `seconds`. */
     cutaway(framing, seconds) { cut = { framing, k: 0, rate: 1 / seconds }; shot = 1; },
     get inCutaway() { return !!cut; },
+    get cutawayAge() { return cut ? cut.k / cut.rate : 0; },
+    // The player wants the fighter back: cut to it at once.
+    skipCutaway() { if (cut) { cut = null; ready = false; } },
     setObstruction(fn) { obstruct = fn; },
     setFov(degrees) { baseFov = degrees; },
     intro(seconds) { shot = 0; shotRate = 1 / seconds; },
@@ -133,9 +138,10 @@ export function createChaseCamera(camera, cockpit) {
       aim.set(origin[0] + velocity[0] * t, origin[1] + velocity[1] * t, origin[2] + velocity[2] * t);
       const gap = offset.copy(eye).sub(aim).dot(wreck.away);
       if (gap < WATCH / 2) eye.addScaledVector(wreck.away, WATCH / 2 - gap);
-      look.lookAt(eye, aim, roll.copy(wreck.up));
-      wreck.q.slerp(q.setFromRotationMatrix(look), 1 - Math.exp(-dt * 6));
       camera.position.copy(eye);
+      keepClear(aim, dt, true);
+      look.lookAt(camera.position, aim, roll.copy(wreck.up));
+      wreck.q.slerp(q.setFromRotationMatrix(look), 1 - Math.exp(-dt * 6));
       camera.quaternion.copy(wreck.q);
       applyShake(shake);
       easeFov(baseFov, dt);
@@ -150,7 +156,8 @@ export function createChaseCamera(camera, cockpit) {
           cutUp.set(0, 1, 0);
           cut.framing(cut.k, eye, aim, cutUp);
           camera.position.copy(eye);
-          look.lookAt(eye, aim, cutUp);
+          keepClear(aim, dt, true);
+          look.lookAt(camera.position, aim, cutUp);
           camera.quaternion.setFromRotationMatrix(look);
           // Keep the chase spring on the fighter for the cut back.
           q.slerp(shipQ, 1 - Math.exp(-dt * 9));
@@ -209,7 +216,8 @@ export function createChaseCamera(camera, cockpit) {
         }
       }
       applyShake(shake);
-      easeFov(afterburner && !attract ? baseFov + 8 : baseFov, dt);
+      // The afterburner widens the view as it builds (`afterburner` 0 → 1).
+      easeFov(attract ? baseFov : baseFov + 14 * Number(afterburner), dt);
     },
   };
   return self;

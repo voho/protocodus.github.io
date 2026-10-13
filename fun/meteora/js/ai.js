@@ -351,6 +351,7 @@ function think(brain, me, ctx) {
   if (c.throttleSet != null && c.throttleSet > cap) c.throttleSet = cap;
   if (c.speedSet != null) c.speedSet = Math.min(c.speedSet, ship.stats.fa.boostSpeed * Math.max(0.5, cap));
   if (density > 0.35) c.boost = false;
+  want = climb(me, ctx, want, c);
 
   const fly = avoid(me, ctx, want, c);
   steer(c, ship, fly);
@@ -415,10 +416,28 @@ export function thinkEnemy(brain, me, ctx, dt) {
   return thinkPilot(brain, me, ctx, dt);
 }
 
+/* Near a black hole (ctx.well) no pilot goes deeper than twice its own
+   point of no return: below that, it turns its nose outward — the deeper,
+   the harder — and burns. */
+const climbOut = [0, 0, 0];
+export function climb(me, ctx, want, c) {
+  const well = ctx.well;
+  if (!well) return want;
+  const ship = me.ship, r = well.distance(ship.pos);
+  const floor = well.radiusFor(ship.stats.accel.forward) * 2;
+  if (r >= floor * 1.25) return want;
+  for (let k = 0; k < 3; k++) climbOut[k] = (ship.pos[k] - well.pos[k]) / r;
+  const k = Math.min(1, (floor * 1.25 - r) / (floor * 0.5));
+  const out = normalize([0, 0, 0], [0, 1, 2].map(i => want[i] * (1 - k) + climbOut[i] * k));
+  if (r < floor) { c.throttleSet = 1; c.speedSet = null; c.boost = true; }
+  return out;
+}
+
 /* Steer toward `want` (a world direction) clear of rocks and hulls: the
    pilots' avoidance, for anything else that flies itself. Fills c's pitch,
    yaw, roll and any braking it decides on. */
 export function steerClear(me, ctx, want, c) {
+  want = climb(me, ctx, want, c);
   const fly = avoid(me, ctx, want, c);
   steer(c, me.ship, fly);
   return c;

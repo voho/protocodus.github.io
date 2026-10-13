@@ -24,6 +24,7 @@
 
 <body>
   <canvas id="stage" aria-label="Meteora flight view"></canvas>
+  <canvas class="target-view" aria-hidden="true"></canvas>
   <canvas class="hud" aria-hidden="true"></canvas>
   <div class="fade" data-fade aria-hidden="true"></div>
   <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
@@ -49,6 +50,7 @@
       <nav class="menu-list" data-main-menu hidden>
         <button type="button" class="menu-item primary" data-action="continue" data-continue>Continue campaign <span data-continue-label></span></button>
         <button type="button" class="menu-item" data-action="newCampaign">New campaign</button>
+        <button type="button" class="menu-item" data-action="training">Flight training</button>
         <button type="button" class="menu-item" data-action="missions">Missions</button>
         <button type="button" class="menu-item" data-action="survival">Survival</button>
         <button type="button" class="menu-item" data-action="codex">Codex &amp; service record</button>
@@ -97,7 +99,7 @@
         <h2 class="title" id="meteora-brief-title" data-brief-title></h2>
         <p class="dateline" data-brief-dateline></p>
         <div class="stage">
-          <p class="stage-who">Cmdr. Doukas · Perpetua</p>
+          <p class="stage-who" data-brief-who>Cmdr. Doukas · Perpetua</p>
           <p class="stage-text" data-brief-stage aria-live="polite"></p>
           <div class="stage-nav">
             <button type="button" class="ghost small" data-action="stagePrev" aria-label="Previous">←</button>
@@ -172,6 +174,7 @@
       <h2 class="title" id="meteora-debrief" data-debrief-title></h2>
       <div class="medal-row" data-debrief-medal></div>
       <p class="story-text" data-debrief-text></p>
+      <div class="evidence" data-debrief-evidence hidden></div>
       <div class="debrief-grid">
         <div>
           <h3 class="section">Objectives</h3>

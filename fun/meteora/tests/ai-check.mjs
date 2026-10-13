@@ -68,7 +68,7 @@ test('a minute in the densest cell without touching a rock', () => {
   const p = ent(1, 0, PLAYER, { pos: [at[0] + 1500, 0, at[2]] }), e = ent(2, 1, ENEMY, { pos: start });
   const ctx = { field, player: p, threat: calm, wasHit: false };
   sim(e, ctx, 60, () => {
-    assert.equal(field.queryRadius(e.ship.pos, e.radius).length, 0, `hit a rock at ${e.ship.pos.map(Math.round)}`);
+    assert.equal(field.contacts(e.ship.pos, e.radius).length, 0, `hit a rock at ${e.ship.pos.map(Math.round)}`);
   });
 });
 test('an enemy exactly on the player, both at rest, yields finite controls', () => {

@@ -40,6 +40,7 @@ import { stepTender } from './drone.js';
 import { stepSentries } from './detection.js';
 import { subsystemWorld, toWorld } from './compound.js';
 import { makeRng } from './rng.js';
+import { createWell } from './well.js';
 import { clamp, dot, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
 
 export const IDLE = Object.freeze({ ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false });
@@ -217,6 +218,9 @@ export function resetWorld(world, { mission = world.missionDef, loadout = world.
   else world.field.reset();
   world.scratch.aiCtx.field = world.field;
   world.scratch.weaponsCtx.field = world.field;
+  // A black hole, for the mission that has one (well.js).
+  world.well = def?.well ? createWell(def.well) : null;
+  world.scratch.aiCtx.well = world.well;
   world.weapons = createWeapons();
   world.entities.length = 0; world.byId.clear(); world.active.length = 0; world.smalls.length = 0; world.larges.length = 0;
   world.sentries.length = 0;
@@ -315,6 +319,23 @@ function cycle(world, list) {
 export function cycleTarget(world) {
   const list = hostiles(world).sort((a, b) => angleFromNose(world, a.ship.pos) - angleFromNose(world, b.ship.pos));
   cycle(world, list);
+}
+
+/* With nothing targeted — at the start of a fight, or when the target is
+   destroyed or gone — the nearest hostile is taken, so there is always
+   something on the scope. A capital ship counts from halfway out to its
+   skin, as the HUD's range does. */
+export function autoTarget(world) {
+  const p = world.player.ship.pos;
+  let best = null, bestD = Infinity;
+  for (const e of hostiles(world)) {
+    const d = Math.hypot(e.ship.pos[0] - p[0], e.ship.pos[1] - p[1], e.ship.pos[2] - p[2]) - (e.big ? e.radius * 0.5 : 0);
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  if (!best) return null;
+  world.target = best; world.targetSub = null;
+  world.events.push({ type: 'targetChange', id: best.id, auto: true });
+  return best;
 }
 
 /* Objectives first (scan targets, protected ships), then everyone friendly. */
@@ -463,10 +484,8 @@ function playerStep(world, input, dt) {
     if (input.targetTorpedo) targetTorpedo(world);
     if (input.cycleNav) cycleNav(world);
     if (input.cycleSub) cycleSubsystem(world);
-    if (world.target && !world.target.alive) {
-      world.target = world.target.proxy ? null : (hostiles(world).sort((a, b) => angleFromNose(world, a.ship.pos) - angleFromNose(world, b.ship.pos))[0] ?? null);
-      world.targetSub = null;
-    }
+    if (world.target && !world.target.alive) { world.target = null; world.targetSub = null; }
+    if (!world.target) autoTarget(world);
     if (world.targetSub && !world.targetSub.alive) world.targetSub = null;
     if (input.toggleSpeedLock) world.speedLock = !world.speedLock && !!world.target;
     if (input.throttleDelta || input.throttleZero || !world.target) world.speedLock = false;
@@ -701,6 +720,42 @@ function launchFromBays(world, e, dt) {
   world.events.push({ type: 'launch', id: e.id, count: n });
 }
 
+/* ---------- the Well ---------- */
+
+const pullScratch = [0, 0, 0];
+function pull(world, dt) {
+  const well = world.well, a = pullScratch;
+  for (const e of world.entities) {
+    if (!e.alive || e.fixed || e.folding || (e.tender && e.tender.state === 'docked')) continue;
+    well.accel(e.ship.pos, a);
+    for (let k = 0; k < 3; k++) e.ship.vel[k] += a[k] * dt;
+  }
+  for (const rock of world.field.dynamic) {
+    well.accel(rock.pos, a);
+    for (let k = 0; k < 3; k++) rock.vel[k] += a[k] * dt;
+  }
+}
+
+/* Whatever reaches the horizon is gone: not destroyed, not seen to cross —
+   simply lost, with no wreck and no fire. */
+function swallow(world) {
+  const well = world.well;
+  for (const e of world.entities) {
+    if (!e.alive || e.fixed || well.distance(e.ship.pos) > well.rs * 1.1) continue;
+    e.alive = false; e.lost = true; e.reported = true; e.removeAt = world.time + 0.05;
+    if (world.target === e) { world.target = null; world.targetSub = null; }
+    world.events.push({ type: 'lost', id: e.id, team: e.team, cls: e.cls, name: e.name, pos: [...e.ship.pos] });
+    if (e === world.player) {
+      world.state = 'dead';
+      if (world.mission) world.mission.flags.deathReason ??= 'Lantern One fell into the Well.';
+    }
+  }
+  const field = world.field;
+  for (let i = field.dynamic.length - 1; i >= 0; i--) {
+    if (well.distance(field.dynamic[i].pos) < well.rs * 1.1) field.dynamic.splice(i, 1);
+  }
+}
+
 function stepScan(world, dt) {
   const p = world.player, t = world.targetSub?.scan ? world.targetSub : world.target;
   if (!p?.alive || !t || !t.scan || t.scan.done || world.state !== 'flying') { world.scanning = null; return; }
@@ -730,10 +785,8 @@ function report(world) {
       world.best = Math.max(world.best, world.score);
       continue;
     }
-    if (world.target === e) {
-      world.target = hostiles(world).sort((a, b) => angleFromNose(world, a.ship.pos) - angleFromNose(world, b.ship.pos))[0] ?? null;
-      world.targetSub = null;
-    }
+    // The next step takes the nearest hostile in its place.
+    if (world.target === e) { world.target = null; world.targetSub = null; }
     if (e.team === 1) {
       world.kills++;
       const byPlayer = e.lastHitBy === p?.id;
@@ -778,6 +831,10 @@ export function stepWorld(world, input, dt) {
     s.prevPos[0] = s.pos[0]; s.prevPos[1] = s.pos[1]; s.prevPos[2] = s.pos[2];
     s.prevQ[0] = s.q[0]; s.prevQ[1] = s.q[1]; s.prevQ[2] = s.q[2]; s.prevQ[3] = s.q[3];
   }
+
+  // The Well pulls everything that moves, before the pilots and their
+  // flight computers answer it.
+  if (world.well) pull(world, dt);
 
   playerStep(world, input, dt);
 
@@ -832,6 +889,7 @@ export function stepWorld(world, input, dt) {
   for (const e of world.active) stepShield(e, dt);
   if (world.sentries.length) stepSentries(world, dt);
   stepScan(world, dt);
+  if (world.well) swallow(world);
   report(world);
   credits(world, ev, before);
   hatchSeeds(world);

@@ -22,6 +22,8 @@ import * as THREE from 'three';
 import { GUNS, PRIMARIES, SECONDARIES } from './loadout.js';
 import { gimbal, leadPoint } from './weapons.js';
 import { SPEAKERS, readTime } from './mission.js';
+import { capOf } from './keys.js';
+import { DEFAULT_KEYS } from './controls.js';
 import { subsystemWorld } from './compound.js';
 import { TENDER } from './drone.js';
 import { subsystemName } from './catalog.js';
@@ -31,7 +33,8 @@ const subName = sub => subsystemName(sub.kind);
 const RED = '#ff3b30', RED_DIM = 'rgba(255, 70, 60, 0.5)', GREEN = '#5dff8f', GREEN_DIM = 'rgba(93, 255, 143, 0.45)';
 const INK = 'rgba(225, 235, 248, 0.92)', MUTED = 'rgba(160, 178, 205, 0.75)', DIM = 'rgba(120, 136, 160, 0.6)';
 const CYAN = '#7fd8ff', AMBER = '#ffb347', YELLOW = '#ffe066';
-const FONT = '"Space Grotesk", system-ui, sans-serif';
+const FONT = '"Exo 2", "Space Grotesk", system-ui, sans-serif';
+const TITLE = 'Orbitron, "Exo 2", system-ui, sans-serif';
 const STREAK = ['', '', 'DOUBLE', 'TRIPLE', 'RAMPAGE', 'UNSTOPPABLE'];
 
 const teamColour = (e, dim = false) => (e.team === 1 ? (dim ? RED_DIM : RED) : e.team === 0 ? (dim ? GREEN_DIM : GREEN) : (dim ? 'rgba(255,179,71,0.5)' : AMBER));
@@ -40,15 +43,25 @@ const distanceText = d => (d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.r
 
 export function createHud(canvas) {
   const ctx = canvas.getContext('2d');
-  let w = 0, h = 0, dpr = 1, time = 0;
+  let w = 0, h = 0, dpr = 1, ui = 1, time = 0;
   const v = new THREE.Vector3(), forwardV = new THREE.Vector3(), inv = new THREE.Quaternion();
   const callouts = [], popups = [], marks = [], hurts = [];
   let streak = null, banner = null, lastHull = null;
+  // The player's keys, for the few prompts that name one ({action} in a
+  // hint, the lock and Tender prompts).
+  let keys = DEFAULT_KEYS;
+  const key = action => capOf(keys[action]);
+  const withKeys = s => s.replace(/\{(\w+)\}/g, (m, a) => (keys[a] ? key(a) : m));
 
   const resize = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = canvas.clientWidth; h = canvas.clientHeight;
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
+    // The HUD is laid out in units that grow with the screen — 1.1 at
+    // 1280 × 720, about 1.35 at 1440 × 900, up to 1.7 on a big display —
+    // so its text stays easy to read; w and h are in those units.
+    ui = Math.max(1.1, Math.min(1.7, Math.min(cw / 1066, ch / 666)));
+    w = cw / ui; h = ch / ui;
   };
 
   // Screen position of a world point; `behind` when it is behind the camera.
@@ -64,10 +77,16 @@ export function createHud(canvas) {
   };
   const pixelsFor = (camera, radius, depth) => radius / Math.max(depth, 1) * (h / 2) / Math.tan(camera.fov * Math.PI / 360);
 
-  const text = (s, x, y, size = 13, color = INK, align = 'center', weight = 500) => {
-    ctx.font = `${weight} ${size}px ${FONT}`;
+  const text = (s, x, y, size = 13, color = INK, align = 'center', weight = 500, family = FONT) => {
+    ctx.font = `${weight} ${size}px ${family}`;
     ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
     ctx.fillText(s, x, y);
+  };
+  // The largest size, up to `size`, at which a line fits nine tenths of the
+  // screen's width.
+  const fitSize = (s, size, weight, family) => {
+    ctx.font = `${weight} ${size}px ${family}`;
+    return Math.min(size, size * (w * 0.9) / Math.max(1, ctx.measureText(s).width));
   };
   const shadowed = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 4; fn(); ctx.restore(); };
 
@@ -79,6 +98,9 @@ export function createHud(canvas) {
   const label = (s, x, y, size = 12, color = INK, weight = 500, must = false) => {
     ctx.font = `${weight} ${size}px ${FONT}`;
     const half = ctx.measureText(s).width / 2 + 3, tall = size / 2;
+    // Never off the edge of the screen.
+    x = Math.max(half + 6, Math.min(w - half - 6, x));
+    y = Math.max(tall + 6, Math.min(h - tall - 6, y));
     const free = yy => !slots.some(r => x - half < r[2] && x + half > r[0] && yy - tall < r[3] && yy + tall > r[1]);
     let at = [y, y + size + 3, y - size - 3].find(free);
     if (at === undefined) { if (!must) return false; at = y; }
@@ -110,7 +132,14 @@ export function createHud(canvas) {
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -11); ctx.lineTo(-3, 0); ctx.lineTo(-8, 11); ctx.closePath(); ctx.fill();
     ctx.restore();
-    if (label) text(label, x - dx * 32, y - dy * 30, 12, color);
+    if (label) {
+      // Beside the arrow on its inner side, never over it or off screen.
+      ctx.font = `500 12px ${FONT}`;
+      const half = ctx.measureText(label).width / 2 + 4;
+      const lx = Math.max(half + 6, Math.min(w - half - 6, x - dx * (24 + half * Math.abs(dx))));
+      const ly = Math.max(14, Math.min(h - 14, y - dy * 26));
+      text(label, lx, ly, 12, color);
+    }
   };
 
   const bar = (x, y, width, value, color, label, right = false, height = 5) => {
@@ -216,15 +245,20 @@ export function createHud(canvas) {
         if (!lock.valid) label(`${SECONDARIES[bank.weapon].short} cannot lock this`, q.x, q.y - half - 12, 12, MUTED, 500, true);
         else {
           brackets(q.x, q.y, half + 18 * (1 - lock.progress), lock.locked ? RED : AMBER, lock.locked ? 3 : 2, 0.35);
-          label(lock.locked ? 'LOCK · right click' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER, 600, true);
+          label(lock.locked ? 'LOCKED' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER, 600, true);
         }
       }
+      // Name and range under the brackets — or over them, when under would
+      // run into the target panel at the bottom of the screen.
+      const under = q.y + half + 46 < h - 124, y0 = under ? q.y + half + 13 : q.y - half - (lock.targetId === target.id && lock.progress > 0 ? 40 : 26);
       shadowed(() => {
-        label(target.name, q.x, q.y + half + 13, 12, colour, 600, true);
-        label(info, q.x, q.y + half + 27, 11, colour, 500, true);
+        label(target.name, q.x, y0, 12, colour, 600, true);
+        label(info, q.x, y0 + 14, 11, colour, 500, true);
       });
-      if (target.maxShield > 0) bar(q.x - half, q.y + half + 36, half * 2, target.shield / target.maxShield, CYAN, null, false, 3);
-      bar(q.x - half, q.y + half + 41, half * 2, target.hull / Math.max(1, target.maxHull), colour, null, false, 3);
+      if (under) {
+        if (target.maxShield > 0) bar(q.x - half, q.y + half + 36, half * 2, target.shield / target.maxShield, CYAN, null, false, 3);
+        bar(q.x - half, q.y + half + 41, half * 2, target.hull / Math.max(1, target.maxHull), colour, null, false, 3);
+      }
     } else {
       edgeArrow(q, colour, distanceText(range));
     }
@@ -422,7 +456,7 @@ export function createHud(canvas) {
   }
   const wrapCache = new Map();
   function wrap(s, width) {
-    const key = `${width}|${s}`;
+    const key = `${ctx.font}|${width}|${s}`;
     if (wrapCache.has(key)) return wrapCache.get(key);
     const words = s.split(' '), out = [];
     let line = '';
@@ -466,15 +500,15 @@ export function createHud(canvas) {
     text(`${p.loadout?.hull ? p.def.name.toUpperCase() : ''}`, x0 + 180, y0 + 12, 10, DIM, 'right', 600);
     const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
     bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
-      world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s · W/S release` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
+      world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%`);
     bar(x0, y0 + 82, 180, ship.boost / Math.max(1, ship.stats.boost.capacity), ship.boostLocked ? '#8a6040' : AMBER,
-      ship.afterburner ? 'AFTERBURNER' : 'AFTERBURNER · hold Tab');
+      'AFTERBURNER');
     if (world.speedLock) text('MATCHING TARGET SPEED', x0, y0 + 104, 11, AMBER, 'left');
-    else if (world.target) text('Z  match target speed', x0, y0 + 104, 11, MUTED, 'left');
+    else if (world.target) text(`${key('toggleSpeedLock')} · match speed`, x0, y0 + 104, 11, MUTED, 'left');
     const wing = world.entities.filter(e => e.alive && e.leaderId === p.id && e.brain);
     if (wing.length) {
       const order = wing[0].orders?.type ?? 'cover';
-      text(`WING ${wing.length} · ${order === 'attack' ? 'ATTACKING' : order === 'form' ? 'FORMING UP' : 'COVERING'}  ·  1 2 3`, x0, y0 + 120, 10, GREEN_DIM, 'left', 600);
+      text(`WING ${wing.length} · ${order === 'attack' ? 'ATTACKING' : order === 'form' ? 'FORMING UP' : 'COVERING'}`, x0, y0 + 120, 10, GREEN_DIM, 'left', 600);
     }
   }
 
@@ -500,13 +534,12 @@ export function createHud(canvas) {
     ctx.fillStyle = INK;
     ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx + 8, cy + 9); ctx.lineTo(cx, cy + 5); ctx.lineTo(cx - 8, cy + 9); ctx.closePath(); ctx.fill();
     text(`SHIELDS ${Math.round(100 * p.shield / Math.max(1, p.maxShield))}%`, cx, cy + R + 14, 10, CYAN, 'center', 600);
-    text('X level', cx, cy + R + 27, 9, DIM);
     const hullF = p.hull / p.maxHull;
     const bx = x1 + 76;
     bar(bx, y0 + 12, 130, hullF, hullF < 0.3 ? RED : hullF < 0.5 ? AMBER : INK, `HULL ${Math.round(hullF * 100)}%`, false, 6);
     const gun = p.gun, gp = gun.params;
     bar(bx, y0 + 42, 130, gun.heat / gp.lockAt, gun.overheated ? RED : 'rgba(127,216,255,0.6)',
-      gun.overheated ? `${(gp.short ?? 'GUNS').toUpperCase()} OVERHEAT` : `${(gp.short ?? 'GUNS').toUpperCase()} · left click`);
+      gun.overheated ? `${(gp.short ?? 'GUNS').toUpperCase()} OVERHEAT` : `${(gp.short ?? 'GUNS').toUpperCase()}`);
     let y = y0 + 66;
     p.banks.forEach((b, i) => {
       const active = i === p.bank;
@@ -514,7 +547,6 @@ export function createHud(canvas) {
       text(`${active ? '▶' : ' '} ${wpn.short.toUpperCase()}  ${b.count}/${b.max}`, bx, y, 12, active ? (b.count ? AMBER : RED) : MUTED, 'left', active ? 600 : 500);
       y += 16;
     });
-    if (p.banks.length > 1) text('G switch · right click fire', bx, y, 9, DIM, 'left');
     // The Tender.
     const R2 = world.repair;
     const drone = R2.droneId != null ? world.byId.get(R2.droneId) : null;
@@ -529,10 +561,89 @@ export function createHud(canvas) {
       } else msg = 'TENDER LEAVING';
     } else if (R2.charges > 0) {
       const ready = hullF < 0.5;
-      msg = `TENDER ×${R2.charges}${ready ? ' · press R' : ' · below half hull'}`;
+      msg = `TENDER ×${R2.charges}${ready ? ` · ${key('repair')}` : ''}`;
       colour = ready ? (time % 0.8 < 0.5 ? GREEN : INK) : DIM;
     } else msg = 'NO TENDERS LEFT';
     text(msg, x1 - 2, y0 + 140, 11, colour, 'left', 600);
+  }
+
+  /* The Well: how far, how hard it pulls against what the engines can do,
+     and — before it is too late — where nothing climbs back out. Above the
+     speed panel. */
+  function wellGauge(world) {
+    const well = world.well;
+    if (!well) return;
+    const p = world.player, ship = p.ship;
+    const r = well.distance(ship.pos), pull = well.accel(ship.pos, [0, 0, 0]);
+    const thrust = ship.stats.accel.forward, burn = thrust + ship.stats.accel.boost;
+    // Over the speed panel; on a narrow screen the radar is there, so over
+    // the ship panel instead.
+    const x0 = w >= 1000 ? 28 : w - 228, y0 = w >= 1000 ? h - 208 : h - 228;
+    panel(x0 - 12, y0 - 18, 214, 62);
+    const fall = pull >= burn, heavy = pull >= thrust, strong = pull >= thrust * 0.5;
+    const colour = fall ? RED : heavy ? (time % 0.5 < 0.25 ? RED : AMBER) : strong ? AMBER : CYAN;
+    text(`THE WELL ${(r / 1000).toFixed(1)} km`, x0, y0, 11, MUTED, 'left', 600);
+    text(`PULL ${pull < 10 ? pull.toFixed(1) : pull.toFixed(0)} m/s²`, x0 + 180, y0, 11, colour, 'right', 600);
+    bar(x0, y0 + 14, 180, pull / thrust, colour, null, false, 5);
+    text(fall ? 'NO RETURN' : heavy ? 'PULL OVER THRUST · BURN OUT' : strong ? 'HEAVY PULL · KEEP CLIMBING' : `NO RETURN BELOW ${(well.radiusFor(thrust) / 1000).toFixed(1)} km`,
+      x0, y0 + 32, 10, fall || heavy ? RED : strong ? AMBER : DIM, 'left', 600);
+  }
+  // A falling hulk's time to the horizon, worked out twice a second.
+  let horizonFor = null, horizonAt = -1, horizonT = Infinity;
+  const horizonOf = (world, e) => {
+    if (horizonFor !== e || world.time - horizonAt > 0.5) {
+      horizonFor = e; horizonAt = world.time;
+      horizonT = world.well.timeToHorizon(e.ship.pos, e.ship.vel, { limit: 600 });
+    }
+    return horizonT;
+  };
+
+  /* The target panel, bottom centre: a window the target's picture is
+     drawn into (target-view.js, through `viewRect`), its name and class,
+     how far and how fast it is closing, its shield and hull, and the
+     subsystem picked out on it. */
+  let viewRect = null;
+  function targetPanel(world, target, range) {
+    const W = Math.min(340, w - 520), H = 104;
+    if (!target || W < 250) return;
+    const x = w / 2 - W / 2, y = h - H - 12;
+    const colour = teamColour(target), dim = teamColour(target, true);
+    panel(x, y, W, H);
+    // The team's colour at the corners.
+    ctx.strokeStyle = colour; ctx.lineWidth = 1.5;
+    for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + W, y, -1, 1], [x, y + H, 1, -1], [x + W, y + H, -1, -1]]) {
+      ctx.beginPath(); ctx.moveTo(cx, cy + sy * 10); ctx.lineTo(cx, cy); ctx.lineTo(cx + sx * 10, cy); ctx.stroke();
+    }
+    const pic = { x: x + 6, y: y + 6, w: 126, h: H - 12 };
+    ctx.fillStyle = 'rgba(2, 6, 12, 0.6)'; ctx.fillRect(pic.x, pic.y, pic.w, pic.h);
+    ctx.strokeStyle = dim; ctx.lineWidth = 1; ctx.strokeRect(pic.x + 0.5, pic.y + 0.5, pic.w - 1, pic.h - 1);
+    viewRect = { x: pic.x * ui, y: pic.y * ui, w: pic.w * ui, h: pic.h * ui };
+    const tx = pic.x + pic.w + 12, tw = x + W - 10 - tx;
+    ctx.font = `700 14px ${FONT}`;
+    let name = target.name.toUpperCase();
+    while (name.length > 4 && ctx.measureText(name).width > tw) name = `${name.slice(0, -2)}…`;
+    text(name, tx, y + 17, 14, colour, 'left', 700);
+    text(target.proxy ? 'Torpedo in flight' : target.def?.type ?? '', tx, y + 33, 11, MUTED, 'left');
+    const p = world.player.ship, t = target.ship;
+    const km = range >= 1000 ? `${(range / 1000).toFixed(2)} km` : `${Math.round(range)} m`;
+    text(km, tx, y + 53, 17, INK, 'left', 600);
+    // Closing speed: how fast the range is falling (▼) or growing (▲).
+    const dx = t.pos[0] - p.pos[0], dy = t.pos[1] - p.pos[1], dz = t.pos[2] - p.pos[2], d = Math.hypot(dx, dy, dz) || 1;
+    const closing = -((t.vel[0] - p.vel[0]) * dx + (t.vel[1] - p.vel[1]) * dy + (t.vel[2] - p.vel[2]) * dz) / d;
+    text(`${closing >= 0 ? '▼' : '▲'} ${Math.abs(closing).toFixed(0)} m/s`, x + W - 10, y + 54, 11, MUTED, 'right', 600);
+    let by = y + 72;
+    if (target.maxShield > 0) {
+      bar(tx, by, tw, target.shield / target.maxShield, CYAN, null, false, 4);
+      by += 9;
+    }
+    const hull = target.hull / Math.max(1, target.maxHull);
+    bar(tx, by, tw, hull, hull < 0.3 ? RED : colour, null, false, 5);
+    const sub = world.targetSub;
+    if (sub && target.big) text(`▸ ${sub.name}${sub.alive === false ? ' · destroyed' : ''}`, tx, y + H - 11, 10, AMBER, 'left', 600);
+    else if (world.well && !target.proxy) {
+      const t = horizonOf(world, target);
+      if (Number.isFinite(t)) text(`HORIZON IN ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, tx, y + H - 11, 10, t < 45 ? RED : AMBER, 'left', 600);
+    }
   }
 
   function warnings(world) {
@@ -613,7 +724,7 @@ export function createHud(canvas) {
         const a = Math.min(1, streak.age * 6) * Math.min(1, (1.4 - streak.age) * 2.5);
         const s = 1 + 0.25 * Math.max(0, 1 - streak.age * 5);
         ctx.globalAlpha = a;
-        shadowed(() => text(streak.text, w / 2, h * 0.34, 30 * s, AMBER, 'center', 700));
+        shadowed(() => text(streak.text, w / 2, h * 0.34, fitSize(streak.text, 26 * s, 700, TITLE), AMBER, 'center', 700, TITLE));
         ctx.globalAlpha = 1;
       }
     }
@@ -640,11 +751,12 @@ export function createHud(canvas) {
     const a = Math.min(1, (now - hint.at) * 4) * Math.min(1, (hint.until - now) * 2);
     ctx.globalAlpha = a;
     ctx.font = `500 13px ${FONT}`;
-    const width = Math.min(560, ctx.measureText(hint.text).width + 40);
-    const y = h - 230;
-    ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y - 16, width, 32);
-    ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.strokeRect(w / 2 - width / 2 + 0.5, y - 15.5, width - 1, 31);
-    text(hint.text, w / 2, y, 13, CYAN, 'center');
+    const rows = wrap(withKeys(hint.text), Math.min(520, w * 0.6));
+    const width = Math.max(...rows.map(r => ctx.measureText(r).width)) + 40, tall = rows.length * 17 + 15;
+    const y = h - 214 - tall;
+    ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y, width, tall);
+    ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.strokeRect(w / 2 - width / 2 + 0.5, y + 0.5, width - 1, tall - 1);
+    rows.forEach((row, i) => text(row, w / 2, y + 16 + i * 17, 13, CYAN, 'center'));
     ctx.globalAlpha = 1;
   }
 
@@ -663,8 +775,8 @@ export function createHud(canvas) {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(4, 8, 14, 0.55)'; ctx.fillRect(0, h * 0.4 - 46, w, 92);
       shadowed(() => {
-        text(banner.title, w / 2, h * 0.4 - 10, 34, banner.colour, 'center', 700);
-        if (banner.sub) text(banner.sub, w / 2, h * 0.4 + 26, 14, INK, 'center');
+        text(banner.title, w / 2, h * 0.4 - 10, fitSize(banner.title, 30, 700, TITLE), banner.colour, 'center', 700, TITLE);
+        if (banner.sub) text(banner.sub, w / 2, h * 0.4 + 26, fitSize(banner.sub, 14, 500, FONT), INK, 'center');
       });
       ctx.globalAlpha = 1;
     }
@@ -712,13 +824,16 @@ export function createHud(canvas) {
         case 'wingOrder': this.callout(e.order === 'attack' ? `Wing: attacking ${e.target ?? 'your target'}` : e.order === 'form' ? 'Wing: forming up' : 'Wing: covering you', 'rgba(93, 255, 143, A)'); break;
       }
     },
-    clear() { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); },
+    clear() { viewRect = null; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); },
+    // Where the target's picture goes this frame, in CSS pixels; null for none.
+    get targetViewRect() { return viewRect; },
+    setKeys(k) { keys = k; },
     draw(world, camera, view, dt) {
       if (!w) resize();
       time += dt;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(dpr * ui, 0, 0, dpr * ui, 0, 0);
       const p = world.player;
       if (!p) return;
       // During the opening shot only the title, the radio and the
@@ -731,11 +846,12 @@ export function createHud(canvas) {
       const target = world.target && world.target.alive ? world.target : null;
       const range = target ? Math.max(1, Math.hypot(...target.ship.pos.map((c, i) => c - p.ship.pos[i])) - (target.big ? target.radius * 0.5 : 0)) : 1200;
       slots.length = 0;
+      viewRect = null;
       if (p.alive && instruments) {
         const pip = flightMarks(world, camera, view, fwd, range);
         // The target's labels first, so the others make room for them.
         if (target) targetBox(world, camera, view, pip, target, range);
-        else if (world.entities.some(e => e.alive && e.team === 1 && !e.hidden)) text('T  next hostile   ·   Y  friendly / objective', w / 2, h / 2 + 64, 12, MUTED);
+        else if (world.entities.some(e => e.alive && e.team === 1 && !e.hidden)) text(`${key('cycleTarget')} · next hostile`, w / 2, h / 2 + 64, 12, MUTED);
         navMarker(world, camera);
         others(world, camera, target);
         scanAndSensors(world, camera, target);
@@ -749,7 +865,9 @@ export function createHud(canvas) {
         feedback(world, camera, view, dt);
         radar(world, view);
         flightPanel(world);
+        wellGauge(world);
         shipPanel(world);
+        targetPanel(world, target, range);
         warnings(world);
       }
       if (instruments) {

@@ -8,10 +8,14 @@
    lights and the names of animated nodes — glTF space, metres.
 
    `rock:N` names the belt's own asteroid N (0–4) used whole, as the Harrow
-   haulers' stolen ore cores are. */
+   haulers' stolen ore cores are. Its collision spheres follow the rock's
+   measured shape (rock-shapes.js): a core, and one sphere along each of
+   twenty-six directions reaching from the centre to the skin. */
 
 import { ANCHORS } from './anchors.js';
 import { FIELD } from './config.js';
+import { SHAPES } from './rock-shapes.js';
+import { shapeRadius } from './rock-shapes-core.js';
 import swift from './anchors/swift.js';
 import anvil from './anchors/anvil.js';
 import maul from './anchors/maul.js';
@@ -53,13 +57,23 @@ export const HARDPOINTS = {
 };
 
 const rocks = new Map();
+// The cube's face centres, edge midpoints and corners.
+const RADIAL = [];
+for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+  if (x || y || z) { const l = Math.hypot(x, y, z); RADIAL.push([x / l, y / l, z / l]); }
+}
 export function hardpoints(model) {
   if (HARDPOINTS[model]) return HARDPOINTS[model];
   const m = /^rock:(\d)$/.exec(model ?? '');
   if (m) {
     if (!rocks.has(model)) {
-      const r = FIELD.types[Number(m[1])].radius;
-      rocks.set(model, shape({ radius: r, length: 2 * r, colliders: [{ pos: [0, 0, 0], r: r * FIELD.collide }] }));
+      const type = Number(m[1]), r = FIELD.types[type].radius, map = SHAPES[type];
+      const colliders = [{ pos: [0, 0, 0], r: r * map.min }];
+      for (const d of RADIAL) {
+        const reach = r * shapeRadius(map, d[0], d[1], d[2]);
+        colliders.push({ pos: d.map(v => v * reach / 2), r: reach / 2 });
+      }
+      rocks.set(model, shape({ radius: r * map.max, length: 2 * r, colliders }));
     }
     return rocks.get(model);
   }

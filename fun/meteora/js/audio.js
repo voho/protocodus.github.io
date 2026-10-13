@@ -293,8 +293,10 @@ export function createAudio(volume = 0.8) {
     glide(engine.flow.gain, 0.02 + 0.06 * Math.min(1, speed / 320), now, 0.2);
     glide(engine.out.gain, on ? 0.12 + 0.2 * thrust : 0, now, on ? 0.15 : 0.06);
     const burn = on && s.afterburner;
-    glide(burner.out.gain, burn ? 0.42 : 0, now, burn ? 0.08 : 0.3);
-    glide(burner.roarF.frequency, burn ? 900 : 450, now, 0.3);
+    // The burner roars louder and brighter as it builds.
+    const build = s.burnRamp ?? 0;
+    glide(burner.out.gain, burn ? 0.32 + 0.22 * build : 0, now, burn ? 0.08 : 0.3);
+    glide(burner.roarF.frequency, burn ? 800 + 600 * build : 450, now, 0.3);
     if (burn && !burning) play('afterburnerIgnite', { gain: 0.6, bus: engineBus });
     burning = burn;
   }

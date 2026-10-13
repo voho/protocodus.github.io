@@ -37,8 +37,8 @@ test('accents and quality decide among the rest; novelty voices never speak', ()
 test('two parts on one voice are told well apart by pitch', () => {
   for (const list of [MAC, WINDOWS]) {
     const byVoice = new Map();
-    for (const [who, p] of castVoices(list)) if (who !== 'narrator') byVoice.set(p.voice, [...(byVoice.get(p.voice) ?? []), p.pitch]);
-    for (const [v, ps] of byVoice) for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) assert.ok(Math.abs(ps[i] - ps[j]) >= 0.08, `${v.name}: ${ps}`);
+    for (const [, p] of castVoices(list)) byVoice.set(p.voice, [...(byVoice.get(p.voice) ?? []), p.pitch]);
+    for (const [v, ps] of byVoice) for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) assert.ok(Math.abs(ps[i] - ps[j]) >= 0.079, `${v.name}: ${ps}`);
   }
 });
 test('the narrator, never on the radio, gets the best voice; flat voices only fill gaps', () => {

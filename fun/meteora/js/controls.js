@@ -84,7 +84,8 @@ const stick = v => { const a = Math.abs(v); if (a < DEAD) return 0; const k = (a
 
 export function createControlState(settings) {
   const state = {
-    settings, held: new Set(), pressed: new Set(), byCode: new Map(),
+    // anyPress: some key, button or click went down since the last frame.
+    settings, held: new Set(), pressed: new Set(), byCode: new Map(), anyPress: false,
     mouse: { left: false, right: false }, cursor: [0, 0], rollHeld: 0, moved: 0,
     pad: { roll: 0, throttle: 0, fire: false, aiming: false, prev: [] },
   };
@@ -118,6 +119,7 @@ export function readPad(state, pad) {
   if (down(PAD.BOOST)) state.held.add('boost'); else if (P.prev[PAD.BOOST]) state.held.delete('boost');
   for (const [i, action] of Object.entries(PAD_ONCE)) if (edge(Number(i))) state.pressed.add(action);
   const pause = edge(PAD.MENU);
+  if (pad.buttons.some((b, i) => edge(i))) state.anyPress = true;
   P.prev = pad.buttons.map((b, i) => (i === PAD.LT || i === PAD.RT ? (b.value ?? 0) > 0.3 : !!b.pressed));
   return { pause };
 }
@@ -136,6 +138,7 @@ export function keyUp(state, code) {
 }
 
 export function mouseDown(state, button) {
+  state.anyPress = true;
   if (button === 0) state.mouse.left = true;
   if (button === 2) { if (!state.mouse.right) state.pressed.add('missile'); state.mouse.right = true; }
   if (button === 1) state.pressed.add('cycleBank');

@@ -58,6 +58,7 @@ export function createInput(canvas, state, { isFlying, onPause, onResume }, env 
       return;
     }
     if (e.code === 'Escape') { lose('escape'); return; }
+    if (!e.repeat) state.anyPress = true;
     // A bound key is kept from the browser while flying (Tab burns instead
     // of moving focus).
     if (isBound(state, e.code)) { e.preventDefault(); keyDown(state, e.code, e.repeat); }

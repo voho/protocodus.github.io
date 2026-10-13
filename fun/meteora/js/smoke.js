@@ -174,6 +174,13 @@ export function createSmokeBatch(scene, sunDir, capacity = 1536) {
   return {
     mesh,
     get count() { return n; },
+    // Each place has its own sun: where it is, how strong, how much light
+    // the sky itself gives.
+    setSun(dir, sun = 1.7, ambient = 0.12) {
+      material.uniforms.uSunDir.value.copy(dir);
+      material.uniforms.uSun.value = sun;
+      material.uniforms.uAmbient.value = ambient;
+    },
     setCamera(x, y, z, fx, fy, fz) { camX = x; camY = y; camZ = z; fwdX = fx; fwdY = fy; fwdZ = fz; },
     begin() { n = 0; },
     // Position, half-width, albedo and opacity, rotation, atlas cell (0–3)

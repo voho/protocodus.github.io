@@ -120,6 +120,17 @@ test('a cutaway frames its shot under letterbox, then cuts straight back to the 
   near(cut.camera.position.distanceTo(plain.camera.position), 0, 1e-6, 'back at the chase position');
   near(cut.camera.quaternion.angleTo(plain.camera.quaternion), 0, 1e-6, 'and its orientation');
 });
+test('a cutaway can be cut short, straight back to the chase view', () => {
+  const plain = setup(), cut = setup();
+  for (let k = 0; k < 30; k++) { fly(plain.chase, null); fly(cut.chase, null); }
+  cut.chase.cutaway((k, eye, look) => { eye.set(0, 300, 0); look.set(0, 0, 0); }, 4);
+  for (let k = 0; k < 40; k++) { fly(plain.chase, null); fly(cut.chase, null); }
+  assert.ok(cut.chase.cutawayAge > 0.6);
+  cut.chase.skipCutaway();
+  fly(plain.chase, null); fly(cut.chase, null);
+  assert.equal(cut.chase.inCutaway, false);
+  near(cut.camera.position.distanceTo(plain.camera.position), 0, 1e-6);
+});
 test('the closing shot or a death ends a cutaway', () => {
   const { chase } = setup();
   chase.cutaway((k, eye, look) => { eye.set(0, 0, 100); look.set(0, 0, 0); }, 5);

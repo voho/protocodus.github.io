@@ -1,10 +1,13 @@
 # Meteora
 
 A space-combat campaign in the spirit of FreeSpace, played in the browser.
-Ten missions in a dense asteroid belt around a red dwarf: escort convoys,
-scout a sleeping enemy, break seeded asteroids, hold a station while it is
-evacuated, guard the old carrier through the night, crack a capital ship's
-reactor and, at the end, keep a colony ark alive until it can jump.
+Eleven missions in and around an asteroid belt at a red dwarf: escort
+convoys, scout a sleeping enemy, break seeded asteroids, hold a station
+while it is evacuated, guard the old carrier through an eclipse, cut a
+line of haulers in open space, crack a capital ship's reactor in a fleet
+assault, pull survivors out of a convoy falling into a black hole and, at
+the end, keep a colony ark alive through the last battle until it can
+jump. Flight training first, if you like.
 [Play it](index.html) — no installation, no account.
 
 ## The story
@@ -23,16 +26,26 @@ single frame of video: a red eye, opening in the dark.
 
 You are Lantern One. Saint and Wren fly on your wing, Commander Doukas
 gives the orders from the *Perpetua*, and Dr Okonkwo tries to understand
-what the machines the miners call the Harrow want. The codex, unlocked as
-the campaign goes on, keeps the rest.
+what the machines the miners call the Harrow want. The story is uncovered
+a piece at a time: every mission adds evidence to the **case file** —
+letters round the red eye's lens, hull plate rolled to an old Earth gauge,
+a registry cast into a reactor, instructions written in the *Perpetua*'s
+own machine-script, bombers that flinch at her beacon — until Mission 7
+says outright what it all means, and Mission 11 makes use of it. Three
+clues are found only by those who look for them (the bonus objectives
+that find them say so in the debrief). Each briefing after the first
+opens with the narrator's "previously"; the codex keeps the whole file.
 
 ## Playing
 
 From the main menu: **Campaign** (choose a difficulty, read the prologue,
-then pick a mission), **Survival** (endless waves, best score per hull),
-**Codex** (the story so far, the craft, the weapons, your service record
-and commendations, and the controls)
-and **Settings**.
+then pick a mission), **Flight training** (Saint takes you through
+steering, speed, the afterburner, rolling and sliding, targeting, guns and
+a locked missile, one step at a time, then five weaving drones to pass;
+nothing shoots back and it counts for nothing in the campaign),
+**Survival** (endless waves, best score per hull), **Codex** (the story
+so far, the case file, the craft, the weapons, your service record and
+commendations, and the controls) and **Settings**.
 
 Every mission starts with a **briefing** — the situation in stages over a
 tactical map, the objectives and bonus objectives, and a recommended
@@ -47,7 +60,8 @@ going up, the *Perpetua*'s last order and the drive ring opening, while
 the fight slows down meanwhile (Settings can turn cutaways off). After the mission the **debrief** shows the outcome, the medal, every
 objective, your kills and accuracy, what was unlocked, any commendation
 earned and your rank, then offers the next mission (or a retry), a replay,
-a change of loadout or the menu.
+a change of loadout or the menu. A won mission also lists the new evidence
+it added to the case file, and any clue left behind.
 
 Progress, medals and the best score of each mission are kept in the
 browser.
@@ -103,11 +117,41 @@ print your keys.
 | 3 | Deep Signal | Recon: scan three signals without the Harrow's Eyes seeing you, then run. |
 | 4 | Seedfall | Destroy eight seeded asteroids before they hatch; three start falling on Varlaam. |
 | 5 | Hold Varlaam | Hold the station while six shuttles evacuate it; bombers go for the reactor. |
-| 6 | The Long Night | Guard the *Perpetua* for six minutes against torpedo bombers. |
-| 7 | Cut the Line | Stop the Harrow's ore haulers before they reach the fold point. |
-| 8 | Heart of the Mother | Bring down a Mother's shields, crack her reactor, get clear. |
-| 9 | The Narrows | The last convoy out of Stefanos — and not every ship in it is ours. |
-| 10 | Long Mercy | Keep the colony ark alive until her fold drive spools, then make the jump. |
+| 6 | The Long Night | Guard the *Perpetua* for six minutes against torpedo bombers, in the gas giant's shadow. |
+| 7 | Cut the Line | Stop the Harrow's ore haulers before they reach the fold point — in open space, no rock to hide behind. |
+| 8 | Heart of the Mother | A fleet assault: bring down a Mother's shields past her corvettes, crack her reactor, get clear. |
+| 9 | The Well | A convoy dropped on a black hole: match each falling hulk and latch a rescue beacon before it reaches the horizon — and do not go below your point of no return. |
+| 10 | The Narrows | The last convoy out of Stefanos — and not every ship in it is ours. |
+| 11 | Long Mercy | The last battle: every ship the belt has left against everything the Vanguard sends, until the ark can jump. |
+
+Every place looks its own: its own sun, its own gas giant (or none), its
+own nebulae, Milky Way, light and dust. Sector Seven is home; the
+Roussanou lane runs under the banded giant in a golden light; the
+Kalavryta Deep is dark and choked with dust; Varlaam sits under a cold
+blue ice giant, full in Mission 4 and a thin crescent three days later;
+the long night is flown under an eclipse, the giant a black disc ringed
+with fire; the Roussanou drag is open space under a violet nebula; the
+Deep Anchorage is a quarry of big rocks under a dead star's red shell;
+the Narrows run beneath a rust giant filling a fifth of the sky; and the
+belt's edge is the last rock behind you and nothing ahead but the Milky
+Way.
+
+**The Well** is a black hole, and it is drawn and flown as one. Every pixel
+of its sky is a ray traced back from the camera through the hole's curved
+space (the Schwarzschild orbit equation, stepped per pixel): rays that fall
+in make the black shadow, rays that graze the photon sphere the bright ring
+round it, and the rest bend, so the stars smear into arcs and the
+accretion disk's far side shows over and under the shadow. The disk's gas
+orbits at a good part of the speed of light, so the side coming at you is
+Doppler-brightened and bluer, the other side dimmer and redder, and all of
+it reddened by the hole's gravity. Everything that moves is pulled by the
+Paczyński–Wiita law, which grows without bound at the horizon as general
+relativity's does: hulks with a little sideways speed swing in on long arcs
+and last longer, your flight computer holds you against the pull until the
+pull outgrows the engines, and below your point of no return (on the gauge
+over the speed panel) full thrust no longer climbs. The hole's size is
+drawn true to the physics of light; its pull is scaled so a hulk takes
+minutes, not milliseconds, to fall.
 
 Each mission has primary objectives, bonus objectives (which raise the
 medal from bronze to silver to gold) and a score from kills, streaks,
@@ -174,6 +218,11 @@ tighter timers, more guns finished on the Mother, older seeds.
   nearest; four Pulse hits or one Breaker bolt kill one.
 - **Eyes** (sentries) see a ship's signature: size, reactor, speed,
   afterburner and recent gunfire. A rock between you and an Eye hides you.
+- **Targets:** with nothing targeted the nearest hostile is taken by
+  itself; T cycles from it. The **target panel** at the bottom of the
+  screen shows the target as you see it from where you are — which side
+  it turns to you, which way it rolls — whatever the range, with its
+  class, range, closing speed, shield, hull and the subsystem picked out.
 - The HUD shows the target box with hull, shield and subsystem, the lead
   marker, nav markers, a radar, objectives and timers, the radio, the
   escorts' hulls, hit markers, damage direction and streak callouts.
@@ -190,7 +239,12 @@ refills after a pause.
 
 Collisions have mass and spin. Ramming a rock costs hull by the closing
 speed, capped per impact; pebbles do a quarter of that, and wingmates
-bumping each other only scrape.
+bumping each other only scrape. A rock is hit where you see it: each of
+the five rock models is measured into a map of its surface in every
+direction (`tools/rock-shapes.mjs`), and ships, shots, sight lines and the
+camera meet that shape, turned as far as the rock has tumbled — not a
+sphere, which would let a ship sink into a landmark's crags or bounce off
+the air beside a hollow.
 
 ## Sound and music
 
@@ -225,7 +279,9 @@ and committed as `.glb` with baked WebP textures:
 | Fleet | `build_fleet.py` | Halberd gunship, Mite, Talon, Warden |
 
 The Kestrel, the Thorn and the asteroids come from the original
-`build_ships.py` and `build_asteroids.py`. Each script also writes the
+`build_ships.py` and `build_asteroids.py`; after rebuilding the asteroids,
+measure their shapes again for the collisions with
+`node tools/rock-shapes.mjs`. Each script also writes the
 model's anchors to `js/anchors/<model>.js`: muzzles, nozzles, attitude
 thrusters, collision spheres, subsystems, turrets, launch bays, lights and
 the nodes the game animates. `assets/models/MODELS.md` lists budgets and
@@ -243,8 +299,11 @@ it texture bakes; the previews want a GPU, so run it outside a sandbox):
 The simulation — flight, the belt, weapons, AI pilots, turrets, combat,
 detection, the Tender, missions and the campaign — imports nothing from
 three.js and runs in Node at a fixed 120 Hz. Missions are generator
-scripts (`js/missions/m01.js` … `m10.js`) over a small mission API, so
-each one can be played headless. Run the checks from `fun/meteora`:
+scripts (`js/missions/m01.js` … `m11.js`, and `training.js`; The Well,
+`m11.js`, flies ninth) over a small mission API, so each one can be played
+headless. Where each mission
+happens — sky, light and dust — is in `js/environments.js`; the case file
+and the "previously" lines are in `js/story.js`. Run the checks from `fun/meteora`:
 
 ```sh
 for f in tests/*-check.mjs; do node "$f" || break; done

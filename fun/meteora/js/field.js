@@ -8,12 +8,17 @@
    always go together.
 
    Rocks never translate. They tumble in place (the renderer does that in
-   the vertex shader from `axis`, `spin` and `phase`), so a rock's
-   collision sphere — 0.85 of its bounding radius, a fair fit for an
-   irregular body — is fixed for the whole game. That is what lets the
-   belt and its spatial hash be built once per seed and shared read-only
-   by every field made from it: destroying a rock only flips a per-field
-   `alive` flag, and `reset` flips it back.
+   the vertex shader from `axis`, `spin` and `phase`, on the field's own
+   clock), so the sphere that bounds a rock is fixed for the whole game.
+   That is what lets the belt and its spatial hash be built once per seed
+   and shared read-only by every field made from it: destroying a rock only
+   flips a per-field `alive` flag, and `reset` flips it back.
+
+   What a ship or a shot meets is the rock itself, not its sphere: the
+   bounding sphere only finds the candidates, and each is then tested
+   against its model's measured shape (rock-shapes.js), turned as far as
+   the rock has tumbled — so nothing flies into a rock it can see, and
+   nothing bounces off a rock that is not there.
 
    The three smallest sizes can be shot apart. A broken rock leaves the
    static belt and its pieces become dynamic rocks, which drift with the
@@ -22,7 +27,9 @@
 
 import { FIELD } from './config.js';
 import { fbm3, makeRng, noise3 } from './rng.js';
-import { normalize, qIntegrate } from './vec.js';
+import { normalize, qIntegrate, qRotate, qRotateInv } from './vec.js';
+import { SHAPES } from './rock-shapes.js';
+import { shapeRadius } from './rock-shapes-core.js';
 
 // Mass of a rock of bounding radius r: porous rubble filling its sphere.
 export const rockMass = (r, density = FIELD.density) => density * (4 / 3) * Math.PI * r * r * r;
@@ -32,14 +39,31 @@ const smoothstep = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 
-export function densityAt(x, y, z, seed, cfg = FIELD) {
+/* Where rocks may lie: the clumps and voids, thinning toward the slab's
+   faces — and, for a mission at the belt's edge, toward that edge
+   (`cfg.edge`: rock only on the side the normal points to, fading over
+   `soft` metres either side of the plane). */
+function shapeAt(x, y, z, seed, cfg) {
   const ax = Math.abs(x) / cfg.half[0], ay = Math.abs(y) / cfg.half[1], az = Math.abs(z) / cfg.half[2];
   if (ax >= 1 || ay >= 1 || az >= 1) return 0;
+  let cut = 1;
+  if (cfg.edge) {
+    const { normal: n, at, soft } = cfg.edge;
+    cut = smoothstep(-soft, soft, x * n[0] + y * n[1] + z * n[2] - at);
+    if (cut <= 0) return 0;
+  }
   const clumps = smoothstep(0.3, 0.7, 0.5 + 0.5 * fbm3(x / 1800, y / 900, z / 1800, seed, 4));
   const thickness = 0.8 + 0.2 * noise3(x / 2500, 0, z / 2500, seed + 7);
   const vertical = 1 - smoothstep(0.55, 1, ay / thickness);
   const edge = 1 - smoothstep(0.8, 1, Math.max(ax, az));
-  return Math.min(1, Math.max(0, clumps * vertical * edge));
+  return Math.min(1, Math.max(0, clumps * vertical * edge * cut));
+}
+
+/* How crowded the rock is here, as a pilot feels it: the shape, scaled by
+   how much rock the mission's belt holds (`cfg.fill`; 0 in open space). */
+export function densityAt(x, y, z, seed, cfg = FIELD) {
+  const fill = cfg.fill ?? 1;
+  return fill > 0 ? Math.min(1, shapeAt(x, y, z, seed, cfg) * fill) : 0;
 }
 
 /* ---------- spatial hash ---------- */
@@ -166,7 +190,7 @@ export function generateBelt(seed, cfg = FIELD) {
     const R = Math.fround(types[type].radius * s);
     belt.type[n] = type; belt.landmark[n] = isLandmark ? 1 : 0;
     belt.pos[3 * n] = x; belt.pos[3 * n + 1] = y; belt.pos[3 * n + 2] = z;
-    belt.scale[n] = s; belt.radius[n] = R; belt.collide[n] = Math.fround(R * cfg.collide);
+    belt.scale[n] = s; belt.radius[n] = R; belt.collide[n] = Math.fround(R * SHAPES[type].max);
     const axis = rng.unit([0, 0, 0]);
     belt.axis[3 * n] = axis[0]; belt.axis[3 * n + 1] = axis[1]; belt.axis[3 * n + 2] = axis[2];
     // Small rocks spin faster; a landmark turns once in many minutes.
@@ -189,6 +213,7 @@ export function generateBelt(seed, cfg = FIELD) {
     const y = Math.fround(cfg.spawn[1] + rng.range(-300, 300));
     const z = Math.fround(cfg.spawn[2] + Math.sin(angle) * d);
     if (Math.hypot(x - cfg.spawn[0], y - cfg.spawn[1], z - cfg.spawn[2]) - R < 900 && R > 0) continue;
+    if (cfg.edge && x * cfg.edge.normal[0] + y * cfg.edge.normal[1] + z * cfg.edge.normal[2] - R < cfg.edge.at) continue;
     if (!fits(x, y, z, R, true)) continue;
     place(largeType, x, y, z, s, true);
     k++;
@@ -201,7 +226,7 @@ export function generateBelt(seed, cfg = FIELD) {
       const x = Math.fround(rng.range(-hx, hx));
       const y = Math.fround(rng.range(-hy, hy));
       const z = Math.fround(rng.range(-hz, hz));
-      if (rng.next() >= Math.pow(densityAt(x, y, z, seed, cfg), 1.5)) continue;
+      if (rng.next() >= Math.pow(shapeAt(x, y, z, seed, cfg), 1.5)) continue;
       const s = Math.fround(rng.range(cfg.scale[0], cfg.scale[1]));
       const R = Math.fround(types[type].radius * s);
       if (!fits(x, y, z, R, type === largeType)) continue;
@@ -239,6 +264,9 @@ export function createField(seed, cfg = FIELD) {
     hp: belt.hp.slice(),
     dynamic: [],
     nextId: 0,
+    // The belt's clock: how far every rock has tumbled. The renderer turns
+    // them by the same clock, so what you see is what you hit.
+    time: 0,
   };
 
   const grid = belt.grid, start = grid.start, items = grid.items;
@@ -285,21 +313,151 @@ export function createField(seed, cfg = FIELD) {
     return out;
   };
 
-  // Segment p0→p1 against a sphere (c, R): the entry parameter in [0, 1],
-  // 0 when the segment starts inside, or −1 for a miss.
+  /* ---------- the rocks' shapes ---------- */
+
+  // The rock being tested, turned to this moment: a belt rock by its spin
+  // on the field's clock (axis k, angle a, as the renderer's tumble), a
+  // fragment by its own orientation.
+  const frame = { q: null, kx: 0, ky: 1, kz: 0, c: 1, s: 0 };
+  const staticFrame = i => {
+    const a = belt.spin[i] * field.time + belt.phase[i];
+    frame.q = null;
+    frame.kx = belt.axis[3 * i]; frame.ky = belt.axis[3 * i + 1]; frame.kz = belt.axis[3 * i + 2];
+    frame.c = Math.cos(a); frame.s = Math.sin(a);
+  };
+  const dynamicFrame = rock => { frame.q = rock.q; };
+  const V = [0, 0, 0];
+  // A world-space offset into the rock's frame (sign −1), or back (+1).
+  const turn = (out, x, y, z, sign) => {
+    if (frame.q) {
+      V[0] = x; V[1] = y; V[2] = z;
+      return sign > 0 ? qRotate(out, frame.q, V) : qRotateInv(out, frame.q, V);
+    }
+    const { kx, ky, kz, c } = frame, s = frame.s * sign;
+    const kd = (kx * x + ky * y + kz * z) * (1 - c);
+    const cx = ky * z - kz * y, cy = kz * x - kx * z, cz = kx * y - ky * x;
+    out[0] = x * c + cx * s + kx * kd;
+    out[1] = y * c + cy * s + ky * kd;
+    out[2] = z * c + cz * s + kz * kd;
+    return out;
+  };
+
+  /* How far the point (lx, ly, lz) in a rock's frame lies outside the
+     rock's skin (negative: inside), measured along the skin's normal there,
+     which is left in NL. `R` is the rock's nominal radius times its scale.
+     The skin is read where the line from the centre through the point
+     crosses it, and its slope from two neighbouring readings. */
+  const NL = [0, 0, 0], EPS = 0.08;
+  const skin = (map, R, lx, ly, lz) => {
+    let d = Math.hypot(lx, ly, lz);
+    if (d < 1e-9) { lx = 0; ly = 1e-9; lz = 0; d = 1e-9; }
+    const ux = lx / d, uy = ly / d, uz = lz / d;
+    const s0 = R * shapeRadius(map, ux, uy, uz);
+    const bx = Math.abs(uy) < 0.9 ? 0 : 1, by = Math.abs(uy) < 0.9 ? 1 : 0;
+    let e1x = by * uz, e1y = -bx * uz, e1z = bx * uy - by * ux;
+    const l1 = Math.hypot(e1x, e1y, e1z);
+    e1x /= l1; e1y /= l1; e1z /= l1;
+    const e2x = uy * e1z - uz * e1y, e2y = uz * e1x - ux * e1z, e2z = ux * e1y - uy * e1x;
+    let ax = ux + EPS * e1x, ay = uy + EPS * e1y, az = uz + EPS * e1z;
+    let k = Math.hypot(ax, ay, az); ax /= k; ay /= k; az /= k;
+    const s1 = R * shapeRadius(map, ax, ay, az);
+    let cx = ux + EPS * e2x, cy = uy + EPS * e2y, cz = uz + EPS * e2z;
+    k = Math.hypot(cx, cy, cz); cx /= k; cy /= k; cz /= k;
+    const s2 = R * shapeRadius(map, cx, cy, cz);
+    const p1x = ax * s1 - ux * s0, p1y = ay * s1 - uy * s0, p1z = az * s1 - uz * s0;
+    const p2x = cx * s2 - ux * s0, p2y = cy * s2 - uy * s0, p2z = cz * s2 - uz * s0;
+    let nx = p1y * p2z - p1z * p2y, ny = p1z * p2x - p1x * p2z, nz = p1x * p2y - p1y * p2x;
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    nx /= nl; ny /= nl; nz /= nl;
+    if (nx * ux + ny * uy + nz * uz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    NL[0] = nx; NL[1] = ny; NL[2] = nz;
+    return (lx - ux * s0) * nx + (ly - uy * s0) * ny + (lz - uz * s0) * nz;
+  };
+  const L = [0, 0, 0];
+  // The point's distance outside the rock centred at (cx, cy, cz), in the
+  // frame set last; NL holds the normal, in the rock's frame.
+  const outside = (map, R, cx, cy, cz, x, y, z) => {
+    turn(L, x - cx, y - cy, z - cz, -1);
+    return skin(map, R, L[0], L[1], L[2]);
+  };
+
+  /* How far point p lies outside the skin of the rock `ref` names (as the
+     queries return them; negative: inside), and the skin's normal there. */
+  field.skin = (ref, p) => {
+    const rock = ref.kind === 'dynamic' ? ref.rock : null;
+    const map = SHAPES[rock ? rock.type : belt.type[ref.index]], R = rock ? rock.radius : belt.radius[ref.index];
+    const c = rock ? rock.pos : posOf(ref.index);
+    if (rock) dynamicFrame(rock); else staticFrame(ref.index);
+    const distance = outside(map, R, c[0], c[1], c[2], p[0], p[1], p[2]);
+    return { distance, normal: normalize([0, 0, 0], turn([0, 0, 0], NL[0], NL[1], NL[2], 1)) };
+  };
+
+  /* Every rock a ball (p, r) is touching, with how deep and the world-space
+     normal to push it out along. */
+  field.contacts = (p, r, out = []) => {
+    nextStamp();
+    collectBox(p[0] - r, p[1] - r, p[2] - r, p[0] + r, p[1] + r, p[2] + r);
+    for (const i of belt.big) if (stamp[i] !== stampId) { stamp[i] = stampId; candidates.push(i); }
+    candidates.sort((a, b) => a - b);
+    for (const i of candidates) {
+      if (!field.alive[i]) continue;
+      const cx = belt.pos[3 * i], cy = belt.pos[3 * i + 1], cz = belt.pos[3 * i + 2];
+      if (Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz) >= r + belt.collide[i]) continue;
+      staticFrame(i);
+      const h = outside(SHAPES[belt.type[i]], belt.radius[i], cx, cy, cz, p[0], p[1], p[2]);
+      if (h >= r) continue;
+      out.push({ kind: 'static', index: i, pos: posOf(i), radius: belt.radius[i], depth: r - h, normal: normalize([0, 0, 0], turn([0, 0, 0], NL[0], NL[1], NL[2], 1)) });
+    }
+    for (const rock of field.dynamic) {
+      if (Math.hypot(p[0] - rock.pos[0], p[1] - rock.pos[1], p[2] - rock.pos[2]) >= r + rock.collide) continue;
+      dynamicFrame(rock);
+      const h = outside(SHAPES[rock.type], rock.radius, rock.pos[0], rock.pos[1], rock.pos[2], p[0], p[1], p[2]);
+      if (h >= r) continue;
+      out.push({ kind: 'dynamic', index: rock.id, rock, pos: rock.pos, radius: rock.radius, depth: r - h, normal: normalize([0, 0, 0], turn([0, 0, 0], NL[0], NL[1], NL[2], 1)) });
+    }
+    return out;
+  };
+
+  // Segment p0→p0+d against a sphere (c, R): where it enters and leaves, as
+  // parameters in [0, 1] (entry 0 when it starts inside), or false.
+  const span = [0, 0];
   const segmentSphere = (p0, d, A, cx, cy, cz, R) => {
     const mx = p0[0] - cx, my = p0[1] - cy, mz = p0[2] - cz;
     const C = mx * mx + my * my + mz * mz - R * R;
-    if (C <= 0) return 0;
-    if (A < 1e-12) return -1;
+    if (A < 1e-12) { if (C > 0) return false; span[0] = 0; span[1] = 1; return true; }
     const B = 2 * (mx * d[0] + my * d[1] + mz * d[2]);
     const disc = B * B - 4 * A * C;
-    if (disc < 0) return -1;
-    const t = (-B - Math.sqrt(disc)) / (2 * A);
-    return t >= 0 && t <= 1 ? t : -1;
+    if (disc < 0) return false;
+    const q = Math.sqrt(disc);
+    const t0 = (-B - q) / (2 * A), t1 = (-B + q) / (2 * A);
+    if (t1 < 0 || t0 > 1) return false;
+    span[0] = Math.max(0, t0); span[1] = Math.min(1, t1);
+    return true;
+  };
+  /* The first touch of a ball of radius r swept along p0 → p0+d with a
+     rock's skin, between parameters a and b: walked in steps finer than
+     the shape's features, then narrowed down. −1 for none; NL holds the
+     normal there. */
+  const march = (map, R, cx, cy, cz, p0, d, length, a, b, r) => {
+    const step = Math.max(0.25, Math.min(R * 0.06, 40));
+    const n = Math.max(1, Math.ceil((b - a) * length / step));
+    let before = a;
+    for (let k = 0; k <= n; k++) {
+      const t = a + (b - a) * k / n;
+      if (outside(map, R, cx, cy, cz, p0[0] + d[0] * t, p0[1] + d[1] * t, p0[2] + d[2] * t) > r) { before = t; continue; }
+      if (k === 0) return t;
+      let lo = before, hi = t;
+      for (let it = 0; it < 6; it++) {
+        const mid = (lo + hi) / 2;
+        if (outside(map, R, cx, cy, cz, p0[0] + d[0] * mid, p0[1] + d[1] * mid, p0[2] + d[2] * mid) > r) lo = mid; else hi = mid;
+      }
+      outside(map, R, cx, cy, cz, p0[0] + d[0] * hi, p0[1] + d[1] * hi, p0[2] + d[2] * hi);
+      return hi;
+    }
+    return -1;
   };
 
-  const sweepDir = [0, 0, 0];
+  const sweepDir = [0, 0, 0], hitNormal = [0, 0, 0];
   field.sweepSphere = (p0, p1, r) => {
     const d = sweepDir;
     d[0] = p1[0] - p0[0]; d[1] = p1[1] - p0[1]; d[2] = p1[2] - p0[2];
@@ -321,22 +479,32 @@ export function createField(seed, cfg = FIELD) {
     for (const i of candidates) {
       if (!field.alive[i]) continue;
       const cx = belt.pos[3 * i], cy = belt.pos[3 * i + 1], cz = belt.pos[3 * i + 2];
-      const t = segmentSphere(p0, d, A, cx, cy, cz, belt.collide[i] + r);
+      if (!segmentSphere(p0, d, A, cx, cy, cz, belt.collide[i] + r) || span[0] > best) continue;
+      let t;
+      // A pebble against a wide sweep: its shape is lost in the sweep's own size.
+      if (belt.collide[i] < 0.25 * r) { t = span[0]; NL[0] = NaN; }
+      else { staticFrame(i); t = march(SHAPES[belt.type[i]], belt.radius[i], cx, cy, cz, p0, d, length, span[0], Math.min(span[1], best), r); }
       if (t >= 0 && (t < best || (t === best && ref && ref.kind === 'static' && i < ref.index))) {
         best = t; centre = [cx, cy, cz];
-        ref = { kind: 'static', index: i, pos: centre, radius: belt.collide[i] };
+        ref = { kind: 'static', index: i, pos: centre, radius: belt.radius[i] };
+        if (Number.isNaN(NL[0])) hitNormal[0] = NaN; else turn(hitNormal, NL[0], NL[1], NL[2], 1);
       }
     }
     for (const rock of field.dynamic) {
-      const t = segmentSphere(p0, d, A, rock.pos[0], rock.pos[1], rock.pos[2], rock.collide + r);
+      if (!segmentSphere(p0, d, A, rock.pos[0], rock.pos[1], rock.pos[2], rock.collide + r) || span[0] > best) continue;
+      dynamicFrame(rock);
+      const t = march(SHAPES[rock.type], rock.radius, rock.pos[0], rock.pos[1], rock.pos[2], p0, d, length, span[0], Math.min(span[1], best), r);
       if (t >= 0 && t < best) {
         best = t; centre = rock.pos;
-        ref = { kind: 'dynamic', index: rock.id, rock, pos: rock.pos, radius: rock.collide };
+        ref = { kind: 'dynamic', index: rock.id, rock, pos: rock.pos, radius: rock.radius };
+        turn(hitNormal, NL[0], NL[1], NL[2], 1);
       }
     }
     if (!ref) return null;
     const point = [p0[0] + d[0] * best, p0[1] + d[1] * best, p0[2] + d[2] * best];
-    const normal = normalize([0, 0, 0], [point[0] - centre[0], point[1] - centre[1], point[2] - centre[2]]);
+    const normal = Number.isNaN(hitNormal[0])
+      ? normalize([0, 0, 0], [point[0] - centre[0], point[1] - centre[1], point[2] - centre[2]])
+      : normalize([0, 0, 0], hitNormal);
     return { t: best, ref, point, normal };
   };
 
@@ -345,7 +513,7 @@ export function createField(seed, cfg = FIELD) {
     const rock = {
       id: field.nextId++, type, pos: [...pos], vel: [...vel],
       q: [0, 0, 0, 1], w: rng.unit([0, 0, 0]).map(v => v * rng.range(0.1, 1.2)),
-      radius, collide: radius * cfg.collide, hp: 5 * Math.pow(radius, 1.5),
+      radius, collide: radius * SHAPES[type].max, core: radius * SHAPES[type].mean, hp: 5 * Math.pow(radius, 1.5),
     };
     field.dynamic.push(rock);
     while (field.dynamic.length > cfg.maxDynamic) {
@@ -418,17 +586,17 @@ export function createField(seed, cfg = FIELD) {
 
   const hits = [];
   field.step = (dt, events) => {
+    field.time += dt;
     for (const rock of field.dynamic) {
       for (let k = 0; k < 3; k++) rock.pos[k] += rock.vel[k] * dt;
       qIntegrate(rock.q, rock.w, dt);
+      // A fragment against the belt: a ball of its bulk against the rock.
       hits.length = 0;
-      field.queryRadius(rock.pos, rock.collide, hits);
+      field.contacts(rock.pos, rock.core, hits);
       for (const h of hits) {
         if (h.kind !== 'static') continue;
-        const n = normalize([0, 0, 0], [rock.pos[0] - h.pos[0], rock.pos[1] - h.pos[1], rock.pos[2] - h.pos[2]]);
-        if (n[0] === 0 && n[1] === 0 && n[2] === 0) n[1] = 1;
-        const reach = h.radius + rock.collide;
-        for (let k = 0; k < 3; k++) rock.pos[k] = h.pos[k] + n[k] * reach;
+        const n = h.normal;
+        for (let k = 0; k < 3; k++) rock.pos[k] += n[k] * h.depth;
         const vn = rock.vel[0] * n[0] + rock.vel[1] * n[1] + rock.vel[2] * n[2];
         if (vn < 0) for (let k = 0; k < 3; k++) rock.vel[k] -= (1 + cfg.restitution) * vn * n[k];
       }
@@ -441,7 +609,7 @@ export function createField(seed, cfg = FIELD) {
       for (let j = i + 1; j < dyn.length; j++) {
         const b = dyn[j];
         const dx = a.pos[0] - b.pos[0], dy = a.pos[1] - b.pos[1], dz = a.pos[2] - b.pos[2];
-        const reach = a.collide + b.collide;
+        const reach = a.core + b.core;
         const d2 = dx * dx + dy * dy + dz * dz;
         if (d2 >= reach * reach) continue;
         const d = Math.sqrt(d2);
@@ -460,6 +628,7 @@ export function createField(seed, cfg = FIELD) {
   };
 
   field.reset = () => {
+    field.time = 0;
     field.alive.fill(1);
     field.hp.set(belt.hp);
     field.dynamic.length = 0;

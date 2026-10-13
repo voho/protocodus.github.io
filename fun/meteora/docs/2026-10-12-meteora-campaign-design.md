@@ -85,7 +85,7 @@ tell them we're not debris."
 
 ## 2. Campaign
 
-Ten missions, unlocked in order; any won mission can be replayed from the
+Ten missions, unlocked in order (eleven since The Well was added as the ninth); any won mission can be replayed from the
 mission list at any difficulty. Each mission has a multi-stage briefing with
 a tactical map, primary objectives (all must succeed), bonus objectives
 (optional, they raise the medal), a recommended loadout with a reason, and
@@ -453,6 +453,20 @@ protected ships.
   turns harder.
 - **A / D** strafe. Capital ships collide as compound spheres; rocks bounce
   off them; ramming is scaled by relative speed and mass.
+- **Rocks are their shapes.** A sphere at 0.85 of a rock's radius let ships
+  sink up to a seventh of the radius into its crags — some 150 m on a
+  landmark — and bounce off empty space beside its hollows (the models'
+  surfaces lie between a fifth and all of the outer radius). Each of the
+  five rock models is measured once (`tools/rock-shapes.mjs`) into a cube
+  map of its surface radius in every direction, conservative (each sample
+  the farthest the surface reaches within a cell's diagonal), and every
+  contact and sweep — ships, fragments, bolts, missiles, beams, the Eyes'
+  sight lines, the camera — tests against it in the rock's own frame,
+  turned as far as it has tumbled on the field's clock, which the renderer
+  uses too. Rock props (boulders, ore cores) get colliders that follow the
+  same shape.
+- **Targets**: with nothing targeted, the nearest hostile is taken (a
+  capital ship counted from halfway to its skin); T cycles from there.
 - Fold (hyperspace) arrivals and departures for every ship size.
 
 ### Mission scripting
@@ -502,6 +516,46 @@ The game has to feel good every second and pull the player back. So:
   without dying, and more), kept in a service record.
 - **Replay**: best score and medal per mission, per difficulty, to beat;
   Survival with its own best per hull.
+- **The story uncovered**: a case file of fifteen pieces of evidence opens
+  mission by mission, the clues planted on the radio and in the debriefs
+  so the Mission 7 reveal is something the player could have guessed:
+  letters round the red eye's lens (the M01 recorder, bonus), Earth-gauge
+  hull plate (M02), VG-07 cast on the Mother's reactor (M03, bonus), seeds
+  written in the *Perpetua*'s machine-script (M04), bombers that flinch at
+  her beacon (M05), transponders in her format (M06), then Vanguard Seven
+  (M07; the Ninth Hand's core as a bonus), a fold caught in flight (the
+  Well, m11) and the command code (M10, flown eleventh) that
+  the flinch set up. Debriefs list new evidence and name a clue left
+  behind; briefings open with the narrator's "previously".
+- **Places**: every mission has its own look (`js/environments.js`): sun
+  direction, colour and size, gas giant (tan, ice or rust, its phase set by
+  where the sun stands; or none), nebulae, Milky Way brightness and angle,
+  veils, light and dust. M06 is flown under an eclipse; M07 is open space;
+  M08 a quarry of big rocks only; M10 the belt's edge, the rock behind.
+- **Fleet battles**: M08 is a fleet assault (the Vigil and Halo wing
+  against two Warden corvettes and the Mother's bays); M10 the last stand
+  (Halo, Ember and the Stefanos militia beside both Halberds against
+  growing waves, corvettes and the Mother, with the rest of the Mothers
+  folding in on the horizon).
+- **Flight training** (menu): one skill a step, each waiting until done;
+  five weaving drones to pass; counts for nothing in the campaign.
+- **The Well** (Mission 9, `m11.js`): a black hole, Pindus's dead
+  companion. Harrow anchors catch the Roussanou convoy's fold and drop it
+  there; eight hulks with survivors fall on staggered clocks (sideways
+  speed fitted so they reach the horizon between about 1.5 and 6.5
+  minutes). Rescue: match a hulk's fall and hold the nose on it while a
+  fold beacon latches (2.5–4 s by difficulty); a Tender's fold takes it.
+  Physics (`well.js`): the Paczyński–Wiita pull −GM/(r − rₛ)² on every ship
+  and fragment, rₛ = 1.5 km and GM chosen for minutes of fall (a real hole
+  that size would pull at billions of g); each ship's point of no return
+  is where the pull equals its forward thrust; AI pilots stay above twice
+  theirs; whatever reaches 1.1 rₛ is lost without a wreck. Rendering
+  (`lens.js`): the sky is a sphere whose every pixel integrates the
+  Schwarzschild photon orbit u'' + u = 3/2 u² (RK4 in φ, units of rₛ),
+  black when captured, the sky cubemap where it escapes, and a thin opaque
+  disk from 3 to 14 rₛ crossed on the way: thin-disk temperature profile,
+  Doppler factor from the orbital speed, gravitational redshift. Bot
+  (R/P/V/A): 6/6/5/3; idle 0.
 - **Sound and music**: a kill chime under the explosion, a rising tone as a
   streak grows, music that moves between calm, combat and climax.
 
@@ -531,7 +585,11 @@ The game has to feel good every second and pull the player back. So:
   hemisphere inside, rear in the ring; red hostile, green friendly, yellow
   objective, cyan nav, flashing torpedoes); target box with hull, shield and
   subsystem; shield quadrants, hull, weapons and drone status bottom-right;
-  speed and afterburner bottom-left; damage-direction arcs; warnings.
+  speed and afterburner bottom-left; damage-direction arcs; warnings. The
+  **target panel** bottom-centre pictures the target as seen from the
+  player, framed to its outline (a small renderer of its own on its own
+  canvas, after the scene's bloom), with class, range, closing speed,
+  shield, hull and subsystem.
 - **Pause**: objectives, controls, settings, restart, abort.
 - **Debrief**: outcome, story text, objectives and bonuses, kills by class,
   accuracy, damage taken, time, score and medal; Continue / Replay / Hangar.

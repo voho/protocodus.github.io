@@ -197,22 +197,22 @@ export function collisionDamage(entity, approach, events, contact, normal, scale
   events.push({ type: 'collision', id: entity.id, team: entity.team, speed: approach, pos: contact });
 }
 
+/* A ship against the rocks it touches — their real shapes, not their
+   bounding spheres (field.contacts): pushed out of each along the skin's
+   normal, then bounced off it with friction and spin. */
 const contacts = [];
 export function resolveShipRock(entity, field, events) {
   const C = COMBAT.collision, ship = entity.ship;
   contacts.length = 0;
-  for (const h of field.queryRadius(ship.pos, entity.radius, contacts)) {
-    const n = normalize([0, 0, 0], sub([0, 0, 0], ship.pos, h.pos));
-    if (n[0] === 0 && n[1] === 0 && n[2] === 0) n[1] = 1;
-    const reach = h.radius + entity.radius;
+  for (const h of field.contacts(ship.pos, entity.radius, contacts)) {
+    const n = h.normal;
     const rock = h.kind === 'dynamic' ? h.rock : null;
     if (rock) {
       // Share the overlap by inverse mass: a pebble gives way, a boulder doesn't.
       const im = 1 / ship.stats.mass, ir = 1 / rockMass(rock.radius);
-      const depth = reach - Math.sqrt((ship.pos[0] - h.pos[0]) ** 2 + (ship.pos[1] - h.pos[1]) ** 2 + (ship.pos[2] - h.pos[2]) ** 2);
-      for (let k = 0; k < 3; k++) { ship.pos[k] += n[k] * depth * im / (im + ir); rock.pos[k] -= n[k] * depth * ir / (im + ir); }
+      for (let k = 0; k < 3; k++) { ship.pos[k] += n[k] * h.depth * im / (im + ir); rock.pos[k] -= n[k] * h.depth * ir / (im + ir); }
     } else {
-      for (let k = 0; k < 3; k++) ship.pos[k] = h.pos[k] + n[k] * reach;
+      for (let k = 0; k < 3; k++) ship.pos[k] += n[k] * h.depth;
     }
     const arm = [-n[0] * entity.radius, -n[1] * entity.radius, -n[2] * entity.radius];
     const contact = [ship.pos[0] + arm[0], ship.pos[1] + arm[1], ship.pos[2] + arm[2]];
@@ -270,7 +270,7 @@ export function resolveShipLarge(small, large, events) {
 /* Drifting fragments bounce off large ships, which are far too heavy to
    notice. */
 export function resolveRockLarge(rock, large, restitution = 0.5) {
-  overlapCompound(large, rock.pos, rock.collide, overlaps);
+  overlapCompound(large, rock.pos, rock.core ?? rock.collide, overlaps);
   if (!overlaps.length) return;
   const { n, depth } = overlaps[0];
   for (let k = 0; k < 3; k++) rock.pos[k] += n[k] * depth;

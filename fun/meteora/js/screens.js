@@ -14,8 +14,8 @@ import { ACTIONS, DEFAULT_KEYS, keysOf } from './controls.js';
 import { CLASSES, HULLS } from './catalog.js';
 import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, SECONDARIES, assess, bankCount, matchesRecommendation, normalizeLoadout, ratings } from './loadout.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './difficulty.js';
-import { MISSIONS, COMMENDATIONS, RANKS, isAvailable, nextMission, rankOf } from './campaign.js';
-import { PROLOGUE, CODEX, HINTS } from './story.js';
+import { MISSIONS, TRAINING, COMMENDATIONS, RANKS, isAvailable, missionLabel, nextMission, rankOf } from './campaign.js';
+import { PROLOGUE, CODEX, HINTS, CASE_FILE } from './story.js';
 
 const KEY = 'meteora.settings';
 const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -333,6 +333,10 @@ export function createScreens(root, settings, handlers) {
       const box = $('[data-mission-list]');
       box.textContent = '';
       const next = nextMission(progress);
+      const drill = el(doc, 'button', { type: 'button', class: 'mission training' });
+      drill.innerHTML = `<span class="num">TRAINING</span><strong>${TRAINING.title}</strong><span>${TRAINING.location}</span>`;
+      drill.addEventListener('click', () => onPick(TRAINING));
+      box.append(drill);
       for (const m of MISSIONS) {
         const best = progress.best[m.id];
         const open = isAvailable(progress, m);
@@ -343,8 +347,9 @@ export function createScreens(root, settings, handlers) {
       }
     },
     /* ---------- the briefing ---------- */
-    briefing(mission, progress, difficultyKey, onDifficulty) {
-      $('[data-brief-eyebrow]').textContent = `Mission ${mission.number} · ${mission.location}`;
+    /* `recap`: the narrator's "previously" ahead of the Commander's stages. */
+    briefing(mission, progress, difficultyKey, onDifficulty, recap = null) {
+      $('[data-brief-eyebrow]').textContent = `${missionLabel(mission)} · ${mission.location}`;
       $('[data-brief-title]').textContent = mission.title;
       $('[data-brief-dateline]').textContent = mission.dateline ?? '';
       const obj = $('[data-brief-objectives]');
@@ -360,14 +365,21 @@ export function createScreens(root, settings, handlers) {
       const best = progress.best[mission.id];
       $('[data-brief-best]').innerHTML = best ? `${medal(best.medal)} Best ${best.score.toLocaleString('en')} on ${DIFFICULTIES[best.difficulty]?.name ?? ''}` : '';
       stage = 0;
-      mapState = { mission, focus: [...mission.briefing.stages[0].focus], t: 0 };
+      const stages = mission.briefing.stages;
+      mapState = {
+        mission, focus: [...stages[0].focus], t: 0,
+        stages: recap ? [{ who: 'narrator', text: recap, focus: stages[0].focus }, ...stages] : stages,
+      };
       api.briefingStage(0);
     },
+    // The stage on screen: who speaks it and what they say.
+    briefingLine(i) { return mapState?.stages[i] ?? null; },
     briefingStage(delta) {
       if (!mapState) return;
-      const stages = mapState.mission.briefing.stages;
+      const stages = mapState.stages;
       stage = Math.max(0, Math.min(stages.length - 1, stage + delta));
       const s = stages[stage];
+      $('[data-brief-who]').textContent = s.who === 'narrator' ? 'Previously' : 'Cmdr. Doukas · Perpetua';
       const t = $('[data-brief-stage]');
       t.textContent = s.text;
       t.classList.remove('fresh'); void t.offsetWidth; t.classList.add('fresh', 'story-text');
@@ -387,7 +399,7 @@ export function createScreens(root, settings, handlers) {
       const L = normalizeLoadout(loadout, unlocked);
       const rec = mission?.recommend ?? null;
       const match = matchesRecommendation(rec, L);
-      $('[data-hangar-eyebrow]').textContent = eyebrow ?? (mission ? `Hangar · Mission ${mission.number}: ${mission.title}` : 'Hangar');
+      $('[data-hangar-eyebrow]').textContent = eyebrow ?? (mission ? `Hangar · ${missionLabel(mission)}: ${mission.title}` : 'Hangar');
       const choice = (title, sub, selected, enabled, recommended, onClick, why = 'Not yet in service') => {
         const b = el(doc, 'button', { type: 'button', class: `choice${selected ? ' selected' : ''}`, disabled: !enabled, 'aria-pressed': String(selected) },
           el(doc, 'strong', { text: title }), el(doc, 'small', { text: enabled ? sub : why }));
@@ -462,7 +474,7 @@ export function createScreens(root, settings, handlers) {
       // behind the debrief either.
       screens.debrief.classList.toggle('beyond', beyond);
       box.classList.toggle('won', res.won || !!survival); box.classList.toggle('lost', !res.won && !survival);
-      $('[data-debrief-eyebrow]').textContent = mission?.number ? `Mission ${mission.number} · ${mission.location}` : 'Survival';
+      $('[data-debrief-eyebrow]').textContent = mission ? `${missionLabel(mission)} · ${mission.location}` : 'Survival';
       $('[data-debrief-title]').textContent = survival ? `Shot down in wave ${survival.wave}` : res.won ? 'Mission complete' : 'Mission failed';
       $('[data-debrief-medal]').innerHTML = survival
         ? `<div><strong>${survival.score.toLocaleString('en')} points</strong><br><span>${survival.newBest ? 'A new best for the ' : 'Best for the '}${survival.hull}: ${survival.best.toLocaleString('en')}</span></div>`
@@ -473,6 +485,17 @@ export function createScreens(root, settings, handlers) {
         : res.won ? mission.debrief.won
           : res.died ? (mission.debrief.died ?? SHOT_DOWN) : mission.debrief.lost;
       $('[data-debrief-text]').textContent = story;
+      // What this mission added to the case file — and a clue left behind.
+      const ev = $('[data-debrief-evidence]');
+      ev.textContent = '';
+      for (const c of change?.evidence ?? []) {
+        ev.append(el(doc, 'div', { class: 'clue' }, el(doc, 'b', { text: `New evidence · ${c.title}` }), el(doc, 'p', { text: c.text })));
+      }
+      for (const c of change?.missed ?? []) {
+        ev.append(el(doc, 'div', { class: 'clue missed' }, el(doc, 'b', { text: 'A clue was left behind' }),
+          el(doc, 'p', { text: c.objective ? `Fly it again and complete “${c.objective}” to find it.` : 'Fly it again to find it.' })));
+      }
+      ev.hidden = !ev.childElementCount;
       screens.debrief.querySelector('.debrief-grid > div').hidden = !!survival;
       const obj = $('[data-debrief-objectives]');
       obj.textContent = '';
@@ -506,7 +529,9 @@ export function createScreens(root, settings, handlers) {
       const replay = $('[data-screen="debrief"] [data-action="replay"]');
       if (replay) replay.hidden = !res.won && !survival;
       const next = $('[data-debrief-next]');
-      next.innerHTML = survival ? 'Fly again <span aria-hidden="true">↻</span>' : res.won ? (hasNext ? 'Next mission <span aria-hidden="true">→</span>' : 'Service record <span aria-hidden="true">→</span>') : 'Retry <span aria-hidden="true">↻</span>';
+      next.innerHTML = survival ? 'Fly again <span aria-hidden="true">↻</span>'
+        : res.won && mission?.training ? (progress.won.includes(MISSIONS[0].id) ? 'Back to the menu <span aria-hidden="true">→</span>' : 'Mission 1 <span aria-hidden="true">→</span>')
+        : res.won ? (hasNext ? 'Next mission <span aria-hidden="true">→</span>' : 'Service record <span aria-hidden="true">→</span>') : 'Retry <span aria-hidden="true">↻</span>';
       return story;
     },
     /* ---------- the codex ---------- */
@@ -514,7 +539,7 @@ export function createScreens(root, settings, handlers) {
       codexTab = tab;
       const tabs = $('[data-codex-tabs]');
       tabs.textContent = '';
-      for (const [key, name] of [['story', 'Story'], ['craft', 'Craft'], ['weapons', 'Weapons'], ['record', 'Service record'], ['controls', 'Controls']]) {
+      for (const [key, name] of [['story', 'Story'], ['case', 'Case file'], ['craft', 'Craft'], ['weapons', 'Weapons'], ['record', 'Service record'], ['controls', 'Controls']]) {
         const b = el(doc, 'button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(key === tab), text: name });
         b.addEventListener('click', () => api.codex(progress, key));
         tabs.append(b);
@@ -524,11 +549,25 @@ export function createScreens(root, settings, handlers) {
       if (tab === 'story') {
         for (const p of [...PROLOGUE, ...CODEX]) body.append(el(doc, 'article', {}, el(doc, 'h4', { text: p.title }), el(doc, 'p', { text: p.text })));
         body.append(el(doc, 'article', {}, el(doc, 'h4', { text: 'Flight school' }), el(doc, 'p', { text: HINTS.join(' ') })));
+      } else if (tab === 'case') {
+        // The Harrow, as the Watch has come to know them: found evidence in
+        // full, the rest as the mission that holds it.
+        const found = new Set(progress.caseFile ?? []);
+        const file = el(doc, 'div', { class: 'evidence case-file' });
+        file.append(el(doc, 'p', { class: 'muted', text: `${found.size} of ${CASE_FILE.length} pieces of evidence. Some are only found by those who look for them.` }));
+        for (const c of CASE_FILE) {
+          const m = MISSIONS.find(x => x.id === c.mission);
+          const known = found.has(c.id), open = isAvailable(progress, m);
+          file.append(el(doc, 'div', { class: `clue${known ? '' : ' locked'}${known && progress.lastPlayed === c.mission ? ' new' : ''}` },
+            el(doc, 'b', { text: known ? c.title : `Mission ${m.number} · ${open ? m.title : 'Classified'}` }),
+            el(doc, 'p', { text: known ? c.text : c.requires && progress.won.includes(c.mission) ? 'A clue was left behind here.' : 'Not yet known.' })));
+        }
+        body.append(file);
       } else if (tab === 'craft') {
         const t = el(doc, 'table');
         t.innerHTML = '<tr><th>Craft</th><th>Role</th><th>Speed</th><th>Shield</th><th>Hull</th><th>Armour</th></tr>';
         for (const [k, c] of Object.entries(CLASSES)) {
-          if (['wreck', 'recorder', 'boulder', 'hauler'].includes(k)) continue;
+          if (['wreck', 'recorder', 'boulder', 'hauler', 'target'].includes(k)) continue;
           t.insertAdjacentHTML('beforeend', `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.flight.fa.forwardSpeed ? `${c.flight.fa.forwardSpeed} m/s` : '—'}</td><td>${c.shield}</td><td>${c.hull}</td><td>${Math.round((c.armor ?? 0) * 100)}%</td></tr>`);
         }
         body.append(t);

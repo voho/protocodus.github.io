@@ -2,21 +2,27 @@
 
    Layers, from farthest in:
 
-     deep      rendered once at load into a cubemap: the Milky Way with its
-               dust lanes and bulge, unresolved and faint stars coloured by
-               temperature, deep nebulae, and galaxies — an Andromeda-like
-               spiral, a face-on spiral, an edge-on disc with its dust line,
-               an elliptical, an interacting pair and a scatter of tiny far
-               ones for the patient eye
-     veils     two faint nebula veils, also baked once, each on its own
-               sphere turning very slowly about its own axis
+     deep      rendered into a cubemap when a mission's look is set: the
+               Milky Way with its dust lanes and bulge, unresolved and faint
+               stars coloured by temperature, deep nebulae, and galaxies —
+               an Andromeda-like spiral, a face-on spiral, an edge-on disc
+               with its dust line, an elliptical, an interacting pair and a
+               scatter of tiny far ones for the patient eye
+     veils     two faint nebula veils, also baked, each on its own sphere
+               turning very slowly about its own axis
      stars     two layers of bright stars as sharp points, drifting very
                slowly in opposite senses, the nearer one with a hint of
                parallax as the ship moves
-     planet    a ringed gas giant forty kilometres out, lit by the sun,
-               throwing its shadow across its rings
+     planet    a gas giant tens of kilometres out, lit by the sun, with its
+               atmosphere's glow at the limb (and, with the sun behind it,
+               the whole limb aflame), perhaps with rings and their shadow
      sun       a white-hot disc and corona (added to the glow batch, so the
-               rocks hide it)
+               rocks — and a planet in front of it — hide it)
+
+   Every mission has its own look (environments.js): where the sun and the
+   planet stand, which planet, which nebulae, how bright the Milky Way, so
+   no two places in the belt look alike. A look is built once per launch;
+   `dispose` gives its memory back before the next one is built.
 
    The drift is not astronomy — the real sky would not move — it is there to
    keep the backdrop alive while the ship is coasting, and it is slow enough
@@ -25,6 +31,7 @@
 import * as THREE from 'three';
 import { RENDER, SKY } from './config.js';
 import { makeRng } from './rng.js';
+import { createLens } from './lens.js';
 
 const LAYER_RADIUS = SKY.layerRadius;
 
@@ -70,6 +77,9 @@ uniform vec3 uGalNormal;
 uniform vec3 uGalCenter;
 uniform vec4 uNebula[5];      // dir, radius
 uniform vec4 uNebulaKind[5];  // kind, seed, intensity
+uniform vec3 uNebulaTint[5];
+uniform float uBand;          // the Milky Way's brightness
+uniform float uStarGain;      // the faint stars' brightness
 uniform vec4 uGalaxy[5];      // dir, radius
 uniform vec4 uGalaxyShape[5]; // inclination, position angle, kind, seed
 ${COMMON}
@@ -190,14 +200,12 @@ void main() {
 
   float absorb = 0.0;
   vec3 neb = vec3(0.0);
-  for (int i = 0; i < 5; i++) neb += nebula(d, i, absorb);
+  for (int i = 0; i < 5; i++) neb += nebula(d, i, absorb) * uNebulaTint[i];
   absorb = max(absorb, dust * 0.9);
 
   vec3 col = vec3(0.0015, 0.0019, 0.0032);
-  col += mix(vec3(0.85, 0.82, 0.76), vec3(1.0, 0.78, 0.52), bulge) * (band * 0.045 * (0.5 + glow) + bulge * 0.14 * (0.4 + glow));
-  col += stars(d, 1500.0, 0.9935, 0.25, band);
-  col += stars(d, 620.0, 0.9945, 0.55, band);
-  col += stars(d, 230.0, 0.9955, 1.1, band);
+  col += mix(vec3(0.85, 0.82, 0.76), vec3(1.0, 0.78, 0.52), bulge) * (band * 0.045 * (0.5 + glow) + bulge * 0.14 * (0.4 + glow)) * uBand;
+  col += (stars(d, 1500.0, 0.9935, 0.25, band) + stars(d, 620.0, 0.9945, 0.55, band) + stars(d, 230.0, 0.9955, 1.1, band)) * uStarGain;
   col *= 1.0 - absorb;
   col += neb;
   for (int i = 0; i < 5; i++) col += galaxy(d, i);
@@ -229,39 +237,54 @@ varying vec3 vDir;
 void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
 
+/* The bakes keep their scenes, so that each heavy shader is compiled once
+   however many looks are built; only the uniforms change. */
+const bakers = new Map();
+function baker(fragmentShader, uniforms, make) {
+  let b = bakers.get(fragmentShader);
+  if (!b) bakers.set(fragmentShader, b = make());
+  for (const [name, u] of Object.entries(uniforms)) {
+    if (b.material.uniforms[name]) b.material.uniforms[name].value = u.value;
+    else b.material.uniforms[name] = u;
+  }
+  return b;
+}
+
 function bake(renderer, size, fragmentShader, uniforms) {
   const target = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
-  const scene = new THREE.Scene();
-  const material = new THREE.ShaderMaterial({ vertexShader: BAKE_VERTEX, fragmentShader, uniforms, side: THREE.BackSide, depthWrite: false });
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 64, 32), material));
+  const b = baker(fragmentShader, uniforms, () => {
+    const material = new THREE.ShaderMaterial({ vertexShader: BAKE_VERTEX, fragmentShader, uniforms: {}, side: THREE.BackSide, depthWrite: false });
+    const scene = new THREE.Scene();
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 64, 32), material));
+    return { material, scene };
+  });
   const cubeCamera = new THREE.CubeCamera(0.1, 100, target);
   const toneMapping = renderer.toneMapping;
   renderer.toneMapping = THREE.NoToneMapping;
-  cubeCamera.update(renderer, scene);
+  cubeCamera.update(renderer, b.scene);
   renderer.toneMapping = toneMapping;
-  material.dispose();
-  scene.children[0].geometry.dispose();
   return target;
 }
 
-function bakeFlat(renderer, width, height, fragmentShader) {
+function bakeFlat(renderer, width, height, fragmentShader, uniforms = {}) {
   const target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: false });
   target.texture.wrapS = THREE.RepeatWrapping;
-  const scene = new THREE.Scene();
-  const material = new THREE.ShaderMaterial({
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-    fragmentShader, depthTest: false, depthWrite: false,
+  const b = baker(fragmentShader, uniforms, () => {
+    const material = new THREE.ShaderMaterial({
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader, uniforms: {}, depthTest: false, depthWrite: false,
+    });
+    const scene = new THREE.Scene();
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+    return { material, scene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
   });
-  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const previous = renderer.getRenderTarget(), toneMapping = renderer.toneMapping;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.setRenderTarget(target);
-  renderer.render(scene, camera);
+  renderer.render(b.scene, b.camera);
   renderer.setRenderTarget(previous);
   renderer.toneMapping = toneMapping;
-  material.dispose();
-  return target.texture;
+  return target;
 }
 
 const LAYER_VERTEX = /* glsl */`
@@ -354,6 +377,12 @@ void main() {
 `;
 const PLANET_BAKE = /* glsl */`
 varying vec2 vUv;
+uniform vec3 uBandA;
+uniform vec3 uBandB;
+uniform vec3 uDark;
+uniform vec3 uStorm;
+uniform float uBands;   // how many belts and zones
+uniform float uTurb;    // how hard they swirl
 ${COMMON}
 void main() {
   float latitude = (vUv.y - 0.5) * 3.14159265;
@@ -363,12 +392,12 @@ void main() {
   // date line and no pinch at the poles.
   vec3 p = vec3(cos(latitude) * cos(lon), lat, cos(latitude) * sin(lon));
   float turb = fbm(vec3(lat * 9.0, p.x * 1.6, p.z * 1.6 + 3.0)) * 0.55 + fbm(vec3(lat * 30.0, p.x * 5.0, p.z * 5.0 + 7.0)) * 0.2;
-  float bands = 0.5 + 0.5 * sin(lat * 26.0 + turb * 3.5);
-  vec3 col = mix(vec3(0.78, 0.6, 0.42), vec3(0.95, 0.88, 0.74), bands);
-  col = mix(col, vec3(0.62, 0.42, 0.32), smoothstep(0.55, 0.8, fbm(vec3(lat * 14.0, p.x * 3.0, p.z * 3.0 + 11.0))) * 0.5);
+  float bands = 0.5 + 0.5 * sin(lat * uBands + turb * 3.5 * uTurb);
+  vec3 col = mix(uBandA, uBandB, bands);
+  col = mix(col, uDark, smoothstep(0.55, 0.8, fbm(vec3(lat * 14.0, p.x * 3.0, p.z * 3.0 + 11.0))) * 0.5 * uTurb);
   // A great storm south of the equator.
   vec2 storm = vec2((lon - 0.9) * 2.2, (lat + 0.32) * 7.0);
-  col = mix(col, vec3(0.85, 0.45, 0.32), exp(-dot(storm, storm) * 3.0) * 0.8);
+  col = mix(col, uStorm, exp(-dot(storm, storm) * 3.0) * 0.8);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -381,6 +410,8 @@ uniform vec3 uSun;
 uniform vec3 uCenter;
 uniform vec3 uPole;
 uniform float uRadius;
+uniform float uRings;
+uniform vec3 uAtmo;
 void main() {
   vec3 n = normalize(vNormal);
   vec3 l = normalize(vLocal);
@@ -390,7 +421,7 @@ void main() {
   float light = smoothstep(-0.08, 0.35, ndl) * (0.25 + 0.75 * max(ndl, 0.0));
   // Shadow of the rings on the cloud tops.
   float denom = dot(uSun, uPole);
-  if (abs(denom) > 1e-3) {
+  if (uRings > 0.5 && abs(denom) > 1e-3) {
     float t = -dot(vWorld - uCenter, uPole) / denom;
     if (t > 0.0) {
       float rr = length(vWorld + uSun * t - uCenter) / uRadius;
@@ -400,8 +431,30 @@ void main() {
   }
   vec3 view = normalize(cameraPosition - vWorld);
   float rim = pow(1.0 - max(dot(n, view), 0.0), 3.0);
-  vec3 atmosphere = vec3(0.45, 0.65, 1.0) * rim * smoothstep(-0.2, 0.4, ndl) * 0.8;
-  gl_FragColor = vec4(col * light * 1.6 + atmosphere, 1.0);
+  vec3 atmosphere = uAtmo * rim * smoothstep(-0.2, 0.4, ndl) * 0.8;
+  gl_FragColor = vec4(col * light * 1.1 + atmosphere, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}
+`;
+/* The air above the limb: a thin shell, drawn additively over the planet.
+   Lit from the front it is a faint blue rim; with the sun behind the
+   planet, the light bent through it sets the whole limb aflame. */
+const ATMO_FRAGMENT = /* glsl */`
+varying vec3 vWorld;
+uniform vec3 uSun;
+uniform vec3 uCenter;
+uniform float uRadius;
+uniform vec3 uAtmo;
+uniform vec3 uBacklit;
+void main() {
+  vec3 ray = normalize(vWorld - cameraPosition);
+  vec3 closest = cameraPosition + ray * dot(uCenter - cameraPosition, ray) - uCenter;
+  float h = length(closest) / uRadius - 1.0;
+  float shell = h > 0.0 ? exp(-h / 0.016) : exp(h / 0.0035);
+  float lit = smoothstep(-0.3, 0.35, dot(normalize(closest), uSun));
+  float behind = pow(max(dot(ray, uSun), 0.0), 12.0);
+  gl_FragColor = vec4((uAtmo * lit * 0.5 + uBacklit * behind * 5.0) * shell, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -411,6 +464,8 @@ varying vec3 vWorld;
 uniform vec3 uSun;
 uniform vec3 uCenter;
 uniform float uRadius;
+uniform vec3 uRingColour;
+uniform vec3 uPole;
 ${COMMON}
 void main() {
   float rr = length(vWorld - uCenter) / uRadius;
@@ -421,7 +476,13 @@ void main() {
   vec3 o = vWorld - uCenter;
   float b = dot(o, uSun), c = dot(o, o) - uRadius * uRadius;
   float shadow = (b < 0.0 && b * b - c > 0.0) ? 0.08 : 1.0;
-  vec3 col = vec3(0.9, 0.82, 0.7) * shadow * 1.3;
+  // Seen from their sunlit face the rings shine; from the dark face only
+  // the light the ice scatters forward comes through, brightest against
+  // the sun.
+  vec3 view = cameraPosition - vWorld;
+  bool litFace = dot(uPole, uSun) * dot(uPole, view) > 0.0;
+  float behind = pow(max(dot(normalize(-view), uSun), 0.0), 6.0);
+  vec3 col = uRingColour * shadow * (litFace ? 1.05 : 0.45 + 0.9 * behind);
   gl_FragColor = vec4(col * density, density * 0.85);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -436,22 +497,67 @@ void main() {
 }
 `;
 
-export function createSky(renderer, scene, { seed = 7, sunDir }) {
+/* Gas giants: the colours of their belts and zones, their dark ovals and
+   their great storm, how many bands and how hard they swirl; the colour of
+   the air at the limb, lit and backlit; the rings. */
+const PALETTES = {
+  tan: { a: [0.78, 0.6, 0.42], b: [0.95, 0.88, 0.74], dark: [0.62, 0.42, 0.32], storm: [0.85, 0.45, 0.32], bands: 26, turb: 1, atmo: [0.45, 0.65, 1.0], backlit: [1.0, 0.55, 0.3], ring: [0.9, 0.82, 0.7] },
+  ice: { a: [0.24, 0.46, 0.7], b: [0.48, 0.72, 0.88], dark: [0.16, 0.34, 0.58], storm: [0.88, 0.95, 1.0], bands: 14, turb: 0.45, atmo: [0.5, 0.85, 1.0], backlit: [0.55, 0.85, 1.0], ring: [0.72, 0.8, 0.88] },
+  rust: { a: [0.5, 0.25, 0.15], b: [0.8, 0.52, 0.33], dark: [0.32, 0.16, 0.11], storm: [0.98, 0.84, 0.62], bands: 34, turb: 1.25, atmo: [1.0, 0.68, 0.45], backlit: [1.0, 0.45, 0.2], ring: [0.82, 0.68, 0.56] },
+};
+
+const NEBULA_KINDS = { emission: 0, reflection: 1, planetary: 2, remnant: 3, dark: 4 };
+
+/* The look of Sector Seven, home: the sky the menus fly in. */
+export const DEFAULT_SKY = {
+  seed: 7,
+  galaxy: { normal: [0.22, 0.92, 0.32], centre: null, band: 1 },
+  stars: 1,
+  // `at`: a direction, or `{ band }` (within that sine of the Milky Way's
+  // plane) or `{ off }` (beyond it), picked from the seed.
+  nebulae: [
+    { kind: 'emission', at: { band: 0.25 }, radius: 0.3, gain: 0.32 },
+    { kind: 'reflection', at: { off: 0.3 }, radius: 0.12, gain: 0.22 },
+    { kind: 'planetary', at: { off: 0.2 }, radius: 0.018, gain: 0.55 },
+    { kind: 'remnant', at: { band: 0.5 }, radius: 0.16, gain: 0.3 },
+    { kind: 'dark', at: { band: 0.2 }, radius: 0.22, gain: 1 },
+  ],
+  veils: [
+    { a: [0.1, 0.42, 0.55], b: [0.35, 0.2, 0.6], gain: 0.07 },
+    { a: [0.6, 0.18, 0.3], b: [0.55, 0.38, 0.15], gain: 0.05 },
+  ],
+  planet: { dir: [0.62, 0.1, 0.78], distance: 44000, radius: 9000, pole: [0.25, 1, -0.45], rings: true, palette: 'tan' },
+  // `distance`: where the disc is drawn. Beyond the planet, the planet can
+  // eclipse it.
+  sun: { dir: [-0.62, 0.32, -0.72], colour: [1, 0.97, 0.9], corona: [1, 0.82, 0.6], size: 1, glow: 1, distance: SKY.sunDistance },
+  // The bright stars drawn as points (not bent by a black hole's lens).
+  brightStars: true,
+  // A black hole in the sky: { pos, rs, disk } (lens.js). The whole sky is
+  // then seen through it.
+  hole: null,
+};
+
+export function createSky(renderer, scene, look = {}) {
+  const L = { ...DEFAULT_SKY, ...look };
+  const seed = L.seed;
+  const sunLook = { ...DEFAULT_SKY.sun, ...L.sun };
+  const sunDir = new THREE.Vector3(...sunLook.dir).normalize();
   const rng = makeRng(seed);
   const unit = () => new THREE.Vector3(...rng.unit([0, 0, 0]));
-  const galNormal = new THREE.Vector3(0.22, 0.92, 0.32).normalize();
-  const galCenter = new THREE.Vector3().crossVectors(galNormal, new THREE.Vector3(1, 0, 0)).normalize();
+  const galaxyLook = { ...DEFAULT_SKY.galaxy, ...L.galaxy };
+  const galNormal = new THREE.Vector3(...galaxyLook.normal).normalize();
+  const galCenter = galaxyLook.centre
+    ? new THREE.Vector3(...galaxyLook.centre).projectOnPlane(galNormal).normalize()
+    : new THREE.Vector3().crossVectors(galNormal, new THREE.Vector3(1, 0, 0)).normalize();
   const inBand = (d, max) => Math.abs(d.dot(galNormal)) < max;
   const pick = (test) => { let d; do d = unit(); while (!test(d) || d.dot(sunDir) > 0.85); return d; };
+  const place = at => (Array.isArray(at) ? new THREE.Vector3(...at).normalize()
+    : at.off !== undefined ? pick(d => !inBand(d, at.off)) : pick(d => inBand(d, at.band ?? 0.3)));
+  const owned = [];   // what dispose gives back
 
-  // Nebulae: emission near the band, reflection, planetary, remnant, dark.
-  const nebulae = [
-    { dir: pick(d => inBand(d, 0.25)), radius: 0.3, kind: 0, gain: 0.32 },
-    { dir: pick(d => !inBand(d, 0.3)), radius: 0.12, kind: 1, gain: 0.22 },
-    { dir: pick(d => !inBand(d, 0.2)), radius: 0.018, kind: 2, gain: 0.55 },
-    { dir: pick(d => inBand(d, 0.5)), radius: 0.16, kind: 3, gain: 0.3 },
-    { dir: pick(d => inBand(d, 0.2)), radius: 0.22, kind: 4, gain: 1 },
-  ];
+  // Nebulae, up to five: emission, reflection, planetary, remnant, dark.
+  const nebulae = L.nebulae.slice(0, 5).map(n => ({ ...n, dir: place(n.at), kind: NEBULA_KINDS[n.kind] ?? 0, tint: n.tint ?? [1, 1, 1] }));
+  while (nebulae.length < 5) nebulae.push({ dir: new THREE.Vector3(0, 1, 0), radius: 0.01, kind: 0, gain: 0, tint: [0, 0, 0] });
   const galaxies = [
     { dir: pick(d => !inBand(d, 0.45)), radius: 0.055, incl: 1.25, pa: 0.6, kind: 0 },
     { dir: pick(d => !inBand(d, 0.45)), radius: 0.018, incl: 0.25, pa: 1.9, kind: 0 },
@@ -461,15 +567,19 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
   ];
 
   const size = Math.min(RENDER.skyFace, renderer.capabilities.maxCubemapSize || 2048);
+  const shapeSeed = (seed - 7) * 3.7;
   const deep = bake(renderer, size, DEEP_FRAGMENT, {
     uSeed: { value: seed * 1.37 },
     uTexel: { value: (Math.PI / 2) / size },
     uGalNormal: { value: galNormal }, uGalCenter: { value: galCenter },
+    uBand: { value: galaxyLook.band }, uStarGain: { value: L.stars },
     uNebula: { value: nebulae.map(n => new THREE.Vector4(n.dir.x, n.dir.y, n.dir.z, n.radius)) },
-    uNebulaKind: { value: nebulae.map((n, i) => new THREE.Vector4(n.kind, 10 + i * 7.3, n.gain, 0)) },
+    uNebulaKind: { value: nebulae.map((n, i) => new THREE.Vector4(n.kind, 10 + i * 7.3 + shapeSeed, n.gain, 0)) },
+    uNebulaTint: { value: nebulae.map(n => new THREE.Vector3(...n.tint)) },
     uGalaxy: { value: galaxies.map(g => new THREE.Vector4(g.dir.x, g.dir.y, g.dir.z, g.radius)) },
     uGalaxyShape: { value: galaxies.map((g, i) => new THREE.Vector4(g.incl, g.pa, g.kind, 3 + i * 5.1)) },
   });
+  owned.push(deep);
   scene.background = deep.texture;
   scene.backgroundIntensity = 1;
 
@@ -477,10 +587,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
   const veil = (s, a, b, gain) => bake(renderer, 512, VEIL_FRAGMENT, {
     uSeed: { value: s }, uTintA: { value: new THREE.Color(...a) }, uTintB: { value: new THREE.Color(...b) }, uGain: { value: gain },
   });
-  const veils = [
-    { map: veil(seed * 3.1, [0.1, 0.42, 0.55], [0.35, 0.2, 0.6], 0.07), axis: unit(), rate: 0.00035 },
-    { map: veil(seed * 5.7, [0.6, 0.18, 0.3], [0.55, 0.38, 0.15], 0.05), axis: unit(), rate: -0.00022 },
-  ].map(v => {
+  const veils = L.veils.map((v, i) => ({ map: veil(seed * (3.1 + 2.6 * i), v.a, v.b, v.gain), axis: unit(), rate: i % 2 ? -0.00022 : 0.00035 })).map(v => {
     const material = new THREE.ShaderMaterial({
       vertexShader: LAYER_VERTEX, fragmentShader: LAYER_FRAGMENT,
       uniforms: { uMap: { value: v.map.texture }, uGain: { value: 1 }, uSpin: { value: new THREE.Matrix3() } },
@@ -490,46 +597,80 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
     mesh.frustumCulled = false;
     mesh.renderOrder = -100;
     scene.add(mesh);
+    owned.push(v.map, mesh);
     return { ...v, mesh, angle: rng.range(0, 6.28) };
   });
 
   // Two drifting layers of bright stars.
   const stars = [
-    { points: starLayer(rng, 2200, 1, 1), axis: unit(), rate: 0.0006, parallax: 0 },
-    { points: starLayer(rng, 3200, 0.55, 0.75), axis: unit(), rate: -0.00035, parallax: 0.04 },
+    { points: starLayer(rng, 2200, L.stars, 1), axis: unit(), rate: 0.0006, parallax: 0 },
+    { points: starLayer(rng, 3200, 0.55 * L.stars, 0.75), axis: unit(), rate: -0.00035, parallax: 0.04 },
   ];
-  for (const s of stars) scene.add(s.points);
+  for (const s of stars) { if (L.brightStars) scene.add(s.points); owned.push(s.points); }
 
-  // The gas giant and its rings.
-  const { radius, distance, ringInner, ringOuter } = SKY.planet;
-  const planetDir = new THREE.Vector3(0.62, 0.1, 0.78).normalize();
-  const center = planetDir.clone().multiplyScalar(distance);
-  const pole = new THREE.Vector3(0.25, 1, -0.18).normalize();
-  const planetUniforms = {
-    uSun: { value: sunDir }, uCenter: { value: center }, uPole: { value: pole }, uRadius: { value: radius },
-    uAlbedo: { value: bakeFlat(renderer, 1024, 512, PLANET_BAKE) },
-  };
-  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64),
-    new THREE.ShaderMaterial({ vertexShader: PLANET_VERTEX, fragmentShader: PLANET_FRAGMENT, uniforms: planetUniforms }));
-  planet.position.copy(center);
-  planet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
-  planet.renderOrder = -50;
-  const rings = new THREE.Mesh(new THREE.RingGeometry(radius * ringInner, radius * ringOuter, 256, 1),
-    new THREE.ShaderMaterial({
-      vertexShader: RING_VERTEX, fragmentShader: RING_FRAGMENT, uniforms: planetUniforms,
-      transparent: true, side: THREE.DoubleSide, depthWrite: false,
-    }));
-  rings.position.copy(center);
-  rings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pole);
-  scene.add(planet, rings);
+  // A black hole: the sky seen through its lens, the cubemap only sampled.
+  const lens = L.hole ? createLens(scene, deep.texture, L.hole, { radius: LAYER_RADIUS * 0.98 }) : null;
+  if (lens) scene.background = null;
+
+  // The gas giant, its air and its rings.
+  if (L.planet) {
+    const P = { ...DEFAULT_SKY.planet, ...L.planet };
+    const pal = typeof P.palette === 'string' ? PALETTES[P.palette] ?? PALETTES.tan : { ...PALETTES.tan, ...P.palette };
+    const { ringInner, ringOuter } = SKY.planet;
+    const radius = P.radius;
+    const center = new THREE.Vector3(...P.dir).normalize().multiplyScalar(P.distance);
+    const pole = new THREE.Vector3(...P.pole).normalize();
+    const albedo = bakeFlat(renderer, 1024, 512, PLANET_BAKE, {
+      uBandA: { value: new THREE.Vector3(...pal.a) }, uBandB: { value: new THREE.Vector3(...pal.b) },
+      uDark: { value: new THREE.Vector3(...pal.dark) }, uStorm: { value: new THREE.Vector3(...pal.storm) },
+      uBands: { value: pal.bands }, uTurb: { value: pal.turb },
+    });
+    owned.push(albedo);
+    const uniforms = {
+      uSun: { value: sunDir }, uCenter: { value: center }, uPole: { value: pole }, uRadius: { value: radius },
+      uAlbedo: { value: albedo.texture }, uRings: { value: P.rings ? 1 : 0 },
+      uAtmo: { value: new THREE.Vector3(...pal.atmo) }, uBacklit: { value: new THREE.Vector3(...pal.backlit) },
+      uRingColour: { value: new THREE.Vector3(...pal.ring) },
+    };
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64),
+      new THREE.ShaderMaterial({ vertexShader: PLANET_VERTEX, fragmentShader: PLANET_FRAGMENT, uniforms }));
+    planet.position.copy(center);
+    planet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
+    planet.renderOrder = -50;
+    const air = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.07, 96, 64),
+      new THREE.ShaderMaterial({
+        vertexShader: RING_VERTEX, fragmentShader: ATMO_FRAGMENT, uniforms,
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+    air.position.copy(center);
+    air.renderOrder = -49;
+    scene.add(planet, air);
+    owned.push(planet, air);
+    if (P.rings) {
+      const rings = new THREE.Mesh(new THREE.RingGeometry(radius * ringInner, radius * ringOuter, 256, 1),
+        new THREE.ShaderMaterial({
+          vertexShader: RING_VERTEX, fragmentShader: RING_FRAGMENT, uniforms,
+          transparent: true, side: THREE.DoubleSide, depthWrite: false,
+        }));
+      rings.position.copy(center);
+      rings.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pole);
+      scene.add(rings);
+      owned.push(rings);
+    }
+  }
 
   const spin = new THREE.Matrix4(), m3 = new THREE.Matrix3();
+  const core = sunLook.colour, corona = sunLook.corona;
+  // The disc keeps its size in the sky wherever it is drawn.
+  const reach = sunLook.size * sunLook.distance / SKY.sunDistance;
   let time = 0;
   return {
     sunDir,
     environment: deep.texture,
+    lens,
     update(camera, dt, glow) {
       time += dt;
+      lens?.update(camera, dt);
       for (const v of veils) {
         v.mesh.position.copy(camera.position);
         spin.makeRotationAxis(v.axis, v.angle + time * v.rate);
@@ -541,11 +682,26 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
         s.points.setRotationFromAxisAngle(s.axis, time * s.rate);
       }
       // The sun: a white disc with a warm corona, far enough to sit behind everything.
-      const d = SKY.sunDistance, p = camera.position;
+      const d = sunLook.distance, p = camera.position;
       const x = p.x + sunDir.x * d, y = p.y + sunDir.y * d, z = p.z + sunDir.z * d;
-      glow?.add(x, y, z, 420, 1, 0.97, 0.9, 40);
-      glow?.add(x, y, z, 1600, 1, 0.82, 0.6, 2.2);
-      glow?.add(x, y, z, 5200, 1, 0.75, 0.5, 0.35);
+      glow?.add(x, y, z, 420 * reach, core[0], core[1], core[2], 40 * sunLook.glow);
+      glow?.add(x, y, z, 1600 * reach, corona[0], corona[1], corona[2], 2.2 * sunLook.glow);
+      glow?.add(x, y, z, 5200 * reach, corona[0], corona[1] * 0.92, corona[2] * 0.83, 0.35 * sunLook.glow);
+    },
+    /* Give the look's memory back: the cubemaps alone are a few hundred
+       megabytes of video memory. */
+    dispose() {
+      lens?.dispose();
+      if (scene.background === deep.texture) scene.background = null;
+      if (scene.environment === deep.texture) scene.environment = null;
+      for (const o of owned) {
+        if (o.isObject3D) {
+          scene.remove(o);
+          o.geometry.dispose();
+          o.material.dispose();
+        } else o.dispose();
+      }
+      owned.length = 0;
     },
   };
 }

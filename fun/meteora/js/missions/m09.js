@@ -1,4 +1,4 @@
-/* Mission 9 — The Narrows. Evacuation convoy, with surprises.
+/* Mission 10 (m09.js: The Well was added as the ninth) — The Narrows. Evacuation convoy, with surprises.
 
    The last transports out of Stefanos — three Skiffs and two Mules, with
    the gunship Vigil — run the Narrows to the Long Mercy. Halfway, Skiff 4
@@ -23,8 +23,8 @@ const FIELD = belt({
 });
 
 export default defineMission({
-  id: 'm09', number: 9, title: 'The Narrows', location: 'Stefanos Narrows', dateline: 'Day 38',
-  field: FIELD, fieldSeed: 9099, seed: 909, par: 540,
+  id: 'm09', number: 10, title: 'The Narrows', location: 'Stefanos Narrows', dateline: 'Day 38',
+  field: FIELD, fieldSeed: 9099, seed: 909, par: 540, env: 'narrows',
   start: { pos: START, forward: dir(ROUTE[0], ROUTE[1]), speed: 60 },
   area: { centre: [0, 0, 0], radius: 7500 },
   models: ['fighter', 'interceptor', 'talon', 'shuttle', 'freighter', 'halberd', 'mother', 'colony', 'drone'],
@@ -36,7 +36,7 @@ export default defineMission({
   needs: { fighters: true, intercept: true, endurance: true },
   briefing: {
     stages: [
-      { text: 'Stefanos is the last settlement in the belt. Its people are aboard three Skiffs and two Mules, and the only way to the Long Mercy is the Narrows: eight kilometres of thick rock.', focus: ROUTE[1] },
+      { text: 'Stefanos is the last settlement. Its people are aboard three Skiffs and two Mules, and after Roussanou nobody folds: the only way to the Long Mercy is the Narrows, eight kilometres of rock.', focus: ROUTE[1] },
       { text: 'The gunship Vigil escorts them; Lantern Wing rides with the transports. The Harrow know we are leaving. Expect them everywhere.', focus: ROUTE[3] },
       { text: 'At least three transports must reach the Long Mercy. There is no more room anywhere else.', focus: MERCY },
     ],
@@ -50,9 +50,9 @@ export default defineMission({
     routes: [{ path: ROUTE, kind: 'convoy' }],
   },
   objectivesPreview: [
-    { text: 'At least three transports reach the Long Mercy' },
+    { text: 'Three transports reach the Long Mercy' },
     { text: 'All loyal transports arrive', bonus: true },
-    { text: 'Destroy the compromised transport within 30 s', bonus: true },
+    { text: 'Destroy the traitor within 30 s', bonus: true },
   ],
   debrief: {
     won: 'The Narrows are behind us and the Long Mercy is as full as she will ever be: forty-one thousand people, three hundred years after the Perpetua brought their ancestors here. Skiff 4 had been boarded at the docks while it loaded; no one aboard survived the boarding. Okonkwo says the seeds in its hold were hours from opening. The drive is ready, or as ready as Okonkwo can make it. One jump left.',
@@ -78,7 +78,7 @@ export default defineMission({
     const T = tally(m, loyal);
     const vigil = w.byId.get(m.flags.vigil);
     const lead = () => loyal.find(e => e.alive && !T.arrived.has(e.id)) ?? loyal[0];
-    m.objective('arrive', 'At least three transports reach the Long Mercy', { count: { n: 0, of: 4 } });
+    m.objective('arrive', 'Three transports reach the Long Mercy', { count: { n: 0, of: 4 } });
     m.objective('all', 'All loyal transports arrive', { bonus: true });
     for (const s of loyal) onDeath(m, s, () => {
       m.fail('all');
@@ -117,8 +117,8 @@ export default defineMission({
       // No bays on a Skiff: its hold launches from the hull.
       traitor.launchFromHull = true;
       w.events.push({ type: 'turncoat', id: traitor.id });
-      m.objective('traitor', 'Destroy Skiff 4 before it reaches the Long Mercy');
-      m.objective('fast', 'Destroy the compromised transport within 30 s', { bonus: true });
+      m.objective('traitor', 'Stop Skiff 4 before it docks');
+      m.objective('fast', 'Destroy the traitor within 30 s', { bonus: true });
       const turned = m.time;
       onDeath(m, traitor, () => {
         m.complete('traitor');
@@ -129,9 +129,9 @@ export default defineMission({
       m.on('arrived', ev => { if (ev.id === traitor.id && traitor.alive) m.fail('traitor', 'Skiff 4 reached the Long Mercy with a hold full of seeds.'); });
       m.target(traitor);
       yield m.say('mule', 'Skiff 4 is off the lane — Skiff 4, respond!');
-      yield m.say('okonkwo', 'Its transponder just changed. Lantern — it\'s Harrow. They boarded it at the docks. That hold is full of seeds!');
-      yield m.say('halo', 'Vigil will not fire on a transport without a confirmed kill order. Lantern, it\'s your call — and your shot.');
-      m.hint('Skiff 4 is yours to stop: T selects it, 1 sends your wing after it.', 8);
+      yield m.say('okonkwo', 'Its transponder changed. It\'s Harrow — boarded at the docks. That hold is full of seeds!');
+      yield m.say('halo', 'Vigil won\'t fire on a transport without a kill order. Your call, Lantern — your shot.');
+      m.hint('Stop Skiff 4: {cycleTarget} selects it, {wingAttack} sends your wing.', 8);
     }
 
     // The Mother across the route.

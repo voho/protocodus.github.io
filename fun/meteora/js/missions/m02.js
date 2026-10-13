@@ -22,7 +22,7 @@ const FIELD = belt({
 
 export default defineMission({
   id: 'm02', number: 2, title: 'Ore Run', location: 'Roussanou lane', dateline: 'Day 21',
-  field: FIELD, fieldSeed: 2025, seed: 202, par: 420,
+  field: FIELD, fieldSeed: 2025, seed: 202, par: 420, env: 'roussanou',
   start: { pos: START, forward: dir(ROUTE[0], ROUTE[1]), speed: 50 },
   area: { centre: [0, 0, 0], radius: 7500 },
   models: ['fighter', 'interceptor', 'freighter', 'perpetua', 'drone', 'swift'],
@@ -48,12 +48,12 @@ export default defineMission({
     routes: [{ path: ROUTE, kind: 'convoy' }],
   },
   objectivesPreview: [
-    { text: 'Escort the Mule convoy to the Perpetua (at least 2 of 3)' },
+    { text: 'Bring at least two Mules home' },
     { text: 'All three Mules arrive', bonus: true },
     { text: 'No Mule drops below half hull', bonus: true },
   ],
   debrief: {
-    won: 'The ore reached Varlaam two days later and the smelters lit again. Okonkwo spent the night inside the wrecks you brought back and came out with one finding: the raiders fold in from a single direction, the Kalavryta Deep, where the belt is too dense for anyone to live. Something out there is building them.',
+    won: 'The ore reached Varlaam two days later and the smelters lit again. Okonkwo spent the night inside the wrecks you brought back and came out with two findings. The raiders fold in from a single direction, the Kalavryta Deep, where the belt is too dense for anyone to live: something out there is building them. And their hull plate is rolled to an Earth gauge nobody in the belt has used for a century. She would not say what she thought that meant.',
     lost: 'Too much ore was lost in the lane. Varlaam rationed its smelters, and the Watch learned that the raiders want freighters more than fighters.',
   },
 
@@ -71,7 +71,7 @@ export default defineMission({
     const mules = m.flags.mules.map(id => w.byId.get(id));
     const T = tally(m, mules);
     const lead = () => mules.find(e => e.alive && !T.arrived.has(e.id)) ?? mules[0];
-    m.objective('convoy', 'Escort the Mule convoy to the Perpetua (at least 2 of 3)', { count: { n: 0, of: 3 } });
+    m.objective('convoy', 'Bring at least two Mules home', { count: { n: 0, of: 3 } });
     m.objective('all', 'All three Mules arrive', { bonus: true });
     m.objective('half', 'No Mule drops below half hull', { bonus: true, passOnWin: true });
     m.on('shipHit', ev => {
@@ -88,7 +88,7 @@ export default defineMission({
     yield m.say('doukas', 'Lantern, the Mules are yours. Roussanou to the Perpetua, nine kilometres, no detours.');
     yield m.say('mule', 'Mule One to escort. We\'re slow and we\'re full. Don\'t let them near us.');
     m.say('wren', 'Lantern Three on station. Let\'s get these rocks home.');
-    m.hint('Y cycles friendly ships; their hulls are listed top right. 1 sends your wing at your target, 2 has them cover you.', 9);
+    m.hint('{wingAttack}: wing attacks your target. {wingCover}: wing covers you.', 9);
 
     // The rockslide waits for the convoy, however the fighting goes: it
     // falls across the lane as the lead Mule comes within 900 m of it.
@@ -102,14 +102,15 @@ export default defineMission({
         const pos = add(SLIDE, [across[0] * off + m.rng.range(-20, 20), m.rng.range(-50, 50), across[2] * off + m.rng.range(-30, 30)]);
         slide.boulders.push(m.spawn('boulder', { pos, name: `Boulder ${k + 1}`, objective: true, fold: false, tags: ['boulder'] }));
       }
+      // The rock is Lantern One's to clear: the wing keeps the raiders off
+      // unless it is sent at a boulder (1, on the boulder targeted).
       const wing = m.tagged('lantern');
-      for (const e of wing) e.prefer = 'boulder';
       for (const e of mules) if (e.helm) e.helm.halt = true;
       m.music('combat');
       yield m.say('mule', 'Rockslide in the lane! We can\'t push through that!');
       m.objective('slide', 'Clear the rockslide', { count: { n: 0, of: slide.boulders.length } });
       m.say('doukas', 'Lantern, clear that lane. Breakers would be nice about now.');
-      m.hint('The boulders are objectives: Y selects them.', 7);
+      m.hint('The boulders are objectives: {cycleFriendly} selects them, {wingAttack} sends your wing at the one you have.', 9);
       if (w.player.loadout.primary !== 'breaker') m.say('saint', 'Pulse on rock. We\'ll be here a while.');
       slide.rocks = wave(m, 'thorn', m.n(4), add(SLIDE, [500, -300, 400]), { toward: lead(), prefer: 'convoy', fold: false });
       m.say('wren', 'Movement in the rocks — they were waiting for us to stop!');
@@ -119,7 +120,7 @@ export default defineMission({
         return left === 0;
       });
       m.complete('slide');
-      for (const e of wing) e.prefer = null;
+      for (const e of wing) if (e.orders?.type === 'attack' && e.orders.target?.tags?.has('boulder')) e.orders = { type: 'cover' };
       for (const e of mules) if (e.helm) e.helm.halt = false;
       slide.done = true;
       yield m.say('mule', 'Lane\'s clear. Moving!');
@@ -132,6 +133,10 @@ export default defineMission({
     yield m.say('saint', 'Here they come — they\'re going for the freighters!');
     yield m.until(() => w1.every(e => !e.alive) || m.time > 120);
     if (!slide.boulders.length) m.music('calm');
+    if (w1.every(e => !e.alive)) {
+      yield m.say('saint', 'Look at that wreck, Lantern. Under the red paint — that\'s rolled hull plate. Old gauge. Like the Perpetua\'s ribs.');
+      m.say('okonkwo', 'Bring me a piece of it. Any piece.');
+    }
 
     // The second wave meets the convoy at the halfway waypoint (or now, if
     // the convoy is already past it).
@@ -140,7 +145,7 @@ export default defineMission({
     m.music('combat');
     const w2 = wave(m, 'thorn', m.n(5), m.offscreen(lead(), 1600), { toward: lead(), prefer: 'convoy' });
     m.say('wren', 'More of them, high and to the side!');
-    m.hint('Kills within four seconds of each other build a streak multiplier.', 6);
+    m.hint('Quick kills build a streak.', 6);
 
     yield m.until(() => slide.done);
     yield m.until(() => [...w2, ...slide.rocks].every(e => !e.alive) || m.time > 400);

@@ -33,7 +33,7 @@ const CAST = [
   ['mule', { sex: 'm', accents: ['en-IN', 'en-US', 'en-GB'], pitch: 0.96, rate: 1.0 }],
   // The prologue's and the debriefs' storyteller. Never on the radio, so it
   // takes the best voice whoever else has it.
-  ['narrator', { sex: 'm', accents: ['en-GB', 'en-IE', 'en-US'], pitch: 0.86, rate: 0.94, offAir: true }],
+  ['narrator', { sex: 'm', accents: ['en-GB', 'en-IE', 'en-US'], pitch: 0.74, rate: 0.94, offAir: true }],
   ['tender', { robot: /zarvox|albert/i, pitch: 1.35, rate: 1.15 }],
   ['system', { robot: /fred|ralph/i, pitch: 0.9, rate: 1.1 }],
   ['harrow', { robot: /trinoids|zarvox/i, pitch: 0.1, rate: 0.72 }],
@@ -83,9 +83,9 @@ export function castVoices(voices) {
       if (!part.offAir) score -= 3 * (used.get(v) ?? 0);
       if (score > bestScore) { bestScore = score; best = v; }
     }
-    if (part.offAir) { cast.set(who, { voice: best, pitch: part.pitch, rate: part.rate }); continue; }
-    used.set(best, (used.get(best) ?? 0) + 1);
-    // Two parts on one voice keep their pitches well apart.
+    // Reuse counts against the radio parts only; but every part on a
+    // voice, the narrator too, keeps its pitch well apart from the others.
+    if (!part.offAir) used.set(best, (used.get(best) ?? 0) + 1);
     const taken = pitches.get(best) ?? [];
     let pitch = part.pitch;
     for (let k = 1; k < 9 && taken.some(p => Math.abs(p - pitch) < 0.08); k++) pitch = Math.round((part.pitch + (k % 2 ? -1 : 1) * 0.09 * Math.ceil(k / 2)) * 100) / 100;
@@ -109,7 +109,9 @@ export function createVoices({ volume = () => 1 } = {}) {
 
   const recast = () => { cast = castVoices(synth.getVoices()); };
   // Not every engine announces its voices: look again when one is needed.
-  const partFor = who => { if (!cast.size && synth) recast(); return cast.get(who); };
+  // Parts that share another's voice.
+  const ALIAS = { convoy: 'mule' };
+  const partFor = who => { if (!cast.size && synth) recast(); return cast.get(ALIAS[who] ?? who); };
   if (synth) {
     recast();
     synth.addEventListener?.('voiceschanged', recast);

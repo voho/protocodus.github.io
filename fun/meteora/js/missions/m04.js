@@ -19,14 +19,14 @@ const SEEDS = [
 ].map(([c, b, d, y]) => at(c, b, d, y));
 
 const FIELD = belt({
-  spawn: START, density: 1.0, landmarks: 3,
+  spawn: START, density: 0.65, landmarks: 3,
   clear: [{ pos: VARLAAM, r: 650 }, ...SEEDS.map(p => ({ pos: p, r: 90 }))],
   lanes: SEEDS.map(p => ({ a: p, b: VARLAAM, r: 70 })),
 });
 
 export default defineMission({
   id: 'm04', number: 4, title: 'Seedfall', location: 'Varlaam Deep', dateline: 'Day 27',
-  field: FIELD, fieldSeed: 4040, seed: 404, par: 480,
+  field: FIELD, fieldSeed: 4040, seed: 404, par: 480, env: 'varlaam',
   start: { pos: START, forward: dir(START, SEEDS[0]), speed: 60 },
   area: { centre: VARLAAM, radius: 6000 },
   models: ['fighter', 'interceptor', 'mite', 'seed', 'station', 'anvil', 'drone'],
@@ -58,7 +58,7 @@ export default defineMission({
     { text: 'Varlaam takes no impact', bonus: true },
   ],
   debrief: {
-    won: 'Varlaam held. The seeds were fused stone and Harrow metal all the way through: Okonkwo found the same machine-script etched into every nodule, the same patient instructions — grow, ripen, open. Throwing three of them at the station was not in any instruction she could read. It was improvisation. That frightened her more than the swarms.',
+    won: 'Varlaam held. The seeds were fused stone and Harrow metal all the way through: Okonkwo found the same machine-script etched into every nodule, the same patient instructions — grow, ripen, open — in a grammar she had seen before, in the Perpetua\'s own fabricator archive, three hundred years old. Throwing three of them at the station was not in any instruction she could read. It was improvisation. That frightened her more than the swarms.',
     lost: 'Varlaam took one rock too many. The Watch pulled the survivors out through the wreckage, and the seeds kept ripening.',
   },
 
@@ -99,7 +99,7 @@ export default defineMission({
     yield m.say('okonkwo', 'Seeds. Fabricator nodes grown into the stone. When they\'re ripe, they open.');
     yield m.say('doukas', 'Then don\'t let them ripen. Lantern Wing, weapons free.');
     m.say('saint', 'Our Pulse guns won\'t dent that stone, Lead. You crack the rocks — Wren and I keep the Thorns off you.');
-    m.hint('T cycles hostile targets: every seed is one. Breakers and Lances are what crack them.', 9);
+    m.hint('Seeds are targets ({cycleTarget}). Breakers and Lances crack them.', 9);
     // A few Thorns guard the garden.
     m.thread((function* () {
       yield m.wait(25);

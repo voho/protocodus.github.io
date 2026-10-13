@@ -9,20 +9,18 @@
    finally read in full. */
 
 import { defineMission } from '../mission.js';
-import { belt, lanesOf } from './belt.js';
+import { belt } from './belt.js';
 import { add, dir, lerp3, onDeath, wave } from './kit.js';
 
 const ROUTE = [[-3400, 0, -2800], [-1800, 150, -1200], [-200, -80, 200], [1500, 60, 1500], [3100, 120, 2900]];
 const START = [-300, 500, 2000];
-const FIELD = belt({
-  spawn: START, density: 1.1, landmarks: 3,
-  clear: [{ pos: ROUTE[4], r: 400 }, { pos: ROUTE[0], r: 400 }],
-  lanes: lanesOf(ROUTE, 230),
-});
+// Open space: the drag runs between the belt and the Anchorage, and
+// nothing out here hides a hauler but the dark.
+const FIELD = belt({ spawn: START, density: 0, landmarks: 0 });
 
 export default defineMission({
   id: 'm07', number: 7, title: 'Cut the Line', location: 'The Roussanou drag', dateline: 'Day 33',
-  field: FIELD, fieldSeed: 7077, seed: 707, par: 540,
+  field: FIELD, fieldSeed: 7077, seed: 707, par: 540, env: 'drag',
   start: { pos: START, forward: dir(START, ROUTE[1]), speed: 80 },
   area: { centre: [0, 0, 0], radius: 7500 },
   models: ['fighter', 'interceptor', 'maul', 'warden', 'talon', 'drone'],
@@ -34,7 +32,7 @@ export default defineMission({
   needs: { shields: true, fighters: true },
   briefing: {
     stages: [
-      { text: 'The Mothers are eating the belt. Haulers — rock cores stripped from Roussanou\'s mines, each towed by two Maul tugs — are dragging our metal toward a fold point and the Deep Anchorage beyond.', focus: ROUTE[0] },
+      { text: 'The Mothers are eating the belt. Haulers — rock cores from Roussanou\'s mines, each towed by two Maul tugs — are dragging our metal to a fold point.', focus: ROUTE[0] },
       { text: 'Cut the line. Destroy both tugs and a hauler drifts dead; crack the core itself and it is gone. Stop at least four of the six.', focus: ROUTE[2] },
       { text: 'Wardens escort them: corvettes with turrets, best avoided. And pilots have reported a white Thorn that flies like a person. They call it the Ninth Hand.', focus: ROUTE[3] },
     ],
@@ -125,7 +123,7 @@ export default defineMission({
 
     yield m.say('doukas', 'Lantern, there\'s the line. Six haulers. Cut it.');
     m.say('okonkwo', 'The tugs are shielded like nothing we\'ve seen on a drone. Strip the shields, then the tug.');
-    m.hint('T cycles targets: tugs are Mauls flying beside each rock core. Two dead tugs and the hauler stops.', 9);
+    m.hint('Each hauler has two tugs. Kill both and it stops.', 9);
     for (let k = 0; k < 3; k++) launch(k, k * 420);
     const warden = m.spawn('warden', { team: 1, pos: add(ROUTE[1], [200, 200, 300]), forward: dir(ROUTE[1], ROUTE[2]), name: 'Warden', tags: ['escort'],
       helm: { path: ROUTE.slice(2), speed: 34, then: 'hold' } });
@@ -139,7 +137,11 @@ export default defineMission({
     const ninth = m.spawn('ninth', { team: 1, pos: m.offscreen(m.player, 1400), forward: dir(m.offscreen(m.player, 1400), m.player.ship.pos), name: 'Ninth Hand', fold: true, tags: ['ace'] });
     ninth.orders = { type: 'attack', target: w.player };
     ninth.missiles = 4; ninth.missileWeapon = 'barb';
-    onDeath(m, ninth, () => { m.complete('ninth'); m.say('saint', 'The white one\'s down! Lantern got the Ninth Hand!'); });
+    onDeath(m, ninth, () => {
+      m.complete('ninth');
+      m.say('saint', 'The white one\'s down! Lantern got the Ninth Hand!');
+      m.say('okonkwo', 'Its core is full of flight recorders. Ours. It learned to fly from the pilots it harvested.');
+    });
     yield m.say('wren', 'Lantern, the white one — it\'s on you. It\'s fast!');
     m.say('okonkwo', 'It flies like a person. Like it learned from us.');
 
@@ -160,6 +162,7 @@ export default defineMission({
       yield m.say('okonkwo', '"Vanguard Seven. Perpetua Program. Task: prepare habitat. Status: in progress."');
       yield m.say('doukas', '…Say again, Doctor?');
       yield m.say('okonkwo', 'They\'re ours. The Harrow are the Vanguard. They never stopped working.');
+      yield m.say('okonkwo', 'VG-07, Commander. Vanguard Seven. It was cast on the reactor in the Deep the whole time.');
       m.win();
     } else m.fail('stop', 'Too many haulers got through.');
   },

@@ -24,7 +24,7 @@ const FIELD = belt({
 // between B and C, and on the way in to A.
 // (Each loop is clear of the belt's rocks: a sentry's helm does not steer
 // round them.)
-const PATROLS = [[[-580, 30, -1190], 420], [[450, 40, -3100], 500], [[-900, 100, 300], 400]];
+const PATROLS = [[[-580, 30, -1170], 460], [[450, 40, -3100], 500], [[-900, 100, 300], 400]];
 const EYES = [
   [SIG_A, 30, 520], [SIG_A, 200, 600], [SIG_B, 90, 380], [SIG_B, 260, 560], [SIG_B, 10, 820],
   [SIG_C, 120, 900], [SIG_C, 240, 900], [SIG_C, 0, 1000], [[0, 0, -1200], 0, 300], [[-600, 0, -2600], 40, 200],
@@ -32,7 +32,7 @@ const EYES = [
 
 export default defineMission({
   id: 'm03', number: 3, title: 'Deep Signal', location: 'Kalavryta Deep', dateline: 'Day 24',
-  field: FIELD, fieldSeed: 777, seed: 303, par: 480,
+  field: FIELD, fieldSeed: 777, seed: 303, par: 480, env: 'kalavryta',
   start: { pos: START, forward: dir(START, SIG_A), speed: 40 },
   area: { centre: [0, 0, -1000], radius: 7000 },
   models: ['interceptor', 'sentry', 'mother', 'freighter', 'fighter', 'swift', 'drone'],
@@ -45,7 +45,7 @@ export default defineMission({
   briefing: {
     stages: [
       { text: 'Okonkwo has traced the raiders\' fold flashes to the Kalavryta Deep — rock so thick nobody has ever settled it. Three signals stand out. Find out what they are.', focus: SIG_B },
-      { text: 'The Harrow watch the Deep with Eyes: drifting sentries that see heat, speed and gunfire. Stay inside an Eye\'s range for a second and it will call for help. A rock between you and it hides you completely.', focus: SIG_A },
+      { text: 'Eyes watch the Deep: drifting sentries that see heat, speed and gunfire. Linger in an Eye\'s range and it calls for help. A rock between you hides you.', focus: SIG_A },
       { text: 'Scan each signal and get out through the fold point. You fly alone; Wren waits at the edge of the Deep.', focus: SIG_C },
     ],
   },
@@ -112,7 +112,10 @@ export default defineMission({
     m.on('scanned', ev => {
       if (ev.label?.startsWith('Signal A')) m.complete('a');
       if (ev.label?.startsWith('Signal B')) m.complete('b');
-      if (ev.label === 'Mother reactor') { m.complete('reactor'); m.say('okonkwo', 'Reactor signature logged. Oh, that\'s beautiful. And terrible.'); }
+      if (ev.label === 'Mother reactor') {
+        m.complete('reactor');
+        m.say('okonkwo', 'Reactor logged. And there\'s a number cast into the housing — V-G, zero, seven. That\'s no registry of ours.');
+      }
     });
     m.on('detected', () => {
       alarms++;
@@ -127,9 +130,9 @@ export default defineMission({
       if (alarms <= 3) wave(m, 'thorn', m.n(alarms === 1 ? 3 : 2), m.offscreen(m.player, 1300), { toward: m.player });
     });
 
-    yield m.say('doukas', 'This one\'s quiet, Lantern. Three signals. Look, scan, leave. If anything with a red eye looks at you — you were never there.');
+    yield m.say('doukas', 'Three signals, Lantern. Look, scan, leave. If anything with a red eye sees you — you were never there.');
     yield m.say('okonkwo', 'The Eyes see heat and noise. Keep your speed down and your guns cold. Rocks are your friends today.');
-    m.hint('Near an Eye its range is drawn around it: stay outside, or keep a rock between you. Slower is quieter.', 10);
+    m.hint('Stay outside an Eye\'s ring or behind a rock. Slower is quieter.', 10);
     yield m.until(() => m.done('a') || m.done('b'));
     if (m.done('a')) yield m.say('saint', 'They\'re… taking it apart. Plate by plate.');
     yield m.until(() => m.done('a') && m.done('b'));
@@ -157,7 +160,7 @@ export default defineMission({
     m.showNav('out');
     m.hideNav('a'); m.hideNav('b'); m.hideNav('c');
     const run = Math.round(150 * (w.diff.key === 'recruit' ? 1.4 : w.diff.key === 'ace' ? 0.85 : 1));
-    m.objective('run', `Reach the fold point within ${fmtTime(run)}`);
+    m.objective('run', `Reach the fold point in ${fmtTime(run)}`);
     m.timer('run', 'Fold point', run);
     m.on('timerDone', ev => { if (ev.id === 'run' && !m.done('run')) m.fail('run', 'The Harrow cut off your escape.'); });
     m.thread((function* () {

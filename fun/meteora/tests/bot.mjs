@@ -51,8 +51,15 @@ export function createBot(seed = 7) {
     // A beam charging at us: get out of its line.
     const beam = world.entities.find(e => e.alive && e.beam && e.beam.state === 'charge' && e.beam.targetId === p.id);
     if (beam) return { kind: 'dodge', from: beam };
-    // 1. Scans.
-    const scan = world.entities.find(e => e.alive && e.scan && !e.scan.done && !e.hidden && e.team !== 1);
+    // 1. Scans. Near a black hole, the nearest hulk still above the depth
+    // this ship can climb back from — a person triages too.
+    if (world.well) {
+      const floor = world.well.radiusFor(p.ship.stats.accel.forward) * 1.6;
+      const hulk = world.entities.filter(e => e.alive && e.scan && !e.scan.done && !e.hidden && world.well.distance(e.ship.pos) > floor)
+        .sort((a, b) => dist(a.ship.pos, p.ship.pos) - dist(b.ship.pos, p.ship.pos))[0];
+      if (hulk) return { kind: 'scan', target: hulk };
+    }
+    const scan = world.entities.find(e => e.alive && e.scan && !e.scan.done && !e.hidden && e.team !== 1 && !world.well);
     if (scan) return { kind: 'scan', target: scan };
     const objScan = world.entities.find(e => e.alive && e.scan && !e.scan.done && !e.hidden);
     if (objScan) return { kind: 'scan', target: objScan };
@@ -133,8 +140,8 @@ export function createBot(seed = 7) {
       const d = Math.hypot(...v);
       const out = { ...NEUTRAL_CONTROLS };
       out.throttleSet = speed ?? (d > 800 ? 1 : Math.max(0.25, d / 800));
-      // Fly as the pilots do, clear of rocks and hulls.
-      steerClear(p, { field: world.field, larges: world.larges }, d > 1e-6 ? v.map(x => x / d) : forward([0, 0, 0], p.ship), out);
+      // Fly as the pilots do, clear of rocks and hulls (and out of a well).
+      steerClear(p, { field: world.field, larges: world.larges, well: world.well }, d > 1e-6 ? v.map(x => x / d) : forward([0, 0, 0], p.ship), out);
       out.boost = (d > 2500 || (running && d > 1500)) && !sneaking;
       if (d < near) out.throttleSet = 0.1;
       return out;
@@ -145,7 +152,16 @@ export function createBot(seed = 7) {
       const at = g.sub ? subsystemWorld([0, 0, 0], t, g.sub) : t.ship.pos;
       const range = (g.sub ? g.sub.scan : t.scan).range;
       const quiet = sneaking;
-      c = fly(at, quiet ? 0.2 : null, Math.max(80, range * 0.5));
+      const tv = Math.hypot(...t.ship.vel);
+      if (tv > 15 && !g.sub) {
+        // A falling hulk: lead it, and come alongside at its own speed.
+        const d = dist(at, p.ship.pos);
+        const lead = at.map((x, k) => x + t.ship.vel[k] * Math.min(8, d / 300));
+        c = fly(lead);
+        c.throttleSet = null;
+        c.speedSet = Math.max(0, tv + Math.max(-60, Math.min(160, (d - range * 0.4) / 4)));
+        c.boost = d > 2500 || c.speedSet > p.ship.stats.fa.forwardSpeed;
+      } else c = fly(at, quiet ? 0.2 : null, Math.max(80, range * 0.5));
     } else if (g.kind === 'nav') {
       let to = g.nav.pos;
       // The drive ring is a hoop: line up on its axis ahead of the bow, then

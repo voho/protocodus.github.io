@@ -48,12 +48,14 @@ export function createShip(stats, { pos, vel, q } = {}) {
     accelLocal: [0, 0, 0],
     alphaLocal: [0, 0, 0],
     afterburner: false,
+    burnTime: 0, burnRamp: 0,   // how long the afterburner has been held, and its build-up 0 → 1
     thrust: 0,
     cruise: 0,   // the forward speed flight assist is holding, m/s
   };
 }
 
 export const forward = (o, ship) => qRotate(o, ship.q, [0, 0, -1]);
+export const BURN_BUILD = 2.5;   // s for the afterburner to build to full
 
 /* Mouse flight: the stick that swings the nose toward a world direction.
    The command grows with the angle off the nose and saturates at full
@@ -84,7 +86,8 @@ export function stepShip(ship, c, dt) {
   // spending its energy — and the throttle follows it, so letting go of the
   // lock leaves the ship where it was.
   const speedSet = c.speedSet != null ? clamp(c.speedSet, 0, S.fa.boostSpeed) : null;
-  if (speedSet != null) ship.throttle = speedSet / S.fa.forwardSpeed;
+  // A hulk with no cruise speed has no throttle to set.
+  if (speedSet != null) ship.throttle = S.fa.forwardSpeed > 0 ? speedSet / S.fa.forwardSpeed : 0;
   else if (c.throttleSet != null) ship.throttle = c.throttleSet;
   else if (c.throttleZero) ship.throttle = 0;
   else ship.throttle += c.throttleDelta * S.throttle.rampPerSecond * dt;
@@ -106,12 +109,18 @@ export function stepShip(ship, c, dt) {
     if (ship.boostLocked && ship.boost >= S.boost.relock) ship.boostLocked = false;
   }
   ship.afterburner = burning;
+  // The afterburner builds: held longer, it pushes harder and runs faster —
+  // twice the thrust and a third more speed after BURN_BUILD seconds.
+  ship.burnTime = burning ? ship.burnTime + dt : 0;
+  ship.burnRamp = Math.min(1, ship.burnTime / BURN_BUILD);
+  const boostAccel = A.boost * (1 + ship.burnRamp);
+  const boostSpeed = S.fa.boostSpeed * (1 + 0.35 * ship.burnRamp);
 
   const a = ship.accelLocal;
-  const forwardMax = burning ? A.boost : A.forward;
+  const forwardMax = burning ? boostAccel : A.forward;
   if (ship.fa) {
     const tau = Math.max(S.fa.tau, dt);
-    const target = burning ? S.fa.boostSpeed : speedSet ?? ship.throttle * S.fa.forwardSpeed;
+    const target = burning ? boostSpeed : speedSet ?? ship.throttle * S.fa.forwardSpeed;
     ship.cruise = target;
     qRotateInv(vLocal, ship.q, ship.vel);
     a[0] = clamp((c.strafe * S.fa.strafeSpeed - vLocal[0]) / tau, -A.lateral, A.lateral);
@@ -120,7 +129,7 @@ export function stepShip(ship, c, dt) {
   } else {
     a[0] = c.strafe * A.lateral;
     a[1] = c.lift * A.lateral;
-    if (burning) a[2] = -A.boost;
+    if (burning) a[2] = -boostAccel;
     else if (ship.throttle >= 0) a[2] = -ship.throttle * A.forward;
     else a[2] = (ship.throttle / S.throttle.min) * A.reverse;
   }

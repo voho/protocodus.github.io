@@ -15,14 +15,14 @@ const FOLD = [2600, 300, 1800];
 const START = [-300, 200, -1300];
 
 const FIELD = belt({
-  spawn: START, density: 0.95, landmarks: 3,
+  spawn: START, density: 0.85, landmarks: 3,
   clear: [{ pos: VARLAAM, r: 650 }, { pos: FOLD, r: 300 }],
   lanes: [{ a: VARLAAM, b: FOLD, r: 200 }],
 });
 
 export default defineMission({
   id: 'm05', number: 5, title: 'Hold Varlaam', location: 'Varlaam Deep', dateline: 'Day 30',
-  field: FIELD, fieldSeed: 4041, seed: 505, par: 420,
+  field: FIELD, fieldSeed: 4041, seed: 505, par: 420, env: 'varlaamLate',
   start: { pos: START, forward: dir(START, VARLAAM), speed: 40 },
   area: { centre: VARLAAM, radius: 6000 },
   models: ['fighter', 'interceptor', 'maul', 'talon', 'station', 'shuttle', 'torpedo', 'swift', 'drone'],
@@ -48,13 +48,13 @@ export default defineMission({
     routes: [{ path: [VARLAAM, FOLD], kind: 'convoy' }],
   },
   objectivesPreview: [
-    { text: 'Protect Varlaam until the evacuation is complete' },
+    { text: 'Hold Varlaam until it is evacuated' },
     { text: 'At least four of six Skiffs escape' },
     { text: 'All six Skiffs escape', bonus: true },
     { text: 'No torpedo strikes Varlaam', bonus: true },
   ],
   debrief: {
-    won: 'Varlaam is empty: three thousand people asleep in the Perpetua\'s holds and corridors, and a rock with its lights still burning behind them. Wren flew home on a Tender\'s tow line and did not say a word until she had seen her mother\'s name on the manifest. The Harrow have bombers now. Every pilot in the Watch has seen the gun-camera footage of the Mauls lining up, and nobody is joking about red eyes any more.',
+    won: 'Varlaam is empty: three thousand people asleep in the Perpetua\'s holds and corridors, and a rock with its lights still burning behind them. Wren flew home on a Tender\'s tow line and did not say a word until she had seen her mother\'s name on the manifest. The Harrow have bombers now. Every pilot in the Watch has seen the gun-camera footage of the Mauls lining up, and nobody is joking about red eyes any more. Okonkwo watches a different half-second of it, over and over: the Perpetua\'s beacon sweeping the formation, and every bomber checking its run.',
     lost: 'Varlaam fell with people still aboard. The Watch will remember the names.',
   },
 
@@ -62,7 +62,7 @@ export default defineMission({
     m.wing('kestrel', 2, { names: ['Saint', 'Wren'], tags: ['lantern'] });
     // The harder settings send a third strike; Varlaam's crews have had
     // longer to brace the reactor (it still takes only a handful of hits).
-    const hullScale = { veteran: 1.1, ace: 1.25 }[m.diff.key] ?? 1;
+    const hullScale = { pilot: 1.07, veteran: 1.3, ace: 1.55 }[m.diff.key] ?? 1;
     const v = m.spawn('varlaam', { team: 0, pos: VARLAAM, forward: [0, 0, -1], name: 'Varlaam', objective: true, hullScale });
     m.flag('varlaam', v.id);
     m.nav('fold', 'Fold point', FOLD, { r: 350 });
@@ -75,7 +75,7 @@ export default defineMission({
     const skiffs = [];
     const escaped = () => skiffs.filter(s => s.departed).length;
     const lost = () => skiffs.filter(s => !s.alive && !s.departed).length;
-    m.objective('station', 'Protect Varlaam until the evacuation is complete');
+    m.objective('station', 'Hold Varlaam until it is evacuated');
     m.objective('skiffs', 'At least four of six Skiffs escape', { count: { n: 0, of: 6 } });
     m.objective('allskiffs', 'All six Skiffs escape', { bonus: true });
     m.objective('notorp', 'No torpedo strikes Varlaam', { bonus: true, passOnWin: true });
@@ -142,7 +142,15 @@ export default defineMission({
     m.music('climax');
     yield m.say('saint', 'Big ones — bombers! They\'re lining up on the station!');
     m.say('okonkwo', 'Their torpedoes can be shot down. B targets the nearest one. And kill the bombers before they fire!');
-    m.hint('B targets the nearest incoming torpedo. The red warning shows what it is aimed at.', 8);
+    // The first clue that the Harrow still know their makers.
+    m.thread((function* () {
+      yield m.wait(9);
+      if (!mauls.some(e => e.alive)) return;
+      yield m.say('perpetua', 'Perpetua sweeping the lane with the nav beacon. Painting them for you.');
+      yield m.say('saint', 'Did you see that? They flinched. Every bomber, when the beacon touched it.');
+      m.say('okonkwo', 'Machines don\'t flinch. Keep shooting — I\'ll think about it later.');
+    })(), 'flinch');
+    m.hint('{targetTorpedo} targets the nearest torpedo. Shoot it down.', 8);
     m.objective('mauls', 'Destroy the bombers', { count: { n: 0, of: mauls.length } });
     m.thread((function* () {
       for (;;) {

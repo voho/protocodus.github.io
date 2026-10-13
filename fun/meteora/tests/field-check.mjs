@@ -43,24 +43,49 @@ test('radius queries agree with brute force', () => {
     assert.deepEqual(got, want);
   }
 });
-test('sweepSphere returns the first rock along a segment', () => {
+test('sweepSphere returns the first rock along a segment, by the rocks\' real shapes', () => {
   const r = makeRng(11);
   for (let k = 0; k < 50; k++) {
     const p0 = [r.range(-3000, 3000), r.range(-800, 800), r.range(-3000, 3000)];
     const p1 = [p0[0] + r.range(-800, 800), p0[1] + r.range(-200, 200), p0[2] + r.range(-800, 800)];
     const hit = field.sweepSphere(p0, p1, 0.3);
+    const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], length = Math.hypot(...d);
+    // Brute force: every rock whose bounding sphere the segment meets,
+    // walked a metre at a time, for the first point inside its skin.
     let best = Infinity, bestI = -1;
-    const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
-    for (let i = 0; i < b.count; i++) {   // brute-force segment–sphere
+    for (let i = 0; i < b.count; i++) {
       const c = P(i), R = b.collide[i] + 0.3;
       const m = [p0[0] - c[0], p0[1] - c[1], p0[2] - c[2]];
-      const A = d[0] ** 2 + d[1] ** 2 + d[2] ** 2, B = 2 * (m[0] * d[0] + m[1] * d[1] + m[2] * d[2]), C = m[0] ** 2 + m[1] ** 2 + m[2] ** 2 - R * R;
+      const A = length ** 2, B = 2 * (m[0] * d[0] + m[1] * d[1] + m[2] * d[2]), C = m[0] ** 2 + m[1] ** 2 + m[2] ** 2 - R * R;
       const disc = B * B - 4 * A * C; if (disc < 0) continue;
-      const t = C <= 0 ? 0 : (-B - Math.sqrt(disc)) / (2 * A);
-      if (t >= 0 && t <= 1 && t < best) { best = t; bestI = i; }
+      const t0 = Math.max(0, (-B - Math.sqrt(disc)) / (2 * A)), t1 = Math.min(1, (-B + Math.sqrt(disc)) / (2 * A));
+      for (let t = t0; t <= t1; t += 1 / length) {
+        if (t >= best) break;
+        if (field.skin({ kind: 'static', index: i }, [p0[0] + d[0] * t, p0[1] + d[1] * t, p0[2] + d[2] * t]).distance <= 0.3) { best = t; bestI = i; break; }
+      }
     }
-    if (bestI < 0) assert.equal(hit, null);
-    else { assert.equal(hit.ref.index, bestI); near(hit.t, best, 1e-6); }
+    if (bestI < 0) { assert.equal(hit, null); continue; }
+    assert.ok(hit, `segment ${k} misses a rock it passes through`);
+    // Within a metre of the brute force, and on the skin it reports (or
+    // anywhere inside, for a segment that starts in the rock).
+    assert.ok(Math.abs(hit.t - best) * length < 1.2, `segment ${k}: ${hit.t} vs ${best}`);
+    const at = field.skin(hit.ref, hit.point).distance;
+    assert.ok(at <= 0.3 + 1e-6 && (hit.t === 0 || at > 0.3 - 1), `segment ${k}: ${at} from the skin`);
+  }
+});
+test('a ball touching a rock is reported with its depth and the skin\'s normal', () => {
+  const big = [...b.type].findIndex(t => t === 4);
+  const c = P(big);
+  for (const dir of [[1, 0, 0], [0, 1, 0], [0, 0, -1], [0.6, -0.48, 0.64]]) {
+    // Walk in from outside until the skin is 2 m away, then nudge in 1 m.
+    let s = b.collide[big] + 10;
+    while (field.skin({ kind: 'static', index: big }, [c[0] + dir[0] * s, c[1] + dir[1] * s, c[2] + dir[2] * s]).distance > 2) s -= 0.05;
+    const p = [c[0] + dir[0] * s, c[1] + dir[1] * s, c[2] + dir[2] * s];
+    const hits = field.contacts(p, 3).filter(h => h.index === big);
+    assert.equal(hits.length, 1);
+    near(hits[0].depth, 1, 0.1);
+    assert.ok(hits[0].normal[0] * dir[0] + hits[0].normal[1] * dir[1] + hits[0].normal[2] * dir[2] > 0.2, 'the normal faces out');
+    assert.equal(field.contacts(p, 1.5).filter(h => h.index === big).length, 0, 'clear of the skin, no contact');
   }
 });
 test('density is in [0,1] and vanishes outside the slab', () => {
@@ -123,7 +148,7 @@ test('dynamic rocks drift and bounce off static rocks', () => {
   const r = f.addDynamicRock(0, [c[0] + R + 20, c[1], c[2]], [-20, 0, 0]);
   for (let k = 0; k < 240; k++) f.step(1 / 120, events);
   assert.ok(r.vel[0] > 0, 'bounced away');
-  assert.ok(dist(r.pos, c) >= R + r.collide - 1e-6);
+  assert.ok(f.contacts(r.pos, r.core).every(h => h.kind !== 'static' || h.depth < 1e-3), 'and is not inside it');
 });
 test('drifting fragments knock each other aside instead of passing through', () => {
   const f = createField(SEED, EMPTY);
@@ -134,6 +159,6 @@ test('drifting fragments knock each other aside instead of passing through', () 
   for (let k = 0; k < 120; k++) f.step(1 / 120, []);
   near(ma * a.vel[0] + mb * b.vel[0], p0, Math.abs(p0) * 1e-9 + 1e-6, 'momentum along x');
   assert.ok(b.vel[0] > 0, 'the light fragment bounced back');
-  assert.ok(dist(a.pos, b.pos) >= a.collide + b.collide - 1e-6, 'and they no longer overlap');
+  assert.ok(dist(a.pos, b.pos) >= a.core + b.core - 1e-6, 'and they no longer overlap');
 });
 await run();

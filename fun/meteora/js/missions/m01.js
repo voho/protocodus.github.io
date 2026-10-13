@@ -23,7 +23,7 @@ const FIELD = belt({
 
 export default defineMission({
   id: 'm01', number: 1, title: 'Red Eye', location: 'Sector Seven', dateline: 'Day 19 of the silence',
-  field: FIELD, fieldSeed: 1234, seed: 101, par: 420,
+  field: FIELD, fieldSeed: 1234, seed: 101, par: 420, env: 'sector7',
   start: { pos: START, forward: dir(START, ALPHA), speed: 60 },
   area: { centre: [0, 0, -800], radius: 7000 },
   models: ['fighter', 'interceptor', 'freighter', 'perpetua', 'drone'],
@@ -35,7 +35,7 @@ export default defineMission({
   needs: { fighters: true },
   briefing: {
     stages: [
-      { text: 'Sector Seven is ore country: rubble fields, tug lanes and nothing that shoots back. The Saint Amaro worked it for eleven years without a scratch. Nineteen days ago she went silent, and her last frame showed something looking back at her.', focus: ALPHA },
+      { text: 'Sector Seven is ore country, quiet for eleven years. Nineteen days ago the Saint Amaro went silent. Her last frame showed something looking back.', focus: ALPHA },
       { text: 'Fly to Nav Alpha, her last fix, with Saint on your wing. Scan whatever is left of her. Her flight recorder may still be pinging somewhere in the debris.', focus: ALPHA },
       { text: 'Her beacon pinged once more, two days later, near Nav Beta. Look there too. Then come home to the Perpetua.', focus: BETA },
       { text: 'Rules of engagement: weapons free if fired upon. Look, don\'t touch — until something touches you.', focus: START },
@@ -95,22 +95,22 @@ export default defineMission({
         found = true;
         m.complete('recorder');
         m.say('okonkwo', pinged
-          ? 'Recorder\'s talking. Twelve minutes of cutting noise and then nothing. Thank you, Lantern.'
-          : 'Is that — a flight recorder? You found it before I had the ping isolated. It\'s talking: twelve minutes of cutting noise, then nothing.');
+          ? 'Recorder\'s talking. Twelve minutes of cutting noise — and one clear frame of the eye. There are letters round its lens.'
+          : 'A flight recorder — you found it before I had the ping. Twelve minutes of cutting noise, and one clear frame: letters round the red eye\'s lens.');
       }
     });
 
-    yield m.say('doukas', 'Lantern One, Perpetua. Welcome to your first lead. The Saint Amaro\'s last fix is Nav Alpha. Look, don\'t touch.');
-    m.hint('Move the mouse to steer: the ship turns toward the crosshair. W and S set your speed.');
+    yield m.say('doukas', 'Lantern One, Perpetua. Your first lead. The Saint Amaro\'s last fix is Nav Alpha. Look, don\'t touch.');
+    m.hint('The mouse steers. {faster} and {slower} set your speed.');
     yield m.say('saint', 'Nineteen days. If she\'s out there, she\'s cold.');
     m.objective('alpha', 'Fly to Nav Alpha');
-    m.hint('The cyan marker is Nav Alpha. N cycles nav points; Tab burns the afterburner.', 8);
+    m.hint('Cyan marker: Nav Alpha. {cycleNav} next nav point, {boost} afterburner.', 8);
     yield m.until(() => m.near(m.player, m.navPoint('alpha').pos, 900));
     m.complete('alpha');
     yield m.say('saint', 'There she is. Or most of her.');
     m.objective('scan', 'Scan the wreck of the Saint Amaro');
     m.target(m.get('Saint Amaro'));
-    m.hint('Y selects friendly and objective targets. Keep the wreck ahead of you, within 500 m, to scan it.', 9);
+    m.hint('{cycleFriendly} selects objectives. Keep the wreck ahead, within 500 m, to scan it.', 9);
     yield m.until(() => m.get('Saint Amaro')?.scan.done);
     m.complete('scan');
     yield m.say('saint', 'That hull wasn\'t shot. It was cut. Clean, like something wanted the metal.');
@@ -128,16 +128,16 @@ export default defineMission({
     m.say('doukas', 'Weapons free, Lantern. Weapons free!');
     m.complete('beta');
     m.objective('hostiles', 'Destroy the hostiles');
-    m.hint('T targets the hostile nearest your crosshair. Put the crosshair on the red diamond and fire.', 8);
+    m.hint('{cycleTarget} targets a hostile. Crosshair on the red diamond, left click.', 8);
     yield m.until(() => first.filter(e => e.alive).length <= Math.max(0, first.length - 2));
     const second = wave(m, 'thorn', m.n(2), m.offscreen(m.player, 1500), { toward: m.player });
     yield m.say('saint', 'Two more behind us — they were waiting!');
-    m.hint('Right click fires a missile. Hold the target in front of you until the brackets lock.', 8);
+    m.hint('Keep the target ahead until it locks, then right click: missile.', 8);
     yield m.until(() => [...first, ...second].every(e => !e.alive));
     m.complete('hostiles');
     m.music('calm');
     yield m.say('saint', 'Red eyes. I\'m not sleeping tonight.');
-    if (m.player.hull < m.player.maxHull * 0.5) m.hint('Your hull is damaged: R calls a Tender repair drone.', 8);
+    if (m.player.hull < m.player.maxHull * 0.5) m.hint('Hull damaged: {repair} calls a repair drone.', 8);
     yield m.say('doukas', 'Lantern, come home. I want every frame of those sensor logs on my desk.');
     m.showNav('home');
     m.objective('home', 'Return to the Perpetua');

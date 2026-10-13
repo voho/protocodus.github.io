@@ -23,7 +23,7 @@ const DURATION = 360;
 
 export default defineMission({
   id: 'm06', number: 6, title: 'The Long Night', location: 'Perpetua anchorage', dateline: 'Day 31',
-  field: FIELD, fieldSeed: 6066, seed: 606, par: 420,
+  field: FIELD, fieldSeed: 6066, seed: 606, par: 420, env: 'eclipse',
   start: { pos: START, forward: dir(START, [0, 0, 0]), speed: 80 },
   area: { centre: [0, 0, 0], radius: 6500 },
   models: ['fighter', 'interceptor', 'maul', 'talon', 'perpetua', 'halberd', 'torpedo', 'drone'],
@@ -37,7 +37,7 @@ export default defineMission({
     stages: [
       { text: 'The Perpetua\'s engines are three hundred years old and failing. She is carrying Varlaam\'s people to the rally point, where the Halberds Ardent and Vigil will meet her.', focus: PERPETUA },
       { text: 'It will take six minutes. The Harrow know where she is. Expect bombers in numbers: kill the Mauls first, shoot down what they launch.', focus: RALLY },
-      { text: 'Half her turrets are dead and Halo wing is one ship. She needs two of her three engines to make the rally point: lose two and she drifts into the rock. Her life is in your hands.', focus: PERPETUA },
+      { text: 'Half her turrets are dead and Halo wing is one ship. Lose two of her three engines and she drifts into the rock. Her life is in your hands.', focus: PERPETUA },
     ],
   },
   map: {
@@ -50,7 +50,7 @@ export default defineMission({
     routes: [{ path: [PERPETUA, RALLY], kind: 'convoy' }],
   },
   objectivesPreview: [
-    { text: 'Protect the Perpetua until the fleet arrives (6:00)' },
+    { text: 'Protect the Perpetua for six minutes' },
     { text: 'Keep two of her three engines running' },
     { text: 'Perpetua hull above 75 %', bonus: true },
     { text: 'Destroy every Maul before it fires', bonus: true },
@@ -69,7 +69,7 @@ export default defineMission({
     m.flag('perpetua', p.id);
     // The Mauls go for her engines, and only Lantern really stops them:
     // tuned so that the night is lost when nobody does.
-    const engineScale = { pilot: 0.9, veteran: 1.1, ace: 1.17 }[m.diff.key] ?? 1;
+    const engineScale = { pilot: 1, veteran: 1.2, ace: 1.4 }[m.diff.key] ?? 1;
     for (const s of p.subsystems) if (s.kind === 'engine') { s.hull *= engineScale; s.maxHull *= engineScale; }
     // Three hundred years old: only some of her guns still work.
     const guns = { recruit: 8, pilot: 5, veteran: 5, ace: 7 }[m.diff.key] ?? 5;
@@ -112,9 +112,9 @@ export default defineMission({
       return b;
     };
 
-    yield m.say('doukas', 'All wings, Perpetua. Six minutes to the rally point. She can\'t run and she can\'t hide. Everything that flies, keep it off her.');
+    yield m.say('doukas', 'All wings, Perpetua. Six minutes to the rally point. She can\'t run or hide. Keep everything off her.');
     m.say('halo', 'Halo Lead, on the Perpetua. Glad to have you, Lantern.');
-    m.hint('Kill the Mauls first. Torpedoes in flight: B targets them; your guns can shoot them down.', 8);
+    m.hint('Kill the Mauls first. {targetTorpedo}: nearest torpedo — shoot it down.', 8);
     yield m.wait(18);
     m.music('combat');
     const port = at(PERPETUA, 280, 3000, 200);
@@ -134,7 +134,7 @@ export default defineMission({
     wave(m, 'talon', m.n(2), m.offscreen(m.player, 1800), { toward: m.player });
     m.say('halo', 'More of them. They don\'t stop.');
     yield m.wait(10);
-    m.say('okonkwo', 'Commander — their transponders. They\'re broadcasting a registry. It\'s old. It\'s… it\'s formatted like ours.');
+    m.say('okonkwo', 'Commander — their transponders broadcast a registry. It\'s old. It\'s… formatted like ours.');
     m.say('doukas', 'Later, Doctor.');
 
     // 3:30 — the ambush from the rocks.

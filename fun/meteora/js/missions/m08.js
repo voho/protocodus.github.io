@@ -4,8 +4,11 @@
    hundred metres of fabricator, shielded by two generators, ringed with
    flak and plasma turrets, launching Thorns and Talons from its bays. Take
    the generators down, then the reactor — only torpedoes and Breakers bite
-   its armour. Ember wing's Anvils carry Lances too. Halfway through it
-   starts to spool its fold drive; when the reactor dies it goes critical. */
+   its armour. Ember wing's Anvils carry Lances too. It is a fleet action:
+   the gunship Vigil and Halo wing come too, to hold off the two Warden
+   corvettes guarding the Mother and the fighters pouring from its bays.
+   Halfway through it starts to spool its fold drive; when the reactor
+   dies it goes critical. */
 
 import { defineMission } from '../mission.js';
 import { belt } from './belt.js';
@@ -14,8 +17,10 @@ import { qLookRotation, qRotate } from '../vec.js';
 
 const MOTHER = [0, 0, -2400];
 const START = [0, 300, 1600];
+// The Harrow have quarried the Anchorage nearly bare: the small stuff is
+// gone into the Mother's furnaces, and only the big rocks are left.
 const FIELD = belt({
-  spawn: START, density: 0.9, landmarks: 3,
+  spawn: START, density: 0.35, sizes: [0.05, 0.15, 0.6, 1, 1], fill: 0.4, landmarks: 3,
   clear: [{ pos: MOTHER, r: 750 }],
   lanes: [{ a: START, b: MOTHER, r: 400 }],
 });
@@ -23,10 +28,10 @@ const SPOOL = { recruit: 420, pilot: 360, veteran: 300, ace: 240 };
 
 export default defineMission({
   id: 'm08', number: 8, title: 'Heart of the Mother', location: 'The Deep Anchorage', dateline: 'Day 36',
-  field: FIELD, fieldSeed: 8088, seed: 808, par: 600,
+  field: FIELD, fieldSeed: 8088, seed: 808, par: 600, env: 'anchorage',
   start: { pos: START, forward: dir(START, MOTHER), speed: 100 },
   area: { centre: [0, 0, -1000], radius: 7000 },
-  models: ['fighter', 'anvil', 'interceptor', 'talon', 'mother', 'torpedo', 'drone'],
+  models: ['fighter', 'anvil', 'interceptor', 'talon', 'mother', 'warden', 'halberd', 'torpedo', 'drone'],
   music: 'climax',
   recommend: {
     hull: 'anvil', primary: 'breaker', secondaries: ['hornet', 'lance'], reactor: 'aegis',
@@ -35,9 +40,10 @@ export default defineMission({
   needs: { armor: true, torpedoes: 'No Lances: Ember wing carries only two, and the reactor takes three. It will come down to Breakers.' },
   briefing: {
     stages: [
-      { text: 'This is the Mother you found asleep in the Deep. Okonkwo is sure: it is the Vanguard\'s foreman. Kill it and the Harrow in this part of the belt lose their direction.', focus: MOTHER },
-      { text: 'Two shield generators sit on its upper flanks; with both down its shield falls for good. Then the reactor — the heart, behind its cage. Only torpedoes and Breakers bite that armour.', focus: MOTHER },
-      { text: 'Ember wing — two Anvils with Lances — flies with you. Keep them alive and they will help with the reactor. The bays launch fighters every half-minute: knocking them out is worth it.', focus: START },
+      { text: 'This is the Mother you found asleep in the Deep. The tug\'s memory names it: Vanguard Seven\'s foreman. Kill it and the Harrow in this part of the belt lose their direction.', focus: MOTHER },
+      { text: 'Two shield generators sit on its upper flanks; with both down its shield falls. Then the reactor, behind its cage: only torpedoes and Breakers bite there.', focus: MOTHER },
+      { text: 'Ember wing — two Anvils with Lances — flies with you. Keep them alive for the reactor. The bays launch fighters every half-minute: knock them out.', focus: START },
+      { text: 'Two Warden corvettes guard her. The Vigil and Halo wing will hold them and the fighters off you. Everything we have is in this, Lantern.', focus: MOTHER },
     ],
   },
   map: {
@@ -72,6 +78,19 @@ export default defineMission({
     mother.turrets.forEach((t, i) => { if (i >= guns) { t.alive = false; t.hull = 0; } });
     m.flag('mother', mother.id);
     m.nav('m', 'Mother', MOTHER, { r: 1500 });
+    // Her guard: two corvettes out on her flanks, their guns covering the
+    // wide approaches, not the lane straight in.
+    for (const [side, name] of [[-1, 'Warden'], [1, 'Warden II']]) {
+      const pos = add(MOTHER, [side * 1800, side * 150, 600]);
+      m.spawn('warden', { team: 1, pos, forward: dir(pos, START), name, tags: ['escort'], helm: { path: [pos], speed: 20, then: 'hold' } });
+    }
+    // The fleet: the gunship Vigil stands off beyond the Mother's guns and
+    // duels the starboard corvette; Halo wing rides with Ember.
+    const vigilAt = add(MOTHER, [1100, 200, 1700]);
+    m.spawn('halberd', { team: 0, pos: add(START, [700, 100, 300]), forward: dir(START, MOTHER), name: 'Halberd Vigil',
+      helm: { path: [vigilAt], speed: 45, then: 'hold' } });
+    const halo = m.wing('kestrel', 3, { names: ['Halo 1', 'Halo 2', 'Halo 3'], pos: add(START, [-300, 80, 250]) });
+    for (const h of halo) { h.orders = null; h.protectId = ember[0].id; h.leaderId = null; }
   },
 
   *script(m) {
@@ -103,8 +122,9 @@ export default defineMission({
 
     yield m.say('doukas', 'All wings, this is it. The foreman. Generators first, then the heart.');
     yield m.say('ember', 'Ember Lead, Lances armed. Clear us a path and we\'ll do the rest.');
-    m.hint('V cycles the target\'s subsystems. Torpedoes lock on a subsystem when it is selected.', 9);
-    m.hint('Flak bursts where you will be: change speed and direction when it starts popping around you.', 9);
+    m.say('halo', 'Halo wing on Ember. Vigil, the corvettes are yours.');
+    m.hint('{cycleSub} cycles subsystems; torpedoes lock on the one selected.', 9);
+    m.hint('Flak leads you: change speed and heading.', 9);
 
     yield m.until(() => m.dist(m.player, mother) < 2600 || m.time > 50);
     m.say('okonkwo', 'Its eye is on you. Beam charging — break, break!');
@@ -116,6 +136,9 @@ export default defineMission({
       yield m.until(() => gens.some(s => !s.alive) || m.time > 200);
       spooling = true;
       m.music('climax');
+      // Everything in her bays at once.
+      wave(m, 'thorn', m.n(3), add(MOTHER, [-700, 200, 600]), { toward: m.player });
+      wave(m, 'talon', m.n(2), add(MOTHER, [700, -200, 600]), { toward: ember.find(e => e.alive) ?? m.player });
       yield m.say('okonkwo', 'She\'s spooling a fold drive — she\'s going to run! Four minutes, maybe less!');
       m.timer('fold', 'Mother folds out', SPOOL[m.diff.key] ?? 260);
       m.on('timerDone', ev => { if (ev.id === 'fold' && reactor.alive) m.fail('reactor', 'The Mother folded out.'); });
@@ -138,7 +161,7 @@ export default defineMission({
     m.show('reactor');
     for (const e of ember) if (e.alive) { e.orders = { type: 'strike', target: mother, sub: reactor.name }; e.brain.retarget = 0; }
     yield m.say('ember', 'Shields are down! Ember, on the reactor — Lances away when you have tone!');
-    m.hint('Select the Mother, press V until the reactor is bracketed, and hold it until the Lance locks.', 9);
+    m.hint('Target the Mother, {cycleSub} to the reactor, hold until the Lance locks.', 9);
 
     yield m.until(() => !reactor.alive || dead());
     m.removeTimer('fold');

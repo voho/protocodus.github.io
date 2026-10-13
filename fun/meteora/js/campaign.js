@@ -15,12 +15,21 @@ import m07 from './missions/m07.js';
 import m08 from './missions/m08.js';
 import m09 from './missions/m09.js';
 import m10 from './missions/m10.js';
+import training from './missions/training.js';
+import m11 from './missions/m11.js';
 import { DEFAULT_DIFFICULTY, DIFFICULTIES } from './difficulty.js';
 import { HULLS } from './catalog.js';
 import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, defaultLoadout, normalizeLoadout } from './loadout.js';
+import { CASE_FILE } from './story.js';
 
-export const MISSIONS = [m01, m02, m03, m04, m05, m06, m07, m08, m09, m10];
-export const missionById = id => MISSIONS.find(m => m.id === id) ?? null;
+/* The order they are flown in. The Well (m11) was written after the ten and
+   flies ninth, between the foreman's death and the Narrows. */
+export const MISSIONS = [m01, m02, m03, m04, m05, m06, m07, m08, m11, m09, m10];
+/* Flight training: flown from the menu, before or between missions; it
+   counts for nothing in the campaign. */
+export const TRAINING = training;
+export const missionById = id => MISSIONS.find(m => m.id === id) ?? (id === 'training' ? TRAINING : null);
+export const missionLabel = m => (m.training ? 'Training' : `Mission ${m.number}`);
 
 /* What is in service once `done` missions have been won. */
 const SCHEDULE = [
@@ -97,6 +106,7 @@ export const COMMENDATIONS = [
   { id: 'marksman', name: 'Marksman', text: 'Win a mission with 40 % accuracy or better (100 shots at least).', test: r => r.won && r.stats.shots >= 100 && r.stats.accuracy >= 0.4 },
   { id: 'gold', name: 'Gold Wing', text: 'Earn a gold medal.', test: r => r.medal === 'gold' },
   { id: 'ace-diff', name: 'Iron Nerve', text: 'Win any mission on Ace.', test: r => r.won && r.difficulty === 'ace' },
+  { id: 'well', name: 'Lifeline', text: 'Bring every hulk out of the Well.', test: r => r.won && r.id === 'm11' && r.objectives.some(o => o.id === 'all' && o.state === 'done') },
   { id: 'mercy', name: 'Long Mercy', text: 'Finish the campaign.', test: r => r.won && r.id === 'm10' },
   { id: 'allgold', name: 'Perpetua\'s Own', text: 'Gold on every mission.', test: (r, p) => MISSIONS.every(m => p.best[m.id]?.medal === 'gold') },
 ];
@@ -107,7 +117,7 @@ const KEY = 'meteora.campaign.v1';
 export function freshProgress() {
   return {
     version: 1, difficulty: DEFAULT_DIFFICULTY, won: [], best: {}, loadouts: {}, commendations: {},
-    total: 0, seenPrologue: false, survival: {}, lastPlayed: null,
+    total: 0, seenPrologue: false, survival: {}, lastPlayed: null, caseFile: [],
   };
 }
 const medalRank = { gold: 3, silver: 2, bronze: 1 };
@@ -117,10 +127,14 @@ export function loadProgress(storage) {
     const raw = JSON.parse(storage?.getItem(KEY) ?? 'null');
     if (!raw || typeof raw !== 'object' || raw.version !== 1) return freshProgress();
     const p = { ...freshProgress(), ...raw };
-    p.won = Array.isArray(p.won) ? p.won.filter(id => missionById(id)) : [];
+    p.won = Array.isArray(p.won) ? p.won.filter(id => MISSIONS.some(m => m.id === id)) : [];
     if (!DIFFICULTIES[p.difficulty]) p.difficulty = DEFAULT_DIFFICULTY;
     if (typeof p.total !== 'number' || !Number.isFinite(p.total)) p.total = 0;
     for (const k of ['best', 'loadouts', 'commendations', 'survival']) if (!p[k] || typeof p[k] !== 'object') p[k] = {};
+    const known = new Set(CASE_FILE.map(c => c.id));
+    p.caseFile = Array.isArray(p.caseFile) ? p.caseFile.filter(id => known.has(id)) : [];
+    // A campaign saved before the case file: what its wins already found.
+    for (const c of CASE_FILE) if (!c.requires && p.won.includes(c.mission) && !p.caseFile.includes(c.id)) p.caseFile.push(c.id);
     return p;
   } catch { return freshProgress(); }
 }
@@ -170,6 +184,17 @@ export function recordResult(progress, results) {
     let earned = false;
     try { earned = !!c.test(results, progress); } catch { earned = false; }
     if (earned) { progress.commendations[c.id] = Date.now(); out.commendations.push(c); }
+  }
+  // The case file: what this mission found, and what it could have.
+  out.evidence = [];
+  out.missed = [];
+  if (results.won) {
+    const done = new Set(results.objectives.filter(o => o.state === 'done').map(o => o.id));
+    for (const c of CASE_FILE.filter(e => e.mission === results.id)) {
+      if (progress.caseFile.includes(c.id)) continue;
+      if (!c.requires || done.has(c.requires)) { progress.caseFile.push(c.id); out.evidence.push(c); }
+      else out.missed.push({ ...c, objective: results.objectives.find(o => o.id === c.requires)?.text ?? null });
+    }
   }
   const after = rankOf(progress.total);
   if (after.index > before.index) out.rankUp = after.name;

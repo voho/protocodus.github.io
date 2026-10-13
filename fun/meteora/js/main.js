@@ -20,24 +20,26 @@
    `?bench` and `?bench&legacy` measure the running game as before. */
 
 import * as THREE from 'three';
-import { RENDER, STEP, FIELD, bigDeathSpan } from './config.js';
+import { RENDER, SHAKE, STEP, FIELD, bigDeathSpan } from './config.js';
 import { NEUTRAL_CONTROLS } from './flight.js';
 import { advance, createWorld, drainEvents, resetWorld, startRun, IDLE } from './world.js';
 import { SURVIVAL } from './missions/survival.js';
 import { defineMission, results } from './mission.js';
 import {
-  ALL_UNLOCKED, MISSIONS, freshProgress, loadProgress, loadoutFor, missionById, nextMission, recordResult, saveProgress, unlockedFor,
+  ALL_UNLOCKED, MISSIONS, TRAINING, freshProgress, loadProgress, loadoutFor, missionById, missionLabel, nextMission, recordResult, saveProgress, unlockedFor,
 } from './campaign.js';
 import { HULLS, CLASSES } from './catalog.js';
 import { defaultLoadout, normalizeLoadout } from './loadout.js';
 import { hardpoints } from './hardpoints.js';
-import { createControlState, dropAll, readInput, rebind } from './controls.js';
+import { createControlState, dropAll, keysOf, readInput, rebind } from './controls.js';
 import { createModelLibrary } from './models.js';
 import { createFieldRender } from './field-render.js';
 import { createChaseCamera } from './camera.js';
 import { createInput } from './input.js';
 import { createScreens, loadSettings } from './screens.js';
 import { createSky } from './sky.js';
+import { createTargetView } from './target-view.js';
+import { lookFor } from './environments.js';
 import { createGlowBatch } from './glow.js';
 import { createSmokeBatch } from './smoke.js';
 import { createExplosions } from './explosions.js';
@@ -52,11 +54,12 @@ import { createFrameStats } from './frame-stats.js';
 import { createEntityRender } from './entity-render.js';
 import { createFolds } from './fold-fx.js';
 import { createShields, shieldExtent } from './shield-fx.js';
-import { PROLOGUE, HINTS } from './story.js';
+import { PROLOGUE, HINTS, RECAPS } from './story.js';
 import { sweepCompound, toWorld } from './compound.js';
 import { createChatter } from './chatter.js';
 import { canRenderHalfFloat, createBloom } from './bloom.js';
 import { createVoices } from './voices.js';
+import { createDust } from './dust.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -67,12 +70,12 @@ const GOD = params.has('god');
 const LDR = params.has('ldr');
 const AUTOPILOT = (DEBUG && params.has('autopilot')) || BENCH;
 const BENCH_WARM = 3, BENCH_SPAN = 20;
-const SUN_DIR = new THREE.Vector3(-0.62, 0.32, -0.72).normalize();
 const EXPOSURE = 1.05;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const canvas = document.getElementById('stage');
 const hudCanvas = document.querySelector('canvas.hud');
+const targetCanvas = document.querySelector('canvas.target-view');
 const debugOut = document.querySelector('[data-debug]');
 const callout = document.querySelector('[data-callout]');
 const fadeEl = document.querySelector('[data-fade]');
@@ -83,7 +86,10 @@ try { storage = window.localStorage; } catch { /* nothing is kept */ }
 let progress = loadProgress(storage);
 
 let world, renderer, scene, camera, chase, fieldRender = null, library, sky, glow, smoke, fx, plumes, projectiles, hud, engineLight, input, resolution;
-let folds, shields, entities, bloom = null, fill;
+let folds, shields, entities, bloom = null, fill, dust;
+// The place's look (environments.js) and the lights it sets.
+let look = null, lookKey = null, sunLight, hemiLight, ambientLight, holeLight;
+let targetView = null;
 let mode = 'boot', paused = false, deadTimer = 0, wreck = null, lastKnock = -Infinity;
 let currentMission = null, currentLoadout = null, outcomeAt = null, debriefShown = false, slowmo = 0, jumped = false;
 let hangarMission = null, hangarLoadout = null, survivalRun = false, prologueStep = 0;
@@ -94,8 +100,9 @@ let launchGen = 0;
 // simulation speed-up for watching whole missions.
 let debugPilot = null, debugSpeed = 1;
 const critical = new Set();
-// Hits and blasts shake the camera; the ship's own vibration stays off.
-const shake = createShake(5), CALM = { fine: 0, rumble: 0, buffet: 0 };
+// Hits and blasts shake the camera; of the ship's own vibration only the
+// afterburner's shudder is felt, building with the burn.
+const shake = createShake(5), amps = { fine: 0, rumble: 0, buffet: 0 };
 // Sound starts on the first click, as browsers require; the scripted flights stay silent.
 const audio = AUTOPILOT ? null : createAudio(settings.volume);
 const music = audio ? createMusic(audio, settings.music) : null;
@@ -118,7 +125,7 @@ const screens = createScreens(document, settings, {
   click: () => { audio?.start(); music?.start(); audio?.ui('click'); },
   hover: () => audio?.ui('hover'),
   retry: () => location.reload(),
-  settingsChanged: s => { audio?.setVolume(s.volume); music?.setVolume(s.music); rebind(controlState); applyGraphics(); },
+  settingsChanged: s => { audio?.setVolume(s.volume); music?.setVolume(s.music); rebind(controlState); hud?.setKeys(keysOf(s)); applyGraphics(); },
   screenBack: name => { if (name === 'start') toMenu(); },
   continue: () => openBriefing(nextMission(progress)),
   newCampaign: () => {
@@ -143,6 +150,7 @@ const screens = createScreens(document, settings, {
   prologueSkip: () => finishPrologue(),
   missions: () => { screens.missions(progress, m => openBriefing(m)); screens.show('campaign'); },
   survival: () => openHangar(null),
+  training: () => openBriefing(TRAINING),
   codex: () => { screens.codex(progress); screens.show('codex'); },
   settings: () => { screens.renderSettings(); screens.show('settings'); },
   stagePrev: () => readStage(screens.briefingStage(-1)),
@@ -156,6 +164,12 @@ const screens = createScreens(document, settings, {
   debriefNext: () => {
     const last = world.mission ? results(world) : null;
     if (survivalRun) { launch(null, currentLoadout); return; }
+    if (last?.won && currentMission?.training) {
+      // From the range to the war: Mission 1, unless it has been flown.
+      if (!progress.won.includes(MISSIONS[0].id)) openBriefing(MISSIONS[0]);
+      else toMenu();
+      return;
+    }
     if (last?.won) {
       const i = MISSIONS.indexOf(currentMission);
       if (i >= 0 && i + 1 < MISSIONS.length) openBriefing(MISSIONS[i + 1]);
@@ -220,13 +234,18 @@ async function boot() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(RENDER.fov, 1, RENDER.near, RENDER.far);
-  const sun = new THREE.DirectionalLight(0xfff1e0, 5);
-  sun.position.copy(SUN_DIR).multiplyScalar(1000);
-  scene.add(sun, sun.target);
-  scene.add(new THREE.AmbientLight(0x8090b0, 0.05));
+  // The sun; its direction, colour and strength belong to the place.
+  sunLight = new THREE.DirectionalLight(0xfff1e0, 5);
+  scene.add(sunLight, sunLight.target);
+  ambientLight = new THREE.AmbientLight(0x8090b0, 0.05);
+  scene.add(ambientLight);
   // A faint fill from the sky above and the gas giant's glow below, so a
   // hull's night side reads as dark plating rather than a hole.
-  scene.add(new THREE.HemisphereLight(0x8ea6d8, 0x6e5a48, 0.45));
+  hemiLight = new THREE.HemisphereLight(0x8ea6d8, 0x6e5a48, 0.45);
+  scene.add(hemiLight);
+  // A black hole's disk lights everything round it, from where it is.
+  holeLight = new THREE.PointLight(0xffb070, 0, 0, 0);
+  scene.add(holeLight);
   // And a cool light from over the viewer's shoulder, as a film lights its
   // actors: flying into the sun, the fighter you are chasing still shows
   // its shape instead of a black cut-out. A quarter of the sun, so the lit
@@ -238,9 +257,7 @@ async function boot() {
   library = createModelLibrary();
   await nextPaint();
   screens.progress(0.08, 'Painting the sky');
-  sky = createSky(renderer, scene, { seed: 7, sunDir: SUN_DIR });
-  scene.environment = sky.environment;
-  scene.environmentIntensity = 0.45;
+  applyLook('sector7');
   applyGraphics();
   try {
     await library.loadRocks((f, file) => screens.progress(0.15 + 0.4 * f, `Loaded ${file}`));
@@ -253,7 +270,7 @@ async function boot() {
   world = createWorld({ seed: 1234, storage, mission: MENU_SCENE, loadout: menuLoadout(), difficulty: progress.difficulty });
   buildFieldRender();
   glow = createGlowBatch(scene);
-  smoke = createSmokeBatch(scene, SUN_DIR);
+  smoke = createSmokeBatch(scene, sky.sunDir);
   fx = createExplosions(scene, glow, smoke, library.rocks[0], { reducedMotion: REDUCED_MOTION });
   // Effects back to front: smoke, fireballs, glow, shock rings. three.js
   // reverses its sorted draw lists under a reversed depth buffer —
@@ -261,6 +278,8 @@ async function boot() {
   const layer = renderer.capabilities.reversedDepthBuffer ? -1 : 1;
   [smoke.mesh, fx.fireballs.lobes, glow.mesh, fx.fireballs.rings].forEach((mesh, k) => { mesh.renderOrder = (9 + k) * layer; });
   plumes = createPlumes(glow);
+  dust = createDust(glow);
+  lookEffects();
   projectiles = createProjectiles(glow);
   folds = createFolds(glow);
   shields = createShields(scene);
@@ -271,6 +290,8 @@ async function boot() {
   chase.setObstruction(cameraClearance);
   chase.setFov(settings.fov ?? RENDER.fov);
   hud = createHud(hudCanvas);
+  targetView = createTargetView(targetCanvas, library, { exposure: EXPOSURE });
+  hud.setKeys(keysOf(settings));
 
   input = createInput(canvas, controlState, {
     isFlying: () => mode === 'flight' && world.state === 'flying' && !paused,
@@ -299,6 +320,16 @@ async function boot() {
       get camera() { return camera; },
       get scene() { return scene; },
       get chase() { return chase; },
+      get targetView() { return targetView; },
+      // Rebuild a place's look and report how long it took, GPU included.
+      look(key) {
+        const t = performance.now();
+        lookKey = null;
+        applyLook(key);
+        const gl = renderer.getContext();
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+        return performance.now() - t;
+      },
       skip(seconds) { for (let k = 0; k < seconds * 15; k++) { advance(world, IDLE, 1 / 15); handleEvents(drainEvents(world)); } tick(1 / 60); },
     };
   }
@@ -334,6 +365,41 @@ function buildFieldRender() {
   // Legacy bench: every rock switches to its far mesh at 2 km, as before.
   fieldRender = createFieldRender(scene, world.field, library.rocks, beltTime, LEGACY ? { lodScale: Infinity, lodCap: 2000 } : {});
   fieldRender.field = world.field;
+}
+
+/* Set the place's look: sky, lights and dust — and, for a mission with a
+   black hole, the hole in the sky (`well`, as the mission defines it). The
+   sky is rebuilt only when the place changes; a few hundred milliseconds,
+   under a loading screen. */
+const lookIdOf = (key, well) => (well ? `${key}@${well.pos.join(',')}` : key);
+function applyLook(key, well = null) {
+  const id = lookIdOf(key, well);
+  if (id === lookKey && sky) return;
+  const next = lookFor(key);
+  if (well) next.sky = { ...next.sky, hole: { pos: well.pos, rs: well.rs, disk: well.disk } };
+  sky?.dispose();
+  sky = createSky(renderer, scene, next.sky);
+  scene.environment = sky.environment;
+  const L = next.light;
+  scene.environmentIntensity = L.environment;
+  sunLight.position.copy(sky.sunDir).multiplyScalar(1000);
+  sunLight.color.set(L.sun.colour);
+  sunLight.intensity = L.sun.intensity;
+  hemiLight.color.set(L.hemi.sky);
+  hemiLight.groundColor.set(L.hemi.ground);
+  hemiLight.intensity = L.hemi.intensity;
+  ambientLight.intensity = L.ambient;
+  fill.intensity = L.fill;
+  holeLight.intensity = well ? L.hole ?? 6 : 0;
+  if (well) holeLight.position.set(well.pos[0], well.pos[1], well.pos[2]);
+  look = next;
+  lookKey = id;
+  lookEffects();
+}
+// Smoke is lit by the same sun; dust takes the place's tint.
+function lookEffects() {
+  smoke?.setSun(sky.sunDir, 1.7 * look.light.sun.intensity / 5, 0.12 * look.light.hemi.intensity / 0.45);
+  dust?.setLook(look.dust);
 }
 
 function resize() {
@@ -379,6 +445,7 @@ function menuScene() {
   document.body.classList.remove('flying');
   resetWorld(world, { mission: MENU_SCENE, loadout: menuLoadout(), difficulty: progress.difficulty });
   buildFieldRender();
+  applyLook('sector7');
   clearEffects();
   chase.setShip(1, hardpoints('fighter').cockpit);
   hud.clear();
@@ -391,10 +458,11 @@ function finishPrologue() {
   openBriefing(MISSIONS[0]);
 }
 
-// The Commander reads the briefing out, stage by stage.
+// The Commander reads the briefing out, stage by stage — after the
+// narrator's "previously", when there is one.
 function readStage(i) {
-  const text = currentMission?.briefing?.stages[i]?.text;
-  if (text) voices.narrate('doukas', text);
+  const line = screens.briefingLine(i);
+  if (line?.text) voices.narrate(line.who ?? 'doukas', line.text);
 }
 
 function openBriefing(mission) {
@@ -403,7 +471,9 @@ function openBriefing(mission) {
   currentMission = mission;
   hangarMission = mission;
   hangarLoadout = loadoutFor(progress, mission);
-  screens.briefing(mission, progress, progress.difficulty, key => { progress.difficulty = key; saveProgress(storage, progress); });
+  const has = id => (progress.caseFile ?? []).includes(id);
+  const recap = RECAPS[mission.id] && progress.won.length ? RECAPS[mission.id](has) : null;
+  screens.briefing(mission, progress, progress.difficulty, key => { progress.difficulty = key; saveProgress(storage, progress); }, recap);
   screens.show('briefing');
   readStage(0);
   // Start bringing in what the mission flies while the pilot reads.
@@ -455,12 +525,18 @@ async function launch(mission, loadout) {
   const def = mission ?? SURVIVAL;
   const title = mission ? mission.title : 'Survival';
   const tip = HINTS[Math.floor(Math.random() * HINTS.length)];
-  screens.fold(title, mission ? `Mission ${mission.number} · folding to ${mission.location}` : 'Belt sector 7', 0, 'Spooling the drive', tip);
+  screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0, 'Spooling the drive', tip);
   screens.show('loading');
   const models = [...(def.models ?? ['interceptor', 'talon', 'mite']), CLASSES[currentLoadout.hull].model, 'drone', 'torpedo'];
-  await library.preload(models, (f, m) => { if (gen === launchGen) screens.fold(title, mission ? `Mission ${mission.number} · folding to ${mission.location}` : 'Belt sector 7', 0.1 + 0.8 * f, `Loaded ${m}`); });
+  await library.preload(models, (f, m) => { if (gen === launchGen) screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0.1 + 0.8 * f, `Loaded ${m}`); });
   if (gen !== launchGen) return;
-  screens.fold(title, mission ? `Mission ${mission.number}` : 'Survival', 0.95, 'Charting the belt');
+  if (lookKey !== lookIdOf(def.env ?? 'sector7', def.well)) {
+    screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.92, 'Painting the sky');
+    await nextPaint();
+    if (gen !== launchGen) return;
+    applyLook(def.env ?? 'sector7', def.well);
+  }
+  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.95, 'Charting the belt');
   await nextPaint();
   if (gen !== launchGen) return;
   resetWorld(world, { mission: def, loadout: currentLoadout, difficulty: BENCH ? 'veteran' : progress.difficulty });
@@ -473,7 +549,7 @@ async function launch(mission, loadout) {
   // Arrive through a fold, under the mission's title.
   const pp = world.player;
   world.events.push({ type: 'foldIn', id: pp.id, pos: [...pp.ship.pos], q: [...pp.ship.q], radius: pp.radius, big: false, team: 0, dur: 1.1 });
-  hud.banner(mission ? `Mission ${mission.number} · ${mission.title}` : 'Survival', mission ? `${mission.location} · ${mission.dateline ?? ''}` : 'How long can you last?', '#ffffff', 3.6);
+  hud.banner(mission ? (mission.training ? mission.title : `Mission ${mission.number} · ${mission.title}`) : 'Survival', mission ? `${mission.location} · ${mission.dateline ?? ''}` : 'How long can you last?', '#ffffff', 3.6);
   if (!BENCH && !AUTOPILOT && roomForIntro()) chase.intro(4.6);
   mode = 'flight';
   screens.show(null, { remember: false });
@@ -489,19 +565,15 @@ async function launch(mission, loadout) {
 
 /* How far along the line from the fighter to where the camera wants to be
    it can go before a rock or a hull is in the way (1: all the way). Rocks
-   are tested at their drawn size, which is larger than they collide. */
-const camA = [0, 0, 0], camB = [0, 0, 0], camMid = [0, 0, 0], camHits = [];
-function cameraClearance(from, to) {
+   are swept by their real shapes, with a little room for the lens. */
+const camA = [0, 0, 0], camB = [0, 0, 0];
+function cameraClearance(from, to, rocksOnly = false) {
   camA[0] = from.x; camA[1] = from.y; camA[2] = from.z;
   camB[0] = to.x; camB[1] = to.y; camB[2] = to.z;
-  for (let k = 0; k < 3; k++) camMid[k] = (camA[k] + camB[k]) / 2;
-  const half = Math.hypot(camB[0] - camA[0], camB[1] - camA[1], camB[2] - camA[2]) / 2;
   let t = 1;
-  camHits.length = 0;
-  for (const h of world.field.queryRadius(camMid, half + 120, camHits)) {
-    const k = segmentEntry(camA, camB, h.pos, h.radius / FIELD.collide + 2.5);
-    if (k >= 0 && k < t) t = k;
-  }
+  const rock = world.field.sweepSphere(camA, camB, 2.5);
+  if (rock) t = rock.t;
+  if (rocksOnly) return t;
   for (const e of world.larges) {
     if (!e.alive || e.hidden) continue;
     const hit = sweepCompound(e, camA, camB, 2.5);
@@ -509,19 +581,6 @@ function cameraClearance(from, to) {
   }
   return t;
 }
-// Where segment a→b enters sphere (c, r), as a share of its length; −1: never.
-function segmentEntry(a, b, c, r) {
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-  const mx = a[0] - c[0], my = a[1] - c[1], mz = a[2] - c[2];
-  const C = mx * mx + my * my + mz * mz - r * r;
-  if (C <= 0) return 0;
-  const A = dx * dx + dy * dy + dz * dz, B = 2 * (mx * dx + my * dy + mz * dz);
-  const disc = B * B - 4 * A * C;
-  if (A < 1e-12 || disc < 0) return -1;
-  const t = (-B - Math.sqrt(disc)) / (2 * A);
-  return t >= 0 && t <= 1 ? t : -1;
-}
-
 /* Room for the opening shot: no rock or hull within reach of its arc. */
 function roomForIntro() {
   const p = world.player.ship.pos, reach = 70 * chase.scale + 40;
@@ -559,7 +618,7 @@ function showDebrief() {
   document.body.classList.remove('flying');
   const res = results(world);
   let change = null;
-  if (!survivalRun && currentMission) change = recordResult(progress, res);
+  if (!survivalRun && currentMission && !currentMission.training) change = recordResult(progress, res);
   let survival = null;
   if (survivalRun) {
     const hull = currentLoadout.hull;
@@ -570,7 +629,7 @@ function showDebrief() {
   }
   saveProgress(storage, progress);
   const i = MISSIONS.indexOf(currentMission);
-  const story = screens.debrief(res, survivalRun ? null : currentMission, change, progress, { hasNext: i >= 0 && i + 1 < MISSIONS.length, survival, beyond: jumped });
+  const story = screens.debrief(res, survivalRun ? null : currentMission, change, progress, { hasNext: currentMission?.training || (i >= 0 && i + 1 < MISSIONS.length), survival, beyond: jumped });
   if (jumped) fade(false);
   if (!survivalRun) voices.narrate('narrator', story);
   screens.show('debrief', { remember: false });
@@ -590,6 +649,7 @@ function cutTo(seconds, framing) {
 const STAGED = new Set(['wake', 'arrival', 'shipKilled', 'command', 'ringOpen']);
 const s1 = new THREE.Vector3(), s2 = new THREE.Vector3(), s3 = new THREE.Vector3(), sq = new THREE.Quaternion();
 const up0 = new THREE.Vector3(0, 1, 0);
+const ZERO_VEL = [0, 0, 0];
 const posOf = (e, out) => out.set(e.ship.pos[0], e.ship.pos[1], e.ship.pos[2]);
 const axisOf = (e, x, y, z, out) => out.set(x, y, z).applyQuaternion(sq.set(e.ship.q[0], e.ship.q[1], e.ship.q[2], e.ship.q[3])).normalize();
 const ease = k => k * k * (3 - 2 * k);
@@ -759,6 +819,11 @@ function handleEvents(events) {
       // debrief, rather than coming back to the belt they have left.
       case 'jump': fx.jumpFlash(e.pos, [0, 0, 0], 600); fade(true, true); jumped = true; if (!REDUCED_MOTION) slowmo = 1.2; break;
       case 'command': say('PERPETUA COMMAND AUTHORITY — HOLD'); break;
+      // Into the Well: no fire, no wreck; a last red smear at the horizon.
+      case 'lost':
+        if (e.id !== p?.id) hud.callout(`${e.name} is lost to the Well`, 'rgba(255, 120, 90, A)');
+        fx.jumpFlash(e.pos, [0, 0, 0], 40, [1, 0.35, 0.2]);
+        break;
       case 'turncoat': say('Skiff 4 has turned hostile'); break;
       case 'music': music?.setMood(e.mood); break;
       case 'missionWon': hud.banner('MISSION COMPLETE', world.missionDef?.title ?? '', '#ffffff'); break;
@@ -815,6 +880,9 @@ function tick(dt) {
     controls = AUTOPILOT ? autopilot(world.time) : DEBUG && debugPilot ? debugPilot(world, dt * world.timeScale) : readInput(controlState, dt);
     if (controls.cursor) controls.aimPoint = aimPointFor(controls.cursor);
     if (controls.toggleCamera) chase.toggle();
+    // A fresh press half a second into a cutaway cuts back to the fighter.
+    if (chase.inCutaway && chase.cutawayAge > 0.5 && controlState.anyPress) chase.skipCutaway();
+    controlState.anyPress = false;
     // Reaching for the controls ends the opening shot.
     if (chase.inIntro && (controls.fire || controls.missile || controls.boost || controlState.held.size
       || Math.hypot(controls.cursor?.[0] ?? 0, controls.cursor?.[1] ?? 0) > 0.08)) chase.skipIntro();
@@ -844,14 +912,16 @@ function tick(dt) {
   // Place everything first, then move the camera onto the player's pose.
   entities.sync(world, alpha, step, camera, { hidePlayer: chase.mode === 'nose' && flying && !chase.inOutro && !chase.inCutaway });
   const playerObject = entities.view(p.id)?.root ?? null;
-  const jolted = shake.impact > 1e-3 ? stepShake(shake, CALM, step) : null;
+  const burning = flight && settings.vibration !== false && p.alive && p.ship.afterburner;
+  amps.rumble += ((burning ? SHAKE.rumble * (1.2 + 1.6 * p.ship.burnRamp) : 0) - amps.rumble) * Math.min(1, step * 6);
+  const jolted = shake.impact > 1e-3 || amps.rumble > 1e-3 ? stepShake(shake, amps, step) : null;
   if (wreck && world.state === 'dead') {
     wreck.t += step;
     chase.watch(wreck.pos, wreck.vel, wreck.t, step, jolted);
   } else if (playerObject) {
     const showcase = mode !== 'flight';
     const orbit = screens.current === 'hangar' ? Math.max(26, (hardpoints(p.model).length || 15) * 2.4) : 48;
-    chase.update(playerObject.position, playerObject.quaternion, p.ship.accelLocal, p.ship.afterburner, dt, jolted, showcase || world.state === 'attract', orbit);
+    chase.update(playerObject.position, playerObject.quaternion, p.ship.accelLocal, p.ship.afterburner ? 0.5 + 0.5 * p.ship.burnRamp : 0, dt, jolted, showcase || world.state === 'attract', orbit);
   }
 
   glow.begin();
@@ -863,12 +933,15 @@ function tick(dt) {
   if (!LEGACY) glow.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
   smoke.setCamera(camera.position.x, camera.position.y, camera.position.z, tmpV.x, tmpV.y, tmpV.z);
   entities.effects(world, step);
+  dust.add(camera, p?.alive ? p.ship.vel : ZERO_VEL);
   if (p.alive && playerObject && playerObject.visible !== false) {
     const { power, boost } = plumes.add(p, playerObject, world.time, dt, camera);
-    tmpV.set(0, 0, (hardpoints(p.model).length || 15) * 0.6).applyQuaternion(playerObject.quaternion).add(playerObject.position);
+    // The flame lights the tail and the rocks it passes; in HDR a brighter
+    // light than this turns the hull behind the cockpit white on the burner.
+    tmpV.set(0, 0, (hardpoints(p.model).length || 15) * 0.8).applyQuaternion(playerObject.quaternion).add(playerObject.position);
     engineLight.position.copy(tmpV);
     engineLight.color.setRGB(0.62 + 0.38 * boost, 0.72 + 0.2 * boost, 1);
-    engineLight.intensity = (power * 60 + boost * 120) * (0.9 + 0.2 * Math.random());
+    engineLight.intensity = (power * 26 + boost * 38) * (0.9 + 0.2 * Math.random());
   } else engineLight.intensity = 0;
   for (const e of world.entities) {
     if (e === p || !e.alive || e.folding?.dir === 'in') continue;
@@ -895,7 +968,8 @@ function tick(dt) {
   const { flash } = fx.update(step, camera);
   renderer.toneMappingExposure = EXPOSURE * (1 + 0.6 * flash);
 
-  if (!paused) beltTime.value += dt;
+  // The rocks tumble on the belt's own clock, as the simulation turns them.
+  beltTime.value = world.field.time;
   sky.update(camera, paused ? 0 : dt, glow);
   glow.end();
   smoke.end();
@@ -913,6 +987,8 @@ function tick(dt) {
       cursor: lastControls.cursor, aimPoint: lastControls.aimPoint, cinematic: chase.cinematic, closing: chase.inOutro,
     }, paused ? 0 : dt);
   } else hud.clear();
+  const rect = hud.targetViewRect;
+  targetView.update(rect && world.target?.alive ? world.target : null, camera, rect);
 
   audio?.update(world, camera, step);
   music?.update(world, dt);

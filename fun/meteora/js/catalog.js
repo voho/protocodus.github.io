@@ -165,6 +165,18 @@ export const CLASSES = {
     shield: 0, hull: 1e6, armor: 1, signature: 0, glow: [1, 0.75, 0.3],
   },
 
+  /* A drone the Watch flies for target practice: no guns, no pilot, a
+     helm that weaves it about the range. */
+  target: {
+    name: 'Target drone', type: 'Training target', faction: 'watch', size: 'small', model: 'drone', role: 'target',
+    flight: flight({
+      radius: 2.4, mass: 1500, gyration: [1, 1, 1],
+      forward: 45, reverse: 30, lateral: 35, boost: 45, cruise: 140, boostSpeed: 140, strafe: 40,
+      rate: [1.8, 1.8, 2.4], angAccel: [7, 7, 9],
+    }),
+    shield: 0, hull: 36, armor: 0, signature: 1, score: 25,
+  },
+
   /* ---------- The Harrow ---------- */
   mite: {
     name: 'Mite', type: 'Harrow swarm drone', faction: 'harrow', size: 'small', model: 'mite', role: 'fighter',

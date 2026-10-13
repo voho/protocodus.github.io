@@ -39,6 +39,7 @@ export const SPEAKERS = {
   perpetua: { name: 'Perpetua', colour: '#ffb347' },
   varlaam: { name: 'Varlaam', colour: '#f2d27a' },
   mule: { name: 'Mule convoy', colour: '#f2d27a' },
+  convoy: { name: 'Roussanou convoy', colour: '#f2d27a' },
   halo: { name: 'Halo Lead', colour: '#7fd8ff' },
   ember: { name: 'Ember Lead', colour: '#ff9a6a' },
   harrow: { name: '▲ UNKNOWN SIGNAL', colour: '#ff4a3a' },
