@@ -94,9 +94,9 @@ const near = (a, b, eps) => a.every((v, i) => Math.abs(v - b[i]) <= eps);
 // sizes (base and normal, MR and emissive), nozzle exit radii, colliders'
 // tolerance; plus what each craft must carry.
 const CRAFT = [
-  { name: 'swift', length: 10, tris: 9000, kb: 1300, tex: [2048, 1024], tol: 0.12,
+  { name: 'swift', length: 10, tris: 15000, kb: 1900, tex: [2048, 1024], tol: 0.12,
     nozzles: { nozzle_C: 0.55 }, muzzles: 2, launchers: 1, rcs: [16, 16], cockpit: true, dock: true, glass: true },
-  { name: 'anvil', length: 19, tris: 14000, kb: 1700, tex: [2048, 1024], tol: 0.2,
+  { name: 'anvil', length: 19, tris: 25000, kb: 2500, tex: [2048, 1024], tol: 0.2,
     nozzles: { nozzle_L: 0.8, nozzle_R: 0.8 }, muzzles: 2, launchers: 2, rcs: [16, 16], cockpit: true, dock: true,
     glass: true, turrets: ['turret_rear'] },
   { name: 'drone', length: 3.5, tris: 3000, kb: 450, tex: [1024, 1024], tol: 0.06,

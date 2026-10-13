@@ -171,7 +171,7 @@ embedded images, file size):
 | file | mesh nodes | triangles | images | size |
 |---|---|---|---|---|
 | `anchor.glb` | 2 | 3,204 | 4 | 643 KB |
-| `anvil.glb` | 4 | 13,494 | 4 | 1306 KB |
+| `anvil.glb` | 6 | 21,214 | 4 | 2121 KB |
 | `asteroid_1.glb` | 2 | 364 | 3 | 101 KB |
 | `asteroid_2.glb` | 2 | 728 | 3 | 130 KB |
 | `asteroid_3.glb` | 2 | 1,430 | 3 | 387 KB |
@@ -191,7 +191,7 @@ embedded images, file size):
 | `sentry.glb` | 2 | 2,342 | 4 | 437 KB |
 | `shuttle.glb` | 1 | 7,592 | 4 | 713 KB |
 | `station.glb` | 14 | 26,803 | 9 | 3035 KB |
-| `swift.glb` | 2 | 7,660 | 4 | 1052 KB |
+| `swift.glb` | 3 | 12,292 | 4 | 1581 KB |
 | `talon.glb` | 1 | 5,230 | 4 | 1062 KB |
 | `torpedo.glb` | 1 | 1,140 | 4 | 133 KB |
 | `warden.glb` | 9 | 7,942 | 8 | 1400 KB |

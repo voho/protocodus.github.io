@@ -10,6 +10,15 @@ script imports (importing it builds nothing):
                big engines, armoured stub wings, a recessed torpedo bay, a
                stepped two-seat canopy (`glass`) and a rear auto-turret
                (`turret_rear` with its child `turret_rear_gun`)
+
+The Swift and the Anvil are shown close up in the hangar, so they carry
+more detail than the rest: flaps, ailerons and rudders as separate pieces
+in slots, intakes with splitters and ducts, petal nozzles with liner bands
+and stator faces, RCS clusters, heat sinks, shrouded guns, pylons, antennas
+and blisters; their paint (finish()) adds an irregular panel layout with
+rivet rows, hatches and gear doors with fasteners, stencils and warning
+markings, and soot. Their bakes shrink the UV islands of plain dark parts
+(uv_shrink) so the painted skin gets the texels.
   drone.glb    the Tender repair drone, about 3.5 m: a utility body, four
                thruster pods, two folded arms (`arm_L`, `arm_R`) and an
                attach plate underneath
@@ -299,6 +308,381 @@ def cylinder(name, p0, p1, r, mat, sides=8, smooth=True, caps=True):
 
 
 # ==========================================================================
+# Detail helpers (the Swift's and the Anvil's close-up detail)
+
+def cos_space(a, b, n):
+    """n values from a to b, bunched toward both ends."""
+    return [a + (b - a) * (1 - math.cos(math.pi * i / (n - 1))) / 2 for i in range(n)]
+
+
+def lerp_section(secs, x):
+    """The S.wing section (x, y_le, z, chord, thickness) at span x; the
+    wing is ruled between its rows, so this lies on its surface."""
+    if x <= secs[0][0]:
+        return tuple(secs[0])
+    for a, b in zip(secs, secs[1:]):
+        if x <= b[0]:
+            t = (x - a[0]) / (b[0] - a[0])
+            return tuple(p + (q - p) * t for p, q in zip(a, b))
+    return tuple(secs[-1])
+
+
+def foil_points(sec, us, belly=0.75):
+    """Top and bottom points of S.wing's NACA section at chord fractions us."""
+    x, yle, z, chord, thick = sec
+    top = [Vector((x, yle - u * chord, z + S.naca(u) * thick * chord / 2)) for u in us]
+    bot = [Vector((x, yle - u * chord, z - S.naca(u) * thick * chord / 2 * belly)) for u in us]
+    return top, bot
+
+
+def slotted_wing(name, secs, mat, hinge, x0, x1, n=10, m=4, belly=0.75, sharp=50):
+    """S.wing's wing with its trailing edge cut back to the hinge line
+    y = hinge(x) between spans x0 and x1, leaving a slot for control
+    surfaces (control_surface). The cut face and the slot's end walls are
+    real faces of one closed mesh, so the bevelled bake rounds the slot's
+    edges and nothing else."""
+    bm = bmesh.new()
+
+    def u_hinge(sec):
+        return min(0.96, max(0.2, (sec[1] - hinge(sec[0])) / sec[3]))
+
+    def full(sec):
+        uh = u_hinge(sec)
+        us = cos_space(0.0, uh, n) + [uh + (1.0 - uh) * (i + 1) / m for i in range(m)]
+        top, bot = foil_points(sec, us, belly)
+        tv = [bm.verts.new(p) for p in top]
+        return tv, [tv[0]] + [bm.verts.new(p) for p in bot[1:-1]] + [tv[-1]]
+
+    def cut(sec):
+        top, bot = foil_points(sec, cos_space(0.0, u_hinge(sec), n), belly)
+        tv = [bm.verts.new(p) for p in top]
+        return tv, [tv[0]] + [bm.verts.new(p) for p in bot[1:]]
+
+    def loop(tv, bv):
+        return tv + (bv[::-1][1:-1] if bv[-1] is tv[-1] else bv[::-1][:-1])
+
+    def step(tv, bv):
+        bm.faces.new(tv[n - 1:] + bv[n - 1:-1][::-1])
+
+    xs = sorted({s[0] for s in secs} | {x0, x1})
+    loops, prev = [], None
+    for x in xs:
+        sec = lerp_section(secs, x)
+        if abs(x - x0) < 1e-9:
+            tv, bv = full(sec)
+            if prev is not None:
+                S.ring_faces(bm, [prev, loop(tv, bv)])
+            loops.append(loop(tv, bv))
+            step(tv, bv)
+            prev = loop(tv[:n], bv[:n])
+        elif abs(x - x1) < 1e-9:
+            tv, bv = full(sec)
+            S.ring_faces(bm, [prev, loop(tv[:n], bv[:n])])
+            step(tv, bv)
+            prev = loop(tv, bv)
+            loops.append(prev)
+        else:
+            tv, bv = cut(sec) if x0 < x < x1 else full(sec)
+            cur = loop(tv, bv)
+            if prev is not None:
+                S.ring_faces(bm, [prev, cur])
+            loops.append(cur)
+            prev = cur
+    bm.faces.new(loops[0][::-1])
+    bm.faces.new(loops[-1])
+    return S.finish_bm(name, bm, mat, smooth=True, sharp=sharp)
+
+
+def control_surface(name, secs, mat, hinge, xa, xb, gap=0.016, n=6, belly=0.75, deflect=0.0, sharp=50):
+    """The part of a slotted_wing aft of its hinge line between spans xa
+    and xb, standing `gap` behind the slot's cut face, turned `deflect`
+    degrees (trailing edge down) about the hinge line: a flap, aileron or
+    rudder as a separate piece."""
+    xs = [xa] + [s[0] for s in secs if xa < s[0] < xb] + [xb]
+    bm = bmesh.new()
+    loops = []
+    for x in xs:
+        sec = lerp_section(secs, x)
+        u0 = min(0.97, (sec[1] - hinge(x)) / sec[3] + gap / sec[3])
+        top, bot = foil_points(sec, cos_space(u0, 1.0, n), belly)
+        tv = [bm.verts.new(p) for p in top]
+        bv = [bm.verts.new(p) for p in bot[:-1]] + [tv[-1]]
+        loops.append(tv + bv[::-1][1:])
+    S.ring_faces(bm, loops)
+    bm.faces.new(loops[0][::-1])
+    bm.faces.new(loops[-1])
+    if deflect:
+        a = Vector((xa, hinge(xa), lerp_section(secs, xa)[2]))
+        b = Vector((xb, hinge(xb), lerp_section(secs, xb)[2]))
+        bmesh.ops.transform(bm, matrix=T(a) @ Matrix.Rotation(rad(deflect), 4, (b - a).normalized()) @ T(-a),
+                            verts=bm.verts)
+    return S.finish_bm(name, bm, mat, smooth=True, sharp=sharp)
+
+
+def rounded_rect(hw, hh, r, k=3):
+    """A rounded rectangle (half-width hw, half-height hh, corner radius r)
+    as (x, z) points counter-clockwise from +X, k + 1 points per corner."""
+    pts = []
+    for cx, cz, a0 in ((hw - r, hh - r, 0.0), (r - hw, hh - r, 90.0), (r - hw, r - hh, 180.0), (hw - r, r - hh, 270.0)):
+        for i in range(k + 1):
+            a = rad(a0 + 90.0 * i / k)
+            pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def multi_finish(name, bm, mats, smooth=True, sharp=None):
+    """S.finish_bm for a bmesh whose faces carry material indices into mats."""
+    obj = S.finish_bm(name, bm, None, smooth=smooth, sharp=sharp)
+    for mat in mats:
+        obj.data.materials.append(mat)
+    return obj
+
+
+def skin(bm, a, b, mi):
+    """Quads between two vertex rings of equal length, material index mi."""
+    for i in range(len(a)):
+        j = (i + 1) % len(a)
+        bm.faces.new((a[i], a[j], b[j], b[i])).material_index = mi
+
+
+def intake(name, matrix, mats, hw, hh, r, length, sink, rake=0.0, wall=0.022, depth=0.4, bend=(0.0, 0.0),
+           steps=5, k=3):
+    """A scoop intake built round its mouth at the local origin, facing +Y:
+    a rounded-rectangle cowl running `length` aft while it sinks by `sink`
+    (dx, dz) into the hull it lies on, a lip `wall` thick (the mouth raked
+    by `rake`, top lip forward), and an inner duct `depth` deep that bends
+    by `bend` (dx, dz) and ends in a dark face. mats: cowl, duct, face."""
+    bm = bmesh.new()
+    outer_pts = rounded_rect(hw, hh, r, k)
+    inner_pts = rounded_rect(hw - wall, hh - wall, max(0.004, r - wall), k)
+
+    def ring(pts, y, dx, dz, s=1.0, raked=False):
+        return [bm.verts.new((dx + px * s, y + (rake * pz / hh if raked else 0.0), dz + pz * s)) for px, pz in pts]
+
+    ease = lambda t: t * t * (3 - 2 * t)
+    outer = [ring(outer_pts, -length * i / steps, sink[0] * ease(i / steps), sink[1] * ease(i / steps),
+                  raked=(i == 0)) for i in range(steps + 1)]
+    for a, b in zip(outer, outer[1:]):
+        skin(bm, a, b, 0)
+    duct = [ring(inner_pts, 0.0, 0.0, 0.0, raked=True)]
+    skin(bm, duct[0], outer[0], 0)
+    for j in range(1, 4):
+        t = j / 3
+        duct.append(ring(inner_pts, -depth * t, bend[0] * ease(t), bend[1] * ease(t), 1.0 - 0.12 * t))
+        skin(bm, duct[-2], duct[-1], 1)
+    bm.faces.new(duct[-1][::-1]).material_index = 2
+    obj = multi_finish(name, bm, mats, smooth=True, sharp=40)
+    return S.transformed(obj, matrix)
+
+
+def yz_prism(name, outline, thick, mat, matrix):
+    """S.prism for an outline drawn in the (y, z) plane, `thick` along X."""
+    swap = Matrix(((0, 0, 1, 0), (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
+    return S.prism(name, outline, thick, mat, matrix @ swap)
+
+
+def turbine(name, centre, y, r0, r1, blades, mat, chord=0.05, thick=0.012, twist=35.0, phase=0.0):
+    """A ring of stator blades across the plane y round the engine axis
+    through `centre` (x, z), from radius r0 to r1."""
+    cx, cz = centre
+    out = []
+    for k in range(blades):
+        a = 2 * math.pi * k / blades + phase
+        m = T((cx, y, cz)) @ R(-a, 4, 'Y') @ T(((r0 + r1) / 2, 0, 0)) @ R(rad(twist), 4, 'X')
+        out.append(S.box(f'{name}{k}', (r1 - r0, chord, thick), mat, m))
+    return out
+
+
+def liner_rings(name, centre, ys, r_of, mat, sides, depth=0.012, width=0.03):
+    """Closed triangular rings standing `depth` in from a nozzle's inner
+    wall (radius r_of(y)) at stations ys: the liner's cooling bands."""
+    out = []
+    for i, y in enumerate(ys):
+        prof = [(y + width / 2, r_of(y + width / 2) + 0.006), (y, r_of(y) - depth),
+                (y - width / 2, r_of(y - width / 2) + 0.006)]
+        out.append(S.lathe(f'{name}{i}', prof, sides, centre, mat, closed=True, smooth=False))
+    return out
+
+
+def interp(points, y):
+    """Piecewise-linear r(y) through (y, r) points (any order of y)."""
+    pts = sorted(points)
+    if y <= pts[0][0]:
+        return pts[0][1]
+    for (ya, ra), (yb, rb) in zip(pts, pts[1:]):
+        if y <= yb:
+            return ra + (rb - ra) * (y - ya) / (yb - ya)
+    return pts[-1][1]
+
+
+def fin_array(name, matrix, count, length, height, thick, pitch, mat, base_mat=None, base_h=0.02):
+    """A heat sink: `count` thin fins `pitch` apart standing on a base
+    plate, along local Y in the frame `matrix` (Z out of the hull)."""
+    width = pitch * (count - 1) + thick + 0.04
+    out = [open_box(name + '_base', (width, length + 0.04, base_h + 0.02), base_mat or mat,
+                    matrix @ T((0, 0, base_h / 2 - 0.01)), taper=0.94)]
+    for i in range(count):
+        x = -pitch * (count - 1) / 2 + pitch * i
+        out.append(open_box(f'{name}_f{i}', (thick, length, height + 0.01), mat,
+                            matrix @ T((x, 0, base_h + height / 2 - 0.005)), taper=0.97))
+    return out
+
+
+def blade_antenna(name, matrix, h, chord, thick, mat, sweep=0.55, tip=0.5):
+    """A swept blade antenna standing on local Z (leading edge toward +Y),
+    its root sunk 1 cm into the hull."""
+    le_tip = chord / 2 - sweep * h
+    outline = [(chord / 2, -0.01), (-chord / 2, -0.01), (le_tip - tip * chord, h), (le_tip, h)]
+    return yz_prism(name, outline, thick, mat, matrix)
+
+
+def rcs_port(name, mat, hole_mat, matrix, size=0.2):
+    """A more detailed RCS port than rcs_block, on the same footprint and
+    no taller (the anchor stays just outside it): a chamfered octagonal
+    pad sunk into the hull, a raised nozzle lip and a dark throat."""
+    k = size / 0.2
+    pad = S.lathe(name, [(-0.06 * k, 0.1 * k), (0.033 * k, 0.098 * k), (0.05 * k, 0.074 * k), (0.05 * k, 0.0)],
+                  8, (0, 0), mat, smooth=False, phase=math.pi / 8)
+    lip = S.lathe(name + '_l', [(0.03 * k, 0.064 * k), (0.07 * k, 0.06 * k), (0.07 * k, 0.05 * k),
+                                (0.05 * k, 0.04 * k)], 8, (0, 0), mat, smooth=False)
+    throat = S.lathe(name + '_n', [(0.052 * k, 0.0), (0.052 * k, 0.042 * k)], 8, (0, 0), hole_mat, smooth=False)
+    for o in (pad, lip, throat):
+        S.transformed(o, matrix @ R(rad(90), 4, 'X'))
+    return [pad, lip, throat]
+
+
+def rcs_cluster(name, mat, hole_mat, matrix, size=0.2):
+    """An RCS cluster: a long block carrying rcs_port's nozzle in the
+    middle (where the anchor is) and a smaller one either side, canted 22
+    degrees outward along the block."""
+    k = size / 0.2
+    out = [open_box(name, (0.34 * k, 0.2 * k, 0.11 * k), mat, matrix @ T((0, 0, -0.005 * k)), taper=0.86)]
+    lip = [(0.03, 0.064), (0.07, 0.06), (0.07, 0.05), (0.05, 0.04)]
+    for j, (x, s, tilt) in enumerate(((0.0, 1.0, 0.0), (0.125, 0.68, 22.0), (-0.125, 0.68, -22.0))):
+        m = matrix @ T((x * k, 0, 0)) @ R(rad(tilt), 4, 'Y') @ R(rad(90), 4, 'X')
+        out.append(S.transformed(S.lathe(f'{name}_l{j}', [(y * k, r * k * s) for y, r in lip], 8, (0, 0), mat,
+                                         smooth=False), m))
+        out.append(S.transformed(S.lathe(f'{name}_n{j}', [(0.052 * k, 0.0), (0.052 * k, 0.042 * k * s)], 8, (0, 0),
+                                         hole_mat, smooth=False), m))
+    return out
+
+
+def place_ports(ports, bvh, metal, hole, size=0.2, clusters=()):
+    """place_rcs with rcs_port blocks (rcs_cluster for the names in
+    `clusters`): the same frames and anchor places."""
+    parts, empties = [], []
+    for name, origin, ray, puff in ports:
+        loc, m = S.frame_on(bvh, origin, ray)
+        d = Vector(puff).normalized()
+        if m.col[2].xyz.dot(d) < 0.8:
+            m = S.facing(loc + d * size * 0.15, d)
+        parts += (rcs_cluster if name in clusters else rcs_port)(name + '_block', metal, hole, m, size)
+        empties.append(S.empty(name, m.translation + m.col[2].xyz * size * 0.4, d))
+    return parts, empties
+
+
+def port_spots(ports, bvh, size=0.2):
+    """Where place_ports puts each port (for soot rings in the paint)."""
+    out = []
+    for name, origin, ray, puff in ports:
+        loc, m = S.frame_on(bvh, origin, ray)
+        d = Vector(puff).normalized()
+        if m.col[2].xyz.dot(d) < 0.8:
+            m = S.facing(loc + d * size * 0.15, d)
+        out.append(m.translation.copy())
+    return out
+
+
+def cull_buried(obj, bvh, margin=0.004):
+    """Delete the faces of obj whose every vertex lies more than `margin`
+    inside the closed surface in bvh (nearest point's normal facing away):
+    never seen, they would only take atlas space and bytes."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    inside = {}
+    for v in bm.verts:
+        loc, nrm, _, dist = bvh.find_nearest(v.co)
+        inside[v.index] = loc is not None and (v.co - loc).dot(nrm) < 0 and dist > margin
+    dead = [f for f in bm.faces if all(inside[v.index] for v in f.verts)]
+    bmesh.ops.delete(bm, geom=dead, context='FACES')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return len(dead)
+
+
+def open_box(name, size, mat, matrix=Matrix(), taper=1.0):
+    """S.box without its bottom face, for plates and blocks that sit on a
+    hull (the bottom is never seen)."""
+    sx, sy, sz = (s / 2 for s in size)
+    bm = bmesh.new()
+    vs = []
+    for z in (-sz, sz):
+        kk = taper if z > 0 else 1.0
+        for x, y in ((-sx, -sy), (sx, -sy), (sx, sy), (-sx, sy)):
+            vs.append(bm.verts.new((x * kk, y * kk, z)))
+    for f in ((4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)):
+        bm.faces.new([vs[i] for i in f])
+    bmesh.ops.transform(bm, matrix=matrix, verts=bm.verts)
+    return S.finish_bm(name, bm, mat, smooth=False)
+
+
+def plate(name, bvh, origin, ray, size, mat, angle=0.0, thick=0.012, inset=0.9, embed=0.02, n=3, along=(0, 1, 0)):
+    """drape() without the buried underside: a thin plate following the
+    hull, with chamfered edges, for hatches, armour and access panels."""
+    loc, m = S.frame_on(bvh, origin, ray, along)
+    m = m @ R(angle, 4, 'Z')
+    X, Y, Z = m.col[0].xyz, m.col[1].xyz, m.col[2].xyz
+
+    def surface(u, v):
+        p = loc + X * u + Y * v
+        hit = bvh.ray_cast(p + Z * 0.5, -Z, 1.5)[0]
+        return hit if hit is not None else p
+
+    bm = bmesh.new()
+    grids = []
+    for scale_, off in ((1.0, -embed), (inset, thick)):
+        grids.append([[bm.verts.new(surface((i / (n - 1) - 0.5) * size[0] * scale_,
+                                            (j / (n - 1) - 0.5) * size[1] * scale_) + Z * off)
+                       for j in range(n)] for i in range(n)])
+    lo, hi = grids
+    for i in range(n - 1):
+        for j in range(n - 1):
+            bm.faces.new((hi[i][j], hi[i + 1][j], hi[i + 1][j + 1], hi[i][j + 1]))
+    ring = [(i, 0) for i in range(n - 1)] + [(n - 1, j) for j in range(n - 1)] + \
+           [(i, n - 1) for i in range(n - 1, 0, -1)] + [(0, j) for j in range(n - 1, 0, -1)]
+    for kk in range(len(ring)):
+        (a, b), (c, d) = ring[kk], ring[(kk + 1) % len(ring)]
+        bm.faces.new((lo[a][b], lo[c][d], hi[c][d], hi[a][b]))
+    return S.finish_bm(name, bm, mat, smooth=False)
+
+
+def round_plate(name, bvh, origin, ray, r, mat, sides=16, thick=0.012, inset=0.88, embed=0.02):
+    """A round plate following the hull (a pivot or seal plate): its rim
+    and centre projected onto the surface, a chamfered edge, no underside."""
+    loc, m = S.frame_on(bvh, origin, ray)
+    X, Y, Z = m.col[0].xyz, m.col[1].xyz, m.col[2].xyz
+
+    def surface(p):
+        hit = bvh.ray_cast(p + Z * 0.5, -Z, 1.5)[0]
+        return hit if hit is not None else p
+
+    bm = bmesh.new()
+    c = bm.verts.new(surface(loc) + Z * thick)
+    rim, low = [], []
+    for k in range(sides):
+        a = 2 * math.pi * k / sides
+        d = X * math.cos(a) + Y * math.sin(a)
+        rim.append(bm.verts.new(surface(loc + d * r * inset) + Z * thick))
+        low.append(bm.verts.new(surface(loc + d * r) - Z * embed))
+    for k in range(sides):
+        j = (k + 1) % sides
+        bm.faces.new((c, rim[k], rim[j]))
+        bm.faces.new((low[k], low[j], rim[j], rim[k]))
+    return S.finish_bm(name, bm, mat, smooth=False)
+
+
+# ==========================================================================
 # Paint helpers
 
 def rect(g, u, v, u0, u1, v0, v1, soft=0.01):
@@ -407,8 +791,373 @@ def flat_paint(name, colour, rough=0.45, metal=0.2, wear=0.6, lines=False):
     return S.material(name, lambda g, P, N: S.weathered(g, colour, rough, metal, P, N, lines=lines, wear=wear))
 
 
+# Paint for close-up detail (the Swift and the Anvil): a finer panel layout
+# with rivet rows and a tone per panel, decal shapes and seven-segment text.
+
+SEGMENTS.update({'A': 'abcefg', 'b': 'cdefg', 'C': 'adef', 'c': 'deg', 'd': 'bcdeg', 'E': 'adefg', 'F': 'aefg',
+                 'H': 'bcefg', 'h': 'cefg', 'I': 'ef', 'J': 'bcde', 'L': 'def', 'n': 'ceg', 'o': 'cdeg',
+                 'P': 'abefg', 'r': 'eg', 'S': 'acdfg', 't': 'defg', 'U': 'bcdef', 'u': 'cde', 'y': 'bcdfg', ' ': ''})
+
+
+def panel_plane(g, u, v, w, h, line, rivets, seed):
+    """Panels about w x h (metres) on the plane (u, v) in rows h tall: each
+    row has its own panel width (0.7 to 1.3 w) and offset, and about one
+    panel in four is split down the middle, so the layout reads as built
+    rather than tiled. Returns (seam mask, rivet mask, a random value per
+    panel). rivets: (inset from the seam, pitch, radius) or None."""
+    white = lambda a, b: g.node('ShaderNodeTexWhiteNoise', [g.combine(a, b, seed)],
+                                noise_dimensions='3D').outputs['Value']
+    row = g.math('FLOOR', g.mul(v, 1.0 / h))
+    wr = g.mul(g.add(0.7, g.mul(white(row, 11.0), 0.6)), w)      # this row's panel width
+    U = g.add(g.math('DIVIDE', u, wr), white(row, 23.0))
+    col = g.math('FLOOR', U)
+    fu, fv = g.math('FRACT', U), g.math('FRACT', g.mul(v, 1.0 / h))
+    rnd = white(col, g.add(row, 0.5))
+    split = g.math('GREATER_THAN', white(col, g.add(row, 0.25)), 0.74)
+    du = g.mul(g.minimum(fu, g.sub(1.0, fu)), wr)
+    du = g.minimum(du, g.add(g.mul(g.absolute(g.sub(fu, 0.5)), wr), g.mul(g.sub(1.0, split), 10.0)))
+    dv = g.mul(g.minimum(fv, g.sub(1.0, fv)), h)
+    d = g.minimum(du, dv)
+    seam = g.sub(1.0, g.smooth(d, line * 0.3, line))
+    if rivets is None:
+        return seam, None, rnd
+    inset, pitch, radius = rivets
+    along = g.mixf(g.math('LESS_THAN', du, dv), u, v)          # along the nearest seam
+    a = g.mul(g.absolute(g.sub(g.math('FRACT', g.mul(along, 1.0 / pitch)), 0.5)), pitch)
+    r = g.vmath('LENGTH', g.combine(g.sub(d, inset), a, 0.0), out=1)
+    riv = g.sub(1.0, g.smooth(r, radius * 0.6, radius))
+    return seam, riv, rnd
+
+
+def panels(g, P, N, size, line, rivets=None, seed=0.0):
+    """panel_plane projected tri-planar by the dominant normal axis, as
+    S.panel_lines does, so the panels run along the hull on every side."""
+    x, y, z = g.sep(P)
+    nx, ny, nz = (g.absolute(c) for c in g.sep(N))
+    w, h = size
+    top = panel_plane(g, g.add(y, 0.31), g.add(x, 0.11), w, h, line, rivets, seed)
+    side = panel_plane(g, g.add(y, 0.17), g.add(z, 0.06), w, h, line, rivets, seed + 3.0)
+    front = panel_plane(g, g.add(x, 0.53), g.add(z, 0.2), w * 0.6, h, line, rivets, seed + 7.0)
+    wz = g.mul(g.math('GREATER_THAN', nz, nx), g.math('GREATER_THAN', nz, ny))
+    wx = g.mul(g.sub(1.0, wz), g.math('GREATER_THAN', nx, ny))
+    wy = g.sub(g.sub(1.0, wz), wx)
+    blend = lambda i: g.add(g.add(g.mul(wz, top[i]), g.mul(wx, side[i])), g.mul(wy, front[i]))
+    return blend(0), (blend(1) if rivets else None), blend(2)
+
+
+def finish(g, base, rough, metal, P, N, panel=(0.8, 0.4), line=0.006, rivets=(0.02, 0.055, 0.0045), tone=0.06,
+           wear=1.0, grime=1.0, lines=True, glow=None, height=None, soot=None, seed=0.0, chips=1.0):
+    """S.weathered with a finer panel layout for close-up craft: seams,
+    rivet rows a little in from them, a slightly different tone per panel
+    with now and then a newer panel, a few panels standing proud; `height`
+    adds relief (recessed hatches, ribs), `soot` (0..1) blackens."""
+    hgt = 0.0 if height is None else height
+    if lines:
+        seam, riv, rnd = panels(g, P, N, panel, line, rivets, seed)
+        k = g.add(1.0 - tone / 2, g.mul(rnd, tone))
+        base = g.mix(1.0, base, g.combine(k, k, k), 'MULTIPLY')
+        fresh = g.smooth(rnd, 0.92, 0.925)
+        base = g.mix(fresh, base, (1.035, 1.04, 1.07), 'MULTIPLY')
+        base = g.mix(g.mul(seam, 0.6), base, (0.01, 0.01, 0.011))
+        rough = g.mixf(g.mul(seam, 0.5), rough, 0.7)
+        hgt = g.add(hgt, g.mul(seam, -0.0016))
+        hgt = g.add(hgt, g.mul(g.smooth(rnd, 0.8, 0.805), 0.0004))
+        if rivets:
+            base = g.mix(g.mul(riv, 0.4), base, (0.02, 0.02, 0.022))
+            hgt = g.add(hgt, g.mul(riv, 0.0008))
+    if soot is not None:
+        base = g.mix(soot, base, (0.016, 0.014, 0.013))
+        rough = g.mixf(soot, rough, 0.78)
+        metal = g.mixf(soot, metal, 0.1)
+    ao = g.node('ShaderNodeAmbientOcclusion', [None, 0.45], samples=12, only_local=False).outputs['AO']
+    streak = g.smooth(g.noise(g.vmath('MULTIPLY', P, (7.0, 0.35, 7.0)), 1.0, 4.0, 0.6), 0.5, 0.8)
+    dirt = g.add(g.mul(g.sub(1.0, ao), 0.85), g.mul(streak, 0.25))
+    dirt = g.mul(g.minimum(dirt, 1.0), grime)
+    base = g.mix(g.mul(dirt, 0.7), base, (0.035, 0.03, 0.026), 'MULTIPLY')
+    rough = g.mixf(g.mul(dirt, 0.5), rough, 0.62)
+    bev = g.node('ShaderNodeBevel', [0.03], samples=8).outputs[0]
+    edge = g.sub(1.0, g.vmath('DOT_PRODUCT', bev, N, out=1))
+    patches = g.smooth(g.noise(P, 2.2, 3.0, 0.5), 0.5, 0.62)
+    chip = g.mul(g.mul(g.smooth(edge, 0.02, 0.08), patches), g.smooth(g.noise(P, 14.0, 4.0, 0.6), 0.4, 0.55))
+    scratches = g.mul(g.smooth(g.noise(g.vmath('MULTIPLY', P, (1.0, 14.0, 1.0)), 6.0, 3.0, 0.5), 0.74, 0.8),
+                      g.smooth(g.noise(P, 2.5, 2.0), 0.55, 0.7))
+    worn = g.mul(g.maximum(g.mul(chip, chips), g.mul(scratches, 0.6)), wear)
+    base = g.mix(worn, base, S.BARE)
+    rough = g.mixf(worn, rough, 0.35)
+    metal = g.mixf(worn, metal, 0.6)
+    hgt = g.add(hgt, g.mul(worn, -0.0004))
+    hgt = g.add(hgt, g.mul(g.noise(P, 60.0, 3.0, 0.5), 0.00015))
+    return dict(albedo=base, rough=rough, metal=metal, normal=g.bump(hgt, 1.0, 1.0), glow=glow)
+
+
+def outline(g, u, v, u0, u1, v0, v1, w=0.008, soft=0.002):
+    """The border (w wide) of the rectangle [u0, u1] x [v0, v1]: a hatch."""
+    return g.mul(rect(g, u, v, u0, u1, v0, v1, soft),
+                 g.sub(1.0, rect(g, u, v, u0 + w, u1 - w, v0 + w, v1 - w, soft)))
+
+
+def hatch(g, u, v, u0, u1, v0, v1, w=0.008, bolt=0.011, pitch=0.08):
+    """An access panel on the plane (u, v): (seam mask, a row of fastener
+    dots just inside its edge)."""
+    seam = outline(g, u, v, u0, u1, v0, v1, w)
+    du = g.minimum(g.sub(u, u0), g.sub(u1, u))
+    dv = g.minimum(g.sub(v, v0), g.sub(v1, v))
+    along = g.mixf(g.math('LESS_THAN', du, dv), u, v)
+    a = g.mul(g.absolute(g.sub(g.math('FRACT', g.mul(along, 1.0 / pitch)), 0.5)), pitch)
+    r = g.vmath('LENGTH', g.combine(g.sub(g.minimum(du, dv), w + bolt * 1.5), a, 0.0), out=1)
+    dots = g.mul(g.sub(1.0, g.smooth(r, bolt * 0.6, bolt)), rect(g, u, v, u0, u1, v0, v1, 0.001))
+    return seam, dots
+
+
+def chevrons(g, u, v, u0, v0, h, count, pitch, thick, slope=0.8):
+    """`count` chevrons pointing along -u, the first with its tip at
+    (u0, v0), h tall, `pitch` apart, `thick` wide."""
+    s = g.sub(g.sub(u, u0), g.mul(g.absolute(g.sub(v, v0)), slope))
+    t = g.mul(s, 1.0 / pitch)
+    on = g.mul(g.math('LESS_THAN', g.math('FRACT', t), thick / pitch),
+               g.mul(g.math('GREATER_THAN', t, 0.0), g.math('LESS_THAN', t, float(count))))
+    return g.mul(on, g.math('LESS_THAN', g.absolute(g.sub(v, v0)), h / 2))
+
+
+def arrow(g, u, v, u0, v0, length, width, head, head_w):
+    """An arrow along +u from (u0, v0) to its point at u0 + length."""
+    shaft = rect(g, u, v, u0, u0 + length - head, v0 - width / 2, v0 + width / 2, 0.002)
+    du = g.sub(u0 + length, u)
+    tip = g.mul(g.mul(g.math('GREATER_THAN', du, 0.0), g.math('LESS_THAN', du, head)),
+                g.math('LESS_THAN', g.absolute(g.sub(v, v0)), g.mul(du, head_w / 2 / head)))
+    return g.maximum(shaft, tip)
+
+
+def triangle(g, u, v, u0, v0, h):
+    """An upright equilateral triangle h tall standing on (u0, v0)."""
+    dv = g.sub(v, v0)
+    return g.mul(g.mul(g.math('GREATER_THAN', dv, 0.0), g.math('LESS_THAN', dv, h)),
+                 g.math('LESS_THAN', g.absolute(g.sub(u, u0)), g.mul(g.sub(h, dv), 0.577)))
+
+
+def spot(g, P, centre, r0, r1):
+    """1 at `centre`, falling to 0 between distances r0 and r1."""
+    return g.sub(1.0, g.smooth(g.vmath('DISTANCE', P, tuple(centre), out=1), r0, r1))
+
+
+def bell_paint(name, cx, cz, exit_y, throat_y, mirror=True):
+    """Engine metal for the detailed nozzles: outside, bare metal tinted by
+    heat (straw to blue toward the exit) under a film of soot at the lip;
+    inside, a heat-blued liner, lighter than soot so its bands show, going
+    sooty toward the exit. Inner faces are told apart by their normals
+    pointing at the engine axis (|x| = cx when `mirror`, z = cz)."""
+    def build(g, P, N):
+        x, y, z = g.sep(P)
+        nx, ny, nz = g.sep(N)
+        if mirror and cx:
+            sgn = g.math('SIGN', x)
+            rx, nxx = g.sub(g.absolute(x), cx), g.mul(nx, sgn)
+        else:
+            rx, nxx = g.sub(x, cx), nx
+        rz = g.sub(z, cz)
+        r = g.vmath('LENGTH', g.combine(rx, 0.0, rz), out=1)
+        facing = g.math('DIVIDE', g.add(g.mul(nxx, rx), g.mul(nz, rz)), g.maximum(r, 1e-4))
+        inner = g.sub(1.0, g.smooth(facing, -0.35, -0.05))
+        t = g.smooth(y, throat_y, exit_y)                    # 0 at the throat, 1 at the exit
+        n = g.noise(P, 3.0, 3.0)
+        outside = g.ramp(g.add(g.mul(t, 0.7), g.mul(n, 0.3)),
+                         [(0.0, (0.2, 0.17, 0.12)), (0.4, (0.16, 0.12, 0.09)), (0.7, (0.09, 0.09, 0.13)),
+                          (1.0, (0.06, 0.06, 0.08))])
+        liner = g.ramp(g.add(g.mul(t, 0.8), g.mul(n, 0.25)),
+                       [(0.0, (0.1, 0.09, 0.1)), (0.45, (0.07, 0.075, 0.11)), (0.8, (0.04, 0.038, 0.04)),
+                        (1.0, (0.018, 0.016, 0.015))])
+        col = g.mix(inner, outside, liner)
+        lip_soot = g.mul(g.smooth(y, exit_y + 0.35, exit_y + 0.02), g.sub(1.0, inner))
+        col = g.mix(g.mul(lip_soot, 0.75), col, (0.02, 0.018, 0.017))
+        rib = g.smooth(g.absolute(g.sub(g.math('FRACT', g.mul(y, 14.0)), 0.5)), 0.4, 0.47)
+        ch = finish(g, col, g.mixf(inner, 0.38, 0.55), g.mixf(inner, 0.7, 0.35), P, N, lines=False, wear=0.0,
+                    grime=0.5, height=g.mul(g.mul(rib, g.sub(1.0, inner)), -0.0015))
+        return ch
+    return S.material(name, build)
+
+
 # ==========================================================================
 # Bake, split, export, anchors
+
+def shrink_islands(obj, factors, margin):
+    """Scale the UV islands made only of faces whose material is in
+    `factors` (material name -> scale) about their centres, then repack:
+    dark and plain parts (nozzle insides, bare metal, glow) give texels to
+    the painted skin, which carries the fine detail."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    uv = bm.loops.layers.uv.active
+    names = [m.name if m else '' for m in obj.data.materials]
+    bm.faces.ensure_lookup_table()
+    island = [-1] * len(bm.faces)
+    same = lambda a, b: (a - b).length_squared < 1e-12
+    count = 0
+    for f in bm.faces:
+        if island[f.index] >= 0:
+            continue
+        island[f.index] = count
+        stack = [f]
+        while stack:
+            g = stack.pop()
+            for l in g.loops:
+                r = l.link_loop_radial_next
+                h = r.face
+                if r is l or island[h.index] >= 0:
+                    continue
+                if same(l[uv].uv, r.link_loop_next[uv].uv) and same(l.link_loop_next[uv].uv, r[uv].uv):
+                    island[h.index] = count
+                    stack.append(h)
+        count += 1
+    groups = {}
+    for f in bm.faces:
+        groups.setdefault(island[f.index], []).append(f)
+    for faces in groups.values():
+        ks = {factors.get(names[f.material_index]) for f in faces}
+        if None in ks:
+            continue
+        k = min(ks)
+        loops = [l for f in faces for l in f.loops]
+        c = sum((l[uv].uv for l in loops), Vector((0.0, 0.0))) / len(loops)
+        for l in loops:
+            l[uv].uv = c + (l[uv].uv - c) * k
+    bm.to_mesh(obj.data)
+    bm.free()
+    C.activate(obj)
+    bpy.ops.object.mode_set(mode='EDIT')
+    ts = bpy.context.scene.tool_settings
+    sync = ts.use_uv_select_sync
+    ts.use_uv_select_sync = True
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.pack_islands(rotate=True, rotate_method='ANY', shape_method='CONCAVE', margin_method='FRACTION',
+                            margin=margin)
+    ts.use_uv_select_sync = sync
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+# Blender's tangent generation (MikkTSpace, used by the normal bake and by
+# the glTF exporter) runs multithreaded on meshes of more than 10,000
+# triangles, and is then not bit-reproducible: tangents wobble in the last
+# bits from run to run, which flips the odd rounded tangent in the export
+# and the odd texel of the normal map. A model whose `split_tris` is set
+# keeps every mesh under that size.
+
+STABLE_TRIS = 9800           # with a little room under the 10,000
+
+
+def split_pieces(hull, limit):
+    """Move whole parts (connected pieces of geometry) of `hull` into new
+    objects hull_1, hull_2, ... so that no mesh has more than `limit`
+    triangles; faces tagged for a node stay in the hull. Deterministic:
+    parts are taken in the order of their first face."""
+    bm = bmesh.new()
+    bm.from_mesh(hull.data)
+    bm.faces.ensure_lookup_table()
+    tagged_groups = {vg.index for vg in hull.vertex_groups if vg.name.startswith('node:')}
+    deform = bm.verts.layers.deform.active
+    part = [-1] * len(bm.faces)
+    parts = []
+    for f in bm.faces:
+        if part[f.index] >= 0:
+            continue
+        part[f.index] = len(parts)
+        faces, stack = [f.index], [f]
+        while stack:
+            g = stack.pop()
+            for e in g.edges:
+                for h in e.link_faces:
+                    if part[h.index] < 0:
+                        part[h.index] = len(parts)
+                        faces.append(h.index)
+                        stack.append(h)
+        tagged = deform is not None and any(k in tagged_groups for v in bm.faces[f.index].verts for k in v[deform].keys())
+        parts.append((faces, tagged))
+    tris = lambda faces: sum(len(bm.faces[i].verts) - 2 for i in faces)
+    piece = [0] * len(bm.faces)
+    load = [sum(tris(fs) for fs, t in parts if t)]
+    for faces, tagged in parts:
+        if tagged:
+            continue
+        n = tris(faces)
+        if load[-1] + n > limit:
+            load.append(0)
+        load[-1] += n
+        for i in faces:
+            piece[i] = len(load) - 1
+    bm.free()
+    out = []
+    for k in range(len(load) - 1, 0, -1):
+        C.activate(hull)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_mode(type='FACE')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        em = bmesh.from_edit_mesh(hull.data)
+        em.faces.ensure_lookup_table()
+        for f in em.faces:
+            if piece[f.index] == k:
+                f.select_set(True)
+        bmesh.update_edit_mesh(hull.data)
+        bpy.ops.mesh.separate(type='SELECTED')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        obj = next(o for o in bpy.context.selected_objects if o is not hull)
+        obj.name = obj.data.name = f'hull_{k}'
+        obj.vertex_groups.clear()
+        piece = [p for p in piece if p != k]
+        out.insert(0, obj)
+    return out
+
+
+def uv_cover(obj, size):
+    """Boolean (size, size) mask of the texels whose centres fall inside
+    obj's UV triangles (the faces are triangulated)."""
+    me = obj.data
+    uv = np.empty(len(me.loops) * 2, np.float32)
+    me.uv_layers.active.data.foreach_get('uv', uv)
+    uv = uv.reshape(-1, 2) * size - 0.5
+    mask = np.zeros((size, size), bool)
+    for poly in me.polygons:
+        i = poly.loop_start
+        a, b, c = uv[i], uv[i + 1], uv[i + 2]
+        lo, hi = np.minimum(np.minimum(a, b), c), np.maximum(np.maximum(a, b), c)
+        x0, y0 = max(0, int(math.floor(lo[0]))), max(0, int(math.floor(lo[1])))
+        x1, y1 = min(size - 1, int(math.ceil(hi[0]))), min(size - 1, int(math.ceil(hi[1])))
+        d = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+        if x1 < x0 or y1 < y0 or abs(d) < 1e-12:
+            continue
+        X, Y = np.meshgrid(np.arange(x0, x1 + 1), np.arange(y0, y1 + 1))
+        w1 = ((X - a[0]) * (c[1] - a[1]) - (Y - a[1]) * (c[0] - a[0])) / d
+        w2 = ((b[0] - a[0]) * (Y - a[1]) - (b[1] - a[1]) * (X - a[0])) / d
+        mask[y0:y1 + 1, x0:x1 + 1] |= (w1 >= -1e-4) & (w2 >= -1e-4) & (w1 + w2 <= 1 + 1e-4)
+    return mask
+
+
+def bake_normals_by_piece(pieces, high, image, bevel, margin, samples):
+    """Bake the tangent-space normal map of each piece (all from the same
+    bevelled copy) and composite them into `image`: every texel from the
+    piece whose UV islands own it, the owners grown `margin` texels into
+    the gaps as the bake's margin is."""
+    size = image.size[0]
+    label = np.full((size, size), -1, np.int8)
+    for i, p in enumerate(pieces):
+        label[uv_cover(p, size) & (label < 0)] = i
+    for _ in range(margin):
+        free = label < 0
+        for axis, step in ((0, 1), (0, -1), (1, 1), (1, -1)):
+            nb = np.roll(label, step, axis=axis)
+            take = free & (nb >= 0) & (label < 0)
+            label[take] = nb[take]
+    out = None
+    for i, p in enumerate(pieces):
+        img = C.new_image(f'{p.name}_normal', size, non_color=True)
+        C.bake(p, img, 'NORMAL', sources=[high], extrusion=bevel * 0.75, max_ray=bevel * 2.0, margin=margin,
+               samples=samples)
+        px = C.pixels(img)
+        if out is None:
+            out = px.copy()
+        else:
+            out[label == i] = px[label == i]
+        bpy.data.images.remove(img)
+    C.set_pixels(image, out)
+
 
 def bake_craft(name, model, tex):
     """Join, unwrap and bake a model; split off its tagged nodes. Returns
@@ -416,6 +1165,8 @@ def bake_craft(name, model, tex):
     parts, extras, empties = model['parts'], model['extras'], model['empties']
     hull = C.join(parts, 'hull')
     C.smart_uv(hull, angle=model.get('uv_angle', 60.0), margin=model.get('uv_margin', 0.003))
+    if model.get('uv_shrink'):
+        shrink_islands(hull, model['uv_shrink'], model.get('uv_margin', 0.003))
     C.triangulate(hull)
     hull.data.set_sharp_from_angle(angle=math.radians(42))
     size_base, size_mr = (256, 128) if FAST else tex
@@ -427,24 +1178,43 @@ def bake_craft(name, model, tex):
     for o in extras:
         o.hide_render = True
     bevel = model.get('bevel', 0.02)
-    high = C.duplicate(hull, 'hull_high')
-    bev = high.modifiers.new('bevel', 'BEVEL')
-    bev.width = bevel
-    bev.segments = 3
-    bev.limit_method = 'ANGLE'
-    bev.angle_limit = math.radians(40)
-    C.apply_modifiers(high)
-    high.data.shade_smooth()
     margin = max(2, size_base // 256)
-    C.bake(hull, nrm, 'NORMAL', sources=[high], extrusion=bevel * 0.75, max_ray=bevel * 2.0, margin=margin,
-           samples=1 if FAST else 4)
-    bpy.data.objects.remove(high)
     s = 1 if FAST else 16
-    C.bake(hull, base, channel='albedo', margin=margin, samples=s)
     small = max(1, margin * size_mr // size_base)
-    C.bake(hull, rough, channel='rough', margin=small, samples=max(1, s // 2))
-    C.bake(hull, metal, channel='metal', margin=small, samples=max(1, s // 2))
-    C.bake(hull, glow, channel='glow', margin=small, samples=1 if FAST else 4)
+
+    def bake_paint():
+        C.bake(hull, base, channel='albedo', margin=margin, samples=s)
+        C.bake(hull, rough, channel='rough', margin=small, samples=max(1, s // 2))
+        C.bake(hull, metal, channel='metal', margin=small, samples=max(1, s // 2))
+        C.bake(hull, glow, channel='glow', margin=small, samples=1 if FAST else 4)
+
+    def bevelled():
+        high = C.duplicate(hull, 'hull_high')
+        bev = high.modifiers.new('bevel', 'BEVEL')
+        bev.width = bevel
+        bev.segments = 3
+        bev.limit_method = 'ANGLE'
+        bev.angle_limit = math.radians(40)
+        C.apply_modifiers(high)
+        high.data.shade_smooth()
+        return high
+
+    pieces = []
+    if model.get('split_tris'):
+        # The paint needs no tangents: bake it on the whole hull (before the
+        # bevelled copy exists, which its AO would see); then split the hull
+        # into pieces of stable size and bake the normal map piece by piece.
+        bake_paint()
+        high = bevelled()
+        pieces = split_pieces(hull, model['split_tris'])
+        bake_normals_by_piece([hull] + pieces, high, nrm, bevel, margin, 1 if FAST else 4)
+        bpy.data.objects.remove(high)
+    else:
+        high = bevelled()
+        C.bake(hull, nrm, 'NORMAL', sources=[high], extrusion=bevel * 0.75, max_ray=bevel * 2.0, margin=margin,
+               samples=1 if FAST else 4)
+        bpy.data.objects.remove(high)
+        bake_paint()
     for o in extras:
         o.hide_render = False
     mr = C.pack_mr(name + '_mr', rough, metal)
@@ -458,9 +1228,10 @@ def bake_craft(name, model, tex):
             copy.save()
             bpy.data.images.remove(copy)
     mat = C.baked_material(name, base, nrm, mr, glow)
-    hull.data.materials.clear()
-    hull.data.materials.append(mat)
-    hull.data.polygons.foreach_set('material_index', [0] * len(hull.data.polygons))
+    for o in [hull] + pieces:
+        o.data.materials.clear()
+        o.data.materials.append(mat)
+        o.data.polygons.foreach_set('material_index', [0] * len(o.data.polygons))
     nodes = {}
     for node, matrix, parent in model.get('nodes', []):
         p = nodes.get(parent)
@@ -470,7 +1241,7 @@ def bake_craft(name, model, tex):
     for e in empties:
         e.parent = hull
     bpy.context.view_layer.update()
-    return hull, list(nodes.values())
+    return hull, list(nodes.values()) + pieces
 
 
 def gl_pos(v):
@@ -712,8 +1483,18 @@ SW_RCS = [
 ]
 
 
-def swift_materials():
+SW_INTAKE = (0.08, 0.69, -0.215)      # intake mouth centre y, x, z (right side)
+SW_HINGE = -4.06                      # wing flap and elevon hinge line y
+SW_FLAP = (1.0, 2.02)                 # flap span x
+SW_ELEVON = (2.08, 3.2)               # elevon span x
+SW_RUDDER = lambda h: -3.89 - 0.441 * (h - 0.12)   # rudder hinge y at fin height h
+
+
+def swift_materials(spots):
+    """The Swift's paint. `spots` are its fuselage RCS ports (soot rings)."""
     dock_y = SW_DOCK_Y
+    iy, ix, iz = SW_INTAKE
+    gx, gz = SW_GUN
 
     def body(g, P, N):
         x, y, z = g.sep(P)
@@ -722,6 +1503,8 @@ def swift_materials():
         top = g.smooth(nz, 0.45, 0.62)
         under = g.smooth(nz, -0.28, -0.5)
         side = g.smooth(g.absolute(nx), 0.5, 0.66)
+        flank = g.smooth(g.absolute(nx), 0.3, 0.45)
+        belly_n = g.smooth(nz, -0.55, -0.7)
         radome = g.smooth(y, 4.43, 4.47)
         glare = g.mul(g.mul(S.band(g, y, 2.1, 4.08, 0.012), top), g.sub(1.0, g.smooth(ax, 0.15, 0.165)))
         belly = g.mul(g.mul(under, g.sub(1.0, g.smooth(ax, 0.2, 0.215))), S.band(g, y, -3.3, 3.9, 0.012))
@@ -738,7 +1521,6 @@ def swift_materials():
         col = g.mix(stripe, col, ORANGE)
         col = g.mix(pin, col, GRAPHITE)
         # side number on the nose, stencils under the canopy sill
-        flank = g.smooth(g.absolute(nx), 0.3, 0.45)
         u, v = side_uv(g, x, y, z, nx, 2.95)
         col = g.mix(g.mul(digits(g, u, v, '21', 0.15, 0.0, 0.165, soft=0.003), flank), col, GRAPHITE)
         # the deck behind the canopy: a graphite walkway, a hazard ring round the dock
@@ -758,20 +1540,74 @@ def swift_materials():
         sten = g.mul(union(g, [stencil(g, u2, z, -0.5, 0.2, 0.7, 0.032, 3.0),
                                stencil(g, u2, z, -0.5, 0.155, 0.45, 0.032, 5.0)]), side)
         col = g.mix(g.mul(sten, 0.85), col, GRAPHITE)
-        # an orange warning chevron at the engine cowl seam, and heat toward the nozzle
+        # an orange warning band at the engine cowl seam, and heat toward the nozzle
         cowl = g.mul(S.band(g, y, -2.98, -2.9, 0.004), g.sub(1.0, under))
         col = g.mix(cowl, col, ORANGE)
+        # canopy rescue marking under the sill: an arrow to the release and the word
+        ur, vr = side_uv(g, x, y, z, nx, 1.42)
+        rescue = g.mul(union(g, [digits(g, ur, vr, 'rESCUE', 0.034, 0.0, 0.235, soft=0.002, weight=0.2),
+                                 arrow(g, g.sub(y, 1.42), z, -0.17, 0.19, 0.36, 0.011, 0.05, 0.036)]), flank)
+        col = g.mix(rescue, col, ORANGE)
+        # intake danger: ink chevrons on a yellow field ahead of each mouth, a hazard lip
+        field = g.mul(rect(g, y, z, iy + 0.12, iy + 0.38, iz - 0.075, iz + 0.075, 0.003), g.smooth(ax, 0.45, 0.5))
+        chev = chevrons(g, y, z, iy + 0.16, iz, 0.12, 3, 0.07, 0.022, slope=0.9)
+        col = g.mix(field, col, g.mix(chev, HAZARD, INK))
+        lip_y = g.sub(y, g.mul(g.sub(z, iz), 0.045 / 0.13))       # along the raked mouth
+        lip = g.mul(g.mul(S.band(g, lip_y, iy - 0.075, iy + 0.01, 0.003), g.smooth(ax, 0.61, 0.63)),
+                    S.band(g, z, iz - 0.15, iz + 0.15, 0.004))
+        col = g.mix(lip, col, g.mix(S.hazard(g, y, z, 0.03), INK, HAZARD))
+        # ejection seat warning beside the rescue arrow
+        warn = g.mul(triangle(g, ur, vr, 0.26, 0.165, 0.075), flank)
+        warn_in = g.mul(triangle(g, ur, vr, 0.26, 0.177, 0.05), flank)
+        col = g.mix(warn, col, g.mix(warn_in, INK, HAZARD))
+        # access hatches and gear doors: recessed seams with fasteners
+        uh = g.sub(y, 2.75)
+        h1, f1 = hatch(g, uh, z, -0.42, 0.42, -0.2, -0.03)                       # nose avionics bay
+        h2, f2 = hatch(g, y, ax, -1.75, -0.95, 0.655, 0.785, bolt=0.01)         # gun bay, atop the blister
+        blister_top = g.smooth(nz, 0.6, 0.75)
+        h2, f2 = g.mul(h2, blister_top), g.mul(f2, blister_top)
+        h3, f3 = hatch(g, g.sub(y, -3.7), z, -0.2, 0.2, -0.42, -0.2)             # engine bay door
+        hside = g.mul(union(g, [h1, h3]), flank)
+        fside = g.mul(union(g, [f1, f3]), flank)
+        h4, f4 = hatch(g, y, ax, 2.2, 3.22, 0.0, 0.14, bolt=0.01)                # nose gear doors
+        h5, f5 = hatch(g, y, ax, -2.45, -1.25, 0.2, 0.43, bolt=0.01)            # main gear doors
+        h6, f6 = hatch(g, y, ax, -2.3, -1.98, 0.13, 0.3)                          # deck service panel
+        hbelly = g.mul(union(g, [h4, h5]), belly_n)
+        fbelly = g.mul(union(g, [f4, f5]), belly_n)
+        # gun gas vents on the blister, kick-in steps on the left flank
+        gas = g.mul(union(g, [rect(g, y, z, y0, y0 + 0.055, -0.032, 0.032, 0.002) for y0 in (-0.86, -0.97, -1.08)]),
+                    g.smooth(ax, 0.8, 0.82))
+        steps = g.mul(g.mul(union(g, [rect(g, y, z, y0, y0 + 0.13, -0.15, -0.075, 0.002) for y0 in (0.72, 1.18)]),
+                            g.math('LESS_THAN', x, 0.0)), flank)
+        col = g.mix(g.maximum(gas, steps), col, (0.01, 0.01, 0.011))
+        seams = union(g, [hside, h2, hbelly, g.mul(h6, top), gas, steps])
+        bolts = union(g, [fside, f2, fbelly, g.mul(f6, top)])
+        col = g.mix(g.mul(seams, 0.6), col, (0.012, 0.012, 0.013))
+        col = g.mix(g.mul(bolts, 0.3), col, (0.02, 0.02, 0.022))
+        relief = g.add(g.mul(seams, -0.0018), g.mul(bolts, 0.0005))
+        # non-slip walkway
+        relief = g.add(relief, g.mul(g.mul(walk, g.noise(P, 90.0, 2.0)), 0.0005))
         heat = g.smooth(y, -3.95, -4.12)
         col = g.mix(heat, col, (0.055, 0.05, 0.058))
         dark_r = g.maximum(dark, heat)
-        return S.weathered(g, col, g.mixf(dark_r, 0.4, 0.5), g.mixf(dark_r, 0.18, 0.4), P, N,
-                           panel=(1.15, 0.5), panel_scale=1.1)
+        # soot: round the RCS ports, the gun muzzles' blast on the blister noses, the tail
+        soot = union(g, [spot(g, P, p, 0.035, 0.15) for p in spots])
+        soot = g.maximum(g.mul(soot, 0.6), g.mul(spot(g, g.combine(ax, y, z), (gx, -0.62, gz), 0.04, 0.2), 0.55))
+        soot = g.maximum(soot, g.mul(g.smooth(y, -3.75, -4.12), g.mul(g.noise(P, 6.0, 3.0), 0.7)))
+        # formation lights: slim strips on the nose and the aft fuselage
+        strips = g.mul(union(g, [rect(g, y, z, 3.42, 3.84, 0.108, 0.13, 0.003),
+                                 rect(g, y, z, -2.52, -2.14, 0.215, 0.237, 0.003)]), side)
+        col = g.mix(strips, col, (0.55, 0.62, 0.5))
+        glow = g.mix(strips, (0.0, 0.0, 0.0), (0.12, 0.3, 0.16))
+        return finish(g, col, g.mixf(dark_r, 0.4, 0.5), g.mixf(dark_r, 0.18, 0.4), P, N, panel=(0.78, 0.38),
+                      line=0.005, rivets=(0.02, 0.06, 0.0075), height=relief, soot=soot, glow=glow, seed=1.0)
 
     def wing_paint(g, P, N):
         x, y, z = g.sep(P)
         ax = g.absolute(x)
         nx, ny, nz = g.sep(N)
         under = g.smooth(nz, -0.15, -0.4)
+        topside = g.sub(1.0, under)
         # leading-edge strip along the cranked edge (outboard of the LERX)
         le_y = g.maximum(g.sub(-1.2, g.mul(g.sub(ax, 0.95), 2.2)), g.sub(-2.3, g.mul(g.sub(ax, 1.45), 0.68)))
         leading = g.mul(g.smooth(g.sub(y, le_y), -0.17, -0.14), g.smooth(ax, 0.9, 0.95))
@@ -781,60 +1617,101 @@ def swift_materials():
         col = g.mix(g.mul(S.band(g, ax, 2.66, 2.71, 0.004), g.sub(1.0, leading)), col, GRAPHITE)
         # Belt Watch roundel on top: graphite ring, orange ring, graphite dot
         rd = g.vmath('LENGTH', g.combine(g.sub(ax, 2.0), g.sub(y, -3.55), 0.0), out=1)
-        topside = g.sub(1.0, under)
         col = g.mix(g.mul(S.band(g, rd, 0.0, 0.3, 0.004), topside), col, GRAPHITE)
         col = g.mix(g.mul(S.band(g, rd, 0.07, 0.24, 0.004), topside), col, ORANGE)
         col = g.mix(g.mul(S.band(g, rd, 0.11, 0.2, 0.004), topside), col, OFF_WHITE)
-        sten = g.mul(stencil(g, ax, y, 1.0, -2.95, 0.5, 0.045, 7.0), g.sub(1.0, under))
+        sten = g.mul(stencil(g, ax, y, 1.0, -2.95, 0.5, 0.045, 7.0), topside)
         col = g.mix(g.mul(sten, 0.8), col, GRAPHITE)
-        # flap and aileron lines along the trailing edge
-        flap = g.mul(S.band(g, y, -4.06, -4.04, 0.003), S.band(g, ax, 0.95, 3.2, 0.004))
-        hinge = g.mul(flap, -0.0012)
+        # NO STEP at the root, a shade greyer on the flaps and elevons
+        nostep = g.mul(union(g, [digits(g, x, y, 'no StEP', 0.042, 1.36, -2.62, soft=0.002, weight=0.2),
+                                 digits(g, x, y, 'no StEP', 0.042, -1.36, -2.62, soft=0.002, weight=0.2)]), topside)
+        col = g.mix(nostep, col, GRAPHITE)
+        surf = g.mul(g.smooth(y, SW_HINGE - 0.005, SW_HINGE - 0.02), S.band(g, ax, 1.0, 3.2, 0.004))
+        col = g.mix(surf, col, (0.93, 0.93, 0.94), 'MULTIPLY')
         col = g.mix(g.mul(under, 0.3), col, LIGHT_GREY)
-        ch = S.weathered(g, col, g.mixf(leading, 0.42, 0.5), g.mixf(leading, 0.18, 0.35), P, N,
-                         panel=(0.9, 0.45), panel_scale=1.2)
-        ch['normal'] = g.bump(hinge, 1.0, 1.0, normal=ch['normal'])
-        return ch
+        # access panels on both faces
+        h1, f1 = hatch(g, ax, y, 1.15, 1.55, -3.6, -3.28)
+        h2, f2 = hatch(g, ax, y, 2.42, 2.76, -3.86, -3.6, bolt=0.011)
+        h3, f3 = hatch(g, ax, y, 1.6, 2.3, -2.98, -2.72)
+        seams = union(g, [h1, h2, g.mul(h3, under)])
+        bolts = union(g, [f1, f2, g.mul(f3, under)])
+        col = g.mix(g.mul(seams, 0.6), col, (0.012, 0.012, 0.013))
+        relief = g.add(g.mul(seams, -0.0016), g.mul(bolts, 0.0005))
+        return finish(g, col, g.mixf(leading, 0.42, 0.5), g.mixf(leading, 0.18, 0.35), P, N, panel=(0.7, 0.36),
+                      line=0.005, rivets=(0.019, 0.06, 0.007), height=relief, seed=2.0)
 
     def fin_paint(g, P, N):
         x, y, z = g.sep(P)
         nx = g.sep(N)[0]
         col = g.mix(g.smooth(z, 1.23, 1.25), OFF_WHITE, ORANGE)
         col = g.mix(g.smooth(z, 1.43, 1.45), col, GRAPHITE)
-        u, v = side_uv(g, x, y, z, nx, -3.82)
-        col = g.mix(digits(g, u, v, '21', 0.24, 0.02, 0.94, soft=0.003), col, GRAPHITE)
+        u, v = side_uv(g, x, y, z, nx, -3.72)
+        col = g.mix(digits(g, u, v, '21', 0.24, 0.0, 0.94, soft=0.003), col, GRAPHITE)
         col = g.mix(rect(g, u, z, -0.3, 0.32, 1.14, 1.165, 0.003), col, ORANGE)
-        return S.weathered(g, col, 0.42, 0.2, P, N, panel=(0.8, 0.4), panel_scale=1.3)
+        # the rudder a shade greyer, a stencil block on it
+        hinge = g.add(-3.89, g.mul(g.sub(z, SW_FIN_Z + 0.12), -0.441))
+        rud = g.mul(g.smooth(g.sub(y, hinge), -0.005, -0.02), S.band(g, z, SW_FIN_Z + 0.12, SW_FIN_Z + 0.8, 0.004))
+        col = g.mix(rud, col, (0.93, 0.93, 0.94), 'MULTIPLY')
+        col = g.mix(g.mul(stencil(g, u, z, -0.36, 0.78, 0.2, 0.028, 13.0), 0.8), col, GRAPHITE)
+        # Ember wing chevrons under the number, pointing forward
+        col = g.mix(chevrons(g, g.mul(y, -1.0), z, 3.5, 0.765, 0.09, 2, 0.07, 0.026, slope=0.75), col, ORANGE)
+        return finish(g, col, 0.42, 0.2, P, N, panel=(0.55, 0.28), line=0.0045, rivets=(0.018, 0.055, 0.0065),
+                      seed=3.0)
 
     def metal(g, P, N):
-        return S.weathered(g, (0.045, 0.047, 0.05), 0.5, 0.5, P, N, lines=False, wear=0.6)
+        return finish(g, (0.045, 0.047, 0.05), 0.5, 0.5, P, N, lines=False, wear=0.6)
 
     def canard(g, P, N):
         x, y, z = g.sep(P)
         le = g.smooth(g.add(y, g.mul(g.absolute(x), 1.0)), 0.5, 0.44)
         col = g.mix(le, OFF_WHITE, GRAPHITE)
         col = g.mix(g.smooth(g.absolute(x), 1.22, 1.25), col, ORANGE)
-        return S.weathered(g, col, 0.42, 0.2, P, N, panel=(0.6, 0.3), panel_scale=1.5)
+        return finish(g, col, 0.42, 0.2, P, N, panel=(0.45, 0.25), line=0.0045, rivets=(0.017, 0.055, 0.006),
+                      seed=4.0)
 
     def missile(g, P, N):
         x, y, z = g.sep(P)
         col = g.mix(S.band(g, y, 0.08, 0.2, 0.005), (0.5, 0.5, 0.47), ORANGE)
         col = g.mix(g.smooth(y, 0.42, 0.46), col, GRAPHITE)
         col = g.mix(S.band(g, y, -0.35, -0.31, 0.003), col, HAZARD)
-        return S.weathered(g, col, 0.45, 0.2, P, N, lines=False, wear=0.4)
+        a = g.mul(polar_angle(g, x, g.sub(z, -0.64)), 0.095)
+        col = g.mix(g.mul(stencil(g, y, a, -1.05, -0.03, 0.62, 0.022, 17.0), 0.85), col, GRAPHITE)
+        return finish(g, col, 0.45, 0.2, P, N, lines=False, wear=0.4)
 
     def tip(g, P, N):
         x, y, z = g.sep(P)
         col = g.mix(g.smooth(y, -3.42, -3.46), GRAPHITE, OFF_WHITE)
-        return S.weathered(g, col, 0.45, 0.25, P, N, lines=False, wear=0.9)
+        return finish(g, col, 0.45, 0.25, P, N, lines=False, wear=0.9)
+
+    def gun(g, P, N):
+        x, y, z = g.sep(P)
+        ax = g.absolute(x)
+        # gunmetal; a perforated cooling shroud; soot toward the muzzle
+        a = polar_angle(g, g.sub(ax, gx), g.sub(z, gz))
+        cu = g.math('FRACT', g.mul(a, 8 / (2 * math.pi)))
+        cv = g.math('FRACT', g.mul(y, 1 / 0.045))
+        hole = g.sub(1.0, g.smooth(g.vmath('LENGTH', g.combine(g.mul(g.sub(cu, 0.5), 0.045), g.mul(g.sub(cv, 0.5), 0.045),
+                                                                0.0), out=1), 0.008, 0.012))
+        hole = g.mul(hole, S.band(g, y, -0.36, -0.15, 0.004))
+        col = g.mix(hole, (0.075, 0.077, 0.083), (0.006, 0.006, 0.007))
+        burnt = g.smooth(y, SW_MUZZLE_Y - 0.3, SW_MUZZLE_Y)
+        col = g.mix(g.mul(burnt, 0.8), col, (0.03, 0.026, 0.024))
+        return finish(g, col, g.mixf(burnt, 0.36, 0.6), 0.75, P, N, lines=False, wear=0.5,
+                      height=g.mul(hole, -0.003))
+
+    def duct(g, P, N):
+        x, y, z = g.sep(P)
+        deep = g.smooth(y, iy - 0.05, iy - 0.3)
+        col = g.mix(deep, (0.09, 0.092, 0.097), (0.02, 0.02, 0.022))
+        return finish(g, col, 0.5, 0.4, P, N, lines=False, wear=0.2, grime=1.2)
 
     return dict(
         body=S.material('sw_body', body), wing=S.material('sw_wing', wing_paint),
-        fin=S.material('sw_fin', fin_paint),
+        fin=S.material('sw_fin', fin_paint), gun=S.material('sw_gun', gun), duct=S.material('sw_duct', duct),
         canard=S.material('sw_canard', canard), metal=S.material('sw_metal', metal),
-        frame=flat_paint('sw_frame', GRAPHITE, 0.5, 0.3, wear=0.8), tip=S.material('sw_tip', tip),
-        missile=S.material('sw_missile', missile),
-        nozzle=nozzle_paint('sw_nozzle', SW_ENG[0], SW_ENG[1], mirror=False, exit_y=SW_EXIT_Y, ridges=9.0),
+        frame=S.material('sw_frame', lambda g, P, N: finish(g, GRAPHITE, 0.5, 0.3, P, N, lines=False, wear=0.8)),
+        tip=S.material('sw_tip', tip), missile=S.material('sw_missile', missile),
+        nozzle=bell_paint('sw_nozzle', SW_ENG[0], SW_ENG[1], SW_EXIT_Y, -4.31, mirror=False),
         glow=S.glow_material('sw_glow', (0.55, 0.68, 1.0), (0.3, 0.35, 0.45)),
         red=S.glow_material('sw_nav_red', (1.0, 0.05, 0.03), (0.3, 0.02, 0.02)),
         green=S.glow_material('sw_nav_green', (0.05, 1.0, 0.25), (0.02, 0.3, 0.06)),
@@ -845,21 +1722,24 @@ def swift_materials():
 
 
 def build_swift():
-    M = swift_materials()
-    parts = []
-    body = S.loft('body', SWIFT_BODY, M['body'], around=36, along=40, front_tip=(0, 5.075, -0.06),
+    body = S.loft('body', SWIFT_BODY, None, around=36, along=40, front_tip=(0, 5.075, -0.06),
                   back_tip=(0, -4.12, SW_ENG[1]))
-    parts.append(body)
+    deck = S.bvh_of([body])
+    M = swift_materials(port_spots([p for p in SW_RCS if abs(p[1][0]) < 3.4], deck, size=0.15))
+    body.data.materials.append(M['body'])
+    parts = [body]
 
     # Bubble canopy (the separate `glass` node), cut at its equator inside
-    # the fuselage; a windscreen bow, a rear hoop and two sills.
+    # the fuselage; a windscreen arch, a light mid hoop, a rear hoop and two
+    # sills.
     centre, radii = SW_CANOPY
     glass = bubble('glass', centre, radii, glass_material('sw_glass', (0.014, 0.01, 0.005), (0.007, 0.0045, 0.0012)),
                    front_taper=0.42, top_taper=0.2, cut=centre[2] + 0.01, u=24, v=14)
     out = lambda p: Vector((p.x, 0, p.z - centre[2]))
-    for i, yy in enumerate((centre[1] + 0.86, centre[1] - 0.9)):
+    for i, (yy, w, h) in enumerate(((centre[1] + 0.5, 0.085, 0.055), (centre[1] - 0.22, 0.05, 0.034),
+                                    (centre[1] - 0.9, 0.07, 0.045))):
         path = [bubble_point(centre, radii, yy, rad(a), 1.03, 0.42, 0.2) for a in range(6, 175, 12)]
-        parts.append(S.bar(f'hoop{i}', path, 0.07, 0.045, M['frame'], out))
+        parts.append(S.bar(f'hoop{i}', path, w, h, M['frame'], out))
     for sgn in (1, -1):
         sill = [bubble_point(centre, radii, yy, rad(90 - sgn * 82), 1.035, 0.42, 0.2)
                 for yy in np.linspace(centre[1] + 1.02, centre[1] - 1.02, 13)]
@@ -868,74 +1748,149 @@ def build_swift():
     # Dock on the turtle deck behind the canopy; the fin stands aft of it on
     # the engine housing, so a docked Tender clears both.
     dy = SW_DOCK_Y
-    deck = S.bvh_of([body])
     dloc, _ = S.frame_on(deck, (0, dy, 3), (0, 0, -1))
     dz0 = dloc.z + 0.035
-    plate = S.lathe('dock_plate', [(0.0, 0.0), (0.0, 0.22), (0.035, 0.22), (0.05, 0.195), (0.05, 0.13),
-                                   (0.035, 0.115), (0.035, 0.0)], 16, (0, 0), M['metal'], sharp=30)
-    parts.append(S.transformed(plate, T((0, dy, dz0 - 0.05)) @ R(rad(90), 4, 'X')))
+    plate_ = S.lathe('dock_plate', [(0.0, 0.0), (0.0, 0.22), (0.035, 0.22), (0.05, 0.195), (0.05, 0.13),
+                                    (0.035, 0.115), (0.035, 0.0)], 16, (0, 0), M['metal'], sharp=30)
+    parts.append(S.transformed(plate_, T((0, dy, dz0 - 0.05)) @ R(rad(90), 4, 'X')))
     for k in range(4):
         a = rad(45 + 90 * k)
         parts.append(S.box(f'dock_pin{k}', (0.04, 0.04, 0.07), M['frame'],
                            T((0.17 * math.cos(a), dy + 0.17 * math.sin(a), dz0 + 0.02))))
 
-    # Engine: a big bell inside a ring of petals, a glowing throat round a
-    # dark centre cone, a cooling ring at the end of the housing.
+    # Engine: a big bell inside a ring of petals (every other one ribbed),
+    # liner bands inside, stator blades over a glowing throat round a dark
+    # centre cone, a cooling ring at the end of the housing.
     ex = SW_EXIT_Y
+    cx, cz = SW_ENG
+    # (the bell stops at the throat: the glowing disc hides what lies ahead)
     bell = [(-4.0, 0.62), (-4.45, 0.59), (ex + 0.06, 0.6), (ex, 0.6), (ex - 0.01, 0.553),
-            (ex + 0.3, 0.48), (-4.31, 0.36), (-4.22, 0.36), (-4.13, 0.45), (-4.04, 0.57)]
-    parts.append(S.lathe('bell', bell, 32, SW_ENG, M['nozzle'], closed=True, sharp=35))
-    parts.append(S.lathe('throat', [(-4.26, 0.0), (-4.26, 0.37), (-4.22, 0.37), (-4.22, 0.0)], 32, SW_ENG,
-                         M['glow'], smooth=False))
+            (ex + 0.3, 0.48), (-4.31, 0.36), (-4.245, 0.352)]
+    parts.append(S.lathe('bell', bell, 32, SW_ENG, M['nozzle'], sharp=35))
+    parts.append(S.lathe('throat', [(-4.255, 0.0), (-4.255, 0.37)], 32, SW_ENG, M['glow'], smooth=False))
     parts.append(S.lathe('cone', [(-4.25, 0.16), (-4.4, 0.12), (-4.52, 0.0)], 12, SW_ENG, M['hole']))
     parts.append(petals('petals', 16, -4.06, ex + 0.05, 0.705, 0.625, SW_ENG, M['nozzle'], thick=0.02))
     parts.append(ring_bar('shroud_ring', SW_ENG, 0.71, -4.0, 0.1, 0.03, M['metal'], sides=24))
+    inner = [(ex - 0.01, 0.553), (ex + 0.3, 0.48), (-4.31, 0.36)]
+    parts += liner_rings('liner', SW_ENG, (-4.41, -4.53, -4.67), lambda y: interp(inner, y), M['nozzle'], 24)
+    parts += turbine('stator', SW_ENG, -4.29, 0.148, 0.372, 16, M['metal'], chord=0.04, thick=0.012, twist=38)
+    petal_r = lambda y: interp([(-4.06, 0.705), (ex + 0.05, 0.625)], y) + 0.026     # outer face of a proud petal
+    y0, y1 = -4.08, ex + 0.1
+    for k in range(1, 16, 2):
+        a = 2 * math.pi * k / 16
+        er = Vector((math.cos(a), 0.0, math.sin(a)))
+        p0 = Vector((cx, y0, cz)) + er * petal_r(y0)
+        p1 = Vector((cx, y1, cz)) + er * petal_r(y1)
+        gd = (p1 - p0).normalized()
+        nn = (er - gd * er.dot(gd)).normalized()
+        m = Matrix((gd.cross(nn), gd, nn)).transposed().to_4x4()
+        m.translation = (p0 + p1) / 2
+        parts.append(open_box(f'petal_rib{k}', (0.032, (p1 - p0).length, 0.032), M['nozzle'], m @ T((0, 0, 0.004)),
+                              taper=0.6))
 
-    # Dorsal fin and two ventral strakes.
+    # Dorsal fin with a rudder, and two ventral strakes.
     fy0, fy1 = SW_FIN_Y
-    fin = S.wing('fin', [(0.0, fy0, 0.0, fy0 - fy1, 0.075), (0.48, fy0 - 0.42, 0.0, 0.84, 0.065),
-                         (0.9, fy0 - 0.86, 0.0, 0.5, 0.06)], M['fin'], chord_pts=9)
-    parts.append(S.transformed(fin, T((0, 0, SW_FIN_Z)) @ R(rad(-90), 4, 'Y')))
+    fin_secs = [(0.0, fy0, 0.0, fy0 - fy1, 0.075), (0.48, fy0 - 0.42, 0.0, 0.84, 0.065),
+                (0.9, fy0 - 0.86, 0.0, 0.5, 0.06)]
+    fin_m = T((0, 0, SW_FIN_Z)) @ R(rad(-90), 4, 'Y')
+    parts.append(S.transformed(slotted_wing('fin', fin_secs, M['fin'], SW_RUDDER, 0.12, 0.8, n=8, m=3), fin_m))
+    parts.append(S.transformed(control_surface('rudder', fin_secs, M['fin'], SW_RUDDER, 0.14, 0.78, gap=0.014, n=5),
+                               fin_m))
 
     side = []
     # Cranked-delta wing, mid-set, with a leading-edge root extension
-    # running forward along the chine; 3 degrees of anhedral outboard.
+    # running forward along the chine; 3 degrees of anhedral outboard. Its
+    # trailing edge carries a flap and an elevon in a slot behind the hinge
+    # line, with actuator fairings underneath.
     wz = lambda x: SW_WING_Z - SW_ANHEDRAL * max(0.0, x - 0.95)
     secs = [(x, yle, wz(x), ch, th) for x, yle, ch, th in
             ((0.4, 0.75, 5.15, 0.022), (0.7, -0.25, 4.17, 0.03), (0.95, -1.2, 3.25, 0.036),
              (1.45, -2.3, 2.2, 0.042), (2.45, -3.0, 1.5, 0.042), (SW_TIP_X - 0.03, -3.62, 0.86, 0.04))]
-    side.append(S.wing('wing', secs, M['wing'], chord_pts=12))
+    hinge = lambda x: SW_HINGE
+    wing = slotted_wing('wing', secs, M['wing'], hinge, SW_FLAP[0], SW_ELEVON[1], n=11, m=3)
+    cull_buried(wing, deck)
+    side.append(wing)
+    side.append(control_surface('flap', secs, M['wing'], hinge, SW_FLAP[0] + 0.012, SW_FLAP[1], n=5))
+    side.append(control_surface('elevon', secs, M['wing'], hinge, SW_ELEVON[0], SW_ELEVON[1] - 0.012, n=5))
+    for i, xx in enumerate((1.3, 1.85, 2.4, 2.95)):
+        sec = lerp_section(secs, xx)
+        uh = (sec[1] - SW_HINGE) / sec[3]
+        zb = sec[2] - S.naca(uh) * sec[4] * sec[3] / 2 * 0.75
+        side.append(open_box(f'actuator{i}', (0.045, 0.34, 0.05), M['metal'],
+                             T((xx, SW_HINGE + 0.02, zb - 0.021)) @ R(rad(180), 4, 'Y'), taper=0.55))
     # wingtip fairing with a navigation light at its nose
     side.append(S.lathe('tip_fairing', [(-4.6, 0.0), (-4.6, 0.062), (-4.55, 0.072), (-3.7, 0.072), (-3.5, 0.058),
                                         (-3.38, 0.03), (-3.33, 0.0)], 10, (SW_TIP_X, SW_TIP_Z), M['tip'], sharp=40))
     side.append(S.lathe('navlight', [(-3.38, 0.0), (-3.35, 0.034), (-3.27, 0.03), (-3.24, 0.0)], 8,
                         (SW_TIP_X, SW_TIP_Z), M['green']))
-    # canards behind the canopy, on the upper shoulders
+    # all-moving canards behind the canopy on the upper shoulders, each on
+    # a round pivot plate
     can = S.wing('canard', [(0.0, 0.2, 0.0, 1.0, 0.07), (0.5, -0.32, 0.0, 0.56, 0.06), (0.95, -0.72, 0.0, 0.2, 0.05)],
                  M['canard'], chord_pts=7, sharp=40)
-    side.append(S.transformed(can, T((0.42, 0, 0.22)) @ R(rad(-5), 4, 'Y')))
-    # wing-root gun: a blister over the root and a long barrel out ahead of it
+    can = S.transformed(can, T((0.42, 0, 0.22)) @ R(rad(-5), 4, 'Y'))
+    cull_buried(can, deck)
+    side.append(can)
+    side.append(round_plate('canard_pivot', deck, (2, -0.2, 0.235), (-1, 0, 0), 0.15, M['frame'], thick=0.012))
+    # wing-root gun: a blister over the root and a long barrel out ahead of
+    # it with a perforated shroud and a ported muzzle brake
     gx, gz = SW_GUN
-    side.append(S.lathe('gun_blister', [(-0.55, 0.0), (-0.6, 0.06), (-0.78, 0.115), (-2.1, 0.12), (-2.5, 0.07),
-                                         (-2.65, 0.0)], 12, (gx, gz), M['body'], sharp=40))
-    side.append(S.lathe('barrel', [(-0.75, 0.0), (-0.75, 0.048), (SW_MUZZLE_Y - 0.24, 0.048),
-                                    (SW_MUZZLE_Y - 0.22, 0.066), (SW_MUZZLE_Y - 0.02, 0.066),
-                                    (SW_MUZZLE_Y, 0.044), (SW_MUZZLE_Y, 0.0)], 10, (gx, gz), M['metal'], sharp=40))
-    side.append(S.lathe('bore', [(SW_MUZZLE_Y - 0.06, 0.0), (SW_MUZZLE_Y - 0.06, 0.033), (SW_MUZZLE_Y + 0.004, 0.033),
-                                 (SW_MUZZLE_Y + 0.004, 0.0)], 8, (gx, gz), M['hole'], smooth=False))
+    blister = S.lathe('gun_blister', [(-0.55, 0.0), (-0.6, 0.06), (-0.78, 0.115), (-2.1, 0.12), (-2.5, 0.07),
+                                      (-2.65, 0.0)], 12, (gx, gz), M['body'], sharp=40)
+    cull_buried(blister, deck)
+    side.append(blister)
+    mu = SW_MUZZLE_Y
+    side.append(S.lathe('barrel', [(-0.75, 0.0), (-0.75, 0.042), (-0.4, 0.042), (-0.39, 0.058), (-0.12, 0.058),
+                                    (-0.11, 0.05), (-0.07, 0.05), (-0.06, 0.058), (0.0, 0.058), (0.012, 0.036),
+                                    (mu - 0.13, 0.036), (mu - 0.12, 0.052), (mu - 0.006, 0.052), (mu, 0.046), (mu, 0.0)],
+                        12, (gx, gz), M['gun'], sharp=40))
+    side.append(S.lathe('bore', [(mu - 0.06, 0.0), (mu - 0.06, 0.03), (mu + 0.004, 0.03), (mu + 0.004, 0.0)], 8,
+                        (gx, gz), M['hole'], smooth=False))
+    for s in (1, -1):
+        for j, yy in enumerate((mu - 0.088, mu - 0.042)):
+            side.append(S.box(f'brake{s}{j}', (0.012, 0.024, 0.052), M['hole'], T((gx + s * 0.05, yy, gz))))
     # ventral strake, canted out 35 degrees
     strake = S.wing('strake', [(0.0, -2.95, 0.0, 1.2, 0.06), (0.44, -3.5, 0.0, 0.62, 0.05)], M['canard'],
                     chord_pts=7, sharp=40)
     side.append(S.transformed(strake, T((0.3, 0, -0.5)) @ R(rad(55), 4, 'Y')))
+    # intake under the root extension: a raked mouth, a cowl sinking into
+    # the fuselage, a dark duct with guide vanes, a boundary-layer splitter
+    iy, ix, iz = SW_INTAKE
+    cowl = intake('intake', T((ix, iy, iz)), (M['body'], M['duct'], M['hole']), 0.095, 0.13, 0.038, 1.75,
+                  (-0.2, 0.035), rake=0.045, wall=0.02, depth=0.38, bend=(-0.07, 0.02))
+    cull_buried(cowl, deck)
+    side.append(cowl)
+    for j, dx in enumerate((-0.03, 0.0, 0.03)):
+        side.append(S.box(f'guide_vane{j}', (0.006, 0.05, 0.2), M['metal'], T((ix - 0.045 + dx, iy - 0.24, iz + 0.012))))
+    side.append(yz_prism('splitter', [(iy + 0.17, iz + 0.135), (iy + 0.1, iz - 0.145), (iy - 0.42, iz - 0.145),
+                                      (iy - 0.42, iz + 0.135)], 0.012, M['frame'], T((ix - 0.095 - 0.021, 0, 0))))
+    # static dischargers: two on the elevon's trailing edge, two on the tip fairing
+    for j, xx in enumerate((2.55, 3.0)):
+        sec = lerp_section(secs, xx)
+        te = Vector((xx, sec[1] - sec[3] + 0.01, sec[2]))
+        side.append(cylinder(f'wick{j}', te, te + Vector((0.0, -0.13, -0.004)), 0.0055, M['metal'], sides=5))
+    for j, s in enumerate((1, -1)):
+        root = Vector((SW_TIP_X, -4.42, SW_TIP_Z + s * 0.06))
+        side.append(cylinder(f'tip_wick{j}', root, root + Vector((0.0, -0.17, s * 0.05)), 0.0055, M['metal'], sides=5))
+    # air-data probe on each side of the nose
+    loc, m = S.frame_on(deck, (2, 3.82, -0.02), (-1, 0, 0))
+    nrm = m.col[2].xyz
+    mast = loc + nrm * 0.05
+    side.append(cylinder('probe_mast', loc - nrm * 0.01, mast, 0.011, M['metal'], sides=6))
+    side.append(cylinder('probe', mast - Vector((0, 0.02, 0)), mast + Vector((0, 0.14, 0)), 0.0075, M['metal'], sides=6))
     parts += S.mirrored(side)
     for o in parts:
         if o.name == 'navlight_m':          # red to port, green to starboard
             o.data.materials[0] = M['red']
 
-    # Ventral missile rail with one missile.
+    # Ventral missile rail with one missile, a launch shoe and sway braces.
     my, mz = -0.45, -0.64
     parts.append(S.prism('rail', [(-0.115, 0.75), (0.115, 0.75), (0.115, -1.55), (-0.115, -1.3)], 0.12, M['metal'],
                          T((0, my, -0.435)) @ R(rad(90), 4, 'Y')))
+    parts.append(S.box('shoe', (0.06, 1.3, 0.06), M['frame'], T((0, my - 0.12, -0.52))))
+    for k, yy in enumerate((my + 0.48, my - 0.62)):
+        for s in (1, -1):
+            parts.append(cylinder(f'sway{k}{s}', (s * 0.09, yy, -0.49), (s * 0.062, yy, -0.574), 0.013, M['frame'],
+                                  sides=4, smooth=False))
     mp = [(-1.02, 0.0), (-1.02, 0.07), (-0.98, 0.095), (0.72, 0.095), (0.92, 0.07), (1.06, 0.03), (1.12, 0.0)]
     parts.append(S.lathe('missile', [(my + a, r) for a, r in mp], 12, (0, mz), M['missile']))
     for k in range(4):
@@ -943,21 +1898,30 @@ def build_swift():
         parts.append(S.box(f'mfin{k}', (0.012, 0.26, 0.12), M['metal'], m, taper=0.6))
 
     # Greebles raycast onto the fuselage.
-    bvh = S.bvh_of([body])
+    bvh = deck
     _, m = S.frame_on(bvh, (0.17, 2.55, 3), (0, 0, -1))
     irst = S.lathe('irst', [(-0.03, 0.0), (-0.03, 0.08), (0.05, 0.075), (0.085, 0.045), (0.1, 0.0)], 10, (0, 0),
                    M['sensor'])
     parts.append(S.transformed(irst, m @ R(rad(90), 4, 'X')))
+    _, m = S.frame_on(bvh, (0, 2.95, -3), (0, 0, 1))
+    parts.append(S.transformed(S.lathe('chin_ring', [(-0.02, 0.09), (0.014, 0.088), (0.02, 0.07), (0.02, 0.0)], 12,
+                                       (0, 0), M['frame'], smooth=False), m @ R(rad(90), 4, 'X')))
+    parts.append(S.transformed(S.lathe('chin_eye', [(0.0, 0.07), (0.04, 0.062), (0.07, 0.036), (0.08, 0.0)], 12,
+                                       (0, 0), M['sensor']), m @ R(rad(90), 4, 'X')))
+    _, m = S.frame_on(bvh, (0, 3.32, 3), (0, 0, -1))
+    parts += S.vent('nose_vent', (0.12, 0.24, 0.022), M['metal'], m, slats=4)
     _, m = S.frame_on(bvh, (0, -2.45, -3), (0, 0, 1))
     whip = S.lathe('whip', [(-0.03, 0.0), (-0.03, 0.02), (0.55, 0.008), (0.57, 0.0)], 5, (0, 0), M['metal'])
     parts.append(S.transformed(whip, m @ R(rad(62), 4, 'X') @ R(rad(180), 4, 'Z')))
+    _, m = S.frame_on(bvh, (0, -2.42, 3), (0, 0, -1))
+    parts.append(blade_antenna('dorsal_blade', m, 0.17, 0.15, 0.014, M['metal'], sweep=0.55))
     greebles = []
     for i, yy in enumerate((-2.75, -3.25)):
         _, m = S.frame_on(bvh, (3, yy, 0.32), (-1, 0, -0.15))
         greebles += S.vent(f'vent{i}', (0.32, 0.4, 0.035), M['metal'], m, slats=4)
-    for i, (yy, zz, size) in enumerate(((3.0, 1.0, (0.16, 0.42, 0.02)), (1.85, -1.0, (0.22, 0.55, 0.02)))):
-        _, m = S.frame_on(bvh, (2.0, yy, zz), (-2.0, 0, -zz * 0.9))
-        greebles.append(S.box(f'hatch{i}', size, M['body'], m, taper=0.9))
+    _, m = S.frame_on(bvh, (1.6, -3.5, 1.7), (-1, 0, -1.05))
+    greebles += fin_array('heatsink', m, 6, 0.34, 0.045, 0.01, 0.034, M['metal'])
+    greebles.append(plate('hatch0', bvh, (2.0, 1.85, -1.0), (-2.0, 0, 0.9), (0.2, 0.5), M['body'], thick=0.008))
     _, m = S.frame_on(bvh, (0.3, -0.6, -3), (0, 0, 1))
     greebles.append(S.prism('blade', [(0, 0.1), (0.0, -0.1), (0.22, -0.2), (0.24, -0.1)], 0.018, M['metal'],
                             m @ R(rad(-90), 4, 'Y')))
@@ -967,7 +1931,8 @@ def build_swift():
                          (0, SW_FIN_Z + 0.9), M['white']))
 
     rcs_bvh = S.bvh_of([o for o in parts if o.name.startswith(('body', 'tip_fairing'))])
-    rcs_parts, empties = place_rcs(SW_RCS, rcs_bvh, M['metal'], M['hole'], size=0.15)
+    rcs_parts, empties = place_ports(SW_RCS, rcs_bvh, M['metal'], M['hole'], size=0.15,
+                                     clusters=[f'rcs_0{i}' for i in range(1, 9)])
     parts += rcs_parts
     empties += [
         S.empty('nozzle_C', (SW_ENG[0], SW_EXIT_Y, SW_ENG[1])),
@@ -984,7 +1949,10 @@ def build_swift():
     meta = dict(nozzles={'nozzle_C': 0.55},
                 lights={'light_0': ((1.0, 0.08, 0.05), 0), 'light_1': ((0.1, 1.0, 0.3), 0),
                         'light_2': ((1.0, 0.95, 0.85), 1.2)})
-    return dict(parts=parts, extras=[glass], empties=empties, meta=meta, bevel=0.016)
+    shrink = {'sw_nozzle': 0.55, 'sw_metal': 0.6, 'sw_hole': 0.3, 'sw_glow': 0.25, 'sw_duct': 0.45, 'sw_frame': 0.7,
+              'sw_sensor': 0.35, 'sw_nav_red': 0.3, 'sw_nav_green': 0.3, 'sw_nav_white': 0.3, 'sw_gun': 0.8}
+    return dict(parts=parts, extras=[glass], empties=empties, meta=meta, bevel=0.016, uv_shrink=shrink,
+                split_tris=STABLE_TRIS)
 
 
 # ==========================================================================
@@ -1084,8 +2052,23 @@ AV_RCS = [
 ]
 
 
-def anvil_materials():
+AV_HINGE = -3.35                       # wing flap and aileron hinge line y
+AV_FLAP = (3.05, 4.6)                  # flap span x
+AV_AILERON = (4.66, 5.95)              # aileron span x
+AV_FIN = [(0.0, -5.1, 0.0, 3.2, 0.08), (1.1, -6.05, 0.0, 2.3, 0.07), (2.0, -6.95, 0.0, 1.45, 0.065)]
+AV_RUDDER = lambda h: -7.62 - 0.168 * h    # rudder hinge y at fin height h
+AV_SCOOP = (-2.35, 1.75)               # dorsal intake mouth y, x (right side)
+AV_SPINE = (-0.75, -5.45)              # dorsal spine front and rear y
+AV_PYLON = (3.9, -0.3)                 # underwing pylon x, missile centre y
+AV_MISSILE = [(-1.02, 0.0), (-1.02, 0.07), (-0.98, 0.095), (0.72, 0.095), (0.92, 0.07), (1.06, 0.03), (1.12, 0.0)]
+
+
+def anvil_materials(spots, gz):
+    """The Anvil's paint. `spots` are its RCS ports on the body (soot
+    rings), gz the height of its chin-gun axis."""
     bw, by0, by1, bz = AV_BAY
+    sy, sx = AV_SCOOP
+    gx = AV_GUN_X
 
     def body(g, P, N):
         x, y, z = g.sep(P)
@@ -1094,6 +2077,8 @@ def anvil_materials():
         top = g.smooth(nz, 0.5, 0.65)
         under = g.smooth(nz, -0.3, -0.5)
         side = g.smooth(g.absolute(nx), 0.45, 0.6)
+        flank = g.smooth(g.absolute(nx), 0.3, 0.45)
+        belly_n = g.smooth(nz, -0.55, -0.7)
         # graphite belly and nose cap, anti-glare ahead of the canopy
         nose = g.smooth(y, 9.1, 9.14)
         glare = g.mul(g.mul(S.band(g, y, 7.75, 9.05, 0.01), top), g.sub(1.0, g.smooth(ax, 0.5, 0.52)))
@@ -1109,7 +2094,6 @@ def anvil_materials():
                            top), g.sub(1.0, g.smooth(ax, 1.25, 1.3)))
         col = g.mix(chev, col, ORANGE)
         # nose number and stencils
-        flank = g.smooth(g.absolute(nx), 0.3, 0.45)
         u, v = side_uv(g, x, y, z, nx, 6.35)
         col = g.mix(g.mul(digits(g, u, v, '07', 0.5, 0.0, -0.15, soft=0.004), flank), col, GRAPHITE)
         u2, _ = side_uv(g, x, y, z, nx, 3.4)
@@ -1124,42 +2108,97 @@ def anvil_materials():
         col = g.mix(ring, col, g.mix(stripes, INK, HAZARD))
         walk = g.mul(g.mul(S.band(g, ax, 0.62, 0.68, 0.004), top), S.band(g, y, -5.2, 2.6, 0.01))
         col = g.mix(walk, col, GRAPHITE)
+        walkway = g.mul(g.mul(g.sub(1.0, g.smooth(ax, 0.62, 0.63)), top), S.band(g, y, -5.2, 2.6, 0.01))
         # hazard frame round the torpedo bay
         bay_frame = g.mul(g.mul(rect(g, ax, y, 0.0, bw + 0.22, by1 - 0.22, by0 + 0.22, 0.004),
                                 g.sub(1.0, rect(g, ax, y, 0.0, bw + 0.02, by1 - 0.02, by0 + 0.02, 0.004))), under)
         col = g.mix(bay_frame, col, g.mix(S.hazard(g, x, y, 0.13), INK, HAZARD))
+        # intake danger ahead of each dorsal scoop: ink chevrons on yellow
+        field = g.mul(rect(g, y, g.sub(ax, sx), sy + 0.36, sy + 0.86, -0.3, 0.3, 0.004), top)
+        ichev = chevrons(g, y, g.sub(ax, sx), sy + 0.42, 0.0, 0.48, 3, 0.13, 0.045, slope=0.55)
+        col = g.mix(field, col, g.mix(ichev, HAZARD, INK))
+        # canopy rescue marking on the cabin flank, an ejection warning beside it
+        ur, vr = side_uv(g, x, y, z, nx, 5.15)
+        rescue = g.mul(union(g, [digits(g, ur, vr, 'rESCUE', 0.075, 0.0, 1.3, soft=0.003, weight=0.2),
+                                 arrow(g, g.sub(y, 5.15), z, -0.36, 1.2, 0.72, 0.022, 0.1, 0.075)]), flank)
+        col = g.mix(rescue, col, ORANGE)
+        warn = g.mul(triangle(g, ur, vr, 0.55, 1.165, 0.14), flank)
+        warn_in = g.mul(triangle(g, ur, vr, 0.55, 1.188, 0.093), flank)
+        col = g.mix(warn, col, g.mix(warn_in, INK, HAZARD))
+        # access hatches on the deck and flanks, gear doors on the belly
+        h1, f1 = hatch(g, y, ax, 1.35, 2.05, 0.95, 1.6, w=0.011, bolt=0.02, pitch=0.15)
+        h2, f2 = hatch(g, y, ax, -1.75, -1.15, 0.75, 1.15, w=0.011, bolt=0.02, pitch=0.15)
+        h3, f3 = hatch(g, y, ax, 7.0, 7.6, 0.75, 1.3, w=0.011, bolt=0.02, pitch=0.15)
+        h4, f4 = hatch(g, g.sub(y, 5.0), z, -0.45, 0.45, 0.45, 0.85, w=0.011, bolt=0.02, pitch=0.15)
+        h5, f5 = hatch(g, y, ax, 4.4, 5.7, 0.0, 0.36, w=0.011, bolt=0.02, pitch=0.15)
+        h6, f6 = hatch(g, y, ax, -1.8, 0.7, 1.35, 2.1, w=0.011, bolt=0.02, pitch=0.15)
+        h7, f7 = hatch(g, y, ax, -6.6, -5.6, 0.0, 0.5, w=0.011, bolt=0.02, pitch=0.15)
+        seams = union(g, [g.mul(union(g, [h1, h2, h3]), top), g.mul(h4, flank), g.mul(union(g, [h5, h6, h7]), belly_n)])
+        bolts = union(g, [g.mul(union(g, [f1, f2, f3]), top), g.mul(f4, flank), g.mul(union(g, [f5, f6, f7]), belly_n)])
+        # gun gas vents on the chin pods
+        gas = g.mul(union(g, [rect(g, y, z, y0, y0 + 0.11, gz - 0.06, gz + 0.06, 0.003) for y0 in (8.45, 8.65, 8.85)]),
+                    g.smooth(ax, gx + 0.19, gx + 0.21))
+        col = g.mix(gas, col, (0.01, 0.01, 0.011))
+        seams = g.maximum(seams, gas)
+        col = g.mix(g.mul(seams, 0.6), col, (0.012, 0.012, 0.013))
+        col = g.mix(g.mul(bolts, 0.3), col, (0.02, 0.02, 0.022))
+        relief = g.add(g.mul(seams, -0.0022), g.mul(bolts, 0.0007))
+        relief = g.add(relief, g.mul(g.mul(walkway, g.noise(P, 45.0, 2.0)), 0.0007))
         heat = g.mul(g.smooth(y, -7.9, -8.45), 1.0)
         col = g.mix(heat, col, (0.06, 0.055, 0.058))
         dark_r = union(g, [dark, heat, bay_frame])
-        return S.weathered(g, col, g.mixf(dark_r, 0.4, 0.52), g.mixf(dark_r, 0.18, 0.38), P, N,
-                           panel=(1.3, 0.6), panel_scale=0.85, mortar=0.012)
+        # soot: round the RCS ports, the chin guns' blast, the tail
+        soot = g.mul(union(g, [spot(g, P, p, 0.05, 0.24) for p in spots]), 0.6)
+        soot = g.maximum(soot, g.mul(spot(g, g.combine(ax, y, z), (gx, 9.55, gz), 0.06, 0.38), 0.6))
+        soot = g.maximum(soot, g.mul(g.smooth(y, -7.6, -8.5), g.mul(g.noise(P, 4.0, 3.0), 0.7)))
+        # formation lights on the nose flanks
+        strips = g.mul(rect(g, y, z, 7.25, 7.95, 0.37, 0.41, 0.004), side)
+        col = g.mix(strips, col, (0.55, 0.62, 0.5))
+        glow = g.mix(strips, (0.0, 0.0, 0.0), (0.12, 0.3, 0.16))
+        return finish(g, col, g.mixf(dark_r, 0.4, 0.52), g.mixf(dark_r, 0.18, 0.38), P, N, panel=(1.05, 0.52),
+                      line=0.0085, rivets=(0.045, 0.14, 0.016), height=relief, soot=soot, glow=glow, seed=5.0)
 
     def wing_paint(g, P, N):
         x, y, z = g.sep(P)
         ax = g.absolute(x)
         under = g.smooth(g.sep(N)[2], -0.15, -0.4)
+        topside = g.sub(1.0, under)
         le_y = g.sub(2.4, g.mul(g.sub(ax, 2.0), 0.85))
         leading = g.smooth(g.sub(y, le_y), -0.3, -0.26)
         col = g.mix(g.maximum(under, leading), OFF_WHITE, GRAPHITE)
         tip = g.mul(S.band(g, ax, 5.2, 5.75, 0.005), g.sub(1.0, g.maximum(under, leading)))
         col = g.mix(tip, col, ORANGE)
-        sten = g.mul(stencil(g, ax, y, 3.0, -3.55, 1.0, 0.07, 9.0), g.sub(1.0, under))
+        sten = g.mul(stencil(g, ax, y, 3.0, -3.55, 1.0, 0.07, 9.0), topside)
         col = g.mix(g.mul(sten, 0.8), col, GRAPHITE)
+        # Belt Watch roundel on top, as on the Swift; NO STEP by the root
+        rd = g.vmath('LENGTH', g.combine(g.sub(ax, 4.8), g.sub(y, -2.62), 0.0), out=1)
+        col = g.mix(g.mul(S.band(g, rd, 0.0, 0.4, 0.005), topside), col, GRAPHITE)
+        col = g.mix(g.mul(S.band(g, rd, 0.09, 0.32, 0.005), topside), col, ORANGE)
+        col = g.mix(g.mul(S.band(g, rd, 0.15, 0.26, 0.005), topside), col, OFF_WHITE)
+        nostep = g.mul(union(g, [digits(g, x, y, 'no StEP', 0.075, 3.4, -2.78, soft=0.003, weight=0.2),
+                                 digits(g, x, y, 'no StEP', 0.075, -3.4, -2.78, soft=0.003, weight=0.2)]), topside)
+        col = g.mix(nostep, col, GRAPHITE)
+        surf = g.mul(g.smooth(y, AV_HINGE - 0.005, AV_HINGE - 0.03), S.band(g, ax, 3.05, 5.95, 0.005))
+        col = g.mix(surf, col, (0.93, 0.93, 0.94), 'MULTIPLY')
+        h1, f1 = hatch(g, ax, y, 2.95, 3.65, -2.95, -2.2, w=0.011, bolt=0.02, pitch=0.15)
+        h2, f2 = hatch(g, ax, y, 5.3, 5.85, -2.9, -2.35, w=0.011, bolt=0.02, pitch=0.15)
+        seams = g.maximum(g.mul(h1, under), h2)
+        bolts = g.maximum(g.mul(f1, under), f2)
+        col = g.mix(g.mul(seams, 0.6), col, (0.012, 0.012, 0.013))
+        relief = g.add(g.mul(seams, -0.002), g.mul(bolts, 0.0007))
         dark = g.maximum(under, leading)
-        return S.weathered(g, col, g.mixf(dark, 0.42, 0.52), g.mixf(dark, 0.2, 0.35), P, N, panel=(1.2, 0.55),
-                           panel_scale=0.9)
+        return finish(g, col, g.mixf(dark, 0.42, 0.52), g.mixf(dark, 0.2, 0.35), P, N, panel=(0.95, 0.48),
+                      line=0.0085, rivets=(0.045, 0.14, 0.016), height=relief, seed=6.0)
 
     def armour(g, P, N):
-        x, y, z = g.sep(P)
         col = g.mix(g.smooth(g.noise(P, 0.6, 2.0), 0.4, 0.6), (0.3, 0.29, 0.275), (0.25, 0.245, 0.235))
         # bolt heads round the plate edges
         bolts = g.smooth(g.voronoi(g.vmath('MULTIPLY', P, (1.0, 1.0, 1.0)), 9.0, rand=0.0), 0.06, 0.035)
-        ch = S.weathered(g, col, 0.5, 0.45, P, N, lines=False, wear=1.4, grime=1.2)
-        ch['normal'] = g.bump(g.mul(bolts, 0.002), 1.0, 1.0, normal=ch['normal'])
-        return ch
+        return finish(g, col, 0.5, 0.45, P, N, lines=False, wear=1.4, grime=1.2, height=g.mul(bolts, 0.002))
 
     def engine(g, P, N):
         x, y, z = g.sep(P)
+        nx = g.sep(N)[0]
         under = g.smooth(g.sep(N)[2], -0.15, -0.4)
         heat = g.smooth(y, -7.6, -8.6)
         col = g.mix(under, OFF_WHITE, GRAPHITE)
@@ -1167,8 +2206,19 @@ def anvil_materials():
         col = g.mix(S.band(g, y, -7.35, -7.2, 0.004), col, GRAPHITE)
         col = g.mix(heat, col, (0.07, 0.06, 0.058))
         col = g.mix(g.mul(heat, g.smooth(g.noise(P, 3.0, 3.0), 0.4, 0.7)), col, (0.05, 0.055, 0.09))
-        return S.weathered(g, col, g.mixf(heat, g.mixf(under, 0.42, 0.52), 0.42),
-                           g.mixf(heat, g.mixf(under, 0.2, 0.3), 0.6), P, N, wear=0.8, panel_scale=1.1)
+        # an access door and a formation light on the outboard flank
+        u, v = side_uv(g, x, y, z, nx, -5.6)
+        h1, f1 = hatch(g, u, z, -0.35, 0.35, 0.05, 0.55, w=0.011, bolt=0.02, pitch=0.15)
+        out = g.smooth(g.mul(nx, g.math('SIGN', x)), 0.5, 0.65)
+        h1, f1 = g.mul(h1, out), g.mul(f1, out)
+        col = g.mix(g.mul(h1, 0.6), col, (0.012, 0.012, 0.013))
+        strip = g.mul(rect(g, y, z, -6.75, -6.1, 0.74, 0.78, 0.004), out)
+        col = g.mix(strip, col, (0.55, 0.62, 0.5))
+        soot = g.mul(g.smooth(y, -7.9, -8.6), g.mul(g.noise(P, 5.0, 3.0), 0.8))
+        return finish(g, col, g.mixf(heat, g.mixf(under, 0.42, 0.52), 0.42), g.mixf(heat, g.mixf(under, 0.2, 0.3), 0.6),
+                      P, N, wear=0.8, panel=(0.9, 0.45), line=0.0085, rivets=(0.045, 0.14, 0.016), soot=soot,
+                      height=g.add(g.mul(h1, -0.002), g.mul(f1, 0.0007)),
+                      glow=g.mix(strip, (0.0, 0.0, 0.0), (0.12, 0.3, 0.16)), seed=7.0)
 
     def fin_paint(g, P, N):
         x, y, z = g.sep(P)
@@ -1178,46 +2228,89 @@ def anvil_materials():
         col = g.mix(g.smooth(z, fz + 1.69, fz + 1.72), col, GRAPHITE)
         u, v = side_uv(g, x, y, z, nx, -6.55)
         col = g.mix(digits(g, u, v, '07', 0.5, 0.0, fz + 0.62, soft=0.004), col, GRAPHITE)
-        return S.weathered(g, col, 0.42, 0.2, P, N, panel=(1.0, 0.5), panel_scale=1.0)
+        # the rudder a shade greyer, a stencil on it
+        h = g.mul(g.sub(z, fz), 1.0 / math.sin(rad(78)))
+        rud = g.mul(g.smooth(g.sub(y, g.add(-7.62, g.mul(h, -0.168))), -0.005, -0.025), S.band(g, h, 0.25, 1.8, 0.005))
+        col = g.mix(rud, col, (0.93, 0.93, 0.94), 'MULTIPLY')
+        col = g.mix(g.mul(stencil(g, u, z, -0.95, fz + 0.18, 0.5, 0.06, 19.0), 0.8), col, GRAPHITE)
+        # Ember wing chevrons under the number, pointing forward
+        col = g.mix(chevrons(g, g.mul(y, -1.0), z, 6.25, fz + 0.24, 0.17, 2, 0.13, 0.048, slope=0.75), col, ORANGE)
+        return finish(g, col, 0.42, 0.2, P, N, panel=(0.8, 0.4), line=0.008, rivets=(0.04, 0.13, 0.014), seed=8.0)
 
     def turret(g, P, N):
         x, y, z = g.sep(P)
         col = g.mix(g.smooth(z, 1.2, 1.22), GRAPHITE, (0.12, 0.12, 0.125))
         col = g.mix(S.band(g, z, 1.36, 1.42, 0.004), col, ORANGE)
-        return S.weathered(g, col, 0.45, 0.45, P, N, lines=False, wear=1.0)
+        return finish(g, col, 0.45, 0.45, P, N, lines=False, wear=1.0)
 
     def bay(g, P, N):
         x, y, z = g.sep(P)
         ribs = g.smooth(g.absolute(g.sub(g.math('FRACT', g.mul(y, 1.1)), 0.5)), 0.42, 0.46)
         col = g.mix(ribs, (0.05, 0.052, 0.056), (0.03, 0.031, 0.034))
-        ch = S.weathered(g, col, 0.55, 0.4, P, N, lines=False, wear=0.5, grime=1.3)
-        ch['normal'] = g.bump(g.mul(ribs, -0.004), 1.0, 1.0, normal=ch['normal'])
-        return ch
+        return finish(g, col, 0.55, 0.4, P, N, lines=False, wear=0.5, grime=1.3, height=g.mul(ribs, -0.004))
+
+    def door(g, P, N):
+        x, y, z = g.sep(P)
+        edge = S.band(g, z, -1.26, -1.15, 0.004)
+        col = g.mix(edge, (0.07, 0.072, 0.077), g.mix(S.hazard(g, y, z, 0.06), INK, HAZARD))
+        return finish(g, col, 0.5, 0.4, P, N, lines=False, wear=0.9, grime=1.1)
 
     def torpedo(g, P, N):
         x, y, z = g.sep(P)
         col = torpedo_paint(g, P, N, g.sub(y, AV_TORP[1]))
-        return S.weathered(g, col, 0.42, 0.25, P, N, lines=False, wear=0.5)
+        return finish(g, col, 0.42, 0.25, P, N, lines=False, wear=0.5)
 
     def metal(g, P, N):
-        return S.weathered(g, (0.045, 0.047, 0.05), 0.5, 0.5, P, N, lines=False, wear=0.6)
+        return finish(g, (0.045, 0.047, 0.05), 0.5, 0.5, P, N, lines=False, wear=0.6)
 
     def pod(g, P, N):
         x, y, z = g.sep(P)
         col = g.mix(g.smooth(g.sep(N)[2], -0.1, -0.4), OFF_WHITE, GRAPHITE)
         col = g.mix(S.band(g, y, -0.7, -0.4, 0.005), col, ORANGE)
         col = g.mix(g.smooth(y, 0.15, 0.2), col, GRAPHITE)
-        return S.weathered(g, col, 0.45, 0.25, P, N, panel_scale=1.4)
+        a = g.mul(polar_angle(g, g.sub(g.absolute(x), AV_TIP[0]), g.sub(z, AV_TIP[1])), 0.24)
+        col = g.mix(g.mul(stencil(g, y, a, -2.6, 0.02, 0.9, 0.04, 23.0), 0.85), col, GRAPHITE)
+        return finish(g, col, 0.45, 0.25, P, N, panel=(0.6, 0.3), line=0.007, rivets=None, seed=9.0)
+
+    def gun(g, P, N):
+        x, y, z = g.sep(P)
+        ax = g.absolute(x)
+        a = polar_angle(g, g.sub(ax, gx), g.sub(z, gz))
+        cu = g.math('FRACT', g.mul(a, 10 / (2 * math.pi)))
+        cv = g.math('FRACT', g.mul(y, 1 / 0.05))
+        hole = g.sub(1.0, g.smooth(g.vmath('LENGTH', g.combine(g.mul(g.sub(cu, 0.5), 0.056), g.mul(g.sub(cv, 0.5), 0.05),
+                                                                0.0), out=1), 0.011, 0.016))
+        hole = g.mul(hole, S.band(g, y, 9.5, 9.7, 0.004))
+        col = g.mix(hole, (0.075, 0.077, 0.083), (0.006, 0.006, 0.007))
+        burnt = g.smooth(y, AV_MUZZLE_Y - 0.35, AV_MUZZLE_Y)
+        col = g.mix(g.mul(burnt, 0.8), col, (0.03, 0.026, 0.024))
+        return finish(g, col, g.mixf(burnt, 0.36, 0.6), 0.75, P, N, lines=False, wear=0.5, height=g.mul(hole, -0.003))
+
+    def duct(g, P, N):
+        x, y, z = g.sep(P)
+        deep = g.smooth(y, sy - 0.1, sy - 0.6)
+        col = g.mix(deep, (0.09, 0.092, 0.097), (0.02, 0.02, 0.022))
+        return finish(g, col, 0.5, 0.4, P, N, lines=False, wear=0.2, grime=1.2)
+
+    def missile(g, P, N):
+        x, y, z = g.sep(P)
+        yy = g.mul(g.sub(y, AV_PYLON[1]), 1 / 1.2)                # the Swift's missile, 1.2 times larger
+        col = g.mix(S.band(g, yy, 0.53, 0.65, 0.005), (0.5, 0.5, 0.47), ORANGE)
+        col = g.mix(g.smooth(yy, 0.87, 0.91), col, GRAPHITE)
+        col = g.mix(S.band(g, yy, 0.1, 0.14, 0.003), col, HAZARD)
+        return finish(g, col, 0.45, 0.2, P, N, lines=False, wear=0.4)
 
     return dict(
         body=S.material('av_body', body), wing=S.material('av_wing', wing_paint),
         armour=S.material('av_armour', armour), engine=S.material('av_engine', engine),
         fin=S.material('av_fin', fin_paint), turret=S.material('av_turret', turret),
-        bay=S.material('av_bay', bay), torpedo=S.material('av_torpedo', torpedo),
-        metal=S.material('av_metal', metal), pod=S.material('av_pod', pod),
-        frame=flat_paint('av_frame', GRAPHITE, 0.5, 0.3, wear=0.8),
-        nozzle=nozzle_paint('av_nozzle', AV_ENG[0], AV_ENG[1], mirror=True, exit_y=AV_EXIT_Y, ridges=6.0),
+        bay=S.material('av_bay', bay), door=S.material('av_door', door), torpedo=S.material('av_torpedo', torpedo),
+        metal=S.material('av_metal', metal), pod=S.material('av_pod', pod), gun=S.material('av_gun', gun),
+        duct=S.material('av_duct', duct), missile=S.material('av_missile', missile),
+        frame=S.material('av_frame', lambda g, P, N: finish(g, GRAPHITE, 0.5, 0.3, P, N, lines=False, wear=0.8)),
+        nozzle=bell_paint('av_nozzle', AV_ENG[0], AV_ENG[1], AV_EXIT_Y, -8.8, mirror=True),
         glow=S.glow_material('av_glow', (1.0, 0.62, 0.3), (0.45, 0.3, 0.2)),
+        bay_light=S.glow_material('av_bay_light', (1.0, 0.7, 0.35), (0.5, 0.45, 0.4)),
         red=S.glow_material('av_nav_red', (1.0, 0.05, 0.03), (0.3, 0.02, 0.02)),
         green=S.glow_material('av_nav_green', (0.05, 1.0, 0.25), (0.02, 0.3, 0.06)),
         white=S.glow_material('av_nav_white', (1.0, 0.95, 0.85), (0.4, 0.4, 0.4)),
@@ -1240,21 +2333,26 @@ def cut_away(obj, size, matrix, mat):
 
 
 def build_anvil():
-    M = anvil_materials()
-    parts = []
-    body = S.loft('body', ANVIL_BODY, M['body'], around=48, along=36, front_tip=(0, 9.5, -0.28),
+    body = S.loft('body', ANVIL_BODY, None, around=48, along=36, front_tip=(0, 9.5, -0.28),
                   back_tip=(0, -8.5, 0.1))
+    cabin = S.loft('cabin', AV_CABIN, None, around=28, along=12, front_tip=(0, 7.95, 0.65),
+                   back_tip=(0, 2.2, 1.22))
+    pre = S.bvh_of([body, cabin])
+    on_body = ('rcs_01', 'rcs_02', 'rcs_03', 'rcs_04', 'rcs_05', 'rcs_06', 'rcs_13', 'rcs_14')
+    gx = AV_GUN_X
+    gz = S.frame_on(S.bvh_of([body]), (gx, 7.2, -5), (0, 0, 1))[0].z - 0.1
+    M = anvil_materials(port_spots([p for p in AV_RCS if p[0] in on_body], pre, size=0.24), gz)
+    body.data.materials.append(M['body'])
+    cabin.data.materials.append(M['body'])
+    parts = []
     # The recessed torpedo bay, cut out of the belly.
     bw, by0, by1, bz = AV_BAY
     cut_away(body, (2 * bw, by0 - by1, 3.0), T((0, (by0 + by1) / 2, bz - 1.5)), M['bay'])
-    parts.append(body)
-    cabin = S.loft('cabin', AV_CABIN, M['body'], around=28, along=12, front_tip=(0, 7.95, 0.65),
-                   back_tip=(0, 2.2, 1.22))
-    parts.append(cabin)
+    parts += [body, cabin]
     deck = S.bvh_of([body, cabin])
 
     # Stepped two-seat canopy (the `glass` node): two bubbles, the rear one
-    # higher, with bows, a divider and sills.
+    # higher, with bows, a light centre bar, a divider and sills.
     glass_mat = glass_material('av_glass')
     bubbles = []
     for i, (centre, radii) in enumerate(AV_CANOPY):
@@ -1268,84 +2366,209 @@ def build_anvil():
             sill = [bubble_point(centre, radii, yy, rad(90 - sgn * 82), 1.035, 0.4, 0.18)
                     for yy in np.linspace(centre[1] + radii[1] * 0.92, centre[1] - radii[1] * 0.92, 11)]
             parts.append(S.bar(f'sill{i}{sgn}', sill, 0.08, 0.05, M['frame'], out))
+        bar = [bubble_point(centre, radii, yy, rad(90), 1.03, 0.4, 0.18)
+               for yy in np.linspace(centre[1] + radii[1] * 0.76, centre[1] - radii[1] * 0.18, 9)]
+        parts.append(S.bar(f'canopy_bar{i}', bar, 0.045, 0.03, M['frame'], out))
     glass = C.join(bubbles, 'glass')
 
     # Dock on the dorsal deck behind the canopy.
     dloc, _ = S.frame_on(S.bvh_of([body]), (0, AV_DOCK_Y, 5), (0, 0, -1))
     dz0 = dloc.z + 0.04
-    plate = S.lathe('dock_plate', [(0.0, 0.0), (0.0, 0.32), (0.045, 0.32), (0.065, 0.29), (0.065, 0.2),
-                                   (0.045, 0.18), (0.045, 0.0)], 20, (0, 0), M['metal'], sharp=30)
-    parts.append(S.transformed(plate, T((0, AV_DOCK_Y, dz0 - 0.065)) @ R(rad(90), 4, 'X')))
+    plate_ = S.lathe('dock_plate', [(0.0, 0.0), (0.0, 0.32), (0.045, 0.32), (0.065, 0.29), (0.065, 0.2),
+                                    (0.045, 0.18), (0.045, 0.0)], 20, (0, 0), M['metal'], sharp=30)
+    parts.append(S.transformed(plate_, T((0, AV_DOCK_Y, dz0 - 0.065)) @ R(rad(90), 4, 'X')))
+
+    # A low equipment spine down the deck from behind the dock to the
+    # turret, carrying a satcom dome, a blade, a grille and the whip.
+    sy0, sy1 = AV_SPINE
+    zs = lambda yy: S.frame_on(deck, (0, yy, 5), (0, 0, -1))[0].z
+    rows = [(yy, w, h, 0.08, 4.0, 2.0, zs(yy) - 0.01, 0.0) for yy, w, h in
+            ((sy0, 0.14, 0.03), (sy0 - 0.25, 0.27, 0.1), (sy0 - 0.6, 0.31, 0.13), (sy1 + 0.6, 0.31, 0.13),
+             (sy1 + 0.25, 0.27, 0.1), (sy1, 0.14, 0.03))]
+    spine = S.loft('spine', rows, M['body'], around=20, front_tip=(0, sy0 + 0.04, zs(sy0)),
+                   back_tip=(0, sy1 - 0.04, zs(sy1)), sharp=40)
+    cull_buried(spine, deck)
+    parts.append(spine)
+    sbvh = S.bvh_of([spine])
+    _, m = S.frame_on(sbvh, (0, -1.55, 5), (0, 0, -1))
+    parts.append(S.transformed(S.lathe('satcom', [(-0.02, 0.27), (0.05, 0.255), (0.11, 0.19), (0.15, 0.1),
+                                                  (0.165, 0.0)], 16, (0, 0), M['frame']), m @ R(rad(90), 4, 'X')))
+    _, m = S.frame_on(sbvh, (0, -3.75, 5), (0, 0, -1))
+    parts.append(blade_antenna('spine_blade', m, 0.3, 0.32, 0.03, M['metal'], sweep=0.6))
+    _, m = S.frame_on(sbvh, (0, -4.55, 5), (0, 0, -1))
+    parts += S.vent('spine_vent', (0.34, 0.62, 0.04), M['metal'], m, slats=6)
+    _, m = S.frame_on(sbvh, (0, -5.1, 5), (0, 0, -1))
+    antenna = S.lathe('antenna', [(-0.04, 0.0), (-0.04, 0.035), (1.1, 0.012), (1.13, 0.0)], 6, (0, 0), M['metal'])
+    parts.append(S.transformed(antenna, m @ R(rad(65), 4, 'X') @ R(rad(180), 4, 'Z')))
 
     side = []
-    # Engines: a big nacelle each side of the rear body, a bell, a glowing
-    # throat round a dark cone, a cooling ring.
+    # Engines: a big nacelle each side of the rear body; a bell in a ring of
+    # petals (every other one ribbed), liner bands, stator blades over the
+    # glowing throat round a dark cone, a cooling ring; a heat sink on the
+    # outboard flank; a dorsal scoop feeding it from the deck.
     ex = AV_EXIT_Y
     nr = AV_NAC_R
+    ecx, ecz = AV_ENG
     nacelle = [(-2.4, 0.0), (-2.6, 0.5 * nr), (-3.3, 0.84 * nr), (-4.3, 0.985 * nr), (-8.25, nr), (-8.6, nr - 0.06),
                (-8.62, 0.0)]
-    side.append(S.lathe('nacelle', nacelle, 32, AV_ENG, M['engine'], sharp=40))
+    nac = S.lathe('nacelle', nacelle, 32, AV_ENG, M['engine'], sharp=40)
+    cull_buried(nac, deck)
+    side.append(nac)
     bell = [(-8.4, 0.92), (-8.9, 0.88), (ex + 0.08, 0.875), (ex, 0.875), (ex - 0.01, 0.8), (ex + 0.36, 0.68),
-            (-8.8, 0.55), (-8.68, 0.55), (-8.56, 0.7), (-8.46, 0.86)]
-    side.append(S.lathe('bell', bell, 32, AV_ENG, M['nozzle'], closed=True, sharp=35))
-    side.append(S.lathe('throat', [(-8.74, 0.0), (-8.74, 0.56), (-8.7, 0.56), (-8.7, 0.0)], 32, AV_ENG, M['glow'],
-                        smooth=False))
+            (-8.8, 0.55), (-8.73, 0.545)]
+    side.append(S.lathe('bell', bell, 32, AV_ENG, M['nozzle'], sharp=35))
+    side.append(S.lathe('throat', [(-8.735, 0.0), (-8.735, 0.56)], 32, AV_ENG, M['glow'], smooth=False))
     side.append(S.lathe('cone', [(-8.73, 0.24), (-8.95, 0.17), (-9.12, 0.0)], 12, AV_ENG, M['hole']))
     side.append(ring_bar('engine_ring', AV_ENG, nr - 0.04, -8.55, 0.14, 0.05, M['metal'], sides=32))
     side.append(ring_bar('intake_ring', AV_ENG, nr - 0.02, -4.45, 0.12, 0.03, M['metal'], sides=32))
-    # Fin on each nacelle, canted out 12 degrees.
-    fin = S.wing('fin', [(0.0, -5.1, 0.0, 3.2, 0.08), (1.1, -6.05, 0.0, 2.3, 0.07), (2.0, -6.95, 0.0, 1.45, 0.065)],
-                 M['fin'], chord_pts=9)
-    side.append(S.transformed(fin, T((AV_ENG[0], 0, AV_ENG[1] + nr - 0.06)) @ R(rad(-78), 4, 'Y')))
-    # Short thick wings with armour plates, and a pod at each tip.
+    side.append(petals('petals', 18, -8.62, ex + 0.05, 1.02, 0.905, AV_ENG, M['nozzle'], thick=0.028))
+    petal_r = lambda y: interp([(-8.62, 1.02), (ex + 0.05, 0.905)], y) + 0.036
+    for k in range(1, 18, 2):
+        a = 2 * math.pi * k / 18
+        er = Vector((math.cos(a), 0.0, math.sin(a)))
+        p0 = Vector((ecx, -8.64, ecz)) + er * petal_r(-8.64)
+        p1 = Vector((ecx, ex + 0.1, ecz)) + er * petal_r(ex + 0.1)
+        gd = (p1 - p0).normalized()
+        nn = (er - gd * er.dot(gd)).normalized()
+        m = Matrix((gd.cross(nn), gd, nn)).transposed().to_4x4()
+        m.translation = (p0 + p1) / 2
+        side.append(open_box(f'petal_rib{k}', (0.045, (p1 - p0).length, 0.045), M['nozzle'], m @ T((0, 0, 0.006)),
+                             taper=0.6))
+    inner = [(ex - 0.01, 0.8), (ex + 0.36, 0.68), (-8.8, 0.55)]
+    side += liner_rings('liner', AV_ENG, (-8.9, -9.05, -9.24), lambda y: interp(inner, y), M['nozzle'], 24,
+                        depth=0.016, width=0.04)
+    side += turbine('stator', AV_ENG, -8.765, 0.225, 0.565, 20, M['metal'], chord=0.05, thick=0.016, twist=38)
+    nbvh = S.bvh_of([nac])
+    _, m = S.frame_on(nbvh, (ecx + 3.0, -7.45, ecz + 1.75), (-1, 0, -0.58))
+    side += fin_array('heatsink', m, 7, 1.05, 0.075, 0.014, 0.05, M['metal'])
+    for i, yy in enumerate((-5.3, -6.3)):
+        _, m = S.frame_on(nbvh, (ecx + 0.55, yy, 4), (0, 0, -1))
+        side += S.vent(f'vent{i}', (0.42, 0.7, 0.05), M['metal'], m, slats=5)
+    sy, sx = AV_SCOOP
+    sloc, sm = S.frame_on(deck, (sx, sy, 5), (0, 0, -1))
+    hh = 0.14
+    mz = sloc.z + hh + 0.045
+    cowl = intake('scoop', T((sx, sy, mz)), (M['body'], M['duct'], M['hole']), 0.4, hh, 0.1, 2.1, (0.0, -0.33),
+                  rake=0.06, wall=0.028, depth=0.75, bend=(0.0, -0.18), steps=6)
+    cull_buried(cowl, S.bvh_of([body, nac]))
+    side.append(cowl)
+    for j, dx in enumerate((-0.24, -0.08, 0.08, 0.24)):
+        side.append(S.box(f'scoop_vane{j}', (0.012, 0.07, 0.19), M['metal'], T((sx + dx, sy - 0.36, mz - 0.085))))
+    side.append(S.box('scoop_splitter', (0.9, 0.55, 0.014), M['frame'], sm @ T((0, 0.1, 0.026))))
+    for j, dx in enumerate((-0.32, 0.0, 0.32)):
+        side.append(S.box(f'scoop_strut{j}', (0.03, 0.24, 0.04), M['frame'], sm @ T((dx, 0.02, 0.012))))
+    # Fin on each nacelle, canted out 12 degrees, with a rudder.
+    fin_m = T((ecx, 0, ecz + nr - 0.06)) @ R(rad(-78), 4, 'Y')
+    side.append(S.transformed(slotted_wing('fin', AV_FIN, M['fin'], AV_RUDDER, 0.25, 1.8, n=8, m=3), fin_m))
+    side.append(S.transformed(control_surface('rudder', AV_FIN, M['fin'], AV_RUDDER, 0.27, 1.78, gap=0.02, n=5),
+                              fin_m))
+    # Short thick wings with armour plates, a flap and an aileron in a slot
+    # behind the hinge line, a missile on a pylon, and a pod at each tip.
     secs = [(2.0, 2.4, -0.12, 6.6, 0.17), (3.4, 1.2, -0.18, 5.2, 0.15), (5.0, -0.1, -0.24, 3.9, 0.13),
             (AV_TIP[0] - 0.05, -1.0, -0.3, 3.0, 0.12)]
-    wing = S.wing('wing', secs, M['wing'], chord_pts=12)
+    hinge = lambda x: AV_HINGE
+    wing = slotted_wing('wing', secs, M['wing'], hinge, AV_FLAP[0], AV_AILERON[1], n=12, m=3)
+    cull_buried(wing, deck)
     side.append(wing)
+    side.append(control_surface('flap', secs, M['wing'], hinge, AV_FLAP[0] + 0.02, AV_FLAP[1], gap=0.022, n=6))
+    side.append(control_surface('aileron', secs, M['wing'], hinge, AV_AILERON[0], AV_AILERON[1] - 0.02, gap=0.022,
+                                n=6))
+    for i, xx in enumerate((3.45, 4.25, 5.05, 5.6)):
+        sec = lerp_section(secs, xx)
+        uh = (sec[1] - AV_HINGE) / sec[3]
+        zb = sec[2] - S.naca(uh) * sec[4] * sec[3] / 2 * 0.75
+        side.append(open_box(f'actuator{i}', (0.07, 0.5, 0.08), M['metal'],
+                             T((xx, AV_HINGE + 0.03, zb - 0.034)) @ R(rad(180), 4, 'Y'), taper=0.55))
+    for j, xx in enumerate((5.15, 5.65)):
+        sec = lerp_section(secs, xx)
+        te = Vector((xx, sec[1] - sec[3] + 0.015, sec[2]))
+        side.append(cylinder(f'wick{j}', te, te + Vector((0.0, -0.2, -0.006)), 0.008, M['metal'], sides=5))
     tx, tz = AV_TIP
     side.append(S.lathe('tip_pod', [(-4.45, 0.0), (-4.4, 0.1), (-4.2, 0.2), (-0.6, 0.24), (0.1, 0.22), (0.45, 0.13),
                                     (0.62, 0.0)], 14, (tx, tz), M['pod'], sharp=40))
     side.append(S.lathe('navlight', [(0.56, 0.0), (0.6, 0.08), (0.68, 0.07), (0.71, 0.0)], 8, (tx, tz), M['green']))
+    for j, s in enumerate((1, -1)):
+        root = Vector((tx, -4.05, tz + s * 0.19))
+        side.append(cylinder(f'pod_wick{j}', root, root + Vector((0.0, -0.24, s * 0.08)), 0.008, M['metal'], sides=5))
     wbvh = S.bvh_of([wing])
     for i, (px, py, size) in enumerate(((3.05, 0.75, (1.15, 2.3, 0.14)), (4.2, -0.3, (1.1, 1.95, 0.14)),
                                         (5.25, -1.2, (0.95, 1.6, 0.13)))):
-        side.append(drape(f'armour{i}', wbvh, (px, py, 4), (0, 0, -1), size[:2], M['armour'], rad(-28),
+        side.append(plate(f'armour{i}', wbvh, (px, py, 4), (0, 0, -1), size[:2], M['armour'], rad(-28),
                           thick=size[2] * 0.7, inset=0.9))
-        side.append(drape(f'belly_armour{i}', wbvh, (px + 0.1, py - 0.2, -4), (0, 0, 1),
+        side.append(plate(f'belly_armour{i}', wbvh, (px + 0.1, py - 0.2, -4), (0, 0, 1),
                           (size[0] * 0.9, size[1] * 0.8), M['armour'], rad(28), thick=size[2] * 0.5, inset=0.9))
-    # flank armour along the forward body, and the guns in chin pods
-    for i, (py, pz, size) in enumerate(((3.7, -0.12, (0.95, 2.3)),)):
-        side.append(drape(f'cheek{i}', deck, (6, py, pz), (-1, 0, 0), size, M['armour'], thick=0.09, inset=0.92))
-    gx = AV_GUN_X
-    gz = S.frame_on(S.bvh_of([body]), (gx, 7.2, -5), (0, 0, 1))[0].z - 0.1
+    px_, pyc = AV_PYLON
+    sec = lerp_section(secs, px_)
+    zb = sec[2] - S.naca((sec[1] - pyc) / sec[3]) * sec[4] * sec[3] / 2 * 0.75 - 0.03
+    side.append(S.prism('pylon', [(-0.15, 0.8), (0.15, 0.8), (0.15, -1.05), (-0.15, -0.8)], 0.1, M['metal'],
+                        T((px_, pyc, zb - 0.1)) @ R(rad(90), 4, 'Y')))
+    zm = zb - 0.25 - 0.114 - 0.035
+    side.append(S.box('pylon_shoe', (0.07, 1.6, 0.07), M['frame'], T((px_, pyc - 0.1, zb - 0.27))))
+    for k, yy in enumerate((pyc + 0.6, pyc - 0.75)):
+        for s in (1, -1):
+            side.append(cylinder(f'pylon_sway{k}{s}', (px_ + s * 0.11, yy, zb - 0.235), (px_ + s * 0.075, yy, zm + 0.083),
+                                 0.016, M['frame'], sides=4, smooth=False))
+    side.append(S.lathe('missile', [(pyc + 1.2 * a, 1.2 * r) for a, r in AV_MISSILE], 12, (px_, zm), M['missile']))
+    for k in range(4):
+        m = T((px_, pyc - 1.03, zm)) @ R(rad(45 + 90 * k), 4, 'Y') @ T((0, 0, 0.18))
+        side.append(S.box(f'mfin{k}', (0.014, 0.31, 0.14), M['metal'], m, taper=0.6))
+    # flank armour along the forward body, a skirt of plates below it, and
+    # the guns in chin pods: a cooling shroud and a ported muzzle brake
+    for i, (py, pz, size) in enumerate(((3.7, -0.12, (0.95, 2.3)), (5.38, -0.12, (0.95, 0.88)),
+                                        (3.7, -0.84, (0.42, 2.3)), (5.38, -0.84, (0.42, 0.88)))):
+        side.append(plate(f'cheek{i}', deck, (6, py, pz), (-1, 0, 0), size, M['armour'], thick=0.09, inset=0.92))
     side.append(S.lathe('gun_blister', [(5.6, 0.0), (5.75, 0.13), (6.2, 0.23), (9.1, 0.23), (9.45, 0.17), (9.6, 0.0)],
                         14, (gx, gz), M['body'], sharp=40))
-    side.append(S.lathe('barrel', [(9.2, 0.0), (9.2, 0.075), (AV_MUZZLE_Y - 0.3, 0.07), (AV_MUZZLE_Y - 0.28, 0.095),
-                                    (AV_MUZZLE_Y - 0.02, 0.095), (AV_MUZZLE_Y, 0.065), (AV_MUZZLE_Y, 0.0)], 10,
-                        (gx, gz), M['metal'], sharp=40))
-    side.append(S.lathe('bore', [(AV_MUZZLE_Y - 0.08, 0.0), (AV_MUZZLE_Y - 0.08, 0.048), (AV_MUZZLE_Y + 0.005, 0.048),
-                                 (AV_MUZZLE_Y + 0.005, 0.0)], 8, (gx, gz), M['hole'], smooth=False))
-    # radiator vents on the nacelle tops
-    nbvh = S.bvh_of([o for o in side if o.name == 'nacelle'])
-    for i, yy in enumerate((-5.3, -6.3)):
-        _, m = S.frame_on(nbvh, (AV_ENG[0] + 0.55, yy, 4), (0, 0, -1))
-        side += S.vent(f'vent{i}', (0.42, 0.7, 0.05), M['metal'], m, slats=5)
+    mu = AV_MUZZLE_Y
+    side.append(S.lathe('barrel', [(9.2, 0.0), (9.2, 0.078), (9.48, 0.078), (9.49, 0.094), (9.71, 0.094),
+                                    (9.72, 0.072), (mu - 0.27, 0.068), (mu - 0.26, 0.098), (mu - 0.008, 0.098),
+                                    (mu, 0.085), (mu, 0.0)], 12, (gx, gz), M['gun'], sharp=40))
+    side.append(S.lathe('bore', [(mu - 0.08, 0.0), (mu - 0.08, 0.048), (mu + 0.005, 0.048), (mu + 0.005, 0.0)], 8,
+                        (gx, gz), M['hole'], smooth=False))
+    for s in (1, -1):
+        for j, yy in enumerate((mu - 0.19, mu - 0.11)):
+            side.append(S.box(f'brake{s}{j}', (0.016, 0.045, 0.085), M['hole'], T((gx + s * 0.094, yy, gz))))
     parts += S.mirrored(side)
     for o in parts:
         if o.name == 'navlight_m':
             o.data.materials[0] = M['red']
 
-    # Bay interior: ribs across the ceiling, cradle rails and two torpedoes.
+    # Bay interior: ribs and stringers under the ceiling, pipes along the
+    # walls, lamps, the doors folded up against the walls (stiffened inner
+    # faces, hinges, actuator struts), cradles and two torpedoes.
     tx0, ty, tz0 = AV_TORP
     for k in range(6):
         yy = by1 + 0.45 + k * (by0 - by1 - 0.9) / 5
         parts.append(S.box(f'bay_rib{k}', (2 * bw - 0.04, 0.1, 0.1), M['metal'], T((0, yy, bz - 0.05))))
-    for sgn in (1, -1):                      # bay doors folded up against the walls
-        parts.append(S.box(f'bay_door{sgn}', (0.05, by0 - by1 - 0.1, 0.5), M['metal'],
-                           T((sgn * (bw - 0.04), (by0 + by1) / 2, bz - 0.33))))
+    for s in (1, -1):
+        parts.append(S.box(f'bay_stringer{s}', (0.08, by0 - by1 - 0.2, 0.06), M['metal'], T((s * 0.3, (by0 + by1) / 2,
+                                                                                              bz - 0.12))))
+        for j, (px, pz) in enumerate(((0.86, bz - 0.06), (0.76, bz - 0.06))):
+            parts.append(cylinder(f'bay_pipe{s}{j}', (s * px, by1 + 0.08, pz - 0.04 * j), (s * px, by0 - 0.08, pz - 0.04 * j),
+                                  0.028, M['frame'], sides=6))
+    for k, yy in enumerate((by1 + 1.05, (by0 + by1) / 2, by0 - 1.05)):
+        parts.append(S.box(f'bay_lamp{k}', (0.3, 0.07, 0.035), M['bay_light'], T((0, yy, bz - 0.02))))
+    dz = (bz - 0.46, 0.84)                                  # door centre z, height
+    for s in (1, -1):
+        dx = s * (bw - 0.05)
+        parts.append(S.box(f'bay_door{s}', (0.04, by0 - by1 - 0.12, dz[1]), M['door'], T((dx, (by0 + by1) / 2, dz[0]))))
+        for zz in (dz[0] - 0.2, dz[0] + 0.2):
+            parts.append(S.box(f'door_rib{s}{zz:.2f}', (0.035, by0 - by1 - 0.3, 0.03), M['door'],
+                               T((dx - s * 0.035, (by0 + by1) / 2, zz))))
+        for k in range(7):
+            yy = by1 + 0.3 + k * (by0 - by1 - 0.6) / 6
+            parts.append(S.box(f'door_frame{s}{k}', (0.035, 0.03, dz[1] - 0.06), M['door'],
+                               T((dx - s * 0.035, yy, dz[0]))))
+        for k, yy in enumerate((-2.55, -0.95, 0.65, 1.95)):
+            parts.append(cylinder(f'door_hinge{s}{k}', (dx + s * 0.02, yy - 0.1, dz[0] - dz[1] / 2),
+                                  (dx + s * 0.02, yy + 0.1, dz[0] - dz[1] / 2), 0.035, M['metal'], sides=6))
+        for k, yy in enumerate((-2.0, 1.2)):
+            parts.append(cylinder(f'door_ram{s}{k}', (dx - s * 0.04, yy, dz[0] + 0.14), (s * 0.6, yy, bz - 0.04),
+                                  0.022, M['metal'], sides=6))
     for sgn in (1, -1):
         parts.append(S.box(f'cradle{sgn}', (0.12, 4.0, 0.16), M['metal'], T((sgn * tx0, ty, bz - 0.12))))
         parts += torpedo_parts(f'torp{sgn}_', M, T((sgn * tx0, ty, tz0)), sides=14)
+        parts.append(ring_bar(f'torp{sgn}_ring', (sgn * tx0, tz0), 0.25, ty - 0.21, 0.06, 0.012, M['metal'], sides=14))
 
     # Rear auto-turret (the `turret_rear` and `turret_rear_gun` nodes).
     py, pz = AV_TURRET
@@ -1356,34 +2579,62 @@ def build_anvil():
     base = S.lathe('turret_base', [(0.0, 0.0), (0.0, 0.55), (0.24, 0.55), (0.32, 0.46), (0.36, 0.3), (0.38, 0.0)], 8,
                    (0, 0), M['turret'], smooth=False, phase=math.pi / 8)
     S.transformed(base, T((0, py, pz)) @ R(rad(90), 4, 'X'))
-    yoke = [S.box(f'yoke{s}', (0.08, 0.32, 0.36), M['turret'], T((s * 0.3, py, pz + AV_TRUNNION - 0.1)))
-            for s in (1, -1)]
+    collar = S.lathe('turret_collar', [(-0.01, 0.61), (0.06, 0.61), (0.08, 0.585), (0.08, 0.5)], 16, (0, 0),
+                     M['metal'], smooth=False)
+    S.transformed(collar, T((0, py, pz)) @ R(rad(90), 4, 'X'))
+    yoke = [S.box(f'yoke{s}', (0.08, 0.32, 0.36), M['turret'], T((s * 0.3, py, pz + AV_TRUNNION - 0.1))) for s in (1, -1)]
     tz_ = pz + AV_TRUNNION
     gun = [S.box('mantlet', (0.46, 0.5, 0.34), M['turret'], T((0, py, tz_)), taper=0.9)]
     for s in (1, -1):
-        gun.append(S.lathe(f'tbarrel{s}', [(0.0, 0.0), (0.0, 0.06), (-1.3, 0.05), (-1.32, 0.07), (-1.5, 0.07),
-                                            (-1.52, 0.0)], 8, (0, 0), M['metal'], sharp=40))
+        gun.append(S.lathe(f'tbarrel{s}', [(0.0, 0.0), (0.0, 0.075), (-0.6, 0.075), (-0.62, 0.052), (-1.3, 0.05),
+                                            (-1.32, 0.072), (-1.5, 0.072), (-1.52, 0.0)], 8, (0, 0), M['metal'],
+                           sharp=40))
         S.transformed(gun[-1], T((s * 0.12, py - 0.2, tz_)))
         gun.append(S.lathe(f'tbore{s}', [(-1.46, 0.0), (-1.46, 0.042), (-1.525, 0.042), (-1.525, 0.0)], 6, (0, 0),
                            M['hole'], smooth=False))
         S.transformed(gun[-1], T((s * 0.12, py - 0.2, tz_)))
     gun.append(S.box('sensor_box', (0.16, 0.2, 0.14), M['frame'], T((0.0, py - 0.05, tz_ + 0.22))))
+    lens = S.lathe('sensor_lens', [(0.0, 0.0), (0.0, 0.05), (0.02, 0.045), (0.02, 0.0)], 8, (0, 0), M['sensor'])
+    gun.append(S.transformed(lens, T((0.0, py - 0.145, tz_ + 0.22)) @ R(rad(180), 4, 'Z')))
+    gun.append(S.box('ammo_chute', (0.1, 0.24, 0.12), M['frame'], T((0.0, py + 0.3, tz_ - 0.02)), taper=0.85))
     gun.append(cylinder('trunnion', (-0.33, py, tz_), (0.33, py, tz_), 0.07, M['metal'], sides=8))
-    parts += tag([base] + yoke, 'turret_rear') + tag(gun, 'turret_rear_gun')
+    parts += tag([base, collar] + yoke, 'turret_rear') + tag(gun, 'turret_rear_gun')
 
-    # Greebles: a dorsal antenna, a belly sensor, hatches.
-    _, m = S.frame_on(deck, (0, -1.6, 5), (0, 0, -1))
-    antenna = S.lathe('antenna', [(-0.04, 0.0), (-0.04, 0.035), (1.1, 0.012), (1.13, 0.0)], 6, (0, 0), M['metal'])
-    parts.append(S.transformed(antenna, m @ R(rad(65), 4, 'X') @ R(rad(180), 4, 'Z')))
+    # Greebles: a chin sensor, deck hatches, belly blades and a beacon, a
+    # blade on the cabin.
     _, m = S.frame_on(deck, (0, 6.4, -5), (0, 0, 1))
     chin = S.lathe('chin_sensor', [(-0.04, 0.0), (-0.04, 0.26), (0.1, 0.24), (0.2, 0.15), (0.24, 0.0)], 14, (0, 0),
                    M['sensor'])
     parts.append(S.transformed(chin, m @ R(rad(90), 4, 'X')))
+    # a tail stinger between the nacelles (a rear-warning sensor), a sensor
+    # dome on the nose and avionics vents on its shoulders
+    tail_z = 0.16
+    parts.append(S.lathe('stinger', [(-8.2, 0.0), (-8.2, 0.24), (-8.55, 0.22), (-8.95, 0.15), (-9.05, 0.12),
+                                     (-9.12, 0.0)], 14, (0, tail_z), M['pod'], sharp=40))
+    parts.append(S.lathe('stinger_eye', [(-9.0, 0.125), (-9.08, 0.1), (-9.15, 0.05), (-9.17, 0.0)], 14, (0, tail_z),
+                         M['sensor']))
+    parts.append(ring_bar('stinger_ring', (0, tail_z), 0.215, -8.62, 0.05, 0.015, M['metal'], sides=14))
+    _, m = S.frame_on(deck, (0, 8.45, 5), (0, 0, -1))
+    parts.append(S.transformed(S.lathe('nose_ring', [(-0.02, 0.17), (0.022, 0.165), (0.03, 0.14), (0.03, 0.0)], 14,
+                                       (0, 0), M['frame'], smooth=False), m @ R(rad(90), 4, 'X')))
+    parts.append(S.transformed(S.lathe('nose_eye', [(0.0, 0.135), (0.06, 0.12), (0.11, 0.07), (0.13, 0.0)], 14,
+                                       (0, 0), M['sensor']), m @ R(rad(90), 4, 'X')))
     hatches = []
-    for i, (yy, xx) in enumerate(((-3.6, 1.0), (-1.2, 1.55))):
-        hatches.append(drape(f'hatch{i}', deck, (xx, yy, 5), (0, 0, -1), (0.7, 1.0), M['body'], thick=0.025, inset=0.95,
+    for i, yy in enumerate((7.05, 6.55)):
+        _, m = S.frame_on(deck, (4, yy, 3.4), (-1, 0, -1))
+        hatches += S.vent(f'nose_vent{i}', (0.28, 0.4, 0.035), M['metal'], m, slats=4)
+    for i, (yy, xx) in enumerate(((-4.6, 0.9), (-0.6, 1.6))):
+        hatches.append(plate(f'hatch{i}', deck, (xx, yy, 5), (0, 0, -1), (0.7, 1.0), M['body'], thick=0.02, inset=0.95,
                              n=2))
+    for i, (yy, xx) in enumerate(((-4.4, 0.45),)):
+        _, m = S.frame_on(deck, (xx, yy, -5), (0, 0, 1))
+        hatches.append(blade_antenna(f'belly_blade{i}', m, 0.3, 0.3, 0.03, M['metal'], sweep=0.6))
     parts += S.mirrored(hatches)
+    _, m = S.frame_on(deck, (0, -4.95, -5), (0, 0, 1))
+    parts.append(S.transformed(S.lathe('beacon', [(-0.02, 0.1), (0.04, 0.09), (0.08, 0.05), (0.1, 0.0)], 10, (0, 0),
+                                       M['red']), m @ R(rad(90), 4, 'X')))
+    _, m = S.frame_on(deck, (0, 3.05, 5), (0, 0, -1))
+    parts.append(blade_antenna('cabin_blade', m, 0.22, 0.24, 0.024, M['metal'], sweep=0.6))
     fin_root = AV_ENG[1] + AV_NAC_R - 0.06
     for sgn, name in ((1, 'strobe_r'), (-1, 'strobe_l')):
         tipx = sgn * (AV_ENG[0] + 2.0 * math.cos(rad(78)) + 0.0)
@@ -1391,7 +2642,8 @@ def build_anvil():
                              (tipx, fin_root + 2.0 * math.sin(rad(78)) + 0.03), M['white']))
 
     rcs_bvh = S.bvh_of([o for o in parts if o.name.startswith(('body', 'cabin', 'nacelle', 'tip_pod'))])
-    rcs_parts, empties = place_rcs(AV_RCS, rcs_bvh, M['metal'], M['hole'], size=0.24)
+    rcs_parts, empties = place_ports(AV_RCS, rcs_bvh, M['metal'], M['hole'], size=0.24,
+                                     clusters=[f'rcs_0{i}' for i in range(1, 9)])
     parts += rcs_parts
     fin_top = fin_root + 2.0 * math.sin(rad(78)) + 0.07
     fin_x = AV_ENG[0] + 2.0 * math.cos(rad(78))
@@ -1412,7 +2664,11 @@ def build_anvil():
     meta = dict(nozzles={'nozzle_L': 0.8, 'nozzle_R': 0.8}, turrets={'turret_rear': 0.6},
                 lights={'light_0': ((1.0, 0.08, 0.05), 0), 'light_1': ((0.1, 1.0, 0.3), 0),
                         'light_2': ((1.0, 0.95, 0.85), 1.4), 'light_3': ((1.0, 0.95, 0.85), 1.4)})
-    return dict(parts=parts, extras=[glass], empties=empties, meta=meta, bevel=0.025,
+    shrink = {'av_nozzle': 0.55, 'av_metal': 0.6, 'av_hole': 0.3, 'av_glow': 0.25, 'av_duct': 0.45, 'av_frame': 0.7,
+              'av_sensor': 0.35, 'av_nav_red': 0.3, 'av_nav_green': 0.3, 'av_nav_white': 0.3, 'av_bay': 0.6,
+              'av_door': 0.7, 'av_bay_light': 0.3, 'av_gun': 0.8, 'av_torpedo': 0.75, 'av_turret': 0.85}
+    return dict(parts=parts, extras=[glass], empties=empties, meta=meta, bevel=0.025, uv_shrink=shrink,
+                split_tris=STABLE_TRIS,
                 nodes=[('turret_rear', pivot, None), ('turret_rear_gun', trunnion, 'turret_rear')])
 
 

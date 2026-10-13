@@ -21,12 +21,17 @@ checks the files against the brief.
 
 | file | nodes (triangles) | textures | size |
 |---|---|---|---|
-| `swift.glb` | `hull` 7,348 + `glass` 312 = 7,660 | base and normal 2048², MR and emissive 1024² | 1,052 KB |
-| `anvil.glb` | `hull` 12,454 + `glass` 720 + `turret_rear` 88 + `turret_rear_gun` 232 = 13,494 | base and normal 2048², MR and emissive 1024² | 1,306 KB |
+| `swift.glb` | `hull` 9,798 + `hull_1` 2,182 + `glass` 312 = 12,292 | base and normal 2048², MR and emissive 1024² | 1,581 KB |
+| `anvil.glb` | `hull` 9,264 + `hull_1` 9,770 + `hull_2` 936 + `glass` 720 + `turret_rear` 184 + `turret_rear_gun` 340 = 21,214 | base and normal 2048², MR and emissive 1024² | 2,121 KB |
 | `drone.glb` | `hull` 2,240 + `arm_R` 242 + `arm_L` 240 = 2,722 | 1024² | 421 KB |
 | `torpedo.glb` | `hull` 1,140 | 512² | 133 KB |
 | `shuttle.glb` | `hull` 7,592 | 1024² | 713 KB |
-| **all five** | | | **3.54 MB** |
+| **all five** | | | **4.89 MB** |
+
+The Swift's and the Anvil's hulls come in parts (`hull`, `hull_1`, `hull_2`)
+of at most 9,800 triangles, all one material: Blender's tangents are not
+repeatable on a mesh over 10,000 triangles, so a bigger hull would export
+differently every build. The normal map is baked part by part and merged.
 
 Every model has one baked material (base colour, tangent normal map,
 metallic-roughness with G = roughness and B = metallic, emissive) shared by
@@ -48,7 +53,14 @@ light; the game's ×3 emissive scale for ships applies.
   nozzle, glowing throat). Guns in blisters at the wing roots, one missile on
   a ventral rail. Off-white `#d9d6cf` with graphite `#2b2d31` radome, belly,
   walkway and engine shroud, an orange `#c8642a` speed stripe and pinline,
-  nose ring, wingtips and roundels, side number 21, stencils.
+  nose ring, wingtips and roundels, side number 21, stencils. Detailed for
+  the hangar's close look: flaps and elevons in slots with actuator
+  fairings, a separate rudder, canard pivot plates, intakes under the wing
+  roots (striped lips, ducts with guide vanes, splitter plates), a ribbed
+  petal nozzle over liner bands and a turbine face, heat-sink fins,
+  perforated gun shrouds and muzzle brakes, a framed canopy, three-nozzle
+  RCS clusters, antennas, probes and a chin sensor; the paint adds rivet
+  rows, hatches, chevrons, walkways and soot.
 - **Anvil** (`anvil.glb`), the Belt Watch bomber: 19.5 m from the gun tips
   to the nozzles, 12.9 m span. A
   thick, slab-sided lifting body with a blunt shovel prow, a raised cabin
@@ -59,7 +71,13 @@ light; the game's ×3 emissive scale for ships applies.
   recessed torpedo bay in the belly (ribs, cradles, folded doors and two
   Lance torpedoes inside, a hazard frame round it) and a rear auto-turret
   on the dorsal tail. Same paint scheme as the Swift with Ember-wing
-  chevrons on the rear deck and number 07 on the nose and fins.
+  chevrons on the rear deck and number 07 on the nose and fins. Detailed
+  for the hangar: dorsal intake scoops with ducts and splitters,
+  eighteen-petal nozzles over liner bands and turbine faces, heat sinks, a
+  dorsal spine with a satcom dome and antennas, separate flaps, ailerons
+  and rudders, a missile on a pylon under each wing, flank armour as four
+  plates a side, torpedo-bay doors with stiffeners, hinges and rams, braked
+  chin guns, a collared turret with a sensor lens, eight RCS clusters.
 - **Tender** (`drone.glb`), the repair drone: 3.6 m long, 2.2 m wide. A
   rounded utility box in Belt Watch off-white with a green `#2a8c4a` cross
   band and white crosses, four thruster pods on struts round the rear (all

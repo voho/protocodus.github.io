@@ -347,6 +347,7 @@ async function boot() {
       get library() { return library; },
       get music() { return music; },
       get voices() { return voices; },
+      get hangar() { return hangar; },
       // Rebuild a place's look and report how long it took, GPU included.
       look(key) {
         const t = performance.now();

@@ -17,13 +17,14 @@
    Drag to look round it yourself and scroll to come closer; left alone,
    the tour picks up from wherever you left it. The ship sits in the middle
    column of the screen, between the panels: `update` is told where that
-   is and shifts the view to centre it there. */
+   is and shifts the view to centre it there. Where the bay's walls keep
+   the camera closer than a shot wants, a wider lens frames it the same. */
 
 import * as THREE from 'three';
 import { GLTFLoader } from '../assets/vendor/GLTFLoader.js';
 
 const URL_GLB = new URL('../assets/models/hangar.glb', import.meta.url).href;
-const PAD_TOP = 0.28, HOVER = 1.4;
+const PAD_TOP = 0.28, HOVER = 1.4, FOV = 30;
 // The shots: bearing round the ship (0 behind it, π before its nose), height
 // (radians), distance (1: the whole ship fills the column) and where to look
 // along the ship (−1 the nose, 1 the tail).
@@ -42,7 +43,8 @@ const toward = (a, b) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a));
 export function createHangar(renderer, library) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x0a0e15, 0.0042);
-  const camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.3, 600);
+  const camera = new THREE.PerspectiveCamera(FOV, 16 / 9, 0.3, 600);
+  const target = new THREE.Vector3();
   const holder = new THREE.Group();
   scene.add(holder);
   let ship = null, shown = null, wanted = null, ready = false;
@@ -158,7 +160,7 @@ export function createHangar(renderer, library) {
       // At k = 1 the ship, turned any way, just fills the middle column.
       camera.aspect = w / h;
       const colW = Math.max(240, stage?.width || w * 0.5);
-      const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const tanV = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
       const fit = Math.min(tanV * 1.05, tanV * camera.aspect * (colW / w));
       const d = Math.max(4, radius / fit * view.k);
       const lookZ = view.look * half;
@@ -168,7 +170,11 @@ export function createHangar(renderer, library) {
       camera.position.x = Math.max(-37, Math.min(37, camera.position.x));
       camera.position.y = Math.max(0.6, Math.min(21, camera.position.y));
       camera.position.z = Math.max(-47, Math.min(63, camera.position.z));
-      camera.lookAt(0, centreY, lookZ);
+      target.set(0, centreY, lookZ);
+      camera.lookAt(target);
+      // Held closer by a wall or the roof: widen the lens to match.
+      const held = camera.position.distanceTo(target);
+      camera.fov = Math.min(55, THREE.MathUtils.radToDeg(2 * Math.atan(tanV * d / held)));
       const cx = stage ? stage.x + stage.width / 2 : w / 2, cy = stage ? stage.y + stage.height / 2 : h / 2;
       camera.setViewOffset(w, h, w / 2 - cx, (h / 2 - cy) * 0.6, w, h);
       camera.updateProjectionMatrix();
