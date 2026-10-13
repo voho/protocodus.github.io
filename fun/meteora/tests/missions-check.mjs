@@ -9,7 +9,7 @@ import { DIFFICULTY_ORDER } from '../js/difficulty.js';
 import { results } from '../js/mission.js';
 import { createWorld, startRun, stepWorld, drainEvents, IDLE } from '../js/world.js';
 import { makeRng } from '../js/rng.js';
-import { HULLS } from '../js/catalog.js';
+import { CLASSES, HULLS } from '../js/catalog.js';
 import { play } from './autopilot.mjs';
 import '../js/missions/survival.js';
 import { CASE_FILE, RECAPS } from '../js/story.js';
@@ -18,13 +18,21 @@ const quick = process.argv.includes('--quick');
 
 for (const mission of [...MISSIONS, ...SPECIAL_OPS]) {
   test(`${mission.id} ${mission.title}: the cheat pilot wins at every difficulty`, () => {
+    // Every model the mission flies is loaded, and the renderers made ready
+    // for it, before it starts (main.js launch): one it does not list would
+    // load and compile mid-flight.
+    const flown = new Set();
+    let steps = 0;
+    const note = w => { if (steps++ % 30 === 0) for (const e of w.entities) if (e.model && !e.model.startsWith('rock:')) flown.add(e.model); };
     for (const difficulty of quick ? ['pilot'] : DIFFICULTY_ORDER) {
-      const r = play(mission, { difficulty, loadout: mission.recommend, seconds: 1500 });
+      const r = play(mission, { difficulty, loadout: mission.recommend, seconds: 1500, onStep: note });
       assert.equal(r.outcome, 'won', `${difficulty}: ${r.outcome} (${r.reason}) at ${r.time.toFixed(0)} s`);
       const res = results(r.world);
       assert.ok(res.won && res.medal, 'a medal');
       assert.ok(res.objectives.every(o => o.kind !== 'primary' || o.state === 'done'), 'every primary done');
     }
+    const loaded = new Set([...mission.models, 'drone', 'torpedo', CLASSES[mission.recommend.hull].model]);
+    assert.deepEqual([...flown].filter(m => !loaded.has(m)), [], 'flown but not in its models');
   });
   test(`${mission.id}: briefing, map and recommendation are complete`, () => {
     assert.ok(mission.title && mission.location && mission.briefing.stages.length >= 2);

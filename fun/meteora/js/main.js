@@ -60,6 +60,7 @@ import { createChatter } from './chatter.js';
 import { canRenderHalfFloat, createBloom } from './bloom.js';
 import { createVoices } from './voices.js';
 import { createDust } from './dust.js';
+import { createWarmup } from './warmup.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -86,7 +87,7 @@ try { storage = window.localStorage; } catch { /* nothing is kept */ }
 let progress = loadProgress(storage);
 
 let world, renderer, scene, camera, chase, fieldRender = null, library, sky, glow, smoke, fx, plumes, projectiles, hud, engineLight, input, resolution;
-let folds, shields, entities, bloom = null, fill, dust;
+let folds, shields, entities, bloom = null, fill, dust, warmup;
 // The place's look (environments.js) and the lights it sets.
 let look = null, lookKey = null, sunLight, hemiLight, ambientLight, holeLight;
 let targetView = null;
@@ -231,6 +232,7 @@ async function boot() {
     outputBufferType: gl.hdr && !LDR ? THREE.HalfFloatType : THREE.UnsignedByteType,
   });
   if (gl.hdr && !LDR) bloom = createBloom();
+  warmup = createWarmup(renderer, { hdr: gl.hdr && !LDR, pause: nextPaint });
   renderer.info.autoReset = false;
   resolution = createResolution({ devicePixelRatio: window.devicePixelRatio || 1 });
   renderer.setPixelRatio(BENCH ? BENCH_RATIO : resolution.ratio);
@@ -265,10 +267,11 @@ async function boot() {
   screens.progress(0.08, 'Painting the sky');
   applyLook('sector7');
   applyGraphics();
+  let first;
   try {
     await library.loadRocks((f, file) => screens.progress(0.15 + 0.4 * f, `Loaded ${file}`));
-    const first = ['fighter', 'interceptor', progress.loadouts?.last?.hull === 'swift' ? 'swift' : null, progress.loadouts?.last?.hull === 'anvil' ? 'anvil' : null].filter(Boolean);
-    await library.preload(first, (f, m) => screens.progress(0.55 + 0.4 * f, `Loaded ${m}`));
+    first = ['fighter', 'interceptor', 'perpetua', progress.loadouts?.last?.hull === 'swift' ? 'swift' : null, progress.loadouts?.last?.hull === 'anvil' ? 'anvil' : null].filter(Boolean);
+    await library.preload(first, (f, m) => screens.progress(0.55 + 0.35 * f, `Loaded ${m}`));
   } catch (error) {
     screens.error(`${error.message}. Check your connection and try again.`);
     return;
@@ -296,7 +299,7 @@ async function boot() {
   chase.setObstruction(cameraClearance);
   chase.setFov(settings.fov ?? RENDER.fov);
   hud = createHud(hudCanvas);
-  targetView = createTargetView(targetCanvas, library, { exposure: EXPOSURE });
+  targetView = createTargetView(targetCanvas, library, { exposure: EXPOSURE, pause: nextPaint });
   hud.setKeys(keysOf(settings));
 
   input = createInput(canvas, controlState, {
@@ -311,6 +314,9 @@ async function boot() {
 
   resize();
   window.addEventListener('resize', resize);
+  screens.progress(0.92, 'Warming the engines');
+  await nextPaint();
+  await getReady(first);
   // For poking at the running game from the console (and for testing).
   if (DEBUG) {
     window.meteora = {
@@ -327,6 +333,8 @@ async function boot() {
       get scene() { return scene; },
       get chase() { return chase; },
       get targetView() { return targetView; },
+      get renderer() { return renderer; },
+      get library() { return library; },
       // Rebuild a place's look and report how long it took, GPU included.
       look(key) {
         const t = performance.now();
@@ -483,7 +491,8 @@ function openBriefing(mission) {
   screens.show('briefing');
   readStage(0);
   // Start bringing in what the mission flies while the pilot reads.
-  library.preload([...mission.models, hangarLoadout.hull === 'kestrel' ? 'fighter' : hangarLoadout.hull, 'drone']);
+  const models = flightModels(mission, hangarLoadout);
+  library.preload(models).then(() => targetView.prefetch(looksOf(models)));
   music?.setMood(mission.number >= 8 ? 'tension' : 'menu', { force: true });
 }
 
@@ -494,6 +503,8 @@ function openHangar(mission) {
   const unlocked = mission ? unlockedFor(progress, mission) : unlockedFor(progress, null);
   hangarLoadout = mission ? loadoutFor(progress, mission) : normalizeLoadout(progress.loadouts?.survival ?? defaultLoadout('kestrel'), unlocked);
   refreshHangar(hangarLoadout);
+  const models = flightModels(mission, hangarLoadout);
+  library.preload(models).then(() => targetView.prefetch(looksOf(models)));
   screens.show('hangar');
 }
 function refreshHangar(loadout) {
@@ -533,7 +544,7 @@ async function launch(mission, loadout) {
   const tip = HINTS[Math.floor(Math.random() * HINTS.length)];
   screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0, 'Spooling the drive', tip);
   screens.show('loading');
-  const models = [...(def.models ?? ['interceptor', 'talon', 'mite']), CLASSES[currentLoadout.hull].model, 'drone', 'torpedo'];
+  const models = flightModels(mission, currentLoadout);
   await library.preload(models, (f, m) => { if (gen === launchGen) screens.fold(title, mission ? `${missionLabel(mission)} · folding to ${mission.location}` : 'Belt sector 7', 0.1 + 0.8 * f, `Loaded ${m}`); });
   if (gen !== launchGen) return;
   if (lookKey !== lookIdOf(def.env ?? 'sector7', def.well)) {
@@ -542,7 +553,12 @@ async function launch(mission, loadout) {
     if (gen !== launchGen) return;
     applyLook(def.env ?? 'sector7', def.well);
   }
-  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.95, 'Charting the belt');
+  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.93, 'Pre-flight checks');
+  await nextPaint();
+  if (gen !== launchGen) return;
+  await getReady(models);
+  if (gen !== launchGen) return;
+  screens.fold(title, mission ? missionLabel(mission) : 'Survival', 0.97, 'Charting the belt');
   await nextPaint();
   if (gen !== launchGen) return;
   resetWorld(world, { mission: def, loadout: currentLoadout, difficulty: BENCH ? 'veteran' : progress.difficulty });
@@ -567,6 +583,34 @@ async function launch(mission, loadout) {
   if (!AUTOPILOT) input.engage();
   fade(true);
   setTimeout(() => fade(false), 60);
+}
+
+/* What a flight may show: the models its mission lists (Survival's
+   Harrow), the hull flown, the Tender and torpedoes. */
+const flightModels = (mission, loadout) => [...((mission ?? SURVIVAL).models ?? ['interceptor', 'talon', 'mite']), CLASSES[loadout.hull].model, 'drone', 'torpedo'];
+/* Those models in every paint their ships wear, and every kind of rock a
+   ship may be made of: pairs of model and paint. */
+function looksOf(models) {
+  const looks = new Map();
+  for (const model of models) {
+    looks.set(model, [model, null]);
+    for (const c of Object.values(CLASSES)) if (c.model === model && c.tint) looks.set(`${model}+${c.tint}`, [model, c.tint]);
+  }
+  library.rocks.forEach((_, k) => looks.set(`rock:${k}`, [`rock:${k}`, null]));
+  return [...looks.values()];
+}
+
+/* Everything a flight may draw, made ready before it starts (warmup.js),
+   for the scene's renderer and the target window's. Not being ready is
+   only slower, never fatal. */
+async function getReady(models) {
+  const list = looksOf(models);
+  try {
+    await warmup.warm(scene, camera, list.map(([model, paint]) => entities.sample(model, paint)).filter(Boolean));
+    await targetView.warm(list);
+  } catch (error) {
+    console.warn('meteora: getting ready', error);
+  }
 }
 
 /* How far along the line from the fighter to where the camera wants to be
@@ -852,7 +896,10 @@ function frame(now) {
   const dt = Math.min(0.1, raw / 1000);
   last = now;
   const frameStart = performance.now();
-  if (!BENCH && !paused && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
+  // The loading screen's long frames are the warm-up's, not the flight's:
+  // judged as the flight's, they would start every mission at a lower
+  // resolution, barred for half a minute from climbing back.
+  if (!BENCH && !paused && mode !== 'loading' && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
     const ratio = resolution.frame(raw);
     if (ratio !== renderer.getPixelRatio()) {
       renderer.setPixelRatio(ratio);

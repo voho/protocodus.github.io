@@ -347,7 +347,20 @@ meteora.pilot = createBot(7); meteora.speed = 3;
 - Large ships keep their detail with a tri-planar detail layer instead of
   bigger textures; glow sprites are judged against the camera and dropped
   when they would cover the screen.
-- The pixel ratio adapts to frame time between 0.6 and 1.5.
+- Nothing is built mid-flight. Under the loading screen (`js/warmup.js`)
+  one of every model the mission flies, in every paint, has its shaders
+  compiled in parallel (with a half-float target bound, so they are the
+  ones the HDR frame asks for), its maps uploaded between frames and its
+  buffers drawn once, out of sight. A mission's `models` must list every
+  model it spawns; `tests/missions-check.mjs` checks it.
+- The target window's renderer is a second WebGL context, so its hulls
+  wear copies of their maps no larger than 512 pixels (shrunk one a frame
+  while the briefing is read) and it is warmed the same way: the first
+  look at a new kind of ship costs nothing.
+- A copy of a material keeps the hull detail's shader hook
+  (`cloneMaterial`), so a turret going dark uses the shader it had.
+- The pixel ratio adapts to frame time between 0.6 and 1.5; the loading
+  screen's long frames are not counted against it.
 - Where the GPU can render into half-float targets, the scene is drawn in
   HDR and tone-mapped at the end, and a five-level bloom lets flames,
   bolts, fire and the Harrow's red lights bleed: about 1.4 ms of GPU time

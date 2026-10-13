@@ -239,6 +239,20 @@ export function createModelLibrary({ onError = null } = {}) {
   };
 }
 
+/* A material of one entity's own, to change as the game needs (a glow to
+   drive, a turret gone dark, a paint). three.js does not copy a material's
+   shader hook, so the hull detail is handed on here: the copy looks like
+   the hull it is part of and uses the shader the template already has,
+   rather than a new one compiled the moment a turret dies. */
+export function cloneMaterial(material) {
+  const c = material.clone();
+  if (material.userData.detail) {
+    c.onBeforeCompile = material.onBeforeCompile;
+    c.customProgramCacheKey = material.customProgramCacheKey;
+  }
+  return c;
+}
+
 /* Bone-white paint for the Ninth Hand, and other per-entity tints: the
    materials are cloned so the template is untouched. */
 export function tint(root, kind) {
@@ -247,7 +261,7 @@ export function tint(root, kind) {
   root.traverse(o => {
     if (!o.isMesh) return;
     o.material = (Array.isArray(o.material) ? o.material : [o.material]).map(m => {
-      const c = m.clone();
+      const c = cloneMaterial(m);
       if (kind === 'bone') { c.color = colour.clone(); c.map = null; c.roughness = 0.45; }
       else c.color = c.color.clone().multiply(colour);
       return c;

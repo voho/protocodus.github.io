@@ -23,7 +23,7 @@
 
 import * as THREE from 'three';
 import { hardpoints } from './hardpoints.js';
-import { tint } from './models.js';
+import { cloneMaterial, tint } from './models.js';
 import { foldGeometry } from './fold-fx.js';
 
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
@@ -47,15 +47,33 @@ export function createEntityRender(scene, library, glow, fx) {
   const views = new Map();
   let time = 0;
 
-  function create(e) {
-    const inst = library.instantiate(e.model);
-    if (!inst && e.model) return null;
-    const root = new THREE.Group();
-    if (inst) {
-      inst.root.scale.setScalar(e.scale ?? 1);
-      root.add(inst.root);
-      if (e.tint) tint(inst.root, e.tint);
+  /* A model as a view wears it: in the entity's paint, with copies of its
+     own of the parts whose glow the game drives. Null while the model is
+     still on its way. */
+  function dress(model, scale, kind) {
+    const inst = library.instantiate(model);
+    if (!inst) return null;
+    inst.root.scale.setScalar(scale);
+    if (kind) tint(inst.root, kind);
+    const emissive = [];
+    for (const key of ['drive', 'reactor', 'emitter', 'eye', 'shield_0', 'shield_1']) {
+      const node = inst.nodes[key];
+      if (!node) continue;
+      node.traverse(o => {
+        if (!o.isMesh) return;
+        o.material = cloneMaterial(o.material);
+        emissive.push({ key, material: o.material, base: o.material.emissiveIntensity ?? 1 });
+      });
     }
+    return { inst, emissive };
+  }
+
+  function create(e) {
+    const dressed = e.model ? dress(e.model, e.scale ?? 1, e.tint) : null;
+    if (!dressed && e.model) return null;
+    const inst = dressed?.inst;
+    const root = new THREE.Group();
+    if (inst) root.add(inst.root);
     scene.add(root);
     const hp = hardpoints(e.model);
     const view = {
@@ -63,18 +81,8 @@ export function createEntityRender(scene, library, glow, fx) {
       placeholder: inst?.placeholder, lightsPhase: Math.random() * 10, smoke: 0, burning: [],
       // Fire points for a hurt hull: a few of its collision spheres, or its centre.
       firePoints: (e.colliders?.length ? e.colliders.filter((_, i) => i % Math.max(1, Math.floor(e.colliders.length / 6)) === 0).slice(0, 6) : [{ pos: [0, 0, 0], r: e.radius * 0.4 }]),
-      emissive: [],
+      emissive: dressed?.emissive ?? [],
     };
-    // Parts whose glow the game drives get their own material copies.
-    for (const key of ['drive', 'reactor', 'emitter', 'eye', 'shield_0', 'shield_1']) {
-      const node = view.nodes[key];
-      if (!node) continue;
-      node.traverse(o => {
-        if (!o.isMesh) return;
-        o.material = o.material.clone();
-        view.emissive.push({ key, material: o.material, base: o.material.emissiveIntensity ?? 1 });
-      });
-    }
     // Rest poses of the parts that turn, so turning composes with them.
     view.rest = {};
     for (const key of ['ring', 'emitter', 'arm_L', 'arm_R']) if (view.nodes[key]) view.rest[key] = view.nodes[key].quaternion.clone();
@@ -96,7 +104,7 @@ export function createEntityRender(scene, library, glow, fx) {
     if (!s) return;
     if (!s.alive) {
       // Dead turrets droop and go dark.
-      if (!tr.dead) { tr.dead = true; tr.node.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color?.multiplyScalar(0.25); o.material.emissiveIntensity = 0; } }); }
+      if (!tr.dead) { tr.dead = true; tr.node.traverse(o => { if (o.isMesh) { o.material = cloneMaterial(o.material); o.material.color?.multiplyScalar(0.25); o.material.emissiveIntensity = 0; } }); }
       tr.pitch += (-0.5 - tr.pitch) * Math.min(1, dt);
     } else {
       // Aim in the turret's own (rest) frame.
@@ -264,6 +272,9 @@ export function createEntityRender(scene, library, glow, fx) {
     },
     remove,
     clear() { for (const id of [...views.keys()]) remove(id); time = 0; },
+    /* One of a model, dressed as its views will be, for the renderer to
+       get ready on (warmup.js): not placed, not kept. */
+    sample(model, kind = null) { return dress(model, 1, kind)?.inst.root ?? null; },
   };
 }
 

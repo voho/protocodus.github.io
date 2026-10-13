@@ -25,7 +25,7 @@ export default defineMission({
   field: FIELD, fieldSeed: 2025, seed: 202, par: 420, env: 'roussanou',
   start: { pos: START, forward: dir(ROUTE[0], ROUTE[1]), speed: 50 },
   area: { centre: [0, 0, 0], radius: 7500 },
-  models: ['fighter', 'interceptor', 'freighter', 'perpetua', 'drone', 'swift'],
+  models: ['fighter', 'interceptor', 'talon', 'freighter', 'perpetua', 'drone', 'swift'],
   music: 'calm',
   recommend: {
     hull: 'kestrel', primary: 'pulse', secondaries: ['hornet', 'hornet'], reactor: 'hearth',

@@ -29,7 +29,7 @@ export default defineMission({
   field: FIELD, fieldSeed: 4040, seed: 404, par: 480, env: 'varlaam',
   start: { pos: START, forward: dir(START, SEEDS[0]), speed: 60 },
   area: { centre: VARLAAM, radius: 6000 },
-  models: ['fighter', 'interceptor', 'mite', 'seed', 'station', 'anvil', 'drone'],
+  models: ['fighter', 'interceptor', 'talon', 'mite', 'seed', 'station', 'anvil', 'drone'],
   music: 'tension',
   recommend: {
     hull: 'anvil', primary: 'breaker', secondaries: ['hornet', 'lance'], reactor: 'forge',
