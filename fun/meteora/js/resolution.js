@@ -15,13 +15,18 @@
    spell began is banned for thirty seconds.
 
    The ceiling is 1.5: on a 2× screen that is 44 % fewer pixels than full
-   density, and with antialiasing the difference is hard to see in flight. */
+   density, and with antialiasing the difference is hard to see in flight.
+   The player can lower it (`setCap`, Settings' render quality). */
 
 const LADDER = [0.6, 0.75, 0.9, 1, 1.25, 1.5];
 const DROP_AFTER = 0.5, CLIMB_AFTER = 3, COOLDOWN = 0.6, BAN = 30, MAX_REFRESH_MS = 20;
 
 export function createResolution({ devicePixelRatio = 1 } = {}) {
-  const levels = LADDER.filter(l => l <= Math.max(devicePixelRatio, LADDER[0]) + 1e-9);
+  const within = cap => {
+    const fit = LADDER.filter(l => l <= Math.max(devicePixelRatio, LADDER[0]) + 1e-9 && l <= cap + 1e-9);
+    return fit.length ? fit : [LADDER[0]];
+  };
+  const levels = within(Infinity);
   let index = levels.length - 1;
   let time = 0, ema = null, refresh = null;
   let bad = 0, good = 0, cooldown = 0, inEpisode = false;
@@ -30,6 +35,13 @@ export function createResolution({ devicePixelRatio = 1 } = {}) {
   return {
     levels,
     get ratio() { return levels[index]; },
+    setCap(cap) {
+      const top = within(cap);
+      levels.length = 0;
+      levels.push(...top);
+      index = Math.min(index, levels.length - 1);
+      bannedUntil.clear();
+    },
     frame(ms) {
       const dt = ms / 1000;
       time += dt;

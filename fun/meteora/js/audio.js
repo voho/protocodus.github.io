@@ -163,20 +163,28 @@ export function createAudio(volume = 0.8) {
     src.start();
   }
 
-  const velocityOf = (world, id) => (id === world.player.id ? world.player : world.enemies.find(e => e.id === id))?.ship.vel ?? null;
+  const velocityOf = (world, id) => world.byId.get(id)?.ship.vel ?? null;
+  // Engines worth hearing: every small craft but our own.
+  const flyers = world => world.entities.filter(e => e.alive && !e.big && e !== world.player && !e.folding);
+  let alarmAt = 0, warnAt = 0, scanAt = 0, weldAt = 0, lastShield = 1;
 
   function handle(e, world) {
     if (!ctx) return;
+    const p = world.player;
     switch (e.type) {
       case 'fire':
-        if (e.team === 0) play('cannon', { pos: e.pos, gain: 0.3, ref: 20 });
-        else play('enemyCannon', { pos: e.pos, vel: velocityOf(world, e.shipId), gain: 0.5, ref: 40 });
+        if (e.turret) { play(e.weapon === 'tailgun' ? 'cannon' : 'turret', { pos: e.pos, vel: e.vel, gain: e.weapon === 'tailgun' ? 0.22 : 0.5, rate: e.weapon === 'tailgun' ? 1.25 : 1, ref: e.weapon === 'tailgun' ? 20 : 60 }); break; }
+        if (e.team === 0 && e.player) play('cannon', { pos: e.pos, gain: 0.3, rate: e.weapon === 'needle' ? 1.35 : e.weapon === 'breaker' ? 0.62 : e.weapon === 'ion' ? 1.12 : 1, ref: 20 });
+        else play(e.team === 0 ? 'cannon' : 'enemyCannon', { pos: e.pos, vel: velocityOf(world, e.shipId), gain: e.team === 0 ? 0.32 : 0.5, ref: 40 });
         break;
-      case 'missileLaunch': play('missileLaunch', { pos: e.pos, gain: 0.7, ref: 25 }); break;
+      case 'missileLaunch':
+        if (e.torpedo) play('torpedoLaunch', { pos: e.pos, gain: e.player ? 0.8 : 0.7, ref: 60 });
+        else play('missileLaunch', { pos: e.pos, gain: 0.7, ref: 25 });
+        break;
       case 'boltHit': {
         const name = e.kind === 'rock' ? 'hitRock' : e.shielded ? 'hitShield' : 'hitHull';
-        if (e.targetId === world.player.id) play(name, { gain: 0.85, rate: 0.9 });
-        else play(name, { pos: e.pos, vel: e.vel, gain: 0.55, ref: 35 });
+        if (e.targetId === p?.id) play(name, { gain: 0.85, rate: 0.9 });
+        else play(name, { pos: e.pos, vel: e.vel, gain: 0.55, ref: e.big ? 70 : 35 });
         break;
       }
       case 'rockBreak':
@@ -184,20 +192,65 @@ export function createAudio(volume = 0.8) {
         // Smaller rocks crack higher.
         else play('rockBreak', { pos: e.pos, vel: e.vel, gain: 0.45 + 0.03 * e.radius, rate: 1.35 - 0.035 * e.radius, ref: 40 + 4 * e.radius });
         break;
-      case 'missileExplode': case 'missileExpire': play('blast', { pos: e.pos, vel: e.vel, gain: 1, ref: 110 }); break;
+      case 'missileExplode': case 'missileExpire': play('blast', { pos: e.pos, vel: e.vel, gain: e.torpedo ? 1.3 : 1, rate: e.torpedo ? 0.7 : 1, ref: e.torpedo ? 220 : 110 }); break;
+      case 'missileDestroyed': play('flak', { pos: e.pos, gain: 0.8, rate: 1.2, ref: 80 }); break;
+      case 'flak': play('flak', { pos: e.pos, gain: 0.7, ref: 70 }); break;
       case 'shipKilled':
-        if (e.team === 0) play('playerExplosion', { gain: 1.2 });
+        if (e.team === 0 && e.id === p?.id) play('playerExplosion', { gain: 1.2 });
+        else if (e.big) play('bigExplosion', { pos: e.pos, vel: e.vel, gain: 1.5, ref: 600 });
         else play('shipExplosion', { pos: e.pos, vel: e.vel, gain: 1.1, ref: 140 });
         break;
       case 'collision':
         // A scrape reports every step it lasts; it is heard as one knock.
         // Unlike the camera shake, a bump too gentle to do damage is heard.
-        if (e.team === 0 && e.speed > 3 && ctx.currentTime - lastBump > 0.25) {
+        if (e.id === p?.id && e.speed > 3 && ctx.currentTime - lastBump > 0.25) {
           lastBump = ctx.currentTime;
           play('hitRock', { gain: Math.min(1, e.speed / 40), rate: 0.6 });
         }
         break;
+      case 'radioLine': play('radio', { gain: 0.35, bus: cockpit }); break;
+      case 'objective':
+        if (e.state === 'done') play('objective', { gain: 0.55, bus: cockpit });
+        else if (e.state === 'failed') play('objectiveFail', { gain: 0.6, bus: cockpit });
+        break;
+      case 'scanned': play('objective', { gain: 0.4, rate: 1.25, bus: cockpit }); break;
+      case 'hitMarker': if (e.kill) play('killChime', { gain: 0.35, bus: cockpit }); break;
+      case 'score': if (e.streak >= 2) play('streak', { gain: 0.4, rate: Math.pow(2, (Math.min(5, e.streak) - 2) / 6), bus: cockpit }); break;
+      case 'detected': play('detected', { gain: 0.6, bus: cockpit }); break;
+      case 'foldIn': play('foldIn', { pos: e.pos, gain: e.big ? 1.4 : 0.8, rate: e.big ? 0.7 : 1, ref: e.big ? 500 : 120 }); break;
+      case 'foldOut': play('foldOut', { pos: e.pos, gain: e.big ? 1.2 : 0.7, rate: e.big ? 0.7 : 1, ref: e.big ? 500 : 120 }); break;
+      case 'beamCharge': play('beamCharge', { pos: e.pos, gain: 1.2, ref: 600 }); break;
+      case 'beamFire': play('beamFire', { pos: e.pos, gain: 1.4, ref: 800 }); break;
+      case 'tenderDocked': if (e.patientId === p?.id) play('dock', { gain: 0.7, bus: cockpit }); break;
+      case 'tenderDone': if (e.patientId === p?.id) play('repairDone', { gain: 0.5, bus: cockpit }); break;
+      case 'repairCalled': play('radio', { gain: 0.35, bus: cockpit }); break;
+      case 'repairDenied': case 'dryFire': play('uiClick', { gain: 0.4, rate: 0.6, bus: cockpit }); break;
+      case 'bankChange': case 'navChange': case 'shieldsLevelled': play('uiClick', { gain: 0.35, bus: cockpit }); break;
+      case 'missionWon': play('missionWon', { gain: 0.55, bus: cockpit }); break;
+      case 'missionLost': play('missionLost', { gain: 0.55, bus: cockpit }); break;
+      case 'hatch': play('rockBreak', { pos: e.pos, gain: 1, rate: 0.6, ref: 120 }); break;
+      case 'impact': play('bigExplosion', { pos: e.pos, gain: 1.2, rate: 1.3, ref: 400 }); break;
+      case 'jump': play('jump', { gain: 1 }); break;
+      case 'shieldsCollapse': if (e.id === p?.id) play('shieldsDown', { gain: 0.6, bus: cockpit }); break;
     }
+  }
+
+  /* Cockpit cues that repeat while something holds: the hull alarm,
+     torpedo warnings, the scan's ticking, the Tender's welding. */
+  function cues(world, now) {
+    const p = world.player;
+    if (!p?.alive || world.state !== 'flying') return;
+    const hullF = p.hull / p.maxHull;
+    if (hullF < 0.3 && now > alarmAt) { play('alarm', { gain: 0.32, bus: cockpit }); alarmAt = now + 1.4; }
+    const shieldF = p.maxShield ? p.shield / p.maxShield : 1;
+    if (shieldF < 0.01 && lastShield >= 0.01) play('shieldsDown', { gain: 0.5, bus: cockpit });
+    lastShield = shieldF;
+    let inbound = false;
+    for (const m of world.weapons.missiles) if (m.team === 1 && m.targetId != null && (m.targetId === p.id || m.hp > 0)) { inbound = true; break; }
+    if (inbound && now > warnAt) { play('torpedoWarn', { gain: 0.22, bus: cockpit }); warnAt = now + 1.1; }
+    if (world.scanning?.inRange && world.scanning.inCone && now > scanAt) { play('scanTick', { gain: 0.3, bus: cockpit }); scanAt = now + 0.22; }
+    const drone = world.repair?.droneId != null ? world.byId.get(world.repair.droneId) : null;
+    if (drone?.tender?.state === 'docked' && now > weldAt) { play('weld', { gain: 0.25, bus: cockpit }); weldAt = now + 1.1; }
   }
 
   /* ---------- continuous voices ---------- */
@@ -248,7 +301,7 @@ export function createAudio(volume = 0.8) {
 
   function driveLock(world, now) {
     const p = world.player, t = world.target, L = world.lock;
-    const live = world.state === 'flying' && p.alive && t?.alive && p.missiles > 0 && L.targetId === t.id && L.progress > 0;
+    const live = world.state === 'flying' && p.alive && t?.alive && (p.banks?.[p.bank]?.count ?? 0) > 0 && L.valid !== false && L.targetId === t.id && L.progress > 0;
     const mode = !live ? 'off' : L.locked ? 'locked' : 'locking';
     const g = lock.out.gain;
     if (mode !== lock.mode) {
@@ -332,7 +385,7 @@ export function createAudio(volume = 0.8) {
   }
 
   function driveShips(world, now) {
-    for (const e of world.enemies) {
+    for (const e of flyers(world)) {
       const v = ships.get(e.id);
       if (!v) continue;
       if (!e.alive) { release(v, now); ships.delete(e.id); continue; }
@@ -363,11 +416,12 @@ export function createAudio(volume = 0.8) {
     const now = ctx.currentTime;
     listen(camera, dt, now);
     driveEngine(world.player, world.state === 'flying', now);
+    cues(world, now);
     driveLock(world, now);
     pick -= dt;
     if (pick <= 0) {
       pick = 0.25;
-      choose(ships, world.enemies.filter(e => e.alive).map(e => ({ id: e.id, pos: e.ship.pos })),
+      choose(ships, flyers(world).map(e => ({ id: e.id, pos: e.ship.pos })),
         AUDIO.shipRange, AUDIO.shipVoices, shipVoice, now);
       choose(missiles, world.weapons.missiles.map(m => ({ id: m.id, pos: m.pos })), AUDIO.missileRange, 6, missileVoice, now);
     }
@@ -403,6 +457,10 @@ export function createAudio(volume = 0.8) {
       if (!p) resume();
     },
     handle, update,
+    // Menu sounds, unplaced.
+    ui(name) { play(name === 'hover' ? 'uiHover' : 'uiClick', { gain: name === 'hover' ? 0.18 : 0.35, bus: cockpit }); },
+    get ctx() { return ctx; },
+    get output() { return master; },
     // A restarted run: no ships or missiles left to hear.
     reset() {
       if (!ctx) return;

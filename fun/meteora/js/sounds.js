@@ -302,6 +302,152 @@ const pip = (t, start, f, length) => {
 const targetChange = () => render(0.14, t => pip(t, 0, 1320, 0.05) * 0.8 + pip(t, 0.06, 1760, 0.065));
 const lockOn = () => render(0.11, t => pip(t, 0, 1975, 0.035) + pip(t, 0.065, 1975, 0.035));
 
+/* ---------- the campaign's sounds ---------- */
+
+// Radio: a burst of band-limited static, then a short pip — the squelch.
+function radio(rng) {
+  const bandF = svf();
+  return render(0.24, t => {
+    const n = rng.next() * 2 - 1;
+    const hiss = bandF(n, 2200, 1.4, 1) * (t < 0.07 ? rise(t, 0.004) : Math.exp(-(t - 0.07) / 0.02)) * 1.6;
+    return Math.tanh(hiss + pip(t, 0.09, 1040, 0.08) * 0.7 + pip(t, 0.09, 2080, 0.08) * 0.15);
+  });
+}
+// Arpeggios for objectives: up for done, down for failed.
+const chime = notes => () => render(0.11 * notes.length + 1.0, t => {
+  let s = 0;
+  notes.forEach((f, k) => {
+    const u = t - k * 0.11;
+    if (u >= 0) s += (Math.sin(TAU * f * u) + 0.3 * Math.sin(TAU * 2 * f * u) + 0.1 * Math.sin(TAU * 3 * f * u)) * Math.exp(-u / 0.22) * rise(u, 0.004);
+  });
+  return Math.tanh(s * 0.8);
+});
+const objective = chime([784, 988, 1175]);
+const objectiveFail = chime([440, 370, 294]);
+const killChime = () => render(0.6, t => (Math.sin(TAU * 1568 * t) * 0.8 + Math.sin(TAU * 2349 * t) * 0.35 + Math.sin(TAU * 3920 * t) * 0.12) * Math.exp(-t / 0.16) * rise(t, 0.002));
+const streak = () => render(0.42, t => {
+  const f = 660 * Math.pow(2, t * 2.4);
+  return Math.tanh((Math.sin(TAU * f * t) * 0.7 + Math.sin(TAU * f * 1.5 * t) * 0.3) * Math.min(1, t / 0.02) * Math.exp(-t / 0.18) * 1.2);
+});
+// Chords swelling under the debrief: major for a win, minor for a loss.
+function stinger(rng, notes, seconds, bright) {
+  const lp = svf();
+  const phases = notes.flatMap(f => [f, f * 1.003, f * 0.997]).map(f => ({ f, p: rng.next() }));
+  return render(seconds, t => {
+    let s = 0;
+    for (const o of phases) { o.p += o.f / RATE; s += 2 * (o.p % 1) - 1; }
+    const env = rise(t, 0.35) * Math.exp(-Math.max(0, t - seconds * 0.45) / (seconds * 0.18));
+    return Math.tanh(lp(s / phases.length * 3, (bright ? 900 : 500) + (bright ? 2500 : 900) * rise(t, seconds * 0.5), 0.8, 0) * env * 1.2);
+  });
+}
+const missionWon = rng => stinger(rng, [196, 247, 294, 392, 494], 3.2, true);
+const missionLost = rng => stinger(rng, [147, 175, 220, 110], 3.2, false);
+const alarm = () => render(0.5, t => pip(t, 0, 880, 0.18) * 0.9 + pip(t, 0.22, 660, 0.2) * 0.9);
+const torpedoWarn = () => render(0.5, t => {
+  const f = 1250 + 450 * Math.sign(Math.sin(TAU * 18 * t));
+  return Math.sin(TAU * f * t) * rise(t, 0.004) * Math.max(0, Math.min(1, (0.42 - t) / 0.05)) * 0.8;
+});
+function detected(rng) {
+  return render(1.1, t => {
+    const f = Math.floor(t / 0.18) % 2 ? 330 : 440;
+    const sq = Math.sign(Math.sin(TAU * f * t)) * 0.5 + Math.sin(TAU * f * 2 * t) * 0.2;
+    const gate = (t % 0.18) < 0.15 ? 1 : 0.05;
+    return Math.tanh(sq * gate * rise(t, 0.005) * Math.max(0, Math.min(1, (1.02 - t) / 0.06)) * 1.2);
+  });
+}
+function shieldsDown(rng) {
+  const crackF = svf();
+  const crackle = clicks(rng, scatter(rng, 40, 0.02, 0.15, 0.5), 0.0015, t => Math.exp(-t / 0.2));
+  let phase = 0;
+  return render(0.6, t => {
+    phase += TAU * (300 + 1200 * Math.exp(-t / 0.12)) / RATE;
+    return Math.tanh((Math.sin(phase) * Math.exp(-t / 0.2) * rise(t, 0.003) + crackF(crackle(t), 3000, 1, 1) * 0.8) * 1.2);
+  });
+}
+// A fold: air that is not there, rushing; a sub-bass thump; a shimmer.
+function fold(rng, out) {
+  const rushF = svf(), shimmerF = svf();
+  let sub = 0;
+  return render(1.8, t => {
+    const n = rng.next() * 2 - 1;
+    const u = out ? 1.8 - t : t;
+    const rush = rushF(n, 300 + 4500 * Math.min(1, u / 1.1), 1.2, 1) * Math.sin(Math.PI * Math.min(1, t / 1.8)) ** 2 * 1.8;
+    sub += TAU * (34 + 30 * Math.exp(-Math.max(0, t - 0.9) / 0.1)) / RATE;
+    const thump = Math.sin(sub) * Math.exp(-Math.max(0, t - 0.9) / 0.25) * (t > 0.9 ? 1 : 0) * rise(Math.max(0, t - 0.9), 0.01);
+    const shimmer = shimmerF(n, 6000, 4, 1) * Math.exp(-Math.abs(t - 0.95) / 0.12) * 0.6;
+    return Math.tanh(rush + thump * 1.2 + shimmer);
+  });
+}
+function torpedoLaunch(rng) {
+  const roarF = svf(), rumbleF = svf();
+  let thump = 0, brown = 0;
+  return render(2.2, t => {
+    const n = rng.next() * 2 - 1;
+    brown = (brown + 0.02 * n) / 1.02;
+    thump += TAU * (30 + 40 * Math.exp(-t / 0.06)) / RATE;
+    const motor = rise(Math.max(0, t - 0.3), 0.15) * Math.exp(-Math.max(0, t - 0.6) / 0.6);
+    return Math.tanh((Math.sin(thump) * Math.exp(-t / 0.18) * 1.3 + roarF(n, 300 + 1200 * Math.exp(-t / 1.4), 0.8, 1) * motor * 1.4 + rumbleF(brown * 6, 180, 0.8, 0) * motor) * 1.1);
+  });
+}
+function flak(rng) {
+  const crackF = svf(), bodyF = svf();
+  let boom = 0;
+  return render(0.7, t => {
+    const n = rng.next() * 2 - 1;
+    boom += TAU * (45 + 50 * Math.exp(-t / 0.04)) / RATE;
+    return Math.tanh((crackF(n, 900, 0.8, 2) * Math.exp(-t / 0.01) * 1.4 + bodyF(n, 200 + 2500 * Math.exp(-t / 0.06), 0.7, 0) * Math.exp(-t / 0.12) * 1.4 + Math.sin(boom) * Math.exp(-t / 0.1) * rise(t, 0.003)) * 1.2);
+  });
+}
+function turret(rng) {
+  const crackF = svf();
+  let zap = 0, thump = 0;
+  return render(0.3, t => {
+    zap += TAU * (110 + 900 * Math.exp(-t / 0.02)) / RATE;
+    thump += TAU * (36 + 40 * Math.exp(-t / 0.03)) / RATE;
+    return Math.tanh((Math.sin(zap) * Math.exp(-t / 0.06) * 0.6 + Math.sin(thump) * Math.exp(-t / 0.08) * rise(t, 0.002) + crackF(rng.next() * 2 - 1, 1800, 1.2, 1) * Math.exp(-t / 0.012)) * 1.3);
+  });
+}
+function beamCharge() {
+  let phase = 0;
+  return render(3, t => {
+    phase += TAU * (160 + 1500 * (t / 3) ** 2) / RATE;
+    const trem = 0.7 + 0.3 * Math.sin(TAU * (6 + 20 * t / 3) * t);
+    return Math.tanh((Math.sin(phase) + 0.4 * Math.sin(2.01 * phase)) * trem * rise(t, 0.3) * Math.min(1, (3 - t) / 0.05) * 0.9);
+  });
+}
+function beamFire(rng) {
+  const roarF = svf(), buzzF = svf();
+  let p = 0;
+  return render(2.6, t => {
+    const n = rng.next() * 2 - 1;
+    p += 90 / RATE;
+    const buzz = buzzF(2 * (p % 1) - 1, 1400, 2, 1);
+    const env = rise(t, 0.05) * Math.min(1, (2.6 - t) / 0.3);
+    return Math.tanh((roarF(n, 900, 0.6, 1) * 1.8 + buzz * 0.7 + Math.sin(TAU * 55 * t) * 0.6) * env);
+  });
+}
+const dock = rng => render(0.45, t => Math.tanh((modes(t, rng.range(180, 220), PLATE, [0.2, 0.15, 0.1, 0.08, 0.06, 0.05], [1, 0.6, 0.5, 0.3, 0.2, 0.1]) * rise(t, 0.001) + Math.sin(TAU * 70 * t) * Math.exp(-t / 0.05)) * 1.2));
+function weld(rng) {
+  const f = svf();
+  const sparks = clicks(rng, scatter(rng, 120, 0, 0.6, 1.2), 0.0012, () => 1);
+  return render(1.2, t => Math.tanh((f(sparks(t), 4000, 1.2, 1) * 1.5 + Math.sin(TAU * 120 * t) * 0.15 * (0.5 + 0.5 * Math.sin(TAU * 7 * t))) * rise(t, 0.02) * Math.min(1, (1.2 - t) / 0.1)));
+}
+const repairDone = chime([660, 880]);
+const scanTick = () => render(0.07, t => pip(t, 0, 2400, 0.04) * 0.8);
+const uiClick = () => render(0.06, t => pip(t, 0, 1800, 0.025) + pip(t, 0.012, 900, 0.03) * 0.5);
+const uiHover = () => render(0.05, t => pip(t, 0, 2600, 0.02) * 0.7);
+function jump(rng) {
+  const rushF = svf();
+  let sub = 0;
+  return render(4.5, t => {
+    const n = rng.next() * 2 - 1;
+    sub += TAU * (24 + 50 * Math.exp(-Math.max(0, t - 1.5) / 0.4)) / RATE;
+    const rush = rushF(n, 200 + 8000 * Math.min(1, t / 1.5), 1, 1) * (t < 1.5 ? rise(t, 0.6) : Math.exp(-(t - 1.5) / 0.4)) * 1.6;
+    const boom = Math.sin(sub) * (t > 1.5 ? Math.exp(-(t - 1.5) / 1.1) * rise(t - 1.5, 0.01) : 0) * 1.4;
+    return Math.tanh(rush + boom);
+  });
+}
+
 /* Name → variants. Short, much-repeated sounds get several takes so a
    held trigger does not sound like a loop; long ones get one or two. */
 const BANK = {
@@ -318,6 +464,32 @@ const BANK = {
   afterburnerIgnite: [1, afterburnerIgnite],
   targetChange: [1, targetChange],
   lockOn: [1, lockOn],
+  radio: [2, radio],
+  objective: [1, objective],
+  objectiveFail: [1, objectiveFail],
+  killChime: [1, killChime],
+  streak: [1, streak],
+  alarm: [1, alarm],
+  torpedoWarn: [1, torpedoWarn],
+  turret: [2, turret],
+  flak: [2, flak],
+  torpedoLaunch: [1, torpedoLaunch],
+  dock: [1, dock],
+  repairDone: [1, repairDone],
+  scanTick: [1, scanTick],
+  uiClick: [1, uiClick],
+  uiHover: [1, uiHover],
+  detected: [1, detected],
+  shieldsDown: [1, shieldsDown],
+  foldIn: [1, rng => fold(rng, false)],
+  foldOut: [1, rng => fold(rng, true)],
+  weld: [1, weld],
+  beamCharge: [1, beamCharge],
+  beamFire: [1, beamFire],
+  bigExplosion: [1, rng => blastOf(rng, { seconds: 8, size: 3.2, second: 0.6, pieces: 14 })],
+  missionWon: [1, missionWon],
+  missionLost: [1, missionLost],
+  jump: [1, jump],
 };
 export const SOUND_NAMES = Object.keys(BANK);
 

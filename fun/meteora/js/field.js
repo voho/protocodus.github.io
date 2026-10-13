@@ -123,9 +123,26 @@ export function generateBelt(seed, cfg = FIELD) {
   const [hx, hy, hz] = cfg.half;
   let n = 0;
 
+  // Missions keep spheres and lanes clear of rock: around capital ships and
+  // stations, and along convoy routes.
+  const clearings = cfg.clear ?? [], lanes = cfg.lanes ?? [];
+  const inClearing = (x, y, z, R) => {
+    for (const c of clearings) {
+      if (Math.hypot(x - c.pos[0], y - c.pos[1], z - c.pos[2]) - R < c.r) return true;
+    }
+    for (const l of lanes) {
+      const ax = l.a[0], ay = l.a[1], az = l.a[2];
+      const dx = l.b[0] - ax, dy = l.b[1] - ay, dz = l.b[2] - az;
+      const L2 = dx * dx + dy * dy + dz * dz;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy + (z - az) * dz) / L2)) : 0;
+      if (Math.hypot(x - ax - dx * t, y - ay - dy * t, z - az - dz * t) - R < l.r) return true;
+    }
+    return false;
+  };
   const fits = (x, y, z, R, isLarge) => {
     const sx = x - cfg.spawn[0], sy = y - cfg.spawn[1], sz = z - cfg.spawn[2];
     if (Math.sqrt(sx * sx + sy * sy + sz * sz) - R < cfg.spawnClear) return false;
+    if ((clearings.length || lanes.length) && inClearing(x, y, z, R)) return false;
     const clear = j => {
       const dx = x - belt.pos[3 * j], dy = y - belt.pos[3 * j + 1], dz = z - belt.pos[3 * j + 2];
       return Math.sqrt(dx * dx + dy * dy + dz * dz) >= (R + belt.radius[j]) * cfg.gap;

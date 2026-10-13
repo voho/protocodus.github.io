@@ -28,6 +28,7 @@
 
 import * as THREE from 'three';
 import { makeRng } from './rng.js';
+import { bigDeathSpan } from './config.js';
 import { createFireballs } from './fireballs.js';
 import { createDebris } from './debris.js';
 
@@ -38,9 +39,15 @@ const SHIELD_HOT = [0.75, 0.92, 1], SHIELD_COOL = [0.2, 0.45, 1];
 const DUST = [0.3, 0.27, 0.24], SOOT = [0.085, 0.08, 0.075];
 // Linear albedo of the hull plates each ship breaks into (see the previews
 // in tools/blender/previews).
+const HARROW_PLATES = [new THREE.Color(0.03, 0.03, 0.034), new THREE.Color(0.05, 0.05, 0.055), new THREE.Color(0.24, 0.012, 0.01)];
+const WATCH_PLATES = [new THREE.Color(0.55, 0.55, 0.53), new THREE.Color(0.62, 0.62, 0.6), new THREE.Color(0.03, 0.03, 0.032), new THREE.Color(0.7, 0.2, 0.03)];
+const CIVIL_PLATES = [new THREE.Color(0.5, 0.49, 0.46), new THREE.Color(0.32, 0.3, 0.28), new THREE.Color(0.55, 0.22, 0.06), new THREE.Color(0.06, 0.06, 0.06)];
+const ROCK_PLATES = [new THREE.Color(0.09, 0.08, 0.07), new THREE.Color(0.14, 0.12, 0.1), new THREE.Color(0.3, 0.02, 0.01)];
 const HULLS = {
-  interceptor: [new THREE.Color(0.03, 0.03, 0.034), new THREE.Color(0.05, 0.05, 0.055), new THREE.Color(0.24, 0.012, 0.01)],
-  fighter: [new THREE.Color(0.55, 0.55, 0.53), new THREE.Color(0.62, 0.62, 0.6), new THREE.Color(0.03, 0.03, 0.032), new THREE.Color(0.7, 0.2, 0.03)],
+  interceptor: HARROW_PLATES, mite: HARROW_PLATES, talon: HARROW_PLATES, maul: HARROW_PLATES, sentry: HARROW_PLATES,
+  anchor: HARROW_PLATES, warden: HARROW_PLATES, mother: HARROW_PLATES, seed: ROCK_PLATES,
+  fighter: WATCH_PLATES, swift: WATCH_PLATES, anvil: WATCH_PLATES, drone: WATCH_PLATES, halberd: WATCH_PLATES,
+  shuttle: CIVIL_PLATES, freighter: CIVIL_PLATES, station: CIVIL_PLATES, colony: CIVIL_PLATES, perpetua: CIVIL_PLATES,
 };
 // Roughly one pixel's angle at 1080p and 70°: sparks are never drawn
 // narrower, only dimmer, so a distant one does not shimmer in and out.
@@ -283,7 +290,7 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
   }
 
   function shipDeath(pos, base, kind) {
-    const S = kind === 'fighter' ? 1.35 : 1;
+    const S = { fighter: 1.35, anvil: 1.7, maul: 1.6, talon: 1.3, swift: 1.1, mite: 0.55, drone: 0.5, sentry: 0.9 }[kind] ?? 1;
     flash(pos, base, 10 * S, [1, 0.9, 0.75], 16, 0.11);
     fireball(6, pos, base, { radius: [8 * S, 13 * S], spread: 5 * S, life: [0.95, 1.35], delay: [0, 0.16] });
     // A second blast a beat later: fuel and ammunition going up.
@@ -304,6 +311,85 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
     });
     light(pos, base, 60000 * S, 260, 1.1);
     surge(pos, base, 14 * S, 0.9);
+  }
+
+  /* A large ship dies over seconds: blasts walk across its hull, then the
+     core goes. Everything rides the wreck's own velocity. `points` are
+     local offsets (collision spheres) to burst at, already in world
+     orientation. */
+  function bigDeath(pos, base, radius, kind, points = null) {
+    const t0 = clock;
+    const S = Math.min(14, Math.max(1.6, radius / 28));
+    const n = Math.round(Math.min(16, 3 + radius / 50));
+    const span = bigDeathSpan(radius);
+    const at = k => (points?.length ? points[(k * 7) % points.length] : rng.unit([0, 0, 0]).map(v => v * radius * rng.range(0.15, 0.75)));
+    const where = off => [pos[0] + off[0] + base[0] * (clock - t0), pos[1] + off[1] + base[1] * (clock - t0), pos[2] + off[2] + base[2] * (clock - t0)];
+    for (let k = 0; k < n; k++) {
+      const off = at(k), when = rng.range(0, span);
+      timers.push({ at: clock + when, fn: () => {
+        const p = where(off), s = S * rng.range(0.35, 0.6);
+        flash(p, base, 8 * s, [1, 0.88, 0.7], 14, 0.12);
+        fireball(4, p, base, { radius: [6 * s, 10 * s], spread: 4 * s, life: [0.9, 1.4], delay: [0, 0.1] });
+        burst(Math.round(40 + 6 * s), p, base, { speed: [40, 200], life: [0.5, 1.4], size: 0.18 * Math.sqrt(s), power: 5 });
+        shards(Math.round(4 + s), p, base, HULLS[kind] ?? CIVIL_PLATES, { spread: 2 * s, speed: [10, 60], size: [1.2 * s, 3 * s], life: [5, 9] });
+        cloud(Math.round(6 + s), p, base, { spread: 3 * s, speed: [4, 16], size: 3 * s, grow: 3.5, life: [5, 8], color: SOOT, alpha: 0.5, drag: 0.4, glow: 0.9, glowLife: 0.4, fadeIn: 0.4 });
+        light(p, base, 40000 * s, 200 * s, 0.8);
+        surge(p, base, 6 * s, 0.5);
+      } });
+    }
+    timers.push({ at: clock + span + 0.4, fn: () => {
+      const p = where([0, 0, 0]);
+      flash(p, base, radius * 1.2, [1, 0.95, 0.85], 18, 0.25);
+      fireball(12, p, base, { radius: [S * 9, S * 15], spread: radius * 0.45, life: [1.6, 2.6], delay: [0, 0.4] });
+      ring(p, base, null, radius * 2.6, 1.4, [1, 0.8, 0.55], 1.2, 0.03);
+      ring(p, base, null, radius * 1.8, 1.1, [1, 0.6, 0.35], 1, 0.04);
+      burst(Math.round(160 + 4 * S), p, base, { speed: [80, 420], life: [0.8, 2.4], size: 0.25 * Math.sqrt(S), power: 5 });
+      burst(60, p, base, { speed: [20, 120], life: [2, 5], size: 0.6 * Math.sqrt(S), hot: EMBER_HOT, cool: EMBER_COOL, power: 3, drag: 0.25, flicker: 0.7, streak: 0.02, fade: 1 });
+      shards(Math.round(20 + S * 2), p, base, HULLS[kind] ?? CIVIL_PLATES, { spread: radius * 0.4, speed: [20, 110], size: [2 * S, 5 * S], life: [8, 14] });
+      cloud(Math.round(30 + S), p, base, { spread: radius * 0.4, speed: [6, 30], size: 6 * S, grow: 4, life: [7, 12], color: SOOT, alpha: 0.55, drag: 0.3, glow: 1, glowLife: 0.6, fadeIn: 0.6 });
+      light(p, base, 400000 * S, radius * 6, 2);
+      surge(p, base, radius, 1.4);
+    } });
+  }
+
+  function flak(pos, base) {
+    flash(pos, base, 3.5, [1, 0.7, 0.35], 9, 0.07);
+    burst(18, pos, base, { speed: [30, 120], life: [0.2, 0.5], size: 0.12, power: 5 });
+    cloud(3, pos, base, { spread: 2, speed: [2, 6], size: 2.4, grow: 3, life: [1.6, 2.6], color: SOOT, alpha: 0.55, glow: 1.2, glowLife: 0.12 });
+  }
+
+  function pop(pos, base) {
+    flash(pos, base, 4, [1, 0.85, 0.6], 11, 0.08);
+    burst(26, pos, base, { speed: [30, 150], life: [0.3, 0.8], size: 0.13, power: 5 });
+    cloud(4, pos, base, { spread: 1.5, speed: [3, 9], size: 1.6, grow: 4, life: [2, 3], color: SOOT, alpha: 0.5, glow: 1, glowLife: 0.15 });
+    light(pos, base, 8000, 60, 0.3);
+  }
+
+  function hatch(pos, base, radius) {
+    rockBreak(pos, base, radius * 0.5, false);
+    burst(50, pos, base, { speed: [30, 140], life: [0.6, 1.4], size: 0.3, hot: [1, 0.25, 0.1], cool: [0.6, 0.02, 0.01], power: 5 });
+    flash(pos, base, radius * 1.5, [1, 0.25, 0.12], 10, 0.3);
+  }
+
+  function jumpFlash(pos, base, radius, colour = [0.7, 0.85, 1]) {
+    flash(pos, base, radius * 1.5, colour, 16, 0.3);
+    ring(pos, base, null, radius * 3, 0.9, colour, 1.2, 0.035);
+    burst(80, pos, base, { speed: [100, 500], life: [0.3, 0.9], size: 0.25, hot: [0.9, 0.97, 1], cool: [0.3, 0.55, 1], power: 6 });
+    light(pos, base, 200000, radius * 8, 0.8);
+    surge(pos, base, radius, 1);
+  }
+
+  function beamHit(pos, normal, base) {
+    flash(pos, base, 5, [1, 0.45, 0.2], 10, 0.05);
+    burst(6, pos, base, { normal, spread: 1.2, speed: [30, 120], life: [0.2, 0.6], size: 0.2, power: 6 });
+    if (rng.next() < 0.3) cloud(1, pos, base, { normal, spread: 1, speed: [4, 12], size: 2.5, grow: 4, life: [1.5, 3], color: SOOT, alpha: 0.5, glow: 1.4, glowLife: 0.3 });
+  }
+
+  // A damaged ship trails smoke and, when it is bad, fire and sparks.
+  function smoulder(pos, base, size, fire) {
+    puff(pos[0], pos[1], pos[2], base[0] * 0.9 + rng.range(-2, 2), base[1] * 0.9 + rng.range(-2, 2), base[2] * 0.9 + rng.range(-2, 2), base,
+      size, 3, rng.range(1.2, 2.4), SOOT, 0.42, { drag: 0.8, glow: fire, glowLife: 0.25 });
+    if (fire > 0.5 && rng.next() < 0.35) burst(2, pos, base, { speed: [10, 40], life: [0.2, 0.5], size: 0.1, power: 5 });
   }
 
   // A hot shard burns as it flies: fire on the shard, and smoke left behind
@@ -452,14 +538,24 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
 
   return {
     get counts() { return { sparks: sparks.n, puffs: puffs.n, lobes: lobes.length, rings: rings.length, debris: debris.count }; },
-    impact, rockBreak, blast, shipDeath, update,
+    impact, rockBreak, blast, shipDeath, bigDeath, flak, pop, hatch, jumpFlash, beamHit, smoulder, update,
     // The renderer's side of the simulation's events.
-    handle(e) {
+    handle(e, extra = null) {
       switch (e.type) {
         case 'boltHit': impact(e.kind === 'rock' ? 'rock' : e.shielded ? 'shield' : 'hull', e.pos, e.normal, e.vel ?? ZERO); break;
         case 'rockBreak': rockBreak(e.pos, e.vel ?? ZERO, e.radius, !!e.crumble); break;
-        case 'missileExplode': case 'missileExpire': blast(e.pos, e.vel ?? ZERO); break;
-        case 'shipKilled': shipDeath(e.pos, e.vel ?? ZERO, e.kind); break;
+        case 'missileExplode': case 'missileExpire':
+          if (e.torpedo) { blast(e.pos, e.vel ?? ZERO); fireball(4, e.pos, e.vel ?? ZERO, { radius: [12, 18], spread: 10, life: [0.9, 1.3] }); ring(e.pos, e.vel ?? ZERO, null, 90, 0.6, [1, 0.7, 0.45], 0.9, 0.03); }
+          else blast(e.pos, e.vel ?? ZERO);
+          break;
+        case 'missileDestroyed': pop(e.pos, e.vel ?? ZERO); break;
+        case 'flak': flak(e.pos, e.vel ?? ZERO); break;
+        case 'hatch': hatch(e.pos, ZERO, 20); break;
+        case 'impact': rockBreak(e.pos, ZERO, 20, false); blast(e.pos, ZERO); break;
+        case 'shipKilled':
+          if (e.big) bigDeath(e.pos, e.vel ?? ZERO, e.radius ?? 100, e.kind, extra);
+          else shipDeath(e.pos, e.vel ?? ZERO, e.kind);
+          break;
       }
     },
     clear() {

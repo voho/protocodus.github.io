@@ -28,12 +28,11 @@
 
 ## Meteora
 
-[Play Meteora](fun/meteora/index.html) is a 3D space shooter set in a seeded asteroid belt of some twenty-one thousand rocks. The fighter flies with real momentum: flight assist holds the speed you ask for with thrusters that have honest limits, so a hard turn at speed slides before it bites.
+[Play Meteora](fun/meteora/index.html) is a space-combat campaign in the spirit of FreeSpace, set in a dense asteroid belt around a red dwarf. Ten missions follow the Belt Watch's Lantern Wing from a missing ore tug to the evacuation of the whole belt, with briefings, a hangar, debriefs, medals, ranks and four difficulties.
 
-- Aim with the mouse: the ship turns toward the crosshair, and gimballed cannons swing up to 10° to meet it. Left click fires the cannons, right click a homing missile.
-- W/S set the speed, Q/E roll, Tab burns the afterburner, T cycles targets and Z locks your speed to the target's.
-- The targeting HUD frames the selected enemy with its distance and closing speed, points to it from the screen edge, and draws a lead marker solved from both ships' velocities.
-- The fighter, the interceptor and five asteroids are built by committed Blender scripts with baked textures; the sky is generated at load with the Milky Way, nebulae and galaxies under slowly drifting star layers.
-- Kills burst into a flash that lights the rocks around them, a churning fireball, a shock ring, molten sparks, glowing hull plates and lit smoke, all carrying the wreck's momentum; rocks break into chips and dust, and the camera watches your own wreck drift away.
-- Synthesised 3D sound: an engine drone whose pitch glides with speed, the afterburner's roar, interceptors bending through doppler as they fly past, weapons, hits by what they strike, explosions, and the target and lock tones.
-- See the [game guide](fun/meteora/README.md) for the flight model, the model pipeline and the checks.
+- The missions vary: patrol and first contact, convoy escort through a rockslide, stealth recon past sensor Eyes, destroying seeded asteroids, holding a station during an evacuation, guarding the carrier *Perpetua*, cutting an enemy supply line, breaking a Mother-class capital ship's shields and reactor, a convoy with a traitor, and guarding a colony ark until it jumps.
+- Choose an interceptor, a fighter or a bomber, a gun, missiles or torpedoes and a reactor; every mission recommends a loadout and says why, and the hangar warns when a choice will not do the job.
+- Steer with the mouse or a gamepad (adjustable sensitivity, self-centring or stick-like steering, rebindable keys). Quadrant shields, a low-hull alarm and a repair drone on R keep you flying; wing orders, subsystem targeting and torpedo interception are a key away.
+- The ships, stations and capital ships are built by committed Blender scripts with baked textures, and their turrets, bays, subsystems and lights come from the models.
+- Synthesised 3D sound, live generated music and a voiced radio (the browser's own speech synthesis reads the radio, the briefings and the debriefs); every mission opens and closes on a camera shot, and the big moments get cutaways. Survival mode keeps the old endless waves.
+- See the [game guide](fun/meteora/README.md) for the controls, the campaign, the armoury, the model pipeline and the checks.

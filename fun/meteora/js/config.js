@@ -76,7 +76,10 @@ export const FIELD = {
 export const COMBAT = {
   wave: { base: 2, cap: 10, near: 2500, far: 3500, viewCone: 60 * Math.PI / 180, delay: 6 },
   score: { kill: 100, rock: [10, 25, 50] },
-  collision: { safe: 8, perMs: 1.2, restitution: 0.35, mu: 0.4 },
+  // A docking bump is free; beyond it, half a point of damage per m/s of
+  // closing speed, and no single knock takes more than a third of a small
+  // ship's hull.
+  collision: { safe: 8, perMs: 0.55, restitution: 0.35, mu: 0.4, capShare: 0.22, friendlyScale: 0.25, pebble: 0.25 },
   leaving: 3000,
 };
 
@@ -113,3 +116,8 @@ export const SKY = {
   sunDistance: 30000,
   planet: { radius: 9000, distance: 44000, ringInner: 1.4, ringOuter: 2.3 },
 };
+
+/* How long a capital ship takes to die: blasts along its hull for this
+   many seconds, then the last one. The hull stays in the world (and in
+   view) until that last blast. */
+export const bigDeathSpan = radius => Math.min(4.5, 0.8 + radius / 160);

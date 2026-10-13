@@ -55,4 +55,14 @@ test('a 120 Hz display is judged against its own refresh', () => {
   feed(r, 14, 2);                 // 70 fps on a 120 Hz screen is dropping frames
   assert.ok(r.ratio < before);
 });
+test('a cap from the settings lowers the ceiling at once and keeps adapting below it', () => {
+  const r = createResolution({ devicePixelRatio: 2 });
+  r.setCap(1);
+  assert.equal(r.ratio, 1);
+  assert.deepEqual(r.levels, [0.6, 0.75, 0.9, 1]);
+  r.setCap(0.75);
+  assert.equal(r.ratio, 0.75);
+  r.setCap(Infinity);
+  assert.equal(r.levels.at(-1), 1.5);
+});
 await run();

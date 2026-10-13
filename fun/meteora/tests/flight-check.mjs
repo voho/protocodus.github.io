@@ -115,6 +115,16 @@ test('aimCommands: still on the nose, toward the point otherwise, full stick beh
   c = aimCommands(s, normalize([0, 0, 0], [0.004, 0, -1])); near(c.yaw, 0, 1e-12, 'inside the deadzone');
   c = aimCommands(s, [0, 0, 0]); assert.equal(c.pitch, 0); assert.equal(c.yaw, 0);
 });
+test('aimCommands answers briskly: 15° off the nose is already full stick', () => {
+  // The original gain needed 19° for full stick; the campaign's is 4, so
+  // the nose follows the crosshair harder and settles on it sooner.
+  const s = createShip(PLAYER);
+  const a = 15 * Math.PI / 180;
+  const c = aimCommands(s, [Math.sin(a), 0, -Math.cos(a)]);
+  near(c.yaw, 1, 1e-12);
+  const b = 7 * Math.PI / 180;
+  assert.ok(aimCommands(s, [Math.sin(b), 0, -Math.cos(b)]).yaw > 0.45, 'half stick by 7°');
+});
 test('speedSet holds a commanded forward speed, even above full throttle', () => {
   const s = createShip(PLAYER);
   fly(s, ctl({ speedSet: 250 }), 10);

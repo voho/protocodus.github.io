@@ -1,34 +1,39 @@
 /* Meteora — engine glow and fire.
 
-   The flame follows the ship's speed: a faint blue glow in the nozzle at a
-   standstill, a long blue-white plume at cruise, and — once the ship is
-   really moving — orange tongues of fire licking off the end of it. Thrust
-   on top of that makes it flare while the ship is accelerating, and the
-   afterburner turns it white-hot, nearly doubles its length and lights a
-   row of shock diamonds along the core.
+   The flame follows the ship's speed: a faint glow in the nozzle at a
+   standstill, a long plume at cruise, and — once the ship is really moving
+   — tongues of fire licking off the end of it. Thrust on top of that makes
+   it flare while the ship is accelerating, and the afterburner turns it
+   white-hot, stretches it by half again and lights a row of shock diamonds
+   along the core.
 
    Every plume is drawn as a chain of glow sprites from the nozzle along the
    exhaust direction, plus one stretched streak through them for a
    continuous core. That reads from every angle: from the side it is a
-   tapered flame, from the chase camera behind it, a bright stacked disc. */
+   tapered flame, from the chase camera behind it, a bright stacked disc.
+
+   Colours follow the faction — Watch blue-white, civilian warm white, the
+   Harrow red-orange — and the size follows each nozzle's exit radius, from
+   a Mite's to a capital ship's. Large ships burn a short, wide, steady
+   glow rather than a fighter's long flame. Small craft also show their
+   attitude thrusters puffing when they are close to the camera. */
 
 import * as THREE from 'three';
-import { ANCHORS } from './anchors.js';
+import { hardpoints } from './hardpoints.js';
 import { qRotateInv } from './vec.js';
 
-const STYLE = {
-  fighter: {
-    nozzle: 0.5,
-    core: [0.75, 0.86, 1.0], sheath: [0.32, 0.5, 1.0], fire: [1.0, 0.5, 0.16], boost: [1.0, 0.92, 0.8],
-  },
-  interceptor: {
-    nozzle: 0.72,
-    core: [1.0, 0.86, 0.7], sheath: [1.0, 0.32, 0.08], fire: [1.0, 0.45, 0.1], boost: [1.0, 0.95, 0.85],
-  },
+const STYLES = {
+  watch: { core: [0.75, 0.86, 1.0], sheath: [0.32, 0.5, 1.0], fire: [1.0, 0.5, 0.16], boost: [1.0, 0.92, 0.8] },
+  civil: { core: [1.0, 0.92, 0.8], sheath: [1.0, 0.62, 0.3], fire: [1.0, 0.5, 0.16], boost: [1.0, 0.95, 0.85] },
+  harrow: { core: [1.0, 0.86, 0.7], sheath: [1.0, 0.32, 0.08], fire: [1.0, 0.45, 0.1], boost: [1.0, 0.95, 0.85] },
 };
 const CHAIN = 14, FIRE = 9;
+const RCS_RANGE = 450;
 
 const fract = x => x - Math.floor(x);
+// Additive sprites pile up; compress each one so a stack saturates gently
+// instead of blowing out into a white disc.
+const soft = x => 2.2 * (1 - Math.exp(-x / 2.2));
 const hash = (a, b) => fract(Math.sin(a * 127.1 + b * 311.7) * 43758.5453);
 const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -39,38 +44,71 @@ export function createPlumes(glow) {
 
   return {
     forget(id) { eased.delete(id); },
+    reset() { eased.clear(); },
     // `object` carries the interpolated pose the ship is drawn at.
-    add(entity, object, time, dt) {
-      const ship = entity.ship, style = STYLE[entity.kind];
+    add(entity, object, time, dt, camera = null) {
+      const ship = entity.ship;
+      const style = STYLES[entity.def?.faction === 'harrow' ? 'harrow' : entity.def?.faction === 'civil' ? 'civil' : 'watch'];
+      const hp = hardpoints(entity.model);
+      const scale = entity.scale ?? 1;
       qRotateInv(local, ship.q, ship.vel);
-      const speed = Math.max(0, -local[2]) / ship.stats.fa.forwardSpeed;
-      const target = Math.min(1.4, 0.06 + 0.72 * Math.min(speed, 1.3) + 0.3 * Math.min(ship.thrust, 1));
+      const cruise = Math.max(1, ship.stats.fa.forwardSpeed);
+      const speed = Math.max(0, -local[2]) / cruise;
+      const target = entity.disabled || entity.frozen ? 0.02 : Math.min(1.4, 0.06 + 0.72 * Math.min(speed, 1.3) + 0.3 * Math.min(ship.thrust, 1));
       let e = eased.get(entity.id);
       if (!e) eased.set(entity.id, e = { power: target, boost: 0 });
       e.power += (target - e.power) * (1 - Math.exp(-dt * 8));
       e.boost += ((ship.afterburner ? 1 : 0) - e.boost) * (1 - Math.exp(-dt * 6));
       const power = e.power, boost = e.boost;
-      const r0 = style.nozzle;
-      const length = r0 * (1.5 + 15 * power) * (1 + 1.1 * boost);
-      const fireAmount = Math.max(0, Math.min(1, (power - 0.45) / 0.6)) * (1 - 0.5 * boost);
+      const big = !!entity.big;
+      // A flame sprite that drifts past the lens would fill the screen.
+      const nearFade = camera
+        ? (x, y, z) => { const r = Math.hypot(x - camera.position.x, y - camera.position.y, z - camera.position.z); return Math.min(1, Math.max(0, (r - 5) / 12)); }
+        : () => 1;
 
-      for (const nozzle of ANCHORS[entity.kind].nozzles) {
-        p.set(nozzle.pos[0], nozzle.pos[1], nozzle.pos[2]).applyQuaternion(object.quaternion).add(object.position);
+      for (const nozzle of hp.nozzles) {
+        const r0 = (nozzle.size ?? 0.5) * scale;
+        p.set(nozzle.pos[0] * scale, nozzle.pos[1] * scale, nozzle.pos[2] * scale).applyQuaternion(object.quaternion).add(object.position);
         d.set(nozzle.dir[0], nozzle.dir[1], nozzle.dir[2]).applyQuaternion(object.quaternion);
-        side.set(1, 0, 0).applyQuaternion(object.quaternion);
-        up.set(0, 1, 0).applyQuaternion(object.quaternion);
         const seed = nozzle.pos[0] * 13.1 + entity.id;
         const flick = 0.85 + 0.3 * hash(seed, Math.floor(time * 60));
+        if (big) {
+          // A capital engine: a wide, steady glow and a short bright cone.
+          const glowPower = (0.6 + 1.6 * power) * (0.95 + 0.1 * flick);
+          glow.add(p.x, p.y, p.z, r0 * 1.6, ...style.core, glowPower * 1.4);
+          const L = r0 * (1.2 + 2.8 * power);
+          glow.add(p.x + d.x * L * 0.5, p.y + d.y * L * 0.5, p.z + d.z * L * 0.5, r0 * 0.9, ...style.sheath, glowPower, d.x, d.y, d.z, L);
+          for (let i = 1; i <= 4; i++) {
+            const t = i / 4, at = L * t;
+            glow.add(p.x + d.x * at, p.y + d.y * at, p.z + d.z * at, r0 * (1 + 0.6 * t), ...mix3(style.core, style.sheath, t), glowPower * (1 - t) * 0.9);
+          }
+          continue;
+        }
+        side.set(1, 0, 0).applyQuaternion(object.quaternion);
+        up.set(0, 1, 0).applyQuaternion(object.quaternion);
+        const length = r0 * (1.5 + 12 * power) * (1 + 0.6 * boost);
+        // Seen straight down the exhaust (the chase camera's view of its own
+        // ship), the whole chain stacks on one spot: dim it there.
+        let axial = 1;
+        if (camera) {
+          side.set(p.x - camera.position.x, p.y - camera.position.y, p.z - camera.position.z).normalize();
+          const along = Math.abs(side.dot(d));
+          axial = 1 - 0.62 * Math.min(1, Math.max(0, (along - 0.7) / 0.28));
+          side.set(1, 0, 0).applyQuaternion(object.quaternion);
+        }
+        const fireAmount = Math.max(0, Math.min(1, (power - 0.45) / 0.6)) * (1 - 0.5 * boost);
 
         // The glowing throat, visible even at a standstill.
         const throat = mix3(style.core, style.boost, boost);
-        glow.add(p.x, p.y, p.z, r0 * (1.3 + 0.9 * power), throat[0], throat[1], throat[2], (0.5 + 2.4 * power + 2 * boost) * flick);
+        glow.add(p.x, p.y, p.z, r0 * (1.3 + 0.9 * power), throat[0], throat[1], throat[2], soft((0.5 + 2.4 * power + 1.4 * boost) * flick) * axial);
 
-        // Continuous core streak.
-        const mid = length * 0.42;
-        glow.add(p.x + d.x * mid, p.y + d.y * mid, p.z + d.z * mid, r0 * (0.55 + 0.25 * boost),
-          ...mix3(style.sheath, style.boost, 0.35 + 0.5 * boost), (0.6 + 1.6 * power + 1.5 * boost) * flick,
-          d.x, d.y, d.z, length * 0.84);
+        // Continuous core streak, through the hot first part of the flame;
+        // it dims if its far end comes near the lens.
+        const mid = length * 0.3, reach = length * 0.6;
+        glow.add(p.x + d.x * mid, p.y + d.y * mid, p.z + d.z * mid, r0 * (0.5 + 0.2 * boost),
+          ...mix3(style.sheath, style.boost, 0.35 + 0.5 * boost),
+          soft((0.5 + 1.2 * power + 0.7 * boost) * flick) * axial * nearFade(p.x + d.x * reach, p.y + d.y * reach, p.z + d.z * reach),
+          d.x, d.y, d.z, reach);
 
         // The plume itself, hottest and narrowest at the nozzle.
         for (let i = 0; i < CHAIN; i++) {
@@ -81,8 +119,9 @@ export function createPlumes(glow) {
           const tail = mix3(style.sheath, style.fire, fireAmount * t);
           const col = mix3(mix3(style.core, tail, Math.min(1, t * 2.2)), style.boost, boost * (1 - t) * 0.8);
           const size = r0 * (0.75 + 1.1 * t + 0.6 * boost * t) * jitter;
-          const intensity = power * Math.pow(1 - t, 1.5) * (1.4 + 2.2 * boost) * diamond * jitter;
-          glow.add(p.x + d.x * at, p.y + d.y * at, p.z + d.z * at, size, col[0], col[1], col[2], intensity);
+          const x = p.x + d.x * at, y = p.y + d.y * at, z = p.z + d.z * at;
+          const intensity = soft(power * Math.pow(1 - t, 1.5) * (1.4 + 1.3 * boost) * diamond * jitter) * axial * nearFade(x, y, z);
+          glow.add(x, y, z, size, col[0], col[1], col[2], intensity);
         }
 
         // Tongues of fire at speed: flickering, wandering off the axis.
@@ -94,11 +133,25 @@ export function createPlumes(glow) {
             const a = hash(seed * 3 + k, Math.floor(time * 30)) * Math.PI * 2;
             const ox = Math.cos(a) * swing, oy = Math.sin(a) * swing;
             const col = mix3(style.fire, [1.0, 0.82, 0.4], 1 - life);
-            glow.add(
-              p.x + d.x * at + side.x * ox + up.x * oy,
-              p.y + d.y * at + side.y * ox + up.y * oy,
-              p.z + d.z * at + side.z * ox + up.z * oy,
-              r0 * (0.8 + 1.4 * life), col[0], col[1], col[2], fireAmount * 1.6 * (1 - life) * flick);
+            const x = p.x + d.x * at + side.x * ox + up.x * oy, y = p.y + d.y * at + side.y * ox + up.y * oy, z = p.z + d.z * at + side.z * ox + up.z * oy;
+            glow.add(x, y, z, r0 * (0.6 + 1.0 * life), col[0], col[1], col[2], fireAmount * 1.6 * (1 - life) * flick * axial * nearFade(x, y, z));
+          }
+        }
+      }
+
+      // Attitude thrusters, puffing as the flight computer fires them.
+      if (!big && camera && entity.rcsFired?.length) {
+        const dist = object.position.distanceTo(camera.position);
+        if (dist < RCS_RANGE) {
+          const fade = 1 - dist / RCS_RANGE;
+          for (const fired of entity.rcsFired) {
+            const port = hp.rcs[fired.index];
+            if (!port) continue;
+            p.set(port.pos[0], port.pos[1], port.pos[2]).applyQuaternion(object.quaternion).add(object.position);
+            d.set(port.dir[0], port.dir[1], port.dir[2]).applyQuaternion(object.quaternion);
+            const k = fired.intensity * fade * (0.5 + 0.7 * hash(fired.index, Math.floor(time * 50)));
+            const x = p.x + d.x * 0.35, y = p.y + d.y * 0.35, z = p.z + d.z * 0.35;
+            glow.add(x, y, z, 0.16, 0.85, 0.9, 1, 0.5 * k * nearFade(x, y, z), d.x, d.y, d.z, 0.55);
           }
         }
       }

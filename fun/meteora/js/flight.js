@@ -60,7 +60,7 @@ export const forward = (o, ship) => qRotate(o, ship.q, [0, 0, -1]);
    stick, so the cursor's distance from the centre is the turn rate. Inside
    a third of a degree it is zero, so a held aim does not hunt. Roll is
    left to the pilot. */
-const AIM_GAIN = 3, AIM_DEADZONE = 0.3 * Math.PI / 180;
+const AIM_GAIN = 4, AIM_DEADZONE = 0.3 * Math.PI / 180;
 const aimLocal = [0, 0, 0];
 export function aimCommands(ship, dir, out = { pitch: 0, yaw: 0 }) {
   out.pitch = 0; out.yaw = 0;

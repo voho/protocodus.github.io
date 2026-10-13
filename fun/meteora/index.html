@@ -4,13 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Meteora — Asteroid Belt Combat</title>
+  <title>Meteora — The Harrow</title>
   <meta name="description"
-    content="A realistic space shooter. Fly a heavy fighter with real momentum through a vast asteroid belt and fight off waves of interceptors.">
+    content="A story-driven space combat game in the browser. Ten missions in an asteroid belt: escort convoys, scout the dark, break capital ships and save forty thousand people from the machines that came home.">
   <meta name="theme-color" content="#04060b">
-  <meta property="og:title" content="Meteora — Asteroid Belt Combat">
+  <meta property="og:title" content="Meteora — The Harrow">
   <meta property="og:description"
-    content="Fly a heavy fighter with real momentum through a vast asteroid belt and fight off waves of interceptors.">
+    content="Ten missions of space combat in an asteroid belt: convoys, recon, capital ships and a colony ship that has to jump before the Harrow arrive.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/meteora/">
   <link rel="canonical" href="https://protocodus.cz/fun/meteora/">
@@ -25,16 +25,16 @@
 <body>
   <canvas id="stage" aria-label="Meteora flight view"></canvas>
   <canvas class="hud" aria-hidden="true"></canvas>
+  <div class="fade" data-fade aria-hidden="true"></div>
   <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
   <pre class="debug" data-debug hidden></pre>
 
+  <!-- Title, loading and the main menu -->
   <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="meteora-title">
-    <div class="panel">
-      <p class="eyebrow">Belt sector 7 · combat patrol</p>
+    <div class="menu">
+      <p class="eyebrow">Pindus system · the Meteora belt</p>
       <h1 class="wordmark" id="meteora-title">METEORA</h1>
-      <p class="tagline">Real momentum, twenty thousand rocks and waves of interceptors.
-        Every turn you make, the ship remembers.</p>
-
+      <p class="subtitle">The Harrow</p>
       <div class="loading" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="meteora-loading-label"
           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-loading-bar>
@@ -46,46 +46,182 @@
         <p data-error-text></p>
         <button type="button" class="ghost" data-action="retry">Retry</button>
       </div>
+      <nav class="menu-list" data-main-menu hidden>
+        <button type="button" class="menu-item primary" data-action="continue" data-continue>Continue campaign <span data-continue-label></span></button>
+        <button type="button" class="menu-item" data-action="newCampaign">New campaign</button>
+        <button type="button" class="menu-item" data-action="missions">Missions</button>
+        <button type="button" class="menu-item" data-action="survival">Survival</button>
+        <button type="button" class="menu-item" data-action="codex">Codex &amp; service record</button>
+        <button type="button" class="menu-item" data-action="settings">Settings</button>
+      </nav>
+      <div class="rank" data-rank hidden></div>
+    </div>
+  </section>
 
-      <button class="launch" type="button" data-action="launch" disabled>Launch <span aria-hidden="true">↗</span></button>
+  <section class="screen" data-screen="difficulty" role="dialog" aria-modal="true" aria-labelledby="meteora-diff">
+    <div class="panel wide">
+      <p class="eyebrow">New campaign</p>
+      <h2 class="title" id="meteora-diff">Choose your difficulty</h2>
+      <p class="lede">You can change it before any mission.</p>
+      <p class="warn" data-reset-warning hidden></p>
+      <div class="cards four" data-difficulties></div>
+      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+    </div>
+  </section>
 
-      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
+  <section class="screen" data-screen="prologue" role="dialog" aria-modal="true" aria-labelledby="meteora-prologue">
+    <div class="story">
+      <p class="eyebrow" data-prologue-step></p>
+      <h2 class="title" id="meteora-prologue" data-prologue-title></h2>
+      <p class="story-text" data-prologue-text></p>
+      <div class="go">
+        <button type="button" class="launch" data-action="prologueNext">Next <span aria-hidden="true">→</span></button>
+        <button type="button" class="ghost" data-action="prologueSkip">Skip</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="campaign" role="dialog" aria-modal="true" aria-labelledby="meteora-campaign">
+    <div class="panel wide">
+      <p class="eyebrow">Belt Watch · Lantern Wing</p>
+      <h2 class="title" id="meteora-campaign">Missions</h2>
+      <div class="missions" data-mission-list></div>
+      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+    </div>
+  </section>
+
+  <section class="screen briefing" data-screen="briefing" role="dialog" aria-modal="true" aria-labelledby="meteora-brief-title">
+    <div class="brief">
+      <div class="brief-text">
+        <p class="eyebrow" data-brief-eyebrow></p>
+        <h2 class="title" id="meteora-brief-title" data-brief-title></h2>
+        <p class="dateline" data-brief-dateline></p>
+        <div class="stage">
+          <p class="stage-who">Cmdr. Doukas · Perpetua</p>
+          <p class="stage-text" data-brief-stage aria-live="polite"></p>
+          <div class="stage-nav">
+            <button type="button" class="ghost small" data-action="stagePrev" aria-label="Previous">←</button>
+            <span data-brief-step></span>
+            <button type="button" class="ghost small" data-action="stageNext" aria-label="Next">→</button>
+          </div>
+        </div>
+        <h3 class="section">Objectives</h3>
+        <ul class="objectives" data-brief-objectives></ul>
+        <h3 class="section">Recommended loadout</h3>
+        <p class="recommend" data-brief-recommend></p>
+      </div>
+      <div class="brief-map">
+        <canvas class="map" data-brief-map aria-label="Tactical map"></canvas>
+      </div>
+    </div>
+    <div class="brief-bar">
+      <label class="select">Difficulty <select data-brief-difficulty></select></label>
+      <span class="best" data-brief-best></span>
+      <div class="go">
+        <button type="button" class="ghost" data-action="back">Back</button>
+        <button type="button" class="ghost" data-action="hangar">Hangar</button>
+        <button type="button" class="launch" data-action="launchMission">Launch <span aria-hidden="true">↗</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen hangar" data-screen="hangar" role="dialog" aria-modal="true" aria-labelledby="meteora-hangar">
+    <div class="hangar-panel">
+      <p class="eyebrow" data-hangar-eyebrow>Hangar</p>
+      <h2 class="title" id="meteora-hangar">Loadout</h2>
+      <h3 class="section">Hull</h3>
+      <div class="choices hulls" data-hangar-hulls></div>
+      <h3 class="section">Guns</h3>
+      <div class="choices" data-hangar-primaries></div>
+      <div data-hangar-banks></div>
+      <h3 class="section">Reactor</h3>
+      <div class="choices" data-hangar-reactors></div>
+    </div>
+    <div class="hangar-side">
+      <h3 class="section" data-hangar-name></h3>
+      <p class="blurb" data-hangar-blurb></p>
+      <div class="stats" data-hangar-stats></div>
+      <div class="advice" data-hangar-advice></div>
+      <div class="go">
+        <button type="button" class="ghost" data-action="useRecommended">Use recommended</button>
+        <button type="button" class="ghost" data-action="back">Back</button>
+        <button type="button" class="launch" data-action="launchMission">Launch <span aria-hidden="true">↗</span></button>
+      </div>
     </div>
   </section>
 
   <section class="screen" data-screen="pause" role="dialog" aria-modal="true" aria-labelledby="meteora-pause">
-    <div class="panel">
-      <p class="eyebrow">Holding position</p>
+    <div class="panel wide">
+      <p class="eyebrow" data-pause-eyebrow>Holding position</p>
       <h2 class="title" id="meteora-pause">Paused</h2>
-      <div class="run-stats">
-        <p><span>Score</span><strong data-stat="score">0</strong></p>
-        <p><span>Wave</span><strong data-stat="wave">0</strong></p>
-      </div>
+      <ul class="objectives" data-pause-objectives></ul>
       <div class="go">
         <button class="launch" type="button" data-action="resume">Resume <span aria-hidden="true">↗</span></button>
-        <button class="ghost" type="button" data-action="restart">Restart the run</button>
+        <button class="ghost" type="button" data-action="restart">Restart mission</button>
+        <button class="ghost" type="button" data-action="abort">Abort to menu</button>
         <span class="hint"><kbd>Esc</kbd> resumes</span>
       </div>
       <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
-      <div class="settings">
-        <label>Sound volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
-        <label class="check"><input type="checkbox" data-setting="invertPitch"> Invert mouse up / down</label>
+      <div class="settings" data-settings-form></div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="debrief" role="dialog" aria-modal="true" aria-labelledby="meteora-debrief">
+    <div class="panel wide debrief">
+      <p class="eyebrow" data-debrief-eyebrow></p>
+      <h2 class="title" id="meteora-debrief" data-debrief-title></h2>
+      <div class="medal-row" data-debrief-medal></div>
+      <p class="story-text" data-debrief-text></p>
+      <div class="debrief-grid">
+        <div>
+          <h3 class="section">Objectives</h3>
+          <ul class="objectives" data-debrief-objectives></ul>
+        </div>
+        <div>
+          <h3 class="section">Record</h3>
+          <dl class="record" data-debrief-record></dl>
+        </div>
+      </div>
+      <div class="awards" data-debrief-awards></div>
+      <div class="rank-bar" data-debrief-rank></div>
+      <div class="go">
+        <button class="launch" type="button" data-action="debriefNext" data-debrief-next>Continue <span aria-hidden="true">→</span></button>
+        <button class="ghost" type="button" data-action="replay">Replay</button>
+        <button class="ghost" type="button" data-action="debriefHangar">Change loadout</button>
+        <button class="ghost" type="button" data-action="menu">Menu</button>
       </div>
     </div>
   </section>
 
-  <section class="screen" data-screen="dead" role="dialog" aria-modal="true" aria-labelledby="meteora-dead">
+  <section class="screen" data-screen="codex" role="dialog" aria-modal="true" aria-labelledby="meteora-codex">
+    <div class="panel wide">
+      <p class="eyebrow">Archive of the Perpetua</p>
+      <h2 class="title" id="meteora-codex">Codex</h2>
+      <div class="tabs" role="tablist" data-codex-tabs></div>
+      <div class="codex-body" data-codex-body></div>
+      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="settings" role="dialog" aria-modal="true" aria-labelledby="meteora-settings">
     <div class="panel">
-      <p class="eyebrow">Signal lost</p>
-      <h2 class="title" id="meteora-dead">Fighter destroyed</h2>
-      <div class="run-stats">
-        <p><span>Score</span><strong data-stat="score">0</strong></p>
-        <p><span>Wave</span><strong data-stat="wave">0</strong></p>
-        <p><span>Best</span><strong data-stat="best">0</strong></p>
+      <p class="eyebrow">Flight computer</p>
+      <h2 class="title" id="meteora-settings">Settings</h2>
+      <div class="settings" data-settings-form></div>
+      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
+      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="loading" role="dialog" aria-modal="true" aria-labelledby="meteora-folding">
+    <div class="story center">
+      <p class="eyebrow" data-fold-eyebrow>Folding</p>
+      <h2 class="title" id="meteora-folding" data-fold-title></h2>
+      <div class="loading">
+        <div class="loading-track"><i class="loading-fill" data-fold-fill></i></div>
+        <p class="loading-label" data-fold-label></p>
       </div>
-      <div class="go">
-        <button class="launch" type="button" data-action="again">Launch again <span aria-hidden="true">↗</span></button>
-      </div>
+      <p class="tip" data-fold-tip></p>
     </div>
   </section>
 

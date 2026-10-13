@@ -19,12 +19,14 @@
    Only real interruptions pause: a held lock being lost (which is how Esc
    arrives while locked), Esc without a lock, the window losing focus and
    the tab being hidden. Each drops every held input. Esc on the pause
-   screen resumes. */
+   screen resumes.
 
-import { dropAll, keyDown, keyUp, mouseDown, mouseUp, moveCursor, setCursor } from './controls.js';
+   A gamepad has no events worth waiting for, so `pollPad` reads it once a
+   frame: in flight through `readPad` (Menu pauses), in the menus as a
+   remote — the d-pad moves between the buttons (left and right move a
+   slider or a choice), A presses, B and Menu do what Esc does. */
 
-// Tab is kept from the browser while flying, so it burns instead of moving focus.
-export const GAME_KEYS = new Set(['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'Tab', 'KeyT', 'KeyZ']);
+import { dropAll, isBound, keyDown, keyUp, mouseDown, mouseUp, moveCursor, readPad, setCursor } from './controls.js';
 
 export function createInput(canvas, state, { isFlying, onPause, onResume }, env = globalThis) {
   const { window: win, document: doc } = env;
@@ -56,12 +58,14 @@ export function createInput(canvas, state, { isFlying, onPause, onResume }, env 
       return;
     }
     if (e.code === 'Escape') { lose('escape'); return; }
-    if (GAME_KEYS.has(e.code)) { e.preventDefault(); keyDown(state, e.code, e.repeat); }
+    // A bound key is kept from the browser while flying (Tab burns instead
+    // of moving focus).
+    if (isBound(state, e.code)) { e.preventDefault(); keyDown(state, e.code, e.repeat); }
   });
   // Releases always count, flying or not, so nothing stays held across a pause.
   win.addEventListener('keyup', e => {
     keyUp(state, e.code);
-    if (isFlying() && GAME_KEYS.has(e.code)) e.preventDefault?.();
+    if (isFlying() && isBound(state, e.code)) e.preventDefault?.();
   });
 
   doc.addEventListener('mousemove', e => {
@@ -83,10 +87,50 @@ export function createInput(canvas, state, { isFlying, onPause, onResume }, env 
   win.addEventListener('blur', () => lose('blur'));
   doc.addEventListener('visibilitychange', () => { if (doc.hidden) lose('hidden'); });
 
+  // The first pad with the standard mapping (or any, failing that).
+  const firstPad = () => {
+    const pads = [...(env.navigator?.getGamepads?.() ?? [])].filter(p => p?.connected);
+    return pads.find(p => p.mapping === 'standard') ?? pads[0] ?? null;
+  };
+  let menuPrev = [];
+  const focusables = () => [...doc.querySelectorAll('.screen.on button, .screen.on select, .screen.on input')]
+    .filter(e => !e.disabled && !e.hidden && e.offsetParent !== null);
+  const focusStep = dir => {
+    const list = focusables();
+    if (!list.length) return;
+    const i = list.indexOf(doc.activeElement);
+    list[i < 0 ? 0 : (i + dir + list.length) % list.length].focus();
+  };
+  const nudge = dir => {
+    const el = doc.activeElement;
+    if (el?.type === 'range') { dir > 0 ? el.stepUp() : el.stepDown(); el.dispatchEvent(new win.Event('input')); }
+    else if (el?.tagName === 'SELECT') {
+      el.selectedIndex = Math.max(0, Math.min(el.options.length - 1, el.selectedIndex + dir));
+      el.dispatchEvent(new win.Event('change'));
+    } else focusStep(dir);
+  };
+  const escape = () => win.dispatchEvent(new win.KeyboardEvent('keydown', { code: 'Escape', key: 'Escape' }));
+
   return {
     engage,
     locked,
     get mode() { return mode; },
     release() { if (locked()) doc.exitPointerLock(); },
+    pollPad() {
+      const pad = firstPad();
+      if (!pad) return;
+      const edge = i => !!pad.buttons[i]?.pressed && !menuPrev[i];
+      if (isFlying()) {
+        if (readPad(state, pad).pause) lose('pad');
+      } else {
+        if (edge(12)) focusStep(-1);
+        if (edge(13)) focusStep(1);
+        if (edge(14)) nudge(-1);
+        if (edge(15)) nudge(1);
+        if (edge(0)) doc.activeElement?.click?.();
+        if (edge(1) || edge(9)) escape();
+      }
+      menuPrev = pad.buttons.map(b => !!b.pressed);
+    },
   };
 }

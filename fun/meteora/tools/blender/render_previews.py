@@ -8,6 +8,11 @@ without Blender. Asteroids show their lod0 node.
 
 Set METEORA_PREVIEW_EXTRA=<dir> to also render front, side, top and rear
 views (and asteroid lod1) into that directory for close inspection.
+
+Eevee needs a GPU. Where Blender cannot reach one (a sandbox, a CI box),
+set METEORA_PREVIEW_ENGINE=CYCLES to render the same stills on the CPU
+(METEORA_PREVIEW_SAMPLES, default 24). Pass model names after `--` to
+render only those.
 """
 import bpy, math, os, sys
 from mathutils import Matrix, Vector
@@ -17,12 +22,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as C
 
 SIZE = 512
+ENGINE = os.environ.get('METEORA_PREVIEW_ENGINE', 'BLENDER_EEVEE').upper()
+
+
+def use_engine(scene):
+    if ENGINE == 'CYCLES':
+        scene.render.engine = 'CYCLES'
+        scene.cycles.device = 'CPU'
+        scene.cycles.samples = int(os.environ.get('METEORA_PREVIEW_SAMPLES', '24'))
+        scene.cycles.use_denoising = True
+        scene.cycles.seed = 7
+    else:
+        scene.render.engine = 'BLENDER_EEVEE'
 
 
 def scene_for(path):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
-    scene.render.engine = 'BLENDER_EEVEE'
+    use_engine(scene)
     scene.render.resolution_x = scene.render.resolution_y = SIZE
     scene.render.film_transparent = False
     scene.view_settings.view_transform = 'AgX'

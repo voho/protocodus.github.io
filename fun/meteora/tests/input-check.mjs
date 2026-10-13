@@ -28,7 +28,7 @@ function setup({ flying = true, request } = {}) {
   const grant = () => { doc.pointerLockElement = canvas; doc.dispatchEvent(event('pointerlockchange')); };
   const refuse = () => doc.dispatchEvent(event('pointerlockerror'));
   canvas.requestPointerLock = () => { canvas.requests++; return (request ?? (() => { setTimeout(grant); }))({ grant, refuse }); };
-  const state = createControlState({ invertPitch: false, vibration: true });
+  const state = createControlState({ invertPitch: false, vibration: true, sensitivity: 1, steering: 'stick' });
   const pauses = [], resumes = [];
   const flags = { flying };
   const input = createInput(canvas, state, {
@@ -69,8 +69,8 @@ test('a hidden tab pauses', () => {
 });
 test('the game keys are kept from the browser while flying, and only those', () => {
   const s = setup();
-  for (const code of ['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ', 'Tab']) assert.equal(s.press(code).prevented, true, code);
-  assert.equal(s.press('KeyA').prevented, false, 'unbound keys stay the browser\'s');
+  for (const code of ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyQ', 'KeyE', 'KeyT', 'KeyY', 'KeyB', 'KeyN', 'KeyV', 'KeyZ', 'KeyG', 'KeyX', 'KeyR', 'Digit1', 'Tab']) assert.equal(s.press(code).prevented, true, code);
+  assert.equal(s.press('KeyP').prevented, false, 'unbound keys stay the browser\'s');
   s.flags.flying = false;
   assert.equal(s.press('KeyW').prevented, false, 'menus keep their keys');
 });

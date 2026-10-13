@@ -1,24 +1,33 @@
-/* Meteora — enemy pilots.
+/* Meteora — pilots.
 
-   An interceptor flies the same physics as the player, through the same
+   Every AI fighter flies the same physics as the player, through the same
    flight-assist controller, with only its stats changed. The brain never
-   moves the ship; it only produces the stick, throttle and trigger a
-   human pilot would, so anything an enemy does the player could do too.
+   moves the ship; it only produces the stick, throttle and trigger a human
+   pilot would, so anything an enemy (or a wingman) does the player could do
+   too. Teams do not matter here: a Harrow Thorn and Lantern Two run the
+   same code against different targets.
 
-   Four states, chosen at 20 Hz:
-     approach  close on the player, burning the afterburner when far
+   Fighter states, chosen at 20 Hz (difficulty stretches or shortens that):
+     approach  close on the target, burning the afterburner when far
      attack    fly the lead point, fire in bursts when the shot would land
      breakoff  overshoot, pull out sideways and extend for another run
      evade     jink when hit, locked or chased by a missile
+     form      hold a slot on the leader (wingmen with nothing to fight)
 
-   Underneath every state runs rock avoidance, which outranks all of them:
-   a fan of "whiskers" is swept through the belt and the clear direction
-   nearest the wanted one is flown instead. When a rock is less than about
-   a second away the pilot also brakes and slides sideways, because at
-   200 m/s turning the nose alone takes too long to move the velocity.
+   Bombers run torpedo passes instead: approach to stand-off range, line
+   the nose up on the target (or one of its subsystems), hold it there
+   while the torpedo locks, launch, break away, come round; with the racks
+   empty they strafe like fighters.
+
+   Underneath every state runs avoidance, which outranks all of them: a fan
+   of "whiskers" is swept through the belt and around large ships' hulls,
+   and the clear direction nearest the wanted one is flown instead. When
+   something is less than about a second away the pilot also brakes and
+   slides sideways, because at 200 m/s turning the nose alone takes too long
+   to move the velocity.
 
    The trigger is tested every step against the true lead point, not the
-   noisy one the pilot steers by, so an enemy never wastes a burst it could
+   noisy one the pilot steers by, so a pilot never wastes a burst it could
    not have landed — the aim error only decides how close it gets. */
 
 import { NEUTRAL_CONTROLS, forward } from './flight.js';
@@ -26,6 +35,7 @@ import { leadPoint } from './weapons.js';
 import { densityAt } from './field.js';
 import { ENEMY_CANNON } from './config.js';
 import { makeRng } from './rng.js';
+import { sweepCompound, subsystemWorld, toWorld } from './compound.js';
 import {
   addScaled, clamp, cross, dot, len, normalize, qRotate, qRotateInv, scale, sub,
 } from './vec.js';
@@ -33,20 +43,24 @@ import {
 const THINK = 1 / 20;
 const ATTACK_RANGE = 1200, BREAK_RANGE = 150, ATTACK_TIME = 6;
 const FIRE_CONE = 4 * Math.PI / 180;
+const deg = Math.PI / 180;
 
-export function createBrain(seed) {
+export function createBrain(seed, role = 'fighter') {
   const rng = makeRng(seed);
   return {
+    role,
     // Each pilot's first decision lands at a random point in the 1/20 s
     // cycle, so a wave of ten does not all think on the same step.
     state: 'approach', timer: 0, rng, think: rng.range(0, THINK),
     burstOn: false, burstTimer: 0, aim: [0, 0, 0], aimTimer: 0,
     breakDir: [0, 1, 0], extend: 700, jink: { strafe: 0, lift: 0, roll: 0, pitch: 0 }, jinkTimer: 0,
     wasLocked: false, lastControls: { ...NEUTRAL_CONTROLS, fire: false },
+    target: null, targetSub: null, retarget: 0, strafePoint: null, strafeTimer: 0,
+    lockTimer: 0, missileCooldown: rng.range(3, 6), torpedoCooldown: 0,
   };
 }
 
-const tmpA = [0, 0, 0], tmpB = [0, 0, 0], gateLead = [0, 0, 0];
+const tmpA = [0, 0, 0], tmpB = [0, 0, 0], gateLead = [0, 0, 0], aimPt = [0, 0, 0];
 
 /* Stick inputs that turn the nose toward a world direction, banking into
    large turns the way a pilot rolls the target onto the lift vector. */
@@ -56,22 +70,35 @@ function steer(c, ship, dir) {
   const off = Math.acos(clamp(-d[2], -1, 1));
   c.pitch = clamp(Math.atan2(d[1], -d[2]) * 2.5, -1, 1);
   c.yaw = clamp(Math.atan2(d[0], -d[2]) * 2.5, -1, 1);
-  c.roll = off > 20 * Math.PI / 180 ? clamp(Math.atan2(d[0], d[1]) * 1.5, -1, 1) : 0;
+  c.roll = off > 20 * deg ? clamp(Math.atan2(d[0], d[1]) * 1.5, -1, 1) : 0;
 }
 
-/* Rock avoidance. Returns the direction to fly and fills strafe, lift and
-   throttle overrides when the danger is close. */
-function avoid(me, field, want, c) {
-  const ship = me.ship;
+/* Avoidance. Returns the direction to fly and fills strafe, lift and
+   throttle overrides when the danger is close. Large ships (ctx.larges)
+   count as obstacles exactly as rocks do. */
+function avoid(me, ctx, want, c) {
+  const field = ctx.field, ship = me.ship;
   const speed = len(ship.vel);
   const horizon = clamp(speed / 50, 1.6, 3.2);
   const reach = Math.max(120, speed * horizon) + 40;
   const R = me.radius + 14;
   const p0 = ship.pos;
   const vHat = speed > 3 ? scale([0, 0, 0], ship.vel, 1 / speed) : forward([0, 0, 0], ship);
+  const near = [];
+  for (const e of ctx.larges ?? []) {
+    if (!e.alive || e === me || e.id === me.ignoreId) continue;
+    const dd = Math.hypot(e.ship.pos[0] - p0[0], e.ship.pos[1] - p0[1], e.ship.pos[2] - p0[2]);
+    if (dd < e.radius + reach + R) near.push(e);
+  }
   const clearance = dir => {
-    const hit = field.sweepSphere(p0, addScaled(tmpB, p0, dir, reach), R);
-    return hit ? hit.t : 1;
+    addScaled(tmpB, p0, dir, reach);
+    const hit = field.sweepSphere(p0, tmpB, R);
+    let t = hit ? hit.t : 1;
+    for (const e of near) {
+      const h = sweepCompound(e, p0, tmpB, R);
+      if (h && h.t < t) t = h.t;
+    }
+    return t;
   };
   const tVel = clearance(vHat);
   const tWant = clearance(want);
@@ -84,7 +111,7 @@ function avoid(me, field, want, c) {
     let best = -Infinity;
     for (const base of [want, vHat]) {
       for (const angle of [0, 25, 50, 80]) {
-        const a = angle * Math.PI / 180;
+        const a = angle * deg;
         const axes = angle === 0 ? [up] : [up, right, scale([0, 0, 0], up, -1), scale([0, 0, 0], right, -1)];
         for (const axis of axes) {
           const dir = normalize([0, 0, 0], addScaled([0, 0, 0], scale([0, 0, 0], base, Math.cos(a)), axis, Math.sin(a)));
@@ -105,8 +132,7 @@ function avoid(me, field, want, c) {
     }
   }
   // Anything already alongside: push straight away from it.
-  const near = field.queryRadius(p0, me.radius + 30);
-  for (const h of near) {
+  for (const h of field.queryRadius(p0, me.radius + 30)) {
     const away = sub([0, 0, 0], p0, h.pos);
     const local = qRotateInv([0, 0, 0], ship.q, normalize(away, away));
     c.strafe = clamp(c.strafe + local[0] * 2, -1, 1);
@@ -116,25 +142,37 @@ function avoid(me, field, want, c) {
   return chosen;
 }
 
-function think(brain, me, ctx) {
-  const rng = brain.rng, ship = me.ship, player = ctx.player;
-  const c = { ...NEUTRAL_CONTROLS, fire: false };
-  const toPlayer = sub([0, 0, 0], player.ship.pos, ship.pos);
-  const range = len(toPlayer);
-  const threat = ctx.threat ?? {};
-
-  const newlyLocked = threat.locked && !brain.wasLocked;
-  brain.wasLocked = !!threat.locked;
-  if (brain.state !== 'evade' && (threat.missileInbound || ctx.wasHit || newlyLocked)) {
-    brain.state = 'evade'; brain.timer = rng.range(1.5, 3); brain.jinkTimer = 0;
+/* Where to aim at a target: a small craft's centre, a subsystem, or for a
+   big hull a point on it that is refreshed now and then, so strafing runs
+   rake along the ship rather than all aiming at its middle. */
+function aimPointOf(brain, me, target, o) {
+  if (brain.targetSub?.alive) return subsystemWorld(o, target, brain.targetSub);
+  if (!target.big || target.radius < 60) { o[0] = target.ship.pos[0]; o[1] = target.ship.pos[1]; o[2] = target.ship.pos[2]; return o; }
+  if (!brain.strafePoint || brain.strafeTimer <= 0) {
+    const pool = target.subsystems.filter(s => s.alive && s.exposed);
+    const pick = pool.length && brain.rng.next() < 0.6 ? brain.rng.pick(pool).pos : brain.rng.pick(target.colliders).pos;
+    brain.strafePoint = pick; brain.strafeTimer = brain.rng.range(4, 8);
   }
+  return toWorld(o, target, brain.strafePoint);
+}
 
-  let want = normalize([0, 0, 0], toPlayer);
+function attackRange(target) { return ATTACK_RANGE + (target.big ? Math.min(target.radius, 400) : 0); }
+
+function fighterThink(brain, me, ctx, c, target, range, toTarget) {
+  const rng = brain.rng, ship = me.ship;
+  const gunSpeed = me.gun?.params.speed ?? ENEMY_CANNON.speed;
+  let want = normalize([0, 0, 0], toTarget);
+  const breakAt = target.big ? Math.min(target.radius, 300) * 0.6 + BREAK_RANGE + 60 : BREAK_RANGE;
+  // A slow target in open space is worth staying on: no need to break off
+  // and come round. In thick rock the pilot keeps its short runs.
+  const slow = !target.big && Math.hypot(...target.ship.vel) < 70
+    && densityAt(ship.pos[0], ship.pos[1], ship.pos[2], ctx.field.seed, ctx.field.cfg) < 0.25;
+  const attackTime = slow ? ATTACK_TIME * 2.2 : ATTACK_TIME;
   switch (brain.state) {
     case 'approach':
       c.throttleSet = 1;
       c.boost = range > 2000;
-      if (range < ATTACK_RANGE) { brain.state = 'attack'; brain.timer = 0; }
+      if (range < attackRange(target)) { brain.state = 'attack'; brain.timer = 0; }
       break;
     case 'attack': {
       brain.timer += THINK;
@@ -142,29 +180,139 @@ function think(brain, me, ctx) {
       if (brain.aimTimer <= 0) {
         brain.aimTimer = 0.5;
         rng.unit(brain.aim);
-        scale(brain.aim, brain.aim, range * 0.004 * rng.gauss());
+        scale(brain.aim, brain.aim, range * 0.004 * (ctx.aimError ?? 1) * rng.gauss());
       }
-      const lead = leadPoint([0, 0, 0], ship.pos, ship.vel, player.ship.pos, player.ship.vel, ENEMY_CANNON.speed);
+      const at = aimPointOf(brain, me, target, aimPt);
+      const lead = leadPoint([0, 0, 0], ship.pos, ship.vel, at, target.ship.vel, gunSpeed);
       if (lead) want = normalize(want, sub(tmpA, addScaled(tmpA, lead, brain.aim, 1), ship.pos));
       c.throttleSet = clamp(range / 900, 0.35, 0.9);
-      if (range < BREAK_RANGE || brain.timer > ATTACK_TIME) {
+      if (range < breakAt || brain.timer > attackTime) {
         brain.state = 'breakoff';
-        const side = cross([0, 0, 0], toPlayer, rng.unit([0, 0, 0]));
+        const side = cross([0, 0, 0], toTarget, rng.unit([0, 0, 0]));
         if (len(side) < 1e-6) rng.unit(side);
         normalize(brain.breakDir, side);
-        brain.extend = rng.range(600, 900);
+        brain.extend = rng.range(600, 900) + (target.big ? Math.min(target.radius, 400) : 0);
       }
       break;
     }
     case 'breakoff': {
-      const away = scale([0, 0, 0], normalize([0, 0, 0], toPlayer), -0.6);
+      const away = scale([0, 0, 0], normalize([0, 0, 0], toTarget), -0.6);
       want = normalize(want, addScaled(away, away, brain.breakDir, 1));
       if (len(want) < 1e-9) want = [...brain.breakDir];
       c.throttleSet = 1;
       if (range > brain.extend) brain.state = 'approach';
       break;
     }
-    case 'evade': {
+  }
+  return want;
+}
+
+/* A torpedo pass. The torpedo itself is launched by the world when
+   `c.torpedo` is set; the brain only flies the run. */
+function bomberThink(brain, me, ctx, c, target, range, toTarget) {
+  const ship = me.ship;
+  const standoff = 1500 + Math.min(target.radius, 400);
+  const at = aimPointOf(brain, me, target, aimPt);
+  const toAim = sub([0, 0, 0], at, ship.pos);
+  let want = normalize([0, 0, 0], toAim);
+  switch (brain.state) {
+    case 'approach':
+    case 'attack':
+      c.throttleSet = 1;
+      c.boost = range > standoff + 1500;
+      if (range < standoff + 300) { brain.state = 'lineup'; brain.timer = 0; brain.lockTimer = 0; }
+      break;
+    case 'lineup': {
+      brain.timer += THINK;
+      c.throttleSet = 0.55;
+      const off = Math.acos(clamp(dot(want, forward(tmpB, ship)), -1, 1));
+      brain.lockTimer = off < 8 * deg ? brain.lockTimer + THINK : 0;
+      if (brain.lockTimer >= (me.torpedoLock ?? 1.5) && brain.torpedoCooldown <= 0 && me.torpedoes > 0) {
+        c.torpedo = true;
+        brain.torpedoCooldown = brain.rng.range(5, 8);
+        brain.state = 'breakoff';
+        const side = cross([0, 0, 0], toAim, [0, 1, 0]);
+        normalize(brain.breakDir, len(side) > 1e-6 ? side : brain.rng.unit([0, 0, 0]));
+        brain.extend = standoff + 600;
+      } else if (brain.timer > 9 || range < Math.min(target.radius, 400) + 350) {
+        brain.state = 'breakoff';
+        normalize(brain.breakDir, cross([0, 0, 0], toAim, brain.rng.unit([0, 0, 0])));
+        brain.extend = standoff + 400;
+      }
+      break;
+    }
+    case 'breakoff': {
+      const away = scale([0, 0, 0], normalize([0, 0, 0], toTarget), -0.5);
+      want = normalize(want, addScaled(away, away, brain.breakDir, 1));
+      c.throttleSet = 1;
+      if (range > brain.extend) brain.state = 'approach';
+      break;
+    }
+  }
+  return want;
+}
+
+/* Hold a formation slot on a leader. */
+function formThink(brain, me, ctx, c) {
+  const leader = ctx.leader, ship = me.ship;
+  const slot = qRotate([0, 0, 0], leader.ship.q, me.slot ?? [30, 0, 25]);
+  addScaled(slot, slot, leader.ship.pos, 1);
+  const to = sub([0, 0, 0], slot, ship.pos);
+  const gap = len(to);
+  const lv = leader.ship.vel, lspeed = len(lv);
+  let want;
+  if (gap > 60) {
+    want = normalize([0, 0, 0], addScaled([0, 0, 0], to, lv, 1.2));
+    c.throttleSet = null;
+    c.speedSet = clamp(lspeed + gap * 0.6, 20, ship.stats.fa.boostSpeed);
+    c.boost = gap > 900;
+  } else {
+    want = lspeed > 5 ? normalize([0, 0, 0], lv) : forward([0, 0, 0], leader.ship);
+    const local = qRotateInv([0, 0, 0], ship.q, to);
+    c.strafe = clamp(local[0] / 20, -1, 1);
+    c.lift = clamp(local[1] / 20, -1, 1);
+    c.speedSet = Math.max(0, lspeed - local[2] * 0.5);
+  }
+  return want;
+}
+
+function think(brain, me, ctx) {
+  const rng = brain.rng, ship = me.ship;
+  const c = { ...NEUTRAL_CONTROLS, fire: false, missile: false, torpedo: false };
+  const threat = ctx.threat ?? {};
+  const target = ctx.target;
+
+  const newlyLocked = threat.locked && !brain.wasLocked;
+  brain.wasLocked = !!threat.locked;
+  if (brain.state !== 'evade' && brain.state !== 'form' && target
+    && (threat.missileInbound || (ctx.wasHit && brain.role !== 'bomber') || newlyLocked)) {
+    brain.state = 'evade'; brain.timer = rng.range(1.5, 3) * (me.evadeScale ?? 1); brain.jinkTimer = 0;
+  }
+  brain.torpedoCooldown -= THINK;
+  brain.missileCooldown -= THINK;
+  brain.strafeTimer -= THINK;
+
+  let want;
+  if (!target) {
+    if (ctx.leader) { brain.state = 'form'; want = formThink(brain, me, ctx, c); }
+    else {
+      // Nothing to fight: cruise on, or hold a patrol point.
+      if (brain.state !== 'idle') brain.state = 'idle';
+      const home = ctx.home;
+      if (home) {
+        const to = sub([0, 0, 0], home, ship.pos);
+        want = len(to) > 200 ? normalize(to, to) : forward([0, 0, 0], ship);
+        c.throttleSet = len(sub(tmpB, home, ship.pos)) > 400 ? 0.7 : 0.25;
+      } else {
+        want = forward([0, 0, 0], ship);
+        c.throttleSet = 0.5;
+      }
+    }
+  } else {
+    if (brain.state === 'form' || brain.state === 'idle') brain.state = 'approach';
+    const toTarget = sub([0, 0, 0], target.ship.pos, ship.pos);
+    const range = len(toTarget);
+    if (brain.state === 'evade') {
       brain.timer -= THINK;
       brain.jinkTimer -= THINK;
       if (brain.jinkTimer <= 0) {
@@ -174,14 +322,26 @@ function think(brain, me, ctx) {
           roll: rng.range(-1, 1), pitch: rng.range(-0.6, 0.6),
         };
       }
-      const side = cross([0, 0, 0], toPlayer, qRotate(tmpB, ship.q, [0, 1, 0]));
-      want = normalize(want, len(side) > 1e-6 ? side : forward([0, 0, 0], ship));
+      const side = cross([0, 0, 0], toTarget, qRotate(tmpB, ship.q, [0, 1, 0]));
+      want = normalize([0, 0, 0], len(side) > 1e-6 ? side : forward([0, 0, 0], ship));
       c.throttleSet = 1;
       c.boost = !!threat.missileInbound;
       c.strafe = brain.jink.strafe;
       c.lift = brain.jink.lift;
-      if (brain.timer <= 0 && !threat.missileInbound) brain.state = range < ATTACK_RANGE ? 'attack' : 'approach';
-      break;
+      if (brain.timer <= 0 && !threat.missileInbound) brain.state = range < attackRange(target) ? 'attack' : 'approach';
+    } else if (brain.role === 'bomber' && target.big && (me.torpedoes ?? 0) > 0) {
+      want = bomberThink(brain, me, ctx, c, target, range, toTarget);
+    } else {
+      if (brain.state === 'lineup') brain.state = 'attack';
+      want = fighterThink(brain, me, ctx, c, target, range, toTarget);
+    }
+    // Missiles: hold a fighter inside a narrow cone for the lock time.
+    if ((me.missiles ?? 0) > 0 && !target.big && range < 1600 && range > 250 && brain.missileCooldown <= 0) {
+      const off = Math.acos(clamp(dot(normalize(tmpA, toTarget), forward(tmpB, ship)), -1, 1));
+      brain.lockTimer = off < 12 * deg ? brain.lockTimer + THINK : 0;
+      if (brain.lockTimer >= (me.missileLock ?? 1.2)) {
+        c.missile = true; brain.lockTimer = 0; brain.missileCooldown = rng.range(6, 10);
+      }
     }
   }
 
@@ -189,40 +349,114 @@ function think(brain, me, ctx) {
   const density = densityAt(ship.pos[0], ship.pos[1], ship.pos[2], ctx.field.seed, ctx.field.cfg);
   const cap = 1 - 0.5 * density;
   if (c.throttleSet != null && c.throttleSet > cap) c.throttleSet = cap;
+  if (c.speedSet != null) c.speedSet = Math.min(c.speedSet, ship.stats.fa.boostSpeed * Math.max(0.5, cap));
   if (density > 0.35) c.boost = false;
 
-  const fly = avoid(me, ctx.field, want, c);
+  const fly = avoid(me, ctx, want, c);
   steer(c, ship, fly);
   if (brain.state === 'evade' && fly === want) { c.roll = brain.jink.roll; c.pitch = clamp(c.pitch + brain.jink.pitch, -1, 1); }
   return c;
 }
 
 function fireGate(brain, me, ctx) {
-  if (brain.state !== 'attack') return false;
-  const ship = me.ship, player = ctx.player;
-  const range = len(sub(tmpA, player.ship.pos, ship.pos));
-  if (range > ATTACK_RANGE) return false;
-  const lead = leadPoint(gateLead, ship.pos, ship.vel, player.ship.pos, player.ship.vel, ENEMY_CANNON.speed);
+  const target = ctx.target;
+  if (!target || (brain.state !== 'attack' && brain.state !== 'lineup')) return false;
+  const ship = me.ship;
+  const gunSpeed = me.gun?.params.speed ?? ENEMY_CANNON.speed;
+  const at = aimPointOf(brain, me, target, aimPt);
+  const range = len(sub(tmpA, at, ship.pos));
+  if (range > attackRange(target)) return false;
+  const lead = leadPoint(gateLead, ship.pos, ship.vel, at, target.ship.vel, gunSpeed);
   if (!lead) return false;
   const to = normalize(lead, sub(lead, lead, ship.pos));
-  return Math.acos(clamp(dot(to, forward(tmpB, ship)), -1, 1)) <= FIRE_CONE;
+  // A big hull is a big target: the cone opens with its size, or with the
+  // subsystem's when one is the target (a miss beside it hits the shield).
+  const size = brain.targetSub?.alive ? brain.targetSub.r * 0.7 : Math.min(target.radius, 60) * 0.5;
+  const cone = target.big ? Math.max(FIRE_CONE, Math.atan2(size, range)) : FIRE_CONE;
+  return Math.acos(clamp(dot(to, forward(tmpB, ship)), -1, 1)) <= cone;
 }
 
-export function thinkEnemy(brain, me, ctx, dt) {
+/* One pilot's controls for this step. ctx: field, target (an entity or
+   null), threat ({ locked, missileInbound }), wasHit, larges (obstacles),
+   leader and home (for formation and patrol), aimError and thinkScale
+   (difficulty), frozen (the pilot sits still). */
+export function thinkPilot(brain, me, ctx, dt) {
+  if (ctx.frozen) {
+    const c = brain.lastControls = { ...NEUTRAL_CONTROLS, fire: false, missile: false, torpedo: false, throttleSet: 0 };
+    return c;
+  }
   brain.think -= dt;
   if (brain.think <= 0) {
-    brain.think += THINK;
-    if (brain.think <= 0) brain.think = THINK;
+    const period = THINK * (ctx.thinkScale ?? 1);
+    brain.think += period;
+    if (brain.think <= 0) brain.think = period;
     brain.lastControls = think(brain, me, ctx);
+  } else {
+    // One-shot orders belong to the step they were decided on.
+    brain.lastControls.missile = false;
+    brain.lastControls.torpedo = false;
   }
   // Bursts and the trigger run every step.
   brain.burstTimer -= dt;
   if (brain.burstTimer <= 0) {
     brain.burstOn = !brain.burstOn;
-    const span = brain.burstOn ? ENEMY_CANNON.burst : ENEMY_CANNON.pause;
+    const params = me.gun?.params ?? ENEMY_CANNON;
+    const span = brain.burstOn ? (params.burst ?? ENEMY_CANNON.burst) : (params.pause ?? ENEMY_CANNON.pause);
     brain.burstTimer = brain.rng.range(span[0], span[1]);
   }
   const c = brain.lastControls;
   c.fire = brain.burstOn && fireGate(brain, me, ctx);
   return c;
+}
+
+/* The original single-target form: the enemy hunts `ctx.player`. */
+export function thinkEnemy(brain, me, ctx, dt) {
+  if (ctx.target === undefined) ctx.target = ctx.player ?? null;
+  return thinkPilot(brain, me, ctx, dt);
+}
+
+/* Steer toward `want` (a world direction) clear of rocks and hulls: the
+   pilots' avoidance, for anything else that flies itself. Fills c's pitch,
+   yaw, roll and any braking it decides on. */
+export function steerClear(me, ctx, want, c) {
+  const fly = avoid(me, ctx, want, c);
+  steer(c, me.ship, fly);
+  return c;
+}
+
+/* ---------- choosing targets ---------- */
+
+/* The hostile a pilot should be fighting. Orders come first; otherwise a
+   score of distance and angle, nudged by what matters to the mission:
+   attackers of whatever this pilot protects, bombers, the player (as much
+   as `playerBias` says), and anything carrying one of the pilot's
+   `prefer` tags. Bombers want large targets. */
+export function pickTarget(me, candidates, { player = null, protect = null, prefer = null, playerBias = 0, current = me.brain?.target ?? null } = {}) {
+  const o = me.orders ?? {};
+  if (o.type === 'attack' && o.target?.alive && !o.target.folding && !o.target.hidden) return o.target;
+  const bomber = me.role === 'bomber' && (me.torpedoes ?? 0) > 0;
+  let best = null, bestScore = Infinity;
+  const fwd = forward([0, 0, 0], me.ship);
+  for (const e of candidates) {
+    if (!e.alive || e.folding || e.hidden || e.team === me.team || e.untargetable) continue;
+    // Some targets are the player's call: pilots engage them only on an order.
+    if (e.noAutoTarget) continue;
+    if (e.team < 0 && !(prefer && e.tags?.has(prefer))) continue;
+    if (bomber && !e.big) continue;
+    if (!bomber && e.big && e.role !== 'freighter' && e.role !== 'shuttle' && e.role !== 'hauler' && !(prefer && e.tags?.has(prefer)) && o.type !== 'strike') continue;
+    const to = sub([0, 0, 0], e.ship.pos, me.ship.pos);
+    const d = Math.max(0, len(to) - (e.big ? e.radius * 0.5 : 0));
+    const angle = Math.acos(clamp(dot(normalize(to, to), fwd), -1, 1));
+    let score = d + 500 * angle / Math.PI;
+    if (e === player) score -= playerBias;
+    if (e.role === 'bomber' && me.team === 0) score -= 600;
+    if (prefer && e.tags?.has(prefer)) score -= 1500;
+    if (protect && e.brain?.target === protect) score -= 1200;
+    if (e.role === 'tender') score -= 300;
+    // Finish what you started: the current target has to be clearly
+    // beaten before a pilot switches.
+    if (e === current) score -= 450;
+    if (score < bestScore) { bestScore = score; best = e; }
+  }
+  return best;
 }

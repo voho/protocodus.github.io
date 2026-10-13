@@ -1,40 +1,49 @@
 /* Meteora — the flight HUD, drawn on a 2D canvas at screen resolution.
 
    Aiming, with the mouse:
-      ┼   the aim crosshair follows the mouse; the ship turns toward it
-      ○   gun pipper: where the bolts will be at the target's range. The
-          guns swing up to 10° toward the crosshair, so inside that cone the
-          pipper sits on the crosshair; outside it, it waits at the cone's
-          edge while the nose comes round
+      ┼   the aim crosshair; the ship turns toward it
+      ○   gun pipper: where the bolts will be at the target's range (the
+          guns swing toward the crosshair within their gimbal)
       ˄   the nose, where the ship itself points
+      ◎   the velocity marker: where the ship is really going
    Targeting:
-     ┌ ┐  red square around the selected enemy, with distance and closing
-     └ ┘  speed; brackets close in as a missile locks
-      ◇   lead marker: where the bolts and the enemy arrive together, solved
-          from both velocities — put the crosshair on it and fire
-      ▲   an arrow on the screen edge, with the distance, when the target is
-          off screen
-   The pipper and the diamond are joined by a dashed line, so the correction
-   to make is always drawn, not guessed.
-
-   Around it: the velocity marker (where the ship is actually going, which
-   with momentum is often not where it points), speed and throttle, flight
-   assist, the afterburner, shield and hull, guns and missiles, score and
-   wave. */
+     ┌ ┐  the target: red hostile, green friendly, amber neutral, with its
+     └ ┘  name, class, distance, closing speed, shield and hull; brackets
+          close in as a missile locks; a subsystem gets its own marker
+      ◇   lead marker: put the crosshair on it and fire
+      ▲   arrows on the screen edge for the target and the nav point
+   Around the edge: directives and timers (top left), the radio (below
+   them), the ships to protect (top right), speed and afterburner (bottom
+   left), the radar (bottom centre), shields by quadrant, hull, guns,
+   secondary banks and the Tender (bottom right), and warnings (top
+   centre). Hits, kills, streaks and score pop up where they happen. */
 
 import * as THREE from 'three';
-import { CANNON, MISSILE } from './config.js';
+import { GUNS, PRIMARIES, SECONDARIES } from './loadout.js';
 import { gimbal, leadPoint } from './weapons.js';
+import { SPEAKERS, readTime } from './mission.js';
+import { subsystemWorld } from './compound.js';
+import { TENDER } from './drone.js';
+import { subsystemName } from './catalog.js';
 
-const RED = '#ff3b30', RED_DIM = 'rgba(255, 70, 60, 0.45)', INK = 'rgba(225, 235, 248, 0.92)';
-const MUTED = 'rgba(160, 178, 205, 0.75)', CYAN = '#7fd8ff', AMBER = '#ffb347';
+const subName = sub => subsystemName(sub.kind);
+
+const RED = '#ff3b30', RED_DIM = 'rgba(255, 70, 60, 0.5)', GREEN = '#5dff8f', GREEN_DIM = 'rgba(93, 255, 143, 0.45)';
+const INK = 'rgba(225, 235, 248, 0.92)', MUTED = 'rgba(160, 178, 205, 0.75)', DIM = 'rgba(120, 136, 160, 0.6)';
+const CYAN = '#7fd8ff', AMBER = '#ffb347', YELLOW = '#ffe066';
 const FONT = '"Space Grotesk", system-ui, sans-serif';
+const STREAK = ['', '', 'DOUBLE', 'TRIPLE', 'RAMPAGE', 'UNSTOPPABLE'];
+
+const teamColour = (e, dim = false) => (e.team === 1 ? (dim ? RED_DIM : RED) : e.team === 0 ? (dim ? GREEN_DIM : GREEN) : (dim ? 'rgba(255,179,71,0.5)' : AMBER));
+const fmt = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+const distanceText = d => (d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.round(d)} m`);
 
 export function createHud(canvas) {
   const ctx = canvas.getContext('2d');
-  let w = 0, h = 0, dpr = 1;
-  const v = new THREE.Vector3(), forwardV = new THREE.Vector3();
-  const callouts = [];
+  let w = 0, h = 0, dpr = 1, time = 0;
+  const v = new THREE.Vector3(), forwardV = new THREE.Vector3(), inv = new THREE.Quaternion();
+  const callouts = [], popups = [], marks = [], hurts = [];
+  let streak = null, banner = null, lastHull = null;
 
   const resize = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -53,13 +62,30 @@ export function createHud(canvas) {
       on: !behind && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
     };
   };
+  const pixelsFor = (camera, radius, depth) => radius / Math.max(depth, 1) * (h / 2) / Math.tan(camera.fov * Math.PI / 360);
 
-  const text = (s, x, y, size = 13, color = INK, align = 'center') => {
-    ctx.font = `500 ${size}px ${FONT}`;
+  const text = (s, x, y, size = 13, color = INK, align = 'center', weight = 500) => {
+    ctx.font = `${weight} ${size}px ${FONT}`;
     ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
     ctx.fillText(s, x, y);
   };
-  const distanceText = d => (d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.round(d)} m`);
+  const shadowed = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 4; fn(); ctx.restore(); };
+
+  /* Labels in the world claim their space for the frame, the important
+     ones first (the target's, then the nav point's, then the rest): a
+     label that would land on another tries a line lower, then a line
+     higher, and is left out if neither is free — unless it must show. */
+  const slots = [];
+  const label = (s, x, y, size = 12, color = INK, weight = 500, must = false) => {
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    const half = ctx.measureText(s).width / 2 + 3, tall = size / 2;
+    const free = yy => !slots.some(r => x - half < r[2] && x + half > r[0] && yy - tall < r[3] && yy + tall > r[1]);
+    let at = [y, y + size + 3, y - size - 3].find(free);
+    if (at === undefined) { if (!must) return false; at = y; }
+    slots.push([x - half, at - tall, x + half, at + tall]);
+    text(s, x, at, size, color, 'center', weight);
+    return true;
+  };
 
   const brackets = (x, y, half, color, width, gap = 0.45) => {
     const arm = half * gap;
@@ -72,11 +98,11 @@ export function createHud(canvas) {
     ctx.stroke();
   };
 
-  const edgeArrow = (p, color, label) => {
+  const edgeArrow = (p, color, label, margin = 46) => {
     let dx = p.view[0], dy = -p.view[1];
     if (Math.hypot(dx, dy) < 1e-6) dy = 1;
     const len = Math.hypot(dx, dy); dx /= len; dy /= len;
-    const margin = 46, cx = w / 2, cy = h / 2;
+    const cx = w / 2, cy = h / 2;
     const s = Math.min((w / 2 - margin) / Math.max(Math.abs(dx), 1e-6), (h / 2 - margin) / Math.max(Math.abs(dy), 1e-6));
     const x = cx + dx * s, y = cy + dy * s;
     ctx.save();
@@ -84,167 +110,665 @@ export function createHud(canvas) {
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -11); ctx.lineTo(-3, 0); ctx.lineTo(-8, 11); ctx.closePath(); ctx.fill();
     ctx.restore();
-    if (label) text(label, x - dx * 30, y - dy * 30, 12, color);
+    if (label) text(label, x - dx * 32, y - dy * 30, 12, color);
   };
 
-  const bar = (x, y, width, value, color, label, right = false) => {
-    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x, y, width, 5);
+  const bar = (x, y, width, value, color, label, right = false, height = 5) => {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x, y, width, height);
     const f = Math.max(0, Math.min(1, value));
-    ctx.fillStyle = color; ctx.fillRect(right ? x + width * (1 - f) : x, y, width * f, 5);
+    ctx.fillStyle = color; ctx.fillRect(right ? x + width * (1 - f) : x, y, width * f, height);
     if (label) text(label, right ? x + width : x, y - 9, 11, MUTED, right ? 'right' : 'left');
   };
 
+  const panel = (x, y, width, height) => {
+    ctx.fillStyle = 'rgba(6, 10, 18, 0.42)';
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = 'rgba(160, 190, 230, 0.12)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+  };
+
+  /* ---------- the parts ---------- */
+
+  function flightMarks(world, camera, view, fwd, range) {
+    const p = world.player, ship = p.ship, pos = view.position;
+    const speed = Math.hypot(...ship.vel);
+    if (speed > 5) {
+      const m = project(camera, pos.x + ship.vel[0] * 100, pos.y + ship.vel[1] * 100, pos.z + ship.vel[2] * 100);
+      if (m.on) {
+        ctx.strokeStyle = 'rgba(127, 216, 255, 0.85)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
+        ctx.moveTo(m.x - 14, m.y); ctx.lineTo(m.x - 6, m.y); ctx.moveTo(m.x + 6, m.y); ctx.lineTo(m.x + 14, m.y);
+        ctx.moveTo(m.x, m.y - 6); ctx.lineTo(m.x, m.y - 12);
+        ctx.stroke();
+      }
+    }
+    const nose = project(camera, pos.x + fwd[0] * range, pos.y + fwd[1] * range, pos.z + fwd[2] * range);
+    if (nose.on) {
+      ctx.strokeStyle = MUTED; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(nose.x - 8, nose.y + 5); ctx.lineTo(nose.x, nose.y - 3); ctx.lineTo(nose.x + 8, nose.y + 5); ctx.stroke();
+    }
+    let pip = null;
+    if (view.aimPoint) {
+      const aim = [view.aimPoint[0] - ship.pos[0], view.aimPoint[1] - ship.pos[1], view.aimPoint[2] - ship.pos[2]];
+      const dir = gimbal(fwd, aim, p.gun.params.gimbal);
+      pip = project(camera, pos.x + dir[0] * range, pos.y + dir[1] * range, pos.z + dir[2] * range);
+      if (pip.on) {
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(pip.x, pip.y, 12, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = INK; ctx.fillRect(pip.x - 1, pip.y - 1, 2, 2);
+      }
+    }
+    return pip;
+  }
+
+  function others(world, camera, target) {
+    for (const e of world.entities) {
+      if (!e.alive || e.folding || e === world.player || e === target || e.hidden) continue;
+      const q = project(camera, e.ship.pos[0], e.ship.pos[1], e.ship.pos[2]);
+      if (!q.on) continue;
+      const depth = -q.view[2];
+      if (e.big) {
+        if (depth > 9000) continue;
+        const half = Math.max(10, Math.min(60, pixelsFor(camera, e.radius * 0.3, depth)));
+        brackets(q.x, q.y, half, teamColour(e, true), 1, 0.3);
+        if (depth < 6000) label(e.name, q.x, q.y - half - 9, 11, teamColour(e, true));
+      } else if (e.team === 1) {
+        if (depth < 4500) brackets(q.x, q.y, 8, RED_DIM, 1.2, 0.5);
+      } else if (e.team === 0) {
+        if (depth < 2500) {
+          ctx.strokeStyle = GREEN_DIM; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 6, 0, Math.PI * 2); ctx.stroke();
+          if (depth < 1500 && e.leaderId === world.player.id) label(e.name, q.x, q.y + 14, 10, GREEN_DIM);
+        }
+      } else if (e.tags.has('objective') && depth < 3000) {
+        brackets(q.x, q.y, 9, 'rgba(255,179,71,0.6)', 1.2, 0.5);
+      }
+    }
+    // Hostile torpedoes: small flashing diamonds.
+    for (const m of world.weapons.missiles) {
+      if (m.team === 0 || !(m.hp > 0)) continue;
+      const q = project(camera, m.pos[0], m.pos[1], m.pos[2]);
+      if (!q.on) continue;
+      const on = time % 0.4 < 0.25;
+      ctx.strokeStyle = on ? '#ff7a2a' : 'rgba(255,122,42,0.45)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(q.x, q.y - 6); ctx.lineTo(q.x + 6, q.y); ctx.lineTo(q.x, q.y + 6); ctx.lineTo(q.x - 6, q.y); ctx.closePath(); ctx.stroke();
+    }
+  }
+
+  function targetBox(world, camera, view, pip, target, range) {
+    const p = world.player, ship = p.ship, pos = view.position;
+    const t = target.ship;
+    const q = project(camera, t.pos[0], t.pos[1], t.pos[2]);
+    const rel = t.vel.map((c, i) => c - ship.vel[i]);
+    const toward = t.pos.map((c, i) => c - ship.pos[i]);
+    const closing = -(rel[0] * toward[0] + rel[1] * toward[1] + rel[2] * toward[2]) / Math.max(range, 1);
+    const colour = teamColour(target);
+    const info = `${distanceText(range)}  ${closing >= 0 ? '+' : '−'}${Math.abs(closing).toFixed(0)} m/s`;
+    if (q.on) {
+      const pixels = pixelsFor(camera, target.radius, -q.view[2]);
+      const half = Math.max(16, Math.min(Math.min(w, h) * 0.4, pixels * (target.big ? 0.6 : 1.4) + 6));
+      const lock = world.lock;
+      ctx.strokeStyle = colour; ctx.lineWidth = 2;
+      if (target.big) brackets(q.x, q.y, half, colour, 2, 0.25);
+      else ctx.strokeRect(q.x - half, q.y - half, half * 2, half * 2);
+      const bank = p.banks[p.bank];
+      if (target.team !== 0 && bank && bank.count > 0 && lock.targetId === target.id && (lock.progress > 0 || !lock.valid)) {
+        if (!lock.valid) label(`${SECONDARIES[bank.weapon].short} cannot lock this`, q.x, q.y - half - 12, 12, MUTED, 500, true);
+        else {
+          brackets(q.x, q.y, half + 18 * (1 - lock.progress), lock.locked ? RED : AMBER, lock.locked ? 3 : 2, 0.35);
+          label(lock.locked ? 'LOCK · right click' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER, 600, true);
+        }
+      }
+      shadowed(() => {
+        label(target.name, q.x, q.y + half + 13, 12, colour, 600, true);
+        label(info, q.x, q.y + half + 27, 11, colour, 500, true);
+      });
+      if (target.maxShield > 0) bar(q.x - half, q.y + half + 36, half * 2, target.shield / target.maxShield, CYAN, null, false, 3);
+      bar(q.x - half, q.y + half + 41, half * 2, target.hull / Math.max(1, target.maxHull), colour, null, false, 3);
+    } else {
+      edgeArrow(q, colour, distanceText(range));
+    }
+    // A selected subsystem.
+    const sub = world.targetSub;
+    if (sub && target.big) {
+      const sp = subsystemWorld([0, 0, 0], target, sub);
+      const s = project(camera, sp[0], sp[1], sp[2]);
+      if (s.on) {
+        const half = Math.max(10, Math.min(40, pixelsFor(camera, sub.r, -s.view[2])));
+        ctx.strokeStyle = YELLOW; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(s.x, s.y, half, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath();
+        for (const a of [0, Math.PI / 2, Math.PI, 1.5 * Math.PI]) { ctx.moveTo(s.x + Math.cos(a) * half, s.y + Math.sin(a) * half); ctx.lineTo(s.x + Math.cos(a) * (half + 8), s.y + Math.sin(a) * (half + 8)); }
+        ctx.stroke();
+        shadowed(() => label(`${subName(sub).toUpperCase()} ${Math.round(100 * sub.hull / sub.maxHull)}%`, s.x, s.y - half - 12, 11, YELLOW, 600, true));
+      } else edgeArrow(s, YELLOW, subName(sub));
+    }
+    // Lead marker for hostiles in gun range.
+    if (target.team !== 0) {
+      const gunSpeed = p.gun.params.speed;
+      const at = sub && target.big ? subsystemWorld([0, 0, 0], target, sub) : t.pos;
+      const lead = leadPoint([0, 0, 0], ship.pos, ship.vel, at, t.vel, gunSpeed);
+      if (lead && range < gunSpeed * p.gun.params.life + (target.big ? target.radius : 0)) {
+        const L = project(camera, pos.x + lead[0] - ship.pos[0], pos.y + lead[1] - ship.pos[1], pos.z + lead[2] - ship.pos[2]);
+        if (L.on) {
+          const onTarget = pip && pip.on && Math.hypot(L.x - pip.x, L.y - pip.y) < (target.big ? 30 : 10);
+          if (pip && pip.on) {
+            ctx.setLineDash([4, 5]);
+            ctx.strokeStyle = 'rgba(255, 90, 80, 0.7)'; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(pip.x, pip.y); ctx.lineTo(L.x, L.y); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.fillStyle = onTarget ? RED : 'rgba(255, 59, 48, 0.25)';
+          ctx.strokeStyle = RED; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(L.x, L.y - 9); ctx.lineTo(L.x + 9, L.y); ctx.lineTo(L.x, L.y + 9); ctx.lineTo(L.x - 9, L.y);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          if (onTarget) label('ON TARGET', L.x, L.y + 22, 11, RED, 600, true);
+        }
+      }
+    }
+  }
+
+  function navMarker(world, camera) {
+    const n = world.nav;
+    if (!n || n.hidden) return;
+    const p = world.player.ship;
+    const d = Math.hypot(n.pos[0] - p.pos[0], n.pos[1] - p.pos[1], n.pos[2] - p.pos[2]);
+    const q = project(camera, n.pos[0], n.pos[1], n.pos[2]);
+    if (q.on) {
+      ctx.strokeStyle = CYAN; ctx.lineWidth = 1.6;
+      const s = 10 + 3 * Math.sin(time * 3);
+      ctx.beginPath(); ctx.moveTo(q.x, q.y - s); ctx.lineTo(q.x + s, q.y); ctx.lineTo(q.x, q.y + s); ctx.lineTo(q.x - s, q.y); ctx.closePath(); ctx.stroke();
+      shadowed(() => { label(n.name, q.x, q.y - s - 10, 12, CYAN, 600); label(distanceText(d), q.x, q.y + s + 11, 11, CYAN); });
+    } else edgeArrow(q, CYAN, `${n.name} ${distanceText(d)}`, 64);
+  }
+
+  function scanAndSensors(world, camera, target) {
+    const sc = world.scanning;
+    if (sc && target) {
+      const t = sc.target;
+      const q = project(camera, target.ship.pos[0], target.ship.pos[1], target.ship.pos[2]);
+      if (q.on) {
+        const r = 34;
+        ctx.strokeStyle = 'rgba(255, 224, 102, 0.25)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = YELLOW;
+        ctx.beginPath(); ctx.arc(q.x, q.y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * t.scan.progress); ctx.stroke();
+      }
+      const msg = !sc.inRange ? `SCAN · close to ${Math.round(t.scan.range)} m (${distanceText(sc.distance)})` : !sc.inCone ? 'SCAN · bring it ahead of you' : `SCANNING ${Math.round(t.scan.progress * 100)}%`;
+      shadowed(() => text(msg, w / 2, h / 2 + 70, 13, YELLOW, 'center', 600));
+    }
+    // The Harrow's Eyes: their range around them, their attention as an arc.
+    if (world.sentries.length) {
+      let worst = 0;
+      for (const e of world.sentries) {
+        if (!e.alive || e.folding) continue;
+        const R = e.detectRangeNow ?? 0;
+        const d = Math.hypot(e.ship.pos[0] - world.player.ship.pos[0], e.ship.pos[1] - world.player.ship.pos[1], e.ship.pos[2] - world.player.ship.pos[2]);
+        worst = Math.max(worst, e.attention ?? 0);
+        if (d > R * 2.5 + 400) continue;
+        const q = project(camera, e.ship.pos[0], e.ship.pos[1], e.ship.pos[2]);
+        if (!q.on) continue;
+        const px = pixelsFor(camera, R, -q.view[2]);
+        if (px > 8 && px < 4 * Math.max(w, h)) {
+          ctx.setLineDash([6, 6]);
+          ctx.strokeStyle = e.seesPlayer ? 'rgba(255, 70, 60, 0.85)' : 'rgba(255, 140, 90, 0.4)'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.arc(q.x, q.y, px, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        if ((e.attention ?? 0) > 0.01) {
+          ctx.strokeStyle = RED; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * e.attention); ctx.stroke();
+        }
+      }
+      // Our signature: how far away an Eye would notice us now.
+      const sig = world.playerSignature ?? 1;
+      const x = w / 2 - 90, y = 92;
+      bar(x, y, 180, Math.min(1, sig / 2), sig < 0.35 ? GREEN : sig < 0.8 ? AMBER : RED, `SIGNATURE ${Math.round(700 * sig)} m${worst > 0.01 ? ' · WATCHED' : ''}`);
+    }
+  }
+
+  /* FreeSpace-style radar: what is ahead inside the disc, what is behind
+     in the outer ring, by how far off the nose each contact is. */
+  function radar(world, view) {
+    // Beside the speed panel on a wide screen, above it on a narrow one:
+    // never over the ship the chase camera is looking past.
+    const R = Math.min(88, Math.max(58, h * 0.09));
+    const wide = w >= 1000;
+    const cx = wide ? 238 + R : 16 + R, cy = wide ? h - R - 24 : h - 170 - R - 18;
+    ctx.fillStyle = 'rgba(6, 12, 20, 0.5)';
+    ctx.beginPath(); ctx.arc(cx, cy, R + 4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(127, 216, 255, 0.22)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, R / 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+    inv.copy(view.quaternion).invert();
+    const p = world.player.ship.pos;
+    const plot = (pos, colour, size, square = false, ring = false) => {
+      v.set(pos[0] - p[0], pos[1] - p[1], pos[2] - p[2]);
+      const dist = v.length();
+      if (dist < 1) return;
+      v.applyQuaternion(inv).divideScalar(dist);
+      const theta = Math.acos(Math.max(-1, Math.min(1, -v.z)));
+      const az = Math.atan2(-v.y, v.x);
+      const r = theta / Math.PI * R;
+      const x = cx + Math.cos(az) * r, y = cy + Math.sin(az) * r;
+      const fade = dist > 6000 ? 0.45 : 1;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = colour;
+      if (square) ctx.fillRect(x - size, y - size, size * 2, size * 2);
+      else { ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill(); }
+      if (ring) { ctx.strokeStyle = colour; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, size + 4, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    };
+    for (const e of world.entities) {
+      if (!e.alive || e.folding || e === world.player || e.hidden) continue;
+      plot(e.ship.pos, teamColour(e), e.big ? 3.5 : 2, e.big, e === world.target);
+    }
+    for (const m of world.weapons.missiles) if (m.team === 1 && m.hp > 0 && time % 0.4 < 0.25) plot(m.pos, '#ff7a2a', 2.2);
+    if (world.nav && !world.nav.hidden) plot(world.nav.pos, CYAN, 3, true);
+    text('RADAR', cx, cy + R + 12, 9, DIM);
+  }
+
+  function directives(world) {
+    const rt = world.mission;
+    if (!rt) return;
+    const list = rt.objectives.filter(o => o.state !== 'hidden');
+    const timers = [...rt.timers.values()].filter(t => t.visible);
+    const x = 22, y0 = 22, width = Math.min(360, w * 0.32);
+    const rows = list.length + timers.length + 1;
+    panel(x - 10, y0 - 12, width, 26 + rows * 19);
+    text(`${rt.def.number ? `MISSION ${rt.def.number} · ` : ''}${rt.def.title.toUpperCase()}`, x, y0 + 2, 11, AMBER, 'left', 600);
+    let y = y0 + 22;
+    for (const t of timers) {
+      const blocked = t.paused;
+      text(`${t.label.toUpperCase()}  ${fmt(t.left)}${blocked ? '  BLOCKED' : ''}`, x, y, 13, blocked ? RED : t.left < 30 ? AMBER : INK, 'left', 600);
+      y += 19;
+    }
+    for (const o of list) {
+      const icon = o.state === 'done' ? '✓' : o.state === 'failed' ? '✕' : o.kind === 'bonus' ? '☆' : '○';
+      const colour = o.state === 'done' ? GREEN : o.state === 'failed' ? RED : o.kind === 'bonus' ? 'rgba(255, 224, 102, 0.85)' : INK;
+      const count = o.count && o.state === 'active' ? `  ${o.count.n}/${o.count.of}` : '';
+      const fresh = rt.time - (o.shownAt ?? 0) < 1.2 && o.state === 'active';
+      text(`${icon}  ${o.text}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left');
+      y += 19;
+    }
+  }
+
+  function radio(world) {
+    const rt = world.mission;
+    if (!rt) return;
+    const now = rt.time;
+    const lines = rt.radio.filter(l => l.at <= now && now < l.at + l.dur + 2.5).slice(-3);
+    const x = 22;
+    let y = 40 + 19 * (rt.objectives.filter(o => o.state !== 'hidden').length + [...rt.timers.values()].filter(t => t.visible).length + 1) + 18;
+    const width = Math.min(460, w * 0.4);
+    for (const l of lines) {
+      const sp = SPEAKERS[l.who] ?? { name: l.who, colour: INK };
+      const age = now - l.at;
+      const alpha = Math.min(1, age * 6) * Math.min(1, (l.dur + 2.5 - age) / 0.8);
+      // Typewriter: the line arrives a little faster than it is read.
+      const shown = l.text.slice(0, Math.ceil(l.text.length * Math.min(1, age / Math.max(0.6, l.dur * 0.5))));
+      ctx.globalAlpha = alpha;
+      ctx.font = `500 13px ${FONT}`;
+      const wrapped = wrap(shown, width - 20);
+      panel(x - 10, y - 12, width, 22 + wrapped.length * 17);
+      text(sp.name.toUpperCase(), x, y, 10, sp.colour, 'left', 700);
+      let yy = y + 16;
+      for (const row of wrapped) { text(row, x, yy, 13, INK, 'left'); yy += 17; }
+      ctx.globalAlpha = 1;
+      y = yy + 12;
+    }
+  }
+  const wrapCache = new Map();
+  function wrap(s, width) {
+    const key = `${width}|${s}`;
+    if (wrapCache.has(key)) return wrapCache.get(key);
+    const words = s.split(' '), out = [];
+    let line = '';
+    for (const word of words) {
+      const t = line ? `${line} ${word}` : word;
+      if (ctx.measureText(t).width > width && line) { out.push(line); line = word; } else line = t;
+    }
+    if (line) out.push(line);
+    if (wrapCache.size > 400) wrapCache.clear();
+    wrapCache.set(key, out);
+    return out;
+  }
+
+  function escorts(world) {
+    const list = world.entities.filter(e => e.alive && e.team === 0 && e !== world.player && (e.tags.has('objective') || e.tags.has('convoy')) && !e.departed).slice(0, 7);
+    if (!list.length) return;
+    const width = 210, x = w - width - 18;
+    let y = 22;
+    panel(x - 8, y - 12, width + 16, 20 + list.length * 30);
+    text('PROTECT', x, y + 2, 11, GREEN, 'left', 600);
+    y += 20;
+    for (const e of list) {
+      const hullF = e.hull / Math.max(1, e.maxHull);
+      const hurt = hullF < 0.35 && time % 0.6 < 0.3;
+      text(e.name, x, y, 12, hurt ? RED : INK, 'left');
+      text(`${Math.round(hullF * 100)}%`, x + width, y, 11, hullF < 0.35 ? RED : MUTED, 'right');
+      if (e.maxShield > 0) bar(x, y + 8, width, e.shield / e.maxShield, CYAN, null, false, 2);
+      bar(x, y + 11, width, hullF, hullF < 0.35 ? RED : GREEN, null, false, 3);
+      y += 30;
+    }
+  }
+
+  function flightPanel(world) {
+    const p = world.player, ship = p.ship;
+    const speed = Math.hypot(...ship.vel);
+    const x0 = 28, y0 = h - 132;
+    panel(x0 - 12, y0 - 18, 214, 150);
+    ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
+    text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
+    text(`${p.loadout?.hull ? p.def.name.toUpperCase() : ''}`, x0 + 180, y0 + 12, 10, DIM, 'right', 600);
+    const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
+    bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
+      world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s · W/S release` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
+    bar(x0, y0 + 82, 180, ship.boost / Math.max(1, ship.stats.boost.capacity), ship.boostLocked ? '#8a6040' : AMBER,
+      ship.afterburner ? 'AFTERBURNER' : 'AFTERBURNER · hold Tab');
+    if (world.speedLock) text('MATCHING TARGET SPEED', x0, y0 + 104, 11, AMBER, 'left');
+    else if (world.target) text('Z  match target speed', x0, y0 + 104, 11, MUTED, 'left');
+    const wing = world.entities.filter(e => e.alive && e.leaderId === p.id && e.brain);
+    if (wing.length) {
+      const order = wing[0].orders?.type ?? 'cover';
+      text(`WING ${wing.length} · ${order === 'attack' ? 'ATTACKING' : order === 'form' ? 'FORMING UP' : 'COVERING'}  ·  1 2 3`, x0, y0 + 120, 10, GREEN_DIM, 'left', 600);
+    }
+  }
+
+  function shipPanel(world) {
+    const p = world.player;
+    const x1 = w - 228, y0 = h - 150;
+    panel(x1 - 12, y0 - 18, 232, 168);
+    // Shields by quadrant around a small ship.
+    const cx = x1 + 34, cy = y0 + 36, R = 26;
+    const cap = p.maxShield / 4 || 1;
+    const quads = [[-Math.PI * 0.75, -Math.PI * 0.25, 0], [Math.PI * 0.25, Math.PI * 0.75, 1], [Math.PI * 0.75, Math.PI * 1.25, 2], [-Math.PI * 0.25, Math.PI * 0.25, 3]];
+    for (const [a0, a1, k] of quads) {
+      const f = Math.max(0, Math.min(1, (p.quad?.[k] ?? 0) / cap));
+      ctx.strokeStyle = 'rgba(127, 216, 255, 0.15)'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(cx, cy, R, a0 + 0.08, a1 - 0.08); ctx.stroke();
+      if (f > 0) {
+        ctx.strokeStyle = f < 0.25 ? (time % 0.5 < 0.25 ? RED : AMBER) : CYAN;
+        ctx.globalAlpha = 0.35 + 0.65 * f;
+        ctx.beginPath(); ctx.arc(cx, cy, R, a0 + 0.08, a1 - 0.08); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.fillStyle = INK;
+    ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx + 8, cy + 9); ctx.lineTo(cx, cy + 5); ctx.lineTo(cx - 8, cy + 9); ctx.closePath(); ctx.fill();
+    text(`SHIELDS ${Math.round(100 * p.shield / Math.max(1, p.maxShield))}%`, cx, cy + R + 14, 10, CYAN, 'center', 600);
+    text('X level', cx, cy + R + 27, 9, DIM);
+    const hullF = p.hull / p.maxHull;
+    const bx = x1 + 76;
+    bar(bx, y0 + 12, 130, hullF, hullF < 0.3 ? RED : hullF < 0.5 ? AMBER : INK, `HULL ${Math.round(hullF * 100)}%`, false, 6);
+    const gun = p.gun, gp = gun.params;
+    bar(bx, y0 + 42, 130, gun.heat / gp.lockAt, gun.overheated ? RED : 'rgba(127,216,255,0.6)',
+      gun.overheated ? `${(gp.short ?? 'GUNS').toUpperCase()} OVERHEAT` : `${(gp.short ?? 'GUNS').toUpperCase()} · left click`);
+    let y = y0 + 66;
+    p.banks.forEach((b, i) => {
+      const active = i === p.bank;
+      const wpn = SECONDARIES[b.weapon];
+      text(`${active ? '▶' : ' '} ${wpn.short.toUpperCase()}  ${b.count}/${b.max}`, bx, y, 12, active ? (b.count ? AMBER : RED) : MUTED, 'left', active ? 600 : 500);
+      y += 16;
+    });
+    if (p.banks.length > 1) text('G switch · right click fire', bx, y, 9, DIM, 'left');
+    // The Tender.
+    const R2 = world.repair;
+    const drone = R2.droneId != null ? world.byId.get(R2.droneId) : null;
+    let msg, colour = MUTED;
+    if (drone?.alive) {
+      const st = drone.tender?.state;
+      if (st === 'docked') { msg = `TENDER REPAIRING ${Math.round(100 * p.hull / p.maxHull)}%`; colour = GREEN; }
+      else if (st === 'approach') {
+        const slow = Math.hypot(...p.ship.vel) < TENDER.dockSpeed;
+        msg = slow ? 'TENDER CLOSING · hold your speed' : `TENDER EN ROUTE · slow below ${TENDER.dockSpeed} m/s`;
+        colour = slow ? GREEN : AMBER;
+      } else msg = 'TENDER LEAVING';
+    } else if (R2.charges > 0) {
+      const ready = hullF < 0.5;
+      msg = `TENDER ×${R2.charges}${ready ? ' · press R' : ' · below half hull'}`;
+      colour = ready ? (time % 0.8 < 0.5 ? GREEN : INK) : DIM;
+    } else msg = 'NO TENDERS LEFT';
+    text(msg, x1 - 2, y0 + 140, 11, colour, 'left', 600);
+  }
+
+  function warnings(world) {
+    const p = world.player, out = [];
+    const hullF = p.hull / p.maxHull;
+    if (hullF < 0.3) out.push(['HULL CRITICAL', RED, true]);
+    else if (hullF < 0.5) out.push(['HULL DAMAGED', AMBER, false]);
+    if (p.maxShield > 0 && p.shield < 1) out.push(['SHIELDS DOWN', AMBER, true]);
+    let lockOnUs = false;
+    const torps = new Map();
+    for (const m of world.weapons.missiles) {
+      if (m.team !== 1) continue;
+      if (m.targetId === p.id) lockOnUs = true;
+      if (m.hp > 0 && m.targetId != null) {
+        const t = world.byId.get(m.targetId);
+        if (t && t.team === 0) torps.set(t.name, (torps.get(t.name) ?? 0) + 1);
+      }
+    }
+    if (lockOnUs) out.push(['MISSILE INBOUND', RED, true]);
+    for (const [name, n] of torps) out.push([`TORPEDO${n > 1 ? `ES ×${n}` : ''} INBOUND → ${name.toUpperCase()}`, '#ff7a2a', true]);
+    if (world.sentries.some(e => e.alive && e.alarmed && !e.folding)) out.push(['DETECTED', RED, false]);
+    if (world.leaving) out.push(['LEAVING THE AREA OF OPERATIONS', AMBER, false]);
+    let y = 34;
+    for (const [s, colour, blink] of out.slice(0, 4)) {
+      if (blink && time % 0.7 > 0.5) { y += 22; continue; }
+      shadowed(() => text(s, w / 2, y, 15, colour, 'center', 700));
+      y += 22;
+    }
+  }
+
+  function feedback(world, camera, view, dt) {
+    const cx = view.cursor ? (view.cursor[0] * 0.5 + 0.5) * w : w / 2, cy = view.cursor ? (view.cursor[1] * 0.5 + 0.5) * h : h / 2;
+    // Hit markers on the crosshair.
+    for (let i = marks.length - 1; i >= 0; i--) {
+      const m = marks[i];
+      m.age += dt;
+      if (m.age > (m.kill ? 0.5 : 0.18)) { marks.splice(i, 1); continue; }
+      const a = 1 - m.age / (m.kill ? 0.5 : 0.18);
+      ctx.strokeStyle = m.kill ? `rgba(255, 60, 50, ${a})` : m.shield ? `rgba(160, 225, 255, ${a})` : `rgba(255, 190, 120, ${a})`;
+      ctx.lineWidth = m.kill ? 3 : 2;
+      const r0 = m.kill ? 10 : 8, r1 = m.kill ? 20 : 14;
+      ctx.beginPath();
+      for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { ctx.moveTo(cx + dx * r0, cy + dy * r0); ctx.lineTo(cx + dx * r1, cy + dy * r1); }
+      ctx.stroke();
+    }
+    // Where the hits on us come from: red arcs around the centre.
+    for (let i = hurts.length - 1; i >= 0; i--) {
+      const hr = hurts[i];
+      hr.age += dt;
+      if (hr.age > 1) { hurts.splice(i, 1); continue; }
+      v.set(hr.from[0], hr.from[1], hr.from[2]).applyQuaternion(inv.copy(view.quaternion).invert());
+      const a = Math.atan2(-v.y, v.x);
+      ctx.strokeStyle = `rgba(255, 50, 40, ${0.8 * (1 - hr.age)})`; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.18, a - 0.3, a + 0.3); ctx.stroke();
+    }
+    // Score popups where the kills happened.
+    for (let i = popups.length - 1; i >= 0; i--) {
+      const pu = popups[i];
+      pu.age += dt;
+      if (pu.age > 1.6) { popups.splice(i, 1); continue; }
+      let x = w / 2, y = h * 0.42;
+      if (pu.pos) {
+        const q = project(camera, pu.pos[0], pu.pos[1], pu.pos[2]);
+        if (q.on) { x = q.x; y = q.y; }
+      }
+      const a = Math.min(1, pu.age * 8) * Math.min(1, (1.6 - pu.age) * 2);
+      ctx.globalAlpha = a;
+      shadowed(() => {
+        label(`+${pu.points}${pu.mult > 1 ? `  ×${pu.mult}` : ''}`, x, y - 28 - pu.age * 30, pu.big ? 22 : 16, pu.mult > 1 ? AMBER : '#ffffff', 700, true);
+        if (pu.label) label(pu.label, x, y - 10 - pu.age * 30, 11, MUTED, 600);
+      });
+      ctx.globalAlpha = 1;
+    }
+    if (streak) {
+      streak.age += dt;
+      if (streak.age > 1.4) streak = null;
+      else {
+        const a = Math.min(1, streak.age * 6) * Math.min(1, (1.4 - streak.age) * 2.5);
+        const s = 1 + 0.25 * Math.max(0, 1 - streak.age * 5);
+        ctx.globalAlpha = a;
+        shadowed(() => text(streak.text, w / 2, h * 0.34, 30 * s, AMBER, 'center', 700));
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  function vignette(world) {
+    const p = world.player, hullF = p.hull / p.maxHull;
+    if (!p.alive || hullF >= 0.3) return;
+    const pulse = 0.35 + 0.25 * Math.sin(time * 6);
+    const k = (1 - hullF / 0.3) * 0.6 + pulse * 0.4;
+    const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.7);
+    g.addColorStop(0, 'rgba(255, 20, 10, 0)');
+    g.addColorStop(1, `rgba(255, 20, 10, ${0.45 * k})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function hints(world) {
+    const rt = world.mission;
+    if (!rt?.hints.length) return;
+    const now = rt.time;
+    const hint = rt.hints.filter(x => x.at <= now && now < x.until).at(-1);
+    if (!hint) return;
+    const a = Math.min(1, (now - hint.at) * 4) * Math.min(1, (hint.until - now) * 2);
+    ctx.globalAlpha = a;
+    ctx.font = `500 13px ${FONT}`;
+    const width = Math.min(560, ctx.measureText(hint.text).width + 40);
+    const y = h - 230;
+    ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y - 16, width, 32);
+    ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.strokeRect(w / 2 - width / 2 + 0.5, y - 15.5, width - 1, 31);
+    text(hint.text, w / 2, y, 13, CYAN, 'center');
+    ctx.globalAlpha = 1;
+  }
+
+  function centreText(dt) {
+    for (let i = callouts.length - 1; i >= 0; i--) {
+      const c = callouts[i];
+      c.age += dt;
+      if (c.age > 3) { callouts.splice(i, 1); continue; }
+      const a = Math.min(1, c.age * 4) * Math.min(1, (3 - c.age) * 2);
+      shadowed(() => text(c.message, w / 2, h * 0.24 + i * 26, 17, c.colour ? c.colour.replace('A', a) : `rgba(233, 237, 243, ${a})`, 'center', 600));
+    }
+    if (banner) {
+      banner.age += dt;
+      if (banner.age > banner.duration) { banner = null; return; }
+      const a = Math.min(1, banner.age * 3, (banner.duration - banner.age) / 0.6);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(4, 8, 14, 0.55)'; ctx.fillRect(0, h * 0.4 - 46, w, 92);
+      shadowed(() => {
+        text(banner.title, w / 2, h * 0.4 - 10, 34, banner.colour, 'center', 700);
+        if (banner.sub) text(banner.sub, w / 2, h * 0.4 + 26, 14, INK, 'center');
+      });
+      ctx.globalAlpha = 1;
+    }
+  }
+
   return {
     resize,
-    callout(message) { callouts.push({ message, age: 0 }); },
+    callout(message, colour = null) {
+      // The same words already on screen just stay longer, they do not stack.
+      const same = callouts.find(c => c.message === message);
+      if (same) { same.age = 0; return; }
+      callouts.push({ message, age: 0, colour }); if (callouts.length > 4) callouts.shift();
+    },
+    banner(title, sub, colour = INK, duration = Infinity) { banner = { title, sub, colour, age: 0, duration }; },
+    clearBanner() { banner = null; },
+    reset() { callouts.length = 0; popups.length = 0; marks.length = 0; hurts.length = 0; streak = null; banner = null; lastHull = null; },
+    /* The simulation's events that the HUD shows. */
+    handle(e, world) {
+      switch (e.type) {
+        case 'hitMarker': marks.push({ age: 0, kill: e.kill, shield: e.shield }); break;
+        case 'score':
+          popups.push({ points: e.points, mult: e.mult, label: e.label, pos: e.pos, age: 0, big: e.points >= 500 });
+          if (e.streak >= 2) streak = { text: STREAK[Math.min(5, e.streak)] || `${e.streak}× STREAK`, age: 0 };
+          break;
+        case 'shipHit':
+          if (e.id === world.player?.id && e.pos) {
+            const p = world.player.ship.pos;
+            hurts.push({ from: [e.pos[0] - p[0], e.pos[1] - p[1], e.pos[2] - p[2]], age: 0 });
+            if (hurts.length > 6) hurts.shift();
+          }
+          break;
+        case 'objective':
+          if (e.state === 'done') this.callout(`${e.bonus ? 'BONUS · ' : ''}✓ ${e.text}`, 'rgba(93, 255, 143, A)');
+          else if (e.state === 'failed') this.callout(`✕ ${e.text}`, 'rgba(255, 70, 60, A)');
+          else if (e.state === 'active' && world.mission?.time > 0.5) this.callout(`${e.bonus ? 'BONUS · ' : 'NEW · '}${e.text}`, 'rgba(255, 224, 102, A)');
+          break;
+        case 'repairDenied':
+          this.callout(e.reason === 'healthy' ? 'Tender only below half hull' : e.reason === 'none' ? 'No Tenders left' : 'A Tender is already on its way');
+          break;
+        case 'repairCalled': this.callout(`Tender ${e.fold ? 'folding in' : `launching${e.from ? ` from ${e.from}` : ''}`} · slow below ${TENDER.dockSpeed} m/s to dock`, 'rgba(93, 255, 143, A)'); break;
+        case 'tenderDone': if (e.patientId === world.player?.id) this.callout('Repairs complete', 'rgba(93, 255, 143, A)'); break;
+        case 'shieldsLevelled': this.callout('Shields levelled'); break;
+        case 'bankChange': this.callout(`${SECONDARIES[e.weapon]?.name ?? e.weapon} selected`); break;
+        case 'dryFire': this.callout(`${SECONDARIES[e.weapon]?.short ?? 'Bank'} empty${world.repair.charges > 0 ? ' · a Tender restocks' : ''}`); break;
+        case 'wingOrder': this.callout(e.order === 'attack' ? `Wing: attacking ${e.target ?? 'your target'}` : e.order === 'form' ? 'Wing: forming up' : 'Wing: covering you', 'rgba(93, 255, 143, A)'); break;
+      }
+    },
     clear() { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); },
     draw(world, camera, view, dt) {
       if (!w) resize();
+      time += dt;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const p = world.player, ship = p.ship;
-      const pos = view.position;
+      const p = world.player;
+      if (!p) return;
+      // During the opening shot only the title, the radio and the
+      // letterbox are drawn; the instruments come back as it ends. The
+      // closing shot takes them away at once.
+      const cine = view.cinematic ?? 0, instruments = cine < 0.5 && !view.closing;
+      vignette(world);
       const fwdV = forwardV.set(0, 0, -1).applyQuaternion(view.quaternion);
       const fwd = [fwdV.x, fwdV.y, fwdV.z];
       const target = world.target && world.target.alive ? world.target : null;
-      const range = target ? Math.hypot(...target.ship.pos.map((c, i) => c - ship.pos[i])) : 1200;
-
-      // Velocity marker: where the ship is going.
-      const speed = Math.hypot(...ship.vel);
-      if (speed > 5) {
-        const m = project(camera, pos.x + ship.vel[0] * 100, pos.y + ship.vel[1] * 100, pos.z + ship.vel[2] * 100);
-        if (m.on) {
-          ctx.strokeStyle = 'rgba(127, 216, 255, 0.85)'; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
-          ctx.moveTo(m.x - 14, m.y); ctx.lineTo(m.x - 6, m.y); ctx.moveTo(m.x + 6, m.y); ctx.lineTo(m.x + 14, m.y);
-          ctx.moveTo(m.x, m.y - 6); ctx.lineTo(m.x, m.y - 12);
+      const range = target ? Math.max(1, Math.hypot(...target.ship.pos.map((c, i) => c - p.ship.pos[i])) - (target.big ? target.radius * 0.5 : 0)) : 1200;
+      slots.length = 0;
+      if (p.alive && instruments) {
+        const pip = flightMarks(world, camera, view, fwd, range);
+        // The target's labels first, so the others make room for them.
+        if (target) targetBox(world, camera, view, pip, target, range);
+        else if (world.entities.some(e => e.alive && e.team === 1 && !e.hidden)) text('T  next hostile   ·   Y  friendly / objective', w / 2, h / 2 + 64, 12, MUTED);
+        navMarker(world, camera);
+        others(world, camera, target);
+        scanAndSensors(world, camera, target);
+        if (view.cursor) {
+          const cx = (view.cursor[0] * 0.5 + 0.5) * w, cy = (view.cursor[1] * 0.5 + 0.5) * h;
+          ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(cx + dx * 5, cy + dy * 5); ctx.lineTo(cx + dx * 13, cy + dy * 13); }
           ctx.stroke();
         }
+        feedback(world, camera, view, dt);
+        radar(world, view);
+        flightPanel(world);
+        shipPanel(world);
+        warnings(world);
       }
-
-      // The nose: a small chevron where the ship points.
-      const nose = project(camera, pos.x + fwd[0] * range, pos.y + fwd[1] * range, pos.z + fwd[2] * range);
-      if (nose.on) {
-        ctx.strokeStyle = MUTED; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(nose.x - 8, nose.y + 5); ctx.lineTo(nose.x, nose.y - 3); ctx.lineTo(nose.x + 8, nose.y + 5); ctx.stroke();
+      if (instruments) {
+        directives(world);
+        escorts(world);
+        hints(world);
+        if (world.missionDef?.id === 'survival') {
+          text(`SCORE  ${world.score.toLocaleString('en')}`, w / 2 - 70, 26, 13, INK);
+          text(`WAVE  ${world.wave}`, w / 2 + 70, 26, 13, INK);
+        } else text(`${world.score.toLocaleString('en')}`, w - 24, h - 14, 11, DIM, 'right');
       }
-
-      // Gun pipper: where the gimballed bolts go at the target's range.
-      let pip = null;
-      if (view.aimPoint) {
-        const aim = [view.aimPoint[0] - ship.pos[0], view.aimPoint[1] - ship.pos[1], view.aimPoint[2] - ship.pos[2]];
-        const dir = gimbal(fwd, aim, CANNON.gimbal);
-        pip = project(camera, pos.x + dir[0] * range, pos.y + dir[1] * range, pos.z + dir[2] * range);
-        if (pip.on) {
-          ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(pip.x, pip.y, 12, 0, Math.PI * 2); ctx.stroke();
-          ctx.fillStyle = INK; ctx.fillRect(pip.x - 1, pip.y - 1, 2, 2);
-        }
+      if (cine > 0) {
+        const bar = Math.round(h * 0.1 * cine);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, bar);
+        ctx.fillRect(0, h - bar, w, bar);
       }
-
-      // Other enemies: dim corners.
-      for (const e of world.enemies) {
-        if (!e.alive || e === target) continue;
-        const q = project(camera, ...e.ship.pos);
-        if (q.on) brackets(q.x, q.y, 9, RED_DIM, 1.2, 0.5);
-      }
-
-      if (target) {
-        const t = target.ship;
-        const q = project(camera, t.pos[0], t.pos[1], t.pos[2]);
-        const rel = t.vel.map((c, i) => c - ship.vel[i]);
-        const toward = t.pos.map((c, i) => c - ship.pos[i]);
-        const closing = -(rel[0] * toward[0] + rel[1] * toward[1] + rel[2] * toward[2]) / Math.max(range, 1);
-        const label = `${distanceText(range)}  ${closing >= 0 ? '+' : '−'}${Math.abs(closing).toFixed(0)} m/s`;
-        if (q.on) {
-          const pixels = target.radius / Math.max(-q.view[2], 1) * (h / 2) / Math.tan(camera.fov * Math.PI / 360);
-          const half = Math.max(16, pixels * 1.4 + 6);
-          const lock = world.lock;
-          ctx.strokeStyle = RED; ctx.lineWidth = 2;
-          ctx.strokeRect(q.x - half, q.y - half, half * 2, half * 2);
-          if (p.missiles > 0 && lock.targetId === target.id && lock.progress > 0) {
-            brackets(q.x, q.y, half + 18 * (1 - lock.progress), lock.locked ? RED : AMBER, lock.locked ? 3 : 2, 0.35);
-            text(lock.locked ? 'LOCK · right click' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER);
-          }
-          text(label, q.x, q.y + half + 14, 12, RED);
-          const frac = target.hull / target.maxHull;
-          ctx.fillStyle = 'rgba(255,60,50,0.25)'; ctx.fillRect(q.x - half, q.y + half + 25, half * 2, 3);
-          ctx.fillStyle = RED; ctx.fillRect(q.x - half, q.y + half + 25, half * 2 * frac, 3);
-        } else {
-          edgeArrow(q, RED, distanceText(range));
-        }
-
-        // Lead marker: where to aim so the bolts meet the target.
-        const lead = leadPoint([0, 0, 0], ship.pos, ship.vel, t.pos, t.vel, CANNON.speed);
-        if (lead && range < CANNON.speed * CANNON.life) {
-          const L = project(camera, pos.x + lead[0] - ship.pos[0], pos.y + lead[1] - ship.pos[1], pos.z + lead[2] - ship.pos[2]);
-          if (L.on) {
-            const onTarget = pip && pip.on && Math.hypot(L.x - pip.x, L.y - pip.y) < 10;
-            if (pip && pip.on) {
-              ctx.setLineDash([4, 5]);
-              ctx.strokeStyle = 'rgba(255, 90, 80, 0.7)'; ctx.lineWidth = 1.2;
-              ctx.beginPath(); ctx.moveTo(pip.x, pip.y); ctx.lineTo(L.x, L.y); ctx.stroke();
-              ctx.setLineDash([]);
-            }
-            ctx.fillStyle = onTarget ? RED : 'rgba(255, 59, 48, 0.25)';
-            ctx.strokeStyle = RED; ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(L.x, L.y - 9); ctx.lineTo(L.x + 9, L.y); ctx.lineTo(L.x, L.y + 9); ctx.lineTo(L.x - 9, L.y);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            if (onTarget) text('ON TARGET', L.x, L.y + 22, 11, RED);
-          }
-        }
-      } else if (world.enemies.some(e => e.alive)) {
-        text('T  select target', w / 2, h / 2 + 64, 12, MUTED);
-      }
-
-      // The aim crosshair, last so it sits on top.
-      if (view.cursor) {
-        const cx = (view.cursor[0] * 0.5 + 0.5) * w, cy = (view.cursor[1] * 0.5 + 0.5) * h;
-        ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          ctx.moveTo(cx + dx * 5, cy + dy * 5); ctx.lineTo(cx + dx * 13, cy + dy * 13);
-        }
-        ctx.stroke();
-      }
-
-      // Bottom left: flight.
-      const x0 = 28, y0 = h - 118;
-      ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
-      text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
-      // The throttle bar shows the speed being held, which the speed lock can
-      // push past full throttle (up to the afterburner's speed).
-      const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
-      bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
-        world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s · W / S to release` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
-      bar(x0, y0 + 82, 180, ship.boost / ship.stats.boost.capacity, ship.boostLocked ? '#8a6040' : AMBER,
-        ship.afterburner ? 'AFTERBURNER' : 'AFTERBURNER · hold Tab');
-      if (world.speedLock) text('MATCHING TARGET SPEED', x0, y0 + 104, 11, AMBER, 'left');
-      else if (target) text('Z  match target speed', x0, y0 + 104, 11, MUTED, 'left');
-
-      // Bottom right: ship and weapons.
-      const x1 = w - 208;
-      bar(x1, y0 + 22, 180, p.shield / p.maxShield, CYAN, 'SHIELD', true);
-      bar(x1, y0 + 52, 180, p.hull / p.maxHull, p.hull / p.maxHull < 0.3 ? RED : INK, 'HULL', true);
-      bar(x1, y0 + 82, 180, p.gun.heat / CANNON.lockAt, p.gun.overheated ? RED : 'rgba(127,216,255,0.6)',
-        p.gun.overheated ? 'CANNONS OVERHEAT' : 'CANNONS · left click', true);
-      text(`MISSILES ${p.missiles}/${MISSILE.capacity} · right click`, x1 + 180, y0 + 104, 11, p.missiles ? AMBER : MUTED, 'right');
-
-      // Top: score and wave.
-      text(`SCORE  ${world.score.toLocaleString('en')}`, w / 2 - 70, 26, 13, INK);
-      text(`WAVE  ${world.wave}`, w / 2 + 70, 26, 13, INK);
-      if (world.leaving) text('LEAVING THE FIELD', w / 2, 58, 14, AMBER);
-
-      for (let i = callouts.length - 1; i >= 0; i--) {
-        const c = callouts[i];
-        c.age += dt;
-        if (c.age > 3) { callouts.splice(i, 1); continue; }
-        const a = Math.min(1, c.age * 4) * Math.min(1, (3 - c.age) * 2);
-        text(c.message, w / 2, h * 0.28 + i * 26, 18, `rgba(233, 237, 243, ${a})`);
-      }
+      radio(world);
+      centreText(dt);
     },
   };
 }

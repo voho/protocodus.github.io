@@ -8,8 +8,13 @@ import { NEUTRAL_CONTROLS, forward } from '../js/flight.js';
 import { PLAYER, ENEMY, COMBAT, FIELD, MAX_STEPS, STEP as DT } from '../js/config.js';
 import { makeRng } from '../js/rng.js';
 import { dist, dot, len, normalize, sub } from '../js/vec.js';
+import { SURVIVAL } from '../js/missions/survival.js';
+import { defineMission } from '../js/mission.js';
 
 const idle = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false };
+// A mission with no script: the player alone in the belt.
+const QUIET = defineMission({ id: 'quiet', field: FIELD, fieldSeed: 1234, seed: 1234 });
+const enemies = w => w.entities.filter(e => e.team === 1);
 const memory = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)) }; };
 
 test('damage drains the shield before the hull', () => {
@@ -55,22 +60,22 @@ test('a 60 s frame runs at most 8 steps and drops the backlog', () => {
 test('wave 1 arrives at start, wave 2 follows 6 s after the last kill', () => {
   const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
   stepWorld(w, idle, DT);
-  assert.equal(w.wave, 1); assert.equal(w.enemies.filter(e => e.alive).length, 3);
-  for (const e of w.enemies) applyDamage(e, 1e6, w.events);
+  assert.equal(w.wave, 1); assert.equal(enemies(w).filter(e => e.alive).length, 3);
+  for (const e of enemies(w)) applyDamage(e, 1e6, w.events);
   for (let i = 0; i < Math.round(5.9 / DT); i++) stepWorld(w, idle, DT);
   assert.equal(w.wave, 1);
   for (let i = 0; i < Math.round(0.2 / DT); i++) stepWorld(w, idle, DT);
-  assert.equal(w.wave, 2); assert.equal(w.enemies.filter(e => e.alive).length, 4);
+  assert.equal(w.wave, 2); assert.equal(enemies(w).filter(e => e.alive).length, 4);
   assert.ok(drainEvents(w).some(e => e.type === 'wave' && e.n === 2));
 });
-test('ramming a rock bounces and costs (v_n − 8) × 1.2', () => {
-  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
-  w.enemies.length = 0; w.waveTimer = 1e9;
+test('ramming a rock bounces and costs (v_n − 8) × 1.2, from the front shield quadrant', () => {
+  const w = createWorld({ seed: 1234, storage: memory(), mission: QUIET }); startRun(w);
   const b = w.field.belt; const i = [...b.type].findIndex(t => t === 3);
   const c = [b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]], R = b.collide[i];
   const p = w.player; p.ship.pos = [c[0], c[1], c[2] + R + PLAYER.radius + 0.1]; p.ship.vel = [0, 0, -30]; p.ship.fa = false; p.ship.throttle = 0;
   for (let k = 0; k < 4; k++) stepWorld(w, idle, DT);
-  near(PLAYER.shield - p.shield, (30 - COMBAT.collision.safe) * COMBAT.collision.perMs, 1.5);
+  near(p.maxShield - p.shield, (30 - COMBAT.collision.safe) * COMBAT.collision.perMs, 1.5);
+  near(p.quad[0], p.maxShield / 4 - (30 - COMBAT.collision.safe) * COMBAT.collision.perMs, 1.5, 'front quadrant');
   assert.ok(p.ship.vel[2] > 0); near(p.ship.vel[2], 30 * COMBAT.collision.restitution, 1.5);
 });
 const EMPTY = { ...FIELD, types: FIELD.types.map(t => ({ ...t, count: 0 })), landmarks: { ...FIELD.landmarks, count: 0 } };
@@ -120,16 +125,16 @@ test('reset after a fight restores the belt and clears everything', () => {
   resetWorld(w); startRun(w);
   assert.equal(w.weapons.bolts.length, 0); assert.equal(w.weapons.missiles.length, 0);
   assert.equal(w.field.dynamic.length, 0); assert.ok(w.field.alive.every(a => a === 1));
-  assert.equal(w.score, 0); assert.equal(w.player.hull, PLAYER.hull); assert.equal(w.player.shield, PLAYER.shield);
+  assert.equal(w.score, 0); assert.equal(w.player.hull, w.player.maxHull); assert.equal(w.player.shield, w.player.maxShield);
   stepWorld(w, idle, DT); stepWorld(fresh, idle, DT);
-  assert.deepEqual(w.enemies.map(e => e.ship.pos.map(v => +v.toFixed(6))), fresh.enemies.map(e => e.ship.pos.map(v => +v.toFixed(6))));
+  assert.deepEqual(enemies(w).map(e => e.ship.pos.map(v => +v.toFixed(6))), enemies(fresh).map(e => e.ship.pos.map(v => +v.toFixed(6))));
 });
 test('T targets the enemy nearest the crosshair, then cycles', () => {
   const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
   stepWorld(w, idle, DT);
   const fwd = [0, 0, -1];
   const angle = e => Math.acos(dot(normalize([0, 0, 0], sub([0, 0, 0], e.ship.pos, w.player.ship.pos)), fwd));
-  const order = [...w.enemies].sort((a, b) => angle(a) - angle(b));
+  const order = enemies(w).sort((a, b) => angle(a) - angle(b));
   stepWorld(w, { ...idle, cycleTarget: true }, DT);
   assert.equal(w.target, order[0]);
   stepWorld(w, { ...idle, cycleTarget: true }, DT);
@@ -145,8 +150,7 @@ test('when the target dies, targeting moves to the enemy nearest the crosshair',
   assert.ok(w.target && w.target !== first && w.target.alive, 'a live enemy is targeted');
 });
 test('with an aim point the fighter turns toward it and its guns converge on it', () => {
-  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
-  w.enemies.length = 0; w.waveTimer = 1e9;
+  const w = createWorld({ seed: 1234, storage: memory(), mission: QUIET }); startRun(w);
   const near2 = [50, 0, -1000];
   stepWorld(w, { ...idle, aimPoint: near2, fire: true }, DT);
   const b = w.weapons.bolts.at(-1);
@@ -168,7 +172,7 @@ test('Z locks the speed to the target\'s; W or S hands the throttle back', () =>
     // target had at the start of the step.
     const speed = len(w.target.ship.vel);
     stepWorld(w, idle, DT);
-    near(w.player.ship.cruise, Math.min(speed, PLAYER.fa.boostSpeed), 1e-9);
+    near(w.player.ship.cruise, Math.min(speed, w.player.ship.stats.fa.boostSpeed), 1e-9);
   }
   stepWorld(w, { ...idle, throttleDelta: 1 }, DT);
   assert.equal(w.speedLock, false);
