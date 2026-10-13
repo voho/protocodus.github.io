@@ -190,10 +190,10 @@ before you launch.
 The hangar is the Perpetua's flight deck: the hull you are fitting out
 hovers over a pad under a gantry, lit by the deck's lamps and casting its
 shadow, the launch door open on the stars behind it, and the camera shows
-it off — three-quarter from the front, the profile, the engines, from
-above, close on the nose, low under it, each shot held and eased into the
-next. Drag to look round it yourself, scroll to come closer; left alone,
-the tour picks up again. Out of flight only the music and the buttons are
+it off, the whole ship from above — three-quarter from the front, the
+profile, the engines, high over the back, the other side — each shot held
+and eased into the next. Drag to look round it yourself, scroll to come
+closer; left alone, the tour picks up again. Out of flight only the music and the buttons are
 heard. The bay is a model of its own (`assets/models/hangar.glb`), a
 scene of its own with its own lights (`js/hangar.js`), and the only thing
 in the game that casts a real shadow.
