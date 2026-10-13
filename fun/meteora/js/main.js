@@ -308,9 +308,9 @@ async function boot() {
   renderer.shadowMap.type = THREE.PCFShadowMap;
   hangar = createHangar(renderer, library);
   hangarStage = document.querySelector('[data-hangar-stage]');
-  hangarStage?.addEventListener('pointerdown', e => { hangarStage.setPointerCapture(e.pointerId); hangar.grab(true); });
-  hangarStage?.addEventListener('pointermove', e => { if (hangarStage.hasPointerCapture(e.pointerId)) hangar.turn(e.movementX); });
-  for (const type of ['pointerup', 'pointercancel']) hangarStage?.addEventListener(type, () => hangar.grab(false));
+  hangarStage?.addEventListener('pointerdown', e => { hangarStage.setPointerCapture(e.pointerId); hangar.grab(); });
+  hangarStage?.addEventListener('pointermove', e => { if (hangarStage.hasPointerCapture(e.pointerId)) hangar.turn(e.movementX, e.movementY); });
+  hangarStage?.addEventListener('wheel', e => { e.preventDefault(); hangar.zoom(e.deltaY); }, { passive: false });
 
   input = createInput(canvas, controlState, {
     isFlying: () => mode === 'flight' && world.state === 'flying' && !paused,
@@ -1071,6 +1071,10 @@ function tick(dt) {
   targetView.update(rect && world.target?.alive ? world.target : null, camera, rect);
 
   audio?.update(world, camera, step);
+  // Outside a flight only the music and the buttons are heard; on the
+  // radio, everything else steps back.
+  audio?.quiet(mode !== 'flight');
+  audio?.duck(voices.speaking);
   music?.update(world, dt);
   music?.duck(voices.speaking);
 }

@@ -50,10 +50,11 @@ test('without an English voice the radio is only read', () => {
   assert.equal(castVoices([V('Anna', 'de-DE')]).size, 0);
   assert.equal(castVoices([]).size, 0);
 });
-test('a line is spoken faster when it would outlast its time on screen, within limits', () => {
+test('a line is spoken faster when it would outlast its time on screen, never past understanding', () => {
   assert.equal(rateFor('x'.repeat(40), 4, 1), 1);
-  assert.ok(rateFor('x'.repeat(130), 7, 1) > 1.3);
-  assert.equal(rateFor('x'.repeat(400), 8.7, 1), 1.5);
+  assert.ok(rateFor('x'.repeat(100), 7, 1) > 1.05);
+  assert.equal(rateFor('x'.repeat(130), 7, 1), 1.2);
+  assert.equal(rateFor('x'.repeat(400), 8.7, 1), 1.2);
   assert.equal(rateFor('short', 0.2, 1.08), 1.08);
 });
 test('in Node the radio is tracked but nothing is spoken', () => {

@@ -99,7 +99,8 @@ export function castVoices(voices) {
 /* The speaking rate for a line with `room` seconds on screen. */
 export function rateFor(text, room, base) {
   const natural = text.length * PER_CHAR;
-  return Math.min(1.5, Math.max(base, natural / Math.max(1.5, room)));
+  // Never so fast that it stops being words.
+  return Math.min(1.2, Math.max(base, natural / Math.max(1.5, room)));
 }
 
 export function createVoices({ volume = () => 1 } = {}) {

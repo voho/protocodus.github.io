@@ -1,8 +1,8 @@
 /* Meteora — the hangar bay.
 
    Behind the hangar screen: the Perpetua's flight deck (hangar.glb, built
-   by tools/blender/build_hangar.py) with the ship you are fitting out on
-   its turntable, turning slowly; drag to turn it yourself.
+   by tools/blender/build_hangar.py) with the ship you are fitting out
+   hovering over its pad.
 
    A scene of its own, lit like a deck: a key spot over the pad that casts
    the ship's shadow, cool light off the catwalk strips, a warm wash from
@@ -11,24 +11,45 @@
    bloom. Its reflections are the bay's, captured once when it loads.
    Through the launch door, the sky of wherever the Perpetua is.
 
-   The ship sits in the middle column of the screen, between the panels:
-   `update` is told where that is and shifts the view to centre it there. */
+   The camera shows the ship off: a tour of shots — three-quarter from the
+   front, the profile, the engines, from above, close on the nose, low
+   under it — each held a while and drifting, eased from one to the next.
+   Drag to look round it yourself and scroll to come closer; left alone,
+   the tour picks up from wherever you left it. The ship sits in the middle
+   column of the screen, between the panels: `update` is told where that
+   is and shifts the view to centre it there. */
 
 import * as THREE from 'three';
 import { GLTFLoader } from '../assets/vendor/GLTFLoader.js';
 
 const URL_GLB = new URL('../assets/models/hangar.glb', import.meta.url).href;
 const PAD_TOP = 0.28, HOVER = 1.4;
-const IDLE_SPIN = 0.16;     // rad/s while nobody is turning it
+// The shots: bearing round the ship (0 behind it, π before its nose), height
+// (radians), distance (1: the whole ship fills the column) and where to look
+// along the ship (−1 the nose, 1 the tail).
+const SHOTS = [
+  { az: 2.35, el: 0.2, k: 0.95, look: 0, hold: 6 },
+  { az: 1.57, el: 0.05, k: 1.05, look: 0, hold: 5 },
+  { az: 0.55, el: 0.12, k: 0.72, look: 0.45, hold: 5 },
+  { az: -0.7, el: 0.9, k: 1.0, look: 0, hold: 5 },
+  { az: 3.6, el: 0.1, k: 0.5, look: -0.55, hold: 5 },
+  { az: 4.2, el: -0.03, k: 0.78, look: -0.1, hold: 5 },
+];
+const MOVE = 2.6, HANDS_OFF = 5;
+const ease = t => t * t * t * (t * (t * 6 - 15) + 10);
+const toward = (a, b) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
 export function createHangar(renderer, library) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x0a0e15, 0.0042);
-  const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.5, 600);
+  const camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.3, 600);
   const holder = new THREE.Group();
   scene.add(holder);
-  let turntable = null, ship = null, shown = null, wanted = null, ready = false, time = 0;
-  let spin = -0.6, drag = null, still = 0, radius = 9, centreY = 3;
+  let ship = null, shown = null, wanted = null, ready = false;
+  let radius = 9, centreY = 3, half = 7;
+  // The camera: where it is now, and the tour it is on.
+  const view = { ...SHOTS[0] };
+  let shot = 0, moving = false, clock = 0, from = null, idle = HANDS_OFF;
 
   // The lamps.
   scene.add(new THREE.HemisphereLight(0xaab8d8, 0x2b2620, 0.55));
@@ -56,7 +77,6 @@ export function createHangar(renderer, library) {
   const loaded = new GLTFLoader().loadAsync(URL_GLB).then(gltf => {
     const bay = gltf.scene;
     bay.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
-    turntable = bay.getObjectByName('turntable');
     scene.add(bay);
     // The bay's own reflections, before any ship is in it.
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -74,51 +94,81 @@ export function createHangar(renderer, library) {
     if (ship) holder.remove(ship);
     ship = inst.root;
     shown = model;
-    // Hovering over the pad, centred on it.
+    // Hovering over the pad, centred on it, nose to the launch door.
     ship.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(ship);
     const centre = box.getCenter(new THREE.Vector3());
     ship.position.set(-centre.x, PAD_TOP + HOVER - box.min.y, -centre.z);
     radius = box.getBoundingSphere(new THREE.Sphere()).radius;
     centreY = PAD_TOP + HOVER + (box.max.y - box.min.y) / 2;
+    half = (box.max.z - box.min.z) / 2;
     ship.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     holder.add(ship);
   }
 
+  // The tour: hold a shot, drifting, then ease to the next — unless the
+  // player has had the camera in the last few seconds.
+  function tour(dt) {
+    idle += dt;
+    if (idle < HANDS_OFF) return;
+    clock += dt;
+    if (moving) {
+      const to = SHOTS[shot], e = ease(Math.min(1, clock / MOVE));
+      view.az = from.az + (toward(from.az, to.az) - from.az) * e;
+      for (const k of ['el', 'k', 'look']) view[k] = from[k] + (to[k] - from[k]) * e;
+      if (clock >= MOVE) { moving = false; clock = 0; }
+    } else {
+      view.az += dt * 0.035;
+      if (clock > SHOTS[shot].hold) {
+        from = { ...view };
+        shot = (shot + 1) % SHOTS.length;
+        moving = true; clock = 0;
+      }
+    }
+  }
+  // The player takes the camera; the tour resumes from there.
+  const takeOver = () => { idle = 0; moving = false; clock = Infinity; };
+
   return {
     scene, camera, loaded,
     get ready() { return ready; },
-    /* The hull on the turntable (a model name); one still loading is put
-       there when it arrives. */
+    /* The hull on the pad (a model name); one still loading is put there
+       when it arrives. */
     show(model) { if (model) { wanted = model; place(model); } },
     /* Ships to get the renderer ready on, one of each hull. */
     samples(models) { return models.map(m => library.instantiate(m)?.root).filter(Boolean); },
     /* The sky outside the launch door. */
     setSky(texture) { scene.background = texture ?? null; },
-    /* Drag to turn: `dx` in CSS pixels. */
-    turn(dx) { spin += dx * 0.008; still = 0; },
-    grab(on) { drag = on; still = 0; },
+    /* Drag to look round (CSS pixels), scroll to come closer. */
+    turn(dx, dy = 0) {
+      takeOver();
+      view.az -= dx * 0.007;
+      view.el = Math.max(-0.12, Math.min(1.25, view.el + dy * 0.005));
+    },
+    zoom(dy) {
+      takeOver();
+      view.k = Math.max(0.38, Math.min(1.5, view.k * Math.exp(dy * 0.0012)));
+    },
+    grab() { takeOver(); },
     /* Once a frame while the hangar is up; `stage` is the middle column's
        rectangle and `w`, `h` the canvas's size, in CSS pixels. */
     update(dt, stage, w, h) {
-      time += dt;
       if (wanted && wanted !== shown) place(wanted);
-      still += dt;
-      if (!drag && still > 1.5) spin += dt * IDLE_SPIN * Math.min(1, (still - 1.5) / 2);
-      holder.rotation.y = spin;
-      if (turntable) turntable.rotation.y = spin;
-      // Framed to fit the middle column whichever way the ship is turned,
-      // from a little above and to the side, drifting a touch.
+      tour(dt);
+      // At k = 1 the ship, turned any way, just fills the middle column.
       camera.aspect = w / h;
       const colW = Math.max(240, stage?.width || w * 0.5);
       const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-      const tanH = tanV * camera.aspect * (colW / w);
-      const fit = Math.min(tanV * 1.05, tanH);
-      // Never back through the wall behind (the bay runs 66 m that way).
-      const d = Math.min(58, Math.max(16, radius / fit * 1.2));
-      const az = 0.42 + 0.05 * Math.sin(time * 0.11), el = 0.13 + 0.025 * Math.sin(time * 0.07);
-      camera.position.set(Math.sin(az) * Math.cos(el) * d, centreY + Math.sin(el) * d, Math.cos(az) * Math.cos(el) * d);
-      camera.lookAt(0, centreY, 0);
+      const fit = Math.min(tanV * 1.05, tanV * camera.aspect * (colW / w));
+      const d = Math.max(4, radius / fit * view.k);
+      const lookZ = view.look * half;
+      const ce = Math.cos(view.el);
+      camera.position.set(Math.sin(view.az) * ce * d, centreY + Math.sin(view.el) * d, lookZ + Math.cos(view.az) * ce * d);
+      // Inside the bay, above the deck.
+      camera.position.x = Math.max(-37, Math.min(37, camera.position.x));
+      camera.position.y = Math.max(0.6, Math.min(21, camera.position.y));
+      camera.position.z = Math.max(-47, Math.min(63, camera.position.z));
+      camera.lookAt(0, centreY, lookZ);
       const cx = stage ? stage.x + stage.width / 2 : w / 2, cy = stage ? stage.y + stage.height / 2 : h / 2;
       camera.setViewOffset(w, h, w / 2 - cx, (h / 2 - cy) * 0.6, w, h);
       camera.updateProjectionMatrix();

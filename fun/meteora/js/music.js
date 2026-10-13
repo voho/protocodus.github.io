@@ -34,7 +34,7 @@ export const MOODS = {
   combat: 'armada', climax: 'armada', victory: 'grandeur', defeat: 'weight',
 };
 const FLIGHT = ['calm', 'stealth', 'tension', 'combat', 'climax'];
-const FADE = 2.5, RESUME = 90, DUCK = 0.45;
+const FADE = 2.5, RESUME = 90, DUCK = 0.32, GAIN = 1.15;
 const BASE = new URL('../assets/music/', import.meta.url);
 
 /* The piece a mood plays under a mission's soundtrack. */
@@ -99,7 +99,7 @@ export function createMusic(audio, volume = 0.6) {
     ctx = audio.ctx;
     if (!ctx || out) return;
     out = ctx.createGain();
-    out.gain.value = level * level * 0.7;
+    out.gain.value = level * level * GAIN;
     out.connect(ctx.destination);
     for (const p of pieces.values()) piece(p.key);
     refresh();
@@ -120,7 +120,7 @@ export function createMusic(audio, volume = 0.6) {
       if (!ctx) build();
       if (playing?.el.paused) playing.el.play().catch(() => {});
     },
-    setVolume(v) { level = v; if (out) ramp(out.gain, v * v * 0.7, 0.1); },
+    setVolume(v) { level = v; if (out) ramp(out.gain, v * v * GAIN, 0.1); },
     setMood,
     get mood() { return mood; },
     get track() { return playing ? TRACKS[playing.key].title : null; },

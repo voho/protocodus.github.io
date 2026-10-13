@@ -20,7 +20,7 @@ import { PROLOGUE, CODEX, HINTS, CASE_FILE } from './story.js';
 const KEY = 'meteora.settings';
 const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const DEFAULT_SETTINGS = Object.freeze({
-  volume: 0.8, music: 0.6, invertPitch: false, vibration: !reducedMotion, sensitivity: 1.6, steering: 'direct',
+  volume: 0.8, music: 0.7, invertPitch: false, vibration: !reducedMotion, sensitivity: 1.6, steering: 'direct',
   bloom: true, voices: 0.9, cutaways: true, fov: 70, quality: 'sharp',
 });
 

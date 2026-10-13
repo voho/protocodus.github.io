@@ -32,6 +32,8 @@ import * as THREE from 'three';
 import { AUDIO } from './config.js';
 import { RATE, doppler, enginePitch, lockBeepInterval, loops, muffle, synthesizeBank } from './sounds.js';
 
+const SFX = 0.62, ENGINES = 0.45, DUCK = 0.45;
+
 export function createAudio(volume = 0.8) {
   const samples = {};
   const job = synthesizeBank((name, data) => (samples[name] ??= []).push(data));
@@ -96,7 +98,9 @@ export function createAudio(volume = 0.8) {
     limiter.threshold.value = -12; limiter.knee.value = 12; limiter.ratio.value = 8;
     limiter.attack.value = 0.003; limiter.release.value = 0.25;
     master.connect(hush).connect(limiter).connect(ctx.destination);
-    sfx = gain(1); cockpit = gain(0.8); engineBus = gain(0.9);
+    // The mix: the music carries the scene, the engines sit under the
+    // fight and the fight under the radio.
+    sfx = gain(SFX); cockpit = gain(0.75); engineBus = gain(ENGINES);
     for (const bus of [sfx, cockpit, engineBus]) bus.connect(master);
     loopBuffers = Object.fromEntries(Object.entries(loopData).map(([k, data]) => [k, toBuffer(data)]));
 
@@ -413,6 +417,17 @@ export function createAudio(volume = 0.8) {
     }
   }
 
+  /* The world's sounds — engines, guns, blasts — fade out while `quiet`
+     (the menus and the hangar keep only the music and the buttons) and
+     dip while someone speaks on the radio. */
+  let quiet = false, ducked = false;
+  function remix(now) {
+    if (!sfx) return;
+    const k = quiet ? 0 : ducked ? DUCK : 1;
+    glide(sfx.gain, SFX * k, now, quiet ? 0.3 : 0.12);
+    glide(engineBus.gain, ENGINES * k, now, quiet ? 0.3 : 0.12);
+  }
+
   function update(world, camera, dt) {
     if (!ctx || ctx.state !== 'running') return;
     const now = ctx.currentTime;
@@ -437,6 +452,8 @@ export function createAudio(volume = 0.8) {
 
   return {
     get context() { return ctx; },
+    quiet(on) { if (on !== quiet) { quiet = on; if (ctx) remix(ctx.currentTime); } },
+    duck(on) { if (on !== ducked) { ducked = on; if (ctx) remix(ctx.currentTime); } },
     get ready() { return Object.keys(samples).length; },
     // Call from a user gesture.
     start() {
