@@ -92,7 +92,7 @@ let folds, shields, entities, bloom = null, fill, dust, warmup, hangar = null, h
 // The place's look (environments.js) and the lights it sets.
 let look = null, lookKey = null, sunLight, hemiLight, ambientLight, holeLight;
 let targetView = null;
-let mode = 'boot', paused = false, deadTimer = 0, wreck = null, lastKnock = -Infinity;
+let mode = 'boot', flightSince = 0, paused = false, deadTimer = 0, wreck = null, lastKnock = -Infinity;
 let currentMission = null, currentLoadout = null, outcomeAt = null, debriefShown = false, slowmo = 0, jumped = false;
 let hangarMission = null, hangarLoadout = null, survivalRun = false, prologueStep = 0;
 // Bumped by every launch and every return to the menus: a launch still
@@ -601,6 +601,7 @@ async function launch(mission, loadout) {
   hud.banner(mission ? (mission.training ? mission.title : `Mission ${mission.number} · ${mission.title}`) : 'Survival', mission ? `${mission.location} · ${mission.dateline ?? ''}` : 'How long can you last?', '#ffffff', 3.6);
   if (!BENCH && !AUTOPILOT && roomForIntro()) chase.intro(4.6);
   mode = 'flight';
+  flightSince = performance.now();
   screens.show(null, { remember: false });
   document.activeElement?.blur?.();
   audio?.start();
@@ -924,10 +925,13 @@ function frame(now) {
   const dt = Math.min(0.1, raw / 1000);
   last = now;
   const frameStart = performance.now();
-  // The loading screen's long frames are the warm-up's, not the flight's:
-  // judged as the flight's, they would start every mission at a lower
-  // resolution, barred for half a minute from climbing back.
-  if (!BENCH && !paused && mode !== 'loading' && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
+  // Only the flight is judged, from its second second. The loading
+  // screen's long frames are the warm-up's, the menus' are the fleet
+  // loading and the hangar getting ready behind them, and the first frame
+  // in flight waited for the hand-over from the loading screen: judged,
+  // they would start a mission at a lower resolution, barred for half a
+  // minute from climbing back — and the climb back is a resize mid-flight.
+  if (!BENCH && !paused && mode === 'flight' && now - flightSince > 1000 && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
     const ratio = resolution.frame(raw);
     if (ratio !== renderer.getPixelRatio()) {
       renderer.setPixelRatio(ratio);

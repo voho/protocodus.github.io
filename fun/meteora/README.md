@@ -392,8 +392,10 @@ meteora.pilot = createBot(7); meteora.speed = 3;
   look at a new kind of ship costs nothing.
 - A copy of a material keeps the hull detail's shader hook
   (`cloneMaterial`), so a turret going dark uses the shader it had.
-- The pixel ratio adapts to frame time between 0.6 and 1.5; the loading
-  screen's long frames are not counted against it.
+- The pixel ratio adapts to frame time in flight, between 0.6 and 1.5.
+  The loading screen and the menus, busy getting things ready, are not
+  judged, so a mission starts as sharp as the last one ended and is not
+  resized while it is flown to climb back.
 - Where the GPU can render into half-float targets, the scene is drawn in
   HDR and tone-mapped at the end, and a five-level bloom lets flames,
   bolts, fire and the Harrow's red lights bleed: about 1.4 ms of GPU time
