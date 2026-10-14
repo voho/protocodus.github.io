@@ -1,8 +1,8 @@
 {
   "product": "Lamer Degrader",
-  "source_version": "1.0.0f2",
-  "source_directory": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop",
-  "asset_origin": "Front and rear panels are composites of the shipped runtime assets at their default control states, not host captures. The thumbnail is the approved shop composition.",
+  "source_version": "1.0.0f9",
+  "source_directory": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Output/release-1.0.0f9/shop",
+  "asset_origin": "Front and rear panels are composites of the f9 runtime assets at their default control states, not host captures. The square thumbnail is the approved shop composition. The demo poster is the approved final Double Trouble artwork.",
   "export_method": {
     "png": "Byte-for-byte copy of the release shop asset.",
     "webp": "Pillow lossless WebP export with lossless=True, quality=100, method=6; no resizing, retouching, or artwork changes.",
@@ -10,21 +10,21 @@
   },
   "assets": [
     {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Front.png",
-      "source_sha256": "02d7826c251f4231f8b185741781fee85b48120bde5f1476f65ef40cb35e3ac2",
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Output/release-1.0.0f9/shop/Lamer_Degrader_Front.png",
+      "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
       "dimensions": [
         1600,
         293
       ],
       "png": {
         "file": "Lamer_Degrader_Front.png",
-        "sha256": "02d7826c251f4231f8b185741781fee85b48120bde5f1476f65ef40cb35e3ac2",
-        "bytes": 217789
+        "sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
+        "bytes": 212170
       },
       "webp": {
         "file": "lamer-panel.webp",
-        "sha256": "6217e0319e5a28336466128105f8df99d7e95b50baa7b20015a3b18dc36c1531",
-        "bytes": 144780,
+        "sha256": "e0a24c0c2bbc6c1e885fb60f63812d452c436d1115c26bb00d6b7b9b96031a4e",
+        "bytes": 140870,
         "dimensions": [
           1600,
           293
@@ -33,21 +33,21 @@
       }
     },
     {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Back.png",
-      "source_sha256": "69db27bfe46ca7607f041a47e717344a85f2a408fda145a693b94584e4ef428e",
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Output/release-1.0.0f9/shop/Lamer_Degrader_Back.png",
+      "source_sha256": "c431f675feec5ce96d87f657006e71983a5fe229551dae6f95cec95a870de4c9",
       "dimensions": [
         1600,
         293
       ],
       "png": {
         "file": "Lamer_Degrader_Back.png",
-        "sha256": "69db27bfe46ca7607f041a47e717344a85f2a408fda145a693b94584e4ef428e",
-        "bytes": 198561
+        "sha256": "c431f675feec5ce96d87f657006e71983a5fe229551dae6f95cec95a870de4c9",
+        "bytes": 224695
       },
       "webp": {
         "file": "lamer-rear.webp",
-        "sha256": "9eccefddd8e986b698825fbada72fac3ede74de84c6d8d696d368aa79e302972",
-        "bytes": 128168,
+        "sha256": "79f74dfc444950d8e356ea03dce84f8299ef1b6dede6ce37c9c202a47e2c3e91",
+        "bytes": 146098,
         "dimensions": [
           1600,
           293
@@ -56,21 +56,21 @@
       }
     },
     {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Release/1.0.0f2/Shop/Lamer_Degrader_Thumbnail_800.png",
-      "source_sha256": "4cc61ecce0d05cde9572d2320c84b9b5cc78abfdd1ddebd38fa213e079c479fd",
+      "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/Output/release-1.0.0f9/shop/Lamer_Degrader_Thumbnail_800.png",
+      "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
       "dimensions": [
         800,
         800
       ],
       "png": {
         "file": "Lamer_Degrader_Thumbnail_800.png",
-        "sha256": "4cc61ecce0d05cde9572d2320c84b9b5cc78abfdd1ddebd38fa213e079c479fd",
-        "bytes": 212148
+        "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+        "bytes": 209605
       },
       "webp": {
         "file": "lamer-card.webp",
-        "sha256": "0990ce35c48cfb47e3788264b13d5e808b3d78b2e3c8986ec3a9845b680c179e",
-        "bytes": 147970,
+        "sha256": "4223421b713686271d19d71634492458adf3052854b5faa21437f6696e8cb983",
+        "bytes": 146220,
         "dimensions": [
           800,
           800
@@ -78,5 +78,113 @@
         "decoded_pixels_match_source": true
       }
     }
-  ]
+  ],
+  "demo_poster": {
+    "source_path": "/Users/vojta/Downloads/Lamer-YouTube-Upload/Lamer-Double-Trouble-1280x720.jpg",
+    "source_sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
+    "export_method": "Byte-for-byte copy of the approved 1280x720 JPEG.",
+    "dimensions": [
+      1280,
+      720
+    ],
+    "file": "lamer-demo-poster.jpg",
+    "sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
+    "bytes": 310714
+  },
+  "demo_video": {
+    "file": "lamer-demo.mp4",
+    "bytes": 8435229,
+    "sha256": "de6a4ed52886d234cc2587f74ecc6107ca06b0f8651d394cdfaedacda986c6a6",
+    "source_path": "/Users/vojta/Downloads/Lamer-Degrader-Video-v2/Lamer-Degrader-MP3-OGG-1-and-2-Passes-1080p30.mp4",
+    "source_sha256": "fcb25d0bce8bbc14885522f36522658daf932c07fdfee24a57ce8ad8027611c8",
+    "encoding": {
+      "video": "H.264/libx264, preset slow, CRF 22, yuv420p, Lanczos scale to 1280x720",
+      "audio": "AAC 256 kbps, stereo, 48 kHz",
+      "faststart": true,
+      "timeline_changes": "None. Original 96-second picture and audio timeline retained."
+    },
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 1280,
+          "height": 720,
+          "start_time": "0.000000",
+          "duration": "96.000000",
+          "nb_read_frames": "2880"
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "48000",
+          "channels": 2,
+          "start_time": "0.000000",
+          "duration": "96.000000",
+          "nb_read_frames": "4500"
+        }
+      ],
+      "format": {
+        "duration": "96.000000",
+        "size": "8435229"
+      }
+    },
+    "validation": {
+      "all_frames_decoded": true,
+      "frame_count": 2880,
+      "audio_frames_decoded": 4608000,
+      "sample_peak_dbfs": -1.2977142345360282,
+      "true_peak_4x_dbtp": -1.0432680572327322,
+      "nonfinite_audio_samples": 0,
+      "samples_at_or_above_full_scale": 0,
+      "chapter_alignment": [
+        {
+          "start_seconds": 0,
+          "offset_samples": 0,
+          "correlation_to_source": 0.9999492126412822
+        },
+        {
+          "start_seconds": 24,
+          "offset_samples": 0,
+          "correlation_to_source": 0.9999985970058237
+        },
+        {
+          "start_seconds": 48,
+          "offset_samples": 0,
+          "correlation_to_source": 0.9999927264262676
+        },
+        {
+          "start_seconds": 72,
+          "offset_samples": 0,
+          "correlation_to_source": 0.9999991680061383
+        }
+      ],
+      "mp4_atoms": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 106898
+        },
+        {
+          "type": "free",
+          "offset": 106930,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 106938,
+          "size": 8328291
+        }
+      ]
+    }
+  }
 }

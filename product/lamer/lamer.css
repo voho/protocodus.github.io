@@ -2,10 +2,23 @@
 .p-lamer { --signal: #b4cc88; --accent: #b4cc88; --accent-hover: #c4dba0; --accent-subtle: rgba(180, 204, 136, 0.1); }
 .p-lamer .instrument-layout { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
 .p-lamer .hero-title { max-width: 10ch; color: #f3e6cb; }
+.lamer-status { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.5rem; color: #f3d6aa; font-size: 0.875rem; font-weight: 500; }
+.status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: currentColor; }
 .lamer-deck { margin-top: 1rem; font-size: clamp(1.4rem, 1.15rem + 0.8vw, 1.9rem); line-height: 1.3; letter-spacing: -0.035em; color: var(--signal); }
 .lamer-art { margin: 0; min-width: 0; }
 .lamer-art img { width: 100%; height: auto; border-radius: var(--radius-md); }
 .lamer-panel { margin-block: 2rem; }
+.lamer-demo { margin: 0; }
+.lamer-demo video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #151711; border-radius: var(--radius-md); }
+.lamer-demo figcaption { max-width: 85ch; margin-top: 1.25rem; color: var(--fg-muted); font-size: 0.9375rem; }
+.lamer-chapters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1.5rem; }
+.lamer-chapters button { padding: 1rem 1.25rem; min-height: 80px; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--panel); color: var(--fg-muted); cursor: pointer; text-align: left; transition: background var(--interaction), border-color var(--interaction); }
+.lamer-chapters button span { display: block; margin-bottom: 0.3rem; color: var(--signal); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.lamer-chapters button strong { color: var(--fg); font-weight: 500; }
+.lamer-chapters button:hover { background: var(--panel-lift); }
+.lamer-chapters button[aria-current="true"] { border-color: var(--signal); background: var(--accent-subtle); }
+.lamer-video-link { margin-top: 0.75rem; }
+.lamer-video-status { margin-top: 1rem; color: #f3d6aa; }
 .p-lamer .shot img { border: 0; border-radius: 0; }
 .lamer-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 2.5rem; gap: 2.5rem 4rem; }
 .lamer-controls li { border: 0; padding-top: 0; }
@@ -32,4 +45,6 @@
 @media (max-width: 560px) {
   .lamer-controls { grid-template-columns: 1fr; }
   .lamer-panel { margin-block: 1.5rem; }
+  .lamer-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+  .lamer-chapters button { padding: 0.8rem 1rem; }
 }
