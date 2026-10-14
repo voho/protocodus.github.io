@@ -1,0 +1,43 @@
+{
+  "product": "Taikor",
+  "reviewed": "2026-10-14",
+  "availability": "coming_soon",
+  "source_version": "1.0.0",
+  "source_format": "Plug-in / standalone; no Rack Extension source or release exists in the audited Rack repository.",
+  "source_directory": "/Users/vojta/Dev/virtual-instrument-taikor",
+  "source_commit": "975ad5ac31e371b3674a128d4f646f30453bc260",
+  "feature_sources": [
+    {
+      "file": "README.md",
+      "sha256": "6dd57b7780159b033265c1ec7d5ac4875a0a93fde9054446f59ccf50289ab4d2"
+    },
+    {
+      "file": "CMakeLists.txt",
+      "sha256": "224889d5844df3880a525507f75a25812258d614bfd2d68f9f7d8d0aee366b78"
+    }
+  ],
+  "asset_origin": "Retained authentic complete plug-in editor images from the prior website audit. Features checked against current canonical README and source; no Rack panel or Rack version is invented.",
+  "previous_media_audit": "../SCREENSHOTS.md (6 October 2026 audit)",
+  "assets": [
+    {
+      "file": "taikor-panel.webp",
+      "sha256": "d5b21f1c144c5d77924a42d0fa3b7f0e04d7a8749698f7b92cf524822b2b19c0",
+      "bytes": 152986,
+      "dimensions": [
+        1280,
+        920
+      ],
+      "change": "Retained without modification."
+    },
+    {
+      "file": "taikor-card.webp",
+      "sha256": "8f6b68b2c4255e7f17e44c78ce55b8df94deab42b360c5aea169a182a824a357",
+      "bytes": 95088,
+      "dimensions": [
+        880,
+        633
+      ],
+      "change": "Retained without modification."
+    }
+  ]
+}
