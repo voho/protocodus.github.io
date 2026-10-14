@@ -127,8 +127,10 @@ p { text-wrap: pretty; }
 .band-well { background: var(--bg-well); }
 .release-table-scroll { max-width: 100%; overflow-x: auto; margin-block: 2rem; }
 .release-table { width: 100%; min-width: 42rem; border-collapse: collapse; text-align: left; }
+.release-table-current { min-width: 0; }
 .release-table caption { text-align: left; color: var(--fg-muted); padding-bottom: 1rem; }
 .release-table th, .release-table td { padding: 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.release-table-current th, .release-table-current td { padding: 1rem 0.65rem; }
 .showcase { border-top: 0; }
 
 /* Complete instrument previews: never crop controls to fit a card. */
@@ -157,6 +159,14 @@ a.product-card:hover { background: #14171d; border-color: color-mix(in srgb, var
 .instrument-hero .hero-actions { gap: 0.8rem 1.25rem; }
 .detail-link { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; color: var(--fg-muted); font-size: 0.9375rem; }
 .detail-link:hover { color: var(--fg); }
+.availability-badge { display: inline-flex; align-items: center; width: fit-content; min-height: 40px; padding: 0.45rem 0.8rem; border: 1px solid var(--line-lift); border-radius: var(--radius-sm); color: var(--fg-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; }
+.availability-badge.is-available { border-color: var(--accent); color: var(--accent); }
+.product-body .availability-badge { margin-bottom: 0.8rem; }
+.rack-compatibility { display: flex; align-items: center; gap: 0.8rem; margin-top: 1.25rem; color: var(--fg-muted); font-size: 0.875rem; }
+.rack-mark { flex: none; padding: 14px; }
+.rack-mark img { width: 48px; height: auto; }
+.reason-shop-badge { display: inline-flex; padding: 12px; margin-top: 0.5rem; }
+.reason-shop-badge img { width: 182px; height: auto; }
 .availability-note { margin-top: 0.9rem; color: var(--fg-faint); font-size: 0.875rem; line-height: 1.6; max-width: 48ch; }
 .shot { min-width: 0; margin: 0; }
 .screenshot-link { display: block; border-radius: var(--radius-sm); }
