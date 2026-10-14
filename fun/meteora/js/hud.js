@@ -836,8 +836,10 @@ export function createHud(canvas) {
     if (!hint) return;
     const a = Math.min(1, (now - hint.at) * 4) * Math.min(1, (hint.until - now) * 2);
     const lines = hintLines(hint.text, Math.min(540, w * 0.6));
+    // Above the ship and the crosshair over it, growing upward: never over
+    // the fighter, the reticle or the instruments.
     const LINE = 24, width = Math.max(...lines.map(l => l.width)) + 40, tall = lines.length * LINE + 14;
-    const y = h - 214 - tall;
+    const y = h / 2 - 34 - tall;
     ctx.globalAlpha = a;
     ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y, width, tall);
     ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.lineWidth = 1;
