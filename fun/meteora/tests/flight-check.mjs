@@ -2,6 +2,7 @@
 import { test, run, assert, near } from './harness.mjs';
 import { createShip, stepShip, NEUTRAL_CONTROLS, selectRcsPorts, forward, aimCommands, BURN_BUILD } from '../js/flight.js';
 import { PLAYER, STEP as DT } from '../js/config.js';
+import { CLASSES } from '../js/catalog.js';
 import { qRotateInv, qRotate, qFromAxisAngle, len, normalize } from '../js/vec.js';
 
 const ctl = (o = {}) => ({ ...NEUTRAL_CONTROLS, ...o });
@@ -23,6 +24,17 @@ test('throttle zero brakes to rest no faster than reverse thrust', () => {
   fly(s, ctl({ throttleZero: true }), 9.5, s => { const v = len(s.vel); assert.ok(prev - v <= PLAYER.accel.reverse * DT + 1e-9); prev = v; });
   assert.equal(s.throttle, 0);
   assert.ok(len(s.vel) < 0.5, `still ${len(s.vel)}`);
+});
+test('a fighter never flies backwards: held slower, every hull stops and stays stopped', () => {
+  for (const hull of ['swift', 'kestrel', 'anvil']) {
+    const stats = CLASSES[hull].flight;
+    const s = createShip(stats, { vel: [0, 0, -stats.fa.forwardSpeed] }); s.throttle = 1;
+    let back = 0;
+    fly(s, ctl({ throttleDelta: -1 }), 30, s => { back = Math.max(back, local(s)[2]); });
+    assert.equal(s.throttle, 0, hull);
+    assert.ok(back < 0.01, `${hull} went backwards at ${back.toFixed(3)} m/s`);
+    assert.ok(len(s.vel) < 0.5, `${hull} still moving at ${len(s.vel)}`);
+  }
 });
 test('a 90° turn at speed leaves a slide that decays at the lateral limit', () => {
   const s = createShip(PLAYER, { vel: [0, 0, -150] }); s.throttle = 150 / 180;

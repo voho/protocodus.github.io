@@ -50,14 +50,17 @@ function heavy({ radius, mass, cruise, accel = 2.5, rate = 0.06, angAccel = 0.05
 }
 
 export const CLASSES = {
-  /* ---------- Belt Watch: the player's hulls ---------- */
+  /* ---------- Belt Watch: the player's hulls ----------
+     Their throttle runs from a stop to full: a fighter never flies
+     backwards. (Pilots of the AI's craft keep a little reverse, to back
+     off a collision.) */
   swift: {
     name: 'Swift', type: 'Interceptor', faction: 'watch', size: 'small', model: 'swift', role: 'fighter',
     blurb: 'Light, fast and fragile. The smallest return on any sensor in the belt.',
     flight: flight({
       radius: 4.6, mass: 16000, gyration: [2.2, 2.5, 1.5],
       forward: 62, reverse: 32, lateral: 38, boost: 150, cruise: 235, boostSpeed: 410, strafe: 85,
-      rate: [2.5, 2.0, 3.8], angAccel: [13, 10, 17], boostCapacity: 120,
+      rate: [2.5, 2.0, 3.8], angAccel: [13, 10, 17], boostCapacity: 120, throttleMin: 0,
     }),
     shield: 90, hull: 60, armor: 0, signature: 0.6, shieldRegen: 20, shieldDelay: 2.5,
     banks: [{ capacity: 6, heavy: false }],
@@ -69,7 +72,7 @@ export const CLASSES = {
     flight: flight({
       radius: 6, mass: 30000, gyration: [3.2, 3.6, 2.2],
       forward: 48, reverse: 28, lateral: 30, boost: 125, cruise: 190, boostSpeed: 330, strafe: 65,
-      rate: [2.0, 1.6, 3.0], angAccel: [10, 7.5, 13],
+      rate: [2.0, 1.6, 3.0], angAccel: [10, 7.5, 13], throttleMin: 0,
     }),
     shield: 140, hull: 120, armor: 0.1, signature: 1, shieldRegen: 18, shieldDelay: 2.8,
     banks: [{ capacity: 8, heavy: false }, { capacity: 8, heavy: true }],
@@ -81,7 +84,7 @@ export const CLASSES = {
     flight: flight({
       radius: 8.6, mass: 55000, gyration: [4.4, 5, 3.2],
       forward: 32, reverse: 18, lateral: 18, boost: 80, cruise: 135, boostSpeed: 230, strafe: 40,
-      rate: [1.3, 1.0, 2.0], angAccel: [6, 4.5, 8], boostCapacity: 85,
+      rate: [1.3, 1.0, 2.0], angAccel: [6, 4.5, 8], boostCapacity: 85, throttleMin: 0,
     }),
     shield: 220, hull: 240, armor: 0.25, signature: 1.6, shieldRegen: 22, shieldDelay: 3.2,
     banks: [{ capacity: 8, heavy: false }, { capacity: 16, heavy: true }],

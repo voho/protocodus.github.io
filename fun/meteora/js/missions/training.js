@@ -67,6 +67,9 @@ export default defineMission({
       return [0, 1, 2].map(i => ship.pos[i] + f[i] * d + r[i] * right + u[i] * up);
     };
     const step = (id, text, o) => m.objective(id, text, o);
+    // Each step's keys stay on screen, drawn as keys, until it is done.
+    const teach = text => m.hint(text, Infinity);
+    const done = id => { m.complete(id); m.clearHints(); };
 
     yield m.say('doukas', 'Range is yours, Saint. Bring me back a pilot.');
     yield m.say('saint', 'Right, rookie. Everything I know, and none of it twice. Let\'s start with flying in a straight line.');
@@ -75,39 +78,39 @@ export default defineMission({
     const gates = [at(START, 25, 700, 120), at(START, -30, 1500, -80), at(START, 10, 2300, 160)];
     gates.forEach((g, k) => m.nav(`g${k}`, `Nav ${k + 1}`, g, { r: 120, hidden: true }));
     step('steer', 'Steer through the three nav points');
-    m.hint('The mouse steers: the ship turns toward the crosshair. Fly through the cyan marker.', 12);
+    teach('{mouse} steers: the ship turns toward the crosshair. Fly through the cyan marker.');
     for (let k = 0; k < gates.length; k++) {
       m.showNav(`g${k}`);
       yield m.until(() => m.dist(p, gates[k]) < 120);
       m.hideNav(`g${k}`);
       if (k < gates.length - 1) m.say('saint', ['Good. Next one.', 'Smooth. One more.'][k]);
     }
-    m.complete('steer');
+    done('steer');
 
     // 2. Speed.
     yield m.say('saint', 'Now speed. You\'ll want more of it.');
     step('fast', `Speed up past ${Math.round(ship.stats.fa.forwardSpeed * 0.85)} m/s`);
-    m.hint('{faster} speeds up. Hold it.', 9);
+    teach('{faster} speeds up. Hold it.');
     yield m.until(() => speed() > ship.stats.fa.forwardSpeed * 0.85);
-    m.complete('fast');
+    done('fast');
     yield m.say('saint', 'And stopping is a skill too. Bring her down.');
     step('slow', 'Slow below 30 m/s');
-    m.hint('{slower} slows you down. Mind: no air out here — the ship only slows because it fires its thrusters against the way you\'re going.', 11);
+    teach('{slower} slows you down, at most to a stop: the ship never flies backwards. No air out here — it slows because it fires its thrusters against the way you\'re going.');
     yield m.until(() => speed() < 30);
-    m.complete('slow');
+    done('slow');
 
     // 3. The afterburner: held, it builds.
     yield m.say('saint', 'The afterburner. Hold it down and keep holding: the longer you burn, the harder she pushes.');
     step('burn', 'Burn the afterburner for three seconds');
-    m.hint('Hold {boost} for the afterburner. The bar under your speed is its fuel; it refills when you let go.', 11);
+    teach('Hold {boost} for the afterburner. The bar under your speed is its fuel; it refills when you let go.');
     yield m.until(() => ship.afterburner && ship.burnTime >= 3);
-    m.complete('burn');
+    done('burn');
     yield m.say('saint', 'That\'s the feeling. Now let her coast.');
 
     // 4. Roll and slide.
     yield m.wait(2);
     step('roll', 'Roll all the way round');
-    m.hint('{rollLeft} and {rollRight} roll the ship. Go all the way over.', 10);
+    teach('{rollLeft} and {rollRight} roll the ship. Go all the way over.');
     let rolled = 0, slid = 0;
     m.thread((function* () {
       for (;;) {
@@ -118,12 +121,12 @@ export default defineMission({
       }
     })(), 'stick');
     yield m.until(() => rolled >= Math.PI * 2);
-    m.complete('roll');
+    done('roll');
     yield m.say('saint', 'Upside down is just another way up out here.');
     step('slide', 'Slide sideways');
-    m.hint('{strafeLeft} and {strafeRight} slide the ship sideways without turning it. It dodges fire.', 10);
+    teach('{strafeLeft} and {strafeRight} slide the ship sideways without turning it. It dodges fire.');
     yield m.until(() => slid >= 0.8);
-    m.complete('slide');
+    done('slide');
 
     // 5. Targets: the scope picks the nearest; T switches.
     yield m.say('saint', 'Enough sightseeing. Two drones coming up, dead ahead.');
@@ -134,28 +137,28 @@ export default defineMission({
     const first = w.target;
     step('switch', 'Switch to the other drone');
     m.say('saint', 'Your scope takes the nearest hostile by itself — the box at the bottom shows it. Switch to the other one.');
-    m.hint('{cycleTarget} switches to the next hostile.', 10);
+    teach('{cycleTarget} switches to the next hostile.');
     yield m.until(() => (w.target && w.target !== first && w.target.tags.has('drone')) || !near.alive || !far.alive);
-    m.complete('switch');
+    done('switch');
 
     // 6. Guns.
     yield m.say('saint', 'Guns. Put the crosshair on the circle ahead of it and hold the trigger.');
     step('guns', 'Shoot down a drone with your guns');
-    m.hint('Left click fires. Aim at the small circle in front of the target: that is where it will be when your bolts get there.', 12);
+    teach('{leftClick} fires. Aim at the small circle in front of the target: that is where it will be when your bolts get there.');
     yield m.until(() => !near.alive || !far.alive);
-    m.complete('guns');
+    done('guns');
     const other = near.alive ? near : far;
 
     // 7. A locked missile.
     yield m.say('saint', 'Nice. Missiles now. Keep your nose on the other one until you hear the tone.');
     step('missile', 'Lock a missile and fire it');
-    m.hint('Hold the target in front of you until it says LOCKED, then right click.', 12);
+    teach('Hold the target in front of you until it says LOCKED, then {rightClick}.');
     let fired = false;
     m.on('missileLaunch', ev => { if (ev.team === 0 && ev.locked) fired = true; });
     yield m.until(() => fired || !other.alive);
     yield m.until(() => !other.alive, 12);
     if (other.alive) w.damage(other, 1e6, [...other.ship.pos], null);
-    m.complete('missile');
+    done('missile');
     yield m.say('saint', 'Fire and forget. Mostly forget.');
 
     // 8. The test: five drones weaving about the range, laid out ahead.
@@ -169,14 +172,14 @@ export default defineMission({
       return drone(loop[0], `Drone ${k + 1}`, { path: loop, speed: 34 + 6 * k, loop: true });
     });
     step('five', 'Destroy five target drones', { count: { n: 0, of: 5 } });
-    m.hint('Speed matters: slow down to turn tighter, or {toggleSpeedLock} to match your target\'s speed.', 12);
+    teach('Speed matters: slow down to turn tighter, or {toggleSpeedLock} to match your target\'s speed.');
     for (;;) {
       yield m.wait(0.25);
       const down = five.filter(e => !e.alive).length;
       m.progress('five', down, 5);
       if (down === 5) break;
     }
-    m.complete('five');
+    done('five');
     m.hideNav('range');
     yield m.say('saint', 'Five for five. Welcome to Lantern Wing, rookie.');
     yield m.say('doukas', 'Good work, Saint. Lantern — get some sleep.');

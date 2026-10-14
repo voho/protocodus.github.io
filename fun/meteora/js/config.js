@@ -21,7 +21,7 @@ export const PLAYER = {
   rate: [1.6, 1.1, 2.6],          // pitch, yaw, roll max rad/s
   angAccel: [6, 4, 9],            // rad/s²
   spinCap: 3,                     // FA-off safety cap, × rate
-  throttle: { min: -0.35, rampPerSecond: 0.6 },
+  throttle: { min: 0, rampPerSecond: 0.6 },   // a fighter never flies backwards
   boost: { capacity: 100, drain: 25, regen: 12, regenDelay: 1.5, relock: 20 },
   shield: 100, hull: 100, shieldRegen: 15, shieldDelay: 3,
 };
@@ -33,6 +33,7 @@ export const ENEMY = {
   gyration: [2.6, 3.0, 1.8],
   accel: { forward: 40, reverse: 25, lateral: 26, boost: 110 },
   fa: { forwardSpeed: 200, boostSpeed: 300, strafeSpeed: 70, tau: 0.25, tauAngular: 0.06 },
+  throttle: { min: -0.35, rampPerSecond: 0.6 },   // AI pilots back off a collision
   rate: [1.9, 1.5, 3.0],
   angAccel: [7, 5, 10],
   shield: 30, hull: 60, shieldRegen: 6, shieldDelay: 4,

@@ -48,10 +48,9 @@ export function createHud(canvas) {
   const callouts = [], popups = [], marks = [], hurts = [];
   let streak = null, banner = null, lastHull = null;
   // The player's keys, for the few prompts that name one ({action} in a
-  // hint, the lock and Tender prompts).
+  // hint, drawn as a key; the lock and Tender prompts).
   let keys = DEFAULT_KEYS;
   const key = action => capOf(keys[action]);
-  const withKeys = s => s.replace(/\{(\w+)\}/g, (m, a) => (keys[a] ? key(a) : m));
 
   const resize = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -797,6 +796,38 @@ export function createHud(canvas) {
     ctx.fillRect(0, 0, w, h);
   }
 
+  /* A hint, with the keys it names drawn as keys: {action} is whatever
+     key the player has on that action, {mouse}, {leftClick} and
+     {rightClick} the mouse. Laid out word by word, wrapped, each line
+     centred. */
+  const MOUSE = { mouse: 'Mouse', leftClick: 'Left click', rightClick: 'Right click' };
+  const HINT_FONT = `500 13px ${FONT}`, CAP_FONT = `600 12px ${FONT}`;
+  function hintLines(s, max) {
+    const words = [];
+    for (const piece of s.split(/(\{\w+\})/)) {
+      const m = /^\{(\w+)\}$/.exec(piece);
+      if (m && (MOUSE[m[1]] || keys[m[1]])) { words.push({ text: MOUSE[m[1]] ?? key(m[1]), cap: true }); continue; }
+      for (const t of piece.split(/(\s+)/)) if (t) words.push({ text: t, space: /^\s+$/.test(t) });
+    }
+    for (const word of words) {
+      ctx.font = word.cap ? CAP_FONT : HINT_FONT;
+      word.width = word.space ? measure(' ') : measure(word.text) + (word.cap ? 14 : 0);
+    }
+    const lines = [];
+    let line = [], width = 0;
+    const end = () => {
+      while (line.at(-1)?.space) width -= line.pop().width;
+      if (line.length) lines.push({ words: line, width });
+      line = []; width = 0;
+    };
+    for (const word of words) {
+      if (word.space && !line.length) continue;
+      if (!word.space && line.length && width + word.width > max) end();
+      line.push(word); width += word.width;
+    }
+    end();
+    return lines;
+  }
   function hints(world) {
     const rt = world.mission;
     if (!rt?.hints.length) return;
@@ -804,14 +835,28 @@ export function createHud(canvas) {
     const hint = rt.hints.filter(x => x.at <= now && now < x.until).at(-1);
     if (!hint) return;
     const a = Math.min(1, (now - hint.at) * 4) * Math.min(1, (hint.until - now) * 2);
-    ctx.globalAlpha = a;
-    ctx.font = `500 13px ${FONT}`;
-    const rows = wrap(withKeys(hint.text), Math.min(520, w * 0.6));
-    const width = Math.max(...rows.map(r => measure(r))) + 40, tall = rows.length * 17 + 15;
+    const lines = hintLines(hint.text, Math.min(540, w * 0.6));
+    const LINE = 24, width = Math.max(...lines.map(l => l.width)) + 40, tall = lines.length * LINE + 14;
     const y = h - 214 - tall;
+    ctx.globalAlpha = a;
     ctx.fillStyle = 'rgba(10, 18, 30, 0.75)'; ctx.fillRect(w / 2 - width / 2, y, width, tall);
-    ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.strokeRect(w / 2 - width / 2 + 0.5, y + 0.5, width - 1, tall - 1);
-    rows.forEach((row, i) => text(row, w / 2, y + 16 + i * 17, 13, CYAN, 'center'));
+    ctx.strokeStyle = 'rgba(127, 216, 255, 0.4)'; ctx.lineWidth = 1;
+    ctx.strokeRect(w / 2 - width / 2 + 0.5, y + 0.5, width - 1, tall - 1);
+    lines.forEach((l, i) => {
+      let x = w / 2 - l.width / 2;
+      const cy = y + 7 + LINE / 2 + i * LINE;
+      for (const word of l.words) {
+        if (word.cap) {
+          // A key: a raised cap with its name on it.
+          ctx.fillStyle = 'rgba(127, 216, 255, 0.16)'; ctx.strokeStyle = 'rgba(127, 216, 255, 0.8)';
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(x + 1.5, cy - 10, word.width - 3, 20, 4); else ctx.rect(x + 1.5, cy - 10, word.width - 3, 20);
+          ctx.fill(); ctx.stroke();
+          text(word.text, x + word.width / 2, cy + 0.5, 12, '#ffffff', 'center', 600);
+        } else if (!word.space) text(word.text, x, cy, 13, CYAN, 'left');
+        x += word.width;
+      }
+    });
     ctx.globalAlpha = 1;
   }
 

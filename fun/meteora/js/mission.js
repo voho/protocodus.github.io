@@ -191,10 +191,15 @@ function makeApi(rt) {
       w.events.push({ type: 'radio', who, text, at });
       return { t: line.at + line.dur };
     },
+    /* A hint on screen for `seconds` — or, with Infinity, until
+       `clearHints()` (training keeps each step's keys up until it is done). */
     hint(text, seconds = 7) {
       if (rt.def.hints === false) return;
       rt.hints.push({ text, at: rt.time, until: rt.time + seconds });
       w.events.push({ type: 'hint', text });
+    },
+    clearHints() {
+      for (const h of rt.hints) if (h.until > rt.time) h.until = rt.time + 0.3;
     },
     music(mood) { rt.music = mood; w.events.push({ type: 'music', mood }); },
 
