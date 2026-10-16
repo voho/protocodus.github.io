@@ -62,6 +62,7 @@
 
 import { compose } from './geom.js';
 import { parseGlb } from './glb.js';
+import { track } from './loading.js';
 import {
   heightAt, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
@@ -1119,7 +1120,7 @@ export function createHuts(THREE, shading) {
      the model was built to `HUT_LIGHT` — so this can happen on any frame,
      including one with three huts in view. If the file never comes, the
      procedural hut it would have replaced simply stays. */
-  fetch(new URL('../assets/models/huts/mountain-hut.glb', import.meta.url).href)
+  track(fetch(new URL('../assets/models/huts/mountain-hut.glb', import.meta.url).href)
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
     .then(parseGlb)
     .then((nodes) => {
@@ -1129,7 +1130,7 @@ export function createHuts(THREE, shading) {
       shell.geometry = g;
       old.dispose();
     })
-    .catch((err) => console.warn('Alpen: keeping the procedural hut —', err));
+    .catch((err) => console.warn('Alpen: keeping the procedural hut —', err)));
 
   // --- smoke ---------------------------------------------------------------
   const smokeGeo = new THREE.BufferGeometry();

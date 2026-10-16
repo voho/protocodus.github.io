@@ -46,6 +46,7 @@
 
 import { compose, sculpt, weld } from './geom.js';
 import { parseGlb } from './glb.js';
+import { track } from './loading.js';
 import { WILDLIFE } from './config.js';
 import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js';
 
@@ -750,7 +751,7 @@ export function createWildlife(THREE, shading) {
     mesh.geometry = g;
     old.dispose();
   };
-  const modelled = fetch(WILDLIFE_GLB)
+  const modelled = track(fetch(WILDLIFE_GLB)
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
     .then(parseGlb)
     .then((nodes) => {
@@ -780,7 +781,7 @@ export function createWildlife(THREE, shading) {
     .catch((err) => {
       console.warn('Alpen: keeping the sculpted animals —', err);
       return false;
-    });
+    }));
 
   /* EYE-SHINE. An animal caught in a head torch answers it: the tapetum
      throws the beam straight back, and two green points in the dark are how

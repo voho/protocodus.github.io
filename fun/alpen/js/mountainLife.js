@@ -42,6 +42,7 @@ import { RENDER } from './config.js';
 import { sharedTexture } from './textures.js';
 import { riderGeometry } from './riderAssets.js';
 import { parseGlb } from './glb.js';
+import { track } from './loading.js';
 import { onHutGround } from './huts.js';
 
 // Seconds a figure spends in the snow after a collision, and then takes to
@@ -586,7 +587,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   /* Fetched here, like the forest's trees, and swapped in whenever it
      lands: the procedural line is drawing from the first frame, so this is
      never a wait, and if the file never comes the mountain keeps it. */
-  const liftReady = (typeof fetch === 'function'
+  const liftReady = track((typeof fetch === 'function'
     ? fetch(LIFT_GLB).then((res) => (res.ok ? res.arrayBuffer()
       : Promise.reject(new Error(`${LIFT_GLB} ${res.status}`))))
     : Promise.reject(new Error('no fetch')))
@@ -597,7 +598,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     .catch((err) => {
       console.warn('Alpen: keeping the procedural lift —', err?.message ?? err);
       return false;
-    });
+    }));
 
   /* --- the other people --------------------------------------------------- */
 

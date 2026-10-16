@@ -54,6 +54,10 @@ import {
 import {
   randomWorldSeed, setWorldSeed, worldSeedCode,
 } from './noise.js';
+import { allTracked, trackManager } from './loading.js';
+
+// Before anything below starts a load, so every one of three's is counted.
+trackManager(THREE.DefaultLoadingManager);
 
 const STEP = 1 / 120;
 const TAU = Math.PI * 2;
@@ -2193,15 +2197,38 @@ function afterPaint(fn) {
    the network lets it — which would leave the bar stuck at ninety per cent and
    the invitation hidden over a mountain that is complete, drawn and playable.
    Nothing in the game waits for these plates: the terrain keeps its procedural
-   fallback and takes the real one whenever it lands. So after a few seconds
-   the honest thing for the read-out to say is that the wait is over, and the
-   plate is welcome to arrive afterwards. */
-const SNOW_PATIENCE = 6000;
+   fallback and takes the real one whenever it lands. So after a while the
+   honest thing for the read-out to say is that the wait is over, and the
+   plate is welcome to arrive afterwards.
+
+   Every other model and map is waited for here as well (see loading.js): one
+   that lands after the boot brings its shaders and textures with it, and
+   they compile and upload in the middle of a run — a freeze on the snow. So
+   the patience is long enough for a slow connection to bring them all, and
+   only a stalled request runs it out. */
+const SNOW_PATIENCE = 20000;
 // The modelled range too, so the title opens on the mountains
 const surfacesPromise = Promise.race([
-  Promise.all([terrain.surfacesReady, sky.backdropReady, ridersReady]),
+  Promise.all([terrain.surfacesReady, sky.backdropReady, ridersReady, allTracked()]),
   new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
 ]);
+
+/* `compile` builds the programs but uploads nothing: a texture goes up on
+   the first frame that draws it, and the boot's one frame draws only what is
+   in view. Everything else — the far forest's cards, a crag round the next
+   bend, the head torch's halo at the first nightfall — would upload while
+   being ridden past. */
+function uploadTextures(root) {
+  const textures = new Set();
+  root.traverse((o) => {
+    const materials = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of materials) {
+      for (const v of Object.values(m)) if (v?.isTexture) textures.add(v);
+      if (m.uniforms) for (const u of Object.values(m.uniforms)) if (u?.value?.isTexture) textures.add(u.value);
+    }
+  });
+  for (const t of textures) if (t.image && !t.isRenderTargetTexture) renderer.initTexture(t);
+}
 
 afterPaint(async () => {
   /* The sun, before the ground it has to light. The world-fixed horizon cache
@@ -2229,7 +2256,12 @@ afterPaint(async () => {
        while the canvas is still covered. First use during a landing is the
        wrong time for a driver to discover a shader or a 3.3 MiB texture. */
     renderer.compile(scene, camera);
+    uploadTextures(scene);
     sky.renderProbe(renderer);
+    // A faint sun on screen, so the shafts' pass is compiled and its target
+    // allocated now rather than the first time the sun comes into view; the
+    // first frame sets the real one.
+    retro.setSun(0.5, 0.5, 0.01);
     retro.render(scene, camera);
     requestAnimationFrame((now) => {
       frame(now);
