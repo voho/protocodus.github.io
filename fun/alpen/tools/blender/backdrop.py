@@ -243,7 +243,7 @@ def foothills(x, z):
     at a wall a few kilometres off. Behind the eye nothing is lowered —
     that is the mountain the run comes down."""
     s = -z
-    reach = np.sqrt((x / 6200.0) ** 2 + (np.maximum(s, 0) / 10500.0) ** 2
+    reach = np.sqrt((x / 6200.0) ** 2 + (np.maximum(s, 0) / 7000.0) ** 2
                     + (np.minimum(s, 0) / 1800.0) ** 2)
     return 1 - smoothstep(0.75, 1.3, reach)
 
@@ -405,6 +405,32 @@ def landmarks(x, z):
     return out
 
 
+def riegel(x, z):
+    """A forested rock bar across the mouth of the run's valley, seven or
+    eight kilometres ahead. Without it the eye, a kilometre above the main
+    valley, looked down the whole of the shoulder and the valley floor
+    beyond: a wide pale plain in the middle of the view with the range
+    standing on the far side of it. The bar takes the floor out of sight,
+    so the ground ahead runs up into wooded ridges and the peaks stand
+    behind them."""
+    out = np.full_like(x, -1e4)
+    for (b0, d0), (b1, d1), crest, seed in [((-32, 8100), (-12, 7500), 1890, 720),
+                                            ((-14, 7500), (13, 7300), 1960, 730),
+                                            ((11, 7400), (33, 8000), 1910, 740)]:
+        ax, az = at(b0, d0)
+        bx, bz = at(b1, d1)
+        ex, ez = bx - ax, bz - az
+        ll = ex * ex + ez * ez
+        t = np.clip(((x - ax) * ex + (z - az) * ez) / ll, 0.0, 1.0)
+        d = np.hypot(x - (ax + ex * t), z - (az + ez * t))
+        along = t * math.sqrt(ll)
+        # rounded, not a wall: knolls and saddles along the crest, flanks
+        # easing out at about twenty degrees, so the forest holds on them
+        top = crest + 170 * fbm(along / 1500, d / 4000, 3, seed) + 45 * fbm(along / 380, d / 900, 2, seed + 1)
+        out = smax(out, top - 0.36 * d * smoothstep(0, 500, d) - 0.00012 * d * d, 160)
+    return out
+
+
 def mass(x, z):
     """The range everywhere: a slow swell for massifs and cols, a ridged
     multifractal for the crests (warped, so no ridge runs ruler-straight),
@@ -422,15 +448,16 @@ def altitude(x, z):
     floor, level = valley_floor(x, z, level=True)
     h = smin(mass(x, z), floor, 220.0)
     h = smax(h, smin(landmarks(x, z), floor + 40, 160.0), 180.0)
-    # the near range at a quarter of its relief over its own valleys —
+    # the near range at under half its relief over its own valleys —
     # ridges stay ridges and valleys stay valleys, but the ridges either
     # side of the run stand below the eye, forested to their crests, and
     # the rider looks out over them
     low = foothills(x, z)
     base = np.minimum(level, h)
-    h = base + (h - base) * (1 - 0.7 * low)
+    h = base + (h - base) * (1 - 0.55 * low)
     cap, hold = home(x, z)
     h = h + (smin(h, cap, 220.0) - h) * hold
+    h = smax(h, riegel(x, z), 200.0)
     floor = np.minimum(floor, h)
     # fine relief, more of it the higher the ground stands over its valley
     relief = np.clip((h - floor) / 1600.0, 0.0, 1.0)
@@ -454,9 +481,9 @@ def cover(h, ny, x, z, gx=None, gz=None):
     than about forty degrees show their rock. The forest is what makes a
     valley read from above: a dark belt up every slope to a treeline near
     1950 m, cut by the white chutes of avalanche paths running straight
-    down it, and thinning out on the valley floors, which are open snow —
-    the meadows and fields — with only a few stands and strips of wood
-    left on them. Glaciers fill the gentle ground of the high cirques."""
+    down it, and still most of the cover on the valley floors, broken by
+    open snow — the meadows and fields — so a floor seen from above is
+    wooded ground, not a pale plain. Glaciers fill the gentle ground of the high cirques."""
     steep = np.sqrt(np.clip(1 - ny * ny, 0, 1))      # sine of the slope
     wob = fbm(x / 900, z / 900, 3, 503)
     rock = smoothstep(0.70 + 0.06 * wob, 0.84 + 0.05 * wob, steep)
@@ -475,9 +502,9 @@ def cover(h, ny, x, z, gx=None, gz=None):
     belt = smoothstep(treeline + 30, treeline - 160, h)
     stands = smoothstep(-0.55, -0.05, fbm(x / 300, z / 300, 3, 521) + 0.35 * (1 - belt))
     flat = 1 - smoothstep(0.06, 0.18, steep)
-    # on the valley floors, open snow — the meadows and fields — with strips
-    # of wood along the streams and the odd stand
-    floor_wood = smoothstep(0.30, 0.55, fbm(x / 420, z / 1300, 3, 527)) * 0.9
+    # on the valley floors, wood broken by long clearings — the meadows and
+    # fields along the streams
+    floor_wood = smoothstep(-0.25, 0.20, fbm(x / 420, z / 1300, 3, 527)) * 0.9
     forest = belt * stands * (1 - smoothstep(0.74, 0.84, steep)) * (1 - flat + flat * floor_wood)
     if gx is not None:
         # Avalanche paths: chutes straight down the fall line, a few tens of

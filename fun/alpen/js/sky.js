@@ -2638,6 +2638,7 @@ export function createSky(THREE) {
   let shadowPrimed = false;
   let time = 0;
   let pitch = -1;
+  let ground = 0;   // the hill's height under the rider, from the last measure
   /* The aurora and mist are too large to submit forever at zero, even with an
      early uniform discard. Keep them live through the first real render so
      their programs are compiled while the opening frame is already expected
@@ -2670,6 +2671,7 @@ export function createSky(THREE) {
      that has flattened out. */
   function measure(pos) {
     const h0 = heightAt(nearestCenter(pos.x, pos.z), pos.z);
+    ground = h0;
     let want = PITCH_MIN;
     for (let i = 0; i < PROBES.length; i++) {
       const d = PROBES[i];
@@ -2864,7 +2866,12 @@ export function createSky(THREE) {
     const want = measure(pos);
     pitch = pitch < 0 ? want : pitch + (want - pitch) * Math.min(1, dt * PITCH_EASE);
     cone.scale.y = pitch / TERRAIN.grade.base;
-    cone.position.y = -APEX - (coneH * cone.scale.y) / 2;
+    /* The pitch is measured from the ground, and the group rides with the
+       rider, so in the air the cone has to stay down with the ground: hung
+       off the rider, a jump of more than APEX lifted it over the hill and
+       the whole mountain vanished into the haze. */
+    const air = Math.max(0, pos.y - ground);
+    cone.position.y = -APEX - air - (coneH * cone.scale.y) / 2;
 
     /* The parallax, in two numbers that are both pure functions of where the
        rider is standing.
