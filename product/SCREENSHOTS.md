@@ -1,45 +1,78 @@
 # Product media and claim sources
 
-Reviewed on 14 October 2026. Product pages follow the released Reason Rack Extensions where available. Preview builds are labelled separately from products available in the Reason Studios Shop.
+Reviewed 16 October 2026. The product catalog and instrument details describe
+Reason Rack Extensions. Podcare remains a separate podcast production tool.
+Taikor and Septum remain visible as upcoming Rack editions; their pages describe
+the model foundation without promising a finalized Rack feature set.
 
-## Release authority
+## Current media
 
-- **YouKnow 1.3.0** and **Maremba 1.5.0** are the versions listed by the Reason Studios Shop, released 13 October 2026 and verified 14 October. Shop URLs are the only purchase destinations on these pages.
-- **Acustra 1.3.3f2** and **Lamer Degrader 1.0.0f10** are prepared Rack Extension previews. Their pages say **COMING SOON**.
-- **Electry, Taikor and Septum** have no Rack Extension implementation in the inspected Rack repository. Their pages retain the plug-in feature descriptions and authentic editor images, say **COMING SOON**, and do not advertise Rack compatibility or invent Rack versions.
-- Podcare and the games are outside this instrument update.
-
-YouKnow’s Rack bank contains 100 patches (99 Protocodus sounds plus Init), not the plug-in’s 144-preset bank. Plug-in-only firmware timing, output connection menus and SysEx features are not advertised for the Rack release. Maremba’s public Shop image was older than its listed version, so the website uses complete panel composites from the matching 1.5.0 release source. Later development controls are not presented as released features.
-
-## Media and guides
-
-Full panel images are authentic composed runtime panels, not concept artwork. Front and rear PNGs are copied or exported from their matching release materials; WebPs retain the full interface and original aspect ratio. Product captions distinguish Rack panels from plug-in editor screenshots. Each image’s declared HTML dimensions and `srcset` descriptors match the exported file.
-
-| Product | Media and feature provenance |
-| --- | --- |
-| YouKnow | [Release assets and hashes](youknow/ASSET_PROVENANCE.json), [Rack claim evidence](youknow/MODELLING.md) |
-| Maremba | [Release assets, source and guide](maremba/ASSET_PROVENANCE.json) |
-| Acustra | [Preview assets and source](acustra/ASSET_PROVENANCE.json) |
-| Lamer Degrader | [Preview assets and retained demo provenance](lamer/ASSET_PROVENANCE.json) |
-
-The published-version manuals are refreshed alongside their panels. Older development notes are retained in [the 6–12 October archive](releases/archive-2026-10-12.html); the [versions and availability page](releases/index.html) describes the current products. The old [6 October build manifest](releases/2026-10-06.json) remains a historical record.
-
-## Retained plug-in screenshots
-
-| Product | Existing screenshot source | Dimensions |
+| Product | Source | Web media |
 | --- | --- | --- |
-| Electry | `virtual-instrument-electry` revision `6dacb95e00b63181eae3de94eb933dc52e945428`, `Docs/screenshots/electry-standalone.png` | 1180 × 910; card 880 × 679 |
-| Taikor | `virtual-instrument-taikor` revision `5483f0c6bd8c3de712df949acdfe5112a0dc977e`, `Docs/screenshots/taikor-standalone.png` | 1280 × 920; card 880 × 633 |
-| Septum | `virtual-instrument-septum` revision `39b24e5ab723e3cb1b306f31987552504079df89`, editor snapshot via `SEPTUM_EDITOR_SNAPSHOT` | 1960 × 1206; card 880 × 541 |
+| YouKnow | Rack 1.3.0f7 release panels, inspected in Rack revision `3cca8e24` | `youknow-rack-front.webp` and `youknow-rack-back.webp`, 1600 × 1171 |
+| Maremba | Rack 1.5.1f7 release panels and player guide, revision `e2b36073` | `maremba-panel.webp` and `maremba-rear.webp`, 1600 × 1171; card 880 × 644; original front/back PNGs and guide copied from the release |
+| Acustra | Current Rack release front/back renders, revision `af1708c8` | `acustra-rack-front.webp` and `acustra-rack-rear.webp`, 1457 × 1200 |
+| Electry | Complete Rack renders in `Design/Rendered`, revision `c140bb8f` | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
+| Lamer Degrader | Existing Rack 1.0.0f9 promotional assets and processed demonstration | Existing panel, rear, mascots and video retained |
+| Taikor | Original instrument artwork, not a Rack screenshot | `taikor-artwork.webp`, 1135 × 1386, explicitly captioned as artwork |
+| Septum | No Rack interface preview is available | Text announcement; no desktop editor presented as a Rack interface |
+| Podcare | Existing repository illustration | Existing card retained |
 
-These depict the plug-in editions; no Rack screenshots are substituted for products without a Rack port. Features are checked against their source READMEs and active DSP rather than inferred from other instruments.
+New WebP conversions preserve the full panel and its aspect ratio. Complete
+Rack renders include controls; bare panel backgrounds are not used as interface
+screenshots. Source panels and guides can represent a newer development revision
+than the version available in the store; store release versions are not inferred
+from local source metadata.
 
-## Official Reason artwork
+## Claim boundaries
 
-The unchanged SVGs in `assets/images/reason-rack-extension.svg` and `assets/images/reason-studios-shop-white.svg` come from Reason Studios’ [Third-Party Logo Pack](https://cdn.reasonstudios.com/developers/Third-Party-Logo-Pack-24.zip), linked by the official [marketing guidelines](https://developer.reasonstudios.com/learning-and-support/marketing).
+The Rack READMEs, exposed properties and active DSP paths establish the marketed
+features. The relevant source is under `Examples/<Product>` in the
+[Reason Rack Extensions repository](https://github.com/protocodus/reason-rack-extensions).
 
-The Rack Extension technology icon is an unlinked compatibility mark on the two available products. The approved Shop badge links directly to each product’s Shop page. Original proportions and clear space are preserved; preview products use text availability labels without official technology logos.
+- YouKnow: nonlinear oscillator/filter/amplifier/chorus path, persistent voice
+  states, 100 Rack patches, up to 16 voices, eight CV inputs and 43 automatable
+  controls. Desktop preset banks, SysEx import, timing menus and electrical
+  output-selection menus are omitted.
+- Acustra: coupled strings, bridge/body response, hand contact, microphones and
+  piezo electronics. Four body choices, two active woods, four tunings and eight
+  Rack patches follow the exposed edition. Desktop-only features are omitted.
+- Electry: eight-string physical model, seven articulations and direct pickup
+  output. The Rack edition bypasses the desktop amp/effect chain. CC1 controls
+  palm muting; CC2 controls body resonance. No MPE claim is made.
+- Maremba: bar/tine modes, nonlinear contact, resonators, sympathetic coupling,
+  membranes, Close/Room/Piezo paths, seven audio outputs and 20 Rack patches.
+  Drive affects Main; direct captures retain their independent calibration.
+- Lamer: genuine MP3/Vorbis encoding and decoding, spectral bit allocation,
+  quantization, repeated generations, prefilters and latency-aligned dry/wet.
+  Bitrate is a coding target. Encoder changes and Bitrate Crossfade remain
+  manual preferences, rather than sequencer-automatable controls.
+- Taikor and Septum: canonical model research informs the upcoming descriptions.
+  Rack controls, requirements, patches and final specifications are not promised.
 
-## Refresh workflow
+## Store and demo verification
 
-Verify the public released version independently of the highest local candidate. Inspect its `info.lua`, player guide, control mapping and complete panel exports. Keep purchase links, feature descriptions, guides, card images, full-size panels, Open Graph images and the versions page consistent. Update provenance and cache keys, then verify local links, actual image dimensions and desktop/tablet/mobile layout.
+The [Protocodus Reason Shop catalog](https://www.reasonstudios.com/shop/browse/?developer=Protocodus)
+contains [YouKnow](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/)
+and [Maremba](https://www.reasonstudios.com/shop/rack-extension/maremba/).
+Other Rack products use “Coming soon!” without invented store URLs.
+
+The [SoundCloud sets page](https://soundcloud.com/protocodus/sets) contains:
+
+| Product | Playlist | Public tracks at review |
+| --- | --- | --- |
+| YouKnow | [2299308180](https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1) | 7 |
+| Maremba | [2308692153](https://soundcloud.com/protocodus/sets/maremba-sound-demos-v1) | 5 |
+| Acustra | [2307313401](https://soundcloud.com/protocodus/sets/acustra-sound-demos-v1) | 0; empty player omitted |
+
+Both playable embeds share the original YouKnow dark treatment in the shared
+stylesheet: source accent `#03422e`, artwork hidden, nonvisual player, inversion
+filter and a forced-colors override. Lamer's existing local video is retained.
+
+## Validation
+
+The catalog, seven instrument details and availability page were checked at
+1440, 768 and 390 pixels wide. Local links/fragments, unique IDs, image paths
+and declared image ratios were checked. Existing navigation/background checks
+and `git diff --check` pass. The historical development manifest remains at
+`releases/2026-10-06.json`; the public releases route now shows Rack availability.

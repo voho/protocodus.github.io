@@ -1,73 +1,125 @@
 {
-  "checked_on": "2026-10-14",
   "published_version": "1.5.0",
   "published_on": "2026-10-13",
   "shop_url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
-  "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-  "source_revision": "9442264458112fd16116b9554093e7bef804187d",
-  "source_build": "1.5.0f6",
-  "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Maremba",
-  "panel_source": "Complete composed front/rear release panels, including runtime controls.",
-  "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
-  "files": {
-    "Maremba_Back.png": {
-      "sha256": "f6a97eb3e40befbe69ab2c50859c12e6eef9db40e3589446704b29df5aedefec",
-      "dimensions": [
-        1600,
-        1171
-      ]
-    },
-    "Maremba_Front.png": {
-      "sha256": "334a870285a6103adeaa8be478a8a62d91b3e6946022def39951a1484a6fd97b",
-      "dimensions": [
-        1600,
-        1171
-      ]
-    },
-    "Maremba_Thumbnail_800.png": {
-      "sha256": "1d25be734acbe7790cb0795552a55fe91ed9cc65e17eb5714d215b7928a22fa4",
-      "dimensions": [
-        800,
-        800
-      ]
-    },
-    "Maremba_User_Guide.pdf": {
-      "sha256": "78e467fe8c68b5c6cf65558c205ba9152ff1117e8d49ab2b70893d724b592883"
-    },
-    "maremba-card.webp": {
-      "sha256": "86882407ce536c335c9eb98e839c3e6f4747f57ef375b27c926b8aaca7a1beeb",
-      "dimensions": [
-        900,
-        659
-      ]
-    },
-    "maremba-panel.webp": {
-      "sha256": "105b3613a6ed805522bd8bec08580203072973c3787950d1da2f562b1349b09f",
-      "dimensions": [
-        1400,
-        1025
-      ]
-    },
-    "maremba-rear.webp": {
-      "sha256": "d1f26e2daaa1ec36309a4906060e02fd4a52e876aaa9f7a8bb068449ccc0a88f",
-      "dimensions": [
-        1400,
-        1025
-      ]
+  "site_media_refresh": {
+    "checked_on": "2026-10-16",
+    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+    "files": {
+      "Maremba_Front.png": {
+        "sha256": "7fcf912dbe502bc9c2fb084dba6a42e685b067f4fac4dd13efd59e4603e5e46f",
+        "bytes": 3459485,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Back.png": {
+        "sha256": "2fd333b6bd2928a6dec31f06c09ebc613e892ff5d4e8d3136f203576becc09d8",
+        "bytes": 3228499,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_User_Guide.pdf": {
+        "sha256": "f1579577af59e8321c96adf8fcd758d77af3826f0197941f501f580733f19072",
+        "bytes": 9289796
+      },
+      "maremba-panel.webp": {
+        "sha256": "bc0988f71ccd4e49954af5b60af80e03de6cfdceb2f765b91a36dd7f777db5e1",
+        "bytes": 676698,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-rear.webp": {
+        "sha256": "1b013c9bc55218b54b3fa3f07828ce3bce8fa5e5f4df349a41ca7c2837f5b352",
+        "bytes": 640214,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-card.webp": {
+        "sha256": "ad8a6a564880936a622f5f0869b690569a1b7a90a00f9bda7c558e46c612dbc0",
+        "bytes": 176218,
+        "dimensions": [
+          880,
+          644
+        ]
+      }
     }
   },
-  "release_match": "The public Shop lists 1.5.0, but still serves 1.4.0f3 images. Artwork and guide use 1.5.0f6, the last packaged source before the 13 October publication. Exact internal Shop build suffix is not public. Later 1.5.0f7/1.5.1 candidate controls are excluded.",
-  "panel_generation": {
-    "inputs": [
-      "Examples/Maremba/docs/front_hd.png",
-      "Examples/Maremba/docs/rear_hd.png"
-    ],
-    "method": "Exact git blobs at source_revision, converted to RGB and contained within 1600x1200 using Lanczos, matching Design/render_product_visuals.py."
-  },
-  "guide_generation": {
-    "script": "Examples/Maremba/Design/render_user_guide.py",
-    "source": "Examples/Maremba/docs/USER_GUIDE.md",
-    "source_sha256": "2394798358676477e752b772d1727b2a5992a4cdd90905a37bb6825967ae7484",
-    "method": "Unmodified renderer, source guide, info.lua and complete panels from source_revision; deterministic 10-page PDF."
+  "prior_media_receipt": {
+    "checked_on": "2026-10-14",
+    "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+    "source_revision": "9442264458112fd16116b9554093e7bef804187d",
+    "source_build": "1.5.0f6",
+    "source_path": "/Users/vojta/Dev/reason-rack-extension/main/Examples/Maremba",
+    "panel_source": "Complete composed front/rear release panels, including runtime controls.",
+    "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
+    "files": {
+      "Maremba_Back.png": {
+        "sha256": "f6a97eb3e40befbe69ab2c50859c12e6eef9db40e3589446704b29df5aedefec",
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Front.png": {
+        "sha256": "334a870285a6103adeaa8be478a8a62d91b3e6946022def39951a1484a6fd97b",
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Thumbnail_800.png": {
+        "sha256": "1d25be734acbe7790cb0795552a55fe91ed9cc65e17eb5714d215b7928a22fa4",
+        "dimensions": [
+          800,
+          800
+        ]
+      },
+      "Maremba_User_Guide.pdf": {
+        "sha256": "78e467fe8c68b5c6cf65558c205ba9152ff1117e8d49ab2b70893d724b592883"
+      },
+      "maremba-card.webp": {
+        "sha256": "86882407ce536c335c9eb98e839c3e6f4747f57ef375b27c926b8aaca7a1beeb",
+        "dimensions": [
+          900,
+          659
+        ]
+      },
+      "maremba-panel.webp": {
+        "sha256": "105b3613a6ed805522bd8bec08580203072973c3787950d1da2f562b1349b09f",
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      "maremba-rear.webp": {
+        "sha256": "d1f26e2daaa1ec36309a4906060e02fd4a52e876aaa9f7a8bb068449ccc0a88f",
+        "dimensions": [
+          1400,
+          1025
+        ]
+      }
+    },
+    "release_match": "The public Shop lists 1.5.0, but still serves 1.4.0f3 images. Artwork and guide use 1.5.0f6, the last packaged source before the 13 October publication. Exact internal Shop build suffix is not public. Later 1.5.0f7/1.5.1 candidate controls are excluded.",
+    "panel_generation": {
+      "inputs": [
+        "Examples/Maremba/docs/front_hd.png",
+        "Examples/Maremba/docs/rear_hd.png"
+      ],
+      "method": "Exact git blobs at source_revision, converted to RGB and contained within 1600x1200 using Lanczos, matching Design/render_product_visuals.py."
+    },
+    "guide_generation": {
+      "script": "Examples/Maremba/Design/render_user_guide.py",
+      "source": "Examples/Maremba/docs/USER_GUIDE.md",
+      "source_sha256": "2394798358676477e752b772d1727b2a5992a4cdd90905a37bb6825967ae7484",
+      "method": "Unmodified renderer, source guide, info.lua and complete panels from source_revision; deterministic 10-page PDF."
+    }
   }
 }

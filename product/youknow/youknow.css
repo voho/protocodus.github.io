@@ -7,16 +7,6 @@
 .fidelity-highlights li { border-color: color-mix(in srgb, var(--signal) 40%, transparent); }
 .circuit-fact { display: block; margin-bottom: 0.9rem; color: var(--signal); font-size: 0.875rem; font-weight: 500; }
 .fidelity-highlights h3 { font-size: 1.25rem; }
-.soundcloud-shell { padding: clamp(0.5rem, 1vw, 0.875rem); border: 1px solid var(--line-lift); border-radius: var(--radius-md); background: var(--panel); }
-/* The cross-origin player has no dark palette. Hide optional artwork and pair
-   this filter with its source accent #03422e to render as Cabbage (#87D7BE). */
-.soundcloud-player { display: block; border: 0; border-radius: var(--radius-sm); background: #fff; color-scheme: light; filter: invert(0.95) hue-rotate(180deg) saturate(1.4); }
-.soundcloud-attribution { margin: 0.75rem 0.25rem 0.25rem; color: var(--fg-faint); font-size: 0.8125rem; line-height: 1.6; }
-.soundcloud-attribution a:hover { color: var(--signal); }
-.soundcloud-shell + .resource-link { margin-top: 1rem; }
-@media (forced-colors: active) {
-  .soundcloud-player { filter: none; }
-}
 .circuit-details { border-bottom: 1px solid var(--line-lift); }
 .circuit-group { border-top: 1px solid var(--line-lift); }
 .circuit-group summary { display: flex; align-items: center; gap: clamp(1rem, 2.5vw, 2rem); padding-block: 1.5rem; cursor: pointer; list-style: none; }

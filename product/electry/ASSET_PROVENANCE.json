@@ -39,5 +39,27 @@
       ],
       "change": "Retained without modification."
     }
-  ]
+  ],
+  "site_media_refresh": {
+    "checked_on": "2026-10-16",
+    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+    "files": {
+      "electry-rack-front.webp": {
+        "sha256": "d4803b5874fda9b4cf45bb4d9749b6d90483e91de608fdd39428507f3d928d7a",
+        "bytes": 116492,
+        "dimensions": [
+          754,
+          621
+        ]
+      },
+      "electry-rack-rear.webp": {
+        "sha256": "b3318806f9fda8b496ebf8f4bd13f9b80e93e64709bff1c5bd3c82c902e404c0",
+        "bytes": 116266,
+        "dimensions": [
+          754,
+          621
+        ]
+      }
+    }
+  }
 }

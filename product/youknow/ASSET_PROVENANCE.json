@@ -60,5 +60,27 @@
   "public_panel_urls": [
     "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
     "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png"
-  ]
+  ],
+  "site_media_refresh": {
+    "checked_on": "2026-10-16",
+    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+    "files": {
+      "youknow-rack-front.webp": {
+        "sha256": "091f4f890940be897eed304f4be7f9c7b243701471cfd0c2976e2d0854df9cf2",
+        "bytes": 117790,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "youknow-rack-back.webp": {
+        "sha256": "97d29f0c59d44e2f3f317479a694a5926e31302f969a2038a6171941cc04fb0c",
+        "bytes": 148360,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      }
+    }
+  }
 }

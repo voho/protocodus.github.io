@@ -39,5 +39,19 @@
       ],
       "change": "Retained without modification."
     }
-  ]
+  ],
+  "site_media_refresh": {
+    "checked_on": "2026-10-16",
+    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+    "files": {
+      "taikor-artwork.webp": {
+        "sha256": "aa312254d36364681804b326f4227a9c6803361552b905c680ab12ab4d6a10dd",
+        "bytes": 538938,
+        "dimensions": [
+          1135,
+          1386
+        ]
+      }
+    }
+  }
 }
