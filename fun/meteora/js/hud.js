@@ -397,15 +397,30 @@ export function createHud(canvas) {
     ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
     inv.copy(view.quaternion).invert();
     const p = world.player.ship.pos;
+    // A world direction (v, normalised) to its place on the disc.
+    const place = () => {
+      v.applyQuaternion(inv);
+      const theta = Math.acos(Math.max(-1, Math.min(1, -v.z)));
+      const az = Math.atan2(-v.y, v.x);
+      const r = theta / Math.PI * R;
+      return [cx + Math.cos(az) * r, cy + Math.sin(az) * r];
+    };
+    // Where the momentum carries us, against where the nose points (the
+    // centre): drawn first so the contacts sit on top of it.
+    const vel = world.player.ship.vel, speed = Math.hypot(...vel);
+    if (speed > 5) {
+      v.set(vel[0] / speed, vel[1] / speed, vel[2] / speed);
+      const [x, y] = place();
+      ctx.strokeStyle = 'rgba(127, 216, 255, 0.85)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.stroke();
+    }
     const plot = (pos, colour, size, square = false, ring = false) => {
       v.set(pos[0] - p[0], pos[1] - p[1], pos[2] - p[2]);
       const dist = v.length();
       if (dist < 1) return;
-      v.applyQuaternion(inv).divideScalar(dist);
-      const theta = Math.acos(Math.max(-1, Math.min(1, -v.z)));
-      const az = Math.atan2(-v.y, v.x);
-      const r = theta / Math.PI * R;
-      const x = cx + Math.cos(az) * r, y = cy + Math.sin(az) * r;
+      v.divideScalar(dist);
+      const [x, y] = place();
       const fade = dist > 6000 ? 0.45 : 1;
       ctx.globalAlpha = fade;
       ctx.fillStyle = colour;

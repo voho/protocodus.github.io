@@ -249,7 +249,8 @@ velocity, an orientation and a spin, and only thrusters change them.
 Flight assist sits on top, using those same thrusters to hold the speed you
 set. Turning the nose at speed leaves the old velocity sideways for a
 moment — the ship slides — and the velocity marker on the HUD shows where
-you are really going. The afterburner is a sprint on an energy store that
+you are really going; on the radar, a line from the centre (the nose) to a
+small ring shows the same heading, even when it is off screen or behind. The afterburner is a sprint on an energy store that
 refills after a pause.
 
 Collisions have mass and spin. Ramming a rock costs hull by the closing
