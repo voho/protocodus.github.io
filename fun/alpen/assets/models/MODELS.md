@@ -336,8 +336,10 @@ rendered, so it builds anywhere:
 It replaced the photographed sky panoramas. A real-sized Alpine landscape,
 modelled in numpy — a ridged-multifractal range with glacial valleys cut
 into it, the shoulder the run is on falling into the main valley eight
-kilometres ahead, the ridges either side of it pressed to a quarter of
+kilometres ahead, the ridges either side of it pressed to under half of
 their relief over their own valleys so they stand forested below the eye,
+a forested rock bar across the valley mouth seven kilometres out (it keeps
+the valley floor from opening a pale plain in the middle of the view),
 and four landmarks no noise draws: a leaning horn
 (4350 m, 15 km, 17° left of the fall line), a row of granite needles, a
 glaciated dome (4470 m, 23 km) and a north face off to the right. It is

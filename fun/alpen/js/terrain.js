@@ -2026,6 +2026,37 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   shadeTexture.wrapS = THREE.ClampToEdgeWrapping;
   shadeTexture.wrapT = THREE.ClampToEdgeWrapping;
   shadeTexture.generateMipmaps = false;
+  /* A whole upload of the atlas is four megabytes, and it used to happen
+     every time the worker handed in a row of tiles — a hitch every hundred
+     metres or so. A tile only changes its own band of rows in each layer
+     (and the layers' wrapped gutters), so those rows are all that is sent,
+     unless a whole upload is still owed: three uploads only the ranges when
+     there are any, the first upload included. */
+  let shadeFullPending = true;
+  shadeTexture.onUpdate = () => { shadeFullPending = false; };
+  function uploadShadeAtlas() {
+    shadeTexture.clearUpdateRanges();
+    shadeFullPending = true;
+    shadeTexture.needsUpdate = true;
+  }
+  function uploadShadeRows(pageRow0, pageRows) {
+    if (shadeFullPending) {
+      shadeTexture.needsUpdate = true;
+      return;
+    }
+    /* three counts a texture range in four elements per texel whatever
+       the format (WebGLTextures divides start and count by four), and only
+       merges a range within one row: so one range per atlas row, in those
+       units. */
+    const addRow = (y) => shadeTexture.addUpdateRange(y * shadeAtlasWidth * 4, shadeAtlasWidth * 4);
+    for (let row = 0; row < shadeDirectionRows; row++) {
+      const oy = row * shadeLayerSamplesZ;
+      addRow(oy);
+      for (let y = 0; y < pageRows; y++) addRow(oy + 1 + pageRow0 + y);
+      addRow(oy + shadePageSamplesZ + 1);
+    }
+    shadeTexture.needsUpdate = true;
+  }
   const shadeHeightTexture = new THREE.DataTexture(
     shadeHeightData, shadePageSamplesX, shadePageSamplesZ,
     THREE.RedFormat, THREE.HalfFloatType,
@@ -2157,7 +2188,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
     if (publish) {
       refreshShadeGutters();
-      shadeTexture.needsUpdate = true;
+      uploadShadeAtlas();
       shadeHeightTexture.needsUpdate = true;
     }
   }
@@ -2166,7 +2197,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const u = shading.uniforms;
     u.uShadeMap.value = shadeTexture;
     u.uShadeHeightMap.value = shadeHeightTexture;
-    shadeTexture.needsUpdate = true;
+    uploadShadeAtlas();
     shadeHeightTexture.needsUpdate = true;
   }
 
@@ -2193,7 +2224,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            the visible window until the next big teleport rebuilt everything.
            Two boundary crossings inside one worker turnaround was all it
            took, which is ordinary riding speed. */
-        let installed = false;
+        const dirtyRows = [];
         for (const result of event.data.results) {
           const { tile, horizon, ground } = result;
           const key = tileKey(tile.x, tile.z);
@@ -2210,11 +2241,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             horizon,
             ground,
           }, false);
-          installed = true;
+          const row0 = mod(tile.z * shadeTileSamples, shadePageSamplesZ);
+          if (!dirtyRows.includes(row0)) dirtyRows.push(row0);
         }
-        if (installed) {
+        if (dirtyRows.length) {
           refreshShadeGutters();
-          shadeTexture.needsUpdate = true;
+          for (const row0 of dirtyRows) uploadShadeRows(row0, shadeTileSamples);
           shadeHeightTexture.needsUpdate = true;
         }
       };
@@ -2297,7 +2329,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         }, false);
       }
       refreshShadeGutters();
-      shadeTexture.needsUpdate = true;
+      uploadShadeAtlas();
       shadeHeightTexture.needsUpdate = true;
     }
     queueShadowTiles(shadeCenterX, shadeCenterZ);

@@ -110,6 +110,7 @@ import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spru
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose, weld } from './geom.js';
 import { parseGlb } from './glb.js';
+import { track } from './loading.js';
 import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { onHutGround } from './huts.js';
@@ -3299,7 +3300,7 @@ export function createProps(THREE, shading) {
       p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);
     });
   };
-  Promise.all([
+  track(Promise.all([
     new Promise((resolve, reject) => texLoader.load(
       new URL('../assets/textures/tree/alpine-sprigs.webp', import.meta.url).href,
       resolve, undefined, reject)),
@@ -3314,10 +3315,10 @@ export function createProps(THREE, shading) {
     .catch((err) => {
       console.warn('Alpen: keeping the card conifers —', err);
       cardConifers();
-    });
+    }));
 
   // The trackside flora: until (or unless) the file arrives, there is none.
-  fetch(new URL('../assets/models/nature/alpine-flora.glb', import.meta.url).href)
+  track(fetch(new URL('../assets/models/nature/alpine-flora.glb', import.meta.url).href)
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
     .then(parseGlb)
     .then((nodes) => {
@@ -3333,7 +3334,7 @@ export function createProps(THREE, shading) {
         old.dispose();
       });
     })
-    .catch((err) => console.warn('Alpen: no trackside flora —', err));
+    .catch((err) => console.warn('Alpen: no trackside flora —', err)));
 
   /* The shadow pass draws only the prefix that can reach its own camera.
 
@@ -3853,7 +3854,7 @@ export function createProps(THREE, shading) {
      matrices into them. The snow bridge keeps the stand-in's cells, which
      its model is built to; the scrub's soft hulls are measured again off the
      models (see `remeasureScrub`). If a file fails, its stand-ins stay. */
-  const adopt = (url, file, build) => fetch(url)
+  const adopt = (url, file, build) => track(fetch(url)
     .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
     .then(parseGlb)
     .then((nodes) => {
@@ -3868,7 +3869,7 @@ export function createProps(THREE, shading) {
         // a culled pool's sphere was taken round the old drawing
         if (pool.cullable && pool.n > 0) pool.mesh.computeBoundingSphere();
       }
-    });
+    }));
   adopt(new URL('../assets/models/piste/piste-furniture.glb', import.meta.url).href,
     'piste-furniture.glb', (node) => [
       [gatePanels, gatePanelGeometry(THREE, node('gate_panel'))],
