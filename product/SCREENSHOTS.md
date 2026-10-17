@@ -2,8 +2,8 @@
 
 Reviewed 16 October 2026. The product catalog and instrument details describe
 Reason Rack Extensions. Podcare remains a separate podcast production tool.
-Taikor and Septum remain visible as upcoming Rack editions; their pages describe
-the model foundation without promising a finalized Rack feature set.
+Product pages cover Rack Extensions and Podcare only; instruments without a
+Rack device, such as Taikor and Septum, have no page.
 
 ## Current media
 
@@ -14,8 +14,6 @@ the model foundation without promising a finalized Rack feature set.
 | Acustra | Current Rack release front/back renders, revision `af1708c8` | `acustra-rack-front.webp` and `acustra-rack-rear.webp`, 1457 × 1200 |
 | Electry | Complete Rack renders in `Design/Rendered`, revision `c140bb8f` | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
 | Lamer Degrader | Existing Rack 1.0.0f9 promotional assets and processed demonstration | Existing panel, rear, mascots and video retained |
-| Taikor | Original instrument artwork, not a Rack screenshot | `taikor-artwork.webp`, 1135 × 1386, explicitly captioned as artwork |
-| Septum | No Rack interface preview is available | Text announcement; no desktop editor presented as a Rack interface |
 | Podcare | Existing repository illustration | Existing card retained |
 
 New WebP conversions preserve the full panel and its aspect ratio. Complete
@@ -47,8 +45,6 @@ features. The relevant source is under `Examples/<Product>` in the
   quantization, repeated generations, prefilters and latency-aligned dry/wet.
   Bitrate is a coding target. Encoder changes and Bitrate Crossfade remain
   manual preferences, rather than sequencer-automatable controls.
-- Taikor and Septum: canonical model research informs the upcoming descriptions.
-  Rack controls, requirements, patches and final specifications are not promised.
 
 ## Store and demo verification
 
