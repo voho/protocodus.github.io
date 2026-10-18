@@ -11,11 +11,11 @@
     "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
     "prepared_on": "2026-10-18",
     "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-    "source_revision": "e2a37e6eafb94770d0f196ec97df99fd02fcddb7",
+    "source_revision": "a499bda3e227e586a7df5aad83a966bfdbbe74b7",
     "source_build": "1.3.2f1",
     "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
     "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/dist",
-    "panel_source": "Complete renderer-composed front and rear with runtime controls; PNG/PDF copied byte-for-byte from final dist handoff. Thumbnail retains the authored golden-spiral composition.",
+    "panel_source": "Complete renderer-composed front and rear with runtime controls; PNG/PDF copied byte-for-byte from the final dist handoff. The square thumbnail uses the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
     "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
     "files": {
       "YouKnow_Front.png": {
