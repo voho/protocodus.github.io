@@ -8,8 +8,10 @@ verified against the primary [Reason Shop page](https://www.reasonstudios.com/sh
 The current screenshots and PDF represent the later candidate; their exact
 renderer source, bytes, dimensions and conversion settings are recorded in
 `ASSET_PROVENANCE.json`. The latest panel refresh refines control-group centering,
-label alignment and padding without changing controls or sound settings. This
-does not imply Shop acceptance of the candidate.
+label alignment and padding without changing controls or sound settings. Front
+slider labels have consistent space below their section lines, and the visible
+sliders share an even bottom margin. This does not imply Shop acceptance of the
+candidate.
 
 Current source: `protocodus/reason-rack-extensions`, `Examples/YouKnow`, canonical
 DSP pin `468710551e68c0393f609135f7926d85c562952c` (1.3.2). The Rack guide,
