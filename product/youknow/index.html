@@ -5,18 +5,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouKnow — Circuit-modelled Rack Extension | Protocodus</title>
-  <meta name="description" content="A circuit-modelled polysynth for Reason: nonlinear filter and amplifier, clocked stereo BBD chorus, up to 16 voices, 100 patches and eight CV inputs.">
+  <meta name="description" content="YouKnow for Reason: circuit-modelled voices, nonlinear filter and stereo BBD chorus. 100 authored Rack patches, up to 16 voices. Explore the 1.3.2 candidate.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="YouKnow — Circuit-modelled Rack Extension">
-  <meta property="og:description" content="A circuit-modelled polysynth for Reason: nonlinear filter and amplifier, clocked stereo BBD chorus, up to 16 voices, 100 patches and eight CV inputs.">
+  <meta property="og:description" content="YouKnow for Reason: circuit-modelled voices, nonlinear filter and stereo BBD chorus. 100 authored Rack patches, up to 16 voices. Explore the 1.3.2 candidate.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
-  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-rack-front.webp?v=20261016">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/YouKnow_Thumbnail_800.png?v=20261018-youknow132">
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="800">
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/style.css?v=20261016-rack-products">
-  <link rel="stylesheet" href="youknow.css?v=20261016-rack">
+  <link rel="stylesheet" href="youknow.css?v=20261018-youknow132">
 </head>
 
 <body class="product-page p-youknow">
@@ -75,16 +77,16 @@
           <div class="instrument-actions">
             <ul class="instrument-facts" aria-label="Instrument highlights"><li>Up to 16 voices</li><li>100 Rack patches</li><li>8 CV inputs</li></ul>
             <div class="hero-actions">
-              <a href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/" class="btn btn-primary">Get YouKnow in Reason Shop <span aria-hidden="true">↗</span></a>
+              <a href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/" class="btn btn-primary">Reason Shop · version 1.3.0 <span aria-hidden="true">↗</span></a>
               <a href="#listen" class="detail-link">Listen to YouKnow <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">Rack Extension for Reason 14 or later, available in the Reason Shop.</p>
+            <p class="availability-note">For Reason 14 or later. These panels show the unreleased 1.3.2 Rack candidate; the current Shop release is 1.3.0. <a href="#versions" class="text-link">See what changed</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="youknow-rack-front.webp?v=20261016" aria-label="View the YouKnow Rack Extension front panel at full size">
-            <img src="youknow-rack-front.webp?v=20261016" width="1600" height="1171" fetchpriority="high" decoding="async" alt="YouKnow Rack Extension front panel with synthesis faders, chorus, performance controls and processing status readouts">
-            <span class="shot-caption">Rack Extension · front panel <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="YouKnow_Front.png?v=20261018-youknow132" aria-label="View the YouKnow Rack Extension front panel at full size">
+            <img src="youknow-rack-front.webp?v=20261018-youknow132" width="1600" height="1171" fetchpriority="high" decoding="async" alt="YouKnow 1.3.2 Rack candidate front panel with synthesis faders, chorus, performance controls and processing status readouts">
+            <span class="shot-caption">Rack candidate 1.3.2 · front panel <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -128,7 +130,7 @@
         <div class="head">
           <span class="tag">Listen</span>
           <h2 class="title">Hear what the details add up to.</h2>
-          <p class="lede">Hear the weight of the bass, the shape of each attack and the motion around sustained chords in the YouKnow sound demo collection.</p>
+          <p class="lede">Hear the weight of the bass, the shape of each attack and the motion around sustained chords in the YouKnow sound demo collection. These earlier V1 recordings illustrate the instrument; they are not a rendering of the 1.3.2 Rack patch bank.</p>
         </div>
         <div class="soundcloud-shell">
           <iframe class="soundcloud-player" title="YouKnow sound demos - v1 on SoundCloud" width="100%" height="450" scrolling="no" loading="lazy" allow="autoplay; encrypted-media" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Fplaylists%2F2299308180&amp;color=%2303422e&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=true&amp;show_artwork=false&amp;visual=false"></iframe>
@@ -150,7 +152,7 @@
             <summary><span class="circuit-number" aria-hidden="true">01</span><span class="circuit-heading">Oscillators, envelopes &amp; voice history<span class="circuit-summary">The source and the shape of each note.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
               <li><h3>A ramp with stored charge</h3><p>A shared clock drives integer timers; capacitor charging forms the saw, a comparator forms the pulse and a divider supplies the sub. Pulse-width modulation changes the comparison point, while input coupling preserves the mixer’s changing electrical state.</p></li>
-              <li><h3>Persistent voices</h3><p>The core voice cards retain oscillator phase, sub-divider state and individual filter calibration between notes. Poly 1, Poly 2 and Unison use the voice’s pitch history for glide. The Rack edition extends the playable pool to sixteen voices with direct response to Reason’s notes.</p></li>
+              <li><h3>Persistent voices</h3><p>The core voice cards retain oscillator phase, sub-divider state and individual filter calibration between notes. Poly 1, Poly 2 and Unison use the voice’s pitch history for glide. The Rack edition responds directly to Reason’s notes, with a one-to-sixteen-voice limit and six voices by default. Its timing differs from the native edition’s six-voice Original performance mode.</p></li>
               <li><h3>Control behaviour is audible</h3><p>Firmware-derived envelope shaping, delayed LFO onset and the portamento law shape the phrasing. Switch the rear Sync LFO control on to make rate and delay follow Reason’s tempo while preserving the running LFO phase.</p></li>
             </ul>
           </details>
@@ -167,7 +169,7 @@
             <ul class="features model-features">
               <li><h3>Interacting high-pass branches</h3><p>The four-position high-pass includes the bass-boost setting, interacting capacitors and switch resistance. Unselected branches keep their charge, so a change of setting carries the network’s history forward.</p></li>
               <li><h3>Two 256-stage delay lines</h3><p>Clocked bucket-brigade lines model held charge, transfer loss and saturation. Nonlinear followers and coupled filters shape their return. Chorus I and II spread the voice into stereo; the dedicated I+II mode gives a narrower colour.</p></li>
-              <li><h3>Continuous chorus behaviour</h3><p>The model retains bucket and control-capacitor state through chorus switching. Its adjustable clock-related hiss continues between notes when enabled. The common amplifier, dry/wet mix and AC coupling complete the path before Reason’s stereo outputs.</p></li>
+              <li><h3>Continuous chorus behaviour</h3><p>The model retains bucket and control-capacitor state through chorus switching. Its adjustable clock-related hiss continues between notes when enabled, so a cabled instance keeps processing while idle. Switch the chorus off or turn Chorus Noise to zero when an instance should rest between notes. The common amplifier, dry/wet mix and AC coupling complete the path before Reason’s stereo outputs.</p></li>
             </ul>
           </details>
         </div>
@@ -179,15 +181,16 @@
         <div class="head">
           <span class="tag">Made for the rack</span>
           <h2 class="title">Play the panel. Connect the model.</h2>
-          <p class="lede">A readable 8RU panel puts the musical controls in front. Rear connections and processing choices make YouKnow part of your Reason instrument.</p>
+          <p class="lede">A readable 8RU panel puts the musical controls in front. Rear connections and processing choices make YouKnow part of your Reason instrument. The controls below describe the current 1.3.2 candidate.</p>
         </div>
         <ul class="features">
-          <li><h3>100 original Rack patches</h3><p>Explore 99 Protocodus sounds and a plain Init patch in Reason’s browser. Bass, Leads, Keys, Brass, Pads, Strings and Effects categories make starting points easy to find; save your own sounds with Reason’s patch commands.</p></li>
+          <li><h3>100 authored Rack patches</h3><p>Explore 99 Protocodus sounds and a plain Init patch in Reason’s browser. This independently authored Rack bank is separate from the native edition’s 144 presets. Bass, Leads, Keys, Brass, Pads, Strings and Effects categories make starting points easy to find; save your own sounds with Reason’s patch commands.</p></li>
           <li><h3>Eight rear CV inputs</h3><p>Sequence a monophonic part with Note and Gate, modulate Cutoff and Resonance, or scale Volume, Amp, Sub and Noise from the rack. MIDI playing remains polyphonic up to your selected voice limit.</p></li>
           <li><h3>43 automatable controls</h3><p>Record sound and performance changes in Reason or map them through Remote. Velocity response, glide, wheels and sustain support expressive playing, while rear Character and Aging controls shape the model.</p></li>
-          <li><h3>Quality under your control</h3><p>Select 1×, 2× or 4× processing and choose filter saturation, interpolation, solver and circuit-rate options on the rear. Front readouts show the active settings. Higher settings allow more processing where your arrangement has room for it.</p></li>
-          <li><h3>Settings that stay with the song</h3><p>Processing quality, circuit rate, Aging and LFO sync remain with the song while you browse patches. Unit Character belongs to the sound. Quality and circuit-rate changes wait for quiet voices and tails before a short transition.</p></li>
+          <li><h3>Quality under your control</h3><p>Start with the efficient defaults: 1× oversampling, Poly saturation, Cubic interpolation, Normal filter solver and Normal Circuit Rate. Choose 2× or 4× oversampling, alternative saturation and interpolation, or High/Max solving for more processing detail at higher CPU cost. Circuit Rate Max keeps the reference internal rate; Normal reduces CPU use.</p></li>
+          <li><h3>Settings that stay with the song</h3><p>Processing quality, Circuit Rate, Aging and LFO sync remain with the song while you browse patches. Aging starts at 50% and Sync LFO starts off. Unit Character belongs to the patch. Quality and circuit-rate changes wait for quiet voices and tails before a short transition. Sixteen voices at 4× is the heaviest configuration.</p></li>
           <li><h3>Stereo and mono routing</h3><p>Use both audio outputs for the stereo chorus. Connecting a single output combines both channels, preserving both chorus lines in a mono rack connection.</p></li>
+          <li><h3>Levels you can see and save</h3><p>VCA Level spans −24 to +24 dB, retaining the modelled amplifier law within its native range and extending it beyond the endpoints. The current bank targets about −7 dBFS sample peak for a single G3/MIDI 67 note, velocity 100, at 48 kHz, default quality, Aging 50% and master Volume 80%. Chords and other notes can peak higher. Earlier songs may need a level adjustment because the Rack calibration and hidden trims changed.</p></li>
         </ul>
       </div>
     </section>
@@ -199,9 +202,9 @@
           <h2 class="title">Flip the rack.<br>Shape the response.</h2>
           <p class="lede">Keep the front focused on playing, then turn to the rear for modulation connections, model character and processing quality. Reason recalls the instrument, its patches and its automation with your song.</p>
           <figure class="shot">
-            <a class="screenshot-link" href="youknow-rack-back.webp?v=20261016" aria-label="View the YouKnow Rack Extension rear panel at full size">
-              <img src="youknow-rack-back.webp?v=20261016" width="1600" height="1171" loading="lazy" decoding="async" alt="YouKnow rear panel with processing quality selectors, Unit Character, Aging, Sync LFO, eight CV inputs and stereo audio outputs">
-              <span class="shot-caption">Rack Extension · rear panel <span>View full size <span aria-hidden="true">↗</span></span></span>
+            <a class="screenshot-link" href="YouKnow_Back.png?v=20261018-youknow132" aria-label="View the YouKnow Rack Extension rear panel at full size">
+              <img src="youknow-rack-back.webp?v=20261018-youknow132" width="1600" height="1171" loading="lazy" decoding="async" alt="YouKnow 1.3.2 Rack candidate rear panel with five processing quality selectors, Unit Character, Aging, Sync LFO, eight CV inputs and stereo audio outputs">
+              <span class="shot-caption">Rack candidate 1.3.2 · rear panel <span>View full size <span aria-hidden="true">↗</span></span></span>
             </a>
           </figure>
         </div>
@@ -211,9 +214,56 @@
             <div><dt>Host</dt><dd>Reason 14 or later</dd></div>
             <div><dt>Instrument</dt><dd>Up to 16 MIDI voices<br>100 patches · 8RU panel</dd></div>
             <div><dt>Connections</dt><dd>8 CV inputs<br>Stereo audio outputs</dd></div>
-            <div><dt>Availability</dt><dd><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/">Available in Reason Shop ↗</a></dd></div>
+            <div><dt>Shop release</dt><dd>1.3.0 · released 13 October 2026<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/">View current Shop version ↗</a></dd></div>
+            <div><dt>Latest candidate</dt><dd>1.3.2 · prepared 18 October 2026<br>Unreleased; not yet accepted for the Reason Shop</dd></div>
           </dl>
+          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261018-youknow132">Candidate player guide (PDF) <span aria-hidden="true">↗</span></a>
         </aside>
+      </div>
+    </section>
+
+    <section class="band" id="versions">
+      <div class="wrap">
+        <div class="head">
+          <span class="tag">Rack Extension version history</span>
+          <h2 class="title">The current release.<br>The next step.</h2>
+          <p class="lede">The Reason Shop currently offers version 1.3.0. Version 1.3.2 is an unreleased Rack candidate prepared on 18 October 2026; its newer panels, guide and features are shown here.</p>
+        </div>
+        <div class="version-history">
+          <article>
+            <h3>1.3.2 <span>18 October 2026 · Unreleased candidate</span></h3>
+            <p>Updates the shared engine to 1.3.2, reusing fixed chorus arithmetic and specializing voice-noise calculations. Circuit equations, processing rates and noise chronology stay the same; deterministic comparisons retain identical sample bits. Direct Reason note response and all 100 patch sound settings are preserved.</p>
+            <p>Fresh front, rear and thumbnail images accompany the candidate. Native engine timing improvements do not establish a Reason CPU-meter improvement. Reason Shop acceptance and publication are still pending.</p>
+          </article>
+          <article>
+            <h3>1.3.1 <span>17 October 2026 · Earlier candidate</span></h3>
+            <p>Aligned the Rack build with shared engine 1.3.1 and refreshed the matching package and guide. Its dense pitch-bend and modulation queue fix applies to the native Original performance mode; the Rack edition’s direct Reason note response is unchanged.</p>
+          </article>
+          <article>
+            <h3>1.3.0 <span>13 October 2026 · Published in the Reason Shop</span></h3>
+            <p>The Shop release refines oscillator, filter, amplifier and chorus modelling, voice variation, Unison glide and factory headroom, with smooth Unison level transitions. It includes 100 Rack patches, eight CV inputs and four rear quality controls.</p>
+            <p>Later candidate work on 16 October added Normal/Max Circuit Rate, the fifth quality control, the extended visible VCA Level range and the current reference calibration. It also regrouped the rear panel and hides the free-rate numeric readout. These later changes are included in the 1.3.2 candidate; earlier songs may need their levels readjusted.</p>
+          </article>
+        </div>
+        <div class="resource-links">
+          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/CHANGELOG.md">Full Rack change history <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/Docs/release/release-evidence.md">Candidate validation and limits <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well" id="native-edition">
+      <div class="wrap">
+        <div class="head">
+          <span class="tag">Native edition</span>
+          <h2 class="title">A separate host workflow.</h2>
+          <p class="lede">The native plug-in and standalone edition also uses engine 1.3.2. New native instances use Original performance mode, following the six-voice firmware and serial timing, with Direct timing available separately. It has its own 144-preset bank, SysEx tools, output-load options and post-circuit Output Trim.</p>
+        </div>
+        <ul class="features">
+          <li><h3>Native formats</h3><p>VST3, CLAP and standalone on macOS, Windows and Linux, plus Audio Unit on macOS. Package targets are macOS 11 or later on Apple silicon and Intel, Windows x64 and Linux x64. These are native formats; the Rack Extension installs through Reason.</p></li>
+          <li><h3>Download status</h3><p>The source repository links the latest main-build packages. They require GitHub sign-in and expire after 30 days. These are development downloads: macOS bundles are ad-hoc signed and not notarized, and Windows binaries are unsigned. No signed, tagged native release has been published.</p></li>
+          <li><h3>Choose the matching guide</h3><p>The Rack candidate’s patch bank, Reason note response and defaults are described above. Native Original timing, the native preset bank and Output Trim follow their separate guide and release notes.</p><a class="text-link resource-link" href="https://github.com/protocodus/virtual-instrument-youknow#downloads">Native downloads and guide <span aria-hidden="true">↗</span></a></li>
+        </ul>
       </div>
     </section>
 

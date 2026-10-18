@@ -1,85 +1,176 @@
 {
-  "checked_on": "2026-10-14",
-  "published_version": "1.3.0",
-  "published_on": "2026-10-13",
-  "shop_url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-  "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-  "source_revision": "4b99c934a66ed22d5e8e64677ac1b1aae9330375",
-  "source_build": "1.3.0f4",
-  "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-u45-20261008/Examples/YouKnow/Release/1.3.0f4",
-  "panel_source": "Complete composed front/rear release panels, including runtime controls.",
-  "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
-  "files": {
-    "YouKnow_Back.png": {
-      "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
-      "dimensions": [
-        1600,
-        1171
-      ]
-    },
-    "YouKnow_Front.png": {
-      "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
-      "dimensions": [
-        1600,
-        1171
-      ]
-    },
-    "YouKnow_Thumbnail_800.png": {
-      "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
-      "dimensions": [
-        800,
-        800
-      ]
-    },
-    "YouKnow_User_Manual.pdf": {
-      "sha256": "9310937042ebf0ac55955e4e68d78274081a240ccd3a1bc8a587ee09ad9fa9e1"
-    },
-    "youknow-card.webp": {
-      "sha256": "695ab4dabe2f55ea377e27b61a41d4c91726eae68d39af58b506688edc3512e7",
-      "dimensions": [
-        900,
-        659
-      ]
-    },
-    "youknow-panel.webp": {
-      "sha256": "aa4e04296e4c83deeede80d336da061058aa44cca8d22dd325f9f59ef86f0299",
-      "dimensions": [
-        1400,
-        1025
-      ]
-    },
-    "youknow-rear.webp": {
-      "sha256": "635ccc57b54feac26c4d5535ee8250617627f8a337c44aa5b11d65a39584457e",
-      "dimensions": [
-        1400,
-        1025
-      ]
-    }
+  "checked_on": "2026-10-18",
+  "shop_release": {
+    "version": "1.3.0",
+    "released_on": "2026-10-13",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+    "basis": "Public Documents & specs section; candidate files below are later material, not the current Shop media."
   },
-  "release_match": "Published Shop PNGs are byte-identical to the 1.3.0f4 release package front and rear; manual and thumbnail copied from that same package.",
-  "public_panel_urls": [
-    "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
-    "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png"
-  ],
-  "site_media_refresh": {
-    "checked_on": "2026-10-16",
-    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+  "current_site_media": {
+    "version": "1.3.2",
+    "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
+    "prepared_on": "2026-10-18",
+    "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+    "source_revision": "e2a37e6eafb94770d0f196ec97df99fd02fcddb7",
+    "source_build": "1.3.2f1",
+    "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
+    "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/dist",
+    "panel_source": "Complete renderer-composed front and rear with runtime controls; PNG/PDF copied byte-for-byte from final dist handoff. Thumbnail retains the authored golden-spiral composition.",
+    "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
     "files": {
+      "YouKnow_Front.png": {
+        "sha256": "d9515f5b7c27d25ddc2dbdac4f63a91edee86379f3c3a2f154f3da5c77bc3ec4",
+        "bytes": 1088776,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "YouKnow_Back.png": {
+        "sha256": "5a98acdf96b2cd5d7d5a53adb812607538c46909fee87309d12b06991ef63d4d",
+        "bytes": 1908147,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "YouKnow_Thumbnail_800.png": {
+        "sha256": "99b9b1d93d8ea21c9daf447d563d6d7e876e2ffc1875f8567178420a6dcd93d0",
+        "bytes": 349890,
+        "dimensions": [
+          800,
+          800
+        ]
+      },
+      "YouKnow_User_Manual.pdf": {
+        "sha256": "925f66446db95f59a7a6f24bc24a8d79c9475c055def4ab04175fbba8227c2c9",
+        "bytes": 3994180
+      },
       "youknow-rack-front.webp": {
-        "sha256": "091f4f890940be897eed304f4be7f9c7b243701471cfd0c2976e2d0854df9cf2",
-        "bytes": 117790,
+        "sha256": "46dafbddba99422a64b48a8824b3194a1e8d593d0226bbd0e6903b5a0f216086",
+        "bytes": 139628,
         "dimensions": [
           1600,
           1171
         ]
       },
       "youknow-rack-back.webp": {
-        "sha256": "97d29f0c59d44e2f3f317479a694a5926e31302f969a2038a6171941cc04fb0c",
-        "bytes": 148360,
+        "sha256": "f51e568d73640f20cc2a0f8b5c89ce880ac8031104696cd5e68f3a2e3f4a5c94",
+        "bytes": 161156,
         "dimensions": [
           1600,
           1171
         ]
+      },
+      "youknow-panel.webp": {
+        "sha256": "dd17d5bf3941ca43dc8be52a2db6c2cd8d55b9a078257f192b712aeb655656c0",
+        "bytes": 117332,
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      "youknow-rear.webp": {
+        "sha256": "4294d5dfbd0edfbcda6890977dbd547e2999fe61bb3394381adc1b0ad7440a50",
+        "bytes": 124478,
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      "youknow-card.webp": {
+        "sha256": "3cf82ddd6ae8769549f363e18a5d32eb3cacd8a11c17e6ce5363aee2c32b7f13",
+        "bytes": 61620,
+        "dimensions": [
+          900,
+          659
+        ]
+      }
+    }
+  },
+  "historical_published_media": {
+    "checked_on": "2026-10-14",
+    "published_version": "1.3.0",
+    "published_on": "2026-10-13",
+    "shop_url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+    "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+    "source_revision": "4b99c934a66ed22d5e8e64677ac1b1aae9330375",
+    "source_build": "1.3.0f4",
+    "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-u45-20261008/Examples/YouKnow/Release/1.3.0f4",
+    "panel_source": "Complete composed front/rear release panels, including runtime controls.",
+    "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
+    "files": {
+      "YouKnow_Back.png": {
+        "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "YouKnow_Front.png": {
+        "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "YouKnow_Thumbnail_800.png": {
+        "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
+        "dimensions": [
+          800,
+          800
+        ]
+      },
+      "YouKnow_User_Manual.pdf": {
+        "sha256": "9310937042ebf0ac55955e4e68d78274081a240ccd3a1bc8a587ee09ad9fa9e1"
+      },
+      "youknow-card.webp": {
+        "sha256": "695ab4dabe2f55ea377e27b61a41d4c91726eae68d39af58b506688edc3512e7",
+        "dimensions": [
+          900,
+          659
+        ]
+      },
+      "youknow-panel.webp": {
+        "sha256": "aa4e04296e4c83deeede80d336da061058aa44cca8d22dd325f9f59ef86f0299",
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      "youknow-rear.webp": {
+        "sha256": "635ccc57b54feac26c4d5535ee8250617627f8a337c44aa5b11d65a39584457e",
+        "dimensions": [
+          1400,
+          1025
+        ]
+      }
+    },
+    "release_match": "Published Shop PNGs are byte-identical to the 1.3.0f4 release package front and rear; manual and thumbnail copied from that same package.",
+    "public_panel_urls": [
+      "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
+      "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png"
+    ],
+    "site_media_refresh": {
+      "checked_on": "2026-10-16",
+      "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+      "files": {
+        "youknow-rack-front.webp": {
+          "sha256": "091f4f890940be897eed304f4be7f9c7b243701471cfd0c2976e2d0854df9cf2",
+          "bytes": 117790,
+          "dimensions": [
+            1600,
+            1171
+          ]
+        },
+        "youknow-rack-back.webp": {
+          "sha256": "97d29f0c59d44e2f3f317479a694a5926e31302f969a2038a6171941cc04fb0c",
+          "bytes": 148360,
+          "dimensions": [
+            1600,
+            1171
+          ]
+        }
       }
     }
   }

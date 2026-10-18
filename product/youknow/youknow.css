@@ -25,6 +25,11 @@
 .research-evidence h3 { font-size: 1.125rem; font-weight: 500; }
 .research-evidence p { margin-top: 0.75rem; color: var(--fg-muted); }
 .research-evidence .resource-links { margin-top: 0.75rem; }
+.version-history { max-width: 82ch; }
+.version-history article { padding-block: 1.75rem; border-top: 1px solid var(--line-lift); }
+.version-history h3 { font-size: 1.25rem; font-weight: 500; line-height: 1.5; }
+.version-history h3 span { display: block; margin-top: 0.3rem; color: var(--fg-faint); font-size: 0.875rem; font-weight: 400; }
+.version-history p { margin-top: 0.85rem; color: var(--fg-muted); }
 @media (forced-colors: active) {
   .circuit-toggle { forced-color-adjust: none; color: ButtonText; }
 }
