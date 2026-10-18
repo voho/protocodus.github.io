@@ -86,7 +86,8 @@ The existing V1 SoundCloud recordings are explicitly labelled as earlier demos.
 
 Raw PNGs and the PDF are copied byte-for-byte from the fresh Rack handoff;
 WebPs use Pillow 11.0.0, quality 90 and method 6. Proportional variants use
-Lanczos resizing. The authored golden-spiral thumbnail composition is preserved.
+Lanczos resizing. The square thumbnail keeps the company background, front panel and large
+product name, with the official Protocodus logo at the bottom.
 `youknow/ASSET_PROVENANCE.json` retains the older published-media receipt and
 records all new input/output hashes, sizes, dimensions and source identity.
 
