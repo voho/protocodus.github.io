@@ -88,6 +88,9 @@ Raw PNGs and the PDF are copied byte-for-byte from the fresh Rack handoff;
 WebPs use Pillow 11.0.0, quality 90 and method 6. Proportional variants use
 Lanczos resizing. The square thumbnail keeps the company background, front panel and large
 product name, with the official Protocodus logo at the bottom.
+The subsequent panel refresh refines control-group centering, label alignment
+and padding without changing the controls or sound settings. Separate media
+cache keys identify the refreshed source panels.
 `youknow/ASSET_PROVENANCE.json` retains the older published-media receipt and
 records all new input/output hashes, sizes, dimensions and source identity.
 
