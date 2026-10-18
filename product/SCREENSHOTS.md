@@ -90,7 +90,10 @@ Lanczos resizing. The square thumbnail keeps the company background, front panel
 product name, with the official Protocodus logo at the bottom.
 The subsequent panel refresh refines control-group centering, label alignment
 and padding without changing the controls or sound settings. Separate media
-cache keys identify the refreshed source panels.
+cache keys identify the refreshed source panels. The latest display refresh leaves
+both free LFO numeric readouts (RATE and DLY) blank, retains synced note
+divisions and descriptive control tooltips, and changes no physical control
+law, timing or audio.
 `youknow/ASSET_PROVENANCE.json` retains the older published-media receipt and
 records all new input/output hashes, sizes, dimensions and source identity.
 

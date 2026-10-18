@@ -32,6 +32,10 @@ motherboard, wrapper and current SHOP metadata establish these claims:
   promise. Later calibration/hidden-trim changes can alter older song levels.
 - An enabled, nonzero chorus hiss continues with no notes while cabled and
   keeps its processing active. Noise zero/chorus off permits quiet idle rest.
+- Both RATE and DLY numeric readouts are blank when Sync LFO is off. They
+  show note divisions only when synced. Reason retains descriptive control
+  tooltip templates; these are not promised numeric frequency/time displays.
+  The readout change leaves physical control laws, timing and audio unchanged.
 - The 1.3.2 arithmetic optimization preserves deterministic sample bits;
   native timing comparisons do not establish a Reason-host CPU improvement.
 
