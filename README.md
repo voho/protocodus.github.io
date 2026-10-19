@@ -22,7 +22,7 @@
 - Every fighter uses one fixed hull sprite, with separate shadows, engine light and restrained animation.
 - Single-player flight uses WASD to move, Space for primary fire and Q for secondary fire. Primary pulse is unlimited; stronger secondary plasma consumes regenerating energy. Formations, boss weak points and timed armor windows reward different tactics.
 - Every sector sets two salted objectives and grades the flight from S to D; a mid-sector checkpoint lets a lost flight resume halfway. Weapon classes meet enemy barriers differently, and the pilot's shield collapses with a clearing pulse.
-- Positional stereo effects, layered explosions and a critical-hull alarm sit under the unchanged soundtrack.
+- Positional stereo effects from public-domain (CC0) recordings at full 44.1 kHz quality, layered explosions and a critical-hull alarm sit under the unchanged soundtrack. On a slow connection each song joins as soon as it finishes downloading.
 - Campaign progress saves automatically in the browser, including fire energy; the shop offers shared equipment upgrades after each sector.
 - The interface uses normal-case labels and locally served Chakra Petch for a consistent space-console feel.
 

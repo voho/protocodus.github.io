@@ -66,16 +66,16 @@ try {
 
   // Critical hull muffles the music and sounds the alarm; recovery restores it.
   const danger = await page.evaluate(async () => {
-    const before = mix.synthVoices.size;
+    const voices = () => mix.synthVoices.size + mix.sampleVoices.size, before = voices();
     mix.update(true, 0, '', 1);
-    const alarm = mix.synthVoices.size - before;
+    const alarm = voices() - before;
     await new Promise(resolve => setTimeout(resolve, 700));
     const muffled = mix.musicFilter.frequency.value;
     mix.update(true, 0, '', 0);
     await new Promise(resolve => setTimeout(resolve, 1200));
     return { alarm, muffled, open: mix.musicFilter.frequency.value };
   });
-  assert(danger.alarm >= 2, 'The alarm plays at critical hull');
+  assert(danger.alarm >= 2, 'The two-tone alarm plays at critical hull');
   assert(danger.muffled < 3000, `Critical hull muffles the soundtrack (${danger.muffled})`);
   assert(danger.open > 15000, `Recovered hull restores the full soundtrack (${danger.open})`);
 

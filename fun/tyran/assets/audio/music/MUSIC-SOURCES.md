@@ -4,7 +4,7 @@ These five MP3 files were supplied by the user, who identified them as generated
 
 This inventory records the supplied provenance; it makes no additional license or public-domain claim.
 
-Tracks 1–3 rotate by absolute sector number throughout the endless campaign. Track 4 plays during guardian combat and track 5 during challenge stages. Each selected track loops. All five compressed files load into memory and the versioned browser cache before flight; playback uses blob URLs and makes no in-game audio downloads.
+Tracks 1–3 rotate by absolute sector number throughout the endless campaign. Track 4 plays during guardian combat and track 5 during challenge stages. Each selected track loops. The five compressed files download one at a time (1, 4, 5, 2, 3: the order a campaign first needs them) into memory and the versioned browser cache; playback uses blob URLs. Launch waits up to 15 seconds for them. A song still downloading then keeps going and joins the mix as soon as it is complete, while another ready song stands in for it, so a slow connection hears the soundtrack instead of the game's old synthesized fallback tune, which no longer exists.
 
 | File | Use | Duration | Bytes | Input LUFS | True peak dBTP | Playback gain |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
