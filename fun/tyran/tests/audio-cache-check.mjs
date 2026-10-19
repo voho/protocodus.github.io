@@ -14,7 +14,7 @@ await page.addInitScript(() => { localStorage.setItem('tyran-muted', 'true'); })
 const ready = async () => { await page.goto(url); await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { timeout: 120000 }); };
 const inventory = () => page.evaluate(async () => {
   const { SONGS, AUDIO_CACHE, audioAssets } = await import('./audio-assets.js');
-  const names = await caches.keys();
+  const names = await caches.keys(), cacheName = AUDIO_CACHE;
   const cache = await caches.open(AUDIO_CACHE);
   const stored = {};
   for (const [key, song] of Object.entries(SONGS)) {
@@ -23,13 +23,13 @@ const inventory = () => page.evaluate(async () => {
   }
   const playing = {};
   for (const [key, songUrl] of audioAssets.songs) playing[key] = (await (await fetch(songUrl)).blob()).size;
-  return { names, stored, playing, expected: Object.fromEntries(Object.entries(SONGS).map(([key, song]) => [key, song.bytes])), ready: audioAssets.ready };
+  return { names, cacheName, stored, playing, expected: Object.fromEntries(Object.entries(SONGS).map(([key, song]) => [key, song.bytes])), ready: audioAssets.ready };
 });
 try {
   await ready();
   const first = await inventory();
   assert(first.ready, 'audio preflight completes');
-  assert.deepEqual(first.names.filter(name => name.startsWith('tyran-audio-')), ['tyran-audio-v3'], 'one versioned audio cache');
+  assert.deepEqual(first.names.filter(name => name.startsWith('tyran-audio-')), [first.cacheName], 'one versioned audio cache');
   assert.deepEqual(first.stored, first.expected, 'every song is cached at its shipped size');
   assert.deepEqual(first.playing, first.expected, 'playback blobs carry the shipped songs');
   // Plant a stale soundtrack: an old cache version plus a wrong-sized copy under the current name.
@@ -43,7 +43,7 @@ try {
   });
   await ready();
   const repaired = await inventory();
-  assert.deepEqual(repaired.names.filter(name => name.startsWith('tyran-audio-')), ['tyran-audio-v3'], 'the previous cache version is removed');
+  assert.deepEqual(repaired.names.filter(name => name.startsWith('tyran-audio-')), [repaired.cacheName], 'the previous cache version is removed');
   assert.deepEqual(repaired.stored, repaired.expected, 'stale cached songs are replaced by the shipped files');
   assert.deepEqual(repaired.playing, repaired.expected, 'playback uses the shipped songs, never a stale copy');
   const sample = await page.evaluate(async () => { const { audioAssets } = await import('./audio-assets.js'); return audioAssets.samples.get('pickup-1')?.length || 0; });

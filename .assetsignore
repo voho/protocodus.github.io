@@ -20,6 +20,7 @@ fun/ashline/assets/generated/tank.webp
 **/.wrangler/**
 **/.github/**
 **/tests/**
+fun/tyran/tools/**
 **/test-results/**
 **/AGENTS.md
 **/README.md

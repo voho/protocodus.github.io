@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
+const { SAMPLE_BYTES } = await import('../audio-assets.js');
+const EFFECTS = Object.keys(SAMPLE_BYTES).length, TOTAL = EFFECTS + 5;
 const context = await browser.newContext({ viewport: { width: 3840, height: 2160 }, deviceScaleFactor: 1 });
 const page = await context.newPage(), errors = [], requests = [], pending = new Map();
 let phase = 'startup', releaseSong, heldSong, releaseHero, heldHero, startupTimeout;
@@ -72,11 +74,11 @@ try {
     return { status, samples: audioAssets.samples.size, songs: audioAssets.songs.size, players: audioAssets.players.size,
       playersReady: [...audioAssets.players.values()].every(player => player.readyState >= 4 && player.networkState === 1) };
   });
-  assert.deepEqual(assets.status, { ready: true, completed: 23, total: 23, loaded: 23, failed: 0 });
-  assert.equal(assets.samples, 18, 'Every effect is decoded before readiness');
+  assert.deepEqual(assets.status, { ready: true, completed: TOTAL, total: TOTAL, loaded: TOTAL, failed: 0 });
+  assert.equal(assets.samples, EFFECTS, 'Every effect is decoded before readiness');
   assert.equal(assets.songs, 5, 'Every complete soundtrack is in memory before readiness');
   assert.equal(assets.players, 5); assert.equal(assets.playersReady, true, 'Every cached song has a prepared playback element');
-  assert.equal(requests.filter(request => request.url.includes('/audio/')).length, 23, 'Cold startup fetches each audio asset exactly once');
+  assert.equal(requests.filter(request => request.url.includes('/audio/')).length, TOTAL, 'Cold startup fetches each audio asset exactly once');
   phase = 'after-ready';
   await context.setOffline(true);
   await page.click('#preflight-test-launch');
@@ -175,5 +177,5 @@ try {
   assert.deepEqual(pendingDownloads(), [], 'No pending HTTP downloads after transitions');
   assert.deepEqual(requests.filter(request => request.phase === 'after-ready'), [], 'Flight, all sectors, shop, retry, saved resume and unmute never start a file or media load');
   assert.deepEqual(errors, [], 'Preflight and offline flight have no browser errors');
-  console.log(`Preflight browser checks passed: gated title and 23 audio assets, no outstanding downloads at readiness, five prepared music players, all ten worlds/shop/retry/resume/unmute offline, zero new in-flight file/media requests or expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
+  console.log(`Preflight browser checks passed: gated title and ${TOTAL} audio assets, no outstanding downloads at readiness, five prepared music players, all ten worlds/shop/retry/resume/unmute offline, zero new in-flight file/media requests or expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
 } finally { clearTimeout(startupTimeout); releaseSong?.(); releaseHero?.(); await browser.close(); }
