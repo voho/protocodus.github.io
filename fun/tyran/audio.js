@@ -1,7 +1,7 @@
-// Asset loading starts in preflight and playback only reads memory. A song still
-// downloading at launch joins the mix as soon as it is ready; until then another
-// ready song plays, or nothing. The synthesizer only stands in for effects.
-import { audioAssets, SAMPLE_GROUPS as SAMPLES, SONGS } from './audio-assets.js';
+// Effects load in preflight and play from memory. Songs stream through one media
+// element while they play; until a song has buffered, or if none can load, the
+// soundtrack is silent. The synthesizer only stands in for missing effects.
+import { audioAssets, SAMPLE_GROUPS as SAMPLES, SONGS, songUrl } from './audio-assets.js';
 export { preloadAudio } from './audio-assets.js';
 
 const FLIGHT_SONGS = Object.freeze(['flight', 'flight2', 'flight3']);
@@ -21,28 +21,19 @@ function roomImpulse(context, seconds) {
   }
   return buffer;
 }
-// A media element can only bind to one MediaElementAudioSourceNode. Production
-// has one engine; additional consumers stay without music rather than take it over.
-const musicOwners = new WeakMap();
 
 export class AudioEngine {
   constructor() {
     this.context = null; this.muted = false; this.active = false; this.transitionGain = 1; this.lastShot = 0;
     this.samples = audioAssets.samples; this.sampleVoices = new Set(); this.synthVoices = new Set(); this.lastSample = new Map();
-    this.failedSongs = new Set(); this.songKey = 'flight'; this.musicPlaying = false; this.musicToken = 0; this.attachedPlayers = 0;
-    this.musicPlayers = new Map(); this.musicSources = new Map(); this.musicChannels = new Map();
-    this.unlockedSongs = new Set(); this.blockedSongs = new Set(); this.musicUnlocks = new Map(); this.musicAttempts = new Map();
-    // Safari authorizes each media element by gesture. A song that arrives after
-    // the launch click, or a refused play, is retried on the next key or tap.
-    // Registered first, so flight input handlers cannot stop it from running.
+    this.music = null; this.musicSong = null; this.failedSongs = new Set(); this.songKey = 'flight'; this.musicPlaying = false; this.musicToken = 0;
+    // A refused play is retried on the next key or tap. Registered first, so
+    // flight input handlers cannot stop it from running.
     this.onGesture = () => { if (this.needsGesture()) this.start(); };
     for (const type of ['keydown', 'pointerdown', 'touchend']) globalThis.addEventListener?.(type, this.onGesture, { capture: true, passive: true });
   }
   needsGesture() {
-    if (!this.context || this.muted) return false;
-    if (this.context.state === 'suspended' || this.context.state === 'interrupted' || this.musicBlocked) return true;
-    for (const key of this.musicPlayers.keys()) if (!this.unlockedSongs.has(key) && !this.failedSongs.has(key) && !this.musicUnlocks.has(key)) return true;
-    return false;
+    return Boolean(this.context && !this.muted && (this.context.state === 'suspended' || this.context.state === 'interrupted' || this.musicBlocked));
   }
   start() {
     if (this.muted) return;
@@ -72,10 +63,10 @@ export class AudioEngine {
       }
       if (this.context.state === 'suspended') this.context.resume().catch(() => {});
       this.prepareMusic();
-      this.blockedSongs.clear(); this.musicBlocked = false;
-      // Safari authorizes media elements individually. Every prepared player is
-      // unlocked by this gesture; inactive channel gates keep the mixer silent.
-      this.unlockMusic();
+      // A song that failed earlier, perhaps on a dropped connection, gets another chance.
+      this.musicBlocked = false; this.failedSongs.clear();
+      // Safari authorizes a media element by gesture; playing it inside this one
+      // keeps it authorized for every later song. Outside flight it pauses at once.
       this.playMusic();
     } catch { /* Audio is optional; gameplay continues on restricted browsers. */ }
   }
@@ -161,89 +152,54 @@ export class AudioEngine {
     source.start(t); source.stop(t + duration + .005);
     return true;
   }
-  // Attaches every prepared song this engine does not have yet, including songs
-  // that finish downloading during flight.
   prepareMusic() {
-    if (!this.context || this.musicGraphFailed || audioAssets.players.size === this.attachedPlayers) return;
+    if (this.music || this.musicGraphFailed || !this.context) return;
     try {
-      if (!this.musicGain) {
-        this.musicGain = this.context.createGain(); this.musicGain.gain.value = 0;
-        // The soundtrack itself is untouched; a transparent low-pass muffles it
-        // only at critical hull, and a duck makes room for the heaviest blasts.
-        this.musicFilter = this.context.createBiquadFilter(); this.musicFilter.type = 'lowpass';
-        this.musicFilter.frequency.value = this.danger > 0 ? 3200 - this.danger * 1800 : 20000; this.musicFilter.Q.value = .5;
-        this.musicDuck = this.context.createGain();
-        this.musicGain.connect(this.musicFilter); this.musicFilter.connect(this.musicDuck); this.musicDuck.connect(this.master);
-      }
-      this.attachedPlayers = audioAssets.players.size;
-      for (const [key, player] of audioAssets.players) {
-        if (this.musicPlayers.has(key) || musicOwners.has(player)) continue;
-        let source, channel;
-        try {
-          source = this.context.createMediaElementSource(player);
-          channel = this.context.createGain(); channel.gain.value = 0;
-          source.connect(channel); channel.connect(this.musicGain);
-          musicOwners.set(player, this); this.musicPlayers.set(key, player); this.musicSources.set(key, source);
-          this.musicChannels.set(key, channel);
-          player.addEventListener('playing', () => {
-            this.unlockedSongs.add(key); this.blockedSongs.delete(key);
-            if (player !== this.music || !this.active || this.muted) {
-              player.pause();
-              if (player === this.music) this.stopMusic();
-            } else { this.musicPlaying = true; this.musicBlocked = false; }
-          });
-          player.addEventListener('waiting', () => { if (player === this.music) this.musicPlaying = false; });
-          player.addEventListener('error', () => {
-            this.failedSongs.add(key); player.pause();
-            if (player === this.music) this.stopMusic();
-          });
-        } catch { source?.disconnect(); channel?.disconnect(); this.failedSongs.add(key); }
-      }
-      if (!this.music) { this.music = this.musicPlayers.get(this.songKey) || null; this.musicSource = this.musicSources.get(this.songKey) || null; }
-      this.musicUnavailable = !this.musicPlayers.size;
-    } catch { this.musicGraphFailed = this.musicUnavailable = true; this.music = null; }
-  }
-  musicFailure(key, error) {
-    if (error?.name === 'AbortError') return;
-    if (error?.name === 'NotAllowedError') { this.blockedSongs.add(key); this.unlockedSongs.delete(key); }
-    else this.failedSongs.add(key);
-    if (key === this.songKey) { this.musicBlocked = this.blockedSongs.has(key); this.musicPlaying = false; }
-  }
-  unlockMusic() {
-    for (const [key, player] of this.musicPlayers) {
-      if (player === this.music || this.unlockedSongs.has(key) || this.failedSongs.has(key) || this.musicUnlocks.has(key)) continue;
-      const attempt = (this.musicAttempts.get(key) || 0) + 1;
-      this.musicAttempts.set(key, attempt); this.musicUnlocks.set(key, attempt);
-      try {
-        Promise.resolve(player.play()).then(() => {
-          if (this.musicAttempts.get(key) !== attempt) return;
-          this.unlockedSongs.add(key); this.blockedSongs.delete(key);
-          if (player !== this.music || !this.active || this.muted) player.pause();
-        }, error => { if (this.musicAttempts.get(key) === attempt) this.musicFailure(key, error); })
-          .finally(() => { if (this.musicUnlocks.get(key) === attempt) this.musicUnlocks.delete(key); });
-      } catch (error) { this.musicUnlocks.delete(key); this.musicFailure(key, error); }
-    }
+      this.musicGain = this.context.createGain(); this.musicGain.gain.value = 0;
+      // The soundtrack itself is untouched; a transparent low-pass muffles it
+      // only at critical hull, and a duck makes room for the heaviest blasts.
+      this.musicFilter = this.context.createBiquadFilter(); this.musicFilter.type = 'lowpass';
+      this.musicFilter.frequency.value = 20000; this.musicFilter.Q.value = .5;
+      this.musicDuck = this.context.createGain();
+      this.musicGain.connect(this.musicFilter); this.musicFilter.connect(this.musicDuck); this.musicDuck.connect(this.master);
+      const player = new Audio();
+      player.preload = 'auto'; player.loop = true;
+      this.musicSource = this.context.createMediaElementSource(player); this.musicSource.connect(this.musicGain);
+      player.addEventListener('playing', () => {
+        if (!this.active || this.muted) this.stopMusic();
+        else { this.musicPlaying = true; this.musicBlocked = false; }
+      });
+      // Buffering mid-song pauses the music until more of the stream arrives.
+      player.addEventListener('waiting', () => { this.musicPlaying = false; });
+      player.addEventListener('error', () => {
+        // Replacing the stream aborts the old one; only a real failure skips the song.
+        if (!player.error || player.error.code === 1) return;
+        if (this.musicSong) this.failedSongs.add(this.musicSong);
+        this.stopMusic(); this.musicSong = null;
+      });
+      this.music = player;
+    } catch { this.musicGraphFailed = true; this.music = null; }
   }
   playMusic() {
-    if (!this.music || this.muted || this.blockedSongs.has(this.songKey) || !audioAssets.songs.has(this.songKey) || this.failedSongs.has(this.songKey) || this.musicPending || !this.music.paused) return;
-    const token = ++this.musicToken, key = this.songKey, attempt = (this.musicAttempts.get(key) || 0) + 1;
-    this.musicAttempts.set(key, attempt);
+    if (!this.music || this.muted || this.musicBlocked || this.failedSongs.has(this.songKey) || this.musicPending || !this.music.paused) return;
+    // A new song replaces the stream; the same song resumes where it paused.
+    if (this.musicSong !== this.songKey) { this.musicSong = this.songKey; this.music.src = songUrl(this.songKey); }
+    const token = ++this.musicToken, key = this.songKey;
     this.musicPending = true;
+    const failed = error => {
+      if (token !== this.musicToken || error?.name === 'AbortError') return;
+      // A refused gesture retries on the next one; an unplayable song is skipped.
+      if (error?.name === 'NotAllowedError') this.musicBlocked = true;
+      else this.failedSongs.add(key);
+      this.musicPlaying = false;
+    };
     try {
-      Promise.resolve(this.music.play()).catch(error => {
-        if (token !== this.musicToken || this.musicAttempts.get(key) !== attempt) return;
-        // A rejected gesture/autoplay attempt retries on the next gesture.
-        // An unsupported or broken file is skipped for the rest of the visit.
-        this.musicFailure(key, error);
-      }).finally(() => { if (token === this.musicToken) this.musicPending = false; });
-    } catch (error) { this.musicFailure(key, error); this.musicPending = false; }
+      Promise.resolve(this.music.play()).catch(failed).finally(() => { if (token === this.musicToken) this.musicPending = false; });
+    } catch (error) { failed(error); this.musicPending = false; }
   }
   stopMusic() {
     this.musicToken++; this.musicPending = false; this.musicPlaying = false;
-    for (const key of this.musicPlayers.keys()) this.musicAttempts.set(key, (this.musicAttempts.get(key) || 0) + 1);
-    this.musicUnlocks.clear();
-    for (const channel of this.musicChannels.values()) channel.gain.setValueAtTime(0, this.context.currentTime);
-    for (const player of this.musicPlayers.values()) player.pause();
+    this.music?.pause();
     if (this.musicGain) this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
     if (this.musicDuck) { this.musicDuck.gain.cancelScheduledValues(this.context.currentTime); this.musicDuck.gain.setValueAtTime(1, this.context.currentTime); }
     this.musicTarget = 0;
@@ -268,36 +224,19 @@ export class AudioEngine {
     else { this.tone(880, 870, .09, .04, 'square', now); this.tone(660, 655, .11, .04, 'square', now + .12); }
   }
   updateMusic(playing, mood, level = 0) {
-    this.prepareMusic();
-    if (!this.musicGain || this.musicUnavailable) return;
-    if (!playing || this.muted) { if (this.music && (!this.music.paused || this.musicPending)) this.stopMusic(); return; }
+    if (!this.music) return;
+    if (!playing || this.muted) { if (!this.music.paused || this.musicPending) this.stopMusic(); return; }
     // Absolute sector order rotates the three flight tracks across every cycle.
     const sector = Number.isSafeInteger(level) && level >= 0 ? level : 0;
     const flight = FLIGHT_SONGS[sector % FLIGHT_SONGS.length];
-    const key = this.songFor(mood === 'boss' || mood === 'challenge' ? mood : flight, flight);
-    // Nothing ready yet: silence until a song arrives, never a stand-in tune.
+    // A song that cannot be played is skipped; another track stands in.
+    const key = [mood === 'boss' || mood === 'challenge' ? mood : flight, flight, ...FLIGHT_SONGS, 'boss', 'challenge'].find(song => !this.failedSongs.has(song));
     if (!key) return;
-    if (key !== this.songKey || !this.music) {
-      this.stopMusic(); this.songKey = key;
-      this.music = this.musicPlayers.get(key);
-      this.musicSource = this.musicSources.get(key);
-      this.musicBlocked = this.blockedSongs.has(key);
-      this.music.currentTime = 0;
-    }
-    const channel = this.musicChannels.get(key);
-    if (channel.gain.value !== 1) channel.gain.setValueAtTime(1, this.context.currentTime);
+    if (key !== this.songKey) { this.stopMusic(); this.songKey = key; }
     this.playMusic();
     // One automation event per change, not one per rendered frame.
     const target = SONGS[key].gain;
     if (this.musicTarget !== target) { this.musicTarget = target; this.musicGain.gain.setTargetAtTime(target, this.context.currentTime, .12); }
-  }
-  // The wanted song once it is ready. Until then the song already playing
-  // continues, or another ready song starts, so a slow download is not silent.
-  songFor(wanted, flight) {
-    const ready = key => this.musicPlayers.has(key) && !this.failedSongs.has(key);
-    if (ready(wanted)) return wanted;
-    if (ready(this.songKey) && this.music && (!this.music.paused || this.musicPending)) return this.songKey;
-    return [flight, ...FLIGHT_SONGS, 'boss', 'challenge'].find(ready) || null;
   }
   tone(frequency, end, duration, volume, type = 'sine', when = null, pan = 0, reverb = 0) {
     if (!this.context || this.muted || this.synthVoices.size >= MAX_SYNTH_VOICES) return;

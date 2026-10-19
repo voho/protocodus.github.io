@@ -56,7 +56,7 @@ try {
         canvasOpacity: Number(document.querySelector('#game-canvas').style.opacity || 1),
         gain: __audio?.transitionGain, busGain: __audio?.transitionBus?.gain.value,
         song: __audio?.songKey, musicPlaying: __audio?.musicPlaying,
-        musicPaused: [...(__audio?.musicPlayers.values() || [])].every(player => player.paused),
+        musicPaused: __audio?.music ? __audio.music.paused : true,
         sampleVoices: __audio?.sampleVoices.size, synthVoices: __audio?.synthVoices.size,
         level: tyran.state?.level, credits: tyran.state?.credits, score: tyran.state?.score,
       };
@@ -86,7 +86,6 @@ try {
     __frame(0);
   });
   ready = true;
-  await context.setOffline(true);
   await page.locator('#launch-button').click();
   await page.evaluate(() => { __frame(0); __startChallenge(); });
   await page.waitForFunction(() => __audio.songKey === 'challenge' && __audio.musicPlaying, null, { polling: 20 });
@@ -225,11 +224,12 @@ try {
   await page.screenshot({ path: `${output}/mobile-black.png` });
   await page.evaluate(() => __frames(9));
   assert.equal(await page.evaluate(() => tyran.scene), 'hangar');
-  assert.deepEqual(requests, [], 'Results, outro, shop, restored shop and next flight issue no late HTTP or Blob requests');
+  // Only the soundtrack streams while it plays; nothing else loads late.
+  assert.deepEqual(requests.filter(request => !/\/assets\/audio\/music\/\d\.mp3$/.test(request)), [], 'Results, outro, shop, restored shop and next flight issue no late HTTP or Blob requests besides the soundtrack stream');
   assert.deepEqual(errors, []);
   const report = { result, hold, middle, visibility, black, pixelResult, hangar: finished.hangar, restoredHangar, next, ordinary, defeat, mobile };
   await writeFile(`${output}/results.json`, JSON.stringify(report, null, 2));
-  console.log('PASS bonus results 2.6s + full-view/audio fade 1.5s, black-before-shop, challenge soundtrack continuity, pause/visibility/skip safety, saved shop/next-flight recovery, nonbonus and defeat transitions, reduced-motion mobile and offline cache.');
+  console.log('PASS bonus results 2.6s + full-view/audio fade 1.5s, black-before-shop, challenge soundtrack continuity, pause/visibility/skip safety, saved shop/next-flight recovery, nonbonus and defeat transitions, and reduced-motion mobile.');
 } finally {
   await context.close(); await browser.close();
 }
