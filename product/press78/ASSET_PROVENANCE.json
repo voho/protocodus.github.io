@@ -1,0 +1,39 @@
+{
+  "product": "Press78",
+  "reviewed": "2026-10-19",
+  "availability": "coming_soon",
+  "source_version": "0.1.0b15",
+  "source_format": "Rack Extension development panels (not a Shop release).",
+  "source_repository": "protocodus/virtual-instrument-press78",
+  "source_commit": "1f74ad774157698b33380de973ebc44b98b73839",
+  "feature_sources": [
+    "README.md",
+    "SHOP.md"
+  ],
+  "assets": [
+    {
+      "file": "press78-rack-front.webp",
+      "sha256": "7417c91be78d0e6eebe8848cfde884a85c345f01ed654a5364fe11197526b81e",
+      "bytes": 53762,
+      "dimensions": [
+        754,
+        552
+      ],
+      "source": "Docs/screenshots/Press78_Front.png",
+      "source_sha256": "29abe1f957f3c733567187b8f00bc38c38c24ef2d85a65f5844103e12f8cec2d",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+    },
+    {
+      "file": "press78-rack-rear.webp",
+      "sha256": "109fdba326dd95517712aeea091d5e2df4858b7183247d0385658da6d71def53",
+      "bytes": 39318,
+      "dimensions": [
+        754,
+        552
+      ],
+      "source": "Docs/screenshots/Press78_Back.png",
+      "source_sha256": "f474d48799a3bc17a5685983f877e9d76a06a9dc52263c083e6b7071f371f7cc",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+    }
+  ]
+}

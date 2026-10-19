@@ -13,6 +13,8 @@ the model foundation without promising a finalized Rack feature set.
 | Maremba | Rack 1.5.1f7 release panels and player guide, revision `e2b36073` | `maremba-panel.webp` and `maremba-rear.webp`, 1600 × 1171; card 880 × 644; original front/back PNGs and guide copied from the release |
 | Acustra | Current Rack release front/back renders, revision `af1708c8` | `acustra-rack-front.webp` and `acustra-rack-rear.webp`, 1457 × 1200 |
 | Electry | Complete Rack renders in `Design/Rendered`, revision `c140bb8f` | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
+| Ceres | Rack 0.1.0b11 development hand-off `dist/Ceres_{Front,Back}.png`, Rack revision `04c38031` | `ceres-rack-front.webp` and `ceres-rack-rear.webp`, 754 × 414 |
+| Press78 | Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77` | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
 | Lamer Degrader | Existing Rack 1.0.0f9 promotional assets and processed demonstration | Existing panel, rear, mascots and video retained |
 | Taikor | Original instrument artwork, not a Rack screenshot | `taikor-artwork.webp`, 1135 × 1386, explicitly captioned as artwork |
 | Septum | No Rack interface preview is available | Text announcement; no desktop editor presented as a Rack interface |
@@ -45,6 +47,15 @@ features. The relevant source is under `Examples/<Product>` in the
 - Maremba: bar/tine modes, nonlinear contact, resonators, sympathetic coupling,
   membranes, Close/Room/Piezo paths, seven audio outputs and 20 Rack patches.
   Drive affects Main; direct captures retain their independent calibration.
+- Ceres: four-voice circuit model with Mono/Double layering, mixed sources,
+  high-/low-pass filters, filter and amplifier envelopes, SUB and ring
+  modulation, velocity response and Sustain I/II, from the Rack README and
+  root `SHOP.md` at 0.1.0b11. The page marks the edition and its factory bank
+  as in development; no CV inputs are claimed because the device has none.
+- Press78: two-operator FM, per-operator envelopes, LFO, chorus and output
+  circuit, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
+  `SHOP.md` at 0.1.0b15. The factory bank is not described: commercial
+  redistribution of the imported bank has not been cleared (Press78 README).
 - Lamer: genuine MP3/Vorbis encoding and decoding, spectral bit allocation,
   quantization, repeated generations, prefilters and latency-aligned dry/wet.
   Bitrate is a coding target. Encoder changes and Bitrate Crossfade remain
