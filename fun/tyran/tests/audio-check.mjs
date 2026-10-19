@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
-// The shipped inventory: every effect variant plus the five songs.
+// Every effect variant is preloaded; the five songs stream only while they play.
 const { SAMPLE_BYTES } = await import('../audio-assets.js');
-const EFFECTS = Object.keys(SAMPLE_BYTES).length, TOTAL = EFFECTS + 5;
+const EFFECTS = Object.keys(SAMPLE_BYTES).length;
+const isSong = request => /\/assets\/audio\/music\/\d\.mp3$/.test(request);
 const errors = [];
 const setup = async (page, blocked = false) => {
   page.on('pageerror', error => errors.push(error.message));
@@ -74,28 +75,17 @@ try {
   const context = await browser.newContext(), page = await context.newPage();
   const requests = []; page.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) requests.push(request.url()); });
   await setup(page);
-  assert.equal(requests.length, TOTAL, `Preflight completely loads all ${EFFECTS} effects and 5 songs`);
-  assert.equal(new Set(requests).size, TOTAL, 'Each asset is fetched only once');
-  assert.deepEqual(requests.filter(url => url.endsWith('.mp3')).map(url => new URL(url).pathname.split('/').at(-1)).sort(), ['1.mp3', '2.mp3', '3.mp3', '4.mp3', '5.mp3'], 'Only the five supplied songs are requested');
+  const effectRequests = () => requests.filter(request => !isSong(request));
+  assert.equal(requests.length, EFFECTS, `Preflight loads all ${EFFECTS} effects and no song`);
+  assert.equal(new Set(requests).size, EFFECTS, 'Each effect is fetched only once');
   assert.equal(await page.evaluate(() => sharedAudioPreload), true, 'Repeated calls share a single preflight promise');
-  assert.deepEqual(await page.evaluate(() => audioStatus), { ready: true, completed: TOTAL, total: TOTAL, loaded: TOTAL, failed: 0 });
+  assert.deepEqual(await page.evaluate(() => audioStatus), { ready: true, completed: EFFECTS, total: EFFECTS, loaded: EFFECTS, failed: 0 });
   assert.equal(await page.evaluate(() => audioProgress.at(-1).ready), true, 'Progress reports settled readiness');
   assert.equal(await page.evaluate(() => audioTest.context), null, 'Preloading creates no live playback context');
   assert.equal(await page.evaluate(() => audioTest.samples.size), EFFECTS, 'All WAVs are already decoded before a user gesture');
   assert.equal(await page.evaluate(() => [...audioTest.samples.values()].every(buffer => buffer.sampleRate === 44100)), true, 'Effects decode at their full 44.1 kHz rate');
-  const prepared = await page.evaluate(() => ({
-    created: audioMediaAudit.players.length, sources: audioMediaAudit.sources, loads: audioMediaAudit.loads,
-    plays: audioMediaAudit.plays, contexts: audioMediaAudit.contexts,
-    keys: [...preparedAudio.players.keys()].sort(),
-    ready: [...preparedAudio.players].every(([key, player]) => player.readyState >= 4 && player.preload === 'auto'
-      && player.networkState === 1 && player.buffered.length && player.buffered.start(0) <= .05
-      && player.buffered.end(player.buffered.length - 1) >= player.duration - .05
-      && player.paused && player.loop && player.src === preparedAudio.songs.get(key)),
-  }));
-  assert.deepEqual(prepared.keys, ['boss', 'challenge', 'flight', 'flight2', 'flight3']);
-  assert.equal(prepared.created, 5); assert.equal(prepared.sources, 5); assert.equal(prepared.loads, 5);
-  assert.equal(prepared.ready, true, 'Every reusable song player has playable data before readiness');
-  assert.equal(prepared.plays, 0); assert.equal(prepared.contexts, 0, 'Preflight neither plays music nor creates a live context');
+  assert.deepEqual(await page.evaluate(() => ({ players: audioMediaAudit.players.length, plays: audioMediaAudit.plays, contexts: audioMediaAudit.contexts })),
+    { players: 0, plays: 0, contexts: 0 }, 'Preflight neither creates a music player nor plays anything');
   const unopenedFade = await page.evaluate(() => {
     audioTest.setTransitionGain(.4); audioTest.setTransitionGain(NaN); audioTest.setTransitionGain('0');
     return { gain: audioTest.transitionGain, context: audioTest.context, muted: audioTest.muted };
@@ -103,20 +93,21 @@ try {
   assert.deepEqual(unopenedFade, { gain: .4, context: null, muted: false }, 'A transition can be prepared without creating audio or altering mute');
   await page.evaluate(() => { audioTest.mute(true); audioTest.start(); });
   assert.equal(await page.evaluate(() => audioTest.context), null, 'A saved mute preference avoids creating audio at launch');
-  assert.equal(requests.length, TOTAL, 'Muted launch reuses the completed cache');
+  assert.equal(requests.length, EFFECTS, 'A muted launch streams nothing');
   await page.evaluate(() => audioTest.mute(false));
-  // Every track and cue must remain usable with the network completely absent.
-  await page.context().setOffline(true);
+
+  // The launch gesture starts streaming; outside flight the song pauses at once.
   await page.evaluate(() => { window.audioGestureStartsFlight = false; });
   await page.click('#audio-test-start');
-  await page.waitForFunction(() => audioTest.musicUnlocks.size === 0 && [...preparedAudio.players.values()].every(player => player.paused));
+  await page.waitForFunction(() => audioTest.music && audioTest.music.paused && !audioTest.musicPending);
   assert.equal(await page.evaluate(() => audioTest.transitionBus.gain.value), Math.fround(.4), 'The first context inherits the prepared transition gain');
-  assert.equal(await page.evaluate(() => audioMediaAudit.authorized.size), 5, 'One explicit gesture authorizes all five prepared elements');
-  assert((await rms(page)) < .0001, 'Priming all players in the menu produces no audible output');
+  assert.equal(await page.evaluate(() => audioMediaAudit.authorized.size), 1, 'One gesture authorizes the single music element');
+  assert((await rms(page)) < .0001, 'Starting audio in the menu produces no audible music');
   await page.evaluate(() => { window.audioGestureStartsFlight = true; audioTest.setTransitionGain(1); audioTest.update(true); });
-  assert.equal(await page.evaluate(() => audioTest.samples.size), EFFECTS, `All ${EFFECTS} shipped WAVs decode in the browser`);
   await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
-  assert((await rms(page)) > .001, 'The cached song produces audible samples through the shared limiter');
+  assert(requests.some(request => request.endsWith('/music/1.mp3')), 'The opening song streams from the server');
+  await page.waitForFunction(() => audioTest.music.currentTime > 1);
+  assert((await rms(page)) > .001, 'The streamed song is audible through the shared limiter');
   const selection = await page.evaluate(() => {
     const keys = [];
     for (let i = 0; i < 18; i++) { audioTest.stopVoices(); audioTest.sample('pickup', .1); keys.push(audioTest.lastSample.get('pickup')); }
@@ -138,23 +129,21 @@ try {
   await page.waitForTimeout(150);
   assert(Math.abs(await page.evaluate(() => audioTest.music.currentTime) - pausedAt) < .03, 'Pause freezes song position');
   assert((await rms(page)) < .0001, 'Pause silences actual audio output');
-  const songSources = new Set();
-  for (const [level, mood, key] of [[0, '', 'flight'], [1, '', 'flight2'], [2, '', 'flight3'], [2, 'boss', 'boss'], [2, 'challenge', 'challenge'], [3, '', 'flight'], [10, '', 'flight2'], [20, '', 'flight3']]) {
-    await page.evaluate(({level, mood}) => audioTest.update(true, level, mood), {level, mood});
+  await page.evaluate(() => audioTest.update(true));
+  await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
+  assert(await page.evaluate(pausedAt => audioTest.music.currentTime >= pausedAt - .05, pausedAt), 'Resuming the same song continues where it paused');
+  const player = await page.evaluateHandle(() => audioTest.music);
+  for (const [level, mood, key, file] of [[0, '', 'flight', '1.mp3'], [1, '', 'flight2', '2.mp3'], [2, '', 'flight3', '3.mp3'], [2, 'boss', 'boss', '4.mp3'], [2, 'challenge', 'challenge', '5.mp3'], [3, '', 'flight', '1.mp3'], [10, '', 'flight2', '2.mp3'], [20, '', 'flight3', '3.mp3']]) {
+    await page.evaluate(({ level, mood }) => audioTest.update(true, level, mood), { level, mood });
     await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
     assert.equal(await page.evaluate(() => audioTest.songKey), key, 'Sector rotation and combat mood select the intended song');
-    const source = await page.evaluate(() => audioTest.music.src); songSources.add(source);
-    assert(source.startsWith('blob:'), 'Music reads complete cached bytes, never a network URL');
-    assert.equal(await page.evaluate(() => audioTest.music === preparedAudio.players.get(audioTest.songKey)), true, 'Mood changes reuse the original prepared player');
-    assert.equal(await page.evaluate(() => [...preparedAudio.players.values()].filter(player => !player.paused).length), 1, 'Only the selected song can play');
+    assert(await page.evaluate(file => audioTest.music.src.endsWith(`/assets/audio/music/${file}`), file), 'Each song streams from its own file');
+    assert.equal(await page.evaluate(first => audioTest.music === first, player), true, 'Every song streams through the same authorized element');
     // Measure past each song's opening second; some intros start very quietly.
     await page.waitForFunction(() => audioTest.music.currentTime > 1);
-    assert((await rms(page)) > .001, 'Each downloaded song routes audible samples into the mixer');
-    const channels = await page.evaluate(() => [...audioTest.musicChannels].map(([key, channel]) => [key, channel.gain.value]));
-    assert.deepEqual(channels, channels.map(([name]) => [name, name === key ? 1 : 0]),
-      'Inactive channels remain silent even if priming play promises finish late');
+    assert((await rms(page)) > .001, 'Each streamed song routes audible samples into the mixer');
   }
-  assert.equal(songSources.size, 5, 'All five supplied songs play offline');
+  assert.equal(await page.evaluate(() => audioMediaAudit.players.length), 1, 'One music element serves every song');
   const fade = await page.evaluate(async () => {
     audioTest.update(true, 2, 'challenge');
     audioTest.tone(440, 440, 2, .18); audioTest.sample('explosion', .3, .8, 2);
@@ -164,8 +153,8 @@ try {
       await new Promise(resolve => setTimeout(resolve, 24));
       levels.push(audioTest.transitionBus.gain.value);
     }
-    // Newly emitted effects and still-playing compressed music all share the
-    // final bus; silence cannot depend solely on stopping preexisting voices.
+    // Newly emitted effects and the still-playing stream all share the final
+    // bus; silence cannot depend solely on stopping preexisting voices.
     audioTest.effect('nova', 100); audioTest.sample('pickup', .3);
     return { levels, gain: audioTest.transitionGain, muted: audioTest.muted,
       musicPaused: audioTest.music.paused, samples: audioTest.sampleVoices.size, synths: audioTest.synthVoices.size };
@@ -192,20 +181,17 @@ try {
   assert((await rms(page)) > .001, 'Restored transition gain makes hangar purchase effects audible');
   await page.evaluate(() => { audioTest.stopVoices(); audioTest.update(true); });
   await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
+  await page.waitForTimeout(600);
   assert((await rms(page)) > .001, 'The next flight returns to normal music volume');
   await page.evaluate(() => audioTest.mute(true));
   assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'Mute pauses streamed music');
   await page.waitForTimeout(150);
   assert((await rms(page)) < .0001, 'Mute silences the shared output');
   await page.evaluate(() => { audioTest.pause(); audioTest.mute(false); audioTest.start(); audioTest.update(false); });
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'Unmuting in a paused/menu scene does not leave a song playing');
-  await page.evaluate(() => audioTest.start());
-  await page.waitForTimeout(120);
-  assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'A media playing event before the first active frame remains silent');
-  await page.evaluate(() => audioTest.update(true));
-  await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
-  await page.evaluate(() => audioTest.pause());
+
+  // A refused play stays silent, never a stand-in tune, and the next key press retries it.
   await page.evaluate(() => {
     audioTest.originalPlay = audioTest.music.play.bind(audioTest.music);
     audioTest.music.play = () => Promise.reject(new DOMException('Gesture required', 'NotAllowedError'));
@@ -214,86 +200,51 @@ try {
   await page.waitForFunction(() => audioTest.musicBlocked === true);
   const blockedVoices = await page.evaluate(() => { audioTest.update(true); audioTest.update(true); return audioTest.synthVoices.size + audioTest.sampleVoices.size; });
   assert.equal(blockedVoices, 0, 'A refused playback permission stays silent instead of playing a stand-in tune');
-  // Any later key press is a gesture that retries the refused song.
   await page.evaluate(() => { audioTest.music.play = audioTest.originalPlay; });
   await page.keyboard.press('KeyM');
   await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.musicBlocked);
-  await page.evaluate(() => audioTest.pause());
-  assert.equal(requests.length, TOTAL, 'Flight, every mood, pause/resume, and retries make no audio network requests');
-  assert.deepEqual(await page.evaluate(() => ({ created: audioMediaAudit.players.length, sources: audioMediaAudit.sources, loads: audioMediaAudit.loads })),
-    { created: 5, sources: 5, loads: 5 }, 'No player, src assignment or load call occurs after preflight');
-  assert.equal(await page.evaluate(() => [...preparedAudio.players.values()].every(player => player.paused)), true, 'Pause/mute/menu never leave an orphan player running');
+
+  // An unplayable song is skipped for another track; it is retried on the next start.
+  await page.evaluate(() => { audioTest.update(true, 0, ''); });
+  await page.route('**/assets/audio/music/4.mp3', route => route.fulfill({ status: 404, body: '' }));
   await page.evaluate(() => audioTest.update(true, 0, 'boss'));
-  await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
-  const ownership = await page.evaluate(async () => {
-    const inactive = preparedAudio.players.get('flight');
-    inactive.dispatchEvent(new Event('waiting')); inactive.dispatchEvent(new Event('playing')); inactive.dispatchEvent(new Event('error'));
-    const { AudioEngine } = await import('./audio.js');
-    const other = new AudioEngine(); other.start(); other.update(true); other.pause();
-    return { playing: audioTest.musicPlaying, paused: audioTest.music.paused, failed: audioTest.failedSongs.has('boss'),
-      inactivePaused: inactive.paused, otherPlayers: other.musicPlayers.size, otherFallback: other.musicUnavailable };
-  });
-  assert.deepEqual(ownership, { playing: true, paused: false, failed: false, inactivePaused: true, otherPlayers: 0, otherFallback: true },
-    'Late inactive-song events and a second engine cannot interrupt or claim the selected song');
+  await page.waitForFunction(() => audioTest.failedSongs.has('boss'));
+  // The test engine has no frame loop; each poll stands in for a rendered frame.
+  await page.waitForFunction(() => { audioTest.update(true, 0, 'boss'); return audioTest.musicPlaying && audioTest.songKey === 'flight' && !audioTest.music.paused; });
+  assert.equal(await page.evaluate(() => audioTest.synthVoices.size), 0, 'A missing guardian track keeps a flight song playing, not a synthesized tune');
+  await page.unroute('**/assets/audio/music/4.mp3');
+  await page.evaluate(() => { audioTest.pause(); audioTest.start(); audioTest.update(true, 0, 'boss'); });
+  await page.waitForFunction(() => audioTest.musicPlaying && audioTest.songKey === 'boss');
   await page.evaluate(() => audioTest.pause());
-  await page.context().setOffline(false);
+  assert.deepEqual(effectRequests().length, EFFECTS, 'Flight, every mood, pause/resume and retries download no effect again');
+  assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'Pause/mute/menu never leave the stream playing');
+
   const cached = await page.context().newPage(), cachedRequests = [];
   cached.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) cachedRequests.push(request.url()); });
   await setup(cached);
-  assert.equal(await cached.evaluate(() => audioStatus.loaded), TOTAL, 'A later visit restores every audio asset from persistent storage');
-  assert.equal(cachedRequests.length, 0, 'Persistent audio cache avoids repeat network downloads');
-  await cached.evaluate(() => {
-    const player = preparedAudio.players.get('challenge');
-    window.challengePlay = player.play.bind(player);
-    player.play = () => Promise.reject(new DOMException('Element denied', 'NotAllowedError'));
-  });
-  await cached.click('#audio-test-start');
-  await cached.waitForFunction(() => audioTest.musicPlaying && audioTest.blockedSongs.has('challenge'));
-  assert.equal(await cached.evaluate(() => audioTest.musicBlocked), false, 'An inactive element permission failure cannot block successful flight music');
-  await cached.evaluate(() => { preparedAudio.players.get('challenge').play = challengePlay; });
-  await cached.click('#audio-test-start');
-  await cached.waitForFunction(() => audioMediaAudit.authorized.size === 5 && !audioTest.blockedSongs.has('challenge'));
-  for (const errorName of ['AbortError', 'NotAllowedError']) {
-    await cached.evaluate(() => audioTest.update(true));
-    await cached.waitForFunction(() => audioTest.musicPlaying && audioTest.songKey === 'flight');
-    await cached.evaluate(() => {
-      const player = preparedAudio.players.get('flight2');
-      window.restorePrimePlay = player.play.bind(player);
-      audioTest.unlockedSongs.delete('flight2');
-      player.play = () => new Promise((resolve, reject) => { window.rejectOldPrime = reject; });
-    });
-    await cached.click('#audio-test-start');
-    await cached.evaluate(() => { preparedAudio.players.get('flight2').play = restorePrimePlay; audioTest.update(true, 1); });
-    await cached.waitForFunction(() => audioTest.musicPlaying && audioTest.songKey === 'flight2');
-    const stalePrime = await cached.evaluate(async errorName => {
-      rejectOldPrime(new DOMException('Old prime rejected', errorName));
-      await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
-      audioTest.update(true, 1);
-      return { playing: audioTest.musicPlaying, paused: audioTest.music.paused, blocked: audioTest.musicBlocked,
-        failed: audioTest.failedSongs.has('flight2'), synth: audioTest.synthVoices.size };
-    }, errorName);
-    assert.deepEqual(stalePrime, { playing: true, paused: false, blocked: false, failed: false, synth: 0 },
-      `A stale priming ${errorName} cannot overwrite a newer successful play or start synth over it`);
-  }
-  await cached.evaluate(() => audioTest.pause());
-  assert.equal(await cached.evaluate(() => [...preparedAudio.players.values()].every(player => player.paused)), true);
-  await cached.waitForTimeout(150); // Let the analyser's previous audible sample window drain.
-  assert((await rms(cached)) < .0001, 'Stopping gesture-primed players leaves the shared output silent');
+  assert.equal(await cached.evaluate(() => audioStatus.loaded), EFFECTS, 'A later visit restores every effect from persistent storage');
+  assert.equal(cachedRequests.length, 0, 'Persistent effect cache avoids repeat network downloads');
+  assert.equal(await cached.evaluate(async () => {
+    const { AUDIO_CACHE } = await import('./audio-assets.js');
+    const keys = await (await caches.open(AUDIO_CACHE)).keys();
+    return keys.some(request => request.url.includes('/music/'));
+  }), false, 'Songs are never copied into persistent storage');
   await cached.close();
 
   const fallback = await browser.newPage(), fallbackRequests = [];
   fallback.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) fallbackRequests.push(request.url()); });
   await setup(fallback, true);
-  assert.deepEqual(await fallback.evaluate(() => audioStatus), { ready: true, completed: TOTAL, total: TOTAL, loaded: 0, failed: TOTAL }, 'Missing files settle preflight into a usable fallback');
+  assert.deepEqual(await fallback.evaluate(() => audioStatus), { ready: true, completed: EFFECTS, total: EFFECTS, loaded: 0, failed: EFFECTS }, 'Missing files settle preflight into a usable fallback');
   await fallback.click('#audio-test-start');
+  await fallback.waitForFunction(() => { audioTest.update(true); return ['boss', 'challenge', 'flight', 'flight2', 'flight3'].every(key => audioTest.failedSongs.has(key)); });
   const fallbackState = await fallback.evaluate(() => {
     audioTest.update(true); audioTest.update(true, 1, 'boss');
     const music = audioTest.synthVoices.size;
     audioTest.effect('pickup'); audioTest.effect('explosion', 100);
-    return { samples: audioTest.samples.size, music, voices: audioTest.synthVoices.size };
+    return { samples: audioTest.samples.size, music, voices: audioTest.synthVoices.size, playing: audioTest.musicPlaying };
   });
   assert.equal(fallbackState.samples, 0);
-  assert.equal(fallbackState.music, 0, 'Missing songs leave the soundtrack silent; no synthesized stand-in tune plays');
+  assert.deepEqual([fallbackState.music, fallbackState.playing], [0, false], 'Missing songs leave the soundtrack silent; no synthesized stand-in tune plays');
   assert(fallbackState.voices > 0, 'Missing effect files fall back to synthesized effects');
   assert((await rms(fallback)) > .001, 'The download-failure fallback is actually audible');
   await fallback.evaluate(() => { audioTest.setTransitionGain(0); audioTest.update(true, 1, 'challenge'); audioTest.effect('challenge-result'); });
@@ -301,8 +252,12 @@ try {
   assert.equal(await rms(fallback), 0, 'Synthesized fallback effects and result fanfare fade to exact silence too');
   await fallback.evaluate(() => { audioTest.pause(); audioTest.setTransitionGain(1); audioTest.effect('upgrade'); });
   assert((await rms(fallback)) > .001, 'Fallback purchase cues recover after the transition');
-  await fallback.evaluate(() => { audioTest.update(true, 1, 'boss'); audioTest.update(true, 1, 'challenge'); audioTest.pause(); audioTest.start(); });
-  assert.equal(fallbackRequests.length, TOTAL, 'Failed preflight assets are not retried during gameplay');
+  await fallback.evaluate(() => { audioTest.update(true, 1, 'boss'); audioTest.update(true, 1, 'challenge'); audioTest.pause(); });
+  assert.equal(fallbackRequests.filter(request => !isSong(request)).length, EFFECTS, 'Failed effects are not retried during gameplay');
+  const songAttempts = fallbackRequests.filter(isSong).length;
+  await fallback.evaluate(() => { audioTest.update(true, 1, 'boss'); audioTest.update(true, 2, ''); });
+  await fallback.waitForTimeout(200);
+  assert.equal(fallbackRequests.filter(isSong).length, songAttempts, 'Failed songs are not retried until the next start');
   await fallback.evaluate(() => audioTest.pause());
 
   // Speed up only the documented startup deadline while leaving requests hung.
@@ -320,43 +275,10 @@ try {
     const before = performance.now(), status = await preloadAudio();
     return { status, elapsed: performance.now() - before };
   });
-  assert.deepEqual(deadline.status, { ready: true, completed: 0, total: TOTAL, loaded: 0, failed: 0 });
+  assert.deepEqual(deadline.status, { ready: true, completed: 0, total: EFFECTS, loaded: 0, failed: 0 });
   assert(deadline.elapsed < 1500, 'One shared deadline releases the launch while downloads are still pending');
-  assert(stalledRequests.length <= 5, 'Four effect downloads and one song download at most; queued files wait their turn');
+  assert(stalledRequests.length <= 4, 'At most four effect downloads at once; queued files wait their turn');
   await stalled.close();
-
-  // Complete bytes are insufficient if a browser never prepares playable media.
-  // Keep readyState stalled and shorten the per-song preparation limit.
-  const stalledMedia = await context.newPage();
-  stalledMedia.on('pageerror', error => errors.push(error.message));
-  await stalledMedia.route('**/audio-media-deadline-check.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Media deadline</title>' }));
-  await stalledMedia.goto(new URL('audio-media-deadline-check.html', url).href);
-  const mediaDeadline = await stalledMedia.evaluate(async () => {
-    const NativeAudio = window.Audio, nativeTimeout = window.setTimeout, revoke = URL.revokeObjectURL.bind(URL);
-    const players = [], revoked = [];
-    window.setTimeout = (callback, delay, ...args) => nativeTimeout(callback, delay === 20000 ? 300 : delay, ...args);
-    URL.revokeObjectURL = value => { revoked.push(value); revoke(value); };
-    window.Audio = new Proxy(NativeAudio, { construct(target, args) {
-      const player = Reflect.construct(target, args);
-      Object.defineProperty(player, 'readyState', { configurable: true, get: () => 0 }); players.push(player); return player;
-    } });
-    const { preloadAudio, audioAssets } = await import('./audio-assets.js');
-    await preloadAudio();
-    while (audioAssets.progress.completed < audioAssets.progress.total) await new Promise(resolve => nativeTimeout(resolve, 50));
-    const cleared = players.every(player => player.paused && !player.hasAttribute('src'));
-    for (const player of players) {
-      Object.defineProperty(player, 'readyState', { configurable: true, get: () => 4 }); player.dispatchEvent(new Event('canplaythrough'));
-    }
-    await Promise.resolve();
-    return { settled: audioAssets.progress, created: players.length, revoked: revoked.length, cleared,
-      songs: audioAssets.songs.size, prepared: audioAssets.players.size };
-  });
-  assert.deepEqual(mediaDeadline.settled, { ready: true, completed: TOTAL, total: TOTAL, loaded: EFFECTS, failed: 5 }, 'Unpreparable songs settle as failures');
-  assert.equal(mediaDeadline.created, 5, 'Each song gets one player, prepared one at a time');
-  assert.equal(mediaDeadline.revoked, mediaDeadline.created, 'Every timed-out player releases its Blob URL');
-  assert.equal(mediaDeadline.cleared, true, 'Timed-out elements abort loading and release their source');
-  assert.equal(mediaDeadline.songs, 0); assert.equal(mediaDeadline.prepared, 0, 'Late media readiness cannot publish failed tracks');
-  await stalledMedia.close();
   assert.deepEqual(errors, [], 'No uncaught browser errors');
-  console.log(`Audio browser checks passed: ${EFFECTS} full-rate effects and five playable preflight players, offline playback without source/load changes, persistent cache, ownership/event isolation, variation/caps, mute/pause, exact transition silence and recovery, silent (never synthesized) missing music, gesture retry, and bounded asset/media/permission fallback.`);
+  console.log(`Audio browser checks passed: ${EFFECTS} full-rate effects preloaded and cached, songs streamed on demand through one authorized element, rotation and moods, pause/resume position, mute, exact transition silence and recovery, silent (never synthesized) missing music, substitute and retry for an unplayable song, gesture retry, and bounded effect fallback.`);
 } finally { await browser.close(); }

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
+// Songs stream later; the last preloaded effect is what holds startup open.
+const { SAMPLE_BYTES } = await import('../audio-assets.js');
+const LAST_EFFECT = Object.keys(SAMPLE_BYTES).at(-1);
 const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/';
 const output = process.env.TYRAN_LOADING_OUTPUT || '/tmp/tyran-loader-qa';
@@ -17,8 +20,8 @@ try {
     const touch = viewport.width < 600, reducedMotion = viewport.width === 320 ? 'reduce' : 'no-preference';
     const context = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, reducedMotion, deviceScaleFactor: 1 });
     const page = await context.newPage();
-    let releaseSong, notifyHeld, timeout;
-    const songHeld = new Promise(resolve => { notifyHeld = resolve; });
+    let releaseEffect, notifyHeld, timeout;
+    const effectHeld = new Promise(resolve => { notifyHeld = resolve; });
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.addInitScript(() => {
@@ -34,14 +37,14 @@ try {
         }
       };
     });
-    await page.route('**/assets/audio/music/1.mp3', async route => {
+    await page.route(`**/assets/audio/sfx/${LAST_EFFECT}.wav`, async route => {
       notifyHeld();
-      await new Promise(resolve => { releaseSong = resolve; });
+      await new Promise(resolve => { releaseEffect = resolve; });
       await route.continue();
     });
     try {
       await page.goto(url, { waitUntil: 'commit' });
-      await Promise.race([songHeld, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Startup never requested its soundtrack')), 10000); })]);
+      await Promise.race([effectHeld, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Startup never requested its last effect')), 10000); })]);
       clearTimeout(timeout);
       await page.waitForFunction(() => /Preparing flight… \d+%/.test(document.querySelector('#startup-status').textContent), null, { polling: 20 });
       await page.evaluate(() => document.fonts.ready);
@@ -75,7 +78,7 @@ try {
       assert.equal(loading.activityAnimation, reducedMotion === 'reduce' ? 'none' : 'startup-scan', `${label}: activity respects the motion preference`);
       await page.screenshot({ path: `${output}/${label}-loading.png` });
 
-      releaseSong();
+      releaseEffect();
       await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
       const ready = await page.evaluate(() => {
         const overlay = document.querySelector('#startup-loader');
@@ -101,7 +104,7 @@ try {
       assert.equal(flight.loaderVisible, false, `${label}: the loading layer stays absent throughout flight`);
       await page.screenshot({ path: `${output}/${label}-flight.png` });
       results.push({ label, reducedMotion, loading, ready, flight });
-    } finally { clearTimeout(timeout); releaseSong?.(); await context.close(); }
+    } finally { clearTimeout(timeout); releaseEffect?.(); await context.close(); }
   }
   assert.deepEqual(errors, [], 'Startup and first flight have no browser or resource errors');
   await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
