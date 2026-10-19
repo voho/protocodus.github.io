@@ -134,7 +134,7 @@ p { text-wrap: pretty; }
 .showcase { border-top: 0; }
 
 /* Complete instrument previews: never crop controls to fit a card. */
-.p-electry, .p-acustra, .p-youknow, .p-taikor, .p-maremba, .p-septum { --signal: var(--brand-cabbage); }
+.p-electry, .p-acustra, .p-youknow, .p-maremba { --signal: var(--brand-cabbage); }
 .p-podcare { --signal: var(--brand-primrose); }
 .p-lamer { --signal: #b4cc88; }
 .p-ceres, .p-press78 { --signal: var(--brand-cabbage); }
@@ -168,9 +168,6 @@ p { text-wrap: pretty; }
   .soundcloud-player { filter: none; }
 }
 
-.upcoming-preview { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1.5rem; min-height: 20rem; padding: clamp(1.5rem, 4vw, 3rem); border: 1px solid var(--line-lift); background: radial-gradient(ellipse at top right, var(--accent-subtle), transparent 75%), var(--bg); }
-.preview-name { color: var(--fg); font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.15; letter-spacing: -0.04em; }
-.preview-note { color: var(--fg-faint); font-size: 0.875rem; }
 /* Product opening, details and editions */
 .instrument-hero { padding-block: 2.25rem 4.5rem; }
 .instrument-layout { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr); align-items: center; gap: clamp(2rem, 4vw, 3.5rem); }
