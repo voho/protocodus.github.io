@@ -1,0 +1,40 @@
+{
+  "product": "Ceres",
+  "reviewed": "2026-10-19",
+  "availability": "coming_soon",
+  "source_version": "0.1.0b11",
+  "source_format": "Rack Extension development hand-off (not a Shop release).",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "04c38031784597f3eaa896b1263f3b34e80ec4bb",
+  "feature_sources": [
+    "Examples/Ceres/README.md",
+    "Examples/Ceres/motherboard_def.lua",
+    "SHOP.md"
+  ],
+  "assets": [
+    {
+      "file": "ceres-rack-front.webp",
+      "sha256": "5cb6ae5b019ad1cb850e3c1ab5dc4ba4ae28eca5f085e07ff15a8b65490bc73c",
+      "bytes": 54242,
+      "dimensions": [
+        754,
+        414
+      ],
+      "source": "dist/Ceres_Front.png",
+      "source_sha256": "6a2c1951e57441cc5f15ac5e4abb1cae51e88cec9df2dc30359a6c5b30841345",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+    },
+    {
+      "file": "ceres-rack-rear.webp",
+      "sha256": "28c74b039b0c23a815cf909bc9832e3bf5bcd693391f230462e809e5c260f620",
+      "bytes": 26368,
+      "dimensions": [
+        754,
+        414
+      ],
+      "source": "dist/Ceres_Back.png",
+      "source_sha256": "904a2a1875d015c15afb3814d9295bafd55f13c5c25148f28bc45136a4ad2738",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+    }
+  ]
+}
