@@ -1,0 +1,287 @@
+/* Hedgerow — terrain.
+
+   The level describes its ground analytically (height(x, z) and
+   splat(x, z, h, slope) -> [mud, grass, forest, cobble]); this module
+   samples it once into a 0.5 m master grid, answers height / normal / ray
+   queries from that grid, and builds chunked meshes (1 m, or 0.5 m where
+   the level asks for detail, e.g. trenches) with skirts to hide the seams
+   between resolutions. The material blends four ground textures by the
+   splat weights and their heights, puts rock on steep slopes and standing
+   water with rain rings in the hollows of the mud. */
+
+import * as THREE from 'three';
+import { clamp } from './util.js';
+
+const RES = 0.5;
+const CHUNK = 32;
+
+export function createTerrain(def, textures, shared) {
+  const { minX, maxX, minZ, maxZ } = def.bounds;
+  const nx = Math.round((maxX - minX) / RES) + 1;
+  const nz = Math.round((maxZ - minZ) / RES) + 1;
+  const H = new Float32Array(nx * nz);
+  for (let j = 0; j < nz; j++) {
+    const z = minZ + j * RES;
+    for (let i = 0; i < nx; i++) H[j * nx + i] = def.height(minX + i * RES, z);
+  }
+
+  function height(x, z) {
+    const fx = clamp((x - minX) / RES, 0, nx - 1.001);
+    const fz = clamp((z - minZ) / RES, 0, nz - 1.001);
+    const i = Math.floor(fx), j = Math.floor(fz);
+    const u = fx - i, v = fz - j;
+    const a = H[j * nx + i], b = H[j * nx + i + 1], c = H[(j + 1) * nx + i], d = H[(j + 1) * nx + i + 1];
+    // match the mesh triangulation (diagonal from (i,j+1) to (i+1,j))
+    if (u + v <= 1) return a + (b - a) * u + (c - a) * v;
+    return d + (c - d) * (1 - u) + (b - d) * (1 - v);
+  }
+
+  function normal(x, z, out = [0, 1, 0]) {
+    const e = RES;
+    const hx = height(x + e, z) - height(x - e, z);
+    const hz = height(x, z + e) - height(x, z - e);
+    const L = Math.hypot(hx, 2 * e, hz);
+    out[0] = -hx / L; out[1] = (2 * e) / L; out[2] = -hz / L;
+    return out;
+  }
+
+  const splatCache = new Map();
+  function surfaceAt(x, z) {
+    const w = def.splat(x, z, height(x, z), 0);
+    let best = 0;
+    for (let k = 1; k < 4; k++) if (w[k] > w[best]) best = k;
+    return ['mud', 'grass', 'forest', 'cobble'][best];
+  }
+
+  /* March a ray over the heightfield; returns t or Infinity. */
+  function raycast(ox, oy, oz, dx, dy, dz, maxT) {
+    let t = 0;
+    let prevT = 0, prevD = oy - height(ox, oz);
+    if (prevD < 0) return 0;
+    const step = 0.6;
+    while (t < maxT) {
+      t = Math.min(t + step, maxT);
+      const x = ox + dx * t, y = oy + dy * t, z = oz + dz * t;
+      const d = y - height(x, z);
+      if (d < 0) {
+        // bisect
+        let a = prevT, b = t;
+        for (let k = 0; k < 8; k++) {
+          const m = (a + b) * 0.5;
+          const dm = (oy + dy * m) - height(ox + dx * m, oz + dz * m);
+          if (dm < 0) b = m; else a = m;
+        }
+        return b;
+      }
+      prevT = t; prevD = d;
+      if (t >= maxT) break;
+    }
+    return Infinity;
+  }
+
+  /* ---------- meshes ---------- */
+
+  const material = createTerrainMaterial(textures, shared);
+  const group = new THREE.Group();
+  group.name = 'terrain';
+  const fine = def.fine || [];
+  const isFine = (x0, z0, x1, z1) => fine.some(([a, b, c, d]) => x1 > a && x0 < c && z1 > b && z0 < d);
+
+  for (let cz = minZ; cz < maxZ - 1e-6; cz += CHUNK) {
+    for (let cx = minX; cx < maxX - 1e-6; cx += CHUNK) {
+      const x1 = Math.min(cx + CHUNK, maxX), z1 = Math.min(cz + CHUNK, maxZ);
+      const step = isFine(cx, cz, x1, z1) ? 1 : 2;   // in master cells
+      group.add(buildChunk(cx, cz, x1, z1, step));
+    }
+  }
+
+  function buildChunk(x0, z0, x1, z1, step) {
+    const i0 = Math.round((x0 - minX) / RES), j0 = Math.round((z0 - minZ) / RES);
+    const i1 = Math.round((x1 - minX) / RES), j1 = Math.round((z1 - minZ) / RES);
+    const cols = Math.floor((i1 - i0) / step) + 1, rows = Math.floor((j1 - j0) / step) + 1;
+    const vcount = cols * rows + 2 * (cols + rows);
+    const pos = new Float32Array(vcount * 3);
+    const nrm = new Float32Array(vcount * 3);
+    const spl = new Float32Array(vcount * 4);
+    const idx = [];
+    const n = [0, 0, 0];
+    let v = 0;
+    const put = (i, j, drop) => {
+      const x = minX + i * RES, z = minZ + j * RES;
+      const h = H[j * nx + i];
+      pos[v * 3] = x; pos[v * 3 + 1] = h - drop; pos[v * 3 + 2] = z;
+      normal(x, z, n);
+      nrm[v * 3] = n[0]; nrm[v * 3 + 1] = n[1]; nrm[v * 3 + 2] = n[2];
+      const w = def.splat(x, z, h, 1 - n[1]);
+      spl[v * 4] = w[0]; spl[v * 4 + 1] = w[1]; spl[v * 4 + 2] = w[2]; spl[v * 4 + 3] = w[3];
+      return v++;
+    };
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) put(i0 + c * step, j0 + r * step, 0);
+    for (let r = 0; r < rows - 1; r++) {
+      for (let c = 0; c < cols - 1; c++) {
+        const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
+        idx.push(a, d, b, b, d, e);
+      }
+    }
+    // skirts
+    const edge = (list) => {
+      const base = v;
+      for (const [c, r] of list) put(i0 + c * step, j0 + r * step, 1.5);
+      for (let k = 0; k < list.length - 1; k++) {
+        const ta = list[k][1] * cols + list[k][0], tb = list[k + 1][1] * cols + list[k + 1][0];
+        const ba = base + k, bb = base + k + 1;
+        idx.push(ta, ba, tb, tb, ba, bb, ta, tb, ba, tb, bb, ba);
+      }
+    };
+    edge(Array.from({ length: cols }, (_, c) => [c, 0]));
+    edge(Array.from({ length: cols }, (_, c) => [c, rows - 1]));
+    edge(Array.from({ length: rows }, (_, r) => [0, r]));
+    edge(Array.from({ length: rows }, (_, r) => [cols - 1, r]));
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
+    geo.setAttribute('splat', new THREE.BufferAttribute(spl.subarray(0, v * 4), 4));
+    geo.setIndex(idx);
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.name = 'terrain_chunk';
+    mesh.matrixAutoUpdate = false;
+    return mesh;
+  }
+
+  return { height, normal, raycast, surfaceAt, group, material, grid: { H, nx, nz, minX, minZ, res: RES } };
+}
+
+/* ---------- material ---------- */
+
+export function createTerrainMaterial(textures, shared) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
+  mat.name = 'terrain';
+  mat.envMapIntensity = 0.9;
+  mat.customProgramCacheKey = () => 'hedgerow-terrain';
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, {
+      tMud: { value: textures.mud }, tMudN: { value: textures.mud_n },
+      tGrass: { value: textures.grass }, tGrassN: { value: textures.grass_n },
+      tForest: { value: textures.forest }, tForestN: { value: textures.forest_n },
+      tCobble: { value: textures.cobble }, tCobbleN: { value: textures.cobble_n },
+      tRock: { value: textures.rock },
+      uRockColor: { value: new THREE.Color('#5f5c55') },
+      uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
+    });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute vec4 splat;
+        varying vec4 vSplat;
+        varying vec3 vWPos;
+        varying vec3 vWNormal;`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vSplat = splat;
+        vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vWNormal = normalize(mat3(modelMatrix) * objectNormal);`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
+        uniform vec3 uRockColor;
+        uniform float uWet, uTime, uRain;
+        varying vec4 vSplat;
+        varying vec3 vWPos;
+        varying vec3 vWNormal;
+        vec3 tNormal; float tRough; float tPuddle;
+        ${GLSL_HELPERS}`)
+      .replace('#include <map_fragment>', `
+        vec2 uvw = vWPos.xz / 4.0;
+        vec4 cM = texture2D(tMud, uvw);
+        vec4 cG = texture2D(tGrass, uvw * 0.93 + 0.37);
+        vec4 cF = texture2D(tForest, uvw * 0.87 + 0.61);
+        vec4 cC = texture2D(tCobble, uvw * 1.6);
+        vec4 hts = vec4(cM.a, cG.a, cF.a, cC.a);
+        vec4 w = max(vSplat, 0.0);
+        vec4 hw = w + hts * 0.55 * step(0.002, w);
+        float ma = max(max(hw.x, hw.y), max(hw.z, hw.w)) - 0.18;
+        vec4 b = max(hw - ma, 0.0) * step(0.002, w);
+        b /= max(dot(b, vec4(1.0)), 1e-4);
+        vec3 alb = cM.rgb * b.x + cG.rgb * b.y + cF.rgb * b.z + cC.rgb * b.w;
+        vec4 nM = texture2D(tMudN, uvw), nG = texture2D(tGrassN, uvw * 0.93 + 0.37);
+        vec4 nF = texture2D(tForestN, uvw * 0.87 + 0.61), nC = texture2D(tCobbleN, uvw * 1.6);
+        vec4 nb = nM * b.x + nG * b.y + nF * b.z + nC * b.w;
+        tNormal = nb.xyz * 2.0 - 1.0;
+        tRough = nb.w;
+        // macro variation breaks the tiling
+        float macro = texture2D(tMud, vWPos.xz / 57.0).a * 0.6 + texture2D(tGrass, vWPos.xz / 23.0).a * 0.4;
+        alb *= 0.78 + 0.44 * macro;
+        // rock on steep ground
+        float slope = 1.0 - vWNormal.y;
+        float rockW = smoothstep(0.42, 0.62, slope + (hts.x - 0.5) * 0.15);
+        vec4 rk = texture2D(tRock, vWPos.xz / 3.0 + vWPos.y * 0.21);
+        alb = mix(alb, uRockColor * (0.55 + 0.9 * rk.a), rockW);
+        tNormal = normalize(mix(tNormal, rk.xyz * 2.0 - 1.0, rockW));
+        tRough = mix(tRough, 0.85, rockW);
+        // puddles: the low parts of mud and road, more where the macro noise says so
+        float wetLow = (b.x + b.w * 0.6) * (1.0 - rockW);
+        float pMask = smoothstep(0.42, 0.7, texture2D(tForest, vWPos.xz / 31.0).a * 0.7 + (1.0 - hts.x) * 0.5);
+        tPuddle = wetLow * smoothstep(0.35, 0.55, pMask - nb.w * 0.1 + (1.0 - hts.x) * 0.25) * uWet;
+        // darken wet ground
+        alb *= mix(1.0, 0.62, uWet * (1.0 - rockW * 0.3));
+        alb = mix(alb, alb * vec3(0.55, 0.55, 0.6), tPuddle);
+        diffuseColor.rgb *= alb;
+      `)
+      .replace('#include <roughnessmap_fragment>', `
+        float roughnessFactor = mix(tRough, tRough * 0.62 + 0.04, uWet);
+        roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
+      `)
+      .replace('#include <normal_fragment_maps>', `
+        {
+          vec3 nts = tNormal;
+          nts.xy *= mix(1.0, 0.0, tPuddle);
+          // rain rings in puddles
+          vec2 rip = rainRipples(vWPos.xz * 1.7, uTime) * uRain;
+          nts.xy += rip * tPuddle * 0.9;
+          mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
+          normal = normalize(tbn * normalize(nts));
+        }
+      `);
+  };
+  return mat;
+}
+
+/* Shared GLSL: a cotangent frame from screen derivatives, and procedural
+   rain ripples (rings expanding from random points in a cell grid). */
+export const GLSL_HELPERS = /* glsl */ `
+  mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+    vec3 dp1 = dFdx(p), dp2 = dFdy(p);
+    vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+    vec3 dp2perp = cross(dp2, N);
+    vec3 dp1perp = cross(N, dp1);
+    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+    float invmax = inversesqrt(max(max(dot(T, T), dot(B, B)), 1e-12));
+    return mat3(T * invmax, B * invmax, N);
+  }
+  float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  vec2 rainRipples(vec2 p, float t) {
+    vec2 acc = vec2(0.0);
+    for (int k = 0; k < 2; k++) {
+      vec2 q = p + float(k) * vec2(0.37, 0.71);
+      vec2 cell = floor(q);
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+        vec2 c = cell + vec2(float(i), float(j));
+        float h = hash12(c + float(k) * 13.1);
+        vec2 centre = c + vec2(hash12(c + 3.7), hash12(c + 9.1));
+        float phase = fract(t * 0.9 + h);
+        vec2 d = q - centre;
+        float r = length(d);
+        float ring = r - phase * 0.9;
+        float wave = sin(ring * 40.0) * exp(-ring * ring * 160.0) * (1.0 - phase) * (1.0 - phase);
+        acc += d / max(r, 1e-3) * wave;
+      }
+    }
+    return acc * 0.5;
+  }
+`;

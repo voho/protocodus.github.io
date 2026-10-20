@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Hedgerow — Saint-Clair at dusk</title>
+  <meta name="description"
+    content="A third-person Second World War shooter in the browser. Fight your way through a Norman village and the forest beyond it at dusk, in the rain.">
+  <meta name="theme-color" content="#0b0d10">
+  <meta property="og:title" content="Hedgerow — Saint-Clair at dusk">
+  <meta property="og:description" content="Third-person WW2 shooter in the browser: a village, a river and a forest at dusk, in the rain.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/hedgerow/">
+  <link rel="canonical" href="https://protocodus.cz/fun/hedgerow/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./hedgerow.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+</head>
+
+<body>
+  <canvas id="stage" aria-label="Hedgerow game view"></canvas>
+
+  <!-- In-game HUD -->
+  <div class="hud" data-hud hidden>
+    <div class="crosshair" data-crosshair><i></i><i></i><i></i><i></i></div>
+    <div class="hitmark" data-hitmark><i></i><i></i><i></i><i></i></div>
+    <div class="damage" data-damage></div>
+    <div class="vignette-hurt" data-hurt></div>
+
+    <div class="compass" data-compass>
+      <div class="compass-strip" data-compass-strip></div>
+      <div class="compass-mark" data-compass-mark><span data-compass-dist></span></div>
+    </div>
+
+    <div class="objective" data-objective>
+      <p class="objective-label">Objective</p>
+      <p class="objective-text" data-objective-text></p>
+    </div>
+
+    <div class="notice" data-notice></div>
+    <div class="prompt" data-prompt hidden></div>
+    <div class="grenade-warn" data-grenade-warn hidden><span>Grenade!</span></div>
+    <div class="detect" data-detect></div>
+
+    <div class="status">
+      <div class="health"><div class="health-fill" data-health></div></div>
+      <p class="stance" data-stance>Standing</p>
+    </div>
+
+    <div class="weapon">
+      <p class="weapon-name" data-weapon-name>M1 Garand</p>
+      <p class="ammo"><b data-ammo-mag>8</b><span>/</span><span data-ammo-reserve>64</span></p>
+      <p class="grenades"><span data-grenades>4</span> grenades</p>
+      <div class="reload" data-reload hidden><i data-reload-fill></i><span>Reloading</span></div>
+      <p class="reload-hint" data-reload-hint hidden><b>R</b> reload</p>
+    </div>
+    <pre class="debug" data-debug hidden></pre>
+  </div>
+
+  <div class="fade on" data-fade aria-hidden="true"></div>
+
+  <!-- Title, loading and menu -->
+  <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="hedgerow-title">
+    <div class="panel title-panel">
+      <p class="eyebrow">Normandy · July 1944</p>
+      <h1 class="wordmark" id="hedgerow-title">HEDGEROW</h1>
+      <p class="subtitle">Saint-Clair, at dusk</p>
+      <div class="loading" data-loading>
+        <div class="loading-track" role="progressbar" aria-labelledby="hedgerow-loading-label" aria-valuemin="0"
+          aria-valuemax="100" aria-valuenow="0" data-loading-bar>
+          <i class="loading-fill" data-loading-fill></i>
+        </div>
+        <p class="loading-label" id="hedgerow-loading-label" data-loading-label>Loading</p>
+      </div>
+      <div class="error" data-error hidden>
+        <p data-error-text></p>
+        <button type="button" class="ghost" data-action="retry">Retry</button>
+      </div>
+      <nav class="menu" data-menu hidden>
+        <button type="button" class="menu-item primary" data-action="briefing">Play mission</button>
+        <button type="button" class="menu-item" data-action="controls">Controls</button>
+        <button type="button" class="menu-item" data-action="settings">Settings</button>
+        <a class="menu-item" href="/fun/">Back to games</a>
+      </nav>
+      <p class="best" data-best hidden></p>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="briefing" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
+    <div class="panel briefing">
+      <p class="eyebrow">Mission 1</p>
+      <h2 id="briefing-title" data-briefing-title>Saint-Clair</h2>
+      <p class="when" data-briefing-when></p>
+      <div class="briefing-text" data-briefing-text></div>
+      <ul class="briefing-goals" data-briefing-goals></ul>
+      <div class="row">
+        <button type="button" class="menu-item primary" data-action="start">Move out</button>
+        <button type="button" class="menu-item" data-action="back">Back</button>
+      </div>
+      <p class="hint">Click to capture the mouse. Esc pauses.</p>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="controls" role="dialog" aria-modal="true" aria-labelledby="controls-title">
+    <div class="panel">
+      <h2 id="controls-title">Controls</h2>
+      <dl class="keys">
+        <dt>Mouse</dt><dd>Look and aim</dd>
+        <dt>W A S D</dt><dd>Move</dd>
+        <dt>Shift</dt><dd>Sprint</dd>
+        <dt>C / Ctrl</dt><dd>Crouch (toggle)</dd>
+        <dt>Space</dt><dd>Vault over low cover / jump</dd>
+        <dt>Left button</dt><dd>Fire</dd>
+        <dt>Right button</dt><dd>Aim down the sights</dd>
+        <dt>R</dt><dd>Reload</dd>
+        <dt>1 / 2 / wheel</dt><dd>Rifle / submachine gun</dd>
+        <dt>G</dt><dd>Throw grenade (hold to cook)</dd>
+        <dt>E</dt><dd>Use: place charges, pick up</dd>
+        <dt>Q</dt><dd>Switch shoulder</dd>
+        <dt>Esc</dt><dd>Pause</dd>
+      </dl>
+      <button type="button" class="menu-item" data-action="back">Back</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="panel">
+      <h2 id="settings-title">Settings</h2>
+      <label class="setting">Mouse sensitivity <input type="range" min="0.2" max="3" step="0.05" data-setting="sensitivity"></label>
+      <label class="setting">Invert mouse Y <input type="checkbox" data-setting="invertY"></label>
+      <label class="setting">Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
+      <label class="setting">Field of view <input type="range" min="55" max="90" step="1" data-setting="fov"></label>
+      <label class="setting">Difficulty
+        <select data-setting="difficulty">
+          <option value="recruit">Recruit</option>
+          <option value="regular">Regular</option>
+          <option value="veteran">Veteran</option>
+        </select>
+      </label>
+      <label class="setting">Graphics
+        <select data-setting="quality">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </label>
+      <button type="button" class="menu-item" data-action="back">Back</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="pause" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+    <div class="panel">
+      <h2 id="pause-title">Paused</h2>
+      <p class="objective-recap" data-pause-objective></p>
+      <nav class="menu">
+        <button type="button" class="menu-item primary" data-action="resume">Resume</button>
+        <button type="button" class="menu-item" data-action="checkpoint">Restart from checkpoint</button>
+        <button type="button" class="menu-item" data-action="restart">Restart mission</button>
+        <button type="button" class="menu-item" data-action="controls">Controls</button>
+        <button type="button" class="menu-item" data-action="settings">Settings</button>
+        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+      </nav>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="dead" role="dialog" aria-modal="true" aria-labelledby="dead-title">
+    <div class="panel">
+      <p class="eyebrow">Killed in action</p>
+      <h2 id="dead-title">You are down</h2>
+      <p data-dead-text>The squad pulls you back to the last position you held.</p>
+      <nav class="menu">
+        <button type="button" class="menu-item primary" data-action="checkpoint">Retry from checkpoint</button>
+        <button type="button" class="menu-item" data-action="restart">Restart mission</button>
+        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+      </nav>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="complete" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+    <div class="panel">
+      <p class="eyebrow">Mission complete</p>
+      <h2 id="complete-title">Saint-Clair is clear</h2>
+      <dl class="stats" data-stats></dl>
+      <nav class="menu">
+        <button type="button" class="menu-item primary" data-action="restart">Play again</button>
+        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+      </nav>
+    </div>
+  </section>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
