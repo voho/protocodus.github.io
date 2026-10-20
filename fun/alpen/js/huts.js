@@ -99,7 +99,7 @@ export const HUTS = {
      curtain rather than appear in clear air — and the list is rebuilt every
      `step` metres, so the window is widened by that much again to keep the
      far edge from popping between rebuilds. */
-  ahead: 1000,
+  ahead: RENDER.fogFar,
   behind: 120,
   step: 130,
   live: 3,

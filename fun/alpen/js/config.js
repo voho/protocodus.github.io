@@ -27,12 +27,22 @@
 export const BASE_WIDTH = 640;
 export const BASE_HEIGHT = 360;
 
+/* Pick once, before terrain grids and scenery pools are built. Pointer
+   capabilities survive rotation; a narrow desktop window is still desktop.
+   Workers use the desktop defaults, with identical terrain and physics. */
+export const MOBILE_RENDER = typeof window !== 'undefined'
+  && !!window.matchMedia?.('(pointer: coarse)')?.matches
+  && !!window.matchMedia?.('(hover: none)')?.matches;
+
 export const RENDER = {
   /* The window at its own resolution. Device pixels are capped at 2 and total
      pixels at 4K because denser panels ask for much more fragment, post and
      MSAA work without materially improving a fast-moving picture. */
   maxPixelRatio: 2,
   maxPixels: 3840 * 2160,
+  // Keep the HUD sharp while giving phones a smaller 3D/post-process target.
+  worldMaxPixelRatio: MOBILE_RENDER ? 1.25 : 2,
+  worldMaxPixels: MOBILE_RENDER ? 1280 * 720 : 3840 * 2160,
   /* Resolution scale, tuned at runtime against the frame clock. The renderer
      starts optimistic and walks down; it never walks past `minScale`, and it
      only walks back up after the frame time has been comfortable for a
@@ -62,13 +72,13 @@ export const RENDER = {
      Both numbers moved out with the resolution. At 288 lines a ridge at
      three hundred metres was four pixels tall and pushing the curtain back
      bought nothing but fill rate; at native resolution it is a ridge. */
-  fogNear: 220,
+  fogNear: MOBILE_RENDER ? 110 : 220,
   /* A kilometre, from 560 m. The far forest is impostor cards past a couple
      of hundred metres and the trackside flora stops at 150, so the haze no
      longer has to hide what the scene cannot afford: it can stand where the
      air would put it, and the valley below the run reads as a valley. The
      terrain, the prop window and the huts all moved out with it. */
-  fogFar: 1000,
+  fogFar: MOBILE_RENDER ? 450 : 1000,
 };
 
 /* The final atmospheric grade. Snow is the hardest thing to light well: it is
@@ -1012,10 +1022,12 @@ export const TERRAIN = {
      lattices, behind fog that hides the remaining LOD movement. */
   spacing: 0.75,
   uniformNear: 72,    // stable 75-centimetre lattice around the board
-  ahead: 1500,        // and ahead, well past the curtain
-  aheadGrowth: 1.045, // per row
-  side: 1150,         // half-width at the far edge
-  sideGrowth: 1.052,  // per column
+  // Mobile keeps the same ground under the board, with fewer outer rows.
+  // These extents also retain the desktop grid's near-cell diagonals.
+  ahead: MOBILE_RENDER ? 650 : 1500,
+  aheadGrowth: MOBILE_RENDER ? 1.09 : 1.045,
+  side: MOBILE_RENDER ? 560 : 1150,
+  sideGrowth: MOBILE_RENDER ? 1.10 : 1.052,
   /* And behind, which used to be thirty metres of uniform cells and is now a
      graded fan like the other three.
 
@@ -1042,8 +1054,8 @@ export const TERRAIN = {
      the eighty-two the front spends getting to nine hundred. The back remains
      intentionally coarser than the route ahead, but no longer breaks into
      fifty-metre panels while it is still visible. */
-  behind: 1000,       // to the curtain, which is RENDER.fogFar
-  behindGrowth: 1.11,
+  behind: MOBILE_RENDER ? 500 : 1000, // reaches beyond the fog curtain
+  behindGrowth: MOBILE_RENDER ? 1.14 : 1.11,
 
   /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
 
@@ -2084,7 +2096,7 @@ export const PROPS = {
      edge stands at 960 m, where the curtain is all but drawn, and the far
      forest past 220 m is impostor cards, so a band of trees costs a few
      dozen triangles a tree rather than a thousand. */
-  ahead: 24,          // bands kept in front of the rider
+  ahead: MOBILE_RENDER ? 13 : 24, // shorter mobile visibility, same obstacles
   /* …and behind, which is the forest's half of the same fix the terrain's
      `behind` is. Two bands was eighty metres, against thirty metres of ground
      — so the two disagreed, and the fifty metres where they disagreed was a

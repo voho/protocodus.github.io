@@ -7,7 +7,7 @@
    speed-responsive peripheral motion while preserving full colour precision
    and smooth gradients. */
 
-import { RENDER, GRADE, BASE_WIDTH, BASE_HEIGHT } from './config.js';
+import { RENDER, GRADE, BASE_WIDTH, BASE_HEIGHT, MOBILE_RENDER } from './config.js';
 
 const BASE_W = BASE_WIDTH;
 const BASE_H = BASE_HEIGHT;
@@ -547,7 +547,7 @@ export function createRetro(THREE, renderer) {
      count of a live multisampled target cannot be re-picked cheaply, and a
      window dragged between panels is what the resolution governor is for. */
   const dense = (window.devicePixelRatio || 1) > 1.4;
-  scene3d.samples = Math.min(dense ? 2 : 4, maxSamples);
+  scene3d.samples = Math.min(MOBILE_RENDER || dense ? 2 : 4, maxSamples);
 
   const bright = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
@@ -708,13 +708,16 @@ export function createRetro(THREE, renderer) {
   /* Full-window, native-resolution output.
 
      `displayWidth/Height` are the panel-sized backing store. The world targets
-     normally match them exactly. On a struggling GPU only the world targets
-     step down; the DOM-sized canvas still covers the whole visual viewport
-     and the separate HUD remains native and sharp. A hard 4K pixel budget
+     normally match them exactly; phones start with a smaller world budget.
+     On a struggling GPU only the world targets step down further. The canvas
+     covers the whole visual viewport and the separate HUD remains sharp.
+     A hard 4K pixel budget
      prevents a high-DPI desktop from accidentally asking for an 8K frame. */
   function resizeTargets(touchCanvas) {
-    width = Math.max(2, Math.round(displayWidth * scale));
-    height = Math.max(2, Math.round(displayHeight * scale));
+    const worldScale = Math.min(1, RENDER.worldMaxPixelRatio / dpr,
+      Math.sqrt(RENDER.worldMaxPixels / (displayWidth * displayHeight)));
+    width = Math.max(2, Math.round(displayWidth * worldScale * scale));
+    height = Math.max(2, Math.round(displayHeight * worldScale * scale));
 
     scene3d.setSize(width, height);
     const bw = Math.max(1, Math.floor(width / 4));

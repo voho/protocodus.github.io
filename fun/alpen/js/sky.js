@@ -270,7 +270,7 @@
 
 import { snoise2, noise2, hash2 } from './noise.js';
 import { heightAt, nearestCenter } from './terrain.js';
-import { TERRAIN, RENDER } from './config.js';
+import { TERRAIN, RENDER, MOBILE_RENDER } from './config.js';
 import { SKY_GLSL } from './shading.js';
 import { createBackdrop } from './backdrop.js';
 
@@ -300,19 +300,16 @@ const CONE_R = RADIUS * 0.95;
    somewhere near it.
 
    Doubling costs a four-times-larger depth map and four times the shadow-pass
-   fill, which a phone should not be asked for. `shadowMapFor` picks the size
-   from what the device actually reports; everything below is derived from
-   whichever it got, so the two paths cannot drift apart. */
+   fill. Phones use a 1024 map alongside their shorter view distance; all
+   offsets below follow the selected map's texel size. */
 const SHADOW_REACH = 180;
 const SHADOW_MAP_NEAR = 4096;
-const SHADOW_MAP_FAR = 2048;
+const SHADOW_MAP_FAR = 1024;
 
 /* And the bias in texels rather than in metres, which is the unit it is
    actually in. */
 const SHADOW_BIAS_TEXELS = 2.0;
-const SHADOW_MAP = typeof window !== 'undefined'
-  && window.matchMedia?.('(hover: none)').matches
-  ? SHADOW_MAP_FAR : SHADOW_MAP_NEAR;
+const SHADOW_MAP = MOBILE_RENDER ? SHADOW_MAP_FAR : SHADOW_MAP_NEAR;
 // Metres of world per texel — the unit the two offsets below are really in.
 const SHADOW_TEXEL = (2 * SHADOW_REACH) / SHADOW_MAP;
 const SHADOW_RADIUS_TEXELS = 2.5;
@@ -1611,9 +1608,10 @@ export function createSky(THREE) {
      in, the far edge of the ground dissolved into a thirty-pixel blur of
      it — soft grey hills in front of crisp mountains. A third of a degree
      is a few pixels on a desktop panel, so the fade lands on the range
-     itself. */
-  const PROBE_W = 1024;
-  const PROBE_H = 512;
+     itself. On a phone the closer haze and smaller frame allow a coarser
+     panorama, saving sixteen times the off-screen pixels. */
+  const PROBE_W = MOBILE_RENDER ? 256 : 1024;
+  const PROBE_H = MOBILE_RENDER ? 128 : 512;
   const probe = new THREE.WebGLRenderTarget(PROBE_W, PROBE_H, {
     type: THREE.HalfFloatType,
     minFilter: THREE.LinearFilter,
@@ -1647,8 +1645,9 @@ export function createSky(THREE) {
      minutes, and the dome the eye actually sees is still drawn every frame.
      A lightning strike and the range's arrival are the exceptions — the fog
      has to follow those frame by frame — and so is a restored context, whose
-     targets come back empty. */
-  const PROBE_EVERY = 1 / 20;
+     targets come back empty. Phones refresh at ten Hz; the same exceptions
+     still force an immediate update. */
+  const PROBE_EVERY = 1 / (MOBILE_RENDER ? 10 : 20);
   let probeAge = Infinity;
   let probeForced = true;
   function refreshProbe() {

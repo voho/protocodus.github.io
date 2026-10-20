@@ -9,6 +9,7 @@ node tests/flow-check.mjs
 node tests/terrain-shadow-check.mjs
 node tests/models-check.mjs
 node tests/graphics-check.mjs
+node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
 ```
 
@@ -201,6 +202,13 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+The mobile rendering check boots separate phone and desktop profiles. Phones
+use a 450 m fog curtain, fewer outer terrain rows and scenery bands, smaller
+world buffers, and lighter shadow and fog-panorama targets. Portrait and
+landscape use the same profile; narrow desktop windows and touch laptops
+retain desktop quality. The check measures actual geometry and render targets,
+keeps the HUD at display resolution, and compares near-ground heights and
+riding rules across profiles so reducing scenery cannot change the ride.
 For distant-hill detail, run
 `await (await import('./tests/backdrop-detail-browser-check.mjs')).runBackdropDetailCheck()`
 in a served Alpen page. It renders the production forest detail in a separate
