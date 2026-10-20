@@ -218,8 +218,7 @@ const BACKDROP_FRAG = `
      without bending the crowns into streaks. Explicit gradients preserve
      mip filtering across the random offsets; the variance correction keeps
      the forest's contrast from fading in the middle of each triangle. */
-  vec3 landNoise(vec2 uv) {
-    vec2 dx = dFdx(uv), dy = dFdy(uv);
+  vec3 landNoise(vec2 uv, vec2 dx, vec2 dy) {
     vec2 grid = mat2(1.0, 0.0, -0.57735027, 1.15470054) * uv;
     vec2 cell = floor(grid), f = fract(grid);
     vec3 weights;
@@ -261,23 +260,40 @@ const BACKDROP_FRAG = `
        one photograph repeating every couple of hundred metres is a pattern
        the eye finds at once on a slope a few kilometres off. */
     vec3 slow = texture2D(uNoise, vReal.xz / 2300.0).rgb;
-    vec3 fast = landNoise(vReal.xz / 160.0 + vec2(0.37, 0.11));
-    float fine = landNoise(mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0
-      + vec2(0.71, 0.23)).g;
-    /* At distance the crowns and grain become too small to resolve. Fade
-       them to their mean, leaving the broad tone carried by the maps. */
-    float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
-    float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
-    fast = mix(vec3(0.5), fast, mid);
-    fine = mix(0.5, fine, near);
-    vec3 an = abs(n) + 0.001;
+    vec2 fastUv = vReal.xz / 160.0 + vec2(0.37, 0.11);
+    vec2 fineUv = mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0
+      + vec2(0.71, 0.23);
+    vec2 fastDx = dFdx(fastUv), fastDy = dFdy(fastUv);
+    vec2 fineDx = dFdx(fineUv), fineDy = dFdy(fineUv);
     vec3 q = vReal / 230.0;
     vec3 r = vec3(0.8 * vReal.x - 0.6 * vReal.z, vReal.y, 0.6 * vReal.x + 0.8 * vReal.z) / 61.0;
-    vec3 strata = ((texture2D(uRockDetail, q.zy).rgb + texture2D(uRockDetail, r.zy + 0.31).rgb) * an.x
-      + (texture2D(uRockDetail, q.xz).rgb + texture2D(uRockDetail, r.xz + 0.53).rgb) * an.y
-      + (texture2D(uRockDetail, q.xy).rgb + texture2D(uRockDetail, r.xy + 0.17).rgb) * an.z)
-      / (2.0 * (an.x + an.y + an.z));
-    strata = mix(vec3(0.42), strata, mid);
+    vec3 qDx = dFdx(q), qDy = dFdy(q);
+    vec3 rDx = dFdx(r), rDy = dFdy(r);
+    /* At distance the crowns and grain become too small to resolve. Fade
+       them to their mean, leaving the broad tone carried by the maps.
+       Once a fade reaches zero, the texture reads cannot affect the picture.
+       Take every gradient above these branches so a neighbouring fragment
+       still has valid mip levels where the fade crosses a pixel quad. */
+    float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
+    float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
+    vec3 fast = vec3(0.5);
+    float fine = 0.5;
+    vec3 strata = vec3(0.42);
+    if (near > 0.0) {
+      fine = mix(0.5, landNoise(fineUv, fineDx, fineDy).g, near);
+    }
+    if (mid > 0.0) {
+      fast = mix(vec3(0.5), landNoise(fastUv, fastDx, fastDy), mid);
+      vec3 an = abs(n) + 0.001;
+      strata = ((textureGrad(uRockDetail, q.zy, qDx.zy, qDy.zy).rgb
+          + textureGrad(uRockDetail, r.zy + 0.31, rDx.zy, rDy.zy).rgb) * an.x
+        + (textureGrad(uRockDetail, q.xz, qDx.xz, qDy.xz).rgb
+          + textureGrad(uRockDetail, r.xz + 0.53, rDx.xz, rDy.xz).rgb) * an.y
+        + (textureGrad(uRockDetail, q.xy, qDx.xy, qDy.xy).rgb
+          + textureGrad(uRockDetail, r.xy + 0.17, rDx.xy, rDy.xy).rgb) * an.z)
+        / (2.0 * (an.x + an.y + an.z));
+      strata = mix(vec3(0.42), strata, mid);
+    }
     float grain = dot(strata, vec3(0.2126, 0.7152, 0.0722));
 
     /* The cover's edges are cut by those fields at their own scale, not by

@@ -2999,7 +2999,11 @@ export function createProps(THREE, shading) {
           .replace('#include <common>', `#include <common>
           varying float vLodFar;`)
           .replace('#include <project_vertex>', `#include <project_vertex>
-          vLodFar = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz);`);
+          vLodFar = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz);
+          // Every vertex uses the instance's foot: beyond the completed
+          // crossfade all fragments would be discarded. Clip the tree before
+          // rasterization instead; its separate shadow material is unchanged.
+          if (vLodFar >= ${TREE_LOD[1].toFixed(1)}) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);`);
         shader.fragmentShader = shader.fragmentShader
           .replace('#include <common>', `#include <common>
           varying float vLodFar;`)
