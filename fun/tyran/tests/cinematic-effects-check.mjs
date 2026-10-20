@@ -51,7 +51,7 @@ try {
   assert.match(bursts.heavy.filter,/saturate\(/);assert.match(bursts.boss.filter,/blur\(/);
   assert(bursts.heavy.delayed>0&&bursts.boss.delayed>bursts.heavy.delayed,'large ships use staggered local detonations');
   assert.equal(bursts.work.readbacks,0);assert.equal(bursts.work.gradients,0,'warmed impacts reuse existing effect textures');
-  assert(bursts.work.signalCopies>0&&bursts.work.signalArea/bursts.work.signalCopies<bursts.canvasArea*.012,'interference copies narrow strips, never a full frame');
+  assert.equal(bursts.work.signalCopies,0,'impacts never copy the rendered arena back through Canvas2D');
   await mkdir(out,{recursive:true});await page.screenshot({path:`${out}/boss-impact.png`});
   const stopped=await page.evaluate(()=>{
     tyran.pause();const paused=__snapshot();__advance(.5);const held=__snapshot();
@@ -94,6 +94,6 @@ try {
   const menu=await page.evaluate(()=>{tyran.pause();document.querySelector('#menu-button').click();__frame(0);return {opacity:document.querySelector('#game-canvas').style.opacity,filter:document.querySelector('#game-canvas').style.filter,scene:tyran.scene};});
   assert.deepEqual(menu,{opacity:'',filter:'',scene:'menu'});
   assert.deepEqual(errors,[]);
-  console.log('PASS proportional heavy/boss impacts, cached narrow-strip interference, reduced motion, pause/visibility safety, slow end fade, black panel, idle and retry/menu reset.');
+  console.log('PASS proportional heavy/boss impacts, no arena readback or screen interference, reduced motion, pause/visibility safety, slow end fade, black panel, idle and retry/menu reset.');
   console.log(JSON.stringify({bursts,ending,finished},null,2));
 } finally {await browser.close();}

@@ -62,8 +62,9 @@ try {
     s.spawnTimer = 100; s.formationTimer = 100; s.showcase = 9;
     tyran.step(5.2);
   });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('tyran-campaign')).state.time >= 5);
   let saved = await record(page);
-  assert(saved.state.time >= 5 && saved.state.time < 6, 'The periodic autosave captures an active flight');
+  assert(saved.state.time >= 5, 'The periodic autosave captures an active flight');
   assert.equal(saved.state.credits, 432); assert.equal(saved.state.score, 1234);
   await page.keyboard.press('Escape');
   assert.equal((await record(page)).state.time, await page.evaluate(() => tyran.state.time), 'Pausing saves the latest flight');
@@ -188,6 +189,8 @@ try {
     // Sector one continues into its challenging stage; let the formation pass.
     if (s.challenge) { for (const enemy of s.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
   });
+  // The challenge outro fades on rendered wall time, independently of tyran.step.
+  await page.waitForFunction(() => tyran.scene === 'hangar');
   assert(await page.locator('#hangar-screen').isVisible());
   assert.equal((await record(page)).scene, 'hangar', 'Sector completion autosaves the shop');
   const startingCredits = await page.evaluate(() => tyran.state.credits);

@@ -1,4 +1,4 @@
-// Separate translucent HUD islands; every active flight pixel belongs to the arena.
+// Compact transparent flight instruments overlay a full-screen arena.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -59,11 +59,6 @@ async function audit(page, label, touch) {
       const style = getComputedStyle(el), box = el.getBoundingClientRect();
       return style.display !== 'none' && style.visibility === 'visible' && Number(style.opacity) > 0 && box.width > 0 && box.height > 0;
     };
-    const overlap = box => Math.max(0, Math.min(r.right, box.x + box.width) - Math.max(r.left, box.x))
-      * Math.max(0, Math.min(r.bottom, box.y + box.height) - Math.max(r.top, box.y));
-    const ui = [...document.querySelectorAll('#hud *, #touch-controls, #touch-controls *')].filter(visible);
-    const overlaps = ui.map(el => ({ tag: el.id || el.className || el.tagName, box: bounds(el) }))
-      .filter(({ box }) => overlap(box) > .1);
     const announcementVisible = visible(document.querySelector('#announcement'));
     const rewardVisible = visible(document.querySelector('#combat-feedback'));
     const essential = ['.hull-meter', '.shield-meter', '.energy-meter', '#p1-bombs', '#p1-lives', '#p1-power',
@@ -75,8 +70,22 @@ async function audit(page, label, touch) {
       const el = document.querySelector(selector);
       return { selector, visible: visible(el), ...bounds(el) };
     });
-    const pointTargets = [.01, .5, .99].flatMap(x => [.01, .5, .99].map(y =>
-      document.elementFromPoint(r.left + r.width * x, r.top + r.height * y)?.id));
+    const interactive = '#pause-button, #touch-stick, #touch-fire, #touch-secondary, #touch-bomb';
+    const hitTest = (x, y) => {
+      const target = document.elementFromPoint(x, y), control = target?.closest(interactive);
+      return { x, y, target: target?.id || target?.tagName, control: control?.id || null,
+        passThrough: target === surface || !!control };
+    };
+    const pointTargets = [.01, .1, .5, .9, .99].flatMap(x => [.01, .1, .5, .9, .99].map(y =>
+      hitTest(r.left + r.width * x, r.top + r.height * y)));
+    const instrumentTargets = ['#p1-hull-value', '#p1-shield-value', '#p1-energy-status', '#score-value', '#credits-value',
+      '#p1-bombs', '#p1-lives', '#boss-status', '#challenge-count', '#combat-feedback-score']
+      .flatMap(selector => {
+        const el = document.querySelector(selector);
+        if (!visible(el)) return [];
+        const box = el.getBoundingClientRect();
+        return [{ selector, ...hitTest(box.x + box.width / 2, box.y + box.height / 2) }];
+      });
     // These independent instruments may rearrange or share a slot when one is
     // hidden, but two visible groups must never cover each other's content.
     const groups = ['.player-resources', '.pilot-bonuses',
@@ -141,10 +150,10 @@ async function audit(page, label, touch) {
         * Math.max(0, Math.min(box.y + box.height, pause.bottom) - Math.max(box.y, pause.top)) > .1);
       return [{ selector, text: el.textContent, fragments, outside, pauseOverlap }];
     });
-    return { arena: bounds(surface), viewport: { width: innerWidth, height: innerHeight }, overlaps,
+    return { arena: bounds(surface), viewport: { width: innerWidth, height: innerHeight }, instrumentTargets,
       visibleCore: essential.map(selector => ({ selector, visible: visible(document.querySelector(selector)), ...bounds(document.querySelector(selector)) })), controls, pointTargets,
       instruments: ['#flight-header'].map(selector => ({ selector, ...bounds(document.querySelector(selector)) })),
-      oneBar: [...document.querySelector('#hud').children].length === 1
+      oneOverlay: [...document.querySelector('#hud').children].length === 1
         && document.querySelector('#hud').firstElementChild.id === 'flight-header'
         && essential.every(selector => document.querySelector('#flight-header').contains(document.querySelector(selector))),
       retiredMetadata: document.querySelectorAll('#hud :is(#level-name,#level-number,#sector-value,#difficulty-value,#wave-label,#progress-fill,#weapon-value,#weapon-level,#p1-reserve)').length,
@@ -152,40 +161,43 @@ async function audit(page, label, touch) {
         const style = getComputedStyle(el);
         return { id: el.id || el.className, ...bounds(el), color: style.backgroundColor, image: style.backgroundImage,
           alpha: style.backgroundColor === 'transparent' ? 0 : Number(style.backgroundColor.match(/[\d.]+/g)?.[3] ?? 1),
-          radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(parseFloat) };
+          pointerEvents: style.pointerEvents };
       }),
       essentialIslands: essential.every(selector => !!document.querySelector(selector).closest('.hud-island')),
       headerStyle: (() => { const style = getComputedStyle(document.querySelector('#flight-header')); return { color: style.backgroundColor, image: style.backgroundImage, shadow: style.boxShadow }; })(),
       uniformScale: Math.abs(r.width / tyran.state.width - r.height / tyran.state.height) < 1e-9,
       rootOverflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
-      valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize) })),
+      valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize), shadow: getComputedStyle(document.querySelector(selector)).textShadow })),
       notice: document.querySelector('#announcement-title').textContent, announcementVisible, rewardVisible,
       persistentStatusVisible: visible(document.querySelector(tyran.state.challenge && !tyran.state.challenge.done ? '#challenge-hud' : '#boss-hud')),
       canvasText: [...__uiCanvasText], textFit, groupOverlaps, horizontalGroups,
     };
   });
-  assert.deepEqual(result.overlaps, [], `${label}: no visible UI covers any arena pixel`);
-  assert.deepEqual(result.canvasText, [], `${label}: HUD labels are never drawn over the flight canvas`);
-  assert(result.uniformScale, `${label}: the reserved arena retains uniform world scale`);
+  assert.deepEqual(result.canvasText, [], `${label}: HUD text remains accessible DOM content`);
+  assert(result.uniformScale, `${label}: the full-screen arena retains uniform world scale`);
   assert.equal(result.rootOverflow, false, `${label}: layout stays inside the screen`);
-  assert(result.oneBar, `${label}: every flight instrument belongs to the reserved top region`);
+  assert(result.oneOverlay, `${label}: flight instruments share one overlay`);
   assert.equal(result.retiredMetadata, 0, `${label}: removed mission and weapon text do not return to the active HUD`);
-  assert(result.essentialIslands && result.islands.length >= 4, `${label}: combat information is grouped into separate panels`);
-  assert.deepEqual(result.headerStyle, { color: 'rgba(0, 0, 0, 0)', image: 'none', shadow: 'none' }, `${label}: panels do not sit on a continuous painted bar`);
+  assert(result.essentialIslands && result.islands.length >= 4, `${label}: combat information remains grouped`);
+  assert.deepEqual(result.headerStyle, { color: 'rgba(0, 0, 0, 0)', image: 'none', shadow: 'none' }, `${label}: no painted HUD bar obscures the arena`);
   for (let i = 0; i < result.islands.length; i++) {
     const panel = result.islands[i];
-    assert(Math.abs(panel.alpha - .1) < .001 && panel.image === 'none', `${label}: ${panel.id} has a translucent 10% background`);
-    assert(panel.radii.every(radius => radius >= 8), `${label}: ${panel.id} has rounded corners`);
+    if (panel.id !== 'pause-button') {
+      assert.equal(panel.alpha, 0, `${label}: ${panel.id} has no background panel`);
+      assert.equal(panel.image, 'none', `${label}: ${panel.id} does not paint a background image`);
+      assert.equal(panel.pointerEvents, 'none', `${label}: ${panel.id} lets flight input through`);
+    }
     for (const other of result.islands.slice(i + 1)) {
       const x = Math.min(panel.x + panel.width, other.x + other.width) - Math.max(panel.x, other.x);
       const y = Math.min(panel.y + panel.height, other.y + other.height) - Math.max(panel.y, other.y);
-      assert(x <= .5 || y <= .5, `${label}: ${panel.id} and ${other.id} remain separate islands`);
+      assert(x <= .5 || y <= .5, `${label}: ${panel.id} and ${other.id} remain separate groups`);
     }
   }
-  const bar = result.instruments[0];
-  const maxBarHeight = result.viewport.width >= 1200 ? 72 : result.viewport.width > 600 ? 104 : 120;
-  assert(bar.height <= maxBarHeight, `${label}: the compact HUD is at most ${maxBarHeight}px high`);
-  assert(Math.abs(bar.y + bar.height - result.arena.y) < .5, `${label}: the single bar sits directly above the arena`);
+  const overlay = result.instruments[0];
+  const maxOverlayHeight = result.viewport.width > 760 ? 90 : 110;
+  assert(overlay.height <= maxOverlayHeight, `${label}: the compact HUD is at most ${maxOverlayHeight}px high`);
+  assert(overlay.y >= result.arena.y && overlay.y + overlay.height <= result.arena.y + result.arena.height,
+    `${label}: instruments sit directly on the arena`);
   if (result.announcementVisible) {
     assert(result.persistentStatusVisible, `${label}: a temporary notice never replaces the boss or challenge status`);
     assert.equal(result.rewardVisible, false, `${label}: temporary notices take priority over the reward row`);
@@ -199,17 +211,19 @@ async function audit(page, label, touch) {
         `${label}: ${group.name} read left to right without overlap`);
     }
   }
-  if (!touch) assert(Math.abs(result.arena.y + result.arena.height - result.viewport.height) < .5, `${label}: no bottom HUD reserves map space`);
-  assert(result.arena.height >= result.viewport.height * .5, `${label}: at least half the screen height remains playable`);
-  assert(result.arena.width >= result.viewport.width * .6, `${label}: controls leave a useful flight width`);
-  assert(result.pointTargets.every(id => id === 'game-canvas'), `${label}: every sampled flight point is unobstructed`);
+  assert.deepEqual(result.arena, { x: 0, y: 0, ...result.viewport }, `${label}: the arena fills the viewport without HUD or control docks`);
+  assert(result.pointTargets.every(point => point.passThrough), `${label}: sampled flight points only intercept explicit controls`);
+  assert(result.instrumentTargets.every(point => point.target === 'game-canvas'), `${label}: noninteractive HUD text passes input to the arena`);
   for (const item of result.visibleCore) {
     assert(item.visible, `${label}: ${item.selector} remains visible`);
     assert(item.x >= 0 && item.y >= 0 && item.x + item.width <= result.viewport.width + .5
       && item.y + item.height <= result.viewport.height + .5, `${label}: ${item.selector} stays on screen`);
-    assert(item.y >= bar.y && item.y + item.height <= bar.y + bar.height + .5, `${label}: ${item.selector} fits inside the top bar`);
+    assert(item.y >= overlay.y && item.y + item.height <= overlay.y + overlay.height + .5, `${label}: ${item.selector} fits inside the compact overlay`);
   }
-  for (const value of result.valueFonts) assert(value.size >= 16, `${label}: ${value.selector} is readable without tiny text`);
+  for (const value of result.valueFonts) {
+    assert(value.size >= 16, `${label}: ${value.selector} is readable without tiny text`);
+    assert.notEqual(value.shadow, 'none', `${label}: ${value.selector} has a shadow for contrast over terrain`);
+  }
   for (const item of result.textFit) {
     assert(item.fragments.length, `${label}: ${item.selector} renders its text`);
     assert.deepEqual(item.outside, [], `${label}: ${item.selector} (${item.text}) fits its allocated slots; text ${JSON.stringify(item.fragments)}`);
@@ -342,7 +356,7 @@ try {
       const label = `${touch ? 'touch' : 'desktop'}-${viewport.width}x${viewport.height}`;
       await audit(page, label, touch);
       assert.deepEqual(await arena(page), stable, `${label}: boss, bonuses and reward notices never resize the arena`);
-      // Every announcement variant shares the updates group in the single bar.
+      // Every announcement variant shares the compact overlay updates group.
       for (const type of ['wave', 'challenge', 'phase']) {
         await page.evaluate(type => { tyran.state.events.push({ type, wave: 3, total: 40, kind: 'hive' }); tyran.step(1 / 60); __uiFrame(); }, type);
         await audit(page, `${label}-${type}`, touch);
@@ -377,7 +391,7 @@ try {
         await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
         await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 42, y: y - 42, id: 1 }] });
         await page.evaluate(() => __uiAdvance(12));
-        assert(await page.evaluate(() => tyran.state.players[0].x) > before, 'the reserved joystick still steers');
+        assert(await page.evaluate(() => tyran.state.players[0].x) > before, 'the overlaid joystick still steers');
         await audit(page, `${label}-steering`, true);
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         await session.detach();
@@ -390,7 +404,7 @@ try {
         for (const enemy of s.enemies.slice(0, 4)) killEnemy(s, enemy);
         tyran.step(1 / 60); __uiFrame(); __uiAdvance(200);
       });
-      assert.equal(await page.locator('#challenge-count').textContent(), '4 / 40 hits', 'the reserved count follows real challenge kills');
+      assert.equal(await page.locator('#challenge-count').textContent(), '4 / 40 hits', 'the overlaid count follows real challenge kills');
       assert(await page.locator('#announcement').isHidden(), 'the introductory challenge notice expires');
       await audit(page, `${label}-challenge-count`, touch);
       assert.deepEqual(await arena(page), stable, 'the persistent challenge readout never resizes the arena');
@@ -401,5 +415,5 @@ try {
   }
   assert.deepEqual(errors, [], 'UI layout and controls produce no runtime/resource errors');
   await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
-  console.log('PASS separate translucent HUD islands: desktop, ultrawide, touch portrait/landscape, rendered text fit, long-run totals, simultaneous notices/boss/rewards/bonuses, stable geometry, unobstructed uniformly scaled arena and working touch steering.');
+  console.log('PASS compact full-screen overlay HUD: desktop, ultrawide, touch portrait/landscape, rendered text fit, long-run totals, simultaneous notices/boss/rewards/bonuses, stable geometry, full-screen uniformly scaled arena, pointer passthrough and working touch steering.');
 } finally { await browser.close(); }

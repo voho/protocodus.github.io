@@ -56,7 +56,7 @@ try {
   assert(result.maxTiles<=5&&result.maxScenery<=5&&result.maxBytes<1800*4*4*(5*800+5*800),'high-detail streaming is bounded by viewport columns and nearby rows');
   for(const frame of result.frames)await writeFile(`${output}/enhanced-${frame.name}.png`,Buffer.from(frame.png.split(',')[1],'base64'));
   delete result.frames;
-  // On a 4K display, the arena retains native resolution below its reserved HUD.
+  // On a 4K display, the full-screen arena retains native resolution behind the HUD.
   await page.setViewportSize({width:3840,height:2160});
   await page.goto(process.env.TYRAN_URL||'http://127.0.0.1:8773/fun/tyran/');await page.waitForFunction(()=>window.tyran&&document.body.dataset.ready==='true');
   const display=await page.evaluate(()=>{const c=document.querySelector('#game-canvas'),rect=c.getBoundingClientRect();return {width:c.width,height:c.height,css:{width:rect.width,height:rect.height},density:tyran.world.detailScale};});

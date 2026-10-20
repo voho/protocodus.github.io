@@ -6,7 +6,7 @@ import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, 
   resumeFromCheckpoint, sectorClearBonus } from './sim.js';
 import { isDormant, createDirector } from './waves.js';
 import { OBJECTIVES, objectiveProgress, objectiveLabel, sectorRank, RANK_BONUS } from './objectives.js';
-import { Effects, explosionIntensity, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
+import { Effects, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
 import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
 import { AudioEngine, preloadAudio } from './audio.js';
@@ -65,9 +65,6 @@ function syncGpuDisplay() {
   if (gpuSurface.style.filter !== canvas.style.filter) gpuSurface.style.filter = canvas.style.filter;
   if (gpuSurface.style.opacity !== canvas.style.opacity) gpuSurface.style.opacity = canvas.style.opacity;
 }
-// A tiny reusable strip supplies signal interference without pixel readbacks
-// or copying the full arena into another texture during an explosion.
-const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 // The title preview starts before flight preparation; it never builds strips inside a frame.
 world.deferStrips = true;
@@ -78,6 +75,7 @@ const compactRewardFormat = new Intl.NumberFormat('en-US', { notation: 'compact'
 const rewardNumber = n => n >= 1e15 ? `${compactRewardFormat.format(n / 1e15)}Q` : n >= 10_000 ? compactRewardFormat.format(n) : number(n);
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
+let pendingAutosave = null;
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let surfaceWidth = 0, surfaceHeight = 0;
@@ -87,11 +85,10 @@ const quality = 'high';
 let selectedDifficulty = 'easy';
 let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
-let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
+let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null, vignetteKey = 0, adaptiveResolution = true;
 let endFade = null;
-// The final fade dims the arena and the instrument row in step, so the reserved
-// header never lingers as a dark band above a fading arena.
+// Fade the floating instruments with the arena.
 const fadeInstruments = $('flight-header');
 function setEndFade(opacity) {
   canvas.style.opacity = opacity;
@@ -140,7 +137,34 @@ function saveStatus(message) {
   for (const id of ['save-summary', 'pause-save-status', 'hangar-save-status']) setText($(id), message);
 }
 
+// Periodic saves run between frames, after combat has settled. Only one job is
+// queued, and it gets a short idle budget before the bounded timeout. Lifecycle
+// saves stay synchronous so pause, navigation and tab close retain the latest run.
+function cancelQueuedAutosave() {
+  if (!pendingAutosave) return;
+  const pending = pendingAutosave; pendingAutosave = null;
+  if (pending.idle) cancelIdleCallback(pending.handle);
+  else clearTimeout(pending.handle);
+}
+function queueAutosave() {
+  if (pendingAutosave) return;
+  const pending = { state, idle: typeof requestIdleCallback === 'function', handle: 0, due: performance.now() + 1500 };
+  pendingAutosave = pending;
+  const schedule = () => {
+    pending.handle = pending.idle
+      ? requestIdleCallback(save, { timeout: Math.max(1, pending.due - performance.now()) })
+      : setTimeout(save, 0);
+  };
+  const save = deadline => {
+    if (pendingAutosave !== pending) return;
+    if (pending.idle && !deadline.didTimeout && deadline.timeRemaining() < 8) { schedule(); return; }
+    pendingAutosave = null;
+    if (state === pending.state && scene === 'playing' && activeCampaign) autosave();
+  };
+  schedule();
+}
 function autosave() {
+  cancelQueuedAutosave();
   if (!activeCampaign || !state || !['playing', 'hangar', 'victory'].includes(state.status)) return false;
   const result = writeCampaign(state, {
     seed: world.seed, damage: world.damage, destroyed: world.destroyed, unlocked,
@@ -203,8 +227,7 @@ function setScreen(next) {
   if (next === 'pause') renderObjectives();
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
-  // Instruments and touch controls reserve their space even behind menus.
-  // Flight therefore uses the exact arena geometry prepared before launch.
+  // Overlays never change arena dimensions; launch reuses the prepared geometry.
   $('hud').hidden = false;
   $('hud').inert = next !== 'playing';
   if ($('touch-controls')) {
@@ -248,7 +271,6 @@ function sizeSurface(rect, adaptive = false) {
   canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
   gpu?.resize(canvas.width, canvas.height);
   gpu?.prepareSoftLayer(.5);
-  signalStrip.width = canvas.width; signalStrip.height = Math.max(1, Math.ceil(canvas.height / H * 7));
   // Automatic resolution changes reuse the prepared terrain. Only an explicit
   // viewport/quality change replaces its backing surfaces.
   if (!adaptive) world.setDetailScale(canvas.width, quality);
@@ -330,11 +352,10 @@ function warmGpuSources() {
   gpu.prewarm(pilotBarrierTexture()); gpu.prewarm(mineTexture());
   if (meteorWorld >= 0) for (let variant = 0; variant < 5; variant++) { const rock = world.getSprite(METEOR_SPRITES[meteorWorld], variant); gpu.prewarm(rock); gpu.prewarm(meteorShadow(rock)); }
   if (vignette) gpu.prewarm(vignette);
-  if (signalStrip) gpu.prewarm(signalStrip);
   world.warmGpuSources(gpu);
 }
 
-// Contextual notices stay in their HUD island outside the arena.
+// Contextual notices share a compact overlay without moving the arena.
 function announce(kicker, title, description = '', seconds = 3, compact = false) {
   $('announcement').classList.toggle('compact', compact);
   $('announcement-kicker').textContent = kicker;
@@ -384,13 +405,19 @@ function pause() {
   else if (scene === 'pause') { audio.start(); setScreen('playing'); canvas.focus({ preventScroll: true }); }
 }
 
-function flash(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+const hudFlashes = new WeakMap();
+function flash(el) {
+  hudFlashes.get(el)?.cancel();
+  if (fx.reduced || !el.animate) return;
+  // Restartable compositor animation; never force a layout during combat.
+  hudFlashes.set(el, el.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }));
+}
 
 function refreshDifficultyChoice() {
   const profile = difficultyProfile(selectedDifficulty);
   for (const option of $('difficulty-picker').querySelectorAll('input')) option.checked = option.value === profile.id;
   setText($('difficulty-description'), profile.description);
-  setText($('launch-route'), `Sector 01 · ${profile.label} · Endless campaign`);
+  setText($('launch-route'), `Sector 01 · ${profile.label}`);
 }
 
 function renderCombatFeedback() {
@@ -514,15 +541,15 @@ function updateBonusOutro(dt) {
   audio.setTransitionGain(1 - opacity);
   if (progress < 1) return;
   // Paint a fully black, silent frame before revealing the upgrade screen.
-  bonusOutro.black = true; audio.pause(); fx.reset(); hitstop = 0;
+  bonusOutro.black = true; audio.pause(); fx.reset();
 }
 
 function showHangar(bonus, loading = false) {
   const next = nextSector(state.level);
   if (activeCampaign) unlocked = Math.max(unlocked, next);
   setScreen('hangar'); $('announcement').hidden = true;
-  $('hangar-title').textContent = 'Refit your ship.';
-  $('hangar-subtitle').textContent = `${environment(state.level).name} cleared · ${sectorLabel(state.level)} · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} buildings destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} ${environmentIndex(state.level) === 9 ? 'A new cycle awaits with stronger enemies and richer rewards.' : 'Spend your salvage before the next launch.'}`;
+  $('hangar-title').textContent = 'Hangar';
+  $('hangar-subtitle').textContent = `${sectorLabel(state.level)} cleared · ${environment(state.level).name}${bonus ? ` · +${number(bonus)} credits` : ''}${environmentIndex(state.level) === 9 ? ' · New cycle awaits' : ''}`;
   renderReport();
   setActionLabel($('next-button'), `Launch sector ${String(next + 1).padStart(2, '0')} — ${environment(next).name}`);
   const routeStart = campaignCycle(next) * WORLDS.length;
@@ -578,7 +605,7 @@ function renderUpgrades() {
       : u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} damage · ${(1 / firingInterval(nextWeapon)).toFixed(2)} volleys/s`
       : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / ${String(MAX_UPGRADE + 1).padStart(2, '0')}</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: MAX_UPGRADE }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / ${String(MAX_UPGRADE + 1).padStart(2, '0')}</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum level' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: MAX_UPGRADE }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons(); renderSupplies();
 }
@@ -608,7 +635,7 @@ function renderWeapons() {
     return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}>${shopArtMarkup(`weapon:${weapon.id}`)}<span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
   });
   const plasma = WEAPONS[1], stats = weaponStats(state, 'plasma');
-  primaries.push(`<article class="weapon-card" data-weapon="plasma" data-state="equipped" style="--weapon-color:${plasma.color}">${shopArtMarkup('weapon:plasma')}<span class="weapon-copy"><strong>${plasma.name}</strong><small>Secondary · q</small></span><span class="weapon-description">${plasma.description} ${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.</span>${weaponBars(stats, 1, fastestInterval)}<span class="weapon-status">Always equipped</span></article>`);
+  primaries.push(`<article class="weapon-card" data-weapon="plasma" data-state="equipped" style="--weapon-color:${plasma.color}">${shopArtMarkup('weapon:plasma')}<span class="weapon-copy"><strong>${plasma.name}</strong><small>Secondary · q</small></span><span class="weapon-description">${plasma.description} ${SECONDARY_ENERGY_COST} energy/shot · restarts at ${SECONDARY_RESTART_ENERGY}.</span>${weaponBars(stats, 1, fastestInterval)}<span class="weapon-status">Always equipped</span></article>`);
   $('weapon-list').innerHTML = primaries.join('');
 }
 
@@ -618,8 +645,8 @@ function showEnd(won, loading = false) {
   endFade = { elapsed: 0, complete: false };
   $('end-screen').hidden = true;
   setEndFade('1');
-  $('end-title').textContent = 'Signal lost.';
-  $('end-description').textContent = `Your flight ended over ${environment(state.level).name} · ${sectorLabel(state.level)}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
+  $('end-title').textContent = 'Signal lost';
+  $('end-description').textContent = `${sectorLabel(state.level)} · ${environment(state.level).name}. Retry with your current equipment.`;
   $('end-score').textContent = number(state.score);
   const record = !loading && recordBestScore();
   $('end-best').hidden = !bestScore;
@@ -640,7 +667,7 @@ function updateEndFade(dt) {
   const opacity = String(Number((1 - progress * progress * (3 - 2 * progress)).toFixed(4)));
   if (canvas.style.opacity !== opacity) setEndFade(opacity);
   if (progress < 1) return;
-  endFade.complete = true; fx.reset(); hitstop = 0;
+  endFade.complete = true; fx.reset();
   canvas.style.filter = ''; setEndFade('0');
   $('end-screen').hidden = false;
   $(state.checkpoint ? 'checkpoint-button' : 'retry-button').focus({ preventScroll: true });
@@ -650,15 +677,15 @@ function refreshContinue() {
   const run = campaign.run, error = campaignError || campaign.error;
   $('continue-button').hidden = false; $('continue-button').disabled = !run;
   setText($('continue-label'), 'Resume campaign');
-  setText($('continue-route'), run ? `${saveDescription(run)} · ${number(run.state.credits)} credits · ${number(run.state.score)} score` : 'No saved flight in this browser');
-  const status = campaignError ? 'Could not autosave in this browser. Your previous save is unchanged; you can keep playing.'
-    : error === 'unavailable' ? 'Browser storage is unavailable. You can still play.'
-    : error === 'corrupt' ? 'The saved campaign could not be read. You can start a new campaign.'
-    : run ? `${saveDescription(run)} · ${number(run.state.credits)} credits · ${number(run.state.score)} score. Progress saves automatically.`
-    : 'Progress saves automatically in this browser. Start a new campaign to begin.';
-  saveStatus(bestScore ? `${status} Best score ${number(bestScore)}.` : status);
+  setText($('continue-route'), run ? saveDescription(run) : 'No saved campaign');
+  const status = campaignError ? 'Could not autosave. Previous save kept.'
+    : error === 'unavailable' ? 'Storage unavailable · Progress will not save.'
+    : error === 'corrupt' ? 'Save unreadable · Start a new campaign.'
+    : run ? `${saveDescription(run)} · Autosaved`
+    : 'Autosaved in this browser.';
+  saveStatus(bestScore ? `${status} · Best ${number(bestScore)}` : status);
   if (state && !activeCampaign) {
-    for (const id of ['pause-save-status', 'hangar-save-status']) setText($(id), 'Practice flight · Your campaign stays saved.');
+    for (const id of ['pause-save-status', 'hangar-save-status']) setText($(id), 'Practice · Campaign save kept.');
   }
 }
 
@@ -675,7 +702,7 @@ function selectWorld(index) {
   document.documentElement.style.setProperty('--sector-accent', WORLDS[selected].accent || WORLDS[selected].color);
   $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === selected); button.setAttribute('aria-pressed', String(i === selected)); });
   for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[selected].name;
-  if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].description || WORLDS[selected].subtitle;
+  if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].subtitle || WORLDS[selected].description;
   if ($('preview-world-number')) $('preview-world-number').textContent = `Sector ${String(selected + 1).padStart(2, '0')}`;
   document.body.dataset.world = selected;
   const sectorNumber = String(selected + 1).padStart(2, '0');
@@ -725,17 +752,8 @@ function processEvents() {
       for (const prop of environmentHit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         applyGroundReward(state, prop, blast);
       }
-      if (!fx.reduced) {
-        if (e.boss) hitstop = Math.max(hitstop, .14);
-        else if (e.player) hitstop = Math.max(hitstop, .16);
-        else if (e.midboss) hitstop = Math.max(hitstop, .09);
-        else if (explosionIntensity(e) >= .35) hitstop = Math.max(hitstop, .035 + explosionIntensity(e) * .045);
-      }
     }
-    // A breaking barrier and a collapsing shield land with a brief freeze too.
-    if (!fx.reduced && (e.type === 'barrier-break' || e.type === 'shield-break')) hitstop = Math.max(hitstop, e.type === 'shield-break' ? .06 : .035);
     if (e.type === 'nova') {
-      if (!fx.reduced) hitstop = Math.max(hitstop, .08);
       for (const prop of environmentHit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
     }
     if (e.type === 'boss') announce('Warning · heavy signature', 'Guardian incoming', 'Break through its armor. Watch for changing attack patterns.', 3);
@@ -777,7 +795,7 @@ function processEvents() {
   feedback.collect(state, events);
   renderCombatFeedback();
   // Save at a bounded cadence, after combat and reward events have settled.
-  if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) autosave();
+  if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) queueAutosave();
 }
 
 const DRONE_COLOR = '#ffc46b', CAPTIVE_COLOR = '#ff7a8a';
@@ -1026,23 +1044,6 @@ function drawBossWeakPoints(enemy, clock) {
   ctx.restore();
 }
 
-function drawSignalInterference() {
-  if (quality !== 'high' || fx.reduced || fx.glitch <= 0) return;
-  const strength = fx.glitch / .12, scale = canvas.height / H, height = signalStrip.height;
-  const target = ctx === gpu ? gpu : displayCtx, source = ctx === gpu ? gpu.canvas : canvas;
-  if (ctx === gpu) gpu.endFrame();
-  target.save(); target.setTransform(1, 0, 0, 1, 0, 0);
-  for (let band = 0; band < 2; band++) {
-    const y = Math.round(clamp((fx.signalY + band * 73 - 34) * scale, 0, canvas.height - height));
-    signalContext.drawImage(source, 0, y, canvas.width, height, 0, 0, canvas.width, height);
-    const offset = Math.round((band ? -1 : 1) * strength * 7 * scale);
-    signalStrip._tyranTextureVersion = (signalStrip._tyranTextureVersion || 0) + 1;
-    target.drawImage(signalStrip, offset, y);
-    if (ctx === gpu) gpu.endFrame();
-  }
-  target.restore();
-}
-
 function draw() {
   const gpuFrame = !!gpu?.usable;
   try {
@@ -1151,7 +1152,6 @@ function drawFrame() {
   ctx.restore();
   ctx.drawImage(vignette, 0, 0, W, H);
   if (ctx === gpu) gpu.present(displayCtx);
-  if (impactMotion) drawSignalInterference();
   // Brief defocus belongs to the flight canvas, keeping menus and HUD text sharp.
   const blur = quality === 'high' && !fx.reduced && impactMotion
     ? Math.max(fx.damagePulse * 1.65, fx.impact * 2.4, fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0) : 0;
@@ -1182,17 +1182,14 @@ function frame(time) {
   if (active) clock += dt;
   if (scene === 'playing' && state) {
     const started = performance.now();
-    // A brief freeze on heavy kills sells the impact. The accumulator is held,
-    // not cleared, so interpolation keeps drawing the same instant until it ends.
-    if (hitstop > 0) hitstop = Math.max(0, hitstop - dt);
-    else accumulator = Math.min(.1, accumulator + dt);
-    while (hitstop <= 0 && accumulator + 1e-9 >= STEP && scene === 'playing') {
+    // Effects never pause the simulation: held movement and firing keep their
+    // normal cadence through novas, shield breaks and heavy explosions.
+    accumulator = Math.min(.1, accumulator + dt);
+    while (accumulator + 1e-9 >= STEP && scene === 'playing') {
       previousScroll = state.scroll;
       update(state, STEP, input(), environmentHit);
       accumulator -= STEP; perf.steps++;
       processEvents();
-      // Freezing mid catch-up keeps only a partial step, so resuming never bursts ahead.
-      if (hitstop > 0) accumulator = Math.min(accumulator, STEP * .999);
     }
     renderAlpha = scene === 'playing' ? clamp(accumulator / STEP, 0, 1) : 1;
     perf.updateMs += (performance.now() - started - perf.updateMs) * .05;
@@ -1308,7 +1305,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', autosave);
 matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', event => {
   fx.reduced = event.matches;
-  if (fx.reduced) { fx.impact = fx.impactPeak = fx.impactDuration = fx.glitch = 0; hitstop = 0; canvas.style.filter = ''; }
+  if (fx.reduced) { fx.impact = fx.impactPeak = fx.impactDuration = fx.glitch = 0; canvas.style.filter = ''; }
   renderDirty = true; requestFrame();
 });
 window.addEventListener('resize', resize);

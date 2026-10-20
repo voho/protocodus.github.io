@@ -208,7 +208,7 @@ try {
   assert.equal(defeat.complete.canvasOpacity, 0); assert.equal(defeat.complete.endPanel, true);
   assert.equal(defeat.retry.scene, 'playing'); assert.equal(defeat.retry.canvasOpacity, 1); assert.equal(defeat.retry.gain, 1);
 
-  // Reduced motion retains the gentle transition, including a portrait touch dock.
+  // Reduced motion retains the gentle transition, including portrait touch controls.
   await page.setViewportSize({ width: 320, height: 568 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForFunction(() => tyran.fx.reduced, null, { polling: 20 });

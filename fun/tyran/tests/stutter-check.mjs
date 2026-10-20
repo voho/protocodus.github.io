@@ -1,6 +1,6 @@
 // Serve repo root; TYRAN_PLAYWRIGHT=/path/to/playwright/index.mjs node this file.
 // Guards against in-flight hitches and visual snaps: scenery artwork must never
-// force a GPU readback, and a hitstop freeze must hold the rendered frame still.
+// force a GPU readback, and impacts must not stop the flight clock or movement.
 import assert from 'node:assert/strict';
 
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
@@ -16,6 +16,12 @@ await page.addInitScript(() => {
   window.cancelAnimationFrame = id => queued.delete(id);
   window.__pumpFrame = timestamp => { __frameTime = timestamp; const callbacks = [...queued.values()]; queued.clear(); for (const callback of callbacks) callback(timestamp); };
   localStorage.setItem('tyran-muted', 'true');
+  window.__layoutReads = 0;
+  const offsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { ...offsetWidth, get() {
+    if (window.__measureHUD && this.classList.contains('loadout-item')) __layoutReads++;
+    return offsetWidth.get.call(this);
+  } });
 });
 
 try {
@@ -42,29 +48,33 @@ try {
   assert.equal(effects, false, 'per-frame explosion artwork stays on the GPU');
   console.log('PASS recolored atlases stay CPU-resident, so preparing artwork never reads back from the GPU');
 
-  // A heavy kill freezes the simulation briefly. The rendered frame must hold
-  // still (no snap back by one physics step) and resume without a burst.
-  const freeze = await page.evaluate(() => {
+  // A nova must never suspend physics or scrolling. Uneven display pacing
+  // still interpolates continuously between fixed simulation steps.
+  const flight = await page.evaluate(() => {
     document.querySelector('#launch-button').click();
     const s = tyran.state; s.director.hold = true; s.players[0].hurt = 1e6;
     const world = tyran.world, draw = world.draw, scrolls = [];
     world.draw = function (ctx, W, H, scroll, ...rest) { scrolls.push(scroll); return draw.call(this, ctx, W, H, scroll, ...rest); };
     let time = __frameTime;
-    // Uneven frame pacing leaves a partial step pending before the freeze.
+    // Uneven frame pacing leaves a partial step pending before the nova.
     for (let i = 0; i < 90; i++) { time += i % 3 ? 16.7 : 9.1; __pumpFrame(time); }
     s.players[0].bombs = 3;
-    const start = scrolls.length;
+    const start = scrolls.length, beforeTime = s.time, beforeFrame = time;
+    window.__measureHUD = true;
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', bubbles: true, cancelable: true }));
     for (let i = 0; i < 40; i++) { time += i % 3 ? 16.7 : 9.1; __pumpFrame(time); }
     window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', bubbles: true, cancelable: true }));
+    window.__measureHUD = false;
     world.draw = draw;
     const steps = scrolls.slice(start - 1).map((value, index, list) => index ? value - list[index - 1] : 0).slice(1);
-    return { novas: 3 - s.players[0].bombs, backward: steps.filter(step => step < -1e-6).length, largest: Math.max(...steps), typical: steps.toSorted((a, b) => a - b)[Math.floor(steps.length / 2)] };
+    return { layoutReads: __layoutReads, novas: 3 - s.players[0].bombs, stopped: steps.filter(step => step <= 0).length, elapsed: (time - beforeFrame) / 1000, simulated: s.time - beforeTime, largest: Math.max(...steps), typical: steps.toSorted((a, b) => a - b)[Math.floor(steps.length / 2)] };
   });
-  assert.equal(freeze.novas, 1, 'the nova detonated and triggered a hitstop');
-  assert.equal(freeze.backward, 0, 'the rendered terrain never moves backward during a hitstop');
-  assert.ok(freeze.largest < freeze.typical * 3.5, `resuming after a hitstop does not jump ahead (${freeze.largest.toFixed(2)} vs ${freeze.typical.toFixed(2)})`);
-  console.log('PASS hitstop holds the rendered frame and resumes smoothly');
+  assert.equal(flight.novas, 1, 'the nova detonated');
+  assert.equal(flight.layoutReads, 0, 'changing supplies never forces a HUD layout read');
+  assert.equal(flight.stopped, 0, 'rendered terrain keeps moving through the nova');
+  assert.ok(Math.abs(flight.simulated - flight.elapsed) < 1 / 60, 'impacts never discard simulation time');
+  assert.ok(flight.largest < flight.typical * 3.5, 'uneven display frames interpolate without a jump');
+  console.log('PASS nova impacts preserve continuous physics and scrolling');
 
   // The shop prepares the next world during idle time; launching builds nothing.
   await page.evaluate(async () => {

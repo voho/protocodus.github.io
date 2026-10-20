@@ -24,7 +24,7 @@ let cases=0;
 {
   const {c,surface}=renderer(),sprite=image('segments');c.prewarm(sprite);c.beginFrame();const start=surface.allocations.length;
   for(let i=0;i<7;i++){c.drawImage(sprite,i,10);c.flush();}assert.equal(surface.allocations.length-start,1,'Small passes share one backing allocation');assert.deepEqual(surface.uploads.map(u=>u.offset),[0,1,2,3,4,5,6].map(i=>i*6*surface.stride*4));
-  const cursor=surface.uploads.at(-1).offset;c.present();c.drawImage(sprite,20,30);c.endFrame();assert(surface.uploads.at(-1).offset>cursor,'Post-present interference appends safely');
+  const cursor=surface.uploads.at(-1).offset;c.present();c.drawImage(sprite,20,30);c.endFrame();assert(surface.uploads.at(-1).offset>cursor,'Post-present drawing appends safely');
   c.beginFrame();c.drawImage(sprite,2,3);c.endFrame();assert.equal(surface.uploads.at(-1).offset,0);c.dispose();cases++;
 }
 {

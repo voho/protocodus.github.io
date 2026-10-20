@@ -1,206 +1,147 @@
-/* Separate translucent instruments in reserved space above the flight arena. */
-/* Reserved row sizes live on the root so the title screen can blend its sector preview over them. */
-:root{--flight-header:64px;--flight-dock:0px;--flight-side:0px}
+/* Flight instruments float over the arena; no header or control dock shrinks it. */
+:root{--flight-header:0px;--flight-dock:0px;--flight-side:0px}
 #flight-layout{
-  --hud-ink:#e3ece8;--hud-muted:#a0b8ae;
+  --hud-ink:#f2f6f1;--hud-muted:#c5d8ce;
   position:fixed;inset:0;display:grid;min-width:0;min-height:0;
-  grid-template-columns:minmax(0,1fr);grid-template-rows:var(--flight-header) minmax(0,1fr) var(--flight-dock);
-  grid-template-areas:'header' 'arena' 'dock';
-  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
-  background:#172420;isolation:isolate;
+  grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);
+  grid-template-areas:'arena';background:#172420;isolation:isolate;
 }
 #flight-layout :is(#game-canvas,#game-gpu-canvas){grid-area:arena;position:static;inset:auto;width:100%;height:100%;min-width:0;min-height:0;z-index:0}
 #flight-layout #hud{display:contents;position:static;inset:auto;pointer-events:none}
-#flight-header{grid-area:header;pointer-events:auto;display:grid;grid-template-columns:256px 208px 120px minmax(0,1fr) 224px 44px;align-items:center;gap:clamp(12px,1.4vw,32px);min-width:0;padding:6px clamp(12px,1.1vw,28px);background:none;border:0;box-shadow:none;color:var(--hud-ink)}
+#flight-header{
+  position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) auto env(safe-area-inset-left,0px);z-index:2;
+  display:grid;grid-template-columns:256px minmax(0,1fr) 200px 44px;grid-template-rows:36px 22px 18px;
+  align-items:center;gap:2px 18px;min-width:0;padding:10px 18px 0;pointer-events:none;
+  color:var(--hud-ink);background:none;border:0;box-shadow:none;
+  text-shadow:0 1px 3px #000,0 0 8px #000c;
+}
 #flight-layout .player-panel,#flight-layout .armament-instrument{display:contents}
-#flight-layout .hud-island{flex:none;min-width:0;margin:0;border:0;border-radius:10px;background:rgba(0,0,0,.10);box-shadow:none}
+#flight-layout .hud-island{flex:none;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
 #flight-layout .hud-secondary,#flight-layout .flight-controls{display:none!important}
-#flight-layout .hud-icon,#flight-layout .status-icon{width:16px;height:16px;flex:none;color:#a9c2b5}
-#flight-layout .player-resources{grid-column:1;grid-row:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:256px;height:50px;padding:6px 12px}
-#flight-layout .resource-line{display:grid;grid-template-columns:12px minmax(0,1fr);grid-template-rows:12px 21px 3px;align-items:center;gap:0 4px;min-width:0;margin:0}
-#flight-layout .resource-line>.hud-secondary{display:block!important;grid-column:2;grid-row:1;width:auto;white-space:nowrap;font:500 10px/12px var(--body);letter-spacing:.02em;color:var(--hud-muted)}
-#flight-layout .resource-line .hud-icon{grid-column:1;grid-row:1;width:12px;height:12px}
-#flight-layout .hull-line .hud-icon{color:#d8c1a6}
-#flight-layout .shield-line .hud-icon{color:#9ad8c5}
-#flight-layout .energy-line .hud-icon{color:#c4b3e3}
-#flight-layout .resource-meter,#flight-layout .energy-line .resource-meter{grid-column:1/-1;grid-row:3;width:100%;min-width:0;height:3px;background:#b8d5cd1c;border-radius:2px;overflow:hidden}
+#flight-layout .hud-icon,#flight-layout .status-icon{width:16px;height:16px;flex:none;color:#c0d9cb;filter:drop-shadow(0 1px 2px #000)}
+#flight-layout .player-resources{grid-column:1;grid-row:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:100%;height:36px}
+#flight-layout .resource-line{display:grid;grid-template-columns:12px minmax(0,1fr);grid-template-rows:11px 22px 3px;align-items:center;gap:0 4px;min-width:0;margin:0}
+#flight-layout .resource-line>.hud-secondary{display:block!important;grid-column:2;grid-row:1;width:auto;white-space:nowrap;font:500 10px/11px var(--body);letter-spacing:.02em;color:var(--hud-muted)}
+#flight-layout .resource-line .hud-icon{grid-column:1;grid-row:1;width:11px;height:11px}
+#flight-layout .hull-line .hud-icon{color:#e7ceaf}
+#flight-layout .shield-line .hud-icon{color:#a6e6d3}
+#flight-layout .energy-line .hud-icon{color:#d6c1f3}
+#flight-layout .resource-meter,#flight-layout .energy-line .resource-meter{grid-column:1/-1;grid-row:3;width:100%;min-width:0;height:3px;background:#0007;border-radius:2px;overflow:hidden;box-shadow:0 1px 3px #0008}
 #flight-layout .resource-meter i{box-shadow:none}
-#flight-layout .hull-meter i{background:#dac9ae}
-#flight-layout .shield-meter i{background:#90d4bf}
-#flight-layout .energy-meter i{background:#b9a2de}
-#flight-layout .resource-value,#flight-layout .resource-line>.energy-status{grid-column:1/-1;grid-row:2;width:auto;min-height:0;margin:0;font:600 18px/21px var(--display);text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--hud-ink)}
+#flight-layout .hull-meter i{background:#e7ceaf}
+#flight-layout .shield-meter i{background:#a6e6d3}
+#flight-layout .energy-meter i{background:#d6c1f3}
+#flight-layout .resource-value,#flight-layout .resource-line>.energy-status{grid-column:1/-1;grid-row:2;width:auto;min-height:0;margin:0;font:600 18px/22px var(--display);text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--hud-ink)}
 #flight-layout .resource-value::before{content:none}
-#flight-layout .energy-line[data-depleted=true] .energy-status{color:#eec594}
-#flight-layout .shield-line[data-recharge=rest] .hud-icon{color:#c0e5b5;filter:none}
-#flight-layout .shield-line[data-recharge=firing] .hud-icon{color:#dfbd80}
-#flight-layout .loadout-line{grid-column:2;grid-row:1;justify-self:center;display:flex;align-items:center;justify-content:center;gap:14px;width:208px;height:44px;padding:8px 12px}
+#flight-layout .energy-line[data-depleted=true] .energy-status{color:#f3ce9c}
+#flight-layout .shield-line[data-recharge=rest] .hud-icon{color:#c0e5b5;filter:drop-shadow(0 1px 2px #000)}
+#flight-layout .shield-line[data-recharge=firing] .hud-icon{color:#e9c98d}
+#flight-layout .loadout-line{grid-column:1;grid-row:2;justify-self:start;display:flex;align-items:center;justify-content:flex-start;gap:16px;width:100%;height:22px}
 #flight-layout .loadout-item{flex:none;display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;padding:0;border:0;background:none}
-#flight-layout .loadout-item .hud-icon{width:16px;height:16px;color:#a4bcaf}
-#flight-layout .loadout-item b{font:600 18px/22px var(--display);color:var(--hud-ink);font-variant-numeric:tabular-nums}
+#flight-layout .loadout-item .hud-icon{width:14px;height:14px;color:#c0d9cb}
+#flight-layout .loadout-item b{font:600 16px/22px var(--display);color:var(--hud-ink);font-variant-numeric:tabular-nums}
 #flight-layout .power-pips{height:18px;min-width:27px;max-width:30px;flex:1;gap:2px}
-#flight-layout .power-pips i{height:6px;border-radius:1px}
-#flight-layout .power-pips i.on{background:#d9ba81;box-shadow:none}
-#flight-layout .pilot-bonuses{grid-column:3;grid-row:1;justify-self:center;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:12px;width:120px;height:44px;padding:8px 10px}
-#flight-layout .pilot-bonus{display:flex;align-items:center;gap:4px;padding:0;min-width:0;border:0;background:none;color:#c9dfc2;white-space:nowrap}
-#flight-layout .pilot-bonus svg{width:14px;height:14px;flex:none;color:#afcfae}
-#flight-layout .pilot-bonus b{min-width:24px;margin:0;font:600 16px/20px var(--display);text-align:left;font-variant-numeric:tabular-nums}
-#flight-layout .flight-updates{--notice-column:1;--notice-row:2;grid-column:4;grid-row:1;justify-self:center;width:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:24px 16px;align-content:center;gap:2px;flex:1 1 180px;max-width:340px;height:52px;padding:5px 12px}
+#flight-layout .power-pips i{height:6px;border-radius:1px;background:#0006}
+#flight-layout .power-pips i.on{background:#e4c48c;box-shadow:0 1px 2px #0009}
+#flight-layout .pilot-bonuses{grid-column:1;grid-row:3;justify-self:start;display:flex;flex-wrap:nowrap;align-items:center;gap:14px;width:auto;height:18px}
+#flight-layout .pilot-bonus{display:flex;align-items:center;gap:4px;padding:0;min-width:0;border:0;background:none;color:#d5edcd;white-space:nowrap}
+#flight-layout .pilot-bonus svg{width:12px;height:12px;flex:none;color:#c5e7c4;filter:drop-shadow(0 1px 2px #000)}
+#flight-layout .pilot-bonus b{min-width:24px;margin:0;font:600 14px/18px var(--display);text-align:left;font-variant-numeric:tabular-nums}
+#flight-layout .flight-updates{--notice-column:1;--notice-row:2;grid-column:2;grid-row:1/3;align-self:start;justify-self:center;width:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:24px 18px;align-content:start;gap:2px;max-width:320px;height:44px;padding:0}
 #flight-layout .flight-updates:not(:has(#announcement:not([hidden]),#boss-hud:not([hidden]),#challenge-hud:not([hidden]),#combat-feedback:not([hidden]))){display:none}
 #flight-messages{display:contents}
-#flight-layout #announcement,#flight-layout #announcement.compact{grid-column:1;grid-row:1;display:flex;align-items:center;gap:6px;position:static;inset:auto;transform:none;animation:none;width:auto;min-width:0;height:auto;overflow:hidden;text-align:left;text-shadow:none;filter:none}
+#flight-layout #announcement,#flight-layout #announcement.compact{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:center;gap:6px;position:static;inset:auto;transform:none;animation:none;width:auto;min-width:0;height:auto;overflow:hidden;text-align:center;text-shadow:inherit;filter:none}
 #flight-layout #announcement>p,#flight-layout #announcement>span{display:none}
-#flight-layout #announcement h2,#flight-layout #announcement.compact h2{margin:0;min-width:0;font:500 13px/18px var(--body);letter-spacing:0;color:#d6e1d5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Critical notices temporarily occupy the reward slot without moving boss/challenge data. */
+#flight-layout #announcement h2,#flight-layout #announcement.compact h2{margin:0;min-width:0;font:500 13px/18px var(--body);letter-spacing:0;color:#e6efdf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* A temporary notice replaces rewards while boss/challenge progress stays visible. */
 #flight-layout .flight-updates:has(:is(#boss-hud,#challenge-hud):not([hidden])) #announcement{grid-column:var(--notice-column);grid-row:var(--notice-row)}
 #flight-layout .flight-updates:has(:is(#boss-hud,#challenge-hud):not([hidden])):has(#announcement:not([hidden])) #combat-feedback{display:none}
 #flight-layout #boss-hud{grid-column:1;grid-row:1;position:static;inset:auto;transform:none;align-self:center;width:auto;min-width:0;margin:0}
 #flight-layout #boss-hud>div:first-child{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;margin:0 0 3px;min-width:0}
 #flight-layout .boss-alert{display:none}
-#flight-layout #boss-hud .status-icon{width:13px;height:13px;color:#d9b291}
-#flight-layout #boss-name{font:500 12px/16px var(--body);letter-spacing:0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e4c7b3}
-#flight-layout #boss-status{display:block;flex:none;margin-left:auto;font:500 12px/16px var(--display);letter-spacing:0;white-space:nowrap;color:#d0baa8}
-#flight-layout .boss-meter{height:3px;background:#e49b6c20;box-shadow:none}
-#flight-layout .boss-meter i{background:#dca172;box-shadow:none}
-#flight-layout #challenge-hud{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;color:#d8e4cf}
-#flight-layout .challenge-caption{display:flex;align-items:center;gap:5px;min-width:0;font:500 12px/18px var(--body);color:#b0cfb6}
+#flight-layout #boss-hud .status-icon{width:13px;height:13px;color:#efc69e}
+#flight-layout #boss-name{font:500 12px/16px var(--body);letter-spacing:0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f2d8c3}
+#flight-layout #boss-status{display:block;flex:none;margin-left:auto;font:500 12px/16px var(--display);letter-spacing:0;white-space:nowrap;color:#e8cfb9}
+#flight-layout .boss-meter{height:3px;background:#0007;box-shadow:0 1px 3px #0008}
+#flight-layout .boss-meter i{background:#eab17f;box-shadow:none}
+#flight-layout #challenge-hud{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;color:#e0f0d9}
+#flight-layout .challenge-caption{display:flex;align-items:center;gap:5px;min-width:0;font:500 12px/18px var(--body);color:#c4e0c7}
 #flight-layout #challenge-count{font:600 16px/20px var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
-#flight-layout .combat-feedback{grid-column:1;grid-row:2;display:flex;align-items:center;gap:5px;width:100%;height:16px;min-width:0;padding:0;border:0;background:none;text-align:left;contain:layout paint}
-#flight-layout .combat-feedback>.status-icon{width:11px;height:11px;color:#c2cea2}
-#flight-layout .combat-feedback-chain{height:auto;min-width:0;font:500 11px/16px var(--body);color:#acc3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#flight-layout .combat-feedback{grid-column:1;grid-row:2;display:flex;align-items:center;gap:5px;width:100%;height:18px;min-width:0;padding:0;border:0;background:none;text-align:left;contain:layout}
+#flight-layout .combat-feedback>.status-icon{width:11px;height:11px;color:#d0dfb3}
+#flight-layout .combat-feedback-chain{height:auto;min-width:0;font:500 11px/18px var(--body);color:#c5ddc6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #flight-layout .combat-feedback-totals{display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:8px;margin-left:auto;min-height:0;min-width:0;white-space:nowrap}
-#flight-layout .combat-feedback-totals strong,#flight-layout #combat-feedback-credits{font:500 12px/16px var(--display);color:#d3dfc2}
+#flight-layout .combat-feedback-totals strong,#flight-layout #combat-feedback-credits{font:500 12px/18px var(--display);color:#e0ecd2}
 #flight-layout .combat-feedback-totals small,#flight-layout .combat-feedback-detail{display:none}
-#flight-layout .scoreboard{grid-column:5;grid-row:1;width:224px;display:flex;align-items:center;justify-content:center;gap:18px;height:44px;padding:8px 12px;margin-left:auto}
-#flight-layout .score-instrument,#flight-layout .credits-instrument{display:flex;align-items:center;gap:6px;min-width:0;text-align:right}
-#flight-layout .scoreboard .hud-icon{width:15px;height:15px;color:#b5c9ae}
+#flight-layout .scoreboard{grid-column:3;grid-row:1;display:flex;align-items:center;justify-content:flex-end;gap:18px;width:200px;height:36px;margin:0}
+#flight-layout .score-instrument,#flight-layout .credits-instrument{display:flex;align-items:center;gap:5px;min-width:0;text-align:right}
+#flight-layout .scoreboard .hud-icon{width:14px;height:14px;color:#c5d9ba}
 #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{display:block;font:600 20px/24px var(--display);letter-spacing:0;white-space:nowrap;color:var(--hud-ink);font-variant-numeric:tabular-nums}
-#flight-layout .credits-instrument>strong{color:#dfcba9}
-#flight-layout .credit-symbol{display:inline-block;width:auto;text-align:center;font-family:var(--display);font-weight:500;font-size:.85em;color:#c5b18d}
-#flight-layout .pause-button{grid-column:6;grid-row:1;width:44px;height:44px;margin:0;padding:0;align-self:center;display:grid;place-items:center;color:#bbd0c2}
-#flight-layout .pause-button:hover{color:#eff8ef;background:rgba(0,0,0,.10)}
-#flight-layout .pause-button svg{width:18px;height:18px}
-@media(min-width:1800px){
-  :root{--flight-header:68px}
-  #flight-header{grid-template-columns:280px 208px 120px minmax(0,1fr) 244px 44px}
-  #flight-layout .player-resources{width:280px}
-  #flight-layout .scoreboard{width:244px}
-  #flight-layout .resource-value,#flight-layout .resource-line>.energy-status{font-size:20px}
-  #flight-layout .resource-line>.hud-secondary{font-size:11px}
-  #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{font-size:22px}
-  #flight-layout .flight-updates{max-width:390px}
+#flight-layout .credits-instrument>strong{color:#efd6ad}
+#flight-layout .credit-symbol{display:inline-block;width:auto;text-align:center;font-family:var(--display);font-weight:500;font-size:.85em;color:#e3c697}
+#flight-layout .pause-button{grid-column:4;grid-row:1;align-self:start;width:44px;height:44px;margin:0;padding:0;display:grid;place-items:center;border-radius:50%;pointer-events:auto;color:#e4f0e7;background:#07110e40}
+#flight-layout .pause-button:hover{color:#fff;background:#07110e80}
+#flight-layout .pause-button:focus-visible{outline:2px solid #e0edce;outline-offset:2px}
+#flight-layout .pause-button svg{width:18px;height:18px;filter:drop-shadow(0 1px 2px #000)}
+#flight-layout .flight-updates:not(:has(#announcement:not([hidden]),#boss-hud:not([hidden]),#challenge-hud:not([hidden]))) .combat-feedback{grid-column:1/-1;grid-row:1/-1;align-self:start}
+@media(max-width:1000px){
+  #flight-header{grid-template-columns:222px minmax(0,1fr) 96px 44px;column-gap:14px}
+  #flight-layout .scoreboard{flex-direction:column;align-items:flex-end;justify-content:center;gap:0;width:96px;height:40px}
+  #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{font-size:18px;line-height:20px}
 }
-@media(max-width:1199px){
-  :root{--flight-header:100px}
-  #flight-header{display:grid;grid-template-columns:minmax(0,1.25fr) 192px 224px 44px;grid-template-rows:44px 34px;gap:8px 10px;padding:7px 12px;align-content:center}
-  #flight-layout .player-resources{grid-column:1;grid-row:1;width:100%;max-width:280px;height:44px;padding:4px 9px;gap:10px}
-  #flight-layout .resource-line{grid-template-rows:11px 19px 3px}
-  #flight-layout .resource-value,#flight-layout .resource-line>.energy-status{font-size:17px;line-height:19px}
-  #flight-layout .resource-line>.hud-secondary{font-size:9px;line-height:11px}
-  #flight-layout .loadout-line{grid-column:2;grid-row:1;justify-self:center;width:192px;gap:9px;padding:8px 10px}
-  #flight-layout .scoreboard{grid-column:3;grid-row:1;justify-self:end;gap:12px;padding:8px 10px;margin:0}
-  #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{font-size:18px}
-  #flight-layout .pause-button{grid-column:4;grid-row:1}
-  #flight-layout .flight-updates{--notice-column:2;--notice-row:1;grid-column:1/4;grid-row:2;justify-self:center;width:min(100%,450px);max-width:none;height:34px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:24px;column-gap:14px;padding:5px 10px}
-  #flight-layout #announcement,#flight-layout #announcement.compact,#flight-layout #boss-hud,#flight-layout #challenge-hud{grid-column:1;grid-row:1}
-  #flight-layout .combat-feedback{grid-column:2;grid-row:1;align-self:center}
-  #flight-layout .flight-updates:not(:has(#combat-feedback:not([hidden]))):not(:has(:is(#boss-hud,#challenge-hud):not([hidden])):has(#announcement:not([hidden]))){grid-template-columns:minmax(0,1fr);width:min(100%,450px)}
-  #flight-layout .flight-updates:not(:has(#announcement:not([hidden]),#boss-hud:not([hidden]),#challenge-hud:not([hidden]))) .combat-feedback{grid-column:1/-1}
-  #flight-layout .pilot-bonuses{grid-column:4;grid-row:2;flex-direction:column;justify-self:center;width:44px;height:34px;padding:3px 4px;gap:1px}
-  #flight-layout .pilot-bonus{gap:3px}
-  #flight-layout .pilot-bonus svg{width:10px;height:10px}
-  #flight-layout .pilot-bonus b{font-size:12px;line-height:13px;min-width:21px}
-}
-@media(min-width:601px) and (max-width:760px){
-  #flight-header{grid-template-columns:minmax(0,1fr) 144px 190px 44px;gap:8px 7px;padding:7px 8px}
-  #flight-layout .player-resources{gap:6px;padding:4px 7px}
-  #flight-layout .resource-line{grid-template-columns:10px minmax(0,1fr);column-gap:2px}
-  #flight-layout .resource-line .hud-icon{width:10px;height:10px}
+@media(max-width:760px){
+  #flight-header{grid-template-columns:minmax(0,1fr) 90px 44px;grid-template-rows:36px 22px 42px;gap:2px 10px;padding:6px 10px 0}
+  #flight-layout .player-resources{grid-column:1;grid-row:1;max-width:240px;gap:10px}
   #flight-layout .resource-value,#flight-layout .resource-line>.energy-status{font-size:16px}
-  #flight-layout .loadout-line{width:144px;gap:5px;padding:8px 7px}
-  #flight-layout .loadout-item{gap:3px}
-  #flight-layout .loadout-item .hud-icon{width:13px;height:13px}
-  #flight-layout .loadout-item b{font-size:16px}
-  #flight-layout .power-pips{min-width:20px;max-width:22px}
-  #flight-layout .scoreboard{width:190px;gap:8px;padding:8px 7px}
+  #flight-layout .scoreboard{grid-column:2;grid-row:1;width:90px}
+  #flight-layout .pause-button{grid-column:3;grid-row:1}
+  #flight-layout .loadout-line{grid-column:1;grid-row:2;gap:12px}
+  #flight-layout .pilot-bonuses{grid-column:2;grid-row:2;justify-self:end;gap:6px}
+  #flight-layout .flight-updates{grid-column:1/4;grid-row:3;max-width:300px;height:42px;grid-template-rows:22px 18px}
+}
+@media(max-width:380px){
+  #flight-header{grid-template-columns:minmax(0,1fr) 76px 44px;column-gap:6px;padding-inline:8px}
+  #flight-layout .player-resources{gap:5px}
+  #flight-layout .resource-line{grid-template-columns:10px minmax(0,1fr);column-gap:2px}
+  #flight-layout .resource-line>.hud-secondary{font-size:9px}
+  #flight-layout .resource-line .hud-icon{width:9px;height:9px}
+  #flight-layout .scoreboard{width:76px}
   #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{font-size:16px}
   #flight-layout .scoreboard .hud-icon{width:12px;height:12px}
-  #flight-layout .score-instrument,#flight-layout .credits-instrument{gap:3px}
-}
-@media(max-width:600px){
-  :root{--flight-header:120px}
-  #flight-header{grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:42px 26px 34px;gap:3px 4px;padding:6px 8px;align-content:center}
-  #flight-layout .hud-island{border-radius:8px}
-  #flight-layout .player-resources{grid-column:1/11;grid-row:1;max-width:320px;width:100%;height:42px;padding:4px 8px;gap:10px}
-  #flight-layout .resource-line{grid-template-rows:10px 19px 3px;grid-template-columns:10px minmax(0,1fr);column-gap:3px}
-  #flight-layout .resource-line .hud-icon{width:10px;height:10px}
-  #flight-layout .resource-line>.hud-secondary{font-size:9px;line-height:10px}
-  #flight-layout .resource-value,#flight-layout .resource-line>.energy-status{font-size:16px;line-height:19px}
-  #flight-layout .pause-button{grid-column:11/13;grid-row:1;justify-self:end;width:44px;height:44px}
-  #flight-layout .loadout-line{grid-column:1/6;grid-row:2;justify-self:start;width:100%;height:26px;max-width:100%;padding:4px 4px;gap:2px}
-  #flight-layout .loadout-item{gap:2px}
+  #flight-layout .loadout-line{gap:7px}
+  #flight-layout .loadout-item{gap:3px}
   #flight-layout .loadout-item .hud-icon{width:12px;height:12px}
-  #flight-layout .loadout-item b{font-size:16px;line-height:18px}
-  #flight-layout .power-pips{min-width:20px;max-width:20px;height:16px}
-  #flight-layout .power-pips i{height:5px}
-  #flight-layout .scoreboard{grid-column:6/13;grid-row:2;justify-self:end;width:100%;height:26px;padding:4px 7px;gap:10px}
-  #flight-layout .scoreboard .hud-icon{width:12px;height:12px}
-  #flight-layout .score-instrument,#flight-layout .credits-instrument{gap:4px}
-  #flight-layout .score-instrument>strong,#flight-layout .credits-instrument>strong{font-size:16px;line-height:18px}
-  #flight-layout .flight-updates{--notice-column:1;--notice-row:2;grid-column:1/9;grid-row:3;justify-self:start;width:100%;max-width:320px;height:34px;padding:3px 7px;grid-template-columns:minmax(0,1fr);grid-template-rows:15px 12px;gap:1px}
-  #flight-layout .flight-updates:not(:has(#combat-feedback:not([hidden]))){width:100%;grid-template-columns:minmax(0,1fr)}
-  #flight-layout #announcement,#flight-layout #announcement.compact,#flight-layout #boss-hud,#flight-layout #challenge-hud{grid-column:1;grid-row:1}
-  #flight-layout #announcement h2,#flight-layout #announcement.compact h2{font-size:11px;line-height:14px}
-  #flight-layout #announcement>.status-icon{width:12px;height:12px}
-  #flight-layout #boss-hud>div:first-child{gap:4px;margin:0 0 1px}
-  #flight-layout #boss-hud .status-icon{width:10px;height:10px}
-  #flight-layout #boss-name,#flight-layout #boss-status{font-size:10px;line-height:12px}
-  #flight-layout .boss-meter{height:2px}
-  #flight-layout .challenge-caption,#flight-layout #challenge-count{font-size:11px;line-height:14px}
-  #flight-layout .challenge-caption .status-icon{width:12px;height:12px}
-  #flight-layout .combat-feedback{grid-column:1;grid-row:2;height:12px;gap:3px}
-  #flight-layout .combat-feedback-chain,#flight-layout .combat-feedback-totals strong,#flight-layout #combat-feedback-credits{font-size:10px;line-height:12px}
-  #flight-layout .combat-feedback>.status-icon{width:10px;height:10px}
-  #flight-layout .combat-feedback-totals{gap:6px}
-  #flight-layout .pilot-bonuses{grid-column:9/13;grid-row:3;justify-self:end;flex-direction:row;gap:8px;width:max-content;max-width:100%;height:30px;padding:5px 6px}
+  #flight-layout .power-pips{min-width:20px;max-width:20px}
+  #flight-layout .pilot-bonuses{gap:4px}
   #flight-layout .pilot-bonus{gap:3px}
   #flight-layout .pilot-bonus svg{width:11px;height:11px}
-  #flight-layout .pilot-bonus b{font-size:13px;line-height:18px;min-width:20px}
+  #flight-layout .pilot-bonus b{min-width:20px}
 }
-/* A reward burst is centered when there is no persistent status or notice. */
-#flight-layout .flight-updates:not(:has(#announcement:not([hidden]),#boss-hud:not([hidden]),#challenge-hud:not([hidden]))) .combat-feedback{grid-column:1/-1;grid-row:1/-1;align-self:center}
-#flight-layout #touch-controls{grid-area:dock;display:none;position:static;inset:auto;z-index:auto;padding:4px 12px;gap:12px;align-items:center;justify-content:space-between;background:#0c1d18;border-top:1px solid #85baa430}
-#flight-layout .touch-stick{width:84px;height:84px;flex:none;overflow:hidden;background:#183b2a;border-color:#9bd3b254}
-#flight-layout .touch-stick>span{width:24px;height:24px;transform:translate(clamp(-20px,var(--stick-x,0px),20px),clamp(-20px,var(--stick-y,0px),20px));background:#9cd7b526}
+/* Touch controls share the playfield and only their own targets intercept input. */
+#flight-layout #touch-controls{display:none;position:absolute;inset:auto env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);z-index:2;padding:12px 18px;gap:12px;align-items:end;justify-content:space-between;pointer-events:none;background:none;border:0}
+#flight-layout .touch-stick{width:84px;height:84px;flex:none;overflow:hidden;pointer-events:auto;background:#071a1266;border-color:#bddfc166}
+#flight-layout .touch-stick>span{width:24px;height:24px;transform:translate(clamp(-20px,var(--stick-x,0px),20px),clamp(-20px,var(--stick-y,0px),20px));background:#b9e3c333}
 #flight-layout .touch-weapons{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:58px;gap:8px;align-items:center;justify-items:center;min-width:0}
-#flight-layout #touch-fire,#flight-layout #touch-secondary,#flight-layout #touch-bomb{grid-row:1;width:58px;height:58px;min-width:44px;min-height:44px;margin:0;gap:3px;background:#36281e;border-radius:14px}
+#flight-layout #touch-fire,#flight-layout #touch-secondary,#flight-layout #touch-bomb{grid-row:1;width:58px;height:58px;min-width:44px;min-height:44px;margin:0;gap:3px;pointer-events:auto;background:#251b1480;border-radius:50%;text-shadow:0 1px 3px #000}
 #flight-layout #touch-fire{grid-column:1}
-#flight-layout #touch-secondary{grid-column:2;background:#2b2340}
-#flight-layout #touch-bomb{grid-column:3;background:#302c1c}
+#flight-layout #touch-secondary{grid-column:2;background:#21192e80}
+#flight-layout #touch-bomb{grid-column:3;background:#25221480}
 #flight-layout .touch-fire svg{width:20px;height:20px}
 #flight-layout .touch-fire>span{font-size:11px;line-height:13px;letter-spacing:0}
-/* Instruments stay on screen behind the pause overlay and through the final fade, so the reserved header row never reads as a bare band above the arena. */
 body:is([data-scene=menu],[data-scene=hangar]) #flight-header,body:not([data-scene=playing]):not([data-scene=bonus-outro]) #touch-controls{visibility:hidden}
-@media(pointer:coarse){
-  :root{--flight-dock:92px}
-  #flight-layout #touch-controls:not([hidden]){display:flex}
+@media(pointer:coarse){#flight-layout #touch-controls:not([hidden]){display:flex}}
+@media(pointer:coarse) and (max-width:380px){
+  #flight-layout #touch-controls{padding:10px;gap:10px}
+  #flight-layout .touch-stick{width:76px;height:76px}
+  #flight-layout .touch-weapons{grid-template-columns:repeat(3,56px);grid-template-rows:56px;gap:7px}
+  #flight-layout #touch-fire,#flight-layout #touch-secondary,#flight-layout #touch-bomb{width:56px;height:56px}
 }
-@media(pointer:coarse) and (max-height:600px) and (orientation:landscape){
-  :root{--flight-dock:0px;--flight-side:88px}
-  #flight-layout{grid-template-columns:var(--flight-side) minmax(0,1fr) var(--flight-side);grid-template-rows:var(--flight-header) minmax(0,1fr);grid-template-areas:'header header header' 'steer arena weapons'}
-  #flight-layout #touch-controls:not([hidden]){display:contents}
-  #flight-layout .touch-stick{grid-area:steer;place-self:center;width:76px;height:76px}
-  #flight-layout .touch-stick>span{transform:translate(clamp(-18px,var(--stick-x,0px),18px),clamp(-18px,var(--stick-y,0px),18px))}
-  #flight-layout .touch-weapons{grid-area:weapons;place-self:center;grid-template-columns:58px;grid-template-rows:repeat(3,58px);gap:8px}
-  #flight-layout #touch-fire{grid-column:1;grid-row:1}
-  #flight-layout #touch-secondary{grid-column:1;grid-row:2}
-  #flight-layout #touch-bomb{grid-column:1;grid-row:3}
-}
-@media(pointer:coarse) and (max-height:350px) and (orientation:landscape){
-  #flight-layout .touch-weapons{grid-template-rows:repeat(3,44px);gap:6px}
-  #flight-layout #touch-fire,#flight-layout #touch-secondary,#flight-layout #touch-bomb{height:44px;min-height:44px;padding:2px 6px;gap:2px}
+@media(pointer:coarse) and (max-height:400px){
+  #flight-layout #touch-controls{padding:8px 12px}
+  #flight-layout .touch-stick{width:70px;height:70px}
+  #flight-layout .touch-weapons{grid-template-columns:repeat(3,50px);grid-template-rows:50px;gap:8px}
+  #flight-layout #touch-fire,#flight-layout #touch-secondary,#flight-layout #touch-bomb{width:50px;height:50px}
   #flight-layout .touch-fire svg{width:16px;height:16px}
-  #flight-layout .touch-fire>span{font-size:10px;line-height:12px}
 }
-
 #game-gpu-canvas{display:block;pointer-events:none}
 #game-canvas.gpu-backing-hidden{opacity:0!important}
