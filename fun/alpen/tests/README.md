@@ -4,6 +4,7 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 
 ```sh
 node tests/riding-check.mjs
+node tests/touch-input-check.mjs
 node tests/flow-check.mjs
 node tests/terrain-shadow-check.mjs
 node tests/models-check.mjs
@@ -266,6 +267,17 @@ playing run with audio running. No console or shader errors were reported.
 For browser checks, serve the repository root and open
 `/fun/alpen/?seed=alpine-review`. Exercise carve, charged pop, grab/spin, landing,
 brake, pause/resume and restart. Check a narrow touch viewport as well as desktop.
+For phones, check 320×480 and 390×844 portrait, and 568×320 and 844×390 landscape,
+including notch and home-indicator insets. All touch targets should be at least
+44 pixels; both steering arrows stay together under the left thumb, and the
+right thumb can charge and release a jump while steering. Slide the steering
+thumb between arrows without lifting it. Pause or rotate while holding Jump,
+then lift the old finger: no jump should fire, and a paused run must stay paused
+until a fresh menu tap. Check native scrolling through expanded Controls & tricks
+and the pause screen's restart action. The touch-input check covers simultaneous
+fingers, steering slides, interrupted gestures, capture cleanup and accessible
+button activation; real browser checks also cover the menu click after capture
+is released, which synthetic pointer events alone do not reproduce.
 The existing T key cycles morning, dusk and blue hour. `window.__alpen.debug()`
 reports frame time, draw calls, triangles, render scale and simulation state.
 It also reports CPU submission time and optional asynchronous GPU timing,

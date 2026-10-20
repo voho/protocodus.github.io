@@ -27,12 +27,12 @@ body {
   font-family: "Avenir Next", Avenir, "Segoe UI", Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  touch-action: none;
+  touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }
 button, summary { font: inherit; }
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
-#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 body:not(.ready) #stage { visibility: hidden; }
 .sr-only {
   position: absolute;
@@ -141,7 +141,7 @@ kbd {
 }
 .curtain.on { opacity: 1; visibility: visible; }
 .curtain:focus { outline: none; }
-.curtain-inner { width: min(100%, 34.5em); max-height: 100%; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; touch-action: pan-y; padding: 6px; margin: -6px; }
+.curtain-inner { width: min(100%, 34.5em); max-height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; touch-action: pan-y; padding: 6px; margin: -6px; }
 .eyebrow { display: flex; align-items: center; gap: 13px; color: var(--accent); font-size: var(--ui-label); font-weight: 600; line-height: 1.5; letter-spacing: 0.22em; text-transform: uppercase; }
 .alpine-mark { flex-shrink: 0; width: 35px; height: 25px; }
 .wordmark { margin-top: 21px; font-size: clamp(92px, 9.5vw, calc(var(--ui-label) * 9.2)); font-weight: 600; line-height: 0.94; letter-spacing: -0.065em; }
@@ -192,28 +192,33 @@ kbd {
 body:not(.loaded) .curtain[data-screen='start'] .go { display: none; }
 body.no-webgl .first-steps, body.no-webgl .touch-first, body.no-webgl .control-guide { display: none; }
 
-/* Generous touch targets, with a clear centre for watching the board land. */
-.pad { position: absolute; inset: auto 0 0; display: none; align-items: flex-end; justify-content: space-between; gap: 8px; padding: 20px max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); pointer-events: none; }
+/* Two thumb-sized clusters stay at the edges in either orientation. The
+   empty middle belongs to the board; button spacing never grows with it. */
+.pad { position: absolute; inset: 0; display: none; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 12px max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); pointer-events: none; touch-action: none; --pad-width: 144px; --pad-gap: 8px; --pad-height: 58px; }
 body.touch .pad { display: flex; }
 body.touch:has(.curtain.on) .pad { visibility: hidden; }
-.pad-tools { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; display: flex; gap: 8px; transform: translateX(-50%); }
-.pad-stack { display: flex; flex-direction: column; gap: 8px; }
-.pad-row { display: flex; gap: 7px; }
-.pad-btn { min-width: 46px; min-height: 48px; padding: 0 10px; border: 1px solid rgba(247, 245, 239, 0.4); border-radius: 8px; color: var(--paper); background: rgba(9, 22, 34, 0.42); font-size: 9px; font-weight: 600; letter-spacing: 0.07em; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.pad-tools { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; display: flex; gap: 8px; transform: translateX(-50%); }
+.pad-stack, .pad-movement { display: flex; flex: 0 0 var(--pad-width); flex-direction: column; gap: var(--pad-gap); }
+.pad-row { display: flex; gap: var(--pad-gap); }
+.pad-row > .pad-btn { flex: 1; min-width: 0; }
+.pad-btn { min-width: 44px; min-height: var(--pad-height); padding: 0 8px; border: 1px solid rgba(247, 245, 239, 0.5); border-radius: 12px; color: var(--paper); background: rgba(9, 22, 34, 0.6); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pad-btn.on { color: var(--ink); background: var(--ice); border-color: var(--ice); }
-.pad-tool { min-width: 40px; min-height: 40px; padding: 0 8px; font-size: 15px; opacity: 0.85; }
+.pad-btn svg { display: block; width: 18px; height: 18px; margin: auto; pointer-events: none; }
+.pad-tool { width: 44px; min-height: 44px; padding: 0 8px; font-size: 18px; }
 .pad-tool[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
-.pad-jump { min-height: 59px; color: var(--ink); background: rgba(246, 161, 109, 0.92); border-color: var(--accent); }
-.pad-left, .pad-right { min-width: 62px; min-height: 65px; font-size: 14px; }
+.pad-jump { color: var(--ink); background: rgba(246, 161, 109, 0.96); border-color: var(--accent); }
+.pad-left, .pad-right { font-size: 18px; }
 body.touch .first-steps, body.touch .keys, body.touch .go-key, body.touch .ride-hint, body.touch .desktop-pause { display: none; }
 body.touch .go-tap { display: inline; }
 body.touch .touch-first { display: block; margin-top: 24px; color: var(--muted); font-size: var(--ui-copy); line-height: 1.6; }
 body.touch .touch-guide { display: grid; }
-body.touch .ride-charge { bottom: max(158px, calc(env(safe-area-inset-bottom) + 140px)); }
-body.touch .ride-tools { bottom: max(153px, calc(env(safe-area-inset-bottom) + 135px)); }
+body.touch .restart-run, body.touch .control-guide summary, body.touch .curtain-footer .exit-link { min-height: 44px; }
+body.touch .ride-charge { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); width: 144px; }
+body.touch .ride-tools { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); }
 
 @media (max-width: 620px) {
   :root { --gutter: 20px; --ui-label: 10px; --ui-copy: 11px; --ui-control: 13px; }
+  body.touch .curtain { --ui-label: 12px; --ui-copy: 13px; --ui-control: 14px; }
   .curtain { padding: max(35px, env(safe-area-inset-top)) 26px max(75px, env(safe-area-inset-bottom)); background: linear-gradient(90deg, rgba(7, 18, 29, 0.84), rgba(7, 18, 29, 0.36)); }
   .curtain-inner { width: 100%; max-width: 430px; }
   .eyebrow { font-size: 8px; letter-spacing: 0.18em; gap: 10px; }
@@ -244,18 +249,10 @@ body.touch .ride-tools { bottom: max(153px, calc(env(safe-area-inset-bottom) + 1
   .event-points { font-size: 20px; }
   .ride-hint { max-width: calc(100% - 40px); font-size: 10px; }
   .ride-guide { top: 124px; font-size: 10px; }
-  .pad-tools { top: 16px; gap: 6px; }
-  .pad-tool { min-width: 35px; min-height: 35px; }
-  .pad { gap: 6px; }
-  .pad-left, .pad-right { min-width: 51px; min-height: 62px; }
-  .pad-btn { padding: 0 8px; }
+  .pad { --pad-width: clamp(128px, 36vw, 152px); }
 }
 @media (max-width: 360px) {
-  .pad { padding-right: 10px; padding-left: 10px; gap: 4px; }
-  .pad-btn { min-width: 40px; padding: 0 5px; font-size: 8px; }
-  .pad-left, .pad-right { min-width: 45px; }
-  .pad-row { gap: 4px; }
-  .pad-tool { min-width: 32px; font-size: 14px; }
+  .pad { --pad-width: 128px; --pad-gap: 6px; padding-right: max(12px, env(safe-area-inset-right)); padding-left: max(12px, env(safe-area-inset-left)); }
   .ride-speed .conditions { max-width: 130px; }
   .first-steps { gap: 12px; }
 }
@@ -282,7 +279,7 @@ body.touch .ride-tools { bottom: max(153px, calc(env(safe-area-inset-bottom) + 1
   .curtain[data-screen='paused'] .wordmark br { display: none; }
   .tagline { margin-top: 12px; font-size: 11px; }
   .tagline br { display: none; }
-  .go { margin-top: 17px; display: flex; align-items: center; gap: 20px; }
+  .go { margin-top: 17px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
   .go-hint { margin-top: 0; font-size: 9px; }
   .drop-in { min-width: 170px; }
   .restart-run { margin-top: 0; }
@@ -296,13 +293,33 @@ body.touch .ride-tools { bottom: max(153px, calc(env(safe-area-inset-bottom) + 1
   .ride-event { top: 102px; width: min(430px, 58vw); }
   .event-name { font-size: 15px; }
   .ride-guide { top: 112px; }
-  .pad { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-  .pad-stack { gap: 6px; }
-  .pad-wide { min-height: 42px; }
-  .pad-jump { min-height: 48px; }
-  .pad-tricks .pad-row .pad-btn { min-height: 40px; }
-  body.touch .ride-charge { bottom: 132px; }
-  body.touch .ride-tools { bottom: 128px; }
+  .pad { --pad-width: 144px; --pad-height: 48px; --pad-gap: 6px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  body.touch .ride-charge, body.touch .ride-tools { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 114px); }
+}
+/* Keep tools away from the two corner readouts on narrow upright phones. */
+@media (orientation: portrait) and (max-width: 620px) {
+  .pad-tools { top: calc(max(20px, env(safe-area-inset-top)) + 94px); }
+  body.touch .ride-event { top: calc(max(20px, env(safe-area-inset-top)) + 154px); }
+  body.touch .ride-score, body.touch .ride-speed { max-width: 44%; }
+  body.touch .ride-guide { top: calc(max(20px, env(safe-area-inset-top)) + 100px); max-width: 28%; text-align: right; }
+  body.touch .curtain { padding-left: max(26px, env(safe-area-inset-left)); padding-right: max(26px, env(safe-area-inset-right)); }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  body.touch .curtain { --ui-label: 12px; --ui-copy: 13px; --ui-control: 14px; }
+  body.touch .ride-ui { --top: max(12px, env(safe-area-inset-top)); }
+  body.touch .ride-score, body.touch .ride-speed { max-width: 28%; }
+  body.touch .ride-eyebrow span, body.touch .flow-level, body.touch .conditions { display: none; }
+  body.touch .score-line strong { font-size: 28px; }
+  body.touch .speed-line strong { font-size: 32px; }
+  body.touch .flow-line { margin-top: 5px; }
+  body.touch .personal-best { margin-top: 4px; }
+  body.touch .ride-event { top: max(66px, calc(env(safe-area-inset-top) + 54px)); width: min(420px, 48vw); }
+  body.touch .event-kicker { font-size: 9px; letter-spacing: 0.1em; }
+  body.touch .event-name { margin-top: 4px; font-size: 15px; }
+  body.touch .event-points { margin-top: 3px; font-size: 18px; }
+  body.touch .ride-guide { top: calc(max(12px, env(safe-area-inset-top)) + 76px); }
+  body.touch .curtain { padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 48px)); }
+  body.touch .curtain-footer { bottom: max(6px, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

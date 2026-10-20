@@ -80,6 +80,7 @@ export function createInput(target, hooks = {}) {
   const down = new Set();
   let jumpStepSeen = false;
   const touchButtons = [];
+  const touchListeners = [];
   let jumpTapPending = false;
   let jumpPulse = PULSE_NONE;
   // Gamepad edge state — see the pad block in `update`.
@@ -137,10 +138,12 @@ export function createInput(target, hooks = {}) {
   const keydown = (e) => onKey(e, true);
   const keyup = (e) => onKey(e, false);
   const blur = () => clear();
+  const rotate = () => calm();
 
   target.addEventListener('keydown', keydown);
   target.addEventListener('keyup', keyup);
   window.addEventListener('blur', blur);
+  window.addEventListener('orientationchange', rotate);
   // A controller may already be connected when a resumed page creates input.
   let hasGamepads = (navigator.getGamepads?.() || []).some(Boolean);
   const connected = () => { hasGamepads = true; };
@@ -291,59 +294,94 @@ export function createInput(target, hooks = {}) {
     }
   }
 
-  /* Wires the on-screen pad. Each button is a pointer capture rather than a
-     click, so a thumb can slide between them without losing the press. */
+  /* Capturing each thumb keeps a held control down even if the finger drifts
+     off its button. Only a real release counts as a jump: the browser taking
+     over a gesture or removing the pad must never manufacture a quick tap. */
   function bindTouch(root) {
     state.touch = true;
     root.querySelectorAll('[data-key]').forEach((el) => {
       const name = el.dataset.key;
+      if (!BINDINGS[name] || touchButtons.some((button) => button.el === el)) return;
       const pointers = new Set();
-      touchButtons.push({ el, pointers });
-      let keyboardPulse = 0;
-      const set = (v, e) => {
+      const button = { el, name, pointers, keyboardHeld: false, timer: 0 };
+      touchButtons.push(button);
+      const listen = (type, listener) => {
+        el.addEventListener(type, listener);
+        touchListeners.push(() => el.removeEventListener(type, listener));
+      };
+      const sync = (e, cancelled = false) => {
         e.preventDefault();
+        const v = touchButtons.some((b) => b.name === name && (b.pointers.size || b.keyboardHeld));
         if (name === 'jump') {
           if (v && !touch[name]) jumpStepSeen = false;
-          if (!v && touch[name] && !jumpStepSeen) jumpTapPending = true;
+          if (!v && touch[name] && !jumpStepSeen && !cancelled) jumpTapPending = true;
+          if (!v && touch[name] && cancelled) hooks.cancelJump?.();
         }
+        if (v && !touch[name]) state.anyPressed = true;
         touch[name] = v;
-        if (v) state.anyPressed = true;
-        el.classList.toggle('on', v);
+        el.classList.toggle('on', !!(pointers.size || button.keyboardHeld));
       };
-      el.addEventListener('pointerdown', (e) => {
+      button.sync = sync;
+      listen('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
         pointers.add(e.pointerId);
         el.setPointerCapture?.(e.pointerId);
-        set(true, e);
+        sync(e);
       });
-      const releasePointer = (e) => {
-        pointers.delete(e.pointerId);
-        set(pointers.size > 0, e);
+      listen('pointermove', (e) => {
+        const current = touchButtons.find((b) => b.pointers.has(e.pointerId));
+        if (!current || !['left', 'right'].includes(current.name)) return;
+        const hit = el.ownerDocument?.elementFromPoint(e.clientX, e.clientY);
+        const next = touchButtons.find((b) => ['left', 'right'].includes(b.name)
+          && (b.el === hit || b.el.contains?.(hit)));
+        if (!next || next === current) return;
+        // The original button retains capture; the held action follows the
+        // thumb between arrows, so changing edges needs no second tap.
+        current.pointers.delete(e.pointerId);
+        next.pointers.add(e.pointerId);
+        current.sync(e);
+        next.sync(e);
+      });
+      const releasePointer = (e, cancelled = false) => {
+        // An implicit lostpointercapture after pointerup, or a late release
+        // after pause cleared the pad, does not belong to a new gesture.
+        const current = touchButtons.find((b) => b.pointers.has(e.pointerId));
+        if (!current) return;
+        current.pointers.delete(e.pointerId);
+        current.sync(e, cancelled);
       };
-      el.addEventListener('pointerup', (e) => {
+      listen('pointerup', (e) => {
         releasePointer(e);
         if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
       });
-      el.addEventListener('pointercancel', releasePointer);
-      el.addEventListener('lostpointercapture', releasePointer);
+      listen('pointercancel', (e) => releasePointer(e, true));
+      listen('lostpointercapture', (e) => releasePointer(e, true));
 
       // Switch control, voice control and keyboard activation dispatch a
       // click without a pointer sequence. Give those activations a short,
       // fixed pulse so every native button remains a working game control.
-      el.addEventListener('click', (e) => {
+      listen('click', (e) => {
         if (e.detail !== 0) return;
-        set(true, e);
-        window.clearTimeout(keyboardPulse);
-        keyboardPulse = window.setTimeout(() => {
-          set(false, e);
+        button.keyboardHeld = true;
+        sync(e);
+        if (button.timer) window.clearTimeout(button.timer);
+        button.timer = window.setTimeout(() => {
+          button.timer = 0;
+          button.keyboardHeld = false;
+          sync(e);
         }, 160);
       });
     });
   }
 
   function dispose() {
+    clear();
+    for (const remove of touchListeners) remove();
+    touchListeners.length = touchButtons.length = 0;
     target.removeEventListener('keydown', keydown);
     target.removeEventListener('keyup', keyup);
     window.removeEventListener('blur', blur);
+    window.removeEventListener('orientationchange', rotate);
     window.removeEventListener('gamepadconnected', connected);
     window.removeEventListener('gamepaddisconnected', disconnected);
   }
@@ -361,6 +399,10 @@ export function createInput(target, hooks = {}) {
      dropped a few lines above — so resuming gave the player a dead key until
      they released and pressed it a second time. */
   function calm() {
+    // Unlike a physical key, a captured pointer can outlive the button: the
+    // pause curtain hides it and receives the next touch. Retire those
+    // gestures (and accessibility pulses) before the pad can reappear.
+    clearTouch();
     state.turn = 0;
     state.turnIntent = 0;
     state.jump = false;
@@ -378,11 +420,6 @@ export function createInput(target, hooks = {}) {
      else and never arrives here. */
   function clear() {
     down.clear();
-    for (const k of Object.keys(touch)) touch[k] = false;
-    for (const { el, pointers } of touchButtons) {
-      el.classList.remove('on');
-      pointers.clear();
-    }
     // The pad cannot be emptied, only distrusted — see the poll in `update`.
     gamepadSuppressed = true;
     gpJumpHeld = false;
@@ -390,6 +427,25 @@ export function createInput(target, hooks = {}) {
     gpBackHeld = false;
     gpJumpStepSeen = false;
     calm();
+  }
+
+  function clearTouch() {
+    if (touch.jump) hooks.cancelJump?.();
+    for (const k of Object.keys(touch)) touch[k] = false;
+    const captured = touchButtons.flatMap((button) => [...button.pointers]);
+    for (const button of touchButtons) {
+      const { el, pointers } = button;
+      el.classList.remove('on');
+      pointers.clear();
+      button.keyboardHeld = false;
+      if (button.timer) window.clearTimeout(button.timer);
+      button.timer = 0;
+    }
+    // A steering thumb may now be held by the opposite arrow while its
+    // original element still owns capture.
+    for (const { el } of touchButtons) {
+      for (const id of captured) if (el.hasPointerCapture?.(id)) el.releasePointerCapture(id);
+    }
   }
 
   /* Gamepad dual-rumble haptic feedback.

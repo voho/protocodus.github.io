@@ -34,15 +34,19 @@
   <!-- ================= TOUCH PAD ================= -->
   <div class="pad" role="group" aria-label="Touch controls">
     <div class="pad-tools">
-      <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause">Ⅱ</button>
+      <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3h3v14H5zm7 0h3v14h-3z" fill="currentColor"/></svg></button>
       <button type="button" class="pad-btn pad-tool" data-action="mute"
         aria-label="Mute sound" aria-pressed="false">♪</button>
     </div>
-    <button type="button" class="pad-btn pad-left" data-key="left" aria-label="Carve left">◀</button>
-    <button type="button" class="pad-btn pad-right" data-key="right" aria-label="Carve right">▶</button>
-    <div class="pad-stack">
-      <button type="button" class="pad-btn pad-wide" data-key="tuck">BOOST</button>
-      <button type="button" class="pad-btn pad-wide" data-key="brake">BRAKE</button>
+    <div class="pad-movement">
+      <div class="pad-row pad-drive">
+        <button type="button" class="pad-btn" data-key="tuck">BOOST</button>
+        <button type="button" class="pad-btn" data-key="brake">BRAKE</button>
+      </div>
+      <div class="pad-row pad-steer">
+        <button type="button" class="pad-btn pad-left" data-key="left" aria-label="Carve left"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m14 3-10 7 10 7z" fill="currentColor"/></svg></button>
+        <button type="button" class="pad-btn pad-right" data-key="right" aria-label="Carve right"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 10 7-10 7z" fill="currentColor"/></svg></button>
+      </div>
     </div>
     <div class="pad-stack pad-tricks">
       <div class="pad-row">
@@ -86,7 +90,7 @@
         <p><kbd>Space</kbd><span>Hold, release, jump</span></p>
         <p><kbd>S</kbd><span>Brake</span></p>
       </div>
-      <p class="touch-first start-only">Carve with the arrows. Hold Jump, then let go.</p>
+      <p class="touch-first start-only">Left thumb to carve. Right thumb to hold Jump, then let go. Ride upright or sideways.</p>
 
       <details class="control-guide">
         <summary>Controls &amp; tricks <span aria-hidden="true">+</span></summary>

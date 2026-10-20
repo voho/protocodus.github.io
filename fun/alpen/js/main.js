@@ -440,6 +440,8 @@ const ridersReady = loadRiderModels().then((m) => {
 const hud = createHud(hudRoot);
 const touchPause = pad.querySelector('[data-action="pause"]');
 const touchMute = pad.querySelector('[data-action="mute"]');
+const curtainPointers = new Set();
+let curtainClickReady = false;
 
 /* ==========================================================================
    Game state
@@ -484,7 +486,15 @@ try {
 // frame the page ever draws would otherwise format an undefined.
 game.bestAtStart = game.best;
 
-const input = createInput(window, { key: onKey });
+const input = createInput(window, {
+  key: onKey,
+  // An interrupted finger gesture is not a deliberate release-to-pop.
+  cancelJump() {
+    rider.charging = false;
+    rider.charge = rider._jumpBuffer = rider._bufferCharge = 0;
+    rider.lipReady = rider.lipAhead = false;
+  },
+});
 if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
   document.body.classList.add('touch');
   input.bindTouch(pad);
@@ -559,6 +569,8 @@ function begin() {
   audio.start();
   showMuted(audio.muted);
   if (!bootReady || contextLost) return;
+  curtainPointers.clear();
+  curtainClickReady = false;
   /* A run starts at the top of the mountain. `restart()` alone resumes from
      wherever the rider is standing, and on the title screen that is wherever
      the attract demo has carved to — so a player who read the controls for
@@ -576,6 +588,8 @@ function begin() {
 
 function pause() {
   if (game.mode !== 'playing') return;
+  curtainPointers.clear();
+  curtainClickReady = false;
   game.mode = 'paused';
   pausedRendered = false;
   curtain.classList.add('on');
@@ -719,6 +733,8 @@ function onKey(e) {
    to call `begin`. */
 function restartRun() {
   if (!runStarted || !bootReady || contextLost) return;
+  curtainPointers.clear();
+  curtainClickReady = false;
   audio.start();
   showMuted(audio.muted);
   restart();
@@ -732,6 +748,29 @@ function restartRun() {
    screen whenever the game is not playing, so a click anywhere lands here.
    Chrome grants touch user activation on the synthesized click, not always on
    pointerdown, which is why the tap path starts from this click handler. */
+// Releasing a finger that was holding Jump when Pause hid the pad can land
+// a click on this curtain. Only gestures begun on the menu may dismiss it.
+curtain.addEventListener('pointerdown', (e) => {
+  if (curtain.classList.contains('on')) curtainPointers.add(e.pointerId);
+});
+document.addEventListener('pointerup', (e) => {
+  // Older Safari sends a MouseEvent click without a pointerId.
+  curtainClickReady = curtainPointers.has(e.pointerId);
+}, true);
+document.addEventListener('pointercancel', (e) => {
+  curtainPointers.delete(e.pointerId);
+  curtainClickReady = false;
+}, true);
+curtain.addEventListener('click', (e) => {
+  const startedHere = typeof e.pointerId === 'number'
+    ? curtainPointers.has(e.pointerId) : curtainClickReady;
+  curtainPointers.delete(e.pointerId);
+  curtainClickReady = false;
+  if (e.detail !== 0 && !startedHere) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true);
 curtain.addEventListener('click', begin);
 // The pause screen's restart. It must not also reach the curtain's
 // click-anywhere resume, which would run `begin` on top of it.
@@ -1969,6 +2008,10 @@ function resize() {
   const viewport = window.visualViewport;
   const w = Math.max(1, Math.round(viewport?.width || window.innerWidth));
   const h = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+  // Browser chrome can change the visible phone area without changing the
+  // layout viewport. Size controls and menus to the same glass as the camera.
+  document.body.style.width = `${w}px`;
+  document.body.style.height = `${h}px`;
   const size = retro.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
