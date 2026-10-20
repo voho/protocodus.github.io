@@ -207,6 +207,36 @@ const BACKDROP_FRAG = `
   varying highp vec3 vReal;
   varying highp vec3 vDir;
   varying highp float vDist;
+  vec2 detailOffset(vec2 cell) {
+    vec3 p = fract(vec3(cell.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yzx + 33.33);
+    return fract((p.xx + p.yz) * p.zy);
+  }
+  /* Blend three independently offset patches on a triangular grid. The
+     eight-cell noise tile otherwise repeats visibly across forested hills.
+     Shared corner offsets and barycentric weights keep the joins continuous,
+     without bending the crowns into streaks. Explicit gradients preserve
+     mip filtering across the random offsets; the variance correction keeps
+     the forest's contrast from fading in the middle of each triangle. */
+  vec3 landNoise(vec2 uv) {
+    vec2 dx = dFdx(uv), dy = dFdy(uv);
+    vec2 grid = mat2(1.0, 0.0, -0.57735027, 1.15470054) * uv;
+    vec2 cell = floor(grid), f = fract(grid);
+    vec3 weights;
+    vec2 a, b, c;
+    if (f.x + f.y < 1.0) {
+      weights = vec3(1.0 - f.x - f.y, f.y, f.x);
+      a = cell; b = cell + vec2(0.0, 1.0); c = cell + vec2(1.0, 0.0);
+    } else {
+      weights = vec3(f.x + f.y - 1.0, 1.0 - f.y, 1.0 - f.x);
+      a = cell + 1.0; b = cell + vec2(1.0, 0.0); c = cell + vec2(0.0, 1.0);
+    }
+    vec3 x = textureGrad(uNoise, uv + detailOffset(a), dx, dy).rgb - 0.5;
+    vec3 y = textureGrad(uNoise, uv + detailOffset(b), dx, dy).rgb - 0.5;
+    vec3 z = textureGrad(uNoise, uv + detailOffset(c), dx, dy).rgb - 0.5;
+    return clamp(0.5 + (weights.x * x + weights.y * y + weights.z * z)
+      / sqrt(dot(weights, weights)), 0.0, 1.0);
+  }
   void main() {
     vec3 dir = normalize(vDir);
     /* The maps, on the frame the range was built in: u the bearing, v the
@@ -231,12 +261,11 @@ const BACKDROP_FRAG = `
        one photograph repeating every couple of hundred metres is a pattern
        the eye finds at once on a slope a few kilometres off. */
     vec3 slow = texture2D(uNoise, vReal.xz / 2300.0).rgb;
-    vec3 fast = texture2D(uNoise, vReal.xz / 160.0 + vec2(0.37, 0.11)).rgb;
-    float fine = texture2D(uNoise, mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0 + vec2(0.71, 0.23)).g;
-    /* …and all of it only near. A field that repeats every fifty or two
-       hundred metres is texture on a slope two kilometres off and a woven
-       pattern on one ten kilometres off, where a real forest or rock face
-       has no grain left at all, only tone — which the maps carry. */
+    vec3 fast = landNoise(vReal.xz / 160.0 + vec2(0.37, 0.11));
+    float fine = landNoise(mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0
+      + vec2(0.71, 0.23)).g;
+    /* At distance the crowns and grain become too small to resolve. Fade
+       them to their mean, leaving the broad tone carried by the maps. */
     float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
     float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
     fast = mix(vec3(0.5), fast, mid);

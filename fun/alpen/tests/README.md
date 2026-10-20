@@ -201,7 +201,14 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
-Its resolution governor cases tell a slow GPU from a slow frame clock: a
+For distant-hill detail, run
+`await (await import('./tests/backdrop-detail-browser-check.mjs')).runBackdropDetailCheck()`
+in a served Alpen page. It renders the production forest detail in a separate
+WebGL context and checks the old 47 m repetition at 2.4 km and the 160 m
+repetition at 8 and 12 km against a legacy fixture. It also checks that the
+crowns remain compact, retain their tone, stay fixed to the ground as the
+view moves, and fade to their mean beyond 16 km.
+The graphics check's resolution governor cases tell a slow GPU from a slow frame clock: a
 30 fps cap (or a frame time resolution does not change) walks down, finds
 nothing gained at the floor and returns to full resolution for good; a GPU
 timer showing idle time vetoes the walk outright; and a GPU just over budget
