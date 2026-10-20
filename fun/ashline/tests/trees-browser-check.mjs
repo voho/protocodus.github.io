@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Browser QA: set ASHLINE_PLAYWRIGHT, ASHLINE_URL, and optionally ASHLINE_SCREENSHOTS.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -33,7 +34,7 @@ try {
   assert.equal(graphics.stats.props.tree, 6); assert.equal(graphics.unique, 6, 'Six visually distinct tree sprites');
   await page.locator('#tree-atlas-preview').screenshot({path: `${output}/tree-varieties.png`});
   await page.evaluate(() => { document.querySelector('#tree-atlas-preview').remove(); document.querySelector('#briefing').showModal(); });
-  await page.locator('#seed').fill('TREES-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await page.locator('#seed').fill('TREES-BROWSER'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused);
   if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
   await page.evaluate(() => { window.treesFixture = {raf: requestAnimationFrame}; requestAnimationFrame = frame => { treesFixture.frame = frame; return 0; }; });

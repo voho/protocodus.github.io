@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Browser QA: set ASHLINE_PLAYWRIGHT and ASHLINE_URL as in browser-check.mjs.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -104,7 +105,7 @@ try {
   assert.equal(graphics.hiddenHeadDifference, 0); assert(graphics.visibleHeadDifference > 20);
   assert.equal(graphics.puffs.length, 3); assert(graphics.puffs.every(x => Math.floor(x) === 32), 'Smoke cannot cross concealed trail cells');
 
-  await page.locator('#seed').fill('ROCKET-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await page.locator('#seed').fill('ROCKET-BROWSER'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused);
   if (await page.locator('#command-console').isHidden()) await page.locator('#command-toggle').click();
   assert(await page.locator('.build-card[data-type="rocketTower"]').isDisabled(), 'Tower requires barracks technology');

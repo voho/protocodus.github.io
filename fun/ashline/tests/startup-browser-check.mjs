@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Run with ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs and ASHLINE_URL.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -48,7 +49,7 @@ try {
       }, 30);
     });
     const launchAt = Date.now();
-    await page.locator('#deploy').click();
+    await prepareSkirmish(page); await page.locator('#deploy').click();
     assert(await page.locator('#loading').isVisible(), 'Deployment paints a dedicated loading screen');
     await page.screenshot({ path: `${output}/loading.png` });
     await deployed(page);
@@ -96,7 +97,7 @@ try {
   const backToSetup = async () => { await failure.locator('#pause').click(); await failure.locator('#new-game').click(); };
   const deployFallback = async seed => {
     await failure.locator('#seed').fill(seed);
-    await failure.locator('#deploy').click(); await deployed(failure);
+    await prepareSkirmish(failure); await failure.locator('#deploy').click(); await deployed(failure);
     assert.deepEqual(await failure.evaluate(() => ({ seed: ashline.state.seed, width: ashline.state.width,
       profile: ashline.state.mapProfile, race: ashline.state.teams[0].race, difficulty: ashline.state.difficulty,
       ready: ashline.renderer.terrainSource === ashline.state.terrain })),
@@ -118,14 +119,14 @@ try {
       terminate() {}
     };
   });
-  await failure.locator('#deploy').click();
+  await prepareSkirmish(failure); await failure.locator('#deploy').click();
   await failure.locator('#loading-back').waitFor({ state: 'visible', timeout: 120000 });
   assert.equal(await failure.locator('#loading-stage').textContent(), 'Generation fixture failed');
   await failure.locator('#loading-back').click();
   assert.equal(await failure.evaluate(() => ashline.state), null);
   assert(await failure.locator('#deploy').isEnabled());
   await failure.evaluate(() => { window.Worker = originalWorker; });
-  await failure.locator('#deploy').click(); await deployed(failure);
+  await prepareSkirmish(failure); await failure.locator('#deploy').click(); await deployed(failure);
   assert.equal(await failure.evaluate(() => ashline.state.width), 144);
   await failure.close();
   assert.deepEqual(errors, []);

@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // World-sized canvas ownership must end at setup, failed deployment, and replacement loads.
 // Run with ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs and ASHLINE_URL.
 import assert from 'node:assert/strict';
@@ -50,7 +51,7 @@ try {
   await page.locator('#map-size').selectOption('vast');
   await page.locator('#map-profile').selectOption('rift');
   await page.locator('#seed').fill('PERF-VAST-2026');
-  await page.locator('#deploy').click();
+  await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   await page.locator('#pause').click(); await page.locator('#save-game').click();
   const deployedMemory = await memory();
@@ -94,7 +95,7 @@ try {
   });
   await page.locator('#map-size').selectOption('standard');
   await page.locator('#map-profile').selectOption('highlands');
-  await page.locator('#deploy').click();
+  await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => document.querySelector('#loading').dataset.error === 'true', null, { timeout: 120000 });
   await page.evaluate(() => assertReleased());
   assert.equal(await page.evaluate(() => ashline.state), null);
@@ -102,7 +103,7 @@ try {
   assert(failedMemory.bytes < assetMemory.bytes + 2 * MiB, 'Failed terrain preparation releases world stores');
   await page.evaluate(() => { ashline.renderer.prepareTerrain = originalPrepareTerrain; });
   await page.locator('#loading-back').click();
-  await page.locator('#deploy').click();
+  await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   assert(await page.evaluate(() => ashline.renderer.terrainSource === ashline.state.terrain && ashline.renderer.terrain.width > 0), 'Redeployment rebuilds released surfaces');
   await page.locator('#pause').click();

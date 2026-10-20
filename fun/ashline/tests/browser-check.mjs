@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Optional browser QA: ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/browser-check.mjs
 // Serve the repository root first. ASHLINE_URL can override the local URL.
 import assert from 'node:assert/strict';
@@ -83,7 +84,7 @@ try {
   assert(await page.locator('#briefing').evaluate(e => e.open));
   assert(await state(page, () => ashline.paused && ashline.state === null));
   await page.screenshot({ path: `${output}/briefing.png` });
-  await page.locator('#seed').fill('BROWSER-CHECK'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await page.locator('#seed').fill('BROWSER-CHECK'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
   assert(await state(page, () => ashline.renderer.width === innerWidth && ashline.renderer.height === innerHeight), 'Battlefield fills the viewport');
   assert(await page.locator('#selection-panel').isHidden(), 'No empty selection panel obscures the battlefield');
@@ -260,7 +261,7 @@ try {
 
   // Stage the last combat exchange; the real animation loop must open either end screen.
   for (const outcome of ['victory', 'defeat']) {
-    await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+    await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.evaluate(async outcome => {
       const { issueOrder, buildingRole, unitRole } = await import('./sim.js'), s = ashline.state;
       const loser = outcome === 'victory' ? 1 : 0;
@@ -285,7 +286,7 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); watch(mobile);
   await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.booted); await mobile.evaluate(async () => (await import('./assets.js')).startAssets());
-  await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await prepareSkirmish(mobile); await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   assert(await state(mobile, () => document.documentElement.scrollWidth <= innerWidth), 'Mobile has no horizontal overflow');
   assert(await pageIsCompact(mobile), 'Mobile starts with a compact, collapsed console');
   assert(await mobile.evaluate(async () => { const {spriteNativeZoom}=await import('./assets.js');return Math.abs(ashline.view.zoom-spriteNativeZoom(ashline.renderer.dpr)*.625)<1e-6; }), 'Mobile starts at the second of five native-resolution zoom levels');

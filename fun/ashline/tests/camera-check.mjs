@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Run alongside browser-check.mjs with the same ASHLINE_URL / ASHLINE_PLAYWRIGHT overrides.
 // Pixel invariants catch heading-dependent scale, clipping and incorrect facing selection;
 // the contact sheets and battlefield captures require visual review of the art itself.
@@ -238,7 +239,7 @@ try {
     await writeFile(`${output}/headings-team${team}-${zoomName}.png`, Buffer.from(data.color, 'base64'));
     await writeFile(`${output}/headings-team${team}-${zoomName}-grayscale.png`, Buffer.from(data.grayscale, 'base64'));
   }
-  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.evaluate(async () => {
     const { UNITS } = await import('./sim.js'), s = ashline.state;
     s.entities = s.entities.filter(e => e.kind === 'building');

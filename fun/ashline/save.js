@@ -2,10 +2,11 @@ import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, MAP_SIZE
 import {DOCTRINES} from './ai.js';
 import {ABILITIES, abilityFor} from './abilities.js';
 import {MISSIONS} from './campaign.js';
+import {ENVIRONMENTS} from './environments.js';
 
 export const SAVE_KEY = 'ashline.save.v1';
 const VERSION = 1, MAX_BYTES = 16_000_000, MAX_EFFECTS = Math.max(4096, UNIT_CAP * 8);
-const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'layout', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites', 'mission', 'reveals'];
+const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'environment', 'layout', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites', 'mission', 'reveals'];
 const GRIDS = {terrain: Uint8Array, minerals: Float32Array, mineralTypes: Uint8Array, blocked: Uint8Array, regions: Uint16Array};
 const fail = reason => { throw new Error(reason); };
 const valid = condition => { if (!condition) fail('Saved operation is damaged or incompatible.'); };
@@ -44,6 +45,7 @@ function validateGame(s) {
   const {width, height} = s, cells = width * height, point = value => inBounds(value, width, height);
   valid(typeof s.seed === 'string' && ['easy', 'normal', 'hard'].includes(s.difficulty));
   if(s.mapProfile!==undefined)valid(Object.keys(MAP_PROFILES).includes(s.mapProfile));
+  if(s.environment!==undefined)valid(typeof s.environment==='string'&&Object.hasOwn(ENVIRONMENTS,s.environment));
   if(s.layout!==undefined)validateLayout(s);
   if(s.alertAt!==undefined)valid(number(s.alertAt,0,s.time));
   valid(['playing', 'victory', 'defeat'].includes(s.status) && number(s.time, 0));
@@ -257,6 +259,7 @@ export function decodeGame(text) {
   valid(typeof data.savedAt === 'string' && Number.isFinite(Date.parse(data.savedAt)));
   if(object(data.game)&&data.game.mineralTypes===undefined&&Array.isArray(data.game.minerals))data.game.mineralTypes=data.game.minerals.map(amount=>amount>0?1:0);
   validateGame(data.game);
+  data.game.environment??='ash';
   const {width, height} = data.game, cells = width * height;
   valid(object(data.view) && (!Object.keys(data.view).length || inBounds(data.view, width, height) && number(data.view.zoom, 8, 128)));
   const rememberedBuildings = data.rememberedBuildings ?? [], knownOre = data.knownOre ?? Array(cells).fill(0);

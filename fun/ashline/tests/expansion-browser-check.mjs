@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium}=await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -11,12 +12,12 @@ const ui=page=>page.waitForTimeout(200);
 async function launch(viewport,deviceScaleFactor=1){
   const page=await browser.newPage({viewport,deviceScaleFactor});page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
-  assert.equal(await page.locator('#map-size').inputValue(),'expanse');
+  assert.equal(await page.locator('#map-size').inputValue(),'random');
   await page.locator('#map-profile').selectOption('highlands');await page.locator('#map-size').selectOption('vast');
   assert.equal(await page.evaluate(()=>ashline.state),null,'Changing setup does not generate a preview world');
   await page.locator('#map-profile').selectOption('rift');await page.locator('#map-size').selectOption('frontier');
   await page.screenshot({path:`${output}/briefing-${viewport.width}.png`});
-  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});await page.evaluate(()=>{ashline.state.ai.nextThink=1e9;ashline.state.teams[0].credits=30000;});
+  await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});await page.evaluate(()=>{ashline.state.ai.nextThink=1e9;ashline.state.teams[0].credits=30000;});
   return page;
 }
 async function fixtures(page){return page.evaluate(async()=>{

@@ -22,8 +22,11 @@ const tones = page => page.locator('#notifications .toast').evaluateAll(list => 
 
 async function deploy(page, choices = {}) {
   await page.goto(url); await page.waitForFunction(() => window.ashline?.booted);
-  for (const [id, value] of Object.entries(choices)) await page.locator(`#${id}`).selectOption(value);
-  await page.locator('#deploy').click();
+  for (const [id, value] of Object.entries({ 'player-race': 'organics', 'enemy-race': 'aiUnity', 'difficulty': 'normal', 'map-size': 'expanse', 'map-profile': 'rift', environment: 'ash', 'skirmish-mode': 'annihilation', ...choices })) await page.locator(`#${id}`).selectOption(value);
+  // Use the actual input device: a synthetic mouse click on touch fixtures leaves its hover position
+  // over the later catalogue and can replace a touch-only hint when the cards are rebuilt.
+  if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await page.locator('#deploy').tap();
+  else await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
 }
 // A quiet sector with a working base, no AI and every tile seen, so interface effects are deterministic.
@@ -53,18 +56,20 @@ const fixture = page => page.evaluate(async () => {
 try {
   // Setup: commanders and modes come from the AI and campaign tables; the static menu never shows an empty terrain list.
   const html = await (await fetch(url)).text();
-  assert.match(html, /<select id="map-profile"[^>]*><option value="rift">Volcanic rift<\/option><\/select>/, 'The static briefing keeps a terrain option before scripts load');
+  assert.match(html, /<select id="map-profile"[^>]*><option value="random" selected>Random<\/option><option value="rift">Volcanic rift<\/option><\/select>/, 'The static briefing keeps Random and a named terrain option before scripts load');
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(desktop, 'desktop');
   await desktop.addInitScript(() => { if (!sessionStorage.getItem('ui-check')) { localStorage.removeItem('ashline.settings.v1'); sessionStorage.setItem('ui-check', '1'); } });
   await desktop.goto(url); await desktop.waitForFunction(() => window.ashline?.booted);
   const setup = await desktop.evaluate(async () => {
     const { DOCTRINES, doctrineOptions } = await import('./ai.js'), { SKIRMISH_MODES } = await import('./campaign.js'), last = Object.keys(DOCTRINES).at(-1);
-    return { doctrines: [...document.querySelectorAll('#rival-doctrine option')].map(o => o.value), expected: doctrineOptions().map(o => o.id), modes: [...document.querySelectorAll('#skirmish-mode option')].map(o => o.value), expectedModes: SKIRMISH_MODES.map(m => m.id), last, commander: DOCTRINES[last].commander, unity: DOCTRINES[last].unity.commander };
+    return { doctrines: [...document.querySelectorAll('#rival-doctrine option')].map(o => o.value), expected: doctrineOptions().map(o => o.id), modes: [...document.querySelectorAll('#skirmish-mode option')].map(o => o.value), expectedModes: ['random', ...SKIRMISH_MODES.map(m => m.id)], last, commander: DOCTRINES[last].commander, unity: DOCTRINES[last].unity.commander };
   });
   assert.deepEqual(setup.doctrines, setup.expected); assert.equal(setup.doctrines[0], 'random', 'Random comes first and is the default'); assert.deepEqual(setup.modes, setup.expectedModes);
   assert.match(await desktop.locator('#doctrine-description').textContent(), /seed/);
   await desktop.locator('#rival-doctrine').selectOption(setup.last);
-  assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.unity), 'Choosing a doctrine names its commander; the default AI Unity rival goes by machine designation');
+  assert(!(await desktop.locator('#doctrine-description').textContent()).startsWith(setup.unity), 'A random rival faction does not prematurely name its commander');
+  await desktop.locator('#enemy-race').selectOption('aiUnity');
+  assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.unity), 'An AI Unity rival goes by machine designation');
   await desktop.locator('#enemy-race').selectOption('organics');
   assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.commander), 'An Organics rival names its human commander');
   assert.match(await desktop.locator('#rival-doctrine option:checked').textContent(), new RegExp(setup.commander));

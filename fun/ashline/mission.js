@@ -22,7 +22,7 @@ export const FAIL_RULES=['coreLost','allUnitsLost','tagLost','timeLimit','rivalH
 // Objectives that hold until the end: they can fail during play and complete at victory.
 const HOLDING=['protectTagged','limitLosses'];
 const DEFAULT_FAIL=[{type:'coreLost'}];
-const SETTINGS=['width','height','profile','races','aiTeams','aiProfiles'];
+const SETTINGS=['width','height','profile','environment','races','aiTeams','aiProfiles'];
 const CONDITIONS=['time','every','limit','until','after','objectiveDone','objectiveFailed','objectiveActive','tagDestroyed','tagsLeft','zoneEntered','kills'];
 const ACTIONS=['say','spawn','reveal','credits','directive','rally'];
 const MAX_RADIUS=48,MAX_VETERANS=12;

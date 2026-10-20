@@ -4,6 +4,7 @@
 import {createFlockSnapshot,flockSteering} from './flocking.js';
 import {findTrafficDetour} from './traffic.js';
 import {MAP_SIZES,MAP_PROFILES,DEFAULT_MAP_SIZE,mapLayout,basePoint,hash,generateMap} from './terrain.js';
+import {ENVIRONMENTS} from './environments.js';
 import {newAI,aiState,thinkAI,teamPace} from './ai.js';
 import {missionDefinition,missionSettings,createMissionState,updateMission,settleMission,missionAllows,noteDelivery,noteTrained,missionDeployment,noteTagLost} from './mission.js';
 import {ABILITIES,abilitySpeed,abilityRange,abilityDamageTaken,endHeldAbility} from './abilities.js';
@@ -302,15 +303,16 @@ export function addEntity(s,team,kind,type,x,y,built=true){
 export function createGame(seed='ASH-001',difficulty='normal',options={}){
   // An operation fixes the settings it defines; an unknown mission is refused before generation.
   const operation=options.mission===undefined?null:missionDefinition(options.mission);
-  const {width:W=MAP_WIDTH,height:H=MAP_HEIGHT,profile='rift',races=['organics','organics'],aiTeams=[1],aiProfiles={}}=operation?missionSettings(operation,options):options;
+  const {width:W=MAP_WIDTH,height:H=MAP_HEIGHT,profile='rift',environment='ash',races=['organics','organics'],aiTeams=[1],aiProfiles={}}=operation?missionSettings(operation,options):options;
   if(!((W===72&&H===56)||Object.values(MAP_SIZES).some(size=>W===size.width&&H===size.height)))throw new RangeError('Unsupported map dimensions');
   if(!Object.hasOwn(MAP_PROFILES,profile))throw new RangeError('Unsupported terrain profile');
+  if(typeof environment!=='string'||!Object.hasOwn(ENVIRONMENTS,environment))throw new RangeError('Unsupported environment');
   if(!Array.isArray(races)||races.length!==2||races.some(race=>!Object.hasOwn(RACES,race)))throw new RangeError('Unsupported race pairing');
   if(!Array.isArray(aiTeams)||aiTeams.some(team=>![0,1].includes(team))||new Set(aiTeams).size!==aiTeams.length)throw new RangeError('Unsupported AI teams');
   // Profiles are keyed by AI team; newAI validates each profile's contents.
   if(aiProfiles===null||typeof aiProfiles!=='object'||Array.isArray(aiProfiles)||Object.keys(aiProfiles).some(key=>!aiTeams.map(String).includes(key)))throw new RangeError('Unsupported AI profiles');
   const N=W*H,level=['easy','normal','hard'].includes(difficulty)?difficulty:'normal';
-  const s={width:W,height:H,mapProfile:profile,seed:String(seed),difficulty:level,rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:newAI(level,aiProfiles[1],{seed:String(seed),team:1})};
+  const s={width:W,height:H,mapProfile:profile,environment,seed:String(seed),difficulty:level,rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:newAI(level,aiProfiles[1],{seed:String(seed),team:1})};
   s.teams.forEach((team,index)=>{team.race=races[index];});s.aiTeams=[...aiTeams];
   if(aiTeams.includes(0))s.aiByTeam={0:newAI(level,aiProfiles[0],{seed:String(seed),team:0})};
   generateMap(s);
@@ -1504,7 +1506,15 @@ function step(s,dt){
       if(e.upgrade){e.upgrade.progress=Math.min(1,e.upgrade.progress+dt/BUILDING_UPGRADES[e.upgrade.id].time*productionRate(s,e.team,powers[e.team]));if(e.upgrade.progress>=1){const id=e.upgrade.id;e.upgrades??={};e.upgrades[id]=true;delete e.upgrade;event(s,`${BUILDING_UPGRADES[id].name}: upgrade complete`,e.team,{kind:'upgradeComplete',...subject(e)});}}
       deliverRefineryHauler(s,e);
       const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*pace);if(q.progress>=1){if(spawnAt(s,e,q.type))e.queue.shift();else if(Math.floor(s.time/10)!==Math.floor((s.time-dt)/10)&&own(s,e.team).filter(u=>u.kind==='unit').length<unitCapacity(s,e.team))event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team,{kind:'bayBlocked',...subject(e)});}}
-      if(BUILDINGS[e.type].damage){e.cooldown=Math.max(0,e.cooldown-dt*rate);const target=acquire(s,e,BUILDINGS[e.type].range);e.targetId=target?.id??null;if(target&&e.cooldown<=0&&powers[e.team].ratio>=1)shoot(s,e,target);}
+      if(BUILDINGS[e.type].damage){
+        e.cooldown=Math.max(0,e.cooldown-dt*rate);
+        const target=acquire(s,e,BUILDINGS[e.type].range);e.targetId=target?.id??null;
+        if(target&&powers[e.team].ratio>=1){
+          const a=center(e),b=center(target);
+          e.angle=e.aimAngle=Math.atan2(b.y-a.y,b.x-a.x);
+          if(e.cooldown<=0)shoot(s,e,target);
+        }
+      }
     }else{
       const angle=e.angle,x=e.x,y=e.y;stepUnit(s,e,dt,movement,powers[e.team]);
       // Combat aiming and engineer work also turn in place and cannot be displaced by traffic.

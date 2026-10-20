@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // New art/material/visibility contracts; run with the browser-check.mjs environment overrides.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,7 +11,7 @@ try {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:4173/fun/ashline/');
   await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
-  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   const result = await page.evaluate(async () => {
     const { drawSprite, drawProp, spriteStats, spriteNativeZoom } = await import('./assets.js');
     const { UNITS, BUILDINGS, createGame } = await import('./sim.js');

@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Run with ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs and ASHLINE_URL.
 // Plays Landfall and Hold the Line from the briefing with real commands through window.ashline and the
 // game's own modules: campaign tab, loading line, pre-start pause, objective tracker, transmissions,
@@ -215,14 +216,14 @@ try {
   await page.locator('#skirmish-tab').click();
   await page.locator('#map-size').selectOption('standard'); await page.locator('#skirmish-mode').selectOption('lastLight');
   assert.match(await page.locator('#mode-description').textContent(), /Score is seconds survived × kills ÷ 10/);
-  await page.locator('#deploy').click();
+  await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   await until(page, () => !document.querySelector('#objectives').hidden);
   assert.equal(await page.evaluate(() => [ashline.state.mission.id, document.querySelector('#objectives-title').textContent].join()), 'last-light,Last Light');
   // One setup path: Relay control keeps the chosen rival commander, and a restored relay skirmish shows its mode.
   await page.locator('#pause').click(); await page.locator('#new-game').click();
   // RELAY-CHECK draws Balanced, so a restored Swarm commander is named in setup.
-  await page.locator('#seed').fill('RELAY-CHECK'); await page.locator('#skirmish-mode').selectOption('relay'); await page.locator('#rival-doctrine').selectOption('swarm'); await page.locator('#deploy').click();
+  await page.locator('#seed').fill('RELAY-CHECK'); await page.locator('#skirmish-mode').selectOption('relay'); await page.locator('#rival-doctrine').selectOption('swarm'); await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, ashline.state.ai.doctrine]), ['relay-control', 'swarm']);
   await page.locator('#pause').click(); await page.locator('#save-game').click(); await page.locator('#new-game').click();
@@ -231,7 +232,7 @@ try {
   assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, document.querySelector('#skirmish-mode').value, document.querySelector('#rival-doctrine').value]), ['relay-control', 'relay', 'swarm']);
   assert.match(await page.locator('#mode-description').textContent(), /lit relay/);
   await page.locator('#new-game').click();
-  await page.locator('#skirmish-mode').selectOption('annihilation'); await page.locator('#rival-doctrine').selectOption('random'); await page.locator('#deploy').click();
+  await page.locator('#skirmish-mode').selectOption('annihilation'); await page.locator('#rival-doctrine').selectOption('random'); await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   await until(page, () => !document.querySelector('#objectives').hidden);
   assert.equal(await page.locator('#objectives-title').textContent(), "Commander's goals");

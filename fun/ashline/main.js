@@ -1,4 +1,4 @@
-import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, DEFAULT_MAP_SIZE, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, cancelResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, cancelTraining, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, productionRate, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, cancelResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, cancelTraining, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, productionRate, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { ABILITIES, abilityFor, abilityStatus, useAbility } from './abilities.js';
 import { DOCTRINES, doctrineOptions, randomDoctrine } from './ai.js';
 import { callsign, barkLine, rivalCommander, approachingColumn } from './character.js';
@@ -14,6 +14,8 @@ import { assignControlGroup, controlGroupMembers } from './control-groups.js';
 import { advanceSimulationFrame } from './frame-scheduler.js';
 import { createCampaign } from './campaign-ui.js';
 import { missionAllows } from './mission.js';
+import { ENVIRONMENTS } from './environments.js';
+import { resolveSkirmish } from './skirmish-setup.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world'), tacticalMap = document.querySelector('.tactical-map');
@@ -1276,6 +1278,7 @@ async function prepareOperation(restore = false) {
       const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === restored.game.width && MAP_SIZES[id].height === restored.game.height);
       if (size) $('map-size').value = size;
       $('map-profile').value = restored.game.mapProfile || 'rift';
+      $('environment').value = restored.game.environment || 'ash';
       $('player-race').value = teamRace(restored.game, 0); $('enemy-race').value = teamRace(restored.game, 1);
       // A doctrine Random would also draw for this seed shows as Random, so loading a save never names a
       // commander the player has not met.
@@ -1283,6 +1286,12 @@ async function prepareOperation(restore = false) {
       $('rival-doctrine').value = Object.hasOwn(DOCTRINES, doctrine ?? '') && doctrine !== randomDoctrine(restored.game.seed, 1) ? doctrine : 'random';
       updateMapDescription();
     }
+    const skirmish = !restored && !operation ? resolveSkirmish(seed, {
+      size: $('map-size').value, profile: $('map-profile').value, environment: $('environment').value,
+      playerRace: $('player-race').value, enemyRace: $('enemy-race').value, difficulty: $('difficulty').value,
+      doctrine: $('rival-doctrine').value, mode: $('skirmish-mode').value,
+    }) : null;
+    const mission = skirmish ? campaign.skirmishMission(skirmish.mode) : null;
     updateLoading(2, 'Loading units and structures');
     assetTimer = setInterval(() => updateLoading(2 + assetStatus.loaded / assetStatus.total * 32,
       assetStatus.loaded === assetStatus.total ? 'Preparing faction colors' : `Loading units and structures · ${assetStatus.loaded} / ${assetStatus.total}`), 60);
@@ -1293,12 +1302,11 @@ async function prepareOperation(restore = false) {
     await nextPaint();
     // A campaign operation brings its own settings and ignores the rival commander choice; a skirmish, in
     // any mode, reads the setup form.
-    const doctrine = $('rival-doctrine').value, mission = campaign.skirmishMission();
-    const prepared = restored?.game || await generateOperation(seed, operation?.difficulty ?? $('difficulty').value, operation?.options ?? {
-      ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
-      ...(doctrine === 'random' || Object.hasOwn(DOCTRINES, doctrine) ? { aiProfiles: { 1: { doctrine } } } : {}), ...(mission ? { mission } : {}),
+    const launchSettings = operation ?? skirmish;
+    const prepared = restored?.game || await generateOperation(seed, launchSettings.difficulty, {
+      ...launchSettings.options, ...(mission ? { mission } : {}),
     });
-    updateLoading(40, 'Laying the ashlands');
+    updateLoading(40, 'Preparing the battlefield');
     await nextPaint();
     await reset(prepared, restored);
     updateLoading(99, 'Establishing command');
@@ -1715,27 +1723,31 @@ $('resume').addEventListener('click', resume);
 $('menu').addEventListener('cancel', event => { event.preventDefault(); if (game.status === 'playing') resume(); });
 $('briefing').addEventListener('cancel', event => event.preventDefault());
 $('new-game').addEventListener('click', () => {
-  cancelOrder(); $('seed').value = randomSeed(); showBriefing();
+  cancelOrder(); $('seed').value = ''; showBriefing();
 });
 $('loading').addEventListener('cancel', event => event.preventDefault());
 $('loading-back').addEventListener('click', () => { if ($('loading-back').dataset.reload) location.reload(); else showBriefing(); });
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); });
-// Terrain choices follow the simulation's profile table; its first profile stays the default.
-$('map-profile').replaceChildren(...Object.entries(MAP_PROFILES).map(([id, profile]) => new Option(profile.name, id)));
-$('map-size').replaceChildren(...Object.entries(MAP_SIZES).map(([id, size]) => new Option(`${size.name} · ${size.width} × ${size.height}`, id, id === DEFAULT_MAP_SIZE, id === DEFAULT_MAP_SIZE)));
-// Rival commanders come from the AI table; the simulation resolves Random from the operation seed. The
+// Every skirmish selector begins on Random; named choices remain available as overrides.
+const randomOption = () => new Option('Random', 'random', true, true);
+$('map-profile').replaceChildren(randomOption(), ...Object.entries(MAP_PROFILES).map(([id, profile]) => new Option(profile.name, id)));
+$('map-size').replaceChildren(randomOption(), ...Object.entries(MAP_SIZES).map(([id, size]) => new Option(`${size.name} · ${size.width} × ${size.height}`, id)));
+$('environment').replaceChildren(randomOption(), ...Object.entries(ENVIRONMENTS).map(([id, environment]) => new Option(environment.name, id)));
+// Rival commanders come from the AI table; setup resolves Random from the operation seed. The
 // campaign interface owns the skirmish mode select: a mode other than Annihilation runs as its operation.
 $('rival-doctrine').replaceChildren(...doctrineOptions().map(option => new Option(option.name, option.id)));
 function updateMapDescription() {
-  const size = MAP_SIZES[$('map-size').value];
-  $('race-description').textContent = RACES[$('player-race').value].description;
-  $('map-description').textContent = `${MAP_PROFILES[$('map-profile').value].description} ${fmt(size.width * size.height)} tiles to explore.`;
+  const size = MAP_SIZES[$('map-size').value], profile = MAP_PROFILES[$('map-profile').value], environment = ENVIRONMENTS[$('environment').value];
+  $('race-description').textContent = RACES[$('player-race').value]?.description ?? 'The sector seed chooses your faction: Organics or AI Unity.';
+  $('map-description').textContent = `${profile?.description ?? 'The sector seed chooses the terrain layout.'} ${size ? `${fmt(size.width * size.height)} tiles to explore.` : 'Battlefield size is chosen when you deploy.'}`;
+  $('environment-description').textContent = environment?.description ?? 'The sector seed chooses ashlands, jungle, desert or tundra.';
   // Commanders carry their rival race's names, so the labels follow the rival faction.
   const doctrines = doctrineOptions($('enemy-race').value), doctrine = doctrines.find(option => option.id === $('rival-doctrine').value);
-  doctrines.forEach((option, index) => { if (option.id !== 'random') $('rival-doctrine').options[index].text = `${option.name} · ${option.commander}`; });
-  $('doctrine-description').textContent = doctrine && doctrine.id !== 'random' ? `${doctrine.commander}: ${doctrine.description}` : 'The sector seed decides which commander leads the rival claim.';
+  const randomRace = $('enemy-race').value === 'random';
+  doctrines.forEach((option, index) => { if (option.id !== 'random') $('rival-doctrine').options[index].text = randomRace ? option.name : `${option.name} · ${option.commander}`; });
+  $('doctrine-description').textContent = doctrine && doctrine.id !== 'random' ? `${randomRace ? '' : `${doctrine.commander}: `}${doctrine.description}` : 'The sector seed decides which commander leads the rival claim.';
 }
-for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race', 'rival-doctrine']) $(id).addEventListener('change', updateMapDescription);
+for (const id of ['map-profile', 'map-size', 'environment', 'player-race', 'enemy-race', 'rival-doctrine']) $(id).addEventListener('change', updateMapDescription);
 $('launch-form').addEventListener('submit', event => { event.preventDefault(); prepareOperation(); });
 
 function requestFrame() {
@@ -1800,7 +1812,6 @@ function frameStep(now) {
   if (barkUntil && now > barkUntil) { $('comms').classList.add('leaving'); if (now > barkUntil + 400) { $('comms').hidden = true; barkUntil = 0; } }
 }
 
-$('seed').value = randomSeed();
 setGameSpeed(settings.speed); updateSettingButtons();
 updateMapDescription(); updateSoundButton(); bindAudioControls(audio);
 $('deploy').disabled = false;

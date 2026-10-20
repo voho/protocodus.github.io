@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs ASHLINE_URL=http://127.0.0.1:8131/fun/ashline/ node tests/features-browser-check.mjs
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -46,7 +47,7 @@ try {
   const page = await browser.newPage({viewport: {width: 1440, height: 900}}); watch(page);
   await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   await page.locator('#seed').fill('FEATURES-BROWSER');
-  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
   await page.locator('#pause').click();
 
@@ -187,7 +188,7 @@ try {
   // Touch users can place refinery rallies and reach save/load/audio controls without overflow.
   const mobile = await browser.newPage({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, deviceScaleFactor: 2}); watch(mobile);
   await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.booted); await mobile.evaluate(async () => (await import('./assets.js')).startAssets());
-  await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await prepareSkirmish(mobile); await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   const refineryId = await mobile.evaluate(() => ashline.state.entities.find(e => e.team === 0 && e.type === 'refinery').id);
   const refineryCenter = await selectProducer(mobile, refineryId, true);
   await mobile.locator('#rally-order').tap();

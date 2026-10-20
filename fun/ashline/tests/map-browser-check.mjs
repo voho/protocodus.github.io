@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 import {MAP_SIZES,DEFAULT_MAP_SIZE} from '../sim.js';
 const SIZE = MAP_SIZES[DEFAULT_MAP_SIZE];
 // Browser QA: set ASHLINE_PLAYWRIGHT, ASHLINE_URL, and optionally ASHLINE_SCREENSHOTS.
@@ -26,7 +27,7 @@ try {
     page.on('console', message => { if (message.type() === 'error') errors.push(`${name}: ${message.text()}`); });
     await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
     await page.locator('#seed').fill('LARGE-MAP-BROWSER');
-    await page.locator('#deploy')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+    await prepareSkirmish(page); await page.locator('#deploy')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.waitForFunction(() => !ashline.paused);
     assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.state.terrain.length]), [SIZE.width, SIZE.height, SIZE.width*SIZE.height]);
     assert(await page.evaluate(() => {

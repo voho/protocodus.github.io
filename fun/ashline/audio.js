@@ -1,6 +1,8 @@
 // Ashline's audio engine. soundbank.js synthesizes every effect (in a worker when the browser allows it);
 // the original, locally hosted soundtrack is credited in assets/audio/CREDITS.md.
 import { RECIPES, SOUND_KINDS, AMBIENT_KINDS, ALIASES, RATE, renderKind, renderVoice, renderImpulse, parseVoiceKey, VOICE_RECIPE, TRANSMISSION_RECIPE } from './soundbank.js';
+import { createMusicStream } from './music-stream.js';
+import { MUSIC_INDEX } from './assets/audio/stream-index.js';
 
 export { SOUND_KINDS, AMBIENT_KINDS };
 export const SETTINGS_KEY = 'ashline.audio.v1';
@@ -171,7 +173,7 @@ function createBank(context, onReady, onImpulse) {
 export function createAudio({ storage = defaultStorage() } = {}) {
   const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
   const settings = readAudioSettings(storage), volumes = settings.volumes;
-  let context, bank, master, groups, buses, combatDuck, musicDuck, musicFilter, musicLevel, musicFade, musicSource, music;
+  let context, bank, master, groups, buses, combatDuck, musicDuck, musicFilter, musicLevel, musicFade, musicSource, music, musicStream;
   let suspension = Promise.resolve(), pauseTimer = 0, musicTimer = 0;
   let musicIndex = 0;
   let unlocked = false, sfxEnabled = settings.sfxEnabled, musicEnabled = settings.musicEnabled, paused = false, disposed = false, musicError = '';
@@ -233,16 +235,24 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     context.addEventListener?.('statechange', flush);
     bank = createBank(context, flush, attachImpulse);
     bank.start();
-    music = new Audio(new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href);
+    music = new Audio();
     music.preload = 'none';
+    musicStream = createMusicStream(music, { onError: error => {
+      if (!disposed) { musicError = error.message || String(error); music.pause(); }
+    } });
+    const selectTrack = () => musicStream.setTrack(
+      new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href,
+      MUSIC_INDEX[MUSIC_TRACKS[musicIndex]],
+    );
+    selectTrack();
     music.addEventListener('ended', () => {
       if (disposed) return;
       musicIndex = (musicIndex + 1) % MUSIC_TRACKS.length;
-      music.src = new URL(`./assets/audio/${MUSIC_TRACKS[musicIndex]}`, import.meta.url).href;
+      selectTrack();
       musicError = '';
       updateMusic();
     });
-    music.addEventListener('error', () => { musicError = 'Soundtrack could not be loaded.'; });
+    music.addEventListener('error', () => { if (!disposed && music.hasAttribute('src')) musicError = 'Soundtrack could not be streamed.'; });
     musicSource = context.createMediaElementSource(music); musicSource.connect(musicFilter);
     Object.assign(startup, { contextMs: created - started, setupMs: performance.now() - created });
   }
@@ -409,8 +419,11 @@ export function createAudio({ storage = defaultStorage() } = {}) {
   }
   function updateMusic() {
     if (!music) return;
-    if (!unlocked || !musicEnabled || paused || disposed) { clearTimeout(musicTimer); musicTimer = 0; music.pause(); return; }
+    if (!unlocked || !musicEnabled || !volumes.music || !volumes.master || paused || disposed) {
+      clearTimeout(musicTimer); musicTimer = 0; musicStream.setPlaying(false); music.pause(); return;
+    }
     clearTimeout(musicTimer); musicTimer = 0; fadeMusic(1, .15);
+    musicStream.setPlaying(true);
     const attempt = music.play();
     if (attempt) attempt.then(() => { musicError = ''; }, error => { if (error.name !== 'AbortError') musicError = error.message; });
   }
@@ -419,7 +432,10 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     if (!music || music.paused) return;
     fadeMusic(0, seconds / 4);
     clearTimeout(musicTimer);
-    musicTimer = setTimeout(() => { musicTimer = 0; if (paused || !musicEnabled) music.pause(); }, seconds * 1000);
+    musicTimer = setTimeout(() => {
+      musicTimer = 0;
+      if (paused || !musicEnabled) { musicStream.setPlaying(false); music.pause(); }
+    }, seconds * 1000);
   }
 
   return {
@@ -519,6 +535,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       volumes[channel] = Math.round(clamp(Number(value), 0, 1) * 100) / 100;
       applyVolumes(); persist();
       if (channel === 'ambient' && volumes.ambient <= 0 && context) stopAmbient();
+      if (channel === 'music' || channel === 'master') updateMusic();
       return true;
     },
     setSfxEnabled(value) {
@@ -536,7 +553,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
         if (!was && music && !music.paused) {
           fadeMusicThenPause(.3);
           clearTimeout(pauseTimer);
-          pauseTimer = setTimeout(() => { pauseTimer = 0; if (paused && !terminalActive()) { music.pause(); suspendContext(); } }, 300);
+          pauseTimer = setTimeout(() => { pauseTimer = 0; if (paused && !terminalActive()) { musicStream.setPlaying(false); music.pause(); suspendContext(); } }, 300);
         } else if (!pauseTimer) { updateMusic(); settlePause(); }
         return;
       }
@@ -553,6 +570,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
         supported: Boolean(AudioContext), unlocked, sfxEnabled, musicEnabled, paused, activeVoices: voices.size, voicesByCategory: byCategory,
         played, dropped, stolen, aggregated, queued, expired, pending: pending.length,
         musicPlaying: Boolean(music && !music.paused), musicTrack: MUSIC_TRACKS[musicIndex], musicError, contextState: context?.state || 'locked',
+        musicPosition: musicStream?.status.position ?? 0, musicStream: musicStream?.status ?? null,
         volumes: { ...volumes }, intensity, startup: { ...startup }, ducking: { combat: duckDepth('combat'), music: duckDepth('music') },
         ambient: Object.fromEntries(BEDS.map(name => [name, beds.get(name)?.target ?? 0])), ambientActive: beds.size, ambientRequested: ambientLevels,
         reverb: reverb ? {
@@ -566,8 +584,7 @@ export function createAudio({ storage = defaultStorage() } = {}) {
       disposed = true; stopEffects(); pending = [];
       clearTimeout(pauseTimer); clearTimeout(musicTimer); clearTimeout(reverbTimer);
       if (context) stopAmbient();
-      bank?.close(); music?.pause();
-      if (music) { music.removeAttribute('src'); music.load(); }
+      bank?.close(); musicStream?.dispose();
       musicSource?.disconnect();
       if (context && context.state !== 'closed') context.close().catch(() => {});
     },

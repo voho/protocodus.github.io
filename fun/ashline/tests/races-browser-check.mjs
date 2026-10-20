@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium}=await import(process.env.ASHLINE_PLAYWRIGHT||'playwright');
@@ -11,7 +12,7 @@ try {
     const mobile=viewport.width<680,page=await browser.newPage({viewport,deviceScaleFactor:dpr,isMobile:mobile,hasTouch:mobile});page.on('pageerror',e=>errors.push(e.message));
     await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
     await page.locator('#player-race').selectOption(race);await page.locator('#enemy-race').selectOption(race==='aiUnity'?'organics':'aiUnity');
-    await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+    await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     const roles=await page.evaluate(async()=>{const m=await import('./sim.js'),s=ashline.state;s.ai.nextThink=1e9;s.teams[0].credits=20000;return {name:m.RACES[m.teamRace(s,0)].name,core:m.raceBuilding(s,0,'core'),barracks:m.raceBuilding(s,0,'barracks'),rifle:m.raceUnit(s,0,'rifle'),factory:m.raceBuilding(s,0,'factory'),lab:m.raceBuilding(s,0,'lab'),labName:m.BUILDINGS[m.raceBuilding(s,0,'lab')].name,engineer:m.raceUnit(s,0,'engineer'),
       // The race's own roster: every unit type, and every structure except the command nexus (shared walls included).
       units:Object.keys(m.UNITS).filter(type=>m.raceUnit(s,0,type)===type),buildings:Object.keys(m.BUILDINGS).filter(type=>m.raceBuilding(s,0,type)===type&&m.buildingRole(type)!=='core')};});

@@ -227,9 +227,9 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
 .queue-chip{min-height:22px;padding:1px 6px;border:1px solid var(--line);background:#8dccca08;font:9px var(--mono);color:var(--muted)}
 .queue-chip:hover:not(:disabled){border-color:#e2967780;color:#f2c4aa}
 .queue-bar{position:absolute;bottom:-2px;left:0;height:2px;background:var(--accent)}
-#doctrine-description,#mode-description{font:14px/1.6 var(--font);color:var(--muted);margin:0 0 10px}
+#environment-description,#doctrine-description,#mode-description{font:14px/1.6 var(--font);color:var(--muted);margin:0 0 10px}
 #map-description{margin-bottom:10px}#mode-description{margin-bottom:20px}
-#doctrine-description:empty,#mode-description:empty{display:none}
+#environment-description:empty,#doctrine-description:empty,#mode-description:empty{display:none}
 .settings-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .settings-controls>button{flex:1 1 30%;min-width:0;padding-inline:8px}
 .settings-controls .secondary-button[aria-pressed=true]{border-color:#8dccca70;color:var(--accent);background:#8dccca0a}

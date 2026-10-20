@@ -1,6 +1,7 @@
 // Units ship at their prepared resolution; high-resolution masters stay out of game loading.
 import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
 import { UNIT_SHEETS } from './assets/prepared/units/manifest.js';
+import { defenseSprite, defenseSpriteStats } from './defense-sprites.js';
 export const assetStatus = { loaded: 0, total: 5 + Object.keys(UNITS).length, ready: false, started: false, errors: [] };
 import { nextPaint } from './loading.js';
 let startLoading;
@@ -608,6 +609,17 @@ function spriteFrame(entity, time) {
 
 // Cast on the ground before drawing any entities; light comes from screen upper-left.
 export function drawSpriteShadow(ctx, entity, time = 0) {
+  const defense = defenseSprite(entity, time);
+  if (defense) {
+    if (entity.hp <= 0) return false;
+    const progress = Math.max(0, Math.min(1, entity.progress ?? 1)), alpha = ctx.globalAlpha, size = defense.size;
+    const height = (entity.size || BUILDINGS[entity.type]) * progress;
+    ctx.globalAlpha = alpha * progress * .20;
+    ctx.drawImage(defense.contact, -size / 2 + 1, -size / 2 + 3, size, size);
+    ctx.globalAlpha = alpha * progress * .33;
+    ctx.drawImage(defense.shadow, -size / 2 + height * 4, -size / 2 + height * 6, size, size);
+    ctx.globalAlpha = alpha; return true;
+  }
   const sprite = spriteFrame(entity, time);
   if (!sprite || entity.hp <= 0) return false;
   const { frame, size, building } = sprite;
@@ -630,6 +642,12 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
 }
 
 export function drawSprite(ctx, entity, time = 0) {
+  const defense = defenseSprite(entity, time);
+  if (defense) {
+    smoothSprites(ctx);
+    ctx.drawImage(defense.image, -defense.size / 2, -defense.size / 2, defense.size, defense.size);
+    restoreSampling(ctx); return true;
+  }
   const sprite = spriteFrame(entity, time);
   if (!sprite) return false;
   const { frame, size, building } = sprite;
@@ -669,6 +687,12 @@ function overlayImage(key, source, color) {
   return cached;
 }
 export function drawSpriteOverlay(ctx, entity, time = 0, color = '#ffffff') {
+  const defense = defenseSprite(entity, time);
+  if (defense) {
+    const image = overlayImage(`defense:${defense.key}:${color}`, defense.image, color);
+    smoothSprites(ctx); ctx.drawImage(image, -defense.size / 2, -defense.size / 2, defense.size, defense.size);
+    restoreSampling(ctx); return true;
+  }
   const sprite = spriteFrame(entity, time);
   if (!sprite) return false;
   const { frame, size, building } = sprite;
@@ -722,6 +746,7 @@ export function spriteStats() {
       .map(([type, frames]) => [type, Math.min(...frames.map(frame => frame.directions?.length || 0))])),
     directionCache: { bytes: directionBytes, images: directionImages, cargoBytes: cargoDirectionBytes,
       cargoImages: cargoDirections.size, cargoLimitBytes: CARGO_DIRECTION_LIMIT },
+    defenseCache: defenseSpriteStats(),
     props: Object.fromEntries(Object.entries(props).map(([type, frames]) => [type, frames.length])) };
 }
 

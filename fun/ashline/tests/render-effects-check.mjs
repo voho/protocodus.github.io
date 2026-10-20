@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Optional browser QA for render-only effects. Uses ASHLINE_PLAYWRIGHT, ASHLINE_URL, ASHLINE_BROWSER and ASHLINE_SCREENSHOTS.
 // Covers tick interpolation (fog-safe, frozen while paused, snapping, no step back on resume), projectiles that
 // finish their flight on the drawn clock, shell kills shown on landing, screen shake gating, explosions, wrecks
@@ -401,7 +402,7 @@ try {
   // Live loop: main.js snapshots every tick and passes the scheduler remainder; paused frames hold still.
   await page.reload(); await page.waitForFunction(() => window.ashline?.booted);
   await page.locator('#map-size').selectOption('standard'); await page.locator('#seed').fill('S5-RENDER');
-  await page.locator('#deploy').click();
+  await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   const live = await page.evaluate(async () => {
     const { addEntity, raceUnit, raceBuilding, issueOrder } = await import('./sim.js');

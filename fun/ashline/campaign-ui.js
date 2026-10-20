@@ -229,9 +229,9 @@ export function createCampaign({ launch, focus, transmit }) {
   }
   function renderModes() {
     const select = $('skirmish-mode');
-    if (!select.options.length || select.options.length !== SKIRMISH_MODES.length) select.replaceChildren(...SKIRMISH_MODES.map(mode => new Option(mode.name, mode.id)));
-    const mode = SKIRMISH_MODES.find(entry => entry.id === select.value) ?? SKIRMISH_MODES[0];
-    $('mode-description').textContent = `${mode.description}${mode.id === 'lastLight' && progress.lastLight.best ? ` Best score ${fmt(progress.lastLight.best)}.` : ''}`;
+    if (select.options.length !== SKIRMISH_MODES.length + 1) select.replaceChildren(new Option('Random', 'random', true, true), ...SKIRMISH_MODES.map(mode => new Option(mode.name, mode.id)));
+    const mode = SKIRMISH_MODES.find(entry => entry.id === select.value);
+    $('mode-description').textContent = mode ? `${mode.description}${mode.id === 'lastLight' && progress.lastLight.best ? ` Best score ${fmt(progress.lastLight.best)}.` : ''}` : 'The sector seed chooses Annihilation, Relay control or Last Light when you deploy.';
   }
   $('skirmish-mode').addEventListener('change', renderModes);
 
@@ -266,8 +266,13 @@ export function createCampaign({ launch, focus, transmit }) {
     $('loading-briefing').textContent = line; $('loading-briefing').hidden = !line;
     return operation;
   }
-  // The scripted skirmish mode chosen in setup, if any.
-  const skirmishMission = () => SKIRMISH_MODES.find(entry => entry.id === $('skirmish-mode').value)?.mission;
+  // The loader supplies the once-resolved mode so Random's briefing and simulation always agree.
+  function skirmishMission(modeId) {
+    const mission = SKIRMISH_MODES.find(entry => entry.id === modeId)?.mission;
+    const line = mission ? MISSIONS[mission].briefing : '';
+    $('loading-briefing').textContent = line; $('loading-briefing').hidden = !line;
+    return mission;
+  }
   // A restored skirmish shows the mode it was deployed with (a plain one shows the first). A restored operation
   // leaves the skirmish setup alone, and its Retry and Next keep the Opposition it was launched at. Returns
   // whether the save is a campaign operation.

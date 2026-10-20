@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium} = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -37,7 +38,7 @@ try {
     const page = await browser.newPage({viewport: mobile ? {width: 390, height: 844} : {width: 1440, height: 900}, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1});
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
-    await page.locator('#seed').fill('BUILDING-ACTIONS'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+    await page.locator('#seed').fill('BUILDING-ACTIONS'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
     if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
     await freeze(page);

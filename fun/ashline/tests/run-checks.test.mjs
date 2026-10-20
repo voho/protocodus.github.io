@@ -19,7 +19,12 @@ const standIn = `
     async launch({channel}) {
       const {ASHLINE_URL: url = null, ASHLINE_SCREENSHOTS: screenshots = null} = process.env;
       const status = url && await fetch(new URL('assets.js', url)).then(response => response.status, () => 'unreachable');
-      writeFileSync(new URL('record.json', import.meta.url), JSON.stringify({url, channel, screenshots, status}));
+      const media = new URL('assets/audio/Weight_Of_The_Iron_Sky.mp3', url);
+      const part = await fetch(media, {headers:{Range:'bytes=0-65535'}});
+      const range = {status:part.status, contentRange:part.headers.get('content-range'), bytes:(await part.arrayBuffer()).byteLength};
+      const invalid = await fetch(media, {headers:{Range:'bytes=99999999-'}});
+      const rejected = {status:invalid.status, contentRange:invalid.headers.get('content-range')};
+      writeFileSync(new URL('record.json', import.meta.url), JSON.stringify({url, channel, screenshots, status, range, rejected}));
       process.exit(0);
     },
   };`;
@@ -36,6 +41,8 @@ test('--tools runs render-benchmark against the built-in server', async t => {
   assert.equal(record.status, 200, 'the server is still up while tools run');
   assert.equal(record.channel, 'chromium');
   assert.equal(record.screenshots, join(folder, 'logs', 'screenshots', 'render-benchmark'));
+  assert.deepEqual(record.range, {status:206, contentRange:'bytes 0-65535/4167117', bytes:65536}, 'music requests return only the bounded range');
+  assert.deepEqual(record.rejected, {status:416, contentRange:'bytes */4167117'}, 'invalid ranges never return a full track');
 });
 
 test('a suite that only sets the Playwright path for a child stays a node:test suite', async () => {

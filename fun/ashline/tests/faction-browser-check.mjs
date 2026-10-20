@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Browser QA: ASHLINE_PLAYWRIGHT, ASHLINE_URL, and optional ASHLINE_SCREENSHOTS.
 import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
@@ -69,7 +70,7 @@ try {
     assert(row.mintShifted <= row.mint * .02 && row.mintShift <= 12, `${row.type}/${row.state}: minerals retain their shared mint color (${row.mintShifted} of ${row.mint} edge pixels shift up to ${row.mintShift})`);
   }
 
-  await page.locator('#seed').fill('FACTIONS-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await page.locator('#seed').fill('FACTIONS-BROWSER'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
   await page.evaluate(() => { window.factionFixture = {raf: requestAnimationFrame}; requestAnimationFrame = frame => { factionFixture.frame = frame; return 0; }; });
   await page.waitForFunction(() => Boolean(factionFixture.frame));

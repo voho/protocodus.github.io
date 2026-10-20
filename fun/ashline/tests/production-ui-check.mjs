@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 import assert from 'node:assert/strict';
 
 const {chromium}=await import(process.env.ASHLINE_PLAYWRIGHT||'playwright');
@@ -15,7 +16,7 @@ try{
     const page=await browser.newPage({viewport:{width:1440,height:900}});
     page.on('pageerror',e=>errors.push(`${race}: ${e.message}`));
     await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
-    await page.locator('#player-race').selectOption(race);await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+    await page.locator('#player-race').selectOption(race);await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     const fixture=await page.evaluate(async()=>{
       const m=await import('./sim.js'),s=ashline.state;
       s.aiTeams=[];s.teams[0].credits=30000;s.terrain.fill(0);s.minerals.fill(0);s.mineralTypes.fill(0);s.navVersion++;

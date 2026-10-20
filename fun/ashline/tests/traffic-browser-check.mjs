@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Browser movement QA: set ASHLINE_PLAYWRIGHT and ASHLINE_URL as in browser-check.mjs.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -29,7 +30,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
   await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
-  await page.locator('#seed').fill('TRAFFIC-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
+  await page.locator('#seed').fill('TRAFFIC-BROWSER'); await prepareSkirmish(page); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.locator('#pause').click();
   await page.evaluate(async () => {
     const {UNITS, issueOrder, updateGame} = await import('./sim.js'), s = ashline.state;

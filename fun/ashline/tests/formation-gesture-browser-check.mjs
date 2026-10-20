@@ -1,3 +1,4 @@
+import {prepareSkirmish} from './setup-fixture.mjs';
 // Optional real-pointer QA: use ASHLINE_PLAYWRIGHT, ASHLINE_URL and ASHLINE_SCREENSHOTS.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -13,7 +14,7 @@ try {
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
   await page.waitForFunction(()=>window.ashline?.booted);
   await page.evaluate(async()=>(await import('./assets.js')).startAssets());
-  await page.locator('#seed').fill('FORMATION-GESTURES');await page.locator('#deploy').click();
+  await page.locator('#seed').fill('FORMATION-GESTURES');await prepareSkirmish(page); await page.locator('#deploy').click();
   await page.waitForFunction(()=>ashline.state&&!ashline.loading&&!ashline.paused,null,{timeout:120000});
   await page.evaluate(()=>{window.gestureFixture={raf:requestAnimationFrame};requestAnimationFrame=frame=>{gestureFixture.frame=frame;return 0;};});
   await page.waitForFunction(()=>Boolean(gestureFixture.frame));

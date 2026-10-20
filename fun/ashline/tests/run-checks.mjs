@@ -4,11 +4,11 @@
 //   node tests/run-checks.mjs --browser    also every Playwright browser check, against a built-in static server
 // Run with --help for filters and options.
 import { spawn, execFileSync } from 'node:child_process';
-import { createServer } from 'node:http';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { availableParallelism, homedir, tmpdir } from 'node:os';
-import { delimiter, dirname, extname, join, relative, resolve, sep } from 'node:path';
+import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { startStaticServer } from '../tools/serve.mjs';
 
 const TESTS = dirname(fileURLToPath(import.meta.url)), ASHLINE = dirname(TESTS), ROOT = resolve(ASHLINE, '../..');
 // Long-running measurement tools rather than pass/fail checks.
@@ -83,36 +83,6 @@ function discover() {
   });
 }
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
-  '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
-
-// Serves the repository root like `python3 -m http.server`: directory index, trailing-slash redirect and
-// Last-Modified revalidation, so browser caching behaves as in the documented manual setup.
-function startServer() {
-  const server = createServer((request, response) => {
-    let url, path;
-    try { url = new URL(request.url, 'http://localhost'); path = decodeURIComponent(url.pathname); }
-    catch { response.writeHead(400).end(); return; }
-    let file = resolve(ROOT, `.${path}`), stats;
-    if (file !== ROOT && !file.startsWith(ROOT + sep)) { response.writeHead(403).end(); return; }
-    try {
-      stats = statSync(file);
-      if (stats.isDirectory()) {
-        if (!url.pathname.endsWith('/')) { response.writeHead(301, { Location: `${url.pathname}/${url.search}` }).end(); return; }
-        file = join(file, 'index.html'); stats = statSync(file);
-      }
-    } catch { response.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found'); return; }
-    const modified = new Date(Math.floor(stats.mtimeMs / 1000) * 1000), since = Date.parse(request.headers['if-modified-since'] ?? '');
-    if (since >= modified.getTime()) { response.writeHead(304).end(); return; }
-    response.writeHead(200, { 'Content-Type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
-      'Content-Length': stats.size, 'Last-Modified': modified.toUTCString() });
-    if (request.method === 'HEAD') { response.end(); return; }
-    createReadStream(file).on('error', () => response.destroy()).pipe(response);
-  });
-  return new Promise((done, fail) => { server.once('error', fail); server.listen(0, '127.0.0.1', () => done(server)); });
-}
 
 function chromeInstalled() {
   const candidates = process.platform === 'darwin' ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
@@ -267,7 +237,7 @@ async function main() {
     if (environment) {
       let url = process.env.ASHLINE_URL;
       if (!url) {
-        server = await startServer();
+        server = await startStaticServer(ROOT);
         url = `http://127.0.0.1:${server.address().port}/${relative(ROOT, ASHLINE).split(sep).join('/')}/`;
       }
       const screenshots = process.env.ASHLINE_SCREENSHOTS || join(logs, 'screenshots');
