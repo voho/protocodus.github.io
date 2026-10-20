@@ -65,8 +65,19 @@ try {
   console.log('PASS actual WASD/Space/Q movement and both fire channels');
 
   await fixture();
+  const arrowStart = await positions();
+  for (const key of ['ArrowRight', 'ArrowUp', 'Enter']) await page.keyboard.down(key);
+  await advance(.25);
+  const arrowMoved = await positions();
+  assert(arrowMoved[0].x > arrowStart[0].x && arrowMoved[0].y < arrowStart[0].y, 'arrows move the ship');
+  assert.deepEqual(await friendlyKinds(), [['pulse']], 'Enter fires primary');
+  assert.equal((await energy())[0].fireEnergy, 100, 'Enter primary fire does not consume secondary energy');
+  for (const key of ['ArrowRight', 'ArrowUp', 'Enter']) await page.keyboard.up(key);
+  console.log('PASS arrow movement and Enter primary-fire aliases');
+
+  await fixture();
   const legacyStart = await positions();
-  const retired = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM', 'Enter'];
+  const retired = ['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM'];
   for (const key of retired) {
     await page.keyboard.down(key); await advance(.08); await page.keyboard.up(key);
   }
@@ -77,7 +88,7 @@ try {
   await page.keyboard.press('KeyV');
   assert.notEqual(await page.locator('#sound-toggle').getAttribute('aria-pressed'), muted, 'V toggles sound');
   await page.keyboard.press('KeyV');
-  console.log('PASS retired arrow/Ctrl/Alt and former co-op controls are inert and V owns sound');
+  console.log('PASS retired Ctrl/Alt and former co-op controls are inert and V owns sound');
 
   await fixture(); await page.keyboard.down('KeyQ');
   for (let i = 0; i < 40 && !(await energy())[0].fireEnergyLocked; i++) await advance(.1);

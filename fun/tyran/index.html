@@ -31,7 +31,7 @@
     </div>
   </section>
   <div class="flight-layout" id="flight-layout">
-  <canvas id="game-canvas" tabindex="-1" aria-label="Tyran flight arena. W, A, S and D move; space fires your primary gun, q fires secondary plasma, e detonates a nova charge. Secondary fire uses regenerating energy. Escape pauses; v toggles sound."></canvas>
+  <canvas id="game-canvas" tabindex="-1" aria-label="Tyran flight arena. Arrow keys or W, A, S and D move; Enter or Space fires your primary gun, Q fires secondary plasma, E detonates a nova charge. Secondary fire uses regenerating energy. Escape pauses; v toggles sound."></canvas>
   <section class="hud" id="hud" aria-label="Flight instruments">
     <header class="flight-header" id="flight-header">
       <div class="player-panel" id="p1-panel">
@@ -118,7 +118,7 @@
       <div class="world-list" id="world-list" aria-label="Campaign worlds"></div>
     </section>
     <footer class="menu-corner menu-corner-bottom">
-      <p class="menu-keys" aria-label="Menu keys"><span><kbd>↑↓</kbd> Select</span><span><kbd>←→</kbd> Change</span><span><kbd>enter</kbd> Confirm</span></p>
+      <p class="menu-keys keyboard-hint" aria-label="Menu keys"><span><kbd>arrows</kbd> / <kbd>wasd</kbd> Navigate</span><span><kbd>enter</kbd> / <kbd>space</kbd> Select</span></p>
       <p class="save-summary" id="save-summary" role="status">Autosaved in this browser.</p>
       <a href="/" class="studio-credit">By Protocodus</a>
     </footer>
@@ -145,6 +145,7 @@
         <div><h2 id="hangar-title">Hangar</h2><p id="hangar-subtitle">Upgrade before the next sector.</p></div>
         <div class="hangar-balance"><span>Credits</span><strong><span class="credit-symbol">$</span> <b id="hangar-credits">0</b></strong></div>
       </div>
+      <p class="keyboard-hint hangar-keys" aria-label="Shop keyboard controls"><span><kbd>arrows</kbd> / <kbd>wasd</kbd> Navigate</span><span><kbd>enter</kbd> / <kbd>space</kbd> Select</span></p>
       <ol id="campaign-route" class="campaign-route" aria-label="Campaign progress"></ol>
       <div class="hangar-rule"><span>Flight report</span><span id="hangar-report-note">Sector results</span></div>
       <dl id="hangar-report" class="hangar-loadout hangar-report" aria-label="Sector results"></dl>
@@ -182,14 +183,15 @@
         <h3 id="manual-controls-title">Controls</h3>
         <p class="touch-help"><strong>Touch.</strong> Drag left to steer. Hold Pulse or Plasma to fire; tap Nova to detonate.</p>
         <dl class="manual-keys">
-          <div><dt><kbd>w</kbd> <kbd>a</kbd> <kbd>s</kbd> <kbd>d</kbd></dt><dd>Move</dd></div>
-          <div><dt><kbd>space</kbd></dt><dd>Primary gun</dd></div>
+          <div><dt><kbd>arrows</kbd> / <kbd>wasd</kbd></dt><dd>Move</dd></div>
+          <div><dt><kbd>enter</kbd> / <kbd>space</kbd></dt><dd>Primary gun</dd></div>
           <div><dt><kbd>q</kbd></dt><dd>Plasma mortar</dd></div>
           <div><dt><kbd>e</kbd></dt><dd>Nova charge</dd></div>
           <div><dt><kbd>Esc</kbd> <kbd>p</kbd></dt><dd>Pause</dd></div>
           <div><dt><kbd>v</kbd></dt><dd>Sound on or off</dd></div>
         </dl>
-        <p><strong>Menu.</strong> <kbd>↑↓</kbd> select, <kbd>←→</kbd> change, <kbd>enter</kbd> confirm. Shortcuts: <kbd>c</kbd> resume, <kbd>f</kbd> practice, <kbd>h</kbd> manual.</p>
+        <p><strong>Menus and upgrades.</strong> Use arrows or WASD to navigate, Enter or Space to select. On the title screen, left/right or A/D changes the sector or difficulty. <kbd>Tab</kbd> also moves between controls.</p>
+        <p><strong>Manual.</strong> Up/down or W/S scrolls. Enter, Space or Escape returns. Shortcuts: <kbd>c</kbd> resume, <kbd>f</kbd> practice, <kbd>h</kbd> manual.</p>
       </section>
       <section class="manual-section" aria-labelledby="manual-enemy-title">
         <h3 id="manual-enemy-title">Enemy fleet</h3>

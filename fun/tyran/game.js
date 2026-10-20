@@ -17,6 +17,7 @@ import { BONUS_KINDS, BONUS_PALETTE, pickupTexture } from './bonus-sprites.js';
 import { environmentIndex, campaignCycle, normalizeLevel } from './campaign.js';
 import { ENCOUNTER_BRIEFS, ACE_NAMES, encounterSummary } from './encounters.js';
 import { warmShopArt, shopArtMarkup } from './shop-art.js';
+import { directionForKey, interfaceControls, focusInterfaceControl, moveInterfaceFocus } from './interface-navigation.js';
 
 const environment = level => WORLDS[environmentIndex(level)];
 const sectorLabel = level => `Sector ${String(level + 1).padStart(2, '0')} · Cycle ${campaignCycle(level) + 1}`;
@@ -558,7 +559,7 @@ function showHangar(bonus, loading = false) {
     const sector = routeStart + index, complete = sector >= (state.startLevel || 0) && sector <= state.level, current = sector === next;
     return `<li class="${complete ? 'complete' : current ? 'current' : ''}" ${current ? 'aria-current="step"' : ''}><span>${String(sector + 1).padStart(2, '0')}${complete ? ' ✓' : ''}</span><strong>${world.name}</strong></li>`;
   }).join('');
-  renderUpgrades(); $('next-button').focus({ preventScroll: true });
+  renderUpgrades(); focusInterfaceControl(interfaceControls($('hangar-screen'))[0]);
   if (!loading) autosave();
   // Prepare the next world and fleet while the shop is on screen, not at launch.
   // The cleared world's destruction ledger is no longer needed after its guardian.
@@ -630,7 +631,7 @@ function renderWeapons() {
   const primaries = PRIMARIES.map(weapon => {
     const owned = state.owned?.includes(weapon.id), equipped = state.primary === weapon.id;
     const stats = primaryStats({ ...state, primary: weapon.id });
-    const status = equipped ? 'Equipped · space' : owned ? 'Owned · click to equip' : `${number(weapon.cost)} credits to buy`;
+    const status = equipped ? 'Equipped' : owned ? 'Owned · select to equip' : `${number(weapon.cost)} credits to buy`;
     const disabled = !owned && state.credits < weapon.cost;
     return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}>${shopArtMarkup(`weapon:${weapon.id}`)}<span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
   });
@@ -712,9 +713,9 @@ function selectWorld(index) {
 }
 
 function input() {
-  controls[0].x = Number(keys.has('KeyD')) - Number(keys.has('KeyA')) + touch.x;
-  controls[0].y = Number(keys.has('KeyS')) - Number(keys.has('KeyW')) + touch.y;
-  controls[0].fire = keys.has('Space') || touch.fire;
+  controls[0].x = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft')) + touch.x;
+  controls[0].y = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp')) + touch.y;
+  controls[0].fire = keys.has('Space') || keys.has('Enter') || keys.has('NumpadEnter') || touch.fire;
   controls[0].secondary = keys.has('KeyQ') || touch.secondary;
   controls[0].bomb = keys.has('KeyE') || touch.bomb;
   return controls;
@@ -1234,7 +1235,8 @@ function frame(time) {
   else idleHandle = setTimeout(() => { idleHandle = 0; requestFrame(); }, 180);
 }
 
-const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyQ', 'KeyE']);
+const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'NumpadEnter', 'KeyQ', 'KeyE']);
+const confirmKeys = new Set(['Enter', 'NumpadEnter', 'Space']);
 const capturedKeys = new Set();
 const lockKeys = [...controlledKeys, 'Escape', 'KeyP', 'KeyV', 'KeyF', 'F11'];
 function consumeInput(event) {
@@ -1262,7 +1264,9 @@ window.addEventListener('keydown', event => {
     const pressed = !event.repeat && !capturedKeys.has(event.code);
     consumeInput(event); capturedKeys.add(event.code);
     if (controlledKeys.has(event.code)) {
-      keys.add(event.code);
+      // A key held while confirming a menu stays inactive until released.
+      // The same guard prevents a held fire key buying an item after a clear.
+      if (pressed || keys.has(event.code)) keys.add(event.code);
     } else if (pressed && (event.code === 'Escape' || event.code === 'KeyP')) pause();
     else if (pressed && event.code === 'KeyV') toggleSound();
     return;
@@ -1277,6 +1281,33 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.isComposing || event.target.closest?.('textarea, select, input:not([type=radio]):not([type=checkbox]), [contenteditable=true]')) return;
+  if (confirmKeys.has(event.code)) {
+    const pressed = !event.repeat && !capturedKeys.has(event.code);
+    consumeInput(event); capturedKeys.add(event.code);
+    if (pressed) {
+      if (!$('help-screen').hidden) $('help-close').click();
+      else if (modal) {
+        const controls = interfaceControls(modal);
+        const target = controls.find(el => el === document.activeElement || el.contains(document.activeElement)) || controls[0];
+        target?.click();
+      } else if (scene === 'menu') {
+        const active = document.activeElement;
+        if (active?.matches('button:not(:disabled), a[href], input[type=radio]') && $('menu-screen').contains(active)) active.click();
+        else activateMenuRow(MENU_ROWS[menuRow]);
+      }
+    }
+    return;
+  }
+  const direction = directionForKey(event.code);
+  if (direction && modal) {
+    consumeInput(event); capturedKeys.add(event.code);
+    if (modal === $('help-screen')) {
+      if (direction === 'up' || direction === 'down') modal.scrollBy({ top: (direction === 'up' ? -1 : 1) * 100, behavior: 'instant' });
+      else focusInterfaceControl($('help-close'));
+    } else moveInterfaceFocus(modal, direction);
+    return;
+  }
   if (scene === 'menu' && !modal && $('help-screen').hidden && menuKey(event)) { consumeInput(event); capturedKeys.add(event.code); return; }
   if ((event.code === 'Escape' || event.code === 'KeyP') && !event.repeat) {
     if (!$('help-screen').hidden || scene === 'pause') {
@@ -1330,8 +1361,8 @@ $('difficulty-picker').addEventListener('change', event => {
 });
 // The title screen is a console menu: Up/Down (or W/S) move the highlight,
 // Left/Right (or A/D) change the sector, or the difficulty when that row is
-// highlighted, Enter confirms the highlighted row, and C, F and H jump to
-// resume, practice and the manual. A focused control keeps its native keys.
+// highlighted. Enter/Space confirm once per press; C, F and H jump to
+// resume, practice and the manual. Tab retains normal focus navigation.
 const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'real'];
 const MENU_ROWS = ['launch', 'continue', 'sector', 'difficulty', 'practice', 'manual'];
 let menuRow = 0;
@@ -1343,7 +1374,7 @@ function highlightMenuRow(row, focus = false) {
   for (const el of $('menu-list').querySelectorAll('[data-row]')) el.classList.toggle('active', el.dataset.row === row);
   if (!focus) return;
   const el = menuRowElement(row), target = row === 'difficulty' ? el.querySelector('input:checked') || el.querySelector('input') : el;
-  target?.focus({ preventScroll: true });
+  focusInterfaceControl(target);
 }
 function stepMenuRow(delta) {
   let index = menuRow;
@@ -1369,18 +1400,15 @@ function activateMenuRow(row) {
   else if (row === 'difficulty') stepDifficulty(1);
 }
 function menuKey(event) {
-  const code = event.code, active = document.activeElement;
-  const control = active && active !== document.body && active !== canvas && active.matches('button, a, input, select, textarea');
-  const radio = active?.matches?.('input[type="radio"]');
+  const code = event.code;
   if (code === 'ArrowUp' || code === 'ArrowDown' || code === 'KeyW' || code === 'KeyS') { stepMenuRow(code === 'ArrowUp' || code === 'KeyW' ? -1 : 1); return true; }
   if (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD') {
-    if (radio && code.startsWith('Arrow')) return false;
     const delta = code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1;
-    if (MENU_ROWS[menuRow] === 'difficulty') stepDifficulty(delta); else stepSector(delta);
+    if (MENU_ROWS[menuRow] === 'difficulty') { stepDifficulty(delta); highlightMenuRow('difficulty', true); }
+    else stepSector(delta);
     return true;
   }
   if (event.repeat) return false;
-  if ((code === 'Enter' || code === 'Space' || code === 'NumpadEnter') && !control) { activateMenuRow(MENU_ROWS[menuRow]); return true; }
   if (code === 'KeyC' && !$('continue-button').disabled) { resumeCampaign(); return true; }
   if (code === 'KeyF') { launch(selected, null, false); return true; }
   if (code === 'KeyH' || (code === 'Slash' && event.shiftKey)) { $('help-button').click(); return true; }
@@ -1407,16 +1435,24 @@ $('weapon-list').addEventListener('click', event => {
   const button = event.target.closest('[data-primary]'); if (!button || !state) return;
   const id = button.dataset.primary, owned = state.owned.includes(id);
   if (state.primary === id) return;
-  if (buyPrimary(state, id)) { audio.effect(owned ? 'weapon' : 'upgrade'); renderUpgrades(); autosave(); $('next-button').focus({ preventScroll: true }); }
+  if (buyPrimary(state, id)) { audio.effect(owned ? 'weapon' : 'upgrade'); refreshPurchasedControl(button); }
 });
 $('supply-list').addEventListener('click', event => {
   const button = event.target.closest('[data-supply]'); if (!button || !state) return;
-  if (buySupply(state, button.dataset.supply)) { audio.effect('upgrade'); renderUpgrades(); autosave(); const next = document.querySelector(`[data-supply="${button.dataset.supply}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
+  if (buySupply(state, button.dataset.supply)) { audio.effect('upgrade'); refreshPurchasedControl(button); }
 });
 $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
-  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); autosave(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
+  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); refreshPurchasedControl(button); }
 });
+function refreshPurchasedControl(button) {
+  const container = $('hangar-screen'), index = interfaceControls(container).indexOf(button);
+  const kind = ['primary', 'supply', 'upgrade'].find(key => button.dataset[key]);
+  const selector = `[data-${kind}="${button.dataset[kind]}"]`;
+  renderUpgrades(); autosave();
+  const controls = interfaceControls(container), replacement = container.querySelector(selector);
+  focusInterfaceControl(controls.includes(replacement) ? replacement : controls[Math.min(Math.max(0, index), controls.length - 1)]);
+}
 
 function toggleSound() {
   audio.mute(!audio.muted); audio.start(); syncSettings();
@@ -1435,7 +1471,7 @@ on('fullscreen-toggle', async () => { try { if (document.fullscreenElement) awai
 function closeHelp() { $('help-screen').hidden = true; requestFrame(); if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
 on('help-button', () => {
   helpFocus = document.activeElement; helpPaused = scene === 'playing'; if (helpPaused) pause();
-  // The page itself takes focus so Space, Page Down and the arrows scroll it like a document; Tab reaches Back.
+  // Arrows/WASD scroll the manual; Enter/Space or Escape return to the menu.
   $('help-screen').hidden = false; $('help-screen').scrollTop = 0; $('help-screen').focus();
 }); on('help-close', closeHelp);
 

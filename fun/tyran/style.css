@@ -401,15 +401,18 @@ body[data-scene=end] #end-screen{backdrop-filter:none}
 .world-card.active .world-number,.world-card[aria-pressed=true] .world-number{color:var(--orange)}
 .world-card:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
 .menu-corner-bottom{align-items:center;gap:20px;padding-top:6px;color:#7f958a;font-size:12px}
-.menu-keys{display:flex;flex-wrap:wrap;gap:12px 16px;margin:0;padding:0;border:0;background:none;font:500 12px/1.2 var(--display);letter-spacing:.5px;color:#8fa596}
-.menu-keys>span{display:flex;align-items:center;gap:6px;white-space:nowrap}
-.menu-keys kbd{font:600 11px/1 var(--display);letter-spacing:.3px;padding:4px 6px;border:1px solid #c8dcc42e;background:#0a1a15b0;color:#d3e6da}
+.keyboard-hint{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0;padding:0;border:0;background:none;font:500 12px/1.2 var(--display);letter-spacing:.2px;color:#8fa596}
+.keyboard-hint>span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.keyboard-hint kbd{font:600 11px/1 var(--display);letter-spacing:.3px;padding:4px 6px;border:1px solid #c8dcc42e;background:#0a1a15b0;color:#d3e6da}
+.hangar-keys{margin-top:14px}
+#hangar-screen button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;scroll-margin-block:20px}
+#hangar-screen :is(.upgrade-card,.weapon-card):focus-visible{border-color:var(--cyan);background:#b4d7b214}
 .save-summary{flex:1;margin:0;text-align:center;font-size:12px;line-height:1.5;color:#7f958a}
 .studio-credit{font-size:11px;letter-spacing:1px;color:#5f7368;white-space:nowrap}
 .menu-corner-top .back-link{font-size:14px;color:#c7d5cb}
 .menu-corner-top .back-link span{font-size:19px}
 .art-coordinate{position:absolute;right:0;bottom:clamp(6px,2vh,18px)}
-@media(pointer:coarse){.menu-keys{display:none}}
+@media(pointer:coarse){.keyboard-hint{display:none}}
 @media(max-width:1100px){.menu-body{grid-template-columns:minmax(0,560px) minmax(0,1fr)}.art-coordinate{display:none}}
 @media(max-width:760px){.menu-screen{padding:14px 20px 12px}.menu-body{grid-template-columns:1fr;align-items:start;padding-top:2px}.menu-column{gap:clamp(14px,3vh,28px)}.title-block h1{font-size:clamp(62px,19vw,84px)}.hero-tagline{font-size:18px}.menu-row{padding:8px 10px 8px 6px;column-gap:10px}.menu-row .menu-label{font-size:17px;letter-spacing:.1px}.menu-row small{font-size:12px}.menu-value{grid-template-columns:16px minmax(0,1fr);grid-template-areas:'marker label' 'marker choice' 'marker sub' 'marker scope';row-gap:6px}.menu-choice-value{font-size:18px}.world-card{flex-basis:104px;min-height:54px}.menu-corner-bottom{flex-wrap:wrap;gap:8px 14px}.save-summary{flex:1 1 100%;text-align:left;order:3}.studio-credit{display:none}}
 @media(max-width:480px){.menu-screen{padding:12px 16px 10px}.title-block h1{font-size:clamp(56px,20vw,72px)}.menu-row .menu-label{font-size:16px}.difficulty-picker label>span{padding:8px 4px;font-size:12px;letter-spacing:0}.difficulty-picker .difficulty-options{gap:4px}.world-card{flex-basis:96px;padding:7px 8px 6px}.world-card .world-name{font-size:12px}}
