@@ -17,8 +17,8 @@
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/style.css?v=20261016-rack-products">
-  <link rel="stylesheet" href="youknow.css?v=20261018-youknow132-f4-refresh">
+  <link rel="stylesheet" href="/assets/css/style.css?v=20261020-version-history">
+  <link rel="stylesheet" href="youknow.css?v=20261020-version-history">
 </head>
 
 <body class="product-page p-youknow">
@@ -215,7 +215,7 @@
             <div><dt>Instrument</dt><dd>Up to 16 MIDI voices<br>100 patches · 8RU panel</dd></div>
             <div><dt>Connections</dt><dd>8 CV inputs<br>Stereo audio outputs</dd></div>
             <div><dt>Shop release</dt><dd>1.3.0 · released 13 October 2026<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/">View current Shop version ↗</a></dd></div>
-            <div><dt>Latest candidate</dt><dd>1.3.2 · prepared 18 October 2026<br>Unreleased; not yet accepted for the Reason Shop</dd></div>
+            <div><dt>Latest candidate</dt><dd>1.3.2 · updated 20 October 2026<br>Unreleased; not yet accepted for the Reason Shop</dd></div>
           </dl>
           <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261018-youknow132-f4-refresh">Candidate player guide (PDF) <span aria-hidden="true">↗</span></a>
         </aside>
@@ -227,12 +227,13 @@
         <div class="head">
           <span class="tag">Rack Extension version history</span>
           <h2 class="title">The current release.<br>The next step.</h2>
-          <p class="lede">The Reason Shop currently offers version 1.3.0. Version 1.3.2 is an unreleased Rack candidate prepared on 18 October 2026; its newer panels, guide and features are shown here.</p>
+          <p class="lede">The Reason Shop currently offers version 1.3.0. Version 1.3.2 is an unreleased Rack candidate, last updated on 20 October 2026; its newer panels, guide and features are shown here.</p>
         </div>
         <div class="version-history">
           <article>
-            <h3>1.3.2 <span>18 October 2026 · Unreleased candidate</span></h3>
-            <p>Updates the shared engine to 1.3.2, reusing fixed chorus arithmetic and specializing voice-noise calculations. Circuit equations, processing rates and noise chronology stay the same; deterministic comparisons retain identical sample bits. Direct Reason note response and all 100 patch sound settings are preserved.</p>
+            <h3>1.3.2 <span>20 October 2026 · Unreleased candidate</span></h3>
+            <p>Background chorus hiss is quieter, at 30% of its earlier level; saved Chorus Noise positions and the main Noise source are unchanged. All 100 factory patches are rebalanced using VCA Level alone, so the louder of a low and a middle C at full velocity peaks near −7 dBFS. Every other patch setting is kept. The lowest part of VCA Level travel now reaches further down, to −36 dB; positions above it keep their existing response.</p>
+            <p>Updates the shared engine to 1.3.2, reusing fixed chorus arithmetic and specializing voice-noise calculations. Circuit equations, processing rates and noise chronology stay the same. Direct Reason note response is preserved.</p>
             <p>Refines the centering of front and rear control groups, label alignment and panel padding while retaining the controls and sound settings. Front slider labels now have consistent top spacing, and the visible sliders share an even bottom margin. Matching front, rear and thumbnail images accompany the candidate. Native engine timing improvements do not establish a Reason CPU-meter improvement. Reason Shop acceptance and publication are still pending.</p>
             <p>Both RATE and DLY numeric readouts now stay blank in free LFO mode; synced note divisions and descriptive control tooltips remain available. This display change leaves the LFO controls, physical timing and audio unchanged.</p>
           </article>
