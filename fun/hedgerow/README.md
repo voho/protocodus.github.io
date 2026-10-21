@@ -157,7 +157,9 @@ by the blast that killed them, and drop their rifles.
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
     two sides, per species; rain running down walls within ~24 m in
-    rivulets that slide down and catch the light) · `rooms.js` the rooms
+    rivulets that slide down and catch the light; round a fire, the charred
+    wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
+    metal a dull red with the heat) · `rooms.js` the rooms
     behind the lit windows: at load the panes are found in the houses'
     baked glow (lit, flat, upright, at least a hand's breadth) and split off
     with their frame in a vertex attribute; their shader carries the view

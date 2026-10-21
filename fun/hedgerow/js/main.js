@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
-import { loadTextures, createMaterialLibrary } from './materials.js';
+import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
 import { createFlares } from './flares.js';
@@ -623,6 +623,7 @@ function step() {
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
     G.flames.update(dt, camera.position);
+    updateSmoulder(G.effects.fires, camera.position);
     G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);
     G.fireballs.update(flash, G.flares.burning ? G.flares.light : null);
     G.windowLight?.update(camera);

@@ -102,6 +102,25 @@ const METAL = {
 /* how much light comes through the leaves (foliage, addWeather) */
 export const FOLIAGE_UNIFORMS = { uLeafTrans: { value: 1.6 } };
 
+/* what burns, and smoulders round its fire: the charred wood of a burning ruin (its char cracks
+   and glows), the metal of a burnt-out wreck (it glows a dull red with the heat) */
+const SMOULDER = [[/^(ruin|beam_charred)/, 'wood'], [/^(truck_burnt|halftrack_wreck|jeep_wreck)/, 'metal']];
+/* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder) */
+export const SMOULDER_UNIFORMS = { uFires: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) } };
+const near4 = [];
+export function updateSmoulder(fires, cam) {
+  near4.length = 0;
+  for (const f of fires) {
+    if (!f.on || f.far) continue;
+    near4.push([(f.x - cam.x) ** 2 + (f.z - cam.z) ** 2, f]);
+  }
+  near4.sort((a, b) => a[0] - b[0]);
+  SMOULDER_UNIFORMS.uFires.value.forEach((v, i) => {
+    const f = near4[i]?.[1];
+    if (f) v.set(f.x, f.y, f.z, f.size); else v.set(0, -1000, 0, 0);
+  });
+}
+
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
@@ -172,6 +191,7 @@ export function createMaterialLibrary(textures, shared) {
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
         streaks: !cards && !CARRIED.test(src.name || ''),
         rooms: !!src.userData?.rooms,
+        smoulder: !cards && (SMOULDER.find(([re]) => re.test(src.name || ''))?.[1] || null),
       });
       baked.set(src.uuid, m);
       return m;
@@ -188,10 +208,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -200,6 +220,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
       ...(rooms ? ROOM_UNIFORMS : {}),
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
+      ...(smoulder ? SMOULDER_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -341,6 +362,49 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
         #endif`);
+    if (smoulder) {
+      // round its fire, the charred wood and metal smoulders: glowing cracks in what is darkest,
+      // breathing slowly, brighter the nearer the flames
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        uniform vec4 uFires[4];
+        vec2 smHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+        // the char's cracks: how near the border between two of its cells (0 on it), and the cell's id
+        vec2 smCracks(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          float d1 = 8.0, d2 = 8.0, id = 0.0;
+          for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+            vec2 g = vec2(float(x), float(y)), o = smHash2(i + g);
+            float d = length(g + o - f);
+            if (d < d1) { d2 = d1; d1 = d; id = dot(i + g, vec2(7.0, 113.0)); } else if (d < d2) d2 = d;
+          }
+          return vec2(d2 - d1, id);
+        }`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        {
+          float heat = 0.0;
+          for (int i = 0; i < 4; i++) {
+            vec4 f = uFires[i];
+            if (f.w <= 0.0) continue;
+            float d = length(vWPosM - f.xyz);
+            heat = max(heat, 1.0 - smoothstep(0.3 * f.w, 2.4 * f.w, d));
+          }
+          if (heat > 0.0) {
+            float charred = 1.0 - smoothstep(0.025, 0.09, dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)));
+            vec2 q = vWPosM.xz * 9.0 + vWPosM.y * vec2(6.1, -4.3);
+            vec2 cr = smCracks(q);
+            float breathe = 0.5 + 0.5 * sin(uTime * (0.9 + 0.5 * fract(cr.y * 0.37)) + cr.y);
+            ${smoulder === 'wood'
+              ? `// charred wood: the char's alligator cracks glowing, a dull red under them, each cell
+            // breathing on its own
+            float crack = 1.0 - smoothstep(0.02, 0.09, cr.x);
+            totalEmissiveRadiance += vec3(1.0, 0.22, 0.03) * (crack * 1.3 * breathe + 0.07) * charred * heat * heat;`
+              : `// hot metal: a dull red glow, mottled, strongest nearest the flames
+            float mottle = 0.6 + 0.4 * smoothstep(0.0, 0.3, cr.x);
+            totalEmissiveRadiance += vec3(1.0, 0.16, 0.02) * 0.32 * mottle * (0.75 + 0.25 * breathe) * charred * heat * heat * heat;`}
+          }
+        }`);
+    }
     if (rooms) {
       // the room behind the pane (instead of the baked glow), seen through old glass which
       // takes little light itself; running rain bends the view. The curtains drawn back in
