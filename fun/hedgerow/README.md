@@ -21,7 +21,9 @@ PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves (light
 shines through them: a crown between you and a flare or a fire glows green
-where its leaves are thinnest), meadows
+where its leaves are thinnest; each tree and plant a slightly different
+green, now and then one turning; the ferns and tussocks under the trees as
+dark as the shade they grow in), meadows
 and verges are tens of thousands of single blades of grass that bend in
 the wind, part round your legs and flatten outward under a blast's
 shockwave, stones lie in the mud of the lanes and
