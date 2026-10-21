@@ -235,7 +235,10 @@ by the blast that killed them, and drop their rifles.
     depth from each pixel the scene pass marked as mirror-like in its alpha,
     `mirrorAlpha`) · `shafts.js` while a flare burns, the lit length of
     each view ray's first 45 m in its shadow map (beams between the roofs,
-    through the crowns), at half resolution · `volumetric.js` lays the
+    through the crowns), at half resolution; and for the lamp or fire
+    casting shadows near the camera, the share of its glow along each ray
+    that is not in shadow (twelve equiangular looks into its cube shadow
+    map), so a truck's cab or a wall cuts dark shafts out of its glow · `volumetric.js` lays the
     occlusion, the reflections and the shafts on and adds the light
     scattered in the rain by up to eight lamps, fires and
     flashes (the closed-form airlight integral, cut by the depth) · `taa.js`

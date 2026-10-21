@@ -290,7 +290,7 @@ function applyGraphics() {
     G.effects.usePass(!!quality.volumetric, scene);
     // the flare's shafts need its shadows: with them, and with the light in the rain that lays them on
     const shaft = quality.volumetric && quality.shadows;
-    if (!shaft) volumetric.setShafts(null);
+    if (!shaft) { volumetric.setShafts(null); volumetric.setPointShafts(null); }
     // temporal anti-aliasing after the light in the rain (it borrows the scene depth the same
     // way); what would smear through it (rain, sparks, flashes) is drawn after it
     const aa = !!quality.volumetric;
@@ -617,7 +617,9 @@ function step() {
     distort?.set(G.effects, camera.position, G.time);
     if (shafts && quality.volumetric && quality.shadows) {
       shafts.set(G.flares);
+      shafts.setPoint(G.lights);
       volumetric.setShafts(shafts, G.flares.light.color, G.flares.light.intensity * (0.6 + 0.4 * (G.weather.intensity ?? 1)));
+      volumetric.setPointShafts(shafts);
     }
     G.weather.setLights(G.lights.active);
     G.weather.setSkyLight(G.flares.light.color, G.flares.burning ? G.flares.light.intensity : 0);
