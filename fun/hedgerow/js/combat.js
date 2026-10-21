@@ -130,7 +130,8 @@ export function createExplosives(G) {
       if (y - gy < 1.2) G.decals?.add('scorch', x, gy, z, 0, 1, 0, 3.2 * scale);
     }
     G.audio.explosion(x, y, z, scale);
-    G.lights.flash(x, y + 1, z, '#ffb070', 600 * scale, 30, 0.35);
+    // it lights the street; the wet air round it glows, but is not turned white
+    G.lights.flash(x, y + 1, z, '#ffb070', 220 * scale, 30, 0.4, 0.12);
     G.events.emit('noise', { x, z, radius: 90, kind: 'explosion' });
     const radius = GRENADE.radius * (e.kind === 'charge' ? 1.6 : 1);
     // camera shake by distance

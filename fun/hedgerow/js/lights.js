@@ -60,9 +60,10 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     return s;
   }
 
-  function flash(x, y, z, color = '#ffb060', intensity = 30, range = 14, life = 0.06) {
+  /* fog: how much of it the air scatters (volumetric.js), against how much it lights surfaces */
+  function flash(x, y, z, color = '#ffb060', intensity = 30, range = 14, life = 0.06, fog = 1) {
     if (flashes.length > 12) flashes.shift();
-    flashes.push({ x, y, z, color: new THREE.Color(color), intensity, range, life, age: 0 });
+    flashes.push({ x, y, z, color: new THREE.Color(color), intensity, range, life, age: 0, fog });
   }
 
   const cand = [];
@@ -105,8 +106,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       const f = flashes[i];
       f.age += dt;
       if (f.age >= f.life) { flashes.splice(i, 1); continue; }
-      const k = 1 - f.age / f.life;
-      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9 });
+      // a flash dies fast, then lingers a little
+      const k = (1 - f.age / f.life) ** 2;
+      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9, fog: f.fog });
     }
     for (const s of statics) {
       if (!s.on || s === shadowOf) continue;

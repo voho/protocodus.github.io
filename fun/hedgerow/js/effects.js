@@ -209,7 +209,7 @@ void main() {
       light += uLightCol[i] * (win * win / max(d2, 0.3)) * 2.0;
     }
     // a blast right beside it lights smoke up to a glow, not to white
-    vColor.rgb *= uAmbient + light * 14.0 / (14.0 + light);
+    vColor.rgb *= uAmbient + light * 6.0 / (6.0 + light);
   }
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   float d = -mv.z;
@@ -535,17 +535,34 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   // the pressure waves of the last blasts, for the distortion pass (distort.js): a shell
   // racing out to 14 m (times the blast's scale) in half a second, fading as it goes
   const shocks = [];
+  // and the last blasts' fireballs (fireball.js draws them), for their first second and a half
+  const blasts = [];
   function explosion(x, y, z, scale = 1, water = false) {
     if (shocks.length >= 3) shocks.shift();
     shocks.push({ x, y: y + 0.6, z, scale, age: 0, radius: 0, strength: 1 });
-    add.spawn({ x, y: y + 0.5, z, life: 0.14, size: 4 * scale, size1: 7 * scale, color: C('#ffd9a0', 1, 4), color1: C('#ff7a20', 0, 2), cell: CELLS.flash, rot: R() * 6 });
-    for (let k = 0; k < 12; k++) {
+    if (!water) {
+      if (blasts.length >= 4) blasts.shift();
+      blasts.push({ x, y, z, scale, age: 0, seed: R() });
+    }
+    // a short flash, and tongues of flame thrown out of the fireball (fireball.js draws its body)
+    add.spawn({ x, y: y + 0.5, z, life: 0.07, size: 2.2 * scale, size1: 3.5 * scale, color: C('#ffd9a0', 1, 2.2), color1: C('#ff7a20', 0, 1.0), cell: CELLS.flash, rot: R() * 6 });
+    for (let k = 0; k < (water ? 12 : 4); k++) {
       const a = R() * 6.28, r = R();
       add.spawn({
         x: x + Math.cos(a) * r * 0.6, y: y + 0.3 + R() * 0.8, z: z + Math.sin(a) * r * 0.6,
         vx: Math.cos(a) * (2 + R() * 4) * scale, vy: (1 + R() * 4) * scale, vz: Math.sin(a) * (2 + R() * 4) * scale,
-        life: 0.35 + R() * 0.35, size: 0.8 * scale, size1: 2.6 * scale, color: C('#ffb060', 1, 3), color1: C('#a03010', 0, 0.6),
+        life: 0.45 + R() * 0.4, size: 1.0 * scale, size1: 2.8 * scale, color: C('#ffa050', 1, 1.5), color1: C('#7a2008', 0, 0.4),
         cell: CELLS.flame, drag: 4, rot: R() * 6, rotV: (R() - 0.5) * 3,
+      });
+    }
+    // the smoke glowing with the fire inside it for its first half second
+    if (!water) for (let k = 0; k < 6; k++) {
+      const a = R() * 6.28;
+      add.spawn({
+        x: x + (R() - 0.5), y: y + 0.6 + R() * 0.8, z: z + (R() - 0.5),
+        vx: Math.cos(a) * (0.8 + R() * 2) * scale, vy: (1 + R() * 2) * scale, vz: Math.sin(a) * (0.8 + R() * 2) * scale,
+        life: 0.55 + R() * 0.3, size: 1.4 * scale, size1: 3.8 * scale, color: C('#ff7a30', 0.55, 1.0), color1: C('#601806', 0),
+        cell: CELLS.smoke, drag: 2, rot: R() * 6, rotV: (R() - 0.5) * 0.6,
       });
     }
     for (let k = 0; k < 16; k++) {
@@ -553,8 +570,8 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       alpha.spawn({
         x: x + (R() - 0.5), y: y + 0.4 + R(), z: z + (R() - 0.5),
         vx: Math.cos(a) * (1 + R() * 3) * scale, vy: (1 + R() * 3) * scale, vz: Math.sin(a) * (1 + R() * 3) * scale,
-        life: 2.5 + R() * 2.5, size: 1.2 * scale, size1: (4 + R() * 3) * scale,
-        color: water ? C('#b8c0c4', 0.6) : C('#3a3430', 0.75), color1: water ? C('#9aa2a6', 0) : C('#2a2826', 0),
+        life: 4 + R() * 4, size: 1.2 * scale, size1: (5 + R() * 4) * scale,
+        color: water ? C('#b8c0c4', 0.6) : C('#4e4740', 0.8), color1: water ? C('#9aa2a6', 0) : C('#3a3632', 0),
         cell: CELLS.smoke, drag: 1.8, gravity: -0.25, rot: R() * 6, rotV: (R() - 0.5) * 0.6, fadeIn: 0.1,
       });
     }
@@ -566,7 +583,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         x: x + Math.cos(a) * r, y: y + 0.15 + R() * 0.6, z: z + Math.sin(a) * r,
         vx: Math.cos(a) * out * scale, vy: (6 + R() * 9) * scale, vz: Math.sin(a) * out * scale,
         life: 1.0 + R() * 0.7, size: (0.25 + R() * 0.2) * scale, size1: (0.8 + R() * 0.5) * scale,
-        color: water ? C('#c4ccd0', 0.75) : C('#3b2e22', 0.8), color1: water ? C('#b0b8bc', 0) : C('#433629', 0),
+        color: water ? C('#c4ccd0', 0.75) : C('#4a3a2a', 0.85), color1: water ? C('#b0b8bc', 0) : C('#4a3c2e', 0),
         cell: CELLS.smoke, gravity: 9.8, drag: 0.5, streak: 0.075, fadeIn: 0.02,
       });
     }
@@ -576,8 +593,8 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       alpha.spawn({
         x: x + Math.cos(a) * 0.6, y: y + 0.3, z: z + Math.sin(a) * 0.6,
         vx: Math.cos(a) * (6 + R() * 5) * scale, vy: 0.3 + R() * 0.6, vz: Math.sin(a) * (6 + R() * 5) * scale,
-        life: 1.8 + R() * 1.4, size: 0.8 * scale, size1: (3 + R() * 2) * scale,
-        color: water ? C('#c0c8cc', 0.5) : C('#4a4236', 0.55), color1: water ? C('#a8b0b4', 0) : C('#3a342c', 0),
+        life: 2.5 + R() * 2, size: 0.8 * scale, size1: (3.5 + R() * 2.5) * scale,
+        color: water ? C('#c0c8cc', 0.5) : C('#5e5546', 0.6), color1: water ? C('#a8b0b4', 0) : C('#463f35', 0),
         cell: CELLS.smoke, drag: 3.2, rot: R() * 6, rotV: (R() - 0.5) * 0.8, fadeIn: 0.05,
       });
     }
@@ -662,6 +679,10 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   function update(dt, wind, camPos) {
+    for (let i = blasts.length - 1; i >= 0; i--) {
+      blasts[i].age += dt;
+      if (blasts[i].age >= 1.6) blasts.splice(i, 1);
+    }
     for (let i = shocks.length - 1; i >= 0; i--) {
       const s = shocks[i];
       s.age += dt;
@@ -676,7 +697,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
 
   return {
     group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
-    pass, usePass, late, useLate, setLights, shocks,
+    pass, usePass, late, useLate, setLights, shocks, blasts,
     setFlameShare(v) { flameShare = v; },
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
