@@ -304,7 +304,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
   };
 }
 
-/* The river: opaque, murky, reflective, with flowing normals and rain rings. */
+/* The river: opaque, murky, reflective, with flowing normals and rain rings.
+   It knows its own depth (the ground map's height, groundmap.js, through the
+   grass map shared with the terrain): where it laps the bank a thin, broken
+   line of scum drifts with the current, matte and reflecting nothing, and in
+   the shallows it is browner, the bed showing through. */
 export function createWaterMaterial(textures, shared) {
   const mat = new THREE.MeshStandardMaterial({
     color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0,
@@ -314,7 +318,12 @@ export function createWaterMaterial(textures, shared) {
   mat.envMapIntensity = 1.3;
   mat.customProgramCacheKey = () => 'hedgerow-water';
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, { uTime: shared.time, uRain: shared.rain, uFlow: { value: new THREE.Vector2(1.0, 0.0) } });
+    Object.assign(shader.uniforms, {
+      uTime: shared.time, uRain: shared.rain, uFlow: { value: new THREE.Vector2(1.0, 0.0) },
+      // the ground under it: its height is the map's alpha (groundmap.js)
+      tGroundW: shared.grassMap || { value: null }, uGroundMinW: shared.grassMin || { value: new THREE.Vector2() },
+      uGroundSizeW: shared.grassSize || { value: new THREE.Vector2(1, 1) },
+    });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWPosW;`)
@@ -323,9 +332,32 @@ export function createWaterMaterial(textures, shared) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uTime, uRain;
-        uniform vec2 uFlow;
+        uniform vec2 uFlow, uGroundMinW, uGroundSizeW;
+        uniform sampler2D tGroundW;
         varying vec3 vWPosW;
-        ${GLSL_HELPERS}`)
+        float wFoam;
+        ${GLSL_HELPERS}
+        float vnoiseW(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+        }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        {
+          vec2 p = vWPosW.xz;
+          float depth = vWPosW.y - texture2D(tGroundW, (p - uGroundMinW) / uGroundSizeW).w;
+          // the shallows: browner, the bed showing through
+          float shallow = 1.0 - smoothstep(0.05, 0.75, depth);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.04, 0.026), shallow * 0.75);
+          // a thin, broken line of scum where it laps the bank, drifting with the current
+          vec2 drift = uFlow * uTime * 0.35;
+          float fn = vnoiseW(p * 3.1 - drift * 3.1) * 0.55 + vnoiseW(p * 7.7 - drift * 6.0) * 0.45;
+          float lap = 1.0 - smoothstep(0.0, 0.07 + 0.03 * sin(uTime * 1.3 + p.x * 0.7), depth);
+          wFoam = lap * smoothstep(0.45, 0.7, fn + lap * 0.15) * 0.75;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.17, 0.18, 0.17), wFoam);
+        }`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = mix(roughnessFactor, 0.75, wFoam);`)
       .replace('#include <normal_fragment_maps>', `
         {
           vec2 p = vWPosW.xz;
@@ -338,7 +370,7 @@ export function createWaterMaterial(textures, shared) {
         }`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         #ifdef OPAQUE
-          gl_FragColor.a = mirrorAlpha(0.07, 1.0);
+          gl_FragColor.a = mirrorAlpha(mix(0.07, 0.8, wFoam), 1.0);
         #endif`);
   };
   return mat;

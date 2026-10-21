@@ -29,7 +29,8 @@ renderer adds wet ground — dark, glossy cobbles with water in the joints
 mud keeps its ruts, the march of the view ray through the height maps),
 puddles with soaked margins in the hollows that mirror the lit windows, the
 lamps and the glow of the sky, broken by rain rings, river banks soaked
-above the waterline, a forest floor of last year's leaves with moss in the
+above the waterline with a thin broken line of scum where the water laps
+them and the water browner in the shallows of the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
