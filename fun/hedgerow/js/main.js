@@ -14,6 +14,7 @@ import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
+import { createChunks } from './chunks.js';
 import { createFireballs } from './fireball.js';
 import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
@@ -174,6 +175,9 @@ async function boot() {
   G.casings = createCasings(G);
   scene.add(G.casings.group);
   G.effects.setCasings(G.casings);
+  // and the clods and stones a blast throws (chunks.js)
+  G.chunks = createChunks(G);
+  scene.add(G.chunks.mesh);
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
@@ -421,6 +425,7 @@ function retryCheckpoint() {
     explosives.clear();
     G.debris.clear();
     G.casings.clear();
+    G.chunks.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
     fade.classList.remove('on');
@@ -642,6 +647,7 @@ function step() {
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
     G.casings.update(dt);
+    G.chunks.update(dt);
     G.flames.update(dt, camera.position);
     updateSmoulder(G.effects.fires, camera.position);
     G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);

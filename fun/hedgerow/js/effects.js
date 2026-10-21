@@ -619,11 +619,12 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         cell: CELLS.smoke, drag: 3.2, rot: R() * 6, rotV: (R() - 0.5) * 0.8, fadeIn: 0.05,
       });
     }
-    for (let k = 0; k < 26; k++) {
+    // spray, or (the clods and stones are solid, chunks.js) fine dirt
+    for (let k = 0; k < (water ? 26 : 12); k++) {
       const a = R() * 6.28, up = 4 + R() * 9;
       alpha.spawn({
         x, y: y + 0.3, z, vx: Math.cos(a) * (2 + R() * 7) * scale, vy: up * scale, vz: Math.sin(a) * (2 + R() * 7) * scale,
-        life: 1.2 + R() * 1.2, size: 0.06 + R() * 0.12, color: water ? C('#c8d0d4', 0.8) : C('#241c14', 1), color1: water ? C('#c8d0d4', 0) : C('#241c14', 0.8),
+        life: 1.2 + R() * 1.2, size: water ? 0.06 + R() * 0.12 : 0.025 + R() * 0.035, color: water ? C('#c8d0d4', 0.8) : C('#241c14', 1), color1: water ? C('#c8d0d4', 0) : C('#241c14', 0.8),
         cell: water ? CELLS.puff : CELLS.chunk, gravity: 9.8, rot: R() * 6, rotV: (R() - 0.5) * 20,
       });
     }

@@ -251,7 +251,10 @@ by the blast that killed them, and drop their rifles.
     sight line so a wall's stones do not swallow them), `casings.js` (the
     brass thrown out of the gun — the Garand's long bottlenecked case, the
     Thompson's short one — tumbling past in the muzzle flash, bouncing and
-    lying where it falls; the last 64 of each stay),
+    lying where it falls; the last 64 of each stay), `chunks.js` (what a
+    blast throws up: clods of mud and turf, or stones off the cobbles, as
+    solid lumps that tumble, knock off walls, bounce and lie where they
+    fall),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and

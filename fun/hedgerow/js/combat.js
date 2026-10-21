@@ -127,7 +127,11 @@ export function createExplosives(G) {
     G.effects.explosion(x, y, z, scale, inWater);
     if (!inWater) {
       const gy = G.terrain.height(x, z);
-      if (y - gy < 1.2) G.decals?.add('scorch', x, gy, z, 0, 1, 0, 3.2 * scale);
+      if (y - gy < 1.2) {
+        G.decals?.add('scorch', x, gy, z, 0, 1, 0, 3.2 * scale);
+        // the ground it lay on, thrown up in clods (or stones on the cobbles)
+        G.chunks?.burst(x, gy, z, scale, G.terrain.surfaceAt(x, z));
+      }
     }
     G.audio.explosion(x, y, z, scale);
     // it lights the street; the wet air round it glows, but is not turned white
