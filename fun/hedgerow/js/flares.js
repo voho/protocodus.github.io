@@ -7,7 +7,7 @@
    roofs, the fields and the rain from above: a directional light along its
    direction (it is far enough for its rays to be parallel over the 80 m
    round the player) that casts shadows there — houses, walls, soldiers and
-   the trunks of the trees lay long shadows that swing as it drifts and
+   the trees, trunks and crowns, lay long shadows that swing as it drifts and
    lengthen as it sinks. The shadow map is drawn only while a flare burns,
    every other frame (shadowing; main.js makes the trunks cast and holds the
    lamps' shadow still meanwhile): about 0.8 ms a frame at 2048² on an M1 Max. In the light pool (lights.js) it is a far light that
@@ -137,8 +137,24 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
     if (tb >= f.burn) { f = null; off(sky); }
   }
 
+  let vegCasters = null;
+  /* what in the vegetation casts while a flare burns: trunks, branches, rocks, and the
+     crowns' leaf cards cut out by their own alpha (not the ground cover, not the far cards) */
+  function castersOf(group) {
+    if (vegCasters) return vegCasters;
+    vegCasters = [];
+    for (const m of group.children) {
+      if (!m.isInstancedMesh) continue;
+      const card = !!m.material.alphaToCoverage;
+      if (card && !/:nat_(leaf|conifer)$/.test(m.name)) continue;
+      if (card) m.customDepthMaterial = new THREE.MeshDepthMaterial({ map: m.material.map, alphaTest: 0.5 });
+      vegCasters.push(m);
+    }
+    return vegCasters;
+  }
+
   return {
-    update, light: sun,
+    update, light: sun, castersOf,
     get active() { return !!f; },
     /* its shadows are being drawn this frame */
     get shadowing() { return sun.castShadow && sun.intensity > 0; },

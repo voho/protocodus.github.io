@@ -45,9 +45,10 @@ uniform float uRange[MAX];
 uniform int uCount;
 uniform float uDensity, uTime, uRain, uFar;
 uniform vec2 uWind;
-uniform sampler2D tAO, tSSR;
+uniform sampler2D tAO, tSSR, tShafts;
 uniform vec2 uAOTexel;
 uniform float uAO, uSSR;
+uniform vec3 uShaftCol;
 varying vec2 vUv;
 
 float viewZ(vec2 uv) {
@@ -67,6 +68,17 @@ void layers(vec2 uv, float z0, bool refl, out float ao, out vec4 rf) {
     wsum += w;
   }
   ao /= wsum; rf /= wsum;
+}
+// the flare's shafts (shafts.js), brought up the same way and a little wider (they are grainy)
+float shaftLayer(vec2 uv, float z0) {
+  float s = 0.0, wsum = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 o = vec2(float(i), float(j)) * uAOTexel * 1.5;
+    float w = 1.0 / (0.05 + abs(viewZ(uv + o) - z0) * 0.5);
+    s += texture2D(tShafts, uv + o).r * w;
+    wsum += w;
+  }
+  return s / wsum;
 }
 
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -94,6 +106,8 @@ void main() {
     col *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 5.0, lum)));
     if (rf.a > 1e-4) col = mix(col, rf.rgb / rf.a, rf.a * mirror * (1.0 - smoothstep(1.5, 6.0, lum)));
   }
+  // a flare's light in the wet air, in shafts where houses and trees shadow it
+  if (uShaftCol.r + uShaftCol.g + uShaftCol.b > 0.0) col += uShaftCol * shaftLayer(vUv, v.z);
   vec3 dir = normalize(mat3(uViewInv) * v.xyz);
   vec3 add = vec3(0.0);
   for (int i = 0; i < MAX; i++) {
@@ -142,6 +156,7 @@ export function createVolumetric(camera) {
       uWind: { value: new THREE.Vector2(0.5, 0.2) },
       tAO: { value: null }, uAOTexel: { value: new THREE.Vector2(1, 1) }, uAO: { value: 0 },
       tSSR: { value: null }, uSSR: { value: 0 },
+      tShafts: { value: null }, uShaftCol: { value: new THREE.Vector3() },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
@@ -174,6 +189,15 @@ export function createVolumetric(camera) {
     },
     /* the reflections pass to lay on (ssr.js, at the occlusion's half
        resolution: the upsample shares its texel), and how strongly */
+    /* the flare's shafts to lay on (shafts.js, at the occlusion's half resolution), lit by a
+       light of this colour and irradiance in air that scatters 'density' of it per metre */
+    setShafts(shafts, color = null, irradiance = 0, density = 0.0012) {
+      const on = !!(shafts && shafts.enabled && color);
+      u.tShafts.value = on ? shafts.texture : null;
+      if (on) u.uShaftCol.value.set(color.r, color.g, color.b).multiplyScalar(irradiance * density);
+      else u.uShaftCol.value.set(0, 0, 0);
+      if (on && !u.tAO.value && !u.tSSR.value) u.uAOTexel.value = shafts.texel;
+    },
     setSSR(ssr, strength = 1) {
       u.tSSR.value = ssr ? ssr.texture : null;
       u.uSSR.value = ssr ? strength : 0;

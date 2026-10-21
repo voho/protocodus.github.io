@@ -36,7 +36,8 @@ fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
 artillery flashes and burning farms beyond the hedges, and every half minute
 or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
-shadows of houses, walls, soldiers and tree trunks that swing as it drifts.
+shadows of houses, walls, soldiers and trees (dappled under the crowns) that
+swing as it drifts, its light hanging in the rain in shafts between the roofs.
 Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
@@ -128,8 +129,9 @@ by the blast that killed them, and drop their rifles.
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground, its 80 m shadow
-    map drawn every other frame only while one burns; the shaders it needs
-    are warmed at the start of the mission),
+    map drawn every other frame only while one burns, the tree crowns'
+    leaf cards cut out by their alpha; the shaders it needs are warmed at
+    the start of the mission),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
     column of earth and roll dust along the ground), `atmosphere.js`
@@ -144,8 +146,11 @@ by the blast that killed them, and drop their rifles.
     occlusion at half resolution · `ssr.js` reflections in the wet ground,
     the puddles and the river, at half resolution (a ray marched through the
     depth from each pixel the scene pass marked as mirror-like in its alpha,
-    `mirrorAlpha`) · `volumetric.js` lays the occlusion and the reflections on
-    and adds the light scattered in the rain by up to eight lamps, fires and
+    `mirrorAlpha`) · `shafts.js` while a flare burns, the lit length of
+    each view ray's first 45 m in its shadow map (beams between the roofs,
+    through the crowns), at half resolution · `volumetric.js` lays the
+    occlusion, the reflections and the shafts on and adds the light
+    scattered in the rain by up to eight lamps, fires and
     flashes (the closed-form airlight integral, cut by the depth) · `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the

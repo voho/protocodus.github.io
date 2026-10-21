@@ -29,6 +29,7 @@ import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
+import { createShafts } from './shafts.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createClutter } from './clutter.js';
@@ -77,7 +78,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -192,6 +193,7 @@ async function boot() {
     volumetric = createVolumetric(camera);
     ssao = createSSAO(camera);
     ssr = createSSR(camera, shared);
+    shafts = createShafts(camera);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -248,7 +250,10 @@ function applyGraphics() {
     // its glow over them; without it they are drawn with the scene); the depth of field
     // borrows the scene depth the light-in-the-rain pass reads, so it needs that pass
     G.effects.usePass(!!quality.volumetric, scene);
-    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    // the flare's shafts need its shadows: with them, and with the light in the rain that lays them on
+    const shaft = quality.volumetric && quality.shadows;
+    if (!shaft) volumetric.setShafts(null);
+    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -289,7 +294,7 @@ function startMission() {
     mission.start();
     // the flares' shadow shaders, now that the soldiers exist (not at the first flare)
     G.flares.warm(renderer, scene, camera, [
-      ...built.veg.group.children.filter((m) => m.isInstancedMesh && !m.material.alphaToCoverage),
+      ...G.flares.castersOf(built.veg.group),
       ...player.char.meshes, ...enemies.list.flatMap((e) => e.char.meshes),
     ]);
   }
@@ -423,7 +428,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -446,12 +451,12 @@ let flareShadows = false, lampShadowOf = null;
 function castShadows() {
   const sl = G.lights.shadowLight;
   if (!sl || !sl.castShadow) return;
-  // while a flare's shadows are drawn the trunks of the trees cast too, and the lamp's
-  // shadow (a cube of six maps) holds still, drawn again only if it moves to another lamp
+  // while a flare's shadows are drawn the trees cast too, and the lamp's shadow (a cube
+  // of six maps) holds still, drawn again only if it moves to another lamp
   const fl = !!G.flares?.shadowing;
   if (fl !== flareShadows) {
     flareShadows = fl;
-    for (const m of built.veg.group.children) if (m.isInstancedMesh && !m.material.alphaToCoverage) m.castShadow = fl;
+    for (const m of G.flares.castersOf(built.veg.group)) m.castShadow = fl;
   }
   sl.shadow.autoUpdate = !fl;
   if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
@@ -555,6 +560,10 @@ function step() {
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     dof?.set(volumetric?.uniforms.tDepth.value, state === 'playing' ? G.rig.aimT : 0);
     G.effects.setLights(G.lights.active, 1 + flash * 0.9);
+    if (shafts && quality.volumetric && quality.shadows) {
+      shafts.set(G.flares);
+      volumetric.setShafts(shafts, G.flares.light.color, G.flares.light.intensity * (0.6 + 0.4 * (G.weather.intensity ?? 1)));
+    }
     G.weather.setLights(G.lights.active);
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);
