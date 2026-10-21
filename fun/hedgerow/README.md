@@ -47,7 +47,8 @@ stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
 them in stretches, rainwater standing in the shell craters — rain in fine
 streaks, falling in sheets far down the street, sweeping across in gusts,
-lit by lamps, fires and flares,
+dripping and pouring in broken strings off the eaves, lit by lamps, fires
+and flares,
 halos in the wet air, low mist, bullet holes that catch the light — stone
 chipped pale round a black hole, wood splintered, paint flaked off a dent to
 the bare steel — mud kicked up and the scorch of blasts, a low
@@ -192,7 +193,13 @@ by the blast that killed them, and drop their rifles.
     through that light, in four jittered steps ·
     `sky.js` (the cloud deck: rolls and billows of noise warped by itself,
     the fires' light on its base falling off with distance; drawn after
-    the solid scene, so only the sky that shows is shaded), `weather.js`
+    the solid scene, so only the sky that shows is shaded), `drips.js` (the
+    water off the eaves: at load the lower edges of the roofs are found in
+    the house, church and barn models, a point every quarter metre with
+    how far it falls (to the ground or the part of the building below);
+    each fall is one thin ribbon whose shader places the falling water on
+    it - drops that speed up and stretch, or a string that breaks up as it
+    goes), `weather.js`
     (rain: near streaks a drop wide but never under a pixel and a half,
     and beyond them, out to ~60 m, sheets of rain worked out per pixel on
     four cylinders round the eye in one full-screen draw, hidden behind the

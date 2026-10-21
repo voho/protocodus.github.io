@@ -13,6 +13,7 @@ import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
+import { createDrips } from './drips.js';
 import { createFireballs } from './fireball.js';
 import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
@@ -176,6 +177,9 @@ async function boot() {
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
+  // the rain dripping off the eaves (drips.js)
+  G.drips = createDrips(built.props, G.terrain);
+  G.drips.drawLate(null, scene);
   // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
   G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4, G.ponds?.list);
   // the lanes' wheel ruts (ruts.js, drawn by the terrain)
@@ -304,6 +308,7 @@ function applyGraphics() {
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    G.drips.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
     // the smoke over the fires goes in with the particles, before the glow of the lights in the
     // air is laid on (it hangs in front of the smoke)
     G.plumes.drawIn(quality.volumetric ? G.effects.pass.scene : null, scene, G.effects.depthUniforms);
@@ -630,6 +635,8 @@ function step() {
       volumetric.setPointShafts(shafts);
     }
     G.weather.setLights(G.lights.active);
+    G.drips.setLights(G.lights.active);
+    G.drips.update(G.time, G.weather.intensity ?? 1, flash, G.flares.burning ? G.flares.light : null);
     G.weather.setSkyLight(G.flares.light.color, G.flares.burning ? G.flares.light.intensity : 0);
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);
