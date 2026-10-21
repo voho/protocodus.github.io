@@ -51,7 +51,9 @@ dripping and pouring in broken strings off the eaves, lit by lamps, fires
 and flares,
 halos in the wet air, low mist, bullet holes that catch the light — stone
 chipped pale round a black hole, wood splintered, paint flaked off a dent to
-the bare steel — mud kicked up and the scorch of blasts, a low
+the bare steel — mud kicked up and the scorch of blasts, the village's walls
+scarred by the fighting before you came (plaster blown off down to the
+stone or brick, machine-gun bursts stitched across the fronts), a low
 cloud deck rolling overhead, its bellies lit orange from below over the
 burning farms, whose smoke climbs into it in leaning columns, and caught by
 the flashes of a distant barrage, searchlights sweeping
@@ -266,7 +268,13 @@ by the blast that killed them, and drop their rifles.
     smoke that rolls up and thins into the blast's dust), `atmosphere.js`
     (halos, mist, and decals: four painted variants of each kind with their
     own relief, drawn pulled a few centimetres towards the eye along their
-    sight line so a wall's stones do not swallow them), `casings.js` (the
+    sight line so a wall's stones do not swallow them), `damage.js` (the
+    walls' old damage, put down at load as pinned decals: each building's
+    sides drawn in software into a 5 cm grid of depth, facing and texture
+    colour, so plaster breaks, cannon-shell craters and machine-gun bursts
+    go only on open, even wall — never across a window, a shutter or a
+    corner — and only on walls that face open ground near the street, the
+    lane or the track), `casings.js` (the
     brass thrown out of the gun — the Garand's long bottlenecked case, the
     Thompson's short one — tumbling past in the muzzle flash, bouncing and
     lying where it falls; the last 64 of each stay), `chunks.js` (what a
