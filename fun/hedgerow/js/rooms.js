@@ -13,7 +13,9 @@
    table and a cupboard in it, lit by a lamp that throws their shadows, so
    the room moves with parallax as you walk past. Each room is drawn from
    its seed: its size, paper, floor, furniture, lamp and, in some, a lace
-   half-curtain across the bottom of the window. */
+   half-curtain across the bottom of the window. Up close, rain is beaded on
+   the glass (rmDrops): each bead a little lens bending the view of the
+   room, its rim bright, now and then one running down. */
 
 import * as THREE from 'three';
 
@@ -361,6 +363,40 @@ export const ROOMS_GLSL = /* glsl */`
       col += lc * (exp(-q2 / 0.0005) * 3.0 + exp(-q2 / 0.012) * 0.35);
     }
     return col * uRoomGain;
+  }
+  // rain on the glass: beads of it, each a little lens over the room behind (the view through it
+  // bent towards its edge, so it shows the room turned about its middle), its rim bright with the
+  // room's light, and now and then one running down in a column; nothing where the drops would be
+  // under a pixel (fw: metres a pixel). xy: the slope it gives the view through it, z: how much
+  // of a bead's rim is here
+  vec3 rmDrops(vec2 p, float time, float fw) {
+    float near = 1.0 - smoothstep(0.003, 0.007, fw);
+    if (near <= 0.0) return vec3(0.0);
+    vec3 r = vec3(0.0);
+    // the beads, on a 3.5 cm grid, about half its cells holding one
+    vec2 g = p / 0.035, id = floor(g), f = fract(g) - 0.5;
+    if (rmHash2(id + 0.37) < 0.55) {
+      vec2 c = (vec2(rmHash2(id + 3.1), rmHash2(id + 7.7)) - 0.5) * 0.4;
+      float rad = 0.16 + 0.22 * rmHash2(id + 11.3);
+      vec2 d = (f - c) / rad;
+      float l2 = dot(d, d);
+      if (l2 < 1.0) {
+        r.xy = -d * (1.0 - 0.5 * sqrt(1.0 - l2));
+        r.z = smoothstep(0.55, 0.95, sqrt(l2)) * (0.35 + 0.65 * smoothstep(-0.2, 0.8, dot(d, vec2(-0.6, 0.8)) / max(sqrt(l2), 1e-3)));
+      }
+    }
+    // running drops: columns 7 cm wide, now and then a drop sliding down with a thin wet trail
+    float col = floor(p.x / 0.07), fx = fract(p.x / 0.07) - 0.5;
+    float speed = 0.05 + 0.08 * rmHash2(vec2(col, 1.3));
+    float y = fract((p.y + time * speed) / 0.9 + rmHash2(vec2(col, 7.1)));
+    float wob = sin(p.y * 40.0 + col) * 0.06;
+    if (rmHash2(vec2(col, 4.4)) < 0.35) {
+      vec2 d = vec2((fx - wob) / 0.09, (y - 0.06) / 0.05);
+      float l2 = dot(d, d);
+      if (l2 < 1.0) { r.xy += -d * (1.0 - 0.5 * sqrt(1.0 - l2)); r.z = max(r.z, smoothstep(0.5, 0.95, sqrt(l2)) * 0.8); }
+      else if (y > 0.06 && y < 0.5 && abs(fx - wob) < 0.035) r.xy += vec2((fx - wob) * 6.0, 0.0);
+    }
+    return r * near;
   }
   // a lace half-curtain on a rod across the lower part of some windows, glowing with the room
   // behind it; its holes melt into an even veil where they get too fine to draw (fw: metres a

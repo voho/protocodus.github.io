@@ -29,7 +29,8 @@ yards and twigs on the forest floor, the trunks show their bark close up
 (furrowed oak and pine, smooth beech, moss low on the weather side), behind
 each lit window there is a room — papered walls, beams overhead, a table
 under a lamp, a cupboard, lace across the bottom of some windows — that
-shifts with parallax as you walk past, and its light falls out onto the
+shifts with parallax as you walk past, seen up close through rain beaded on
+the glass, and its light falls out onto the
 street, a cart, a bicycle against the wall, the rifle in your hands, in the
 shape of the window with its glazing bars across it, the rain in front of
 it glowing with it, and the

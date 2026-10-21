@@ -422,8 +422,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           vec2 pw = vWin.xy;
           ${streaks ? 'pw.x += mRivX * mRiv * 0.05;' : ''}
           vec2 hs = vec2(vWin.z, vWin.w - 16.0 * seed);
-          vec3 room = rmRoom(pw, vec3(dot(vd, wt), dot(vd, wb), -dot(vd, wn)), hs, seed, uTime);
-          totalEmissiveRadiance = rmLace(room, vWin.xy, hs, seed, rmFw);
+          // rain beaded on the glass bends the view through it (each bead a little lens), its rim bright
+          vec3 drops = rmDrops(vWin.xy, uTime, rmFw) * uWet;
+          vec3 rd = vec3(dot(vd, wt), dot(vd, wb), -dot(vd, wn));
+          rd = normalize(vec3(rd.xy + drops.xy * 0.6 * rd.z, rd.z));
+          vec3 room = rmRoom(pw, rd, hs, seed, uTime);
+          totalEmissiveRadiance = rmLace(room, vWin.xy, hs, seed, rmFw) * (1.0 - 0.35 * drops.z)
+            + (room + vec3(0.02, 0.016, 0.012)) * drops.z * 0.9;
           diffuseColor.rgb *= 0.15;
         }`);
     }
