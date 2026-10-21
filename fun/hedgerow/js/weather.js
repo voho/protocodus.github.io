@@ -22,7 +22,7 @@ import { rng } from './util.js';
 // the gusts: how hard it is raining here now (about 0.55 .. 1.6), bands of it some 30 m across
 // blown downwind at gust speed. An integer hash, so gustAt() below gives the same on the CPU
 // (the splashes follow it)
-const GUST_GLSL = /* glsl */ `
+export const GUST_GLSL = /* glsl */ `
 float gHash(vec2 p) {
   uvec2 q = uvec2(ivec2(p) + 32768);
   uint h = (q.x * 1597334677u) ^ (q.y * 3812015801u);

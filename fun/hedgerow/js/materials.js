@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
 import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
 import { dimFillSpecular } from './fill.js';
+import { GUST_GLSL } from './weather.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
 const SPEC = {
@@ -241,7 +242,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec2 vDetailUv;
         varying vec3 vWPosM;
         ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}
-        ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}`)
+        ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}
+        ${sway ? GUST_GLSL : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
           vNormalMapUv = uv * uTile;
@@ -258,10 +260,19 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           root += modelMatrix[3].xyz;
           float hgt = max(0.0, position.y);
           float ph = uTime * 1.3 + root.x * 0.21 + root.z * 0.17;
-          float gust = 0.6 + 0.4 * sin(uTime * 0.37 + root.x * 0.05);
-          float k = hgt * min(hgt, 14.0) * 0.0025 * gust;
+          // the gusts that drive the rain (weather.js) drive the trees: a gust sweeping through
+          // bends them downwind and shakes them harder, a lull lets them stand
+          vec2 wdir = normalize(vec2(1.6, 0.7));
+          float gw = (gust(root.xz, uTime, wdir) - 0.55) / 1.05;
+          float k = hgt * min(hgt, 14.0) * 0.0025 * (0.55 + 0.6 * gw);
           transformed.x += (sin(ph) * 0.6 + sin(ph * 2.7 + position.z * 1.3) * 0.25) * k;
           transformed.z += (cos(ph * 0.8) * 0.4 + sin(ph * 3.1 + position.x * 1.1) * 0.2) * k;
+          // the lean downwind, in the tree's own space (it is turned and scaled as it stands)
+          mat3 im = mat3(modelMatrix);
+          #ifdef USE_INSTANCING
+            im = im * mat3(instanceMatrix);
+          #endif
+          transformed += transpose(im) * vec3(wdir.x, 0.0, wdir.y) / dot(im[0], im[0]) * hgt * min(hgt, 14.0) * 0.0025 * gw * 0.9;
         }` : ''}`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         {

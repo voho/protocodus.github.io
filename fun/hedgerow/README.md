@@ -191,7 +191,9 @@ by the blast that killed them, and drop their rifles.
     within 7 m crowns of droplets flung up and
     out of each, a few thousand a second, drawn after the frame; all of it
     in gusts — bands of heavier, harder-leaning rain some 30 m across blown
-    downwind, one noise shared by the shaders and the splashes; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
+    downwind, one noise shared by the shaders and the splashes - and by the
+    trees, which lean downwind and shake harder as a gust sweeps through,
+    and the meadow grass, which lies over in it; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
     the surfaces round it but only a little of the wet air; a fire's light
     sways and leaps with its flames, so the shadows round it dance),
     `fill.js` (the night's fill lights — the low key light from the last of

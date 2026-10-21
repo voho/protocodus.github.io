@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { FOLIAGE_UNIFORMS } from './materials.js';
 import { dimFillSpecular } from './fill.js';
+import { GUST_GLSL } from './weather.js';
 
 const SEGS = 3, TUFT = 5;
 export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
@@ -71,6 +72,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
         uniform vec3 uPlayer;
         uniform vec4 uShock[3];
         varying float vT;
+        ${GUST_GLSL}
         varying vec3 vShade;
         vec3 bladePos;
         vec4 hash4(vec2 c) {
@@ -121,9 +123,12 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
           vec2 dir = vec2(cos(yaw), sin(yaw)), perp = vec2(-dir.y, dir.x);
           float w = mix(0.0035, 0.007, b.y) * (1.0 - t * 0.8) * inversesqrt(keep) * sqrt(${TUFT}.0 / blades);
           w = max(w, dist * uPixel * 0.5 * (1.0 - t * 0.8));
-          // out of the tuft, the wind (gusts rolling across the field), a flutter
-          float gust = 0.5 + 0.5 * sin(dot(root, uWind) * 0.3 - uTime * 1.7 + sin(dot(root, vec2(-uWind.y, uWind.x)) * 0.11) * 2.0);
-          vec2 lean = normalize(off) * (0.25 + 0.45 * b.z) + uWind * (0.15 + 0.55 * gust * gust)
+          // out of the tuft, the wind (waves rolling across the field), a flutter; the gusts that drive
+          // the rain (weather.js) make the waves stronger and lay the grass over as they sweep through
+          float gf = (gust(root, uTime, uWind) - 0.55) / 1.05;
+          float gw = (0.5 + 0.5 * sin(dot(root, uWind) * 0.3 - uTime * 1.7 + sin(dot(root, vec2(-uWind.y, uWind.x)) * 0.11) * 2.0))
+            * (0.45 + 0.75 * gf) + 0.4 * gf;
+          vec2 lean = normalize(off) * (0.25 + 0.45 * b.z) + uWind * (0.15 + 0.55 * gw * gw)
             + perp * sin(uTime * (2.0 + h.w) + b.x * 6.28) * 0.1;
           // parted round the player's legs
           vec2 away = xz - uPlayer.xz;
