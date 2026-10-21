@@ -13,9 +13,11 @@
    water runs together (one in seven) it pours as a string that leaves the
    edge whole and breaks into drops further down. Lit like the rain by the
    lamps, the fires, a flare and the lightning, hidden behind what stands in
-   front. */
+   front. Where a drop lands near the eye it throws up a crown of droplets,
+   drawn as the rain's are (weather.js). */
 
 import * as THREE from 'three';
+import { CROWN_FRAG } from './weather.js';
 
 const EAVED = /^(house|church|barn|shed)/;
 const STEP = 0.25;
@@ -106,6 +108,49 @@ void main() {
   float a = water * edge * vCover * vFade * uOpacity * (1.0 + boost * 1.5) * smoothstep(0.0, 0.05, vS);
   if (a < 0.003) discard;
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
+}`;
+
+// a crown on the ground under each point near the eye, for a moment after a drop comes down (the
+// water landing now left the edge as long ago as the fall takes: the slot it was let go in tells
+// whether there was a drop and how long since it landed)
+const SPLASH_VERT = /* glsl */ `
+attribute vec4 aEmit;
+attribute vec2 aSeed;
+uniform float uTime, uRain;
+uniform vec2 uWind;
+uniform vec3 uLightPos[6];
+uniform vec3 uLightCol[6];
+varying vec2 vUv;
+varying float vAge, vSeed, vDist;
+varying vec3 vLit;
+varying vec2 vProj;
+float hash(float n) { return fract(sin(n * 12.9898 + aSeed.y * 78.233) * 43758.5453); }
+void main() {
+  float fall = aEmit.w;
+  float T = sqrt(2.0 * fall / 9.8);
+  vec3 at = aEmit.xyz + vec3(uWind.x * 0.06 * T * T, -fall, uWind.y * 0.06 * T * T);
+  float string = smoothstep(0.82, 0.9, aSeed.x);
+  float rate = mix(1.2 + 2.0 * aSeed.x, 11.0, string) * (0.6 + 0.4 * uRain);
+  float k = (uTime - T) * rate + aSeed.y * 37.0;
+  float slot = floor(k), age = fract(k) / rate;
+  float has = step(hash(slot), mix(0.7, 0.92, string));
+  float d = length(at - cameraPosition);
+  float size = (has > 0.5 && age < 0.17 && d < 9.0 && fall > 0.8) ? 0.16 : 0.0;
+  vec3 right = normalize(vec3(viewMatrix[0][0], 0.0, viewMatrix[2][0]));
+  vec3 p = at + right * (uv.x - 0.5) * size + vec3(0.0, uv.y * size * 0.5, 0.0);
+  vUv = uv;
+  vAge = age;
+  vSeed = fract(aSeed.y * 7.13 + slot * 0.371);
+  vec3 lit = vec3(0.0);
+  for (int i = 0; i < 6; i++) {
+    vec3 dd = at - uLightPos[i];
+    lit += uLightCol[i] / (1.0 + dot(dd, dd) * 0.9);
+  }
+  vLit = lit;
+  vec4 mv = viewMatrix * vec4(p, 1.0);
+  vDist = -mv.z;
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
+  gl_Position = projectionMatrix * mv;
 }`;
 
 /* A model's eaves as points the water lets go from, in its own space: [x, y, z, fall], fall
@@ -233,18 +278,28 @@ export function createDrips(props, terrain, { seed = 5 } = {}) {
   mesh.name = 'drips';
   mesh.frustumCulled = false;
   mesh.renderOrder = 5;
+  const splashUniforms = {
+    uTime: uniforms.uTime, uRain: uniforms.uRain, uWind: uniforms.uWind, uLightPos: uniforms.uLightPos, uLightCol: uniforms.uLightCol,
+    uColor: uniforms.uColor, uSky: uniforms.uSky, uFlash: uniforms.uFlash, uOpacity: { value: 0.5 },
+    tDepth: uniforms.tDepth, uScreen: uniforms.uScreen, uSoft: uniforms.uSoft,
+  };
+  const splashMat = new THREE.ShaderMaterial({ vertexShader: SPLASH_VERT, fragmentShader: CROWN_FRAG, uniforms: splashUniforms, transparent: true, depthWrite: false, fog: false });
+  const splashes = new THREE.Mesh(geo, splashMat);
+  splashes.name = 'drip-splashes';
+  splashes.frustumCulled = false;
+  splashes.renderOrder = 5;
   const own = { tDepth: uniforms.tDepth, uScreen: uniforms.uScreen, uSoft: uniforms.uSoft };
 
   return {
-    mesh, count: n,
+    mesh, splashes, count: n,
     /* drawn after the frame in this scene (the late pass, hidden behind the scene by its depth:
        depth = {tDepth, uScreen, uSoft} uniforms that pass keeps), or with the scene */
     drawLate(lateScene, scene, depth = null) {
-      (lateScene || scene).add(mesh);
-      mat.depthTest = !lateScene;
+      (lateScene || scene).add(mesh, splashes);
+      mat.depthTest = splashMat.depthTest = !lateScene;
       const d = lateScene && depth ? depth : own;
-      uniforms.tDepth = d.tDepth; uniforms.uScreen = d.uScreen; uniforms.uSoft = d.uSoft;
-      mat.needsUpdate = true;
+      for (const u of [uniforms, splashUniforms]) { u.tDepth = d.tDepth; u.uScreen = d.uScreen; u.uSoft = d.uSoft; }
+      mat.needsUpdate = splashMat.needsUpdate = true;
     },
     /* time; rain: how hard it rains (weather.js); flash: lightning; sky: a flare's light at the eye */
     update(time, rain, flash, sky) {

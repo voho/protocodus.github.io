@@ -199,7 +199,9 @@ by the blast that killed them, and drop their rifles.
     how far it falls (to the ground or the part of the building below);
     each fall is one thin ribbon whose shader places the falling water on
     it - drops that speed up and stretch, or a string that breaks up as it
-    goes), `weather.js`
+    goes - and within 9 m a crown of droplets where each drop lands, the
+    rain's own crown shader with the moment worked out from the same
+    schedule), `weather.js`
     (rain: near streaks a drop wide but never under a pixel and a half,
     and beyond them, out to ~60 m, sheets of rain worked out per pixel on
     four cylinders round the eye in one full-screen draw, hidden behind the

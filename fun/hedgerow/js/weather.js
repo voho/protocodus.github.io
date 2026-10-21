@@ -242,7 +242,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
 }`;
 
-const CROWN_FRAG = /* glsl */ `
+export const CROWN_FRAG = /* glsl */ `
 uniform vec3 uColor, uSky;
 uniform float uOpacity, uFlash, uSoft;
 uniform sampler2D tDepth;
