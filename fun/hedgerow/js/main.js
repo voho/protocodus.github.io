@@ -244,6 +244,10 @@ function freshStats() {
   return { kills: 0, headshots: 0, shots: 0, hits: 0, headHits: 0, grenades: 0, damageTaken: 0, deaths: 0, objectives: 0 };
 }
 
+// around the effects chain: no depth clears inside it (see applyGraphics), back on for the next frame's scene
+const KEEP_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDepth = false; } };
+const CLEAR_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDepth = true; } };
+
 function applyGraphics() {
   quality = QUALITY[settings.quality] || QUALITY.high;
   applyResolution();
@@ -268,7 +272,10 @@ function applyGraphics() {
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
-    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    // the passes after the first one that swaps render into the scene's own buffer, whose depth
+    // the later ones still read (taa, the late particles, the haze, the focus): nothing in the
+    // chain may clear it, so depth clears are off from its start to its end
+    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
