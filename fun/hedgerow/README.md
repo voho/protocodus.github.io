@@ -21,7 +21,8 @@ PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, meadows
 and verges are tens of thousands of single blades of grass that bend in
-the wind and part round your legs, stones lie in the mud of the lanes and
+the wind, part round your legs and flatten outward under a blast's
+shockwave, stones lie in the mud of the lanes and
 yards and twigs on the forest floor, the trunks show their bark close up
 (furrowed oak and pine, smooth beech, moss low on the weather side), behind
 each lit window there is a room — papered walls, beams overhead, a table

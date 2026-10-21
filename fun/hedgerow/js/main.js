@@ -174,7 +174,7 @@ async function boot() {
   // the lanes' wheel ruts (ruts.js, drawn by the terrain)
   const ruts = createRuts(LEVEL.lines);
   if (ruts) { shared.rutMap.value = ruts.tex; shared.rutMin.value.copy(ruts.min); shared.rutSize.value.copy(ruts.size); }
-  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0 });
+  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0, shocks: G.effects.shocks });
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
   scene.add(G.clutter.group);

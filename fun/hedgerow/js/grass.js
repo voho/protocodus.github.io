@@ -10,7 +10,9 @@
    the grass weight of the splat (a little in the forest), none on roads and
    mud, on steep banks, at the water or inside anything solid (houses, walls,
    sandbags). The wind leans every blade and sends gusts across the field in
-   waves; the player parts the grass round his legs. Far tufts thin out (the
+   waves; the player parts the grass round his legs, and a blast's shockwave
+   (effects.js `shocks`) flattens it outward as it races through, the grass
+   still bowed behind it for a moment. Far tufts thin out (the
    ones left grow fuller, no blade thinner than about a pixel) and the patch
    fades away at its edge, where the scattered tufts and the ground's own
    texture take over. */
@@ -18,7 +20,7 @@
 import * as THREE from 'three';
 
 const SEGS = 3, TUFT = 5;
-export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 }) {
+export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
   // a tuft: TUFT blades, each a strip from the root (y = 0) to the point
   // (y = 1); x is the side, z which blade of the tuft
   const pos = [], idx = [];
@@ -49,6 +51,8 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
     uRadius: { value: n * spacing * 0.5 }, uPlayer: { value: new THREE.Vector3(0, -1e4, 0) },
     uPixel: { value: 0.0015 },
     uWind: { value: new THREE.Vector2(1.4, 0.6).normalize() }, uTime: shared.time, uWet: shared.wet,
+    // the last blasts' shockwaves: x, z, how far the front has gone, its strength (0: none)
+    uShock: { value: Array.from({ length: 3 }, () => new THREE.Vector4()) },
   };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0, side: THREE.DoubleSide });
   mat.name = 'grass';
@@ -61,6 +65,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
         uniform vec2 uMapMin, uMapSize, uOrigin, uWind;
         uniform float uN, uSpacing, uRadius, uTime, uPixel;
         uniform vec3 uPlayer;
+        uniform vec4 uShock[3];
         varying float vT;
         varying vec3 vShade;
         vec3 bladePos;
@@ -120,6 +125,15 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
           vec2 away = xz - uPlayer.xz;
           float pd = length(away);
           lean += away / max(pd, 0.01) * (1.0 - smoothstep(0.15, 0.8, pd)) * step(abs(uPlayer.y - gy), 1.5) * 1.6;
+          // flattened outward by a blast's shockwave as its front races through, still bowed behind it
+          for (int i = 0; i < 3; i++) {
+            vec4 sk = uShock[i];
+            if (sk.w <= 0.0) continue;
+            vec2 sd = xz - sk.xy;
+            float sl = length(sd);
+            float push = (1.0 - smoothstep(0.0, 2.2, abs(sl - sk.z))) * 3.2 + (1.0 - smoothstep(0.0, sk.z + 0.01, sl)) * 0.9;
+            lean += sd / max(sl, 0.05) * push * sk.w * (1.0 - smoothstep(6.0, 15.0, sl));
+          }
           // bent along an arc (the lean sets how far over the tip is), keeping its length
           float lm = length(lean);
           vec2 ld = lean / max(lm, 1e-4);
@@ -171,6 +185,11 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
       o.set(Math.floor(camera.position.x / spacing) - n / 2, Math.floor(camera.position.z / spacing) - n / 2);
       uniforms.uPixel.value = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / height;
       if (player) uniforms.uPlayer.value.copy(player);
+      const sv = uniforms.uShock.value;
+      for (let i = 0; i < 3; i++) {
+        const s = shocks?.[i];
+        if (s) sv[i].set(s.x, s.z, s.radius, s.strength); else sv[i].set(0, 0, 0, 0);
+      }
     },
     setCount(m) {
       n = Math.min(m, max);
