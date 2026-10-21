@@ -222,6 +222,10 @@ by the blast that killed them, and drop their rifles.
     glints on the world: their direct specular is cut to a tenth on the
     ground, water, walls and leaves, where they made a sun on the puddles
     under a sky with no sun; the soldiers and their weapons keep it),
+    `lightloop.js` (three.js shades every point light on every pixel, even
+    where its range has cut it to nothing; patched once at start, a light
+    that does not reach a pixel is skipped there - the same picture, the
+    frame some two and a half times quicker on the test GPU),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground (as bright as the
     flare is at the player, eased towards a ceiling close under one), its 80 m shadow
