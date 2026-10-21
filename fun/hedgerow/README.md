@@ -129,7 +129,8 @@ by the blast that killed them, and drop their rifles.
     lying along the slope (high and medium)
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
-    two sides, per species) · `sky.js`, `weather.js`
+    two sides, per species; rain running down walls within ~24 m in
+    rivulets that slide down and catch the light) · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground, its 80 m shadow

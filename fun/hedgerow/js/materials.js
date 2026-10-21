@@ -98,6 +98,11 @@ const METAL = {
   gun_metal_worn: 0.85, helmet_od: 0.1, helmet_gray: 0.1,
 };
 
+/* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
+   palette key, cloth, skin and the like) */
+const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
+const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
+
 /* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
    smooth beech, papery birch, old dead wood */
 const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0.85], [/^birch/, 0.4, 0.15], [/^(tree_dead|stump|log)/, 0.8, 0.6]];
@@ -124,7 +129,10 @@ export function createMaterialLibrary(textures, shared) {
       mat.emissive = new THREE.Color(extra.emissive);
       mat.emissiveIntensity = extra.emissiveIntensity ?? 1;
     }
-    addWeather(mat, shared, { porosity, detailTex: textures[tex], tile, foliage: tex === 'foliage' });
+    addWeather(mat, shared, {
+      porosity, detailTex: textures[tex], tile, foliage: tex === 'foliage',
+      streaks: tex !== 'foliage' && !NO_STREAKS.test(key),
+    });
     cache.set(id, mat);
     return mat;
   }
@@ -158,6 +166,7 @@ export function createMaterialLibrary(textures, shared) {
       addWeather(m, shared, {
         porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
+        streaks: !cards && !CARRIED.test(src.name || ''),
       });
       baked.set(src.uuid, m);
       return m;
@@ -169,13 +178,14 @@ export function createMaterialLibrary(textures, shared) {
 }
 
 /* Rain on a standard material: porous surfaces darken, everything gets
-   glossier, faces turned to the sky hold a film of water with ripples.
+   glossier, faces turned to the sky hold a film of water with ripples, and
+   (streaks) water runs down walls in rivulets that catch the light.
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -246,6 +256,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying float vBarkH;
         vec4 barkA, barkB;
         float barkK, barkW;` : ''}
+        ${streaks ? 'float mRiv, mRivX;\n        vec3 mRivT;' : ''}
         ${GLSL_HELPERS}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         ${bark ? `{
@@ -274,10 +285,33 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           mWetUp = ${foliage ? '0.0' : 'up * uWet * smoothstep(0.35, 0.6, detail + 0.15)'};
           diffuseColor.rgb *= mix(1.0, 0.62, uWet * uPorosity);
           diffuseColor.rgb *= mix(1.0, 0.82, mWetUp);
-        }`)
+        }
+        ${streaks ? `// rain running down walls, close to the eye: rivulets ~22 cm apart, darker wet
+        // stripes with a glossy core, each wandering as it runs and carrying water in
+        // stretches that slide down the wall
+        mRiv = 0.0; mRivX = 0.0; mRivT = vec3(1.0, 0.0, 0.0);
+        #ifndef USE_SKINNING
+        {
+          float vert = 1.0 - smoothstep(0.2, 0.5, abs(vWNormalM.y));
+          float k = vert * uWet * (0.4 + 0.6 * uRain) * (1.0 - smoothstep(14.0, 24.0, length(vViewPosition)));
+          if (k > 0.01) {
+            bool alongZ = abs(vWNormalM.x) > abs(vWNormalM.z);
+            mRivT = alongZ ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+            vec2 q = vec2((alongZ ? vWPosM.z : vWPosM.x) * 4.5, vWPosM.y * 0.7 + uTime * 0.8);
+            float col = floor(q.x);
+            mRivX = fract(q.x + sin(vWPosM.y * 3.1 + col * 7.7) * 0.2) - 0.5;
+            float line = 1.0 - smoothstep(0.06, 0.2, abs(mRivX));
+            float fy = floor(q.y), ty = fract(q.y);
+            float run = smoothstep(0.55, 0.8, mix(hash12(vec2(col, fy)), hash12(vec2(col, fy + 1.0)), ty * ty * (3.0 - 2.0 * ty)));
+            mRiv = line * run * k;
+            diffuseColor.rgb *= 1.0 - 0.45 * mRiv;
+          }
+        }
+        #endif` : ''}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
-        roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);`)
+        roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);
+        ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
           vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
@@ -288,7 +322,9 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
           mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);
           normal = normalize(tbnR * normalize(vec3(rip * 0.8, 1.0)) * 0.5 + normal * 0.5);
-        }`)
+        }
+        ${streaks ? `// a rivulet bulges out of the wall: its sides lean, so it catches the light across it
+        if (mRiv > 0.01) normal = normalize(normal + mat3(viewMatrix) * mRivT * (mRivX * 3.0 * mRiv));` : ''}`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
