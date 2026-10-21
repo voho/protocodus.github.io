@@ -14,6 +14,7 @@ import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
+import { dressWalls } from './damage.js';
 import { createChunks } from './chunks.js';
 import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
@@ -169,11 +170,13 @@ async function boot() {
   G.sky = sky;
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
-  G.decals = createDecals({ shared });
+  // room kept for the damage the walls already carry (damage.js)
+  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64 } });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
+  dressWalls(G, built.props, LEVEL.lines);
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);
