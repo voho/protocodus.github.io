@@ -184,7 +184,12 @@ by the blast that killed them, and drop their rifles.
     the rain but never glossy, with a fabric's sheen at grazing angles;
     within 3 m (your own arms round the rifle, a man at arm's length) the
     weave of that wool and the grain of the skin, laid on in the model's
-    own bind-pose space so they move with him;
+    own bind-pose space so they move with him; the guns within 2.5 m (the
+    one in your hands, half a metre from the eye, where its texture is
+    spread thin) with the walnut's grain and figure along the stock, oiled
+    between the lines, and the steel a matte Parkerized grey, mottled where
+    the finish has worn, pitted, and worn bright along its edges, each
+    pattern fading before it gets finer than the pixels;
     round a fire, the charred
     wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
     metal a dull red with the heat) · `rooms.js` the rooms
