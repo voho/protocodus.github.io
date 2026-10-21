@@ -99,6 +99,9 @@ const METAL = {
   gun_metal_worn: 0.85, helmet_od: 0.1, helmet_gray: 0.1,
 };
 
+/* how much light comes through the leaves (foliage, addWeather) */
+export const FOLIAGE_UNIFORMS = { uLeafTrans: { value: 1.6 } };
+
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
@@ -196,6 +199,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       tDetail: { value: detailTex },
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
       ...(rooms ? ROOM_UNIFORMS : {}),
+      ...(foliage ? FOLIAGE_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -361,8 +365,30 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
     }
     if (foliage) {
       // foliage: some light comes through the leaves, and a card lights the
-      // same from both sides (its normals point out of the crown)
+      // same from both sides (its normals point out of the crown). Every light
+      // also shines through them: onto the back of a card, and most where the
+      // eye looks towards the light through the leaves (a crown between you and
+      // a fire, a lamp or a flare glows at its edges), tinted by the leaf and its
+      // baked occlusion (the inside of a crown is dark) and by the light's own
+      // shadow where it has one
       shader.fragmentShader = shader.fragmentShader
+        .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
+        uniform float uLeafTrans;
+        float leafThin = 1.0;          // how thin the foliage is here (its baked occlusion, squared)
+        void RE_Direct_Leaf(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
+            const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+          RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          float through = 0.12 * saturate(dot(-geometryNormal, directLight.direction))
+            + pow(saturate(dot(-geometryViewDir, directLight.direction)), 8.0) * 1.4;
+          reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * through * leafThin * uLeafTrans;
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Leaf`)
+        .replace('#include <lights_fragment_begin>', `
+        #ifdef USE_COLOR
+          leafThin = vColor.g * vColor.g;
+        #endif
+        #include <lights_fragment_begin>`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12;`)
         .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');

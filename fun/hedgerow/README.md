@@ -19,7 +19,9 @@ three river crossings, the ends of the trench, the flanks of the bunker.
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
-baked in), foliage is alpha cards rendered from modelled leaves, meadows
+baked in), foliage is alpha cards rendered from modelled leaves (light
+shines through them: a crown between you and a flare or a fire glows green
+where its leaves are thinnest), meadows
 and verges are tens of thousands of single blades of grass that bend in
 the wind, part round your legs and flatten outward under a blast's
 shockwave, stones lie in the mud of the lanes and
