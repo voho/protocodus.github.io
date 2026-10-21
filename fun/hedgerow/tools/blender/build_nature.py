@@ -101,10 +101,10 @@ def dirv(az, el):
 
 
 def make(m, name, colliders=None, tpm=None, size=None, color_fn=None, extra=None, post=None, nsize=None,
-         scale_islands=None):
+         scale_islands=None, tags=False):
     """Build the node object from a Mesh; bake the palette-keyed part (if any)
     while the card faces keep their atlas material."""
-    obj = m.build(name, color_fn=color_fn)
+    obj = m.build(name, color_fn=color_fn, tags=tags)
     if post:
         obj = post(obj) or obj
     if colliders is not None:
@@ -135,6 +135,7 @@ def conifer_normal(axis):
 
 
 def roots(m, axis, r0, rnd, n=5, mat=0, reach=1.6, depth=0.12):
+    tag0, m.tag = m.tag, P.TAG_ROOT
     ph = rnd.uniform(0, TAU)
     for i in range(n):
         a = ph + TAU * i / n + rnd.uniform(-0.25, 0.25)
@@ -143,6 +144,7 @@ def roots(m, axis, r0, rnd, n=5, mat=0, reach=1.6, depth=0.12):
         p0 = axis(0.0) + d * r0 * 0.4 + UP * r0 * 0.9
         pts = [p0, p0 + d * L * 0.45 - UP * r0 * 0.55, p0 + d * L - UP * (r0 * 0.9 + depth)]
         P.tube(m, pts, [r0 * 0.42, r0 * 0.24, 0.0], sides=5, mat=mat, ao=[0.6, 0.55, 0.5])
+    m.tag = tag0
 
 
 def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, kmax=1.75, sparse=1.0):
@@ -160,6 +162,7 @@ def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, 
     nfn = conifer_normal(axis)
     zs = [0.0, 0.16, 0.5, 1.3, 3.0, z0 + 1.0, H * 0.45, H * 0.62, H * 0.8, H * 0.92, H - 0.2]
     rr = [r0, r0 * 0.93, r0 * 0.85, r0 * 0.8, r0 * 0.75, r0 * 0.68, r0 * 0.5, r0 * 0.36, r0 * 0.2, r0 * 0.09, 0.0]
+    m.tag = P.TAG_TRUNK
     P.tube(m, [axis(z) for z in zs], rr, sides=10, mat=0, rfn=P.flare_fn(6, 0.85, rnd.uniform(0, TAU), rings=2, sharp=3))
     roots(m, axis, r0, rnd, n=6)
 
@@ -177,6 +180,7 @@ def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, 
             L = rnd.uniform(0.3, 1.0) * (0.6 + 0.6 * z / z0)
             d = dirv(az, rnd.uniform(-0.45, -0.1))
             p0 = axis(z)
+            m.tag = P.TAG_TWIG
             P.tube(m, [p0, p0 + d * (r0 + L)], [0.03, 0.012], sides=3, mat=0, ao=0.7)
             if L > 0.55 and rnd.random() < 0.6:
                 P.card(m, A, 'dead', p0 + d * r0, d, P.basis(d), k=L * 1.4, mat=1, ao=0.45, ao_tip=0.6,
@@ -193,10 +197,12 @@ def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, 
             nb += 1
         if t > 0.08 and wi % 2:          # dense dark masses round the trunk: no see-through
             q = axis(z)
+            m.card_keep = True                      # the _mid keeps the inner masses as they are
             for sd in (0.0, math.pi / 2):
                 S0 = Vector((math.cos(wi * 1.3 + sd), math.sin(wi * 1.3 + sd), 0.0))
                 P.card(m, A, 'spruce_c' if kind == 'spruce' else 'fir_c', q - UP * Rz(z) * 0.35, UP, S0,
                        k=clamp(Rz(z) / 1.1, 0.7, 2.6), mat=1, ao=0.3, ao_tip=0.5, normal=nfn)
+            m.card_keep = False
         ph = wi * 2.4 + rnd.uniform(-0.3, 0.3)
         for b in range(nb):
             az = ph + TAU * b / nb + rnd.uniform(-0.25, 0.25)
@@ -216,8 +222,10 @@ def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, 
             path = [base, p1, p2, p3]
             rb = max(0.022, lerp(0.075, 0.03, t) * math.sqrt(L / R))
             if L > 1.1 and t < 0.65:
+                m.tag = P.TAG_LIMB
                 P.tube(m, path, [rb, rb * 0.6, rb * 0.3, 0.0], sides=4 if t < 0.3 else 3, mat=0, ao=0.75)
             elif L > 0.7:
+                m.tag = P.TAG_BRANCH
                 P.tube(m, [path[0], path[2], path[3]], [rb * 0.8, rb * 0.35, 0.0], sides=3, mat=0, ao=0.75)
             a0 = lerp(0.35, 0.7, t)
             kk = clamp(L / 1.5, 0.85, kmax) * rnd.uniform(0.9, 1.08)
@@ -236,17 +244,23 @@ def conifer(name, seed, H, R, z0, r0, kind='spruce', lean=(0.0, 0.0), step=1.0, 
                     rolls = (rnd.uniform(-0.2, 0.2), rnd.choice((-1, 1)) * rnd.uniform(0.55, 0.85))
                 kq = kk * (1.0 if k == 0 else 0.9)
                 start = q - D * (clen * (0.85 if k == 0 else 0.6))
+                m.card_group = ('pair', len(m.cards))           # a crossed pair stays together in the _mid
                 for ri, roll in enumerate(rolls):
+                    m.card_pref = ri == 1                   # the steep one shows from the side: the _mid keeps it
                     S = Quaternion(D, roll) @ P.basis(D)
                     P.card(m, A, rnd.choice(sprays), start, D, S, k=kq * (1.0 if ri == 0 else 0.85), segs=2,
                            droop=0.2 if kind == 'spruce' else 0.05, mat=1, ao=a0 * (0.8 if k else 0.9),
                            ao_tip=lerp(0.8, 1.0, t) * (0.9 if k else 1.0), normal=nfn)
+                m.card_group = None
+                m.card_pref = False
         z += lerp(0.5, 0.36, t) * rnd.uniform(0.9, 1.1) * (1.15 if kind == 'fir' else 1.0) * step * sparse
         wi += 1
     top = axis(H - 1.5)
+    m.card_keep = True
     for sd in (Vector((1, 0, 0)), Vector((0, 1, 0))):
         P.card(m, A, 'spruce_b' if kind == 'spruce' else 'fir_a', top, (axis(H) - top).normalized(), sd, k=1.25,
                mat=1, ao=0.8, ao_tip=1.0, normal=nfn)
+    m.card_keep = False
     coll = [kit.collider_cyl((0, 0, 0), round(r0 * 1.05, 3), round(H * 0.75, 2))]
     return m, coll
 
@@ -266,8 +280,10 @@ def scots_pine(name, seed, H, R, z0, r0, lean=(0.3, 0.2)):
     nfn = P.crown_normal(cen, (R, R, (H - z0) * 0.6), up=0.5)
     zs = [0.0, 0.18, 0.55, 1.5, 3.5, 6.0, 9.0, 12.0, 15.0, H - 2.2, H - 0.6]
     rr = [r0, r0 * 0.92, r0 * 0.85, r0 * 0.8, r0 * 0.75, r0 * 0.68, r0 * 0.6, r0 * 0.5, r0 * 0.36, r0 * 0.2, 0.0]
+    m.tag = P.TAG_TRUNK
     P.tube(m, [axis(z) for z in zs], rr, sides=10, mat=0, rfn=P.flare_fn(5, 0.8, rnd.uniform(0, TAU), rings=2, sharp=3))
     roots(m, axis, r0, rnd, n=5)
+    m.tag = P.TAG_TWIG
     for i in range(9):                       # self-pruned stubs
         z = rnd.uniform(3.0, z0 - 0.3)
         d = dirv(rnd.uniform(0, TAU), rnd.uniform(-0.3, 0.1))
@@ -295,6 +311,7 @@ def scots_pine(name, seed, H, R, z0, r0, lean=(0.3, 0.2)):
         p3 = p2 + (dh * math.cos(0.15) + UP * math.sin(0.15)) * L * 0.25
         path = [base, p1, p2, p3]
         rb = lerp(0.1, 0.05, t)
+        m.tag = P.TAG_LIMB
         P.tube(m, path, [rb, rb * 0.7, rb * 0.45, rb * 0.25], sides=5, mat=0, end='flat', ao=0.75)
         cluster(p3, (p3 - p2).normalized(), 8, 1.5)
         for j in range(6 if t < 0.7 else 4):
@@ -302,6 +319,7 @@ def scots_pine(name, seed, H, R, z0, r0, lean=(0.3, 0.2)):
             sd = P.perp(d, rnd, prefer=UP * 0.5)
             L2 = rnd.uniform(0.7, 1.4) * (1.1 - 0.4 * t)
             e = q + (d * 0.5 + sd * 0.7 + UP * 0.25).normalized() * L2
+            m.tag = P.TAG_BRANCH
             P.tube(m, [q, q.lerp(e, 0.5) + UP * 0.08, e], [rb * 0.45, rb * 0.3, 0.0], sides=3, mat=0, ao=0.7)
             cluster(e, (e - q).normalized(), 6, 1.4)
             cluster(q.lerp(e, 0.5), (e - q).normalized(), 3, 1.2)
@@ -403,12 +421,14 @@ def broadleaf(name, seed, spec, sparse=1.0):
     else:
         trunk.append(F + UP * 0.7)
         tr.append(0.0)
+    m.tag = P.TAG_TRUNK
     P.tube(m, trunk, tr, sides=10, mat=0, rfn=P.flare_fn(5, spec.get('flare', 0.7), rnd.uniform(0, TAU), rings=2,
                                                            sharp=2.5))
     roots(m, lambda z: Vector((0, 0, z)), r0, rnd, n=6 if r0 > 0.35 else 5, reach=1.4)
     if spec.get('ivy'):
         ivy_trunk(m, A, rnd, r0 * 1.12, *spec['ivy'])
     for sg in segs:
+        m.tag = (P.TAG_LIMB, P.TAG_BRANCH)[sg['depth']] if sg['depth'] < 2 else P.TAG_TWIG
         P.tube(m, sg['pts'], sg['radii'], sides=sg['sides'], mat=0, ao=[lerp(0.7, 0.9, i / len(sg['pts']))
                                                                      for i in range(len(sg['pts']))])
     # leaf anchors: along the outer part of every branch, plus the shoot tips
@@ -458,8 +478,10 @@ def broadleaf(name, seed, spec, sparse=1.0):
             D = Quaternion(f, rnd.uniform(-1.2, 1.2)) @ up_t
             kk = spec['card'] * rnd.uniform(1.0, 1.3)
             W_, H_ = A.size(inner_tiles[0])
+            m.card_keep = True                      # inner masses: the _mid keeps them as they are
             P.card(m, A, rnd.choice(inner_tiles), p - D * H_ * kk * 0.5, D, D.cross(f).normalized(), k=kk, segs=1,
                    mat=1, ao=0.38, ao_tip=0.5, normal=nfn)
+            m.card_keep = False
             ncard += 1
             continue
         if hang:
@@ -557,6 +579,7 @@ BEECH_BIG = dict(H=24.0, R=7.5, r0=0.62, fork=5.0, lean=(-0.2, 0.15), bark='bark
 
 def ivy_trunk(m, A, rnd, r, n, height, mat=1):
     """Ivy climbing a trunk: a few vertical strips hugging the bark."""
+    m.card_keep = True
     a0 = rnd.uniform(0, TAU)
     for i in range(n):
         a = a0 + TAU * i / n + rnd.uniform(-0.4, 0.4)
@@ -565,6 +588,7 @@ def ivy_trunk(m, A, rnd, r, n, height, mat=1):
         hh = height * rnd.uniform(0.6, 1.0)
         P.card(m, A, 'ivy_b', out * (r + 0.02) - UP * 0.05, UP, S, k=hh / 3.0, segs=3, mat=mat, ao=0.5,
                ao_tip=0.85, normal=(out + UP * 0.25).normalized())
+    m.card_keep = False
 
 
 # ==========================================================================
@@ -577,6 +601,7 @@ def tree_dead(name, seed=31):
     trunk = [Vector(p) for p in [(0, 0, 0), (0, 0, 0.3), (0.06, 0.04, 1.6), (0.22, 0.08, 3.4),
                                  (0.34, 0.0, 5.2), (0.3, -0.1, 6.6), (0.26, -0.12, 7.4)]]
     radii = [0.36, 0.33, 0.29, 0.25, 0.2, 0.15, 0.13]
+    m.tag = P.TAG_TRUNK
     P.tube(m, trunk, radii, sides=9, rfn=P.flare_fn(4, 0.8, 0.4, rings=2), end='jag', rnd=rnd)
     roots(m, lambda z: Vector((0, 0, z)), 0.36, rnd, n=5, reach=1.2)
     ivy_trunk(m, A, rnd, 0.4, 4, 5.5)                 # ivy smothering the dead trunk
@@ -601,12 +626,14 @@ def tree_dead(name, seed=31):
         grow(rnd, c, dirv(az, math.radians(el)), L, rr * 0.6, 0, spec, segs, tips)
     broken = set(rnd.sample(range(len(segs)), max(2, len(segs) // 4)))
     for i, sg in enumerate(segs):
+        m.tag = (P.TAG_LIMB, P.TAG_BRANCH)[sg['depth']] if sg['depth'] < 2 else P.TAG_TWIG
         if i in broken and sg['depth'] < 2:
             rr = list(sg['radii'])
             rr[-1] = max(rr[-2] * 0.8, 0.02)
             P.tube(m, sg['pts'], rr, sides=sg['sides'], end='jag', rnd=rnd, splinter=False)
         else:
             P.tube(m, sg['pts'], sg['radii'], sides=sg['sides'])
+    m.tag = P.TAG_TWIG
     for z in (1.9, 2.3, 4.0, 4.7, 6.1):
         c, rr = on_trunk(z)
         d = (polar(1.0, rnd.uniform(0, TAU)) + UP * rnd.uniform(0.0, 0.5)).normalized()
@@ -650,8 +677,48 @@ def build_tree(name):
         sp *= 1.0 + max(0.04, min(0.25, (m.tris / tree_budget(name) - 1.0) * 0.9))
     kit.log(f'{name}: {m.tris} tris (foliage x{1 / sp:.2f})')
     big = name in BIG
+    MESHES[name] = m
     return make(m, name, coll, size=1024 if name != 'tree_dead' else 512,
-                scale_islands=weight_islands((6.0 if big else 4.5, 0.4 if big else 0.45)))
+                scale_islands=weight_islands((6.0 if big else 4.5, 0.4 if big else 0.45)), tags=True)
+
+
+# --------------------------------------------------------------------------
+# _mid models (22-55 m): trunk and roots kept exactly (baked UVs), limbs and
+# branches rebuilt with fewer points and sides on a bark swatch of the trunk,
+# fine broadleaf twigs dropped, cards blue-noise thinned to ~45-50 % and
+# enlarged (about area-preserving) as single straight quads.
+
+MESHES = {}
+WOOD = (P.TAG_TRUNK, P.TAG_ROOT)            # kept exactly: baked faces and UVs
+CONIFER_MID = dict(keep=WOOD, rebuild={P.TAG_LIMB: (2, 3), P.TAG_TWIG: (2, 3)}, frac=0.45, pivot=1.0,
+                   pref_scale=1.4, pref_width=1.25, edge_flat=0.8)
+BROADLEAF_MID = dict(keep=WOOD, rebuild={P.TAG_LIMB: (3, 4), P.TAG_BRANCH: (2, 3)}, frac=0.48)
+MID_SPEC = {
+    'pine_a': CONIFER_MID, 'pine_big': CONIFER_MID, 'fir_big': CONIFER_MID,
+    'pine_b': dict(CONIFER_MID, pref_scale=1.35, pref_width=1.2),       # more rim sprays: a little less each
+    'pine_c': dict(keep=WOOD, rebuild={P.TAG_LIMB: (3, 3), P.TAG_BRANCH: (2, 3), P.TAG_TWIG: (2, 3)}, frac=0.43,
+                   pivot=0.9, cover=0.88),
+    'oak_a': BROADLEAF_MID, 'oak_b': BROADLEAF_MID,
+    'birch_a': dict(BROADLEAF_MID, frac=0.56),                           # fine leaves: enlarge less
+    'oak_big': dict(BROADLEAF_MID, rebuild={P.TAG_LIMB: (4, 4), P.TAG_BRANCH: (2, 3)}, cover=0.88),
+    'beech_big': dict(BROADLEAF_MID, rebuild={P.TAG_LIMB: (4, 4), P.TAG_BRANCH: (2, 3)}),
+    'tree_dead': dict(keep=WOOD, rebuild={P.TAG_LIMB: (3, 4), P.TAG_BRANCH: (2, 3), P.TAG_TWIG: (2, 3)}, frac=1.0,
+                      tip=1.0, wood_area=True),
+}
+
+
+def build_mid(name, full):
+    spec = MID_SPEC[name]
+    extra = {k: spec[k] for k in ('pivot', 'pref_scale', 'pref_width', 'cover', 'tip', 'edge_flat', 'wood_area')
+             if k in spec}
+    extra.setdefault('pivot', 0.85)
+    mm, st = P.mid_mesh(full, MESHES[name], set(spec['keep']), spec['frac'], seed=sum(map(ord, name)),
+                        rebuild=spec['rebuild'], **extra)
+    obj = mm.build(name + '_mid')
+    kit.log(f'{name + "_mid":14s} {kit.tri_count(obj):5d} tris ({100 * kit.tri_count(obj) / kit.tri_count(full):.0f} % '
+            f'of {kit.tri_count(full)}): wood {st["wood"]}, cards {st["cards"]}/{st["cards_full"]} x{st.get("scale", 1):.2f}'
+            f', rim {st.get("rim", 0)}')
+    return obj
 
 
 # ==========================================================================
@@ -1286,6 +1353,7 @@ OTHERS = {
 }
 
 BUDGET = dict({t: tree_budget(t) for t in TREES}, **{t + '_lod': 600 for t in TREES})
+BUDGET.update({t + '_mid': int(tree_budget(t) * 0.3) for t in TREES})
 BUDGET.update({'bush_a': 1500, 'bush_b': 1500, 'bramble': 1500, 'hedge': 4500, 'hedge_low': 2700,
                'boulder_a': 2400, 'boulder_b': 2400, 'boulder_c': 2400, 'outcrop': 4500, 'rocks_small': 900,
                'log': 1200, 'log_bridge': 5400, 'stump': 900, 'branches': 150, 'mushrooms': 150})
@@ -1326,7 +1394,7 @@ def collider_summary(obj):
     return '; '.join(parts)
 
 
-NOTES_HEAD = """# Nature set v3 — `assets/models/nature.glb`
+NOTES_HEAD = """# Nature set v4 — `assets/models/nature.glb`
 
 Built by `tools/blender/build_nature.py` (helpers, atlas artwork, surface
 recipes and impostors in `nature_parts.py`); this file is regenerated by the
@@ -1370,14 +1438,32 @@ NOTES_TAIL = """
 * `COLOR_0`: grey occlusion multiplier on cards (crown interior, card
   bases, ground-cover bases); 1.0 on baked parts (occlusion is in the
   texture). Use `vertexColors: true`.
-* **LODs**: `*_lod` = three crossed vertical planes (6 tris) textured from
-  orthographic renders of the finished tree (`nat_impostor` atlas: albedo ×
-  occlusion and a tangent-space normal of the crown). Same origin and
-  footprint as the full tree, no colliders. Swap at ~48–58 m for the normal
-  trees and ~70–90 m for the four big ones (`pine_big`, `fir_big`,
-  `oak_big`, `beech_big`: their silhouettes carry further). Do not yaw LOD
-  instances differently from the full tree they replace (the planes are
-  rendered for the tree's own yaw).
+* **LODs**: three tiers per tree. The full node up to ~22 m (~28 m for the
+  four big trees), its `*_mid` from there to ~52 m, then `*_lod` = three
+  crossed vertical planes (6 tris) textured from orthographic renders of
+  the finished tree (`nat_impostor` atlas: albedo × occlusion and a
+  tangent-space normal of the crown). Same origin and footprint as the full
+  tree; neither `_mid` nor `_lod` has colliders. Do not yaw LOD instances
+  differently from the full tree they replace (the planes are rendered for
+  the tree's own yaw).
+* **`*_mid` models** (v4, for 22–52 m; the big trees from ~28 m): same
+  origin, orientation and scale as the full tree, visual only (no
+  colliders). Trunk and root flare are the full tree's own baked faces
+  (same faces and UVs); limbs and branches are rebuilt as cheap tubes and
+  cones (fewer points and sides, stopping short of the very tip) on a bark
+  swatch of the same baked texture; fine broadleaf twigs are dropped. The
+  cards become single straight quads with the same atlas UVs, crown
+  normals and occlusion. Broadleaf cards are blue-noise thinned to ~45–56 %
+  and enlarged ×1.25–1.4 (area-preserving, 5–12 % under: the thinned cards
+  overlap less; the birch keeps more of its fine-leaved drapes). Conifers keep the steep card of every crossed spray pair
+  (×1.4 along, ×1.25 across) and also the flat one where it sits on the
+  crown rim, which keeps the width and the spiky tiers. Inner masses, the
+  leader and ivy are kept as they are. Materials are shared with the full
+  tree (its baked bark material and the card atlas): no new images. About
+  25–30 % of the full triangles (`tree_dead_mid` ~47 %: it has no cards
+  to thin; its rebuilt branches keep the side-on area of the originals). Checked against the full trees at 30 and 45 m in dusk light,
+  shaded as the game shades (`previews/nature/mid_*.png`): crown coverage
+  and total opacity within ~5 %.
 * **Big trees** (≤ 8000 tris): `pine_big` Norway spruce ~28 m, `fir_big`
   silver fir ~26 m, `oak_big` field oak ~20 m with a ~18 m crown and ivy,
   `beech_big` ~24 m. Trunk-cylinder colliders like the others.
@@ -1539,6 +1625,12 @@ def build_all():
     for name in TREES:
         lm = IMP.lod_mesh(name)
         objs[name + '_lod'] = lm.build(name + '_lod')
+    for name in TREES:
+        objs[name + '_mid'] = build_mid(name, objs[name])
+    for name in TREES:                        # the part tags were only for the _mid models
+        at = objs[name].data.attributes.get('nat_tag')
+        if at:
+            objs[name].data.attributes.remove(at)
     for name, fn in OTHERS.items():
         t = time.time()
         objs[name] = fn(name)
@@ -1549,7 +1641,7 @@ def build_all():
     return objs
 
 
-ORDER = [n for t in TREES for n in (t, t + '_lod')] + list(OTHERS) + list(FAR_SPECS) + ['hill_trees_lod']
+ORDER = [n for t in TREES for n in (t, t + '_lod', t + '_mid')] + list(OTHERS) + list(FAR_SPECS) + ['hill_trees_lod']
 
 
 def scene_previews(by):
@@ -1618,6 +1710,52 @@ def scene_previews(by):
         kit.delete(o)
 
 
+def scene_tiers(by, out=None):
+    """A forest at eye height rendered twice in dusk light: every tree full,
+    then as the game draws it (full to 22 m, 27.5 m for the big ones; _mid
+    to 52 m; _lod beyond), side by side."""
+    rnd = random.Random(23)
+    kinds = ['pine_a', 'pine_a', 'pine_b', 'pine_c', 'oak_a', 'oak_b', 'birch_a', 'pine_big', 'fir_big', 'oak_big',
+             'beech_big', 'tree_dead', 'pine_b', 'oak_b']
+    spots = []
+    for gy in range(14):
+        for gx in range(-5, 6):
+            x = gx * 8.5 + rnd.uniform(-3.0, 3.0)
+            y = 6.0 + gy * 9.0 + rnd.uniform(-3.0, 3.0)
+            if abs(x) < 5.0 and y < 30.0:          # keep a view down the middle
+                continue
+            spots.append((rnd.choice(kinds), x, y, rnd.uniform(0, TAU), rnd.uniform(0.9, 1.1)))
+    cam = Vector((0.0, -2.0, 1.7))
+    full, tiered = [], []
+    for name, x, y, yaw, sc in spots:
+        d = (Vector((x, y, 1.7)) - cam).length
+        near = 22.0 * (1.25 if name in BIG else 1.0)
+        tier = name if d < near else (name + '_mid' if d < 52.0 else name + '_lod')
+        for lst, nm in ((full, name), (tiered, tier)):
+            o = by[nm].copy()
+            o.location = (x, y, 0.0)
+            o.rotation_euler = (0, 0, yaw)
+            o.scale = (sc, sc, sc)
+            kit.link(o)
+            lst.append(o)
+    out = out or os.path.join(PREV, '_scene_mid_tiers.png')
+    a = P.render_dusk(full, out.replace('.png', '_full.png'), cam, (0.0, 60.0, 7.0), lens=30, size=(1024, 640),
+                      samples=20, floor=300.0)
+    b = P.render_dusk(tiered, out.replace('.png', '_tiers.png'), cam, (0.0, 60.0, 7.0), lens=30, size=(1024, 640),
+                      samples=20, floor=300.0)
+    P.side_by_side([a, b], out)
+    for o in full + tiered:
+        kit.delete(o)
+    kit.log('preview', os.path.relpath(out, kit.ROOT))
+
+
+def mid_previews(objs):
+    for t in TREES:
+        P.compare_mid(objs[t], objs[t + '_mid'], os.path.join(PREV, 'mid_' + t))
+        kit.log('preview', f'mid_{t}_30m/45m')
+    scene_tiers(objs)
+
+
 def fix_alpha():
     """Run tools/fix_card_alpha.py on the exported GLB (system python3 with
     Pillow): refills the colour under transparent and fringe texels of every
@@ -1655,8 +1793,14 @@ def main():
     if '--no-previews' in flags:
         return
     P.preview_cards(order)
+    if '--mid-previews' in flags:              # only the full-vs-mid comparisons and the tier scene
+        mid_previews(objs)
+        kit.log(f'total {time.time() - T0:.0f}s')
+        return
     names = wanted or ORDER
     for n in names:
+        if n.endswith('_mid'):
+            continue
         o = objs[n]
         tree = n in TREES or n.endswith('_lod')
         P.preview([o], os.path.join(PREV, n + '.png'), size=768, samples=20, elevation=8 if tree else 20)
@@ -1668,6 +1812,7 @@ def main():
                       target=(0.0, 0.0, 2.6), lens=28)
     if '--scenes' in flags or not wanted:
         scene_previews(objs)
+        mid_previews(objs)
     kit.log(f'total {time.time() - T0:.0f}s')
 
 

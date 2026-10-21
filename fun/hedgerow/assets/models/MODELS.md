@@ -9,8 +9,8 @@ headless Blender 5.3 on the CPU (Cycles bakes, no GPU needed).
 |---|---|---|---|
 | `village.glb` | `build_village.py` | 42 nodes: 7 houses (three with shell holes through a wall), barn, two ruins, church, walls, fences, bridge, street furniture, rubble, graves, ivy | 20.3 MB |
 | `military.glb` | `build_military.py` | 42 nodes: sandbags (some split and spilling sand), MG nest, bunker, trench pieces, wire, vehicles and wrecks (dented, mud-caked, rust-streaked), Flak 38, PaK 40, stencilled crates, signs, camouflage net | 17.3 MB |
-| `nature.glb` | `build_nature.py` | 48 nodes: spruce, fir, Scots pine, oak, beech, birch, mature 21–28 m spruce, fir, oak and beech (+ far LODs), two horizon treelines and a hill copse, hedgerows, bushes, ground cover, rocks, logs | 13.4 MB |
-| `soldier.glb` | `build_soldier.py` | the rig (20 bones), US and German outfits with three face morph targets (`face_broad`, `face_gaunt`, `face_older`), 17 animation clips (rifle and SMG reloads with their event frames) | 6.3 MB |
+| `nature.glb` | `build_nature.py` | 59 nodes: spruce, fir, Scots pine, oak, beech, birch, mature 21–28 m spruce, fir, oak and beech (each tree + `_mid` for 22–52 m + far `_lod`), two horizon treelines and a hill copse, hedgerows, bushes, ground cover, rocks, logs | 14.7 MB |
+| `soldier.glb` | `build_soldier.py` | the rig (20 bones), US and German outfits with three face morph targets (`face_broad`, `face_gaunt`, `face_older`) and a ~5.8k-tri distance LOD each (`allied_lod`, `axis_lod`: same skin and material), 17 animation clips (rifle and SMG reloads with their event frames) | 7.3 MB |
 | `weapons.glb` | `build_soldier.py` | M1 Garand, Thompson, Kar98k, MP 40, MG 42, two grenades, the clips and magazines used in reloads | 2.1 MB |
 
     /Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup \

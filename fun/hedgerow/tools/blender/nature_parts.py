@@ -72,6 +72,14 @@ class Mesh:
         self.ao = []
         self.nh = []             # per-vertex normal hint: (centre, radii, blend) or None
         self.faces = []          # (indices, material slot, uv per corner or None, smooth)
+        # part tags (TAG_*) per face and a record of every card, for the _mid models
+        self.tag = 0
+        self.ftag = []
+        self.cards = []
+        self.card_group = None   # cards sharing a group are kept or dropped together
+        self.card_keep = False   # cards that every _mid keeps as they are (ivy)
+        self.card_pref = False   # in a group with a preferred card the _mid keeps just that one
+        self.tubes = []          # every swept tube (path, radii, tag) for rebuilt _mid branches
 
     def v(self, co, ao=1.0, nh=None):
         self.co.append(Vector(co))
@@ -84,6 +92,7 @@ class Mesh:
         if len(set(idx)) < len(idx):
             return
         self.faces.append((idx, mat, uv, smooth))
+        self.ftag.append(self.tag)
 
     @property
     def tris(self):
@@ -107,10 +116,13 @@ class Mesh:
         zs = [c.z for c in self.co]
         return Vector((min(xs), min(ys), min(zs))), Vector((max(xs), max(ys), max(zs)))
 
-    def build(self, name, color_fn=None, uv_scale=1.0, uv_seed=None, lo=0.05):
+    def build(self, name, color_fn=None, uv_scale=1.0, uv_seed=None, lo=0.05, tags=False):
         me = bpy.data.meshes.new(name)
         me.from_pydata([tuple(c) for c in self.co], [], [f[0] for f in self.faces])
         me.update()
+        if tags:                              # part tags travel through the bake (removed before export)
+            at = me.attributes.new('nat_tag', 'INT', 'FACE')
+            at.data.foreach_set('value', self.ftag)
         obj = kit.link(bpy.data.objects.new(name, me))
         for key in self.mats:
             if isinstance(key, bpy.types.Material):
@@ -250,6 +262,8 @@ def tube(m, pts, radii, sides=6, mat=0, ao=1.0, rfn=None, phase=0.0, start=None,
     pts = [Vector(p) for p in pts]
     if not hasattr(radii, '__len__'):
         radii = [radii] * len(pts)
+    if hasattr(m, 'tubes'):
+        m.tubes.append(dict(pts=[p.copy() for p in pts], radii=list(radii), tag=m.tag, sides=sides))
     rnd = rnd or random.Random(len(pts) * 31 + sides)
     cap_mat = mat if cap_mat is None else cap_mat
     fr = frames(pts)
@@ -1367,6 +1381,8 @@ def card(m, atlas, key, P, D, S, k=1.0, segs=1, droop=0.0, fold=0.0, mat=0, ao=1
     D = Vector(D).normalized()
     S = Vector(S)
     S = (S - D * S.dot(D)).normalized()
+    tag0 = m.tag
+    m.tag = 0
     x0, x1 = -pvx * W, (1 - pvx) * W
     y0, y1 = -pvy * H, (1 - pvy) * H
     cols = [x0, 0.0, x1] if fold else [x0, x1]
@@ -1396,6 +1412,11 @@ def card(m, atlas, key, P, D, S, k=1.0, segs=1, droop=0.0, fold=0.0, mat=0, ao=1
             a, b = rows[j][i], rows[j][i + 1]
             c, e = rows[j + 1][i + 1], rows[j + 1][i]
             m.f((a[0], b[0], c[0], e[0]), mat, (a[1], b[1], c[1], e[1]), smooth=False)
+    # the outline of the card (base left/right, tip right/left) for the _mid models
+    grp = m.card_group if m.card_group is not None else ('c', len(m.cards))
+    m.cards.append(dict(corners=(rows[0][0], rows[0][-1], rows[-1][-1], rows[-1][0]), mat=mat, group=grp,
+                        keep=m.card_keep, pref=m.card_pref))
+    m.tag = tag0
     return 2 * (len(m.faces) - n0)
 
 
@@ -3003,3 +3024,426 @@ def art_ivy_climb(tm, rnd, W, H):
                 continue
             ivy_leaf(tm, pet, a, sz, _leafcol(rnd, rnd.choice(['#1e321a', '#26381c', '#2e4220']), spread=0.18,
                                              hue=0.05), rnd, z)
+
+
+
+# ==========================================================================
+# _mid models: the full tree thinned for 22-55 m
+
+TAG_TRUNK, TAG_ROOT, TAG_LIMB, TAG_BRANCH, TAG_TWIG = 1, 2, 3, 4, 5
+TAG_NAMES = {0: 'other', 1: 'trunk', 2: 'root', 3: 'limb', 4: 'branch', 5: 'twig'}
+
+
+def thin_groups(groups, frac, seed):
+    """Blue-noise thinning: keep about `frac` of the cards (counted per group)
+    spread evenly through the crown. groups: [(centre, ncards)]. Returns the
+    kept group indices (sorted)."""
+    total = sum(n for _, n in groups)
+    target = frac * total
+    order = list(range(len(groups)))
+    random.Random(seed).shuffle(order)
+
+    def run(d):
+        cell = {}
+        kept, cnt = [], 0
+        d2 = d * d
+        for gi in order:
+            c, n = groups[gi]
+            key = (int(math.floor(c.x / d)), int(math.floor(c.y / d)), int(math.floor(c.z / d)))
+            ok = True
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        for q in cell.get((key[0] + dx, key[1] + dy, key[2] + dz), ()):
+                            if (q - c).length_squared < d2:
+                                ok = False
+                                break
+                        if not ok:
+                            break
+                    if not ok:
+                        break
+                if not ok:
+                    break
+            if ok:
+                cell.setdefault(key, []).append(c)
+                kept.append(gi)
+                cnt += n
+        return kept, cnt
+    lo, hi = 0.01, 6.0
+    best = None
+    for _ in range(26):
+        mid = (lo + hi) / 2
+        kept, cnt = run(mid)
+        if best is None or abs(cnt - target) < abs(best[1] - target):
+            best = (kept, cnt)
+        if cnt > target:
+            lo = mid
+        else:
+            hi = mid
+    return sorted(best[0])
+
+
+def _swatch(full_obj, bark_slots, tagv):
+    """Atlas UVs of one big trunk quad (2-6 m up): the bark the rebuilt
+    _mid branches are mapped onto."""
+    me = full_obj.data
+    uvl = me.uv_layers['UVMap'].data
+    best = None
+    for poly in me.polygons:
+        if poly.material_index not in bark_slots or tagv[poly.index] != TAG_TRUNK or len(poly.loop_indices) != 4:
+            continue
+        z = poly.center.z
+        if not 2.0 < z < 6.0:
+            continue
+        if best is None or poly.area > best.area:
+            best = poly
+    if best is None:
+        return ((0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01))
+    return tuple(tuple(uvl[li].uv) for li in best.loop_indices)
+
+
+def _swatch_tube(out, pts, radii, sides, uvq, slot=0):
+    """A plain tube along pts (radius 0 = a point), every face mapped onto
+    the bark swatch uvq."""
+    fr = frames(pts)
+    rings = []
+    for k, (p, (t, n, b)) in enumerate(zip(pts, fr)):
+        r = radii[k]
+        if r <= 1e-5:
+            rings.append(out.v(p, 1.0))
+            continue
+        rings.append([out.v(p + (n * math.cos(TAU * i / sides) + b * math.sin(TAU * i / sides)) * r, 1.0)
+                      for i in range(sides)])
+    tip_uv = ((uvq[2][0] + uvq[3][0]) / 2, (uvq[2][1] + uvq[3][1]) / 2)
+    for k in range(len(rings) - 1):
+        A, B = rings[k], rings[k + 1]
+        if isinstance(A, int):
+            continue
+        for i in range(sides):
+            j = (i + 1) % sides
+            if isinstance(B, int):
+                out.f((A[i], A[j], B), slot, (uvq[0], uvq[1], tip_uv), smooth=True)
+            else:
+                out.f((A[i], A[j], B[j], B[i]), slot, uvq, smooth=True)
+
+
+def _arc_sample(pts, radii, n, upto=1.0):
+    """n points (and radii) evenly spaced by arc length along the polyline
+    pts, from its start to `upto` of its length."""
+    cum = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        cum.append(cum[-1] + (b - a).length)
+    total = cum[-1] * upto
+    out_p, out_r = [], []
+    j = 0
+    for i in range(n):
+        d = total * i / (n - 1)
+        while j < len(cum) - 2 and cum[j + 1] < d:
+            j += 1
+        seg = max(1e-9, cum[j + 1] - cum[j])
+        t = min(1.0, max(0.0, (d - cum[j]) / seg))
+        out_p.append(pts[j].lerp(pts[j + 1], t))
+        out_r.append(radii[j] + (radii[j + 1] - radii[j]) * t)
+    return out_p, out_r
+
+
+def mid_mesh(full_obj, m, keep_tags, frac, seed, scale=None, pivot=0.7, scale_clamp=(1.25, 1.6), rebuild=None,
+             pref_scale=1.45, pref_width=None, cover=0.95, tip=0.88, edge_flat=None, wood_area=False):
+    """The _mid model of a tree: the baked bark faces of `full_obj` whose
+    part tag is in keep_tags (positions, baked atlas UVs and smooth flags
+    as they are), plus about `frac` of the cards of `m` - blue-noise
+    thinned per card group, each turned into a single straight quad (two
+    triangles) and enlarged about a point `pivot` of the way up the card so
+    the crown keeps its coverage (area-preserving, times `cover`: the
+    thinned cards overlap less than the clustered full set), same atlas
+    UVs, crown normals and occlusion. Rebuilt branches are resampled by arc
+    length and stop at `tip` of their length (a straight cone to the very
+    tip pokes out of the foliage). The preferred card of a crossed pair is
+    scaled pref_scale along its length and pref_width across it; with
+    edge_flat, the other card of the pair is kept too where its tip lies
+    beyond edge_flat of the crown radius at that height (the flat sprays at
+    the rim give the crown its width and its spiky tiers from the side).
+    wood_area: the rebuilt branches are thickened to the side-on area of
+    the originals (for bare trees, whose branches are the silhouette).
+    Returns (Mesh, stats)."""
+    me = full_obj.data
+    card_mat = next(s.material for s in full_obj.material_slots if s.material and s.material.get('card'))
+    bark_slots = [i for i, s in enumerate(full_obj.material_slots) if s.material and not s.material.get('card')]
+    bark_mat = full_obj.material_slots[bark_slots[0]].material if bark_slots else None
+    mats = ([bark_mat] if bark_mat else []) + [card_mat]
+    out = Mesh(mats)
+    cslot = len(mats) - 1
+    stats = dict(wood=0, cards_full=len(m.cards), cards=0)
+    if bark_mat is not None:
+        tags = me.attributes.get('nat_tag')
+        tagv = [0] * len(me.polygons)
+        if tags:
+            tags.data.foreach_get('value', tagv)
+        uvl = me.uv_layers['UVMap'].data
+        vmap = {}
+        for poly in me.polygons:
+            if poly.material_index not in bark_slots or tagv[poly.index] not in keep_tags:
+                continue
+            ids, uvs = [], []
+            for li in poly.loop_indices:
+                vi = me.loops[li].vertex_index
+                if vi not in vmap:
+                    vmap[vi] = out.v(me.vertices[vi].co.copy(), 1.0)
+                ids.append(vmap[vi])
+                uvs.append(tuple(uvl[li].uv))
+            out.f(ids, 0, tuple(uvs), smooth=poly.use_smooth)
+        # thinner branches rebuilt cheap (fewer points and sides), on a bark swatch of the trunk
+        if rebuild:
+            uvq = _swatch(full_obj, bark_slots, tagv)
+            for tb in m.tubes:
+                spec = rebuild.get(tb['tag'])
+                if not spec:
+                    continue
+                npts, sides = spec
+                pts, rad = tb['pts'], tb['radii']
+                n = len(pts)
+                if n < 2:
+                    continue
+                pp, rr = _arc_sample(pts, rad, npts, tip)
+                rr[-1] = 0.0
+                if wood_area:
+                    a0 = sum((rad[i] + rad[i + 1]) * (pts[i + 1] - pts[i]).length for i in range(n - 1))
+                    a1 = sum((rr[i] + rr[i + 1]) * (pp[i + 1] - pp[i]).length for i in range(npts - 1))
+                    k = min(1.6, a0 / max(a1, 1e-9))
+                    rr = [r * k for r in rr]
+                _swatch_tube(out, pp, rr, sides, uvq)
+        stats['wood'] = out.tris
+    # cards: groups -> centre and count
+    gidx, groups = {}, []
+    for ci, c in enumerate(m.cards):
+        g = c['group']
+        if g not in gidx:
+            gidx[g] = len(groups)
+            groups.append([Vector(), 0, [], c['keep']])
+        e = groups[gidx[g]]
+        cen = sum((m.co[k[0]] for k in c['corners']), Vector()) / 4
+        e[0] += cen
+        e[1] += 1
+        e[2].append(ci)
+    # groups with a preferred card (crossed conifer pairs): every branch keeps its
+    # preferred card, enlarged; they take no part in the thinning
+    pref_groups = set(i for i, e in enumerate(groups) if not e[3] and any(m.cards[ci].get('pref') for ci in e[2]))
+    free = [(e[0] / e[1], e[1]) for i, e in enumerate(groups) if not e[3] and i not in pref_groups]
+    free_ids = [i for i, e in enumerate(groups) if not e[3] and i not in pref_groups]
+    kept_free = thin_groups(free, frac, seed)
+    keep_groups = set(free_ids[i] for i in kept_free) | set(i for i, e in enumerate(groups) if e[3]) | pref_groups
+    # rim test for the flat card of a crossed pair: tip radius against the crown radius at that height
+    rim = set()
+    if edge_flat and pref_groups:
+        def tip_of(c):
+            q = [m.co[k[0]] for k in c['corners']]
+            return (q[2] + q[3]) / 2
+        tips = [(gi, ci, tip_of(m.cards[ci])) for gi in pref_groups for ci in groups[gi][2]]
+        zs = [t.z for _, _, t in tips]
+        z0, z1 = min(zs), max(zs) + 1e-6
+        nb = 14
+        band = lambda z: min(nb - 1, int((z - z0) / (z1 - z0) * nb))
+        R = [0.0] * nb
+        for _, _, t in tips:
+            R[band(t.z)] = max(R[band(t.z)], math.hypot(t.x, t.y))
+        R = [max(R[max(0, i - 1):i + 2]) for i in range(nb)]
+        for gi, ci, t in tips:
+            if not m.cards[ci].get('pref') and math.hypot(t.x, t.y) >= edge_flat * R[band(t.z)]:
+                rim.add(ci)
+    stats['rim'] = len(rim)
+    n_free = sum(groups[i][1] for i in free_ids)
+    n_kept_free = sum(groups[i][1] for i in keep_groups if i in set(free_ids))
+    s_ = scale or math.sqrt(n_free / max(1, n_kept_free)) * cover
+    s_ = max(scale_clamp[0], min(scale_clamp[1], s_))
+    stats['scale'] = s_
+    for gi in sorted(keep_groups):
+        e = groups[gi]
+        sc = 1.0 if e[3] else (pref_scale if gi in pref_groups else s_)
+        sw = pref_width if (gi in pref_groups and pref_width) else sc
+        for ci in e[2]:
+            c = m.cards[ci]
+            if gi in pref_groups and not c.get('pref') and ci not in rim:
+                continue
+            vids = [k[0] for k in c['corners']]
+            uvs = tuple(k[1] for k in c['corners'])
+            P = [m.co[v] for v in vids]
+            base, top = (P[0] + P[1]) / 2, (P[2] + P[3]) / 2
+            pv = base.lerp(top, pivot)
+            ax = (top - base).normalized()
+
+            def grow(p):
+                d = p - pv
+                a = ax * d.dot(ax)
+                return pv + a * sc + (d - a) * sw
+            ids = [out.v(grow(p), m.ao[v], m.nh[v]) for p, v in zip(P, vids)]
+            out.f(ids, cslot, uvs, smooth=False)
+            stats['cards'] += 1
+    return out, stats
+
+
+def tag_tris(m):
+    """Triangles per part tag (cards counted under 'cards')."""
+    card_mats = {c['mat'] for c in m.cards}
+    out = {}
+    for (idx, mat, uv, sm), t in zip(m.faces, m.ftag):
+        k = 'cards' if (mat in card_mats and t == 0) else TAG_NAMES.get(t, str(t))
+        out[k] = out.get(k, 0) + len(idx) - 2
+    return out
+
+
+# --------------------------------------------------------------------------
+# Dusk comparison renders (full vs _mid at a distance)
+
+def _game_card_normals(objects):
+    """Shade the cards as the game does: the back with the front normal (the
+    game drops the faceDirection flip; Cycles flips it), the colour times
+    the COLOR_0 occlusion, and no ray-traced shadows or occlusion between
+    the parts (the game has neither). Returns an undo fn."""
+    undo = []
+    seen = set()
+    vis = [(o, o.visible_shadow, o.visible_diffuse) for o in objects]
+    for o in objects:
+        o.visible_shadow = False
+        o.visible_diffuse = False
+    for o in objects:
+        for sl in o.material_slots:
+            mat = sl.material
+            if not mat or not mat.get('card') or mat.name in seen:
+                continue
+            seen.add(mat.name)
+            nt = mat.node_tree
+            bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+            ln = next((l for l in nt.links if l.to_socket == bsdf.inputs['Normal']), None)
+            if ln is None:
+                continue
+            src = ln.from_socket
+            geo = nt.nodes.new('ShaderNodeNewGeometry')
+            neg = nt.nodes.new('ShaderNodeVectorMath')
+            neg.operation = 'SCALE'
+            neg.inputs['Scale'].default_value = -1.0
+            nt.links.new(src, neg.inputs[0])
+            mix = nt.nodes.new('ShaderNodeMix')
+            mix.data_type = 'VECTOR'
+            nt.links.new(geo.outputs['Backfacing'], mix.inputs['Factor'])
+            nt.links.new(src, mix.inputs[4])
+            nt.links.new(neg.outputs['Vector'], mix.inputs[5])
+            nt.links.new(mix.outputs[1], bsdf.inputs['Normal'])
+            lc = next(l for l in nt.links if l.to_socket == bsdf.inputs['Base Color'])
+            csrc = lc.from_socket
+            va = nt.nodes.new('ShaderNodeVertexColor')
+            va.layer_name = 'Color'
+            mul = nt.nodes.new('ShaderNodeMix')
+            mul.data_type = 'RGBA'
+            mul.blend_type = 'MULTIPLY'
+            mul.inputs['Factor'].default_value = 1.0
+            nt.links.new(csrc, mul.inputs[6])
+            nt.links.new(va.outputs['Color'], mul.inputs[7])
+            nt.links.new(mul.outputs[2], bsdf.inputs['Base Color'])
+            undo.append((nt, src, csrc, bsdf, (geo, neg, mix, va, mul)))
+
+    def restore():
+        for nt, src, csrc, bsdf, nodes in undo:
+            for n in nodes:
+                nt.nodes.remove(n)
+            nt.links.new(src, bsdf.inputs['Normal'])
+            nt.links.new(csrc, bsdf.inputs['Base Color'])
+        for o, a, b in vis:
+            o.visible_shadow, o.visible_diffuse = a, b
+    return restore
+
+
+def render_dusk(objects, path, cam, target, lens=54.0, size=(768, 768), samples=16, floor=80.0):
+    """A still in dim dusk light (low warm sun, cool dim sky) at roughly the
+    game's angular resolution (~21 px per degree at lens 54, 768 px),
+    shaded as the game does (see _game_card_normals)."""
+    scene = bpy.context.scene
+    restore = _game_card_normals(objects)
+    keep = set(objects)
+    hidden = []
+    for o in scene.objects:
+        if o.type == 'MESH' and o not in keep and not o.hide_render:
+            o.hide_render = True
+            hidden.append(o)
+    cd = bpy.data.cameras.new('dusk_cam')
+    cd.lens = lens
+    cd.clip_end = 3000.0
+    cam_o = kit.link(bpy.data.objects.new('dusk_cam', cd))
+    cam_o.location = cam
+    cam_o.rotation_euler = (Vector(target) - Vector(cam)).to_track_quat('-Z', 'Y').to_euler()
+    scene.camera = cam_o
+    sd = bpy.data.lights.new('dusk_sun', 'SUN')
+    sd.energy = 1.6
+    sd.color = (1.0, 0.72, 0.52)
+    sd.angle = math.radians(3)
+    sun = kit.link(bpy.data.objects.new('dusk_sun', sd))
+    sun.rotation_euler = (math.radians(82), 0.0, math.radians(-125))
+    fl = kit.plane(floor * 2, floor * 2, loc=(target[0], target[1], -0.002), mat='dirt', name='dusk_floor')
+    world = bpy.data.worlds.get('dusk') or bpy.data.worlds.new('dusk')
+    world.use_nodes = True
+    bg = world.node_tree.nodes.get('Background')
+    bg.inputs['Color'].default_value = (0.2, 0.23, 0.3, 1)
+    bg.inputs['Strength'].default_value = 0.55
+    scene.world = world
+    scene.render.resolution_x, scene.render.resolution_y = size
+    scene.render.resolution_percentage = 100
+    scene.render.film_transparent = False
+    scene.cycles.samples = samples
+    scene.cycles.transparent_max_bounces = 64
+    scene.cycles.max_bounces = 4
+    scene.cycles.use_denoising = True
+    scene.view_settings.view_transform = 'AgX'
+    scene.render.filepath = path
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.image_settings.color_mode = 'RGB'
+    bpy.ops.render.render(write_still=True)
+    restore()
+    scene.cycles.use_denoising = False
+    kit.delete(cam_o)
+    kit.delete(sun)
+    kit.delete(fl)
+    for o in hidden:
+        o.hide_render = False
+    return path
+
+
+def side_by_side(paths, out, labels_px=0):
+    """Join PNGs left to right into one image."""
+    import bake
+    imgs = [bpy.data.images.load(p) for p in paths]
+    arrs = [bake.pixels(i)[..., :4] for i in imgs]
+    h = max(a.shape[0] for a in arrs)
+    gap = np.zeros((h, 6, 4), np.float32)
+    gap[..., 3] = 1.0
+    row = []
+    for k, a in enumerate(arrs):
+        if a.shape[0] < h:
+            a = np.concatenate([np.zeros((h - a.shape[0],) + a.shape[1:], np.float32), a], 0)
+        row.append(a)
+        if k < len(arrs) - 1:
+            row.append(gap)
+    full = np.concatenate(row, 1)
+    img = bpy.data.images.new('sbs', full.shape[1], full.shape[0])
+    img.pixels.foreach_set(np.ascontiguousarray(full).ravel())
+    img.filepath_raw = out
+    img.file_format = 'PNG'
+    img.save()
+    for i in imgs + [img]:
+        bpy.data.images.remove(i)
+    for p in paths:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    return out
+
+
+def compare_mid(full, mid, out_prefix, dists=(30.0, 45.0), size=(768, 768), samples=16):
+    """full | mid at each distance, same camera, eye height 1.7 m."""
+    mn, mx = kit.bounds(full)
+    hgt = mx.z
+    for d in dists:
+        cam = (0.0, -d, 1.7)
+        target = (0.0, 0.0, hgt * 0.48)
+        a = render_dusk([full], out_prefix + f'_{int(d)}m_full.png', cam, target, size=size, samples=samples)
+        b = render_dusk([mid], out_prefix + f'_{int(d)}m_mid.png', cam, target, size=size, samples=samples)
+        side_by_side([a, b], out_prefix + f'_{int(d)}m.png')

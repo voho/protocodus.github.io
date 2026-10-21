@@ -109,6 +109,11 @@ export function mergedSoldier(gltf, matlib) {
 
 const ONE_SHOT = new Set(['reload', 'throw', 'hit', 'death_fwd', 'death_back', 'death_crumple']);
 
+/* Beyond LOD_FAR metres a soldier is drawn with his outfit's low-detail mesh
+   (`<outfit>_lod` in the rig, same skin and material, no face shapes), back
+   to the full one inside LOD_NEAR (the gap keeps it from flickering). */
+export const LOD_FAR = 30, LOD_NEAR = 26;
+
 /* A face for one soldier: the head's shape keys (morph targets in the rig)
    blended, from gaunt to broad, and some years older. The build is pushed
    away from the middle (square root) so most men are clearly one or the
@@ -143,7 +148,7 @@ function createStandIn(matlib, { outfit, scene }) {
   return {
     root, bones: {}, mixer: { time: 0 }, socket: null, meshes: [body, head, helmet, gun], shadow,
     get weapon() { return gun; }, get dead() { return dead; }, get upper() { return 'idle'; },
-    aimPitch: 0, setWeapon() {}, holdLeft() {}, releaseLeft() {}, clipLength: () => null, hasClip: () => false, socketL: null,
+    aimPitch: 0, setWeapon() {}, holdLeft() {}, releaseLeft() {}, setDistance() {}, far: false, clipLength: () => null, hasClip: () => false, socketL: null,
     animate(move) { crouch = move.startsWith('crouch') ? 1 : 0; },
     oneShot() { return 0.5; },
     die() { dead = true; },
@@ -185,6 +190,19 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   const drop = [];
   root.traverse((o) => { if ((o.isMesh || o.isSkinnedMesh) && !o.visible) drop.push(o); });
   for (const o of drop) o.parent.remove(o);
+  // the low-detail stand-in for distance, hidden until setDistance() asks for it
+  const lodMeshes = meshes.filter((m) => /_lod$/.test(m.name));
+  const fullMeshes = meshes.filter((m) => !/_lod$/.test(m.name));
+  for (const m of lodMeshes) m.visible = false;
+  let far = false;
+  function setDistance(d) {
+    if (!lodMeshes.length) return;
+    const f = far ? d > LOD_NEAR : d > LOD_FAR;
+    if (f === far) return;
+    far = f;
+    for (const m of fullMeshes) m.visible = !far;
+    for (const m of lodMeshes) m.visible = far;
+  }
   // this soldier's face (each clone has its own morph weights; a rig without the keys ignores it)
   if (face) for (const m of meshes) {
     const dict = m.morphTargetDictionary;
@@ -286,6 +304,9 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     setWeapon,
     holdLeft,
     releaseLeft,
+    /* distance from the camera: picks the full or the low-detail mesh */
+    setDistance,
+    get far() { return far; },
     /* the clip's length in seconds (null when the rig lacks it) */
     clipLength(name) { return clips.full[name] ? clips.full[name].duration : null; },
     hasClip(name) { return !!clips.full[name]; },

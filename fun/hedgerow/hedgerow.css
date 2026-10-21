@@ -1,9 +1,22 @@
-/* Hedgerow — screens and HUD. Space Grotesk (site font, OFL) for the
-   interface, the system's typewriter face for orders and briefings. */
+/* Hedgerow — screens and HUD, all set on the typewriter: Courier Prime
+   (OFL) for every word of the interface, Special Elite (Apache 2.0), a worn
+   field typewriter, for the wordmark and the headings. */
 @font-face {
-  font-family: 'Space Grotesk';
-  src: url('/assets/fonts/space-grotesk-latin.woff2') format('woff2');
-  font-weight: 300 700;
+  font-family: 'Courier Prime';
+  src: url('./assets/fonts/courier-prime-latin-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  src: url('./assets/fonts/courier-prime-latin-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Special Elite';
+  src: url('./assets/fonts/special-elite-latin.woff2') format('woff2');
+  font-weight: 400;
   font-display: swap;
 }
 
@@ -20,7 +33,8 @@
   --red: #e0442f;
   --green: #9fc46a;
   --night: #0b0d10;
-  --type: 'American Typewriter', 'Courier Prime', 'Courier New', ui-monospace, monospace;
+  --type: 'Courier Prime', 'American Typewriter', 'Courier New', ui-monospace, monospace;
+  --stamp: 'Special Elite', 'Courier Prime', 'American Typewriter', 'Courier New', monospace;
   color-scheme: dark;
 }
 
@@ -33,7 +47,7 @@ html, body {
   overflow: hidden;
   background: var(--night);
   color: var(--ink);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--type);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -73,6 +87,7 @@ body.playing, body.playing #stage { cursor: none; }
   border-radius: 4px;
   backdrop-filter: blur(6px);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  text-align: center;
 }
 .title-panel { text-align: center; background: transparent; border: none; box-shadow: none; backdrop-filter: none; }
 
@@ -82,12 +97,12 @@ body.playing, body.playing #stage { cursor: none; }
 }
 .wordmark {
   margin: 0;
-  font-size: clamp(44px, 10vw, 92px); font-weight: 700; letter-spacing: 0.16em;
+  font-family: var(--stamp); font-size: clamp(44px, 10vw, 92px); font-weight: 400; letter-spacing: 0.12em;
   color: var(--ink);
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
 }
 .subtitle { margin: 4px 0 28px; font-family: var(--type); font-size: 18px; color: var(--muted); }
-h2 { margin: 0 0 14px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em; }
+h2 { margin: 0 0 14px; font-family: var(--stamp); font-size: 30px; font-weight: 400; letter-spacing: 0.04em; }
 
 .loading { width: min(320px, 100%); margin: 0 auto; }
 .loading-track { height: 3px; background: var(--line); overflow: hidden; }
@@ -96,7 +111,8 @@ h2 { margin: 0 0 14px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em
 .error p { color: var(--red); }
 
 .menu { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: min(320px, 100%); margin: 0 auto; }
-.panel .menu { margin: 18px 0 0; width: 100%; }
+.panel .menu { margin: 18px auto 0; width: min(360px, 100%); }
+.panel > .menu-item { width: min(360px, 100%); margin: 18px auto 0; }
 .menu-item {
   display: block; width: 100%;
   padding: 12px 18px;
@@ -109,29 +125,30 @@ h2 { margin: 0 0 14px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .menu-item:hover, .menu-item:focus-visible { background: var(--brass-soft); border-color: var(--brass); outline: none; }
-.menu-item.primary { background: var(--brass); border-color: var(--brass); color: #16130c; font-weight: 600; }
+.menu-item.primary { background: var(--brass); border-color: var(--brass); color: #16130c; font-weight: 700; }
 .menu-item.primary:hover, .menu-item.primary:focus-visible { background: #e8b95c; }
 .ghost { font: inherit; color: var(--ink); background: none; border: 1px solid var(--line-strong); padding: 8px 14px; cursor: pointer; }
-.row { display: flex; gap: 10px; margin-top: 20px; }
+.row { display: flex; gap: 10px; width: min(440px, 100%); margin: 20px auto 0; }
 .row .menu-item { flex: 1; }
 .best { margin-top: 18px; font-size: 13px; color: var(--muted); }
 
 .briefing { width: min(640px, 100%); }
 .when { margin: -6px 0 16px; font-family: var(--type); color: var(--muted); }
+.briefing-text, .briefing-goals { text-align: left; }
 .briefing-text p { margin: 0 0 12px; font-family: var(--type); font-size: 15px; line-height: 1.55; color: #d8d2c2; }
 .briefing-goals { margin: 14px 0 0; padding: 0 0 0 18px; font-size: 14px; line-height: 1.7; color: var(--ink); }
 .briefing-goals li::marker { color: var(--brass); }
 .hint { margin: 14px 0 0; font-size: 12px; color: var(--dim); text-align: center; }
 
-.keys { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 20px; font-size: 14px; }
-.keys dt { color: var(--brass); font-weight: 600; }
+.keys { display: grid; grid-template-columns: max-content max-content; gap: 6px 18px; width: max-content; max-width: 100%; margin: 0 auto 4px; font-size: 14px; text-align: left; }
+.keys dt { color: var(--brass); font-weight: 700; }
 .keys dd { margin: 0; color: var(--ink); }
 
-.setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 0 14px; font-size: 14px; }
+.setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: min(440px, 100%); margin: 0 auto 14px; font-size: 14px; text-align: left; }
 .setting input[type="range"] { width: 55%; accent-color: var(--brass); }
 .setting select { font: inherit; color: var(--ink); background: #1b1c19; border: 1px solid var(--line-strong); padding: 4px 8px; }
 
-.stats { display: grid; grid-template-columns: 1fr max-content; gap: 6px 18px; margin: 4px 0 6px; font-size: 15px; }
+.stats { display: grid; grid-template-columns: 1fr max-content; gap: 6px 18px; width: min(360px, 100%); margin: 4px auto 6px; font-size: 15px; text-align: left; }
 .stats dt { color: var(--muted); }
 .stats dd { margin: 0; text-align: right; }
 .stats .score { font-size: 20px; color: var(--brass); font-weight: 700; }
@@ -183,7 +200,7 @@ h2 { margin: 0 0 14px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em
 .compass-strip { position: absolute; top: 0; left: 0; height: 100%; white-space: nowrap; font-size: 12px; letter-spacing: 0.1em; color: rgba(232, 228, 216, 0.75); }
 .compass-strip span { position: absolute; top: 4px; transform: translateX(-50%); }
 .compass-strip span.tick { top: 16px; width: 1px; height: 7px; background: rgba(232, 228, 216, 0.4); }
-.compass-strip span.major { color: var(--ink); font-weight: 600; }
+.compass-strip span.major { color: var(--ink); font-weight: 700; }
 .compass-mark { position: absolute; top: 0; width: 0; height: 100%; }
 .compass-mark::before {
   content: ''; position: absolute; left: -6px; top: 2px; width: 12px; height: 12px;
@@ -239,7 +256,7 @@ h2 { margin: 0 0 14px; font-size: 28px; font-weight: 600; letter-spacing: 0.02em
 
 .weapon { position: absolute; right: 26px; bottom: 22px; text-align: right; text-shadow: 0 1px 3px #000; }
 .weapon-name { margin: 0; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
-.ammo { margin: 0; font-size: 34px; font-weight: 600; line-height: 1.1; }
+.ammo { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.1; }
 .ammo span { font-size: 18px; color: var(--muted); margin-left: 6px; }
 .ammo.low b { color: var(--red); }
 .grenades { margin: 2px 0 0; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }

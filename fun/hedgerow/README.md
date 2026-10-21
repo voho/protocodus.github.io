@@ -55,14 +55,19 @@ by the blast that killed them, and drop their rifles.
 ## How it is built
 
 * `js/` — three.js r185 (the site's vendored copy), plain ES modules, no build.
-  * `main.js` boot, menus, frame loop · `levelBuild.js` level data → world ·
+  * `main.js` boot, menus, frame loop with dynamic resolution (holds ~60 fps
+    by scaling the render down to 60 % on slow GPUs and dense screens, and
+    back up when there is headroom) · `levelBuild.js` level data → world ·
     `levels/saint-clair.js` the mission (ground, props, enemies, objectives)
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
-    walking · `vegetation.js` instanced trees and ground cover with LOD
+    walking · `vegetation.js` instanced trees and ground cover in up to
+    three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
+    set has one, the `_lod` impostor beyond the quality's near range
   * `player.js`, `camera.js`, `character.js` (rig, split upper/lower body
-    animation), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
+    animation, the outfit's low-detail `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
-    (perception, cover, MG nests, sniper, reloads), `mission.js`
+    (perception, cover, MG nests, sniper, reloads; soldiers out of view
+    are not drawn and are posed five times a second), `mission.js`
   * `distance.js` the countryside beyond the level: a terrain ring of fields
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
@@ -97,16 +102,23 @@ by the blast that killed them, and drop their rifles.
   bunker flanks), with negative controls, and checks every wall lamp and
   ivy patch has a wall behind it;
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
-  in the ground and leave the far village in sight:
+  in the ground and leave the far village in sight;
+  `tests/lod-check.mjs` — soldiers switch to low detail at a distance
+  (with a gap so they don't flicker), trees sort into full, mid and far:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs
       node fun/hedgerow/tests/character-check.mjs
       node fun/hedgerow/tests/ragdoll-check.mjs
       node fun/hedgerow/tests/distance-check.mjs
+      node fun/hedgerow/tests/lod-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to
 the briefing), `?test=<glb>` (drop a model in front of the free camera).
+
+Type: everything is set on the typewriter — Courier Prime (OFL) for the
+interface and Special Elite (Apache 2.0) for the wordmark and headings,
+self-hosted in `assets/fonts/` with their licences.
 
 Design notes: `docs/2026-10-19-hedgerow-design.md`.

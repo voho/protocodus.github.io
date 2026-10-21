@@ -1504,6 +1504,405 @@ def build_axis(rig):
     return obj, mb.parts
 
 
+# ---- v4.2: low-detail LOD of a baked outfit -----------------------------------
+
+def _fib_dirs(n):
+    """n unit directions spread evenly over the sphere (deterministic)."""
+    out = []
+    ga = math.pi * (3 - math.sqrt(5))
+    for i in range(n):
+        z = 1 - 2 * (i + 0.5) / n
+        r = math.sqrt(max(0.0, 1 - z * z))
+        out.append(V((math.cos(ga * i) * r, math.sin(ga * i) * r, z)))
+    return out
+
+
+def lod_hidden_faces(me, rays=64, reach=3.0, depth=0.006):
+    """Indices of faces enclosed in another closed shell: every ray from
+    just above them hits a surface from behind (eyeball backs, limb caps and
+    the neck bottom inside the torso, hand roots inside the cuffs). Faces only
+    covered by another layer (cloth under a strap) are kept, or the LOD would
+    show holes where the decimated strap no longer covers them."""
+    from mathutils.bvhtree import BVHTree
+    verts = [v.co.copy() for v in me.vertices]
+    polys = [list(p.vertices) for p in me.polygons]
+    bvh = BVHTree.FromPolygons(verts, polys, epsilon=0.0)
+    dirs = _fib_dirs(rays)
+    hidden = []
+    for p in me.polygons:
+        n = p.normal
+        c = p.center + n * 0.0008
+        enclosed = True
+        for d in dirs:
+            if d.dot(n) < 0.05:
+                continue
+            loc, hn, fi, dist = bvh.ray_cast(c, d, reach)
+            # escapes, meets a surface from the front, or the enclosing shell is only just
+            # above it (a part poking through: the decimated LOD may no longer cover it)
+            if loc is None or hn.dot(d) < 0.0 or dist < depth:
+                enclosed = False
+                break
+        if enclosed:
+            hidden.append(p.index)
+    return hidden
+
+
+def _closest_on_tri(p, a, b, c):
+    """Closest point to p on triangle abc and its barycentric weights."""
+    from mathutils.geometry import closest_point_on_tri
+    q = closest_point_on_tri(p, a, b, c)
+    v0, v1, v2 = b - a, c - a, q - a
+    d00, d01, d11, d20, d21 = v0.dot(v0), v0.dot(v1), v1.dot(v1), v2.dot(v0), v2.dot(v1)
+    den = d00 * d11 - d01 * d01 or 1e-18
+    wb = (d11 * d20 - d01 * d21) / den
+    wc = (d00 * d21 - d01 * d20) / den
+    return q, (1 - wb - wc, wb, wc)
+
+
+def mesh_components(me):
+    """Connected-component id per vertex (edge connectivity), deterministic."""
+    import numpy as np
+    n = len(me.vertices)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for e in me.edges:
+        a, b = find(e.vertices[0]), find(e.vertices[1])
+        if a != b:
+            parent[max(a, b)] = min(a, b)
+    return np.array([find(i) for i in range(n)])
+
+
+UV_MASK_RES = 1024             # island raster for the LOD's UV check (atlas 2048: 2 texels a cell)
+
+
+def lod_reproject_uvs(lod, src, lod_comp, src_comp):
+    """Every LOD face takes one UV island of the full mesh (the island under its
+    centre, on the same part) and its corners that island's UV at their closest
+    point: no face spans two islands."""
+    from mathutils.bvhtree import BVHTree
+    sme = src.data
+    sme.calc_loop_triangles()
+    suv = sme.uv_layers['UVMap'].data
+    bm = bmesh.new()
+    bm.from_mesh(sme)
+    bm.faces.ensure_lookup_table()
+    uvl = bm.loops.layers.uv['UVMap']
+    island = {}
+    for k, isl in enumerate(_uv_islands(bm, uvl)):
+        for f in isl:
+            island[f.index] = k
+    bm.free()
+    tris = [(tuple(t.vertices), tuple(t.loops), island[t.polygon_index]) for t in sme.loop_triangles]
+    sco = [v.co.copy() for v in sme.vertices]
+    bvh = BVHTree.FromPolygons(sco, [t[0] for t in tris], epsilon=0.0)
+    tri_n = [((sco[b] - sco[a]).cross(sco[c] - sco[a])).normalized() for (a, b, c), _l, _i in tris]
+    tri_comp = [int(src_comp[v[0]]) for v, _l, _i in tris]
+    by_key = {}
+    for ti, (_v, _l, k) in enumerate(tris):
+        by_key.setdefault(k, []).append(ti)
+    by_comp = {}
+    for ti, cpt in enumerate(tri_comp):
+        by_comp.setdefault(cpt, []).append(ti)
+    lme = lod.data
+    luv = lme.uv_layers['UVMap'].data
+
+    def uv_at(p, ti):
+        (a, b, c), (la, lb, lc), _k = tris[ti]
+        q, (wa, wb, wc) = _closest_on_tri(p, sco[a], sco[b], sco[c])
+        return suv[la].uv * wa + suv[lb].uv * wb + suv[lc].uv * wc, (q - p).length
+
+    def nearest(p, ok, r, pool, nrm=None):
+        best = None
+        for loc, _n, ti, dist in bvh.find_nearest_range(p, r):
+            if ok(ti) and (nrm is None or tri_n[ti].dot(nrm) > 0.3) and (best is None or dist < best[1]):
+                best = (ti, dist)
+        if best is None:
+            for ti in pool:
+                if nrm is not None and tri_n[ti].dot(nrm) <= 0.3:
+                    continue
+                d = uv_at(p, ti)[1]
+                if best is None or d < best[1]:
+                    best = (ti, d)
+        return best
+
+    # first choice: the island under each face's centre (same part, facing the same way)
+    choice, cands = [], []
+    for poly in lme.polygons:
+        cpt = int(lod_comp[lme.loops[poly.loop_start].vertex_index])
+        pool = by_comp.get(cpt, list(range(len(tris))))
+        best = nearest(poly.center, lambda ti: tri_comp[ti] == cpt, 0.02, pool, poly.normal) or \
+            nearest(poly.center, lambda ti: tri_comp[ti] == cpt, 0.02, pool)
+        choice.append(tris[best[0]][2])
+        # islands every corner of the face lies on (within 2.5 mm): switching among them stretches nothing
+        common = None
+        for li in poly.loop_indices:
+            p = lme.vertices[lme.loops[li].vertex_index].co
+            ks = {tris[ti][2] for loc, _n, ti, dist in bvh.find_nearest_range(p, 0.0025) if tri_comp[ti] == cpt}
+            common = ks if common is None else common & ks
+        cands.append(common or set())
+    # fewer seams (and fewer split vertices): a face takes the island most of its
+    # neighbours have when its corners lie on that island too
+    adj = [[] for _ in lme.polygons]
+    edge_faces = {}
+    for poly in lme.polygons:
+        for ek in poly.edge_keys:
+            edge_faces.setdefault(ek, []).append(poly.index)
+    for fl in edge_faces.values():
+        for a in fl:
+            adj[a] += [b for b in fl if b != a]
+    for _it in range(4):
+        for f in range(len(choice)):
+            votes = {}
+            for g in adj[f]:
+                votes[choice[g]] = votes.get(choice[g], 0) + 1
+            best_k, best_v = choice[f], votes.get(choice[f], 0)
+            for k_, v_ in sorted(votes.items()):
+                if k_ in cands[f] and v_ > best_v:
+                    best_k, best_v = k_, v_
+            choice[f] = best_k
+    for poly in lme.polygons:
+        k = choice[poly.index]
+        for li in poly.loop_indices:
+            p = lme.vertices[lme.loops[li].vertex_index].co
+            pick = nearest(p, lambda ti: tris[ti][2] == k, 0.015, by_key[k])
+            luv[li].uv = uv_at(p, pick[0])[0]
+    # islands are not convex: a face whose corners sit on its island can still
+    # span empty atlas between them (black base, zero roughness: white glints).
+    # Test each face's UV triangle against a raster of the island; a face that
+    # leaves it is flattened to the texel under its centre.
+    import numpy as np
+    M = UV_MASK_RES
+    mask = np.full((M, M), -1, dtype=np.int32)
+    for (a, b, c), (la, lb, lc), k in tris:
+        P = np.array([suv[la].uv[:], suv[lb].uv[:], suv[lc].uv[:]]) * M
+        x0, y0 = np.floor(P.min(axis=0)).astype(int)
+        x1, y1 = np.ceil(P.max(axis=0)).astype(int)
+        x0, y0, x1, y1 = max(x0 - 1, 0), max(y0 - 1, 0), min(x1 + 1, M - 1), min(y1 + 1, M - 1)
+        if x1 < x0 or y1 < y0:
+            continue
+        ys, xs = np.mgrid[y0:y1 + 1, x0:x1 + 1]
+        px, py = xs + 0.5, ys + 0.5
+        (ax_, ay_), (bx_, by_), (cx_, cy_) = P
+        den = (by_ - cy_) * (ax_ - cx_) + (cx_ - bx_) * (ay_ - cy_)
+        if abs(den) < 1e-12:
+            continue
+        w1 = ((by_ - cy_) * (px - cx_) + (cx_ - bx_) * (py - cy_)) / den
+        w2 = ((cy_ - ay_) * (px - cx_) + (ax_ - cx_) * (py - cy_)) / den
+        w3 = 1 - w1 - w2
+        tol = 0.75 / max(1.0, np.sqrt(abs(den)))           # a little slack: the raster is coarser than the atlas
+        inside = (w1 >= -tol) & (w2 >= -tol) & (w3 >= -tol)
+        mask[ys[inside], xs[inside]] = k
+    grid = [(i / 6, j / 6) for i in range(7) for j in range(7 - i)]
+    flat = 0
+    for poly in lme.polygons:
+        k = choice[poly.index]
+        U = [luv[li].uv.copy() for li in poly.loop_indices]
+        bad = False
+        for i, j in grid:
+            q = U[0] * (1 - i - j) + U[1] * i + U[2] * j if len(U) == 3 else U[0]
+            x, y = int(q.x * M), int(q.y * M)
+            win = mask[max(y - 1, 0):y + 2, max(x - 1, 0):x + 2]
+            if not (win == k).any():
+                bad = True
+                break
+        if bad:
+            # shrink the UV triangle round the texel under the face's centre until it lies
+            # on the island (keeps its orientation: the tangent frame stays valid)
+            flat += 1
+            pick = nearest(poly.center, lambda ti: tris[ti][2] == k, 0.015, by_key[k])
+            cuv = uv_at(poly.center, pick[0])[0]
+            mean = sum(U, cuv * 0.0) / len(U)
+            done = False
+            for sc in (0.5, 0.25, 0.12, 0.06, 0.03):
+                W2 = [cuv + (u - mean) * sc for u in U]
+                ok = True
+                for i, j in grid:
+                    q = W2[0] * (1 - i - j) + W2[1] * i + W2[2] * j if len(W2) == 3 else W2[0]
+                    x, y = int(q.x * M), int(q.y * M)
+                    if not (mask[max(y - 1, 0):y + 2, max(x - 1, 0):x + 2] == k).any():
+                        ok = False
+                        break
+                if ok:
+                    for li, w in zip(poly.loop_indices, W2):
+                        luv[li].uv = w
+                    done = True
+                    break
+            if not done:
+                for li in poly.loop_indices:
+                    luv[li].uv = cuv
+    return flat
+
+
+def lod_transfer_normals(lod, src, lod_comp, src_comp):
+    from mathutils.bvhtree import BVHTree
+    sme = src.data
+    sme.calc_loop_triangles()
+    cn = [V(c.vector) for c in sme.corner_normals]
+    tl = [(tuple(t.vertices), tuple(t.loops)) for t in sme.loop_triangles]
+    sco = [v.co.copy() for v in sme.vertices]
+    bvh = BVHTree.FromPolygons(sco, [t[0] for t in tl], epsilon=0.0)
+    tri_n = [((sco[b] - sco[a]).cross(sco[c] - sco[a])).normalized() for (a, b, c), _l in tl]
+    tri_comp = [int(src_comp[v[0]]) for v, _l in tl]
+    by_comp = {}
+    for ti, cpt in enumerate(tri_comp):
+        by_comp.setdefault(cpt, []).append(ti)
+    lme = lod.data
+    out = [None] * len(lme.loops)
+    for poly in lme.polygons:
+        cpt = int(lod_comp[lme.loops[poly.loop_start].vertex_index])
+        fn = poly.normal
+        for li in poly.loop_indices:
+            p = lme.vertices[lme.loops[li].vertex_index].co
+            best = None
+            for need in (0.5, 0.0, -2.0):
+                for loc, _n, ti, dist in bvh.find_nearest_range(p, 0.02):
+                    if tri_comp[ti] == cpt and tri_n[ti].dot(fn) > need and (best is None or dist < best[1]):
+                        best = (ti, dist)
+                if best is not None:
+                    break
+            if best is None:
+                for ti in by_comp.get(cpt, []):
+                    if tri_n[ti].dot(fn) <= 0.5:
+                        continue
+                    q, _w = _closest_on_tri(p, *(sco[k] for k in tl[ti][0]))
+                    d = (q - p).length
+                    if best is None or d < best[1]:
+                        best = (ti, d)
+            if best is None:
+                out[li] = fn.copy()
+                continue
+            (a, b, c), (la, lb, lc) = tl[best[0]]
+            q, (wa, wb, wc) = _closest_on_tri(p, sco[a], sco[b], sco[c])
+            wa, wb, wc = max(wa, 0.0), max(wb, 0.0), max(wc, 0.0)
+            n = cn[la] * wa + cn[lb] * wb + cn[lc] * wc
+            if n.length < 1e-6 or n.dot(fn) < 0.0:
+                n = fn.copy()
+            out[li] = n.normalized()
+    lme.normals_split_custom_set([tuple(n) for n in out])
+
+
+def make_lod(src, name, tris=6000, min_part=0.025):
+    """A low-detail copy of a baked outfit for distance: same material, the
+    same atlas (UVs re-projected per face onto one island, see
+    lod_reproject_uvs), no shape keys. Parts smaller than `min_part` (buttons,
+    studs, snaps, nails, hooks: sub-pixel at LOD distances) and faces enclosed
+    in another shell are dropped, the rest is collapse-decimated to `tris`;
+    skin weights are transferred from the full mesh (nearest surface point on
+    the same part, facing the same way, barycentric, top 4, normalised)."""
+    import bmesh as _bm
+    import numpy as np
+    from mathutils.bvhtree import BVHTree
+    me = src.data.copy()
+    me.name = name
+    lod = kit.link(bpy.data.objects.new(name, me))
+    for vg in src.vertex_groups:
+        lod.vertex_groups.new(name=vg.name)
+    if me.shape_keys:
+        lod.shape_key_clear()
+    src_comp = mesh_components(src.data)
+    # part id per vertex: survives the collapse (parts never merge)
+    att = me.attributes.new('lod_part', 'INT', 'POINT')
+    att.data.foreach_set('value', [int(c) for c in src_comp])
+    # 1. small parts and enclosed faces out
+    co = np.array([v.co[:] for v in me.vertices])
+    small = set()
+    for cpt in np.unique(src_comp):
+        pts = co[src_comp == cpt]
+        if np.linalg.norm(pts.max(axis=0) - pts.min(axis=0)) < min_part:
+            small.add(int(cpt))
+    hid = set(lod_hidden_faces(me))
+    bm = _bm.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    pl = bm.verts.layers.int['lod_part']
+    drop = [f for f in bm.faces if f.index in hid or f.verts[0][pl] in small]
+    _bm.ops.delete(bm, geom=drop, context='FACES')
+    loose = [v for v in bm.verts if not v.link_faces]
+    _bm.ops.delete(bm, geom=loose, context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    culled = len(hid)
+    # 2. collapse decimation to the budget
+    n0 = sum(len(p.vertices) - 2 for p in me.polygons)
+    mod = lod.modifiers.new('dec', 'DECIMATE')
+    mod.decimate_type = 'COLLAPSE'
+    mod.ratio = min(1.0, tris / max(1, n0))
+    mod.use_collapse_triangulate = True
+    dg = bpy.context.evaluated_depsgraph_get()
+    me2 = bpy.data.meshes.new_from_object(lod.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    lod.modifiers.remove(mod)
+    lod.data = me2
+    bpy.data.meshes.remove(me)
+    me2.name = name
+    me2.validate(clean_customdata=False)        # drop degenerate faces the collapse may leave
+    me2.update()
+    lod_comp = np.zeros(len(me2.vertices), dtype=np.int64)
+    me2.attributes['lod_part'].data.foreach_get('value', lod_comp)
+    me2.attributes.remove(me2.attributes['lod_part'])
+    # 3. skin weights from the full mesh, same part
+    sme = src.data
+    sme.calc_loop_triangles()
+    tri_v = [tuple(t.vertices) for t in sme.loop_triangles]
+    sco = [v.co.copy() for v in sme.vertices]
+    bvh = BVHTree.FromPolygons(sco, tri_v, epsilon=0.0)
+    tri_comp = [int(src_comp[t[0]]) for t in tri_v]
+    by_comp = {}
+    for ti, cpt in enumerate(tri_comp):
+        by_comp.setdefault(cpt, []).append(ti)
+    gnames = [vg.name for vg in src.vertex_groups]
+    W = np.zeros((len(sme.vertices), len(gnames)))
+    for v in sme.vertices:
+        for ge in v.groups:
+            W[v.index, ge.group] = ge.weight
+    tri_n = [((sco[b] - sco[a]).cross(sco[c] - sco[a])).normalized() for a, b, c in tri_v]
+    for vg in lod.vertex_groups:
+        vg.remove(list(range(len(me2.vertices))))
+    groups = {vg.name: vg for vg in lod.vertex_groups}
+    for v in me2.vertices:
+        p, nrm, cpt = v.co, v.normal, int(lod_comp[v.index])
+        best = None
+        for need_n in (True, False):
+            for loc, _n, ti, dist in bvh.find_nearest_range(p, 0.03):
+                if tri_comp[ti] == cpt and (not need_n or tri_n[ti].dot(nrm) > 0.2) and (best is None or dist < best[1]):
+                    best = (ti, dist)
+            if best is not None:
+                break
+        if best is None:
+            for ti in by_comp[cpt]:
+                q, _w = _closest_on_tri(p, *(sco[k] for k in tri_v[ti]))
+                d = (q - p).length
+                if best is None or d < best[1]:
+                    best = (ti, d)
+        ti = best[0]
+        q, bw = _closest_on_tri(p, *(sco[k] for k in tri_v[ti]))
+        bw = np.clip(np.array(bw), 0.0, None)
+        bw /= bw.sum() or 1.0
+        w = bw[0] * W[tri_v[ti][0]] + bw[1] * W[tri_v[ti][1]] + bw[2] * W[tri_v[ti][2]]
+        top = [k for k in np.argsort(-w)[:4] if w[k] > 1e-4]
+        tot = sum(w[k] for k in top) or 1.0
+        for k in top:
+            groups[gnames[k]].add([v.index], float(w[k] / tot), 'REPLACE')
+    # 4. normals: each corner takes the full mesh's (split) normal at the closest
+    # point on a face of the same part facing the same way as the LOD face. The
+    # decimated mesh's own smooth normals tilt where long triangles meet a turned
+    # edge (the jackboot tops: white glints in the first LOD build).
+    lod_transfer_normals(lod, src, lod_comp, src_comp)
+    # 5. UVs on one island per face
+    flat = lod_reproject_uvs(lod, src, lod_comp, src_comp)
+    # 6. same material, flat vertex colour
+    me2.materials.clear()
+    for m in src.data.materials:
+        me2.materials.append(m)
+    kit.flat_color(lod, 1.0)
+    lod.hide_render = True                      # previews show it only when asked
+    return lod, {'culled_faces': culled, 'dropped_parts': len(small), 'tris_before': n0, 'tris': kit.tri_count(lod),
+                 'uv_flattened_faces': flat}
+
 # ==========================================================================
 # Preview renders (fixed framing, Cycles)
 

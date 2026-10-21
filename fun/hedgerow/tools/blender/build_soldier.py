@@ -28,6 +28,7 @@ PREV = os.path.join(kit.PREVIEWS, 'soldier')
 NOTES = os.path.join(kit.HERE, 'notes', 'soldier.md')
 FPS = 30
 OUTFIT_TEX = 2048
+LOD_TRIS = 5800                 # v4.2: the distance LOD per outfit (allied_lod, axis_lod)
 # texel density per UV island: the face, eyes and hands up, hidden scalp down (soldier_parts.UV_BOOST4)
 UV_BOOST = sp.UV_BOOST4
 CLIP_ORDER = ['idle', 'walk', 'walk_back', 'strafe_l', 'strafe_r', 'run', 'crouch_idle', 'crouch_walk',
@@ -215,6 +216,71 @@ def morph_stats(mesh):
     return out
 
 
+def lod_compare(rig, outfit, lod, others, gun, poses=(('rest', None, 0), ('aim', 'aim', 0), ('run', 'run', 5),
+                                                         ('death_fwd', 'death_fwd', 40))):
+    """v4.2: full mesh vs LOD at 10 m and 30 m, as the game would draw them
+    (720 px, 60 deg vertical field of view), cropped round the soldier and
+    blown up with nearest-neighbour pixels: rows = poses, columns = full 10 m,
+    LOD 10 m, full 30 m, LOD 30 m."""
+    import numpy as np
+    scene = bpy.context.scene
+    size, lens = 720, 18.0 / math.tan(math.radians(30.0))
+    rows = []
+    for tag, act, fr in poses:
+        set_action(rig, bpy.data.actions[act] if act else None)
+        if act is None:
+            for pb in rig.pose.bones:
+                pb.matrix_basis = Matrix.Identity(4)
+        scene.frame_set(fr)
+        bpy.context.view_layer.update()
+        dg = bpy.context.evaluated_depsgraph_get()
+        me = outfit.evaluated_get(dg).to_mesh()
+        pts = np.array([v.co[:] for v in me.vertices])
+        outfit.evaluated_get(dg).to_mesh_clear()
+        c = V(((pts[:, 0].min() + pts[:, 0].max()) / 2, (pts[:, 1].min() + pts[:, 1].max()) / 2,
+               (pts[:, 2].min() + pts[:, 2].max()) / 2))
+        tiles = []
+        for dist, crop in ((10.0, 120), (30.0, 48)):
+            d = V((0.55, -1.0, 0.10)).normalized()
+            for mesh in (outfit, lod):
+                for o in others + [outfit, lod]:
+                    o.hide_render = o is not mesh
+                p = os.path.join(PREV, f'_lodtile.png')
+                sp.render_view([rig, mesh, gun], p, c + d * dist, c, lens=lens, samples=16, size=size)
+                im = bpy.data.images.load(p)
+                a = np.empty(size * size * 4, np.float32)
+                im.pixels.foreach_get(a)
+                bpy.data.images.remove(im)
+                a = a.reshape(size, size, 4)
+                h0 = size // 2 - crop // 2
+                t = a[h0:h0 + crop, h0:h0 + crop]
+                k = 240 // crop
+                tiles.append(np.repeat(np.repeat(t, k, axis=0), k, axis=1))
+        rows.append(np.concatenate(tiles, axis=1))
+    big = np.concatenate(rows[::-1], axis=0)               # Blender images are bottom-up
+    out = bpy.data.images.new(outfit.name + '_lodcmp', big.shape[1], big.shape[0], alpha=False)
+    out.pixels.foreach_set(big.ravel())
+    out.filepath_raw = os.path.join(PREV, f'{outfit.name}_lod_compare.png')
+    out.file_format = 'PNG'
+    out.save()
+    os.remove(os.path.join(PREV, '_lodtile.png'))
+    lod.hide_render = True
+    outfit.hide_render = False
+    kit.log('lod compare', outfit.name)
+
+
+def lineup_weights(n=6, seed=1907):
+    """The line-up's faces, drawn like the engine's randomFace()."""
+    import random
+    R = random.Random(seed)
+    out = []
+    for k in range(n):
+        build = R.random() * 2 - 1
+        out.append({'face_broad': round(max(0.0, build), 3), 'face_gaunt': round(max(0.0, -build), 3),
+                    'face_older': round(R.random() * R.random() * 0.9, 3)})
+    return out
+
+
 def face_lineup(rig, outfit, others, n=6, seed=1907):
     """Six soldiers side by side (face_34) with faces drawn like the engine's
     randomFace(): build = U(-1,1), broad = max(0, build), gaunt = max(0, -build),
@@ -348,6 +414,19 @@ def verify_soldier(path):
         out['socket_l_parent_ok'] = sl in nodes[hl].get('children', [])
         out['socket_l_local'] = {k: nodes[sl].get(k) for k in ('translation', 'rotation', 'scale')}
     out['meshes'] = [n['name'] for n in nodes if 'mesh' in n]
+    out['lods'] = {}
+    for n in nodes:
+        if 'mesh' in n and n.get('name', '').endswith('_lod'):
+            m = j['meshes'][n['mesh']]
+            full = nodes[names.index(n['name'][:-4])]
+            fm = j['meshes'][full['mesh']]
+            par = [i for i, x in enumerate(nodes) if names.index(n['name']) in x.get('children', [])]
+            out['lods'][n['name']] = {
+                'parent': names[par[0]] if par else None, 'skin': n.get('skin'), 'full_skin': full.get('skin'),
+                'material': [pr['material'] for pr in m['primitives']], 'full_material': [pr['material'] for pr in fm['primitives']],
+                'targets': [len(pr.get('targets', [])) for pr in m['primitives']],
+                'tris': sum(j['accessors'][pr['indices']]['count'] // 3 for pr in m['primitives']),
+                'attributes': sorted(m['primitives'][0]['attributes'])}
     out['morph_targets'] = {}
     for n in nodes:
         if 'mesh' in n:
@@ -543,6 +622,10 @@ def write_notes(summary, j, weapons_glb):
         txs = ', '.join(f"{k} {v}²" for k, v in tx.items() if v)
         w(f"| `{n}` | skinned mesh, child of `rig` | {tris[n]} | `{mats}` | {txs} | "
           f"{b[1][0]-b[0][0]:.2f} × {b[1][1]-b[0][1]:.2f} × {b[1][2]-b[0][2]:.2f} |")
+    for n, st in summary.get('lod', {}).items():
+        lv = ver.get('lods', {}).get(n, {})
+        w(f"| `{n}` | distance LOD of `{n[:-4]}`, skinned mesh, child of `rig` (same skin) | {lv.get('tris', st['tris'])} | "
+          f"`{n[:-4]}` (shared) | the same images | — |")
     w('| `rig` | armature root node (identity) | | | | |')
     w('| `socket_weapon` | empty, child of joint `hand_r` | | | | |')
     w('| `socket_weapon_l` | empty, child of joint `hand_l` (extra, for the throw) | | | | |')
@@ -669,10 +752,49 @@ def write_notes(summary, j, weapons_glb):
           ', '.join(f"{k} {v}" for k, v in rec['sight_line_cm_aim'].items()) + '; crouch_aim: ' +
           ', '.join(f"{k} {v}" for k, v in rec['sight_line_cm_crouch_aim'].items()) + '. Eye apex moved by the morphs: ' +
           ', '.join(f"{k} {rec[k]['eye_apex_mm']} mm" for k in sp.MORPHS if k in rec) + '.')
-    lu = summary.get('lineup', {})
+    lu = summary.get('lineup') or {n: lineup_weights() for n in ('allied', 'axis')}
     for n, ws in lu.items():
         w(f"* Line-up `previews/soldier/{n}_lineup_face_34.png` (left to right, `randomFace()` distribution, seed 1907): " +
           '; '.join(f"broad {x['face_broad']:.2f} gaunt {x['face_gaunt']:.2f} older {x['face_older']:.2f}" for x in ws) + '.')
+    w('')
+    w('### v4.2 (distance LODs)')
+    w('')
+    lods = summary.get('lod', {})
+    w('`allied_lod` and `axis_lod`: skinned mesh nodes, children of `rig`, bound to the same glTF skin as the full')
+    w('meshes (same 20 joints and inverse bind matrices) and drawing with the same glTF material (`allied` / `axis`,')
+    w('the same three images — nothing duplicated); COLOR_0 flat white, no morph targets. Made by `soldier_parts.make_lod`')
+    w('from the final baked mesh, before skinning:')
+    w('* parts smaller than 2.5 cm (buttons, studs, snaps, hobnails, hooks, nails) are dropped — sub-pixel at LOD')
+    w('  distances; faces enclosed at depth in another shell (every ray from them meets a surface from behind, ≥ 6 mm')
+    w('  away: eyeball backs, limb caps and the neck bottom inside the torso, hand roots in the cuffs) are dropped;')
+    w('  faces merely covered by another layer are kept so the decimated covers never open holes;')
+    w('* the rest is collapse-decimated to ' + str(LOD_TRIS) + ' tris (silhouette kept: helmet, shoulders, webbing,')
+    w('  pack, boots, arms and hands). The shared atlas has many small UV islands, so ~80 % of the LOD\'s vertices')
+    w('  are split along island seams (~78 bytes per LOD triangle in the GLB): the two LODs add ~0.9 MB, soldier.glb is')
+    w('  7.2 MB (over the 7 MB budget; accepted for v4.2);')
+    w('* UVs: collapse decimation smears UVs across island seams, so every LOD face is re-projected onto ONE island')
+    w('  of the full mesh\'s atlas (the island under its centre, on the same part; a face switches to the island its')
+    w('  neighbours use when its corners lie on it too, for fewer seams) and its corners take that island\'s UV at')
+    w('  their closest point — the baked atlas maps unchanged. Islands are not convex, so each face\'s UV triangle is')
+    w('  then tested against a 1024² raster of its island; a face that would span empty atlas is shrunk round the texel')
+    w('  under its centre until it lies on the island (orientation kept, so the tangent frame stays valid);')
+    w('* normals: every LOD corner takes the full mesh\'s split normal at the closest point on a face of the same part')
+    w('  facing the same way (custom normals). The decimated mesh\'s own smooth normals tilted where long triangles met')
+    w('  a turned edge — the jackboot tops, where the shaft shared its top ring with the turned-in lip: the shaft')
+    w('  caught the sun as white glints in the first v4.2 build;')
+    w('* skin weights: from the full mesh at the nearest surface point on the same part facing the same way,')
+    w('  barycentric, top 4, normalised.')
+    for n, st in lods.items():
+        lv = ver.get('lods', {}).get(n, {})
+        w(f"* `{n}`: {lv.get('tris', st['tris'])} tris (full mesh {summary['tris'][n[:-4]]}); {st['dropped_parts']} small parts and "
+          f"{st['culled_faces']} enclosed faces dropped before decimating {st['tris_before']} tris; "
+          f"{st.get('uv_flattened_faces', 0)} faces' UVs shrunk onto their island; parent "
+          f"`{lv.get('parent')}`, skin {lv.get('skin')} (full {lv.get('full_skin')}), material {lv.get('material')} "
+          f"(full {lv.get('full_material')}), morph targets {lv.get('targets')}.")
+    w('* Previews: `previews/soldier/{allied,axis}_lod_compare.png` — rows rest, aim, run, death_fwd; columns full 10 m,')
+    w('  LOD 10 m, full 30 m, LOD 30 m (720 px, 60° vertical field of view, cropped and blown up pixel for pixel).')
+    w('* `character.js` draws `<outfit>` near and `<outfit>_lod` far (switch at 30 m, back at 26 m; tests/lod-check.mjs);')
+    w('  the LOD has no face shapes, so the per-soldier face only shows on the full mesh.')
     w('')
     w('### Bones (rest pose)')
     w('')
@@ -906,7 +1028,15 @@ def main():
             tex[o.name] = {k: (v.size[0] if v is not None and hasattr(v, 'size') else None)
                            for k, v in r.items() if k in ('base', 'normal', 'mr')}
         summary['textures'] = tex
+        # v4.2: distance LODs from the baked meshes (same material and atlas, no morphs)
+        lods = {}
+        summary['lod'] = {}
         for o in (allied, axis):
+            lod, st = sp.make_lod(o, o.name + '_lod', LOD_TRIS)
+            lods[o.name] = lod
+            summary['lod'][lod.name] = st
+            kit.log('lod', lod.name, json.dumps(st))
+        for o in (allied, axis) + tuple(lods.values()):
             sp.attach_rig(o, rig)
         meshes = [allied, axis]
         kit.log('tris allied', kit.tri_count(allied), 'axis', kit.tri_count(axis))
@@ -963,7 +1093,7 @@ def main():
 
         set_action(rig, bpy.data.actions['idle'])
         out = os.path.join(kit.MODELS, 'soldier.glb')
-        export_soldier([rig, allied, axis, s_r, s_l], out)
+        export_soldier([rig, allied, axis, s_r, s_l] + list(lods.values()), out)
         ver, j = verify_soldier(out)
         # socket placement check: glTF world == C @ blender world @ C^-1
         set_action(rig, None)
@@ -1031,6 +1161,8 @@ def main():
                 render_pose(rig, outfit, others, 'crouch_idle', 0, [gar], 'crouch_idle', views=('legs', 'upper'))
                 render_pose(rig, outfit, others, 'run', 5, [gar], 'run', views=('legs',))
                 render_pose(rig, outfit, others, 'death_fwd', 40, [gar], 'death_fwd', lie=True)
+                lod_compare(rig, outfit, lods[outfit.name], others + [l for l in lods.values() if l is not lods[outfit.name]],
+                            gar)
                 attach_to(gar, s_l, -sp.GARAND_OFFHAND)
                 attach_to(gren, s_r)
                 render_pose(rig, outfit, others, 'throw', 15, [gar, gren], 'throw')

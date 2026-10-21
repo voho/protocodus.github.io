@@ -66,6 +66,8 @@ function back() {
 let renderer, scene, camera, G = null, input, hud, audio;
 let state = 'loading';
 let quality = QUALITY[settings.quality] || QUALITY.high;
+// dynamic resolution state (see adaptResolution)
+let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
 let bloom = null, grade = null;
 let missionTime = 0;
@@ -205,8 +207,7 @@ function freshStats() {
 
 function applyGraphics() {
   quality = QUALITY[settings.quality] || QUALITY.high;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
-  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  applyResolution();
   if (bloom) renderer.setEffects(quality.bloom ? [bloom, grade] : [grade]);
   G?.weather?.setCount(quality.rain);
   if (G?.rig) { G.rig.baseFov = settings.fov; }
@@ -372,9 +373,41 @@ let fpsAcc = 0, fpsFrames = 0, fps = 0, distantTimer = 12, artyFlash = 0;
 const R = rng(5);
 
 let lastStep = 0;
-function frame() {
+function frame(now) {
   requestAnimationFrame(frame);
+  adaptResolution(now);
   step();
+}
+
+/* ---------- dynamic resolution ----------
+   Hold about 60 fps on slower GPUs and dense screens: when frames run long
+   for a second the render resolution steps down by a tenth (to 60 % of the
+   quality's pixel ratio at most), and after five smooth seconds it steps
+   back up, though never to a scale that proved too slow in the last 30 s.
+   Only while playing; the hidden-pane watchdog (?debug) never adapts. */
+function applyResolution() {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio) * resScale);
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+}
+function adaptResolution(now) {
+  const raw = lastFrameAt ? Math.min(0.25, (now - lastFrameAt) / 1000) : 1 / 60;
+  lastFrameAt = now;
+  if (state !== 'playing' || document.hidden) { slowFor = fastFor = 0; return; }
+  frameAvg += (raw - frameAvg) * 0.08;
+  resCeilingAge += raw;
+  if (resCeilingAge > 30) resCeiling = 1;
+  if (frameAvg > 1 / 45) { slowFor += raw; fastFor = 0; }
+  else if (frameAvg < 1 / 58) { fastFor += raw; slowFor = 0; }
+  else slowFor = fastFor = 0;
+  if (slowFor > 1 && resScale > 0.61) {
+    resScale = Math.max(0.6, resScale - 0.1);
+    resCeiling = resScale; resCeilingAge = 0; slowFor = 0;
+    applyResolution();
+  } else if (fastFor > 5 && resScale < Math.min(1, resCeiling) - 0.01) {
+    resScale = Math.min(1, resScale + 0.1);
+    fastFor = 0;
+    applyResolution();
+  }
 }
 // ?debug: keep stepping when the page gets no animation frames (a hidden
 // preview pane), so scripted tests still run
@@ -454,7 +487,7 @@ function step() {
     const i = renderer.info;
     const p = player ? player.pos : camera.position;
     const vs = built.veg.stats();
-    hud.debug(`${fps.toFixed(0)} fps  ${i.render.calls} calls  ${(i.render.triangles / 1000).toFixed(0)}k tris\n` +
+    hud.debug(`${fps.toFixed(0)} fps  ${i.render.calls} calls  ${(i.render.triangles / 1000).toFixed(0)}k tris  res ${Math.round(resScale * 100)}%\n` +
       `veg ${vs.inst} inst ${(vs.tris / 1000).toFixed(0)}k  fx ${G.effects.count}\n` +
       `pos ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}  ${state}`);
   }

@@ -7,12 +7,14 @@ the soldier faces **+Z**, his left is **+X**) unless marked Blender.
     /Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup \
         --python fun/hedgerow/tools/blender/build_soldier.py [-- soldier|weapons] [nopreview]
 
-## soldier.glb (6155 KB)
+## soldier.glb (7100 KB)
 
 | node | what | tris | material (baked) | textures | size x × y × z (m, Blender, rest) |
 |---|---|---|---|---|---|
 | `allied` | skinned mesh, child of `rig` | 28347 | `allied` | base 2048², normal 1024², mr 2048² | 1.26 × 0.51 × 1.78 |
 | `axis` | skinned mesh, child of `rig` | 28995 | `axis` | base 2048², normal 1024², mr 2048² | 1.26 × 0.48 × 1.77 |
+| `allied_lod` | distance LOD of `allied`, skinned mesh, child of `rig` (same skin) | 5791 | `allied` (shared) | the same images | — |
+| `axis_lod` | distance LOD of `axis`, skinned mesh, child of `rig` (same skin) | 5799 | `axis` (shared) | the same images | — |
 | `rig` | armature root node (identity) | | | | |
 | `socket_weapon` | empty, child of joint `hand_r` | | | | |
 | `socket_weapon_l` | empty, child of joint `hand_l` (extra, for the throw) | | | | |
@@ -109,7 +111,7 @@ cup, fluted gas-mask canister with lid and rings, e-tool carrier and bayonet in 
 * Measured on the built surface (`face4_measure`): thirds (trichion–glabella–subnasale–menton) 6.3 / 6.55 / 5.95 cm (v4: 4.35 / 7.35 / 6.35; the chin moved up 10.5 mm, the nose base 6.5 mm, nasion–menton 12.25 → 11.2 cm); cheekbone width 14.2 cm (v4 15.3), jaw angles 12.4 cm (v4 13.3), chin 4.0 cm (v4 2.9); upper / lower vermilion ~7.7 / 9.7 mm (v4 ~6.4 / 9.4, thin), mouth ~5 cm.
 
 **Morph targets** (shape keys on the head, exported as glTF morph targets on each outfit mesh; names in
-`mesh.extras.targetNames`, sparse accessors, with normals): index order 0 `face_broad`, 1 `face_gaunt`, 2 `face_older`. In the GLB: `allied`: ['face_broad', 'face_gaunt', 'face_older']; `axis`: ['face_broad', 'face_gaunt', 'face_older'].
+`mesh.extras.targetNames`, sparse accessors, with normals): index order 0 `face_broad`, 1 `face_gaunt`, 2 `face_older`. In the GLB: `allied`: ['face_broad', 'face_gaunt', 'face_older']; `allied_lod`: []; `axis`: ['face_broad', 'face_gaunt', 'face_older']; `axis_lod`: [].
 `face_broad` = a heavier, wider face: jaw and lower face out ~15 mm a side, full cheeks, heavy lower
 cheeks, double chin and a thick neck under the jaw, a broad nose, a heavy brow, a shorter, wider chin;
 `face_gaunt` = lean and hollow: cheeks sunk ~15 mm under the cheekbones, hollow temples, prominent
@@ -125,6 +127,39 @@ within ~1–3 mm of the lid margins, damped round the ears, with a smooth 0.8–
 * `axis`: aiming eye to the Garand sight line (cm) — aim: rest 1.19, face_broad 1.19, face_gaunt 1.19, face_older 1.19, broad+older 1.19, gaunt+older 1.19; crouch_aim: rest 0.25, face_broad 0.25, face_gaunt 0.25, face_older 0.25, broad+older 0.25, gaunt+older 0.25. Eye apex moved by the morphs: face_broad 0.0 mm, face_gaunt 0.0 mm, face_older 0.0 mm.
 * Line-up `previews/soldier/allied_lineup_face_34.png` (left to right, `randomFace()` distribution, seed 1907): broad 0.00 gaunt 0.52 older 0.47; broad 0.01 gaunt 0.00 older 0.30; broad 0.96 gaunt 0.00 older 0.24; broad 0.00 gaunt 0.27 older 0.56; broad 0.00 gaunt 0.17 older 0.31; broad 0.00 gaunt 0.51 older 0.16.
 * Line-up `previews/soldier/axis_lineup_face_34.png` (left to right, `randomFace()` distribution, seed 1907): broad 0.00 gaunt 0.52 older 0.47; broad 0.01 gaunt 0.00 older 0.30; broad 0.96 gaunt 0.00 older 0.24; broad 0.00 gaunt 0.27 older 0.56; broad 0.00 gaunt 0.17 older 0.31; broad 0.00 gaunt 0.51 older 0.16.
+
+### v4.2 (distance LODs)
+
+`allied_lod` and `axis_lod`: skinned mesh nodes, children of `rig`, bound to the same glTF skin as the full
+meshes (same 20 joints and inverse bind matrices) and drawing with the same glTF material (`allied` / `axis`,
+the same three images — nothing duplicated); COLOR_0 flat white, no morph targets. Made by `soldier_parts.make_lod`
+from the final baked mesh, before skinning:
+* parts smaller than 2.5 cm (buttons, studs, snaps, hobnails, hooks, nails) are dropped — sub-pixel at LOD
+  distances; faces enclosed at depth in another shell (every ray from them meets a surface from behind, ≥ 6 mm
+  away: eyeball backs, limb caps and the neck bottom inside the torso, hand roots in the cuffs) are dropped;
+  faces merely covered by another layer are kept so the decimated covers never open holes;
+* the rest is collapse-decimated to 5800 tris (silhouette kept: helmet, shoulders, webbing,
+  pack, boots, arms and hands). The shared atlas has many small UV islands, so ~80 % of the LOD's vertices
+  are split along island seams (~78 bytes per LOD triangle in the GLB): the two LODs add ~0.9 MB, soldier.glb is
+  7.2 MB (over the 7 MB budget; accepted for v4.2);
+* UVs: collapse decimation smears UVs across island seams, so every LOD face is re-projected onto ONE island
+  of the full mesh's atlas (the island under its centre, on the same part; a face switches to the island its
+  neighbours use when its corners lie on it too, for fewer seams) and its corners take that island's UV at
+  their closest point — the baked atlas maps unchanged. Islands are not convex, so each face's UV triangle is
+  then tested against a 1024² raster of its island; a face that would span empty atlas is shrunk round the texel
+  under its centre until it lies on the island (orientation kept, so the tangent frame stays valid);
+* normals: every LOD corner takes the full mesh's split normal at the closest point on a face of the same part
+  facing the same way (custom normals). The decimated mesh's own smooth normals tilted where long triangles met
+  a turned edge — the jackboot tops, where the shaft shared its top ring with the turned-in lip: the shaft
+  caught the sun as white glints in the first v4.2 build;
+* skin weights: from the full mesh at the nearest surface point on the same part facing the same way,
+  barycentric, top 4, normalised.
+* `allied_lod`: 5791 tris (full mesh 28347); 80 small parts and 912 enclosed faces dropped before decimating 25544 tris; 65 faces' UVs shrunk onto their island; parent `rig`, skin 0 (full 0), material [0] (full [0]), morph targets [0].
+* `axis_lod`: 5799 tris (full mesh 28995); 80 small parts and 1563 enclosed faces dropped before decimating 25471 tris; 91 faces' UVs shrunk onto their island; parent `rig`, skin 0 (full 0), material [1] (full [1]), morph targets [0].
+* Previews: `previews/soldier/{allied,axis}_lod_compare.png` — rows rest, aim, run, death_fwd; columns full 10 m,
+  LOD 10 m, full 30 m, LOD 30 m (720 px, 60° vertical field of view, cropped and blown up pixel for pixel).
+* `character.js` draws `<outfit>` near and `<outfit>_lod` far (switch at 30 m, back at 26 m; tests/lod-check.mjs);
+  the LOD has no face shapes, so the per-soldier face only shows on the full mesh.
 
 ### Bones (rest pose)
 

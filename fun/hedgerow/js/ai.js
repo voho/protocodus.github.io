@@ -705,7 +705,23 @@ export function createEnemies(G, defs) {
     } else ch.aimPitch = 0;
     ch.root.position.copy(e.pos);
     ch.root.rotation.y = e.yaw;
-    ch.update(dt, e.fixedY != null ? e.fixedY : G.world.groundAt(e.pos.x, e.pos.z, e.pos.y + 0.2));
+    // out of view and not close: the skeleton is posed five times a second
+    // (the body still moves every frame, so muzzle flashes and tracers start
+    // where he stands)
+    e.animAcc = (e.animAcc || 0) + dt;
+    if (!e.inView && e.dCam > 30 && e.animAcc < 0.2) return;
+    ch.update(e.animAcc, e.fixedY != null ? e.fixedY : G.world.groundAt(e.pos.x, e.pos.z, e.pos.y + 0.2));
+    e.animAcc = 0;
+  }
+
+  /* Is the soldier in the camera's view? A sphere round the body (wider for
+     the dead, whose ragdoll can lie a couple of metres from where he fell). */
+  const frustum = new THREE.Frustum(), projView = new THREE.Matrix4(), sphere = new THREE.Sphere();
+  function inView(e) {
+    const p = e.char.ragdoll ? e.char.ragdoll.pelvis : e.pos;
+    sphere.center.set(p.x, (e.char.ragdoll ? p.y : e.pos.y + 1.0), p.z);
+    sphere.radius = e.dead ? 2.4 : 1.6;
+    return frustum.intersectsSphere(sphere);
   }
 
   /* ---------- frame ---------- */
@@ -714,17 +730,25 @@ export function createEnemies(G, defs) {
     const p = G.player;
     const cam = G.camera.position;
     const aware = [];
+    G.camera.updateMatrixWorld();
+    projView.multiplyMatrices(G.camera.projectionMatrix, G.camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projView);
     for (const e of enemies) {
       const dCam = Math.hypot(e.pos.x - cam.x, e.pos.z - cam.z);
       const dPl = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+      e.dCam = dCam;
+      // drawn only when in view and inside the fog; the low-detail mesh from LOD_FAR
+      e.inView = dCam < 220 && inView(e);
+      e.char.root.visible = e.inView;
+      e.char.setDistance(Math.hypot(e.pos.x - cam.x, e.pos.y - cam.y, e.pos.z - cam.z));
       if (e.dead) {
-        if (dCam < 220) { e.char.root.visible = true; e.char.update(dt, e.fixedY ?? G.world.groundAt(e.pos.x, e.pos.z, e.pos.y + 0.2)); }
-        else e.char.root.visible = false;
-        e.char.shadow.visible = e.char.root.visible;
+        // a falling body keeps falling out of view; it comes to rest in seconds
+        if (dCam < 220 && (e.inView || (e.char.ragdoll && !e.char.ragdoll.asleep))) e.char.update(dt, e.fixedY ?? G.world.groundAt(e.pos.x, e.pos.z, e.pos.y + 0.2));
+        e.char.shadow.visible = e.inView;
         continue;
       }
       e.active = dPl < 170;
-      if (!e.active) { e.char.root.visible = dCam < 220; e.char.shadow.visible = false; continue; }
+      if (!e.active) { e.char.shadow.visible = false; continue; }
       e.lastPos.copy(e.pos);
       if (e.reloadT > 0) reloadSteps(e, dt);
       e.perceiveTimer -= dt;
@@ -740,10 +764,8 @@ export function createEnemies(G, defs) {
       } else if (e.state === 'search') updateSearch(e, dt);
       else updateIdle(e, dt);
       if (e.fixedY != null) e.pos.y = e.fixedY;
-      const visible = dCam < 220;
-      e.char.root.visible = visible;
-      if (visible) animate(e, dt);
-      else e.char.shadow.visible = false;
+      if (dCam < 220) animate(e, dt);
+      if (!e.inView) e.char.shadow.visible = false;
       // awareness hint for the HUD
       if ((e.state === 'alert' || (e.state !== 'combat' && e.awareness > 0.15)) && dPl < 70) {
         const ang = wrapAngle(Math.atan2(e.pos.x - p.pos.x, e.pos.z - p.pos.z) - G.rig.yaw);
