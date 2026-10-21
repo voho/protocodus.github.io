@@ -19,6 +19,7 @@ const { readSet } = await import('../js/assets.js');
 const { WEAPONS } = await import('../js/config.js');
 const { startFirstPersonReload } = await import('../js/reload.js');
 const { createViewMotion } = await import('../js/viewmotion.js');
+const { createCameraRig } = await import('../js/camera.js');
 
 const here = new URL('..', import.meta.url).pathname;
 
@@ -202,4 +203,25 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(-low > 0.02 && -low < 0.045 && -out.drop < 0.003, 'a hard landing dips the eye a few centimetres and it comes back');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick and landing feel right');
+/* A hit flinches the head (camera only): away from the side it came from, a
+   couple of degrees, back within a quarter of a second; the aim is left alone. */
+{
+  const camera = new THREE.PerspectiveCamera(68, 4 / 3, 0.05, 1000);
+  const rig = createCameraRig(camera, { raycast: () => null, terrain: null, water: null });
+  const eye = new THREE.Vector3(0, 1.6, 0);
+  rig.updateFirstPerson(1 / 60, eye, null, false);
+  const aim = rig.forward(new THREE.Vector3()).clone();
+  rig.flinch(1, 1);                       // a bullet from his left
+  let peak = 0, peakPitch = 0, at = 0;
+  for (let i = 1; i <= 30; i++) {
+    rig.updateFirstPerson(1 / 60, eye, null, false);
+    if (Math.abs(rig.flinchRoll) > Math.abs(peak)) { peak = rig.flinchRoll; at = i / 60; }
+    peakPitch = Math.max(peakPitch, rig.flinchPitch);
+  }
+  console.log(`flinch: a hit from the left rolls the view ${deg(peak).toFixed(2)}° (at ${(at * 1000).toFixed(0)} ms) and lifts it ${deg(peakPitch).toFixed(2)}°, ${deg(Math.abs(rig.flinchRoll)).toFixed(3)}° left after 0.5 s`);
+  assert.ok(peak < 0 && deg(-peak) > 1.5 && deg(-peak) < 4 && at < 0.15, 'the head should snap a couple of degrees away from the hit');
+  assert.ok(deg(Math.abs(rig.flinchRoll)) < 0.1 && deg(Math.abs(rig.flinchPitch)) < 0.1, 'and come back');
+  assert.ok(rig.forward(new THREE.Vector3()).angleTo(aim) < 1e-6, 'the aim is not moved');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing and a flinch feel right');

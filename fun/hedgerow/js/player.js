@@ -109,6 +109,7 @@ export function createPlayer(G) {
     if (from) {
       const ang = Math.atan2(from.x - P.pos.x, from.z - P.pos.z);
       G.hud.damageFrom(wrapAngle(ang - G.rig.yaw));
+      if (FP) G.rig.flinch(wrapAngle(ang - G.rig.yaw), kind === 'bullet' ? 1 : 2);
     }
     if (P.health <= 0) {
       P.health = 0;
