@@ -323,6 +323,34 @@ function mudSplat(p, R, cx, cy, S) {
   p.fill(ragged(R, cx, cy, S * (0.05 + R() * 0.02), 9, 0.4), { col: 'rgb(18,14,10)', alpha: grey(255), height: grey(FLAT - 90) });
 }
 
+/* a lit window's glass: a small hole punched through, the glass crushed white round it, cracks running
+   out from it in a star and rings of shorter ones between them; the rest clear */
+function glassCrack(p, R, cx, cy, S) {
+  for (let k = 0; k < 40; k++) {
+    const a = R() * Math.PI * 2, r = S * (0.012 + 0.035 * Math.sqrt(R()));
+    p.fill(disc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * (0.002 + R() * 0.004)), { col: 'rgb(255,255,255)', alpha: grey(140 + R() * 100) });
+  }
+  const n = 9 + Math.floor(R() * 7), spokes = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + (R() - 0.5) * 0.5;
+    spokes.push(a);
+    p.stroke(crack(R, cx, cy, a, S * (0.18 + R() * 0.27), 6), { col: 'rgb(255,255,255)', alpha: grey(150 + R() * 80), height: grey(FLAT - 12) }, S * (0.004 + R() * 0.003));
+  }
+  for (const rr of [0.07 + R() * 0.03, 0.14 + R() * 0.05]) {
+    for (let k = 0; k < n; k++) {
+      if (R() < 0.35) continue;
+      const a0 = spokes[k], a1 = spokes[(k + 1) % n] + (k === n - 1 ? Math.PI * 2 : 0);
+      const r = S * rr * (0.9 + R() * 0.2), am = (a0 + a1) / 2, rm = r * (0.92 + R() * 0.1);
+      const path = new Path2D();
+      path.moveTo(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r);
+      path.lineTo(cx + Math.cos(am) * rm, cy + Math.sin(am) * rm);
+      path.lineTo(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r);
+      p.stroke(path, { col: 'rgb(255,255,255)', alpha: grey(110 + R() * 80), height: grey(FLAT - 8) }, S * 0.0035);
+    }
+  }
+  p.fill(ragged(R, cx, cy, S * 0.012, 7, 0.3), { col: 'rgb(20,18,16)', alpha: grey(255), height: grey(FLAT - 40) });
+}
+
 /* a blast's scorch on the ground, burnt out from the middle in streaks */
 function scorchMark(p, R, cx, cy, S) {
   const burnt = p.alpha.createRadialGradient(cx, cy, 0, cx, cy, S * 0.48);
@@ -590,6 +618,9 @@ function decalMaterial(set, shared) {
       #endif
       #ifdef USE_METALNESSMAP
         vMetalnessMapUv = vMetalnessMapUv * 0.5 + aCell;
+      #endif
+      #ifdef USE_EMISSIVEMAP
+        vEmissiveMapUv = vEmissiveMapUv * 0.5 + aCell;
       #endif`)
       .replace('#include <project_vertex>', `#include <project_vertex>
       mvPosition.xyz -= normalize(mvPosition.xyz) * min(${PULL.toFixed(3)}, length(mvPosition.xyz) * 0.2);
@@ -618,16 +649,19 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
     metal: decalSet(metalHole, 777, 'rgb(150,151,154)', 20, true),
     splat: decalSet(mudSplat, 3301, 'rgb(44,35,26)', 14),
     scorch: decalSet(scorchMark, 6, 'rgb(12,11,9)', 0),
+    glass: decalSet(glassCrack, 2718, 'rgb(255,255,255)', 10),
   };
   // a break a metre or more across: painted at twice the texels
   if (pinned.spall) sets.spall = decalSet(plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2);
   const kinds = {};
   for (const k in sets) {
-    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' ? 0 : max) + fixed;
+    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' ? 0 : k === 'glass' ? 60 : max) + fixed;
     const geo = new THREE.PlaneGeometry(1, 1);
     const cells = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2);
     geo.setAttribute('aCell', cells);
     const m = new THREE.InstancedMesh(geo, decalMaterial(sets[k], shared), cap);
+    // the cracks in a lit window catch the room's light behind them
+    if (k === 'glass') { m.material.emissive.set('#ffcc94'); m.material.emissiveMap = sets[k].map; m.material.emissiveIntensity = 0.9; }
     m.count = 0;
     m.frustumCulled = false;
     // the breaks under the holes: new shots land in old damage
@@ -678,10 +712,34 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
     return true;
   }
 
+  /* the lit panes (rooms.js paneRects), and the one a hit on a wall at (x, y, z) went into: the
+     collider's face is in front of the window's recess, so the hit is carried back along the pane's
+     facing onto the glass */
+  let panes = [];
+  function setPanes(list) { panes = list || []; }
+  const v = new THREE.Vector3();
+  function paneAt(x, y, zz) {
+    let best = null, bd = Infinity;
+    for (const g of panes) {
+      v.set(x - g.c.x, y - g.c.y, zz - g.c.z);
+      const d = v.dot(g.n);
+      if (d < -0.1 || d > 0.6 || d >= bd) continue;
+      const s = v.dot(g.T), u = v.dot(g.B);
+      if (Math.abs(s) > g.hw || Math.abs(u) > g.hh) continue;
+      bd = d;
+      best = { x: g.c.x + g.T.x * s + g.B.x * u, y: g.c.y + g.T.y * s + g.B.y * u, z: g.c.z + g.T.z * s + g.B.z * u, n: g.n };
+    }
+    return best;
+  }
+
   /* A bullet impact by surface. */
   function impact(x, y, zz, nx, ny, nz, surface) {
     if (surface === 'water' || surface === 'foliage' || surface === 'flesh') return;
     const r = Math.random();
+    if ((surface === 'stone' || surface === 'wood') && panes.length) {
+      const g = paneAt(x, y, zz);
+      if (g) { add('glass', g.x, g.y, g.z, g.n.x, g.n.y, g.n.z, 0.24 + r * 0.14); return; }
+    }
     if (surface === 'mud' || surface === 'grass' || surface === 'forest' || surface === 'dirt') add('splat', x, y, zz, nx, ny, nz, 0.3 + r * 0.22);
     else if (surface === 'wood') add('wood', x, y, zz, nx, ny, nz, 0.17 + r * 0.08, true);
     else if (surface === 'metal') add('metal', x, y, zz, nx, ny, nz, 0.12 + r * 0.05);
@@ -690,5 +748,5 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
 
   function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; } }
 
-  return { group, add, pin, impact, clear };
+  return { group, add, pin, impact, clear, setPanes };
 }
