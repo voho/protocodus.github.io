@@ -9,7 +9,8 @@
    banks or inside anything solid. Each piece lies along the slope of the
    ground (from the map's heights), stones sunk to a third of their height,
    twigs resting on the ground. Stones are a low icosphere pushed about by
-   noise and flattened, from grit to the odd fist-sized one, wet and glossy;
+   noise and flattened, from grit to the odd fist-sized one, wet and glossy,
+   caked dull with the mud where they sit in it;
    twigs a bent six-sided stick. Pieces shrink away towards the edge of the
    patch. */
 
@@ -104,6 +105,7 @@ function createKind(kind, geometry, map, shared) {
         uniform float uN, uSpacing, uRadius, uDensity;
         ${stone ? '' : 'attribute float bend;'}
         varying vec3 vTint;
+        varying float vMud;
         vec3 piecePos;
         vec4 hash4(vec2 c) {
           uvec4 v = uvec4(uvec2(ivec2(floor(c)) + 65536), 7u, 13u);
@@ -150,7 +152,10 @@ function createKind(kind, geometry, map, shared) {
         vec3 lp = position * sc;
         lp.y += 0.2 * sc.y;
         vec3 objectNormal = normalize(basis * (normal / max(sc, vec3(1e-5))));
-        vTint = vec3(h2.w, h2.y, step(0.82, h2.z));` : `
+        vTint = vec3(h2.w, h2.y, step(0.82, h2.z));
+        // how near the ground this point of it is (in its own height: 0 where it meets the mud)
+        vMud = 1.0 - smoothstep(0.0, 0.35, position.y + 0.2);` : `
+        vMud = 0.0;
         // a stick 20-60 cm long, up to a thumb thick, resting on the ground
         float len = mix(0.2, 0.6, h2.x) * here;
         float rad = mix(0.006, 0.015, h2.y * h2.y) * here;
@@ -168,17 +173,21 @@ function createKind(kind, geometry, map, shared) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uWet;
-        varying vec3 vTint;`)
+        varying vec3 vTint;
+        varying float vMud;`)
       .replace('#include <color_fragment>', stone ? `
         // field stones coated in the mud they lie in: brown-grey, now and then a paler flint; wet: darker
         vec3 col = mix(vec3(0.085, 0.075, 0.062), vec3(0.16, 0.14, 0.115), vTint.x);
         col = mix(col, vec3(0.26, 0.24, 0.21), vTint.z * 0.6);
+        // caked with the mud it sits in, low down
+        col = mix(col, vec3(0.05, 0.04, 0.03), vMud * 0.85);
         diffuseColor.rgb = col * mix(1.0, 0.7, uWet);` : `
         // dead wood: grey-brown bark, a little paler than the litter it lies on, some darker and rotting
         vec3 col = mix(vec3(0.11, 0.085, 0.06), vec3(0.22, 0.18, 0.13), vTint.x);
         diffuseColor.rgb = col * mix(0.7, 1.0, vTint.y) * mix(1.0, 0.8, uWet);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, ${stone ? '0.38' : '0.72'}, uWet);`);
+        roughnessFactor = mix(roughnessFactor, ${stone ? '0.38' : '0.72'}, uWet);
+        roughnessFactor = mix(roughnessFactor, 0.75, vMud);`);
     dimFillSpecular(shader);
   };
   const mesh = new THREE.Mesh(geo, mat);
