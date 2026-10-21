@@ -99,7 +99,11 @@ by the blast that killed them, and drop their rifles.
     fires and flashes, soft where they meet the scene; blasts throw up a
     column of earth and roll dust along the ground), `atmosphere.js`
     (halos, mist, decals),
-    `audio.js` (procedural)
+    `audio.js` (procedural, nothing downloaded; foley: steps by what is
+    underfoot — hobnails on stone, sucking mud, swishing grass, crackling
+    leaves, hollow planks, splashing water — the kit when running and
+    landing, reloads in their parts, empty cases ringing on stone, bodies
+    and rifles falling, ricochets, rain ticking on the helmet)
   * the effects chain (`renderer.setEffects`, in order): the particles of
     `effects.js` drawn into the scene's buffer with its depth · `ssao.js` ambient
     occlusion at half resolution · `ssr.js` reflections in the wet ground,

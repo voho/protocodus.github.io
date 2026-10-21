@@ -5,7 +5,15 @@
    filtered noise and short oscillator sweeps. World sounds are panned and
    attenuated by distance from the listener and lose their highs with
    distance; gunfire carries a short slap-back echo from the houses and the
-   tree line. */
+   tree line.
+
+   Foley: footsteps by surface (hobnails clicking on stone, mud sucking at
+   the boot, grass swishing, leaf litter crackling, planks knocking hollow,
+   water splashing) with heel and toe and a little difference every step;
+   the kit (canteen, scabbard, pouches, the rifle on its sling) when running,
+   jumping, landing, kneeling; the rifle shouldered; reloads in their parts;
+   empty cases ringing on stone; bodies and rifles falling; ricochets off
+   stone and steel; and the rain ticking on the helmet. */
 
 import { rng } from './util.js';
 
@@ -15,7 +23,7 @@ export function createAudio() {
   let volume = 0.8;
   const R = rng(77);
   const listener = { x: 0, y: 0, z: 0, yaw: 0 };
-  let rainGain = null, windGain = null, rainLP = null;
+  let rainGain = null, windGain = null, rainLP = null, helmetGain = null;
 
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -81,6 +89,21 @@ export function createAudio() {
     const lg = ctx.createGain(); lg.gain.value = 0.08;
     lfo.connect(lg).connect(windGain.gain);
     lfo.start();
+    // rain on the helmet: a loop of drops ticking on steel, close, all round the head
+    const sec = 3, n = Math.floor(ctx.sampleRate * sec);
+    const buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let k = 0; k < 36; k++) {
+        const len = 500 + Math.floor(R() * 900), at = Math.floor(R() * (n - len));
+        const w = (3000 + R() * 2800) / ctx.sampleRate * 2 * Math.PI, amp = 0.2 + R() * 0.8;
+        for (let i = 0; i < len; i++) d[at + i] += (Math.sin(i * w) * Math.exp(-i / (len * 0.16)) * 0.5 + (R() * 2 - 1) * Math.exp(-i / 30) * 0.35) * amp;
+      }
+    }
+    const hs = ctx.createBufferSource(); hs.buffer = buf; hs.loop = true;
+    helmetGain = ctx.createGain(); helmetGain.gain.value = 0.045;
+    hs.connect(helmetGain).connect(amb);
+    hs.start();
   }
 
   /* Spatial chain for a sound at a world position. Returns the input node
@@ -180,14 +203,35 @@ export function createAudio() {
     burst(sfx, ctx.currentTime, { dur: 0.03, peak: 0.25, type: 'bandpass', freq: 3500, q: 2 });
   }
 
-  /* Reload clicks: the player's own, or someone else's at a position. */
+  /* A reload, the player's own or someone else's at a position, in its
+     parts (at the moments of the clip in reload.js). Garand: the operating
+     rod back, the clip shoved in, the thumb out, the bolt slamming home.
+     Thompson: the magazine catch, the empty one out (and onto the ground),
+     the full one slapped in, the bolt racked. Others: four clicks. */
   function reload(kind, at = null) {
     if (!ctx) return;
     const out = at ? spatial(at.x, at.y + 1.2, at.z, { ref: 2, max: 30 }) : sfx;
     if (!out) return;
     const t = ctx.currentTime;
-    const clicks = kind === 'garand' ? [0.2, 0.75, 1.45, 1.85] : [0.25, 0.85, 1.6, 2.05];
-    clicks.forEach((dt, i) => burst(out, t + dt, { dur: 0.05, peak: 0.25 + (i === clicks.length - 1 ? 0.15 : 0), type: 'bandpass', freq: 2200 + i * 500, q: 3 }));
+    const click = (tt, f, peak, d = 0.04, q = 3) => burst(out, tt, { dur: d, peak, type: 'bandpass', freq: f * (0.95 + R() * 0.1), q });
+    const slide = (tt, f0, f1, peak, d = 0.09) => burst(out, tt, { dur: d, peak, type: 'bandpass', freq: f0, sweepTo: f1, q: 2 });
+    if (kind === 'garand') {
+      slide(t + 0.17, 1800, 2600, 0.12); click(t + 0.24, 2300, 0.3);
+      slide(t + 0.72, 1200, 1800, 0.15, 0.12); click(t + 0.83, 2800, 0.26);
+      click(t + 1.45, 3400, 0.12, 0.03);
+      click(t + 1.85, 1900, 0.42, 0.05, 2);
+      tone(out, t + 1.85, { f0: 260, f1: 150, dur: 0.08, peak: 0.18, type: 'triangle' });
+    } else if (kind === 'thompson') {
+      click(t + 0.25, 3000, 0.22, 0.03);
+      slide(t + 0.3, 1500, 900, 0.12, 0.1);
+      burst(out, t + 0.78, { dur: 0.06, peak: 0.1, type: 'bandpass', freq: 1300, q: 1.5 });
+      slide(t + 0.8, 900, 1600, 0.14, 0.12); click(t + 0.95, 2400, 0.32, 0.04, 2);
+      slide(t + 1.55, 2000, 1400, 0.15, 0.08); click(t + 1.62, 2600, 0.3);
+      click(t + 2.05, 2200, 0.38, 0.05, 2);
+    } else {
+      const clicks = [0.25, 0.85, 1.6, 2.05];
+      clicks.forEach((dt, i) => click(t + dt, 2200 + i * 500, 0.25 + (i === clicks.length - 1 ? 0.15 : 0)));
+    }
   }
 
   function switchWeapon() {
@@ -215,6 +259,7 @@ export function createAudio() {
     if (surface === 'metal') {
       tone(out, t, { f0: 1800 + R() * 900, f1: 1400, dur: 0.18, peak: 0.25, type: 'triangle' });
       burst(out, t, { dur: 0.04, peak: 0.3, type: 'highpass', freq: 3000 });
+      if (R() < 0.4) ricochet(out, t);
     } else if (surface === 'water') {
       burst(out, t, { dur: 0.18, peak: 0.35, type: 'bandpass', freq: 1200, sweepTo: 600, q: 1 });
     } else if (surface === 'wood') {
@@ -223,9 +268,20 @@ export function createAudio() {
       burst(out, t, { dur: 0.08, peak: 0.45, type: 'lowpass', freq: 700, q: 1 });
     } else if (surface === 'stone' || surface === 'cobble' || surface === 'concrete') {
       burst(out, t, { dur: 0.06, peak: 0.4, type: 'bandpass', freq: 2400, q: 1.2 });
+      if (R() < 0.22) ricochet(out, t);
     } else {
       burst(out, t, { dur: 0.1, peak: 0.35, type: 'lowpass', freq: 600, q: 0.7 });
     }
+  }
+
+  /* A bullet glancing off and whining away. */
+  function ricochet(out, t) {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    const f0 = 2600 + R() * 1800;
+    o.frequency.setValueAtTime(f0, t + 0.01);
+    o.frequency.exponentialRampToValueAtTime(f0 * (0.4 + R() * 0.15), t + 0.38);
+    const g = ctx.createGain(); env(g, t + 0.01, 0.01, 0.045 + R() * 0.03, 0.36);
+    o.connect(g).connect(out); o.start(t + 0.01); o.stop(t + 0.45);
   }
 
   function explosion(x, y, z, scale = 1) {
@@ -264,20 +320,135 @@ export function createAudio() {
     }
   }
 
-  function footstep(x, y, z, surface, loud = 1, player = false) {
+  /* ---------- foley ---------- */
+
+  // which kind of step a surface makes
+  const STEP = {
+    cobble: 'hard', stone: 'hard', concrete: 'hard', tile: 'hard', metal: 'metal', iron: 'metal',
+    wood: 'wood', planks: 'wood', mud: 'mud', dirt: 'mud', grass: 'grass', forest: 'leaves', foliage: 'leaves',
+    sandbag: 'soft', fabric: 'soft', water: 'water',
+  };
+
+  /* A step: heel, then toe, a little different every time. `run` adds the
+     kit, `wet` (0..1) a thin splash on hard ground and grass in the rain. */
+  function footstep(x, y, z, surface, loud = 1, player = false, { run = false, wet = 0 } = {}) {
     if (!ctx) return;
     const out = player ? sfx : spatial(x, y, z, { ref: 2, max: 40 });
     if (!out) return;
     const t = ctx.currentTime;
-    const gain = (player ? 0.22 : 0.3) * loud;
-    if (surface === 'water') {
-      burst(out, t, { dur: 0.22, peak: gain * 1.4, type: 'bandpass', freq: 900, sweepTo: 400, q: 0.9 });
-    } else if (surface === 'mud' || surface === 'forest' || surface === 'grass') {
-      burst(out, t, { dur: 0.12, peak: gain, type: 'lowpass', freq: 650, q: 1.2 });
-      burst(out, t + 0.03, { dur: 0.08, peak: gain * 0.4, type: 'bandpass', freq: 1800, q: 2 });
-    } else {
-      burst(out, t, { dur: 0.06, peak: gain * 1.1, type: 'bandpass', freq: 1300, q: 1.5 });
+    const g = (player ? 0.22 : 0.3) * loud;
+    const v = 0.9 + R() * 0.2;
+    const toe = t + 0.05 + R() * 0.03;
+    switch (STEP[surface] || 'hard') {
+      case 'hard':
+        burst(out, t, { dur: 0.05, peak: g, type: 'bandpass', freq: 1100 * v, q: 1.4 });
+        burst(out, t, { dur: 0.02, peak: g * 0.45, type: 'bandpass', freq: 4200 * v, q: 3 });          // hobnails
+        burst(out, toe, { dur: 0.04, peak: g * 0.6, type: 'bandpass', freq: 1500 * v, q: 1.6 });
+        burst(out, toe + 0.01, { dur: 0.06, peak: g * 0.18, type: 'highpass', freq: 3500 });            // grit under the sole
+        if (wet > 0) burst(out, t + 0.005, { dur: 0.09, peak: g * 0.5 * wet, type: 'bandpass', freq: 2600 * v, sweepTo: 1200, q: 1.1 });
+        break;
+      case 'mud':
+        burst(out, t, { dur: 0.11, peak: g, type: 'lowpass', freq: 520 * v, q: 1.3 });
+        burst(out, t + 0.02, { dur: 0.16, peak: g * 0.55, type: 'bandpass', freq: 900 * v, sweepTo: 350, q: 2.5 });      // squelch
+        burst(out, t + 0.16 + R() * 0.05, { dur: 0.06, peak: g * 0.35, type: 'bandpass', freq: 1600 * v, sweepTo: 2600, q: 4 });   // the boot pulling free
+        break;
+      case 'grass':
+        burst(out, t, { dur: 0.09, peak: g * 0.75, type: 'lowpass', freq: 600 * v, q: 1 });
+        burst(out, t + 0.01, { dur: 0.16, peak: g * 0.3, type: 'highpass', freq: 3800 * v });            // blades swishing
+        if (wet > 0) burst(out, t + 0.02, { dur: 0.12, peak: g * 0.25 * wet, type: 'bandpass', freq: 2000, q: 1 });
+        break;
+      case 'leaves':
+        burst(out, t, { dur: 0.09, peak: g * 0.7, type: 'lowpass', freq: 650 * v, q: 1 });
+        for (let i = 0; i < 4; i++) burst(out, t + R() * 0.12, { dur: 0.012, peak: g * (0.15 + R() * 0.2), type: 'bandpass', freq: 2500 + R() * 3500, q: 2 });
+        if (R() < 0.15) burst(out, t + 0.04, { dur: 0.015, peak: g * 0.6, type: 'highpass', freq: 1800 });   // a twig snaps
+        break;
+      case 'wood':
+        tone(out, t, { f0: 190 * v, f1: 120 * v, dur: 0.12, peak: g * 0.8, type: 'triangle' });
+        burst(out, t, { dur: 0.06, peak: g * 0.8, type: 'bandpass', freq: 700 * v, q: 2 });
+        burst(out, toe, { dur: 0.04, peak: g * 0.45, type: 'bandpass', freq: 950 * v, q: 2 });
+        if (R() < 0.2) tone(out, t + 0.08, { f0: 420 * v, f1: 380 * v, dur: 0.25, peak: g * 0.1, type: 'sawtooth' });   // a board creaks
+        break;
+      case 'metal':
+        tone(out, t, { f0: 600 * v, f1: 540 * v, dur: 0.2, peak: g * 0.35, type: 'triangle' });
+        burst(out, t, { dur: 0.04, peak: g * 0.8, type: 'bandpass', freq: 2200 * v, q: 2 });
+        break;
+      case 'soft':
+        burst(out, t, { dur: 0.1, peak: g * 0.7, type: 'lowpass', freq: 450 * v, q: 0.8 });
+        burst(out, t + 0.02, { dur: 0.08, peak: g * 0.2, type: 'bandpass', freq: 1500, q: 1 });
+        break;
+      case 'water':
+        burst(out, t, { dur: 0.22, peak: g * 1.4, type: 'bandpass', freq: 900 * v, sweepTo: 400, q: 0.9 });
+        burst(out, t + 0.05, { dur: 0.3, peak: g * 0.6, type: 'bandpass', freq: 1800 * v, sweepTo: 700, q: 1.2 });       // slosh
+        for (let i = 0; i < 3; i++) burst(out, t + 0.1 + R() * 0.25, { dur: 0.03, peak: g * 0.2, type: 'bandpass', freq: 2500 + R() * 2000, q: 4 });
+        break;
     }
+    if (run) kit(out, t + 0.02, g * 0.7);
+  }
+
+  /* The kit on a moving soldier: canteen, scabbard, pouches, the rifle on its
+     sling, webbing and wool. */
+  function kit(out, t, peak) {
+    burst(out, t, { dur: 0.05, peak: peak * 0.35, type: 'bandpass', freq: 2900 + R() * 900, q: 5 });
+    if (R() < 0.5) tone(out, t + 0.01, { f0: 1700 + R() * 600, f1: 1500, dur: 0.07, peak: peak * 0.06, type: 'triangle' });
+    burst(out, t, { dur: 0.12, peak: peak * 0.18, type: 'bandpass', freq: 1200, q: 0.8 });
+  }
+
+  /* The player's own moves: kneeling, getting up, shouldering the rifle,
+     a jump, a landing (on `surface`). */
+  function gear(kind, surface = 'mud') {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (kind === 'crouch' || kind === 'stand') {
+      const down = kind === 'crouch';
+      burst(sfx, t, { dur: 0.22, peak: 0.08, type: 'bandpass', freq: down ? 900 : 1200, sweepTo: down ? 500 : 1800, q: 0.7 });
+      kit(sfx, t + 0.05, 0.18);
+    } else if (kind === 'aim') {
+      burst(sfx, t, { dur: 0.12, peak: 0.06, type: 'bandpass', freq: 1500, sweepTo: 900, q: 0.8 });
+      burst(sfx, t + 0.06, { dur: 0.03, peak: 0.07, type: 'bandpass', freq: 3200, q: 4 });          // sling swivel
+    } else if (kind === 'jump') {
+      burst(sfx, t, { dur: 0.15, peak: 0.07, type: 'bandpass', freq: 1100, q: 0.7 });
+      kit(sfx, t + 0.03, 0.2);
+    } else if (kind === 'land') {
+      footstep(0, 0, 0, surface, 1.5, true);
+      kit(sfx, t + 0.01, 0.3);
+      kit(sfx, t + 0.06, 0.2);
+    }
+  }
+
+  /* An empty case landing where it fell, `delay` after the shot: brass rings
+     on stone and steel, ticks on planks, is lost in mud, grass and leaves. */
+  function casing(x, y, z, surface, delay = 0.45) {
+    if (!ctx) return;
+    const kind = STEP[surface] || 'hard';
+    if (kind !== 'hard' && kind !== 'metal' && kind !== 'wood') return;
+    const out = spatial(x, y, z, { ref: 1.5, max: 20, lowpassFar: false });
+    if (!out) return;
+    const t = ctx.currentTime + delay;
+    const f = (kind === 'wood' ? 2600 : 3800) + R() * 1500;
+    const n = kind === 'wood' ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const tt = t + i * (0.09 - i * 0.02) + R() * 0.01;
+      tone(out, tt, { f0: f * (1 + R() * 0.05), f1: f * 0.98, dur: (kind === 'wood' ? 0.05 : 0.12) - i * 0.02, peak: 0.07 / (i + 1), type: 'sine' });
+      if (kind !== 'wood') tone(out, tt, { f0: f * 2.7, f1: f * 2.65, dur: 0.06, peak: 0.025 / (i + 1), type: 'sine' });
+    }
+  }
+
+  /* A body hitting the ground `delay` from now, the kit with it, the rifle
+     clattering down a moment later. */
+  function bodyFall(x, y, z, surface = 'mud', delay = 0.5, player = false) {
+    if (!ctx) return;
+    const out = player ? sfx : spatial(x, y, z, { ref: 3, max: 50 });
+    if (!out) return;
+    const t = ctx.currentTime + delay;
+    const kind = STEP[surface] || 'mud';
+    burst(out, t, { dur: 0.22, peak: 0.55, type: 'lowpass', freq: kind === 'hard' ? 500 : 320, q: 0.9, brown: true });
+    tone(out, t, { f0: 85, f1: 45, dur: 0.18, peak: 0.35 });
+    if (kind === 'mud' || kind === 'water') burst(out, t + 0.03, { dur: 0.25, peak: 0.25, type: 'bandpass', freq: 800, sweepTo: 300, q: 1.5 });
+    kit(out, t + 0.03, 0.5);
+    kit(out, t + 0.12, 0.3);
+    const rt = t + 0.18 + R() * 0.2;
+    burst(out, rt, { dur: 0.07, peak: 0.25, type: 'bandpass', freq: kind === 'hard' ? 1800 : 1000, q: 1.5 });
+    if (kind === 'hard') tone(out, rt, { f0: 900, f1: 850, dur: 0.15, peak: 0.05, type: 'triangle' });
   }
 
   function pin() {
@@ -326,10 +497,11 @@ export function createAudio() {
       if (!rainGain) return;
       rainGain.gain.value = 0.16 * a;
       rainLP.frequency.value = indoor ? 900 : 5200;
+      helmetGain.gain.value = indoor ? 0 : 0.045 * a;
     },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
     gunshot, garandPing, dryFire, reload, switchWeapon, whizz, impact, explosion, thunder, distant,
-    footstep, pin, grenadeBounce, ui,
+    footstep, gear, casing, bodyFall, pin, grenadeBounce, ui,
   };
 }

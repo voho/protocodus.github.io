@@ -333,8 +333,17 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
     return Math.max(0, water.level - ground);
   }
 
+  /* What a foot at (x, y, z) stands on: the water when wading, else what is
+     under it — a collider's surface (planks, a stone floor, sandbags) or the
+     ground's. */
+  function surfaceUnder(x, y, z) {
+    if (water && water.contains(x, z) && terrain && terrain.height(x, z) < water.level && y < water.level + 0.1) return 'water';
+    const h = raycast(x, y + 0.3, z, 0, -1, 0, 0.7, MOVE, { noWater: true });
+    return h?.surface || (terrain ? terrain.surfaceAt(x, z) : 'stone');
+  }
+
   return {
-    add, remove, query, raycast, clear, groundAt, pushOut, obstacleAhead, tooDeep, waterDepth,
+    add, remove, query, raycast, clear, groundAt, pushOut, obstacleAhead, tooDeep, waterDepth, surfaceUnder,
     colliders, terrain, water, bounds: { minX, maxX, minZ, maxZ },
   };
 }

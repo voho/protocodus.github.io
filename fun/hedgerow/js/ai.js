@@ -243,6 +243,7 @@ export function createEnemies(G, defs) {
       }
     }
     e.char.die(kind, { world: G.world, velocity: e.vel.clone(), impulses });
+    G.audio.bodyFall(e.pos.x, e.pos.y, e.pos.z, G.world.surfaceUnder(e.pos.x, e.pos.y, e.pos.z), 0.4 + R() * 0.3);
     if (G.debris && e.char.weapon && e.char.ragdoll) {
       G.debris.drop(e.char.weapon, new THREE.Vector3((R() - 0.5) * 1.5, 1.2, (R() - 0.5) * 1.5), { spin: 5, radius: 0.08, life: 240 });
     }
@@ -1052,6 +1053,14 @@ export function createEnemies(G, defs) {
       if (f > 0.5) move = 'walk'; else if (f < -0.5) move = 'walk_back'; else move = s > 0 ? 'strafe_l' : 'strafe_r';
     }
     const gait = GAIT[move] ? clamp(speed / GAIT[move], 0.6, 2.6) : 1;
+    // his steps: on the cobbles a patrol carries
+    if (speed > 0.5) {
+      e.stepAcc = (e.stepAcc || 0) + dt * speed / (speed > 3 ? 1.6 : 1.2);
+      if (e.stepAcc > 1) {
+        e.stepAcc = 0;
+        G.audio.footstep(e.pos.x, e.pos.y, e.pos.z, G.world.surfaceUnder(e.pos.x, e.pos.y, e.pos.z), crouch ? 0.5 : speed > 3 ? 1.1 : 0.8, false, { run: speed > 3, wet: G.shared.wet.value });
+      }
+    }
     const firing = e.state === 'combat' && (e.phase === 'peek' || e.phase === 'open' || e.type === 'mg' || e.type === 'sniper') && speed < 3;
     // looking for him, waiting for him, or wary after a scare: rifle up
     const ready = (e.state === 'search' && e.srch?.reason !== 'body') || e.state === 'ambush' || e.state === 'alert' ||

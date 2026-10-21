@@ -98,6 +98,7 @@ export function createPlayer(G) {
         impulses.push({ part: kind === 'bullet' ? 'body' : 'all', vel: dir.multiplyScalar(k).add(new THREE.Vector3(0, kind === 'bullet' ? 0.4 : 3.5, 0)) });
       }
       P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
+      G.audio.bodyFall(P.pos.x, P.pos.y, P.pos.z, G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z), 0.45, true);
       if (G.debris && P.char.weapon && P.char.ragdoll) G.debris.drop(P.char.weapon, new THREE.Vector3(0, 1, 0), { spin: 4, radius: 0.08 });
       G.events.emit('playerDied');
     }
@@ -192,6 +193,11 @@ export function createPlayer(G) {
     // effects
     G.effects.muzzle(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, w.kind === 'rifle' ? 1.2 : 0.9);
     G.effects.shell(muzzle.x - md.x * 0.5, muzzle.y, muzzle.z - md.z * 0.5, -md.z, md.x);
+    {
+      // where the empty case lands: a pace to the right of the gun
+      const cx = muzzle.x - md.x * 0.5 - md.z, cz = muzzle.z - md.z * 0.5 + md.x;
+      G.audio.casing(cx, P.pos.y, cz, G.world.surfaceUnder(cx, P.pos.y, cz), 0.4 + Math.random() * 0.15);
+    }
     G.lights.flash(muzzle.x + md.x * 0.3, muzzle.y, muzzle.z + md.z * 0.3, '#ffb36b', 60, 9, 0.06);
     G.audio.gunshot(w.sound, muzzle.x, muzzle.y, muzzle.z, { player: true });
     if (P.weapon === 'garand' && a.mag === 0) {
@@ -286,7 +292,7 @@ export function createPlayer(G) {
     const wheel = input.consumeWheel();
     if (wheel) switchTo(P.weapon === 'garand' ? 'thompson' : 'garand');
     if (input.pressed('KeyQ')) G.rig.shoulder *= -1;
-    if (input.pressed('KeyC') || input.pressed('Control')) P.crouch = !P.crouch;
+    if (input.pressed('KeyC') || input.pressed('Control')) { P.crouch = !P.crouch; G.audio.gear(P.crouch ? 'crouch' : 'stand'); }
     if (input.pressed('KeyR')) startReload();
 
     // movement intent in camera space
@@ -298,6 +304,8 @@ export function createPlayer(G) {
     const len = Math.hypot(fx, fz);
     if (len > 0) { fx /= len; fz /= len; }
     const aiming = input.mouseR && P.reloading <= 0 && P.throwing <= 0;
+    if (aiming && !P.wasAiming) G.audio.gear('aim');
+    P.wasAiming = aiming;
     P.sprint = input.held('Shift') && fz > 0.3 && !aiming && P.reloading <= 0 && P.cooking < 0;
     if (P.sprint && P.crouch) P.crouch = false;
 
@@ -340,10 +348,12 @@ export function createPlayer(G) {
           if (landed) {
             P.vault = { from: P.pos.clone(), to: new THREE.Vector3(landed.x, landed.y, landed.z), t: 0, dur: 0.55, arc: Math.max(0.25, ob.top - Math.max(P.pos.y, landed.y) + 0.35), dirX: fdx, dirZ: fdz };
             P.crouch = false;
+            G.audio.gear('jump');
           }
         } else if (!ob || ob.top - P.pos.y <= PLAYER.step) {
           P.vel.y = PLAYER.jump;
           P.grounded = false;
+          G.audio.gear('jump');
         }
       }
 
@@ -370,7 +380,7 @@ export function createPlayer(G) {
       P.pos.y += P.vel.y * dt;
       const g2 = G.world.groundAt(P.pos.x, P.pos.z, Math.max(P.pos.y, ground), PLAYER.step);
       if (P.pos.y <= g2) {
-        if (!P.grounded && P.vel.y < -6) G.audio.footstep(P.pos.x, P.pos.y, P.pos.z, G.terrain.surfaceAt(P.pos.x, P.pos.z), 1.3, true);
+        if (!P.grounded && P.vel.y < -6) G.audio.gear('land', G.world.surfaceUnder(P.pos.x, g2, P.pos.z));
         P.pos.y = g2; P.vel.y = 0; P.grounded = true;
       } else if (P.pos.y - g2 < 0.3 && P.vel.y <= 0 && P.grounded) {
         P.pos.y = g2; P.vel.y = 0;      // stick to slopes and steps going down
@@ -455,8 +465,8 @@ export function createPlayer(G) {
       P.stepAcc += dt * hSpeed / (P.sprint ? 1.6 : 1.2);
       if (P.stepAcc > 1) {
         P.stepAcc = 0;
-        const surf = P.wading > 0.05 ? 'water' : G.terrain.surfaceAt(P.pos.x, P.pos.z);
-        G.audio.footstep(P.pos.x, P.pos.y, P.pos.z, surf, P.crouch ? 0.5 : P.sprint ? 1.2 : 0.8, true);
+        const surf = P.wading > 0.05 ? 'water' : G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z);
+        G.audio.footstep(P.pos.x, P.pos.y, P.pos.z, surf, P.crouch ? 0.5 : P.sprint ? 1.2 : 0.8, true, { run: P.sprint, wet: G.shared.wet.value });
         if (surf === 'water') G.effects.splash(P.pos.x, G.world.water.level, P.pos.z, 0.5);
         if (P.sprint) G.events.emit('noise', { x: P.pos.x, z: P.pos.z, radius: 12, kind: 'step' });
       }

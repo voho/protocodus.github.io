@@ -56,6 +56,7 @@ function game(playerAt) {
     },
     diff: { aware: 1, accuracy: 0, damage: 1 },
     effects: noop, lights: noop, audio: noop, decals: null, debris: null,
+    shared: { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 } },
     explosives: { list: [], throwGrenade() {} },
     rig: { yaw: 0, addShake() {} },
     hud: { awareness() {} },
