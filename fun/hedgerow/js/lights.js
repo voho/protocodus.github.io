@@ -47,7 +47,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   scene.add(shadowLight);
   let shadowOf = null;      // the static it is standing in for
 
-  const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow}
+  const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog}
   const flashes = [];       // {x,y,z,color,intensity,range,life,age}
 
   function addStatic(o) {
@@ -110,17 +110,21 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     for (const s of statics) {
       if (!s.on || s === shadowOf) continue;
       const d2 = (s.x - cam.x) ** 2 + (s.y - cam.y) ** 2 + (s.z - cam.z) ** 2;
-      if (d2 > 90 * 90) continue;
-      cand.push({ x: s.x, y: s.y, z: s.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2) });
+      // a far light (a flare over the fields) is in the running from any distance
+      if (!s.far && d2 > 90 * 90) continue;
+      cand.push({ x: s.x, y: s.y, z: s.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2), fog: s.fog ?? 1, noLight: !!s.noLight });
     }
     cand.sort((a, b) => b.score - a.score);
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
     if (shadowOf) active.push({ x: shadowOf.x, y: shadowOf.y, z: shadowOf.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
+    // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
+    let ci = 0;
     for (let i = 0; i < lights.length; i++) {
       const l = lights[i];
-      const c = cand[i];
+      while (ci < cand.length && cand[ci].noLight) ci++;
+      const c = cand[ci++];
       if (!c) { l.intensity = 0; l.position.set(0, -1000, 0); continue; }
       l.position.set(c.x, c.y, c.z);
       l.color.copy(c.color);

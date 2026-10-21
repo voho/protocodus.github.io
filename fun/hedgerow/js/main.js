@@ -9,6 +9,7 @@ import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
 import { loadTextures, createMaterialLibrary } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
+import { createFlares } from './flares.js';
 import { createWeather } from './weather.js';
 import { createLighting } from './lights.js';
 import { createEffects } from './effects.js';
@@ -160,6 +161,8 @@ async function boot() {
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
   scene.add(G.clutter.group);
+  // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
+  G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
   setLoading(0.85, 'Rain over Normandy');
   await nextPaint();
 
@@ -284,6 +287,11 @@ function startMission() {
     G.events.on('playerDied', onDeath);
     G.events.on('missionComplete', onComplete);
     mission.start();
+    // the flares' shadow shaders, now that the soldiers exist (not at the first flare)
+    G.flares.warm(renderer, scene, camera, [
+      ...built.veg.group.children.filter((m) => m.isInstancedMesh && !m.material.alphaToCoverage),
+      ...player.char.meshes, ...enemies.list.flatMap((e) => e.char.meshes),
+    ]);
   }
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
   player.reset(spawn);
@@ -434,17 +442,29 @@ function frame(now) {
 
 /* Soldiers throw shadows only near the shadow light (each one costs six
    renders of his body into its cube map). */
+let flareShadows = false, lampShadowOf = null;
 function castShadows() {
   const sl = G.lights.shadowLight;
   if (!sl || !sl.castShadow) return;
+  // while a flare's shadows are drawn the trunks of the trees cast too, and the lamp's
+  // shadow (a cube of six maps) holds still, drawn again only if it moves to another lamp
+  const fl = !!G.flares?.shadowing;
+  if (fl !== flareShadows) {
+    flareShadows = fl;
+    for (const m of built.veg.group.children) if (m.isInstancedMesh && !m.material.alphaToCoverage) m.castShadow = fl;
+  }
+  sl.shadow.autoUpdate = !fl;
+  if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
+  lampShadowOf = G.lights.shadowOf;
   const lit = sl.intensity > 0;
   const r2 = (sl.distance + 3) ** 2;
   const near = (p) => lit && (p.x - sl.position.x) ** 2 + (p.z - sl.position.z) ** 2 < r2;
+  const inFlare = (p) => fl && (p.x - camera.position.x) ** 2 + (p.z - camera.position.z) ** 2 < 40 * 40;
   for (const e of G.enemies || []) {
-    const on = e.char.root.visible && near(e.pos);
+    const on = e.char.root.visible && (near(e.pos) || inFlare(e.pos));
     for (const m of e.char.meshes) m.castShadow = on;
   }
-  if (player) for (const m of player.char.meshes) m.castShadow = near(player.pos);
+  if (player) for (const m of player.char.meshes) m.castShadow = near(player.pos) || inFlare(player.pos);
 }
 
 /* ---------- dynamic resolution ----------
@@ -529,6 +549,7 @@ function step() {
     G.sky.update(dt, G.time, camera, flash, G.weather.flashDir);
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
+    G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
     G.lights.update(dt, G.time, camera.position, flash);
     castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);

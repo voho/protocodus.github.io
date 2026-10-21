@@ -609,6 +609,17 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     }
   }
 
+  /* A flare going up: a streak of burning composition climbing 'height' metres in 'time' seconds. */
+  function flareLaunch(x, y, z, height, time) {
+    add.spawn({ x, y, z, vy: height / time, life: time, size: 0.35, color: C('#ffe2b0', 1, 4), color1: C('#ffc890', 0.8, 3), cell: CELLS.streak, streak: 0.05 });
+    for (let k = 0; k < 6; k++) {
+      add.spawn({
+        x, y, z, vx: (R() - 0.5) * 2, vy: height / time * (0.3 + R() * 0.4), vz: (R() - 0.5) * 2,
+        life: 0.6 + R() * 0.5, size: 0.08, color: C('#ffc070', 1, 3), color1: C('#ff6020', 0, 1), cell: CELLS.spark, gravity: 9.8, streak: 0.03,
+      });
+    }
+  }
+
   function smokePuff(x, y, z, size = 1, color = '#555', life = 3) {
     alpha.spawn({ x, y, z, vx: (R() - 0.5) * 0.3, vy: 0.4, vz: (R() - 0.5) * 0.3, life, size: 0.4 * size, size1: 2.5 * size, color: C(color, 0.5), color1: C(color, 0), cell: CELLS.smoke, drag: 1, rot: R() * 6, rotV: (R() - 0.5) * 0.5, fadeIn: 0.2 });
   }
@@ -624,7 +635,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   return {
-    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, update, fires,
+    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
     pass, usePass, setLights,
     setGround(fn) { groundFn = fn; },
     get count() { return alpha.P.n + add.P.n; },

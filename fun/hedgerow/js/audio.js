@@ -314,6 +314,10 @@ export function createAudio() {
     if (kind === 'artillery') {
       tone(g, t, { f0: 55, f1: 28, dur: 1.5, peak: 0.6 });
       burst(g, t, { dur: 2.2, peak: 0.4, type: 'lowpass', freq: 220, sweepTo: 60, brown: true, attack: 0.05 });
+    } else if (kind === 'flare') {
+      // a flare bursting open far off: a soft pop, then the fizz of it burning
+      burst(g, t, { dur: 0.09, peak: 0.35, type: 'lowpass', freq: 700, q: 0.8 });
+      burst(g, t + 0.05, { dur: 1.6, peak: 0.05, type: 'bandpass', freq: 3200, q: 0.6, attack: 0.2 });
     } else {
       const n = 6 + Math.floor(R() * 10);
       for (let i = 0; i < n; i++) burst(g, t + i * 0.055, { dur: 0.06, peak: 0.18, type: 'lowpass', freq: 900, q: 0.7 });

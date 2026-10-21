@@ -33,7 +33,11 @@ above the waterline, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
-artillery flashes and burning farms beyond the hedges. Lamps and fires cast
+artillery flashes and burning farms beyond the hedges, and every half minute
+or so an illumination flare going up over the front and sinking under its
+parachute, lighting the cloud, glittering on the wet cobbles and laying long
+shadows of houses, walls, soldiers and tree trunks that swing as it drifts.
+Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
 contrast, sharpening, grain in the shadows — going soft behind whatever you
@@ -122,6 +126,10 @@ by the blast that killed them, and drop their rifles.
     baked trunks: the bark detail projected in the tree's own space from
     two sides, per species) · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
+    `flares.js` (illumination flares: a far light for the haze and the
+    smoke, a directional light along it for the ground, its 80 m shadow
+    map drawn every other frame only while one burns; the shaders it needs
+    are warmed at the start of the mission),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
     column of earth and roll dust along the ground), `atmosphere.js`

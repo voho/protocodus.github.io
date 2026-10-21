@@ -21,6 +21,8 @@ uniform vec3 uFlashDir;
 uniform vec2 uWind;
 uniform float uArty;
 uniform vec3 uArtyDir;
+uniform float uFlare;
+uniform vec3 uFlareDir;
 varying vec3 vDir;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -59,6 +61,9 @@ void main() {
   // a far barrage: orange pulses low on the horizon, under the clouds
   float ad = max(dot(normalize(vec3(d.x, 0.0, d.z)), uArtyDir), 0.0);
   col += vec3(1.0, 0.55, 0.25) * uArty * pow(ad, 24.0) * exp(-max(el, 0.0) * 14.0) * 1.6;
+  // a flare under the cloud deck: the cloud round it lit white, a halo in the wet air
+  float fl = max(dot(d, uFlareDir), 0.0);
+  col += vec3(0.85, 0.9, 1.0) * uFlare * (pow(fl, 8.0) * (0.04 + 0.24 * cloud) + pow(fl, 90.0) * 0.5);
   // into the fog at and below the horizon
   col = mix(col, uFog, smoothstep(0.22, -0.01, el));
   // the glow sits on the horizon, behind the fog
@@ -79,6 +84,8 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
     uWind: { value: new THREE.Vector2(1.0, 0.3) },
     uArty: { value: 0 },
     uArtyDir: { value: new THREE.Vector3(0, 0, 1) },
+    uFlare: { value: 0 },
+    uFlareDir: { value: new THREE.Vector3(0, 0.6, 0.8) },
   };
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, uniforms,

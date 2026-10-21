@@ -152,13 +152,14 @@ export function createVolumetric(camera) {
 
   return {
     enabled: true, needsSwap: true, uniforms: u,
-    /* this frame's lights: [{x, y, z, color, intensity, range}] */
+    /* this frame's lights: [{x, y, z, color, intensity, range, fog}] (fog: how
+       much of it hangs in the air, 1 unless a light says otherwise) */
     setLights(list, time, rain = 1) {
       const n = Math.min(MAX, list.length);
       for (let i = 0; i < n; i++) {
         const l = list[i];
         u.uPos.value[i].set(l.x, l.y, l.z);
-        u.uCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity);
+        u.uCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * (l.fog ?? 1));
         u.uRange.value[i] = l.range * 0.8;
       }
       u.uCount.value = n;
