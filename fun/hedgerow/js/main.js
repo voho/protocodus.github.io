@@ -28,6 +28,9 @@ import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
+import { createGrass } from './grass.js';
+import { createGroundMap } from './groundmap.js';
+import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
 import LEVEL from './levels/saint-clair.js';
@@ -75,7 +78,12 @@ let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, f
 let built = null, player = null, enemies = null, mission = null, explosives = null;
 let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null;
 let missionTime = 0;
-const shared = { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 } };
+const shared = {
+  wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
+  relief: { value: 1 },       // the ground's relief near the eye (terrain.js), by quality
+  // the meadow grass's density map and radius, for the ground under it (grass.js, terrain.js)
+  grassMap: { value: null }, grassMin: { value: new THREE.Vector2() }, grassSize: { value: new THREE.Vector2(1, 1) }, grassR: { value: 0 },
+};
 
 function setLoading(frac, label) {
   const f = $('[data-loading-fill]');
@@ -146,6 +154,12 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   G.effects.setGround((x, z) => G.terrain.height(x, z));
+  // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
+  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4);
+  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0 });
+  scene.add(G.grass.mesh);
+  G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
+  scene.add(G.clutter.group);
   setLoading(0.85, 'Rain over Normandy');
   await nextPaint();
 
@@ -234,6 +248,9 @@ function applyGraphics() {
     renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
+  G?.grass?.setCount(quality.blades ?? 0);
+  G?.clutter?.setOn(quality.clutter ?? 0);
+  shared.relief.value = quality.relief ?? 1;
   if (G?.rig) { G.rig.baseFov = settings.fov; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
 }
@@ -530,6 +547,8 @@ function step() {
     }
   }
   built.veg.update(dt, camera, quality);
+  G.grass.update(camera, player?.pos, renderer.domElement.height);
+  G.clutter.update(camera);
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);

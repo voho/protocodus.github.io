@@ -98,6 +98,10 @@ const METAL = {
   gun_metal_worn: 0.85, helmet_od: 0.1, helmet_gray: 0.1,
 };
 
+/* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
+   smooth beech, papery birch, old dead wood */
+const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0.85], [/^birch/, 0.4, 0.15], [/^(tree_dead|stump|log)/, 0.8, 0.6]];
+
 export function createMaterialLibrary(textures, shared) {
   const cache = new Map();
 
@@ -150,7 +154,11 @@ export function createMaterialLibrary(textures, shared) {
       if (m.emissiveMap) { m.emissive = new THREE.Color(1, 1, 1); m.emissiveIntensity = 2.2; }
       m.envMapIntensity = 1.0;
       // the far treelines and copses are scenery cards tens of metres tall: no wind
-      addWeather(m, shared, { porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far' });
+      const bk = !cards && BARK.find(([re]) => re.test(src.name || ''));
+      addWeather(m, shared, {
+        porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
+        bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
+      });
       baked.set(src.uuid, m);
       return m;
     }
@@ -164,15 +172,16 @@ export function createMaterialLibrary(textures, shared) {
    glossier, faces turned to the sky hold a film of water with ripples.
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       tDetail: { value: detailTex },
+      ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -180,7 +189,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         uniform float uTime;
         varying vec3 vWNormalM;
         varying vec2 vDetailUv;
-        varying vec3 vWPosM;`)
+        varying vec3 vWPosM;
+        ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
           vNormalMapUv = uv * uTile;
@@ -214,6 +224,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             wp = instanceMatrix * wp;
           #endif
           vWPosM = (modelMatrix * wp).xyz;
+          ${bark ? `// the bark detail in the tree's own space (it stays on the bark), shifted per tree
+          vBarkP = position;
+          #ifdef USE_INSTANCING
+            vBarkP += vec3(instanceMatrix[3].x * 0.37, instanceMatrix[3].z * 0.53, instanceMatrix[3].z * 0.29);
+          #endif
+          vBarkN = objectNormal;
+          vBarkH = position.y;` : ''}
         }`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
@@ -223,8 +240,31 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec2 vDetailUv;
         varying vec3 vWPosM;
         float mWetUp;
+        ${bark ? `uniform sampler2D tBark;
+        uniform float uBark, uMoss;
+        varying vec3 vBarkP, vBarkN;
+        varying float vBarkH;
+        vec4 barkA, barkB;
+        float barkK, barkW;` : ''}
         ${GLSL_HELPERS}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
+        ${bark ? `{
+          // close up, the bark's furrows and plates (the baked texture is stretched thin over a
+          // big trunk): seen from two sides of the trunk, blended by which way it faces; none on
+          // what faces up or down (branches, cut ends), gone by 16 m
+          barkK = uBark * (1.0 - smoothstep(9.0, 16.0, length(vViewPosition))) * (1.0 - smoothstep(0.55, 0.85, abs(vBarkN.y)));
+          barkW = smoothstep(0.35, 0.65, abs(vBarkN.x) / (abs(vBarkN.x) + abs(vBarkN.z) + 1e-4));
+          barkA = barkB = vec4(0.5, 0.5, 1.0, 0.5);
+          if (barkK > 0.01) {
+            barkA = texture2D(tBark, vBarkP.xy);
+            barkB = texture2D(tBark, vBarkP.zy);
+            diffuseColor.rgb *= mix(1.0, 0.45 + 1.1 * mix(barkA.a, barkB.a, barkW), barkK);
+          }
+          // moss low on the trunk and on its weather side, in the furrows first
+          float mossK = uMoss * (1.0 - smoothstep(0.2, 1.8, vBarkH)) * smoothstep(-0.2, 0.6, -vWNormalM.z + 0.3)
+            * smoothstep(0.35, 0.65, 1.0 - mix(barkA.a, barkB.a, barkW) + 0.15);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.045, 0.065, 0.02), clamp(mossK, 0.0, 0.85));
+        }` : ''}
         {
           ${detail ? `float detail = texture2D(tDetail, vDetailUv).a;
           diffuseColor.rgb *= 0.55 + 0.9 * detail;` : `float detail = 0.5 + 0.8 * (dot(diffuseColor.rgb, vec3(0.3, 0.6, 0.1)) - 0.18);`}
@@ -239,6 +279,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
         roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        ${bark ? `if (barkK > 0.01) {
+          vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
+          vec3 nB = cotangentFrame(normal, -vViewPosition, vBarkP.zy) * normalize(vec3((barkB.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
+          normal = normalize(mix(nA, nB, barkW));
+        }` : ''}
         if (mWetUp > 0.01) {
           vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
           mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);

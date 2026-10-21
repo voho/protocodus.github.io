@@ -171,6 +171,10 @@ export function createTerrainMaterial(textures, shared) {
       uRockColor: { value: new THREE.Color('#5f5c55') },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       uWaterLevel: shared.waterLevel || { value: -1e4 },
+      uRelief: shared.relief || { value: 1 },
+      // the meadow grass (grass.js): its density map, and the radius it grows in round the camera
+      tSward: shared.grassMap || { value: null }, uSwardMin: shared.grassMin || { value: new THREE.Vector2() },
+      uSwardSize: shared.grassSize || { value: new THREE.Vector2(1, 1) }, uSwardR: shared.grassR || { value: 0 },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -186,14 +190,78 @@ export function createTerrainMaterial(textures, shared) {
       .replace('#include <common>', `#include <common>
         uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
         uniform vec3 uRockColor;
-        uniform float uWet, uTime, uRain, uWaterLevel;
+        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief;
+        uniform sampler2D tSward;
+        uniform vec2 uSwardMin, uSwardSize;
         varying vec4 vSplat;
         varying vec3 vWPos;
         varying vec3 vWNormal;
-        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore;
-        ${GLSL_HELPERS}`)
+        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore; float tSwardK;
+        vec2 pxz; float cavity;
+        ${GLSL_HELPERS}
+        // the depth (m) of the ground's relief below the mesh at xz: the
+        // visible layer's height map (blended as the shading blends them)
+        // scaled by how deep that ground is; layers that are not there are not read
+        float reliefDepth(vec2 xz, vec4 w, vec2 gx, vec2 gy, vec4 sc) {
+          vec2 uv = xz / 4.0;
+          vec4 h = vec4(1.0);
+          if (w.x > 0.002) h.x = textureGrad(tMud, uv, gx, gy).a;
+          if (w.y > 0.002) h.y = textureGrad(tGrass, uv * 0.93 + 0.37, gx * 0.93, gy * 0.93).a;
+          if (w.z > 0.002) h.z = textureGrad(tForest, uv * 0.87 + 0.61, gx * 0.87, gy * 0.87).a;
+          if (w.w > 0.002) h.w = textureGrad(tCobble, uv * 1.6, gx * 1.6, gy * 1.6).a;
+          vec4 hw = w + h * 0.55 * step(0.002, w);
+          float ma = max(max(hw.x, hw.y), max(hw.z, hw.w)) - 0.18;
+          vec4 b = max(hw - ma, 0.0) * step(0.002, w);
+          b /= max(dot(b, vec4(1.0)), 1e-4);
+          return dot(b, (1.0 - h) * sc);
+        }`)
       .replace('#include <map_fragment>', `
-        vec2 uvw = vWPos.xz / 4.0;
+        // relief near the eye (parallax occlusion): the view ray marched down
+        // through the height maps — the joints between the cobbles, the ruts
+        // and hollows of the mud, the leaf litter — and the ground read where
+        // it lands. Standing water caps it: puddles stay flat, stones break through.
+        pxz = vWPos.xz;
+        cavity = 0.0;
+        {
+          vec3 V = normalize(cameraPosition - vWPos);
+          vec3 N = normalize(vWNormal);
+          float vn = dot(V, N);
+          float fade = (1.0 - smoothstep(9.0, 16.0, length(cameraPosition - vWPos))) * (1.0 - smoothstep(0.3, 0.45, 1.0 - N.y));
+          vec4 wr = max(vSplat, 0.0);
+          vec2 g0 = vWPos.xz / 4.0;
+          vec2 gx = dFdx(g0), gy = dFdy(g0);
+          // where water stands, and how high (the same noise the shading uses below)
+          float gatherR = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
+          float levelR = smoothstep(0.45, 0.75, gatherR) * 1.2;
+          // how deep each ground is (m): mud ruts, grass, leaf litter, the cobbles' joints
+          vec4 sc = vec4(0.06, 0.012, 0.025, 0.035) * fade * uRelief;
+          float maxD = max(max(sc.x * step(0.002, wr.x), sc.y * step(0.002, wr.y)), max(sc.z * step(0.002, wr.z), sc.w * step(0.002, wr.w)));
+          if (maxD > 0.002 && vn > 0.05) {
+            // per metre of depth the ray moves this far across the ground (held in at grazing angles)
+            vec2 dir = -V.xz / max(vn, 0.12);
+            float reach = length(dir) * maxD;
+            if (reach > 0.3) dir *= 0.3 / reach;
+            // the water's surface caps the march
+            float holdR = (wr.x + wr.w + wr.z * 0.35) / max(dot(wr, vec4(1.0)), 1e-4) * uWet;
+            float waterD = holdR > 0.3 && levelR > 0.0 ? (1.0 - min(levelR, 1.0)) * dot(wr, sc) / max(dot(wr, vec4(1.0)), 1e-4) : 1e3;
+            const int STEPS = 12;
+            float layer = maxD / float(STEPS);
+            float d = 0.0, srf = min(reliefDepth(pxz, wr, gx, gy, sc), waterD);
+            float pd = 0.0, ps = srf;
+            for (int i = 0; i < STEPS; i++) {
+              if (d >= srf) break;
+              pd = d; ps = srf;
+              d += layer;
+              srf = min(reliefDepth(vWPos.xz + dir * d, wr, gx, gy, sc), waterD);
+            }
+            // where between the last two steps the ray met the ground
+            float a = clamp((ps - pd) / max((ps - pd) - (srf - d), 1e-5), 0.0, 1.0);
+            float dh = d > 0.0 ? mix(pd, d, a) : 0.0;
+            pxz = vWPos.xz + dir * dh;
+            cavity = dh / maxD;
+          }
+        }
+        vec2 uvw = pxz / 4.0;
         vec4 cM = texture2D(tMud, uvw);
         vec4 cG = texture2D(tGrass, uvw * 0.93 + 0.37);
         vec4 cF = texture2D(tForest, uvw * 0.87 + 0.61);
@@ -211,16 +279,16 @@ export function createTerrainMaterial(textures, shared) {
         tNormal = nb.xyz * 2.0 - 1.0;
         tRough = nb.w;
         // macro variation breaks the tiling
-        float macro = texture2D(tMud, vWPos.xz / 57.0).a * 0.6 + texture2D(tGrass, vWPos.xz / 23.0).a * 0.4;
+        float macro = texture2D(tMud, pxz / 57.0).a * 0.6 + texture2D(tGrass, pxz / 23.0).a * 0.4;
         alb *= 0.78 + 0.44 * macro;
         // the forest floor: moss spreading in the damp, drifts of last year's leaves
-        float drift = texture2D(tForest, vWPos.xz / 13.0 + 0.31).a * 0.6 + texture2D(tGrass, vWPos.xz / 29.0 + 0.53).a * 0.4;
+        float drift = texture2D(tForest, pxz / 13.0 + 0.31).a * 0.6 + texture2D(tGrass, pxz / 29.0 + 0.53).a * 0.4;
         alb = mix(alb, alb * vec3(0.62, 0.95, 0.42) + vec3(0.004, 0.012, 0.002), b.z * smoothstep(0.56, 0.72, drift) * 0.7);
         alb = mix(alb, alb * vec3(1.25, 1.0, 0.72), b.z * smoothstep(0.42, 0.3, drift) * 0.6);
         // rock on steep ground
         float slope = 1.0 - vWNormal.y;
         float rockW = smoothstep(0.42, 0.62, slope + (hts.x - 0.5) * 0.15);
-        vec4 rk = texture2D(tRock, vWPos.xz / 3.0 + vWPos.y * 0.21);
+        vec4 rk = texture2D(tRock, pxz / 3.0 + vWPos.y * 0.21);
         alb = mix(alb, uRockColor * (0.55 + 0.9 * rk.a), rockW);
         tNormal = normalize(mix(tNormal, rk.xyz * 2.0 - 1.0, rockW));
         tRough = mix(tRough, 0.85, rockW);
@@ -239,11 +307,21 @@ export function createTerrainMaterial(textures, shared) {
         tRim = smoothstep(-0.16, -0.02, depthW) * hold * uWet * (1.0 - tPuddle);
         // the river bank: soaked to a hand above the water
         tShore = 1.0 - smoothstep(0.0, 0.4, vWPos.y - uWaterLevel);
+        // under the meadow grass the ground is the shaded sward: dark, rough, no standing water
+        tSwardK = 0.0;
+        if (uSwardR > 0.0) {
+          tSwardK = texture2D(tSward, (vWPos.xz - uSwardMin) / uSwardSize).x
+            * (1.0 - smoothstep(uSwardR * 0.6, uSwardR * 0.95, length(vWPos.xz - cameraPosition.xz)));
+          tPuddle *= 1.0 - tSwardK;
+          tRim *= 1.0 - tSwardK;
+        }
         // darken wet ground (the road's stones most: they soak, and shine);
         // under water the ground shows through a little darker
         alb *= mix(1.0, 0.62 - 0.12 * b.w, uWet * (1.0 - rockW * 0.3));
         alb = mix(alb, alb * vec3(0.78, 0.78, 0.82), tPuddle);
-        alb *= 1.0 - 0.2 * tRim - 0.35 * tShore;
+        alb *= 1.0 - 0.2 * tRim - 0.35 * tShore - 0.45 * tSwardK;
+        // the bottom of the relief (the cobbles' joints, the ruts) gets less light
+        alb *= 1.0 - 0.25 * cavity * (1.0 - tPuddle);
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
@@ -251,13 +329,14 @@ export function createTerrainMaterial(textures, shared) {
         roughnessFactor = mix(roughnessFactor, 0.2, tRim * 0.6);
         roughnessFactor = mix(roughnessFactor, 0.12, tShore * 0.8);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
+        roughnessFactor = mix(roughnessFactor, 0.85, tSwardK);
       `)
       .replace('#include <normal_fragment_maps>', `
         {
           vec3 nts = tNormal;
           nts.xy *= (1.0 - tPuddle) * (1.0 - 0.5 * tShore);
           // rain rings in puddles
-          vec2 rip = rainRipples(vWPos.xz * 1.7, uTime) * uRain;
+          vec2 rip = rainRipples(pxz * 1.7, uTime) * uRain;
           nts.xy += rip * tPuddle * 0.9;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));

@@ -19,8 +19,14 @@ three river crossings, the ends of the trench, the flanks of the bunker.
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
-baked in), foliage is alpha cards rendered from modelled leaves, and the
-renderer adds wet ground — dark, glossy cobbles with water in the joints,
+baked in), foliage is alpha cards rendered from modelled leaves, meadows
+and verges are tens of thousands of single blades of grass that bend in
+the wind and part round your legs, stones lie in the mud of the lanes and
+yards and twigs on the forest floor, the trunks show their bark close up
+(furrowed oak and pine, smooth beech, moss low on the weather side), and the
+renderer adds wet ground — dark, glossy cobbles with water in the joints
+(and, near the eye, real depth: the stones stand proud of their joints, the
+mud keeps its ruts, the march of the view ray through the height maps),
 puddles with soaked margins in the hollows that mirror the lit windows, the
 lamps and the glow of the sky, broken by rain rings, river banks soaked
 above the waterline, a forest floor of last year's leaves with moss in the
@@ -102,7 +108,19 @@ by the blast that killed them, and drop their rifles.
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
     the level, open towards the far buildings) and the next village
-  * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
+  * `groundmap.js` what grows and lies where, made at load from the
+    terrain mesh's own splat: grass, stones and fallen wood (none on roads,
+    steep banks, at the water or inside anything solid), and the ground's
+    height as the mesh draws it · `grass.js` the meadow grass on the GPU:
+    one instanced draw of tufts of blades round the camera (high ~21 m,
+    medium ~14 m, none on low), each placed, sized and leaned by a hash of
+    its world cell; tufts out of view collapse before the expensive part;
+    the ground under it turns to dark, dry sward · `clutter.js` the same
+    for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
+    lying along the slope (high and medium)
+  * `materials.js` palette-keyed wet materials (and close-up bark on the
+    baked trunks: the bark detail projected in the tree's own space from
+    two sides, per species) · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
