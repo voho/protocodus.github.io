@@ -198,6 +198,8 @@ void main() {
     vec2 r = vec2(q.x * c - q.y * s, q.x * s + q.y * c) * size;
     vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
     vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+    // a ring spreading on the water lies on it (turned to the eye it would stand up like a hoop)
+    if (abs(aMisc.z - 5.0) < 0.5) { right = vec3(1.0, 0.0, 0.0); up = vec3(0.0, 0.0, 1.0); }
     wp = p + right * r.x + up * r.y;
   }
   float cellI = aMisc.z;
@@ -280,7 +282,7 @@ function createSystem(max, atlas, additive, fog, shared) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: { tAtlas: { value: atlas }, uFogColor: fog.color, uFogDensity: fog.density, uAdditive: { value: additive ? 1 : 0 }, uLit: { value: additive ? 0 : 1 }, ...shared },
-    transparent: true, depthWrite: false,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
     blending: additive ? THREE.CustomBlending : THREE.NormalBlending,
   });
   if (additive) {
@@ -538,10 +540,11 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   function splash(x, y, z, power = 1) {
+    // a spout of spray thrown up, stretched along its rise
     for (let k = 0; k < 3; k++) {
       alpha.spawn({
         x, y, z, vx: (R() - 0.5) * 0.8, vy: 2.5 + R() * 2 * power, vz: (R() - 0.5) * 0.8,
-        life: 0.55, size: 0.1 * power, size1: 0.45 * power, color: C('#c8d0d4', 0.5), color1: C('#c8d0d4', 0), cell: CELLS.puff, gravity: 9.8, drag: 1,
+        life: 0.55, size: 0.08 * power, size1: 0.3 * power, color: C('#c8d0d4', 0.45), color1: C('#c8d0d4', 0), cell: CELLS.puff, gravity: 9.8, drag: 1, streak: 0.07,
       });
     }
     for (let k = 0; k < 6 * power; k++) {

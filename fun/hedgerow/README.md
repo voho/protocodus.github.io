@@ -233,7 +233,9 @@ by the blast that killed them, and drop their rifles.
     fires and flashes, soft where they meet the scene; the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
     cool; blasts throw up a
-    column of earth and roll dust along the ground; tracers and sparks never
+    column of earth and roll dust along the ground; a shot or a step into
+    water throws up a spout of spray and spreads a ring flat on it; tracers
+    and sparks never
     thinner than a pixel and a half, so fire from a hundred metres off is
     still an unbroken line), `flames.js` (the
     fires as flame: three billboards per near fire, each a turbulent body
