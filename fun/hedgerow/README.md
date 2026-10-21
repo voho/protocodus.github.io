@@ -22,7 +22,8 @@ steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, meadows
 and verges are tens of thousands of single blades of grass that bend in
 the wind and part round your legs, stones lie in the mud of the lanes and
-yards and twigs on the forest floor, and the
+yards and twigs on the forest floor, the trunks show their bark close up
+(furrowed oak and pine, smooth beech, moss low on the weather side), and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
@@ -112,7 +113,9 @@ by the blast that killed them, and drop their rifles.
     the ground under it turns to dark, dry sward · `clutter.js` the same
     for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
     lying along the slope (high and medium)
-  * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
+  * `materials.js` palette-keyed wet materials (and close-up bark on the
+    baked trunks: the bark detail projected in the tree's own space from
+    two sides, per species) · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
