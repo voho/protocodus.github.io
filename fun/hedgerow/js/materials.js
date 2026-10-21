@@ -510,6 +510,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         float skinK = 0.0, clothK = 0.0, skK = 0.0, woolHue = 0.0;
         vec3 skW = vec3(0.0);
         const vec4 SK_FLAT = vec4(0.5, 0.5, 1.0, 0.5);
+        float skHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+        float skNoise(vec3 p) {
+          vec3 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(skHash(i), skHash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(skHash(i + vec3(0.0, 1.0, 0.0)), skHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+            mix(mix(skHash(i + vec3(0.0, 0.0, 1.0)), skHash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(skHash(i + vec3(0.0, 1.0, 1.0)), skHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+        }
         vec4 skX = SK_FLAT, skY = SK_FLAT, skZ = SK_FLAT;
         vec3 clothSheen = vec3(0.0);
         void RE_Direct_Skin(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
@@ -575,6 +582,20 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           skZ = mix(texture2D(tGrain, pg.xy), texture2D(tFabric, pf.xy), wool);
           float d = skX.a * skW.x + skY.a * skW.y + skZ.a * skW.z;
           diffuseColor.rgb *= mix(1.0, mix(0.7 + 0.6 * d, 0.45 + 1.1 * d, wool), skK);
+        }
+        // days out in the rain and the mud: the skin grimed, a little darker and duller, and on the
+        // hands (out to the sides in the bind pose) mud in patches; the face grimed less
+        {
+          float hand = smoothstep(0.3, 0.38, abs(vSkP.x)) * (1.0 - smoothstep(1.2, 1.3, vSkP.y));
+          float gk = skinK * uCloseUp * (1.0 - smoothstep(1.2, 3.0, length(vViewPosition))) * mix(0.35, 1.0, hand);
+          if (gk > 0.01) {
+            float n1 = skNoise(vSkP * 28.0), n2 = skNoise(vSkP * 95.0 + 7.3), n3 = skNoise(vSkP * 260.0 + 3.1);
+            // smears a few centimetres across, and flecks of it a few millimetres
+            float mud = max(smoothstep(0.44, 0.72, n1 * 0.7 + n2 * 0.3), smoothstep(0.7, 0.8, n3) * 0.8) * hand;
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.74, 0.69, 0.64), gk);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.052, 0.036) * (0.8 + 0.4 * n2), mud * 0.85 * gk);
+            roughnessFactor = mix(roughnessFactor, 0.7, mud * gk);
+          }
         }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);
