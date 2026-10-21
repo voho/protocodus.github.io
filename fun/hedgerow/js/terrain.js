@@ -157,6 +157,9 @@ export function createTerrain(def, textures, shared) {
 
 /* ---------- material ---------- */
 
+/* how much the shading normal's spread within a pixel widens the highlights (specular AA) */
+export const SPEC_AA = { value: 1 };
+
 export function createTerrainMaterial(textures, shared) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
   mat.name = 'terrain';
@@ -173,6 +176,7 @@ export function createTerrainMaterial(textures, shared) {
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       uWaterLevel: shared.waterLevel || { value: -1e4 },
       uRelief: shared.relief || { value: 1 },
+      uSpecAA: SPEC_AA,
       // the meadow grass (grass.js): its density map, and the radius it grows in round the camera
       tSward: shared.grassMap || { value: null }, uSwardMin: shared.grassMin || { value: new THREE.Vector2() },
       uSwardSize: shared.grassSize || { value: new THREE.Vector2(1, 1) }, uSwardR: shared.grassR || { value: 0 },
@@ -194,7 +198,7 @@ export function createTerrainMaterial(textures, shared) {
       .replace('#include <common>', `#include <common>
         uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
         uniform vec3 uRockColor;
-        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief;
+        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief, uSpecAA;
         uniform sampler2D tSward;
         uniform vec2 uSwardMin, uSwardSize;
         varying vec4 vSplat;
@@ -358,6 +362,15 @@ export function createTerrainMaterial(textures, shared) {
           nts.xy += rip * tPuddle * 0.9;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));
+        }
+        // specular anti-aliasing: where the shading normal turns within a pixel (the cobbles' relief
+        // some way off), a sharp highlight would flicker from pixel to pixel and frame to frame;
+        // widen the lobe by that spread instead (on GGX's alpha squared), so it reads as a sheen
+        {
+          vec3 ndx = dFdx(normal), ndy = dFdy(normal);
+          float spread = 0.25 * (dot(ndx, ndx) + dot(ndy, ndy));
+          float a = roughnessFactor * roughnessFactor;
+          roughnessFactor = sqrt(sqrt(a * a + min(2.0 * spread * uSpecAA, 0.18)));
         }
       `)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
