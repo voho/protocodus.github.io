@@ -37,7 +37,7 @@ them and the water browner in the shallows of the ford, a forest floor of last y
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
-them in stretches — rain in fine
+them in stretches, rainwater standing in the shell craters — rain in fine
 streaks, falling in sheets far down the street, lit by lamps, fires and flares,
 halos in the wet air, low mist, bullet holes and scorch marks, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
@@ -131,6 +131,11 @@ by the blast that killed them, and drop their rifles.
     distance across and along them, from which the terrain cuts two ruts a
     cart's track apart, wandering a little, into its near-eye relief, dark
     with wet mud, holding water in stretches, a grassy crown between them
+  * `ponds.js` rainwater in the shell craters (the level's `craters`): a
+    disc at two fifths of each holding bowl's depth, cut by the bowl's own
+    sides, drawn with the river's water held still (shallows and a line of
+    scum from its depth in the ground map, rain rings, no white glint of the
+    night's fill light); the ground map keeps grass and clutter out of it
   * `groundmap.js` what grows and lies where, made at load from the
     terrain mesh's own splat: grass, stones and fallen wood (none on roads,
     steep banks, at the water or inside anything solid), and the ground's

@@ -39,6 +39,7 @@ import { createDistortion } from './distort.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createRuts } from './ruts.js';
+import { createPonds } from './ponds.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
@@ -165,8 +166,11 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   G.effects.setGround((x, z) => G.terrain.height(x, z));
+  // rainwater standing in the shell craters (ponds.js)
+  G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
+  if (G.ponds) scene.add(G.ponds.mesh);
   // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
-  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4);
+  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4, G.ponds?.list);
   // the lanes' wheel ruts (ruts.js, drawn by the terrain)
   const ruts = createRuts(LEVEL.lines);
   if (ruts) { shared.rutMap.value = ruts.tex; shared.rutMin.value.copy(ruts.min); shared.rutSize.value.copy(ruts.size); }

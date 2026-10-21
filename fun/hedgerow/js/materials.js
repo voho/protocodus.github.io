@@ -375,7 +375,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
    grass map shared with the terrain): where it laps the bank a thin, broken
    line of scum drifts with the current, matte and reflecting nothing, and in
    the shallows it is browner, the bed showing through. */
-export function createWaterMaterial(textures, shared) {
+export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
   const mat = new THREE.MeshStandardMaterial({
     color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0,
     normalMap: textures.rock, normalScale: new THREE.Vector2(0.15, 0.15),
@@ -385,7 +385,7 @@ export function createWaterMaterial(textures, shared) {
   mat.customProgramCacheKey = () => 'hedgerow-water';
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
-      uTime: shared.time, uRain: shared.rain, uFlow: { value: new THREE.Vector2(1.0, 0.0) },
+      uTime: shared.time, uRain: shared.rain, uFlow: { value: new THREE.Vector2(flow[0], flow[1]) },
       // the ground under it: its height is the map's alpha (groundmap.js)
       tGroundW: shared.grassMap || { value: null }, uGroundMinW: shared.grassMin || { value: new THREE.Vector2() },
       uGroundSizeW: shared.grassSize || { value: new THREE.Vector2(1, 1) },
@@ -434,6 +434,10 @@ export function createWaterMaterial(textures, shared) {
           mat3 tbn = cotangentFrame(normal, -vViewPosition, p);
           normal = normalize(tbn * normalize(nts));
         }`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        // the night's fill light is a sky, not a moon: no white-hot glint of it on still
+        // water (the lamps' and the fires' reflections come mostly from the screen anyway)
+        reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(1.2));`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(mix(0.07, 0.8, wFoam), 1.0);
