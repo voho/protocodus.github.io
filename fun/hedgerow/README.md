@@ -38,6 +38,9 @@ or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
 shadows of houses, walls, soldiers and trees (dappled under the crowns) that
 swing as it drifts, its light hanging in the rain in shafts between the roofs.
+Lightning does the same for its fraction of a second: a cold, blinding light
+from the bolt, low over the horizon, that throws every house's shadow across
+the street.
 Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
@@ -131,7 +134,8 @@ by the blast that killed them, and drop their rifles.
     smoke, a directional light along it for the ground, its 80 m shadow
     map drawn every other frame only while one burns, the tree crowns'
     leaf cards cut out by their alpha; the shaders it needs are warmed at
-    the start of the mission),
+    the start of the mission; when none burns, a lightning stroke drives the
+    same light from the bolt's direction),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
     column of earth and roll dust along the ground), `atmosphere.js`

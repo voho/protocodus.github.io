@@ -565,6 +565,7 @@ function step() {
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
     G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
+    G.flares.lightning(flash, G.weather.flashDir, camera.position);
     G.lights.update(dt, G.time, camera.position, flash);
     castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);

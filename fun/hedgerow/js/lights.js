@@ -68,8 +68,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const cand = [];
   const active = [];
   function update(dt, time, cam, lightning = 0) {
-    hemi.intensity = 3.2 + lightning * 3.0;
-    key.intensity = 1.2 + lightning * 2.5;
+    // lightning lifts the sky's light a little; its hard light comes from the bolt (flares.js)
+    hemi.intensity = 3.2 + lightning * 0.8;
+    key.intensity = 1.2 + lightning * 0.6;
     key.position.set(cam.x + 60, 25 + lightning * 40, cam.z + 30);
     key.target.position.set(cam.x, 0, cam.z);
 

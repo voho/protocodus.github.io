@@ -15,7 +15,12 @@
    it would make a fog bank of the whole sky), lights the smoke and the
    rain; the cloud deck round it lights up (sky.js) and it trails smoke
    (effects.js). Nothing about it touches the fighting: the enemy sees as
-   well as before. */
+   well as before.
+
+   When no flare burns, a lightning stroke (weather.js) takes the same
+   light for its fraction of a second: blue-white from the bolt's direction,
+   low over the horizon, so houses, walls, soldiers and trees throw long hard
+   shadows and its light stands in the rain in shafts (lightning()). */
 
 import * as THREE from 'three';
 import { rng } from './util.js';
@@ -62,6 +67,9 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
   G.scene.add(sun, sun.target);
   const toFlare = new THREE.Vector3();
   let frame = 0;
+  const FLARE_COL = new THREE.Color('#eef4ff'), BOLT_COL = new THREE.Color('#d6e2ff');
+  const boltDir = new THREE.Vector3();
+  let struck = false, boltFrame = 0;
   const core = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture(), color: new THREE.Color(1, 1, 1).multiplyScalar(10), blending: THREE.AdditiveBlending,
     depthWrite: false, transparent: true, fog: true,
@@ -104,6 +112,8 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
     if (f.t < f.rise) return;
     if (!f.popped) {
       f.popped = true;
+      struck = false;
+      sun.color.copy(FLARE_COL);
       f.vx = wind.x * 0.9; f.vz = wind.z * 0.9; f.vy = -2.4;
       light.on = true;
       core.visible = true;
@@ -153,8 +163,28 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
     return vegCasters;
   }
 
+  /* this frame's lightning (weather.js: its flash, the direction of the strike): when no
+     flare burns, the stroke lights the scene through the same light, with its shadows */
+  function lightning(flash, dir, cam) {
+    if (f && f.popped) return;                 // a burning flare holds the light
+    if (flash <= 0.02) {
+      if (struck) { struck = false; sun.intensity = 0; }
+      return;
+    }
+    // a new strike (another direction): its shadows drawn again from the start
+    if (!struck || boltDir.distanceToSquared(dir) > 1e-6) { boltDir.copy(dir); boltFrame = 0; }
+    struck = true;
+    sun.color.copy(BOLT_COL);
+    sun.intensity = 11 * flash;
+    const gy = G.terrain.height(cam.x, cam.z);
+    sun.target.position.set(cam.x, gy, cam.z);
+    sun.position.copy(boltDir).multiplyScalar(220).add(sun.target.position);
+    sun.target.updateMatrixWorld();
+    if (sun.castShadow && (boltFrame++ & 1) === 0) sun.shadow.needsUpdate = true;
+  }
+
   return {
-    update, light: sun, castersOf,
+    update, lightning, light: sun, castersOf,
     get active() { return !!f; },
     /* its shadows are being drawn this frame */
     get shadowing() { return sun.castShadow && sun.intensity > 0; },
