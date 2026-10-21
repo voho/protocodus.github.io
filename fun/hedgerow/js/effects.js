@@ -589,6 +589,18 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     }
   }
 
+  /* a wisp of steam off something hot in the rain (k: how hot, 0..1): small, faint, drawn out
+     along its rise, curling and carried off on the wind */
+  function steam(x, y, z, k = 1) {
+    alpha.spawn({
+      x: x + (R() - 0.5) * 0.02, y, z: z + (R() - 0.5) * 0.02,
+      vx: (R() - 0.5) * 0.1, vy: 0.22 + R() * 0.25 * k, vz: (R() - 0.5) * 0.1,
+      life: 0.6 + R() * 0.5, size: 0.018, size1: 0.06 + R() * 0.06,
+      color: C('#c9ccce', 0.13 * k), color1: C('#c9ccce', 0), cell: CELLS.smoke,
+      drag: 0.6, ride: 0.35, swirl: 1.2, gravity: -0.05, streak: 0.35, fadeIn: 0.12,
+    });
+  }
+
   function blood(x, y, z, dx, dy, dz) {
     for (let k = 0; k < 3; k++) {
       alpha.spawn({
@@ -788,7 +800,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   return {
-    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
+    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, steam, flareLaunch, update, fires,
     pass, usePass, late, useLate, setLights, shocks, blasts,
     setFlameShare(v) { flameShare = v; },
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */

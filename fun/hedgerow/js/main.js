@@ -15,6 +15,7 @@ import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
 import { dressWalls } from './damage.js';
+import { createSteam } from './steam.js';
 import { createChunks } from './chunks.js';
 import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
@@ -185,6 +186,8 @@ async function boot() {
   // and the clods and stones a blast throws (chunks.js)
   G.chunks = createChunks(G);
   scene.add(G.chunks.mesh);
+  // steam off the barrel of the gun in your hands after it has fired in the rain (steam.js)
+  G.steam = createSteam(G, shared.rain);
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
@@ -433,6 +436,7 @@ function retryCheckpoint() {
     G.debris.clear();
     G.casings.clear();
     G.chunks.clear();
+    G.steam.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
     fade.classList.remove('on');
@@ -659,6 +663,7 @@ function step() {
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
     G.casings.update(dt);
     G.chunks.update(dt);
+    G.steam.update(dt);
     G.flames.update(dt, camera.position);
     updateSmoulder(G.effects.fires, camera.position);
     G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);
