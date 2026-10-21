@@ -22,7 +22,11 @@ steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, and the
 renderer adds wet reflective ground with puddle ripples, rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
-artillery flashes and burning farms beyond the hedges.
+artillery flashes and burning farms beyond the hedges. Lamps and fires cast
+soft shadows and their light hangs in the rain between you and them, corners
+and the ground under things darken, and the frame is finished like film —
+contrast, sharpening, grain in the shadows — going soft behind whatever you
+aim at.
 
 ## Controls
 
@@ -88,7 +92,15 @@ by the blast that killed them, and drop their rifles.
   * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `effects.js` (particles), `atmosphere.js` (halos, mist, decals),
-    `post.js` + `bloom.js`, `audio.js` (procedural)
+    `audio.js` (procedural)
+  * the effects chain (`renderer.setEffects`, in order): `ssao.js` ambient
+    occlusion at half resolution · `volumetric.js` lays the occlusion on
+    and adds the light scattered in the rain by up to eight lamps, fires and
+    flashes (the closed-form airlight integral, cut by the depth) · `dof.js`
+    focus on what is under the crosshair while aiming · `bloom.js` ·
+    `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
+    hurt state); the high and medium qualities run all of it, low only the
+    grade
 * `assets/models/*.glb` — built by the Blender scripts in `tools/blender/`;
   see `assets/models/MODELS.md` (pipeline, sizes, build commands),
   `tools/blender/notes/` (every node) and `docs/models-brief*.md`:
