@@ -222,7 +222,9 @@ by the blast that killed them, and drop their rifles.
     lightning,
     and beyond them, out to ~60 m, sheets of rain worked out per pixel on
     four cylinders round the eye in one full-screen draw, hidden behind the
-    scene by its depth, lit by the lamps near them and by a burning flare;
+    scene by its depth (on low quality, which has no depth to read, the same
+    four cylinders drawn as meshes with the scene, hidden by its depth test),
+    lit by the lamps near them and by a burning flare;
     rings where drops land (on the river's surface over its bed), and
     within 7 m crowns of droplets flung up and
     out of each, a few thousand a second, drawn after the frame; all of it
