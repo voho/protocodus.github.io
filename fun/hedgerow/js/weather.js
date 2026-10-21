@@ -7,7 +7,9 @@
    to ~60 m, sheets of rain: four cylinders round the eye, worked out per
    pixel in one full-screen draw, each with streaks falling at the rain's
    speed and slant, hidden behind what is nearer, lit by the lamps near
-   them and fading into the haze. Splashes are rings
+   them and fading into the haze. Splashes are rings, and near the eye each
+   drop that lands throws up a crown of droplets for a moment, glittering by
+   the lamps; splashes are rings
    that grow and fade on the ground around the player. Lightning comes in
    flickering strokes every so often, lifting the sky and the light, and
    schedules its thunder for the audio by distance. */
@@ -154,6 +156,81 @@ void main() {
   gl_FragColor = vec4(sum / alpha, min(alpha * uOpacity, 0.8));
 }`;
 
+// the crowns: a quad standing on each young splash near the eye, droplets flung up and out
+// along their arcs worked out in it (never under a pixel and a half)
+const CROWN_VERT = /* glsl */ `
+attribute vec4 aSplash;          // xyz world position, w birth time
+uniform float uTime;
+uniform vec3 uLightPos[6];
+uniform vec3 uLightCol[6];
+varying vec2 vUv;
+varying float vAge, vSeed, vDist;
+varying vec3 vLit;
+varying vec2 vProj;
+void main() {
+  float age = uTime - aSplash.w;
+  float d = length(aSplash.xyz - cameraPosition);
+  float size = (age >= 0.0 && age < 0.17 && d < 9.0) ? 0.16 : 0.0;
+  vec3 right = normalize(vec3(viewMatrix[0][0], 0.0, viewMatrix[2][0]));
+  vec3 p = aSplash.xyz + right * (uv.x - 0.5) * size + vec3(0.0, uv.y * size * 0.5, 0.0);
+  vUv = uv;
+  vAge = age;
+  vSeed = fract(aSplash.x * 3.17 + aSplash.z * 1.93 + aSplash.w * 0.71);
+  vec3 lit = vec3(0.0);
+  for (int i = 0; i < 6; i++) {
+    vec3 dd = aSplash.xyz - uLightPos[i];
+    lit += uLightCol[i] / (1.0 + dot(dd, dd) * 0.9);
+  }
+  vLit = lit;
+  vec4 mv = viewMatrix * vec4(p, 1.0);
+  vDist = -mv.z;
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const CROWN_FRAG = /* glsl */ `
+uniform vec3 uColor, uSky;
+uniform float uOpacity, uFlash, uSoft;
+uniform sampler2D tDepth;
+uniform vec2 uScreen;
+varying vec2 vUv;
+varying float vAge, vSeed, vDist;
+varying vec3 vLit;
+varying vec2 vProj;
+float cHash(float n) { return fract(sin(n) * 43758.5453); }
+void main() {
+  // drawn after the frame (the late pass): hidden behind what the scene drew
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    if (vDist > vProj.y / (zd + vProj.x) + 0.05) discard;
+  }
+  // metres, from where the drop landed (some drops bigger than others)
+  vec2 p = vec2((vUv.x - 0.5) * 0.16, vUv.y * 0.08) / (0.55 + 0.6 * cHash(vSeed * 71.0));
+  float px = max(fwidth(p.x), 1e-4);
+  float t = vAge, a = 0.0;
+  for (int j = 0; j < 7; j++) {
+    float fj = float(j);
+    float ang = fj * 0.8976 + cHash(vSeed * 91.0 + fj) * 0.7;
+    float sp = 0.22 + 0.3 * cHash(vSeed * 37.0 + fj * 3.1);      // outward, m/s
+    float up = 0.75 + 0.55 * cHash(vSeed * 13.0 + fj * 7.3);     // upward, m/s
+    vec2 c = vec2(cos(ang) * (0.006 + sp * t), up * t - 4.9 * t * t);
+    if (c.y < 0.0) continue;
+    vec2 dv = normalize(vec2(cos(ang) * sp, up - 9.8 * t));
+    vec2 dd = p - c;
+    float al = dot(dd, dv), ac = dot(dd, vec2(-dv.y, dv.x));
+    float w = max(0.0022, px * 1.0), l = max(0.007, px * 2.0);
+    a += exp(-ac * ac / (w * w) - al * al / (l * l)) * (0.6 + 0.4 * cHash(fj + vSeed * 5.0));
+  }
+  // the sheet of the crown, for its first instant
+  float ring = exp(-pow((p.y - 0.012 * (1.0 - t * 8.0)) / max(0.003, px), 2.0)) * (1.0 - smoothstep(0.0, 0.05, t))
+    * (1.0 - smoothstep(0.012 + t * 0.25, 0.02 + t * 0.3, abs(p.x)));
+  a += ring * 0.5;
+  a *= (1.0 - smoothstep(0.09, 0.17, t)) * (1.0 - smoothstep(4.0, 9.0, vDist));
+  if (a < 0.01) discard;
+  vec3 lit = vLit + uSky;
+  gl_FragColor = vec4(uColor * (0.55 + uFlash * 3.0) + lit * 2.4, min(a * uOpacity, 0.8));
+}`;
+
 const SPLASH_VERT = /* glsl */ `
 attribute vec4 aSplash;          // xyz world position, w birth time
 uniform float uTime;
@@ -260,6 +337,32 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
   const splashMesh = new THREE.Mesh(sgeo, splashMat);
   splashMesh.frustumCulled = false;
   group.add(splashMesh);
+  // the crowns: drops landing near the eye, far more of them than the rings (drawn with the
+  // near rain, after the frame)
+  const CR = 640;
+  const cgeo = new THREE.InstancedBufferGeometry();
+  cgeo.index = quad.index;
+  cgeo.attributes.position = quad.attributes.position;
+  cgeo.attributes.uv = quad.attributes.uv;
+  const crownData = new Float32Array(CR * 4).fill(-100);
+  const crownAttr = new THREE.InstancedBufferAttribute(crownData, 4);
+  crownAttr.setUsage(THREE.DynamicDrawUsage);
+  cgeo.setAttribute('aSplash', crownAttr);
+  cgeo.instanceCount = CR;
+  let crownCursor = 0, crownAcc = 0;
+  const crownUniforms = {
+    uTime: splashUniforms.uTime, uColor: rainUniforms.uColor, uFlash: rainUniforms.uFlash, uSky: rainUniforms.uSky,
+    uLightPos: rainUniforms.uLightPos, uLightCol: rainUniforms.uLightCol, uOpacity: { value: 0.8 },
+    tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
+  };
+  crownUniforms.uOpacity.value = 0.5;
+  const crowns = new THREE.Mesh(cgeo, new THREE.ShaderMaterial({
+    vertexShader: CROWN_VERT, fragmentShader: CROWN_FRAG, uniforms: crownUniforms,
+    transparent: true, depthWrite: false, fog: false,
+  }));
+  crowns.frustumCulled = false;
+  crowns.renderOrder = 5;
+  group.add(crowns);
   let splashCursor = 0, splashAcc = 0;
 
   // ---------- lightning ----------
@@ -290,6 +393,7 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     rainUniforms.uCam.value.copy(camera.position);
     rainUniforms.uOpacity.value = 0.2 * rainAmount;
     sheetUniforms.uOpacity.value = 0.16 * rainAmount;
+    crownUniforms.uOpacity.value = 0.5 * rainAmount;
     splashUniforms.uTime.value = time;
 
     // splashes around the camera
@@ -307,6 +411,19 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
       changed = true;
     }
     if (changed) splashAttr.needsUpdate = true;
+    // crowns, within 7 m
+    crownAcc += dt * 3500 * rainAmount;
+    let cChanged = false;
+    while (crownAcc >= 1) {
+      crownAcc -= 1;
+      const a = R() * Math.PI * 2, r = Math.sqrt(R()) * 7;
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+      const k = crownCursor * 4;
+      crownData[k] = x; crownData[k + 1] = terrain ? terrain.height(x, z) : 0; crownData[k + 2] = z; crownData[k + 3] = time - R() * 0.016;
+      crownCursor = (crownCursor + 1) % CR;
+      cChanged = true;
+    }
+    if (cChanged) crownAttr.needsUpdate = true;
 
     // lightning
     if (time > nextStrike && !strike) {
@@ -357,6 +474,9 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     const own = { tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 } };
     const d = scene && depth ? depth : own;
     rainUniforms.tDepth = d.tDepth; rainUniforms.uScreen = d.uScreen; rainUniforms.uSoft = d.uSoft;
+    (scene || group).add(crowns);
+    crowns.material.depthTest = !scene;
+    crownUniforms.tDepth = d.tDepth; crownUniforms.uScreen = d.uScreen; crownUniforms.uSoft = d.uSoft;
     // the sheets only where the depth is there to hide them behind the scene
     (scene || group).add(sheets);
     sheetUniforms.tDepth = d.tDepth; sheetUniforms.uScreen = d.uScreen;
