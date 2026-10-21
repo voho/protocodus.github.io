@@ -31,7 +31,8 @@ each lit window there is a room — papered walls, beams overhead, a table
 under a lamp, a cupboard, lace across the bottom of some windows — that
 shifts with parallax as you walk past, and its light falls out onto the
 street, a cart, a bicycle against the wall, the rifle in your hands, in the
-shape of the window with its glazing bars across it, and the
+shape of the window with its glazing bars across it, the rain in front of
+it glowing with it, and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
@@ -167,7 +168,9 @@ by the blast that killed them, and drop their rifles.
     round the light of a lamp behind it, drawn in the late pass, each pixel
     rebuilt from the depth and lit if the line from the lamp to it passes
     through the pane, as by a glowing window (inverse square, both angles;
-    the normal rebuilt from the neighbours on the same surface) ·
+    the normal rebuilt from the neighbours on the same surface), and the
+    same light scattered by the wet air along the view ray's stretch
+    through that light, in four jittered steps ·
     `sky.js` (the cloud deck: rolls and billows of noise warped by itself,
     the fires' light on its base falling off with distance; drawn after
     the solid scene, so only the sky that shows is shaded), `weather.js`

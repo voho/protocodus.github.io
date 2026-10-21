@@ -14,12 +14,18 @@
    square of its distance from the pane, how squarely the pane faces it and
    how squarely it faces the pane (its normal from the rebuilt surface,
    from the neighbours on the same surface so thin things do not speckle).
+   The wet air in front of the window catches the same light: the view
+   ray's stretch inside the pyramid from the lamp through the pane is
+   marched in four jittered steps, each lit as the surfaces are and
+   scattered mostly forward, so a lit window stands in a warm glow in the
+   rain, brightest looking back into it (not from windows over 22 m off).
    Added to the frame (an average albedo folded in); the rifle in your
    hands takes less of it. Nothing behind the pane's own wall is touched. */
 
 import * as THREE from 'three';
 
 const DEPTH = 5.5, BACK = 1.4;   // how far out the light reaches; how far behind the pane the lamp is
+const BEAM = 3.8;                // how far out it is seen in the air
 
 /* The lit panes of the rooms meshes under `root`, in world space. */
 export function collectPanes(root) {
@@ -73,65 +79,125 @@ const FRAG = /* glsl */ `
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 uniform mat4 uInvProj, uCamWorld;
-uniform vec3 uColor;
-uniform float uPower;
+uniform vec3 uColor, uBeamColor;
+uniform float uPower, uBeam;
 varying vec4 vPane;
 varying vec3 vPane2;
 vec3 viewPos(vec2 uv) {
   vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, texture2D(tDepth, uv).x * 2.0 - 1.0, 1.0);
   return v.xyz / v.w;
 }
+float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+// keep the part of the ray (t0..t1) on the inner side of a plane through p0 (inner normal N)
+void clipRay(vec3 ro, vec3 rd, vec3 p0, vec3 N, inout float t0, inout float t1) {
+  float den = dot(rd, N), s = dot(p0 - ro, N);
+  if (abs(den) < 1e-6) { if (s > 0.0) t1 = -1.0; return; }
+  if (den > 0.0) t0 = max(t0, s / den); else t1 = min(t1, s / den);
+}
+// how much of the lamp's light through the pane reaches X (the window's shape, soft edges)
+float through(vec3 X, vec3 L, vec3 c, vec3 n, vec3 t, float hw, float hh, float soft, out vec3 H) {
+  vec3 lp = X - L;
+  H = L + lp * (dot(c - L, n) / dot(lp, n));
+  vec2 q = vec2(dot(H - c, t), H.y - c.y);
+  return (1.0 - smoothstep(hw - soft, hw + soft, abs(q.x))) * (1.0 - smoothstep(hh - soft, hh + soft, abs(q.y)));
+}
 void main() {
-  // the surface this pixel shows
+  // the surface this pixel shows (the sky: far away)
   vec2 uv = gl_FragCoord.xy * uScreen;
   float z = texture2D(tDepth, uv).x;
-  if (z >= 1.0) discard;
-  vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0);
+  vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, min(z, 0.999999) * 2.0 - 1.0, 1.0);
   vec3 V = v.xyz / v.w;
   vec3 P = (uCamWorld * vec4(V, 1.0)).xyz;
   vec3 c = vPane.xyz, n = vec3(vPane2.x, 0.0, vPane2.y), t = vec3(n.z, 0.0, -n.x);
+  float hw = vPane.w, hh = vPane2.z;
+  vec3 L = c - n * ${BACK.toFixed(1)} + vec3(0.0, 0.2, 0.0);
+  vec3 col = vec3(0.0);
+
+  // the light on what the pixel shows
   float out_ = dot(P - c, n);
   // not the window's own frame, reveal, sill or display (it starts half a metre or so out)
-  if (out_ < 0.4 || out_ > ${DEPTH.toFixed(1)}) discard;
-  // the line from the lamp to it, where it crosses the pane
-  vec3 L = c - n * ${BACK.toFixed(1)} + vec3(0.0, 0.2, 0.0);
-  vec3 lp = P - L;
-  vec3 H = L + lp * (dot(c - L, n) / dot(lp, n));
-  vec2 q = vec2(dot(H - c, t), H.y - c.y);
-  float hw = vPane.w, hh = vPane2.z;
-  // soft at the patch's edges, the softer the further it falls (the room is a big lamp)
-  float soft = 0.015 + 0.02 * out_;
-  float lit = (1.0 - smoothstep(hw - soft, hw + soft, abs(q.x))) * (1.0 - smoothstep(hh - soft, hh + soft, abs(q.y)));
-  if (lit <= 0.0) discard;
-  // the glazing bars across it: a post down the middle (two more in a wide shop window), two rails
-  float bx = hw > 0.9 ? min(abs(q.x), abs(abs(q.x) - hw * 0.62)) : abs(q.x);
-  lit *= mix(1.0, smoothstep(0.02, 0.02 + soft * 2.0, bx), 0.85);
-  if (hh > 0.35) lit *= mix(1.0, smoothstep(0.015, 0.015 + soft * 2.0, abs(abs(q.y) - hh / 3.0)), 0.7);
-  // as from a glowing window: the inverse square of the distance from it, how squarely the pane
-  // faces this surface and the surface the pane (its normal rebuilt from the depth, from the
-  // neighbours on the same surface: the nearer in depth of each pair, so edges stay clean)
-  vec3 r = viewPos(uv + vec2(uScreen.x, 0.0)), l = viewPos(uv - vec2(uScreen.x, 0.0));
-  vec3 t_ = viewPos(uv + vec2(0.0, uScreen.y)), b_ = viewPos(uv - vec2(0.0, uScreen.y));
-  vec3 dx = abs(r.z - V.z) < abs(l.z - V.z) ? r - V : V - l;
-  vec3 dy = abs(t_.z - V.z) < abs(b_.z - V.z) ? t_ - V : V - b_;
-  vec3 sn = normalize(mat3(uCamWorld) * cross(dx, dy));
-  if (dot(sn, cameraPosition - P) < 0.0) sn = -sn;
-  vec3 hp = P - H;
-  float r2 = dot(hp, hp);
-  vec3 hd = hp * inversesqrt(r2);
-  // something a pixel thin (a blade of grass, a chair leg) has no neighbour on its own surface:
-  // take it as facing the window
-  float tol = 0.03 + 0.02 * -V.z;
-  if (min(abs(r.z - V.z), abs(l.z - V.z)) > tol || min(abs(t_.z - V.z), abs(b_.z - V.z)) > tol) sn = -hd;
-  // (the window is a big soft source, and a rebuilt normal can be wrong on small things: wrapped)
-  float e = uPower * hw * hh * max(dot(hd, n), 0.0) * (0.35 + 0.65 * max(dot(sn, -hd), 0.0)) / (r2 + hw * hh * 4.0);
-  e *= smoothstep(0.4, 0.9, out_) * (1.0 - smoothstep(${(DEPTH * 0.6).toFixed(1)}, ${DEPTH.toFixed(1)}, out_));
-  // the rifle in your hands (nearer than 1.2 m) less
-  e *= -V.z < 1.2 ? 0.35 : 1.0;
-  gl_FragColor = vec4(uColor * e * lit, 1.0);
+  if (z < 1.0 && out_ > 0.4 && out_ < ${DEPTH.toFixed(1)}) {
+    // the line from the lamp to it, where it crosses the pane; soft at the patch's edges, the
+    // softer the further it falls (the room is a big lamp)
+    float soft = 0.015 + 0.02 * out_;
+    vec3 H;
+    float lit = through(P, L, c, n, t, hw, hh, soft, H);
+    if (lit > 0.0) {
+      vec2 q = vec2(dot(H - c, t), H.y - c.y);
+      // the glazing bars across it: a post down the middle (two more in a wide shop window), two rails
+      float bx = hw > 0.9 ? min(abs(q.x), abs(abs(q.x) - hw * 0.62)) : abs(q.x);
+      lit *= mix(1.0, smoothstep(0.02, 0.02 + soft * 2.0, bx), 0.85);
+      if (hh > 0.35) lit *= mix(1.0, smoothstep(0.015, 0.015 + soft * 2.0, abs(abs(q.y) - hh / 3.0)), 0.7);
+      // as from a glowing window: the inverse square of the distance from it, how squarely the pane
+      // faces this surface and the surface the pane (its normal rebuilt from the depth, from the
+      // neighbours on the same surface: the nearer in depth of each pair, so edges stay clean)
+      vec3 r = viewPos(uv + vec2(uScreen.x, 0.0)), l = viewPos(uv - vec2(uScreen.x, 0.0));
+      vec3 t_ = viewPos(uv + vec2(0.0, uScreen.y)), b_ = viewPos(uv - vec2(0.0, uScreen.y));
+      vec3 dx = abs(r.z - V.z) < abs(l.z - V.z) ? r - V : V - l;
+      vec3 dy = abs(t_.z - V.z) < abs(b_.z - V.z) ? t_ - V : V - b_;
+      vec3 sn = normalize(mat3(uCamWorld) * cross(dx, dy));
+      if (dot(sn, cameraPosition - P) < 0.0) sn = -sn;
+      vec3 hp = P - H;
+      float r2 = dot(hp, hp);
+      vec3 hd = hp * inversesqrt(r2);
+      // something a pixel thin (a blade of grass, a chair leg) has no neighbour on its own surface:
+      // take it as facing the window
+      float tol = 0.03 + 0.02 * -V.z;
+      if (min(abs(r.z - V.z), abs(l.z - V.z)) > tol || min(abs(t_.z - V.z), abs(b_.z - V.z)) > tol) sn = -hd;
+      // (the window is a big soft source, and a rebuilt normal can be wrong on small things: wrapped)
+      float e = uPower * hw * hh * max(dot(hd, n), 0.0) * (0.35 + 0.65 * max(dot(sn, -hd), 0.0)) / (r2 + hw * hh * 4.0);
+      e *= smoothstep(0.4, 0.9, out_) * (1.0 - smoothstep(${(DEPTH * 0.6).toFixed(1)}, ${DEPTH.toFixed(1)}, out_));
+      // the rifle in your hands (nearer than 1.2 m) less
+      e *= -V.z < 1.2 ? 0.35 : 1.0;
+      col += uColor * e * lit;
+    }
+  }
+
+  // the beam: the same light caught by the rain in the air between the window and the eye. The
+  // stretch of the view ray inside the pyramid from the lamp through the pane (a little wider, for
+  // its soft edges), from 0.38 m out to 3.8 m (it is faint beyond), cut short by what the pixel
+  // shows; four jittered samples along it, each lit as the surfaces are, scattered mostly forward.
+  // Not from windows more than 22 m off (small and faint there)
+  if (uBeam > 0.0 && dot(c - cameraPosition, c - cameraPosition) < 484.0) {
+    vec3 ro = cameraPosition, rd = normalize(P - ro);
+    float t0 = 0.0, t1 = z < 1.0 ? length(P - ro) : 200.0;
+    clipRay(ro, rd, c + n * 0.38, n, t0, t1);
+    clipRay(ro, rd, c + n * ${BEAM.toFixed(1)}, -n, t0, t1);
+    vec3 inner = L + (c - L) * 1.6;
+    float we = hw + 0.08, he = hh + 0.08;
+    for (int i = 0; i < 4; i++) {
+      float sx = i == 0 ? 1.0 : i == 1 ? -1.0 : 0.0, sy = i == 2 ? 1.0 : i == 3 ? -1.0 : 0.0;
+      vec3 A = c + t * (sx != 0.0 ? sx * we : we) + vec3(0.0, sy != 0.0 ? sy * he : he, 0.0);
+      vec3 B = c + t * (sx != 0.0 ? sx * we : -we) + vec3(0.0, sy != 0.0 ? sy * he : -he, 0.0);
+      vec3 N = cross(A - L, B - L);
+      if (dot(N, inner - L) < 0.0) N = -N;
+      clipRay(ro, rd, L, N, t0, t1);
+    }
+    if (t1 > t0 + 0.02) {
+      float dt = (t1 - t0) / 4.0, j = ign(gl_FragCoord.xy), sum = 0.0;
+      for (int i = 0; i < 4; i++) {
+        vec3 X = ro + rd * (t0 + (float(i) + j) * dt);
+        float ox = dot(X - c, n);
+        vec3 H;
+        float lit = through(X, L, c, n, t, hw, hh, 0.02 + 0.03 * ox, H);
+        vec3 hp = X - H;
+        float r2 = dot(hp, hp);
+        vec3 hd = hp * inversesqrt(r2);
+        // scattered mostly forward (Schlick's Henyey-Greenstein, g ~0.45): brightest looking back
+        // along the beam into the window
+        float ph = 0.583 / ((1.0 - 0.646 * dot(hd, -rd)) * (1.0 - 0.646 * dot(hd, -rd)));
+        sum += lit * max(dot(hd, n), 0.0) / (r2 + hw * hh * 4.0) * ph
+          * smoothstep(0.38, 0.8, ox) * (1.0 - smoothstep(${(BEAM * 0.55).toFixed(1)}, ${BEAM.toFixed(1)}, ox));
+      }
+      col += uBeamColor * uBeam * uPower * hw * hh * sum * dt;
+    }
+  }
+  // nothing worth blending into the frame (most of each beam's box, most of the time)
+  if (max(col.r, max(col.g, col.b)) < 0.0003) discard;
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
-export function createWindowLight(panes, { power = 20, color = '#ffa860' } = {}) {
+export function createWindowLight(panes, { power = 20, color = '#ffa860', beam = 0.004 } = {}) {
   if (!panes.length) return null;
   const box = new THREE.BoxGeometry(2, 2, 2);
   const geo = new THREE.InstancedBufferGeometry();
@@ -145,8 +211,10 @@ export function createWindowLight(panes, { power = 20, color = '#ffa860' } = {})
   const uniforms = {
     tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) },
     uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
-    // the room lamps' light, as it lands (an average albedo of what it lands on folded in)
+    // the room lamps' light, as it lands (an average albedo of what it lands on folded in), and
+    // as the wet air scatters it
     uColor: { value: new THREE.Color(color).multiplyScalar(0.12) }, uPower: { value: power },
+    uBeamColor: { value: new THREE.Color(color) }, uBeam: { value: beam },
   };
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, uniforms,
