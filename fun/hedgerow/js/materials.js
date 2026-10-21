@@ -596,6 +596,20 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.052, 0.036) * (0.8 + 0.4 * n2), mud * 0.85 * gk);
             roughnessFactor = mix(roughnessFactor, 0.7, mud * gk);
           }
+        }
+        // the wool too: soaked darker in blotches where the rain beats on it (where it faces the sky),
+        // and the sleeves muddied along the forearm, most at the cuff
+        {
+          float ck = clothK * uCloseUp * (1.0 - smoothstep(1.2, 3.0, length(vViewPosition)));
+          if (ck > 0.01) {
+            float n1 = skNoise(vSkP * 14.0 + 1.9), n2 = skNoise(vSkP * 60.0 + 2.7);
+            float soak = smoothstep(-0.2, 0.6, vWNormalM.y) * smoothstep(0.35, 0.65, n1 * 0.7 + n2 * 0.3) * uWet;
+            diffuseColor.rgb *= 1.0 - 0.3 * soak * ck;
+            float arm = smoothstep(0.18, 0.28, abs(vSkP.x)) * (1.0 - smoothstep(1.3, 1.45, vSkP.y));
+            float cuff = smoothstep(0.24, 0.34, abs(vSkP.x));
+            float mud = smoothstep(0.62 - 0.22 * cuff, 0.86 - 0.2 * cuff, n1 * 0.6 + n2 * 0.4) * arm;
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.06, 0.045, 0.03) * (0.8 + 0.4 * n2), mud * 0.7 * ck);
+          }
         }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);
