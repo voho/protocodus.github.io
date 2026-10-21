@@ -34,7 +34,8 @@ them and the water browner in the shallows of the ford, a forest floor of last y
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
-artillery flashes and burning farms beyond the hedges, and every half minute
+artillery flashes and burning farms beyond the hedges, searchlights sweeping
+the cloud over the front and flak tracer going up into it, and every half minute
 or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
 shadows of houses, walls, soldiers and trees (dappled under the crowns) that
