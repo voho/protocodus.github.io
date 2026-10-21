@@ -186,7 +186,9 @@ by the blast that killed them, and drop their rifles.
     weave of that wool and the grain of the skin, laid on in the model's
     own bind-pose space so they move with him, and the grime of days in the
     field: the skin a little darker and duller, the hands smeared and
-    flecked with mud; the guns within 2.5 m (the
+    flecked with mud, the wool soaked darker in blotches where it faces the
+    rain and the sleeves muddied along the forearm, most at the cuff; the
+    guns within 2.5 m (the
     one in your hands, half a metre from the eye, where its texture is
     spread thin) with the walnut's grain and figure along the stock, oiled
     between the lines, and the steel a matte Parkerized grey, mottled where
