@@ -251,7 +251,10 @@ by the blast that killed them, and drop their rifles.
     carried off on the wind for seconds, swirling in its eddies as they
     cool; blasts throw up a
     column of earth and roll dust along the ground; a shot or a step into
-    water throws up a spout of spray and spreads a ring flat on it; enemy
+    water throws up a spout of spray and spreads a ring flat on it; a round
+    into a hedge or a bush shreds leaves out of it that flutter down on the
+    air, eddying and drifting downwind, with a twig or two and the rain
+    shaken off the leaves (fewer when the sprites are busy); enemy
     tracers end where their rounds strike, and one glancing off stone or
     metal (now and then off mud) skips on, slower, often up into the sky;
     tracers and sparks never
