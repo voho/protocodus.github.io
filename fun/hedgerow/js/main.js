@@ -162,7 +162,7 @@ async function boot() {
   };
   G.effects = createEffects({ fog: fogUniforms, camera, wet: shared.wet });
   scene.add(G.effects.group);
-  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
+  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256, second: (quality.shadows || 0) >= 512 });
   const sky = createSky({ fog: LEVEL.fog.color });
   scene.add(sky.mesh);
   sky.setFires(G.effects.fires);
@@ -521,12 +521,12 @@ function frame(now) {
 
 /* Soldiers throw shadows only near the shadow light (each one costs six
    renders of his body into its cube map). */
-let flareShadows = false, lampShadowOf = null;
+let flareShadows = false, lampShadowOf = null, lampShadowOf2 = null;
 function castShadows() {
-  const sl = G.lights.shadowLight;
+  const sl = G.lights.shadowLight, sl2 = G.lights.shadowLight2;
   if (!sl || !sl.castShadow) return;
-  // while a flare's shadows are drawn the trees cast too, and the lamp's shadow (a cube
-  // of six maps) holds still, drawn again only if it moves to another lamp
+  // while a flare's shadows are drawn the trees cast too, and the lamps' shadows (cubes
+  // of six maps) hold still, drawn again only if they move to another lamp
   const fl = !!G.flares?.shadowing;
   if (fl !== flareShadows) {
     flareShadows = fl;
@@ -535,9 +535,13 @@ function castShadows() {
   sl.shadow.autoUpdate = !fl;
   if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
   lampShadowOf = G.lights.shadowOf;
-  const lit = sl.intensity > 0;
-  const r2 = (sl.distance + 3) ** 2;
-  const near = (p) => lit && (p.x - sl.position.x) ** 2 + (p.z - sl.position.z) ** 2 < r2;
+  if (sl2) {
+    sl2.shadow.autoUpdate = !fl;
+    if (fl && G.lights.shadowOf2 !== lampShadowOf2) sl2.shadow.needsUpdate = true;
+    lampShadowOf2 = G.lights.shadowOf2;
+  }
+  const within = (l, p) => l && l.intensity > 0 && (p.x - l.position.x) ** 2 + (p.z - l.position.z) ** 2 < (l.distance + 3) ** 2;
+  const near = (p) => within(sl, p) || within(sl2, p);
   const inFlare = (p) => fl && (p.x - camera.position.x) ** 2 + (p.z - camera.position.z) ** 2 < 40 * 40;
   for (const e of G.enemies || []) {
     const on = e.char.root.visible && (near(e.pos) || inFlare(e.pos));

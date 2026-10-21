@@ -7,8 +7,9 @@
    windows, fires (flickering), and short flashes from muzzles and
    explosions, which always win a slot.
 
-   One more light casts shadows: each frame it takes the strongest outdoor
-   lamp, lantern or fire near the camera (statics marked `shadow`), so the
+   One more light casts shadows (two on high quality): each frame it takes the strongest
+   outdoor lamp, lantern or fire near the camera (statics marked `shadow`; the second
+   light the next strongest, a few metres from the first), so the
    houses, props and soldiers near it throw shadows that swing with a
    fire's flicker: a fire's light wanders a little with its flames (wander()),
    higher as it flares up, so the shadows round it dance. It always exists and always casts (a change in the
@@ -18,7 +19,7 @@
 
 import * as THREE from 'three';
 
-export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512 } = {}) {
+export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512, second = false } = {}) {
   const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', 3.2);
   scene.add(hemi);
   const key = new THREE.DirectionalLight('#9a8f86', 1.2);
@@ -37,16 +38,23 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     lights.push(l);
   }
 
-  const shadowLight = new THREE.PointLight('#ffffff', 0, 12, 2);
-  shadowLight.castShadow = shadows;
-  shadowLight.shadow.mapSize.set(shadowSize, shadowSize);
-  shadowLight.shadow.camera.near = 0.15;
-  shadowLight.shadow.bias = -0.002;
-  shadowLight.shadow.normalBias = 0.05;
-  shadowLight.shadow.radius = 3;
-  shadowLight.position.set(0, -1000, 0);
-  scene.add(shadowLight);
+  const shadowCaster = () => {
+    const l = new THREE.PointLight('#ffffff', 0, 12, 2);
+    l.castShadow = shadows;
+    l.shadow.mapSize.set(shadowSize, shadowSize);
+    l.shadow.camera.near = 0.15;
+    l.shadow.bias = -0.002;
+    l.shadow.normalBias = 0.05;
+    l.shadow.radius = 3;
+    l.position.set(0, -1000, 0);
+    scene.add(l);
+    return l;
+  };
+  const shadowLight = shadowCaster();
+  // the second: in a street of lamps a soldier between two of them throws two shadows
+  const shadowLight2 = shadows && second ? shadowCaster() : null;
   let shadowOf = null;      // the static it is standing in for
+  let shadowOf2 = null;
   const wp = new THREE.Vector3();
 
   const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog}
@@ -98,26 +106,33 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       out.y += 0.3 * k * (0.5 - up);
       return out;
     };
-    // the shadow caster: the strongest marked light within 45 m
-    shadowOf = null;
-    let best = 0;
+    // the shadow casters: the strongest marked lights within 45 m (the second a few metres from the first)
+    shadowOf = null; shadowOf2 = null;
+    let best = 0, best2 = 0;
     for (const s of statics) {
       if (!s.on || !s.shadow) continue;
       const d2 = (s.x - cam.x) ** 2 + (s.y - cam.y) ** 2 + (s.z - cam.z) ** 2;
       if (d2 > 45 * 45) continue;
       const sc = s.intensity * s.range / (1 + d2);
-      if (sc > best) { best = sc; shadowOf = s; }
+      if (sc > best) { best2 = best; shadowOf2 = shadowOf; best = sc; shadowOf = s; }
+      else if (sc > best2) { best2 = sc; shadowOf2 = s; }
     }
-    if (shadowOf) {
-      shadowLight.position.copy(wander(shadowOf, wp));
-      shadowLight.color.copy(shadowOf.color);
-      shadowLight.intensity = flick(shadowOf);
-      shadowLight.distance = shadowOf.range;
-      if (shadowLight.shadow.camera.far !== shadowOf.range) { shadowLight.shadow.camera.far = shadowOf.range; shadowLight.shadow.camera.updateProjectionMatrix(); }
-    } else {
-      shadowLight.intensity = 0;
-      shadowLight.position.set(cam.x, -1000, cam.z);
-    }
+    if (shadowOf2 && (!shadowLight2 || (shadowOf2.x - shadowOf.x) ** 2 + (shadowOf2.z - shadowOf.z) ** 2 < 16)) shadowOf2 = null;
+    const place = (l, s) => {
+      if (!l) return;
+      if (s) {
+        l.position.copy(wander(s, wp));
+        l.color.copy(s.color);
+        l.intensity = flick(s);
+        l.distance = s.range;
+        if (l.shadow.camera.far !== s.range) { l.shadow.camera.far = s.range; l.shadow.camera.updateProjectionMatrix(); }
+      } else {
+        l.intensity = 0;
+        l.position.set(cam.x, -1000, cam.z);
+      }
+    };
+    place(shadowLight, shadowOf);
+    place(shadowLight2, shadowOf2);
 
     cand.length = 0;
     for (let i = flashes.length - 1; i >= 0; i--) {
@@ -134,7 +149,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9, fog: f.fog * (0.15 + 0.85 * near * near * (3 - 2 * near)) });
     }
     for (const s of statics) {
-      if (!s.on || s === shadowOf) continue;
+      if (!s.on || s === shadowOf || s === shadowOf2) continue;
       const d2 = (s.x - cam.x) ** 2 + (s.y - cam.y) ** 2 + (s.z - cam.z) ** 2;
       // a far light (a flare over the fields) is in the running from any distance
       if (!s.far && d2 > 90 * 90) continue;
@@ -145,6 +160,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
     if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best });
+    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2 });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
     // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
     let ci = 0;
@@ -160,5 +176,5 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     }
   }
 
-  return { hemi, key, rim, addStatic, flash, update, statics, active, shadowLight, get shadowOf() { return shadowOf; } };
+  return { hemi, key, rim, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; } };
 }
