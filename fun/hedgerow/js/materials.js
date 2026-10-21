@@ -243,7 +243,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
           mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);
           normal = normalize(tbnR * normalize(vec3(rip * 0.8, 1.0)) * 0.5 + normal * 0.5);
-        }`);
+        }`)
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        #ifdef OPAQUE
+          gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
+        #endif`);
     if (foliage) {
       // foliage: some light comes through the leaves, and a card lights the
       // same from both sides (its normals point out of the crown)
@@ -286,7 +290,11 @@ export function createWaterMaterial(textures, shared) {
           nts.xy += rainRipples(p * 1.5, uTime) * uRain * 0.8;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, p);
           normal = normalize(tbn * normalize(nts));
-        }`);
+        }`)
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        #ifdef OPAQUE
+          gl_FragColor.a = mirrorAlpha(0.07, 1.0);
+        #endif`);
   };
   return mat;
 }

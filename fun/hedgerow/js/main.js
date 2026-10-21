@@ -27,6 +27,7 @@ import { createGrade } from './post.js';
 import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
+import { createSSR } from './ssr.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
 import LEVEL from './levels/saint-clair.js';
@@ -72,7 +73,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null;
 let missionTime = 0;
 const shared = { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 } };
 
@@ -173,6 +174,7 @@ async function boot() {
     grade = createGrade();
     volumetric = createVolumetric(camera);
     ssao = createSSAO(camera);
+    ssr = createSSR(camera, shared);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -220,11 +222,13 @@ function applyGraphics() {
   applyResolution();
   // light in the rain first: it reads the scene's depth, which only the first pass gets
   if (bloom) {
-    // the occlusion is laid on by the light-in-the-rain pass, so it goes with it
+    // the occlusion and the reflections are laid on by the light-in-the-rain pass, so they go with it
     const ao = quality.volumetric && quality.ao;
+    const refl = quality.volumetric && quality.ssr;
     volumetric.setAO(ao ? ssao : null);
+    volumetric.setSSR(refl ? ssr : null);
     // depth of field borrows the scene depth the light-in-the-rain pass reads, so it needs that pass
-    renderer.setEffects([...(ao ? [ssao] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    renderer.setEffects([...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
   if (G?.rig) { G.rig.baseFov = settings.fov; }
@@ -391,7 +395,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 

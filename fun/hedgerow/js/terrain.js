@@ -219,17 +219,23 @@ export function createTerrainMaterial(textures, shared) {
         alb = mix(alb, uRockColor * (0.55 + 0.9 * rk.a), rockW);
         tNormal = normalize(mix(tNormal, rk.xyz * 2.0 - 1.0, rockW));
         tRough = mix(tRough, 0.85, rockW);
-        // puddles: the low parts of mud and road, more where the macro noise says so
-        float wetLow = (b.x + b.w * 0.6) * (1.0 - rockW);
-        float pMask = smoothstep(0.42, 0.7, texture2D(tForest, vWPos.xz / 31.0).a * 0.7 + (1.0 - hts.x) * 0.5);
-        tPuddle = wetLow * smoothstep(0.35, 0.55, pMask - nb.w * 0.1 + (1.0 - hts.x) * 0.25) * uWet;
-        // darken wet ground
-        alb *= mix(1.0, 0.62, uWet * (1.0 - rockW * 0.3));
+        // standing water: a slow noise says where it gathers, and there it
+        // fills the ground up to a level — the joints between the cobbles and
+        // the hollows of the mud first, then (deeper) over the stones too; the
+        // road's joints hold a little everywhere. Not on grass or rock.
+        float hold = (b.x + b.w + b.z * 0.35) * (1.0 - rockW);
+        float gather = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
+        float level = smoothstep(0.45, 0.75, gather) * 1.2;
+        tPuddle = smoothstep(-0.02, 0.06, level - dot(b, hts));
+        tPuddle = max(tPuddle, b.w * 0.55 * smoothstep(0.32, 0.12, hts.w));
+        tPuddle *= hold * uWet;
+        // darken wet ground (the road's stones most: they soak, and shine)
+        alb *= mix(1.0, 0.62 - 0.12 * b.w, uWet * (1.0 - rockW * 0.3));
         alb = mix(alb, alb * vec3(0.55, 0.55, 0.6), tPuddle);
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
-        float roughnessFactor = mix(tRough, tRough * 0.62 + 0.04, uWet);
+        float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
       `)
       .replace('#include <normal_fragment_maps>', `
@@ -242,14 +248,25 @@ export function createTerrainMaterial(textures, shared) {
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));
         }
-      `);
+      `)
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        #ifdef OPAQUE
+          gl_FragColor.a = mirrorAlpha(roughnessFactor, uWet);
+        #endif`);
   };
   return mat;
 }
 
-/* Shared GLSL: a cotangent frame from screen derivatives, and procedural
-   rain ripples (rings expanding from random points in a cell grid). */
+/* Shared GLSL: a cotangent frame from screen derivatives, procedural rain
+   ripples (rings expanding from random points in a cell grid), and the
+   alpha an opaque wet surface writes for the reflections pass (ssr.js):
+   0.25 for no reflection down to 0 for a mirror, from its wet roughness.
+   Everything else writes 1, and transparent things drawn over (rain, mist,
+   decals) only raise it, so a value under 0.25 means "reflect here". */
 export const GLSL_HELPERS = /* glsl */ `
+  float mirrorAlpha(float rough, float wet) {
+    return 0.25 * (1.0 - wet * clamp((0.5 - rough) / 0.43, 0.0, 1.0));
+  }
   mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
     vec3 dp1 = dFdx(p), dp2 = dFdy(p);
     vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);

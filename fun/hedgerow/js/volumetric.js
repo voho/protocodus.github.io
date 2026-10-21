@@ -17,10 +17,13 @@
    Up to eight of the strongest lights near the camera (the light pool's
    choice, lights.js) take part each frame.
 
-   It also lays the ambient occlusion of ssao.js onto the scene first: the
-   half-resolution occlusion brought up with a depth-aware 3 x 3 filter
-   (so it does not bleed across edges), sparing bright pixels — lamps,
-   fires and lit windows are not darkened by what is near them. */
+   It also lays the ambient occlusion of ssao.js and the reflections of
+   ssr.js onto the scene first: both half-resolution, brought up with one
+   depth-aware 3 x 3 filter (so they do not bleed across edges). The
+   occlusion spares bright pixels — lamps, fires and lit windows are not
+   darkened by what is near them — and so do the reflections, which take
+   the place of what the material reflected (the sky) in proportion to how
+   mirror-like the scene pass says the pixel is (its alpha). */
 
 import * as THREE from 'three';
 
@@ -42,9 +45,9 @@ uniform float uRange[MAX];
 uniform int uCount;
 uniform float uDensity, uTime, uRain, uFar;
 uniform vec2 uWind;
-uniform sampler2D tAO;
+uniform sampler2D tAO, tSSR;
 uniform vec2 uAOTexel;
-uniform float uAO;
+uniform float uAO, uSSR;
 varying vec2 vUv;
 
 float viewZ(vec2 uv) {
@@ -52,15 +55,18 @@ float viewZ(vec2 uv) {
   vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   return v.z / v.w;
 }
-float occlusion(vec2 uv, float z0) {
-  float sum = 0.0, wsum = 0.0;
+// the half-resolution layers brought up to full size, weighted by depth likeness
+void layers(vec2 uv, float z0, bool refl, out float ao, out vec4 rf) {
+  float wsum = 0.0;
+  ao = 0.0; rf = vec4(0.0);
   for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
     vec2 o = vec2(float(i), float(j)) * uAOTexel;
     float w = (i == 0 && j == 0 ? 2.0 : 1.0) / (0.02 + abs(viewZ(uv + o) - z0));
-    sum += texture2D(tAO, uv + o).r * w;
+    ao += texture2D(tAO, uv + o).r * w;
+    if (refl) rf += texture2D(tSSR, uv + o) * w;
     wsum += w;
   }
-  return sum / wsum;
+  ao /= wsum; rf /= wsum;
 }
 
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -72,16 +78,21 @@ float noise(vec3 x) {
 }
 
 void main() {
-  vec3 col = texture2D(tSrc, vUv).rgb;
+  vec4 src = texture2D(tSrc, vUv);
+  vec3 col = src.rgb;
   float d = texture2D(tDepth, vUv).x;
   // the view ray and the distance to what this pixel shows
   vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   v.xyz /= v.w;
   float T = d >= 1.0 ? uFar : min(length(v.xyz), uFar);
-  if (uAO > 0.0 && d < 1.0) {
-    float ao = occlusion(vUv, v.z);
+  // how mirror-like the scene pass says this pixel is (mirrorAlpha in terrain.js)
+  float mirror = uSSR * clamp(1.0 - src.a * 4.0, 0.0, 1.0);
+  if ((uAO > 0.0 || mirror > 0.0) && d < 1.0) {
+    float ao; vec4 rf;
+    layers(vUv, v.z, mirror > 0.0, ao, rf);
     float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
     col *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 5.0, lum)));
+    if (rf.a > 1e-4) col = mix(col, rf.rgb / rf.a, rf.a * mirror * (1.0 - smoothstep(1.5, 6.0, lum)));
   }
   vec3 dir = normalize(mat3(uViewInv) * v.xyz);
   vec3 add = vec3(0.0);
@@ -130,6 +141,7 @@ export function createVolumetric(camera) {
       uDensity: { value: 0.03 }, uTime: { value: 0 }, uRain: { value: 1 }, uFar: { value: 140 },
       uWind: { value: new THREE.Vector2(0.5, 0.2) },
       tAO: { value: null }, uAOTexel: { value: new THREE.Vector2(1, 1) }, uAO: { value: 0 },
+      tSSR: { value: null }, uSSR: { value: 0 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
@@ -158,6 +170,13 @@ export function createVolumetric(camera) {
       u.tAO.value = ssao ? ssao.texture : null;
       u.uAOTexel.value = ssao ? ssao.uniforms.uTexel.value : u.uAOTexel.value;
       u.uAO.value = ssao ? strength : 0;
+    },
+    /* the reflections pass to lay on (ssr.js, at the occlusion's half
+       resolution: the upsample shares its texel), and how strongly */
+    setSSR(ssr, strength = 1) {
+      u.tSSR.value = ssr ? ssr.texture : null;
+      u.uSSR.value = ssr ? strength : 0;
+      if (ssr && !u.tAO.value) u.uAOTexel.value = ssr.texel;
     },
     render(renderer, writeBuffer, readBuffer) {
       if (!readBuffer.depthTexture) { this.enabled = false; return; }

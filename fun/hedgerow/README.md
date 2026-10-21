@@ -20,7 +20,9 @@ The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, and the
-renderer adds wet reflective ground with puddle ripples, rain lit by lamps and
+renderer adds wet ground — dark, glossy cobbles with water in the joints,
+puddles in the hollows that mirror the lit windows, the lamps and the glow
+of the sky, broken by rain rings — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
 artillery flashes and burning farms beyond the hedges. Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
@@ -94,7 +96,10 @@ by the blast that killed them, and drop their rifles.
     `effects.js` (particles), `atmosphere.js` (halos, mist, decals),
     `audio.js` (procedural)
   * the effects chain (`renderer.setEffects`, in order): `ssao.js` ambient
-    occlusion at half resolution · `volumetric.js` lays the occlusion on
+    occlusion at half resolution · `ssr.js` reflections in the wet ground,
+    the puddles and the river, at half resolution (a ray marched through the
+    depth from each pixel the scene pass marked as mirror-like in its alpha,
+    `mirrorAlpha`) · `volumetric.js` lays the occlusion and the reflections on
     and adds the light scattered in the rain by up to eight lamps, fires and
     flashes (the closed-form airlight integral, cut by the depth) · `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
