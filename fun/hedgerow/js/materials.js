@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
+import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
 const SPEC = {
@@ -167,6 +168,7 @@ export function createMaterialLibrary(textures, shared) {
         porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
         streaks: !cards && !CARRIED.test(src.name || ''),
+        rooms: !!src.userData?.rooms,
       });
       baked.set(src.uuid, m);
       return m;
@@ -181,17 +183,19 @@ export function createMaterialLibrary(textures, shared) {
    glossier, faces turned to the sky hold a film of water with ripples, and
    (streaks) water runs down walls in rivulets that catch the light.
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
-   A albedo detail) in metre UVs adds the surface grain. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false }) {
+   A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
+   window panes (rooms.js) show the room behind them. */
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       tDetail: { value: detailTex },
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
+      ...(rooms ? ROOM_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -200,7 +204,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec3 vWNormalM;
         varying vec2 vDetailUv;
         varying vec3 vWPosM;
-        ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}`)
+        ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}
+        ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
           vNormalMapUv = uv * uTile;
@@ -234,6 +239,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             wp = instanceMatrix * wp;
           #endif
           vWPosM = (modelMatrix * wp).xyz;
+          ${rooms ? 'vWin = aWin;' : ''}
           ${bark ? `// the bark detail in the tree's own space (it stays on the bark), shifted per tree
           vBarkP = position;
           #ifdef USE_INSTANCING
@@ -257,7 +263,9 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         vec4 barkA, barkB;
         float barkK, barkW;` : ''}
         ${streaks ? 'float mRiv, mRivX;\n        vec3 mRivT;' : ''}
-        ${GLSL_HELPERS}`)
+        ${rooms ? 'varying vec4 vWin;' : ''}
+        ${GLSL_HELPERS}
+        ${rooms ? ROOMS_GLSL : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         ${bark ? `{
           // close up, the bark's furrows and plates (the baked texture is stretched thin over a
@@ -329,6 +337,28 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
         #endif`);
+    if (rooms) {
+      // the room behind the pane (instead of the baked glow), seen through old glass which
+      // takes little light itself; running rain bends the view. The curtains drawn back in
+      // front of it (no room) glow less, as cloth with a lamp behind it
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float rmFw = length(fwidth(vWin.xy));
+        if (vWin.z == 0.0) totalEmissiveRadiance *= uCurtainGain;
+        else {
+          vec3 wn = normalize(vWNormalM);
+          vec3 wt = normalize(vec3(wn.z, 0.0, -wn.x));
+          vec3 wb = cross(wn, wt);
+          vec3 vd = normalize(vWPosM - cameraPosition);
+          float seed = floor(vWin.w / 16.0);
+          vec2 pw = vWin.xy;
+          ${streaks ? 'pw.x += mRivX * mRiv * 0.05;' : ''}
+          vec2 hs = vec2(vWin.z, vWin.w - 16.0 * seed);
+          vec3 room = rmRoom(pw, vec3(dot(vd, wt), dot(vd, wb), -dot(vd, wn)), hs, seed, uTime);
+          totalEmissiveRadiance = rmLace(room, vWin.xy, hs, seed, rmFw);
+          diffuseColor.rgb *= 0.15;
+        }`);
+    }
     if (foliage) {
       // foliage: some light comes through the leaves, and a card lights the
       // same from both sides (its normals point out of the crown)

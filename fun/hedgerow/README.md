@@ -23,7 +23,10 @@ baked in), foliage is alpha cards rendered from modelled leaves, meadows
 and verges are tens of thousands of single blades of grass that bend in
 the wind and part round your legs, stones lie in the mud of the lanes and
 yards and twigs on the forest floor, the trunks show their bark close up
-(furrowed oak and pine, smooth beech, moss low on the weather side), and the
+(furrowed oak and pine, smooth beech, moss low on the weather side), behind
+each lit window there is a room — papered walls, beams overhead, a table
+under a lamp, a cupboard, lace across the bottom of some windows — that
+shifts with parallax as you walk past, and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
@@ -131,7 +134,14 @@ by the blast that killed them, and drop their rifles.
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
     two sides, per species; rain running down walls within ~24 m in
-    rivulets that slide down and catch the light) · `sky.js`, `weather.js`
+    rivulets that slide down and catch the light) · `rooms.js` the rooms
+    behind the lit windows: at load the panes are found in the houses'
+    baked glow (lit, flat, upright, at least a hand's breadth) and split off
+    with their frame in a vertex attribute; their shader carries the view
+    ray on through the glass into a box with a table and a cupboard lit by
+    a lamp that throws their shadows (interior mapping), each room drawn
+    from its own seed; the curtains drawn back in front glow less ·
+    `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground, its 80 m shadow

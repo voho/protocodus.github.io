@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../assets/vendor/GLTFLoader.js';
 import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
+import { splitRooms, reseedRooms } from './rooms.js';
 
 export async function loadModels(base, sets, onProgress) {
   const loader = new GLTFLoader();
@@ -54,6 +55,7 @@ export function readSet(gltf, set, models) {
       prims.push({ geometry: geo, key: key.replace(/\.\d+$/, ''), material: o.material, node: o === node ? null : o.name });
     });
     if (!prims.length) continue;
+    if (set === 'village') splitRooms(prims);       // lit windows get rooms behind them
     const extras = node.userData || {};
     const model = {
       name: node.name, set, prims,
@@ -121,6 +123,7 @@ export function createStaticBatcher(matlib, chunk = 48) {
         const list = bucket.geos;
         const geo = p.geometry.clone();
         geo.applyMatrix4(tmp.copy(matrix));
+        reseedRooms(geo, px, pz);
         if (opts.tint) {
           const c = geo.attributes.color;
           for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * opts.tint, c.getY(i) * opts.tint, c.getZ(i) * opts.tint);
