@@ -482,8 +482,11 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   function muzzle(x, y, z, dx, dy, dz, power = 1) {
-    add.spawn({ x, y, z, life: 0.05, size: 0.32 * power, size1: 0.5 * power, color: C('#ffd08a', 1, 2.4), color1: C('#ff8a30', 0, 1.5), cell: CELLS.flash, rot: R() * 6.28 });
-    add.spawn({ x: x + dx * 0.12, y: y + dy * 0.12, z: z + dz * 0.12, vx: dx * 4, vy: dy * 4, vz: dz * 4, life: 0.045, size: 0.18 * power, size1: 0.28 * power, color: C('#fff0c0', 1, 2), color1: C('#ff9040', 0), cell: CELLS.flame, streak: 0.06, rot: 0 });
+    // no two shots flash alike - bigger or smaller, hotter or duller - so an MG's flashes, back to
+    // back, flicker instead of standing over the muzzle as one glowing ball
+    const v = 0.65 + R() * 0.7, heat = 0.6 + R() * 0.6;
+    add.spawn({ x, y, z, life: 0.05, size: 0.32 * power * v, size1: 0.5 * power * v, color: C('#ffd08a', 1, 2.4 * heat), color1: C('#ff8a30', 0, 1.5 * heat), cell: CELLS.flash, rot: R() * 6.28 });
+    add.spawn({ x: x + dx * 0.12, y: y + dy * 0.12, z: z + dz * 0.12, vx: dx * 4, vy: dy * 4, vz: dz * 4, life: 0.045, size: 0.18 * power * (0.7 + R() * 0.6), size1: 0.28 * power * v, color: C('#fff0c0', 1, 2 * heat), color1: C('#ff9040', 0), cell: CELLS.flame, streak: 0.06, rot: 0 });
     // smokeless powder: a thin grey haze, not a cloud (at an MG's rate the puffs pile up, each
     // lit by the next shot's flash)
     alpha.spawn({ x: x + dx * 0.2, y, z: z + dz * 0.2, vx: dx * 1.2 + (R() - 0.5) * 0.3, vy: 0.4 + dy, vz: dz * 1.2 + (R() - 0.5) * 0.3, life: 1.2, size: 0.12, size1: 0.65, color: C('#706f6c', 0.13), color1: C('#5e5d5a', 0), cell: CELLS.smoke, drag: 2.5, rot: R() * 6, rotV: (R() - 0.5) });
