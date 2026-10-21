@@ -124,7 +124,9 @@ by the blast that killed them, and drop their rifles.
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low
     at a sprint, up and aside at a wall, down out of sight while changing
-    weapons), `reload.js` (the reload's clip and magazine; in first person on
+    weapons), `viewmotion.js` (the springs on top: the rifle lags a quick
+    turn, kicks up with each shot and settles, the eye dips on a landing),
+    `reload.js` (the reload's clip and magazine; in first person on
     the shouldered rifle, tilted into view, the fresh one seating in the
     picture), `camera.js` (at the eyes, down the
     sights when aiming; the over-the-shoulder rig for the death camera),
@@ -341,7 +343,8 @@ by the blast that killed them, and drop their rifles.
   still does (the gait's bob and twist steadied out of the upper body),
   aiming puts the front sight in the middle of the view, the fresh clip or
   magazine seats in the picture, the rifle is carried in the picture at a
-  sprint and out of it while changing weapons:
+  sprint and out of it while changing weapons, and the sway, kick and
+  landing dip stay within a few degrees and centimetres and settle:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs

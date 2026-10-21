@@ -18,6 +18,7 @@ const { createCharacter } = await import('../js/character.js');
 const { readSet } = await import('../js/assets.js');
 const { WEAPONS } = await import('../js/config.js');
 const { startFirstPersonReload } = await import('../js/reload.js');
+const { createViewMotion } = await import('../js/viewmotion.js');
 
 const here = new URL('..', import.meta.url).pathname;
 
@@ -161,4 +162,44 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(!inPicture(a) && !inPicture(b), 'changing weapons, the rifle should go down out of the picture');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture');
+/* The springs on top (viewmotion.js): the rifle lags a quick turn and swings
+   back, a fifth as much down the sights; a shot kicks it up and it settles
+   with a slight overshoot; a landing dips the eye and it comes back. */
+{
+  const turn = (aimT) => {
+    const m = createViewMotion();
+    let yaw = 0, most = 0, out;
+    m.update(1 / 60, yaw, 0, aimT);
+    for (let i = 0; i < 18; i++) { yaw -= 3 / 60; out = m.update(1 / 60, yaw, 0, aimT); most = Math.max(most, out.yaw); }  // turning right
+    for (let i = 0; i < 36; i++) out = m.update(1 / 60, yaw, 0, aimT);
+    return { most: deg(most), after: deg(Math.abs(out.yaw)) };
+  };
+  const hip = turn(0), ads = turn(1);
+  console.log(`sway: a quick turn lags the rifle ${hip.most.toFixed(2)}° (${ads.most.toFixed(2)}° down the sights), ${hip.after.toFixed(3)}° left 0.6 s after`);
+  assert.ok(hip.most > 1 && hip.most < 3.2, 'the rifle should lag a quick turn by a degree or two (to its left, turning right)');
+  assert.ok(hip.after < 0.1, 'and swing back once the turn stops');
+  assert.ok(ads.most < hip.most * 0.3, 'down the sights it lags much less');
+
+  const m = createViewMotion();
+  m.update(1 / 60, 0, 0, 0);
+  m.kick(WEAPONS.garand.kick);
+  let peak = 0, peakAt = 0, under = 0, out;
+  for (let i = 1; i <= 30; i++) {
+    out = m.update(1 / 60, 0, 0, 0);
+    if (out.pitch > peak) { peak = out.pitch; peakAt = i / 60; }
+    under = Math.min(under, out.pitch);
+  }
+  console.log(`kick: a Garand shot throws the muzzle up ${deg(peak).toFixed(2)}° (at ${(peakAt * 1000).toFixed(0)} ms), overshoots ${deg(-under).toFixed(2)}°, ${deg(Math.abs(out.pitch)).toFixed(3)}° left after 0.5 s`);
+  assert.ok(deg(peak) > 2 && deg(peak) < 4 && peakAt < 0.12, 'a rifle shot should kick the muzzle up 2-4 degrees, quickly');
+  assert.ok(deg(-under) < 0.6 && deg(Math.abs(out.pitch)) < 0.2, 'and settle with a slight overshoot');
+
+  const l = createViewMotion();
+  l.update(1 / 60, 0, 0, 0);
+  l.land(8);
+  let low = 0;
+  for (let i = 1; i <= 30; i++) { out = l.update(1 / 60, 0, 0, 0); low = Math.min(low, out.drop); }
+  console.log(`landing: the eye dips ${(-low * 100).toFixed(1)} cm, ${(-out.drop * 100).toFixed(2)} cm left after 0.5 s`);
+  assert.ok(-low > 0.02 && -low < 0.045 && -out.drop < 0.003, 'a hard landing dips the eye a few centimetres and it comes back');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick and landing feel right');
