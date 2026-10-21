@@ -15,6 +15,7 @@ import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
 import { createChunks } from './chunks.js';
+import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
 import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
@@ -49,6 +50,9 @@ import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import LEVEL from './levels/saint-clair.js';
+
+// the point lights shade only the pixels they reach (lightloop.js), patched before any material compiles
+cullPointLights();
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
