@@ -90,7 +90,7 @@ export function createPlayer(G) {
     P.char.root.rotation.y = P.yaw;
     P.char.hideHead(FP);
     P.char.steady = FP;
-    P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 };
+    P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 }; P.pendingWeapon = null;
     motion.reset(); vm = { yaw: 0, pitch: 0, drop: 0 };
     eyeOff.set(0, PLAYER.eye, 0);
     G.hud.health(P.health / PLAYER.health);
@@ -145,8 +145,9 @@ export function createPlayer(G) {
     P.reloadRun = null;
     P.weapon = id;
     P.reloading = 0;
-    P.switching = 0.45;
-    P.char.setWeapon(G.models.get(WEAPONS[id].model));
+    // first person: the gun in his hands goes down out of sight, is changed there, the new one comes up
+    if (FP) { P.switching = 0.5; P.pendingWeapon = id; }
+    else { P.switching = 0.45; P.char.setWeapon(G.models.get(WEAPONS[id].model)); }
     G.audio.switchWeapon();
     G.hud.weapon(WEAPONS[id].name, P.ammo[id], P.grenades);
   }
@@ -474,6 +475,7 @@ export function createPlayer(G) {
     // timers
     P.cooldown -= dt;
     P.switching -= dt;
+    if (P.pendingWeapon && P.switching <= 0.25) { P.char.setWeapon(G.models.get(WEAPONS[P.pendingWeapon].model)); P.pendingWeapon = null; }
     P.throwing -= dt;
     P.spread = Math.max(0, P.spread - w.bloomDecay * P.spread * dt);
     if (P.reloading > 0) {
@@ -532,7 +534,7 @@ export function createPlayer(G) {
       // view to reload (the throw is the clip's own)
       upper = P.crouch ? 'crouch_aim' : 'aim';
       const t = P.reloading > 0 && P.reloadRun?.pose ? P.reloadRun.pose(1 - P.reloading / P.reloadTotal)
-        : P.switching > 0 ? { pitch: -0.8, yaw: 0, roll: 0 }
+        : P.switching > 0.25 ? { pitch: -0.8, yaw: 0, roll: 0 }
         : P.blocked ? { pitch: 0.55, yaw: 0.25, roll: 0.2 }
         : P.sprint ? { pitch: -0.15, yaw: -0.1, roll: -0.45 }
         : null;
