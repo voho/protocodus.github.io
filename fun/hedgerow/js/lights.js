@@ -126,7 +126,12 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       if (f.age >= f.life) { flashes.splice(i, 1); continue; }
       // a flash dies fast, then lingers a little
       const k = (1 - f.age / f.life) ** 2;
-      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9, fog: f.fog });
+      // one at the eye (the player's own muzzle) would lay its glow in the rain over the whole view
+      // for as long as it is held (frames; a real flash is over in a millisecond): near the eye
+      // little of that glow is kept
+      const dc = Math.hypot(f.x - cam.x, f.y - cam.y, f.z - cam.z);
+      const near = Math.min(1, Math.max(0, (dc - 1.5) / 2.5));
+      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9, fog: f.fog * (0.15 + 0.85 * near * near * (3 - 2 * near)) });
     }
     for (const s of statics) {
       if (!s.on || s === shadowOf) continue;
