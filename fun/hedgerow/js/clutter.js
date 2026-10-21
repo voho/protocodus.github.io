@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { rng } from './util.js';
 import { GROUND_GLSL } from './groundmap.js';
+import { dimFillSpecular } from './fill.js';
 
 /* a stone: a once-subdivided icosahedron, its points pushed in and out, flattened */
 function stoneGeometry(seed = 3) {
@@ -178,6 +179,7 @@ function createKind(kind, geometry, map, shared) {
         diffuseColor.rgb = col * mix(0.7, 1.0, vTint.y) * mix(1.0, 0.8, uWet);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = mix(roughnessFactor, ${stone ? '0.38' : '0.72'}, uWet);`);
+    dimFillSpecular(shader);
   };
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = 'clutter_' + kind;

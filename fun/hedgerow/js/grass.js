@@ -21,6 +21,7 @@
 
 import * as THREE from 'three';
 import { FOLIAGE_UNIFORMS } from './materials.js';
+import { dimFillSpecular } from './fill.js';
 
 const SEGS = 3, TUFT = 5;
 export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
@@ -187,6 +188,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
         bladeThin = smoothstep(0.15, 0.9, vT) * (1.0 - vShade.z * 0.6);
         #include <lights_fragment_begin>`)
       .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
+    dimFillSpecular(shader);
   };
 
   const mesh = new THREE.Mesh(geo, mat);

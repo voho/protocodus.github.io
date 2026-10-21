@@ -41,6 +41,7 @@ import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createRuts } from './ruts.js';
 import { createPonds } from './ponds.js';
+import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
@@ -608,6 +609,7 @@ function step() {
     G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
     G.flares.lightning(flash, G.weather.flashDir, camera.position);
     G.lights.update(dt, G.time, camera.position, flash);
+    setFill(G.lights.key, G.lights.rim);
     castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     dof?.set(volumetric?.uniforms.tDepth.value, state === 'playing' ? G.rig.aimT : 0);

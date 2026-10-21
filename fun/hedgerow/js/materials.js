@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
 import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
+import { dimFillSpecular } from './fill.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
 const SPEC = {
@@ -199,6 +200,8 @@ export function createMaterialLibrary(textures, shared) {
         rooms: !!src.userData?.rooms,
         smoulder: !cards && (SMOULDER.find(([re]) => re.test(src.name || ''))?.[1] || null),
         skin: SKIN.test(src.name || ''),
+        // the soldiers and their kit keep the fill light's sheen: it models their shape in the dark
+        glints: CARRIED.test(src.name || ''),
       });
       baked.set(src.uuid, m);
       return m;
@@ -215,10 +218,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -533,6 +536,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12;`)
         .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
     }
+    if (!glints) dimFillSpecular(shader);
   };
 }
 
@@ -608,6 +612,7 @@ export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(mix(0.07, 0.8, wFoam), 1.0);
         #endif`);
+    dimFillSpecular(shader);
   };
   return mat;
 }
