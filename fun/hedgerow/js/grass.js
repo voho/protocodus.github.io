@@ -10,7 +10,9 @@
    the grass weight of the splat (a little in the forest), none on roads and
    mud, on steep banks, at the water or inside anything solid (houses, walls,
    sandbags). The wind leans every blade and sends gusts across the field in
-   waves; the player parts the grass round his legs, and a blast's shockwave
+   waves; light shines through the blades (a meadow between you and a flare
+   or a fire glows at its tips); the player parts the grass round his legs,
+   and a blast's shockwave
    (effects.js `shocks`) flattens it outward as it races through, the grass
    still bowed behind it for a moment. Far tufts thin out (the
    ones left grow fuller, no blade thinner than about a pixel) and the patch
@@ -18,6 +20,7 @@
    texture take over. */
 
 import * as THREE from 'three';
+import { FOLIAGE_UNIFORMS } from './materials.js';
 
 const SEGS = 3, TUFT = 5;
 export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
@@ -58,7 +61,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
   mat.name = 'grass';
   mat.customProgramCacheKey = () => 'hedgerow-grass';
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms);
+    Object.assign(shader.uniforms, uniforms, FOLIAGE_UNIFORMS);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D tGround;
@@ -167,6 +170,22 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
         diffuseColor.rgb = col * mix(0.45, 1.0, smoothstep(0.0, 0.4, vT)) * mix(1.0, 0.85, uWet);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = mix(roughnessFactor, 0.55, uWet);`)
+      // every light also shines through the blades, as through the leaves (materials.js): most where
+      // the eye looks towards it through the grass, more at the thin tips than at the shaded roots
+      .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
+        uniform float uLeafTrans;
+        float bladeThin = 1.0;
+        void RE_Direct_Blade(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
+            const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+          RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          float through = pow(saturate(dot(-geometryViewDir, directLight.direction)), 6.0) * 1.6;
+          reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * through * bladeThin * uLeafTrans;
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Blade`)
+      .replace('#include <lights_fragment_begin>', `
+        bladeThin = smoothstep(0.15, 0.9, vT) * (1.0 - vShade.z * 0.6);
+        #include <lights_fragment_begin>`)
       .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
   };
 

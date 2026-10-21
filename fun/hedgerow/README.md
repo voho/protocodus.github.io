@@ -151,6 +151,7 @@ by the blast that killed them, and drop their rifles.
     one instanced draw of tufts of blades round the camera (high ~21 m,
     medium ~14 m, none on low), each placed, sized and leaned by a hash of
     its world cell; tufts out of view collapse before the expensive part;
+    light shines through the blades as through the leaves, most at their tips;
     the ground under it turns to dark, dry sward · `clutter.js` the same
     for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
     lying along the slope (high and medium)
