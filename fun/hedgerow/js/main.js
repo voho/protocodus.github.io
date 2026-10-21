@@ -16,6 +16,7 @@ import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
 import { dressWalls } from './damage.js';
 import { createSteam } from './steam.js';
+import { paneRects } from './rooms.js';
 import { createChunks } from './chunks.js';
 import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
@@ -178,6 +179,8 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   dressWalls(G, built.props, LEVEL.lines);
+  // the lit windows' glass, for the cracks a bullet leaves in it
+  G.decals.setPanes(paneRects(built.props));
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);

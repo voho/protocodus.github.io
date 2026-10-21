@@ -56,7 +56,8 @@ dripping and pouring in broken strings off the eaves, lit by lamps, fires
 and flares,
 halos in the wet air, low mist, bullet holes that catch the light — stone
 chipped pale round a black hole, wood splintered, paint flaked off a dent to
-the bare steel — mud kicked up and the scorch of blasts, the village's walls
+the bare steel, a lit window's glass starred with cracks that catch the
+room's light — mud kicked up and the scorch of blasts, the village's walls
 scarred by the fighting before you came (plaster blown off down to the
 stone or brick, machine-gun bursts stitched across the fronts), a low
 cloud deck rolling overhead, its bellies lit orange from below over the
