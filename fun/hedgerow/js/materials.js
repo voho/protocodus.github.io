@@ -121,6 +121,11 @@ export function updateSmoulder(fires, cam) {
   });
 }
 
+/* the soldiers' atlases, whose skin (found by its colour) scatters light under its surface */
+const SKIN = /^(allied|axis)$/;
+/* debug: show what is taken for skin */
+export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uSkinDebug: { value: 0 } };
+
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
@@ -192,6 +197,7 @@ export function createMaterialLibrary(textures, shared) {
         streaks: !cards && !CARRIED.test(src.name || ''),
         rooms: !!src.userData?.rooms,
         smoulder: !cards && (SMOULDER.find(([re]) => re.test(src.name || ''))?.[1] || null),
+        skin: SKIN.test(src.name || ''),
       });
       baked.set(src.uuid, m);
       return m;
@@ -208,10 +214,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -221,6 +227,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(rooms ? ROOM_UNIFORMS : {}),
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
       ...(smoulder ? SMOULDER_UNIFORMS : {}),
+      ...(skin ? SKIN_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -362,6 +369,43 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
         #endif`);
+    if (skin) {
+      // skin, found in the soldier's atlas by its colour (warm, middling saturation, light enough:
+      // not the leather, the hair or the khaki), scatters light under its surface: the light
+      // wraps round past the terminator, reddest, and thin parts lit from behind glow red
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
+        uniform float uSkin, uSkinDebug;
+        float skinK = 0.0;
+        void RE_Direct_Skin(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
+            const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+          RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          if (skinK > 0.0) {
+            float nl = dot(geometryNormal, directLight.direction);
+            vec3 w = vec3(0.55, 0.24, 0.16);
+            vec3 wrapped = saturate((vec3(nl) + w) / (1.0 + w));
+            reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * (wrapped - saturate(nl)) * skinK;
+            float back = pow(saturate(dot(-geometryViewDir, directLight.direction)), 4.0) * 0.3;
+            reflectedLight.directDiffuse += directLight.color * material.diffuseColor * vec3(1.0, 0.28, 0.18) * back * skinK;
+          }
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Skin`)
+        .replace('#include <roughnessmap_fragment>', `
+        {
+          vec3 sc = pow(max(diffuseColor.rgb, vec3(1e-4)), vec3(1.0 / 2.2));
+          float mx = max(sc.r, max(sc.g, sc.b)), mn = min(sc.r, min(sc.g, sc.b));
+          float sat = (mx - mn) / max(mx, 1e-4);
+          float hue = (sc.g - sc.b) / max(sc.r - sc.b, 1e-4);     // 0 red .. 1 yellow, for r >= g >= b
+          skinK = step(sc.b, sc.g) * step(sc.g, sc.r) * smoothstep(0.08, 0.18, hue) * (1.0 - smoothstep(0.52, 0.64, hue))
+            * smoothstep(0.14, 0.24, sat) * (1.0 - smoothstep(0.62, 0.72, sat)) * smoothstep(0.3, 0.4, mx) * uSkin;
+        }
+        #include <roughnessmap_fragment>
+        // skin: soft, not plastic (glossier wet)
+        roughnessFactor = mix(roughnessFactor, 0.58, skinK);`)
+        .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);`);
+    }
     if (smoulder) {
       // round its fire, the charred wood and metal smoulders: glowing cracks in what is darkest,
       // breathing slowly, brighter the nearer the flames
