@@ -290,6 +290,9 @@ function createSystem(max, atlas, additive, fog, shared) {
     rot: new Float32Array(max), rotV: new Float32Array(max), cell: new Float32Array(max),
     drag: new Float32Array(max), grav: new Float32Array(max), streak: new Float32Array(max),
     fadeIn: new Float32Array(max),
+    // carried by the air: how much it rides the wind (its drag pulls it to the wind, not to rest),
+    // how hard the eddies in it push it about, and their phase
+    ride: new Float32Array(max), swirl: new Float32Array(max), ph: new Float32Array(max),
   };
 
   function spawn(o) {
@@ -304,23 +307,30 @@ function createSystem(max, atlas, additive, fog, shared) {
     P.rot[i] = o.rot ?? 0; P.rotV[i] = o.rotV || 0;
     P.cell[i] = o.cell; P.drag[i] = o.drag || 0; P.grav[i] = o.gravity || 0;
     P.streak[i] = o.streak || 0; P.fadeIn[i] = o.fadeIn || 0;
+    P.ride[i] = o.ride || 0; P.swirl[i] = o.swirl || 0; P.ph[i] = (o.x * 1.7 + o.z * 2.3 + o.life * 5.1) % 6.2832;
     return i;
   }
 
   function kill(i) {
     const j = --P.n;
     if (i === j) return;
-    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'age', 's0', 's1', 'rot', 'rotV', 'cell', 'drag', 'grav', 'streak', 'fadeIn']) P[k][i] = P[k][j];
+    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'age', 's0', 's1', 'rot', 'rotV', 'cell', 'drag', 'grav', 'streak', 'fadeIn', 'ride', 'swirl', 'ph']) P[k][i] = P[k][j];
     P.c0.copyWithin(i * 4, j * 4, j * 4 + 4);
     P.c1.copyWithin(i * 4, j * 4, j * 4 + 4);
   }
 
-  function update(dt, groundFn) {
+  function update(dt, groundFn, wind = null) {
+    const wx = wind ? wind.x : 0, wz = wind ? wind.z : 0;
     for (let i = P.n - 1; i >= 0; i--) {
       P.age[i] += dt;
       if (P.age[i] >= P.life[i]) { kill(i); continue; }
       const drag = Math.exp(-P.drag[i] * dt);
-      P.vx[i] *= drag; P.vy[i] = P.vy[i] * drag - P.grav[i] * dt; P.vz[i] *= drag;
+      const rx = wx * P.ride[i], rz = wz * P.ride[i];
+      P.vx[i] = rx + (P.vx[i] - rx) * drag; P.vy[i] = P.vy[i] * drag - P.grav[i] * dt; P.vz[i] = rz + (P.vz[i] - rz) * drag;
+      if (P.swirl[i] > 0) {
+        const a = P.age[i] * 2.3 + P.ph[i], k = P.swirl[i] * dt;
+        P.vx[i] += Math.sin(a) * k; P.vz[i] += Math.cos(a * 1.31 + 0.7) * k; P.vy[i] += Math.sin(a * 0.77 + 1.7) * k * 0.6;
+      }
       P.px[i] += P.vx[i] * dt; P.py[i] += P.vy[i] * dt; P.pz[i] += P.vz[i] * dt;
       P.rot[i] += P.rotV[i] * dt;
       if (P.grav[i] > 0 && groundFn) {
@@ -648,11 +658,16 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
             cell: CELLS.smoke, drag: 0.4, rot: R() * 6, rotV: (R() - 0.5) * 0.4, fadeIn: 0.3,
           });
         }
-        if (R() < 0.15) {
+        // embers: thrown up out of the flames, then carried off on the wind for seconds, rising
+        // and swirling in its eddies as they cool from yellow to a dull red and go out
+        if (R() < 0.26) {
+          const big = R() < 0.3;
           add.spawn({
-            x: f.x + (R() - 0.5) * s, y: f.y + 0.6 * s, z: f.z + (R() - 0.5) * s,
+            x: f.x + (R() - 0.5) * s, y: f.y + (0.6 + R() * 0.8) * s, z: f.z + (R() - 0.5) * s,
             vx: wind.x + (R() - 0.5) * 1.5, vy: 2 + R() * 2.5, vz: wind.z + (R() - 0.5) * 1.5,
-            life: 1 + R() * 1.5, size: 0.03, color: C('#ffb050', 1, 3), color1: C('#ff5010', 0), cell: CELLS.spark, drag: 0.8,
+            life: big ? 4 + R() * 3 : 1.5 + R() * 2, size: big ? 0.05 + R() * 0.025 : 0.035 + R() * 0.015,
+            color: C('#ffc060', 1, 4.2), color1: C('#ff3800', 0, 1.1), cell: CELLS.spark,
+            drag: 0.9, gravity: -0.12, ride: 1.25, swirl: 2.2 + R() * 1.6, streak: 0.012,
           });
         }
       }
@@ -691,8 +706,8 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       s.strength = (1 - s.age / 0.5) ** 1.5;
     }
     updateFires(dt, wind, camPos);
-    alpha.update(dt, groundFn);
-    add.update(dt, groundFn);
+    alpha.update(dt, groundFn, wind);
+    add.update(dt, groundFn, wind);
   }
 
   return {
