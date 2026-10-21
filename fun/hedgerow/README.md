@@ -179,7 +179,8 @@ by the blast that killed them, and drop their rifles.
     out of each, a few thousand a second, drawn after the frame; all of it
     in gusts — bands of heavier, harder-leaning rain some 30 m across blown
     downwind, one noise shared by the shaders and the splashes; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
-    the surfaces round it but only a little of the wet air),
+    the surfaces round it but only a little of the wet air; a fire's light
+    sways and leaps with its flames, so the shadows round it dance),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground (as bright as the
     flare is at the player, eased towards a ceiling close under one), its 80 m shadow

@@ -10,7 +10,8 @@
    One more light casts shadows: each frame it takes the strongest outdoor
    lamp, lantern or fire near the camera (statics marked `shadow`), so the
    houses, props and soldiers near it throw shadows that swing with a
-   fire's flicker. It always exists and always casts (a change in the
+   fire's flicker: a fire's light wanders a little with its flames (wander()),
+   higher as it flares up, so the shadows round it dance. It always exists and always casts (a change in the
    number of lights or shadows would recompile every shader); with nothing
    to light it waits far below the level, where there is nothing to draw
    into its shadow map. */
@@ -46,6 +47,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   shadowLight.position.set(0, -1000, 0);
   scene.add(shadowLight);
   let shadowOf = null;      // the static it is standing in for
+  const wp = new THREE.Vector3();
 
   const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog}
   const flashes = [];       // {x,y,z,color,intensity,range,life,age}
@@ -82,6 +84,20 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       const t = time * 9 + s.phase;
       return s.intensity * (1 - s.flicker * (0.5 + 0.5 * Math.sin(t) * Math.sin(t * 2.31 + 1.3) * Math.sin(t * 0.73)));
     };
+    // where a fire's light is now: its flames sway and leap, and the light with them (a lamp's
+    // flame, a lantern's, hardly moves); in step with its flicker, higher when it flares up.
+    // Not while the shadow map holds still (a flare's shadows are being drawn)
+    const sway = shadowLight.shadow.autoUpdate !== false;
+    const wander = (s, out) => {
+      out.x = s.x; out.y = s.y; out.z = s.z;
+      if (!sway || !s.flicker || s.flicker < 0.3) return out;
+      const t = time * 9 + s.phase, k = s.flicker / 0.45;
+      const up = 0.5 + 0.5 * Math.sin(t) * Math.sin(t * 2.31 + 1.3) * Math.sin(t * 0.73);
+      out.x += 0.2 * k * (Math.sin(t * 0.83 + 1.1) * 0.6 + Math.sin(t * 1.97 + 0.4) * 0.4);
+      out.z += 0.2 * k * (Math.sin(t * 0.71 + 2.3) * 0.6 + Math.sin(t * 2.13 + 1.7) * 0.4);
+      out.y += 0.3 * k * (0.5 - up);
+      return out;
+    };
     // the shadow caster: the strongest marked light within 45 m
     shadowOf = null;
     let best = 0;
@@ -93,7 +109,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       if (sc > best) { best = sc; shadowOf = s; }
     }
     if (shadowOf) {
-      shadowLight.position.set(shadowOf.x, shadowOf.y, shadowOf.z);
+      shadowLight.position.copy(wander(shadowOf, wp));
       shadowLight.color.copy(shadowOf.color);
       shadowLight.intensity = flick(shadowOf);
       shadowLight.distance = shadowOf.range;
@@ -117,12 +133,13 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       const d2 = (s.x - cam.x) ** 2 + (s.y - cam.y) ** 2 + (s.z - cam.z) ** 2;
       // a far light (a flare over the fields) is in the running from any distance
       if (!s.far && d2 > 90 * 90) continue;
-      cand.push({ x: s.x, y: s.y, z: s.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2), fog: s.fog ?? 1, noLight: !!s.noLight });
+      wander(s, wp);
+      cand.push({ x: wp.x, y: wp.y, z: wp.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2), fog: s.fog ?? 1, noLight: !!s.noLight });
     }
     cand.sort((a, b) => b.score - a.score);
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
-    if (shadowOf) active.push({ x: shadowOf.x, y: shadowOf.y, z: shadowOf.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best });
+    if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
     // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
     let ci = 0;
