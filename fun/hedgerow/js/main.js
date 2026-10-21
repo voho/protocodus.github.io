@@ -24,6 +24,7 @@ import { createMission } from './mission.js';
 import { buildLevel } from './levelBuild.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
 import { createGrade } from './post.js';
+import { createVolumetric } from './volumetric.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
 import LEVEL from './levels/saint-clair.js';
@@ -69,7 +70,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null;
+let bloom = null, grade = null, volumetric = null;
 let missionTime = 0;
 const shared = { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 } };
 
@@ -164,6 +165,7 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
+    volumetric = createVolumetric(camera);
     applyGraphics();
   }
 
@@ -208,7 +210,8 @@ function freshStats() {
 function applyGraphics() {
   quality = QUALITY[settings.quality] || QUALITY.high;
   applyResolution();
-  if (bloom) renderer.setEffects(quality.bloom ? [bloom, grade] : [grade]);
+  // light in the rain first: it reads the scene's depth, which only the first pass gets
+  if (bloom) renderer.setEffects([...(quality.volumetric ? [volumetric] : []), ...(quality.bloom ? [bloom] : []), grade]);
   G?.weather?.setCount(quality.rain);
   if (G?.rig) { G.rig.baseFov = settings.fov; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
@@ -374,6 +377,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
+  get fx() { return { volumetric, bloom, grade }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -473,6 +477,7 @@ function step() {
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
     G.lights.update(dt, G.time, camera.position, flash);
+    volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     G.weather.setLights(G.lights.active);
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);

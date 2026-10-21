@@ -75,7 +75,7 @@ export function createLighting(scene, { pool = 8 } = {}) {
     }
     cand.sort((a, b) => b.score - a.score);
     active.length = 0;
-    for (let i = 0; i < Math.min(6, cand.length); i++) active.push(cand[i]);
+    for (let i = 0; i < Math.min(8, cand.length); i++) active.push(cand[i]);
     for (let i = 0; i < lights.length; i++) {
       const l = lights[i];
       const c = cand[i];
