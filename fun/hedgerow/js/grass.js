@@ -152,7 +152,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
         col = mix(col, vec3(0.2, 0.16, 0.08) * (0.6 + 0.4 * vT), vShade.z);
         diffuseColor.rgb = col * mix(0.45, 1.0, smoothstep(0.0, 0.4, vT)) * mix(1.0, 0.85, uWet);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.42, uWet);`)
+        roughnessFactor = mix(roughnessFactor, 0.55, uWet);`)
       .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
   };
 

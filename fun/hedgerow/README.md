@@ -153,7 +153,8 @@ by the blast that killed them, and drop their rifles.
     scene by its depth, lit by the lamps near them and by a burning flare;
     splashes, lightning), `lights.js` (pooled point lights),
     `flares.js` (illumination flares: a far light for the haze and the
-    smoke, a directional light along it for the ground, its 80 m shadow
+    smoke, a directional light along it for the ground (as bright as the
+    flare is at the player, eased towards a ceiling close under one), its 80 m shadow
     map drawn every other frame only while one burns, the tree crowns'
     leaf cards cut out by their alpha; the shaders it needs are warmed at
     the start of the mission; when none burns, a lightning stroke drives the

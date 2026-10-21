@@ -325,7 +325,8 @@ export function createTerrainMaterial(textures, shared) {
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
-        float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet);
+        // wet ground shines; a field of wet grass much less (its blades break the sheen up)
+        float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet * (1.0 - 0.65 * b.y));
         roughnessFactor = mix(roughnessFactor, 0.2, tRim * 0.6);
         roughnessFactor = mix(roughnessFactor, 0.12, tShore * 0.8);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);

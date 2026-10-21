@@ -68,6 +68,7 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
   const toFlare = new THREE.Vector3();
   let frame = 0;
   const FLARE_COL = new THREE.Color('#eef4ff'), BOLT_COL = new THREE.Color('#d6e2ff');
+  const CEIL = 3;
   const boltDir = new THREE.Vector3();
   let struck = false, boltFrame = 0;
   const core = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -134,9 +135,10 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
     dir.normalize();
     sky.uniforms.uFlareDir.value.copy(dir);
     sky.uniforms.uFlare.value = k;
-    // on the ground round the player: as bright as the flare is there, from where it is
+    // on the ground round the player: as bright as the flare is there, from where it is, but
+    // eased off towards a ceiling (right under one it would be daylight to a night-tuned eye)
     const flick = 1 - 0.12 * (0.5 + 0.5 * Math.sin(f.t * 9) * Math.sin(f.t * 20.8 + 1.3));
-    sun.intensity = peak * k * flick / d2;
+    sun.intensity = CEIL * Math.tanh(peak * k / d2 / CEIL) * flick;
     const gy = G.terrain.height(cam.x, cam.z);
     sun.target.position.set(cam.x, gy, cam.z);
     toFlare.copy(dir).multiplyScalar(220);
