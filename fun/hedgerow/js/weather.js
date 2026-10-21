@@ -312,8 +312,13 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.0), a);
 }`;
 
-export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
+export function createWeather({ count = 8000, terrain, water = null, onThunder, seed = 4 }) {
   const R = rng(seed);
+  // where a drop lands: the ground, or the river's surface over it
+  const landY = (x, z) => {
+    const y = terrain ? terrain.height(x, z) : 0;
+    return water && y < water.level && water.contains(x, z) ? water.level : y;
+  };
   const group = new THREE.Group();
   group.name = 'weather';
 
@@ -459,7 +464,7 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
       splashAcc -= 1;
       const a = R() * Math.PI * 2, r = Math.sqrt(R()) * 16;
       const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
-      const y = terrain ? terrain.height(x, z) : 0;
+      const y = landY(x, z);
       const k = splashCursor * 4;
       splashes[k] = x; splashes[k + 1] = y; splashes[k + 2] = z; splashes[k + 3] = time - R() * 0.02;
       splashCursor = (splashCursor + 1) % SPL;
@@ -474,7 +479,7 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
       const a = R() * Math.PI * 2, r = Math.sqrt(R()) * 7;
       const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
       const k = crownCursor * 4;
-      crownData[k] = x; crownData[k + 1] = terrain ? terrain.height(x, z) : 0; crownData[k + 2] = z; crownData[k + 3] = time - R() * 0.016;
+      crownData[k] = x; crownData[k + 1] = landY(x, z); crownData[k + 2] = z; crownData[k + 3] = time - R() * 0.016;
       crownCursor = (crownCursor + 1) % CR;
       cChanged = true;
     }

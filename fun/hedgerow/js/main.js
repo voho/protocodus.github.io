@@ -198,7 +198,7 @@ async function boot() {
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
-    count: quality.rain, terrain: G.terrain,
+    count: quality.rain, terrain: G.terrain, water: LEVEL.water,
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
