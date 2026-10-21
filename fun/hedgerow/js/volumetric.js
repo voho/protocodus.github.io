@@ -45,9 +45,11 @@ uniform float uRange[MAX];
 uniform int uCount;
 uniform float uDensity, uTime, uRain, uFar;
 uniform vec2 uWind;
-uniform sampler2D tAO, tSSR;
+uniform sampler2D tAO, tSSR, tShafts, tPVis;
+uniform float uPVis;
 uniform vec2 uAOTexel;
 uniform float uAO, uSSR;
+uniform vec3 uShaftCol;
 varying vec2 vUv;
 
 float viewZ(vec2 uv) {
@@ -67,6 +69,28 @@ void layers(vec2 uv, float z0, bool refl, out float ao, out vec4 rf) {
     wsum += w;
   }
   ao /= wsum; rf /= wsum;
+}
+// the share of the shadow-casting light's glow not in shadow (shafts.js), brought up the same way
+float pvisLayer(vec2 uv, float z0) {
+  float s = 0.0, wsum = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 o = vec2(float(i), float(j)) * uAOTexel * 1.5;
+    float w = 1.0 / (0.05 + abs(viewZ(uv + o) - z0) * 0.5);
+    s += texture2D(tPVis, uv + o).r * w;
+    wsum += w;
+  }
+  return s / wsum;
+}
+// the flare's shafts (shafts.js), brought up the same way and a little wider (they are grainy)
+float shaftLayer(vec2 uv, float z0) {
+  float s = 0.0, wsum = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 o = vec2(float(i), float(j)) * uAOTexel * 1.5;
+    float w = 1.0 / (0.05 + abs(viewZ(uv + o) - z0) * 0.5);
+    s += texture2D(tShafts, uv + o).r * w;
+    wsum += w;
+  }
+  return s / wsum;
 }
 
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -94,8 +118,12 @@ void main() {
     col *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 5.0, lum)));
     if (rf.a > 1e-4) col = mix(col, rf.rgb / rf.a, rf.a * mirror * (1.0 - smoothstep(1.5, 6.0, lum)));
   }
+  // a flare's light in the wet air, in shafts where houses and trees shadow it
+  if (uShaftCol.r + uShaftCol.g + uShaftCol.b > 0.0) col += uShaftCol * shaftLayer(vUv, v.z);
   vec3 dir = normalize(mat3(uViewInv) * v.xyz);
   vec3 add = vec3(0.0);
+  // the first light is the one casting shadows: its glow only where the air is not in shadow
+  float pv = uPVis > 0.5 ? pvisLayer(vUv, v.z) : 1.0;
   for (int i = 0; i < MAX; i++) {
     if (i >= uCount) break;
     vec3 L = uPos[i] - uCam;
@@ -118,7 +146,7 @@ void main() {
     // rain curtains drifting with the wind, round the closest point of approach
     vec3 q = uCam + dir * clamp(t0, ta, tb);
     float n = noise(vec3(q.x * 0.35 + uWind.x * uTime, q.y * 0.18 - uTime * 0.9, q.z * 0.35 + uWind.y * uTime));
-    add += uCol[i] * I * edge * phase * (0.55 + 0.9 * n);
+    add += uCol[i] * I * edge * phase * (0.55 + 0.9 * n) * (i == 0 ? pv : 1.0);
   }
   col += add * uDensity * (0.6 + 0.4 * uRain);
   gl_FragColor = vec4(col, 1.0);
@@ -142,6 +170,8 @@ export function createVolumetric(camera) {
       uWind: { value: new THREE.Vector2(0.5, 0.2) },
       tAO: { value: null }, uAOTexel: { value: new THREE.Vector2(1, 1) }, uAO: { value: 0 },
       tSSR: { value: null }, uSSR: { value: 0 },
+      tShafts: { value: null }, uShaftCol: { value: new THREE.Vector3() },
+      tPVis: { value: null }, uPVis: { value: 0 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
@@ -152,13 +182,14 @@ export function createVolumetric(camera) {
 
   return {
     enabled: true, needsSwap: true, uniforms: u,
-    /* this frame's lights: [{x, y, z, color, intensity, range}] */
+    /* this frame's lights: [{x, y, z, color, intensity, range, fog}] (fog: how
+       much of it hangs in the air, 1 unless a light says otherwise) */
     setLights(list, time, rain = 1) {
       const n = Math.min(MAX, list.length);
       for (let i = 0; i < n; i++) {
         const l = list[i];
         u.uPos.value[i].set(l.x, l.y, l.z);
-        u.uCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity);
+        u.uCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * (l.fog ?? 1));
         u.uRange.value[i] = l.range * 0.8;
       }
       u.uCount.value = n;
@@ -173,6 +204,22 @@ export function createVolumetric(camera) {
     },
     /* the reflections pass to lay on (ssr.js, at the occlusion's half
        resolution: the upsample shares its texel), and how strongly */
+    /* the flare's shafts to lay on (shafts.js, at the occlusion's half resolution), lit by a
+       light of this colour and irradiance in air that scatters 'density' of it per metre */
+    setShafts(shafts, color = null, irradiance = 0, density = 0.0012) {
+      const on = !!(shafts && shafts.enabled && color);
+      u.tShafts.value = on ? shafts.texture : null;
+      if (on) u.uShaftCol.value.set(color.r, color.g, color.b).multiplyScalar(irradiance * density);
+      else u.uShaftCol.value.set(0, 0, 0);
+      if (on && !u.tAO.value && !u.tSSR.value) u.uAOTexel.value = shafts.texel;
+    },
+    /* the shadow-casting light's shafts (shafts.js pointTexture): on while it draws them */
+    setPointShafts(shafts) {
+      const on = !!(shafts && shafts.enabled && shafts.pointOn);
+      u.tPVis.value = on ? shafts.pointTexture : null;
+      u.uPVis.value = on ? 1 : 0;
+      if (on && !u.tAO.value && !u.tSSR.value) u.uAOTexel.value = shafts.texel;
+    },
     setSSR(ssr, strength = 1) {
       u.tSSR.value = ssr ? ssr.texture : null;
       u.uSSR.value = ssr ? strength : 0;

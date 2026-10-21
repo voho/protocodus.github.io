@@ -10,15 +10,22 @@
    the grass weight of the splat (a little in the forest), none on roads and
    mud, on steep banks, at the water or inside anything solid (houses, walls,
    sandbags). The wind leans every blade and sends gusts across the field in
-   waves; the player parts the grass round his legs. Far tufts thin out (the
+   waves; light shines through the blades (a meadow between you and a flare
+   or a fire glows at its tips); the player parts the grass round his legs,
+   and a blast's shockwave
+   (effects.js `shocks`) flattens it outward as it races through, the grass
+   still bowed behind it for a moment. Far tufts thin out (the
    ones left grow fuller, no blade thinner than about a pixel) and the patch
    fades away at its edge, where the scattered tufts and the ground's own
    texture take over. */
 
 import * as THREE from 'three';
+import { FOLIAGE_UNIFORMS } from './materials.js';
+import { dimFillSpecular } from './fill.js';
+import { GUST_GLSL } from './weather.js';
 
 const SEGS = 3, TUFT = 5;
-export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 }) {
+export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
   // a tuft: TUFT blades, each a strip from the root (y = 0) to the point
   // (y = 1); x is the side, z which blade of the tuft
   const pos = [], idx = [];
@@ -49,19 +56,23 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
     uRadius: { value: n * spacing * 0.5 }, uPlayer: { value: new THREE.Vector3(0, -1e4, 0) },
     uPixel: { value: 0.0015 },
     uWind: { value: new THREE.Vector2(1.4, 0.6).normalize() }, uTime: shared.time, uWet: shared.wet,
+    // the last blasts' shockwaves: x, z, how far the front has gone, its strength (0: none)
+    uShock: { value: Array.from({ length: 3 }, () => new THREE.Vector4()) },
   };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0, side: THREE.DoubleSide });
   mat.name = 'grass';
   mat.customProgramCacheKey = () => 'hedgerow-grass';
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms);
+    Object.assign(shader.uniforms, uniforms, FOLIAGE_UNIFORMS);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D tGround;
         uniform vec2 uMapMin, uMapSize, uOrigin, uWind;
         uniform float uN, uSpacing, uRadius, uTime, uPixel;
         uniform vec3 uPlayer;
+        uniform vec4 uShock[3];
         varying float vT;
+        ${GUST_GLSL}
         varying vec3 vShade;
         vec3 bladePos;
         vec4 hash4(vec2 c) {
@@ -112,14 +123,26 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
           vec2 dir = vec2(cos(yaw), sin(yaw)), perp = vec2(-dir.y, dir.x);
           float w = mix(0.0035, 0.007, b.y) * (1.0 - t * 0.8) * inversesqrt(keep) * sqrt(${TUFT}.0 / blades);
           w = max(w, dist * uPixel * 0.5 * (1.0 - t * 0.8));
-          // out of the tuft, the wind (gusts rolling across the field), a flutter
-          float gust = 0.5 + 0.5 * sin(dot(root, uWind) * 0.3 - uTime * 1.7 + sin(dot(root, vec2(-uWind.y, uWind.x)) * 0.11) * 2.0);
-          vec2 lean = normalize(off) * (0.25 + 0.45 * b.z) + uWind * (0.15 + 0.55 * gust * gust)
+          // out of the tuft, the wind (waves rolling across the field), a flutter; the gusts that drive
+          // the rain (weather.js) make the waves stronger and lay the grass over as they sweep through
+          float gf = (gust(root, uTime, uWind) - 0.55) / 1.05;
+          float gw = (0.5 + 0.5 * sin(dot(root, uWind) * 0.3 - uTime * 1.7 + sin(dot(root, vec2(-uWind.y, uWind.x)) * 0.11) * 2.0))
+            * (0.45 + 0.75 * gf) + 0.4 * gf;
+          vec2 lean = normalize(off) * (0.25 + 0.45 * b.z) + uWind * (0.15 + 0.55 * gw * gw)
             + perp * sin(uTime * (2.0 + h.w) + b.x * 6.28) * 0.1;
           // parted round the player's legs
           vec2 away = xz - uPlayer.xz;
           float pd = length(away);
           lean += away / max(pd, 0.01) * (1.0 - smoothstep(0.15, 0.8, pd)) * step(abs(uPlayer.y - gy), 1.5) * 1.6;
+          // flattened outward by a blast's shockwave as its front races through, still bowed behind it
+          for (int i = 0; i < 3; i++) {
+            vec4 sk = uShock[i];
+            if (sk.w <= 0.0) continue;
+            vec2 sd = xz - sk.xy;
+            float sl = length(sd);
+            float push = (1.0 - smoothstep(0.0, 2.2, abs(sl - sk.z))) * 3.2 + (1.0 - smoothstep(0.0, sk.z + 0.01, sl)) * 0.9;
+            lean += sd / max(sl, 0.05) * push * sk.w * (1.0 - smoothstep(6.0, 15.0, sl));
+          }
           // bent along an arc (the lean sets how far over the tip is), keeping its length
           float lm = length(lean);
           vec2 ld = lean / max(lm, 1e-4);
@@ -152,8 +175,25 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
         col = mix(col, vec3(0.2, 0.16, 0.08) * (0.6 + 0.4 * vT), vShade.z);
         diffuseColor.rgb = col * mix(0.45, 1.0, smoothstep(0.0, 0.4, vT)) * mix(1.0, 0.85, uWet);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.42, uWet);`)
+        roughnessFactor = mix(roughnessFactor, 0.55, uWet);`)
+      // every light also shines through the blades, as through the leaves (materials.js): most where
+      // the eye looks towards it through the grass, more at the thin tips than at the shaded roots
+      .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
+        uniform float uLeafTrans;
+        float bladeThin = 1.0;
+        void RE_Direct_Blade(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
+            const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+          RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          float through = pow(saturate(dot(-geometryViewDir, directLight.direction)), 6.0) * 1.6;
+          reflectedLight.directDiffuse += directLight.color * BRDF_Lambert(material.diffuseColor) * through * bladeThin * uLeafTrans;
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Blade`)
+      .replace('#include <lights_fragment_begin>', `
+        bladeThin = smoothstep(0.15, 0.9, vT) * (1.0 - vShade.z * 0.6);
+        #include <lights_fragment_begin>`)
       .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
+    dimFillSpecular(shader);
   };
 
   const mesh = new THREE.Mesh(geo, mat);
@@ -171,6 +211,11 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22 })
       o.set(Math.floor(camera.position.x / spacing) - n / 2, Math.floor(camera.position.z / spacing) - n / 2);
       uniforms.uPixel.value = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / height;
       if (player) uniforms.uPlayer.value.copy(player);
+      const sv = uniforms.uShock.value;
+      for (let i = 0; i < 3; i++) {
+        const s = shocks?.[i];
+        if (s) sv[i].set(s.x, s.z, s.radius, s.strength); else sv[i].set(0, 0, 0, 0);
+      }
     },
     setCount(m) {
       n = Math.min(m, max);

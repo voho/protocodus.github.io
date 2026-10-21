@@ -38,7 +38,7 @@ export const GROUND_GLSL = /* glsl */ `
   }
 `;
 
-export function createGroundMap(terrain, world, waterLevel) {
+export function createGroundMap(terrain, world, waterLevel, ponds = []) {
   const { H, nx, nz, minX, minZ, res } = terrain.grid;
   const N = nx * nz;
   // the three covers, interleaved: grass, stones, wood
@@ -92,6 +92,17 @@ export function createGroundMap(terrain, world, waterLevel) {
     const slope = 1 - (2 * res) / Math.hypot(hx, 2 * res, hz);
     const keep = (1 - smoothstep(0.25, 0.5, slope)) * smoothstep(0.1, 0.45, H[k] - waterLevel);
     for (let c = 0; c < 3; c++) cov[k * 3 + c] *= keep;
+  }
+  // nor in the water standing in the craters (ponds.js)
+  for (const p of ponds || []) {
+    const i0 = Math.max(0, Math.floor((p.x - p.r - minX) / res)), i1 = Math.min(nx - 1, Math.ceil((p.x + p.r - minX) / res));
+    const j0 = Math.max(0, Math.floor((p.z - p.r - minZ) / res)), j1 = Math.min(nz - 1, Math.ceil((p.z + p.r - minZ) / res));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const k = j * nx + i;
+      if (Math.hypot(minX + i * res - p.x, minZ + j * res - p.z) > p.r) continue;
+      const keep = smoothstep(0.1, 0.45, H[k] - p.y);
+      for (let c = 0; c < 3; c++) cov[k * 3 + c] *= keep;
+    }
   }
   // nothing inside what is solid; a thin thing (a post, a plank, a
   // sandbag wall) clears at least the map's nearest points to it

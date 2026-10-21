@@ -6,9 +6,17 @@
 
 import * as THREE from 'three';
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
-import { loadTextures, createMaterialLibrary } from './materials.js';
+import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
+import { createFlares } from './flares.js';
+import { createFlames } from './flames.js';
+import { createPlumes } from './plumes.js';
+import { createCasings } from './casings.js';
+import { createDrips } from './drips.js';
+import { createChunks } from './chunks.js';
+import { createFireballs } from './fireball.js';
+import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
 import { createLighting } from './lights.js';
 import { createEffects } from './effects.js';
@@ -28,8 +36,15 @@ import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
+import { createShafts } from './shafts.js';
+import { createTAA } from './taa.js';
+import { createMotionBlur } from './motionblur.js';
+import { createDistortion } from './distort.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
+import { createRuts } from './ruts.js';
+import { createPonds } from './ponds.js';
+import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
@@ -76,13 +91,14 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
   relief: { value: 1 },       // the ground's relief near the eye (terrain.js), by quality
   // the meadow grass's density map and radius, for the ground under it (grass.js, terrain.js)
   grassMap: { value: null }, grassMin: { value: new THREE.Vector2() }, grassSize: { value: new THREE.Vector2(1, 1) }, grassR: { value: 0 },
+  rutMap: { value: null }, rutMin: { value: new THREE.Vector2() }, rutSize: { value: new THREE.Vector2(1, 1) },
 };
 
 function setLoading(frac, label) {
@@ -145,28 +161,58 @@ async function boot() {
   G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
   const sky = createSky({ fog: LEVEL.fog.color });
   scene.add(sky.mesh);
+  sky.setFires(G.effects.fires);
   G.sky = sky;
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
-  G.decals = createDecals();
+  G.decals = createDecals({ shared });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   G.effects.setGround((x, z) => G.terrain.height(x, z));
+  // the brass thrown out of the gun (casings.js), lying where it falls
+  G.casings = createCasings(G);
+  scene.add(G.casings.group);
+  G.effects.setCasings(G.casings);
+  // and the clods and stones a blast throws (chunks.js)
+  G.chunks = createChunks(G);
+  scene.add(G.chunks.mesh);
+  // rainwater standing in the shell craters (ponds.js)
+  G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
+  if (G.ponds) scene.add(G.ponds.mesh);
+  // the rain dripping off the eaves (drips.js)
+  G.drips = createDrips(built.props, G.terrain);
+  G.drips.drawLate(null, scene);
   // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
-  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4);
-  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0 });
+  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4, G.ponds?.list);
+  // the lanes' wheel ruts (ruts.js, drawn by the terrain)
+  const ruts = createRuts(LEVEL.lines);
+  if (ruts) { shared.rutMap.value = ruts.tex; shared.rutMin.value.copy(ruts.min); shared.rutSize.value.copy(ruts.size); }
+  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0, shocks: G.effects.shocks });
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
   scene.add(G.clutter.group);
+  // the fires' flames, drawn as flame (flames.js)
+  G.flames = createFlames(G.effects);
+  G.flames.drawLate(null, scene);
+  // and their smoke climbing into the sky (plumes.js)
+  G.plumes = createPlumes(G.effects, { fog: fogUniforms });
+  G.plumes.drawIn(null, scene);
+  // and the blasts' fireballs (fireball.js)
+  G.fireballs = createFireballs(G.effects);
+  G.fireballs.drawLate(null, scene);
+  // the light falling out of the lit windows (windowlight.js)
+  G.windowLight = createWindowLight(collectPanes(scene));
+  // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
+  G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
   setLoading(0.85, 'Rain over Normandy');
   await nextPaint();
 
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
-    count: quality.rain, terrain: G.terrain,
+    count: quality.rain, terrain: G.terrain, water: LEVEL.water,
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
@@ -186,9 +232,15 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
+    // a blast close by throws mud over the view (combat.js)
+    G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
     ssao = createSSAO(camera);
     ssr = createSSR(camera, shared);
+    shafts = createShafts(camera);
+    taa = createTAA(camera, () => volumetric.uniforms.tDepth.value);
+    distort = createDistortion(camera, () => volumetric.uniforms.tDepth.value);
+    blur = createMotionBlur(camera, () => volumetric.uniforms.tDepth.value);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -231,6 +283,10 @@ function freshStats() {
   return { kills: 0, headshots: 0, shots: 0, hits: 0, headHits: 0, grenades: 0, damageTaken: 0, deaths: 0, objectives: 0 };
 }
 
+// around the effects chain: no depth clears inside it (see applyGraphics), back on for the next frame's scene
+const KEEP_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDepth = false; } };
+const CLEAR_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDepth = true; } };
+
 function applyGraphics() {
   quality = QUALITY[settings.quality] || QUALITY.high;
   applyResolution();
@@ -245,7 +301,27 @@ function applyGraphics() {
     // its glow over them; without it they are drawn with the scene); the depth of field
     // borrows the scene depth the light-in-the-rain pass reads, so it needs that pass
     G.effects.usePass(!!quality.volumetric, scene);
-    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    // the flare's shafts need its shadows: with them, and with the light in the rain that lays them on
+    const shaft = quality.volumetric && quality.shadows;
+    if (!shaft) { volumetric.setShafts(null); volumetric.setPointShafts(null); }
+    // temporal anti-aliasing after the light in the rain (it borrows the scene depth the same
+    // way); what would smear through it (rain, sparks, flashes) is drawn after it
+    const aa = !!quality.volumetric;
+    taa.enabled = aa;
+    blur.setOn(aa && !!quality.blur);
+    G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
+    G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
+    G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    G.drips.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    // the smoke over the fires goes in with the particles, before the glow of the lights in the
+    // air is laid on (it hangs in front of the smoke)
+    G.plumes.drawIn(quality.volumetric ? G.effects.pass.scene : null, scene, G.effects.depthUniforms);
+    G.fireballs.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    G.windowLight?.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
+    // the passes after the first one that swaps render into the scene's own buffer, whose depth
+    // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
+    // in the chain may clear it, so depth clears are off from its start to its end
+    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -284,6 +360,11 @@ function startMission() {
     G.events.on('playerDied', onDeath);
     G.events.on('missionComplete', onComplete);
     mission.start();
+    // the flares' shadow shaders, now that the soldiers exist (not at the first flare)
+    G.flares.warm(renderer, scene, camera, [
+      ...G.flares.castersOf(built.veg.group),
+      ...player.char.meshes, ...enemies.list.flatMap((e) => e.char.meshes),
+    ]);
   }
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
   player.reset(spawn);
@@ -343,6 +424,8 @@ function retryCheckpoint() {
   setTimeout(() => {
     explosives.clear();
     G.debris.clear();
+    G.casings.clear();
+    G.chunks.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
     fade.classList.remove('on');
@@ -415,7 +498,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort, blur }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -434,17 +517,29 @@ function frame(now) {
 
 /* Soldiers throw shadows only near the shadow light (each one costs six
    renders of his body into its cube map). */
+let flareShadows = false, lampShadowOf = null;
 function castShadows() {
   const sl = G.lights.shadowLight;
   if (!sl || !sl.castShadow) return;
+  // while a flare's shadows are drawn the trees cast too, and the lamp's shadow (a cube
+  // of six maps) holds still, drawn again only if it moves to another lamp
+  const fl = !!G.flares?.shadowing;
+  if (fl !== flareShadows) {
+    flareShadows = fl;
+    for (const m of G.flares.castersOf(built.veg.group)) m.castShadow = fl;
+  }
+  sl.shadow.autoUpdate = !fl;
+  if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
+  lampShadowOf = G.lights.shadowOf;
   const lit = sl.intensity > 0;
   const r2 = (sl.distance + 3) ** 2;
   const near = (p) => lit && (p.x - sl.position.x) ** 2 + (p.z - sl.position.z) ** 2 < r2;
+  const inFlare = (p) => fl && (p.x - camera.position.x) ** 2 + (p.z - camera.position.z) ** 2 < 40 * 40;
   for (const e of G.enemies || []) {
-    const on = e.char.root.visible && near(e.pos);
+    const on = e.char.root.visible && (near(e.pos) || inFlare(e.pos));
     for (const m of e.char.meshes) m.castShadow = on;
   }
-  if (player) for (const m of player.char.meshes) m.castShadow = near(player.pos);
+  if (player) for (const m of player.char.meshes) m.castShadow = near(player.pos) || inFlare(player.pos);
 }
 
 /* ---------- dynamic resolution ----------
@@ -529,17 +624,38 @@ function step() {
     G.sky.update(dt, G.time, camera, flash, G.weather.flashDir);
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
+    G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
+    G.flares.lightning(flash, G.weather.flashDir, camera.position);
     G.lights.update(dt, G.time, camera.position, flash);
+    setFill(G.lights.key, G.lights.rim);
     castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     dof?.set(volumetric?.uniforms.tDepth.value, state === 'playing' ? G.rig.aimT : 0);
     G.effects.setLights(G.lights.active, 1 + flash * 0.9);
+    distort?.set(G.effects, camera.position, G.time);
+    if (shafts && quality.volumetric && quality.shadows) {
+      shafts.set(G.flares);
+      shafts.setPoint(G.lights);
+      volumetric.setShafts(shafts, G.flares.light.color, G.flares.light.intensity * (0.6 + 0.4 * (G.weather.intensity ?? 1)));
+      volumetric.setPointShafts(shafts);
+    }
     G.weather.setLights(G.lights.active);
+    G.drips.setLights(G.lights.active);
+    G.drips.update(G.time, G.weather.intensity ?? 1, flash, G.flares.burning ? G.flares.light : null);
+    G.weather.setSkyLight(G.flares.light.color, G.flares.burning ? G.flares.light.intensity : 0);
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
+    G.casings.update(dt);
+    G.chunks.update(dt);
+    G.flames.update(dt, camera.position);
+    updateSmoulder(G.effects.fires, camera.position);
+    G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);
+    G.fireballs.update(flash, G.flares.burning ? G.flares.light : null);
+    G.windowLight?.update(camera);
     if (grade) {
       grade.uniforms.uTime.value = G.time;
+      grade.tick(dt);
       const hp = player ? player.health / 100 : 1;
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
       const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;
@@ -557,7 +673,11 @@ function step() {
   input.endFrame();
 
   renderer.info.reset();
+  taa?.jitter();
+  blur?.update();
   renderer.render(scene, camera);
+  taa?.restore();
+  blur?.store();
 
   fpsAcc += dt; fpsFrames++;
   if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }

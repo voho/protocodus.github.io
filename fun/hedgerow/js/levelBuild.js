@@ -247,7 +247,8 @@ export function buildLevel(G, L, quality) {
   G.scene.add(water);
   const cover = buildCoverPoints(world, terrain);
 
-  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height };
+  // props: every prop as placed ({m: model, x, y, z, yaw, scale}; not the vegetation)
+  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact };
 }
 
 /* Soft dark footprints on the ground under props and buildings: the

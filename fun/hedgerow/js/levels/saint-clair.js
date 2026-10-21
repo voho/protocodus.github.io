@@ -66,6 +66,7 @@ function roughAllowed(x, z) {
 
 const BUMP_CELL = 10;
 const bumpGrid = new Map();
+const CRATERS = [];          // the shell craters, for the rainwater standing in them (ponds.js)
 function addBump(b) {
   const r = b.r + 2;
   for (let i = Math.floor((b.x - r) / BUMP_CELL); i <= Math.floor((b.x + r) / BUMP_CELL); i++)
@@ -89,7 +90,9 @@ function addBump(b) {
     const x = RB.range(-60, 60), z = RB.pick([RB.range(10, 80), RB.range(285, 380), RB.range(400, 540)]);
     if (roughAllowed(x, z) < 1) continue;
     const r = RB.range(1.6, 3.6);
-    addBump({ x, z, r, h: RB.range(0.5, 1.0) * r * 0.35, crater: true });
+    const c = { x, z, r, h: RB.range(0.5, 1.0) * r * 0.35, crater: true };
+    addBump(c);
+    CRATERS.push(c);
   }
 }
 
@@ -741,4 +744,5 @@ export default {
   },
   ambience: { rain: 1, wind: [1.6, 0.7] },
   lines: { LANE, STREET, TRACK, TRENCH_W, TRENCH_E, TRENCH_C },
+  craters: CRATERS,
 };

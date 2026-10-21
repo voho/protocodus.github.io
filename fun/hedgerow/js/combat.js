@@ -127,16 +127,23 @@ export function createExplosives(G) {
     G.effects.explosion(x, y, z, scale, inWater);
     if (!inWater) {
       const gy = G.terrain.height(x, z);
-      if (y - gy < 1.2) G.decals?.add('scorch', x, gy, z, 0, 1, 0, 3.2 * scale);
+      if (y - gy < 1.2) {
+        G.decals?.add('scorch', x, gy, z, 0, 1, 0, 3.2 * scale);
+        // the ground it lay on, thrown up in clods (or stones on the cobbles)
+        G.chunks?.burst(x, gy, z, scale, G.terrain.surfaceAt(x, z));
+      }
     }
     G.audio.explosion(x, y, z, scale);
-    G.lights.flash(x, y + 1, z, '#ffb070', 600 * scale, 30, 0.35);
+    // it lights the street; the wet air round it glows, but is not turned white
+    G.lights.flash(x, y + 1, z, '#ffb070', 220 * scale, 30, 0.4, 0.12);
     G.events.emit('noise', { x, z, radius: 90, kind: 'explosion' });
     const radius = GRENADE.radius * (e.kind === 'charge' ? 1.6 : 1);
     // camera shake by distance
     const cam = G.camera.position;
     const dc = Math.hypot(cam.x - x, cam.y - y, cam.z - z);
     G.rig.addShake(clamp(1.4 - dc / 30, 0, 1.2));
+    // close by, it throws mud over the view (not out of the water)
+    if (!inWater) G.spatter?.(clamp(1.25 - dc / 8, 0, 1) * (e.kind === 'charge' ? 1.2 : 1));
     // damage
     const hurt = (tx, ty, tz) => {
       const d = Math.hypot(tx - x, ty - y, tz - z);

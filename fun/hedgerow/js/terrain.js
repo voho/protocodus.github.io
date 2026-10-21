@@ -10,6 +10,8 @@
    water with rain rings in the hollows of the mud. */
 
 import * as THREE from 'three';
+import { RUTS_GLSL } from './ruts.js';
+import { dimFillSpecular } from './fill.js';
 import { clamp } from './util.js';
 
 const RES = 0.5;
@@ -156,6 +158,9 @@ export function createTerrain(def, textures, shared) {
 
 /* ---------- material ---------- */
 
+/* how much the shading normal's spread within a pixel widens the highlights (specular AA) */
+export const SPEC_AA = { value: 1 };
+
 export function createTerrainMaterial(textures, shared) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
   mat.name = 'terrain';
@@ -172,9 +177,13 @@ export function createTerrainMaterial(textures, shared) {
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       uWaterLevel: shared.waterLevel || { value: -1e4 },
       uRelief: shared.relief || { value: 1 },
+      uSpecAA: SPEC_AA,
       // the meadow grass (grass.js): its density map, and the radius it grows in round the camera
       tSward: shared.grassMap || { value: null }, uSwardMin: shared.grassMin || { value: new THREE.Vector2() },
       uSwardSize: shared.grassSize || { value: new THREE.Vector2(1, 1) }, uSwardR: shared.grassR || { value: 0 },
+      // the lanes' wheel ruts (ruts.js)
+      tRut: shared.rutMap || { value: null }, uRutMin: shared.rutMin || { value: new THREE.Vector2() },
+      uRutSize: shared.rutSize || { value: new THREE.Vector2(1, 1) },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -190,7 +199,7 @@ export function createTerrainMaterial(textures, shared) {
       .replace('#include <common>', `#include <common>
         uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
         uniform vec3 uRockColor;
-        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief;
+        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief, uSpecAA;
         uniform sampler2D tSward;
         uniform vec2 uSwardMin, uSwardSize;
         varying vec4 vSplat;
@@ -199,6 +208,7 @@ export function createTerrainMaterial(textures, shared) {
         vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore; float tSwardK;
         vec2 pxz; float cavity;
         ${GLSL_HELPERS}
+        ${RUTS_GLSL}
         // the depth (m) of the ground's relief below the mesh at xz: the
         // visible layer's height map (blended as the shading blends them)
         // scaled by how deep that ground is; layers that are not there are not read
@@ -213,7 +223,8 @@ export function createTerrainMaterial(textures, shared) {
           float ma = max(max(hw.x, hw.y), max(hw.z, hw.w)) - 0.18;
           vec4 b = max(hw - ma, 0.0) * step(0.002, w);
           b /= max(dot(b, vec4(1.0)), 1e-4);
-          return dot(b, (1.0 - h) * sc);
+          // and the wheel ruts cut into the mud of the lanes (~7 cm)
+          return dot(b, (1.0 - h) * sc) + rutsAt(xz, b.x).x * sc.x * 1.2;
         }`)
       .replace('#include <map_fragment>', `
         // relief near the eye (parallax occlusion): the view ray marched down
@@ -236,6 +247,9 @@ export function createTerrainMaterial(textures, shared) {
           // how deep each ground is (m): mud ruts, grass, leaf litter, the cobbles' joints
           vec4 sc = vec4(0.06, 0.012, 0.025, 0.035) * fade * uRelief;
           float maxD = max(max(sc.x * step(0.002, wr.x), sc.y * step(0.002, wr.y)), max(sc.z * step(0.002, wr.z), sc.w * step(0.002, wr.w)));
+          // on a rutted lane the ground goes deeper
+          float lane = rutLane(vWPos.xz) * step(0.002, wr.x);
+          maxD = max(maxD, sc.x * 2.2 * lane);
           if (maxD > 0.002 && vn > 0.05) {
             // per metre of depth the ray moves this far across the ground (held in at grazing angles)
             vec2 dir = -V.xz / max(vn, 0.12);
@@ -244,6 +258,8 @@ export function createTerrainMaterial(textures, shared) {
             // the water's surface caps the march
             float holdR = (wr.x + wr.w + wr.z * 0.35) / max(dot(wr, vec4(1.0)), 1e-4) * uWet;
             float waterD = holdR > 0.3 && levelR > 0.0 ? (1.0 - min(levelR, 1.0)) * dot(wr, sc) / max(dot(wr, vec4(1.0)), 1e-4) : 1e3;
+            // the water standing in a rut, a little below the lane
+            if (lane > 0.0 && uWet > 0.0 && rutsAt(vWPos.xz, 1.0).y > 0.02) waterD = min(waterD, sc.x * 0.55);
             const int STEPS = 12;
             float layer = maxD / float(STEPS);
             float d = 0.0, srf = min(reliefDepth(pxz, wr, gx, gy, sc), waterD);
@@ -315,6 +331,12 @@ export function createTerrainMaterial(textures, shared) {
           tPuddle *= 1.0 - tSwardK;
           tRim *= 1.0 - tSwardK;
         }
+        // the wheel ruts of the lanes: dark wet mud, water standing in them in stretches, a
+        // grassy crown between them
+        vec3 ruts = rutsAt(pxz, b.x * (1.0 - rockW));
+        tPuddle = max(tPuddle, ruts.y * uWet);
+        alb = mix(alb, cG.rgb * vec3(0.75, 0.8, 0.65), ruts.z * 0.5);
+        alb *= 1.0 - 0.3 * ruts.x;
         // darken wet ground (the road's stones most: they soak, and shine);
         // under water the ground shows through a little darker
         alb *= mix(1.0, 0.62 - 0.12 * b.w, uWet * (1.0 - rockW * 0.3));
@@ -325,7 +347,8 @@ export function createTerrainMaterial(textures, shared) {
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
-        float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet);
+        // wet ground shines; a field of wet grass much less (its blades break the sheen up)
+        float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet * (1.0 - 0.65 * b.y));
         roughnessFactor = mix(roughnessFactor, 0.2, tRim * 0.6);
         roughnessFactor = mix(roughnessFactor, 0.12, tShore * 0.8);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
@@ -341,11 +364,21 @@ export function createTerrainMaterial(textures, shared) {
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));
         }
+        // specular anti-aliasing: where the shading normal turns within a pixel (the cobbles' relief
+        // some way off), a sharp highlight would flicker from pixel to pixel and frame to frame;
+        // widen the lobe by that spread instead (on GGX's alpha squared), so it reads as a sheen
+        {
+          vec3 ndx = dFdx(normal), ndy = dFdy(normal);
+          float spread = 0.25 * (dot(ndx, ndx) + dot(ndy, ndy));
+          float a = roughnessFactor * roughnessFactor;
+          roughnessFactor = sqrt(sqrt(a * a + min(2.0 * spread * uSpecAA, 0.18)));
+        }
       `)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, uWet);
         #endif`);
+    dimFillSpecular(shader);
   };
   return mat;
 }
