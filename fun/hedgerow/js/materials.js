@@ -121,10 +121,11 @@ export function updateSmoulder(fires, cam) {
   });
 }
 
-/* the soldiers' atlases, whose skin (found by its colour) scatters light under its surface */
+/* the soldiers' atlases, whose skin (found by its colour) scatters light under its surface and
+   whose wool (found by its baked roughness and metalness) has a fabric's sheen */
 const SKIN = /^(allied|axis)$/;
-/* debug: show what is taken for skin */
-export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uSkinDebug: { value: 0 } };
+/* how much of each, and a debug view of what is taken for which (1 skin red, 2 cloth green) */
+export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinDebug: { value: 0 } };
 
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
@@ -372,14 +373,27 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
     if (skin) {
       // skin, found in the soldier's atlas by its colour (warm, middling saturation, light enough:
       // not the leather, the hair or the khaki), scatters light under its surface: the light
-      // wraps round past the terminator, reddest, and thin parts lit from behind glow red
+      // wraps round past the terminator, reddest, and thin parts lit from behind glow red.
+      // Wool (what is baked rough and not metal: not the helmet, the leather or the skin) keeps
+      // a fabric's look in the rain - darker, not glossy - and has its sheen, a soft glow of
+      // the light at grazing angles along its folds and its silhouette (Charlie, as three's)
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
-        uniform float uSkin, uSkinDebug;
-        float skinK = 0.0;
+        uniform float uSkin, uCloth, uSkinDebug;
+        float skinK = 0.0, clothK = 0.0;
+        vec3 clothSheen = vec3(0.0);
         void RE_Direct_Skin(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
             const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
           RE_Direct_Physical(directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          if (clothK > 0.0) {
+            vec3 h = normalize(directLight.direction + geometryViewDir);
+            float nl = saturate(dot(geometryNormal, directLight.direction)), nv = saturate(dot(geometryNormal, geometryViewDir));
+            float nh = saturate(dot(geometryNormal, h));
+            float a = 0.42 * 0.42, inv = 1.0 / a, s2 = max(1.0 - nh * nh, 0.0078125);
+            float d = (2.0 + inv) * pow(s2, inv * 0.5) / (2.0 * PI);
+            float v = saturate(1.0 / (4.0 * (nl + nv - nl * nv)));
+            reflectedLight.directSpecular += directLight.color * clothSheen * nl * d * v * clothK;
+          }
           if (skinK > 0.0) {
             float nl = dot(geometryNormal, directLight.direction);
             vec3 w = vec3(0.55, 0.24, 0.16);
@@ -402,9 +416,22 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }
         #include <roughnessmap_fragment>
         // skin: soft, not plastic (glossier wet)
-        roughnessFactor = mix(roughnessFactor, 0.58, skinK);`)
+        roughnessFactor = mix(roughnessFactor, 0.58, skinK);
+        // wool: what is baked rough and is no metal (its sheen a little of its own colour, lightened)
+        {
+          float mtl = 0.0;
+          #ifdef USE_METALNESSMAP
+            mtl = texture2D(metalnessMap, vMetalnessMapUv).b;
+          #endif
+          clothK = smoothstep(0.72, 0.82, roughnessFactor) * (1.0 - smoothstep(0.02, 0.06, mtl)) * (1.0 - skinK) * uCloth;
+          clothSheen = mix(diffuseColor.rgb, vec3(0.5), 0.35) * 0.9;
+        }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);`);
+        if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);
+        if (uSkinDebug > 1.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0, 4.0, 0.0), clothK);`)
+        // wet wool darkens but does not turn glossy
+        .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        roughnessFactor = max(roughnessFactor, 0.72 * clothK);`);
     }
     if (smoulder) {
       // round its fire, the charred wood and metal smoulders: glowing cracks in what is darkest,

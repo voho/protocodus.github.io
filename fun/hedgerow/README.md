@@ -162,7 +162,9 @@ by the blast that killed them, and drop their rifles.
     rivulets that slide down and catch the light; the soldiers' skin, found
     in their atlas by its colour, scattering light under its surface (the
     light wrapping past the shadow's edge, reddest; the hands on the rifle
-    included); round a fire, the charred
+    included), and their wool, found by its baked roughness, darkening in
+    the rain but never glossy, with a fabric's sheen at grazing angles;
+    round a fire, the charred
     wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
     metal a dull red with the heat) · `rooms.js` the rooms
     behind the lit windows: at load the panes are found in the houses'
