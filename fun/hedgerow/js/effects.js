@@ -169,6 +169,7 @@ uniform vec3 uLightPos[LIGHTS];
 uniform vec3 uLightCol[LIGHTS];
 uniform float uLightRange[LIGHTS];
 uniform int uLightCount;
+uniform vec2 uScreen;
 varying vec2 vUv;
 varying vec4 vColor;
 varying float vFog;
@@ -181,11 +182,17 @@ void main() {
   vec3 wp;
   vec2 q = uv - 0.5;
   float sl = length(aStretch);
+  float widen = 1.0;
   if (sl > 1e-4) {
     vec3 axis = aStretch / sl;
     vec3 toCam = normalize(cameraPosition - p);
     vec3 side = normalize(cross(axis, toCam));
-    wp = p + side * q.x * size + axis * q.y * (sl + size);
+    // a streak is never thinner than a pixel and a half: a tracer a hundred metres off is still
+    // a line of fire (a few centimetres wide, it would fall between the pixels)
+    float px = 2.0 * max(-(viewMatrix * vec4(p, 1.0)).z, 0.05) * uScreen.y / projectionMatrix[1][1];
+    float w = max(size, 1.5 * px);
+    widen = w / size;
+    wp = p + side * q.x * w + axis * q.y * (sl + size);
   } else {
     float c = cos(aMisc.y), s = sin(aMisc.y);
     vec2 r = vec2(q.x * c - q.y * s, q.x * s + q.y * c) * size;
@@ -196,6 +203,10 @@ void main() {
   float cellI = aMisc.z;
   vUv = (vec2(mod(cellI, 4.0), 1.0 - floor(cellI / 4.0)) + uv) * vec2(0.25, 0.5);
   vColor = aColor;
+  // widened, a streak of dirt spreads its cover over the width; a burning one (a tracer, a
+  // spark) is so much brighter than the frame can show that even a sliver of a pixel of it
+  // would fill the pixel: it stays a bright line, a little brighter the thinner it really is
+  if (uLit > 0.5) vColor.a /= widen; else vColor.rgb *= sqrt(widen);
   if (uLit > 0.5) {
     // the night's light at this corner: the ambient (1 = as the colours were
     // chosen in the dark) and the lamps, fires and flashes near, falling off
