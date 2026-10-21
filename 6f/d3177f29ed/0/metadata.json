@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6fd3177f29ed",
+  "session_id": "c33bf617-35bd-4ff6-a907-5e7d748d7fbc",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T14:31:10.320744Z",
+  "branch": "hedgerow-grass",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/hedgerow/js/effects.js",
+    "fun/hedgerow/js/main.js",
+    "fun/hedgerow/js/taa.js",
+    "fun/hedgerow/js/weather.js",
+    "fun/hedgerow/README.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1891001a8499",
+  "checkpoint_transcript_start": 14525,
+  "transcript_lines_at_start": 14525,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 48816,
+    "cache_read_tokens": 11152752,
+    "output_tokens": 33255,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T14:30:51.73089Z",
+    "agent_lines": 230,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 230,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/c33bf617-35bd-4ff6-a907-5e7d748d7fbc.jsonl"
+}

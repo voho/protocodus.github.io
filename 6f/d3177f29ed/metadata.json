@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6fd3177f29ed",
+  "strategy": "manual-commit",
+  "branch": "hedgerow-grass",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/hedgerow/README.md",
+    "fun/hedgerow/js/effects.js",
+    "fun/hedgerow/js/main.js",
+    "fun/hedgerow/js/taa.js",
+    "fun/hedgerow/js/weather.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6f/d3177f29ed/0/metadata.json",
+      "transcript": "/6f/d3177f29ed/0/full.jsonl",
+      "context": "/6f/d3177f29ed/0/context.md",
+      "content_hash": "/6f/d3177f29ed/0/content_hash.txt",
+      "prompt": "/6f/d3177f29ed/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 48816,
+    "cache_read_tokens": 11152752,
+    "output_tokens": 33255,
+    "api_call_count": 14
+  }
+}
