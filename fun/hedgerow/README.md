@@ -21,8 +21,10 @@ PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints,
-puddles in the hollows that mirror the lit windows, the lamps and the glow
-of the sky, broken by rain rings — rain lit by lamps and
+puddles with soaked margins in the hollows that mirror the lit windows, the
+lamps and the glow of the sky, broken by rain rings, river banks soaked
+above the waterline, a forest floor of last year's leaves with moss in the
+damp — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
 artillery flashes and burning farms beyond the hedges. Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners

@@ -475,26 +475,61 @@ def grass():
     pack_ground('grass', alb, h, rough, 6.0)
 
 
+def stamp_leaves(n, count, seed, size=(7, 20), aspect=(0.35, 0.6)):
+    """Periodic litter of flat leaves, pointed at both ends, each lying on the
+    ones before it. Returns (cover 0..1, the top leaf's id 0..1, how far across
+    it the point is: 0 on the midrib .. 1 at the edge)."""
+    rng = np.random.default_rng(seed)
+    cov = np.zeros((n, n), np.float32)
+    val = np.zeros((n, n), np.float32)
+    acr = np.ones((n, n), np.float32)
+    for _ in range(count):
+        cx, cy = rng.random(2) * n
+        a = rng.uniform(*size)
+        b = a * rng.uniform(*aspect)
+        th = rng.random() * np.pi
+        r = int(a + 2)
+        ys = (np.arange(int(cy) - r, int(cy) + r + 1)) % n
+        xs = (np.arange(int(cx) - r, int(cx) + r + 1)) % n
+        yy, xx = np.meshgrid(np.arange(-r, r + 1) + (int(cy) - cy), np.arange(-r, r + 1) + (int(cx) - cx), indexing='ij')
+        u = (xx * np.cos(th) + yy * np.sin(th)) / a
+        v = np.abs(-xx * np.sin(th) + yy * np.cos(th)) / b
+        w = np.clip(1 - u * u, 0, 1) ** 0.75           # half-width: narrower towards the tips than an ellipse
+        m = smoothstep(0.0, 0.1, w - v) * (np.abs(u) < 1)
+        sub = np.ix_(ys, xs)
+        cov[sub] = m + cov[sub] * (1 - m)
+        top = m > 0.5
+        val[sub] = np.where(top, rng.random(), val[sub])
+        acr[sub] = np.where(top, np.clip(v / np.maximum(w, 1e-3), 0, 1), acr[sub])
+    return cov, val, acr
+
+
 def forest():
-    """Forest floor: fallen needles, beech and oak leaves, twigs, cones, moss."""
+    """Forest floor: last year's beech and oak leaves lying flat (a paler
+    midrib, edges curling a little), fallen needles, twigs, moss, dark soil."""
     n = NG
     big = spectral(n, 2.1, 221, lo=1)
     mid = spectral(n, 1.4, 222, lo=6)
     needles = np.maximum(spectral(n, 0.6, 226, lo=160, aniso=(1.0, 0.2)), spectral(n, 0.6, 227, lo=160, aniso=(0.2, 1.0)))
-    leaf_cov, leaf_v = stamp_ellipses(n, 2000, 224, size=(6, 18), aspect=(0.35, 0.7))
-    leaf_mask = leaf_cov * (spectral(n, 1.6, 229, lo=3) > 0.42)
+    leaf, leaf_v, acr = stamp_leaves(n, 2600, 224)
+    leaf *= smoothstep(0.3, 0.45, spectral(n, 1.6, 229, lo=3))   # drifts, with bare soil between
     twigs = np.clip(scratch_lines(n, 160, 230, (20, 90), 1), 0, 1)
     moss = smoothstep(0.58, 0.85, spectral(n, 1.6, 228, lo=4))
-    h = 0.45 * needles + 0.25 * mid + 0.3 * leaf_mask + 0.25 * twigs
+    rib = smoothstep(0.14, 0.0, acr) * leaf
+    curl = smoothstep(0.75, 1.0, acr) * leaf
+    h = 0.35 * needles + 0.25 * mid + leaf * (0.1 + 0.08 * leaf_v) + 0.05 * curl - 0.03 * rib + 0.25 * twigs
     soil, needle_c, moss_c, twig_c = lin('#20170f'), lin('#5d4128'), lin('#3c4c22'), lin('#3e2e20')
-    leaf_cols = np.stack([lin('#5a4630'), lin('#3e2e20'), lin('#6a5236'), lin('#30261c')])
-    lc = leaf_cols[(leaf_v * 3.999).astype(int)]
+    # beech copper, oak brown, pale and dry, dark and rotting, olive
+    leaf_cols = np.stack([lin('#6b4a2c'), lin('#4a3522'), lin('#7a5a36'), lin('#33251a'), lin('#5c4a2e')])
+    lc = leaf_cols[(leaf_v * 4.999).astype(int)]
+    lc = lc * (0.82 + 0.3 * (1 - acr))[..., None]
+    lc = mix(lc, lc * 1.35, rib * 0.7)
     alb = mix(soil, needle_c, np.clip(needles * 1.15, 0, 1))
-    alb = mix(alb, lc, np.clip(leaf_mask * 1.2, 0, 1) * 0.75)
+    alb = mix(alb, lc, np.clip(leaf, 0, 1) * 0.92)
     alb = mix(alb, twig_c, twigs * 0.8)
     alb = mix(alb, moss_c, moss * 0.75)
     alb = alb * (0.85 + 0.3 * big)[..., None]
-    rough = 0.65 + 0.3 * mid
+    rough = np.clip(0.78 + 0.15 * mid - 0.2 * leaf, 0, 1)
     pack_ground('forest', alb, h, rough, 6.0)
 
 

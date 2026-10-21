@@ -75,7 +75,7 @@ let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, f
 let built = null, player = null, enemies = null, mission = null, explosives = null;
 let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null;
 let missionTime = 0;
-const shared = { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 } };
+const shared = { wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 } };
 
 function setLoading(frac, label) {
   const f = $('[data-loading-fill]');

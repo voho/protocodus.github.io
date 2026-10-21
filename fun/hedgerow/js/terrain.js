@@ -170,6 +170,7 @@ export function createTerrainMaterial(textures, shared) {
       tRock: { value: textures.rock },
       uRockColor: { value: new THREE.Color('#5f5c55') },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
+      uWaterLevel: shared.waterLevel || { value: -1e4 },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -185,11 +186,11 @@ export function createTerrainMaterial(textures, shared) {
       .replace('#include <common>', `#include <common>
         uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
         uniform vec3 uRockColor;
-        uniform float uWet, uTime, uRain;
+        uniform float uWet, uTime, uRain, uWaterLevel;
         varying vec4 vSplat;
         varying vec3 vWPos;
         varying vec3 vWNormal;
-        vec3 tNormal; float tRough; float tPuddle;
+        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore;
         ${GLSL_HELPERS}`)
       .replace('#include <map_fragment>', `
         vec2 uvw = vWPos.xz / 4.0;
@@ -212,6 +213,10 @@ export function createTerrainMaterial(textures, shared) {
         // macro variation breaks the tiling
         float macro = texture2D(tMud, vWPos.xz / 57.0).a * 0.6 + texture2D(tGrass, vWPos.xz / 23.0).a * 0.4;
         alb *= 0.78 + 0.44 * macro;
+        // the forest floor: moss spreading in the damp, drifts of last year's leaves
+        float drift = texture2D(tForest, vWPos.xz / 13.0 + 0.31).a * 0.6 + texture2D(tGrass, vWPos.xz / 29.0 + 0.53).a * 0.4;
+        alb = mix(alb, alb * vec3(0.62, 0.95, 0.42) + vec3(0.004, 0.012, 0.002), b.z * smoothstep(0.56, 0.72, drift) * 0.7);
+        alb = mix(alb, alb * vec3(1.25, 1.0, 0.72), b.z * smoothstep(0.42, 0.3, drift) * 0.6);
         // rock on steep ground
         float slope = 1.0 - vWNormal.y;
         float rockW = smoothstep(0.42, 0.62, slope + (hts.x - 0.5) * 0.15);
@@ -226,22 +231,31 @@ export function createTerrainMaterial(textures, shared) {
         float hold = (b.x + b.w + b.z * 0.35) * (1.0 - rockW);
         float gather = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
         float level = smoothstep(0.45, 0.75, gather) * 1.2;
-        tPuddle = smoothstep(-0.02, 0.06, level - dot(b, hts));
+        float depthW = level - dot(b, hts);
+        tPuddle = smoothstep(-0.02, 0.06, depthW);
         tPuddle = max(tPuddle, b.w * 0.55 * smoothstep(0.32, 0.12, hts.w));
         tPuddle *= hold * uWet;
-        // darken wet ground (the road's stones most: they soak, and shine)
+        // the soaked margin round standing water
+        tRim = smoothstep(-0.16, -0.02, depthW) * hold * uWet * (1.0 - tPuddle);
+        // the river bank: soaked to a hand above the water
+        tShore = 1.0 - smoothstep(0.0, 0.4, vWPos.y - uWaterLevel);
+        // darken wet ground (the road's stones most: they soak, and shine);
+        // under water the ground shows through a little darker
         alb *= mix(1.0, 0.62 - 0.12 * b.w, uWet * (1.0 - rockW * 0.3));
-        alb = mix(alb, alb * vec3(0.55, 0.55, 0.6), tPuddle);
+        alb = mix(alb, alb * vec3(0.78, 0.78, 0.82), tPuddle);
+        alb *= 1.0 - 0.2 * tRim - 0.35 * tShore;
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
         float roughnessFactor = mix(tRough, tRough * (0.62 - 0.2 * b.w) + 0.04, uWet);
+        roughnessFactor = mix(roughnessFactor, 0.2, tRim * 0.6);
+        roughnessFactor = mix(roughnessFactor, 0.12, tShore * 0.8);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
       `)
       .replace('#include <normal_fragment_maps>', `
         {
           vec3 nts = tNormal;
-          nts.xy *= mix(1.0, 0.0, tPuddle);
+          nts.xy *= (1.0 - tPuddle) * (1.0 - 0.5 * tShore);
           // rain rings in puddles
           vec2 rip = rainRipples(vWPos.xz * 1.7, uTime) * uRain;
           nts.xy += rip * tPuddle * 0.9;
