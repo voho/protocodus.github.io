@@ -82,13 +82,7 @@ by the blast that killed them, and drop their rifles.
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
-    set has one, the `_lod` impostor beyond the quality's near range ·
-    `grass.js` the meadow grass on the GPU: one instanced draw of tufts of
-    blades round the camera (high ~21 m, medium ~14 m, none on low), each
-    placed, sized and leaned by a hash of its world cell, on a ground map
-    made at load from the terrain's own splat (none on roads, mud, steep
-    banks, at the water or inside anything solid); the ground under it
-    turns to dark, dry sward
+    set has one, the `_lod` impostor beyond the quality's near range
   * `player.js`, `camera.js`, `character.js` (rig, split upper/lower body
     animation, the outfit's low-detail `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
@@ -101,6 +95,12 @@ by the blast that killed them, and drop their rifles.
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
     the level, open towards the far buildings) and the next village
+  * `grass.js` the meadow grass on the GPU: one instanced draw of tufts of
+    blades round the camera (high ~21 m, medium ~14 m, none on low), each
+    placed, sized and leaned by a hash of its world cell, on a ground map
+    made at load from the terrain's own splat (none on roads, mud, steep
+    banks, at the water or inside anything solid); the ground under it
+    turns to dark, dry sward
   * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
