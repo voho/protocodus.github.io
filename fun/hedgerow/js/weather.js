@@ -276,9 +276,11 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
       pulses.push([t, 0.05 + R() * 0.08, 0.5 + R() * 0.6]);
       t += 0.06 + R() * 0.16;
     }
-    const az = R() * Math.PI * 2;
-    flashDir.set(Math.sin(az), 0.25 + R() * 0.35, Math.cos(az)).normalize();
+    const az = R() * Math.PI * 2, jitter = R();
     const distance = 0.6 + R() * 3.2;             // km
+    // the flash high in the cloud over it (a cloud base about a kilometre up): the nearer, the higher
+    const el = Math.atan2(1.1, distance) + (jitter - 0.5) * 0.1;
+    flashDir.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az));
     strike = { t: time, pulses, power: distance < 1.2 ? 1.3 : 1 / (0.5 + distance * 0.3) };
     onThunder?.({ delay: distance * 2.9, power: 1 / (0.4 + distance * 0.35), distance });
   }

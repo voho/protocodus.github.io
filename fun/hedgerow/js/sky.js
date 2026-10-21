@@ -1,6 +1,7 @@
 /* Hedgerow — the dusk sky: a dome with layered rain clouds drifting with
    the wind, a last orange glow low in the west, and lightning that lights
-   the clouds from inside; burning farms light the cloud base over them,
+   the clouds from inside (and, about half the time, a forked bolt down to
+   the horizon under it); burning farms light the cloud base over them,
    and the far barrage's flashes catch it. The colour at the horizon is the fog colour, so
    the land fades into the sky. Far beyond the trees, the front: three
    searchlights sweeping the cloud base, each a pale beam from the horizon
@@ -42,6 +43,47 @@ float fbm(vec2 p) {
   float s = 0.0, a = 0.5;
   for (int i = 0; i < 5; i++) { s += noise(p) * a; p = p * 2.03 + 17.1; a *= 0.5; }
   return s;
+}
+
+// a stroke of lightning down to the horizon under the flash (about half the strikes; the rest
+// stay inside the cloud): a channel wandering in a random walk across, two branches forking off
+// it, a core a couple of pixels wide (thinner and the anti-aliasing would dim it) and its glow.
+// Per strike, from where it is (each strike is somewhere new).
+float boltLine(float x, float w) { return exp(-x * x / (w * w)); }
+// the channel's offset across (rad), by elevation: coarse kinks, finer jags
+float boltPath(float el, float seed) {
+  return (noise(vec2(el * 9.0, seed * 53.0)) - 0.5) * 0.07 + (noise(vec2(el * 36.0, seed * 91.0)) - 0.5) * 0.032 + (noise(vec2(el * 130.0, seed * 37.0)) - 0.5) * 0.009
+    + (noise(vec2(el * 420.0, seed * 13.0)) - 0.5) * 0.003;
+}
+vec3 bolt(vec3 d) {
+  float seed = fract(sin(dot(uFlashDir.xz, vec2(12.9898, 78.233))) * 43758.5453);
+  if (seed > 0.55) return vec3(0.0);
+  float az0 = atan(uFlashDir.x, uFlashDir.z);
+  float da = mod(atan(d.x, d.z) - az0 + 3.14159, 6.28318) - 3.14159;
+  float el = asin(clamp(d.y, -1.0, 1.0));
+  float top = clamp(asin(uFlashDir.y), 0.2, 0.95);         // from the flash in the cloud
+  if (el > top + 0.03 || el < -0.03 || abs(da) > 0.25) return vec3(0.0);
+  float ce = cos(el);
+  // the distance from the channel, across its own direction (where it jags sideways it would
+  // otherwise thin out to nothing)
+  float x = boltPath(el, seed);
+  float slope = (boltPath(el + 0.0008, seed) - boltPath(el - 0.0008, seed)) / 0.0016;
+  float a = abs(da * ce - x) * inversesqrt(1.0 + slope * slope);
+  float k = boltLine(a, 0.0016) * 26.0 + boltLine(a, 0.006) * 2.2 + exp(-a / 0.035) * 0.35;
+  k *= smoothstep(top + 0.03, top - 0.02, el);        // out of the cloud base
+  // two branches, forking down and away from it, thinner, dying out
+  for (int i = 0; i < 2; i++) {
+    float fi = float(i);
+    float h = fract(seed * (7.13 + fi * 3.7));
+    float e0 = top * (0.35 + 0.45 * h), len = 0.04 + 0.05 * fract(h * 5.3);
+    if (el > e0 || el < e0 - len) continue;
+    float t = (e0 - el) / len;
+    float sl = (fi - 0.5) * 2.0 * (0.25 + 0.5 * fract(h * 9.1));
+    float xb = boltPath(e0, seed) + sl * (e0 - el) + (noise(vec2(el * 300.0, seed * 51.0 + fi * 17.0)) - 0.5) * 0.004;
+    float ab = abs(da * ce - xb) * inversesqrt(1.0 + sl * sl);
+    k += (boltLine(ab, 0.0013) * 12.0 + boltLine(ab, 0.005) * 1.0) * (1.0 - t) * (1.0 - t);
+  }
+  return vec3(0.82, 0.88, 1.0) * k;
 }
 
 // the front at night, far beyond the trees (to the north, ahead)
@@ -150,6 +192,8 @@ void main() {
   col += uGlow * band * 0.55 * smoothstep(-0.03, 0.02, el) * (1.0 - cloud * 0.5);
   // the front, its beams' feet softened by the haze on the horizon
   if (uFront > 0.0 && el > -0.01) col += front(d, cloud) * uFront * (0.35 + 0.65 * smoothstep(-0.01, 0.06, el));
+  // the bolt, through the rain and the haze low down
+  if (uFlash > 0.05) col += bolt(d) * sqrt(min(uFlash, 1.0)) * (0.45 + 0.55 * smoothstep(-0.01, 0.08, el));
   gl_FragColor = vec4(col, 1.0);
 }`;
 

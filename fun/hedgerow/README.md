@@ -52,8 +52,9 @@ parachute, lighting the cloud, glittering on the wet cobbles and laying long
 shadows of houses, walls, soldiers and trees (dappled under the crowns) that
 swing as it drifts, its light hanging in the rain in shafts between the roofs.
 Lightning does the same for its fraction of a second: a cold, blinding light
-from the bolt, low over the horizon, that throws every house's shadow across
-the street.
+from the bolt — high over a near strike, low over the horizon for a far one,
+the bolt itself forking down out of the cloud about half the time — that
+throws every house's shadow across the street.
 Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
