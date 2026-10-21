@@ -93,9 +93,9 @@ export const GRENADE = {
 };
 
 export const QUALITY = {
-  high: { pixelRatio: 1.5, bloom: true, volumetric: true, grass: 1, rain: 9000, treeNear: 52 },
-  medium: { pixelRatio: 1, bloom: true, volumetric: true, grass: 0.6, rain: 6000, treeNear: 48 },
-  low: { pixelRatio: 0.75, bloom: false, volumetric: false, grass: 0.3, rain: 3500, treeNear: 36 },
+  high: { pixelRatio: 1.5, bloom: true, volumetric: true, shadows: 512, grass: 1, rain: 9000, treeNear: 52 },
+  medium: { pixelRatio: 1, bloom: true, volumetric: true, shadows: 256, grass: 0.6, rain: 6000, treeNear: 48 },
+  low: { pixelRatio: 0.75, bloom: false, volumetric: false, shadows: 0, grass: 0.3, rain: 3500, treeNear: 36 },
 };
 
 export const DEFAULT_SETTINGS = {

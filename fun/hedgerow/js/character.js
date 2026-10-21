@@ -183,6 +183,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (name === other || (o.name.startsWith(other))) { o.visible = false; return; }
       if (!o.name.endsWith('_merged')) o.material = matlib.resolve(o.material);
       o.frustumCulled = false;
+      o.receiveShadow = true;
       meshes.push(o);
     }
   });

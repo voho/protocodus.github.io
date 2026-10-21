@@ -90,6 +90,10 @@ async function boot() {
     canvas, antialias: true, powerPreference: 'high-performance',
     outputBufferType: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
   });
+  // shadows from the lamp or fire nearest the camera (lights.js); the
+  // preset at load decides (switching it later would recompile everything)
+  renderer.shadowMap.enabled = !!quality.shadows;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.7;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -127,7 +131,7 @@ async function boot() {
   };
   G.effects = createEffects({ fog: fogUniforms });
   scene.add(G.effects.group);
-  G.lights = createLighting(scene, { pool: 8 });
+  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
   const sky = createSky({ fog: LEVEL.fog.color });
   scene.add(sky.mesh);
   G.sky = sky;
@@ -394,6 +398,21 @@ function frame(now) {
   step();
 }
 
+/* Soldiers throw shadows only near the shadow light (each one costs six
+   renders of his body into its cube map). */
+function castShadows() {
+  const sl = G.lights.shadowLight;
+  if (!sl || !sl.castShadow) return;
+  const lit = sl.intensity > 0;
+  const r2 = (sl.distance + 3) ** 2;
+  const near = (p) => lit && (p.x - sl.position.x) ** 2 + (p.z - sl.position.z) ** 2 < r2;
+  for (const e of G.enemies || []) {
+    const on = e.char.root.visible && near(e.pos);
+    for (const m of e.char.meshes) m.castShadow = on;
+  }
+  if (player) for (const m of player.char.meshes) m.castShadow = near(player.pos);
+}
+
 /* ---------- dynamic resolution ----------
    Hold about 60 fps on slower GPUs and dense screens: when frames run long
    for a second the render resolution steps down by a tenth (to 60 % of the
@@ -477,6 +496,7 @@ function step() {
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
     G.lights.update(dt, G.time, camera.position, flash);
+    castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     G.weather.setLights(G.lights.active);
     G.halos?.update(dt, G.time, camera.position);

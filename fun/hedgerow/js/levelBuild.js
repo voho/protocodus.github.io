@@ -112,6 +112,7 @@ export function buildLevel(G, L, quality) {
       o.position.set(p.x, y, p.z);
       o.rotation.y = yaw;
       o.scale.setScalar(scale);
+      o.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
       G.scene.add(o);
       rec.object = o;
     } else {
@@ -124,14 +125,14 @@ export function buildLevel(G, L, quality) {
     if (p.light) {
       const a = worldAnchor(m, 'light', p.x, y, p.z, yaw, scale);
       if (a) {
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08 }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08, shadow: true }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.6, 1.0, 0.06);
       }
     }
     for (const k of Object.keys(m.anchors)) {
       if (k === 'lantern') {
         const a = worldAnchor(m, k, p.x, y, p.z, yaw, scale);
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08 }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08, shadow: true }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.2, 0.9, 0.06);
         continue;
       }
@@ -143,7 +144,7 @@ export function buildLevel(G, L, quality) {
     if (p.fire) {
       const a = worldAnchor(m, 'fire', p.x, y, p.z, yaw, scale) || worldAnchor(m, 'smoke', p.x, y, p.z, yaw, scale) || [p.x, y + 1, p.z];
       fires.push(G.effects.addFire(a[0], a[1], a[2], 1.1));
-      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45 });
+      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true });
       G.halos?.add(a[0], a[1] + 1.0, a[2], '#ff7a30', 6, 0.7, 0.4);
     }
   }
@@ -169,7 +170,11 @@ export function buildLevel(G, L, quality) {
   veg.finalize();
   G.scene.add(veg.group);
   const staticGroup = batch.build();
+  // houses and props throw shadows from the lamps and fires, and take them
+  staticGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   G.scene.add(staticGroup);
+  terrain.group.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+  veg.group.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
   G.scene.add(contactShadows(contact, terrain));
 
   // invisible walls along the play bounds
