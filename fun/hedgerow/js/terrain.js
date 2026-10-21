@@ -171,6 +171,9 @@ export function createTerrainMaterial(textures, shared) {
       uRockColor: { value: new THREE.Color('#5f5c55') },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       uWaterLevel: shared.waterLevel || { value: -1e4 },
+      // the meadow grass (grass.js): its density map, and the radius it grows in round the camera
+      tSward: shared.grassMap || { value: null }, uSwardMin: shared.grassMin || { value: new THREE.Vector2() },
+      uSwardSize: shared.grassSize || { value: new THREE.Vector2(1, 1) }, uSwardR: shared.grassR || { value: 0 },
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -186,11 +189,13 @@ export function createTerrainMaterial(textures, shared) {
       .replace('#include <common>', `#include <common>
         uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
         uniform vec3 uRockColor;
-        uniform float uWet, uTime, uRain, uWaterLevel;
+        uniform float uWet, uTime, uRain, uWaterLevel, uSwardR;
+        uniform sampler2D tSward;
+        uniform vec2 uSwardMin, uSwardSize;
         varying vec4 vSplat;
         varying vec3 vWPos;
         varying vec3 vWNormal;
-        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore;
+        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore; float tSwardK;
         ${GLSL_HELPERS}`)
       .replace('#include <map_fragment>', `
         vec2 uvw = vWPos.xz / 4.0;
@@ -239,11 +244,19 @@ export function createTerrainMaterial(textures, shared) {
         tRim = smoothstep(-0.16, -0.02, depthW) * hold * uWet * (1.0 - tPuddle);
         // the river bank: soaked to a hand above the water
         tShore = 1.0 - smoothstep(0.0, 0.4, vWPos.y - uWaterLevel);
+        // under the meadow grass the ground is the shaded sward: dark, rough, no standing water
+        tSwardK = 0.0;
+        if (uSwardR > 0.0) {
+          tSwardK = texture2D(tSward, (vWPos.xz - uSwardMin) / uSwardSize).y
+            * (1.0 - smoothstep(uSwardR * 0.6, uSwardR * 0.95, length(vWPos.xz - cameraPosition.xz)));
+          tPuddle *= 1.0 - tSwardK;
+          tRim *= 1.0 - tSwardK;
+        }
         // darken wet ground (the road's stones most: they soak, and shine);
         // under water the ground shows through a little darker
         alb *= mix(1.0, 0.62 - 0.12 * b.w, uWet * (1.0 - rockW * 0.3));
         alb = mix(alb, alb * vec3(0.78, 0.78, 0.82), tPuddle);
-        alb *= 1.0 - 0.2 * tRim - 0.35 * tShore;
+        alb *= 1.0 - 0.2 * tRim - 0.35 * tShore - 0.45 * tSwardK;
         diffuseColor.rgb *= alb;
       `)
       .replace('#include <roughnessmap_fragment>', `
@@ -251,6 +264,7 @@ export function createTerrainMaterial(textures, shared) {
         roughnessFactor = mix(roughnessFactor, 0.2, tRim * 0.6);
         roughnessFactor = mix(roughnessFactor, 0.12, tShore * 0.8);
         roughnessFactor = mix(roughnessFactor, 0.07, tPuddle);
+        roughnessFactor = mix(roughnessFactor, 0.85, tSwardK);
       `)
       .replace('#include <normal_fragment_maps>', `
         {

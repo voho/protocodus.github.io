@@ -19,7 +19,9 @@ three river crossings, the ends of the trench, the flanks of the bunker.
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
-baked in), foliage is alpha cards rendered from modelled leaves, and the
+baked in), foliage is alpha cards rendered from modelled leaves, meadows
+and verges are tens of thousands of single blades of grass that bend in
+the wind and part round your legs, and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints,
 puddles with soaked margins in the hollows that mirror the lit windows, the
 lamps and the glow of the sky, broken by rain rings, river banks soaked
@@ -80,7 +82,13 @@ by the blast that killed them, and drop their rifles.
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
-    set has one, the `_lod` impostor beyond the quality's near range
+    set has one, the `_lod` impostor beyond the quality's near range ·
+    `grass.js` the meadow grass on the GPU: one instanced draw of tufts of
+    blades round the camera (high ~21 m, medium ~14 m, none on low), each
+    placed, sized and leaned by a hash of its world cell, on a ground map
+    made at load from the terrain's own splat (none on roads, mud, steep
+    banks, at the water or inside anything solid); the ground under it
+    turns to dark, dry sward
   * `player.js`, `camera.js`, `character.js` (rig, split upper/lower body
     animation, the outfit's low-detail `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
