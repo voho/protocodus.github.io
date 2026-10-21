@@ -304,7 +304,10 @@ by the blast that killed them, and drop their rifles.
     lying where it falls; the last 64 of each stay), `chunks.js` (what a
     blast throws up: clods of mud and turf, or stones off the cobbles, as
     solid lumps that tumble, knock off walls, bounce and lie where they
-    fall),
+    fall), `steam.js` (every shot heats the barrel of the gun in your
+    hands; the rain boils off it, so after a burst thin steam curls up off
+    its front and blows away on the wind, more the longer you fired,
+    thinning as it cools),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
