@@ -39,9 +39,12 @@ renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
 puddles with soaked margins in the hollows that mirror the lit windows, the
-lamps and the glow of the sky, broken by rain rings, river banks soaked
-above the waterline with a thin broken line of scum where the water laps
-them and the water browner in the shallows of the ford, a forest floor of last year's leaves with moss in the
+lamps and the glow of the sky, broken by rain rings the size of a
+raindrop's, many and quick (further off the rain only roughens the water),
+a river of long low swells drawn out along the current with a finer chop
+carried down it, banks soaked above the waterline with a thin broken line
+of scum where the water laps them and the water browner in the shallows of
+the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
@@ -153,9 +156,12 @@ by the blast that killed them, and drop their rifles.
     with wet mud, holding water in stretches, a grassy crown between them
   * `ponds.js` rainwater in the shell craters (the level's `craters`): a
     disc at two fifths of each holding bowl's depth, cut by the bowl's own
-    sides, drawn with the river's water held still (shallows and a line of
-    scum from its depth in the ground map, rain rings, no white glint of the
-    night's fill light); the ground map keeps grass and clutter out of it
+    sides (the ground round the craters is drawn at the fine grid, so the
+    water's edge follows the bowl rather than a few big facets), drawn with
+    the river's water held still (shallows and a line of scum a hand's
+    breadth from its edge, from its depth in the ground map, rain rings, no
+    white glint of the night's fill light); the ground map keeps grass and
+    clutter out of it, the grass growing down to a few centimetres above it
   * `groundmap.js` what grows and lies where, made at load from the
     terrain mesh's own splat: grass, stones and fallen wood (none on roads,
     steep banks, at the water or inside anything solid), and the ground's

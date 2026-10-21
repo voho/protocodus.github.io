@@ -466,7 +466,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           normal = normalize(normal + mat3(viewMatrix) * dn * grainN * 0.25);
         }` : ''}
         if (mWetUp > 0.01) {
-          vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
+          vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime, rippleFade(length(vViewPosition))) * uRain * mWetUp;
           mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);
           normal = normalize(tbnR * normalize(vec3(rip * 0.8, 1.0)) * 0.5 + normal * 0.5);
         }
@@ -682,16 +682,18 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
   };
 }
 
-/* The river: opaque, murky, reflective, with flowing normals and rain rings.
-   It knows its own depth (the ground map's height, groundmap.js, through the
+/* The river: opaque, murky, reflective; long low swells drawn out along the
+   current with a finer chop over them, carried downstream (value noise and
+   its slope, three octaves: no texture, whose straight cracks showed as
+   creases across the water), and the rain's rings, small and many, where
+   they are big enough to see; further off the rain only roughens it. It
+   knows its own depth (the ground map's height, groundmap.js, through the
    grass map shared with the terrain): where it laps the bank a thin, broken
    line of scum drifts with the current, matte and reflecting nothing, and in
-   the shallows it is browner, the bed showing through. */
+   the shallows it is browner, the bed showing through. A pond (ponds.js) is
+   the same, still. */
 export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
-  const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0,
-    normalMap: textures.rock, normalScale: new THREE.Vector2(0.15, 0.15),
-  });
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0 });
   mat.name = 'water';
   mat.envMapIntensity = 1.3;
   mat.customProgramCacheKey = () => 'hedgerow-water';
@@ -719,30 +721,49 @@ export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
           vec2 i = floor(p), f = fract(p);
           f = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        // value noise and its slope (Inigo Quilez's)
+        vec3 vnoiseDW(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f), du = 6.0 * f * (1.0 - f);
+          float a = hash12(i), b = hash12(i + vec2(1.0, 0.0)), c = hash12(i + vec2(0.0, 1.0)), d = hash12(i + vec2(1.0, 1.0));
+          return vec3(a + (b - a) * u.x + (c - a) * u.y + (a - b - c + d) * u.x * u.y, du * (vec2(b - a, c - a) + (a - b - c + d) * u.yx));
         }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
           vec2 p = vWPosW.xz;
-          float depth = vWPosW.y - texture2D(tGroundW, (p - uGroundMinW) / uGroundSizeW).w;
+          vec2 gm = (p - uGroundMinW) / uGroundSizeW;
+          float bed = texture2D(tGroundW, gm).w, depth = vWPosW.y - bed;
           // the shallows: browner, the bed showing through
           float shallow = 1.0 - smoothstep(0.05, 0.75, depth);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.04, 0.026), shallow * 0.75);
-          // a thin, broken line of scum where it laps the bank, drifting with the current
+          // a thin, broken line of scum where it laps the bank, drifting with the current: so many
+          // centimetres from the water's edge (the depth over how steeply the bed rises there), not
+          // so deep, or on a gentle bank (a shallow crater's) it spread into a wide pale band
           vec2 drift = uFlow * uTime * 0.35;
           float fn = vnoiseW(p * 3.1 - drift * 3.1) * 0.55 + vnoiseW(p * 7.7 - drift * 6.0) * 0.45;
-          float lap = 1.0 - smoothstep(0.0, 0.07 + 0.03 * sin(uTime * 1.3 + p.x * 0.7), depth);
+          vec2 rise = vec2(texture2D(tGroundW, gm + vec2(0.25, 0.0) / uGroundSizeW).w, texture2D(tGroundW, gm + vec2(0.0, 0.25) / uGroundSizeW).w) - bed;
+          float fromEdge = depth / max(length(rise) * 4.0, 0.04);
+          float lap = 1.0 - smoothstep(0.0, 0.1 + 0.04 * sin(uTime * 1.3 + p.x * 0.7), fromEdge);
           wFoam = lap * smoothstep(0.45, 0.7, fn + lap * 0.15) * 0.75;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.17, 0.18, 0.17), wFoam);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.095, 0.08), wFoam);
         }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.75, wFoam);`)
+        roughnessFactor = mix(roughnessFactor, 0.75, wFoam);
+        // where the rain's rings are too small to draw, they still roughen it
+        roughnessFactor += 0.1 * uRain * (1.0 - rippleFade(length(vViewPosition)));`)
       .replace('#include <normal_fragment_maps>', `
         {
           vec2 p = vWPosW.xz;
-          vec3 n1 = texture2D(normalMap, p / 9.0 + uFlow * uTime * 0.03).xyz * 2.0 - 1.0;
-          vec3 n2 = texture2D(normalMap, p / 4.3 - uFlow.yx * uTime * 0.02 + uFlow * uTime * 0.05).xyz * 2.0 - 1.0;
-          vec3 nts = normalize(vec3((n1.xy + n2.xy) * 0.12, 1.0));
-          nts.xy += rainRipples(p * 1.5, uTime) * uRain * 0.8;
+          // the slope of three octaves, each stretched along the current and carried down it at its own
+          // speed (the finer, the faster), the second and third turned so the noise's grid does not line up
+          vec2 st = mix(vec2(1.0), vec2(0.55, 1.0), min(1.0, length(uFlow)));
+          mat2 turn = mat2(0.8, 0.6, -0.6, 0.8);
+          vec2 g = vnoiseDW(p * st * 0.35 - uFlow * uTime * 0.18).yz * st * 0.35 * 0.6;
+          g += st * 0.9 * 0.35 * (transpose(turn) * vnoiseDW(turn * (p * st * 0.9) - uFlow * uTime * 0.55 + 4.7).yz);
+          g += st * 2.3 * 0.16 * (turn * vnoiseDW(transpose(turn) * (p * st * 2.3) - uFlow * uTime * 1.9 + vec2(9.1, 2.3)).yz);
+          vec3 nts = vec3(-g * 0.14, 1.0);
+          nts.xy += rainRipples(p * 1.5, uTime, rippleFade(length(vViewPosition))) * uRain * 0.8;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, p);
           normal = normalize(tbn * normalize(nts));
         }`)

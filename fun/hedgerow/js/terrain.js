@@ -359,8 +359,7 @@ export function createTerrainMaterial(textures, shared) {
           vec3 nts = tNormal;
           nts.xy *= (1.0 - tPuddle) * (1.0 - 0.5 * tShore);
           // rain rings in puddles
-          vec2 rip = rainRipples(pxz * 1.7, uTime) * uRain;
-          nts.xy += rip * tPuddle * 0.9;
+          if (tPuddle > 0.01) nts.xy += rainRipples(pxz * 1.7, uTime, rippleFade(length(vViewPosition))) * uRain * tPuddle * 0.9;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));
         }
@@ -408,8 +407,15 @@ export const GLSL_HELPERS = /* glsl */ `
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
   }
-  vec2 rainRipples(vec2 p, float t) {
+  // the rings raindrops make on standing water: two layers of cells a quarter of a metre across (at
+  // the callers' scales, 1.5 to 1.9 a metre), a drop landing in each at a place and time of its own and
+  // its ring spreading some 0.3 m/s as it dies away; the slope, as a direction and strength. Each ring
+  // is a few centimetres wide: beyond some 15 m smaller than a pixel, where it would only glitter, so
+  // fade (from 1 near to 0 far) thins them out, and at 0 the work is skipped
+  vec2 rainRipples(vec2 p, float t, float fade) {
     vec2 acc = vec2(0.0);
+    if (fade < 0.01) return acc;
+    p *= 2.4;
     for (int k = 0; k < 2; k++) {
       vec2 q = p + float(k) * vec2(0.37, 0.71);
       vec2 cell = floor(q);
@@ -417,7 +423,7 @@ export const GLSL_HELPERS = /* glsl */ `
         vec2 c = cell + vec2(float(i), float(j));
         float h = hash12(c + float(k) * 13.1);
         vec2 centre = c + vec2(hash12(c + 3.7), hash12(c + 9.1));
-        float phase = fract(t * 0.9 + h);
+        float phase = fract(t * 1.3 + h);
         vec2 d = q - centre;
         float r = length(d);
         float ring = r - phase * 0.9;
@@ -425,6 +431,8 @@ export const GLSL_HELPERS = /* glsl */ `
         acc += d / max(r, 1e-3) * wave;
       }
     }
-    return acc * 0.5;
+    return acc * 0.5 * fade;
   }
+  // how much of the rain's rings to draw at a view distance
+  float rippleFade(float dist) { return 1.0 - smoothstep(8.0, 16.0, dist); }
 `;
