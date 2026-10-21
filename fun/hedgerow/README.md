@@ -228,7 +228,9 @@ by the blast that killed them, and drop their rifles.
     `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
-    hurt state); the high and medium qualities run all of it, low only the
+    hurt state, and the mud a blast close by throws over the view: dark wet
+    splats along the bottom and flecks round the edges, some dripping,
+    gone in a few seconds); the high and medium qualities run all of it, low only the
     grade
 * `assets/models/*.glb` — built by the Blender scripts in `tools/blender/`;
   see `assets/models/MODELS.md` (pipeline, sizes, build commands),

@@ -138,6 +138,8 @@ export function createExplosives(G) {
     const cam = G.camera.position;
     const dc = Math.hypot(cam.x - x, cam.y - y, cam.z - z);
     G.rig.addShake(clamp(1.4 - dc / 30, 0, 1.2));
+    // close by, it throws mud over the view (not out of the water)
+    if (!inWater) G.spatter?.(clamp(1.25 - dc / 8, 0, 1) * (e.kind === 'charge' ? 1.2 : 1));
     // damage
     const hurt = (tx, ty, tz) => {
       const d = Math.hypot(tx - x, ty - y, tz - z);

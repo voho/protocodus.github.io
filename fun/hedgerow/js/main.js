@@ -218,6 +218,8 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
+    // a blast close by throws mud over the view (combat.js)
+    G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
     ssao = createSSAO(camera);
     ssr = createSSR(camera, shared);
@@ -626,6 +628,7 @@ function step() {
     G.windowLight?.update(camera);
     if (grade) {
       grade.uniforms.uTime.value = G.time;
+      grade.tick(dt);
       const hp = player ? player.health / 100 : 1;
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
       const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;
