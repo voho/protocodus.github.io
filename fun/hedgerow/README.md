@@ -44,6 +44,16 @@ artillery flashes and burning farms beyond the hedges.
 Health comes back when you stay out of fire. Dying returns you to the last
 checkpoint; the enemies you killed stay dead.
 
+The Germans are not statues. Patrols walk their beats and stop to look
+round. A shot or a grenade heard from a distance sends one or two of a
+group to look while the rest get into cover facing the sound. Break contact
+and they split up: some search where you were last seen and look round the
+corners nearby, and if you were on the move some run ahead along your way,
+crouch behind cover and wait for you to walk into their sights. Afterwards
+they go back to their posts, warier for a while. When one of them kills you
+the camera turns to him and follows him — usually as he walks over to make
+sure.
+
 Reloading is a real motion: the empty Thompson magazine drops to the ground
 and a fresh one comes up in the left hand; the Garand's empty clip flies out
 with its ping on the last shot. R reloads, an empty trigger reloads, and the
@@ -66,8 +76,11 @@ by the blast that killed them, and drop their rifles.
   * `player.js`, `camera.js`, `character.js` (rig, split upper/lower body
     animation, the outfit's low-detail `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
-    (perception, cover, MG nests, sniper, reloads; soldiers out of view
-    are not drawn and are posed five times a second), `mission.js`
+    (perception, cover, MG nests, sniper, reloads; patrols; sounds looked
+    into; a lost player searched for where he was seen and ambushed along
+    his way; the killer checks the body; soldiers out of view are not drawn
+    and are posed five times a second), `nav.js` (the 2 m walk grid and A*
+    paths round houses, walls and the river), `mission.js`
   * `distance.js` the countryside beyond the level: a terrain ring of fields
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
@@ -104,7 +117,11 @@ by the blast that killed them, and drop their rifles.
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
   in the ground and leave the far village in sight;
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
-  (with a gap so they don't flicker), trees sort into full, mid and far:
+  (with a gap so they don't flicker), trees sort into full, mid and far;
+  `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
+  patrol walks it, a distant shot is looked into, lost contact means a
+  search and an ambush (hidden, facing his way, springing from cover), the
+  killer walks to the body, the death camera follows him:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs
@@ -112,6 +129,7 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/ragdoll-check.mjs
       node fun/hedgerow/tests/distance-check.mjs
       node fun/hedgerow/tests/lod-check.mjs
+      node fun/hedgerow/tests/ai-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to

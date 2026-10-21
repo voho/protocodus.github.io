@@ -38,7 +38,7 @@ export function createHud(root) {
   const detects = [];
   for (let i = 0; i < 6; i++) { const a = document.createElement('i'); a.style.opacity = 0; el.detect.appendChild(a); detects.push(a); }
 
-  let hitTimer = 0, noticeTimer = 0, lastHealth = 1;
+  let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false;
   let objectiveAngle = null, objectiveDist = 0;
 
   return {
@@ -65,6 +65,7 @@ export function createHud(root) {
     },
 
     health(frac) {
+      if (frac > 0) calm = false;
       el.health.style.width = `${(clamp(frac, 0, 1) * 100).toFixed(1)}%`;
       el.health.classList.toggle('low', frac < 0.35);
       lastHealth = frac;
@@ -127,6 +128,9 @@ export function createHud(root) {
 
     grenadeWarning(on) { el.gwarn.hidden = !on; },
 
+    /* after death: the red of the wounds fades so the view behind reads */
+    calm(on) { calm = on; },
+
     /* list of {angle (rel, + = left), level 0..1, alert} */
     awareness(list) {
       for (let i = 0; i < detects.length; i++) {
@@ -149,7 +153,8 @@ export function createHud(root) {
       if (hitTimer > 0) { hitTimer -= dt; if (hitTimer <= 0) el.hit.classList.remove('on'); }
       if (noticeTimer > 0) { noticeTimer -= dt; if (noticeTimer <= 0) el.notice.classList.remove('on'); }
       for (const a of arcs) if (a.t > 0) { a.t -= dt; if (a.t <= 0) a.el.classList.remove('on'); }
-      el.hurt.style.opacity = clamp((0.55 - lastHealth) * 2.2, 0, 1).toFixed(2);
+      const hurt = clamp((0.55 - lastHealth) * 2.2, 0, 1);
+      el.hurt.style.opacity = (calm ? Math.min(hurt, 0.2) : hurt).toFixed(2);
     },
   };
 }

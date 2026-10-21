@@ -535,7 +535,7 @@ const enemies = [
   // checkpoint
   E('mg', 0, 0, 180, 'gate', { nest: 'nest_gate', arc: 0.9 }),
   E('rifle', 3.2, 88.5, 180, 'gate'),
-  E('rifle', -1, 93, 180, 'gate', { patrol: [[-1, 93], [6, 97], [1, 100]] }),
+  E('rifle', -1, 93, 180, 'gate', { patrol: [[-1, 93], [4.5, 97], [1, 100]] }),
   E('rifle', 14, 86, 200, 'gate', { leash: 10 }),
   // main street
   E('smg', 1.5, 113, 180, 'street'),
@@ -549,20 +549,23 @@ const enemies = [
   E('smg', 2, 170, 180, 'square'),
   E('rifle', -6, 176, 180, 'square'),
   E('rifle', 7.5, 175, 190, 'square'),
-  E('rifle', -10, 160, 150, 'square'),
+  E('rifle', -10, 160, 150, 'square', { patrol: [[-8, 152], [8, 152], [9, 178], [-8, 178]] }),
   E('smg', 11, 163, 220, 'square'),
   // north street
   E('rifle', -1.5, 206, 180, 'north'),
-  E('rifle', 2.5, 220, 175, 'north'),
+  E('rifle', 2.5, 220, 175, 'north', { patrol: [[2.5, 205], [2.5, 240]] }),
   E('smg', -3.5, 234, 185, 'north'),
   E('rifle', -19, 205, 160, 'north', { leash: 10 }),
   // the bridge
   E('mg', 0, 0, 180, 'bridge', { nest: 'nest_bridge', arc: 0.8 }),
   E('rifle', -6, 291, 180, 'bridge'),
   E('rifle', 11, 290.5, 170, 'bridge'),
-  E('rifle', -1, 297, 180, 'bridge'),
+  E('rifle', -1, 297, 180, 'bridge', { patrol: [[-12, 296], [12, 296]] }),
   E('rifle', -30, 286, 160, 'ford', { leash: 8 }),
   E('rifle', 30, 288, 200, 'logbridge', { leash: 8 }),
+  // two men walking the forest track, one each way
+  E('rifle', -4, 305, 0, 'track', { patrol: [[-4, 305], [-9, 326], [-7, 350], [1, 371]] }),
+  E('rifle', 1, 371, 180, 'track', { patrol: [[1, 371], [-7, 350], [-9, 326], [-4, 305]] }),
   // foxholes
   E('rifle', 2, 340, 190, 'fox', { hold: true, stance: 'crouch' }),
   E('rifle', 9, 352, 190, 'fox', { hold: true, stance: 'crouch' }),
@@ -578,14 +581,14 @@ const enemies = [
   // the bunker
   E('mg', 0, 0, 180, 'bunker', { bunker: 'bunker', arc: 0.75 }),
   E('rifle', -1, 454.5, 160, 'bunker'),
-  E('rifle', 16, 452, 200, 'bunker'),
+  E('rifle', 16, 452, 200, 'bunker', { patrol: [[16, 452], [22, 440], [8, 432], [-2, 440]] }),
   // the clearing
   E('smg', -10, 506, 160, 'clearing', { tough: 1.5 }),
   E('rifle', 6, 503, 180, 'clearing'),
   E('rifle', -4, 519, 190, 'clearing'),
   E('rifle', 12, 521, 200, 'clearing'),
   E('rifle', 0, 0, 200, 'clearing', { anchorOf: ['tower', 'lookout'], leash: 0 }),
-  E('rifle', -16, 502, 150, 'clearing'),
+  E('rifle', -16, 502, 150, 'clearing', { patrol: [[-16, 502], [-18, 520], [-6, 531], [-4, 512]] }),
   E('smg', 2, 529, 180, 'clearing'),
 ];
 

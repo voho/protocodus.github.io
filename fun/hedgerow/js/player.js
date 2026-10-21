@@ -42,7 +42,8 @@ export function createPlayer(G) {
     P.vel.set(0, 0, 0);
     P.yaw = spawn[2] || 0;
     G.rig.yaw = P.yaw; G.rig.pitch = -0.08;
-    P.alive = true; P.health = PLAYER.health;
+    P.alive = true; P.health = PLAYER.health; P.killer = null;
+    G.rig.resetDeathCam?.();
     P.crouch = false; P.crouchT = 0;
     P.cooldown = 0; P.reloading = 0; P.switching = 0; P.cooking = -1; P.throwing = 0; P.vault = null;
     P.reloadRun?.end?.();
@@ -72,7 +73,8 @@ export function createPlayer(G) {
 
   P.inventory = () => ({ ammo: JSON.parse(JSON.stringify(P.ammo)), grenades: P.grenades, weapon: P.weapon });
 
-  P.damage = (amount, from, kind = 'bullet') => {
+  /* `by`: the enemy who fired or threw (for the camera that turns to him) */
+  P.damage = (amount, from, kind = 'bullet', by = null) => {
     if (!P.alive || G.godMode) return;
     P.health -= amount;
     P.hurtTimer = 0;
@@ -86,6 +88,8 @@ export function createPlayer(G) {
     if (P.health <= 0) {
       P.health = 0;
       P.alive = false;
+      P.killer = by;
+      P.diedAt = G.time;
       const back = from ? Math.cos(Math.atan2(from.x - P.pos.x, from.z - P.pos.z) - P.yaw) < 0 : false;
       const impulses = [];
       if (from) {
@@ -260,12 +264,16 @@ export function createPlayer(G) {
 
   /* ---------- per frame ---------- */
 
+  const killerHead = new THREE.Vector3();
+
   P.update = (dt, input, settings) => {
     const ch = P.char;
     if (!P.alive) {
       ch.root.position.copy(P.pos);
       ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.5));
-      G.rig.update(dt, P.pos, 0.6, false, 0);
+      // the camera turns to the man who did it and follows him
+      const k = P.killer && !P.killer.dead ? P.killer.char.headWorld(killerHead) : null;
+      G.rig.deathCam(dt, P.pos, k);
       return;
     }
     const w = weaponDef();

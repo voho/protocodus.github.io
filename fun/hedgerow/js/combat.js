@@ -106,8 +106,11 @@ export function createExplosives(G) {
     return e;
   }
 
-  function throwGrenade(owner, pos, vel, cooked = 0) {
-    return spawn(owner === 'player' ? 'player' : 'enemy', pos, vel, Math.max(0.6, GRENADE.fuse - cooked));
+  /* `by`: the soldier who threw it (an enemy), for the record of who killed whom */
+  function throwGrenade(owner, pos, vel, cooked = 0, by = null) {
+    const g = spawn(owner === 'player' ? 'player' : 'enemy', pos, vel, Math.max(0.6, GRENADE.fuse - cooked));
+    g.by = by;
+    return g;
   }
 
   function placeCharge(pos, fuse, onBoom) {
@@ -144,7 +147,7 @@ export function createExplosives(G) {
     const p = G.player;
     if (p.alive) {
       const k = hurt(p.pos.x, p.pos.y + 0.9, p.pos.z);
-      if (k > 0) p.damage(GRENADE.damage * k * (e.kind === 'player' || e.kind === 'charge' ? 0.8 : G.diff.damage), e.pos, 'explosion');
+      if (k > 0) p.damage(GRENADE.damage * k * (e.kind === 'player' || e.kind === 'charge' ? 0.8 : G.diff.damage), e.pos, 'explosion', e.by || null);
     }
     for (const en of G.enemies) {
       if (en.dead) continue;

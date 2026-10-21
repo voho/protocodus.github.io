@@ -78,6 +78,8 @@ body.playing, body.playing #stage { cursor: none; }
 }
 .screen.on { display: flex; }
 .screen[data-screen="start"] { background: radial-gradient(ellipse at 50% 35%, rgba(18, 22, 26, 0.2), rgba(4, 5, 6, 0.92)); }
+/* the killer stays in view behind the panel */
+.screen[data-screen="dead"] { align-items: flex-end; padding-bottom: 8vh; background: linear-gradient(180deg, transparent 45%, rgba(5, 6, 7, 0.8)); }
 
 .panel {
   width: min(560px, 100%);

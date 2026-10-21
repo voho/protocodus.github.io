@@ -25,7 +25,7 @@ import { buildLevel } from './levelBuild.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
 import { createGrade } from './post.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
-import { formatTime, clamp, rng } from './util.js';
+import { formatTime, clamp, lerp, rng } from './util.js';
 import LEVEL from './levels/saint-clair.js';
 
 const params = new URLSearchParams(location.search);
@@ -254,6 +254,7 @@ function startMission() {
 }
 
 function resume() {
+  hud.hideCrosshair(false);
   state = 'playing';
   show(null);
   screenStack = [];
@@ -273,8 +274,18 @@ function pause() {
   show('pause');
 }
 
+const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', sniper: 'a sniper', officer: 'an officer' };
+
 function onDeath() {
   G.stats.deaths++;
+  // who did it: the camera turns to him (camera.js) while the line says so
+  const k = player.killer;
+  if (k) {
+    const d = Math.round(Math.hypot(k.pos.x - player.pos.x, k.pos.z - player.pos.z));
+    hud.notice(`Killed by ${KILLER_NAME[k.type] || 'the enemy'}`, `${d} m`, 4.5);
+  }
+  hud.hideCrosshair(true);
+  setTimeout(() => hud.calm(true), 900);
   setTimeout(() => {
     if (state !== 'playing') return;
     state = 'dead';
@@ -282,7 +293,7 @@ function onDeath() {
     input.exitLock();
     document.body.classList.remove('playing');
     show('dead');
-  }, 2600);
+  }, k ? 5200 : 2600);
 }
 
 function retryCheckpoint() {
@@ -469,7 +480,9 @@ function step() {
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       const hp = player ? player.health / 100 : 1;
-      grade.uniforms.uHurt.value = player && player.alive ? clamp((0.6 - hp) * 1.8, 0, 1) : player ? 0.8 : 0;
+      // dead: the red flash of the moment, then a light tint so the camera on the killer reads
+      const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;
+      grade.uniforms.uHurt.value = player && player.alive ? clamp((0.6 - hp) * 1.8, 0, 1) : player ? lerp(0.8, 0.25, clamp((since - 0.6) / 0.8, 0, 1)) : 0;
     }
   }
   built.veg.update(dt, camera, quality);

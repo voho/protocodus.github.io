@@ -3,11 +3,16 @@
    Orbits a pivot just above the soldier's eyes, offset to one shoulder (Q
    swaps), pulled in when aiming, and pushed forward by walls, trees and the
    ground so it never ends up inside them. Recoil kicks the view and
-   recovers; shake comes from explosions and near misses. */
+   recovers; shake comes from explosions and near misses.
+
+   When the soldier dies the camera stays on the fall for a moment, then
+   turns to the man who killed him, glides towards him (zoomed in while he
+   is far, widening as it closes) and follows him a few metres off, above
+   and to one side — never through a wall or under the ground. */
 
 import * as THREE from 'three';
 import { CAMERA } from './config.js';
-import { clamp, damp, lerp, noise2 } from './util.js';
+import { clamp, damp, lerp, noise2, smoothstep } from './util.js';
 import { SHOT } from './world.js';
 
 export function createCameraRig(camera, world) {
@@ -44,6 +49,50 @@ export function createCameraRig(camera, world) {
   };
 
   rig.addShake = (amount) => { rig.shake = Math.min(1.5, rig.shake + amount); };
+
+  /* ---------- the death camera ---------- */
+  const dc = { t: 0, started: false, from: new THREE.Vector3(), pos: new THREE.Vector3(), look: new THREE.Vector3() };
+  const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), vd = new THREE.Vector3();
+  const HOLD = 0.8, TRAVEL = 2.4;
+  /* `body`: where he fell; `killer`: the killer's head (null: just the fall). */
+  rig.deathCam = (dt, body, killer) => {
+    dc.t += dt;
+    if (!killer || dc.t < HOLD) {
+      rig.update(dt, body, 0.6, false, 0);
+      dc.pos.copy(camera.position);
+      dc.look.copy(camera.position).add(rig.dir);
+      return;
+    }
+    if (!dc.started) { dc.started = true; dc.from.copy(camera.position); }
+    // the place to watch him from: on our side of him, a little above and aside
+    const away = va.subVectors(dc.from, killer).setY(0);
+    const dist = away.length() || 1;
+    away.divideScalar(dist);
+    const keep = clamp(dist * 0.4, 4.5, 9);
+    const goal = vb.copy(killer).addScaledVector(away, keep).addScaledVector(vc.set(-away.z, 0, away.x), 1.4);
+    goal.y = killer.y + 1.0;
+    const want = vd.copy(dc.from).lerp(goal, smoothstep(HOLD, HOLD + TRAVEL, dc.t));
+    // stop short of anything between where the camera is and where it wants to be
+    const dx = want.x - dc.pos.x, dy = want.y - dc.pos.y, dz = want.z - dc.pos.z;
+    const len = Math.hypot(dx, dy, dz);
+    if (len > 1e-4) {
+      const hit = world.raycast(dc.pos.x, dc.pos.y, dc.pos.z, dx / len, dy / len, dz / len, len + 0.4, SHOT, { noWater: true });
+      if (hit) want.set(dc.pos.x + (dx / len) * Math.max(0, hit.t - 0.4), dc.pos.y + (dy / len) * Math.max(0, hit.t - 0.4), dc.pos.z + (dz / len) * Math.max(0, hit.t - 0.4));
+    }
+    dc.pos.lerp(want, 1 - Math.exp(-6 * dt));
+    let g = world.terrain ? world.terrain.height(dc.pos.x, dc.pos.z) + 0.4 : -Infinity;
+    if (world.water && world.water.contains(dc.pos.x, dc.pos.z)) g = Math.max(g, world.water.level + 0.4);
+    if (dc.pos.y < g) dc.pos.y = g;
+    dc.look.lerp(killer, 1 - Math.exp(-5 * dt));
+    camera.position.copy(dc.pos);
+    camera.lookAt(dc.look);
+    // keep him framed: tight while far, wider as the camera closes in
+    const dk = dc.pos.distanceTo(killer);
+    const fov = clamp(THREE.MathUtils.radToDeg(2 * Math.atan(2.4 / Math.max(1, dk))) * 1.7, 16, rig.baseFov);
+    camera.fov = damp(camera.fov, fov, 4, dt);
+    camera.updateProjectionMatrix();
+  };
+  rig.resetDeathCam = () => { dc.t = 0; dc.started = false; };
 
   /* `target`: the soldier's feet; `eye`: eye height for the stance. */
   rig.update = (dt, target, eye, aiming, moveSpeed = 0) => {
