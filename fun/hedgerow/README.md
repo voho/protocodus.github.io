@@ -93,9 +93,13 @@ by the blast that killed them, and drop their rifles.
     the level, open towards the far buildings) and the next village
   * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
-    `effects.js` (particles), `atmosphere.js` (halos, mist, decals),
+    `effects.js` (particles: smoke and dust lit by the nearest lamps,
+    fires and flashes, soft where they meet the scene; blasts throw up a
+    column of earth and roll dust along the ground), `atmosphere.js`
+    (halos, mist, decals),
     `audio.js` (procedural)
-  * the effects chain (`renderer.setEffects`, in order): `ssao.js` ambient
+  * the effects chain (`renderer.setEffects`, in order): the particles of
+    `effects.js` drawn into the scene's buffer with its depth · `ssao.js` ambient
     occlusion at half resolution · `ssr.js` reflections in the wet ground,
     the puddles and the river, at half resolution (a ray marched through the
     depth from each pixel the scene pass marked as mirror-like in its alpha,

@@ -132,7 +132,7 @@ async function boot() {
     time: 0, lightning: 0, godMode: GOD,
     stats: freshStats(),
   };
-  G.effects = createEffects({ fog: fogUniforms });
+  G.effects = createEffects({ fog: fogUniforms, camera, wet: shared.wet });
   scene.add(G.effects.group);
   G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
   const sky = createSky({ fog: LEVEL.fog.color });
@@ -227,8 +227,11 @@ function applyGraphics() {
     const refl = quality.volumetric && quality.ssr;
     volumetric.setAO(ao ? ssao : null);
     volumetric.setSSR(refl ? ssr : null);
-    // depth of field borrows the scene depth the light-in-the-rain pass reads, so it needs that pass
-    renderer.setEffects([...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    // the particles go into the scene's buffer first (with the light in the rain, which lays
+    // its glow over them; without it they are drawn with the scene); the depth of field
+    // borrows the scene depth the light-in-the-rain pass reads, so it needs that pass
+    G.effects.usePass(!!quality.volumetric, scene);
+    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
   if (G?.rig) { G.rig.baseFov = settings.fov; }
@@ -513,6 +516,7 @@ function step() {
     castShadows();
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     dof?.set(volumetric?.uniforms.tDepth.value, state === 'playing' ? G.rig.aimT : 0);
+    G.effects.setLights(G.lights.active, 1 + flash * 0.9);
     G.weather.setLights(G.lights.active);
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);

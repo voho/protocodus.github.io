@@ -5,15 +5,48 @@
    alpha-blended (smoke, dust, debris, water), one additive (fire, flashes,
    sparks, tracers). Particles live in flat typed arrays on the CPU; each
    frame the live ones are packed into the instance attributes. A sprite
-   with a stretch vector is drawn as a streak along it (tracers, sparks). */
+   with a stretch vector is drawn as a streak along it (tracers, sparks,
+   earth thrown up by a blast).
+
+   Smoke, dust and spray are lit (at their corners) by the night's ambient
+   and the same eight lamps, fires and flashes the light pool picked, so the
+   smoke over a burning truck glows from below and a puff of gun smoke
+   flares with the shot. With the effects chain (`pass`, first in it) the
+   sprites are drawn into the scene's own buffer right after the scene and
+   read its depth: each fades out where it meets a wall or the ground
+   instead of cutting a hard line through it, and that fade is their depth
+   test too. The passes after it (occlusion, reflections, the light in the
+   rain) then treat them as part of the scene. Without the chain's light in
+   the rain (low quality) they are drawn with the scene as before. */
 
 import * as THREE from 'three';
 import { rng } from './util.js';
 
 const CELLS = { puff: 0, smoke: 1, flash: 2, spark: 3, chunk: 4, ring: 5, streak: 6, flame: 7 };
 
+/* value noise and its octaves, for the smoke and flame cells */
+function makeNoise(seed) {
+  const R = rng(seed);
+  const perm = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+  const V = Float32Array.from({ length: 256 }, () => R());
+  const h = (x, y) => V[perm[(perm[x & 255] + y) & 255]];
+  const noise = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = h(xi, yi), b = h(xi + 1, yi), c = h(xi, yi + 1), d = h(xi + 1, yi + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  };
+  return (x, y, oct = 5) => {
+    let sum = 0, amp = 0.5, norm = 0;
+    for (let k = 0; k < oct; k++) { sum += noise(x, y) * amp; norm += amp; x *= 2.03; y *= 2.03; amp *= 0.5; }
+    return sum / norm;
+  };
+}
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
 function makeAtlas() {
-  const S = 128;
+  const S = 256;
   const c = document.createElement('canvas');
   c.width = S * 4; c.height = S * 2;
   const g = c.getContext('2d');
@@ -26,17 +59,22 @@ function makeAtlas() {
     gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(x, y, S, S);
   }
-  // 1 lumpy smoke puff
+  // 1 billowing smoke: warped noise inside a lumpy outline, thicker in the middle
   {
     const [x, y] = cell(1);
-    for (let k = 0; k < 18; k++) {
-      const a = R() * Math.PI * 2, r = R() * S * 0.22;
-      const cx = x + S / 2 + Math.cos(a) * r, cy = y + S / 2 + Math.sin(a) * r;
-      const rad = S * (0.14 + R() * 0.16);
-      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
-      gr.addColorStop(0, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = gr; g.fillRect(x, y, S, S);
+    const fbm = makeNoise(5);
+    const img = g.createImageData(S, S);
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const u = i / S - 0.5, v = j / S - 0.5, r = Math.hypot(u, v);
+      const wx = fbm(u * 3 + 1.7, v * 3 + 9.2, 3), wy = fbm(u * 3 + 5.1, v * 3 + 2.3, 3);
+      const n = fbm(u * 4.5 + wx * 1.6, v * 4.5 + wy * 1.6);
+      const edge = 1 - smooth(0.16, 0.48, r + (n - 0.5) * 0.3);
+      const dens = edge * smooth(0.2, 0.7, n * 0.85 + edge * 0.45);
+      const o = (j * S + i) * 4, shade = 175 + 80 * n;
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = shade;
+      img.data[o + 3] = Math.round(255 * dens * 0.9);
     }
+    g.putImageData(img, x, y);
   }
   // 2 flash star
   {
@@ -94,7 +132,7 @@ function makeAtlas() {
     g.fillStyle = gv; g.fillRect(x, y, S, S);
     g.globalCompositeOperation = 'source-over';
   }
-  // 7 flame tongue
+  // 7 flame tongue, broken up by noise (licks, not a blob)
   {
     const [x, y] = cell(7);
     for (let k = 0; k < 10; k++) {
@@ -104,6 +142,14 @@ function makeAtlas() {
       gr.addColorStop(0, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(x, y, S, S);
     }
+    const fbm = makeNoise(11);
+    const img = g.getImageData(x, y, S, S);
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      const n = fbm(i / S * 5, j / S * 2.5 + 3.1);
+      const o = (j * S + i) * 4;
+      img.data[o + 3] = Math.round(img.data[o + 3] * smooth(0.25, 0.65, n + (j / S - 0.5) * 0.35));
+    }
+    g.putImageData(img, x, y);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.NoColorSpace;
@@ -111,14 +157,24 @@ function makeAtlas() {
 }
 
 const VERT = /* glsl */ `
+#define LIGHTS 8
 attribute vec3 aPos;
 attribute vec4 aColor;
 attribute vec4 aMisc;      // size, rotation, cell, unused
 attribute vec3 aStretch;
 uniform float uFogDensity;
+uniform float uLit;        // 1: smoke and dust take the light; 0: fire and flashes make their own
+uniform vec3 uAmbient;
+uniform vec3 uLightPos[LIGHTS];
+uniform vec3 uLightCol[LIGHTS];
+uniform float uLightRange[LIGHTS];
+uniform int uLightCount;
 varying vec2 vUv;
 varying vec4 vColor;
 varying float vFog;
+varying float vDist;       // from the camera (view depth), for the soft edge
+varying float vSoft;       // how deep the soft edge is
+varying vec2 vProj;        // the projection's depth terms, to read the scene depth
 void main() {
   float size = aMisc.x;
   vec3 p = aPos;
@@ -140,22 +196,51 @@ void main() {
   float cellI = aMisc.z;
   vUv = (vec2(mod(cellI, 4.0), 1.0 - floor(cellI / 4.0)) + uv) * vec2(0.25, 0.5);
   vColor = aColor;
+  if (uLit > 0.5) {
+    // the night's light at this corner: the ambient (1 = as the colours were
+    // chosen in the dark) and the lamps, fires and flashes near, falling off
+    // like the scene's point lights, relative to that ambient
+    vec3 light = vec3(0.0);
+    for (int i = 0; i < LIGHTS; i++) {
+      if (i >= uLightCount) break;
+      vec3 L = uLightPos[i] - wp;
+      float d2 = dot(L, L), r = uLightRange[i];
+      float win = clamp(1.0 - d2 * d2 / (r * r * r * r), 0.0, 1.0);
+      light += uLightCol[i] * (win * win / max(d2, 0.3)) * 2.0;
+    }
+    // a blast right beside it lights smoke up to a glow, not to white
+    vColor.rgb *= uAmbient + light * 14.0 / (14.0 + light);
+  }
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   float d = -mv.z;
   vFog = 1.0 - exp(-uFogDensity * uFogDensity * d * d);
+  vDist = d;
+  vSoft = max(size * 0.3, 0.06);
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
   gl_Position = projectionMatrix * mv;
 }`;
 
 const FRAG = /* glsl */ `
-uniform sampler2D tAtlas;
+uniform sampler2D tAtlas, tDepth;
 uniform vec3 uFogColor;
-uniform float uAdditive;
+uniform float uAdditive, uSoft;
+uniform vec2 uScreen;
 varying vec2 vUv;
 varying vec4 vColor;
 varying float vFog;
+varying float vDist;
+varying float vSoft;
+varying vec2 vProj;
 void main() {
   vec4 t = texture2D(tAtlas, vUv);
   float a = t.a * vColor.a;
+  // no sheet of smoke right in the lens
+  a *= smoothstep(0.25, 1.1, vDist);
+  if (uSoft > 0.5) {
+    // fade out where the sprite meets what the scene drew (and behind it: the depth test)
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    a *= clamp((vProj.y / (zd + vProj.x) - vDist) / vSoft, 0.0, 1.0);
+  }
   if (a < 0.003) discard;
   vec3 col = vColor.rgb * t.rgb;
   if (uAdditive > 0.5) {
@@ -165,7 +250,7 @@ void main() {
   }
 }`;
 
-function createSystem(max, atlas, additive, fog) {
+function createSystem(max, atlas, additive, fog, shared) {
   const quad = new THREE.PlaneGeometry(1, 1);
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = quad.index;
@@ -183,7 +268,7 @@ function createSystem(max, atlas, additive, fog) {
   geo.instanceCount = 0;
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
-    uniforms: { tAtlas: { value: atlas }, uFogColor: fog.color, uFogDensity: fog.density, uAdditive: { value: additive ? 1 : 0 } },
+    uniforms: { tAtlas: { value: atlas }, uFogColor: fog.color, uFogDensity: fog.density, uAdditive: { value: additive ? 1 : 0 }, uLit: { value: additive ? 0 : 1 }, ...shared },
     transparent: true, depthWrite: false,
     blending: additive ? THREE.CustomBlending : THREE.NormalBlending,
   });
@@ -291,21 +376,66 @@ const IMPACT = {
   flesh: { dust: '#3d0806', chunk: '#2a0504', n: 0, spark: 0 },
 };
 
-export function createEffects({ fog, seed = 21 }) {
+export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   const R = rng(seed);
   const atlas = makeAtlas();
-  const alpha = createSystem(3000, atlas, false, fog);
-  const add = createSystem(2500, atlas, true, fog);
+  // the light and the scene depth, shared by both systems
+  const shared = {
+    uAmbient: { value: new THREE.Vector3(1, 1, 1) },
+    uLightPos: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
+    uLightCol: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
+    uLightRange: { value: new Array(8).fill(1) },
+    uLightCount: { value: 0 },
+    tDepth: { value: null }, uSoft: { value: 0 }, uScreen: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
+  };
+  const alpha = createSystem(3000, atlas, false, fog, shared);
+  const add = createSystem(2500, atlas, true, fog, shared);
   const group = new THREE.Group();
   group.name = 'effects';
   group.add(alpha.mesh, add.mesh);
   const fires = [];
   let groundFn = null;
 
+  /* The effects-chain pass: the sprites drawn into the scene's buffer (the
+     first pass reads it, with its depth) before anything else in the chain. */
+  const passScene = new THREE.Scene();
+  const pass = {
+    enabled: false, needsSwap: false,
+    setSize(w, h) { shared.uScreen.value.set(1 / w, 1 / h); },
+    render(renderer, writeBuffer, readBuffer) {
+      shared.tDepth.value = readBuffer.depthTexture;
+      shared.uSoft.value = readBuffer.depthTexture ? 1 : 0;
+      const auto = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.setRenderTarget(readBuffer);
+      renderer.render(passScene, camera);
+      renderer.autoClear = auto;
+    },
+  };
+  /* draw in the effects chain (true) or with the scene (false, into `scene`) */
+  function usePass(on, scene) {
+    pass.enabled = on;
+    (on ? passScene : scene).add(group);
+    alpha.mesh.material.depthTest = add.mesh.material.depthTest = !on;
+    if (!on) shared.uSoft.value = 0;
+  }
+  /* this frame's lights ([{x, y, z, color, intensity, range}], lights.js) and the ambient (1 = as chosen) */
+  function setLights(list, ambient = 1) {
+    const n = Math.min(8, list.length);
+    for (let i = 0; i < n; i++) {
+      const l = list[i];
+      shared.uLightPos.value[i].set(l.x, l.y, l.z);
+      shared.uLightCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity / Math.PI / 0.16);
+      shared.uLightRange.value[i] = l.range;
+    }
+    shared.uLightCount.value = n;
+    shared.uAmbient.value.setScalar(ambient);
+  }
+
   function muzzle(x, y, z, dx, dy, dz, power = 1) {
     add.spawn({ x, y, z, life: 0.05, size: 0.32 * power, size1: 0.5 * power, color: C('#ffd08a', 1, 2.4), color1: C('#ff8a30', 0, 1.5), cell: CELLS.flash, rot: R() * 6.28 });
     add.spawn({ x: x + dx * 0.12, y: y + dy * 0.12, z: z + dz * 0.12, vx: dx * 4, vy: dy * 4, vz: dz * 4, life: 0.045, size: 0.18 * power, size1: 0.28 * power, color: C('#fff0c0', 1, 2), color1: C('#ff9040', 0), cell: CELLS.flame, streak: 0.06, rot: 0 });
-    alpha.spawn({ x: x + dx * 0.2, y, z: z + dz * 0.2, vx: dx * 1.2 + (R() - 0.5) * 0.3, vy: 0.4 + dy, vz: dz * 1.2 + (R() - 0.5) * 0.3, life: 0.9, size: 0.12, size1: 0.6, color: C('#9a9a98', 0.22), color1: C('#7a7a78', 0), cell: CELLS.smoke, drag: 2.5, rot: R() * 6, rotV: (R() - 0.5) });
+    alpha.spawn({ x: x + dx * 0.2, y, z: z + dz * 0.2, vx: dx * 1.2 + (R() - 0.5) * 0.3, vy: 0.4 + dy, vz: dz * 1.2 + (R() - 0.5) * 0.3, life: 1.3, size: 0.14, size1: 0.8, color: C('#9a9a98', 0.26), color1: C('#7a7a78', 0), cell: CELLS.smoke, drag: 2.5, rot: R() * 6, rotV: (R() - 0.5) });
   }
 
   function tracer(x, y, z, dx, dy, dz, dist, speed = 320, color = '#ffb070') {
@@ -337,8 +467,17 @@ export function createEffects({ fog, seed = 21 }) {
       add.spawn({
         x, y, z,
         vx: nx * (2 + R() * 4) + (R() - 0.5) * 4, vy: ny * (2 + R() * 3) + R() * 3, vz: nz * (2 + R() * 4) + (R() - 0.5) * 4,
-        life: 0.15 + R() * 0.25, size: 0.025, color: C('#ffc070', 1, 3), color1: C('#ff5010', 0, 2), cell: CELLS.spark, gravity: 9.8, streak: 0.02,
+        life: 0.1 + R() * 0.2, size: 0.016, color: C('#ffc070', 1, 2.4), color1: C('#ff5010', 0, 1.6), cell: CELLS.spark, gravity: 9.8, streak: 0.035,
       });
+    }
+    // wet ground throws up water with the dirt
+    if (ny > 0.6 && wet.value > 0.5 && s.n > 0 && surface !== 'foliage' && surface !== 'flesh') {
+      for (let k = 0; k < 5; k++) {
+        alpha.spawn({
+          x, y: y + 0.03, z, vx: (R() - 0.5) * 1.8 + nx, vy: 1.6 + R() * 2.4, vz: (R() - 0.5) * 1.8 + nz,
+          life: 0.5, size: 0.022, color: C('#aab4ba', 0.75), color1: C('#aab4ba', 0.1), cell: CELLS.spark, gravity: 9.8, streak: 0.012,
+        });
+      }
     }
   }
 
@@ -386,6 +525,29 @@ export function createEffects({ fog, seed = 21 }) {
         life: 2.5 + R() * 2.5, size: 1.2 * scale, size1: (4 + R() * 3) * scale,
         color: water ? C('#b8c0c4', 0.6) : C('#3a3430', 0.75), color1: water ? C('#9aa2a6', 0) : C('#2a2826', 0),
         cell: CELLS.smoke, drag: 1.8, gravity: -0.25, rot: R() * 6, rotV: (R() - 0.5) * 0.6, fadeIn: 0.1,
+      });
+    }
+    // the column of earth (or water) the blast throws up, falling back:
+    // clods and spray stretched along their flight, fanning out a little
+    for (let k = 0; k < 16; k++) {
+      const a = R() * 6.28, r = R() * 0.4, out = 0.3 + R() * 1.4;
+      alpha.spawn({
+        x: x + Math.cos(a) * r, y: y + 0.15 + R() * 0.6, z: z + Math.sin(a) * r,
+        vx: Math.cos(a) * out * scale, vy: (6 + R() * 9) * scale, vz: Math.sin(a) * out * scale,
+        life: 1.0 + R() * 0.7, size: (0.25 + R() * 0.2) * scale, size1: (0.8 + R() * 0.5) * scale,
+        color: water ? C('#c4ccd0', 0.75) : C('#3b2e22', 0.8), color1: water ? C('#b0b8bc', 0) : C('#433629', 0),
+        cell: CELLS.smoke, gravity: 9.8, drag: 0.5, streak: 0.075, fadeIn: 0.02,
+      });
+    }
+    // dust (or spray) rolling out along the ground
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * 6.28 + R() * 0.3;
+      alpha.spawn({
+        x: x + Math.cos(a) * 0.6, y: y + 0.3, z: z + Math.sin(a) * 0.6,
+        vx: Math.cos(a) * (6 + R() * 5) * scale, vy: 0.3 + R() * 0.6, vz: Math.sin(a) * (6 + R() * 5) * scale,
+        life: 1.8 + R() * 1.4, size: 0.8 * scale, size1: (3 + R() * 2) * scale,
+        color: water ? C('#c0c8cc', 0.5) : C('#4a4236', 0.55), color1: water ? C('#a8b0b4', 0) : C('#3a342c', 0),
+        cell: CELLS.smoke, drag: 3.2, rot: R() * 6, rotV: (R() - 0.5) * 0.8, fadeIn: 0.05,
       });
     }
     for (let k = 0; k < 26; k++) {
@@ -463,6 +625,7 @@ export function createEffects({ fog, seed = 21 }) {
 
   return {
     group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, update, fires,
+    pass, usePass, setLights,
     setGround(fn) { groundFn = fn; },
     get count() { return alpha.P.n + add.P.n; },
   };
