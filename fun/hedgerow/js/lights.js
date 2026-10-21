@@ -9,7 +9,8 @@
 
    One more light casts shadows (two on high quality): each frame it takes the strongest
    outdoor lamp, lantern or fire near the camera (statics marked `shadow`; the second
-   light the next strongest, a few metres from the first), so the
+   light the next strongest, a few metres from the first, unless a muzzle's or a blast's
+   flash near the eye outshines it, which takes it for its few frames), so the
    houses, props and soldiers near it throw shadows that swing with a
    fire's flicker: a fire's light wanders a little with its flames (wander()),
    higher as it flares up, so the shadows round it dance. It always exists and always casts (a change in the
@@ -75,7 +76,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
      every view ray with glow, so by default the wet air takes only a quarter of it */
   function flash(x, y, z, color = '#ffb060', intensity = 30, range = 14, life = 0.06, fog = 0.25) {
     if (flashes.length > 12) flashes.shift();
-    flashes.push({ x, y, z, color: new THREE.Color(color), intensity, range, life, age: 0, fog });
+    flashes.push({ x, y, z, color: new THREE.Color(color), intensity, range, life, age: 0, fog, flash: true, now: intensity, fogNow: fog });
   }
 
   const cand = [];
@@ -118,12 +119,38 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       else if (sc > best2) { best2 = sc; shadowOf2 = s; }
     }
     if (shadowOf2 && (!shadowLight2 || (shadowOf2.x - shadowOf.x) ** 2 + (shadowOf2.z - shadowOf.z) ** 2 < 16)) shadowOf2 = null;
+    // the flashes: how bright each is now
+    for (let i = flashes.length - 1; i >= 0; i--) {
+      const f = flashes[i];
+      f.age += dt;
+      if (f.age >= f.life) { flashes.splice(i, 1); continue; }
+      // a flash dies fast, then lingers a little
+      f.now = f.intensity * (1 - f.age / f.life) ** 2;
+      // one at the eye (the player's own muzzle) would lay its glow in the rain over the whole view
+      // for as long as it is held (frames; a real flash is over in a millisecond): near the eye
+      // little of that glow is kept
+      const dc = Math.hypot(f.x - cam.x, f.y - cam.y, f.z - cam.z);
+      const near = Math.min(1, Math.max(0, (dc - 1.5) / 2.5));
+      f.fogNow = f.fog * (0.15 + 0.85 * near * near * (3 - 2 * near));
+    }
+    // a muzzle's or a blast's flash near the eye that outshines the second lamp takes its shadow light
+    // for its few frames: what stands round a gun firing or a grenade going off throws a shadow from it
+    if (shadowLight2) {
+      let fl = null, bf = 0;
+      for (const f of flashes) {
+        const d2 = (f.x - cam.x) ** 2 + (f.y - cam.y) ** 2 + (f.z - cam.z) ** 2;
+        if (d2 > 40 * 40) continue;
+        const sc = f.now * f.range / (1 + d2);
+        if (sc > bf) { bf = sc; fl = f; }
+      }
+      if (fl && (!shadowOf2 || bf > best2 * 0.5)) { shadowOf2 = fl; best2 = bf; }
+    }
     const place = (l, s) => {
       if (!l) return;
       if (s) {
-        l.position.copy(wander(s, wp));
+        if (s.flash) { l.position.set(s.x, s.y, s.z); l.intensity = s.now; }
+        else { l.position.copy(wander(s, wp)); l.intensity = flick(s); }
         l.color.copy(s.color);
-        l.intensity = flick(s);
         l.distance = s.range;
         if (l.shadow.camera.far !== s.range) { l.shadow.camera.far = s.range; l.shadow.camera.updateProjectionMatrix(); }
       } else {
@@ -135,18 +162,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     place(shadowLight2, shadowOf2);
 
     cand.length = 0;
-    for (let i = flashes.length - 1; i >= 0; i--) {
-      const f = flashes[i];
-      f.age += dt;
-      if (f.age >= f.life) { flashes.splice(i, 1); continue; }
-      // a flash dies fast, then lingers a little
-      const k = (1 - f.age / f.life) ** 2;
-      // one at the eye (the player's own muzzle) would lay its glow in the rain over the whole view
-      // for as long as it is held (frames; a real flash is over in a millisecond): near the eye
-      // little of that glow is kept
-      const dc = Math.hypot(f.x - cam.x, f.y - cam.y, f.z - cam.z);
-      const near = Math.min(1, Math.max(0, (dc - 1.5) / 2.5));
-      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.intensity * k, range: f.range, score: 1e9, fog: f.fog * (0.15 + 0.85 * near * near * (3 - 2 * near)) });
+    for (const f of flashes) {
+      if (f === shadowOf2) continue;
+      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.now, range: f.range, score: 1e9, fog: f.fogNow });
     }
     for (const s of statics) {
       if (!s.on || s === shadowOf || s === shadowOf2) continue;
@@ -160,7 +178,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
     if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best });
-    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2 });
+    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2, fog: shadowOf2.flash ? shadowOf2.fogNow : undefined });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
     // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
     let ci = 0;
