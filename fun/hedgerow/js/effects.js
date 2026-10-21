@@ -497,8 +497,46 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     add.spawn({ x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, life, size: 0.045, color: C(color, 1, 3), color1: C(color, 0.8, 2), cell: CELLS.streak, streak: 0.012 });
   }
 
+  /* a bullet through a hedge or a bush: leaves shredded out of it that flutter down on the air
+     (falling slowly, eddying, carried downwind, turning over), a twig or two, and in the rain the
+     water shaken off the leaves */
+  const LEAVES = ['#3d4a26', '#4c5a2b', '#2f3b1f', '#5d6435', '#6b6a3a', '#45512a'];
+  function leaves(x, y, z, nx, ny, nz, dx, dy, dz) {
+    alpha.spawn({
+      x: x + nx * 0.05, y: y + ny * 0.05, z: z + nz * 0.05, vx: nx * 0.6 + dx * 0.4, vy: 0.2, vz: nz * 0.6 + dz * 0.4,
+      life: 0.6, size: 0.12, size1: 0.5, color: C('#2d3a22', 0.4), color1: C('#2d3a22', 0), cell: CELLS.smoke, drag: 3.5, rot: R() * 6, rotV: R() - 0.5,
+    });
+    // fewer as the sprites fill up (a machine gun raking a hedge must not crowd out a blast's smoke)
+    const room = Math.max(0, 1 - alpha.P.n / (alpha.P.max * 0.6));
+    for (let k = 0, n = Math.round((16 + R() * 9) * room); k < n; k++) {
+      const sp = 1 + R() * 2.6, col = LEAVES[Math.floor(R() * LEAVES.length)];
+      alpha.spawn({
+        x: x + (R() - 0.5) * 0.3, y: y + (R() - 0.3) * 0.35, z: z + (R() - 0.5) * 0.3,
+        vx: nx * sp + dx * sp * 0.5 + (R() - 0.5) * 1.6, vy: ny * sp + R() * 1.6, vz: nz * sp + dz * sp * 0.5 + (R() - 0.5) * 1.6,
+        life: 2.2 + R() * 1.6, size: 0.035 + R() * 0.045, color: C(col, 1), color1: C(col, 0.45), cell: CELLS.chunk,
+        gravity: 1.4, drag: 2.4, swirl: 3.5, ride: 0.5, rot: R() * 6, rotV: (R() - 0.5) * 18,
+      });
+    }
+    for (let k = 0; k < 2; k++) {
+      alpha.spawn({
+        x, y, z, vx: nx * (1 + R() * 2) + (R() - 0.5) * 1.5, vy: ny * 1.5 + R() * 2, vz: nz * (1 + R() * 2) + (R() - 0.5) * 1.5,
+        life: 0.8, size: 0.03, color: C('#2e2416', 1), color1: C('#2e2416', 0.9), cell: CELLS.streak, gravity: 9.8, rot: R() * 6, rotV: (R() - 0.5) * 25,
+      });
+    }
+    if (wet.value > 0.5) {
+      for (let k = 0; k < 8; k++) {
+        alpha.spawn({
+          x: x + (R() - 0.5) * 0.3, y: y + (R() - 0.2) * 0.3, z: z + (R() - 0.5) * 0.3,
+          vx: nx * (0.6 + R() * 1.6) + (R() - 0.5) * 1.6, vy: R() * 1.8, vz: nz * (0.6 + R() * 1.6) + (R() - 0.5) * 1.6,
+          life: 0.5, size: 0.016, color: C('#aab4ba', 0.7), color1: C('#aab4ba', 0.1), cell: CELLS.spark, gravity: 9.8, streak: 0.012,
+        });
+      }
+    }
+  }
+
   function impact(x, y, z, nx, ny, nz, surface = 'stone', dx = 0, dy = 0, dz = 0) {
     if (surface === 'water') return splash(x, y, z, 1);
+    if (surface === 'foliage') return leaves(x, y, z, nx, ny, nz, dx, dy, dz);
     const s = IMPACT[surface] || IMPACT.stone;
     // dust puff pushed out of the surface
     for (let k = 0; k < 2; k++) {
