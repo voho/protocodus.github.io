@@ -257,6 +257,8 @@ export function createMaterialLibrary(textures, shared) {
       const bk = !cards && BARK.find(([re]) => re.test(src.name || ''));
       addWeather(m, shared, {
         porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
+        // the ground cover's atlas (ferns, tussocks, nettles, weeds, reeds, ivy)
+        cover: cards && src.name === 'nat_ground',
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
         streaks: !cards && !CARRIED.test(src.name || ''),
         rooms: !!src.userData?.rooms,
@@ -283,10 +285,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -308,6 +310,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec3 vWPosM;
         ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}
         ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}
+        ${foliage ? 'varying float vFolTint;' : ''}
         ${sway ? GUST_GLSL : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
@@ -352,6 +355,14 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           #endif
           vWPosM = (modelMatrix * wp).xyz;
           ${rooms ? 'vWin = aWin;' : ''}
+          ${foliage ? `{
+            // a plant's or a tree's own hue, from where it stands (the same at every distance's model)
+            vec3 at = modelMatrix[3].xyz;
+            #ifdef USE_INSTANCING
+              at += instanceMatrix[3].xyz;
+            #endif
+            vFolTint = fract(sin(dot(floor(at.xz * 4.0), vec2(12.9898, 78.233))) * 43758.5453);
+          }` : ''}
           ${bark ? `// the bark detail in the tree's own space (it stays on the bark), shifted per tree
           vBarkP = position;
           #ifdef USE_INSTANCING
@@ -657,6 +668,14 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // baked occlusion (the inside of a crown is dark) and by the light's own
       // shadow where it has one
       shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\n        varying float vFolTint;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        // each plant and tree a little its own: darker and bluer or paler and yellower, one in ten turning
+        diffuseColor.rgb *= mix(vec3(0.82, 0.88, 0.86), vec3(1.1, 1.06, 0.84), fract(vFolTint * 7.13));
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.12, 0.86, 0.52), smoothstep(0.88, 0.97, vFolTint) * 0.7);
+        ${cover ? `// the undergrowth duller and darker than its atlas, which is painted for daylight: a fern
+        // under the trees at dusk is not the brightest green in the wood
+        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82) * 0.93;` : ''}`)
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
         uniform float uLeafTrans;
         float leafThin = 1.0;          // how thin the foliage is here (its baked occlusion, squared)
@@ -675,7 +694,9 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         #endif
         #include <lights_fragment_begin>`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-        reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12;`)
+        // light from the sky through the leaves round it: as much as the foliage is thin there (not
+        // in a crown's dark heart, nor in a fern or a tussock low in its own shade)
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12 * leafThin;`)
         .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
     }
     if (!glints) dimFillSpecular(shader);
