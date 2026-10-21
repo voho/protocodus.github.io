@@ -170,6 +170,9 @@ by the blast that killed them, and drop their rifles.
     light wrapping past the shadow's edge, reddest; the hands on the rifle
     included), and their wool, found by its baked roughness, darkening in
     the rain but never glossy, with a fabric's sheen at grazing angles;
+    within 3 m (your own arms round the rifle, a man at arm's length) the
+    weave of that wool and the grain of the skin, laid on in the model's
+    own bind-pose space so they move with him;
     round a fire, the charred
     wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
     metal a dull red with the heat) · `rooms.js` the rooms

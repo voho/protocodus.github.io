@@ -127,7 +127,7 @@ export function updateSmoulder(fires, cam) {
    whose wool (found by its baked roughness and metalness) has a fabric's sheen */
 const SKIN = /^(allied|axis)$/;
 /* how much of each, and a debug view of what is taken for which (1 skin red, 2 cloth green) */
-export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinDebug: { value: 0 } };
+export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinDebug: { value: 0 }, uCloseUp: { value: 1 }, tFabric: { value: null } };
 
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
@@ -200,6 +200,7 @@ function grainTexture(S = 512) {
 export function createMaterialLibrary(textures, shared) {
   const cache = new Map();
   GRAIN_UNIFORMS.tGrain.value ??= grainTexture();
+  SKIN_UNIFORMS.tFabric.value = textures.fabric;
 
   function get(key, opts = {}) {
     const id = key + (opts.variant ? ':' + opts.variant : '');
@@ -295,7 +296,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(rooms ? ROOM_UNIFORMS : {}),
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
       ...(smoulder ? SMOULDER_UNIFORMS : {}),
-      ...(skin ? SKIN_UNIFORMS : {}),
+      ...(skin ? { ...SKIN_UNIFORMS, tGrain: GRAIN_UNIFORMS.tGrain } : {}),
       ...(grain ? GRAIN_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
@@ -476,6 +477,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
         #endif`);
     if (skin) {
+      // where each point of him is in his own (bind-pose) space, for the close-up detail: it stays
+      // on the cloth and the skin however he moves
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\n        varying vec3 vSkP, vSkN;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n        vSkP = position; vSkN = normal;');
       // skin, found in the soldier's atlas by its colour (warm, middling saturation, light enough:
       // not the leather, the hair or the khaki), scatters light under its surface: the light
       // wraps round past the terminator, reddest, and thin parts lit from behind glow red.
@@ -484,8 +490,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // the light at grazing angles along its folds and its silhouette (Charlie, as three's)
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
-        uniform float uSkin, uCloth, uSkinDebug;
-        float skinK = 0.0, clothK = 0.0;
+        uniform float uSkin, uCloth, uSkinDebug, uCloseUp;
+        uniform sampler2D tFabric, tGrain;
+        varying vec3 vSkP, vSkN;
+        float skinK = 0.0, clothK = 0.0, skK = 0.0;
+        vec3 skW = vec3(0.0);
+        const vec4 SK_FLAT = vec4(0.5, 0.5, 1.0, 0.5);
+        vec4 skX = SK_FLAT, skY = SK_FLAT, skZ = SK_FLAT;
         vec3 clothSheen = vec3(0.0);
         void RE_Direct_Skin(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
             const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
@@ -530,13 +541,37 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           #endif
           clothK = smoothstep(0.72, 0.82, roughnessFactor) * (1.0 - smoothstep(0.02, 0.06, mtl)) * (1.0 - skinK) * uCloth;
           clothSheen = mix(diffuseColor.rgb, vec3(0.5), 0.35) * 0.9;
+        }
+        // close up (the arms round the rifle, a man at arm's length; the atlas is stretched over the
+        // whole of him): the weave of the wool, ~2.5 mm, and the fine grain of the skin, from the
+        // three sides of his own space blended by which way the surface faces; gone by 3 m
+        skK = uCloseUp * (1.0 - smoothstep(1.2, 3.0, length(vViewPosition))) * max(clothK, skinK);
+        if (skK > 0.01) {
+          skW = pow(abs(normalize(vSkN)), vec3(4.0));
+          skW /= dot(skW, vec3(1.0));
+          vec3 pf = vSkP / 0.12, pg = vSkP / 0.15;
+          float wool = step(skinK, clothK);
+          skX = mix(texture2D(tGrain, pg.zy), texture2D(tFabric, pf.zy), wool);
+          skY = mix(texture2D(tGrain, pg.xz), texture2D(tFabric, pf.xz), wool);
+          skZ = mix(texture2D(tGrain, pg.xy), texture2D(tFabric, pf.xy), wool);
+          float d = skX.a * skW.x + skY.a * skW.y + skZ.a * skW.z;
+          diffuseColor.rgb *= mix(1.0, mix(0.7 + 0.6 * d, 0.45 + 1.1 * d, wool), skK);
         }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);
         if (uSkinDebug > 1.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0, 4.0, 0.0), clothK);`)
         // wet wool darkens but does not turn glossy
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-        roughnessFactor = max(roughnessFactor, 0.72 * clothK);`);
+        roughnessFactor = max(roughnessFactor, 0.72 * clothK);`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        if (skK > 0.01) {
+          // each side's relief turned onto the surface by its coordinates' frame on the screen
+          float k = skK * mix(0.45, 1.3, step(skinK, clothK));
+          vec3 nX = cotangentFrame(normal, -vViewPosition, vSkP.zy) * normalize(vec3((skX.xy * 2.0 - 1.0) * k, 1.0));
+          vec3 nY = cotangentFrame(normal, -vViewPosition, vSkP.xz) * normalize(vec3((skY.xy * 2.0 - 1.0) * k, 1.0));
+          vec3 nZ = cotangentFrame(normal, -vViewPosition, vSkP.xy) * normalize(vec3((skZ.xy * 2.0 - 1.0) * k, 1.0));
+          normal = normalize(nX * skW.x + nY * skW.y + nZ * skW.z);
+        }`);
     }
     if (smoulder) {
       // round its fire, the charred wood and metal smoulders: glowing cracks in what is darkest,
