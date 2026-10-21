@@ -282,7 +282,8 @@ void main() {
   a *= (1.0 - smoothstep(0.09, 0.17, t)) * (1.0 - smoothstep(4.0, 9.0, vDist));
   if (a < 0.01) discard;
   vec3 lit = vLit + uSky;
-  gl_FragColor = vec4(uColor * (0.55 + uFlash * 3.0) + lit * 2.4, min(a * uOpacity, 0.8));
+  // seen by the light they catch: hardly in the dark, glinting by a lamp, a fire or a flare
+  gl_FragColor = vec4(uColor * (0.22 + uFlash * 3.0) + lit * 2.4, min(a * uOpacity * (0.45 + min(dot(lit, vec3(0.33)) * 2.0, 0.55) + uFlash), 0.8));
 }`;
 
 const SPLASH_VERT = /* glsl */ `
