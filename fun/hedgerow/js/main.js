@@ -151,6 +151,7 @@ async function boot() {
   G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
   const sky = createSky({ fog: LEVEL.fog.color });
   scene.add(sky.mesh);
+  sky.setFires(G.effects.fires);
   G.sky = sky;
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);

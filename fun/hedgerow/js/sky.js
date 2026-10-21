@@ -1,6 +1,7 @@
 /* Hedgerow — the dusk sky: a dome with layered rain clouds drifting with
    the wind, a last orange glow low in the west, and lightning that lights
-   the clouds from inside. The colour at the horizon is the fog colour, so
+   the clouds from inside; burning farms light the cloud base over them,
+   and the far barrage's flashes catch it. The colour at the horizon is the fog colour, so
    the land fades into the sky. Far beyond the trees, the front: three
    searchlights sweeping the cloud base, each a pale beam from the horizon
    to a pool of light on the cloud, and two flak guns sending streams of
@@ -27,6 +28,8 @@ uniform vec3 uArtyDir;
 uniform float uFlare;
 uniform vec3 uFlareDir;
 uniform float uFront;
+uniform vec3 uCam;
+uniform vec4 uFires[6];
 varying vec3 vDir;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -101,15 +104,37 @@ void main() {
   float g = max(dot(normalize(vec3(d.x, 0.0, d.z)), uGlowDir), 0.0);
   float band = exp(-max(el, 0.0) * 9.0) * pow(g, 3.0);
   col += uGlow * band * 0.9;
-  // cloud deck projected on a plane
+  // cloud deck projected on a plane (uv: where the view meets it, in units of its height
+  // over the eye), rolled and billowed by noise warped by itself, slowly churning
   vec2 uv = d.xz / (max(el, 0.0) + 0.12);
   vec2 drift = uWind * uTime * 0.004;
-  float c1 = fbm(uv * 0.55 + drift);
-  float c2 = fbm(uv * 1.3 - drift * 1.7 + 4.0);
-  float cloud = smoothstep(0.35, 0.8, c1 * 0.7 + c2 * 0.45);
+  vec2 q = uv * 0.55 + drift;
+  vec2 w = vec2(fbm(q * 0.8 + vec2(3.1, 1.7) + uTime * 0.003), fbm(q * 0.8 + vec2(-2.3, 5.9) - uTime * 0.002)) - 0.5;
+  float c1 = fbm(q + w * 1.6);
+  float c2 = fbm(uv * 1.3 - drift * 1.7 + 4.0 + w * 0.8);
+  float dens = c1 * 0.7 + c2 * 0.45;
+  float cloud = smoothstep(0.35, 0.8, dens);
+  float belly = smoothstep(0.5, 0.95, dens);
   vec3 dark = uZenith * 0.55;
   vec3 lit = mix(uHorizon * 1.15, uGlow * 0.6 + uHorizon * 0.7, band * 1.5);
-  col = mix(col, mix(dark, lit, c2), cloud * smoothstep(0.06, 0.4, el));
+  float deck = smoothstep(0.06, 0.4, el);
+  // the gaps show the darker sky above the deck; the bellies hang lower and catch more light
+  col = mix(col * mix(1.0, 0.6, deck), mix(dark, lit * 1.3, c2 * 0.55 + belly * 0.45), cloud * deck);
+  // the burning farms light the cloud base over them (taken 320 m up), the thick bellies
+  // most, flickering with the flames
+  vec2 P = uCam.xz + uv * 320.0;
+  float fire = 0.0;
+  for (int i = 0; i < 6; i++) {
+    vec4 f = uFires[i];
+    if (f.z <= 0.0) continue;
+    vec2 dp = P - f.xy;
+    float r2 = dot(dp, dp) + 102400.0;
+    fire += f.z * (0.8 + 0.2 * sin(uTime * 6.3 + f.w) * sin(uTime * 2.9 + f.w * 1.7)) * 320.0 / (r2 * sqrt(r2));
+  }
+  col += vec3(1.0, 0.42, 0.14) * fire * 4500.0 * cloud * (0.35 + 0.65 * belly) * smoothstep(0.02, 0.2, el);
+  // the far barrage's flashes catch the cloud over the horizon
+  float ad0 = max(dot(normalize(vec3(d.x, 0.0, d.z)), uArtyDir), 0.0);
+  col += vec3(1.0, 0.6, 0.3) * uArty * pow(ad0, 5.0) * exp(-max(el, 0.0) * 4.0) * cloud * 0.12;
   // lightning: a bright patch inside the clouds plus a general lift
   float fd = max(dot(d, uFlashDir), 0.0);
   col += vec3(0.75, 0.8, 1.0) * uFlash * (0.25 + 1.6 * pow(fd, 6.0) * (0.4 + cloud));
@@ -144,7 +169,10 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
     uFlare: { value: 0 },
     uFlareDir: { value: new THREE.Vector3(0, 0.6, 0.8) },
     uFront: { value: 1 },
+    uCam: { value: new THREE.Vector3() },
+    uFires: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
   };
+  let fires = null;
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, uniforms,
     side: THREE.BackSide, depthWrite: false, fog: false,
@@ -152,11 +180,20 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), mat);
   mesh.name = 'sky';
   mesh.frustumCulled = false;
-  mesh.renderOrder = -10;
+  // last of the opaque things (everything blended is drawn after it): the depth test leaves
+  // only the sky that shows to be shaded
+  mesh.renderOrder = 1000;
   return {
     mesh, uniforms,
+    /* the fires whose glow the cloud carries (effects.js addFire records: x, z, size, on) */
+    setFires(list) { fires = list; },
     update(dt, time, camera, flash, flashDir) {
       mesh.position.copy(camera.position);
+      uniforms.uCam.value.copy(camera.position);
+      if (fires) uniforms.uFires.value.forEach((v, i) => {
+        const f = fires[i];
+        v.set(f?.x || 0, f?.z || 0, f && f.on !== false ? f.size : 0, i * 2.3);
+      });
       uniforms.uTime.value = time;
       uniforms.uFlash.value = flash;
       if (flashDir) uniforms.uFlashDir.value.copy(flashDir);

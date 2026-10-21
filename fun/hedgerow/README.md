@@ -36,8 +36,9 @@ above the waterline with a thin broken line of scum where the water laps
 them and the water browner in the shallows of the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track — rain lit by lamps and
-fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
-artillery flashes and burning farms beyond the hedges, searchlights sweeping
+fires, halos in the wet air, low mist, bullet holes and scorch marks, a low
+cloud deck rolling overhead, its bellies lit orange from below over the
+burning farms and caught by the flashes of a distant barrage, searchlights sweeping
 the cloud over the front and flak tracer going up into it, and every half minute
 or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
@@ -141,7 +142,9 @@ by the blast that killed them, and drop their rifles.
     ray on through the glass into a box with a table and a cupboard lit by
     a lamp that throws their shadows (interior mapping), each room drawn
     from its own seed; the curtains drawn back in front glow less ·
-    `sky.js`, `weather.js`
+    `sky.js` (the cloud deck: rolls and billows of noise warped by itself,
+    the fires' light on its base falling off with distance; drawn after
+    the solid scene, so only the sky that shows is shaded), `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground, its 80 m shadow
