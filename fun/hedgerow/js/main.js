@@ -32,7 +32,7 @@ import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
-import { formatTime, clamp, lerp, rng } from './util.js';
+import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import LEVEL from './levels/saint-clair.js';
 
 const params = new URLSearchParams(location.search);
@@ -546,7 +546,9 @@ function step() {
       grade.uniforms.uHurt.value = player && player.alive ? clamp((0.6 - hp) * 1.8, 0, 1) : player ? lerp(0.8, 0.25, clamp((since - 0.6) / 0.8, 0, 1)) : 0;
     }
   }
-  built.veg.update(dt, camera, quality);
+  // aiming in brings things nearer: detail follows how big they look, not how far they are
+  G.lodScale = fovScale(camera.fov, G.rig?.baseFov ?? camera.fov);
+  built.veg.update(dt, camera, quality, G.lodScale);
   G.grass.update(camera, player?.pos, renderer.domElement.height);
   G.clutter.update(camera);
   hud.update(dt);

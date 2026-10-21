@@ -1112,7 +1112,7 @@ export function createEnemies(G, defs) {
       // drawn only when in view and inside the fog; the low-detail mesh from LOD_FAR
       e.inView = dCam < 220 && inView(e);
       e.char.root.visible = e.inView;
-      e.char.setDistance(Math.hypot(e.pos.x - cam.x, e.pos.y - cam.y, e.pos.z - cam.z));
+      e.char.setDistance(Math.hypot(e.pos.x - cam.x, e.pos.y - cam.y, e.pos.z - cam.z) * (G.lodScale ?? 1));
       if (e.dead) {
         // a falling body keeps falling out of view; it comes to rest in seconds
         if (dCam < 220 && (e.inView || (e.char.ragdoll && !e.char.ragdoll.asleep))) e.char.update(dt, e.fixedY ?? G.world.groundAt(e.pos.x, e.pos.z, e.pos.y + 0.2));

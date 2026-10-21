@@ -86,7 +86,9 @@ by the blast that killed them, and drop their rifles.
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
-    set has one, the `_lod` impostor beyond the quality's near range
+    set has one, the `_lod` impostor beyond the quality's near range (those
+    distances, and the soldiers' 30 m, as they look through the view: down
+    the sights they reach 1.4 times further)
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low
@@ -171,7 +173,9 @@ by the blast that killed them, and drop their rifles.
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
   in the ground and leave the far village in sight;
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
-  (with a gap so they don't flicker), trees sort into full, mid and far;
+  (with a gap so they don't flicker), trees sort into full, mid and far,
+  and down the sights detail reaches as far as the narrower view makes
+  things look near;
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the

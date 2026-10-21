@@ -2,6 +2,11 @@
 
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
+/* How much bigger things look through a view of `fov` degrees than through
+   `baseFov` (both vertical): distances seen through it are as distances
+   times this at the base view. Aiming in (smaller fov) gives less than 1. */
+export const fovScale = (fov, baseFov) => Math.tan((fov * Math.PI) / 360) / Math.tan((baseFov * Math.PI) / 360);
+
 export const smoothstep = (a, b, x) => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
