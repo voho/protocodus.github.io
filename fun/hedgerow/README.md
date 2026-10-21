@@ -203,6 +203,8 @@ by the blast that killed them, and drop their rifles.
     rain's own crown shader with the moment worked out from the same
     schedule), `weather.js`
     (rain: near streaks a drop wide but never under a pixel and a half,
+    faint out in the dark and glittering by a lamp, a fire, a flare or the
+    lightning,
     and beyond them, out to ~60 m, sheets of rain worked out per pixel on
     four cylinders round the eye in one full-screen draw, hidden behind the
     scene by its depth, lit by the lamps near them and by a burning flare;

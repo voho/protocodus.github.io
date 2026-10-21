@@ -113,7 +113,7 @@ void main() {
 
 const RAIN_FRAG = /* glsl */ `
 uniform vec3 uColor, uSky;
-uniform float uOpacity, uFlash, uSoft;
+uniform float uOpacity, uFlash, uSoft, uUnlit;
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 varying float vAlpha;
@@ -131,7 +131,9 @@ void main() {
   float tail = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
   vec3 lit = vLit + uSky;
   float boost = min(dot(lit, vec3(0.33)), 4.0);
-  float a = edge * tail * vAlpha * uOpacity * (1.0 + boost * 1.5);
+  // seen by the light they catch: a drop out in the dark (it shows the dark sky) hardly at all,
+  // glittering by a lamp, a fire or a flare
+  float a = edge * tail * vAlpha * uOpacity * (uUnlit + uFlash + boost * 1.5);
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
 }`;
 
@@ -345,6 +347,7 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
     uWidth: { value: 0.006 },
     uColor: { value: new THREE.Color('#9aa4ad') },
     uOpacity: { value: 0.2 },
+    uUnlit: { value: 0.45 },
     uFlash: { value: 0 },
     uLightPos: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0, -1000, 0)) },
     uLightCol: { value: Array.from({ length: 6 }, () => new THREE.Vector3()) },
