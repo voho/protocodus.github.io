@@ -7,9 +7,12 @@
    metres rising through a column that widens and thins as it goes, dark
    grey against the glowing cloud, lit orange from below by its fire and
    bright grey by a burning flare or lightning, fading into the haze with
-   distance. Drawn with the late particles (effects.js), hidden behind what
-   stands in front and soft where it meets it; without the effects chain
-   it is drawn with the scene. */
+   distance. Drawn in the effects chain's first pass with the particles
+   (effects.js), hidden behind what stands in front and soft where it meets
+   it, before the light in the rain (volumetric.js) lays the glow of lamps,
+   fires and muzzle flashes over the frame: that glow hangs in the air in
+   front of the smoke, so the smoke must not cover it. Without the effects
+   chain it is drawn with the scene. */
 
 import * as THREE from 'three';
 
@@ -81,7 +84,7 @@ void main() {
   col = mix(col, uFogColor * 0.6, fog * 0.85);
   // (and gone right at the eye, where the ribbon would show as a flat sheet)
   float a = dens * 0.9 * (1.0 - fog * 0.5) * smoothstep(3.0, 10.0, vDist);
-  // drawn over the finished frame: hidden behind what is in front, soft where it meets it
+  // drawn over the scene in the chain: hidden behind what is in front, soft where it meets it
   if (uSoft > 0.5) {
     float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
     a *= clamp((vProj.y / (zd + vProj.x) - vDist) / 3.0, 0.0, 1.0);
@@ -124,12 +127,12 @@ export function createPlumes(effects, { fog }) {
 
   return {
     mesh,
-    /* drawn after the frame in this scene (the late pass, hidden behind the scene by its
+    /* drawn in this scene (the effects chain's first pass, hidden behind the scene by its
        depth: depth = {tDepth, uScreen, uSoft} uniforms that pass keeps), or with the scene */
-    drawLate(lateScene, scene, depth = null) {
-      (lateScene || scene).add(mesh);
-      mat.depthTest = !lateScene;
-      const d = lateScene && depth ? depth : own;
+    drawIn(passScene, scene, depth = null) {
+      (passScene || scene).add(mesh);
+      mat.depthTest = !passScene;
+      const d = passScene && depth ? depth : own;
       uniforms.tDepth = d.tDepth; uniforms.uScreen = d.uScreen; uniforms.uSoft = d.uSoft;
       mat.needsUpdate = true;
     },

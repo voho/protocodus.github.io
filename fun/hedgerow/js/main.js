@@ -185,7 +185,7 @@ async function boot() {
   G.flames.drawLate(null, scene);
   // and their smoke climbing into the sky (plumes.js)
   G.plumes = createPlumes(G.effects, { fog: fogUniforms });
-  G.plumes.drawLate(null, scene);
+  G.plumes.drawIn(null, scene);
   // and the blasts' fireballs (fireball.js)
   G.fireballs = createFireballs(G.effects);
   G.fireballs.drawLate(null, scene);
@@ -299,7 +299,9 @@ function applyGraphics() {
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
-    G.plumes.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    // the smoke over the fires goes in with the particles, before the glow of the lights in the
+    // air is laid on (it hangs in front of the smoke)
+    G.plumes.drawIn(quality.volumetric ? G.effects.pass.scene : null, scene, G.effects.depthUniforms);
     G.fireballs.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
     G.windowLight?.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     // the passes after the first one that swaps render into the scene's own buffer, whose depth

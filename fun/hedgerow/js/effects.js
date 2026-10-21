@@ -410,7 +410,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
      first pass reads it, with its depth) before anything else in the chain. */
   const passScene = new THREE.Scene();
   const pass = {
-    enabled: false, needsSwap: false,
+    enabled: false, needsSwap: false, scene: passScene,
     setSize(w, h) { shared.uScreen.value.set(1 / w, 1 / h); },
     render(renderer, writeBuffer, readBuffer) {
       shared.tDepth.value = readBuffer.depthTexture;

@@ -221,7 +221,8 @@ by the blast that killed them, and drop their rifles.
     fire's smoke climbing ~90 m on from its particles: a ribbon turned to
     the camera about an axis that leans downwind as it climbs, billows of
     noise in metres rising through it, lit orange from below by the fire
-    and by flares and lightning, fading into the haze), `fireball.js` (a
+    and by flares and lightning, fading into the haze; drawn before the
+    light in the rain, whose glow hangs in front of it), `fireball.js` (a
     blast's fireball: a billboard whose shader swells a ball of turbulent
     flame in a tenth of a second, yellow at its heart and orange in its
     folds, cooling from the outside in to a dull red glow inside a ball of
