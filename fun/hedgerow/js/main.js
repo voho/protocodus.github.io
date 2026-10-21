@@ -11,6 +11,7 @@ import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
 import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
+import { createPlumes } from './plumes.js';
 import { createWeather } from './weather.js';
 import { createLighting } from './lights.js';
 import { createEffects } from './effects.js';
@@ -170,6 +171,9 @@ async function boot() {
   // the fires' flames, drawn as flame (flames.js)
   G.flames = createFlames(G.effects);
   G.flames.drawLate(null, scene);
+  // and their smoke climbing into the sky (plumes.js)
+  G.plumes = createPlumes(G.effects, { fog: fogUniforms });
+  G.plumes.drawLate(null, scene);
   // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
   G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
   setLoading(0.85, 'Rain over Normandy');
@@ -276,6 +280,7 @@ function applyGraphics() {
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
+    G.plumes.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
     // the passes after the first one that swaps render into the scene's own buffer, whose depth
     // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
     // in the chain may clear it, so depth clears are off from its start to its end
@@ -598,6 +603,7 @@ function step() {
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
     G.flames.update(dt, camera.position);
+    G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       const hp = player ? player.health / 100 : 1;

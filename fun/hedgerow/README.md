@@ -39,7 +39,8 @@ stones and fallen branches along the lane and the forest track — rain in fine
 streaks, falling in sheets far down the street, lit by lamps, fires and flares,
 halos in the wet air, low mist, bullet holes and scorch marks, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
-burning farms and caught by the flashes of a distant barrage, searchlights sweeping
+burning farms, whose smoke climbs into it in leaning columns, and caught by
+the flashes of a distant barrage, searchlights sweeping
 the cloud over the front and flak tracer going up into it, and every half minute
 or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
@@ -162,7 +163,11 @@ by the blast that killed them, and drop their rifles.
     column of earth and roll dust along the ground), `flames.js` (the
     fires as flame: three billboards per near fire, each a turbulent body
     of flame worked out in its shader, licking up in tongues, coloured by
-    its heat from deep red to a yellow-white core), `atmosphere.js`
+    its heat from deep red to a yellow-white core), `plumes.js` (each
+    fire's smoke climbing ~90 m on from its particles: a ribbon turned to
+    the camera about an axis that leans downwind as it climbs, billows of
+    noise in metres rising through it, lit orange from below by the fire
+    and by flares and lightning, fading into the haze), `atmosphere.js`
     (halos, mist, decals),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
