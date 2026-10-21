@@ -24,7 +24,8 @@ renderer adds wet ground — dark, glossy cobbles with water in the joints,
 puddles with soaked margins in the hollows that mirror the lit windows, the
 lamps and the glow of the sky, broken by rain rings, river banks soaked
 above the waterline, a forest floor of last year's leaves with moss in the
-damp — rain lit by lamps and
+damp, leaves and litter in the gutters, brick bits round the shelled houses,
+stones and fallen branches along the lane and the forest track — rain lit by lamps and
 fires, halos in the wet air, low mist, bullet holes and scorch marks, distant
 artillery flashes and burning farms beyond the hedges. Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
@@ -157,6 +158,9 @@ by the blast that killed them, and drop their rifles.
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
   killer walks to the body, the death camera follows him;
+  `tests/clutter-check.mjs` — the ground clutter's pieces exist, lie beside
+  things rather than inside them, out of the river and the middle of the
+  street;
   `tests/fp-check.mjs` — first person on the real rig and rifles: walking,
   sprinting and crouching move the rifle in view no more than standing
   still does (the gait's bob and twist steadied out of the upper body),
@@ -172,6 +176,7 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/lod-check.mjs
       node fun/hedgerow/tests/ai-check.mjs
       node fun/hedgerow/tests/fp-check.mjs
+      node fun/hedgerow/tests/clutter-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to

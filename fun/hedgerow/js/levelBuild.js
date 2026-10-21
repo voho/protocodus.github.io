@@ -167,6 +167,11 @@ export function buildLevel(G, L, quality) {
     const y = terrain.height(c.x, c.z) - 0.04;
     veg.add(c.m, c.x, y, c.z, c.yaw * DEG, c.scale, { cover: true });
   }
+  // ground clutter, drawn like the cover, but never inside anything solid
+  for (const c of L.clutter || []) {
+    if (insideSolid(world, terrain, c.x, c.z)) continue;
+    veg.add(c.m, c.x, terrain.height(c.x, c.z) - 0.02, c.z, c.yaw * DEG, c.scale, { cover: true });
+  }
   veg.finalize();
   G.scene.add(veg.group);
   const staticGroup = batch.build();
@@ -322,4 +327,16 @@ function buildRiver(W, textures, shared) {
   const mesh = new THREE.Mesh(geo, createWaterMaterial(textures, shared));
   mesh.name = 'river';
   return mesh;
+}
+
+/* Is (x, z) inside (or within 0.3 m of) something solid standing on the ground? */
+export function insideSolid(world, terrain, x, z) {
+  const g = terrain.height(x, z);
+  for (const c of world.query(x - 0.5, z - 0.5, x + 0.5, z + 0.5)) {
+    if (!(c.flags & 1) || c.top - g < 0.15) continue;
+    const rx = x - c.x, rz = z - c.z;
+    if (c.type === 'box' ? Math.abs(rx * c.c - rz * c.s) <= c.hx + 0.3 && Math.abs(rx * c.s + rz * c.c) <= c.hz + 0.3
+      : rx * rx + rz * rz <= (c.r + 0.3) ** 2) return true;
+  }
+  return false;
 }

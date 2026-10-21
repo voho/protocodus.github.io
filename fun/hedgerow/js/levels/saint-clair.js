@@ -451,6 +451,72 @@ P('kubelwagen', 14.5, 530.5, -70);
 // the farms burning beyond the hedges (out of reach, seen through the trees)
 P('ruin_b', -68, 152, 60); P('ruin_b', 64, 302, -110); P('barn', -61, 433, 20);
 
+/* ---------- ground clutter (drawn near the camera, nothing to walk round) ---------- */
+// small things on the ground: leaves and litter in the gutters, brick bits
+// round the shelled houses, stones and fallen branches along the lane and the
+// forest track, the leavings of the fighting behind the machine-gun nests.
+// Its own seed, so the vegetation below keeps its places; levelBuild drops
+// anything that would land inside something solid.
+
+const RC = rng(19440711);
+const clutter = [];
+const C = (m, x, z, scale, yaw = RC() * 360) => { clutter.push({ m, x, z, yaw, scale }); };
+/* walk a line in steps of `step` metres: fn(x, z, nx, nz) with (nx, nz) its normal */
+function alongLine(line, step, fn) {
+  let carry = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1], [bx, bz] = line[i];
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len < 1e-6) continue;
+    const dx = (bx - ax) / len, dz = (bz - az) / len;
+    for (let t = carry; t < len; t += step) fn(ax + dx * t, az + dz * t, dz, -dx);
+    carry = (carry - len) % step;
+    if (carry < 0) carry += step;
+  }
+}
+// the street: the foot of the walls either side (not across the square)
+alongLine(STREET, 1.1, (x, z, nx, nz) => {
+  if (z < 90 || z > 256 || (z > SQUARE.z0 - 2 && z < SQUARE.z1 + 2)) return;
+  const shelled = Math.max(0, 1 - Math.abs(z - 123) / 11);      // the two shelled houses
+  for (const side of [-1, 1]) {
+    const off = (FRONT - 0.35 - RC() * 1.1) * side;
+    const px = x + nx * off, pz = z + nz * off, r = RC();
+    if (r < 0.3) C('leaf_litter', px, pz, RC.range(0.35, 0.6));
+    else if (r < 0.36 + 0.45 * shelled) C('rubble_small', px, pz, RC.range(0.26, 0.48));
+    else if (r < 0.44 + 0.45 * shelled) C('rocks_small', px, pz, RC.range(0.28, 0.45));
+    else if (r < 0.455 + 0.45 * shelled) C(RC.pick(['ammo_box', 'jerrycan']), px, pz, 1);
+  }
+  // brick and plaster thrown out into the street by the shells
+  if (shelled > 0.2 && RC() < shelled * 0.7) C('rubble_small', x + nx * RC.range(-4.4, 4.4), z + nz * RC.range(-4.4, 4.4), RC.range(0.2, 0.36));
+});
+// the sunken lane: stones, sticks and leaves along its banks
+alongLine(LANE, 1.0, (x, z, nx, nz) => {
+  if (z < -28 || z > 82) return;
+  for (const side of [-1, 1]) {
+    const off = RC.range(3.0, 4.5) * side, px = x + nx * off, pz = z + nz * off, r = RC();
+    if (r < 0.14) C('rocks_small', px, pz, RC.range(0.35, 0.7));
+    else if (r < 0.24) C('branches', px, pz, RC.range(0.6, 1.0));
+    else if (r < 0.36) C('leaf_litter', px, pz, RC.range(0.4, 0.7));
+  }
+});
+// the forest track: fallen branches, leaves, stones at its edges
+alongLine(TRACK, 1.2, (x, z, nx, nz) => {
+  if (z < 286 || z > 560) return;
+  for (const side of [-1, 1]) {
+    const off = RC.range(2.3, 3.8) * side, px = x + nx * off, pz = z + nz * off, r = RC();
+    if (r < 0.18) C('branches', px, pz, RC.range(0.6, 1.0));
+    else if (r < 0.32) C('leaf_litter', px, pz, RC.range(0.4, 0.7));
+    else if (r < 0.4) C('rocks_small', px, pz, RC.range(0.3, 0.55));
+  }
+});
+// behind the machine-gun nests (they face south): ammunition, a helmet, a can
+for (const [nx0, nz0] of [[-6.5, 89.5], [5, 287.5], [2, 392]]) {
+  for (let k = 0; k < 6; k++) {
+    const a = RC.range(-1.2, 1.2), d = RC.range(2.4, 4.4);
+    C(RC.pick(['ammo_box', 'ammo_box', 'jerrycan', 'dropped_helmet_de', 'rocks_small']), nx0 + Math.sin(a) * d, nz0 + Math.cos(a) * d, 1);
+  }
+}
+
 /* ---------- vegetation scatter ---------- */
 
 const R = rng(20250719);
@@ -648,7 +714,7 @@ export default {
   fine: [[-46, 376, 46, 410], [-20, 336, 20, 366]],
   water: { level: 0, contains: (x, z) => Math.abs(z - RIVER_Z(x)) < 13, riverZ: RIVER_Z, x0: -100, x1: 100 },
   baseHeight, splat, trackHeight,
-  props, scatter, cover, enemies, pickups, checkpoints, objectives, hints,
+  props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
   fog: { color: '#383e45', density: 0.0048 },
   // farms burning beyond the hedges: flames low, smoke high
   farFires: [[-68, 3, 150, 2.6], [64, 6, 300, 2.2], [-60, 14, 430, 2.0]],
