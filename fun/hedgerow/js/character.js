@@ -265,6 +265,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   let oneShot = null, oneShotEnd = 0, dead = false;
   let spineBase = null;       // the spine as the clips left it, before the aim pitch
   let spinePosBase = null;
+  let clavBase = null;        // the collarbones as the clips left them, before the arms' lift
   let ragdoll = null;
   let headHidden = false;
   // first person: the pelvis (root and hips bones together) the upper body
@@ -300,6 +301,31 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     meanPelvis.set(name, out);
     return out;
   }
+  /* First person: both arms (and so the rifle) swung together about the
+     chest, the head left where it is: `pitch` lifts (+) or dips, `yaw` turns
+     to his left (+), `roll` cants the rifle's top towards his left (+). */
+  const liftQ = new THREE.Quaternion(), pivot = new THREE.Vector3(), axis = new THREE.Vector3();
+  const wq = new THREE.Quaternion(), pq = new THREE.Quaternion(), wp = new THREE.Vector3(), aq = new THREE.Quaternion();
+  function liftArms(pitch, yaw, roll) {
+    const chest = bones.chest || bones.spine;
+    chest.getWorldPosition(pivot);
+    root.getWorldQuaternion(aq);
+    // cant about his forward, lift about his right, turn about the vertical
+    liftQ.setFromAxisAngle(axis.set(0, 0, 1).applyQuaternion(aq), -roll)
+      .premultiply(wq.setFromAxisAngle(axis.set(-1, 0, 0).applyQuaternion(aq), pitch))
+      .premultiply(wq.setFromAxisAngle(axis.set(0, 1, 0), yaw));
+    for (const b of [bones.clavicle_l, bones.clavicle_r]) {
+      if (!b) continue;
+      b.getWorldPosition(wp);
+      b.getWorldQuaternion(wq);
+      wp.sub(pivot).applyQuaternion(liftQ).add(pivot);
+      wq.premultiply(liftQ);
+      b.parent.worldToLocal(b.position.copy(wp));
+      b.quaternion.copy(b.parent.getWorldQuaternion(pq).invert().multiply(wq));
+      b.updateMatrixWorld(true);
+    }
+  }
+
   /* The spine re-seated as if the pelvis stood at the gait's average pose,
      so the chest, arms and rifle (and the eyes) ride smoothly on the
      walking legs; a change of gait (crouching, say) comes through quickly. */
@@ -367,6 +393,9 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     aimPitch: 0,
     lean: 0,
     steady: false,      // first person: the upper body steadied on the gait
+    armsPitch: 0,       // first person: the arms and rifle swung up (+) or down about the chest,
+    armsYaw: 0,         // turned to his left (+),
+    armsRoll: 0,        // canted, top to his left (+)
 
     /* first person: the head (and the helmet on it) folded away from the eyes */
     hideHead(on) {
@@ -408,6 +437,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (world) {
         if (spineBase) bones.spine.quaternion.copy(spineBase);   // no aim pitch frozen in
         if (spinePosBase) bones.spine.position.copy(spinePosBase);
+        if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
         ragdoll = createRagdoll(bones, world, { velocity, impulses, root });
         if (ragdoll) { mixer.stopAllAction(); return; }
       }
@@ -437,6 +467,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       // the next pitch would stack on it: put the clip's pose back first.
       if (spineBase) bones.spine.quaternion.copy(spineBase);
       if (spinePosBase) bones.spine.position.copy(spinePosBase);
+      if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
       mixer.update(dt);
       if (oneShot && mixer.time >= oneShotEnd) {
         if (oneShot === 'throw') holdForThrow(false);
@@ -448,6 +479,10 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (bones.spine) {
         (spineBase ||= new THREE.Quaternion()).copy(bones.spine.quaternion);
         (spinePosBase ||= new THREE.Vector3()).copy(bones.spine.position);
+      }
+      if (bones.clavicle_l && bones.clavicle_r) {
+        clavBase ||= [bones.clavicle_l, bones.clavicle_r].map((b) => [b, new THREE.Quaternion(), new THREE.Vector3()]);
+        clavBase.forEach(([b, q, p]) => { q.copy(b.quaternion); p.copy(b.position); });
       }
       if (state.steady && !dead && bones.hips && bones.spine) {
         steadyUpper(dt);
@@ -462,6 +497,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         bones.head.scale.setScalar(0.001);
         bones.head.updateMatrixWorld(true);
       }
+      if (!dead && (Math.abs(state.armsPitch) + Math.abs(state.armsYaw) + Math.abs(state.armsRoll)) > 1e-4) liftArms(state.armsPitch, state.armsYaw, state.armsRoll);
       if (ground != null) {
         shadow.position.set(root.position.x, ground + 0.03, root.position.z);
         shadow.visible = root.visible;

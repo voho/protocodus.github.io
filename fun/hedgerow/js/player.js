@@ -20,7 +20,7 @@ import { clamp, damp, dampAngle, lerp, wrapAngle } from './util.js';
 import { createCharacter } from './character.js';
 import { rayEnemies } from './combat.js';
 import { instantiate } from './assets.js';
-import { startReload as reloadSequence } from './reload.js';
+import { startReload as reloadSequence, startFirstPersonReload } from './reload.js';
 import { SHOT, MOVE } from './world.js';
 
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vector3();
@@ -38,7 +38,7 @@ export function createPlayer(G) {
     stepAcc: 0, firedAt: -10, lastHurtDir: 0,
     char: null, movingSpeed: 0, visible: 1, noise: 0,
     stats: null,
-    yawFix: 0, pitchFix: 0, blocked: false,
+    yawFix: 0, pitchFix: 0, blocked: false, arms: { pitch: 0, yaw: 0, roll: 0 },
   };
   const FP = !!CAMERA.firstPerson;
   // the eyes from the head bone: up and forward of it, in metres; and, not
@@ -86,7 +86,7 @@ export function createPlayer(G) {
     P.char.root.rotation.y = P.yaw;
     P.char.hideHead(FP);
     P.char.steady = FP;
-    P.yawFix = 0; P.pitchFix = 0; P.blocked = false;
+    P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 };
     eyeOff.set(0, PLAYER.eye, 0);
     G.hud.health(P.health / PLAYER.health);
   };
@@ -158,10 +158,13 @@ export function createPlayer(G) {
     const w = weaponDef(), a = P.ammo[P.weapon];
     if (P.reloading > 0 || a.mag >= w.mag || a.reserve <= 0 || P.switching > 0) return;
     P.reloading = P.reloadTotal = w.reload;
-    const clip = w.kind === 'smg' && P.char.hasClip('reload_smg') ? 'reload_smg' : 'reload';
-    P.char.oneShot(clip, (P.char.clipLength(clip) || 1.6) / w.reload);
     P.reloadRun?.end();
-    P.reloadRun = reloadSequence(G, P.char, w, clip);
+    if (FP) P.reloadRun = startFirstPersonReload(G, P.char, w);
+    else {
+      const clip = w.kind === 'smg' && P.char.hasClip('reload_smg') ? 'reload_smg' : 'reload';
+      P.char.oneShot(clip, (P.char.clipLength(clip) || 1.6) / w.reload);
+      P.reloadRun = reloadSequence(G, P.char, w, clip);
+    }
     G.audio.reload(P.weapon);
   }
 
@@ -312,7 +315,7 @@ export function createPlayer(G) {
     // the rifle's sight line, and the eye's place behind it
     let sight = null;
     const wpn = ch.weapon;
-    if (wpn && w.sight && (ch.upper === 'aim' || ch.upper === 'crouch_aim')) {
+    if (wpn && w.sight && (ch.upper === 'aim' || ch.upper === 'crouch_aim') && Math.abs(P.arms.pitch) + Math.abs(P.arms.yaw) + Math.abs(P.arms.roll) < 0.05) {
       wpn.localToWorld(rearW.fromArray(w.sight.rear));
       wpn.localToWorld(frontW.fromArray(w.sight.front));
       sDir.subVectors(frontW, rearW).normalize();
@@ -514,9 +517,17 @@ export function createPlayer(G) {
     const gait = GAIT[move] ? clamp(hSpeed / GAIT[move], 0.6, 2.6) : 1;
     let upper;
     if (FP) {
-      // the rifle stays shouldered, but comes down (held still) at a sprint, while changing weapons, at a wall
-      if (!P.sprint && !P.blocked && P.switching <= 0) upper = P.crouch ? 'crouch_aim' : 'aim';
-      else upper = P.crouch ? 'crouch_idle' : 'idle';
+      // the rifle stays shouldered; the arms carry it canted low at a sprint, up and
+      // aside at a wall, down out of sight while changing weapons, and tilt it into
+      // view to reload (the throw is the clip's own)
+      upper = P.crouch ? 'crouch_aim' : 'aim';
+      const t = P.reloading > 0 && P.reloadRun?.pose ? P.reloadRun.pose(1 - P.reloading / P.reloadTotal)
+        : P.switching > 0 ? { pitch: -0.8, yaw: 0, roll: 0 }
+        : P.blocked ? { pitch: 0.55, yaw: 0.25, roll: 0.2 }
+        : P.sprint ? { pitch: -0.15, yaw: -0.1, roll: -0.45 }
+        : null;
+      for (const k of ['pitch', 'yaw', 'roll']) P.arms[k] = damp(P.arms[k], t ? t[k] : 0, 10, dt);
+      ch.armsPitch = P.arms.pitch; ch.armsYaw = P.arms.yaw; ch.armsRoll = P.arms.roll;
     } else if (aiming || firingRecently) upper = P.crouch ? 'crouch_aim' : 'aim';
     else if (P.crouch) upper = hSpeed > 0.3 ? 'crouch_walk' : 'crouch_idle';
     else upper = move;

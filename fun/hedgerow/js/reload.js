@@ -1,5 +1,12 @@
 /* Hedgerow — what the hands do during a reload.
 
+   First person (startFirstPersonReload): the rig's reload clips work at the
+   waist, below the eyes, so the player's own reload is shown on the
+   shouldered rifle instead — it dips, turns and cants into view (`pose`),
+   the Garand's fresh clip comes down from above into the receiver, the
+   Thompson's empty magazine drops away and a full one slides up into the
+   well; the bolt jolts where the sounds (audio.js) put it.
+
    The rig carries the frames of its reload clips' events (soldier.glb, node
    `rig`, extras `reload_events`): when the clip in the left hand appears and
    is seated, when an SMG's magazine is grabbed, drops and is replaced. This
@@ -95,6 +102,76 @@ export function startReload(G, char, w, clip) {
       char.holdLeft(null);
       if (seated) seated.visible = true;
       next = list.length;
+    },
+  };
+}
+
+/* First person: one reload on the shouldered rifle. `pose(t)` is how far the
+   arms swing the rifle at fraction t ({pitch, yaw, roll}, character.js
+   armsPitch/armsYaw/armsRoll); `update(t)` moves the clip or magazine. */
+export function startFirstPersonReload(G, char, w) {
+  const gun = char.weapon;
+  const smg = w.kind === 'smg';
+  const tilt = smg ? { pitch: 0.4, yaw: 0.15, roll: 0.35 } : { pitch: -0.12, yaw: 0.12, roll: 0.15 };
+  const ease = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
+  const jolt = (at, t) => Math.exp(-(((t - at) / 0.025) ** 2));
+  const seated = w.seated && gun ? gun.getObjectByName(w.seated) : null;
+  const make = () => {
+    const m = w.prop && G.models.get(w.prop);
+    if (m) return instantiate(m, G.matlib);
+    const [x, y, z] = w.propSize || [0.04, 0.2, 0.07];
+    return new THREE.Mesh(new THREE.BoxGeometry(x, y, z), G.matlib.get('gun_metal'));
+  };
+  // the fresh clip or magazine rides on the rifle from where the hand brings it to where it seats
+  const anchors = G.models.get(w.model)?.anchors || {};
+  const seat = new THREE.Vector3(), from = new THREE.Vector3(), rot = new THREE.Quaternion();
+  if (smg && w.seatedAt) {
+    seat.fromArray(w.seatedAt.p); rot.fromArray(w.seatedAt.q);
+    from.copy(seat).add(new THREE.Vector3(0, -0.17, -0.02));
+  } else {
+    seat.fromArray(anchors.clip || [0, 0.074, 0.114]);
+    from.copy(seat).add(new THREE.Vector3(0, 0.16, 0.02));
+  }
+  const [inAt, seatAt] = smg ? [0.24, 0.37] : [0.24, 0.36];
+  let fresh = null, dropped = false, done = false;
+
+  return {
+    pose(t) {
+      const k = ease(0, 0.15, t) * (1 - ease(0.86, 1, t));
+      const kick = smg ? jolt(0.64, t) * 0.06 : jolt(0.08, t) * -0.05 + jolt(0.84, t) * 0.06;
+      return { pitch: tilt.pitch * k + kick, yaw: tilt.yaw * k, roll: tilt.roll * k };
+    },
+    update(t) {
+      if (!gun || done) return;
+      // the empty magazine out and down
+      if (smg && !dropped && t >= 0.12) {
+        dropped = true;
+        if (seated) {
+          seated.visible = false;
+          if (w.drops && G.debris) {
+            const empty = make();
+            empty.position.copy(seat); empty.quaternion.copy(rot);
+            gun.add(empty);
+            gun.updateMatrixWorld(true);
+            G.debris.drop(empty, new THREE.Vector3(0, -0.8, 0), { spin: 5, radius: 0.04, life: 120 });
+          }
+        }
+      }
+      // the fresh one comes in and seats
+      if (t >= inAt && t < seatAt) {
+        if (!fresh) { fresh = make(); fresh.quaternion.copy(rot); gun.add(fresh); }
+        fresh.position.lerpVectors(from, seat, ease(inAt, seatAt, t));
+      } else if (t >= seatAt && fresh) {
+        fresh.parent?.remove(fresh);
+        fresh = null;
+        if (seated) seated.visible = true;
+      }
+    },
+    end() {
+      done = true;
+      fresh?.parent?.remove(fresh);
+      fresh = null;
+      if (seated) seated.visible = true;
     },
   };
 }

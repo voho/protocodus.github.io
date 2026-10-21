@@ -82,7 +82,11 @@ by the blast that killed them, and drop their rifles.
     set has one, the `_lod` impostor beyond the quality's near range
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
-    until the sights lie along the view), `camera.js` (at the eyes, down the
+    until the sights lie along the view; the arms carry the rifle canted low
+    at a sprint, up and aside at a wall, down out of sight while changing
+    weapons), `reload.js` (the reload's clip and magazine; in first person on
+    the shouldered rifle, tilted into view, the fresh one seating in the
+    picture), `camera.js` (at the eyes, down the
     sights when aiming; the over-the-shoulder rig for the death camera),
     `character.js` (rig, split upper/lower body animation, the upper body
     steadied on the gait in first person, the outfit's low-detail `_lod`
@@ -155,8 +159,10 @@ by the blast that killed them, and drop their rifles.
   killer walks to the body, the death camera follows him;
   `tests/fp-check.mjs` — first person on the real rig and rifles: walking,
   sprinting and crouching move the rifle in view no more than standing
-  still does (the gait's bob and twist steadied out of the upper body), and
-  aiming puts the front sight in the middle of the view:
+  still does (the gait's bob and twist steadied out of the upper body),
+  aiming puts the front sight in the middle of the view, the fresh clip or
+  magazine seats in the picture, the rifle is carried in the picture at a
+  sprint and out of it while changing weapons:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs

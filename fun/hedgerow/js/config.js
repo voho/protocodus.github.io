@@ -58,6 +58,8 @@ export const WEAPONS = {
     spreadHip: 0.05, spreadAim: 0.018, spreadMove: 0.03, bloom: 0.008, bloomDecay: 5,
     recoil: 0.012, recoilYaw: 0.008, range: 120, sound: 'thompson', tracer: false,
     sight: { rear: [0, 0.121, 0.06], front: [0, 0.104, 0.44], relief: 0.12 }, reach: 0.7,
+    // where the magazine model sits in the gun (weapons.glb, thompson_mag_seated)
+    seatedAt: { p: [0, -0.13, 0.104], q: [-0.62089, -0.066765, 0.166366, 0.763129] },
   },
 };
 

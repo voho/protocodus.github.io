@@ -3,9 +3,12 @@
 // rifle must sit steady in front of the eyes: the gait's bob and twist are
 // steadied out of the upper body (character.js `steady`), so the muzzle
 // barely moves in a view that keeps its direction (the mouse's) with the eye
-// smoothed as player.js smooths it. And aiming must line the sights up with
-// the view: turning the body and bending the spine as player.js does brings
-// the front sight onto the middle of the screen.
+// smoothed as player.js smooths it. Aiming must line the sights up with the
+// view: turning the body and bending the spine as player.js does brings the
+// front sight onto the middle of the screen. And what the eye sees must make
+// sense: the fresh clip or magazine seats in the picture (reload.js
+// startFirstPersonReload), the rifle is carried in the picture at a sprint
+// and goes out of it while changing weapons.
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,6 +17,7 @@ const { GLTFLoader } = await import('../assets/vendor/GLTFLoader.js');
 const { createCharacter } = await import('../js/character.js');
 const { readSet } = await import('../js/assets.js');
 const { WEAPONS } = await import('../js/config.js');
+const { startFirstPersonReload } = await import('../js/reload.js');
 
 const here = new URL('..', import.meta.url).pathname;
 
@@ -111,4 +115,50 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(Math.abs(yawFix) < 0.6 && Math.abs(pitchFix) < 0.6, `${id}: the correction should stay small`);
 }
 
-console.log('fp-check: the rifle sits steady on the march, and the sights line up when aiming');
+/* Seen from the eye (hip, as player.js places it), in degrees: down and right of the
+   middle; in the picture within 34° up/down and 42° aside (68° view, 4:3). */
+function eyeOf(ch) { return ch.headWorld(new THREE.Vector3()).add(new THREE.Vector3(0.055, 0.125, 0.05)); }
+function seen(eye, p) {
+  const d = p.clone().sub(eye);
+  return { down: deg(Math.atan2(-d.y, d.z)), right: deg(Math.atan2(-d.x, d.z)) };
+}
+const inPicture = (a) => Math.abs(a.down) < 34 && Math.abs(a.right) < 42;
+function posed(id, arms = null) {
+  const w = WEAPONS[id];
+  const ch = createCharacter(soldier, matlib, { outfit: 'allied', weaponModel: models.get(w.model), scene: new THREE.Scene() });
+  ch.steady = true; ch.hideHead(true); ch.animate('idle', 'aim', 1);
+  if (arms) { ch.armsPitch = arms.pitch; ch.armsYaw = arms.yaw; ch.armsRoll = arms.roll; }
+  for (let i = 0; i < 30; i++) ch.update(1 / 60, 0);
+  return ch;
+}
+for (const id of ['garand', 'thompson']) {
+  const w = WEAPONS[id];
+  const ch = posed(id);
+  const G = { models, matlib, debris: { drop(o) { o.parent?.remove(o); } } };   // the empty falls away
+  const run = startFirstPersonReload(G, ch, w);
+  const before = new Set(ch.weapon.children);
+  run.update(0.2);
+  const t = 0.3, pose = run.pose(t);
+  ch.armsPitch = pose.pitch; ch.armsYaw = pose.yaw; ch.armsRoll = pose.roll;
+  run.update(t);
+  ch.update(1 / 60, 0);
+  const fresh = ch.weapon.children.find((c) => !before.has(c));
+  assert.ok(fresh, `${id}: a fresh ${w.prop} should be on the gun while it seats`);
+  const at = seen(eyeOf(ch), fresh.getWorldPosition(new THREE.Vector3()));
+  console.log(`${id} reload: the fresh ${w.prop} seats ${at.down.toFixed(0)}° down, ${at.right.toFixed(0)}° right`);
+  assert.ok(inPicture(at), `${id}: the reload should happen in the picture`);
+  run.update(0.5);
+  assert.ok(!fresh.parent, `${id}: the fresh ${w.prop} is seated (gone into the gun) by half way`);
+  run.end();
+}
+{
+  const ch = posed('garand', { pitch: -0.15, yaw: -0.1, roll: -0.45 });   // player.js: at a sprint
+  const eye = eyeOf(ch), m = seen(eye, ch.muzzleWorld()), mid = seen(eye, ch.weapon.localToWorld(new THREE.Vector3(0, 0.05, 0.2)));
+  console.log(`sprint: muzzle ${m.down.toFixed(0)}° down ${m.right.toFixed(0)}° right, receiver ${mid.down.toFixed(0)}° down ${mid.right.toFixed(0)}° right`);
+  assert.ok(inPicture(m) && inPicture(mid), 'the rifle should be carried in the picture at a sprint');
+  const away = posed('garand', { pitch: -0.8, yaw: 0, roll: 0 });          // changing weapons
+  const a = seen(eyeOf(away), away.muzzleWorld()), b = seen(eyeOf(away), away.weapon.localToWorld(new THREE.Vector3(0, 0.05, 0.2)));
+  assert.ok(!inPicture(a) && !inPicture(b), 'changing weapons, the rifle should go down out of the picture');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture');
