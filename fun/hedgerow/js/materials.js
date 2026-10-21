@@ -140,6 +140,10 @@ export function createMaterialLibrary(textures, shared) {
         m.transparent = false;
         m.alphaTest = Math.max(0.4, m.alphaTest || 0.5);
         m.side = THREE.DoubleSide;
+        // the cut-out edges of leaves, needles and grass use the scene's
+        // multisampling (alpha to coverage): soft, steady edges instead of
+        // stair-steps that crawl as the camera moves
+        m.alphaToCoverage = true;
       } else {
         m.side = THREE.FrontSide;      // baked solids are closed; no overdraw from the backs
       }
