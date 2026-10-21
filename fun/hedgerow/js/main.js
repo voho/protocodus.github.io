@@ -32,6 +32,7 @@ import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
 import { createShafts } from './shafts.js';
 import { createTAA } from './taa.js';
+import { createMotionBlur } from './motionblur.js';
 import { createDistortion } from './distort.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
@@ -81,7 +82,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -202,6 +203,7 @@ async function boot() {
     shafts = createShafts(camera);
     taa = createTAA(camera, () => volumetric.uniforms.tDepth.value);
     distort = createDistortion(camera, () => volumetric.uniforms.tDepth.value);
+    blur = createMotionBlur(camera, () => volumetric.uniforms.tDepth.value);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -269,13 +271,14 @@ function applyGraphics() {
     // way); what would smear through it (rain, sparks, flashes) is drawn after it
     const aa = !!quality.volumetric;
     taa.enabled = aa;
+    blur.setOn(aa && !!quality.blur);
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
     // the passes after the first one that swaps render into the scene's own buffer, whose depth
-    // the later ones still read (taa, the late particles, the haze, the focus): nothing in the
-    // chain may clear it, so depth clears are off from its start to its end
-    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
+    // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
+    // in the chain may clear it, so depth clears are off from its start to its end
+    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -450,7 +453,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort, blur }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -611,8 +614,10 @@ function step() {
 
   renderer.info.reset();
   taa?.jitter();
+  blur?.update();
   renderer.render(scene, camera);
   taa?.restore();
+  blur?.store();
 
   fpsAcc += dt; fpsFrames++;
   if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }

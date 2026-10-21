@@ -164,7 +164,10 @@ by the blast that killed them, and drop their rifles.
     temporal anti-aliasing (the projection jittered by a sub-pixel Halton
     step each frame, each frame blended into the history reprojected by
     the depth and held to its neighbourhood; the rifle in your hands is not
-    reprojected) · the late particles of `effects.js` and the rain, drawn
+    reprojected) · `motionblur.js` camera motion blur as the view turns
+    or moves (each pixel smeared along its own motion since the last frame
+    over a 180-degree shutter; the rifle and hands stay sharp; high and
+    medium) · the late particles of `effects.js` and the rain, drawn
     after it so they stay crisp · `distort.js` heat haze shimmering in a
     column over each of the four nearest fires and a blast's shockwave
     ring racing out for half a second, each found along the view ray
