@@ -605,6 +605,8 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     return f;
   }
 
+  // the share of the sprite flames still spawned (flames.js draws the body of the fire over them)
+  let flameShare = 1;
   function updateFires(dt, wind, camPos) {
     for (const f of fires) {
       if (!f.on) continue;
@@ -615,7 +617,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       while (f.acc > rate) {
         f.acc -= rate;
         const s = f.size;
-        add.spawn({
+        if (f.far || R() < flameShare) add.spawn({
           x: f.x + (R() - 0.5) * 1.2 * s, y: f.y + R() * 0.3, z: f.z + (R() - 0.5) * 1.2 * s,
           vx: wind.x * 0.3 + (R() - 0.5) * 0.3, vy: 1.4 + R() * 1.2, vz: wind.z * 0.3 + (R() - 0.5) * 0.3,
           life: 0.5 + R() * 0.45, size: (0.6 + R() * 0.5) * s, size1: 0.2 * s, color: C('#ffa040', 1, 2.2), color1: C('#a02808', 0, 0.8),
@@ -675,6 +677,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   return {
     group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
     pass, usePass, late, useLate, setLights, shocks,
+    setFlameShare(v) { flameShare = v; },
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },

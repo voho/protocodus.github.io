@@ -10,6 +10,7 @@ import { loadTextures, createMaterialLibrary } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
 import { createFlares } from './flares.js';
+import { createFlames } from './flames.js';
 import { createWeather } from './weather.js';
 import { createLighting } from './lights.js';
 import { createEffects } from './effects.js';
@@ -164,6 +165,9 @@ async function boot() {
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
   scene.add(G.clutter.group);
+  // the fires' flames, drawn as flame (flames.js)
+  G.flames = createFlames(G.effects);
+  G.flames.drawLate(null, scene);
   // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
   G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
   setLoading(0.85, 'Rain over Normandy');
@@ -263,6 +267,7 @@ function applyGraphics() {
     taa.enabled = aa;
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
+    G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
     renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
@@ -580,6 +585,7 @@ function step() {
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
+    G.flames.update(dt, camera.position);
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       const hp = player ? player.health / 100 : 1;

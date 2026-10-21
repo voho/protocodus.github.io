@@ -138,7 +138,10 @@ by the blast that killed them, and drop their rifles.
     same light from the bolt's direction),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; blasts throw up a
-    column of earth and roll dust along the ground), `atmosphere.js`
+    column of earth and roll dust along the ground), `flames.js` (the
+    fires as flame: three billboards per near fire, each a turbulent body
+    of flame worked out in its shader, licking up in tongues, coloured by
+    its heat from deep red to a yellow-white core), `atmosphere.js`
     (halos, mist, decals),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
