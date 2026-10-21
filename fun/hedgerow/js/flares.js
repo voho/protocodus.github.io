@@ -186,6 +186,8 @@ export function createFlares(G, { seed = 41, peak = 78000, shadows = 0 } = {}) {
   return {
     update, lightning, light: sun, castersOf,
     get active() { return !!f; },
+    /* one is burning (its light is the flare's, not a lightning stroke's) */
+    get burning() { return !!(f && f.popped); },
     /* its shadows are being drawn this frame */
     get shadowing() { return sun.castShadow && sun.intensity > 0; },
     /* draw its shadow map once with everything that could ever cast in it, so the shaders
