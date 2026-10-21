@@ -247,7 +247,9 @@ by the blast that killed them, and drop their rifles.
     the start of the mission; when none burns, a lightning stroke drives the
     same light from the bolt's direction),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
-    fires and flashes, soft where they meet the scene; the fires' embers
+    fires and flashes, soft where they meet the scene; a muzzle flash a
+    white-hot star in ragged orange tongues of burning gas, never the same
+    twice, a few grains of powder flung on ahead of it; the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
     cool; blasts throw up a
     column of earth and roll dust along the ground; a shot or a step into
