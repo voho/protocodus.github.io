@@ -43,7 +43,8 @@ damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
 them in stretches, rainwater standing in the shell craters — rain in fine
-streaks, falling in sheets far down the street, lit by lamps, fires and flares,
+streaks, falling in sheets far down the street, sweeping across in gusts,
+lit by lamps, fires and flares,
 halos in the wet air, low mist, bullet holes and scorch marks, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
 burning farms, whose smoke climbs into it in leaning columns, and caught by
@@ -175,7 +176,9 @@ by the blast that killed them, and drop their rifles.
     four cylinders round the eye in one full-screen draw, hidden behind the
     scene by its depth, lit by the lamps near them and by a burning flare;
     rings where drops land, and within 7 m crowns of droplets flung up and
-    out of each, a few thousand a second, drawn after the frame; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
+    out of each, a few thousand a second, drawn after the frame; all of it
+    in gusts — bands of heavier, harder-leaning rain some 30 m across blown
+    downwind, one noise shared by the shaders and the splashes; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
     the surfaces round it but only a little of the wet air),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground (as bright as the

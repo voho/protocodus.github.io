@@ -7,7 +7,9 @@
    to ~60 m, sheets of rain: four cylinders round the eye, worked out per
    pixel in one full-screen draw, each with streaks falling at the rain's
    speed and slant, hidden behind what is nearer, lit by the lamps near
-   them and fading into the haze. Splashes are rings, and near the eye each
+   them and fading into the haze. Both come in gusts: bands of heavier rain,
+   leaning harder, sweeping across downwind (gust(), a slow noise blown
+   along at gust speed). Splashes are rings, and near the eye each
    drop that lands throws up a crown of droplets for a moment, glittering by
    the lamps; splashes are rings
    that grow and fade on the ground around the player. Lightning comes in
@@ -17,7 +19,54 @@
 import * as THREE from 'three';
 import { rng } from './util.js';
 
+// the gusts: how hard it is raining here now (about 0.55 .. 1.6), bands of it some 30 m across
+// blown downwind at gust speed. An integer hash, so gustAt() below gives the same on the CPU
+// (the splashes follow it)
+const GUST_GLSL = /* glsl */ `
+float gHash(vec2 p) {
+  uvec2 q = uvec2(ivec2(p) + 32768);
+  uint h = (q.x * 1597334677u) ^ (q.y * 3812015801u);
+  h = h * 747796405u + 2891336453u;
+  h ^= h >> 16u; h *= 2246822519u; h ^= h >> 13u;
+  return float(h) / 4294967295.0;
+}
+float gNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float gust(vec2 xz, float time, vec2 wind) {
+  vec2 w = normalize(wind);
+  // stretched across the wind (a front of rain), carried along it
+  vec2 q = vec2(dot(xz, w), dot(xz, vec2(-w.y, w.x)) * 0.45) / 30.0 - vec2(time * 7.0 / 30.0, 0.0);
+  float n = gNoise(q) * 0.7 + gNoise(q * 2.3 + 5.1) * 0.3;
+  return 0.55 + 1.05 * smoothstep(0.3, 0.75, n);
+}`;
+
+function gHash(x, y) {
+  let h = (Math.imul((x + 32768) >>> 0, 1597334677) ^ Math.imul((y + 32768) >>> 0, 3812015801)) >>> 0;
+  h = (Math.imul(h, 747796405) + 2891336453) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0; h = Math.imul(h, 2246822519) >>> 0; h = (h ^ (h >>> 13)) >>> 0;
+  return h / 4294967295;
+}
+function gNoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  let fx = x - ix, fy = y - iy;
+  fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = gHash(ix, iy), b = gHash(ix + 1, iy), c = gHash(ix, iy + 1), d = gHash(ix + 1, iy + 1);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+/* GUST_GLSL's gust() on the CPU */
+export function gustAt(x, z, time, wx, wz) {
+  const l = Math.hypot(wx, wz) || 1, ux = wx / l, uz = wz / l;
+  const qx = (x * ux + z * uz) / 30 - time * 7 / 30, qy = (x * -uz + z * ux) * 0.45 / 30;
+  const n = gNoise(qx, qy) * 0.7 + gNoise(qx * 2.3 + 5.1, qy * 2.3 + 5.1) * 0.3;
+  const t = Math.min(1, Math.max(0, (n - 0.3) / 0.45));
+  return 0.55 + 1.05 * t * t * (3 - 2 * t);
+}
+
 const RAIN_VERT = /* glsl */ `
+${GUST_GLSL}
 attribute vec4 aDrop;            // xyz: 0..1 position in the box, w: random
 uniform vec3 uCam, uBox, uVel;
 uniform float uTime, uLength, uWidth;
@@ -34,7 +83,9 @@ void main() {
   vec3 vel = uVel * (0.85 + 0.3 * aDrop.w);
   vec3 p = aDrop.xyz * uBox + vel * uTime;
   p = mod(p - uCam + uBox * 0.5, uBox) + uCam - uBox * 0.5;
-  vec3 axis = normalize(vel);
+  // in a gust, more drops show and they lean harder
+  float g = gust(p.xz, uTime, uVel.xz);
+  vec3 axis = normalize(vel + vec3(uVel.x, 0.0, uVel.z) * (g - 0.8) * 1.4);
   vec3 toCam = normalize(cameraPosition - p);
   vec3 side = normalize(cross(axis, toCam));
   float len = uLength * (0.7 + 0.6 * aDrop.w);
@@ -44,7 +95,8 @@ void main() {
   float width = max(uWidth, 1.5 / pxPerM);
   vec3 wp = p + side * (uv.x - 0.5) * width + axis * (uv.y - 0.5) * len;
   vAlpha = smoothstep(1.2, 4.5, dist) * (1.0 - smoothstep(uBox.x * 0.32, uBox.x * 0.5, dist))
-    * (uWidth / width) * (0.45 + 1.1 * fract(aDrop.w * 7.31 + aDrop.x * 3.7));
+    * (uWidth / width) * (0.45 + 1.1 * fract(aDrop.w * 7.31 + aDrop.x * 3.7))
+    * smoothstep(0.0, 0.35, g - fract(aDrop.w * 13.7) * 0.9);
   vUv = uv;
   // drops passing near a lamp or a fire catch its light
   vec3 lit = vec3(0.0);
@@ -96,6 +148,7 @@ void main() {
 }`;
 
 const SHEET_FRAG = /* glsl */ `
+${GUST_GLSL}
 uniform vec3 uColor, uVel, uSky;
 uniform float uTime, uOpacity, uFlash, uFog;
 uniform vec3 uLightPos[6];
@@ -142,6 +195,7 @@ void main() {
     float sy = smoothstep(y0, y0 + 0.04, f.y) * smoothstep(y0 + len / 2.4, y0 + len / 2.4 - 0.08, f.y);
     float k = sx * sy * vis * exp(-t * uFog) * (0.6 + 0.8 * sHash(id + 11.3));
     if (k <= 0.0) continue;
+    k *= gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
     // lit by the lamps near it
     vec3 lit = uSky;
     for (int j = 0; j < 6; j++) {
@@ -396,8 +450,9 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     crownUniforms.uOpacity.value = 0.5 * rainAmount;
     splashUniforms.uTime.value = time;
 
-    // splashes around the camera
-    splashAcc += dt * 900 * rainAmount;
+    // splashes around the camera, as many as the gust over it brings
+    const g = gustAt(camera.position.x, camera.position.z, time, rainUniforms.uVel.value.x, rainUniforms.uVel.value.z);
+    splashAcc += dt * 900 * rainAmount * g;
     const cx = camera.position.x, cz = camera.position.z;
     let changed = false;
     while (splashAcc >= 1) {
@@ -412,7 +467,7 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     }
     if (changed) splashAttr.needsUpdate = true;
     // crowns, within 7 m
-    crownAcc += dt * 3500 * rainAmount;
+    crownAcc += dt * 3500 * rainAmount * g;
     let cChanged = false;
     while (crownAcc >= 1) {
       crownAcc -= 1;
