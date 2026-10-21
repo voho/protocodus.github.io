@@ -499,17 +499,27 @@ export function createEnemies(G, defs) {
     G.effects.muzzle(muzzle.x, muzzle.y, muzzle.z, dir.x, dir.y, dir.z, e.type === 'mg' ? 1.1 : 0.9);
     G.lights.flash(muzzle.x + dir.x * 0.3, muzzle.y, muzzle.z + dir.z * 0.3, '#ffb36b', e.type === 'mg' ? 50 : 40, 8, 0.05);
     G.audio.gunshot(w.sound, muzzle.x, muzzle.y, muzzle.z);
-    if (R() < w.tracer) G.effects.tracer(muzzle.x + dir.x * 0.6, muzzle.y + dir.y * 0.6, muzzle.z + dir.z * 0.6, dir.x, dir.y, dir.z, hit ? len : 150, 260, '#ffc070');
+    const wh = hit ? null : G.world.raycast(muzzle.x, muzzle.y, muzzle.z, dir.x, dir.y, dir.z, 200, SHOT);
+    const tracer = R() < w.tracer;
+    // a tracer ends where its round does
+    if (tracer) G.effects.tracer(muzzle.x + dir.x * 0.6, muzzle.y + dir.y * 0.6, muzzle.z + dir.z * 0.6, dir.x, dir.y, dir.z, hit ? len : wh ? wh.t : 150, 260, '#ffc070');
     if (hit) {
       const dmg = lerp(w.damage[0], w.damage[1], R()) * G.diff.damage;
       p.damage(dmg, e.pos, 'bullet', e);
       G.effects.blood(target.x, target.y, target.z, dir.x, dir.y, dir.z);
     } else {
-      const wh = G.world.raycast(muzzle.x, muzzle.y, muzzle.z, dir.x, dir.y, dir.z, 200, SHOT);
       if (wh) {
         G.effects.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
         G.decals?.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
         G.audio.impact(wh.x, wh.y, wh.z, wh.surface);
+        // a glancing tracer skips off stone, metal or a hard road, now and then off the mud: it
+        // goes on, slower, off the way it bounced, often up into the sky
+        const into = -(dir.x * wh.nx + dir.y * wh.ny + dir.z * wh.nz);
+        const soft = /^(mud|grass|forest|dirt|foliage|sandbag|water|flesh)$/.test(wh.surface || 'stone');
+        if (tracer && into > 0 && R() < (soft ? 0.25 : 0.7) * (1 - into)) {
+          const rd = tmp.set(dir.x + 2 * into * wh.nx + (R() - 0.5) * 0.5, dir.y + 2 * into * wh.ny + R() * 0.35, dir.z + 2 * into * wh.nz + (R() - 0.5) * 0.5).normalize();
+          G.effects.tracer(wh.x + rd.x * 0.05, wh.y + rd.y * 0.05, wh.z + rd.z * 0.05, rd.x, rd.y, rd.z, 25 + R() * 50, 140 + R() * 80, '#ffc070');
+        }
       }
       // crack past the listener if close to the line
       const cam = G.camera.position;
