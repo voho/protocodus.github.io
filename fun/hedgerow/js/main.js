@@ -29,6 +29,8 @@ import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
 import { createGrass } from './grass.js';
+import { createGroundMap } from './groundmap.js';
+import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
 import LEVEL from './levels/saint-clair.js';
@@ -152,9 +154,12 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   G.effects.setGround((x, z) => G.terrain.height(x, z));
-  // the meadow grass, blade by blade round the camera
-  G.grass = createGrass({ terrain: G.terrain, world: G.world, level: LEVEL, shared, n: quality.blades ?? 0 });
+  // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
+  G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4);
+  G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0 });
   scene.add(G.grass.mesh);
+  G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
+  scene.add(G.clutter.group);
   setLoading(0.85, 'Rain over Normandy');
   await nextPaint();
 
@@ -244,6 +249,7 @@ function applyGraphics() {
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
+  G?.clutter?.setOn(quality.clutter ?? 0);
   shared.relief.value = quality.relief ?? 1;
   if (G?.rig) { G.rig.baseFov = settings.fov; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
@@ -542,6 +548,7 @@ function step() {
   }
   built.veg.update(dt, camera, quality);
   G.grass.update(camera, player?.pos, renderer.domElement.height);
+  G.clutter.update(camera);
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);

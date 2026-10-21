@@ -310,7 +310,7 @@ export function createTerrainMaterial(textures, shared) {
         // under the meadow grass the ground is the shaded sward: dark, rough, no standing water
         tSwardK = 0.0;
         if (uSwardR > 0.0) {
-          tSwardK = texture2D(tSward, (vWPos.xz - uSwardMin) / uSwardSize).y
+          tSwardK = texture2D(tSward, (vWPos.xz - uSwardMin) / uSwardSize).x
             * (1.0 - smoothstep(uSwardR * 0.6, uSwardR * 0.95, length(vWPos.xz - cameraPosition.xz)));
           tPuddle *= 1.0 - tSwardK;
           tRim *= 1.0 - tSwardK;

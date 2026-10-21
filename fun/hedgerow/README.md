@@ -21,7 +21,8 @@ PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves, meadows
 and verges are tens of thousands of single blades of grass that bend in
-the wind and part round your legs, and the
+the wind and part round your legs, stones lie in the mud of the lanes and
+yards and twigs on the forest floor, and the
 renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
@@ -101,12 +102,16 @@ by the blast that killed them, and drop their rifles.
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
     the level, open towards the far buildings) and the next village
-  * `grass.js` the meadow grass on the GPU: one instanced draw of tufts of
-    blades round the camera (high ~21 m, medium ~14 m, none on low), each
-    placed, sized and leaned by a hash of its world cell, on a ground map
-    made at load from the terrain's own splat (none on roads, mud, steep
-    banks, at the water or inside anything solid); the ground under it
-    turns to dark, dry sward
+  * `groundmap.js` what grows and lies where, made at load from the
+    terrain mesh's own splat: grass, stones and fallen wood (none on roads,
+    steep banks, at the water or inside anything solid), and the ground's
+    height as the mesh draws it · `grass.js` the meadow grass on the GPU:
+    one instanced draw of tufts of blades round the camera (high ~21 m,
+    medium ~14 m, none on low), each placed, sized and leaned by a hash of
+    its world cell; tufts out of view collapse before the expensive part;
+    the ground under it turns to dark, dry sward · `clutter.js` the same
+    for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
+    lying along the slope (high and medium)
   * `materials.js` palette-keyed wet materials · `sky.js`, `weather.js`
     (rain, splashes, lightning), `lights.js` (pooled point lights),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
