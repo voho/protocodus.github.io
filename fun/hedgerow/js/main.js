@@ -31,6 +31,7 @@ import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
 import { createShafts } from './shafts.js';
 import { createTAA } from './taa.js';
+import { createDistortion } from './distort.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createClutter } from './clutter.js';
@@ -79,7 +80,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -196,6 +197,7 @@ async function boot() {
     ssr = createSSR(camera, shared);
     shafts = createShafts(camera);
     taa = createTAA(camera, () => volumetric.uniforms.tDepth.value);
+    distort = createDistortion(camera, () => volumetric.uniforms.tDepth.value);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -261,7 +263,7 @@ function applyGraphics() {
     taa.enabled = aa;
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
-    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -436,7 +438,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -568,6 +570,7 @@ function step() {
     volumetric?.setLights(G.lights.active, G.time, G.weather.intensity ?? 1);
     dof?.set(volumetric?.uniforms.tDepth.value, state === 'playing' ? G.rig.aimT : 0);
     G.effects.setLights(G.lights.active, 1 + flash * 0.9);
+    distort?.set(G.effects, camera.position, G.time);
     if (shafts && quality.volumetric && quality.shadows) {
       shafts.set(G.flares);
       volumetric.setShafts(shafts, G.flares.light.color, G.flares.light.intensity * (0.6 + 0.4 * (G.weather.intensity ?? 1)));

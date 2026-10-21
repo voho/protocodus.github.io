@@ -156,7 +156,11 @@ by the blast that killed them, and drop their rifles.
     step each frame, each frame blended into the history reprojected by
     the depth and held to its neighbourhood; the rifle in your hands is not
     reprojected) · the late particles of `effects.js` and the rain, drawn
-    after it so they stay crisp · `dof.js`
+    after it so they stay crisp · `distort.js` heat haze shimmering in a
+    column over each of the four nearest fires and a blast's shockwave
+    ring racing out for half a second, each found along the view ray
+    against the depth (walls in front are not bent, nor is the rifle) ·
+    `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
     hurt state); the high and medium qualities run all of it, low only the

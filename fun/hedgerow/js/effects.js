@@ -532,7 +532,12 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     alpha.spawn({ x, y: y + 0.02, z, life: 0.6, size: 0.2, size1: 1.0 * power, color: C('#c8d0d4', 0.5), color1: C('#c8d0d4', 0), cell: CELLS.ring, rot: 0 });
   }
 
+  // the pressure waves of the last blasts, for the distortion pass (distort.js): a shell
+  // racing out to 14 m (times the blast's scale) in half a second, fading as it goes
+  const shocks = [];
   function explosion(x, y, z, scale = 1, water = false) {
+    if (shocks.length >= 3) shocks.shift();
+    shocks.push({ x, y: y + 0.6, z, scale, age: 0, radius: 0, strength: 1 });
     add.spawn({ x, y: y + 0.5, z, life: 0.14, size: 4 * scale, size1: 7 * scale, color: C('#ffd9a0', 1, 4), color1: C('#ff7a20', 0, 2), cell: CELLS.flash, rot: R() * 6 });
     for (let k = 0; k < 12; k++) {
       const a = R() * 6.28, r = R();
@@ -655,6 +660,13 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   function update(dt, wind, camPos) {
+    for (let i = shocks.length - 1; i >= 0; i--) {
+      const s = shocks[i];
+      s.age += dt;
+      if (s.age >= 0.5) { shocks.splice(i, 1); continue; }
+      s.radius = 14 * s.scale * Math.sqrt(s.age / 0.5);
+      s.strength = (1 - s.age / 0.5) ** 1.5;
+    }
     updateFires(dt, wind, camPos);
     alpha.update(dt, groundFn);
     add.update(dt, groundFn);
@@ -662,7 +674,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
 
   return {
     group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
-    pass, usePass, late, useLate, setLights,
+    pass, usePass, late, useLate, setLights, shocks,
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },
