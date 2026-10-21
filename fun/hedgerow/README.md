@@ -47,7 +47,9 @@ cut by two wheel ruts with a grassy crown between them and water standing in
 them in stretches, rainwater standing in the shell craters — rain in fine
 streaks, falling in sheets far down the street, sweeping across in gusts,
 lit by lamps, fires and flares,
-halos in the wet air, low mist, bullet holes and scorch marks, a low
+halos in the wet air, low mist, bullet holes that catch the light — stone
+chipped pale round a black hole, wood splintered, paint flaked off a dent to
+the bare steel — mud kicked up and the scorch of blasts, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
 burning farms, whose smoke climbs into it in leaning columns, and caught by
 the flashes of a distant barrage, searchlights sweeping
@@ -224,7 +226,9 @@ by the blast that killed them, and drop their rifles.
     flame in a tenth of a second, yellow at its heart and orange in its
     folds, cooling from the outside in to a dull red glow inside a ball of
     smoke that rolls up and thins into the blast's dust), `atmosphere.js`
-    (halos, mist, decals),
+    (halos, mist, and decals: four painted variants of each kind with their
+    own relief, drawn pulled a few centimetres towards the eye along their
+    sight line so a wall's stones do not swallow them),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and

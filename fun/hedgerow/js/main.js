@@ -162,7 +162,7 @@ async function boot() {
   G.sky = sky;
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
-  G.decals = createDecals();
+  G.decals = createDecals({ shared });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
