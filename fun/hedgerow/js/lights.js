@@ -60,8 +60,10 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     return s;
   }
 
-  /* fog: how much of it the air scatters (volumetric.js), against how much it lights surfaces */
-  function flash(x, y, z, color = '#ffb060', intensity = 30, range = 14, life = 0.06, fog = 1) {
+  /* fog: how much of it the air scatters (volumetric.js), against how much it lights surfaces;
+     a flash is brief and often right by the eye (a muzzle), where full scattering would fill
+     every view ray with glow, so by default the wet air takes only a quarter of it */
+  function flash(x, y, z, color = '#ffb060', intensity = 30, range = 14, life = 0.06, fog = 0.25) {
     if (flashes.length > 12) flashes.shift();
     flashes.push({ x, y, z, color: new THREE.Color(color), intensity, range, life, age: 0, fog });
   }
