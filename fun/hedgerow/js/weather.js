@@ -5,9 +5,10 @@
    along its fall velocity and turned to face the view, as thin as a drop
    but never under a pixel and a half (fainter instead). Beyond them, out
    to ~60 m, sheets of rain: four cylinders round the eye, worked out per
-   pixel in one full-screen draw, each with streaks falling at the rain's
-   speed and slant, hidden behind what is nearer, lit by the lamps near
-   them and fading into the haze. Both come in gusts: bands of heavier rain,
+   pixel in one full-screen draw (or, without the late pass's depth on low
+   quality, drawn as four cylinder meshes with the scene), each with streaks
+   falling at the rain's speed and slant, hidden behind what is nearer, lit
+   by the lamps near them and fading into the haze. Both come in gusts: bands of heavier rain,
    leaning harder, sweeping across downwind (gust(), a slow noise blown
    along at gust speed). Splashes are rings, and near the eye each
    drop that lands throws up a crown of droplets for a moment, glittering by
@@ -137,9 +138,52 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
 }`;
 
-// rain sheets: a full-screen triangle; the view ray of each pixel meets four cylinders round
-// the eye, each carrying streaks one to two pixels wide on an angular grid (so they stay put as
-// the view turns) that fall at the rain's speed and lean with its drift along the cylinder
+// rain sheets: four cylinders round the eye, 14, 22, 36 and 57 m out, each carrying streaks one to
+// two pixels wide on an angular grid (so they stay put as the view turns) that fall at the rain's
+// speed and lean with its drift along the cylinder. SHEET_GLSL works out one cylinder's streak where
+// a view ray meets it, for both ways of drawing them below
+const SHEET_GLSL = /* glsl */ `
+uniform vec3 uColor, uVel, uSky;
+uniform float uTime, uOpacity, uFlash, uFog;
+uniform vec3 uLightPos[6];
+uniform vec3 uLightCol[6];
+float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// how much of a streak shows at P on cylinder fi (t along the view ray to it; theta its bearing;
+// vt, fall the rain's speed across and down it), 0 for none
+float sheetStreak(vec3 P, float t, float fi, float theta, float vt, float fall, float pxPerRad) {
+  float r = 14.0 * pow(1.6, fi);
+  float vis = 1.0 - smoothstep(14.0, 30.0, P.y - cameraPosition.y);
+  if (vis <= 0.0) return 0.0;
+  // angular cells about five pixels wide, a whole number of them round the circle
+  float n = floor(6.2832 * pxPerRad / 5.0);
+  float dth = 6.2832 / n;
+  float U = (theta + P.y * vt / (fall * r)) / dth;
+  float len = 0.9 + 0.5 * fi;                          // longer streaks further off
+  float V = (P.y + uTime * fall) / 2.4;
+  vec2 id = mod(floor(vec2(U, V)), vec2(n, 4096.0)) + fi * 17.0;     // seamless round the circle
+  vec2 f = fract(vec2(U, V));
+  if (sHash(id) > 0.22) return 0.0;
+  float x0 = 0.25 + 0.5 * sHash(id + 3.7), y0 = 0.7 * sHash(id + 7.1);
+  float sx = 1.0 - smoothstep(0.4, 1.0, abs(f.x - x0) * 5.0);
+  float sy = smoothstep(y0, y0 + 0.04, f.y) * smoothstep(y0 + len / 2.4, y0 + len / 2.4 - 0.08, f.y);
+  float k = sx * sy * vis * exp(-t * uFog) * (0.6 + 0.8 * sHash(id + 11.3));
+  if (k <= 0.0) return 0.0;
+  return k * gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
+}
+// and its colour: lit by the lamps near it, seen by the light it catches (faint in the dark,
+// bright by a lamp or a fire)
+vec3 sheetLit(vec3 P) {
+  vec3 lit = uSky;
+  for (int j = 0; j < 6; j++) {
+    vec3 d = P - uLightPos[j];
+    lit += uLightCol[j] / (1.0 + dot(d, d) * 0.12);
+  }
+  return uColor * (0.3 + uFlash * 3.0) + lit * 2.0;
+}
+`;
+
+// with the late pass: a full-screen triangle, all four cylinders in one go, each hidden (softly)
+// behind what the scene's depth says is nearer
 const SHEET_VERT = /* glsl */ `
 varying vec3 vRay;
 varying vec3 vProj;
@@ -151,15 +195,11 @@ void main() {
 
 const SHEET_FRAG = /* glsl */ `
 ${GUST_GLSL}
-uniform vec3 uColor, uVel, uSky;
-uniform float uTime, uOpacity, uFlash, uFog;
-uniform vec3 uLightPos[6];
-uniform vec3 uLightCol[6];
+${SHEET_GLSL}
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 varying vec3 vRay;
 varying vec3 vProj;
-float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
   vec3 dir = normalize(vRay);
   float hd = length(dir.xz);
@@ -177,39 +217,49 @@ void main() {
   float alpha = 0.0;
   for (int i = 0; i < 4; i++) {
     float fi = float(i);
-    float r = 14.0 * pow(1.6, fi);                       // 14, 22, 36, 57 m
-    float t = r / hd;
-    vec3 P = cameraPosition + dir * t;
+    float t = 14.0 * pow(1.6, fi) / hd;
     float vis = smoothstep(0.0, 2.0, sceneZ - t * cosF);  // hidden behind what is nearer
-    vis *= 1.0 - smoothstep(14.0, 30.0, P.y - cameraPosition.y);
     if (vis <= 0.0) continue;
-    // angular cells about five pixels wide, a whole number of them round the circle
-    float n = floor(6.2832 * pxPerRad / 5.0);
-    float dth = 6.2832 / n;
-    float U = (theta + P.y * vt / (fall * r)) / dth;
-    float len = 0.9 + 0.5 * fi;                          // longer streaks further off
-    float V = (P.y + uTime * fall) / 2.4;
-    vec2 id = mod(floor(vec2(U, V)), vec2(n, 4096.0)) + fi * 17.0;     // seamless round the circle
-    vec2 f = fract(vec2(U, V));
-    if (sHash(id) > 0.22) continue;
-    float x0 = 0.25 + 0.5 * sHash(id + 3.7), y0 = 0.7 * sHash(id + 7.1);
-    float sx = 1.0 - smoothstep(0.4, 1.0, abs(f.x - x0) * 5.0);
-    float sy = smoothstep(y0, y0 + 0.04, f.y) * smoothstep(y0 + len / 2.4, y0 + len / 2.4 - 0.08, f.y);
-    float k = sx * sy * vis * exp(-t * uFog) * (0.6 + 0.8 * sHash(id + 11.3));
+    vec3 P = cameraPosition + dir * t;
+    float k = vis * sheetStreak(P, t, fi, theta, vt, fall, pxPerRad);
     if (k <= 0.0) continue;
-    k *= gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
-    // lit by the lamps near it
-    vec3 lit = uSky;
-    for (int j = 0; j < 6; j++) {
-      vec3 d = P - uLightPos[j];
-      lit += uLightCol[j] / (1.0 + dot(d, d) * 0.12);
-    }
-    // seen by the light they catch: faint in the dark, bright by a lamp or a fire
-    sum += (uColor * (0.3 + uFlash * 3.0) + lit * 2.0) * k;
+    sum += sheetLit(P) * k;
     alpha += k;
   }
   if (alpha <= 0.001) discard;
   gl_FragColor = vec4(sum / alpha, min(alpha * uOpacity, 0.8));
+}`;
+
+// without it (low quality): the four cylinders as meshes round the eye, drawn with the scene, so
+// the depth test hides each behind what is nearer
+const SHELL_VERT = /* glsl */ `
+attribute float aLayer;
+uniform vec2 uScreen;
+varying vec3 vP;
+varying float vLayer, vPxPerRad;
+void main() {
+  float r = 14.0 * pow(1.6, aLayer);
+  vP = vec3(cameraPosition.x + position.x * r, cameraPosition.y + position.y, cameraPosition.z + position.z * r);
+  vLayer = aLayer;
+  vPxPerRad = projectionMatrix[1][1] * 0.5 / uScreen.y;
+  gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.0);
+}`;
+
+const SHELL_FRAG = /* glsl */ `
+${GUST_GLSL}
+${SHEET_GLSL}
+varying vec3 vP;
+varying float vLayer, vPxPerRad;
+void main() {
+  vec3 d = vP - cameraPosition;
+  float t = length(d);
+  vec3 dir = d / t;
+  if (length(dir.xz) < 0.08) discard;
+  float theta = atan(dir.z, dir.x);
+  vec3 tang = vec3(-sin(theta), 0.0, cos(theta));
+  float k = sheetStreak(vP, t, vLayer, theta, dot(uVel.xz, tang.xz), -uVel.y, vPxPerRad);
+  if (k <= 0.001) discard;
+  gl_FragColor = vec4(sheetLit(vP), min(k * uOpacity, 0.8));
 }`;
 
 // the crowns: a quad standing on each young splash near the eye, droplets flung up and out
@@ -379,6 +429,34 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
   sheets.frustumCulled = false;
   sheets.renderOrder = 4;
   sheets.visible = false;
+  // ... and without it the same cylinders as meshes, from 60 m below the eye to 30 m over it, drawn
+  // with the scene (they follow the eye in their shader)
+  const SEG = 64, shellPos = [], shellLayer = [], shellIdx = [];
+  for (let l = 0; l < 4; l++) {
+    const base = shellPos.length / 3;
+    for (let i = 0; i <= SEG; i++) {
+      const a = (i / SEG) * Math.PI * 2;
+      shellPos.push(Math.cos(a), -60, Math.sin(a), Math.cos(a), 30, Math.sin(a));
+      shellLayer.push(l, l);
+    }
+    for (let i = 0; i < SEG; i++) { const k = base + i * 2; shellIdx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  }
+  const shellGeo = new THREE.BufferGeometry();
+  shellGeo.setAttribute('position', new THREE.Float32BufferAttribute(shellPos, 3));
+  shellGeo.setAttribute('aLayer', new THREE.Float32BufferAttribute(shellLayer, 1));
+  shellGeo.setIndex(shellIdx);
+  const shellUniforms = { ...sheetUniforms, uScreen: { value: new THREE.Vector2(1 / 1024, 1 / 768) } };
+  const shell = new THREE.Mesh(shellGeo, new THREE.ShaderMaterial({
+    vertexShader: SHELL_VERT, fragmentShader: SHELL_FRAG, uniforms: shellUniforms,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  }));
+  shell.frustumCulled = false;
+  shell.renderOrder = 4;
+  shell.visible = false;
+  // its streaks as many pixels wide as the sheets': the frame's own size
+  const frame = new THREE.Vector2();
+  shell.onBeforeRender = (renderer) => { renderer.getDrawingBufferSize(frame); shellUniforms.uScreen.value.set(1 / frame.x, 1 / frame.y); };
+  group.add(shell);
 
   // ---------- splashes ----------
   const SPL = 420;
@@ -546,13 +624,14 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
     sheetUniforms.tDepth = d.tDepth; sheetUniforms.uScreen = d.uScreen;
     sheetsOn = !!(scene && depth);
     sheets.visible = sheetsOn && geo.instanceCount > 0;
+    shell.visible = !sheetsOn && geo.instanceCount > 0;
   }
   let sheetsOn = false;
 
   return {
     group, update, flashDir, setLights, setSkyLight, drawLate,
     get flash() { return flash; },
-    setCount(n) { geo.instanceCount = Math.min(n, count); sheets.visible = sheetsOn && n > 0; },
+    setCount(n) { geo.instanceCount = Math.min(n, count); sheets.visible = sheetsOn && n > 0; shell.visible = !sheetsOn && n > 0; },
     strikeNow(time) { scheduleStrike(time); },
   };
 }
