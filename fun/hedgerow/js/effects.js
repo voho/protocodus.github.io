@@ -419,6 +419,32 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     alpha.mesh.material.depthTest = add.mesh.material.depthTest = !on;
     if (!on) shared.uSoft.value = 0;
   }
+  /* The late pass: what would smear through the temporal anti-aliasing (taa.js) —
+     sparks, tracers, flashes, flames: the additive system, and whatever else is put in
+     its scene (the rain, weather.js) — drawn after it over the resolved frame, still
+     fading into the scene by its depth (borrowed: depth()). */
+  const lateScene = new THREE.Scene();
+  let lateDepth = null;
+  const late = {
+    enabled: false, needsSwap: false, scene: lateScene,
+    setSize(w, h) { shared.uScreen.value.set(1 / w, 1 / h); },
+    render(renderer, writeBuffer, readBuffer) {
+      const dt = lateDepth ? lateDepth() : null;
+      shared.tDepth.value = dt;
+      shared.uSoft.value = dt ? 1 : 0;
+      const auto = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.setRenderTarget(readBuffer);
+      renderer.render(lateScene, camera);
+      renderer.autoClear = auto;
+    },
+  };
+  /* the additive system after the anti-aliasing (on, with the scene depth's getter) or with the rest */
+  function useLate(on, depth = null) {
+    late.enabled = on;
+    lateDepth = depth;
+    (on ? lateScene : group).add(add.mesh);
+  }
   /* this frame's lights ([{x, y, z, color, intensity, range}], lights.js) and the ambient (1 = as chosen) */
   function setLights(list, ambient = 1) {
     const n = Math.min(8, list.length);
@@ -636,7 +662,9 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
 
   return {
     group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, flareLaunch, update, fires,
-    pass, usePass, setLights,
+    pass, usePass, late, useLate, setLights,
+    /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
+    depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },
     get count() { return alpha.P.n + add.P.n; },
   };

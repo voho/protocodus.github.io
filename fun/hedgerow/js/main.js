@@ -30,6 +30,7 @@ import { createSSAO } from './ssao.js';
 import { createDOF } from './dof.js';
 import { createSSR } from './ssr.js';
 import { createShafts } from './shafts.js';
+import { createTAA } from './taa.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
 import { createClutter } from './clutter.js';
@@ -78,7 +79,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null;
+let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -194,6 +195,7 @@ async function boot() {
     ssao = createSSAO(camera);
     ssr = createSSR(camera, shared);
     shafts = createShafts(camera);
+    taa = createTAA(camera, () => volumetric.uniforms.tDepth.value);
     dof = createDOF(camera);
     applyGraphics();
   }
@@ -253,7 +255,13 @@ function applyGraphics() {
     // the flare's shafts need its shadows: with them, and with the light in the rain that lays them on
     const shaft = quality.volumetric && quality.shadows;
     if (!shaft) volumetric.setShafts(null);
-    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
+    // temporal anti-aliasing after the light in the rain (it borrows the scene depth the same
+    // way); what would smear through it (rain, sparks, flashes) is drawn after it
+    const aa = !!quality.volumetric;
+    taa.enabled = aa;
+    G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
+    G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
+    renderer.setEffects([...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, G.effects.late, dof] : []), ...(quality.bloom ? [bloom] : []), grade]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -428,7 +436,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts }; },
+  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -585,7 +593,9 @@ function step() {
   input.endFrame();
 
   renderer.info.reset();
+  taa?.jitter();
   renderer.render(scene, camera);
+  taa?.restore();
 
   fpsAcc += dt; fpsFrames++;
   if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }

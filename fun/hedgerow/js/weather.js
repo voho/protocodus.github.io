@@ -19,6 +19,8 @@ uniform vec3 uLightCol[6];
 varying float vAlpha;
 varying vec2 vUv;
 varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
 void main() {
   vec3 vel = uVel * (0.85 + 0.3 * aDrop.w);
   vec3 p = aDrop.xyz * uBox + vel * uTime;
@@ -38,16 +40,28 @@ void main() {
     lit += uLightCol[i] / (1.0 + dot(d, d) * 0.9);
   }
   vLit = lit;
-  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+  vec4 mv = viewMatrix * vec4(wp, 1.0);
+  vDist = -mv.z;
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
+  gl_Position = projectionMatrix * mv;
 }`;
 
 const RAIN_FRAG = /* glsl */ `
 uniform vec3 uColor;
-uniform float uOpacity, uFlash;
+uniform float uOpacity, uFlash, uSoft;
+uniform sampler2D tDepth;
+uniform vec2 uScreen;
 varying float vAlpha;
 varying vec2 vUv;
 varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
 void main() {
+  // drawn after the frame (the late pass): hidden behind what the scene drew
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    if (vDist > vProj.y / (zd + vProj.x)) discard;
+  }
   float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;
   float tail = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
   float boost = min(dot(vLit, vec3(0.33)), 4.0);
@@ -112,6 +126,7 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     uFlash: { value: 0 },
     uLightPos: { value: Array.from({ length: 6 }, () => new THREE.Vector3(0, -1000, 0)) },
     uLightCol: { value: Array.from({ length: 6 }, () => new THREE.Vector3()) },
+    tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
   };
   const rainMat = new THREE.ShaderMaterial({
     vertexShader: RAIN_VERT, fragmentShader: RAIN_FRAG, uniforms: rainUniforms,
@@ -220,8 +235,19 @@ export function createWeather({ count = 8000, terrain, onThunder, seed = 4 }) {
     }
   }
 
+  /* the rain drawn in another scene after the frame (the late pass of effects.js, hidden
+     behind the scene by its depth: depth = {tDepth, uScreen, uSoft} uniforms that pass keeps),
+     or with the rest of the weather again (scene null) */
+  function drawLate(scene, depth = null) {
+    (scene || group).add(rain);
+    rainMat.depthTest = !scene;
+    const own = { tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 } };
+    const d = scene && depth ? depth : own;
+    rainUniforms.tDepth = d.tDepth; rainUniforms.uScreen = d.uScreen; rainUniforms.uSoft = d.uSoft;
+  }
+
   return {
-    group, update, flashDir, setLights,
+    group, update, flashDir, setLights, drawLate,
     get flash() { return flash; },
     setCount(n) { geo.instanceCount = Math.min(n, count); },
     strikeNow(time) { scheduleStrike(time); },

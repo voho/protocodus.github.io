@@ -151,7 +151,12 @@ by the blast that killed them, and drop their rifles.
     through the crowns), at half resolution · `volumetric.js` lays the
     occlusion, the reflections and the shafts on and adds the light
     scattered in the rain by up to eight lamps, fires and
-    flashes (the closed-form airlight integral, cut by the depth) · `dof.js`
+    flashes (the closed-form airlight integral, cut by the depth) · `taa.js`
+    temporal anti-aliasing (the projection jittered by a sub-pixel Halton
+    step each frame, each frame blended into the history reprojected by
+    the depth and held to its neighbourhood; the rifle in your hands is not
+    reprojected) · the late particles of `effects.js` and the rain, drawn
+    after it so they stay crisp · `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
     hurt state); the high and medium qualities run all of it, low only the
