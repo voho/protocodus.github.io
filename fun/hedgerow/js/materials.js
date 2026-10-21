@@ -132,6 +132,8 @@ export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinD
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
+// the guns (close-up wood and steel in addWeather: the one in your hands is half a metre from the eye)
+const GUN = /^(m1_garand|thompson|kar98k|mp40|mg42)/;
 const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
 
 /* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
@@ -266,6 +268,7 @@ export function createMaterialLibrary(textures, shared) {
         skin: SKIN.test(src.name || ''),
         // the soldiers and their kit keep the fill light's sheen: it models their shape in the dark
         glints: CARRIED.test(src.name || ''),
+        gun: GUN.test(src.name || ''),
         // the grain of the surface close up: houses, walls, wrecks, crates (not the leaves, the
         // bark, what is carried or the lit panes)
         grain: !cards && !bk && !CARRIED.test(src.name || '') && !src.userData?.rooms,
@@ -285,10 +288,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false, gun = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -698,6 +701,68 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         // in a crown's dark heart, nor in a fern or a tussock low in its own shade)
         reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12 * leafThin;`)
         .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
+    }
+    if (gun) {
+      // a gun close to the eye (the one in your hands, half a metre off, where its texture is spread
+      // thin): the walnut of the stock with a grain finer than the texture holds - fine lines along the
+      // gun, wandering, a figure of lighter and darker streaks through them, oiled between them and
+      // sunk a little - and the steel mottled where its finish has worn and pitted, so the light
+      // breaks up across it instead of sliding off it as off plastic. In the gun's own space (along
+      // its z), so the grain stays on the wood; each pattern fades out before it gets finer than the
+      // pixels it falls on
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\n        varying vec3 vGunP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n        vGunP = position;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vGunP;
+        float gunH = 0.0;
+        float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float gNoise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y);
+        }`)
+        .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        {
+          float gunK = 1.0 - smoothstep(1.2, 2.5, length(vViewPosition));
+          vec3 p = vGunP;
+          // walnut: brown (red over green over blue) and not metal; steel: metal
+          vec3 sc = pow(max(diffuseColor.rgb, vec3(1e-4)), vec3(1.0 / 2.2));
+          float mx = max(sc.r, max(sc.g, sc.b)), mn = min(sc.r, min(sc.g, sc.b));
+          float steel = smoothstep(0.35, 0.6, metalnessFactor);
+          float wood = (1.0 - steel) * step(sc.b, sc.g) * step(sc.g, sc.r) * smoothstep(0.2, 0.35, (mx - mn) / max(mx, 1e-4)) * smoothstep(0.08, 0.16, mx);
+          // the grain: lines a few millimetres apart along the gun, wandering with it
+          float u = p.y * 1700.0 + p.x * 900.0 + 5.0 * gNoise(vec2(p.z * 18.0, p.y * 90.0)) + 2.0 * gNoise(vec2(p.z * 60.0, p.x * 300.0));
+          float line = (1.0 - smoothstep(0.05, 0.35, abs(sin(u)))) * (1.0 - smoothstep(0.9, 2.2, fwidth(u)));
+          float fig = gNoise(vec2(p.z * 6.0, p.y * 140.0 + p.x * 70.0));
+          float wk = wood * gunK;
+          diffuseColor.rgb *= mix(1.0, (0.82 + 0.3 * fig) * (1.0 - 0.32 * line), wk);
+          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.82 + 0.16 * line, wk);
+          // the steel: Parkerized, a dark grey that is matte even wet, mottled where the finish has
+          // worn and pitted finer than that; and worn to the bright bare steel along its edges (where
+          // the surface turns sharply for how far a pixel spans)
+          float m1 = gNoise(p.zy * 420.0 + p.x * 200.0), m2 = gNoise(p.xz * 900.0 + 3.1);
+          float maa = 1.0 - smoothstep(0.35, 0.8, length(fwidth(p)) * 900.0);
+          float curv = length(fwidth(vNormal)) / max(length(fwidth(vViewPosition)), 1e-6);
+          float edge = smoothstep(500.0, 1500.0, curv);
+          float sk = steel * gunK;
+          float park = clamp(max(roughnessFactor, 0.5) * (0.75 + 0.5 * m1) + 0.1 * (m2 - 0.5) * maa, 0.3, 1.0);
+          roughnessFactor = mix(roughnessFactor, mix(park, 0.25, edge), sk);
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb * (0.42 + 0.2 * m1), diffuseColor.rgb * 1.3 + 0.04, edge), sk);
+          // their relief (m): the grain lines sunk a quarter of a millimetre, the pits a twentieth
+          gunH = (-line * 0.25 * wk + (m2 - 0.5) * 0.06 * maa * sk) * 0.001;
+        }`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          // bumped by that relief (the derivatives taken everywhere: never inside a branch)
+          vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition);
+          float hx = dFdx(gunH), hy = dFdy(gunH);
+          vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
+          float det = dot(sx, r1);
+          vec3 nb = abs(det) * normal - sign(det) * (hx * r1 + hy * r2);
+          if (dot(nb, nb) > 1e-24) normal = normalize(nb);
+        }`);
     }
     if (!glints) dimFillSpecular(shader);
   };
