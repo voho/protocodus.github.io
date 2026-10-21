@@ -168,7 +168,8 @@ by the blast that killed them, and drop their rifles.
     rivulets that slide down and catch the light; the soldiers' skin, found
     in their atlas by its colour, scattering light under its surface (the
     light wrapping past the shadow's edge, reddest; the hands on the rifle
-    included), and their wool, found by its baked roughness, darkening in
+    included), and their wool, found by its baked roughness and its colour
+    (field grey, olive or khaki below the collar, not leather), darkening in
     the rain but never glossy, with a fabric's sheen at grazing angles;
     within 3 m (your own arms round the rifle, a man at arm's length) the
     weave of that wool and the grain of the skin, laid on in the model's

@@ -493,7 +493,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         uniform float uSkin, uCloth, uSkinDebug, uCloseUp;
         uniform sampler2D tFabric, tGrain;
         varying vec3 vSkP, vSkN;
-        float skinK = 0.0, clothK = 0.0, skK = 0.0;
+        float skinK = 0.0, clothK = 0.0, skK = 0.0, woolHue = 0.0;
         vec3 skW = vec3(0.0);
         const vec4 SK_FLAT = vec4(0.5, 0.5, 1.0, 0.5);
         vec4 skX = SK_FLAT, skY = SK_FLAT, skZ = SK_FLAT;
@@ -529,6 +529,10 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           float hue = (sc.g - sc.b) / max(sc.r - sc.b, 1e-4);     // 0 red .. 1 yellow, for r >= g >= b
           skinK = step(sc.b, sc.g) * step(sc.g, sc.r) * smoothstep(0.08, 0.18, hue) * (1.0 - smoothstep(0.52, 0.64, hue))
             * smoothstep(0.14, 0.24, sat) * (1.0 - smoothstep(0.62, 0.72, sat)) * smoothstep(0.3, 0.4, mx) * uSkin;
+          // the colour of wool: field grey, olive or khaki - not a saturated brown (leather), not
+          // black (boots, belts, pouches) - and below the collar (the painted helmet is the same grey)
+          woolHue = (1.0 - smoothstep(0.36, 0.46, sat) * step(sc.g, sc.r)) * smoothstep(0.16, 0.22, mx)
+            * (1.0 - smoothstep(1.54, 1.6, vSkP.y));
         }
         #include <roughnessmap_fragment>
         // skin: soft, not plastic (glossier wet)
@@ -539,7 +543,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           #ifdef USE_METALNESSMAP
             mtl = texture2D(metalnessMap, vMetalnessMapUv).b;
           #endif
-          clothK = smoothstep(0.72, 0.82, roughnessFactor) * (1.0 - smoothstep(0.02, 0.06, mtl)) * (1.0 - skinK) * uCloth;
+          clothK = max(smoothstep(0.72, 0.82, roughnessFactor), smoothstep(0.5, 0.62, roughnessFactor) * woolHue)
+            * (1.0 - smoothstep(0.02, 0.06, mtl)) * (1.0 - skinK) * uCloth;
           clothSheen = mix(diffuseColor.rgb, vec3(0.5), 0.35) * 0.9;
         }
         // close up (the arms round the rifle, a man at arm's length; the atlas is stretched over the
