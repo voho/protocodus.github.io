@@ -26,7 +26,8 @@ and verges are tens of thousands of single blades of grass that bend in
 the wind, part round your legs and flatten outward under a blast's
 shockwave, stones lie in the mud of the lanes and
 yards and twigs on the forest floor, the trunks show their bark close up
-(furrowed oak and pine, smooth beech, moss low on the weather side), behind
+(furrowed oak and pine, smooth beech, moss low on the weather side) and
+walls, wrecks and crates the grain of their surface, behind
 each lit window there is a room — papered walls, beams overhead, a table
 under a lamp, a cupboard, lace across the bottom of some windows — that
 shifts with parallax as you walk past, seen up close through rain beaded on
@@ -160,7 +161,10 @@ by the blast that killed them, and drop their rifles.
     lying along the slope (high and medium)
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
-    two sides, per species; rain running down walls within ~24 m in
+    two sides, per species; on the other baked solids within ~7 m a
+    generated metre of surface grain in world space from three sides,
+    mottling everything and roughening what is baked rough, not where water
+    stands; rain running down walls within ~24 m in
     rivulets that slide down and catch the light; the soldiers' skin, found
     in their atlas by its colour, scattering light under its surface (the
     light wrapping past the shadow's edge, reddest; the hands on the rifle

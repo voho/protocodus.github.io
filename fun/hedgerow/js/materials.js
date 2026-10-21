@@ -138,8 +138,68 @@ const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
    smooth beech, papery birch, old dead wood */
 const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0.85], [/^birch/, 0.4, 0.15], [/^(tree_dead|stump|log)/, 0.8, 0.6]];
 
+/* the close-up grain of the baked solids (addWeather `grain`): its texture (grainTexture, made
+   with the first material library) and how strong it is (0: none) */
+export const GRAIN_UNIFORMS = { tGrain: { value: null }, uGrain: { value: 1 } };
+
+/* A metre of surface, tiling: mottling a few centimetres across, finer grit and small pits. RGB
+   its relief as a normal map, A the albedo detail (0.5 on average). Value noise on lattices
+   that wrap, so it tiles. */
+function grainTexture(S = 512) {
+  let seed = 7;
+  const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const sizes = [8, 16, 32, 64, 128];
+  const lattices = sizes.map((n) => Float32Array.from({ length: n * n }, R));
+  const H = new Float32Array(S * S), A = new Float32Array(S * S);
+  const oct = new Float32Array(sizes.length);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    for (let o = 0; o < sizes.length; o++) {
+      const n = sizes[o], L = lattices[o], fx = (x / S) * n, fy = (y / S) * n;
+      const ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      const x1 = (ix + 1) % n, y1 = (iy + 1) % n;
+      const a = L[iy * n + ix], b = L[iy * n + x1], c = L[y1 * n + ix], d = L[y1 * n + x1];
+      oct[o] = a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+    }
+    const i = y * S + x;
+    H[i] = oct[1] * 0.35 + oct[2] * 0.35 + oct[3] * 0.3;
+    A[i] = 0.5 + (oct[0] - 0.5) * 0.45 + (oct[1] - 0.5) * 0.35 + (oct[3] - 0.5) * 0.25 + (oct[4] - 0.5) * 0.15;
+  }
+  // pits, a few millimetres across, darker inside
+  for (let k = 0; k < 900; k++) {
+    const cx = R() * S, cy = R() * S, r = 1 + R() * 2.5, deep = 0.03 + R() * 0.05;
+    for (let j = Math.floor(-r - 1); j <= r + 1; j++) for (let i = Math.floor(-r - 1); i <= r + 1; i++) {
+      const px = (Math.floor(cx) + i + S) % S, py = (Math.floor(cy) + j + S) % S;
+      const t = 1 - Math.hypot(Math.floor(cx) + i - cx, Math.floor(cy) + j - cy) / r;
+      if (t <= 0) continue;
+      H[py * S + px] -= deep * t * t;
+      A[py * S + px] -= 0.25 * t;
+    }
+  }
+  const data = new Uint8Array(S * S * 4);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = y * S + x;
+    const dx = (H[y * S + ((x + 1) % S)] - H[y * S + ((x + S - 1) % S)]) * 9;
+    const dy = (H[((y + 1) % S) * S + x] - H[((y + S - 1) % S) * S + x]) * 9;
+    const l = Math.hypot(dx, dy, 1);
+    data[i * 4] = (0.5 - (0.5 * dx) / l) * 255;
+    data[i * 4 + 1] = (0.5 - (0.5 * dy) / l) * 255;
+    data[i * 4 + 2] = (0.5 + 0.5 / l) * 255;
+    data[i * 4 + 3] = Math.max(0, Math.min(1, A[i])) * 255;
+  }
+  const tex = new THREE.DataTexture(data, S, S);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 export function createMaterialLibrary(textures, shared) {
   const cache = new Map();
+  GRAIN_UNIFORMS.tGrain.value ??= grainTexture();
 
   function get(key, opts = {}) {
     const id = key + (opts.variant ? ':' + opts.variant : '');
@@ -203,6 +263,9 @@ export function createMaterialLibrary(textures, shared) {
         skin: SKIN.test(src.name || ''),
         // the soldiers and their kit keep the fill light's sheen: it models their shape in the dark
         glints: CARRIED.test(src.name || ''),
+        // the grain of the surface close up: houses, walls, wrecks, crates (not the leaves, the
+        // bark, what is carried or the lit panes)
+        grain: !cards && !bk && !CARRIED.test(src.name || '') && !src.userData?.rooms,
       });
       baked.set(src.uuid, m);
       return m;
@@ -219,10 +282,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -233,6 +296,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
       ...(smoulder ? SMOULDER_UNIFORMS : {}),
       ...(skin ? SKIN_UNIFORMS : {}),
+      ...(grain ? GRAIN_UNIFORMS : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -311,6 +375,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         float barkK, barkW;` : ''}
         ${streaks ? 'float mRiv, mRivX;\n        vec3 mRivT;' : ''}
         ${rooms ? 'varying vec4 vWin;' : ''}
+        ${grain ? `uniform sampler2D tGrain;
+        uniform float uGrain;
+        float grainK = 0.0, grainN = 0.0;
+        vec3 grainW = vec3(0.0);
+        vec4 grainX, grainY, grainZ;` : ''}
         ${GLSL_HELPERS}
         ${rooms ? ROOMS_GLSL : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -364,6 +433,22 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }
         #endif` : ''}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        ${grain ? `// close up, the grain of the surface (a baked texture stretched over a whole house goes
+        // soft within a few metres): a metre of fine detail in world space, seen from the three
+        // sides blended by which way the surface faces, gone by 7 m; its relief only on what is
+        // rough (stone, plaster, old wood: paint or metal, glossy in the rain, would glitter) and
+        // not under standing water, which fills it
+        grainK = uGrain * (1.0 - smoothstep(3.0, 7.0, length(vViewPosition)));
+        grainN = grainK * smoothstep(0.55, 0.85, roughnessFactor) * (1.0 - mWetUp);
+        if (grainK > 0.01) {
+          grainW = pow(abs(vWNormalM), vec3(4.0));
+          grainW /= dot(grainW, vec3(1.0));
+          grainX = texture2D(tGrain, vWPosM.zy);
+          grainY = texture2D(tGrain, vWPosM.xz);
+          grainZ = texture2D(tGrain, vWPosM.xy);
+          float g = grainX.a * grainW.x + grainY.a * grainW.y + grainZ.a * grainW.z;
+          diffuseColor.rgb *= mix(1.0, 0.7 + 0.6 * g, grainK);
+        }` : ''}
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
         roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);
         ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);' : ''}`)
@@ -372,6 +457,12 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
           vec3 nB = cotangentFrame(normal, -vViewPosition, vBarkP.zy) * normalize(vec3((barkB.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
           normal = normalize(mix(nA, nB, barkW));
+        }` : ''}
+        ${grain ? `if (grainN > 0.01) {
+          // each side's relief laid along the two world axes of its plane
+          vec2 gx = grainX.xy * 2.0 - 1.0, gy = grainY.xy * 2.0 - 1.0, gz = grainZ.xy * 2.0 - 1.0;
+          vec3 dn = grainW.x * vec3(0.0, gx.y, gx.x) + grainW.y * vec3(gy.x, 0.0, gy.y) + grainW.z * vec3(gz.x, gz.y, 0.0);
+          normal = normalize(normal + mat3(viewMatrix) * dn * grainN * 0.25);
         }` : ''}
         if (mWetUp > 0.01) {
           vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
