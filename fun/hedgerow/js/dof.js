@@ -8,8 +8,11 @@
    front of it stays sharp. The depth comes from the scene pass of the same
    frame (the first passes of the chain see it; this one borrows it). A
    16-tap golden-angle disc, each tap weighted by its own blur so a sharp
-   soldier in front does not smear into the soft hedge behind him. Off
-   (and free) when not aiming. */
+   soldier in front does not smear into the soft hedge behind him. The
+   focus looks past the rifle itself (first person, its front sight is
+   under the crosshair), and what is right at the eye — the rear sight, the
+   hands — goes a little soft too, as a real peep sight does. Off (and free)
+   when not aiming. */
 
 import * as THREE from 'three';
 
@@ -20,7 +23,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 const FRAG = /* glsl */ `
 uniform sampler2D tSrc, tDepth;
 uniform mat4 uProjInv;
-uniform float uAim, uMaxPx;
+uniform float uAim, uMaxPx, uNearPx;
 uniform vec2 uTexel;
 varying vec2 vUv;
 
@@ -31,11 +34,17 @@ float dist(vec2 uv) {
   return length(v.xyz / v.w);
 }
 // blur in pixels for a point at distance d with the focus at f
-float coc(float d, float f) { return clamp((d - f) / max(d, 1e-3) * 1.25, 0.0, 1.0) * uMaxPx * uAim; }
+float coc(float d, float f) {
+  float far = clamp((d - f) / max(d, 1e-3) * 1.25, 0.0, 1.0) * uMaxPx;
+  float near = (1.0 - smoothstep(0.18, 0.45, d)) * uNearPx;
+  return max(far, near) * uAim;
+}
+// a focus tap: past the rifle (nearer than 1.2 m is the gun itself)
+float focusAt(vec2 uv) { float d = dist(uv); return d < 1.2 ? 1e4 : d; }
 
 void main() {
   // the focus: what lies under the crosshair (a few taps, the nearest wins)
-  float f = min(min(dist(vec2(0.5)), dist(vec2(0.5) + uTexel * vec2(6.0, 0.0))), dist(vec2(0.5) - uTexel * vec2(6.0, 0.0)));
+  float f = min(min(focusAt(vec2(0.5)), focusAt(vec2(0.5) + uTexel * vec2(6.0, 0.0))), focusAt(vec2(0.5) - uTexel * vec2(6.0, 0.0)));
   f = max(f, 2.0);
   vec3 c0 = texture2D(tSrc, vUv).rgb;
   float r0 = coc(dist(vUv), f);
@@ -63,7 +72,7 @@ export function createDOF(camera) {
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: {
       tSrc: { value: null }, tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() },
-      uAim: { value: 0 }, uMaxPx: { value: 7 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
+      uAim: { value: 0 }, uMaxPx: { value: 7 }, uNearPx: { value: 3 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
@@ -83,6 +92,7 @@ export function createDOF(camera) {
     setSize(w, h) {
       u.uTexel.value.set(1 / w, 1 / h);
       u.uMaxPx.value = 5 * h / 768;
+      u.uNearPx.value = 3 * h / 768;
     },
     render(renderer, writeBuffer, readBuffer) {
       u.uProjInv.value.copy(camera.projectionMatrixInverse);

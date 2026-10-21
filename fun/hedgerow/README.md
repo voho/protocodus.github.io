@@ -1,6 +1,6 @@
 # Hedgerow
 
-A third-person Second World War shooter for the browser — realistic-looking,
+A first-person Second World War shooter for the browser — realistic-looking,
 arcade to play. You are one soldier pushing through hand-built missions; this
 proof of concept has the first one:
 
@@ -46,7 +46,6 @@ aim at.
 | 1 / 2 / wheel | M1 Garand / Thompson |
 | G | grenade (hold to cook) |
 | E | use (set the charge) |
-| Q | switch shoulder |
 | Esc | pause |
 
 Health comes back when you stay out of fire. Dying returns you to the last
@@ -81,8 +80,13 @@ by the blast that killed them, and drop their rifles.
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
     set has one, the `_lod` impostor beyond the quality's near range
-  * `player.js`, `camera.js`, `character.js` (rig, split upper/lower body
-    animation, the outfit's low-detail `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
+  * `player.js` (first person: your own animated body, the head folded
+    away, the rifle shouldered; aiming turns the body and bends the spine
+    until the sights lie along the view), `camera.js` (at the eyes, down the
+    sights when aiming; the over-the-shoulder rig for the death camera),
+    `character.js` (rig, split upper/lower body animation, the upper body
+    steadied on the gait in first person, the outfit's low-detail `_lod`
+    mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
     (perception, cover, MG nests, sniper, reloads; patrols; sounds looked
     into; a lost player searched for where he was seen and ambushed along
@@ -148,7 +152,11 @@ by the blast that killed them, and drop their rifles.
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
-  killer walks to the body, the death camera follows him:
+  killer walks to the body, the death camera follows him;
+  `tests/fp-check.mjs` — first person on the real rig and rifles: walking,
+  sprinting and crouching move the rifle in view no more than standing
+  still does (the gait's bob and twist steadied out of the upper body), and
+  aiming puts the front sight in the middle of the view:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs
@@ -157,6 +165,7 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/distance-check.mjs
       node fun/hedgerow/tests/lod-check.mjs
       node fun/hedgerow/tests/ai-check.mjs
+      node fun/hedgerow/tests/fp-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to

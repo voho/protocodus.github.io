@@ -5,7 +5,7 @@
    ?go (skip the menus straight to the briefing). */
 
 import * as THREE from 'three';
-import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY } from './config.js';
+import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
 import { loadTextures, createMaterialLibrary } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
@@ -108,7 +108,7 @@ async function boot() {
   const fogColor = new THREE.Color(LEVEL.fog.color);
   scene.fog = new THREE.FogExp2(fogColor, LEVEL.fog.density);
   scene.background = fogColor;
-  camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, 0.1, 1700);
+  camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, CAMERA.near ?? 0.1, 1700);
 
   input = createInput(canvas);
   hud = createHud($('[data-hud]'));

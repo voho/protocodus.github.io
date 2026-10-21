@@ -40,7 +40,7 @@ function parseExtra(v) {
   return v;
 }
 
-function readSet(gltf, set, models) {
+export function readSet(gltf, set, models) {
   const root = gltf.scene;
   root.updateMatrixWorld(true);
   for (const node of root.children) {

@@ -264,7 +264,59 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   let lowerName = null, upperName = null, lowerAct = null, upperAct = null;
   let oneShot = null, oneShotEnd = 0, dead = false;
   let spineBase = null;       // the spine as the clips left it, before the aim pitch
+  let spinePosBase = null;
   let ragdoll = null;
+  let headHidden = false;
+  // first person: the pelvis (root and hips bones together) the upper body
+  // rides on, held at each gait's average instead of bobbing and twisting
+  // with every stride
+  let steadyQ = null, steadyP = null;
+  const tq = new THREE.Quaternion(), tqi = new THREE.Quaternion(), cq = new THREE.Quaternion(), cp = new THREE.Vector3();
+  const meanPelvis = new Map();
+  function pelvisMean(name) {
+    if (meanPelvis.has(name)) return meanPelvis.get(name);
+    const clip = clips.lower[name];
+    let out = null;
+    if (clip && bones.root && bones.hips) {
+      const at = (bone, key) => clip.tracks.find((t) => t.name === `${bone}.${key}`)?.createInterpolant() || null;
+      const rp = at('root', 'position'), rq = at('root', 'quaternion'), hp = at('hips', 'position'), hq = at('hips', 'quaternion');
+      const N = 48, p = new THREE.Vector3(), sum = new THREE.Vector4(), q = new THREE.Quaternion(), q1 = new THREE.Quaternion();
+      const v = new THREE.Vector3(), first = new THREE.Quaternion();
+      for (let i = 0; i < N; i++) {
+        const t = (clip.duration * i) / N;
+        q.copy(bones.root.quaternion); if (rq) q.fromArray(rq.evaluate(t));
+        q1.copy(bones.hips.quaternion); if (hq) q1.fromArray(hq.evaluate(t));
+        v.copy(bones.hips.position); if (hp) v.fromArray(hp.evaluate(t));
+        v.applyQuaternion(q);
+        if (rp) v.add(new THREE.Vector3().fromArray(rp.evaluate(t))); else v.add(bones.root.position);
+        p.add(v);
+        q.multiply(q1);
+        if (i === 0) first.copy(q);
+        const s = first.dot(q) < 0 ? -1 : 1;
+        sum.x += q.x * s; sum.y += q.y * s; sum.z += q.z * s; sum.w += q.w * s;
+      }
+      out = { p: p.divideScalar(N), q: new THREE.Quaternion(sum.x, sum.y, sum.z, sum.w).normalize() };
+    }
+    meanPelvis.set(name, out);
+    return out;
+  }
+  /* The spine re-seated as if the pelvis stood at the gait's average pose,
+     so the chest, arms and rifle (and the eyes) ride smoothly on the
+     walking legs; a change of gait (crouching, say) comes through quickly. */
+  function steadyUpper(dt) {
+    const r = bones.root, h = bones.hips, sp = bones.spine;
+    if (!r) return;
+    cq.multiplyQuaternions(r.quaternion, h.quaternion);
+    cp.copy(h.position).applyQuaternion(r.quaternion).add(r.position);
+    if (!steadyQ) { steadyQ = cq.clone(); steadyP = cp.clone(); }
+    const m = lowerName ? pelvisMean(lowerName) : null;
+    const k = 1 - Math.exp(-8 * dt);
+    steadyQ.slerp(m ? m.q : cq, k);
+    steadyP.lerp(m ? m.p : cp, k);
+    tqi.copy(cq).invert();
+    sp.position.applyQuaternion(steadyQ).add(steadyP).sub(cp).applyQuaternion(tqi);
+    sp.quaternion.premultiply(tq.copy(tqi).multiply(steadyQ));
+  }
 
   function play(layer, name, fade = 0.2, timeScale = 1) {
     const a = act(layer, name);
@@ -314,6 +366,13 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     get socketL() { return socketL; },
     aimPitch: 0,
     lean: 0,
+    steady: false,      // first person: the upper body steadied on the gait
+
+    /* first person: the head (and the helmet on it) folded away from the eyes */
+    hideHead(on) {
+      headHidden = on;
+      if (!on && bones.head) bones.head.scale.setScalar(1);
+    },
 
     /* Locomotion + upper body. `move` is a lower clip name, `upper` an
        upper clip name, `speed` scales the gait. */
@@ -348,6 +407,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       oneShot = null;
       if (world) {
         if (spineBase) bones.spine.quaternion.copy(spineBase);   // no aim pitch frozen in
+        if (spinePosBase) bones.spine.position.copy(spinePosBase);
         ragdoll = createRagdoll(bones, world, { velocity, impulses, root });
         if (ragdoll) { mixer.stopAllAction(); return; }
       }
@@ -376,6 +436,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       // the last frame, so a held pose would keep last frame's aim pitch and
       // the next pitch would stack on it: put the clip's pose back first.
       if (spineBase) bones.spine.quaternion.copy(spineBase);
+      if (spinePosBase) bones.spine.position.copy(spinePosBase);
       mixer.update(dt);
       if (oneShot && mixer.time >= oneShotEnd) {
         if (oneShot === 'throw') holdForThrow(false);
@@ -384,11 +445,22 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         play('upper', state._pendingUpper || 'idle', 0.2);
       }
       root.updateMatrixWorld(true);
-      if (bones.spine) (spineBase ||= new THREE.Quaternion()).copy(bones.spine.quaternion);
+      if (bones.spine) {
+        (spineBase ||= new THREE.Quaternion()).copy(bones.spine.quaternion);
+        (spinePosBase ||= new THREE.Vector3()).copy(bones.spine.position);
+      }
+      if (state.steady && !dead && bones.hips && bones.spine) {
+        steadyUpper(dt);
+        bones.spine.updateMatrixWorld(true);
+      }
       if (!dead && state.aimPitch && bones.spine) {
         // the rig's spine pitches about its local X; negative is up
         bones.spine.rotateX(-state.aimPitch);
         bones.spine.updateMatrixWorld(true);
+      }
+      if (headHidden && bones.head) {
+        bones.head.scale.setScalar(0.001);
+        bones.head.updateMatrixWorld(true);
       }
       if (ground != null) {
         shadow.position.set(root.position.x, ground + 0.03, root.position.z);
