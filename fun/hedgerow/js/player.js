@@ -1,13 +1,21 @@
 /* Hedgerow — the player soldier.
 
-   Strafe-style third-person control: the soldier faces where the camera
-   looks while moving or aiming, and turns with it more lazily when idle.
+   First person: the soldier faces where the camera looks and carries his
+   rifle shouldered (lowered at a sprint, while changing weapons, or when a
+   wall is closer than its muzzle); the camera rides at his eyes, his head
+   folded away, so his arms, rifle, chest and legs are his own animated body.
+   Aiming puts the eye behind the rear sight; his body turns and his spine
+   bends a little more or less until the sights lie along the view, so the
+   sight picture is true and recoil lifts the rifle off it before it
+   settles back. (CAMERA.firstPerson off: the old over-the-shoulder view, the
+   soldier turning with the camera more lazily when idle.)
+
    Walking, sprinting, crouching, wading, vaulting low cover and jumping
    share one capsule against the world. Two weapons (Garand, Thompson),
    grenades that can be cooked, health that comes back when out of fire. */
 
 import * as THREE from 'three';
-import { PLAYER, WEAPONS, GRENADE, GAIT } from './config.js';
+import { PLAYER, WEAPONS, GRENADE, GAIT, CAMERA } from './config.js';
 import { clamp, damp, dampAngle, lerp, wrapAngle } from './util.js';
 import { createCharacter } from './character.js';
 import { rayEnemies } from './combat.js';
@@ -30,7 +38,15 @@ export function createPlayer(G) {
     stepAcc: 0, firedAt: -10, lastHurtDir: 0,
     char: null, movingSpeed: 0, visible: 1, noise: 0,
     stats: null,
+    yawFix: 0, pitchFix: 0, blocked: false,
   };
+  const FP = !!CAMERA.firstPerson;
+  // the eyes from the head bone: up and forward of it, in metres; and, not
+  // aiming, the eye a little up, left and back of the stock (the rifle low
+  // and right in the picture, the crosshair clear)
+  const EYE_UP = 0.09, EYE_FORWARD = 0.08;
+  const HIP_UP = 0.035, HIP_LEFT = 0.055, HIP_BACK = 0.03;
+  const eyeOff = new THREE.Vector3(0, PLAYER.eye, 0);
 
   const charOpts = () => ({ outfit: 'allied', weaponModel: G.models.get(WEAPONS[P.weapon || 'garand'].model), grenadeModel: G.models.get('grenade_us'), scene: G.scene });
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
@@ -68,6 +84,10 @@ export function createPlayer(G) {
     }
     P.char.root.position.copy(P.pos);
     P.char.root.rotation.y = P.yaw;
+    P.char.hideHead(FP);
+    P.char.steady = FP;
+    P.yawFix = 0; P.pitchFix = 0; P.blocked = false;
+    eyeOff.set(0, PLAYER.eye, 0);
     G.hud.health(P.health / PLAYER.health);
   };
 
@@ -97,6 +117,7 @@ export function createPlayer(G) {
         const k = kind === 'bullet' ? 3.0 : 7;
         impulses.push({ part: kind === 'bullet' ? 'body' : 'all', vel: dir.multiplyScalar(k).add(new THREE.Vector3(0, kind === 'bullet' ? 0.4 : 3.5, 0)) });
       }
+      P.char.hideHead(false);
       P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
       G.audio.bodyFall(P.pos.x, P.pos.y, P.pos.z, G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z), 0.45, true);
       if (G.debris && P.char.weapon && P.char.ragdoll) G.debris.drop(P.char.weapon, new THREE.Vector3(0, 1, 0), { spin: 4, radius: 0.08 });
@@ -268,6 +289,48 @@ export function createPlayer(G) {
     }, 300);
   }
 
+  /* ---------- first person ---------- */
+
+  const eyeW = new THREE.Vector3(), rearW = new THREE.Vector3(), frontW = new THREE.Vector3();
+  const sightW = new THREE.Vector3(), sDir = new THREE.Vector3(), vDir = new THREE.Vector3();
+
+  /* The camera at his eyes (and down his sights when aiming), after his body
+     has been posed for the frame. */
+  function firstPersonView(dt, w, aiming, hSpeed, strafe) {
+    const ch = P.char;
+    // the eyes: above and in front of the head bone; the offset from the feet is
+    // smoothed, so his steps bob the view without the jitter of the clips
+    ch.headWorld(eyeW);
+    const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+    eyeW.x += sy * (EYE_FORWARD - HIP_BACK) + cy * HIP_LEFT;
+    eyeW.z += cy * (EYE_FORWARD - HIP_BACK) - sy * HIP_LEFT;
+    eyeW.y += EYE_UP + HIP_UP;
+    eyeW.sub(P.pos);
+    const k = 1 - Math.exp(-22 * dt);
+    eyeOff.lerp(eyeW, k);
+    eyeW.copy(P.pos).add(eyeOff);
+    // the rifle's sight line, and the eye's place behind it
+    let sight = null;
+    const wpn = ch.weapon;
+    if (wpn && w.sight && (ch.upper === 'aim' || ch.upper === 'crouch_aim')) {
+      wpn.localToWorld(rearW.fromArray(w.sight.rear));
+      wpn.localToWorld(frontW.fromArray(w.sight.front));
+      sDir.subVectors(frontW, rearW).normalize();
+      sight = sightW.copy(rearW).addScaledVector(sDir, -w.sight.relief);
+      // turn the body and bend the spine until the sights lie along the view
+      G.rig.forward(vDir);
+      const eYaw = wrapAngle(Math.atan2(vDir.x, vDir.z) - Math.atan2(sDir.x, sDir.z));
+      const ePitch = Math.asin(clamp(vDir.y, -1, 1)) - Math.asin(clamp(sDir.y, -1, 1));
+      const g = 1 - Math.exp(-14 * dt);
+      P.yawFix = clamp(P.yawFix + eYaw * g, -0.6, 0.6);
+      P.pitchFix = clamp(P.pitchFix + ePitch * g, -0.6, 0.6);
+    }
+    // a wall nearer than the muzzle: the rifle comes down (next frame's pose)
+    G.rig.forward(vDir);
+    P.blocked = !!G.world.raycast(eyeW.x, eyeW.y, eyeW.z, vDir.x, vDir.y, vDir.z, w.reach || 0.8, SHOT, { noWater: true });
+    G.rig.updateFirstPerson(dt, eyeW, P.blocked ? null : sight, aiming, { moveSpeed: hSpeed, strafe, sprint: P.sprint });
+  }
+
   /* ---------- per frame ---------- */
 
   const killerHead = new THREE.Vector3();
@@ -291,7 +354,7 @@ export function createPlayer(G) {
     if (input.pressed('Digit2')) switchTo('thompson');
     const wheel = input.consumeWheel();
     if (wheel) switchTo(P.weapon === 'garand' ? 'thompson' : 'garand');
-    if (input.pressed('KeyQ')) G.rig.shoulder *= -1;
+    if (!FP && input.pressed('KeyQ')) G.rig.shoulder *= -1;
     if (input.pressed('KeyC') || input.pressed('Control')) { P.crouch = !P.crouch; G.audio.gear(P.crouch ? 'crouch' : 'stand'); }
     if (input.pressed('KeyR')) startReload();
 
@@ -391,7 +454,8 @@ export function createPlayer(G) {
     const hSpeed = Math.hypot(P.vel.x, P.vel.z);
     P.movingSpeed = hSpeed;
     const firingRecently = G.time - P.firedAt < 1.2;
-    if (aiming || firingRecently || hSpeed > 0.4 || P.cooking >= 0) P.yaw = dampAngle(P.yaw, cy, aiming ? 30 : 12, dt);
+    if (FP) P.yaw = cy + P.yawFix;
+    else if (aiming || firingRecently || hSpeed > 0.4 || P.cooking >= 0) P.yaw = dampAngle(P.yaw, cy, aiming ? 30 : 12, dt);
     else if (Math.abs(wrapAngle(cy - P.yaw)) > 1.2) P.yaw = dampAngle(P.yaw, cy, 4, dt);
 
     // timers
@@ -449,11 +513,16 @@ export function createPlayer(G) {
     else move = local.s > 0 ? 'strafe_l' : 'strafe_r';
     const gait = GAIT[move] ? clamp(hSpeed / GAIT[move], 0.6, 2.6) : 1;
     let upper;
-    if (aiming || firingRecently) upper = P.crouch ? 'crouch_aim' : 'aim';
+    if (FP) {
+      // the rifle stays shouldered, but comes down (held still) at a sprint, while changing weapons, at a wall
+      if (!P.sprint && !P.blocked && P.switching <= 0) upper = P.crouch ? 'crouch_aim' : 'aim';
+      else upper = P.crouch ? 'crouch_idle' : 'idle';
+    } else if (aiming || firingRecently) upper = P.crouch ? 'crouch_aim' : 'aim';
     else if (P.crouch) upper = hSpeed > 0.3 ? 'crouch_walk' : 'crouch_idle';
     else upper = move;
     ch.animate(move, upper, gait);
-    ch.aimPitch = (aiming || firingRecently) ? clamp(G.rig.pitch, -0.9, 0.9) : clamp(G.rig.pitch * 0.4, -0.4, 0.4);
+    if (FP) ch.aimPitch = clamp(G.rig.pitch + P.pitchFix, -0.9, 0.9);
+    else ch.aimPitch = (aiming || firingRecently) ? clamp(G.rig.pitch, -0.9, 0.9) : clamp(G.rig.pitch * 0.4, -0.4, 0.4);
 
     ch.root.position.copy(P.pos);
     if (P.wading > 0.2) ch.root.position.y -= 0.0;
@@ -475,9 +544,9 @@ export function createPlayer(G) {
     // how easy we are to see: crouching, darkness, movement, firing
     P.visible = (P.crouch ? 0.55 : 1) * (hSpeed > 3 ? 1.15 : 1) * (firingRecently ? 1.6 : 1);
 
-    const eye = lerp(PLAYER.eye, PLAYER.crouchEye, P.crouchT);
-    G.rig.update(dt, P.pos, eye, aiming, hSpeed);
-    G.hud.crosshair(lerp(w.spreadHip, w.spreadAim, G.rig.aimT) + P.spread + w.spreadMove * Math.min(1, hSpeed / 3), G.rig.aimT, G.camera.fov);
+    if (FP) firstPersonView(dt, w, aiming, hSpeed, local.s * hSpeed);
+    else G.rig.update(dt, P.pos, lerp(PLAYER.eye, PLAYER.crouchEye, P.crouchT), aiming, hSpeed);
+    G.hud.crosshair(lerp(w.spreadHip, w.spreadAim, G.rig.aimT) + P.spread + w.spreadMove * Math.min(1, hSpeed / 3), G.rig.aimT, G.camera.fov, FP);
     G.hud.stance(P.crouch ? 'Crouched' : P.sprint ? 'Sprinting' : P.wading > 0.3 ? 'Wading' : 'Standing');
   };
 

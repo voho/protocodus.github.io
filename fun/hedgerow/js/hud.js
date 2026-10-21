@@ -2,7 +2,7 @@
    damage direction, health, ammo, objective with a compass marker,
    notices, prompts, the grenade warning and enemy-awareness arrows. */
 
-import { clamp } from './util.js';
+import { clamp, smoothstep } from './util.js';
 
 export function createHud(root) {
   const $ = (s) => root.querySelector(s);
@@ -44,10 +44,13 @@ export function createHud(root) {
   return {
     show(on) { root.hidden = !on; },
 
-    crosshair(spread, aimT, fovDeg) {
+    /* `sights`: aiming means looking down the iron sights (first person): the
+       crosshair gives way to them */
+    crosshair(spread, aimT, fovDeg, sights = false) {
       const px = Math.tan(spread) / Math.tan((fovDeg * Math.PI) / 360) * (window.innerHeight / 2);
       el.cross.style.setProperty('--spread', `${clamp(px, 3, 90).toFixed(1)}px`);
-      el.cross.classList.toggle('dot', aimT > 0.5);
+      el.cross.classList.toggle('dot', aimT > 0.5 && !sights);
+      el.cross.style.opacity = sights ? (1 - smoothstep(0.2, 0.6, aimT)).toFixed(2) : '';
     },
     hideCrosshair(on) { el.cross.classList.toggle('hidden', on); },
 

@@ -25,8 +25,12 @@ export const PLAYER = {
 };
 
 export const CAMERA = {
+  firstPerson: true,  // through his eyes; the over-the-shoulder rig stays for the death camera
   fov: 68,
   aimFov: 46,
+  fpAimFov: 52,      // down the iron sights (first person: the rifle is in the picture)
+  sprintFov: 6,      // added while sprinting (first person)
+  near: 0.05,
   distance: 3.2,
   aimDistance: 1.35,
   height: 0.36,      // above the eye
@@ -44,6 +48,8 @@ export const WEAPONS = {
     mag: 8, reserve: 72, reload: 2.2, prop: 'garand_clip', propSize: [0.055, 0.05, 0.02], ejects: true,
     spreadHip: 0.035, spreadAim: 0.004, spreadMove: 0.03, bloom: 0.02, bloomDecay: 3.5,
     recoil: 0.034, recoilYaw: 0.01, range: 260, sound: 'garand', tracer: false,
+    // the sight line in the model (rear aperture, front post) and the eye behind it
+    sight: { rear: [0, 0.089, 0.01], front: [0, 0.083, 0.76], relief: 0.16 }, reach: 0.95,
   },
   thompson: {
     name: 'M1A1 Thompson', model: 'thompson', kind: 'smg',
@@ -51,6 +57,7 @@ export const WEAPONS = {
     mag: 30, reserve: 180, reload: 2.5, prop: 'thompson_mag', propSize: [0.035, 0.26, 0.075], drops: true, seated: 'thompson_mag_seated',
     spreadHip: 0.05, spreadAim: 0.018, spreadMove: 0.03, bloom: 0.008, bloomDecay: 5,
     recoil: 0.012, recoilYaw: 0.008, range: 120, sound: 'thompson', tracer: false,
+    sight: { rear: [0, 0.121, 0.06], front: [0, 0.104, 0.44], relief: 0.12 }, reach: 0.7,
   },
 };
 

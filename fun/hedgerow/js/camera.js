@@ -1,9 +1,16 @@
-/* Hedgerow — the over-the-shoulder camera.
+/* Hedgerow — the camera.
 
-   Orbits a pivot just above the soldier's eyes, offset to one shoulder (Q
-   swaps), pulled in when aiming, and pushed forward by walls, trees and the
-   ground so it never ends up inside them. Recoil kicks the view and
-   recovers; shake comes from explosions and near misses.
+   First person (CAMERA.firstPerson): through the soldier's eyes. The eye
+   rides on his head as his body moves (so it bobs with his steps and dips
+   as he crouches), and when he aims it goes down the rifle's sight line, a
+   hand's breadth behind the rear sight; the view narrows to the sights and
+   widens a little at a sprint, and leans a touch into a strafe.
+
+   Over the shoulder (the death camera, and the old third-person view):
+   orbits a pivot just above the soldier's eyes, offset to one shoulder,
+   pulled in when aiming, and pushed forward by walls, trees and the ground
+   so it never ends up inside them. Recoil kicks the view and recovers;
+   shake comes from explosions and near misses.
 
    When the soldier dies the camera stays on the fall for a moment, then
    turns to the man who killed him, glides towards him (zoomed in while he
@@ -26,6 +33,7 @@ export function createCameraRig(camera, world) {
     pivot: new THREE.Vector3(),
     dir: new THREE.Vector3(0, 0, 1),
     bob: 0,
+    roll: 0, sprintT: 0,
   };
   const desired = new THREE.Vector3();
   const rightV = new THREE.Vector3();
@@ -94,11 +102,10 @@ export function createCameraRig(camera, world) {
   };
   rig.resetDeathCam = () => { dc.t = 0; dc.started = false; };
 
-  /* `target`: the soldier's feet; `eye`: eye height for the stance. */
-  rig.update = (dt, target, eye, aiming, moveSpeed = 0) => {
+  /* the aim blend, the recoil recovering, the shake dying away */
+  function settle(dt, aiming, moveSpeed) {
     rig.aimT = damp(rig.aimT, aiming ? 1 : 0, 14, dt);
     rig.shoulderT = damp(rig.shoulderT, rig.shoulder, 10, dt);
-    // recoil recovers
     const rec = Math.exp(-9 * dt);
     rig.pitch += rig.kickPitch * (1 - rec) * 0.35;   // part of the kick stays (the player pulls down)
     rig.kickPitch *= rec;
@@ -107,6 +114,44 @@ export function createCameraRig(camera, world) {
     rig.shake *= Math.exp(-3.5 * dt);
     rig.shakeT += dt;
     rig.bob += dt * moveSpeed * 1.9;
+  }
+  function shakeAt(p) {
+    if (rig.shake <= 0.001) return;
+    const s = rig.shake * 0.12;
+    p.x += noise2(rig.shakeT * 23, 1.3) * s;
+    p.y += noise2(rig.shakeT * 21, 7.1) * s;
+    p.z += noise2(rig.shakeT * 25, 3.7) * s;
+  }
+
+  /* First person. `eye`: his eyes this frame; `sight`: where the eye goes
+     when aiming (behind the rear sight; null when the rifle is not up);
+     `strafe`: sideways speed (positive to his left), for the lean. */
+  rig.updateFirstPerson = (dt, eye, sight, aiming, { moveSpeed = 0, strafe = 0, sprint = false } = {}) => {
+    settle(dt, aiming && !!sight, moveSpeed);
+    rig.sprintT = damp(rig.sprintT, sprint ? 1 : 0, 6, dt);
+    rig.forward(rig.dir);
+    desired.copy(eye);
+    if (sight) desired.lerp(sight, smoothstep(0, 1, rig.aimT));
+    // a slight bob of the head with his steps (the body is steadied; less still down the sights)
+    const amp = 0.0018 * Math.min(moveSpeed, 5.5) * (1 - 0.75 * rig.aimT);
+    desired.y += Math.sin(rig.bob * 2) * amp;
+    desired.x += -Math.cos(rig.yaw) * Math.sin(rig.bob) * amp * 0.6;
+    desired.z += Math.sin(rig.yaw) * Math.sin(rig.bob) * amp * 0.6;
+    shakeAt(desired);
+    camera.position.copy(desired);
+    look.copy(desired).add(rig.dir);
+    camera.lookAt(look);
+    rig.roll = damp(rig.roll, clamp(strafe, -4, 4) * 0.008 * (1 - rig.aimT), 6, dt);
+    camera.rotateZ(rig.roll);
+    // the over-the-shoulder orbit (death camera) starts from here, not 3 m back
+    rig.dist = 0.3;
+    const fov = lerp(rig.baseFov + CAMERA.sprintFov * rig.sprintT, CAMERA.fpAimFov * rig.baseFov / CAMERA.fov, rig.aimT);
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  };
+
+  /* `target`: the soldier's feet; `eye`: eye height for the stance. */
+  rig.update = (dt, target, eye, aiming, moveSpeed = 0) => {
+    settle(dt, aiming, moveSpeed);
 
     const dist = lerp(CAMERA.distance, CAMERA.aimDistance, rig.aimT);
     const shoulder = lerp(CAMERA.shoulder, CAMERA.aimShoulder, rig.aimT) * rig.shoulderT;
@@ -132,13 +177,7 @@ export function createCameraRig(camera, world) {
     if (world.water && world.water.contains(desired.x, desired.z)) g = Math.max(g, world.water.level + 0.3);
     if (desired.y < g) desired.y = g;
 
-    // shake
-    if (rig.shake > 0.001) {
-      const s = rig.shake * 0.12;
-      desired.x += noise2(rig.shakeT * 23, 1.3) * s;
-      desired.y += noise2(rig.shakeT * 21, 7.1) * s;
-      desired.z += noise2(rig.shakeT * 25, 3.7) * s;
-    }
+    shakeAt(desired);
     camera.position.copy(desired);
     look.copy(desired).add(rig.dir);
     camera.lookAt(look);
