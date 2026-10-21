@@ -38,6 +38,7 @@ import { createMotionBlur } from './motionblur.js';
 import { createDistortion } from './distort.js';
 import { createGrass } from './grass.js';
 import { createGroundMap } from './groundmap.js';
+import { createRuts } from './ruts.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng } from './util.js';
@@ -91,6 +92,7 @@ const shared = {
   relief: { value: 1 },       // the ground's relief near the eye (terrain.js), by quality
   // the meadow grass's density map and radius, for the ground under it (grass.js, terrain.js)
   grassMap: { value: null }, grassMin: { value: new THREE.Vector2() }, grassSize: { value: new THREE.Vector2(1, 1) }, grassR: { value: 0 },
+  rutMap: { value: null }, rutMin: { value: new THREE.Vector2() }, rutSize: { value: new THREE.Vector2(1, 1) },
 };
 
 function setLoading(frac, label) {
@@ -165,6 +167,9 @@ async function boot() {
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
   G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4);
+  // the lanes' wheel ruts (ruts.js, drawn by the terrain)
+  const ruts = createRuts(LEVEL.lines);
+  if (ruts) { shared.rutMap.value = ruts.tex; shared.rutMin.value.copy(ruts.min); shared.rutSize.value.copy(ruts.size); }
   G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0 });
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });

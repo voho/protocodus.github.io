@@ -35,7 +35,9 @@ lamps and the glow of the sky, broken by rain rings, river banks soaked
 above the waterline with a thin broken line of scum where the water laps
 them and the water browner in the shallows of the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
-stones and fallen branches along the lane and the forest track — rain in fine
+stones and fallen branches along the lane and the forest track, whose mud is
+cut by two wheel ruts with a grassy crown between them and water standing in
+them in stretches — rain in fine
 streaks, falling in sheets far down the street, lit by lamps, fires and flares,
 halos in the wet air, low mist, bullet holes and scorch marks, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
@@ -124,6 +126,11 @@ by the blast that killed them, and drop their rifles.
     and woods to ~1 km with thousands of far-LOD trees, copses on the far
     hills, rings of layered treeline cards on the horizon (150–350 m, facing
     the level, open towards the far buildings) and the next village
+  * `ruts.js` the lane's and the forest track's wheel ruts: their centrelines
+    (the level's `lines`) drawn at load into a half-float texture of the
+    distance across and along them, from which the terrain cuts two ruts a
+    cart's track apart, wandering a little, into its near-eye relief, dark
+    with wet mud, holding water in stretches, a grassy crown between them
   * `groundmap.js` what grows and lies where, made at load from the
     terrain mesh's own splat: grass, stones and fallen wood (none on roads,
     steep banks, at the water or inside anything solid), and the ground's
