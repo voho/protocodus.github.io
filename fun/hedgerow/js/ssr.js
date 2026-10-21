@@ -69,7 +69,7 @@ void main() {
   // standing water lies level; the rain rings ruffle it (the rings terrain.js draws)
   float pool = smoothstep(0.6, 0.95, mirror);
   nW = normalize(mix(nW, vec3(0.0, 1.0, 0.0), pool));
-  vec2 rip = pool > 0.01 ? rainRipples(W.xz * 1.7, uTime) * uRain * pool : vec2(0.0);
+  vec2 rip = pool > 0.01 ? rainRipples(W.xz * 1.7, uTime, rippleFade(-P.z)) * uRain * pool : vec2(0.0);
   // a rough film scatters the rays round the mirror direction
   float j = ign(gl_FragCoord.xy);
   vec2 sc = (vec2(j, ign(gl_FragCoord.yx + 17.0)) - 0.5) * (1.0 - mirror) * 0.24;

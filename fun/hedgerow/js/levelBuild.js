@@ -72,7 +72,11 @@ export function buildLevel(G, L, quality) {
   };
 
   /* ---------- 2. terrain and world ---------- */
-  const terrain = createTerrain({ bounds: L.bounds, height, splat: L.splat, fine: L.fine }, G.textures, G.shared);
+  // the ground round the shell craters drawn at the fine grid too: where rainwater stands in one
+  // (ponds.js) its edge is where the water meets the mesh, which at the coarse grid's metre made a
+  // crater's bowl a handful of facets and the water's edge a polygon
+  const fine = [...(L.fine || []), ...(L.craters || []).map((c) => [c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r])];
+  const terrain = createTerrain({ bounds: L.bounds, height, splat: L.splat, fine }, G.textures, G.shared);
   G.scene.add(terrain.group);
   const far = buildDistance(G, L, { models, matlib: G.matlib, material: terrain.material });
   G.scene.add(far.group);
