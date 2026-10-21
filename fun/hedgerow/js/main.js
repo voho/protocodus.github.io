@@ -12,6 +12,7 @@ import { createSky } from './sky.js';
 import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
+import { createCasings } from './casings.js';
 import { createFireballs } from './fireball.js';
 import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
@@ -168,6 +169,10 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   G.effects.setGround((x, z) => G.terrain.height(x, z));
+  // the brass thrown out of the gun (casings.js), lying where it falls
+  G.casings = createCasings(G);
+  scene.add(G.casings.group);
+  G.effects.setCasings(G.casings);
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
@@ -410,6 +415,7 @@ function retryCheckpoint() {
   setTimeout(() => {
     explosives.clear();
     G.debris.clear();
+    G.casings.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
     fade.classList.remove('on');
@@ -628,6 +634,7 @@ function step() {
     G.halos?.update(dt, G.time, camera.position);
     G.mist?.update(dt, camera.position, G.time, flash);
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
+    G.casings.update(dt);
     G.flames.update(dt, camera.position);
     updateSmoulder(G.effects.fires, camera.position);
     G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);

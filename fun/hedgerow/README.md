@@ -233,7 +233,10 @@ by the blast that killed them, and drop their rifles.
     smoke that rolls up and thins into the blast's dust), `atmosphere.js`
     (halos, mist, and decals: four painted variants of each kind with their
     own relief, drawn pulled a few centimetres towards the eye along their
-    sight line so a wall's stones do not swallow them),
+    sight line so a wall's stones do not swallow them), `casings.js` (the
+    brass thrown out of the gun — the Garand's long bottlenecked case, the
+    Thompson's short one — tumbling past in the muzzle flash, bouncing and
+    lying where it falls; the last 64 of each stay),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and

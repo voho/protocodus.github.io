@@ -689,7 +689,10 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     alpha.spawn({ x, y, z, vx: (R() - 0.5) * 0.3, vy: 0.4, vz: (R() - 0.5) * 0.3, life, size: 0.4 * size, size1: 2.5 * size, color: C(color, 0.5), color1: C(color, 0), cell: CELLS.smoke, drag: 1, rot: R() * 6, rotV: (R() - 0.5) * 0.5, fadeIn: 0.2 });
   }
 
+  /* an empty case thrown out of the gun: a brass one of casings.js, once there are some */
+  let casings = null;
   function shell(x, y, z, dx, dz) {
+    if (casings) return casings.eject(x, y, z, dx, dz);
     alpha.spawn({ x, y, z, vx: dx * 2 + (R() - 0.5), vy: 2 + R(), vz: dz * 2 + (R() - 0.5), life: 0.9, size: 0.02, color: C('#c8a050', 1, 1.2), color1: C('#c8a050', 1), cell: CELLS.chunk, gravity: 9.8, rot: R() * 6, rotV: 25 });
   }
 
@@ -717,6 +720,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },
+    setCasings(c) { casings = c; },
     get count() { return alpha.P.n + add.P.n; },
   };
 }
