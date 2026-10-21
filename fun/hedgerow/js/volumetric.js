@@ -15,7 +15,12 @@
    makes lights ahead of the camera glow more than those behind it, and a
    slow noise drifting with the wind breaks the haze into rain curtains.
    Up to eight of the strongest lights near the camera (the light pool's
-   choice, lights.js) take part each frame. */
+   choice, lights.js) take part each frame.
+
+   It also lays the ambient occlusion of ssao.js onto the scene first: the
+   half-resolution occlusion brought up with a depth-aware 3 x 3 filter
+   (so it does not bleed across edges), sparing bright pixels — lamps,
+   fires and lit windows are not darkened by what is near them. */
 
 import * as THREE from 'three';
 
@@ -37,7 +42,26 @@ uniform float uRange[MAX];
 uniform int uCount;
 uniform float uDensity, uTime, uRain, uFar;
 uniform vec2 uWind;
+uniform sampler2D tAO;
+uniform vec2 uAOTexel;
+uniform float uAO;
 varying vec2 vUv;
+
+float viewZ(vec2 uv) {
+  float d = texture2D(tDepth, uv).x;
+  vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+  return v.z / v.w;
+}
+float occlusion(vec2 uv, float z0) {
+  float sum = 0.0, wsum = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 o = vec2(float(i), float(j)) * uAOTexel;
+    float w = (i == 0 && j == 0 ? 2.0 : 1.0) / (0.02 + abs(viewZ(uv + o) - z0));
+    sum += texture2D(tAO, uv + o).r * w;
+    wsum += w;
+  }
+  return sum / wsum;
+}
 
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float noise(vec3 x) {
@@ -54,6 +78,11 @@ void main() {
   vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   v.xyz /= v.w;
   float T = d >= 1.0 ? uFar : min(length(v.xyz), uFar);
+  if (uAO > 0.0 && d < 1.0) {
+    float ao = occlusion(vUv, v.z);
+    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col *= mix(1.0, ao, uAO * (1.0 - smoothstep(0.8, 5.0, lum)));
+  }
   vec3 dir = normalize(mat3(uViewInv) * v.xyz);
   vec3 add = vec3(0.0);
   for (int i = 0; i < MAX; i++) {
@@ -100,6 +129,7 @@ export function createVolumetric(camera) {
       uCount: { value: 0 },
       uDensity: { value: 0.03 }, uTime: { value: 0 }, uRain: { value: 1 }, uFar: { value: 140 },
       uWind: { value: new THREE.Vector2(0.5, 0.2) },
+      tAO: { value: null }, uAOTexel: { value: new THREE.Vector2(1, 1) }, uAO: { value: 0 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
@@ -122,6 +152,12 @@ export function createVolumetric(camera) {
       u.uCount.value = n;
       u.uTime.value = time;
       u.uRain.value = rain;
+    },
+    /* the occlusion pass to apply (ssao.js), and how strongly (0: none) */
+    setAO(ssao, strength = 0.85) {
+      u.tAO.value = ssao ? ssao.texture : null;
+      u.uAOTexel.value = ssao ? ssao.uniforms.uTexel.value : u.uAOTexel.value;
+      u.uAO.value = ssao ? strength : 0;
     },
     render(renderer, writeBuffer, readBuffer) {
       if (!readBuffer.depthTexture) { this.enabled = false; return; }
