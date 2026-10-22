@@ -20,6 +20,9 @@
 
 import * as THREE from 'three';
 
+/* The street lamps and the lanterns on the houses are capped: their light in the rain is a bell under
+   them (volumetric.js), given out a little above level (the cosine from straight down). */
+export const CAPPED = 0.1;
 /* A fire lights everything round it, but its light in the air is held down, so its flames stay the
    brightest thing there, standing out of their glow instead of drowned in an orange fog. */
 export const FIRE_FOG = 0.35;
@@ -62,15 +65,16 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   let shadowOf2 = null;
   const wp = new THREE.Vector3();
 
-  const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog}
+  const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog, cone}
   const flashes = [];       // {x,y,z,color,intensity,range,life,age}
 
-  /* fog: as for a flash (below) */
+  /* fog: as for a flash (below); cone: a lamp under its cap lights the air below it only (volumetric.js):
+     the cosine from straight down where its light in the air gives out */
   function addStatic(o) {
     const s = {
       x: o.x, y: o.y, z: o.z, color: new THREE.Color(o.color || '#ffb060'),
       intensity: o.intensity ?? 6, range: o.range ?? 12, flicker: o.flicker ?? 0,
-      phase: Math.random() * 100, on: true, shadow: !!o.shadow, fog: o.fog,
+      phase: Math.random() * 100, on: true, shadow: !!o.shadow, fog: o.fog, cone: o.cone,
     };
     statics.push(s);
     return s;
@@ -177,13 +181,13 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
       // a far light (a flare over the fields) is in the running from any distance
       if (!s.far && d2 > 90 * 90) continue;
       wander(s, wp);
-      cand.push({ x: wp.x, y: wp.y, z: wp.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2), fog: s.fog ?? 1, noLight: !!s.noLight });
+      cand.push({ x: wp.x, y: wp.y, z: wp.z, color: s.color, intensity: flick(s), range: s.range, score: s.intensity * s.range / (1 + d2), fog: s.fog ?? 1, cone: s.cone, noLight: !!s.noLight });
     }
     cand.sort((a, b) => b.score - a.score);
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
-    if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best, fog: shadowOf.fog });
-    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2, fog: shadowOf2.flash ? shadowOf2.fogNow : shadowOf2.fog });
+    if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best, fog: shadowOf.fog, cone: shadowOf.cone });
+    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2, fog: shadowOf2.flash ? shadowOf2.fogNow : shadowOf2.fog, cone: shadowOf2.cone });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
     // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
     let ci = 0;

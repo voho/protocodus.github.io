@@ -42,6 +42,7 @@ uniform vec3 uCam;
 uniform vec3 uPos[MAX];
 uniform vec3 uCol[MAX];
 uniform float uRange[MAX];
+uniform float uCone[MAX];
 uniform int uCount;
 uniform float uDensity, uTime, uRain, uFar;
 uniform vec2 uWind;
@@ -136,7 +137,22 @@ void main() {
     float ta = max(0.0, t0 - w), tb = min(T, t0 + w);
     if (tb <= ta) continue;
     float h = sqrt(h2) + 0.35;                 // a soft core: no singularity at the bulb
-    float I = (atan((tb - t0) / h) - atan((ta - t0) / h)) / h;
+    float I;
+    if (uCone[i] > -1.5) {
+      // a lamp under its cap lights only the air below the cap's edge, and the cap throws back down
+      // what would have gone up: a bell of light in the rain, brighter than a bare bulb's glow, dark
+      // above it. The stretch is taken in pieces, each by the closed form, weighted by how far under
+      // the cap its middle lies
+      I = 0.0;
+      for (int k = 0; k < 6; k++) {
+        float s0 = mix(ta, tb, float(k) / 6.0), s1 = mix(ta, tb, float(k + 1) / 6.0);
+        vec3 p = uCam + dir * (0.5 * (s0 + s1)) - uPos[i];
+        float down = -p.y / max(length(p), 1e-3);
+        I += (atan((s1 - t0) / h) - atan((s0 - t0) / h)) / h * smoothstep(uCone[i], uCone[i] + 0.35, down) * 2.2;
+      }
+    } else {
+      I = (atan((tb - t0) / h) - atan((ta - t0) / h)) / h;
+    }
     // fade towards the edge of the range like the light itself
     float edge = 1.0 - smoothstep(0.55, 1.0, sqrt(h2) / R);
     // forward scattering (Henyey-Greenstein, g = 0.45) seen from the closest point
@@ -165,6 +181,7 @@ export function createVolumetric(camera) {
       uPos: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
       uCol: { value: Array.from({ length: MAX }, () => new THREE.Vector3()) },
       uRange: { value: new Array(MAX).fill(1) },
+      uCone: { value: new Array(MAX).fill(-2) },
       uCount: { value: 0 },
       uDensity: { value: 0.03 }, uTime: { value: 0 }, uRain: { value: 1 }, uFar: { value: 140 },
       uWind: { value: new THREE.Vector2(0.5, 0.2) },
@@ -182,8 +199,9 @@ export function createVolumetric(camera) {
 
   return {
     enabled: true, needsSwap: true, uniforms: u,
-    /* this frame's lights: [{x, y, z, color, intensity, range, fog}] (fog: how
-       much of it hangs in the air, 1 unless a light says otherwise) */
+    /* this frame's lights: [{x, y, z, color, intensity, range, fog, cone}] (fog: how
+       much of it hangs in the air, 1 unless a light says otherwise; cone: a capped lamp's
+       cosine from straight down where its light in the air gives out) */
     setLights(list, time, rain = 1) {
       const n = Math.min(MAX, list.length);
       for (let i = 0; i < n; i++) {
@@ -191,6 +209,7 @@ export function createVolumetric(camera) {
         u.uPos.value[i].set(l.x, l.y, l.z);
         u.uCol.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * (l.fog ?? 1));
         u.uRange.value[i] = l.range * 0.8;
+        u.uCone.value[i] = l.cone ?? -2;
       }
       u.uCount.value = n;
       u.uTime.value = time;
