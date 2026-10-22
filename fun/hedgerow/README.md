@@ -300,7 +300,13 @@ by the blast that killed them, and drop their rifles.
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; a muzzle flash a
     white-hot star in ragged orange tongues of burning gas, never the same
-    twice, a few grains of powder flung on ahead of it; the fires' embers
+    twice, a few grains of powder flung on ahead of it; a round's hit
+    bursting out of the surface in two or three jets of its dust and grit
+    shot out of the hole in a cone round its face, thrown on along the way
+    the round glanced off, stopped short by the air in a third of a second,
+    then a ragged cloud left hanging, smaller and darker, drifting off, and
+    on stone, concrete and steel a white-hot strike for a frame or two;
+    the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
     cool, and every few seconds a shower of sparks spat up out of the
     flames, arcing over and falling back; a fire's smoke thick and dark
