@@ -9,7 +9,9 @@
    the depth already drawn there — corners, the foot of walls, the ground
    under crates and soldiers, the inside of a hedge. Range-checked so a
    wall far behind a soldier does not darken his outline, faded out with
-   distance (the fog takes over), radius 0.9 m. */
+   distance (the fog takes over), radius 0.9 m - less close by, down to
+   a few centimetres at arm's length, so the hands are shaded where they
+   wrap the rifle and the fingers where they lie against each other. */
 
 import * as THREE from 'three';
 
@@ -51,15 +53,18 @@ void main() {
   vec3 r = vec3(cos(a), sin(a), 0.0);
   vec3 t = normalize(r - n * dot(r, n)), b = cross(n, t);
   mat3 tbn = mat3(t, b, n);
+  // close by, a smaller reach and a finer bias: the fingers round the stock, the hand on the
+  // gun, a sill under the eye a pace away - a centimetre's gap, which 0.9 m would step over
+  float rad = min(uRadius, 0.05 + 0.2 * dist), bias = 0.03 * rad / uRadius;
   float occ = 0.0;
   for (int i = 0; i < N; i++) {
-    vec3 s = P + tbn * uKernel[i] * uRadius;
+    vec3 s = P + tbn * uKernel[i] * rad;
     vec4 q = uProj * vec4(s, 1.0);
     vec2 uv = q.xy / q.w * 0.5 + 0.5;
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) continue;
     float sceneZ = viewPos(uv).z;
-    float range = smoothstep(0.0, 1.0, uRadius / max(abs(P.z - sceneZ), 1e-3));
-    occ += (sceneZ >= s.z + 0.03 ? 1.0 : 0.0) * range;
+    float range = smoothstep(0.0, 1.0, rad / max(abs(P.z - sceneZ), 1e-3));
+    occ += (sceneZ >= s.z + bias ? 1.0 : 0.0) * range;
   }
   float ao = 1.0 - occ / float(N);
   ao = mix(ao, 1.0, smoothstep(uFade * 0.6, uFade, dist));

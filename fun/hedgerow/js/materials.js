@@ -841,9 +841,14 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           float m1 = gNoise(p.zy * 420.0 + p.x * 200.0), m2 = gNoise(p.xz * 900.0 + 3.1);
           float maa = 1.0 - smoothstep(0.35, 0.8, length(fwidth(p)) * 900.0);
           float curv = length(fwidth(vNormal)) / max(length(fwidth(vViewPosition)), 1e-6);
-          float edge = smoothstep(500.0, 1500.0, curv);
+          // (the model's edges are bevels and rounded corners of a few millimetres to a centimetre or
+          // two: the sight drums, the receiver's corners, the trigger guard), the wear in patches along them
+          float m3 = gNoise(p.zy * 160.0 + p.x * 90.0 + 7.7);
+          float edge = smoothstep(70.0, 260.0, curv) * smoothstep(0.25, 0.6, m3 * 0.6 + m1 * 0.4);
           float sk = steel * gunK;
-          float park = clamp(0.62 * (0.8 + 0.4 * m1) + 0.1 * (m2 - 0.5) * maa, 0.4, 0.9);
+          // the phosphate's matte varies in blotches the eye can see in the sheen: patches worn smoother
+          // by hands and cleaning beside dull ones, pitted finer than that
+          float park = clamp(mix(0.42, 0.88, smoothstep(0.3, 0.7, m1)) + 0.14 * (m2 - 0.5) * maa, 0.36, 0.92);
           roughnessFactor = mix(roughnessFactor, mix(park, 0.35, edge), sk);
           vec3 phosphate = vec3(0.033, 0.034, 0.035) * (0.75 + 0.5 * m1);      // linear; about 50 in sRGB
           diffuseColor.rgb = mix(diffuseColor.rgb, mix(phosphate, vec3(0.3, 0.3, 0.31), edge), sk);
