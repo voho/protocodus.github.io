@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { RUTS_GLSL } from './ruts.js';
 import { dimFillSpecular, addFireBounce } from './fill.js';
+import { addCanopy } from './canopy.js';
 import { clamp } from './util.js';
 
 const RES = 0.5;
@@ -378,6 +379,8 @@ export function createTerrainMaterial(textures, shared) {
           gl_FragColor.a = mirrorAlpha(roughnessFactor, uWet);
         #endif`);
     addFireBounce(shader, 'vWPos', 'normalize(vWNormal)');
+    // the trees' shade from a flare beyond its shadow map (canopy.js)
+    addCanopy(shader, 'vWPos');
     dimFillSpecular(shader);
   };
   return mat;

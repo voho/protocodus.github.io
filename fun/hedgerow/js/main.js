@@ -19,6 +19,7 @@ import { createSteam } from './steam.js';
 import { paneRects } from './rooms.js';
 import { createSheets } from './cloth.js';
 import { createChutes } from './chutes.js';
+import { buildCanopy, setCanopyLight } from './canopy.js';
 import { createWaysigns } from './signs.js';
 import { createConcertina } from './wire.js';
 import { printBoots } from './prints.js';
@@ -194,6 +195,8 @@ async function boot() {
   G.sheets = createSheets(panes, G.world, G.terrain, shared);
   if (G.sheets) scene.add(G.sheets.mesh);
   // and parachutes caught in the trees by the forest track (chutes.js)
+  // the crowns over the forest floor, for a flare's light beyond its shadow map (canopy.js)
+  buildCanopy(built.veg, LEVEL.bounds);
   G.chutes = createChutes(built.veg, LEVEL.lines, G.terrain, shared);
   if (G.chutes) scene.add(G.chutes.group);
   // the signposts, crowded with the occupiers' painted boards (signs.js)
@@ -665,6 +668,7 @@ function step() {
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
     G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
     G.flares.lightning(flash, G.weather.flashDir, camera.position);
+    setCanopyLight(G.flares.light);
     G.lights.update(dt, G.time, camera.position, flash);
     setFill(G.lights.key, G.lights.rim);
     castShadows();

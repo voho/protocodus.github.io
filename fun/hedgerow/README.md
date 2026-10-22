@@ -297,7 +297,17 @@ by the blast that killed them, and drop their rifles.
     map drawn every other frame only while one burns, the tree crowns'
     leaf cards cut out by their alpha; the shaders it needs are warmed at
     the start of the mission; when none burns, a lightning stroke drives the
-    same light from the bolt's direction),
+    same light from the bolt's direction), `canopy.js` (the trees' shade
+    from that light where its shadow map does not reach: at load the
+    planted trees' crowns are laid on a 1 m map from above, how much sky
+    each metre of ground has over it in leaves - a pine or a fir thick, an
+    oak or a beech a little less, a birch thin, a dead tree hardly - and
+    the ground dims the flare's light by it, looked up where the light's
+    ray passes through the crowns ten metres up (in the vertex shader: the
+    ground's fragment shader has no texture unit to spare), from where the
+    shadow map ends and, on low quality, which draws no shadows for the
+    flare, everywhere, so the forest floor under a flare no longer glazes
+    pale as if it lay in the open),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; a muzzle flash a
     white-hot star in ragged orange tongues of burning gas, never the same
