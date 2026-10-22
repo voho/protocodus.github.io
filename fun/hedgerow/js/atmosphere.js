@@ -354,12 +354,14 @@ function glassCrack(p, R, cx, cy, S) {
 /* a painted advertisement on a gable, years old (only pinned, damage.js): a panel of colour with the
    lettering on it as a sign painter laid it out, a line round it, a shadow under the letters; faded,
    bleached in blotches, the paint flaked away in patches (most low down, where the rain splashes)
-   and washed thin in streaks down from its top. Four trades, a variant each; no brands */
+   and washed thin in streaks down from its top. Three trades, no brands; and the occupiers' own,
+   whitewashed over a wall of the square four years ago, black capitals (their decree of 1941 put
+   an end to the old black letter), weathered less (age) */
 const ADS = [
   { panel: [100, 46, 38], ink: [206, 194, 162], big: 'VINS FINS', small: 'LIQUEURS  ·  BIÈRES', serif: true },
   { panel: [46, 56, 78], ink: [216, 212, 198], small2: [188, 160, 86], big: 'QUINQUINA', small: 'APÉRITIF', serif: true },
   { panel: [190, 182, 158], ink: [40, 36, 32], big: 'CAFÉ · TABAC', small: 'BILLARD  ·  JEUX', serif: false },
-  { panel: [138, 112, 64], ink: [46, 32, 22], big: 'ÉPICERIE', small: 'COMESTIBLES  ·  MERCERIE', serif: false },
+  { panel: [204, 200, 188], ink: [22, 20, 18], big: 'ORTSKOMMANDANTUR', small: 'EINGANG IM HOF', serif: false, age: 0.55 },
 ];
 function wallAd(p, R, cx, cy, S, variant) {
   const ad = ADS[variant % ADS.length], all = [p.col, p.alpha, p.height];
@@ -397,7 +399,8 @@ function wallAd(p, R, cx, cy, S, variant) {
   // weathered: flaked away in patches along its edges and low down (where the rain splashes), its
   // lettering mostly spared (a sign that can no longer be read is no sign); washed thin in streaks
   // down from the top
-  for (let k = 0; k < 44; k++) {
+  const age = ad.age ?? 1;
+  for (let k = 0; k < 44 * age; k++) {
     let x, y;
     if (k % 2) { x = x0 + R() * w; y = y0 + h * (0.86 + 0.16 * R()); }
     else {
@@ -409,7 +412,7 @@ function wallAd(p, R, cx, cy, S, variant) {
     p.alpha.fillStyle = `rgba(0,0,0,${(0.5 + R() * 0.5).toFixed(2)})`;
     p.alpha.fill(ragged(R, x, y, S * (0.006 + R() * R() * 0.03), 7, 0.45));
   }
-  for (let k = 0; k < 26; k++) {
+  for (let k = 0; k < 26 * age; k++) {
     const x = x0 + R() * w, len = h * (0.3 + R() * 0.8), path = new Path2D();
     path.moveTo(x, y0 - S * 0.01); path.lineTo(x + (R() - 0.5) * S * 0.01, y0 + len);
     const fade = p.alpha.createLinearGradient(x, y0, x, y0 + len);

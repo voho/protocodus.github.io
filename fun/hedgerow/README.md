@@ -305,8 +305,11 @@ by the blast that killed them, and drop their rifles.
     corner — and only on walls that face open ground near the street, the
     lane or the track; and on the most exposed houses' plaster, 2.6–4.9 m
     up, a few painted advertisements for the village's trades — VINS FINS,
-    QUINQUINA, CAFÉ · TABAC, ÉPICERIE — faded, flaked at their edges and
-    washed thin in streaks, which the breaks and the bursts go through),
+    QUINQUINA, CAFÉ · TABAC — faded, flaked at their edges and washed thin
+    in streaks, which the breaks and the bursts go through; and the
+    occupiers' own, whitewashed four years ago on the café's gable in the
+    square, ORTSKOMMANDANTUR · EINGANG IM HOF in black capitals, weathered
+    less),
     `casings.js` (the
     brass thrown out of the gun — the Garand's long bottlenecked case, the
     Thompson's short one — tumbling past in the muzzle flash, bouncing and
