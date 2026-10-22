@@ -13,7 +13,7 @@ Rack device, such as Taikor and Septum, have no page.
 | Maremba | Rack 1.5.1f7 release panels and player guide, revision `e2b36073` | `maremba-panel.webp` and `maremba-rear.webp`, 1600 × 1171; card 880 × 644; original front/back PNGs and guide copied from the release |
 | Acustra | Current Rack release front/back renders, revision `af1708c8` | `acustra-rack-front.webp` and `acustra-rack-rear.webp`, 1457 × 1200 |
 | Electry | Complete Rack renders in `Design/Rendered`, revision `c140bb8f` | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
-| Ceres | Rack 0.1.0b11 development hand-off `dist/Ceres_{Front,Back}.png`, Rack revision `04c38031` | `ceres-rack-front.webp` and `ceres-rack-rear.webp`, 754 × 414 |
+| Ceres | Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json) | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77` | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
 | Lamer Degrader | Existing Rack 1.0.0f9 promotional assets and processed demonstration | Existing panel, rear, mascots and video retained |
 | Podcare | Existing repository illustration | Existing card retained |
@@ -45,11 +45,23 @@ features. The relevant source is under `Examples/<Product>` in the
 - Maremba: bar/tine modes, nonlinear contact, resonators, sympathetic coupling,
   membranes, Close/Room/Piezo paths, seven audio outputs and 20 Rack patches.
   Drive affects Main; direct captures retain their independent calibration.
-- Ceres: four-voice circuit model with Mono/Double layering, mixed sources,
-  high-/low-pass filters, filter and amplifier envelopes, SUB and ring
-  modulation, velocity response and Sustain I/II, from the Rack README and
-  root `SHOP.md` at 0.1.0b11. The page marks the edition and its factory bank
-  as in development; no CV inputs are claimed because the device has none.
+- Ceres: 1.0.0f1 circuit-modelled Rack candidate for Reason 14 or later,
+  with 1–16 voices per layer, Mono/Double layering, mixed saw/pulse/sine/noise
+  sources, resonant high-/low-pass filters, filter and amplifier envelopes,
+  PWM, SUB and ring modulation, velocity response and Sustain I/II. Front
+  BRILLIANCE/RESONANCE levers and rear EXT IN support tonal control and external
+  audio modulation; no CV inputs are claimed. The 6RU edition has 23 accepted
+  patches: 13 labelled Classic Estimates, nine modern basses/plucks/pads and
+  Init. Classic patches project the original table through the available Rack
+  controls; no measured hardware-equivalence claim is made. Voice count and
+  1x/2x/4x quality are saved with the patch; Init uses four voices, Mono and 1x.
+  Stereo-linked final sample-peak protection has a −1 dBFS ceiling, immediate
+  attack and 50 ms recovery, without added latency or makeup gain. Native
+  timing results do not establish a Reason CPU-meter improvement. The page
+  labels this as a forthcoming candidate: Reason Shop acceptance and publication
+  are pending, with no public U45 download. Feature authority is recorded in
+  `ceres/ASSET_PROVENANCE.json`, including the release player guide, parameter
+  manifest, accepted bank comparison and output-protection source.
 - Press78: two-operator FM, per-operator envelopes, LFO, chorus and output
   circuit, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
   `SHOP.md` at 0.1.0b15. The factory bank is not described: commercial
@@ -79,6 +91,36 @@ stylesheet: source accent `#03422e`, artwork hidden, nonvisual player, inversion
 filter and a forced-colors override. Lamer's existing local video is retained.
 
 ## Validation
+
+### Ceres first-release candidate — 23 October 2026
+
+Only Ceres's catalog card, product page, availability row and matching media
+change. Version 1.0.0f1 remains a candidate pending Reason Shop acceptance and
+publication. The source handoff is `Examples/Ceres/Release/1.0.0f1/` in the Rack
+repository; all source paths and the engine revision are recorded in
+[`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json).
+
+The three PNGs and player-guide PDF are exact release-material copies. Front
+and back panels show Init in Mono, four voices per layer and 1x quality; the rear
+prints 1.0.0f1. Both WebPs preserve the complete 754 × 414 panels, converted at
+quality 90 and method 6. The thumbnail is 800 × 800. The accepted 23-patch bank
+retains all 1,518 saved control values, including its output trims; earlier
+calibration on the 0.6.1 engine is not a current-level claim.
+
+| Ceres web asset | Verified SHA-256 |
+| --- | --- |
+| [`Ceres_Front.png`](ceres/Ceres_Front.png) | `c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91` |
+| [`Ceres_Back.png`](ceres/Ceres_Back.png) | `f31f550b09afc9625d15f8a2359fd2cb680b6fe6e716cd1f7fa26c85974a0c75` |
+| [`Ceres_Thumbnail_800.png`](ceres/Ceres_Thumbnail_800.png) | `299dca08001bfb8b162894a2b19543bee66889f5b363424ae46b85e792b570e1` |
+| [`Ceres_User_Guide.pdf`](ceres/Ceres_User_Guide.pdf) | `8b32fb060d4b761aefee65bd955ce5b4bd7abfd1c6c3e255380f34cdd4b0aa16` |
+| [`ceres-rack-front.webp`](ceres/ceres-rack-front.webp) | `6674d8bbc13b775a70a040918a3be0306e3c25c71a6081469fe7e954d0757b26` |
+| [`ceres-rack-rear.webp`](ceres/ceres-rack-rear.webp) | `1cc3872409f11162a5ca1af6ef3323beb3a3f5afe33748989af6e1f33910371e` |
+
+The scoped `ceres/.gitattributes` marks PDFs as binary. A fresh Git checkout
+with `core.autocrlf=true` preserves the guide's exact bytes and valid xref
+offsets. Local references and fragments, all asset hashes, desktop/mobile
+layout, navigation/background checks and `git diff --check` pass. Public U45
+artifacts are not distributed by this site.
 
 ### YouKnow refresh — 18 October 2026
 
