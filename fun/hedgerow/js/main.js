@@ -19,6 +19,7 @@ import { createSteam } from './steam.js';
 import { paneRects } from './rooms.js';
 import { createSheets } from './cloth.js';
 import { createWaysigns } from './signs.js';
+import { createConcertina } from './wire.js';
 import { createChunks } from './chunks.js';
 import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
@@ -191,6 +192,9 @@ async function boot() {
   // the signposts, crowded with the occupiers' painted boards (signs.js)
   G.waysigns = createWaysigns(built.signposts, G.matlib);
   if (G.waysigns) scene.add(G.waysigns);
+  // and coils of concertina along the barbed wire (wire.js)
+  G.concertina = createConcertina(built.wires);
+  if (G.concertina) scene.add(G.concertina);
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);
