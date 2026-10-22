@@ -241,7 +241,9 @@ by the blast that killed them, and drop their rifles.
     scene by its depth (on low quality, which has no depth to read, the same
     four cylinders drawn as meshes with the scene, hidden by its depth test),
     lit by the lamps near them and by a burning flare;
-    rings where drops land (on the river's surface over its bed), and
+    rings where drops land - on the first thing in their way from above, a
+    crate's lid, a sandbag, a step, the truck, a roof, so what is
+    sheltered stays dry (on the river's surface over its bed) - and
     within 7 m crowns of droplets flung up and
     out of each, a few thousand a second, drawn after the frame; all of it
     in gusts — bands of heavier, harder-leaning rain some 30 m across blown
