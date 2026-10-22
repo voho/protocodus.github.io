@@ -18,6 +18,7 @@ import { dressWalls } from './damage.js';
 import { createSteam } from './steam.js';
 import { paneRects } from './rooms.js';
 import { createSheets } from './cloth.js';
+import { createChutes } from './chutes.js';
 import { createWaysigns } from './signs.js';
 import { createConcertina } from './wire.js';
 import { printBoots } from './prints.js';
@@ -192,6 +193,9 @@ async function boot() {
   // and white sheets hung from a few of them (cloth.js)
   G.sheets = createSheets(panes, G.world, G.terrain, shared);
   if (G.sheets) scene.add(G.sheets.mesh);
+  // and parachutes caught in the trees by the forest track (chutes.js)
+  G.chutes = createChutes(built.veg, LEVEL.lines, G.terrain, shared);
+  if (G.chutes) scene.add(G.chutes.group);
   // the signposts, crowded with the occupiers' painted boards (signs.js)
   G.waysigns = createWaysigns(built.signposts, G.matlib);
   if (G.waysigns) scene.add(G.waysigns);
