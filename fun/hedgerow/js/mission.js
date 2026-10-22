@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { instantiate } from './assets.js';
 import { wrapAngle } from './util.js';
+import { FIRE_FOG } from './lights.js';
 
 export function createMission(G, L, built) {
   const M = {
@@ -88,7 +89,7 @@ export function createMission(G, L, built) {
         });
       }
       G.effects.addFire(flak.x, flak.y + 0.6, flak.z, 0.9);
-      G.lights.addStatic({ x: flak.x, y: flak.y + 1.5, z: flak.z, color: '#ff8a3a', intensity: 18, range: 16, flicker: 0.45 });
+      G.lights.addStatic({ x: flak.x, y: flak.y + 1.5, z: flak.z, color: '#ff8a3a', intensity: 18, range: 16, flicker: 0.45, fog: FIRE_FOG });
       G.effects.explosion(flak.x, flak.y + 1, flak.z, 1.4);
       if (current() && current().id === 'flak') advance();
     });
