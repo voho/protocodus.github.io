@@ -322,7 +322,15 @@ const FRONT = 5.8;
 const LEFT = (m, z, wd, o = {}) => P(m, FRONT + wd, z, -90, { pad: true, ...o });
 const RIGHT = (m, z, wd, o = {}) => P(m, -FRONT - wd, z, 90, { pad: true, ...o });
 LEFT('house_a', 101, 2.85); LEFT('house_b', 112.5, 3.8); LEFT('ruin', 124, 3.3, { id: 'ruin' }); LEFT('house_f', 137, 4.0);
-RIGHT('house_d', 99, 2.2); RIGHT('house_c', 109.5, 3.1); RIGHT('ruin_b', 121.5, 3.5, { fire: true }); RIGHT('house_b', 133, 3.8);
+RIGHT('house_d', 99, 2.2); RIGHT('house_c', 109.5, 3.1); RIGHT('ruin_b', 121.5, 3.5, {
+  // burning through and through: flame all over the floor of the roofless shell (in its own frame:
+  // x along the street, z towards it), seen in the door and the windows and licking up the walls
+  // and up in the charred joists of the floor above at the back, over the walls' broken tops; its
+  // own fire (and so its smoke, its column over the roofs and its glow on the clouds) a big one
+  fire: true, fireSize: 1.6,
+  blaze: [[-2.2, 0.3, 2.6, 1.6], [2.4, 0.3, 2.8, 1.4], [-2.0, 0.3, -1.6, 2.1], [1.4, 0.3, -1.4, 1.8],
+    [-2.6, 4.3, -1.4, 1.7], [-0.4, 4.4, -0.6, 1.4]],
+}); RIGHT('house_b', 133, 3.8);
 // north of the square
 LEFT('house_e', 189, 4.0); LEFT('house_d', 199.5, 2.2); LEFT('house_f', 210, 4.0); LEFT('barn', 225, 3.7);
 RIGHT('house_c', 190, 3.1); RIGHT('house_a', 202, 2.85); RIGHT('house_d', 213, 2.2); RIGHT('house_b', 223.5, 3.8); RIGHT('house_e', 238, 4.0);

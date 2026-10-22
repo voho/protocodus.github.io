@@ -790,8 +790,9 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
           cell: CELLS.flame, rot: (R() - 0.5) * 0.6, rotV: (R() - 0.5) * 2, drag: 0.5,
         });
         // the smoke: thick and dark over the flames (burning rubber, oil, paint), lit from below by
-        // them, rolling up slowly into the plume (plumes.js)
-        if (R() < 0.7 * k) {
+        // them, rolling up slowly into the plume (plumes.js); not from the flames spread through a
+        // burning house (levelBuild's blaze), whose smoke is the house's own fire's
+        if (f.smoke !== false && R() < 0.7 * k) {
           alpha.spawn({
             x: f.x + (R() - 0.5) * 1.2 * s, y: f.y + (1.2 + R() * 0.8) * s, z: f.z + (R() - 0.5) * 1.2 * s,
             vx: wind.x * 0.7 + (R() - 0.5) * 0.5, vy: 1.2 + R() * 0.9, vz: wind.z * 0.7 + (R() - 0.5) * 0.5,

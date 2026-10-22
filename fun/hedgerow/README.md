@@ -322,7 +322,14 @@ by the blast that killed them, and drop their rifles.
     fires as flame: five billboards over the breadth of each near fire,
     rising two to three metres out of the wreck, each a turbulent body
     of flame worked out in its shader, licking up in tongues, coloured by
-    its heat from deep red to a yellow-white core), `plumes.js` (each
+    its heat from deep red to a yellow-white core; hidden pixels thrown
+    away before the noise is worked out; a house burning through and
+    through - the roofless ruin at the village entry - has flame all
+    over its floor and up in the charred joists of the floor above (the
+    level's `blaze`: more flames, each fainter, with embers and sparks
+    but no smoke or plume of their own, and a light by the door), so its
+    door and every window blaze and the light pours out over the wet
+    cobbles), `plumes.js` (each
     fire's smoke climbing ~90 m on from its particles: a ribbon turned to
     the camera about an axis that leans downwind as it climbs, billows of
     noise in metres rising through it, lit orange from below by the fire
