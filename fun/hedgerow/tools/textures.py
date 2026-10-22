@@ -534,8 +534,9 @@ def forest():
 
 
 def cobble():
-    """Granite setts laid in courses, worn smooth on top, mud and grit in the
-    joints, a few sunk or missing."""
+    """Granite setts laid in courses, worn flat on top by wheels and boots
+    with a narrow rounded edge down into the joint, each settled a little
+    askew in its bed; mud and grit in the joints, a few sunk or missing."""
     n = NG
     rows, cols = 24, 17
     wx = (spectral(n, 2.0, 237, lo=6) - 0.5) * 22
@@ -543,16 +544,19 @@ def cobble():
     u, v, ident, edge, ex, ey = rect_layout(n, rows, cols, 231, jitter=0.6, warp=(wx, wy))
     rnd = per_cell(ident, 232)
     rnd2 = per_cell(ident, 235)
-    # rounded, slightly irregular tops
+    # worn flat: a narrow rounded edge (~1.7 cm), then a top with only a slight crown
     w = spectral(n, 1.6, 236, lo=20)
     e2 = edge + (w - 0.5) * 3.0
-    dome = smoothstep(0.0, 16.0, e2) ** 0.8
-    dome = dome * (0.85 + 0.3 * rnd2)
+    dome = smoothstep(0.0, 7.0, e2) ** 0.6
+    crown = smoothstep(0.0, 20.0, e2)
+    # settled askew: each stone tilted its own way, so the wet street's reflections break up stone by stone
+    tilt = ((u - 0.5) * (per_cell(ident, 240) - 0.5) + (v - 0.5) * (per_cell(ident, 241) - 0.5)) * 0.5
+    dome = dome * (0.8 + 0.1 * crown + tilt + 0.1 * rnd2)
     sunk = (rnd2 < 0.04)
-    dome = np.where(sunk, dome * 0.3, dome)
+    dome = np.where(sunk, dome * 0.45, dome)
     fine = spectral(n, 1.1, 233, lo=40)
     big = spectral(n, 2.2, 234, lo=1)
-    h = 0.85 * dome + 0.1 * fine + 0.05 * rnd
+    h = 0.88 * dome + 0.07 * fine * smoothstep(0.0, 4.0, e2) + 0.05 * rnd
     stone_a, stone_b, stone_c, joint = lin('#55524c'), lin('#7c776d'), lin('#6a5f54'), lin('#2a221a')
     alb = mix(stone_a, stone_b, np.clip(rnd * 0.9 + 0.3 * (fine - 0.5), 0, 1))
     alb = mix(alb, stone_c, (rnd2 > 0.7) * 0.6)
@@ -560,7 +564,8 @@ def cobble():
     alb = mix(alb, joint, 1 - smoothstep(1.5, 7.0, e2))
     grit = smoothstep(0.6, 0.8, spectral(n, 1.6, 239, lo=5)) * (1 - dome)
     alb = mix(alb, lin('#3a2e22'), grit * 0.7)
-    rough = np.clip(0.4 + 0.45 * (1 - dome), 0, 1)
+    # polished where the traffic wears them
+    rough = np.clip(0.34 + 0.5 * (1 - smoothstep(0.0, 0.8, dome)), 0, 1)
     pack_ground('cobble', alb, h, rough, 7.0)
 
 
