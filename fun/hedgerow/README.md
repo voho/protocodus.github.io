@@ -339,7 +339,10 @@ by the blast that killed them, and drop their rifles.
     shaken off the leaves (fewer when the sprites are busy); enemy
     tracers end where their rounds strike, and one glancing off stone or
     metal (now and then off mud) skips on, slower, often up into the sky;
-    tracers and sparks never
+    a tracer its compound burning white-hot in a line drawn out by its
+    speed, in a soft orange-red glow, brightest at its head (never under
+    three pixels there, so one far off is still a point of fire on its
+    line); tracers and sparks never
     thinner than a pixel and a half, so fire from a hundred metres off is
     still an unbroken line), `flames.js` (the
     fires as flame: five billboards over the breadth of each near fire,

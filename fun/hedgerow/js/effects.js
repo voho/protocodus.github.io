@@ -528,9 +528,18 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     alpha.spawn({ x: x + dx * 0.2, y, z: z + dz * 0.2, vx: dx * 1.2 + (R() - 0.5) * 0.3, vy: 0.4 + dy, vz: dz * 1.2 + (R() - 0.5) * 0.3, life: 1.2, size: 0.12, size1: 0.65, color: C('#706f6c', 0.13), color1: C('#5e5d5a', 0), cell: CELLS.smoke, drag: 2.5, rot: R() * 6, rotV: (R() - 0.5) });
   }
 
+  /* a tracer: its compound burning white-hot in a line drawn out by its speed, in a soft orange-red
+     glow, brightest at its head (never under a few pixels there, so one far off is still a point of
+     fire on its line); color: the core's as it cools */
   function tracer(x, y, z, dx, dy, dz, dist, speed = 320, color = '#ffb070') {
-    const life = Math.min(dist / speed, 1.2);
-    add.spawn({ x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, life, size: 0.045, color: C(color, 1, 3), color1: C(color, 0.8, 2), cell: CELLS.streak, streak: 0.012 });
+    const life = Math.min(dist / speed, 1.2), vx = dx * speed, vy = dy * speed, vz = dz * speed;
+    add.spawn({ x, y, z, vx, vy, vz, life, size: 0.04, color: C('#ffe8c8', 1, 3.2), color1: C(color, 0.85, 2.2), cell: CELLS.streak, streak: 0.016 });
+    add.spawn({ x, y, z, vx, vy, vz, life, size: 0.2, color: C('#ff5a1e', 0.5, 1.1), color1: C('#ff3c10', 0.4, 0.8), cell: CELLS.streak, streak: 0.016 });
+    const ahead = speed * 0.016 * 0.5;
+    add.spawn({
+      x: x + dx * ahead, y: y + dy * ahead, z: z + dz * ahead, vx, vy, vz, life: Math.max(0.01, life - ahead / speed),
+      size: 0.07, color: C('#fff2dc', 1, 3), color1: C('#ffb060', 1, 2), cell: CELLS.spark, minPx: 3,
+    });
   }
 
   /* a bullet through a hedge or a bush: leaves shredded out of it that flutter down on the air
