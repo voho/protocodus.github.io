@@ -422,6 +422,67 @@ function wallAd(p, R, cx, cy, S, variant) {
   for (const g of all) g.restore();
 }
 
+/* a boot's print in the mud (only pinned, prints.js), the toe towards the decal's up (the canvas's
+   down): the sole and the heel sunk in, the mud they pushed aside a ragged rim round them, the
+   hobnails and the heel iron printed as pits in the floor. Left and right; a scuffed one, the heel
+   slid and washed out; and one with the rain standing in it, a flat dark pool */
+function bootPrint(p, R, cx, cy, S, variant) {
+  const right = variant % 2 === 1, scuffed = variant === 2, pool = variant === 3, mx = right ? -1 : 1;
+  const X = (a) => cx + a * S * mx, Y = (b) => cy + b * S;
+  const sole = new Path2D();
+  sole.moveTo(X(0.02), Y(0.43));
+  sole.bezierCurveTo(X(0.13), Y(0.43), X(0.18), Y(0.33), X(0.17), Y(0.24));
+  sole.bezierCurveTo(X(0.16), Y(0.12), X(0.13), Y(0.04), X(0.12), Y(-0.04));
+  sole.lineTo(X(-0.07), Y(-0.04));
+  sole.bezierCurveTo(X(-0.09), Y(0.04), X(-0.14), Y(0.12), X(-0.15), Y(0.22));
+  sole.bezierCurveTo(X(-0.15), Y(0.35), X(-0.09), Y(0.43), X(0.02), Y(0.43));
+  sole.closePath();
+  const heel = new Path2D();
+  const hb = scuffed ? -0.5 : -0.42;           // a slid heel drags back
+  heel.moveTo(X(-0.1), Y(-0.12));
+  heel.lineTo(X(0.11), Y(-0.12));
+  heel.bezierCurveTo(X(0.12), Y(-0.3), X(0.08), Y(hb), X(0.0), Y(hb));
+  heel.bezierCurveTo(X(-0.08), Y(hb), X(-0.11), Y(-0.3), X(-0.1), Y(-0.12));
+  heel.closePath();
+  const parts = scuffed ? [sole] : [sole, heel];
+  // the mud pushed up round it, ragged and soft
+  for (const part of parts) {
+    p.stroke(part, { alpha: grey(70), height: grey(FLAT + 10) }, S * 0.09);
+    p.stroke(part, { col: 'rgb(58,47,36)', alpha: grey(150), height: grey(FLAT + 20) }, S * 0.045);
+  }
+  for (let k = 0; k < 14; k++) {
+    const a = (R() - 0.5) * 0.4, b = (R() - 0.45) * 0.9;
+    p.fill(ragged(R, X(a), Y(b), S * (0.02 + R() * 0.03), 7, 0.4), { col: 'rgb(60,49,37)', alpha: grey(90), height: grey(FLAT + 14) });
+  }
+  // sunk in: the floor darker, wetter
+  for (const part of parts) p.fill(part, { col: 'rgb(36,29,22)', alpha: grey(235), height: grey(FLAT - 55) });
+  if (scuffed) {
+    // the heel's slide, shallower, smeared
+    p.fill(ragged(R, X(0.0), Y(-0.3), S * 0.13, 11, 0.35, 1.6), { col: 'rgb(42,34,26)', alpha: grey(200), height: grey(FLAT - 30) });
+  } else {
+    // the heel iron: a horseshoe groove round the heel's edge
+    const iron = new Path2D();
+    iron.moveTo(X(-0.085), Y(-0.15));
+    iron.bezierCurveTo(X(-0.095), Y(-0.31), X(-0.06), Y(-0.39), X(0.0), Y(-0.39));
+    iron.bezierCurveTo(X(0.065), Y(-0.39), X(0.1), Y(-0.31), X(0.095), Y(-0.15));
+    p.stroke(iron, { col: 'rgb(24,19,15)', height: grey(FLAT - 80) }, S * 0.014);
+  }
+  // the hobnails: pits in a row down each edge of the sole, and scattered over the ball
+  for (let k = 0; k < 12; k++) {
+    const b = -0.01 + 0.38 * (k / 11), w = 0.75 + 0.25 * Math.sin(Math.PI * (k / 11));
+    p.fill(disc(X(0.125 * w), Y(b), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+    p.fill(disc(X(-0.11 * w), Y(b), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+  }
+  for (let k = 0; k < 12; k++) {
+    p.fill(disc(X(-0.07 + R() * 0.16), Y(0.12 + R() * 0.22), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+  }
+  if (pool) {
+    // the rain standing in it: level, dark, the floor gone under it
+    p.fill(ragged(R, X(0.01), Y(0.17), S * 0.13, 12, 0.25, 1.8), { col: 'rgb(24,25,27)', alpha: grey(245), height: grey(FLAT - 50) });
+    p.fill(ragged(R, X(0.0), Y(-0.27), S * 0.09, 10, 0.25, 1.4), { col: 'rgb(24,25,27)', alpha: grey(245), height: grey(FLAT - 50) });
+  }
+}
+
 /* a blast's scorch on the ground, burnt out from the middle in streaks */
 function scorchMark(p, R, cx, cy, S) {
   const burnt = p.alpha.createRadialGradient(cx, cy, 0, cx, cy, S * 0.48);
@@ -726,9 +787,11 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   if (pinned.spall) sets.spall = decalSet(plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2);
   // and the old painted advertisements on the gables
   if (pinned.sign) sets.sign = decalSet(wallAd, 1937, 'rgb(120,100,80)', 0, false, CELL * 2);
+  // and the boots that went along the lanes before (prints.js)
+  if (pinned.boot) sets.boot = decalSet(bootPrint, 1940, 'rgb(46,37,28)', 16);
   const kinds = {};
   for (const k in sets) {
-    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' || k === 'sign' ? 0 : k === 'glass' ? 60 : max) + fixed;
+    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' || k === 'sign' || k === 'boot' ? 0 : k === 'glass' ? 60 : max) + fixed;
     const geo = new THREE.PlaneGeometry(1, 1);
     const cells = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2);
     geo.setAttribute('aCell', cells);
@@ -739,7 +802,7 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
     m.frustumCulled = false;
     // the signs under the breaks, the breaks under the holes: old damage goes through the paint,
     // new shots land in old damage
-    m.renderOrder = k === 'sign' ? 0.5 : k === 'spall' ? 1 : 2;
+    m.renderOrder = k === 'sign' ? 0.5 : k === 'spall' || k === 'boot' ? 1 : 2;
     m.receiveShadow = true;
     group.add(m);
     kinds[k] = { mesh: m, cells, cursor: 0, n: 0, cap, fixed, base: 0 };
@@ -748,16 +811,16 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   const mtx = new THREE.Matrix4(), turn = new THREE.Matrix4();
 
   /* Decal i of a kind, `size` across on a surface facing (nx, ny, nz): turned at random, or (along
-     the grain) with its up along the surface's, give or take, or (upright) exactly; its variant at
-     random, or the one asked for. */
-  function put(K, i, x, y, zz, nx, ny, nz, size, grain, R, upright = false, variant = -1) {
+     the grain) with its up along the surface's, give or take, or (upright) exactly, or by `angle`
+     from that; its variant at random, or the one asked for. */
+  function put(K, i, x, y, zz, nx, ny, nz, size, grain, R, upright = false, variant = -1, angle = null) {
     n.set(nx, ny, nz).normalize();
     // its up: the world's laid on the surface (on a floor, any)
     up.set(0, 1, 0).addScaledVector(n, -n.y);
     if (up.lengthSq() < 0.04) up.set(1, 0, 0).addScaledVector(n, -n.x);
     up.normalize();
     side.crossVectors(up, n);
-    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(upright ? 0 : grain ? (R() - 0.5) * 0.4 : R() * Math.PI * 2));
+    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(angle ?? (upright ? 0 : grain ? (R() - 0.5) * 0.4 : R() * Math.PI * 2)));
     mtx.scale(side.set(size, size, 1));
     mtx.setPosition(x + n.x * 0.012, y + n.y * 0.012, zz + n.z * 0.012);
     K.mesh.setMatrixAt(i, mtx);
@@ -777,10 +840,10 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   }
 
   /* One for good (before any add() of its kind); false once its kind's pinned room is full. */
-  function pin(kind, x, y, zz, nx, ny, nz, size, grain = false, R = Math.random, upright = false, variant = -1) {
+  function pin(kind, x, y, zz, nx, ny, nz, size, grain = false, R = Math.random, upright = false, variant = -1, angle = null) {
     const K = kinds[kind];
     if (!K || K.base >= K.fixed) return false;
-    put(K, K.base++, x, y, zz, nx, ny, nz, size, grain, R, upright, variant);
+    put(K, K.base++, x, y, zz, nx, ny, nz, size, grain, R, upright, variant, angle);
     K.cursor = Math.max(K.cursor, K.base);
     K.n = Math.max(K.n, K.base);
     K.mesh.count = K.n;

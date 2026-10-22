@@ -20,6 +20,7 @@ import { paneRects } from './rooms.js';
 import { createSheets } from './cloth.js';
 import { createWaysigns } from './signs.js';
 import { createConcertina } from './wire.js';
+import { printBoots } from './prints.js';
 import { createChunks } from './chunks.js';
 import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
@@ -176,12 +177,14 @@ async function boot() {
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
   // room kept for the damage the walls already carry (damage.js)
-  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5 } });
+  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5, boot: 1100 } });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   dressWalls(G, built.props, LEVEL.lines);
+  // and the boots that went along the lane and the track before (prints.js)
+  printBoots(G, LEVEL.lines);
   // the lit windows' glass, for the cracks a bullet leaves in it and the shards it breaks out
   const panes = paneRects(built.props);
   G.decals.setPanes(panes);
