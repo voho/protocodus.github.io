@@ -124,6 +124,7 @@ varying vec2 vUv;
 varying float vAge, vSeed, vDist;
 varying vec3 vLit;
 varying vec2 vProj;
+varying float vOpen;
 float hash(float n) { return fract(sin(n * 12.9898 + aSeed.y * 78.233) * 43758.5453); }
 void main() {
   float fall = aEmit.w;
@@ -147,6 +148,7 @@ void main() {
     lit += uLightCol[i] / (1.0 + dot(dd, dd) * 0.9);
   }
   vLit = lit;
+  vOpen = 1.0;                   // off the eaves, by a wall: open to the sky, not under the trees
   vec4 mv = viewMatrix * vec4(p, 1.0);
   vDist = -mv.z;
   vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);

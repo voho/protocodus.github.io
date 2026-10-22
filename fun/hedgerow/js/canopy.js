@@ -84,8 +84,9 @@ export function setCanopyLight(light) {
 
 // the cover over a point, looked up where the flare's ray passes through the crowns some ten metres
 // over it: in the vertex shader (the ground's fragment shader has no texture unit to spare; its
-// vertices are a metre or less apart, finer than the map)
-const CANOPY_VERT = /* glsl */ `
+// vertices are a metre or less apart, finer than the map). The rain's crowns (weather.js) look it
+// up for each splash.
+export const CANOPY_VERT = /* glsl */ `
 uniform sampler2D tCanopy;
 uniform vec2 uCanopyMin, uCanopySize;
 uniform vec3 uFlareDir;

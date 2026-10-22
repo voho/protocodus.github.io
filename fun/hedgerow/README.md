@@ -277,7 +277,11 @@ by the blast that killed them, and drop their rifles.
     crate's lid, a sandbag, a step, the truck, a roof, so what is
     sheltered stays dry (on the river's surface over its bed) - and
     within 7 m crowns of droplets flung up and
-    out of each, a few thousand a second, drawn after the frame; all of it
+    out of each, a few thousand a second, drawn after the frame, catching a
+    flare's or the lightning's light only as far as the trees over them let
+    it through (the canopy map of `canopy.js`) and fainter for being drawn
+    wider than their droplets, so a few metres off they sparkle rather than
+    glow like white flowers; all of it
     in gusts — bands of heavier, harder-leaning rain some 30 m across blown
     downwind, one noise shared by the shaders and the splashes - and by the
     trees, which lean downwind and shake harder as a gust sweeps through,

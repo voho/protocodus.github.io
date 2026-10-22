@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { rng } from './util.js';
 import { SHOT } from './world.js';
+import { CANOPY_UNIFORMS, CANOPY_VERT } from './canopy.js';
 
 // the gusts: how hard it is raining here now (about 0.55 .. 1.6), bands of it some 30 m across
 // blown downwind at gust speed. An integer hash, so gustAt() below gives the same on the CPU
@@ -383,6 +384,8 @@ varying vec2 vUv;
 varying float vAge, vSeed, vDist;
 varying vec3 vLit;
 varying vec2 vProj;
+varying float vOpen;
+${CANOPY_VERT}
 void main() {
   float age = uTime - aSplash.w;
   float d = length(aSplash.xyz - cameraPosition);
@@ -398,12 +401,15 @@ void main() {
     lit += uLightCol[i] / (1.0 + dot(dd, dd) * 0.9);
   }
   vLit = lit;
+  // how much of the sky's light (a flare's, the lightning's) reaches it through the crowns over it
+  vOpen = 1.0 - 0.9 * canopyCover(aSplash.xyz);
   vec4 mv = viewMatrix * vec4(p, 1.0);
   vDist = -mv.z;
   vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
   gl_Position = projectionMatrix * mv;
 }`;
 
+// (drips.js draws its drops' crowns with this too, its own vertex shader feeding it)
 export const CROWN_FRAG = /* glsl */ `
 uniform vec3 uColor, uSky;
 uniform float uOpacity, uFlash, uSoft;
@@ -413,6 +419,7 @@ varying vec2 vUv;
 varying float vAge, vSeed, vDist;
 varying vec3 vLit;
 varying vec2 vProj;
+varying float vOpen;             // the share of the sky's light that reaches it (under trees, little)
 float cHash(float n) { return fract(sin(n) * 43758.5453); }
 void main() {
   // drawn after the frame (the late pass): hidden behind what the scene drew
@@ -424,6 +431,12 @@ void main() {
   vec2 p = vec2((vUv.x - 0.5) * 0.16, vUv.y * 0.08) / (0.55 + 0.6 * cHash(vSeed * 71.0));
   float px = max(fwidth(p.x), 1e-4);
   float t = vAge, a = 0.0;
+  // a droplet is a couple of millimetres: drawn at least a pixel and a half wide so it never
+  // flickers away, it is fainter for being widened, so a crown a few metres off is a sparkle and
+  // not a white flower under a flare; by the square root of the widening, not all of it, since the
+  // light a droplet catches is gathered into a glint brighter than its size
+  float w = max(0.0022, px * 1.0), l = max(0.007, px * 2.0);
+  float keep = sqrt(0.0022 * 0.007 / (w * l));
   for (int j = 0; j < 7; j++) {
     float fj = float(j);
     float ang = fj * 0.8976 + cHash(vSeed * 91.0 + fj) * 0.7;
@@ -434,18 +447,20 @@ void main() {
     vec2 dv = normalize(vec2(cos(ang) * sp, up - 9.8 * t));
     vec2 dd = p - c;
     float al = dot(dd, dv), ac = dot(dd, vec2(-dv.y, dv.x));
-    float w = max(0.0022, px * 1.0), l = max(0.007, px * 2.0);
     a += exp(-ac * ac / (w * w) - al * al / (l * l)) * (0.6 + 0.4 * cHash(fj + vSeed * 5.0));
   }
+  a *= keep;
   // the sheet of the crown, for its first instant
   float ring = exp(-pow((p.y - 0.012 * (1.0 - t * 8.0)) / max(0.003, px), 2.0)) * (1.0 - smoothstep(0.0, 0.05, t))
     * (1.0 - smoothstep(0.012 + t * 0.25, 0.02 + t * 0.3, abs(p.x)));
-  a += ring * 0.5;
+  a += ring * 0.5 * sqrt(0.003 / max(0.003, px));
   a *= (1.0 - smoothstep(0.09, 0.17, t)) * (1.0 - smoothstep(4.0, 9.0, vDist));
   if (a < 0.01) discard;
-  vec3 lit = vLit + uSky;
-  // seen by the light they catch: hardly in the dark, glinting by a lamp, a fire or a flare
-  gl_FragColor = vec4(uColor * (0.22 + uFlash * 3.0) + lit * 2.4, min(a * uOpacity * (0.45 + min(dot(lit, vec3(0.33)) * 2.0, 0.55) + uFlash), 0.8));
+  float flash = uFlash * vOpen;
+  vec3 lit = vLit + uSky * vOpen;
+  // seen by the light they catch: hardly in the dark, glinting by a lamp, a fire or a flare (not
+  // under the trees, where its light does not reach the ground)
+  gl_FragColor = vec4(uColor * (0.22 + flash * 3.0) + lit * 2.4, min(a * uOpacity * (0.45 + min(dot(lit, vec3(0.33)) * 2.0, 0.55) + flash), 0.8));
 }`;
 
 const SPLASH_VERT = /* glsl */ `
@@ -660,6 +675,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
     uTime: splashUniforms.uTime, uColor: rainUniforms.uColor, uFlash: rainUniforms.uFlash, uSky: rainUniforms.uSky,
     uLightPos: rainUniforms.uLightPos, uLightCol: rainUniforms.uLightCol, uOpacity: { value: 0.8 },
     tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
+    ...CANOPY_UNIFORMS,
   };
   crownUniforms.uOpacity.value = 0.5;
   const crowns = new THREE.Mesh(cgeo, new THREE.ShaderMaterial({
