@@ -95,6 +95,7 @@ export function buildLevel(G, L, quality) {
   const fires = [];
   const contact = [];
   const signposts = [];           // drawn with their painted boards by signs.js
+  const wires = [];               // the barbed wire, with a coil of concertina along it (wire.js)
   const wrecks = [];              // burning, with bits of themselves burning round them
 
   for (const p of L.props) {
@@ -130,6 +131,7 @@ export function buildLevel(G, L, quality) {
       batch.add(m, tmpM);
     }
     if (!p.veg && !/^(lamp_post|pole|signpost|bridge|log_bridge|trench_wall|duckboard|barbed|wall_lamp|ivy)/.test(p.m)) contact.push({ m, x: p.x, y, z: p.z, yaw, scale });
+    if (p.m === 'barbed_wire') wires.push({ x: p.x, y, z: p.z, yaw, len: (m.box.max.x - m.box.min.x) * scale });
     // lights
     if (p.light) {
       const a = worldAnchor(m, 'light', p.x, y, p.z, yaw, scale);
@@ -270,7 +272,7 @@ export function buildLevel(G, L, quality) {
   const cover = buildCoverPoints(world, terrain);
 
   // props: every prop as placed ({m: model, x, y, z, yaw, scale}; not the vegetation)
-  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact, signposts };
+  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact, signposts, wires };
 }
 
 /* Soft dark footprints on the ground under props and buildings: the

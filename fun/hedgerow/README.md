@@ -369,7 +369,13 @@ by the blast that killed them, and drop their rifles.
     wood, streaked by the rain, now and then shot through; cut with their
     thickness, reading the right way from either side, wet like the rest;
     levelBuild keeps the signpost model's collider and leaves the drawing
-    to it),
+    to it), `wire.js` (a coil of concertina along every barbed-wire
+    obstacle: loops of weathered galvanised wire some 85 cm across, each a
+    little different, leaning one way and the next the other where they
+    were clipped together so they cross in the diamonds of concertina,
+    sagging, wet and catching a lamp or a flare in glints; one mesh, the
+    wire widened in its vertex shader so it is never thinner than about a
+    pixel - a tangle from afar, wire close by),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
