@@ -365,7 +365,11 @@ by the blast that killed them, and drop their rifles.
     map), so a truck's cab or a wall cuts dark shafts out of its glow · `volumetric.js` lays the
     occlusion, the reflections and the shafts on and adds the light
     scattered in the rain by up to eight lamps, fires and
-    flashes (the closed-form airlight integral, cut by the depth) · `taa.js`
+    flashes (the closed-form airlight integral, cut by the depth; under a
+    capped lamp — the street lamps, the lanterns on the houses — only the
+    air below the cap is lit, and brighter for what the cap throws back
+    down: a bell of light in the rain, dark above it, each view ray's
+    stretch through it taken in six pieces) · `taa.js`
     temporal anti-aliasing (the projection jittered by a sub-pixel Halton
     step each frame, each frame blended into the history reprojected by
     the depth and held to its neighbourhood; the rifle in your hands is not

@@ -18,7 +18,7 @@ import { createVegetation } from './vegetation.js';
 import { createWaterMaterial } from './materials.js';
 import { buildCoverPoints } from './ai.js';
 import { buildDistance } from './distance.js';
-import { FIRE_FOG } from './lights.js';
+import { CAPPED, FIRE_FOG } from './lights.js';
 import { rectDistance, smoothstep, lerp, DEG, polylineDistance } from './util.js';
 
 const SURFACE = (name) => {
@@ -133,14 +133,14 @@ export function buildLevel(G, L, quality) {
     if (p.light) {
       const a = worldAnchor(m, 'light', p.x, y, p.z, yaw, scale);
       if (a) {
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08, shadow: true }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08, shadow: true, cone: CAPPED }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.6, 1.0, 0.06);
       }
     }
     for (const k of Object.keys(m.anchors)) {
       if (k === 'lantern') {
         const a = worldAnchor(m, k, p.x, y, p.z, yaw, scale);
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08, shadow: true }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08, shadow: true, cone: CAPPED }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.2, 0.9, 0.06);
         continue;
       }
