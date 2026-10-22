@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 
-const PER = 5, MAXF = 6, RANGE = 60;
+const PER = 5, MAXF = 10, RANGE = 60;
 
 const VERT = /* glsl */ `
 attribute vec4 aFire;          // xyz: the base, w: size
@@ -141,7 +141,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
       time += dt;
       uniforms.uTime.value = time;
       near.length = 0;
-      for (const f of effects.fires) {
+      for (const list of [effects.fires, effects.debris || []]) for (const f of list) {
         if (!f.on || f.far) continue;
         const d2 = (f.x - cam.x) ** 2 + (f.z - cam.z) ** 2;
         if (d2 < RANGE * RANGE) near.push([d2, f]);

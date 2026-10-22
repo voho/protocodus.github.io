@@ -337,7 +337,7 @@ P('sandbags', -6, 174, 0); P('sandbags_curve', 7, 172, 180); P('sandbags_low', -
 P('crate_large', 9, 160, 20); P('crate', 10.2, 161.5, 70); P('barrel', -3, 180, 0);
 P('cart', 11, 183, -30);
 // the street between
-P('truck_burnt', -1.2, 117, 168, { fire: true });
+P('truck_burnt', -1.2, 117, 168, { fire: true, debris: 4 });
 P('sandbags', 2.2, 129, -8); P('crate', -2.5, 131, 30); P('crate_large', -3.3, 126, 80);
 P('barrel', 3.8, 104, 0); P('jerrycan', 4.1, 105, 30);
 P('pole', 4.8, 145, 0); P('pole', 4.8, 205, 0);
@@ -436,7 +436,7 @@ P('cross', -30, 186.5, 0);
 P('kubelwagen', -8.5, 146.5, 30); P('motorcycle_sidecar', 7.6, 95.6, -150);
 P('ammo_stack', 7.8, 89.2, 0); P('sandbags_ruined', -1.8, 99.5, 15); P('jerrycan_stack', -9.5, 92.4, 0);
 P('pak40', -2.5, 244.5, 180, { id: 'pak' }); P('ammo_stack', -4.8, 249.5, 30);
-P('halftrack_wreck', 8.2, 253.5, 160, { fire: true });
+P('halftrack_wreck', 8.2, 253.5, 160, { fire: true, debris: 3 });
 // gardens: a well, a trough, picket fences, nettles and brambles in the corners
 P('well', 31, 120, 0); P('water_trough', 13.8, 229, -90); P('fence_picket', 18, 166, 90); P('fence_picket', 18, 179, 90);
 P('fence_picket', -18, 104, 90); P('fence_picket', -18, 107, 90);
