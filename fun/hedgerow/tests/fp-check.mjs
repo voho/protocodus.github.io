@@ -8,7 +8,8 @@
 // front sight onto the middle of the screen. And what the eye sees must make
 // sense: the fresh clip or magazine seats in the picture (reload.js
 // startFirstPersonReload), the rifle is carried in the picture at a sprint
-// and goes out of it while changing weapons.
+// and goes out of it while changing weapons. His shadow keeps its head: the
+// head folded away from the eyes has a stand-in that casts it.
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -269,4 +270,47 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(camera.position.distanceTo(killer) < before - 5, 'then it should go to the man who did it');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right');
+/* His shadow keeps its head: in first person the head is folded away from
+   the eyes (its bone shrunk to nothing), and a stand-in of the head and
+   helmet, drawing nothing in the view, sits where the full-size head would
+   be and casts with the body. */
+{
+  const make = (hide) => {
+    const ch = createCharacter(soldier, matlib, { outfit: 'allied', weaponModel: models.get('m1_garand'), scene: new THREE.Scene() });
+    ch.steady = true; ch.hideHead(hide); ch.animate('walk', 'aim', 1);
+    for (let i = 0; i < 40; i++) { ch.root.position.z += 1.31 / 60; ch.update(1 / 60, 0); }
+    ch.root.updateMatrixWorld(true);
+    return ch;
+  };
+  const fp = make(true), shown = make(false);
+  const stand = fp.meshes.find((m) => m.name === 'head_shadow');
+  assert.ok(stand && stand.visible, 'first person: the folded head should have a stand-in for its shadow');
+  assert.ok(!stand.material.colorWrite && !stand.material.depthWrite, 'that draws nothing in the view');
+  assert.ok(!shown.meshes.some((m) => m.name === 'head_shadow'), 'a soldier whose head shows needs none');
+  // the head and helmet's vertices, skinned, on each soldier
+  const headBox = (ch) => {
+    const skin = ch.meshes.find((m) => m.isSkinnedMesh && !/_lod$/.test(m.name));
+    const hi = skin.skeleton.bones.indexOf(ch.bones.head);
+    const { skinIndex: si, skinWeight: sw, position } = skin.geometry.attributes;
+    const box = new THREE.Box3(), v = new THREE.Vector3();
+    for (let i = 0; i < position.count; i++) {
+      let w = 0;
+      for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === hi) w += sw.getComponent(i, k);
+      if (w > 0.5) box.expandByPoint(skin.getVertexPosition(i, v).applyMatrix4(skin.matrixWorld));
+    }
+    return box;
+  };
+  const real = headBox(shown), folded = headBox(fp);
+  const standBox = new THREE.Box3(), v = new THREE.Vector3(), sp = stand.geometry.attributes.position;
+  for (let i = 0; i < sp.count; i++) standBox.expandByPoint(v.fromBufferAttribute(sp, i).applyMatrix4(stand.matrixWorld));
+  const size = real.getSize(new THREE.Vector3()), at = real.getCenter(new THREE.Vector3());
+  const off = at.distanceTo(standBox.getCenter(new THREE.Vector3())), grown = size.distanceTo(standBox.getSize(new THREE.Vector3()));
+  const fsize = folded.getSize(new THREE.Vector3());
+  console.log(`head shadow: the stand-in for the ${(size.x * 100).toFixed(0)} × ${(size.y * 100).toFixed(0)} × ${(size.z * 100).toFixed(0)} cm head and helmet sits ${(off * 1000).toFixed(1)} mm from it, its size within ${(grown * 1000).toFixed(1)} mm; folded away, the head is ${(fsize.x * 100).toFixed(1)} × ${(fsize.y * 100).toFixed(1)} × ${(fsize.z * 100).toFixed(1)} cm`);
+  assert.ok(size.y > 0.15 && off < 0.01 && grown < 0.01, 'the stand-in should sit where the full-size head is, as big as it');
+  assert.ok(Math.max(fsize.x, fsize.y, fsize.z) < Math.max(size.x, size.y, size.z) * 0.5, 'while the head itself is folded out of the way of the eyes');
+  fp.hideHead(false);
+  assert.ok(!stand.visible, 'with the head shown again (the death camera), the stand-in goes');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right, and his shadow keeps its head');

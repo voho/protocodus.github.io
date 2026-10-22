@@ -7,7 +7,9 @@
    reloading. After the mixer, the spine and chest are bent by the aim
    pitch, the weapon rides on the `socket_weapon` empty in the right hand,
    and a soft contact shadow sits under the feet. Deaths play the whole
-   clip on both layers. */
+   clip on both layers. In first person the head is folded away from the
+   eyes (its bone shrunk to nothing) and a stand-in of the head and helmet,
+   drawing nothing in the view, keeps his shadow whole. */
 
 import * as THREE from 'three';
 import { clone as cloneSkinned } from '../assets/utils/SkeletonUtils.js';
@@ -16,6 +18,8 @@ import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { createRagdoll } from './ragdoll.js';
 
 const LOWER = new Set(['root', 'hips', 'thigh_l', 'shin_l', 'foot_l', 'thigh_r', 'shin_r', 'foot_r']);
+// first person: the head bone's scale while the head is folded away from the eyes
+const SHRUNK = 0.001;
 
 let shadowTex = null;
 function contactShadowTexture() {
@@ -216,6 +220,45 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   const socket = root.getObjectByName('socket_weapon');
   const socketL = root.getObjectByName('socket_weapon_l');
 
+  /* The head and helmet as one rigid piece in the head bone's own space, hung on the head
+     bone and scaled back up from its shrinking: it sits where the full-size head would be,
+     draws nothing in the view (no colour, no depth) and casts its shadow with the body (it
+     joins `meshes`, whose shadows main.js switches on near a shadow-casting light). */
+  function headShadow() {
+    const skin = fullMeshes.find((m) => m.isSkinnedMesh);
+    const hi = skin && bones.head ? skin.skeleton.bones.indexOf(bones.head) : -1;
+    if (hi < 0 || skin.bindMode !== THREE.AttachedBindMode) return null;
+    const g = skin.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    const onHead = (i) => {
+      let w = 0;
+      for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === hi) w += sw.getComponent(i, k);
+      return w > 0.5;
+    };
+    const toHead = new THREE.Matrix4().multiplyMatrices(skin.skeleton.boneInverses[hi], skin.bindMatrix);
+    const n = g.index ? g.index.count : pos.count, at = (t) => (g.index ? g.index.getX(t) : t);
+    const kept = new Int32Array(pos.count).fill(-1), xyz = [], tris = [], v = new THREE.Vector3();
+    for (let t = 0; t + 2 < n; t += 3) {
+      const a = at(t), b = at(t + 1), c = at(t + 2);
+      if (!onHead(a) || !onHead(b) || !onHead(c)) continue;
+      for (const i of [a, b, c]) {
+        if (kept[i] < 0) { kept[i] = xyz.length / 3; v.fromBufferAttribute(pos, i).applyMatrix4(toHead); xyz.push(v.x, v.y, v.z); }
+        tris.push(kept[i]);
+      }
+    }
+    if (!tris.length) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(xyz, 3));
+    geo.setIndex(tris);
+    // both faces into the shadow maps, so a single-sided brim still shows in the silhouette
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, shadowSide: THREE.DoubleSide }));
+    mesh.name = 'head_shadow';
+    mesh.matrixAutoUpdate = false;
+    mesh.matrix.makeScale(1 / SHRUNK, 1 / SHRUNK, 1 / SHRUNK);
+    bones.head.add(mesh);
+    meshes.push(mesh);
+    return mesh;
+  }
+
   let weapon = null, muzzleLocal = new THREE.Vector3(0, 0, 0.6);
   const offhandLocal = new THREE.Vector3();
   function setWeapon(model) {
@@ -267,7 +310,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   let spinePosBase = null;
   let clavBase = null;        // the collarbones as the clips left them, before the arms' lift
   let ragdoll = null;
-  let headHidden = false;
+  let headHidden = false, headStandIn = null;
   // first person: the pelvis (root and hips bones together) the upper body
   // rides on, held at each gait's average instead of bobbing and twisting
   // with every stride
@@ -400,6 +443,8 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     /* first person: the head (and the helmet on it) folded away from the eyes */
     hideHead(on) {
       headHidden = on;
+      if (on && !headStandIn) headStandIn = headShadow();
+      if (headStandIn) headStandIn.visible = on;
       if (!on && bones.head) bones.head.scale.setScalar(1);
     },
 
@@ -494,7 +539,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         bones.spine.updateMatrixWorld(true);
       }
       if (headHidden && bones.head) {
-        bones.head.scale.setScalar(0.001);
+        bones.head.scale.setScalar(SHRUNK);
         bones.head.updateMatrixWorld(true);
       }
       if (!dead && (Math.abs(state.armsPitch) + Math.abs(state.armsYaw) + Math.abs(state.armsRoll)) > 1e-4) liftArms(state.armsPitch, state.armsYaw, state.armsRoll);

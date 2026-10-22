@@ -71,8 +71,9 @@ the flashes of a distant barrage, searchlights sweeping
 the cloud over the front and flak tracer going up into it, and every half minute
 or so an illumination flare going up over the front and sinking under its
 parachute, lighting the cloud, glittering on the wet cobbles and laying long
-shadows of houses, walls, soldiers and trees (dappled under the crowns) that
-swing as it drifts, its light hanging in the rain in shafts between the roofs.
+shadows of houses, walls, soldiers (your own too, helmet and all) and trees
+(dappled under the crowns) that swing as it drifts, its light hanging in the
+rain in shafts between the roofs.
 Lightning does the same for its fraction of a second: a cold, blinding light
 from the bolt — high over a near strike, low over the horizon for a far one,
 the bolt itself forking down out of the cloud about half the time — that
@@ -152,8 +153,10 @@ by the blast that killed them, and drop their rifles.
     the body for a moment before the over-the-shoulder death camera turns to
     the killer),
     `character.js` (rig, split upper/lower body animation, the upper body
-    steadied on the gait in first person, the outfit's low-detail `_lod`
-    mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
+    steadied on the gait in first person, the head folded away from the
+    eyes there with a stand-in of the head and helmet that draws nothing
+    but casts, so your shadow keeps its head, the outfit's low-detail
+    `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
     (perception, cover, MG nests, sniper, reloads; patrols; sounds looked
     into; a lost player searched for where he was seen and ambushed along
@@ -544,8 +547,9 @@ by the blast that killed them, and drop their rifles.
   still does (the gait's bob and twist steadied out of the upper body),
   aiming puts the front sight in the middle of the view, the fresh clip or
   magazine seats in the picture, the rifle is carried in the picture at a
-  sprint and out of it while changing weapons, and the sway, kick and
-  landing dip stay within a few degrees and centimetres and settle;
+  sprint and out of it while changing weapons, the sway, kick and landing
+  dip stay within a few degrees and centimetres and settle, and the folded
+  head's shadow stand-in sits where the full-size head would be;
   `tests/daze-check.mjs` — a blast dazes him by how close it went off (all
   of it at a grenade's feet, none past 11 m, a charge nearly twice as far,
   less behind a wall), it wears off over three to nine seconds, and the view
