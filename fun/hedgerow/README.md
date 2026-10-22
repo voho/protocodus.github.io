@@ -321,7 +321,19 @@ by the blast that killed them, and drop their rifles.
     fall), `steam.js` (every shot heats the barrel of the gun in your
     hands; the rain boils off it, so after a burst thin steam curls up off
     its front and blows away on the wind, more the longer you fired,
-    thinning as it cools),
+    thinning as it cools), `cloth.js` (white sheets hung from a few of the
+    lit upper-floor windows that look onto the street — while the fighting
+    passed through, the villagers hung them out: there are people in here,
+    not soldiers — one on as many kinds of house as there are; each hangs
+    from what a look straight at the wall meets first below the glass, the
+    balcony's rail or the sill, found in the house's own faces at load,
+    and only as far down as nothing sticks out into it; old linen,
+    stained, streaked with grime off the sill, creased, its hem askew,
+    frayed or torn, soaked dark by the rain; it hangs in pleats, darker in
+    their folds, and swings out from the wall and ripples with the gusts
+    that bend the trees, most at its hem and most in its house's lee, the
+    motion and its shading worked out in the vertex shader, its shadow
+    moving with it),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and

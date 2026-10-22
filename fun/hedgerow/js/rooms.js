@@ -193,7 +193,8 @@ function panes(geo, px) {
 }
 
 /* The lit panes of the placed houses in the world: `props` as levelBuild places them
-   ({m, x, y, z, yaw, scale}); each {c, n, T, B, hw, hh} (centre, facing, across, up, half sizes). */
+   ({m, x, y, z, yaw, scale}); each {c, n, T, B, hw, hh, prop} (centre, facing, across, up, half
+   sizes, and the placement it's in). */
 export function paneRects(props) {
   const out = [], q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   for (const pr of props) {
@@ -204,7 +205,7 @@ export function paneRects(props) {
         out.push({
           c: f.c.clone().applyQuaternion(q).multiplyScalar(k).add(new THREE.Vector3(pr.x, pr.y, pr.z)),
           n: f.n.clone().applyQuaternion(q), T: f.T.clone().applyQuaternion(q), B: f.B.clone().applyQuaternion(q),
-          hw: f.hw * k, hh: f.hh * k,
+          hw: f.hw * k, hh: f.hh * k, prop: pr,
         });
       }
     }
