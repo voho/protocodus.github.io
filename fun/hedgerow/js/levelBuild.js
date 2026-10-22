@@ -18,6 +18,7 @@ import { createVegetation } from './vegetation.js';
 import { createWaterMaterial } from './materials.js';
 import { buildCoverPoints } from './ai.js';
 import { buildDistance } from './distance.js';
+import { FIRE_FOG } from './lights.js';
 import { rectDistance, smoothstep, lerp, DEG, polylineDistance } from './util.js';
 
 const SURFACE = (name) => {
@@ -151,7 +152,7 @@ export function buildLevel(G, L, quality) {
     if (p.fire) {
       const a = worldAnchor(m, 'fire', p.x, y, p.z, yaw, scale) || worldAnchor(m, 'smoke', p.x, y, p.z, yaw, scale) || [p.x, y + 1, p.z];
       fires.push(G.effects.addFire(a[0], a[1], a[2], 1.1));
-      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true });
+      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true, fog: FIRE_FOG });
       G.halos?.add(a[0], a[1] + 1.0, a[2], '#ff7a30', 6, 0.7, 0.4);
     }
   }

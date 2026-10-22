@@ -251,7 +251,10 @@ by the blast that killed them, and drop their rifles.
     no longer leaks through the wall beside the other; and a muzzle's or a
     grenade's flash near you takes the second of them for its few frames,
     so a man firing past another throws that one's long shadow across the
-    wet cobbles, and sandbags shield the street from a blast behind them),
+    wet cobbles, and sandbags shield the street from a blast behind them;
+    a fire lights everything round it in full, but only a third of its
+    light hangs in the wet air, so its flames stand out of their glow
+    instead of drowning in an orange fog),
     `fill.js` (the night's fill lights — the low key light from the last of
     the sun, the rim light of the overcast — model shapes but make no
     glints on the world: their direct specular is cut to a tenth on the
