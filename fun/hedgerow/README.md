@@ -285,7 +285,8 @@ by the blast that killed them, and drop their rifles.
     tracers and sparks never
     thinner than a pixel and a half, so fire from a hundred metres off is
     still an unbroken line), `flames.js` (the
-    fires as flame: three billboards per near fire, each a turbulent body
+    fires as flame: five billboards over the breadth of each near fire,
+    rising two to three metres out of the wreck, each a turbulent body
     of flame worked out in its shader, licking up in tongues, coloured by
     its heat from deep red to a yellow-white core), `plumes.js` (each
     fire's smoke climbing ~90 m on from its particles: a ribbon turned to
