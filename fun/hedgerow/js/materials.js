@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
 import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
-import { dimFillSpecular } from './fill.js';
+import { dimFillSpecular, addFireBounce, FIRE_UNIFORMS } from './fill.js';
 import { GUST_GLSL } from './weather.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
@@ -104,10 +104,6 @@ const METAL = {
 /* how much light comes through the leaves (foliage, addWeather) */
 export const FOLIAGE_UNIFORMS = { uLeafTrans: { value: 1.6 } };
 
-/* what burns, and smoulders round its fire: the charred wood of a burning ruin (its char cracks
-   and glows), the metal of a burnt-out wreck (it glows a dull red with the heat) */
-const SMOULDER = [[/^(ruin|beam_charred)/, 'wood'], [/^(truck_burnt|halftrack_wreck|jeep_wreck)/, 'metal']];
-/* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder) */
 /* value noise for the damp at the foot of a wall (hash12: terrain.js GLSL_HELPERS) */
 const DAMP_GLSL = /* glsl */ `
   float dampNoise(vec2 p) {
@@ -116,7 +112,12 @@ const DAMP_GLSL = /* glsl */ `
     return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
   }`;
 
-export const SMOULDER_UNIFORMS = { uFires: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) } };
+/* what burns, and smoulders round its fire: the charred wood of a burning ruin (its char cracks
+   and glows), the metal of a burnt-out wreck (it glows a dull red with the heat) */
+const SMOULDER = [[/^(ruin|beam_charred)/, 'wood'], [/^(truck_burnt|halftrack_wreck|jeep_wreck)/, 'metal']];
+/* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder)
+   and the light they throw back off everything round them (fill.js addFireBounce) */
+export const SMOULDER_UNIFORMS = FIRE_UNIFORMS;
 const near4 = [];
 export function updateSmoulder(fires, cam) {
   near4.length = 0;
@@ -308,7 +309,6 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
       ...(rooms ? ROOM_UNIFORMS : {}),
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
-      ...(smoulder ? SMOULDER_UNIFORMS : {}),
       ...(skin ? { ...SKIN_UNIFORMS, tGrain: GRAIN_UNIFORMS.tGrain } : {}),
       ...(grain ? GRAIN_UNIFORMS : {}),
       // the ground's height (groundmap.js: the map's alpha), for the foot of a wall
@@ -665,7 +665,6 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // breathing slowly, brighter the nearer the flames
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-        uniform vec4 uFires[4];
         vec2 smHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
         // the char's cracks: how near the border between two of its cells (0 on it), and the cell's id
         vec2 smCracks(vec2 p) {
@@ -832,6 +831,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           if (dot(nb, nb) > 1e-24) normal = normalize(nb);
         }`);
     }
+    addFireBounce(shader, 'vWPosM', 'normalize(vWNormalM)');
     if (!glints) dimFillSpecular(shader);
   };
 }
