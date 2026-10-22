@@ -108,6 +108,14 @@ export const FOLIAGE_UNIFORMS = { uLeafTrans: { value: 1.6 } };
    and glows), the metal of a burnt-out wreck (it glows a dull red with the heat) */
 const SMOULDER = [[/^(ruin|beam_charred)/, 'wood'], [/^(truck_burnt|halftrack_wreck|jeep_wreck)/, 'metal']];
 /* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder) */
+/* value noise for the damp at the foot of a wall (hash12: terrain.js GLSL_HELPERS) */
+const DAMP_GLSL = /* glsl */ `
+  float dampNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+  }`;
+
 export const SMOULDER_UNIFORMS = { uFires: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) } };
 const near4 = [];
 export function updateSmoulder(fires, cam) {
@@ -303,6 +311,9 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(smoulder ? SMOULDER_UNIFORMS : {}),
       ...(skin ? { ...SKIN_UNIFORMS, tGrain: GRAIN_UNIFORMS.tGrain } : {}),
       ...(grain ? GRAIN_UNIFORMS : {}),
+      // the ground's height (groundmap.js: the map's alpha), for the foot of a wall
+      ...(streaks ? { tGroundM: shared.grassMap || { value: null }, uGroundMinM: shared.grassMin || { value: new THREE.Vector2() },
+        uGroundSizeM: shared.grassSize || { value: new THREE.Vector2(1, 1) } } : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -388,7 +399,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying float vBarkH;
         vec4 barkA, barkB;
         float barkK, barkW;` : ''}
-        ${streaks ? 'float mRiv, mRivX;\n        vec3 mRivT;' : ''}
+        ${streaks ? 'float mRiv, mRivX, mDamp, mMud;\n        vec3 mRivT;\n        uniform sampler2D tGroundM;\n        uniform vec2 uGroundMinM, uGroundSizeM;' : ''}
         ${rooms ? 'varying vec4 vWin;' : ''}
         ${grain ? `uniform sampler2D tGrain;
         uniform float uGrain;
@@ -396,6 +407,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         vec3 grainW = vec3(0.0);
         vec4 grainX, grainY, grainZ;` : ''}
         ${GLSL_HELPERS}
+        ${streaks ? DAMP_GLSL : ''}
         ${rooms ? ROOMS_GLSL : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         ${bark ? `{
@@ -428,7 +440,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         ${streaks ? `// rain running down walls, close to the eye: rivulets ~22 cm apart, darker wet
         // stripes with a glossy core, each wandering as it runs and carrying water in
         // stretches that slide down the wall
-        mRiv = 0.0; mRivX = 0.0; mRivT = vec3(1.0, 0.0, 0.0);
+        mRiv = 0.0; mRivX = 0.0; mRivT = vec3(1.0, 0.0, 0.0); mDamp = 0.0; mMud = 0.0;
         #ifndef USE_SKINNING
         {
           float vert = 1.0 - smoothstep(0.2, 0.5, abs(vWNormalM.y));
@@ -444,6 +456,27 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             float run = smoothstep(0.55, 0.8, mix(hash12(vec2(col, fy)), hash12(vec2(col, fy + 1.0)), ty * ty * (3.0 - 2.0 * ty)));
             mRiv = line * run * k;
             diffuseColor.rgb *= 1.0 - 0.45 * mRiv;
+          }
+        }
+        // the foot of a wall (and of whatever stands in the wet): damp rising a ragged band a hand or
+        // two up, darker, a green film of algae in it on porous stone and plaster; mud splashed up
+        // over it by the rain, in specks, just over the ground
+        {
+          vec2 gm = (vWPosM.xz - uGroundMinM) / uGroundSizeM;
+          float side = 1.0 - smoothstep(0.55, 0.85, abs(vWNormalM.y));
+          if (side > 0.01 && gm.x > 0.0 && gm.y > 0.0 && gm.x < 1.0 && gm.y < 1.0) {
+            float h = vWPosM.y - texture2D(tGroundM, gm).w;
+            float along = vWPosM.x + vWPosM.z;
+            float n = dampNoise(vec2(along * 1.7, vWPosM.y * 3.0)) * 0.7 + dampNoise(vec2(along * 6.3, vWPosM.y * 9.0)) * 0.3;
+            float top = 0.35 + 0.5 * n;
+            mDamp = side * uWet * (1.0 - smoothstep(top - 0.12, top, h)) * step(-0.6, h);
+            mMud = side * uWet * (1.0 - smoothstep(0.1, 0.24 + 0.14 * n, h)) * step(-0.3, h)
+              * smoothstep(0.4, 0.65, dampNoise(vec2(along * 24.0, vWPosM.y * 30.0)) + 0.3 * (1.0 - smoothstep(0.0, 0.12, h)));
+            // the tide line the damp leaves where it stops rising
+            float rim = side * uWet * smoothstep(top - 0.13, top - 0.05, h) * (1.0 - smoothstep(top - 0.05, top, h));
+            diffuseColor.rgb *= mix(1.0, 0.5, mDamp * (0.4 + 0.6 * uPorosity)) * (1.0 - 0.22 * rim * uPorosity);
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.78, 0.9, 0.62), mDamp * 0.7 * uPorosity);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.055, 0.04), mMud * 0.8);
           }
         }
         #endif` : ''}`)
@@ -466,7 +499,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }` : ''}
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
         roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);
-        ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);' : ''}`)
+        ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);\n        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.75, mDamp);\n        roughnessFactor = mix(roughnessFactor, 0.9, mMud * 0.6);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
           vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));

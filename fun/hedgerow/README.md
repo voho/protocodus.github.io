@@ -184,7 +184,11 @@ by the blast that killed them, and drop their rifles.
     generated metre of surface grain in world space from three sides,
     mottling everything and roughening what is baked rough, not where water
     stands; rain running down walls within ~24 m in
-    rivulets that slide down and catch the light; the soldiers' skin, found
+    rivulets that slide down and catch the light; at the foot of every
+    wall, step, crate and sandbag (its height over the ground from the
+    ground map) the damp rising a ragged band 35-85 cm up, darker, a green
+    film of algae in it on porous stone and plaster, a tide line where it
+    stops, and mud splashed up in specks just over the ground; the soldiers' skin, found
     in their atlas by its colour, scattering light under its surface (the
     light wrapping past the shadow's edge, reddest; the hands on the rifle
     included), and their wool, found by its baked roughness and its colour
