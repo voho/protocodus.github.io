@@ -274,7 +274,10 @@ by the blast that killed them, and drop their rifles.
     cool, and every few seconds a shower of sparks spat up out of the
     flames, arcing over and falling back; a fire's smoke thick and dark
     over its flames, lit from below by them, rolling slowly up into its
-    plume; a blast flashes for a frame or two and throws up a geyser of wet
+    plume; round a burning wreck, bits of it burning on the open ground
+    near it, small fires of their own with flames, sparks and smoke to
+    their size (none of a big fire's plume, heat haze or glow on the
+    cloud); a blast flashes for a frame or two and throws up a geyser of wet
     mud in dark jets and a spray of it in streaks, drawn after its fireball
     so the mud covers the fire it flies through, and rolls low dark spray
     and smoke along the ground (mud and dirt are lit on the side facing a

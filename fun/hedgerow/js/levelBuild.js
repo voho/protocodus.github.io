@@ -19,7 +19,7 @@ import { createWaterMaterial } from './materials.js';
 import { buildCoverPoints } from './ai.js';
 import { buildDistance } from './distance.js';
 import { CAPPED, FIRE_FOG } from './lights.js';
-import { rectDistance, smoothstep, lerp, DEG, polylineDistance } from './util.js';
+import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './util.js';
 
 const SURFACE = (name) => {
   if (/^(house|church|wall|fountain|cross|bridge|ruin)/.test(name)) return 'stone';
@@ -95,6 +95,7 @@ export function buildLevel(G, L, quality) {
   const fires = [];
   const contact = [];
   const signposts = [];           // drawn with their painted boards by signs.js
+  const wrecks = [];              // burning, with bits of themselves burning round them
 
   for (const p of L.props) {
     const m = model(p.m);
@@ -152,8 +153,21 @@ export function buildLevel(G, L, quality) {
     if (p.fire) {
       const a = worldAnchor(m, 'fire', p.x, y, p.z, yaw, scale) || worldAnchor(m, 'smoke', p.x, y, p.z, yaw, scale) || [p.x, y + 1, p.z];
       fires.push(G.effects.addFire(a[0], a[1], a[2], 1.1));
+      if (p.debris) wrecks.push(p);
       G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true, fog: FIRE_FOG });
       G.halos?.add(a[0], a[1] + 1.0, a[2], '#ff7a30', 6, 0.7, 0.4);
+    }
+  }
+
+  // the burning bits round a burning wreck: small fires of their own on the open ground near it,
+  // clear of anything solid (everything is placed by now)
+  for (const p of wrecks) {
+    const R = rng(Math.round(p.x * 31 + p.z * 17));
+    for (let k = 0, tries = 0; k < p.debris && tries < 40; tries++) {
+      const a = R() * Math.PI * 2, r = 1.8 + R() * 1.8, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      if (insideSolid(world, terrain, x, z)) continue;
+      G.effects.addDebris(x, terrain.height(x, z) + 0.02, z, 0.2 + R() * 0.15);
+      k++;
     }
   }
 

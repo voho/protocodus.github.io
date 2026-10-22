@@ -427,6 +427,9 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   group.name = 'effects';
   group.add(alpha.mesh, add.mesh, thrown.mesh);
   const fires = [];
+  // burning bits thrown round a wreck: small fires of their own, with flames and sparks and smoke but
+  // none of a big fire's plume, heat haze or glow on the cloud
+  const debris = [], burning = [fires, debris];
   let groundFn = null, paneAt = null;
 
   /* The effects-chain pass: the sprites drawn into the scene's buffer (the
@@ -762,11 +765,16 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     fires.push(f);
     return f;
   }
+  function addDebris(x, y, z, size = 0.3) {
+    const f = { x, y, z, size, acc: 0, on: true, debris: true };
+    debris.push(f);
+    return f;
+  }
 
   // the share of the sprite flames still spawned (flames.js draws the body of the fire over them)
   let flameShare = 1;
   function updateFires(dt, wind, camPos) {
-    for (const f of fires) {
+    for (const list of burning) for (const f of list) {
       if (!f.on) continue;
       const d2 = (f.x - camPos.x) ** 2 + (f.z - camPos.z) ** 2;
       if (d2 > (f.far ? 260 : 160) ** 2) continue;
@@ -774,7 +782,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       const rate = 1 / 28;
       while (f.acc > rate) {
         f.acc -= rate;
-        const s = f.size;
+        const s = f.size, k = Math.min(1, s);
         if (f.far || R() < flameShare) add.spawn({
           x: f.x + (R() - 0.5) * 1.2 * s, y: f.y + R() * 0.3, z: f.z + (R() - 0.5) * 1.2 * s,
           vx: wind.x * 0.3 + (R() - 0.5) * 0.3, vy: 1.4 + R() * 1.2, vz: wind.z * 0.3 + (R() - 0.5) * 0.3,
@@ -783,7 +791,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         });
         // the smoke: thick and dark over the flames (burning rubber, oil, paint), lit from below by
         // them, rolling up slowly into the plume (plumes.js)
-        if (R() < 0.7) {
+        if (R() < 0.7 * k) {
           alpha.spawn({
             x: f.x + (R() - 0.5) * 1.2 * s, y: f.y + (1.2 + R() * 0.8) * s, z: f.z + (R() - 0.5) * 1.2 * s,
             vx: wind.x * 0.7 + (R() - 0.5) * 0.5, vy: 1.2 + R() * 0.9, vz: wind.z * 0.7 + (R() - 0.5) * 0.5,
@@ -793,7 +801,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         }
         // embers: thrown up out of the flames, then carried off on the wind for seconds, rising
         // and swirling in its eddies as they cool from yellow to a dull red and go out
-        if (R() < 0.55) {
+        if (R() < 0.55 * k) {
           const big = R() < 0.3;
           add.spawn({
             x: f.x + (R() - 0.5) * s, y: f.y + (0.6 + R() * 0.8) * s, z: f.z + (R() - 0.5) * s,
@@ -809,7 +817,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       f.pop = (f.pop ?? 1 + R() * 3) - dt;
       if (f.pop < 0 && !f.far) {
         f.pop = 1.5 + R() * 3;
-        const s = f.size, n = 14 + Math.floor(R() * 12);
+        const s = f.size, n = Math.round((14 + R() * 12) * Math.min(1, s));
         for (let k = 0; k < n; k++) {
           add.spawn({
             x: f.x + (R() - 0.5) * 0.8 * s, y: f.y + (0.4 + R() * 0.6) * s, z: f.z + (R() - 0.5) * 0.8 * s,
@@ -863,7 +871,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   return {
-    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, steam, glass, flareLaunch, update, fires,
+    group, muzzle, tracer, impact, blood, splash, explosion, addFire, addDebris, smokePuff, shell, steam, glass, flareLaunch, update, fires, debris,
     pass, usePass, late, useLate, setLights, shocks, blasts,
     setFlameShare(v) { flameShare = v; },
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
