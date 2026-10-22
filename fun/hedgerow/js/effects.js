@@ -781,12 +781,14 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
           life: 0.5 + R() * 0.45, size: (0.6 + R() * 0.5) * s, size1: 0.2 * s, color: C('#ffa040', 1, 2.2), color1: C('#a02808', 0, 0.8),
           cell: CELLS.flame, rot: (R() - 0.5) * 0.6, rotV: (R() - 0.5) * 2, drag: 0.5,
         });
-        if (R() < 0.35) {
+        // the smoke: thick and dark over the flames (burning rubber, oil, paint), lit from below by
+        // them, rolling up slowly into the plume (plumes.js)
+        if (R() < 0.7) {
           alpha.spawn({
-            x: f.x + (R() - 0.5) * s, y: f.y + 1.2 * s, z: f.z + (R() - 0.5) * s,
-            vx: wind.x * 0.8 + (R() - 0.5) * 0.4, vy: 1.5 + R(), vz: wind.z * 0.8 + (R() - 0.5) * 0.4,
-            life: 4 + R() * 3, size: 0.8 * s, size1: (4 + R() * 3) * s, color: C('#2a2624', 0.6), color1: C('#3a3836', 0),
-            cell: CELLS.smoke, drag: 0.4, rot: R() * 6, rotV: (R() - 0.5) * 0.4, fadeIn: 0.3,
+            x: f.x + (R() - 0.5) * 1.2 * s, y: f.y + (1.2 + R() * 0.8) * s, z: f.z + (R() - 0.5) * 1.2 * s,
+            vx: wind.x * 0.7 + (R() - 0.5) * 0.5, vy: 1.2 + R() * 0.9, vz: wind.z * 0.7 + (R() - 0.5) * 0.5,
+            life: 5 + R() * 3, size: 1.0 * s, size1: (5 + R() * 3) * s, color: C('#1c1a18', 0.75), color1: C('#2e2c2a', 0),
+            cell: CELLS.smoke, drag: 0.4, rot: R() * 6, rotV: (R() - 0.5) * 0.4, fadeIn: 0.25,
           });
         }
         // embers: thrown up out of the flames, then carried off on the wind for seconds, rising
