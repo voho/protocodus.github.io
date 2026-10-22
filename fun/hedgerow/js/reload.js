@@ -109,10 +109,17 @@ export function startReload(G, char, w, clip) {
 /* First person: one reload on the shouldered rifle. `pose(t)` is how far the
    arms swing the rifle at fraction t ({pitch, yaw, roll}, character.js
    armsPitch/armsYaw/armsRoll); `update(t)` moves the clip or magazine. */
+/* How the arms tip the gun to reload it in first person (about the chest: character.js liftArms):
+   the Thompson raised to the middle of the view and turned a little, so its fresh magazine seats in
+   the picture; the Garand turned and canted, its clip going in at the top. Neither brings a hand or
+   a forearm within a hand's breadth of the eye (raised further, the Thompson's right forearm came
+   to 4 cm and filled the view; fp-check holds every arms pose to that). */
+export const RELOAD_TILT = { smg: { pitch: 0.2, yaw: 0.12, roll: 0.05 }, rifle: { pitch: -0.12, yaw: 0.12, roll: 0.15 } };
+
 export function startFirstPersonReload(G, char, w) {
   const gun = char.weapon;
   const smg = w.kind === 'smg';
-  const tilt = smg ? { pitch: 0.4, yaw: 0.15, roll: 0.35 } : { pitch: -0.12, yaw: 0.12, roll: 0.15 };
+  const tilt = smg ? RELOAD_TILT.smg : RELOAD_TILT.rifle;
   const ease = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
   const jolt = (at, t) => Math.exp(-(((t - at) / 0.025) ** 2));
   const seated = w.seated && gun ? gun.getObjectByName(w.seated) : null;

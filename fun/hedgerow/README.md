@@ -140,7 +140,7 @@ by the blast that killed them, and drop their rifles.
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low
-    at a sprint, up and aside at a wall, down out of sight while changing
+    at a sprint, down and aside at a wall, down out of sight while changing
     weapons), `viewmotion.js` (the springs on top: the rifle lags a quick
     turn, kicks up with each shot and settles, the eye dips on a landing),
     `daze.js` (a blast close by: how hard it hit him, from how close it was

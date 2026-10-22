@@ -18,7 +18,8 @@ const { GLTFLoader } = await import('../assets/vendor/GLTFLoader.js');
 const { createCharacter } = await import('../js/character.js');
 const { readSet } = await import('../js/assets.js');
 const { WEAPONS } = await import('../js/config.js');
-const { startFirstPersonReload } = await import('../js/reload.js');
+const { startFirstPersonReload, RELOAD_TILT } = await import('../js/reload.js');
+const { ARMS } = await import('../js/player.js');
 const { createViewMotion } = await import('../js/viewmotion.js');
 const { createCameraRig } = await import('../js/camera.js');
 
@@ -141,7 +142,8 @@ for (const id of ['garand', 'thompson']) {
   const run = startFirstPersonReload(G, ch, w);
   const before = new Set(ch.weapon.children);
   run.update(0.2);
-  const t = 0.3, pose = run.pose(t);
+  // as it seats (just before it goes into the gun): the Thompson's comes up from below the picture
+  const t = 0.355, pose = run.pose(t);
   ch.armsPitch = pose.pitch; ch.armsYaw = pose.yaw; ch.armsRoll = pose.roll;
   run.update(t);
   ch.update(1 / 60, 0);
@@ -155,11 +157,11 @@ for (const id of ['garand', 'thompson']) {
   run.end();
 }
 {
-  const ch = posed('garand', { pitch: -0.15, yaw: -0.1, roll: -0.45 });   // player.js: at a sprint
+  const ch = posed('garand', ARMS.sprint);
   const eye = eyeOf(ch), m = seen(eye, ch.muzzleWorld()), mid = seen(eye, ch.weapon.localToWorld(new THREE.Vector3(0, 0.05, 0.2)));
   console.log(`sprint: muzzle ${m.down.toFixed(0)}° down ${m.right.toFixed(0)}° right, receiver ${mid.down.toFixed(0)}° down ${mid.right.toFixed(0)}° right`);
   assert.ok(inPicture(m) && inPicture(mid), 'the rifle should be carried in the picture at a sprint');
-  const away = posed('garand', { pitch: -0.8, yaw: 0, roll: 0 });          // changing weapons
+  const away = posed('garand', ARMS.away);                                  // changing weapons
   const a = seen(eyeOf(away), away.muzzleWorld()), b = seen(eyeOf(away), away.weapon.localToWorld(new THREE.Vector3(0, 0.05, 0.2)));
   assert.ok(!inPicture(a) && !inPicture(b), 'changing weapons, the rifle should go down out of the picture');
 }
@@ -270,6 +272,39 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(camera.position.distanceTo(killer) < before - 5, 'then it should go to the man who did it');
 }
 
+/* No pose brings the arms into the eye: in every pose the arms take about the chest (at a sprint,
+   at a wall, changing weapons, either reload tipped all the way), looking level, up or down, no
+   vertex of the arms or hands comes within 14 cm of the eye (a Thompson reload once swung the right
+   forearm to 4 cm of it, filling the view with a giant arm). */
+{
+  const ch = createCharacter(soldier, matlib, { outfit: 'allied', weaponModel: models.get('thompson'), scene: new THREE.Scene() });
+  ch.steady = true; ch.hideHead(true); ch.animate('idle', 'aim', 1);
+  for (let i = 0; i < 30; i++) ch.update(1 / 60, 0);
+  const skin = ch.meshes.find((m) => m.isSkinnedMesh && !/_lod$/.test(m.name));
+  const { skinIndex: si, skinWeight: sw, position } = skin.geometry.attributes;
+  const arm = [];
+  for (let i = 0; i < position.count; i++) {
+    let top = 0, tw = 0;
+    for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > tw) { tw = w; top = si.getComponent(i, k); } }
+    if (/arm|hand/.test(skin.skeleton.bones[top].name)) arm.push(i);
+  }
+  const v = new THREE.Vector3();
+  let worst = Infinity, at = '';
+  for (const [name, a] of Object.entries({ none: { pitch: 0, yaw: 0, roll: 0 }, ...ARMS, reloadSmg: RELOAD_TILT.smg, reloadRifle: RELOAD_TILT.rifle })) {
+    for (const look of [-0.3, 0, 0.3]) {
+      ch.aimPitch = look; ch.armsPitch = a.pitch; ch.armsYaw = a.yaw; ch.armsRoll = a.roll;
+      ch.update(1 / 60, 0); ch.update(1 / 60, 0); ch.root.updateMatrixWorld(true);
+      const eye = eyeOf(ch);
+      for (const i of arm) {
+        const d = skin.getVertexPosition(i, v).applyMatrix4(skin.matrixWorld).distanceTo(eye);
+        if (d < worst) { worst = d; at = `${name}, looking ${look > 0 ? 'up' : look < 0 ? 'down' : 'level'}`; }
+      }
+    }
+  }
+  console.log(`arms: never nearer the eye than ${(worst * 100).toFixed(1)} cm (${at})`);
+  assert.ok(worst > 0.14, `the arms should keep clear of the eye in every pose (${(worst * 100).toFixed(1)} cm, ${at})`);
+}
+
 /* His shadow keeps its head: in first person the head is folded away from
    the eyes (its bone shrunk to nothing), and a stand-in of the head and
    helmet, drawing nothing in the view, sits where the full-size head would
@@ -313,4 +348,4 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(!stand.visible, 'with the head shown again (the death camera), the stand-in goes');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right, and his shadow keeps its head');
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right, the arms keep out of the eye, and his shadow keeps its head');

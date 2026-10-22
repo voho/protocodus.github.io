@@ -29,6 +29,16 @@ import { createDaze } from './daze.js';
 
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vector3();
 
+/* First person, the arms' poses about the chest (character.js liftArms; radians): the rifle canted
+   low at a sprint; down and aside at a wall, a low ready that draws the muzzle back out of the
+   picture (swung up, the right hand on the grip came to the eye and filled the view); down out of
+   sight while changing weapons. None brings an arm within a hand's breadth of the eye (fp-check). */
+export const ARMS = {
+  sprint: { pitch: -0.15, yaw: -0.1, roll: -0.45 },
+  wall: { pitch: -0.5, yaw: 0.55, roll: -0.3 },
+  away: { pitch: -0.8, yaw: 0, roll: 0 },
+};
+
 export function createPlayer(G) {
   const P = {
     pos: new THREE.Vector3(), vel: new THREE.Vector3(),
@@ -554,14 +564,14 @@ export function createPlayer(G) {
     const gait = GAIT[move] ? clamp(hSpeed / GAIT[move], 0.6, 2.6) : 1;
     let upper;
     if (FP) {
-      // the rifle stays shouldered; the arms carry it canted low at a sprint, up and
+      // the rifle stays shouldered; the arms carry it canted low at a sprint, down and
       // aside at a wall, down out of sight while changing weapons, and tilt it into
       // view to reload (the throw is the clip's own)
       upper = P.crouch ? 'crouch_aim' : 'aim';
       const t = P.reloading > 0 && P.reloadRun?.pose ? P.reloadRun.pose(1 - P.reloading / P.reloadTotal)
-        : P.switching > 0.25 ? { pitch: -0.8, yaw: 0, roll: 0 }
-        : P.blocked ? { pitch: 0.55, yaw: 0.25, roll: 0.2 }
-        : P.sprint ? { pitch: -0.15, yaw: -0.1, roll: -0.45 }
+        : P.switching > 0.25 ? ARMS.away
+        : P.blocked ? ARMS.wall
+        : P.sprint ? ARMS.sprint
         : null;
       for (const k of ['pitch', 'yaw', 'roll']) P.arms[k] = damp(P.arms[k], t ? t[k] : 0, 10, dt);
       vm = motion.update(dt, G.rig.yaw, G.rig.pitch, G.rig.aimT);
