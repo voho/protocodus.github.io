@@ -375,7 +375,14 @@ by the blast that killed them, and drop their rifles.
     were clipped together so they cross in the diamonds of concertina,
     sagging, wet and catching a lamp or a flare in glints; one mesh, the
     wire widened in its vertex shader so it is never thinner than about a
-    pixel - a tangle from afar, wire close by),
+    pixel - a tangle from afar, wire close by), `prints.js` (the boots of
+    the men who went along the sunken lane and the forest track before:
+    files of prints a pace apart, left and right either side of each
+    man's line, some going up towards the village and some coming back,
+    now and then one missing, one scuffed where the heel slid, one with
+    the rain standing in it; only in the mud; pinned 'boot' decals of
+    atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
+    turned along the way each man went),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
