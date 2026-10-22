@@ -1,40 +1,94 @@
 {
   "product": "Ceres",
-  "reviewed": "2026-10-19",
+  "reviewed": "2026-10-23",
   "availability": "coming_soon",
-  "source_version": "0.1.0b11",
-  "source_format": "Rack Extension development hand-off (not a Shop release).",
+  "source_version": "1.0.0f1",
+  "source_format": "First public-release Rack Extension candidate. Reason Shop acceptance and publication pending.",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "04c38031784597f3eaa896b1263f3b34e80ec4bb",
+  "source_worktree": "ceres-first-public-20261023",
+  "source_engine_commit": "4b838b7ca26070812202372e4b8e9a718f58ffb8",
+  "default_panel_state": {
+    "patch": "Init",
+    "mode": "Mono",
+    "voices_per_layer": 4,
+    "oversampling": 1
+  },
   "feature_sources": [
-    "Examples/Ceres/README.md",
-    "Examples/Ceres/motherboard_def.lua",
-    "SHOP.md"
+    "Examples/Ceres/Release/1.0.0f1/Ceres_User_Guide.md",
+    "Examples/Ceres/Tools/preset_library.json",
+    "Examples/Ceres/Tools/parameters.json",
+    "Examples/Ceres/Docs/presets/release-bank-1.0.0f1.json",
+    "Examples/Ceres/OutputProtection.h"
   ],
+  "public_distribution": "Reason Shop after acceptance and publication. No public U45 download.",
   "assets": [
     {
+      "file": "Ceres_Front.png",
+      "sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
+      "bytes": 457228,
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_Front.png",
+      "source_sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
+      "change": "Exact copy of verified release-candidate material.",
+      "dimensions": [
+        754,
+        414
+      ]
+    },
+    {
+      "file": "Ceres_Back.png",
+      "sha256": "f31f550b09afc9625d15f8a2359fd2cb680b6fe6e716cd1f7fa26c85974a0c75",
+      "bytes": 272363,
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_Back.png",
+      "source_sha256": "f31f550b09afc9625d15f8a2359fd2cb680b6fe6e716cd1f7fa26c85974a0c75",
+      "change": "Exact copy of verified release-candidate material.",
+      "dimensions": [
+        754,
+        414
+      ]
+    },
+    {
+      "file": "Ceres_Thumbnail_800.png",
+      "sha256": "299dca08001bfb8b162894a2b19543bee66889f5b363424ae46b85e792b570e1",
+      "bytes": 438497,
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_Thumbnail_800.png",
+      "source_sha256": "299dca08001bfb8b162894a2b19543bee66889f5b363424ae46b85e792b570e1",
+      "change": "Exact copy of verified release-candidate material.",
+      "dimensions": [
+        800,
+        800
+      ]
+    },
+    {
+      "file": "Ceres_User_Guide.pdf",
+      "sha256": "8b32fb060d4b761aefee65bd955ce5b4bd7abfd1c6c3e255380f34cdd4b0aa16",
+      "bytes": 905752,
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_User_Guide.pdf",
+      "source_sha256": "8b32fb060d4b761aefee65bd955ce5b4bd7abfd1c6c3e255380f34cdd4b0aa16",
+      "change": "Exact copy of verified release-candidate material."
+    },
+    {
       "file": "ceres-rack-front.webp",
-      "sha256": "5cb6ae5b019ad1cb850e3c1ab5dc4ba4ae28eca5f085e07ff15a8b65490bc73c",
-      "bytes": 54242,
+      "sha256": "6674d8bbc13b775a70a040918a3be0306e3c25c71a6081469fe7e954d0757b26",
+      "bytes": 55752,
       "dimensions": [
         754,
         414
       ],
-      "source": "dist/Ceres_Front.png",
-      "source_sha256": "6a2c1951e57441cc5f15ac5e4abb1cae51e88cec9df2dc30359a6c5b30841345",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_Front.png",
+      "source_sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
+      "change": "WebP quality90, method6; full uncropped panel at original754x414 dimensions."
     },
     {
       "file": "ceres-rack-rear.webp",
-      "sha256": "28c74b039b0c23a815cf909bc9832e3bf5bcd693391f230462e809e5c260f620",
-      "bytes": 26368,
+      "sha256": "1cc3872409f11162a5ca1af6ef3323beb3a3f5afe33748989af6e1f33910371e",
+      "bytes": 44016,
       "dimensions": [
         754,
         414
       ],
-      "source": "dist/Ceres_Back.png",
-      "source_sha256": "904a2a1875d015c15afb3814d9295bafd55f13c5c25148f28bc45136a4ad2738",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+      "source": "Examples/Ceres/Release/1.0.0f1/Ceres_Back.png",
+      "source_sha256": "f31f550b09afc9625d15f8a2359fd2cb680b6fe6e716cd1f7fa26c85974a0c75",
+      "change": "WebP quality90, method6; full uncropped panel at original754x414 dimensions."
     }
   ]
 }
