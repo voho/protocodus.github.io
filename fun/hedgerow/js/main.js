@@ -14,7 +14,17 @@ import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
 import { createCasings } from './casings.js';
 import { createDrips } from './drips.js';
+import { dressWalls } from './damage.js';
+import { createSteam } from './steam.js';
+import { paneRects } from './rooms.js';
+import { createSheets } from './cloth.js';
+import { createChutes } from './chutes.js';
+import { buildCanopy, setCanopyLight } from './canopy.js';
+import { createWaysigns } from './signs.js';
+import { createConcertina } from './wire.js';
+import { printBoots } from './prints.js';
 import { createChunks } from './chunks.js';
+import { cullPointLights } from './lightloop.js';
 import { createFireballs } from './fireball.js';
 import { collectPanes, createWindowLight } from './windowlight.js';
 import { createWeather } from './weather.js';
@@ -31,6 +41,7 @@ import { createExplosives, createDebris } from './combat.js';
 import { createMission } from './mission.js';
 import { buildLevel } from './levelBuild.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
+import { createAdaptation } from './adapt.js';
 import { createGrade } from './post.js';
 import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
@@ -49,6 +60,9 @@ import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import LEVEL from './levels/saint-clair.js';
+
+// the point lights shade only the pixels they reach (lightloop.js), patched before any material compiles
+cullPointLights();
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -91,7 +105,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
+let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -158,18 +172,40 @@ async function boot() {
   };
   G.effects = createEffects({ fog: fogUniforms, camera, wet: shared.wet });
   scene.add(G.effects.group);
-  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256 });
+  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256, second: (quality.shadows || 0) >= 512 });
   const sky = createSky({ fog: LEVEL.fog.color });
   scene.add(sky.mesh);
   sky.setFires(G.effects.fires);
   G.sky = sky;
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
-  G.decals = createDecals({ shared });
+  // room kept for the damage the walls already carry (damage.js)
+  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5, boot: 1100 } });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
+  dressWalls(G, built.props, LEVEL.lines);
+  // and the boots that went along the lane and the track before (prints.js)
+  printBoots(G, LEVEL.lines);
+  // the lit windows' glass, for the cracks a bullet leaves in it and the shards it breaks out
+  const panes = paneRects(built.props);
+  G.decals.setPanes(panes);
+  G.effects.setPaneAt(G.decals.paneAt);
+  // and white sheets hung from a few of them (cloth.js)
+  G.sheets = createSheets(panes, G.world, G.terrain, shared);
+  if (G.sheets) scene.add(G.sheets.mesh);
+  // and parachutes caught in the trees by the forest track (chutes.js)
+  // the crowns over the forest floor, for a flare's light beyond its shadow map (canopy.js)
+  buildCanopy(built.veg, LEVEL.bounds);
+  G.chutes = createChutes(built.veg, LEVEL.lines, G.terrain, shared);
+  if (G.chutes) scene.add(G.chutes.group);
+  // the signposts, crowded with the occupiers' painted boards (signs.js)
+  G.waysigns = createWaysigns(built.signposts, G.matlib);
+  if (G.waysigns) scene.add(G.waysigns);
+  // and coils of concertina along the barbed wire (wire.js)
+  G.concertina = createConcertina(built.wires);
+  if (G.concertina) scene.add(G.concertina);
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);
@@ -178,6 +214,8 @@ async function boot() {
   // and the clods and stones a blast throws (chunks.js)
   G.chunks = createChunks(G);
   scene.add(G.chunks.mesh);
+  // steam off the barrel of the gun in your hands after it has fired in the rain (steam.js)
+  G.steam = createSteam(G, shared.rain);
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
@@ -212,7 +250,7 @@ async function boot() {
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
-    count: quality.rain, terrain: G.terrain, water: LEVEL.water,
+    count: quality.rain, terrain: G.terrain, water: LEVEL.water, world: G.world,
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
@@ -232,6 +270,8 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
+    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens
+    adapt = createAdaptation({ base: renderer.toneMappingExposure });
     // a blast close by throws mud over the view (combat.js)
     G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
@@ -321,7 +361,7 @@ function applyGraphics() {
     // the passes after the first one that swaps render into the scene's own buffer, whose depth
     // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
     // in the chain may clear it, so depth clears are off from its start to its end
-    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
+    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), adapt, grade, CLEAR_DEPTH]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -426,6 +466,7 @@ function retryCheckpoint() {
     G.debris.clear();
     G.casings.clear();
     G.chunks.clear();
+    G.steam.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
     fade.classList.remove('on');
@@ -498,7 +539,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort, blur }; },
+  get fx() { return { volumetric, bloom, grade, adapt, ssao, dof, ssr, shafts, taa, distort, blur }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -517,12 +558,12 @@ function frame(now) {
 
 /* Soldiers throw shadows only near the shadow light (each one costs six
    renders of his body into its cube map). */
-let flareShadows = false, lampShadowOf = null;
+let flareShadows = false, lampShadowOf = null, lampShadowOf2 = null;
 function castShadows() {
-  const sl = G.lights.shadowLight;
+  const sl = G.lights.shadowLight, sl2 = G.lights.shadowLight2;
   if (!sl || !sl.castShadow) return;
-  // while a flare's shadows are drawn the trees cast too, and the lamp's shadow (a cube
-  // of six maps) holds still, drawn again only if it moves to another lamp
+  // while a flare's shadows are drawn the trees cast too, and the lamps' shadows (cubes
+  // of six maps) hold still, drawn again only if they move to another lamp
   const fl = !!G.flares?.shadowing;
   if (fl !== flareShadows) {
     flareShadows = fl;
@@ -531,9 +572,13 @@ function castShadows() {
   sl.shadow.autoUpdate = !fl;
   if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
   lampShadowOf = G.lights.shadowOf;
-  const lit = sl.intensity > 0;
-  const r2 = (sl.distance + 3) ** 2;
-  const near = (p) => lit && (p.x - sl.position.x) ** 2 + (p.z - sl.position.z) ** 2 < r2;
+  if (sl2) {
+    sl2.shadow.autoUpdate = !fl;
+    if (fl && G.lights.shadowOf2 !== lampShadowOf2) sl2.shadow.needsUpdate = true;
+    lampShadowOf2 = G.lights.shadowOf2;
+  }
+  const within = (l, p) => l && l.intensity > 0 && (p.x - l.position.x) ** 2 + (p.z - l.position.z) ** 2 < (l.distance + 3) ** 2;
+  const near = (p) => within(sl, p) || within(sl2, p);
   const inFlare = (p) => fl && (p.x - camera.position.x) ** 2 + (p.z - camera.position.z) ** 2 < 40 * 40;
   for (const e of G.enemies || []) {
     const on = e.char.root.visible && (near(e.pos) || inFlare(e.pos));
@@ -626,6 +671,7 @@ function step() {
     G.sky.uniforms.uArty.value = artyFlash * (0.6 + 0.4 * Math.sin(G.time * 40));
     G.flares.update(dt, camera.position, { x: 1.4, z: 0.6 }, G.sky);
     G.flares.lightning(flash, G.weather.flashDir, camera.position);
+    setCanopyLight(G.flares.light);
     G.lights.update(dt, G.time, camera.position, flash);
     setFill(G.lights.key, G.lights.rim);
     castShadows();
@@ -648,6 +694,7 @@ function step() {
     G.effects.update(dt, { x: 1.4, z: 0.6 }, camera.position);
     G.casings.update(dt);
     G.chunks.update(dt);
+    G.steam.update(dt);
     G.flames.update(dt, camera.position);
     updateSmoulder(G.effects.fires, camera.position);
     G.plumes.update(dt, { x: 1.4, z: 0.6 }, flash, G.flares.burning ? G.flares.light : null);
@@ -656,6 +703,7 @@ function step() {
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       grade.tick(dt);
+      adapt.update(dt, renderer, flash);
       const hp = player ? player.health / 100 : 1;
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
       const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;

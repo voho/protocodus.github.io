@@ -1,7 +1,8 @@
 /* Hedgerow — fire as flame: procedural flames at each fire near the camera.
 
    Over every fire within 60 m (the burning truck, the house, the flak gun
-   once it is blown) stand three billboards, each turned to the camera about
+   once it is blown) stand five billboards over its whole breadth, rising
+   out of the wreck two to three metres, each turned to the camera about
    its upright axis, and each a body of flame worked out in its shader:
    turbulent noise rising through a shape that is wide at the base and licks
    up to points, eaten away from the top, coloured by its heat like a black
@@ -15,13 +16,13 @@
 
 import * as THREE from 'three';
 
-const PER = 3, MAXF = 6, RANGE = 60;
+const PER = 5, MAXF = 16, RANGE = 60;
 
 const VERT = /* glsl */ `
 attribute vec4 aFire;          // xyz: the base, w: size
-attribute vec2 aSeed;          // seed, share (0..1: how big this one is)
+attribute vec3 aSeed;          // seed, share (0..1: how big this one is), gain (its fire's)
 varying vec2 vUv;
-varying float vSeed, vDist;
+varying float vSeed, vDist, vGain;
 varying vec2 vProj;
 void main() {
   float s = aFire.w;
@@ -30,10 +31,11 @@ void main() {
   t.y = 0.0;
   if (dot(t, t) < 1e-4) t = vec3(0.0, 0.0, 1.0);
   vec3 right = normalize(vec3(t.z, 0.0, -t.x));
-  float w = (0.85 + 0.4 * aSeed.y) * s, h = (1.5 + 0.8 * aSeed.y) * s;
+  float w = (0.95 + 0.45 * aSeed.y) * s, h = (1.8 + 1.1 * aSeed.y) * s;
   vec3 p = aFire.xyz + right * position.x * w + vec3(0.0, position.y * h, 0.0);
   vUv = vec2(position.x * 2.0, position.y);
   vSeed = aSeed.x;
+  vGain = aSeed.z;
   vec4 mv = viewMatrix * vec4(p, 1.0);
   vDist = -mv.z;
   vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
@@ -45,7 +47,7 @@ uniform float uTime, uGain, uSoft;
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 varying vec2 vUv;
-varying float vSeed, vDist;
+varying float vSeed, vDist, vGain;
 varying vec2 vProj;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float noise(vec2 p) {
@@ -55,6 +57,14 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
 void main() {
+  // drawn over the finished frame: hidden behind what is in front, soft where it meets it (first,
+  // before the noise: most of a fire inside a house is behind its walls)
+  float seen = 1.0;
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    seen = clamp((vProj.y / (zd + vProj.x) - vDist) / 0.35, 0.0, 1.0);
+    if (seen <= 0.0) discard;
+  }
   float t = uTime + vSeed * 7.3;
   vec2 uv = vUv;                 // x: -1..1 across, y: 0..1 up
   // noise rising through it, faster higher up; the flame bends with it
@@ -76,13 +86,8 @@ void main() {
   col = mix(col, vec3(1.0, 0.6, 0.12), smoothstep(0.35, 0.65, heat));
   col = mix(col, vec3(1.0, 0.85, 0.45), smoothstep(0.65, 0.85, heat));
   col = mix(col, vec3(1.0, 0.95, 0.8), smoothstep(0.88, 1.0, heat));
-  float a = smoothstep(0.04, 0.35, heat);
-  // drawn over the finished frame: hidden behind what is in front, soft where it meets it
-  if (uSoft > 0.5) {
-    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
-    a *= clamp((vProj.y / (zd + vProj.x) - vDist) / 0.35, 0.0, 1.0);
-  }
-  gl_FragColor = vec4(col * a * uGain, 1.0);
+  float a = smoothstep(0.04, 0.35, heat) * seen;
+  gl_FragColor = vec4(col * a * uGain * vGain, 1.0);
 }`;
 
 export function createFlames(effects, { gain = 1.4 } = {}) {
@@ -92,7 +97,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
   geo.index = quad.index;
   geo.setAttribute('position', quad.attributes.position);
   const fireA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 4), 4);
-  const seedA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 2), 2);
+  const seedA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 3), 3);
   fireA.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('aFire', fireA);
   geo.setAttribute('aSeed', seedA);
@@ -108,13 +113,14 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
   mesh.name = 'flames';
   mesh.frustumCulled = false;
   mesh.renderOrder = 7;
-  // each fire's three flames: where round its base, how big, their seeds (fixed per fire)
+  // each fire's five flames: where round its base, how big, their seeds (fixed per fire)
   const layout = new WeakMap();
   const lay = (f) => {
     let l = layout.get(f);
     if (!l) {
       const k = (f.x * 12.9898 + f.z * 78.233) % 1;
-      l = [[-0.32, 0.1, 0.55, k], [0.3, -0.12, 0.7, k + 0.37], [0.02, 0.05, 1.0, k + 0.71]];
+      l = [[-0.45, 0.15, 0.6, k], [0.4, -0.15, 0.75, k + 0.37], [0.02, 0.05, 1.0, k + 0.71],
+        [-0.15, -0.38, 0.5, k + 0.19], [0.22, 0.36, 0.65, k + 0.53]];
       layout.set(f, l);
     }
     return l;
@@ -139,7 +145,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
       time += dt;
       uniforms.uTime.value = time;
       near.length = 0;
-      for (const f of effects.fires) {
+      for (const list of [effects.fires, effects.debris || []]) for (const f of list) {
         if (!f.on || f.far) continue;
         const d2 = (f.x - cam.x) ** 2 + (f.z - cam.z) ** 2;
         if (d2 < RANGE * RANGE) near.push([d2, f]);
@@ -151,8 +157,8 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
         const l = lay(f);
         for (let j = 0; j < PER; j++) {
           const [ox, oz, share, seed] = l[j], k = i * PER + j;
-          fireA.array.set([f.x + ox * f.size, f.y - 0.1, f.z + oz * f.size, f.size], k * 4);
-          seedA.array[k * 2] = seed; seedA.array[k * 2 + 1] = share;
+          fireA.array.set([f.x + ox * f.size, f.y - 0.25, f.z + oz * f.size, f.size], k * 4);
+          seedA.array[k * 3] = seed; seedA.array[k * 3 + 1] = share; seedA.array[k * 3 + 2] = f.gain ?? 1;
         }
       }
       geo.instanceCount = n * PER;

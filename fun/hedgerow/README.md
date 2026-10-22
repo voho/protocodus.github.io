@@ -21,7 +21,9 @@ PBR textures (stone courses and mortar, peeling paint, rusted and chipped
 steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves (light
 shines through them: a crown between you and a flare or a fire glows green
-where its leaves are thinnest), meadows
+where its leaves are thinnest; each tree and plant a slightly different
+green, now and then one turning; the ferns and tussocks under the trees as
+dark as the shade they grow in), meadows
 and verges are tens of thousands of single blades of grass that bend in
 the wind, part round your legs and flatten outward under a blast's
 shockwave, stones lie in the mud of the lanes and
@@ -39,19 +41,30 @@ renderer adds wet ground — dark, glossy cobbles with water in the joints
 (and, near the eye, real depth: the stones stand proud of their joints, the
 mud keeps its ruts, the march of the view ray through the height maps),
 puddles with soaked margins in the hollows that mirror the lit windows, the
-lamps and the glow of the sky, broken by rain rings, river banks soaked
-above the waterline with a thin broken line of scum where the water laps
-them and the water browner in the shallows of the ford, a forest floor of last year's leaves with moss in the
+lamps and the glow of the sky, broken by rain rings the size of a
+raindrop's, many and quick (further off the rain only roughens the water),
+a river of long low swells drawn out along the current with a finer chop
+carried down it, banks soaked above the waterline with a thin broken line
+of scum where the water laps them and the water browner in the shallows of
+the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
-them in stretches, rainwater standing in the shell craters — rain in fine
+them in stretches, rainwater standing in the shell craters, in front of the
+trench line beams of a blown-in dugout and a log the shelling set alight
+still burning, each a pool of flickering light on the leaf litter with the
+rain glittering over it, the watchtower's lamp lit over the camp — rain in fine
 streaks, falling in sheets far down the street, sweeping across in gusts,
 dripping and pouring in broken strings off the eaves, lit by lamps, fires
 and flares,
 halos in the wet air, low mist, bullet holes that catch the light — stone
 chipped pale round a black hole, wood splintered, paint flaked off a dent to
-the bare steel — mud kicked up and the scorch of blasts, a low
+the bare steel, a lit window's glass starred with cracks that catch the
+room's light and shards of it falling, glinting — mud kicked up and the
+scorch of blasts, the village's walls
+scarred by the fighting before you came (plaster blown off down to the
+stone or brick, machine-gun bursts stitched across the fronts) and high on
+their gables old painted advertisements, faded into the plaster, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
 burning farms, whose smoke climbs into it in leaning columns, and caught by
 the flashes of a distant barrage, searchlights sweeping
@@ -158,9 +171,12 @@ by the blast that killed them, and drop their rifles.
     with wet mud, holding water in stretches, a grassy crown between them
   * `ponds.js` rainwater in the shell craters (the level's `craters`): a
     disc at two fifths of each holding bowl's depth, cut by the bowl's own
-    sides, drawn with the river's water held still (shallows and a line of
-    scum from its depth in the ground map, rain rings, no white glint of the
-    night's fill light); the ground map keeps grass and clutter out of it
+    sides (the ground round the craters is drawn at the fine grid, so the
+    water's edge follows the bowl rather than a few big facets), drawn with
+    the river's water held still (shallows and a line of scum a hand's
+    breadth from its edge, from its depth in the ground map, rain rings, no
+    white glint of the night's fill light); the ground map keeps grass and
+    clutter out of it, the grass growing down to a few centimetres above it
   * `groundmap.js` what grows and lies where, made at load from the
     terrain mesh's own splat: grass, stones and fallen wood (none on roads,
     steep banks, at the water or inside anything solid), and the ground's
@@ -178,7 +194,11 @@ by the blast that killed them, and drop their rifles.
     generated metre of surface grain in world space from three sides,
     mottling everything and roughening what is baked rough, not where water
     stands; rain running down walls within ~24 m in
-    rivulets that slide down and catch the light; the soldiers' skin, found
+    rivulets that slide down and catch the light; at the foot of every
+    wall, step, crate and sandbag (its height over the ground from the
+    ground map) the damp rising a ragged band 35-85 cm up, darker, a green
+    film of algae in it on porous stone and plaster, a tide line where it
+    stops, and mud splashed up in specks just over the ground; the soldiers' skin, found
     in their atlas by its colour, scattering light under its surface (the
     light wrapping past the shadow's edge, reddest; the hands on the rifle
     included), and their wool, found by its baked roughness and its colour
@@ -186,7 +206,16 @@ by the blast that killed them, and drop their rifles.
     the rain but never glossy, with a fabric's sheen at grazing angles;
     within 3 m (your own arms round the rifle, a man at arm's length) the
     weave of that wool and the grain of the skin, laid on in the model's
-    own bind-pose space so they move with him;
+    own bind-pose space so they move with him, and the grime of days in the
+    field: the skin a little darker and duller, the hands smeared and
+    flecked with mud, the wool soaked darker in blotches where it faces the
+    rain and the sleeves muddied along the forearm, most at the cuff; the
+    guns within 2.5 m (the
+    one in your hands, half a metre from the eye, where its texture is
+    spread thin) with the walnut's grain and figure along the stock, oiled
+    between the lines, and the steel a matte Parkerized grey, mottled where
+    the finish has worn, pitted, and worn bright along its edges, each
+    pattern fading before it gets finer than the pixels;
     round a fire, the charred
     wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
     metal a dull red with the heat) · `rooms.js` the rooms
@@ -219,8 +248,25 @@ by the blast that killed them, and drop their rifles.
     lightning,
     and beyond them, out to ~60 m, sheets of rain worked out per pixel on
     four cylinders round the eye in one full-screen draw, hidden behind the
-    scene by its depth, lit by the lamps near them and by a burning flare;
-    rings where drops land (on the river's surface over its bed), and
+    scene by its depth (on low quality, which has no depth to read, the same
+    four cylinders drawn as meshes with the scene, hidden by its depth test),
+    lit by the lamps near them and by a burning flare; the streaks near and
+    far seen by the light they catch, as rain at night is - hardly at all
+    out in the dark, where a drop shows only the dark beyond it, most with
+    a lamp or a fire beyond them, a drop sending on most of the light it
+    catches as a lens does (a Henyey-Greenstein lobe); and the rain in the
+    lamplight - round the four nearest lamps and fires within 30 m and the
+    two nearest flashes, a box of drops of its own (some 1,100 on high)
+    falling through the light, seen only by the light they catch, each a
+    tiny bright image of it: a cone of glittering streaks under a lamp's
+    cap, rain falling through a fire's glow, a muzzle's or a shell's flash
+    lighting the rain close round it faintly for its few frames, as faint
+    as the sliver of a frame a real flash lasts (the player's own, at the
+    eye, hardly), none under a roof or an eave (the top of what is over
+    each of 6 x 6 cells of the box, from the world's rays, once per place);
+    rings where drops land - on the first thing in their way from above, a
+    crate's lid, a sandbag, a step, the truck, a roof, so what is
+    sheltered stays dry (on the river's surface over its bed) - and
     within 7 m crowns of droplets flung up and
     out of each, a few thousand a second, drawn after the frame; all of it
     in gusts — bands of heavier, harder-leaning rain some 30 m across blown
@@ -228,49 +274,180 @@ by the blast that killed them, and drop their rifles.
     trees, which lean downwind and shake harder as a gust sweeps through,
     and the meadow grass, which lies over in it; lightning), `lights.js` (pooled point lights; a muzzle's or a blast's flash lights
     the surfaces round it but only a little of the wet air; a fire's light
-    sways and leaps with its flames, so the shadows round it dance),
+    sways and leaps with its flames, so the shadows round it dance; on
+    high quality the two strongest lamps or fires near you both cast
+    shadows, so a soldier between two lamps throws two and a lamp's light
+    no longer leaks through the wall beside the other; and a muzzle's or a
+    grenade's flash near you takes the second of them for its few frames,
+    so a man firing past another throws that one's long shadow across the
+    wet cobbles, and sandbags shield the street from a blast behind them;
+    a fire lights everything round it in full, but only a third of its
+    light hangs in the wet air, so its flames stand out of their glow
+    instead of drowning in an orange fog),
     `fill.js` (the night's fill lights — the low key light from the last of
     the sun, the rim light of the overcast — model shapes but make no
     glints on the world: their direct specular is cut to a tenth on the
     ground, water, walls and leaves, where they made a sun on the puddles
-    under a sky with no sun; the soldiers and their weapons keep it),
+    under a sky with no sun; the soldiers and their weapons keep it; and
+    the fires' light thrown back off the street and the walls round them,
+    the four nearest: a warm fill, unshadowed, on what stands within ~20 m
+    of a fire, most on the side facing it, a third on its sides, little on
+    the side turned away, so a wreck's shadow side and the street behind
+    it are not black and a wall round a fire is not lit through),
+    `lightloop.js` (three.js shades every point light on every pixel, even
+    where its range has cut it to nothing; patched once at start, a light
+    that does not reach a pixel is skipped there - the same picture, the
+    frame some two and a half times quicker on the test GPU),
     `flares.js` (illumination flares: a far light for the haze and the
     smoke, a directional light along it for the ground (as bright as the
     flare is at the player, eased towards a ceiling close under one), its 80 m shadow
     map drawn every other frame only while one burns, the tree crowns'
     leaf cards cut out by their alpha; the shaders it needs are warmed at
     the start of the mission; when none burns, a lightning stroke drives the
-    same light from the bolt's direction),
+    same light from the bolt's direction), `canopy.js` (the trees' shade
+    from that light where its shadow map does not reach: at load the
+    planted trees' crowns are laid on a 1 m map from above, how much sky
+    each metre of ground has over it in leaves - a pine or a fir thick, an
+    oak or a beech a little less, a birch thin, a dead tree hardly - and
+    the ground dims the flare's light by it, looked up where the light's
+    ray passes through the crowns ten metres up (in the vertex shader: the
+    ground's fragment shader has no texture unit to spare), from where the
+    shadow map ends and, on low quality, which draws no shadows for the
+    flare, everywhere, so the forest floor under a flare no longer glazes
+    pale as if it lay in the open),
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
-    fires and flashes, soft where they meet the scene; the fires' embers
+    fires and flashes, soft where they meet the scene; a muzzle flash a
+    white-hot star in ragged orange tongues of burning gas, never the same
+    twice, a few grains of powder flung on ahead of it, its star and
+    tongues never smaller on screen than 14 and 9 pixels across however
+    far off the gun is (bigger and a little dimmer, so a machine gun at
+    eighty metres still flickers as a flash, not a stray pixel); a round's hit
+    bursting out of the surface in two or three jets of its dust and grit
+    shot out of the hole in a cone round its face, thrown on along the way
+    the round glanced off, stopped short by the air in a third of a second,
+    then a ragged cloud left hanging, smaller and darker, drifting off, and
+    on stone, concrete and steel a white-hot strike for a frame or two;
+    the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
-    cool; blasts throw up a
-    column of earth and roll dust along the ground; a shot or a step into
-    water throws up a spout of spray and spreads a ring flat on it; tracers
-    and sparks never
+    cool, and every few seconds a shower of sparks spat up out of the
+    flames, arcing over and falling back; a fire's smoke thick and dark
+    over its flames, lit from below by them, rolling slowly up into its
+    plume; round a burning wreck, bits of it burning on the open ground
+    near it, small fires of their own with flames, sparks and smoke to
+    their size (none of a big fire's plume, heat haze or glow on the
+    cloud); a blast flashes for a frame or two and throws up a geyser of wet
+    mud in dark jets and a spray of it in streaks, drawn after its fireball
+    so the mud covers the fire it flies through, and rolls low dark spray
+    and smoke along the ground (mud and dirt are lit on the side facing a
+    light, so they stand dark against the fireball); a shot or a step into
+    water throws up a spout of spray and spreads a ring flat on it; a round
+    into a hedge or a bush shreds leaves out of it that flutter down on the
+    air, eddying and drifting downwind, with a twig or two and the rain
+    shaken off the leaves (fewer when the sprites are busy); enemy
+    tracers end where their rounds strike, and one glancing off stone or
+    metal (now and then off mud) skips on, slower, often up into the sky;
+    a tracer its compound burning white-hot in a line drawn out by its
+    speed, in a soft orange-red glow, brightest at its head (never under
+    three pixels there, so one far off is still a point of fire on its
+    line); tracers and sparks never
     thinner than a pixel and a half, so fire from a hundred metres off is
     still an unbroken line), `flames.js` (the
-    fires as flame: three billboards per near fire, each a turbulent body
+    fires as flame: five billboards over the breadth of each near fire,
+    rising two to three metres out of the wreck, each a turbulent body
     of flame worked out in its shader, licking up in tongues, coloured by
-    its heat from deep red to a yellow-white core), `plumes.js` (each
+    its heat from deep red to a yellow-white core; hidden pixels thrown
+    away before the noise is worked out; a house burning through and
+    through - the roofless ruin at the village entry - has flame all
+    over its floor and up in the charred joists of the floor above (the
+    level's `blaze`: more flames, each fainter, with embers and sparks
+    but no smoke or plume of their own, and a light by the door), so its
+    door and every window blaze and the light pours out over the wet
+    cobbles), `plumes.js` (each
     fire's smoke climbing ~90 m on from its particles: a ribbon turned to
     the camera about an axis that leans downwind as it climbs, billows of
     noise in metres rising through it, lit orange from below by the fire
     and by flares and lightning, fading into the haze; drawn before the
     light in the rain, whose glow hangs in front of it), `fireball.js` (a
     blast's fireball: a billboard whose shader swells a ball of turbulent
-    flame in a tenth of a second, yellow at its heart and orange in its
-    folds, cooling from the outside in to a dull red glow inside a ball of
+    flame in a tenth of a second, white only at its heart for a frame or
+    two, yellow and orange in its folds, cooling from the outside in from
+    the start to a dull red glow inside a ball of
     smoke that rolls up and thins into the blast's dust), `atmosphere.js`
     (halos, mist, and decals: four painted variants of each kind with their
     own relief, drawn pulled a few centimetres towards the eye along their
-    sight line so a wall's stones do not swallow them), `casings.js` (the
+    sight line so a wall's stones do not swallow them), `damage.js` (the
+    walls' old damage, put down at load as pinned decals: each building's
+    sides drawn in software into a 5 cm grid of depth, facing and texture
+    colour, so plaster breaks, cannon-shell craters and machine-gun bursts
+    go only on open, even wall — never across a window, a shutter or a
+    corner — and only on walls that face open ground near the street, the
+    lane or the track; and on the most exposed houses' plaster, 2.6–4.9 m
+    up, a few painted advertisements for the village's trades — VINS FINS,
+    QUINQUINA, CAFÉ · TABAC — faded, flaked at their edges and washed thin
+    in streaks, which the breaks and the bursts go through; and the
+    occupiers' own, whitewashed four years ago on the café's gable in the
+    square, ORTSKOMMANDANTUR · EINGANG IM HOF in black capitals, weathered
+    less),
+    `casings.js` (the
     brass thrown out of the gun — the Garand's long bottlenecked case, the
     Thompson's short one — tumbling past in the muzzle flash, bouncing and
     lying where it falls; the last 64 of each stay), `chunks.js` (what a
     blast throws up: clods of mud and turf, or stones off the cobbles, as
     solid lumps that tumble, knock off walls, bounce and lie where they
-    fall),
+    fall), `steam.js` (every shot heats the barrel of the gun in your
+    hands; the rain boils off it, so after a burst thin steam curls up off
+    its front and blows away on the wind, more the longer you fired,
+    thinning as it cools), `cloth.js` (white sheets hung from a few of the
+    lit upper-floor windows that look onto the street — while the fighting
+    passed through, the villagers hung them out: there are people in here,
+    not soldiers — one on as many kinds of house as there are; each hangs
+    from what a look straight at the wall meets first below the glass, the
+    balcony's rail or the sill, found in the house's own faces at load,
+    and only as far down as nothing sticks out into it; old linen,
+    stained, streaked with grime off the sill, creased, its hem askew,
+    frayed or torn, soaked dark by the rain; it hangs in pleats, darker in
+    their folds, and swings out from the wall and ripples with the gusts
+    that bend the trees, most at its hem and most in its house's lee, the
+    motion and its shading worked out in the vertex shader, its shadow
+    moving with it), `chutes.js` (parachutes still caught in the trees
+    along the forest track since the airborne came down over the woods:
+    in three broadleaved trees 5-12 m off the track, 45 m apart, a canopy
+    snagged by its apex and two points either side on the crown's flank
+    turned to the track, the rest hanging down that side in folds over
+    what it meets, its 14 rigging lines in a sheaf below to where a man
+    cut himself free, the two risers dangling; the drape worked out once
+    at load (~0.13 s): a net of the silk's own lengths, crumpling freely,
+    settling over the crown - the body its branches and leaves fill,
+    fitted to the tree model's own points, smaller for bare and thin
+    crowns - its trunk and the ground; pale silk with its 28 gores' seams,
+    stained, torn, soaked dark, swinging out and fluttering where it hangs
+    clear in the gusts that bend the trees, its lines with it, its
+    shadow moving with it under a flare), `signs.js` (the occupiers' direction posts where the
+    roads meet — by the lane, in the square under the lamp by the church,
+    at the north end of the street and at the camp: a leaning square post
+    crowded with five to eight boards, most of them arrows pointing down
+    their roads, each at its own height and length and a little askew —
+    the towns and how far, the way to the town major, the field police,
+    the dressing station, a command post, the fuel, and the warnings
+    "Achtung! Feindeinsicht", "Staub bringt Tod!"; painted yellow, white or
+    black and lettered in condensed road-sign capitals, chipped to the grey
+    wood, streaked by the rain, now and then shot through; cut with their
+    thickness, reading the right way from either side, wet like the rest;
+    levelBuild keeps the signpost model's collider and leaves the drawing
+    to it), `wire.js` (a coil of concertina along every barbed-wire
+    obstacle: loops of weathered galvanised wire some 85 cm across, each a
+    little different, leaning one way and the next the other where they
+    were clipped together so they cross in the diamonds of concertina,
+    sagging, wet and catching a lamp or a flare in glints; one mesh, the
+    wire widened in its vertex shader so it is never thinner than about a
+    pixel - a tangle from afar, wire close by), `prints.js` (the boots of
+    the men who went along the sunken lane and the forest track before:
+    files of prints a pace apart, left and right either side of each
+    man's line, some going up towards the village and some coming back,
+    now and then one missing, one scuffed where the heel slid, one with
+    the rain standing in it; only in the mud; pinned 'boot' decals of
+    atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
+    turned along the way each man went),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
@@ -290,7 +467,11 @@ by the blast that killed them, and drop their rifles.
     map), so a truck's cab or a wall cuts dark shafts out of its glow · `volumetric.js` lays the
     occlusion, the reflections and the shafts on and adds the light
     scattered in the rain by up to eight lamps, fires and
-    flashes (the closed-form airlight integral, cut by the depth) · `taa.js`
+    flashes (the closed-form airlight integral, cut by the depth; under a
+    capped lamp — the street lamps, the lanterns on the houses — only the
+    air below the cap is lit, and brighter for what the cap throws back
+    down: a bell of light in the rain, dark above it, each view ray's
+    stretch through it taken in six pieces) · `taa.js`
     temporal anti-aliasing (the projection jittered by a sub-pixel Halton
     step each frame, each frame blended into the history reprojected by
     the depth and held to its neighbourhood; the rifle in your hands is not
@@ -304,12 +485,18 @@ by the blast that killed them, and drop their rifles.
     against the depth (walls in front are not bent, nor is the rifle) ·
     `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
+    `adapt.js` the eye adapting (the frame metered just ahead of the grade:
+    the median of its log luminance over 32 x 18 patches, read back a few
+    frames later without stalling; the exposure closes down within half
+    a second when a flare bursts and the whole view brightens, opens up
+    again over a few seconds, never past the night's own, and holds still
+    through a lightning stroke) ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
     hurt state, the daze of a blast close by — a white flash, then the view
     doubled, smeared towards the edges, drained and closing in — and the
     mud a blast close by throws over the view: dark wet
     splats along the bottom and flecks round the edges, some dripping,
-    gone in a few seconds); the high and medium qualities run all of it, low only the
+    gone in a few seconds); the high and medium qualities run all of it, low only the eye and the
     grade
 * `assets/models/*.glb` — built by the Blender scripts in `tools/blender/`;
   see `assets/models/MODELS.md` (pipeline, sizes, build commands),
@@ -323,7 +510,10 @@ by the blast that killed them, and drop their rifles.
   Shared: `kit.py` (modelling helpers, palette, export), `bake.py` (the PBR
   bake), `surfaces.py` (procedural surfaces).
 * `assets/textures/*.webp` — tileable detail textures from
-  `python3 fun/hedgerow/tools/textures.py`.
+  `python3 fun/hedgerow/tools/textures.py` (the mud churned into lumps a
+  foot across and smaller ones squeezed up between them, its normals from
+  that relief and its gloss from where the water lies in the hollows, so a
+  flare or a fire ahead breaks up on it in glints instead of glazing it).
 * `tests/world-check.mjs` — collision world unit checks;
   `tests/character-check.mjs` — the aim pitch stays put under held poses
   (three's mixer skips unchanged bones), reload clip timing and the hand prop,

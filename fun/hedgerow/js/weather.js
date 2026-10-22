@@ -5,9 +5,10 @@
    along its fall velocity and turned to face the view, as thin as a drop
    but never under a pixel and a half (fainter instead). Beyond them, out
    to ~60 m, sheets of rain: four cylinders round the eye, worked out per
-   pixel in one full-screen draw, each with streaks falling at the rain's
-   speed and slant, hidden behind what is nearer, lit by the lamps near
-   them and fading into the haze. Both come in gusts: bands of heavier rain,
+   pixel in one full-screen draw (or, without the late pass's depth on low
+   quality, drawn as four cylinder meshes with the scene), each with streaks
+   falling at the rain's speed and slant, hidden behind what is nearer, lit
+   by the lamps near them and fading into the haze. Both come in gusts: bands of heavier rain,
    leaning harder, sweeping across downwind (gust(), a slow noise blown
    along at gust speed). Splashes are rings, and near the eye each
    drop that lands throws up a crown of droplets for a moment, glittering by
@@ -18,6 +19,7 @@
 
 import * as THREE from 'three';
 import { rng } from './util.js';
+import { SHOT } from './world.js';
 
 // the gusts: how hard it is raining here now (about 0.55 .. 1.6), bands of it some 30 m across
 // blown downwind at gust speed. An integer hash, so gustAt() below gives the same on the CPU
@@ -65,8 +67,16 @@ export function gustAt(x, z, time, wx, wz) {
   return 0.55 + 1.05 * t * t * (3 - 2 * t);
 }
 
+// a drop sends on most of the light it catches as a lens does, little of it back: brightest seen
+// against a lamp, faint with the lamp beside or behind the eye (Henyey-Greenstein, g 0.45, 1 on
+// average over all ways; c the cosine between the way the eye looks and the way to the lamp)
+const PHASE_GLSL = /* glsl */ `
+float rainPhase(float c) { return 0.7975 / pow(1.2025 - 0.9 * c, 1.5); }
+`;
+
 const RAIN_VERT = /* glsl */ `
 ${GUST_GLSL}
+${PHASE_GLSL}
 attribute vec4 aDrop;            // xyz: 0..1 position in the box, w: random
 uniform vec3 uCam, uBox, uVel;
 uniform float uTime, uLength, uWidth;
@@ -98,11 +108,12 @@ void main() {
     * (uWidth / width) * (0.45 + 1.1 * fract(aDrop.w * 7.31 + aDrop.x * 3.7))
     * smoothstep(0.0, 0.35, g - fract(aDrop.w * 13.7) * 0.9);
   vUv = uv;
-  // drops passing near a lamp or a fire catch its light
-  vec3 lit = vec3(0.0);
+  // drops passing near a lamp or a fire catch its light, the more seen against it
+  vec3 lit = vec3(0.0), look = normalize(p - cameraPosition);
   for (int i = 0; i < 6; i++) {
     vec3 d = p - uLightPos[i];
-    lit += uLightCol[i] / (1.0 + dot(d, d) * 0.9);
+    float dd = dot(d, d);
+    lit += uLightCol[i] * rainPhase(-dot(look, d) * inversesqrt(dd + 1e-4)) / (1.0 + dd * 0.9);
   }
   vLit = lit;
   vec4 mv = viewMatrix * vec4(wp, 1.0);
@@ -133,13 +144,152 @@ void main() {
   float boost = min(dot(lit, vec3(0.33)), 4.0);
   // seen by the light they catch: a drop out in the dark (it shows the dark sky) hardly at all,
   // glittering by a lamp, a fire or a flare
-  float a = edge * tail * vAlpha * uOpacity * (uUnlit + uFlash + boost * 1.5);
+  float a = edge * tail * vAlpha * uOpacity * (uUnlit + uFlash + boost * 4.0);
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
 }`;
 
-// rain sheets: a full-screen triangle; the view ray of each pixel meets four cylinders round
-// the eye, each carrying streaks one to two pixels wide on an angular grid (so they stay put as
-// the view turns) that fall at the rain's speed and lean with its drift along the cylinder
+// the rain in the lamplight: rain at night is all but unseen save near a light, and there it is
+// thick with glittering streaks - far more than the near rain's few drops, which stand for the
+// rain out in the dark. So round each of a few lamps, fires and flashes near the eye a box of drops
+// of its own, falling through its light and seen only by the light they catch: brightest close to
+// it and seen against it, under a lamp's cap only below it, none where a roof or an eave keeps the
+// rain off; and for their few frames round a muzzle's or a shell's flash. The drops keep their
+// places in the world as the box follows its light (a fire's sways)
+const GLINT_VERT = /* glsl */ `
+${GUST_GLSL}
+${PHASE_GLSL}
+attribute vec4 aDrop;            // xyz: 0..1 position in its light's box, w: random
+attribute float aSlot;           // which light
+uniform vec4 uLamp[6];           // each light (four lamps or fires, two flashes), w: its box's half-size (0: none)
+uniform vec4 uLampCol[6];        // its light, w: under a cap the cosine from straight down where it gives out (-2: none)
+uniform vec4 uShelter[54];       // per light, 6 x 6 cells over its box: the top of the first thing over each
+uniform float uLampFade[6];      // how much of its rain shows (a flash's: the sliver of a frame a real one lasts)
+uniform vec3 uVel;
+uniform float uTime, uLength, uWidth;
+uniform vec2 uScreen;
+uniform float uSoft;
+varying float vAlpha, vFade;
+varying vec2 vUv;
+varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
+void main() {
+  int s = int(aSlot + 0.5);
+  vec4 L = uLamp[s], C = uLampCol[s];
+  float R = L.w;
+  if (R <= 0.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+  // the box hangs below a capped lamp, round anything else
+  vec3 ctr = L.xyz - vec3(0.0, C.w > -1.5 ? R * 0.45 : 0.0, 0.0);
+  vec3 vel = uVel * (0.85 + 0.3 * aDrop.w);
+  vec3 o = mod((aDrop.xyz - 0.5) * 2.0 * R + vel * uTime - ctr + R, 2.0 * R) - R;
+  vec3 p = ctr + o;
+  // under a roof or an eave it is dry
+  ivec2 cell = clamp(ivec2((o.xz / R * 0.5 + 0.5) * 6.0), 0, 5);
+  int ci = s * 36 + cell.y * 6 + cell.x;
+  float open = step(uShelter[ci / 4][ci % 4], p.y);
+  float g = gust(p.xz, uTime, uVel.xz);
+  vec3 axis = normalize(vel + vec3(uVel.x, 0.0, uVel.z) * (g - 0.8) * 1.4);
+  vec3 toCam = normalize(cameraPosition - p);
+  vec3 side = normalize(cross(axis, toCam));
+  float len = uLength * (0.7 + 0.6 * aDrop.w);
+  float dist = length(p - cameraPosition);
+  float pxPerM = projectionMatrix[1][1] * 0.5 / (dist * (uSoft > 0.5 ? uScreen.y : 1.0 / 900.0));
+  float width = max(uWidth, 1.5 / pxPerM);
+  vec3 wp = p + side * (uv.x - 0.5) * width + axis * (uv.y - 0.5) * len;
+  // the light it catches, falling off from the light, the more seen against it
+  vec3 rel = p - L.xyz;
+  float dd = dot(rel, rel), rl = sqrt(dd + 1e-4);
+  float cap = smoothstep(C.w, C.w + 0.35, -rel.y / rl);
+  vLit = C.rgb * rainPhase(dot(toCam, rel) / rl) * cap / (1.0 + dd * 0.9);
+  // a ball of it, fading out before the box's faces, none right by the eye
+  vAlpha = (1.0 - smoothstep(0.6, 1.0, length(o) / R)) * smoothstep(1.2, 4.0, dist) * (uWidth / width)
+    * (0.6 + 0.8 * fract(aDrop.w * 7.31 + aDrop.x * 3.7)) * open;
+  vFade = uLampFade[s];
+  vUv = uv;
+  vec4 mv = viewMatrix * vec4(wp, 1.0);
+  vDist = -mv.z;
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const GLINT_FRAG = /* glsl */ `
+uniform vec3 uColor;
+uniform float uOpacity, uSoft;
+uniform sampler2D tDepth;
+uniform vec2 uScreen;
+varying float vAlpha, vFade;
+varying vec2 vUv;
+varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
+void main() {
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    if (vDist > vProj.y / (zd + vProj.x)) discard;
+  }
+  float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;
+  float tail = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
+  float a = edge * tail * vAlpha * uOpacity * min(dot(vLit, vec3(0.33)) * 6.0, 1.0) * vFade;
+  if (a < 0.004) discard;
+  // each drop a tiny image of the light, far brighter than the haze round it (or it is lost in it),
+  // short of blinding right by it (a flash's, for the sliver of the frame it lasts, fainter)
+  vec3 c = vLit * 60.0;
+  c *= min(1.0, 16.0 * vFade / max(c.r, max(c.g, max(c.b, 1e-4))));
+  gl_FragColor = vec4(uColor * 0.25 + c, min(a, 0.9));
+}`;
+
+// rain sheets: four cylinders round the eye, 14, 22, 36 and 57 m out, each carrying streaks one to
+// two pixels wide on an angular grid (so they stay put as the view turns) that fall at the rain's
+// speed and lean with its drift along the cylinder. SHEET_GLSL works out one cylinder's streak where
+// a view ray meets it, for both ways of drawing them below
+const SHEET_GLSL = /* glsl */ `
+${PHASE_GLSL}
+uniform vec3 uColor, uVel, uSky;
+uniform float uTime, uOpacity, uFlash, uFog, uUnlit;
+uniform vec3 uLightPos[6];
+uniform vec3 uLightCol[6];
+float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// how much of a streak shows at P on cylinder fi (t along the view ray to it; theta its bearing;
+// vt, fall the rain's speed across and down it), 0 for none
+float sheetStreak(vec3 P, float t, float fi, float theta, float vt, float fall, float pxPerRad) {
+  float r = 14.0 * pow(1.6, fi);
+  float vis = 1.0 - smoothstep(14.0, 30.0, P.y - cameraPosition.y);
+  if (vis <= 0.0) return 0.0;
+  // angular cells about five pixels wide, a whole number of them round the circle
+  float n = floor(6.2832 * pxPerRad / 5.0);
+  float dth = 6.2832 / n;
+  float U = (theta + P.y * vt / (fall * r)) / dth;
+  float len = 0.9 + 0.5 * fi;                          // longer streaks further off
+  float V = (P.y + uTime * fall) / 2.4;
+  vec2 id = mod(floor(vec2(U, V)), vec2(n, 4096.0)) + fi * 17.0;     // seamless round the circle
+  vec2 f = fract(vec2(U, V));
+  if (sHash(id) > 0.22) return 0.0;
+  float x0 = 0.25 + 0.5 * sHash(id + 3.7), y0 = 0.7 * sHash(id + 7.1);
+  float sx = 1.0 - smoothstep(0.4, 1.0, abs(f.x - x0) * 5.0);
+  float sy = smoothstep(y0, y0 + 0.04, f.y) * smoothstep(y0 + len / 2.4, y0 + len / 2.4 - 0.08, f.y);
+  float k = sx * sy * vis * exp(-t * uFog) * (0.6 + 0.8 * sHash(id + 11.3));
+  if (k <= 0.0) return 0.0;
+  return k * gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
+}
+// the light a streak at P catches, seen along dir: the lamps' near it, the more with one beyond it
+vec3 sheetLight(vec3 P, vec3 dir) {
+  vec3 lit = uSky;
+  for (int j = 0; j < 6; j++) {
+    vec3 d = P - uLightPos[j];
+    float dd = dot(d, d);
+    lit += uLightCol[j] * rainPhase(-dot(dir, d) * inversesqrt(dd + 1e-4)) / (1.0 + dd * 0.12);
+  }
+  return lit;
+}
+// how much of a streak shows by that light: out in the dark it shows the dark beyond it and hardly
+// shows at all, by a lamp, a fire, a flare or in a flash of lightning it glitters
+float sheetSeen(vec3 lit) { return uUnlit + uFlash + min(dot(lit, vec3(0.33)), 4.0) * 4.0; }
+// and its colour
+vec3 sheetLit(vec3 lit) { return uColor * (0.3 + uFlash * 3.0) + lit * 2.0; }
+`;
+
+// with the late pass: a full-screen triangle, all four cylinders in one go, each hidden (softly)
+// behind what the scene's depth says is nearer
 const SHEET_VERT = /* glsl */ `
 varying vec3 vRay;
 varying vec3 vProj;
@@ -151,15 +301,11 @@ void main() {
 
 const SHEET_FRAG = /* glsl */ `
 ${GUST_GLSL}
-uniform vec3 uColor, uVel, uSky;
-uniform float uTime, uOpacity, uFlash, uFog;
-uniform vec3 uLightPos[6];
-uniform vec3 uLightCol[6];
+${SHEET_GLSL}
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 varying vec3 vRay;
 varying vec3 vProj;
-float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
   vec3 dir = normalize(vRay);
   float hd = length(dir.xz);
@@ -177,39 +323,53 @@ void main() {
   float alpha = 0.0;
   for (int i = 0; i < 4; i++) {
     float fi = float(i);
-    float r = 14.0 * pow(1.6, fi);                       // 14, 22, 36, 57 m
-    float t = r / hd;
-    vec3 P = cameraPosition + dir * t;
+    float t = 14.0 * pow(1.6, fi) / hd;
     float vis = smoothstep(0.0, 2.0, sceneZ - t * cosF);  // hidden behind what is nearer
-    vis *= 1.0 - smoothstep(14.0, 30.0, P.y - cameraPosition.y);
     if (vis <= 0.0) continue;
-    // angular cells about five pixels wide, a whole number of them round the circle
-    float n = floor(6.2832 * pxPerRad / 5.0);
-    float dth = 6.2832 / n;
-    float U = (theta + P.y * vt / (fall * r)) / dth;
-    float len = 0.9 + 0.5 * fi;                          // longer streaks further off
-    float V = (P.y + uTime * fall) / 2.4;
-    vec2 id = mod(floor(vec2(U, V)), vec2(n, 4096.0)) + fi * 17.0;     // seamless round the circle
-    vec2 f = fract(vec2(U, V));
-    if (sHash(id) > 0.22) continue;
-    float x0 = 0.25 + 0.5 * sHash(id + 3.7), y0 = 0.7 * sHash(id + 7.1);
-    float sx = 1.0 - smoothstep(0.4, 1.0, abs(f.x - x0) * 5.0);
-    float sy = smoothstep(y0, y0 + 0.04, f.y) * smoothstep(y0 + len / 2.4, y0 + len / 2.4 - 0.08, f.y);
-    float k = sx * sy * vis * exp(-t * uFog) * (0.6 + 0.8 * sHash(id + 11.3));
+    vec3 P = cameraPosition + dir * t;
+    float k = vis * sheetStreak(P, t, fi, theta, vt, fall, pxPerRad);
     if (k <= 0.0) continue;
-    k *= gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
-    // lit by the lamps near it
-    vec3 lit = uSky;
-    for (int j = 0; j < 6; j++) {
-      vec3 d = P - uLightPos[j];
-      lit += uLightCol[j] / (1.0 + dot(d, d) * 0.12);
-    }
-    // seen by the light they catch: faint in the dark, bright by a lamp or a fire
-    sum += (uColor * (0.3 + uFlash * 3.0) + lit * 2.0) * k;
+    vec3 lit = sheetLight(P, dir);
+    k *= sheetSeen(lit);
+    sum += sheetLit(lit) * k;
     alpha += k;
   }
   if (alpha <= 0.001) discard;
   gl_FragColor = vec4(sum / alpha, min(alpha * uOpacity, 0.8));
+}`;
+
+// without it (low quality): the four cylinders as meshes round the eye, drawn with the scene, so
+// the depth test hides each behind what is nearer
+const SHELL_VERT = /* glsl */ `
+attribute float aLayer;
+uniform vec2 uScreen;
+varying vec3 vP;
+varying float vLayer, vPxPerRad;
+void main() {
+  float r = 14.0 * pow(1.6, aLayer);
+  vP = vec3(cameraPosition.x + position.x * r, cameraPosition.y + position.y, cameraPosition.z + position.z * r);
+  vLayer = aLayer;
+  vPxPerRad = projectionMatrix[1][1] * 0.5 / uScreen.y;
+  gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.0);
+}`;
+
+const SHELL_FRAG = /* glsl */ `
+${GUST_GLSL}
+${SHEET_GLSL}
+varying vec3 vP;
+varying float vLayer, vPxPerRad;
+void main() {
+  vec3 d = vP - cameraPosition;
+  float t = length(d);
+  vec3 dir = d / t;
+  if (length(dir.xz) < 0.08) discard;
+  float theta = atan(dir.z, dir.x);
+  vec3 tang = vec3(-sin(theta), 0.0, cos(theta));
+  float k = sheetStreak(vP, t, vLayer, theta, dot(uVel.xz, tang.xz), -uVel.y, vPxPerRad);
+  if (k <= 0.001) discard;
+  vec3 lit = sheetLight(vP, dir);
+  k *= sheetSeen(lit);
+  gl_FragColor = vec4(sheetLit(lit), min(k * uOpacity, 0.8));
 }`;
 
 // the crowns: a quad standing on each young splash near the eye, droplets flung up and out
@@ -315,12 +475,20 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.0), a);
 }`;
 
-export function createWeather({ count = 8000, terrain, water = null, onThunder, seed = 4 }) {
+export function createWeather({ count = 8000, terrain, water = null, world = null, onThunder, seed = 4 }) {
   const R = rng(seed);
-  // where a drop lands: the ground, or the river's surface over it
+  // where a drop lands: the first thing in its way from above (a crate's lid, a sandbag, the truck's
+  // bonnet, a step, a roof - so what is sheltered under it stays dry), else the ground, or the
+  // river's surface over it
   const landY = (x, z) => {
-    const y = terrain ? terrain.height(x, z) : 0;
-    return water && y < water.level && water.contains(x, z) ? water.level : y;
+    let y = terrain ? terrain.height(x, z) : 0;
+    if (water && y < water.level && water.contains(x, z)) y = water.level;
+    if (world) {
+      const h = world.raycast(x, y + 30, z, 0, -1, 0, 30.05, SHOT, { noTerrain: true, noWater: true });
+      // (not from inside something tall, where the ray starts: that is no top)
+      if (h && h.t > 0.01 && h.ny > 0.5 && h.y > y + 0.02) y = h.y;
+    }
+    return y;
   };
   const group = new THREE.Group();
   group.name = 'weather';
@@ -363,13 +531,60 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
   rain.renderOrder = 5;
   group.add(rain);
 
+  // ---------- the rain in the lamplight ----------
+  const LAMPS = 4, FLASHES = 2, SLOTS = LAMPS + FLASHES, GRID = 6, PER_LAMP = Math.max(150, Math.round(count * 0.12));
+  const lgeo = new THREE.InstancedBufferGeometry();
+  lgeo.index = quad.index;
+  lgeo.attributes.position = quad.attributes.position;
+  lgeo.attributes.uv = quad.attributes.uv;
+  const ldrops = new Float32Array(SLOTS * PER_LAMP * 4), lslots = new Float32Array(SLOTS * PER_LAMP);
+  for (let i = 0; i < SLOTS * PER_LAMP; i++) {
+    for (let c = 0; c < 4; c++) ldrops[i * 4 + c] = R();
+    lslots[i] = i % SLOTS;        // the lights' drops taken turn about, so fewer drops thin each alike
+  }
+  lgeo.setAttribute('aDrop', new THREE.InstancedBufferAttribute(ldrops, 4));
+  lgeo.setAttribute('aSlot', new THREE.InstancedBufferAttribute(lslots, 1));
+  lgeo.instanceCount = SLOTS * PER_LAMP;
+  const glintUniforms = {
+    uLamp: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
+    uLampCol: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
+    uShelter: { value: Array.from({ length: (SLOTS * GRID * GRID) / 4 }, () => new THREE.Vector4()) },
+    uLampFade: { value: new Array(SLOTS).fill(1) },
+    uVel: rainUniforms.uVel, uTime: rainUniforms.uTime, uLength: rainUniforms.uLength, uWidth: rainUniforms.uWidth,
+    uColor: rainUniforms.uColor, uOpacity: { value: 1 },
+    tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
+  };
+  const glints = new THREE.Mesh(lgeo, new THREE.ShaderMaterial({
+    vertexShader: GLINT_VERT, fragmentShader: GLINT_FRAG, uniforms: glintUniforms,
+    transparent: true, depthWrite: false, fog: false,
+  }));
+  glints.frustumCulled = false;
+  glints.renderOrder = 5;
+  group.add(glints);
+  // what keeps the rain off round a light: for each cell of its box the top of the first thing over
+  // it (where a drop would land), worked out once for each place a light is
+  const shelters = new Map();
+  const shelterOf = (x, z, r) => {
+    const key = `${Math.round(x * 2)},${Math.round(z * 2)},${Math.round(r * 4)}`;
+    let s = shelters.get(key);
+    if (!s) {
+      if (shelters.size > 64) shelters.clear();
+      s = new Float32Array(GRID * GRID);
+      for (let j = 0; j < GRID; j++) {
+        for (let i = 0; i < GRID; i++) s[j * GRID + i] = landY(x + ((i + 0.5) / GRID * 2 - 1) * r, z + ((j + 0.5) / GRID * 2 - 1) * r);
+      }
+      shelters.set(key, s);
+    }
+    return s;
+  };
+
   // ---------- rain sheets, further off (drawn only in the late pass: they need the depth) ----------
   const tri = new THREE.BufferGeometry();
   tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
   const sheetUniforms = {
     uColor: rainUniforms.uColor, uVel: rainUniforms.uVel, uTime: rainUniforms.uTime, uFlash: rainUniforms.uFlash,
     uLightPos: rainUniforms.uLightPos, uLightCol: rainUniforms.uLightCol, uSky: rainUniforms.uSky,
-    uOpacity: { value: 0.16 }, uFog: { value: 0.012 },
+    uOpacity: { value: 0.16 }, uFog: { value: 0.012 }, uUnlit: { value: 0.5 },
     tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) },
   };
   const sheets = new THREE.Mesh(tri, new THREE.ShaderMaterial({
@@ -379,6 +594,34 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
   sheets.frustumCulled = false;
   sheets.renderOrder = 4;
   sheets.visible = false;
+  // ... and without it the same cylinders as meshes, from 60 m below the eye to 30 m over it, drawn
+  // with the scene (they follow the eye in their shader)
+  const SEG = 64, shellPos = [], shellLayer = [], shellIdx = [];
+  for (let l = 0; l < 4; l++) {
+    const base = shellPos.length / 3;
+    for (let i = 0; i <= SEG; i++) {
+      const a = (i / SEG) * Math.PI * 2;
+      shellPos.push(Math.cos(a), -60, Math.sin(a), Math.cos(a), 30, Math.sin(a));
+      shellLayer.push(l, l);
+    }
+    for (let i = 0; i < SEG; i++) { const k = base + i * 2; shellIdx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  }
+  const shellGeo = new THREE.BufferGeometry();
+  shellGeo.setAttribute('position', new THREE.Float32BufferAttribute(shellPos, 3));
+  shellGeo.setAttribute('aLayer', new THREE.Float32BufferAttribute(shellLayer, 1));
+  shellGeo.setIndex(shellIdx);
+  const shellUniforms = { ...sheetUniforms, uScreen: { value: new THREE.Vector2(1 / 1024, 1 / 768) } };
+  const shell = new THREE.Mesh(shellGeo, new THREE.ShaderMaterial({
+    vertexShader: SHELL_VERT, fragmentShader: SHELL_FRAG, uniforms: shellUniforms,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  }));
+  shell.frustumCulled = false;
+  shell.renderOrder = 4;
+  shell.visible = false;
+  // its streaks as many pixels wide as the sheets': the frame's own size
+  const frame = new THREE.Vector2();
+  shell.onBeforeRender = (renderer) => { renderer.getDrawingBufferSize(frame); shellUniforms.uScreen.value.set(1 / frame.x, 1 / frame.y); };
+  group.add(shell);
 
   // ---------- splashes ----------
   const SPL = 420;
@@ -455,6 +698,7 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
     rainUniforms.uTime.value = time;
     rainUniforms.uCam.value.copy(camera.position);
     rainUniforms.uOpacity.value = 0.2 * rainAmount;
+    glintUniforms.uOpacity.value = rainAmount;
     sheetUniforms.uOpacity.value = 0.16 * rainAmount;
     crownUniforms.uOpacity.value = 0.5 * rainAmount;
     splashUniforms.uTime.value = time;
@@ -524,9 +768,37 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
       const l = list[i];
       if (!l) { P[i].set(0, -1000, 0); C[i].set(0, 0, 0); continue; }
       P[i].set(l.x, l.y, l.z);
-      const k = Math.min(l.intensity, 40) * 0.05;
+      // a flash lights the rain for the millisecond it lasts, a sliver of the frames it is held for
+      const k = Math.min(l.intensity, 40) * 0.05 * (l.flash ? 0.3 : 1);
       C[i].set(l.color.r * k, l.color.g * k, l.color.b * k);
     }
+    // the rain in the lamplight: round the nearest lamps under their caps and fires within 30 m
+    // (fading in from 22), not round a lamp in a window (its light may be inside a room); and round
+    // the flashes, which have slots of their own (a burst of fire would take the lamps' in turn)
+    const cam = rainUniforms.uCam.value, LP = glintUniforms.uLamp.value, LC = glintUniforms.uLampCol.value;
+    const SH = glintUniforms.uShelter.value;
+    let nl = 0, nf = 0;
+    for (const l of list) {
+      if (!l || (l.flash ? nf >= FLASHES : nl >= LAMPS)) continue;
+      if (!l.flash && !(l.cone != null || (l.fog != null && l.fog < 1))) continue;
+      const d = Math.hypot(l.x - cam.x, l.y - cam.y, l.z - cam.z);
+      if (d > 30) continue;
+      const n = l.flash ? LAMPS + nf++ : nl++;
+      const r = l.flash ? 1.6 : Math.min(4.5, Math.max(2.2, l.range * 0.25)), f = Math.min(1, Math.max(0, (d - 22) / 8));
+      // a flash is held for frames where a real one is over in a millisecond: the rain it lights shows
+      // only as much as that sliver of a frame's light (else a muzzle would light a ball of rain like
+      // a lamp's, for three frames, every shot), in a smaller ball; at the eye (the player's own
+      // muzzle), lit all round the eye, fainter still
+      const e = l.flash ? Math.min(1, Math.max(0, (d - 1.5) / 2.5)) : 1;
+      const k = Math.min(l.intensity, 40) * 0.05 * (1 - f * f * (3 - 2 * f)) * (l.flash ? 0.15 + 0.85 * e * e * (3 - 2 * e) : 1);
+      glintUniforms.uLampFade.value[n] = l.flash ? 0.35 : 1;
+      LP[n].set(l.x, l.y, l.z, r);
+      LC[n].set(l.color.r * k, l.color.g * k, l.color.b * k, l.cone ?? -2);
+      const s = shelterOf(l.x, l.z, r);
+      for (let c = 0; c < GRID * GRID; c++) SH[(n * GRID * GRID + c) >> 2].setComponent((n * GRID * GRID + c) & 3, s[c]);
+    }
+    for (; nl < LAMPS; nl++) LP[nl].w = 0;
+    for (; nf < FLASHES; nf++) LP[LAMPS + nf].w = 0;
   }
 
   /* the rain drawn in another scene after the frame (the late pass of effects.js, hidden
@@ -538,6 +810,9 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
     const own = { tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 } };
     const d = scene && depth ? depth : own;
     rainUniforms.tDepth = d.tDepth; rainUniforms.uScreen = d.uScreen; rainUniforms.uSoft = d.uSoft;
+    (scene || group).add(glints);
+    glints.material.depthTest = !scene;
+    glintUniforms.tDepth = d.tDepth; glintUniforms.uScreen = d.uScreen; glintUniforms.uSoft = d.uSoft;
     (scene || group).add(crowns);
     crowns.material.depthTest = !scene;
     crownUniforms.tDepth = d.tDepth; crownUniforms.uScreen = d.uScreen; crownUniforms.uSoft = d.uSoft;
@@ -546,13 +821,18 @@ export function createWeather({ count = 8000, terrain, water = null, onThunder, 
     sheetUniforms.tDepth = d.tDepth; sheetUniforms.uScreen = d.uScreen;
     sheetsOn = !!(scene && depth);
     sheets.visible = sheetsOn && geo.instanceCount > 0;
+    shell.visible = !sheetsOn && geo.instanceCount > 0;
   }
   let sheetsOn = false;
 
   return {
     group, update, flashDir, setLights, setSkyLight, drawLate,
     get flash() { return flash; },
-    setCount(n) { geo.instanceCount = Math.min(n, count); sheets.visible = sheetsOn && n > 0; },
+    setCount(n) {
+      geo.instanceCount = Math.min(n, count);
+      lgeo.instanceCount = Math.round((SLOTS * PER_LAMP * Math.min(n, count)) / count);
+      sheets.visible = sheetsOn && n > 0; shell.visible = !sheetsOn && n > 0;
+    },
     strikeNow(time) { scheduleStrike(time); },
   };
 }

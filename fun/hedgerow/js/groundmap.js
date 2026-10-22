@@ -93,14 +93,16 @@ export function createGroundMap(terrain, world, waterLevel, ponds = []) {
     const keep = (1 - smoothstep(0.25, 0.5, slope)) * smoothstep(0.1, 0.45, H[k] - waterLevel);
     for (let c = 0; c < 3; c++) cov[k * 3 + c] *= keep;
   }
-  // nor in the water standing in the craters (ponds.js)
+  // nor in the water standing in the craters (ponds.js), the grass growing down to a few
+  // centimetres above it (a crater is shallow: kept off the whole bowl, its edge was the
+  // cut-off circle's, not the water's)
   for (const p of ponds || []) {
     const i0 = Math.max(0, Math.floor((p.x - p.r - minX) / res)), i1 = Math.min(nx - 1, Math.ceil((p.x + p.r - minX) / res));
     const j0 = Math.max(0, Math.floor((p.z - p.r - minZ) / res)), j1 = Math.min(nz - 1, Math.ceil((p.z + p.r - minZ) / res));
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const k = j * nx + i;
       if (Math.hypot(minX + i * res - p.x, minZ + j * res - p.z) > p.r) continue;
-      const keep = smoothstep(0.1, 0.45, H[k] - p.y);
+      const keep = smoothstep(0.03, 0.16, H[k] - p.y);
       for (let c = 0; c < 3; c++) cov[k * 3 + c] *= keep;
     }
   }

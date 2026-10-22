@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
 import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
-import { dimFillSpecular } from './fill.js';
+import { dimFillSpecular, addFireBounce, FIRE_UNIFORMS } from './fill.js';
 import { GUST_GLSL } from './weather.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
@@ -104,11 +104,20 @@ const METAL = {
 /* how much light comes through the leaves (foliage, addWeather) */
 export const FOLIAGE_UNIFORMS = { uLeafTrans: { value: 1.6 } };
 
+/* value noise for the damp at the foot of a wall (hash12: terrain.js GLSL_HELPERS) */
+const DAMP_GLSL = /* glsl */ `
+  float dampNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+  }`;
+
 /* what burns, and smoulders round its fire: the charred wood of a burning ruin (its char cracks
    and glows), the metal of a burnt-out wreck (it glows a dull red with the heat) */
 const SMOULDER = [[/^(ruin|beam_charred)/, 'wood'], [/^(truck_burnt|halftrack_wreck|jeep_wreck)/, 'metal']];
-/* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder) */
-export const SMOULDER_UNIFORMS = { uFires: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) } };
+/* the fires nearest the camera (x, y, z, size; size 0: none), for the smouldering (updateSmoulder)
+   and the light they throw back off everything round them (fill.js addFireBounce) */
+export const SMOULDER_UNIFORMS = FIRE_UNIFORMS;
 const near4 = [];
 export function updateSmoulder(fires, cam) {
   near4.length = 0;
@@ -132,6 +141,8 @@ export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinD
 /* what rain does not run down in rivulets: the soldiers, their kit and weapons (and, by
    palette key, cloth, skin and the like) */
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
+// the guns (close-up wood and steel in addWeather: the one in your hands is half a metre from the eye)
+const GUN = /^(m1_garand|thompson|kar98k|mp40|mg42)/;
 const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
 
 /* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
@@ -257,6 +268,8 @@ export function createMaterialLibrary(textures, shared) {
       const bk = !cards && BARK.find(([re]) => re.test(src.name || ''));
       addWeather(m, shared, {
         porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
+        // the ground cover's atlas (ferns, tussocks, nettles, weeds, reeds, ivy)
+        cover: cards && src.name === 'nat_ground',
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
         streaks: !cards && !CARRIED.test(src.name || ''),
         rooms: !!src.userData?.rooms,
@@ -264,6 +277,7 @@ export function createMaterialLibrary(textures, shared) {
         skin: SKIN.test(src.name || ''),
         // the soldiers and their kit keep the fill light's sheen: it models their shape in the dark
         glints: CARRIED.test(src.name || ''),
+        gun: GUN.test(src.name || ''),
         // the grain of the surface close up: houses, walls, wrecks, crates (not the leaves, the
         // bark, what is carried or the lit panes)
         grain: !cards && !bk && !CARRIED.test(src.name || '') && !src.userData?.rooms,
@@ -283,10 +297,10 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false, gun = false }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (mat.normalMap ? 'n' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -295,9 +309,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
       ...(rooms ? ROOM_UNIFORMS : {}),
       ...(foliage ? FOLIAGE_UNIFORMS : {}),
-      ...(smoulder ? SMOULDER_UNIFORMS : {}),
       ...(skin ? { ...SKIN_UNIFORMS, tGrain: GRAIN_UNIFORMS.tGrain } : {}),
       ...(grain ? GRAIN_UNIFORMS : {}),
+      // the ground's height (groundmap.js: the map's alpha), for the foot of a wall
+      ...(streaks ? { tGroundM: shared.grassMap || { value: null }, uGroundMinM: shared.grassMin || { value: new THREE.Vector2() },
+        uGroundSizeM: shared.grassSize || { value: new THREE.Vector2(1, 1) } } : {}),
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -308,6 +324,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec3 vWPosM;
         ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}
         ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}
+        ${foliage ? 'varying float vFolTint;' : ''}
         ${sway ? GUST_GLSL : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
@@ -352,6 +369,14 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           #endif
           vWPosM = (modelMatrix * wp).xyz;
           ${rooms ? 'vWin = aWin;' : ''}
+          ${foliage ? `{
+            // a plant's or a tree's own hue, from where it stands (the same at every distance's model)
+            vec3 at = modelMatrix[3].xyz;
+            #ifdef USE_INSTANCING
+              at += instanceMatrix[3].xyz;
+            #endif
+            vFolTint = fract(sin(dot(floor(at.xz * 4.0), vec2(12.9898, 78.233))) * 43758.5453);
+          }` : ''}
           ${bark ? `// the bark detail in the tree's own space (it stays on the bark), shifted per tree
           vBarkP = position;
           #ifdef USE_INSTANCING
@@ -374,7 +399,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying float vBarkH;
         vec4 barkA, barkB;
         float barkK, barkW;` : ''}
-        ${streaks ? 'float mRiv, mRivX;\n        vec3 mRivT;' : ''}
+        ${streaks ? 'float mRiv, mRivX, mDamp, mMud;\n        vec3 mRivT;\n        uniform sampler2D tGroundM;\n        uniform vec2 uGroundMinM, uGroundSizeM;' : ''}
         ${rooms ? 'varying vec4 vWin;' : ''}
         ${grain ? `uniform sampler2D tGrain;
         uniform float uGrain;
@@ -382,6 +407,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         vec3 grainW = vec3(0.0);
         vec4 grainX, grainY, grainZ;` : ''}
         ${GLSL_HELPERS}
+        ${streaks ? DAMP_GLSL : ''}
         ${rooms ? ROOMS_GLSL : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         ${bark ? `{
@@ -414,7 +440,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         ${streaks ? `// rain running down walls, close to the eye: rivulets ~22 cm apart, darker wet
         // stripes with a glossy core, each wandering as it runs and carrying water in
         // stretches that slide down the wall
-        mRiv = 0.0; mRivX = 0.0; mRivT = vec3(1.0, 0.0, 0.0);
+        mRiv = 0.0; mRivX = 0.0; mRivT = vec3(1.0, 0.0, 0.0); mDamp = 0.0; mMud = 0.0;
         #ifndef USE_SKINNING
         {
           float vert = 1.0 - smoothstep(0.2, 0.5, abs(vWNormalM.y));
@@ -430,6 +456,27 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             float run = smoothstep(0.55, 0.8, mix(hash12(vec2(col, fy)), hash12(vec2(col, fy + 1.0)), ty * ty * (3.0 - 2.0 * ty)));
             mRiv = line * run * k;
             diffuseColor.rgb *= 1.0 - 0.45 * mRiv;
+          }
+        }
+        // the foot of a wall (and of whatever stands in the wet): damp rising a ragged band a hand or
+        // two up, darker, a green film of algae in it on porous stone and plaster; mud splashed up
+        // over it by the rain, in specks, just over the ground
+        {
+          vec2 gm = (vWPosM.xz - uGroundMinM) / uGroundSizeM;
+          float side = 1.0 - smoothstep(0.55, 0.85, abs(vWNormalM.y));
+          if (side > 0.01 && gm.x > 0.0 && gm.y > 0.0 && gm.x < 1.0 && gm.y < 1.0) {
+            float h = vWPosM.y - texture2D(tGroundM, gm).w;
+            float along = vWPosM.x + vWPosM.z;
+            float n = dampNoise(vec2(along * 1.7, vWPosM.y * 3.0)) * 0.7 + dampNoise(vec2(along * 6.3, vWPosM.y * 9.0)) * 0.3;
+            float top = 0.35 + 0.5 * n;
+            mDamp = side * uWet * (1.0 - smoothstep(top - 0.12, top, h)) * step(-0.6, h);
+            mMud = side * uWet * (1.0 - smoothstep(0.1, 0.24 + 0.14 * n, h)) * step(-0.3, h)
+              * smoothstep(0.4, 0.65, dampNoise(vec2(along * 24.0, vWPosM.y * 30.0)) + 0.3 * (1.0 - smoothstep(0.0, 0.12, h)));
+            // the tide line the damp leaves where it stops rising
+            float rim = side * uWet * smoothstep(top - 0.13, top - 0.05, h) * (1.0 - smoothstep(top - 0.05, top, h));
+            diffuseColor.rgb *= mix(1.0, 0.5, mDamp * (0.4 + 0.6 * uPorosity)) * (1.0 - 0.22 * rim * uPorosity);
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.78, 0.9, 0.62), mDamp * 0.7 * uPorosity);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.055, 0.04), mMud * 0.8);
           }
         }
         #endif` : ''}`)
@@ -452,7 +499,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }` : ''}
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
         roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);
-        ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);' : ''}`)
+        ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);\n        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.75, mDamp);\n        roughnessFactor = mix(roughnessFactor, 0.9, mMud * 0.6);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
           vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
@@ -466,7 +513,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           normal = normalize(normal + mat3(viewMatrix) * dn * grainN * 0.25);
         }` : ''}
         if (mWetUp > 0.01) {
-          vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime) * uRain * mWetUp;
+          vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime, rippleFade(length(vViewPosition))) * uRain * mWetUp;
           mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);
           normal = normalize(tbnR * normalize(vec3(rip * 0.8, 1.0)) * 0.5 + normal * 0.5);
         }
@@ -496,6 +543,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         float skinK = 0.0, clothK = 0.0, skK = 0.0, woolHue = 0.0;
         vec3 skW = vec3(0.0);
         const vec4 SK_FLAT = vec4(0.5, 0.5, 1.0, 0.5);
+        float skHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+        float skNoise(vec3 p) {
+          vec3 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(skHash(i), skHash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(skHash(i + vec3(0.0, 1.0, 0.0)), skHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+            mix(mix(skHash(i + vec3(0.0, 0.0, 1.0)), skHash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(skHash(i + vec3(0.0, 1.0, 1.0)), skHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+        }
         vec4 skX = SK_FLAT, skY = SK_FLAT, skZ = SK_FLAT;
         vec3 clothSheen = vec3(0.0);
         void RE_Direct_Skin(const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal,
@@ -561,6 +615,34 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           skZ = mix(texture2D(tGrain, pg.xy), texture2D(tFabric, pf.xy), wool);
           float d = skX.a * skW.x + skY.a * skW.y + skZ.a * skW.z;
           diffuseColor.rgb *= mix(1.0, mix(0.7 + 0.6 * d, 0.45 + 1.1 * d, wool), skK);
+        }
+        // days out in the rain and the mud: the skin grimed, a little darker and duller, and on the
+        // hands (out to the sides in the bind pose) mud in patches; the face grimed less
+        {
+          float hand = smoothstep(0.3, 0.38, abs(vSkP.x)) * (1.0 - smoothstep(1.2, 1.3, vSkP.y));
+          float gk = skinK * uCloseUp * (1.0 - smoothstep(1.2, 3.0, length(vViewPosition))) * mix(0.35, 1.0, hand);
+          if (gk > 0.01) {
+            float n1 = skNoise(vSkP * 28.0), n2 = skNoise(vSkP * 95.0 + 7.3), n3 = skNoise(vSkP * 260.0 + 3.1);
+            // smears a few centimetres across, and flecks of it a few millimetres
+            float mud = max(smoothstep(0.44, 0.72, n1 * 0.7 + n2 * 0.3), smoothstep(0.7, 0.8, n3) * 0.8) * hand;
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.74, 0.69, 0.64), gk);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.052, 0.036) * (0.8 + 0.4 * n2), mud * 0.85 * gk);
+            roughnessFactor = mix(roughnessFactor, 0.7, mud * gk);
+          }
+        }
+        // the wool too: soaked darker in blotches where the rain beats on it (where it faces the sky),
+        // and the sleeves muddied along the forearm, most at the cuff
+        {
+          float ck = clothK * uCloseUp * (1.0 - smoothstep(1.2, 3.0, length(vViewPosition)));
+          if (ck > 0.01) {
+            float n1 = skNoise(vSkP * 14.0 + 1.9), n2 = skNoise(vSkP * 60.0 + 2.7);
+            float soak = smoothstep(-0.2, 0.6, vWNormalM.y) * smoothstep(0.35, 0.65, n1 * 0.7 + n2 * 0.3) * uWet;
+            diffuseColor.rgb *= 1.0 - 0.3 * soak * ck;
+            float arm = smoothstep(0.18, 0.28, abs(vSkP.x)) * (1.0 - smoothstep(1.3, 1.45, vSkP.y));
+            float cuff = smoothstep(0.24, 0.34, abs(vSkP.x));
+            float mud = smoothstep(0.62 - 0.22 * cuff, 0.86 - 0.2 * cuff, n1 * 0.6 + n2 * 0.4) * arm;
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.06, 0.045, 0.03) * (0.8 + 0.4 * n2), mud * 0.7 * ck);
+          }
         }`)
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         if (uSkinDebug > 0.5) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(4.0, 0.0, 0.0), skinK);
@@ -583,7 +665,6 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // breathing slowly, brighter the nearer the flames
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-        uniform vec4 uFires[4];
         vec2 smHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
         // the char's cracks: how near the border between two of its cells (0 on it), and the cell's id
         vec2 smCracks(vec2 p) {
@@ -657,6 +738,14 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // baked occlusion (the inside of a crown is dark) and by the light's own
       // shadow where it has one
       shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\n        varying float vFolTint;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        // each plant and tree a little its own: darker and bluer or paler and yellower, one in ten turning
+        diffuseColor.rgb *= mix(vec3(0.82, 0.88, 0.86), vec3(1.1, 1.06, 0.84), fract(vFolTint * 7.13));
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.12, 0.86, 0.52), smoothstep(0.88, 0.97, vFolTint) * 0.7);
+        ${cover ? `// the undergrowth duller and darker than its atlas, which is painted for daylight: a fern
+        // under the trees at dusk is not the brightest green in the wood
+        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82) * 0.93;` : ''}`)
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
         uniform float uLeafTrans;
         float leafThin = 1.0;          // how thin the foliage is here (its baked occlusion, squared)
@@ -675,23 +764,90 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         #endif
         #include <lights_fragment_begin>`)
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-        reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12;`)
+        // light from the sky through the leaves round it: as much as the foliage is thin there (not
+        // in a crown's dark heart, nor in a fern or a tussock low in its own shade)
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.12 * leafThin;`)
         .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;');
     }
+    if (gun) {
+      // a gun close to the eye (the one in your hands, half a metre off, where its texture is spread
+      // thin): the walnut of the stock with a grain finer than the texture holds - fine lines along the
+      // gun, wandering, a figure of lighter and darker streaks through them, oiled between them and
+      // sunk a little - and the steel mottled where its finish has worn and pitted, so the light
+      // breaks up across it instead of sliding off it as off plastic. In the gun's own space (along
+      // its z), so the grain stays on the wood; each pattern fades out before it gets finer than the
+      // pixels it falls on
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\n        varying vec3 vGunP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n        vGunP = position;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vGunP;
+        float gunH = 0.0;
+        float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float gNoise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y);
+        }`)
+        .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        {
+          float gunK = 1.0 - smoothstep(1.2, 2.5, length(vViewPosition));
+          vec3 p = vGunP;
+          // walnut: brown (red over green over blue) and not metal; steel: metal
+          vec3 sc = pow(max(diffuseColor.rgb, vec3(1e-4)), vec3(1.0 / 2.2));
+          float mx = max(sc.r, max(sc.g, sc.b)), mn = min(sc.r, min(sc.g, sc.b));
+          float steel = smoothstep(0.35, 0.6, metalnessFactor);
+          float wood = (1.0 - steel) * step(sc.b, sc.g) * step(sc.g, sc.r) * smoothstep(0.2, 0.35, (mx - mn) / max(mx, 1e-4)) * smoothstep(0.08, 0.16, mx);
+          // the grain: lines a few millimetres apart along the gun, wandering with it
+          float u = p.y * 1700.0 + p.x * 900.0 + 5.0 * gNoise(vec2(p.z * 18.0, p.y * 90.0)) + 2.0 * gNoise(vec2(p.z * 60.0, p.x * 300.0));
+          float line = (1.0 - smoothstep(0.05, 0.35, abs(sin(u)))) * (1.0 - smoothstep(0.9, 2.2, fwidth(u)));
+          float fig = gNoise(vec2(p.z * 6.0, p.y * 140.0 + p.x * 70.0));
+          float wk = wood * gunK;
+          diffuseColor.rgb *= mix(1.0, (0.82 + 0.3 * fig) * (1.0 - 0.32 * line), wk);
+          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.82 + 0.16 * line, wk);
+          // the steel: Parkerized, a dark grey that is matte even wet, mottled where the finish has
+          // worn and pitted finer than that; and worn to the bright bare steel along its edges (where
+          // the surface turns sharply for how far a pixel spans)
+          float m1 = gNoise(p.zy * 420.0 + p.x * 200.0), m2 = gNoise(p.xz * 900.0 + 3.1);
+          float maa = 1.0 - smoothstep(0.35, 0.8, length(fwidth(p)) * 900.0);
+          float curv = length(fwidth(vNormal)) / max(length(fwidth(vViewPosition)), 1e-6);
+          float edge = smoothstep(500.0, 1500.0, curv);
+          float sk = steel * gunK;
+          float park = clamp(max(roughnessFactor, 0.5) * (0.75 + 0.5 * m1) + 0.1 * (m2 - 0.5) * maa, 0.3, 1.0);
+          roughnessFactor = mix(roughnessFactor, mix(park, 0.25, edge), sk);
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb * (0.42 + 0.2 * m1), diffuseColor.rgb * 1.3 + 0.04, edge), sk);
+          // their relief (m): the grain lines sunk a quarter of a millimetre, the pits a twentieth
+          gunH = (-line * 0.25 * wk + (m2 - 0.5) * 0.06 * maa * sk) * 0.001;
+        }`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          // bumped by that relief (the derivatives taken everywhere: never inside a branch)
+          vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition);
+          float hx = dFdx(gunH), hy = dFdy(gunH);
+          vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
+          float det = dot(sx, r1);
+          vec3 nb = abs(det) * normal - sign(det) * (hx * r1 + hy * r2);
+          if (dot(nb, nb) > 1e-24) normal = normalize(nb);
+        }`);
+    }
+    addFireBounce(shader, 'vWPosM', 'normalize(vWNormalM)');
     if (!glints) dimFillSpecular(shader);
   };
 }
 
-/* The river: opaque, murky, reflective, with flowing normals and rain rings.
-   It knows its own depth (the ground map's height, groundmap.js, through the
+/* The river: opaque, murky, reflective; long low swells drawn out along the
+   current with a finer chop over them, carried downstream (value noise and
+   its slope, three octaves: no texture, whose straight cracks showed as
+   creases across the water), and the rain's rings, small and many, where
+   they are big enough to see; further off the rain only roughens it. It
+   knows its own depth (the ground map's height, groundmap.js, through the
    grass map shared with the terrain): where it laps the bank a thin, broken
    line of scum drifts with the current, matte and reflecting nothing, and in
-   the shallows it is browner, the bed showing through. */
+   the shallows it is browner, the bed showing through. A pond (ponds.js) is
+   the same, still. */
 export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
-  const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0,
-    normalMap: textures.rock, normalScale: new THREE.Vector2(0.15, 0.15),
-  });
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#1d2420'), roughness: 0.16, metalness: 0.0 });
   mat.name = 'water';
   mat.envMapIntensity = 1.3;
   mat.customProgramCacheKey = () => 'hedgerow-water';
@@ -719,30 +875,49 @@ export function createWaterMaterial(textures, shared, { flow = [1, 0] } = {}) {
           vec2 i = floor(p), f = fract(p);
           f = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        // value noise and its slope (Inigo Quilez's)
+        vec3 vnoiseDW(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f), du = 6.0 * f * (1.0 - f);
+          float a = hash12(i), b = hash12(i + vec2(1.0, 0.0)), c = hash12(i + vec2(0.0, 1.0)), d = hash12(i + vec2(1.0, 1.0));
+          return vec3(a + (b - a) * u.x + (c - a) * u.y + (a - b - c + d) * u.x * u.y, du * (vec2(b - a, c - a) + (a - b - c + d) * u.yx));
         }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
           vec2 p = vWPosW.xz;
-          float depth = vWPosW.y - texture2D(tGroundW, (p - uGroundMinW) / uGroundSizeW).w;
+          vec2 gm = (p - uGroundMinW) / uGroundSizeW;
+          float bed = texture2D(tGroundW, gm).w, depth = vWPosW.y - bed;
           // the shallows: browner, the bed showing through
           float shallow = 1.0 - smoothstep(0.05, 0.75, depth);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.04, 0.026), shallow * 0.75);
-          // a thin, broken line of scum where it laps the bank, drifting with the current
+          // a thin, broken line of scum where it laps the bank, drifting with the current: so many
+          // centimetres from the water's edge (the depth over how steeply the bed rises there), not
+          // so deep, or on a gentle bank (a shallow crater's) it spread into a wide pale band
           vec2 drift = uFlow * uTime * 0.35;
           float fn = vnoiseW(p * 3.1 - drift * 3.1) * 0.55 + vnoiseW(p * 7.7 - drift * 6.0) * 0.45;
-          float lap = 1.0 - smoothstep(0.0, 0.07 + 0.03 * sin(uTime * 1.3 + p.x * 0.7), depth);
+          vec2 rise = vec2(texture2D(tGroundW, gm + vec2(0.25, 0.0) / uGroundSizeW).w, texture2D(tGroundW, gm + vec2(0.0, 0.25) / uGroundSizeW).w) - bed;
+          float fromEdge = depth / max(length(rise) * 4.0, 0.04);
+          float lap = 1.0 - smoothstep(0.0, 0.1 + 0.04 * sin(uTime * 1.3 + p.x * 0.7), fromEdge);
           wFoam = lap * smoothstep(0.45, 0.7, fn + lap * 0.15) * 0.75;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.17, 0.18, 0.17), wFoam);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.095, 0.08), wFoam);
         }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.75, wFoam);`)
+        roughnessFactor = mix(roughnessFactor, 0.75, wFoam);
+        // where the rain's rings are too small to draw, they still roughen it
+        roughnessFactor += 0.1 * uRain * (1.0 - rippleFade(length(vViewPosition)));`)
       .replace('#include <normal_fragment_maps>', `
         {
           vec2 p = vWPosW.xz;
-          vec3 n1 = texture2D(normalMap, p / 9.0 + uFlow * uTime * 0.03).xyz * 2.0 - 1.0;
-          vec3 n2 = texture2D(normalMap, p / 4.3 - uFlow.yx * uTime * 0.02 + uFlow * uTime * 0.05).xyz * 2.0 - 1.0;
-          vec3 nts = normalize(vec3((n1.xy + n2.xy) * 0.12, 1.0));
-          nts.xy += rainRipples(p * 1.5, uTime) * uRain * 0.8;
+          // the slope of three octaves, each stretched along the current and carried down it at its own
+          // speed (the finer, the faster), the second and third turned so the noise's grid does not line up
+          vec2 st = mix(vec2(1.0), vec2(0.55, 1.0), min(1.0, length(uFlow)));
+          mat2 turn = mat2(0.8, 0.6, -0.6, 0.8);
+          vec2 g = vnoiseDW(p * st * 0.35 - uFlow * uTime * 0.18).yz * st * 0.35 * 0.6;
+          g += st * 0.9 * 0.35 * (transpose(turn) * vnoiseDW(turn * (p * st * 0.9) - uFlow * uTime * 0.55 + 4.7).yz);
+          g += st * 2.3 * 0.16 * (turn * vnoiseDW(transpose(turn) * (p * st * 2.3) - uFlow * uTime * 1.9 + vec2(9.1, 2.3)).yz);
+          vec3 nts = vec3(-g * 0.14, 1.0);
+          nts.xy += rainRipples(p * 1.5, uTime, rippleFade(length(vViewPosition))) * uRain * 0.8;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, p);
           normal = normalize(tbn * normalize(nts));
         }`)

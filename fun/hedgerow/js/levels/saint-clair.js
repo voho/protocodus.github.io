@@ -322,7 +322,15 @@ const FRONT = 5.8;
 const LEFT = (m, z, wd, o = {}) => P(m, FRONT + wd, z, -90, { pad: true, ...o });
 const RIGHT = (m, z, wd, o = {}) => P(m, -FRONT - wd, z, 90, { pad: true, ...o });
 LEFT('house_a', 101, 2.85); LEFT('house_b', 112.5, 3.8); LEFT('ruin', 124, 3.3, { id: 'ruin' }); LEFT('house_f', 137, 4.0);
-RIGHT('house_d', 99, 2.2); RIGHT('house_c', 109.5, 3.1); RIGHT('ruin_b', 121.5, 3.5, { fire: true }); RIGHT('house_b', 133, 3.8);
+RIGHT('house_d', 99, 2.2); RIGHT('house_c', 109.5, 3.1); RIGHT('ruin_b', 121.5, 3.5, {
+  // burning through and through: flame all over the floor of the roofless shell (in its own frame:
+  // x along the street, z towards it), seen in the door and the windows and licking up the walls
+  // and up in the charred joists of the floor above at the back, over the walls' broken tops; its
+  // own fire (and so its smoke, its column over the roofs and its glow on the clouds) a big one
+  fire: true, fireSize: 1.6,
+  blaze: [[-2.2, 0.3, 2.6, 1.6], [2.4, 0.3, 2.8, 1.4], [-2.0, 0.3, -1.6, 2.1], [1.4, 0.3, -1.4, 1.8],
+    [-2.6, 4.3, -1.4, 1.7], [-0.4, 4.4, -0.6, 1.4]],
+}); RIGHT('house_b', 133, 3.8);
 // north of the square
 LEFT('house_e', 189, 4.0); LEFT('house_d', 199.5, 2.2); LEFT('house_f', 210, 4.0); LEFT('barn', 225, 3.7);
 RIGHT('house_c', 190, 3.1); RIGHT('house_a', 202, 2.85); RIGHT('house_d', 213, 2.2); RIGHT('house_b', 223.5, 3.8); RIGHT('house_e', 238, 4.0);
@@ -331,12 +339,13 @@ P('church', -26.5, 165, 90, { pad: true, id: 'church' });
 P('house_g', 18.6, 157, -90, { pad: true, id: 'cafe' }); P('house_a', 18.3, 170, -90, { pad: true });
 P('fountain', 3, 165, 0);
 P('lamp_post', -9.5, 154, 90, { light: true }); P('lamp_post', 9.5, 177, -90, { light: true });
+P('signpost', -11.2, 151.8, 90);
 P('cross', -9, 181, 45);
 P('sandbags', -6, 174, 0); P('sandbags_curve', 7, 172, 180); P('sandbags_low', -10, 157, 70);
 P('crate_large', 9, 160, 20); P('crate', 10.2, 161.5, 70); P('barrel', -3, 180, 0);
 P('cart', 11, 183, -30);
 // the street between
-P('truck_burnt', -1.2, 117, 168, { fire: true });
+P('truck_burnt', -1.2, 117, 168, { fire: true, debris: 4 });
 P('sandbags', 2.2, 129, -8); P('crate', -2.5, 131, 30); P('crate_large', -3.3, 126, 80);
 P('barrel', 3.8, 104, 0); P('jerrycan', 4.1, 105, 30);
 P('pole', 4.8, 145, 0); P('pole', 4.8, 205, 0);
@@ -384,6 +393,10 @@ along(TRENCH_C, 3.9, -0.86, (x, z, yaw) => P('trench_wall', x, z, yaw + 180, { y
 const NEST_TRENCH = P('mg_nest', 2, 392, 180, { id: 'nest_trench' });
 P('barbed_wire', -3, 383, 0); P('barbed_wire', 7, 382.5, 0); P('hedgehog', 2, 380, 15);
 P('barbed_wire', -24, 380, 5); P('barbed_wire', 26, 380, -5); P('barbed_wire', -12, 381, 0); P('barbed_wire', 16, 381, 0);
+// in front of the line what the shelling set alight still burns - beams of a blown-in dugout, a log -
+// their light flickering over the wire and the parapet
+P('beam_charred', -14, 371, 35, { burning: 0.7 }); P('beam_charred', 19, 368.5, -60, { burning: 0.55 });
+P('log', 7.5, 361, 20, { burning: 0.6 });
 P('crate', -22, 398, 20); P('crate_large', 10, 398, -15);
 P('bunker', BUNKER.x, BUNKER.z, 180, { pad: true, id: 'bunker' });
 P('sandbags', -1, 452, -20); P('sandbags_curve', 16, 449, 200); P('barbed_wire', 6, 438, 0); P('barbed_wire', 14, 437, 10);
@@ -393,7 +406,7 @@ P('flak38', 4, 511, 200, { pad: true, id: 'flak' });
 P('sandbags_curve', 7.5, 508, 0); P('sandbags_curve', 0.5, 508, 90); P('sandbags', 4, 515.5, 180);
 P('tent', -13, 514, 120, { pad: true }); P('radio_table', -10, 509, 90, { id: 'radio' });
 P('truck', -6, 527, 95, { pad: true }); P('crate_large', -1, 523, 10); P('crate', 0.5, 524.5, 60); P('barrel', 9, 524, 0); P('barrel', 9.6, 524.8, 0); P('jerrycan', 10.2, 523.2, 40);
-P('watchtower', 17, 496, 200, { id: 'tower' });
+P('watchtower', 17, 496, 200, { id: 'tower', light: true });          // its lamp lit over the camp
 P('sandbags_low', -15, 500, 30); P('sandbags_low', 13, 519, -60);
 P('signpost', 3, 540, 180);
 // rocks and logs along the forest way
@@ -435,7 +448,7 @@ P('cross', -30, 186.5, 0);
 P('kubelwagen', -8.5, 146.5, 30); P('motorcycle_sidecar', 7.6, 95.6, -150);
 P('ammo_stack', 7.8, 89.2, 0); P('sandbags_ruined', -1.8, 99.5, 15); P('jerrycan_stack', -9.5, 92.4, 0);
 P('pak40', -2.5, 244.5, 180, { id: 'pak' }); P('ammo_stack', -4.8, 249.5, 30);
-P('halftrack_wreck', 8.2, 253.5, 160, { fire: true });
+P('halftrack_wreck', 8.2, 253.5, 160, { fire: true, debris: 3 });
 // gardens: a well, a trough, picket fences, nettles and brambles in the corners
 P('well', 31, 120, 0); P('water_trough', 13.8, 229, -90); P('fence_picket', 18, 166, 90); P('fence_picket', 18, 179, 90);
 P('fence_picket', -18, 104, 90); P('fence_picket', -18, 107, 90);

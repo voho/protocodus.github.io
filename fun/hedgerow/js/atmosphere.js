@@ -164,12 +164,14 @@ export function createMist({ count = 70, terrain, density = () => 1, seed = 31, 
    flare or the muzzle flash picks out a crater's rim): stone chipped away pale
    round a black hole, cracked and powdered; wood splintered along its grain,
    the fresh wood showing; paint dented and flaked off to the bare steel round
-   a hole; mud thrown up in clods. Every kind is painted four ways (the
-   quarters of its textures), and each decal takes one at random, turned at
-   random. A bullet stops at a collider, a flat box, and a wall's stones bulge a
-   few centimetres out of it: so each decal is drawn pulled towards the eye
-   along its own sight line (it stays where it is on the screen) by PULL, which
-   brings it out over the stones instead of into them. */
+   a hole; mud thrown up in clods; and (only pinned, the walls' old damage,
+   damage.js) plaster broken off down to the stone or brick it was laid on, and the old painted
+   advertisements on the gables. Every kind is painted four ways (the quarters of its textures), and each
+   decal takes one at random, turned at random. A bullet stops at a collider,
+   a flat box, and a wall's stones bulge a few centimetres out of it: so each
+   decal is drawn pulled towards the eye along its own sight line (it stays
+   where it is on the screen) by PULL, which brings it out over the stones
+   instead of into them. */
 
 const PULL = 0.06;
 const FLAT = 160; // a relief's surface, on its height canvas (lower is sunk in)
@@ -200,12 +202,12 @@ function painter(S, ground, bare = false) {
 
 const grey = (v) => `rgb(${v | 0},${v | 0},${v | 0})`;
 
-/* a ragged outline round (x, y): n corners out to r, each pulled in by up to jag of it */
-function ragged(R, x, y, r, n, jag) {
+/* a ragged outline round (x, y): n corners out to r (sy times that up and down), each pulled in by up to jag of it */
+function ragged(R, x, y, r, n, jag, sy = 1) {
   const path = new Path2D();
   for (let i = 0; i < n; i++) {
     const a = ((i + (R() - 0.5) * 0.8) / n) * Math.PI * 2, rr = r * (1 - jag * R());
-    path[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    path[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr * sy);
   }
   path.closePath();
   return path;
@@ -321,6 +323,166 @@ function mudSplat(p, R, cx, cy, S) {
   p.fill(ragged(R, cx, cy, S * (0.05 + R() * 0.02), 9, 0.4), { col: 'rgb(18,14,10)', alpha: grey(255), height: grey(FLAT - 90) });
 }
 
+/* a lit window's glass: a small hole punched through, the glass crushed white round it, cracks running
+   out from it in a star and rings of shorter ones between them; the rest clear */
+function glassCrack(p, R, cx, cy, S) {
+  for (let k = 0; k < 40; k++) {
+    const a = R() * Math.PI * 2, r = S * (0.012 + 0.035 * Math.sqrt(R()));
+    p.fill(disc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * (0.002 + R() * 0.004)), { col: 'rgb(255,255,255)', alpha: grey(140 + R() * 100) });
+  }
+  const n = 9 + Math.floor(R() * 7), spokes = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + (R() - 0.5) * 0.5;
+    spokes.push(a);
+    p.stroke(crack(R, cx, cy, a, S * (0.18 + R() * 0.27), 6), { col: 'rgb(255,255,255)', alpha: grey(150 + R() * 80), height: grey(FLAT - 12) }, S * (0.004 + R() * 0.003));
+  }
+  for (const rr of [0.07 + R() * 0.03, 0.14 + R() * 0.05]) {
+    for (let k = 0; k < n; k++) {
+      if (R() < 0.35) continue;
+      const a0 = spokes[k], a1 = spokes[(k + 1) % n] + (k === n - 1 ? Math.PI * 2 : 0);
+      const r = S * rr * (0.9 + R() * 0.2), am = (a0 + a1) / 2, rm = r * (0.92 + R() * 0.1);
+      const path = new Path2D();
+      path.moveTo(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r);
+      path.lineTo(cx + Math.cos(am) * rm, cy + Math.sin(am) * rm);
+      path.lineTo(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r);
+      p.stroke(path, { col: 'rgb(255,255,255)', alpha: grey(110 + R() * 80), height: grey(FLAT - 8) }, S * 0.0035);
+    }
+  }
+  p.fill(ragged(R, cx, cy, S * 0.012, 7, 0.3), { col: 'rgb(20,18,16)', alpha: grey(255), height: grey(FLAT - 40) });
+}
+
+/* a painted advertisement on a gable, years old (only pinned, damage.js): a panel of colour with the
+   lettering on it as a sign painter laid it out, a line round it, a shadow under the letters; faded,
+   bleached in blotches, the paint flaked away in patches (most low down, where the rain splashes)
+   and washed thin in streaks down from its top. Three trades, no brands; and the occupiers' own,
+   whitewashed over a wall of the square four years ago, black capitals (their decree of 1941 put
+   an end to the old black letter), weathered less (age) */
+const ADS = [
+  { panel: [100, 46, 38], ink: [206, 194, 162], big: 'VINS FINS', small: 'LIQUEURS  ·  BIÈRES', serif: true },
+  { panel: [46, 56, 78], ink: [216, 212, 198], small2: [188, 160, 86], big: 'QUINQUINA', small: 'APÉRITIF', serif: true },
+  { panel: [190, 182, 158], ink: [40, 36, 32], big: 'CAFÉ · TABAC', small: 'BILLARD  ·  JEUX', serif: false },
+  { panel: [204, 200, 188], ink: [22, 20, 18], big: 'ORTSKOMMANDANTUR', small: 'EINGANG IM HOF', serif: false, age: 0.55 },
+];
+function wallAd(p, R, cx, cy, S, variant) {
+  const ad = ADS[variant % ADS.length], all = [p.col, p.alpha, p.height];
+  // drawn as the wall stands: the canvas's rows run up the wall, so flipped about the middle
+  for (const g of all) { g.save(); g.translate(0, 2 * cy); g.scale(1, -1); }
+  const w = S * 0.94, h = S * 0.42, x0 = cx - w / 2, y0 = cy - h / 2;
+  const rgb = (c, k = 1) => `rgb(${Math.min(255, c[0] * k) | 0},${Math.min(255, c[1] * k) | 0},${Math.min(255, c[2] * k) | 0})`;
+  const box = (x, y, bw, bh) => { const path = new Path2D(); path.rect(x, y, bw, bh); return path; };
+  // faded: the wall shows through it
+  p.fill(box(x0, y0, w, h), { col: rgb(ad.panel), alpha: grey(160) });
+  // bleached and darkened in big soft blotches
+  for (let k = 0; k < 7; k++) {
+    const x = x0 + R() * w, y = y0 + R() * h, r = S * (0.08 + R() * 0.15);
+    const gr = p.col.createRadialGradient(x, y, 0, x, y, r), c = R() < 0.6 ? rgb(ad.panel, 1.25) : rgb(ad.panel, 0.75);
+    gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    p.col.fillStyle = gr; p.col.globalAlpha = 0.5; p.col.fill(box(x0, y0, w, h)); p.col.globalAlpha = 1;
+  }
+  p.stroke(box(x0 + S * 0.018, y0 + S * 0.018, w - S * 0.036, h - S * 0.036), { col: rgb(ad.ink), alpha: grey(170) }, S * 0.007);
+  const font = (px) => `bold ${px | 0}px ` + (ad.serif ? 'Georgia, "Times New Roman", Times, serif' : '"Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif');
+  const text = (str, y, px, maxW, ink) => {
+    for (const g of [p.col, p.alpha]) {
+      g.font = font(px); g.textAlign = 'center'; g.textBaseline = 'middle';
+      const k = Math.min(1, maxW / g.measureText(str).width);
+      g.save(); g.translate(cx, y); g.scale(k, 1);
+      // the shadow the sign painter laid under each letter, then the letter
+      g.fillStyle = g === p.col ? rgb(ad.panel, 0.45) : grey(172);
+      g.fillText(str, px * 0.05 / k, px * 0.06);
+      g.fillStyle = g === p.col ? rgb(ink) : grey(196);
+      g.fillText(str, 0, 0);
+      g.restore();
+    }
+  };
+  text(ad.big, y0 + h * 0.42, h * 0.5, w * 0.86, ad.ink);
+  text(ad.small, y0 + h * 0.8, h * 0.15, w * 0.66, ad.small2 || ad.ink);
+  // weathered: flaked away in patches along its edges and low down (where the rain splashes), its
+  // lettering mostly spared (a sign that can no longer be read is no sign); washed thin in streaks
+  // down from the top
+  const age = ad.age ?? 1;
+  for (let k = 0; k < 44 * age; k++) {
+    let x, y;
+    if (k % 2) { x = x0 + R() * w; y = y0 + h * (0.86 + 0.16 * R()); }
+    else {
+      const e = R() * 2 * (w + h);
+      x = e < w ? x0 + e : e < w + h ? x0 + w : e < 2 * w + h ? x0 + (e - w - h) : x0;
+      y = e < w ? y0 : e < w + h ? y0 + (e - w) : e < 2 * w + h ? y0 + h : y0 + (e - 2 * w - h);
+      x += (R() - 0.5) * S * 0.04; y += (R() - 0.5) * S * 0.04;
+    }
+    p.alpha.fillStyle = `rgba(0,0,0,${(0.5 + R() * 0.5).toFixed(2)})`;
+    p.alpha.fill(ragged(R, x, y, S * (0.006 + R() * R() * 0.03), 7, 0.45));
+  }
+  for (let k = 0; k < 26 * age; k++) {
+    const x = x0 + R() * w, len = h * (0.3 + R() * 0.8), path = new Path2D();
+    path.moveTo(x, y0 - S * 0.01); path.lineTo(x + (R() - 0.5) * S * 0.01, y0 + len);
+    const fade = p.alpha.createLinearGradient(x, y0, x, y0 + len);
+    fade.addColorStop(0, `rgba(0,0,0,${(0.25 + R() * 0.35).toFixed(2)})`); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    p.alpha.strokeStyle = fade; p.alpha.lineWidth = S * (0.006 + R() * 0.012); p.alpha.stroke(path);
+  }
+  for (const g of all) g.restore();
+}
+
+/* a boot's print in the mud (only pinned, prints.js), the toe towards the decal's up (the canvas's
+   down): the sole and the heel sunk in, the mud they pushed aside a ragged rim round them, the
+   hobnails and the heel iron printed as pits in the floor. Left and right; a scuffed one, the heel
+   slid and washed out; and one with the rain standing in it, a flat dark pool */
+function bootPrint(p, R, cx, cy, S, variant) {
+  const right = variant % 2 === 1, scuffed = variant === 2, pool = variant === 3, mx = right ? -1 : 1;
+  const X = (a) => cx + a * S * mx, Y = (b) => cy + b * S;
+  const sole = new Path2D();
+  sole.moveTo(X(0.02), Y(0.43));
+  sole.bezierCurveTo(X(0.13), Y(0.43), X(0.18), Y(0.33), X(0.17), Y(0.24));
+  sole.bezierCurveTo(X(0.16), Y(0.12), X(0.13), Y(0.04), X(0.12), Y(-0.04));
+  sole.lineTo(X(-0.07), Y(-0.04));
+  sole.bezierCurveTo(X(-0.09), Y(0.04), X(-0.14), Y(0.12), X(-0.15), Y(0.22));
+  sole.bezierCurveTo(X(-0.15), Y(0.35), X(-0.09), Y(0.43), X(0.02), Y(0.43));
+  sole.closePath();
+  const heel = new Path2D();
+  const hb = scuffed ? -0.5 : -0.42;           // a slid heel drags back
+  heel.moveTo(X(-0.1), Y(-0.12));
+  heel.lineTo(X(0.11), Y(-0.12));
+  heel.bezierCurveTo(X(0.12), Y(-0.3), X(0.08), Y(hb), X(0.0), Y(hb));
+  heel.bezierCurveTo(X(-0.08), Y(hb), X(-0.11), Y(-0.3), X(-0.1), Y(-0.12));
+  heel.closePath();
+  const parts = scuffed ? [sole] : [sole, heel];
+  // the mud pushed up round it, ragged and soft
+  for (const part of parts) {
+    p.stroke(part, { alpha: grey(70), height: grey(FLAT + 10) }, S * 0.09);
+    p.stroke(part, { col: 'rgb(58,47,36)', alpha: grey(150), height: grey(FLAT + 20) }, S * 0.045);
+  }
+  for (let k = 0; k < 14; k++) {
+    const a = (R() - 0.5) * 0.4, b = (R() - 0.45) * 0.9;
+    p.fill(ragged(R, X(a), Y(b), S * (0.02 + R() * 0.03), 7, 0.4), { col: 'rgb(60,49,37)', alpha: grey(90), height: grey(FLAT + 14) });
+  }
+  // sunk in: the floor darker, wetter
+  for (const part of parts) p.fill(part, { col: 'rgb(36,29,22)', alpha: grey(235), height: grey(FLAT - 55) });
+  if (scuffed) {
+    // the heel's slide, shallower, smeared
+    p.fill(ragged(R, X(0.0), Y(-0.3), S * 0.13, 11, 0.35, 1.6), { col: 'rgb(42,34,26)', alpha: grey(200), height: grey(FLAT - 30) });
+  } else {
+    // the heel iron: a horseshoe groove round the heel's edge
+    const iron = new Path2D();
+    iron.moveTo(X(-0.085), Y(-0.15));
+    iron.bezierCurveTo(X(-0.095), Y(-0.31), X(-0.06), Y(-0.39), X(0.0), Y(-0.39));
+    iron.bezierCurveTo(X(0.065), Y(-0.39), X(0.1), Y(-0.31), X(0.095), Y(-0.15));
+    p.stroke(iron, { col: 'rgb(24,19,15)', height: grey(FLAT - 80) }, S * 0.014);
+  }
+  // the hobnails: pits in a row down each edge of the sole, and scattered over the ball
+  for (let k = 0; k < 12; k++) {
+    const b = -0.01 + 0.38 * (k / 11), w = 0.75 + 0.25 * Math.sin(Math.PI * (k / 11));
+    p.fill(disc(X(0.125 * w), Y(b), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+    p.fill(disc(X(-0.11 * w), Y(b), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+  }
+  for (let k = 0; k < 12; k++) {
+    p.fill(disc(X(-0.07 + R() * 0.16), Y(0.12 + R() * 0.22), S * 0.009), { col: 'rgb(22,18,14)', height: grey(FLAT - 78) });
+  }
+  if (pool) {
+    // the rain standing in it: level, dark, the floor gone under it
+    p.fill(ragged(R, X(0.01), Y(0.17), S * 0.13, 12, 0.25, 1.8), { col: 'rgb(24,25,27)', alpha: grey(245), height: grey(FLAT - 50) });
+    p.fill(ragged(R, X(0.0), Y(-0.27), S * 0.09, 10, 0.25, 1.4), { col: 'rgb(24,25,27)', alpha: grey(245), height: grey(FLAT - 50) });
+  }
+}
+
 /* a blast's scorch on the ground, burnt out from the middle in streaks */
 function scorchMark(p, R, cx, cy, S) {
   const burnt = p.alpha.createRadialGradient(cx, cy, 0, cx, cy, S * 0.48);
@@ -334,16 +496,186 @@ function scorchMark(p, R, cx, cy, S) {
   }
 }
 
+/* the cells of a Voronoi diagram of `sites` ([x, y] ...) over the square S wide round (cx, cy): each
+   site's cell the square cut down to the half-planes nearer it than each other site */
+function voronoi(sites, cx, cy, S) {
+  const box = [[cx - S / 2, cy - S / 2], [cx + S / 2, cy - S / 2], [cx + S / 2, cy + S / 2], [cx - S / 2, cy + S / 2]];
+  return sites.map(([x, y], i) => {
+    let poly = box;
+    for (let j = 0; j < sites.length && poly.length > 2; j++) {
+      if (j === i) continue;
+      const [ox, oy] = sites[j], nx = ox - x, ny = oy - y, c = (nx * (x + ox) + ny * (y + oy)) / 2, out = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const da = nx * a[0] + ny * a[1] - c, db = nx * b[0] + ny * b[1] - c;
+        if (da <= 0) out.push(a);
+        if ((da < 0) !== (db < 0) && da !== db) { const t = da / (da - db); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+      }
+      poly = out;
+    }
+    return poly;
+  });
+}
+
+/* rough stones laid in rough courses, packed in their mortar: a Voronoi cell each, drawn in from its
+   neighbours by the joint, its edges knocked about, its face a little proud in the middle */
+function rubble(p, R, cx, cy, S) {
+  const tones = [[138, 131, 118], [122, 117, 106], [150, 141, 124], [112, 107, 99], [134, 122, 100], [102, 97, 89]];
+  const sites = [];
+  for (let y = cy - S * 0.55; y < cy + S * 0.55;) {
+    const h = S * (0.08 + R() * 0.04);
+    for (let x = cx - S * 0.55 + R() * S * 0.06; x < cx + S * 0.55;) {
+      const w = S * (0.09 + R() * 0.09);
+      sites.push([x + w * (0.4 + R() * 0.2), y + h * (0.3 + R() * 0.4)]);
+      x += w;
+    }
+    y += h;
+  }
+  const gap = S * 0.011;
+  for (const cell of voronoi(sites, cx, cy, S * 1.1)) {
+    if (cell.length < 3) continue;
+    let mx = 0, my = 0;
+    for (const [x, y] of cell) { mx += x; my += y; }
+    mx /= cell.length; my /= cell.length;
+    let r = 0;
+    for (const [x, y] of cell) r = Math.max(r, Math.hypot(x - mx, y - my));
+    // drawn in by the joint, each edge broken once, the corners knocked off unevenly
+    const path = new Path2D();
+    cell.forEach(([x, y], k) => {
+      const [nx2, ny2] = cell[(k + 1) % cell.length], d = Math.hypot(mx - x, my - y) || 1, inset = gap * (0.7 + R() * 0.9);
+      const px = x + ((mx - x) / d) * inset, py = y + ((my - y) / d) * inset;
+      path[k ? 'lineTo' : 'moveTo'](px, py);
+      const ex = (x + nx2) / 2, ey = (y + ny2) / 2, de = Math.hypot(mx - ex, my - ey) || 1, ie = gap * (0.5 + R() * 1.4);
+      path.lineTo(ex + ((mx - ex) / de) * ie, ey + ((my - ey) / de) * ie);
+    });
+    path.closePath();
+    const t = tones[Math.floor(R() * tones.length)], f = 0.86 + R() * 0.24;
+    const tone = (k) => `rgb(${(t[0] * f * k) | 0},${(t[1] * f * k) | 0},${(t[2] * f * k) | 0})`;
+    // lit a little from above (the canvas's rows run up the wall)
+    const col = p.col.createLinearGradient(mx, my - r, mx, my + r);
+    col.addColorStop(0, tone(0.84)); col.addColorStop(1, tone(1.04));
+    const hg = p.height.createRadialGradient(mx, my, 0, mx, my, r);
+    hg.addColorStop(0, grey(FLAT - 14)); hg.addColorStop(1, grey(FLAT - 32));
+    p.fill(path, { col, alpha: grey(255), height: hg });
+    // pits and spalls in its face
+    for (let k = 0, m = Math.floor(R() * 4); k < m; k++) {
+      const a = R() * Math.PI * 2, d = r * 0.5 * R();
+      p.fill(ragged(R, mx + Math.cos(a) * d, my + Math.sin(a) * d, S * (0.004 + R() * 0.01), 6, 0.4), { col: tone(0.72), height: grey(FLAT - 34) });
+    }
+  }
+}
+
+/* brick in its courses, each course half a brick over, a corner knocked off here and there */
+function bricks(p, R, cx, cy, S) {
+  const h = S * 0.042, w = S * 0.125, gap = S * 0.008;
+  const tones = [[118, 76, 60], [102, 68, 56], [128, 88, 70], [92, 62, 52], [112, 82, 66], [84, 60, 52]];
+  for (let row = 0, y = cy - S * 0.5; y < cy + S * 0.5; row++, y += h) {
+    for (let x = cx - S * 0.5 - (row % 2) * w * 0.5; x < cx + S * 0.5; x += w) {
+      const t = tones[Math.floor(R() * tones.length)], f = 0.85 + R() * 0.25, j = () => (R() - 0.5) * gap * 0.6;
+      const tone = (k) => `rgb(${(t[0] * f * k) | 0},${(t[1] * f * k) | 0},${(t[2] * f * k) | 0})`;
+      const path = new Path2D();
+      path.moveTo(x + gap / 2 + j(), y + gap / 2 + j()); path.lineTo(x + w - gap / 2 + j(), y + gap / 2 + j());
+      path.lineTo(x + w - gap / 2 + j(), y + h - gap / 2 + j()); path.lineTo(x + gap / 2 + j(), y + h - gap / 2 + j());
+      path.closePath();
+      p.fill(path, { col: tone(1), alpha: grey(255), height: grey(FLAT - 26 - R() * 6) });
+      if (R() < 0.35) p.fill(ragged(R, x + (R() < 0.5 ? gap : w - gap), y + (R() < 0.5 ? gap : h - gap), h * 0.4, 6, 0.4), { col: tone(0.7), height: grey(FLAT - 44) });
+    }
+  }
+}
+
+/* plaster blown off a wall down to what it was laid on, a few centimetres back: rubble stone in its
+   mortar (now and then brick), the break's edge pale (the plaster's own thickness) and proud of it,
+   flakes gone and cracks running out round it, its dust washed down the wall below. Wider than tall,
+   it keeps within an ellipse 0.94 by 0.62 of the square (damage.js fits that onto open wall). One
+   variant of the four is brick. (The canvas's rows run up the wall, so below is up the canvas.) */
+function plasterBreak(p, R, cx, cy, S, variant) {
+  const brick = variant === 3, shape = new Path2D(), lobes = [];
+  for (let k = 0, m = 4 + Math.floor(R() * 3); k < m; k++) {
+    const t = (k + 0.5) / m - 0.5, r = S * (0.11 + R() * 0.05), rx = r * (1.05 + R() * 0.3), ry = r * (0.8 + R() * 0.25);
+    const x = cx + t * S * 0.5 + (R() - 0.5) * S * 0.06, y = cy + (R() - 0.5) * S * 0.12;
+    lobes.push([x, y, rx, ry]);
+    shape.addPath(ragged(R, x, y, rx, 26, 0.2, ry / rx));
+  }
+  const room = (x, y) => S * 0.47 - Math.hypot(x - cx, (y - cy) / 0.66);
+  const edge = () => {
+    const [x, y, rx, ry] = lobes[Math.floor(R() * lobes.length)], a = R() * Math.PI * 2;
+    return [x + Math.cos(a) * rx, y + Math.sin(a) * ry, a];
+  };
+  // the plaster round it loosened and dirtied
+  p.alpha.save();
+  p.alpha.translate(cx, cy); p.alpha.scale(1, 0.66);
+  const halo = p.alpha.createRadialGradient(0, 0, S * 0.25, 0, 0, S * 0.47);
+  halo.addColorStop(0, grey(48)); halo.addColorStop(1, grey(0));
+  p.alpha.fillStyle = halo; p.alpha.fill(disc(0, 0, S * 0.47));
+  p.alpha.restore();
+  // the dust of it washed down the wall
+  for (let k = 0; k < 4; k++) {
+    const [x, y, rx, ry] = lobes[Math.floor(R() * lobes.length)];
+    const sx = x + (R() - 0.5) * rx * 1.2, sy = y - ry * 0.7, len = Math.min(S * (0.05 + R() * 0.08), sy - (cy - S * 0.3));
+    if (len < S * 0.03) continue;
+    const path = new Path2D();
+    path.moveTo(sx, sy); path.lineTo(sx + (R() - 0.5) * S * 0.03, sy - len);
+    const fade = p.alpha.createLinearGradient(sx, sy, sx, sy - len);
+    fade.addColorStop(0, grey(34)); fade.addColorStop(1, grey(0));
+    p.stroke(path, { col: 'rgb(150,145,134)', alpha: fade }, S * (0.012 + R() * 0.012));
+  }
+  // cracks running out into what still holds, flakes gone round the edge
+  for (let k = 0, m = 4 + Math.floor(R() * 4); k < m; k++) {
+    const [x, y, a] = edge(), rm = room(x, y);
+    if (rm < S * 0.04) continue;
+    p.stroke(crack(R, x, y, a, Math.min(rm, S * (0.05 + R() * 0.11)), 6), { col: 'rgb(56,52,47)', alpha: grey(160), height: grey(FLAT - 24) }, S * (0.003 + R() * 0.003));
+  }
+  for (let k = 0; k < 16; k++) {
+    const [x, y, a] = edge(), d = S * (0.005 + R() * 0.03), fx = x + Math.cos(a) * d, fy = y + Math.sin(a) * d;
+    if (room(fx, fy) < S * 0.03) continue;
+    p.fill(ragged(R, fx, fy, S * (0.006 + R() * 0.014), 7, 0.4), { col: 'rgb(146,139,126)', alpha: grey(255), height: grey(FLAT - 14) });
+  }
+  // the break's edge: a hairline where the plaster came away, then the plaster's thickness, pale
+  // (stroked round every lobe: what falls inside the break is painted over next)
+  p.stroke(shape, { col: 'rgb(62,58,52)', alpha: grey(70), height: grey(FLAT - 22) }, S * 0.02);
+  // pale where it broke off clean, in stretches
+  const dash = [];
+  for (let k = 0; k < 24; k++) dash.push(S * (0.01 + R() * 0.05));
+  for (const g of [p.col, p.alpha]) g.setLineDash(dash);
+  p.stroke(shape, { col: 'rgb(200,193,180)', alpha: grey(130) }, S * 0.013);
+  for (const g of [p.col, p.alpha]) g.setLineDash([]);
+  // and in it, set back, what it was laid on
+  const all = [p.col, p.alpha, p.height];
+  for (const g of all) { g.save(); g.clip(shape); }
+  const back = new Path2D();
+  back.rect(cx - S / 2, cy - S / 2, S, S);
+  p.fill(back, { col: 'rgb(78,72,64)', alpha: grey(255), height: grey(FLAT - 54) });
+  (brick ? bricks : rubble)(p, R, cx, cy, S);
+  // in the shade of the plaster's lip near the edge: the break blurred, and darkened where that is thin
+  const mask = document.createElement('canvas');
+  mask.width = mask.height = p.S;
+  const mg = mask.getContext('2d');
+  mg.filter = `blur(${(S * 0.03).toFixed(1)}px)`;
+  mg.fillStyle = '#fff';
+  mg.fill(shape);
+  const shade = document.createElement('canvas');
+  shade.width = shade.height = p.S;
+  const sg = shade.getContext('2d');
+  sg.fillStyle = '#000';
+  sg.fillRect(0, 0, p.S, p.S);
+  sg.globalCompositeOperation = 'destination-out';
+  sg.drawImage(mask, 0, 0);
+  p.col.globalAlpha = 0.7;
+  p.col.drawImage(shade, 0, 0);
+  p.col.globalAlpha = 1;
+  for (const g of all) g.restore();
+}
+
 /* A kind's four variants as textures: the colour with how much of it shows, the relief as a
    normal map (`relief`: how steep a slope of the height comes out) and, for metal, roughness
    and metalness (green and blue). */
-function decalSet(paint, seed, ground, relief, bare = false) {
-  const S = CELL * 2, n = S * S, R = rng(seed);
+function decalSet(paint, seed, ground, relief, bare = false, cell = CELL) {
+  const S = cell * 2, n = S * S, R = rng(seed);
   const p = painter(S, ground, bare);
   for (let i = 0; i < 4; i++) {
-    const x = (i % 2) * CELL, y = (i >> 1) * CELL;
-    p.clip(x, y, CELL);
-    paint(p, R, x + CELL / 2, y + CELL / 2, CELL);
+    const x = (i % 2) * cell, y = (i >> 1) * cell;
+    p.clip(x, y, cell);
+    paint(p, R, x + cell / 2, y + cell / 2, cell, i);
     p.unclip();
   }
   const data = (g) => g.getImageData(0, 0, S, S).data;
@@ -418,6 +750,9 @@ function decalMaterial(set, shared) {
       #endif
       #ifdef USE_METALNESSMAP
         vMetalnessMapUv = vMetalnessMapUv * 0.5 + aCell;
+      #endif
+      #ifdef USE_EMISSIVEMAP
+        vEmissiveMapUv = vEmissiveMapUv * 0.5 + aCell;
       #endif`)
       .replace('#include <project_vertex>', `#include <project_vertex>
       mvPosition.xyz -= normalize(mvPosition.xyz) * min(${PULL.toFixed(3)}, length(mvPosition.xyz) * 0.2);
@@ -434,7 +769,10 @@ function decalMaterial(set, shared) {
   return mat;
 }
 
-export function createDecals({ max = 200, shared = null } = {}) {
+/* `pinned`: room for how many of each kind are put down for good with pin() (the walls' old damage,
+   damage.js), before the fighting starts; those never make way for new ones. Plaster breaks
+   ('spall') are only ever pinned. */
+export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   const group = new THREE.Group();
   group.name = 'decals';
   const sets = {
@@ -443,59 +781,110 @@ export function createDecals({ max = 200, shared = null } = {}) {
     metal: decalSet(metalHole, 777, 'rgb(150,151,154)', 20, true),
     splat: decalSet(mudSplat, 3301, 'rgb(44,35,26)', 14),
     scorch: decalSet(scorchMark, 6, 'rgb(12,11,9)', 0),
+    glass: decalSet(glassCrack, 2718, 'rgb(255,255,255)', 10),
   };
+  // a break a metre or more across: painted at twice the texels
+  if (pinned.spall) sets.spall = decalSet(plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2);
+  // and the old painted advertisements on the gables
+  if (pinned.sign) sets.sign = decalSet(wallAd, 1937, 'rgb(120,100,80)', 0, false, CELL * 2);
+  // and the boots that went along the lanes before (prints.js)
+  if (pinned.boot) sets.boot = decalSet(bootPrint, 1940, 'rgb(46,37,28)', 16);
   const kinds = {};
   for (const k in sets) {
-    const cap = k === 'scorch' ? 24 : max;
+    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' || k === 'sign' || k === 'boot' ? 0 : k === 'glass' ? 60 : max) + fixed;
     const geo = new THREE.PlaneGeometry(1, 1);
     const cells = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2);
     geo.setAttribute('aCell', cells);
     const m = new THREE.InstancedMesh(geo, decalMaterial(sets[k], shared), cap);
+    // the cracks in a lit window catch the room's light behind them
+    if (k === 'glass') { m.material.emissive.set('#ffcc94'); m.material.emissiveMap = sets[k].map; m.material.emissiveIntensity = 0.9; }
     m.count = 0;
     m.frustumCulled = false;
-    m.renderOrder = 2;
+    // the signs under the breaks, the breaks under the holes: old damage goes through the paint,
+    // new shots land in old damage
+    m.renderOrder = k === 'sign' ? 0.5 : k === 'spall' || k === 'boot' ? 1 : 2;
     m.receiveShadow = true;
     group.add(m);
-    kinds[k] = { mesh: m, cells, cursor: 0, n: 0, cap };
+    kinds[k] = { mesh: m, cells, cursor: 0, n: 0, cap, fixed, base: 0 };
   }
   const n = new THREE.Vector3(), up = new THREE.Vector3(), side = new THREE.Vector3();
   const mtx = new THREE.Matrix4(), turn = new THREE.Matrix4();
 
-  /* A decal `size` across on a surface facing (nx, ny, nz): turned at random, or (along the
-     grain) with its up along the surface's. */
-  function add(kind, x, y, zz, nx, ny, nz, size, grain = false) {
-    const K = kinds[kind];
-    if (!K) return;
+  /* Decal i of a kind, `size` across on a surface facing (nx, ny, nz): turned at random, or (along
+     the grain) with its up along the surface's, give or take, or (upright) exactly, or by `angle`
+     from that; its variant at random, or the one asked for. */
+  function put(K, i, x, y, zz, nx, ny, nz, size, grain, R, upright = false, variant = -1, angle = null) {
     n.set(nx, ny, nz).normalize();
     // its up: the world's laid on the surface (on a floor, any)
     up.set(0, 1, 0).addScaledVector(n, -n.y);
     if (up.lengthSq() < 0.04) up.set(1, 0, 0).addScaledVector(n, -n.x);
     up.normalize();
     side.crossVectors(up, n);
-    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(grain ? (Math.random() - 0.5) * 0.4 : Math.random() * Math.PI * 2));
+    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(angle ?? (upright ? 0 : grain ? (R() - 0.5) * 0.4 : R() * Math.PI * 2)));
     mtx.scale(side.set(size, size, 1));
     mtx.setPosition(x + n.x * 0.012, y + n.y * 0.012, zz + n.z * 0.012);
-    K.mesh.setMatrixAt(K.cursor, mtx);
-    const v = Math.floor(Math.random() * 4);
-    K.cells.setXY(K.cursor, (v % 2) * 0.5, (v >> 1) * 0.5);
-    K.cursor = (K.cursor + 1) % K.cap;
-    K.n = Math.min(K.cap, K.n + 1);
-    K.mesh.count = K.n;
+    K.mesh.setMatrixAt(i, mtx);
+    const v = variant >= 0 ? variant % 4 : Math.floor(R() * 4);
+    K.cells.setXY(i, (v % 2) * 0.5, (v >> 1) * 0.5);
     K.mesh.instanceMatrix.needsUpdate = true;
     K.cells.needsUpdate = true;
+  }
+
+  function add(kind, x, y, zz, nx, ny, nz, size, grain = false) {
+    const K = kinds[kind];
+    if (!K || K.cap === K.base) return;
+    put(K, K.cursor, x, y, zz, nx, ny, nz, size, grain, Math.random);
+    K.n = Math.max(K.n, K.cursor + 1);
+    K.cursor = K.cursor + 1 < K.cap ? K.cursor + 1 : K.base;
+    K.mesh.count = K.n;
+  }
+
+  /* One for good (before any add() of its kind); false once its kind's pinned room is full. */
+  function pin(kind, x, y, zz, nx, ny, nz, size, grain = false, R = Math.random, upright = false, variant = -1, angle = null) {
+    const K = kinds[kind];
+    if (!K || K.base >= K.fixed) return false;
+    put(K, K.base++, x, y, zz, nx, ny, nz, size, grain, R, upright, variant, angle);
+    K.cursor = Math.max(K.cursor, K.base);
+    K.n = Math.max(K.n, K.base);
+    K.mesh.count = K.n;
+    return true;
+  }
+
+  /* the lit panes (rooms.js paneRects), and the one a hit on a wall at (x, y, z) went into ({x, y, z,
+     n}, or null): the collider's face is in front of the window's recess, so the hit is carried back
+     along the pane's facing onto the glass (the effects ask too, effects.js setPaneAt) */
+  let panes = [];
+  function setPanes(list) { panes = list || []; }
+  const v = new THREE.Vector3();
+  function paneAt(x, y, zz) {
+    let best = null, bd = Infinity;
+    for (const g of panes) {
+      v.set(x - g.c.x, y - g.c.y, zz - g.c.z);
+      const d = v.dot(g.n);
+      if (d < -0.1 || d > 0.6 || d >= bd) continue;
+      const s = v.dot(g.T), u = v.dot(g.B);
+      if (Math.abs(s) > g.hw || Math.abs(u) > g.hh) continue;
+      bd = d;
+      best = { x: g.c.x + g.T.x * s + g.B.x * u, y: g.c.y + g.T.y * s + g.B.y * u, z: g.c.z + g.T.z * s + g.B.z * u, n: g.n };
+    }
+    return best;
   }
 
   /* A bullet impact by surface. */
   function impact(x, y, zz, nx, ny, nz, surface) {
     if (surface === 'water' || surface === 'foliage' || surface === 'flesh') return;
     const r = Math.random();
+    if ((surface === 'stone' || surface === 'wood') && panes.length) {
+      const g = paneAt(x, y, zz);
+      if (g) { add('glass', g.x, g.y, g.z, g.n.x, g.n.y, g.n.z, 0.24 + r * 0.14); return; }
+    }
     if (surface === 'mud' || surface === 'grass' || surface === 'forest' || surface === 'dirt') add('splat', x, y, zz, nx, ny, nz, 0.3 + r * 0.22);
     else if (surface === 'wood') add('wood', x, y, zz, nx, ny, nz, 0.17 + r * 0.08, true);
     else if (surface === 'metal') add('metal', x, y, zz, nx, ny, nz, 0.12 + r * 0.05);
     else add('stone', x, y, zz, nx, ny, nz, (surface === 'sandbag' ? 0.12 : 0.16) + r * 0.07);
   }
 
-  function clear() { for (const K of Object.values(kinds)) { K.n = 0; K.cursor = 0; K.mesh.count = 0; } }
+  function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; } }
 
-  return { group, add, impact, clear };
+  return { group, add, pin, impact, clear, setPanes, paneAt };
 }

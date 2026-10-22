@@ -18,7 +18,8 @@ import { createVegetation } from './vegetation.js';
 import { createWaterMaterial } from './materials.js';
 import { buildCoverPoints } from './ai.js';
 import { buildDistance } from './distance.js';
-import { rectDistance, smoothstep, lerp, DEG, polylineDistance } from './util.js';
+import { CAPPED, FIRE_FOG } from './lights.js';
+import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './util.js';
 
 const SURFACE = (name) => {
   if (/^(house|church|wall|fountain|cross|bridge|ruin)/.test(name)) return 'stone';
@@ -72,7 +73,11 @@ export function buildLevel(G, L, quality) {
   };
 
   /* ---------- 2. terrain and world ---------- */
-  const terrain = createTerrain({ bounds: L.bounds, height, splat: L.splat, fine: L.fine }, G.textures, G.shared);
+  // the ground round the shell craters drawn at the fine grid too: where rainwater stands in one
+  // (ponds.js) its edge is where the water meets the mesh, which at the coarse grid's metre made a
+  // crater's bowl a handful of facets and the water's edge a polygon
+  const fine = [...(L.fine || []), ...(L.craters || []).map((c) => [c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r])];
+  const terrain = createTerrain({ bounds: L.bounds, height, splat: L.splat, fine }, G.textures, G.shared);
   G.scene.add(terrain.group);
   const far = buildDistance(G, L, { models, matlib: G.matlib, material: terrain.material });
   G.scene.add(far.group);
@@ -89,6 +94,9 @@ export function buildLevel(G, L, quality) {
   const lamps = [];
   const fires = [];
   const contact = [];
+  const signposts = [];           // drawn with their painted boards by signs.js
+  const wires = [];               // the barbed wire, with a coil of concertina along it (wire.js)
+  const wrecks = [];              // burning, with bits of themselves burning round them
 
   for (const p of L.props) {
     const m = model(p.m);
@@ -107,6 +115,8 @@ export function buildLevel(G, L, quality) {
     if (p.id) placed.set(p.id, rec);
     if (p.veg) {
       veg.add(p.m, p.x, y, p.z, yaw, scale);
+    } else if (p.m === 'signpost') {
+      signposts.push({ x: p.x, y, z: p.z, yaw });
     } else if (SEPARATE.has(p.m)) {
       const o = instantiate(m, G.matlib);
       o.position.set(p.x, y, p.z);
@@ -121,18 +131,19 @@ export function buildLevel(G, L, quality) {
       batch.add(m, tmpM);
     }
     if (!p.veg && !/^(lamp_post|pole|signpost|bridge|log_bridge|trench_wall|duckboard|barbed|wall_lamp|ivy)/.test(p.m)) contact.push({ m, x: p.x, y, z: p.z, yaw, scale });
+    if (p.m === 'barbed_wire') wires.push({ x: p.x, y, z: p.z, yaw, len: (m.box.max.x - m.box.min.x) * scale });
     // lights
     if (p.light) {
       const a = worldAnchor(m, 'light', p.x, y, p.z, yaw, scale);
       if (a) {
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08, shadow: true }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 9, range: 14, flicker: 0.08, shadow: true, cone: CAPPED }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.6, 1.0, 0.06);
       }
     }
     for (const k of Object.keys(m.anchors)) {
       if (k === 'lantern') {
         const a = worldAnchor(m, k, p.x, y, p.z, yaw, scale);
-        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08, shadow: true }));
+        lamps.push(G.lights.addStatic({ x: a[0], y: a[1], z: a[2], color: '#ffb35c', intensity: 6, range: 11, flicker: 0.08, shadow: true, cone: CAPPED }));
         G.halos?.add(a[0], a[1], a[2], '#ffb066', 2.2, 0.9, 0.06);
         continue;
       }
@@ -143,9 +154,43 @@ export function buildLevel(G, L, quality) {
     }
     if (p.fire) {
       const a = worldAnchor(m, 'fire', p.x, y, p.z, yaw, scale) || worldAnchor(m, 'smoke', p.x, y, p.z, yaw, scale) || [p.x, y + 1, p.z];
-      fires.push(G.effects.addFire(a[0], a[1], a[2], 1.1));
-      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true });
+      fires.push(G.effects.addFire(a[0], a[1], a[2], p.fireSize ?? 1.1));
+      if (p.debris) wrecks.push(p);
+      G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true, fog: FIRE_FOG });
       G.halos?.add(a[0], a[1] + 1.0, a[2], '#ff7a30', 6, 0.7, 0.4);
+      // a house burning through and through (p.blaze: [x, y, z, size] in the model's own frame, as
+      // its anchors): flame all over its floor, showing in every opening and licking up its walls,
+      // with the burning bits (flames, embers, sparks; no plumes or glow on the clouds of their own)
+      // and out of the one smoke; and a light of its own where the first of them stands (by the
+      // door, where the light pours out into the street)
+      const c = Math.cos(yaw), s = Math.sin(yaw);
+      for (const [bx, by, bz, bs] of p.blaze || []) {
+        const f = G.effects.addDebris(p.x + (bx * c + bz * s) * scale, y + by * scale, p.z + (-bx * s + bz * c) * scale, bs * scale);
+        // each fainter than a fire on its own: in the house's openings they stand one behind another
+        f.smoke = false; f.gain = 0.45;
+      }
+      if (p.blaze?.length) {
+        const [bx, by, bz] = p.blaze[0];
+        G.lights.addStatic({ x: p.x + (bx * c + bz * s) * scale, y: y + (by + 1.4) * scale, z: p.z + (-bx * s + bz * c) * scale, color: '#ff8a3a', intensity: 18, range: 14, flicker: 0.5, fog: FIRE_FOG });
+      }
+    }
+    // still burning where the shelling left it (a charred beam, a log; p.burning: how big a fire): small
+    // flames on it, embers, a little smoke, and its flickering light on what is round it
+    if (p.burning) {
+      G.effects.addDebris(p.x, y + 0.2 * scale, p.z, p.burning);
+      G.lights.addStatic({ x: p.x, y: y + 1.0, z: p.z, color: '#ff8a3a', intensity: 16 * p.burning, range: 8 + 6 * p.burning, flicker: 0.5, fog: FIRE_FOG });
+    }
+  }
+
+  // the burning bits round a burning wreck: small fires of their own on the open ground near it,
+  // clear of anything solid (everything is placed by now)
+  for (const p of wrecks) {
+    const R = rng(Math.round(p.x * 31 + p.z * 17));
+    for (let k = 0, tries = 0; k < p.debris && tries < 40; tries++) {
+      const a = R() * Math.PI * 2, r = 1.8 + R() * 1.8, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      if (insideSolid(world, terrain, x, z)) continue;
+      G.effects.addDebris(x, terrain.height(x, z) + 0.02, z, 0.2 + R() * 0.15);
+      k++;
     }
   }
 
@@ -248,7 +293,7 @@ export function buildLevel(G, L, quality) {
   const cover = buildCoverPoints(world, terrain);
 
   // props: every prop as placed ({m: model, x, y, z, yaw, scale}; not the vegetation)
-  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact };
+  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact, signposts, wires };
 }
 
 /* Soft dark footprints on the ground under props and buildings: the
