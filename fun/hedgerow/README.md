@@ -276,7 +276,8 @@ by the blast that killed them, and drop their rifles.
     white-hot star in ragged orange tongues of burning gas, never the same
     twice, a few grains of powder flung on ahead of it; the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
-    cool; a blast flashes for a frame or two and throws up a geyser of wet
+    cool, and every few seconds a shower of sparks spat up out of the
+    flames, arcing over and falling back; a blast flashes for a frame or two and throws up a geyser of wet
     mud in dark jets and a spray of it in streaks, drawn after its fireball
     so the mud covers the fire it flies through, and rolls low dark spray
     and smoke along the ground (mud and dirt are lit on the side facing a
