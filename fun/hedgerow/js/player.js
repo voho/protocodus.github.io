@@ -36,7 +36,7 @@ export function createPlayer(G) {
     cooldown: 0, reloading: 0, switching: 0, spread: 0,
     cooking: -1, throwing: 0,
     vault: null, wading: 0,
-    stepAcc: 0, firedAt: -10, lastHurtDir: 0,
+    stepAcc: 0, steps: 0, firedAt: -10, lastHurtDir: 0,
     char: null, movingSpeed: 0, visible: 1, noise: 0,
     stats: null,
     yawFix: 0, pitchFix: 0, blocked: false, arms: { pitch: 0, yaw: 0, roll: 0 },
@@ -341,7 +341,7 @@ export function createPlayer(G) {
     // a wall nearer than the muzzle: the rifle comes down (next frame's pose)
     G.rig.forward(vDir);
     P.blocked = !!G.world.raycast(eyeW.x, eyeW.y, eyeW.z, vDir.x, vDir.y, vDir.z, w.reach || 0.8, SHOT, { noWater: true });
-    G.rig.updateFirstPerson(dt, eyeW, P.blocked ? null : sight, aiming, { moveSpeed: hSpeed, strafe, sprint: P.sprint });
+    G.rig.updateFirstPerson(dt, eyeW, P.blocked ? null : sight, aiming, { moveSpeed: hSpeed, strafe, sprint: P.sprint, steps: P.steps + P.stepAcc });
   }
 
   /* ---------- per frame ---------- */
@@ -558,6 +558,7 @@ export function createPlayer(G) {
       P.stepAcc += dt * hSpeed / (P.sprint ? 1.6 : 1.2);
       if (P.stepAcc > 1) {
         P.stepAcc = 0;
+        P.steps++;
         const surf = P.wading > 0.05 ? 'water' : G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z);
         G.audio.footstep(P.pos.x, P.pos.y, P.pos.z, surf, P.crouch ? 0.5 : P.sprint ? 1.2 : 0.8, true, { run: P.sprint, wet: G.shared.wet.value });
         if (surf === 'water') G.effects.splash(P.pos.x, G.world.water.level, P.pos.z, 0.5);

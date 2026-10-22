@@ -144,8 +144,10 @@ export function createCameraRig(camera, world) {
 
   /* First person. `eye`: his eyes this frame; `sight`: where the eye goes
      when aiming (behind the rear sight; null when the rifle is not up);
-     `strafe`: sideways speed (positive to his left), for the lean. */
-  rig.updateFirstPerson = (dt, eye, sight, aiming, { moveSpeed = 0, strafe = 0, sprint = false } = {}) => {
+     `strafe`: sideways speed (positive to his left), for the lean; `steps`:
+     the steps he has taken (whole ones at each footfall), so the head is
+     lowest as each foot comes down and sways to alternate sides. */
+  rig.updateFirstPerson = (dt, eye, sight, aiming, { moveSpeed = 0, strafe = 0, sprint = false, steps = null } = {}) => {
     settle(dt, aiming && !!sight, moveSpeed);
     rig.sprintT = damp(rig.sprintT, sprint ? 1 : 0, 6, dt);
     rig.forward(rig.dir);
@@ -153,9 +155,11 @@ export function createCameraRig(camera, world) {
     if (sight) desired.lerp(sight, smoothstep(0, 1, rig.aimT));
     // a slight bob of the head with his steps (the body is steadied; less still down the sights)
     const amp = 0.0018 * Math.min(moveSpeed, 5.5) * (1 - 0.75 * rig.aimT);
-    desired.y += Math.sin(rig.bob * 2) * amp;
-    desired.x += -Math.cos(rig.yaw) * Math.sin(rig.bob) * amp * 0.6;
-    desired.z += Math.sin(rig.yaw) * Math.sin(rig.bob) * amp * 0.6;
+    const down = steps != null ? -Math.cos(2 * Math.PI * steps) : Math.sin(rig.bob * 2);
+    const side = steps != null ? Math.sin(Math.PI * steps) : Math.sin(rig.bob);
+    desired.y += down * amp;
+    desired.x += -Math.cos(rig.yaw) * side * amp * 0.6;
+    desired.z += Math.sin(rig.yaw) * side * amp * 0.6;
     shakeAt(desired);
     camera.position.copy(desired);
     look.copy(desired).add(rig.dir);

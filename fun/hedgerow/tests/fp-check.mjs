@@ -224,4 +224,19 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(rig.forward(new THREE.Vector3()).angleTo(aim) < 1e-6, 'the aim is not moved');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing and a flinch feel right');
+/* The head bob keeps time with the feet: lowest as each foot comes down
+   (whole steps, when the footstep sounds), highest between, swaying to
+   alternate sides on alternate steps. */
+{
+  const camera = new THREE.PerspectiveCamera(68, 4 / 3, 0.05, 1000);
+  const rig = createCameraRig(camera, { raycast: () => null, terrain: null, water: null });
+  const eye = new THREE.Vector3(0, 1.6, 0);
+  const at = (steps) => { rig.updateFirstPerson(1 / 60, eye, null, false, { moveSpeed: 2.7, steps }); return camera.position.clone(); };
+  const foot = [0, 1, 2].map(at), mid = [0.5, 1.5].map(at);
+  const lowest = Math.max(...foot.map((p) => p.y)), highest = Math.min(...mid.map((p) => p.y));
+  console.log(`bob: the eye is ${((highest - lowest) * 1000).toFixed(1)} mm lower at each footfall than between, swaying ${(mid[0].x * 1000).toFixed(1)} and ${(mid[1].x * 1000).toFixed(1)} mm`);
+  assert.ok(lowest < highest - 0.005, 'the head is lowest as each foot comes down');
+  assert.ok(Math.sign(mid[0].x) === -Math.sign(mid[1].x) && Math.abs(mid[0].x) > 0.001, 'and sways to alternate sides');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch and the head bob feel right');
