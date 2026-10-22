@@ -160,7 +160,8 @@ const VERT = /* glsl */ `
 #define LIGHTS 8
 attribute vec3 aPos;
 attribute vec4 aColor;
-attribute vec4 aMisc;      // size, rotation, cell, dense (1: mud and dirt, lit on the side facing the light)
+attribute vec4 aMisc;      // size, rotation, cell; lit: dense (1: mud and dirt, lit on the side facing the light),
+                           // burning: the fewest pixels across it may shrink to (0: as small as it is)
 attribute vec3 aStretch;
 uniform float uFogDensity;
 uniform float uLit;        // 1: smoke and dust take the light; 0: fire and flashes make their own
@@ -182,7 +183,7 @@ void main() {
   vec3 wp;
   vec2 q = uv - 0.5;
   float sl = length(aStretch);
-  float widen = 1.0;
+  float widen = 1.0, grow = 1.0;
   if (sl > 1e-4) {
     vec3 axis = aStretch / sl;
     vec3 toCam = normalize(cameraPosition - p);
@@ -194,8 +195,14 @@ void main() {
     widen = w / size;
     wp = p + side * q.x * w + axis * q.y * (sl + size);
   } else {
+    // a flash far off (a muzzle's star at eighty metres is a pixel) is still a flash: so many pixels
+    // across at the least, a little dimmer the more it has grown
+    if (uLit < 0.5 && aMisc.w > 0.0) {
+      float px = 2.0 * max(-(viewMatrix * vec4(p, 1.0)).z, 0.05) * uScreen.y / projectionMatrix[1][1];
+      grow = max(1.0, aMisc.w * px / size);
+    }
     float c = cos(aMisc.y), s = sin(aMisc.y);
-    vec2 r = vec2(q.x * c - q.y * s, q.x * s + q.y * c) * size;
+    vec2 r = vec2(q.x * c - q.y * s, q.x * s + q.y * c) * size * grow;
     vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
     vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
     // a ring spreading on the water lies on it (turned to the eye it would stand up like a hoop)
@@ -208,7 +215,7 @@ void main() {
   // widened, a streak of dirt spreads its cover over the width; a burning one (a tracer, a
   // spark) is so much brighter than the frame can show that even a sliver of a pixel of it
   // would fill the pixel: it stays a bright line, a little brighter the thinner it really is
-  if (uLit > 0.5) vColor.a /= widen; else vColor.rgb *= sqrt(widen);
+  if (uLit > 0.5) vColor.a /= widen; else vColor.rgb *= sqrt(widen) * pow(grow, -0.35);
   if (uLit > 0.5) {
     // the night's light at this corner: the ambient (1 = as the colours were
     // chosen in the dark) and the lamps, fires and flashes near, falling off
@@ -325,7 +332,7 @@ function createSystem(max, atlas, additive, fog, shared) {
     P.cell[i] = o.cell; P.drag[i] = o.drag || 0; P.grav[i] = o.gravity || 0;
     P.streak[i] = o.streak || 0; P.fadeIn[i] = o.fadeIn || 0;
     P.ride[i] = o.ride || 0; P.swirl[i] = o.swirl || 0; P.ph[i] = (o.x * 1.7 + o.z * 2.3 + o.life * 5.1) % 6.2832;
-    P.dense[i] = o.dense ? 1 : 0;
+    P.dense[i] = o.dense ? 1 : o.minPx || 0;
     return i;
   }
 
@@ -500,11 +507,11 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     const v = 0.65 + R() * 0.7, heat = 0.6 + R() * 0.6;
     // a white-hot star at the muzzle in ragged tongues of the gas burning round it, each turned
     // its own way: seen head-on it reads as a flash with a shape and a colour, not a white ball
-    add.spawn({ x, y, z, life: 0.05, size: 0.26 * power * v, size1: 0.4 * power * v, color: C('#ffe4ae', 1, 1.8 * heat), color1: C('#ff9a40', 0, 1.2 * heat), cell: CELLS.flash, rot: R() * 6.28 });
+    add.spawn({ x, y, z, life: 0.05, size: 0.26 * power * v, size1: 0.4 * power * v, color: C('#ffe4ae', 1, 1.8 * heat), color1: C('#ff9a40', 0, 1.2 * heat), cell: CELLS.flash, rot: R() * 6.28, minPx: 14 });
     for (let k = 0; k < 2; k++) {
       add.spawn({
         x: x + dx * 0.05, y: y + dy * 0.05, z: z + dz * 0.05, life: 0.04, size: 0.34 * power * v, size1: 0.46 * power * v,
-        color: C('#ffa456', 0.9, 1.0 * heat), color1: C('#c04810', 0, 0.4), cell: CELLS.flame, rot: R() * 6.28,
+        color: C('#ffa456', 0.9, 1.0 * heat), color1: C('#c04810', 0, 0.4), cell: CELLS.flame, rot: R() * 6.28, minPx: 9,
       });
     }
     add.spawn({ x: x + dx * 0.12, y: y + dy * 0.12, z: z + dz * 0.12, vx: dx * 4, vy: dy * 4, vz: dz * 4, life: 0.045, size: 0.18 * power * (0.7 + R() * 0.6), size1: 0.28 * power * v, color: C('#fff0c0', 1, 2 * heat), color1: C('#ff9040', 0), cell: CELLS.flame, streak: 0.06, rot: 0 });
@@ -604,7 +611,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       });
       // on stone, concrete and steel the round strikes white-hot for a frame or two
       if (s.spark) {
-        add.spawn({ x: x + nx * 0.02, y: y + ny * 0.02, z: z + nz * 0.02, life: 0.035, size: 0.06, size1: 0.11, color: C('#ffe2b0', 1, 2.4), color1: C('#ff9a50', 0, 1.2), cell: CELLS.flash, rot: R() * 6.28 });
+        add.spawn({ x: x + nx * 0.02, y: y + ny * 0.02, z: z + nz * 0.02, life: 0.035, size: 0.06, size1: 0.11, color: C('#ffe2b0', 1, 2.4), color1: C('#ff9a50', 0, 1.2), cell: CELLS.flash, rot: R() * 6.28, minPx: 3 });
       }
     }
     for (let k = 0; k < s.n; k++) {

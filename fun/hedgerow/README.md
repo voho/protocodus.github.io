@@ -253,7 +253,8 @@ by the blast that killed them, and drop their rifles.
     falling through the light, seen only by the light they catch, each a
     tiny bright image of it: a cone of glittering streaks under a lamp's
     cap, rain falling through a fire's glow, a muzzle's or a shell's flash
-    lighting the rain round it for its few frames (the player's own, at the
+    lighting the rain close round it faintly for its few frames, as faint
+    as the sliver of a frame a real flash lasts (the player's own, at the
     eye, hardly), none under a roof or an eave (the top of what is over
     each of 6 x 6 cells of the box, from the world's rays, once per place);
     rings where drops land - on the first thing in their way from above, a
@@ -300,7 +301,10 @@ by the blast that killed them, and drop their rifles.
     `effects.js` (particles: smoke and dust lit by the nearest lamps,
     fires and flashes, soft where they meet the scene; a muzzle flash a
     white-hot star in ragged orange tongues of burning gas, never the same
-    twice, a few grains of powder flung on ahead of it; a round's hit
+    twice, a few grains of powder flung on ahead of it, its star and
+    tongues never smaller on screen than 14 and 9 pixels across however
+    far off the gun is (bigger and a little dimmer, so a machine gun at
+    eighty metres still flickers as a flash, not a stray pixel); a round's hit
     bursting out of the surface in two or three jets of its dust and grit
     shot out of the hole in a cone round its face, thrown on along the way
     the round glanced off, stopped short by the air in a third of a second,

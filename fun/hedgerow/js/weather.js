@@ -163,11 +163,12 @@ attribute float aSlot;           // which light
 uniform vec4 uLamp[6];           // each light (four lamps or fires, two flashes), w: its box's half-size (0: none)
 uniform vec4 uLampCol[6];        // its light, w: under a cap the cosine from straight down where it gives out (-2: none)
 uniform vec4 uShelter[54];       // per light, 6 x 6 cells over its box: the top of the first thing over each
+uniform float uLampFade[6];      // how much of its rain shows (a flash's: the sliver of a frame a real one lasts)
 uniform vec3 uVel;
 uniform float uTime, uLength, uWidth;
 uniform vec2 uScreen;
 uniform float uSoft;
-varying float vAlpha;
+varying float vAlpha, vFade;
 varying vec2 vUv;
 varying vec3 vLit;
 varying float vDist;
@@ -203,6 +204,7 @@ void main() {
   // a ball of it, fading out before the box's faces, none right by the eye
   vAlpha = (1.0 - smoothstep(0.6, 1.0, length(o) / R)) * smoothstep(1.2, 4.0, dist) * (uWidth / width)
     * (0.6 + 0.8 * fract(aDrop.w * 7.31 + aDrop.x * 3.7)) * open;
+  vFade = uLampFade[s];
   vUv = uv;
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   vDist = -mv.z;
@@ -215,7 +217,7 @@ uniform vec3 uColor;
 uniform float uOpacity, uSoft;
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
-varying float vAlpha;
+varying float vAlpha, vFade;
 varying vec2 vUv;
 varying vec3 vLit;
 varying float vDist;
@@ -227,12 +229,12 @@ void main() {
   }
   float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;
   float tail = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
-  float a = edge * tail * vAlpha * uOpacity * min(dot(vLit, vec3(0.33)) * 6.0, 1.0);
+  float a = edge * tail * vAlpha * uOpacity * min(dot(vLit, vec3(0.33)) * 6.0, 1.0) * vFade;
   if (a < 0.004) discard;
   // each drop a tiny image of the light, far brighter than the haze round it (or it is lost in it),
-  // short of blinding right by it
+  // short of blinding right by it (a flash's, for the sliver of the frame it lasts, fainter)
   vec3 c = vLit * 60.0;
-  c *= min(1.0, 16.0 / max(c.r, max(c.g, max(c.b, 1e-4))));
+  c *= min(1.0, 16.0 * vFade / max(c.r, max(c.g, max(c.b, 1e-4))));
   gl_FragColor = vec4(uColor * 0.25 + c, min(a, 0.9));
 }`;
 
@@ -547,6 +549,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
     uLamp: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
     uLampCol: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
     uShelter: { value: Array.from({ length: (SLOTS * GRID * GRID) / 4 }, () => new THREE.Vector4()) },
+    uLampFade: { value: new Array(SLOTS).fill(1) },
     uVel: rainUniforms.uVel, uTime: rainUniforms.uTime, uLength: rainUniforms.uLength, uWidth: rainUniforms.uWidth,
     uColor: rainUniforms.uColor, uOpacity: { value: 1 },
     tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
@@ -765,7 +768,8 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
       const l = list[i];
       if (!l) { P[i].set(0, -1000, 0); C[i].set(0, 0, 0); continue; }
       P[i].set(l.x, l.y, l.z);
-      const k = Math.min(l.intensity, 40) * 0.05;
+      // a flash lights the rain for the millisecond it lasts, a sliver of the frames it is held for
+      const k = Math.min(l.intensity, 40) * 0.05 * (l.flash ? 0.3 : 1);
       C[i].set(l.color.r * k, l.color.g * k, l.color.b * k);
     }
     // the rain in the lamplight: round the nearest lamps under their caps and fires within 30 m
@@ -780,11 +784,14 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
       const d = Math.hypot(l.x - cam.x, l.y - cam.y, l.z - cam.z);
       if (d > 30) continue;
       const n = l.flash ? LAMPS + nf++ : nl++;
-      const r = Math.min(4.5, Math.max(2.2, l.range * 0.25)), f = Math.min(1, Math.max(0, (d - 22) / 8));
-      // a flash at the eye (the player's own muzzle) is held for frames where a real one is over in a
-      // millisecond: lit round the eye that long it would fill the view, so little of it is kept
+      const r = l.flash ? 1.6 : Math.min(4.5, Math.max(2.2, l.range * 0.25)), f = Math.min(1, Math.max(0, (d - 22) / 8));
+      // a flash is held for frames where a real one is over in a millisecond: the rain it lights shows
+      // only as much as that sliver of a frame's light (else a muzzle would light a ball of rain like
+      // a lamp's, for three frames, every shot), in a smaller ball; at the eye (the player's own
+      // muzzle), lit all round the eye, fainter still
       const e = l.flash ? Math.min(1, Math.max(0, (d - 1.5) / 2.5)) : 1;
-      const k = Math.min(l.intensity, 40) * 0.05 * (1 - f * f * (3 - 2 * f)) * (0.15 + 0.85 * e * e * (3 - 2 * e));
+      const k = Math.min(l.intensity, 40) * 0.05 * (1 - f * f * (3 - 2 * f)) * (l.flash ? 0.15 + 0.85 * e * e * (3 - 2 * e) : 1);
+      glintUniforms.uLampFade.value[n] = l.flash ? 0.35 : 1;
       LP[n].set(l.x, l.y, l.z, r);
       LC[n].set(l.color.r * k, l.color.g * k, l.color.b * k, l.cone ?? -2);
       const s = shelterOf(l.x, l.z, r);
