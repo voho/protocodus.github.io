@@ -426,7 +426,9 @@ def scratch_lines(n, count, seed, length=(10, 60), width=1):
 
 
 def mud():
-    """Churned wet mud: boot and wheel ruts, pebbles, straw, water in the hollows."""
+    """Churned wet mud: trodden by boots and wheels into lumps a foot across and smaller ones
+    squeezed up between them, the clods rounded off by the wet; wheel ruts, pebbles, straw; the
+    water standing in a film in the hollows (glossy), the crests drained (dull)."""
     n = NG
     big = spectral(n, 2.3, 201, lo=1)
     mid = spectral(n, 1.7, 202, lo=6)
@@ -440,15 +442,20 @@ def mud():
     c1, c2, cid = cells(n, 90, 212)
     clods = smoothstep(0.0, 25.0, c2 - c1) * per_cell(cid, 213)
     straw = np.clip(scratch_lines(n, 200, 207, (12, 40), 0), 0, 1) * (spectral(n, 1.5, 208, lo=3) > 0.6)
-    h = 0.35 * big + 0.25 * mid + 0.08 * fine - 0.25 * ruts + 0.22 * pebble + 0.2 * clods
+    churn = spectral(n, 1.3, 214, lo=10)
+    lumps = spectral(n, 1.0, 216, lo=30)
+    h = (0.30 * big + 0.20 * mid + 0.06 * fine - 0.22 * ruts + 0.22 * pebble + 0.10 * blur(clods, 3)
+         + 0.26 * (churn - 0.5) + 0.12 * (lumps - 0.5))
     h = (h - h.min()) / (h.max() - h.min())
     dark, light, stone_c, straw_c = lin('#2a2119'), lin('#5e4c3a'), lin('#5a544a'), lin('#7a6640')
     alb = mix(dark, light, np.clip(0.25 + 0.6 * mid + 0.25 * (fine - 0.5) + 0.2 * (h - 0.5), 0, 1))
     alb = mix(alb, stone_c * (0.6 + 0.7 * per_cell(ident, 209))[..., None], pebble * 0.85)
     alb = alb * (0.9 + 0.2 * clods)[..., None]
     alb = mix(alb, straw_c, straw * 0.5)
-    rough = np.clip(0.5 + 0.4 * h - 0.25 * ruts, 0.05, 1)
-    pack_ground('mud', alb, h, rough, 7.0)
+    # glossy where the water lies, in the hollows of the lumps and of the churn round them (two
+    # scales, so it still breaks up far off, where the fine one is lost to the mipmaps)
+    rough = np.clip(0.62 + 4.0 * (h - blur(h, 12)) + 3.0 * (h - blur(h, 40)) - 0.15 * ruts + 0.1 * (h - 0.5), 0.08, 0.95)
+    pack_ground('mud', alb, h, rough, 16.0)
 
 
 def grass():
