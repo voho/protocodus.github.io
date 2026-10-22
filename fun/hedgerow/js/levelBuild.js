@@ -154,10 +154,25 @@ export function buildLevel(G, L, quality) {
     }
     if (p.fire) {
       const a = worldAnchor(m, 'fire', p.x, y, p.z, yaw, scale) || worldAnchor(m, 'smoke', p.x, y, p.z, yaw, scale) || [p.x, y + 1, p.z];
-      fires.push(G.effects.addFire(a[0], a[1], a[2], 1.1));
+      fires.push(G.effects.addFire(a[0], a[1], a[2], p.fireSize ?? 1.1));
       if (p.debris) wrecks.push(p);
       G.lights.addStatic({ x: a[0], y: a[1] + 1.2, z: a[2], color: '#ff8a3a', intensity: 22, range: 18, flicker: 0.45, shadow: true, fog: FIRE_FOG });
       G.halos?.add(a[0], a[1] + 1.0, a[2], '#ff7a30', 6, 0.7, 0.4);
+      // a house burning through and through (p.blaze: [x, y, z, size] in the model's own frame, as
+      // its anchors): flame all over its floor, showing in every opening and licking up its walls,
+      // with the burning bits (flames, embers, sparks; no plumes or glow on the clouds of their own)
+      // and out of the one smoke; and a light of its own where the first of them stands (by the
+      // door, where the light pours out into the street)
+      const c = Math.cos(yaw), s = Math.sin(yaw);
+      for (const [bx, by, bz, bs] of p.blaze || []) {
+        const f = G.effects.addDebris(p.x + (bx * c + bz * s) * scale, y + by * scale, p.z + (-bx * s + bz * c) * scale, bs * scale);
+        // each fainter than a fire on its own: in the house's openings they stand one behind another
+        f.smoke = false; f.gain = 0.45;
+      }
+      if (p.blaze?.length) {
+        const [bx, by, bz] = p.blaze[0];
+        G.lights.addStatic({ x: p.x + (bx * c + bz * s) * scale, y: y + (by + 1.4) * scale, z: p.z + (-bx * s + bz * c) * scale, color: '#ff8a3a', intensity: 18, range: 14, flicker: 0.5, fog: FIRE_FOG });
+      }
     }
   }
 

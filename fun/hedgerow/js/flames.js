@@ -16,13 +16,13 @@
 
 import * as THREE from 'three';
 
-const PER = 5, MAXF = 10, RANGE = 60;
+const PER = 5, MAXF = 16, RANGE = 60;
 
 const VERT = /* glsl */ `
 attribute vec4 aFire;          // xyz: the base, w: size
-attribute vec2 aSeed;          // seed, share (0..1: how big this one is)
+attribute vec3 aSeed;          // seed, share (0..1: how big this one is), gain (its fire's)
 varying vec2 vUv;
-varying float vSeed, vDist;
+varying float vSeed, vDist, vGain;
 varying vec2 vProj;
 void main() {
   float s = aFire.w;
@@ -35,6 +35,7 @@ void main() {
   vec3 p = aFire.xyz + right * position.x * w + vec3(0.0, position.y * h, 0.0);
   vUv = vec2(position.x * 2.0, position.y);
   vSeed = aSeed.x;
+  vGain = aSeed.z;
   vec4 mv = viewMatrix * vec4(p, 1.0);
   vDist = -mv.z;
   vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
@@ -46,7 +47,7 @@ uniform float uTime, uGain, uSoft;
 uniform sampler2D tDepth;
 uniform vec2 uScreen;
 varying vec2 vUv;
-varying float vSeed, vDist;
+varying float vSeed, vDist, vGain;
 varying vec2 vProj;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float noise(vec2 p) {
@@ -56,6 +57,14 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
 void main() {
+  // drawn over the finished frame: hidden behind what is in front, soft where it meets it (first,
+  // before the noise: most of a fire inside a house is behind its walls)
+  float seen = 1.0;
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    seen = clamp((vProj.y / (zd + vProj.x) - vDist) / 0.35, 0.0, 1.0);
+    if (seen <= 0.0) discard;
+  }
   float t = uTime + vSeed * 7.3;
   vec2 uv = vUv;                 // x: -1..1 across, y: 0..1 up
   // noise rising through it, faster higher up; the flame bends with it
@@ -77,13 +86,8 @@ void main() {
   col = mix(col, vec3(1.0, 0.6, 0.12), smoothstep(0.35, 0.65, heat));
   col = mix(col, vec3(1.0, 0.85, 0.45), smoothstep(0.65, 0.85, heat));
   col = mix(col, vec3(1.0, 0.95, 0.8), smoothstep(0.88, 1.0, heat));
-  float a = smoothstep(0.04, 0.35, heat);
-  // drawn over the finished frame: hidden behind what is in front, soft where it meets it
-  if (uSoft > 0.5) {
-    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
-    a *= clamp((vProj.y / (zd + vProj.x) - vDist) / 0.35, 0.0, 1.0);
-  }
-  gl_FragColor = vec4(col * a * uGain, 1.0);
+  float a = smoothstep(0.04, 0.35, heat) * seen;
+  gl_FragColor = vec4(col * a * uGain * vGain, 1.0);
 }`;
 
 export function createFlames(effects, { gain = 1.4 } = {}) {
@@ -93,7 +97,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
   geo.index = quad.index;
   geo.setAttribute('position', quad.attributes.position);
   const fireA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 4), 4);
-  const seedA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 2), 2);
+  const seedA = new THREE.InstancedBufferAttribute(new Float32Array(MAXF * PER * 3), 3);
   fireA.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('aFire', fireA);
   geo.setAttribute('aSeed', seedA);
@@ -154,7 +158,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
         for (let j = 0; j < PER; j++) {
           const [ox, oz, share, seed] = l[j], k = i * PER + j;
           fireA.array.set([f.x + ox * f.size, f.y - 0.25, f.z + oz * f.size, f.size], k * 4);
-          seedA.array[k * 2] = seed; seedA.array[k * 2 + 1] = share;
+          seedA.array[k * 3] = seed; seedA.array[k * 3 + 1] = share; seedA.array[k * 3 + 2] = f.gain ?? 1;
         }
       }
       geo.instanceCount = n * PER;
