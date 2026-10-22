@@ -352,6 +352,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         ${bark ? 'varying vec3 vBarkP, vBarkN;\n        varying float vBarkH;' : ''}
         ${rooms ? 'attribute vec4 aWin;\n        varying vec4 vWin;' : ''}
         ${foliage ? 'varying float vFolTint;' : ''}
+        ${cover ? 'varying float vCoverH;' : ''}
         ${sway ? GUST_GLSL : ''}`)
       .replace('#include <uv_vertex>', `#include <uv_vertex>
         ${detail ? `#ifdef USE_NORMALMAP
@@ -403,6 +404,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
               at += instanceMatrix[3].xyz;
             #endif
             vFolTint = fract(sin(dot(floor(at.xz * 4.0), vec2(12.9898, 78.233))) * 43758.5453);
+            ${cover ? 'vCoverH = position.y;' : ''}
           }` : ''}
           ${bark ? `// the bark detail in the tree's own space (it stays on the bark), shifted per tree
           vBarkP = position;
@@ -772,14 +774,22 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
       // baked occlusion (the inside of a crown is dark) and by the light's own
       // shadow where it has one
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n        varying float vFolTint;')
+        .replace('#include <common>', '#include <common>\n        varying float vFolTint;' + (cover ? '\n        varying float vCoverH;' : ''))
         .replace('#include <color_fragment>', `#include <color_fragment>
         // each plant and tree a little its own: darker and bluer or paler and yellower, one in ten turning
         diffuseColor.rgb *= mix(vec3(0.82, 0.88, 0.86), vec3(1.1, 1.06, 0.84), fract(vFolTint * 7.13));
         diffuseColor.rgb *= mix(vec3(1.0), vec3(1.12, 0.86, 0.52), smoothstep(0.88, 0.97, vFolTint) * 0.7);
         ${cover ? `// the undergrowth duller and darker than its atlas, which is painted for daylight: a fern
         // under the trees at dusk is not the brightest green in the wood
-        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82) * 0.93;` : ''}`)
+        diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82) * 0.93;
+        // and shaded down into itself: the fronds lie over one another, so low in a plant, near the
+        // soil, it is dark and a deeper green, and the tips, out in the open, paler and yellower. Only
+        // what stands up off the ground: ivy and leaf litter lying flat on it are as lit as the soil
+        {
+          float low = smoothstep(0.015, 0.05, vCoverH) * (1.0 - smoothstep(0.05, 0.6, vCoverH));
+          float tip = smoothstep(0.35, 0.8, vCoverH);
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(0.4, 0.46, 0.42), low) * mix(vec3(1.0), vec3(1.08, 1.06, 0.9), tip);
+        }` : ''}`)
         .replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>
         uniform float uLeafTrans;
         float leafThin = 1.0;          // how thin the foliage is here (its baked occlusion, squared)
