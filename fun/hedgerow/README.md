@@ -376,7 +376,20 @@ by the blast that killed them, and drop their rifles.
     their folds, and swings out from the wall and ripples with the gusts
     that bend the trees, most at its hem and most in its house's lee, the
     motion and its shading worked out in the vertex shader, its shadow
-    moving with it), `signs.js` (the occupiers' direction posts where the
+    moving with it), `chutes.js` (parachutes still caught in the trees
+    along the forest track since the airborne came down over the woods:
+    in three broadleaved trees 5-12 m off the track, 45 m apart, a canopy
+    snagged by its apex and two points either side on the crown's flank
+    turned to the track, the rest hanging down that side in folds over
+    what it meets, its 14 rigging lines in a sheaf below to where a man
+    cut himself free, the two risers dangling; the drape worked out once
+    at load (~0.13 s): a net of the silk's own lengths, crumpling freely,
+    settling over the crown - the body its branches and leaves fill,
+    fitted to the tree model's own points, smaller for bare and thin
+    crowns - its trunk and the ground; pale silk with its 28 gores' seams,
+    stained, torn, soaked dark, swinging out and fluttering where it hangs
+    clear in the gusts that bend the trees, its lines with it, its
+    shadow moving with it under a flare), `signs.js` (the occupiers' direction posts where the
     roads meet — by the lane, in the square under the lamp by the church,
     at the north end of the street and at the camp: a leaning square post
     crowded with five to eight boards, most of them arrows pointing down
