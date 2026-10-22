@@ -19,6 +19,7 @@
 
 import * as THREE from 'three';
 import { rng } from './util.js';
+import { SHOT } from './world.js';
 
 // the gusts: how hard it is raining here now (about 0.55 .. 1.6), bands of it some 30 m across
 // blown downwind at gust speed. An integer hash, so gustAt() below gives the same on the CPU
@@ -365,12 +366,20 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.0), a);
 }`;
 
-export function createWeather({ count = 8000, terrain, water = null, onThunder, seed = 4 }) {
+export function createWeather({ count = 8000, terrain, water = null, world = null, onThunder, seed = 4 }) {
   const R = rng(seed);
-  // where a drop lands: the ground, or the river's surface over it
+  // where a drop lands: the first thing in its way from above (a crate's lid, a sandbag, the truck's
+  // bonnet, a step, a roof - so what is sheltered under it stays dry), else the ground, or the
+  // river's surface over it
   const landY = (x, z) => {
-    const y = terrain ? terrain.height(x, z) : 0;
-    return water && y < water.level && water.contains(x, z) ? water.level : y;
+    let y = terrain ? terrain.height(x, z) : 0;
+    if (water && y < water.level && water.contains(x, z)) y = water.level;
+    if (world) {
+      const h = world.raycast(x, y + 30, z, 0, -1, 0, 30.05, SHOT, { noTerrain: true, noWater: true });
+      // (not from inside something tall, where the ray starts: that is no top)
+      if (h && h.t > 0.01 && h.ny > 0.5 && h.y > y + 0.02) y = h.y;
+    }
+    return y;
   };
   const group = new THREE.Group();
   group.name = 'weather';
