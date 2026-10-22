@@ -642,6 +642,13 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           skZ = mix(texture2D(tGrain, pg.xy), texture2D(tFabric, pf.xy), wool);
           float d = skX.a * skW.x + skY.a * skW.y + skZ.a * skW.z;
           diffuseColor.rgb *= mix(1.0, mix(0.7 + 0.6 * d, 0.45 + 1.1 * d, wool), skK);
+          // skin is no even plastic: its sheen broken by the pores and the creases (oilier on the
+          // ridges, dull in the pits), and its colour mottled - blood nearer the surface in blotches
+          // a centimetre or two across, a little redder there and less yellow
+          float sk1 = skinK * skK;
+          roughnessFactor = mix(roughnessFactor, mix(0.72, 0.42, smoothstep(0.35, 0.65, d)), sk1);
+          float blot = smoothstep(0.42, 0.78, skNoise(vSkP * 55.0 + 4.2) * 0.7 + skNoise(vSkP * 140.0 + 9.1) * 0.3);
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(1.07, 0.9, 0.86), blot * sk1);
         }
         // days out in the rain and the mud: the skin grimed, a little darker and duller, and on the
         // hands (out to the sides in the bind pose) mud in patches; the face grimed less
