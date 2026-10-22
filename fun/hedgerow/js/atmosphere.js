@@ -165,8 +165,8 @@ export function createMist({ count = 70, terrain, density = () => 1, seed = 31, 
    round a black hole, cracked and powdered; wood splintered along its grain,
    the fresh wood showing; paint dented and flaked off to the bare steel round
    a hole; mud thrown up in clods; and (only pinned, the walls' old damage,
-   damage.js) plaster broken off down to the stone or brick it was laid on.
-   Every kind is painted four ways (the quarters of its textures), and each
+   damage.js) plaster broken off down to the stone or brick it was laid on, and the old painted
+   advertisements on the gables. Every kind is painted four ways (the quarters of its textures), and each
    decal takes one at random, turned at random. A bullet stops at a collider,
    a flat box, and a wall's stones bulge a few centimetres out of it: so each
    decal is drawn pulled towards the eye along its own sight line (it stays
@@ -349,6 +349,74 @@ function glassCrack(p, R, cx, cy, S) {
     }
   }
   p.fill(ragged(R, cx, cy, S * 0.012, 7, 0.3), { col: 'rgb(20,18,16)', alpha: grey(255), height: grey(FLAT - 40) });
+}
+
+/* a painted advertisement on a gable, years old (only pinned, damage.js): a panel of colour with the
+   lettering on it as a sign painter laid it out, a line round it, a shadow under the letters; faded,
+   bleached in blotches, the paint flaked away in patches (most low down, where the rain splashes)
+   and washed thin in streaks down from its top. Four trades, a variant each; no brands */
+const ADS = [
+  { panel: [100, 46, 38], ink: [206, 194, 162], big: 'VINS FINS', small: 'LIQUEURS  ·  BIÈRES', serif: true },
+  { panel: [46, 56, 78], ink: [216, 212, 198], small2: [188, 160, 86], big: 'QUINQUINA', small: 'APÉRITIF', serif: true },
+  { panel: [190, 182, 158], ink: [40, 36, 32], big: 'CAFÉ · TABAC', small: 'BILLARD  ·  JEUX', serif: false },
+  { panel: [138, 112, 64], ink: [46, 32, 22], big: 'ÉPICERIE', small: 'COMESTIBLES  ·  MERCERIE', serif: false },
+];
+function wallAd(p, R, cx, cy, S, variant) {
+  const ad = ADS[variant % ADS.length], all = [p.col, p.alpha, p.height];
+  // drawn as the wall stands: the canvas's rows run up the wall, so flipped about the middle
+  for (const g of all) { g.save(); g.translate(0, 2 * cy); g.scale(1, -1); }
+  const w = S * 0.94, h = S * 0.42, x0 = cx - w / 2, y0 = cy - h / 2;
+  const rgb = (c, k = 1) => `rgb(${Math.min(255, c[0] * k) | 0},${Math.min(255, c[1] * k) | 0},${Math.min(255, c[2] * k) | 0})`;
+  const box = (x, y, bw, bh) => { const path = new Path2D(); path.rect(x, y, bw, bh); return path; };
+  // faded: the wall shows through it
+  p.fill(box(x0, y0, w, h), { col: rgb(ad.panel), alpha: grey(160) });
+  // bleached and darkened in big soft blotches
+  for (let k = 0; k < 7; k++) {
+    const x = x0 + R() * w, y = y0 + R() * h, r = S * (0.08 + R() * 0.15);
+    const gr = p.col.createRadialGradient(x, y, 0, x, y, r), c = R() < 0.6 ? rgb(ad.panel, 1.25) : rgb(ad.panel, 0.75);
+    gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    p.col.fillStyle = gr; p.col.globalAlpha = 0.5; p.col.fill(box(x0, y0, w, h)); p.col.globalAlpha = 1;
+  }
+  p.stroke(box(x0 + S * 0.018, y0 + S * 0.018, w - S * 0.036, h - S * 0.036), { col: rgb(ad.ink), alpha: grey(170) }, S * 0.007);
+  const font = (px) => `bold ${px | 0}px ` + (ad.serif ? 'Georgia, "Times New Roman", Times, serif' : '"Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif');
+  const text = (str, y, px, maxW, ink) => {
+    for (const g of [p.col, p.alpha]) {
+      g.font = font(px); g.textAlign = 'center'; g.textBaseline = 'middle';
+      const k = Math.min(1, maxW / g.measureText(str).width);
+      g.save(); g.translate(cx, y); g.scale(k, 1);
+      // the shadow the sign painter laid under each letter, then the letter
+      g.fillStyle = g === p.col ? rgb(ad.panel, 0.45) : grey(172);
+      g.fillText(str, px * 0.05 / k, px * 0.06);
+      g.fillStyle = g === p.col ? rgb(ink) : grey(196);
+      g.fillText(str, 0, 0);
+      g.restore();
+    }
+  };
+  text(ad.big, y0 + h * 0.42, h * 0.5, w * 0.86, ad.ink);
+  text(ad.small, y0 + h * 0.8, h * 0.15, w * 0.66, ad.small2 || ad.ink);
+  // weathered: flaked away in patches along its edges and low down (where the rain splashes), its
+  // lettering mostly spared (a sign that can no longer be read is no sign); washed thin in streaks
+  // down from the top
+  for (let k = 0; k < 44; k++) {
+    let x, y;
+    if (k % 2) { x = x0 + R() * w; y = y0 + h * (0.86 + 0.16 * R()); }
+    else {
+      const e = R() * 2 * (w + h);
+      x = e < w ? x0 + e : e < w + h ? x0 + w : e < 2 * w + h ? x0 + (e - w - h) : x0;
+      y = e < w ? y0 : e < w + h ? y0 + (e - w) : e < 2 * w + h ? y0 + h : y0 + (e - 2 * w - h);
+      x += (R() - 0.5) * S * 0.04; y += (R() - 0.5) * S * 0.04;
+    }
+    p.alpha.fillStyle = `rgba(0,0,0,${(0.5 + R() * 0.5).toFixed(2)})`;
+    p.alpha.fill(ragged(R, x, y, S * (0.006 + R() * R() * 0.03), 7, 0.45));
+  }
+  for (let k = 0; k < 26; k++) {
+    const x = x0 + R() * w, len = h * (0.3 + R() * 0.8), path = new Path2D();
+    path.moveTo(x, y0 - S * 0.01); path.lineTo(x + (R() - 0.5) * S * 0.01, y0 + len);
+    const fade = p.alpha.createLinearGradient(x, y0, x, y0 + len);
+    fade.addColorStop(0, `rgba(0,0,0,${(0.25 + R() * 0.35).toFixed(2)})`); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    p.alpha.strokeStyle = fade; p.alpha.lineWidth = S * (0.006 + R() * 0.012); p.alpha.stroke(path);
+  }
+  for (const g of all) g.restore();
 }
 
 /* a blast's scorch on the ground, burnt out from the middle in streaks */
@@ -653,9 +721,11 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   };
   // a break a metre or more across: painted at twice the texels
   if (pinned.spall) sets.spall = decalSet(plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2);
+  // and the old painted advertisements on the gables
+  if (pinned.sign) sets.sign = decalSet(wallAd, 1937, 'rgb(120,100,80)', 0, false, CELL * 2);
   const kinds = {};
   for (const k in sets) {
-    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' ? 0 : k === 'glass' ? 60 : max) + fixed;
+    const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' || k === 'sign' ? 0 : k === 'glass' ? 60 : max) + fixed;
     const geo = new THREE.PlaneGeometry(1, 1);
     const cells = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2);
     geo.setAttribute('aCell', cells);
@@ -664,8 +734,9 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
     if (k === 'glass') { m.material.emissive.set('#ffcc94'); m.material.emissiveMap = sets[k].map; m.material.emissiveIntensity = 0.9; }
     m.count = 0;
     m.frustumCulled = false;
-    // the breaks under the holes: new shots land in old damage
-    m.renderOrder = k === 'spall' ? 1 : 2;
+    // the signs under the breaks, the breaks under the holes: old damage goes through the paint,
+    // new shots land in old damage
+    m.renderOrder = k === 'sign' ? 0.5 : k === 'spall' ? 1 : 2;
     m.receiveShadow = true;
     group.add(m);
     kinds[k] = { mesh: m, cells, cursor: 0, n: 0, cap, fixed, base: 0 };
@@ -674,19 +745,20 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   const mtx = new THREE.Matrix4(), turn = new THREE.Matrix4();
 
   /* Decal i of a kind, `size` across on a surface facing (nx, ny, nz): turned at random, or (along
-     the grain) with its up along the surface's. */
-  function put(K, i, x, y, zz, nx, ny, nz, size, grain, R) {
+     the grain) with its up along the surface's, give or take, or (upright) exactly; its variant at
+     random, or the one asked for. */
+  function put(K, i, x, y, zz, nx, ny, nz, size, grain, R, upright = false, variant = -1) {
     n.set(nx, ny, nz).normalize();
     // its up: the world's laid on the surface (on a floor, any)
     up.set(0, 1, 0).addScaledVector(n, -n.y);
     if (up.lengthSq() < 0.04) up.set(1, 0, 0).addScaledVector(n, -n.x);
     up.normalize();
     side.crossVectors(up, n);
-    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(grain ? (R() - 0.5) * 0.4 : R() * Math.PI * 2));
+    mtx.makeBasis(side, up, n).multiply(turn.makeRotationZ(upright ? 0 : grain ? (R() - 0.5) * 0.4 : R() * Math.PI * 2));
     mtx.scale(side.set(size, size, 1));
     mtx.setPosition(x + n.x * 0.012, y + n.y * 0.012, zz + n.z * 0.012);
     K.mesh.setMatrixAt(i, mtx);
-    const v = Math.floor(R() * 4);
+    const v = variant >= 0 ? variant % 4 : Math.floor(R() * 4);
     K.cells.setXY(i, (v % 2) * 0.5, (v >> 1) * 0.5);
     K.mesh.instanceMatrix.needsUpdate = true;
     K.cells.needsUpdate = true;
@@ -702,10 +774,10 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   }
 
   /* One for good (before any add() of its kind); false once its kind's pinned room is full. */
-  function pin(kind, x, y, zz, nx, ny, nz, size, grain = false, R = Math.random) {
+  function pin(kind, x, y, zz, nx, ny, nz, size, grain = false, R = Math.random, upright = false, variant = -1) {
     const K = kinds[kind];
     if (!K || K.base >= K.fixed) return false;
-    put(K, K.base++, x, y, zz, nx, ny, nz, size, grain, R);
+    put(K, K.base++, x, y, zz, nx, ny, nz, size, grain, R, upright, variant);
     K.cursor = Math.max(K.cursor, K.base);
     K.n = Math.max(K.n, K.base);
     K.mesh.count = K.n;

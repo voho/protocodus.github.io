@@ -173,7 +173,7 @@ async function boot() {
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
   // room kept for the damage the walls already carry (damage.js)
-  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64 } });
+  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5 } });
   scene.add(G.decals.group);
 
   built = buildLevel(G, LEVEL, quality);
