@@ -791,7 +791,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         }
         // embers: thrown up out of the flames, then carried off on the wind for seconds, rising
         // and swirling in its eddies as they cool from yellow to a dull red and go out
-        if (R() < 0.26) {
+        if (R() < 0.55) {
           const big = R() < 0.3;
           add.spawn({
             x: f.x + (R() - 0.5) * s, y: f.y + (0.6 + R() * 0.8) * s, z: f.z + (R() - 0.5) * s,
@@ -799,6 +799,21 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
             life: big ? 4 + R() * 3 : 1.5 + R() * 2, size: big ? 0.05 + R() * 0.025 : 0.035 + R() * 0.015,
             color: C('#ffc060', 1, 4.2), color1: C('#ff3800', 0, 1.1), cell: CELLS.spark,
             drag: 0.9, gravity: -0.12, ride: 1.25, swirl: 2.2 + R() * 1.6, streak: 0.012,
+          });
+        }
+      }
+      // and now and then it spits a shower of sparks, as a beam falls in or the last of a tank's
+      // fuel catches: up out of the flames, arcing over and falling back, gone in a second or two
+      f.pop = (f.pop ?? 1 + R() * 3) - dt;
+      if (f.pop < 0 && !f.far) {
+        f.pop = 1.5 + R() * 3;
+        const s = f.size, n = 14 + Math.floor(R() * 12);
+        for (let k = 0; k < n; k++) {
+          add.spawn({
+            x: f.x + (R() - 0.5) * 0.8 * s, y: f.y + (0.4 + R() * 0.6) * s, z: f.z + (R() - 0.5) * 0.8 * s,
+            vx: wind.x * 0.5 + (R() - 0.5) * 3, vy: 3.5 + R() * 4, vz: wind.z * 0.5 + (R() - 0.5) * 3,
+            life: 0.8 + R() * 1.4, size: 0.03 + R() * 0.03, color: C('#ffd27a', 1, 5), color1: C('#ff4a10', 0, 1.2),
+            cell: CELLS.spark, drag: 0.6, gravity: 2.5, ride: 0.6, swirl: 1.5, streak: 0.02,
           });
         }
       }
