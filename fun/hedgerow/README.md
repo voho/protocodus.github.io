@@ -244,7 +244,15 @@ by the blast that killed them, and drop their rifles.
     far seen by the light they catch, as rain at night is - hardly at all
     out in the dark, where a drop shows only the dark beyond it, most with
     a lamp or a fire beyond them, a drop sending on most of the light it
-    catches as a lens does (a Henyey-Greenstein lobe);
+    catches as a lens does (a Henyey-Greenstein lobe); and the rain in the
+    lamplight - round the four nearest lamps and fires within 30 m and the
+    two nearest flashes, a box of drops of its own (some 1,100 on high)
+    falling through the light, seen only by the light they catch, each a
+    tiny bright image of it: a cone of glittering streaks under a lamp's
+    cap, rain falling through a fire's glow, a muzzle's or a shell's flash
+    lighting the rain round it for its few frames (the player's own, at the
+    eye, hardly), none under a roof or an eave (the top of what is over
+    each of 6 x 6 cells of the box, from the world's rays, once per place);
     rings where drops land - on the first thing in their way from above, a
     crate's lid, a sandbag, a step, the truck, a roof, so what is
     sheltered stays dry (on the river's surface over its bed) - and
