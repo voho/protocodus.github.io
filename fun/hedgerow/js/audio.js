@@ -13,7 +13,11 @@
    the kit (canteen, scabbard, pouches, the rifle on its sling) when running,
    jumping, landing, kneeling; the rifle shouldered; reloads in their parts;
    empty cases ringing on stone; bodies and rifles falling; ricochets off
-   stone and steel; and the rain ticking on the helmet. */
+   stone and steel; and the rain ticking on the helmet.
+
+   Dazed by a blast close by (daze()), everything is heard through a
+   low-pass that shuts down to a few hundred hertz and opens again as it
+   wears off, behind a high, slightly wavering ringing in the ears. */
 
 import { rng } from './util.js';
 
@@ -24,6 +28,7 @@ export function createAudio() {
   const R = rng(77);
   const listener = { x: 0, y: 0, z: 0, yaw: 0 };
   let rainGain = null, windGain = null, rainLP = null, helmetGain = null;
+  let dull = null, ring = null, dazed = 0;
 
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -34,7 +39,16 @@ export function createAudio() {
     master.gain.value = volume;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.25;
-    master.connect(comp).connect(ctx.destination);
+    // dazed: everything through a low-pass (wide open until then), the ringing on top of it
+    dull = ctx.createBiquadFilter(); dull.type = 'lowpass'; dull.frequency.value = 20000; dull.Q.value = 0.3;
+    master.connect(dull).connect(comp).connect(ctx.destination);
+    ring = ctx.createGain(); ring.gain.value = 0;
+    const tone = ctx.createOscillator(); tone.frequency.value = 3900;
+    const waver = ctx.createOscillator(); waver.frequency.value = 4.3;
+    const waverDepth = ctx.createGain(); waverDepth.gain.value = 9;
+    waver.connect(waverDepth).connect(tone.frequency);
+    tone.connect(ring).connect(comp);
+    tone.start(); waver.start();
     sfx = ctx.createGain(); sfx.connect(master);
     amb = ctx.createGain(); amb.connect(master);
     // outdoor slap-back: two short delays, filtered
@@ -492,6 +506,16 @@ export function createAudio() {
     }
   }
 
+  /* dazed by a blast (0 clear .. 1 stunned; each frame): the world shut down to 250 Hz at
+     worst and the ears ringing, both easing as it wears off */
+  function daze(level) {
+    if (!ctx || (Math.abs(level - dazed) < 0.002 && (level > 0 || dazed === 0))) return;
+    dazed = level;
+    const t = ctx.currentTime;
+    dull.frequency.setTargetAtTime(20000 * Math.pow(0.0125, level), t, 0.05);
+    ring.gain.setTargetAtTime(0.035 * volume * level * level, t, 0.1);
+  }
+
   return {
     init,
     get ready() { return !!ctx; },
@@ -506,6 +530,6 @@ export function createAudio() {
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
     gunshot, garandPing, dryFire, reload, switchWeapon, whizz, impact, explosion, thunder, distant,
-    footstep, gear, casing, bodyFall, pin, grenadeBounce, ui,
+    footstep, gear, casing, bodyFall, pin, grenadeBounce, ui, daze,
   };
 }

@@ -4,7 +4,8 @@
    rides on his head as his body moves (so it bobs with his steps and dips
    as he crouches), and when he aims it goes down the rifle's sight line, a
    hand's breadth behind the rear sight; the view narrows to the sights and
-   widens a little at a sprint, and leans a touch into a strafe.
+   widens a little at a sprint, and leans a touch into a strafe. Dazed by a
+   blast, the head lolls: the view swims slowly round the aim.
 
    Over the shoulder (the death camera, and the old third-person view):
    orbits a pivot just above the soldier's eyes, offset to one shoulder,
@@ -36,9 +37,14 @@ export function createCameraRig(camera, world) {
     roll: 0, sprintT: 0,
     // first person: the head flinching from a hit (camera only; the aim stays)
     flinchRoll: 0, flinchRollV: 0, flinchPitch: 0, flinchPitchV: 0,
+    // first person: how dazed he is by a blast (0..1, player.js); the view swims (camera only)
+    daze: 0,
   };
   const desired = new THREE.Vector3();
   const rightV = new THREE.Vector3();
+  // the daze as the head takes it: coming on over a moment (the view lolls, it does not jump),
+  // going as the daze goes
+  let swim = 0;
   const look = new THREE.Vector3();
 
   rig.forward = (out = new THREE.Vector3()) => {
@@ -194,6 +200,14 @@ export function createCameraRig(camera, world) {
     settleFlinch(dt);
     camera.rotateZ(rig.roll + rig.flinchRoll);
     camera.rotateX(rig.flinchPitch);
+    swim = rig.daze > swim ? damp(swim, rig.daze, 2.5, dt) : rig.daze;
+    if (swim > 0.001) {
+      // dazed: the head lolls, the view wandering slowly a few degrees round the aim
+      const t = rig.shakeT;
+      camera.rotateZ(noise2(t * 0.45, 11.3) * 0.07 * swim);
+      camera.rotateY(noise2(t * 0.38, 5.9) * 0.028 * swim);
+      camera.rotateX(noise2(t * 0.41, 2.2) * 0.022 * swim);
+    }
     // the over-the-shoulder orbit (death camera) starts from here, not 3 m back
     rig.dist = 0.3;
     const fov = lerp(rig.baseFov + CAMERA.sprintFov * rig.sprintT, CAMERA.fpAimFov * rig.baseFov / CAMERA.fov, rig.aimT);

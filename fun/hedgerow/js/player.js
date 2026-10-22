@@ -12,7 +12,9 @@
 
    Walking, sprinting, crouching, wading, vaulting low cover and jumping
    share one capsule against the world. Two weapons (Garand, Thompson),
-   grenades that can be cooked, health that comes back when out of fire. */
+   grenades that can be cooked, health that comes back when out of fire. A
+   blast close by leaves him dazed for a few seconds (daze.js): slower on
+   his feet and slower to turn, the view swimming. */
 
 import * as THREE from 'three';
 import { PLAYER, WEAPONS, GRENADE, GAIT, CAMERA } from './config.js';
@@ -23,6 +25,7 @@ import { instantiate } from './assets.js';
 import { startReload as reloadSequence, startFirstPersonReload } from './reload.js';
 import { SHOT, MOVE } from './world.js';
 import { createViewMotion } from './viewmotion.js';
+import { createDaze } from './daze.js';
 
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vector3();
 
@@ -40,6 +43,7 @@ export function createPlayer(G) {
     char: null, movingSpeed: 0, visible: 1, noise: 0,
     stats: null,
     yawFix: 0, pitchFix: 0, blocked: false, arms: { pitch: 0, yaw: 0, roll: 0 },
+    daze: 0, dazeT: 99,
   };
   const FP = !!CAMERA.firstPerson;
   // the eyes from the head bone: up and forward of it, in metres; and, not
@@ -51,6 +55,8 @@ export function createPlayer(G) {
   // the rifle's lag behind quick turns, its kick, the dip of a landing (viewmotion.js)
   const motion = createViewMotion();
   let vm = { yaw: 0, pitch: 0, drop: 0 };
+  // stunned by a blast close by, wearing off (daze.js)
+  const dazed = createDaze();
 
   const charOpts = () => ({ outfit: 'allied', weaponModel: G.models.get(WEAPONS[P.weapon || 'garand'].model), grenadeModel: G.models.get('grenade_us'), scene: G.scene });
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
@@ -92,6 +98,7 @@ export function createPlayer(G) {
     P.char.steady = FP;
     P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 }; P.pendingWeapon = null;
     motion.reset(); vm = { yaw: 0, pitch: 0, drop: 0 };
+    dazed.reset(); P.daze = 0; P.dazeT = 99;
     eyeOff.set(0, PLAYER.eye, 0);
     G.hud.health(P.health / PLAYER.health);
   };
@@ -132,6 +139,9 @@ export function createPlayer(G) {
     }
     G.hud.health(P.health / PLAYER.health);
   };
+
+  /* a blast close by (combat.js): 0..1, how hard it hit him */
+  P.concuss = (amount) => { if (P.alive) dazed.hit(amount); };
 
   P.heal = (amount) => {
     P.health = Math.min(PLAYER.health, P.health + amount);
@@ -352,6 +362,10 @@ export function createPlayer(G) {
 
   P.update = (dt, input, settings) => {
     const ch = P.char;
+    // a blast's daze wearing off (on through the death camera: the ears still ring)
+    P.daze = dazed.update(dt);
+    P.dazeT = dazed.t;
+    G.rig.daze = P.alive ? P.daze : 0;
     if (!P.alive) {
       ch.root.position.copy(P.pos);
       ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.5));
@@ -370,7 +384,7 @@ export function createPlayer(G) {
     }
     const w = weaponDef();
     const [mx, my] = input.consumeMouse();
-    G.rig.look(mx, my, settings.sensitivity, settings.invertY);
+    G.rig.look(mx, my, settings.sensitivity * (1 - 0.25 * P.daze), settings.invertY);
 
     // weapon selection
     if (input.pressed('Digit1')) switchTo('garand');
@@ -407,6 +421,7 @@ export function createPlayer(G) {
     let speed = P.crouch ? PLAYER.crouchWalk : P.sprint ? PLAYER.run : aiming ? PLAYER.aimWalk : PLAYER.walk;
     if (depth > 0.45) speed *= PLAYER.wade;
     if (P.reloading > 0 && !P.crouch) speed = Math.min(speed, PLAYER.walk * 0.8);
+    speed *= 1 - 0.4 * P.daze;            // dazed, he stumbles along
 
     // vault / jump
     if (P.vault) {

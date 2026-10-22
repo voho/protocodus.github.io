@@ -4,9 +4,12 @@
    about mid grey (deep blacks, firm highlights), a cool, slightly
    desaturated grade with warm highlights, vignette, film grain that lives
    in the shadows, and the hurt state (red edges, drained colour, a little
-   chromatic split). A blast close by spatters the view with mud
-   (spatter()): blobs of it, most at the edges and the bottom, wet and
-   ragged, some dripping, wiped away over a few seconds. */
+   chromatic split). Dazed by a blast close by (daze.js), he sees double —
+   a ghost of the view drifting slowly round it — smeared towards the edges,
+   drained of colour, the dark closing in from the sides and coming and
+   going, after a white flash at the blast. A blast close by also spatters
+   the view with mud (spatter()): blobs of it, most at the edges and the
+   bottom, wet and ragged, some dripping, wiped away over a few seconds. */
 
 import * as THREE from 'three';
 
@@ -17,6 +20,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 const FRAG = /* glsl */ `
 uniform sampler2D tSrc;
 uniform float uTime, uHurt, uFlash, uSat, uGrain, uAspect, uSharp, uContrast;
+uniform float uDaze, uDazeT;  // dazed by a blast (0..1), seconds since it
 uniform vec2 uTexel;
 uniform vec3 uMud;          // how much mud (0: none), its seed, seconds since it hit
 varying vec2 vUv;
@@ -86,6 +90,15 @@ void main() {
   col.r += texture2D(tSrc, vUv + c * ca).r - c0.r;
   col.b += texture2D(tSrc, vUv - c * ca).b - c0.b;
   col = max(col, 0.0);
+  // dazed: the view doubled (a ghost of it drifting slowly round) and smeared towards the edges
+  if (uDaze > 0.003) {
+    vec2 drift = vec2(cos(uDazeT * 0.9 + 0.6), sin(uDazeT * 1.3)) * 0.011 * uDaze;
+    vec3 ghost = texture2D(tSrc, vUv + drift).rgb;
+    vec3 smear = vec3(0.0);
+    for (int i = 1; i <= 4; i++) smear += texture2D(tSrc, vUv - c * (0.02 * float(i) * uDaze)).rgb;
+    col = mix(col, smear * 0.25, smoothstep(0.02, 0.4, r2) * uDaze * 0.85);
+    col = mix(col, ghost, 0.4 * uDaze);
+  }
   // mud on the view: dark, wet brown, a little of the light through its thin edges and a sheen
   if (uMud.x > 0.003) {
     vec2 m = mud(vUv);
@@ -94,6 +107,8 @@ void main() {
     vec3 mc = vec3(0.011, 0.0075, 0.0045) * (0.7 + 0.6 * vnoiseP(vUv * 90.0)) + col * 0.03 + vec3(0.03, 0.028, 0.026) * m.y;
     col = mix(col, mc, m.x * 0.96 * fade);
   }
+  // the blast's white flash in his eyes
+  if (uDaze > 0.003) col += vec3(1.0, 0.96, 0.9) * uDaze * 0.9 * exp(-uDazeT * 6.0);
   // an S-curve about mid grey (in linear light: a power on the ratio to 0.18)
   col = 0.18 * pow(col / 0.18, vec3(uContrast));
   float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
@@ -101,9 +116,10 @@ void main() {
   vec3 cool = vec3(0.92, 0.98, 1.08), warm = vec3(1.08, 1.0, 0.9);
   float hl = smoothstep(0.05, 0.9, l);
   col *= mix(cool, warm, hl);
-  col = mix(vec3(l), col, uSat * (1.0 - uHurt * 0.6));
-  // vignette
-  col *= 1.0 - smoothstep(0.18, 0.75, r2) * 0.55;
+  col = mix(vec3(l), col, uSat * (1.0 - uHurt * 0.6) * (1.0 - uDaze * 0.55));
+  // vignette (dazed: closing in, and the dark coming and going)
+  col *= 1.0 - smoothstep(0.18 - 0.12 * uDaze, 0.75 - 0.25 * uDaze, r2) * (0.55 + 0.3 * uDaze);
+  col *= 1.0 - uDaze * 0.15 * (0.5 + 0.5 * sin(uDazeT * 2.4));
   // hurt: red at the edges
   col = mix(col, vec3(0.35, 0.02, 0.01) * (0.6 + l), uHurt * smoothstep(0.1, 0.6, r2) * 0.75);
   // grain, strongest in the shadows (as on film)
@@ -123,7 +139,7 @@ export function createGrade() {
       tSrc: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uFlash: { value: 0 },
       uSat: { value: 0.82 }, uGrain: { value: 0.16 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.08 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
-      uMud: { value: new THREE.Vector3() },
+      uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });

@@ -144,6 +144,11 @@ export function createExplosives(G) {
     G.rig.addShake(clamp(1.4 - dc / 30, 0, 1.2));
     // close by, it throws mud over the view (not out of the water)
     if (!inWater) G.spatter?.(clamp(1.25 - dc / 8, 0, 1) * (e.kind === 'charge' ? 1.2 : 1));
+    // and leaves him dazed (player.js, daze.js): all of it within 3 m of a grenade, none past
+    // 11 m (a charge, nearly twice as far); a wall between takes some of it
+    let daze = clamp((11 * scale - dc) / (8 * scale), 0, 1);
+    if (daze > 0 && !G.world.clear(x, y + 0.4, z, cam.x, cam.y, cam.z, SHOT)) daze *= 0.6;
+    if (daze > 0.05) G.player?.concuss?.(daze);
     // damage
     const hurt = (tx, ty, tz) => {
       const d = Math.hypot(tx - x, ty - y, tz - z);

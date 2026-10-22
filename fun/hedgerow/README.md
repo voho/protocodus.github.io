@@ -87,7 +87,10 @@ aim at.
 | Esc | pause |
 
 Health comes back when you stay out of fire. Dying returns you to the last
-checkpoint; the enemies you killed stay dead.
+checkpoint; the enemies you killed stay dead. A grenade or a charge going
+off close by leaves you dazed for a few seconds, longer the closer it was:
+a white flash, then the ears ringing over a muffled world, the view doubled,
+swimming and closing in, your legs and your aim slow.
 
 The Germans are not statues. Patrols walk their beats and stop to look
 round. A shot or a grenade heard from a distance sends one or two of a
@@ -126,10 +129,13 @@ by the blast that killed them, and drop their rifles.
     at a sprint, up and aside at a wall, down out of sight while changing
     weapons), `viewmotion.js` (the springs on top: the rifle lags a quick
     turn, kicks up with each shot and settles, the eye dips on a landing),
-    `reload.js` (the reload's clip and magazine; in first person on
+    `daze.js` (a blast close by: how hard it hit him, from how close it was
+    and whether a wall stood between, and how it wears off over three to
+    nine seconds), `reload.js` (the reload's clip and magazine; in first person on
     the shouldered rifle, tilted into view, the fresh one seating in the
     picture), `camera.js` (at the eyes, down the
-    sights when aiming, flinching from a hit; dying, the eyes go down with
+    sights when aiming, flinching from a hit, swimming round the aim while
+    dazed by a blast; dying, the eyes go down with
     the body for a moment before the over-the-shoulder death camera turns to
     the killer),
     `character.js` (rig, split upper/lower body animation, the upper body
@@ -269,7 +275,8 @@ by the blast that killed them, and drop their rifles.
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
     landing, reloads in their parts, empty cases ringing on stone, bodies
-    and rifles falling, ricochets, rain ticking on the helmet)
+    and rifles falling, ricochets, rain ticking on the helmet; dazed by a
+    blast, everything muffled behind a ringing in the ears)
   * the effects chain (`renderer.setEffects`, in order): the particles of
     `effects.js` drawn into the scene's buffer with its depth · `ssao.js` ambient
     occlusion at half resolution · `ssr.js` reflections in the wet ground,
@@ -298,7 +305,9 @@ by the blast that killed them, and drop their rifles.
     `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
-    hurt state, and the mud a blast close by throws over the view: dark wet
+    hurt state, the daze of a blast close by — a white flash, then the view
+    doubled, smeared towards the edges, drained and closing in — and the
+    mud a blast close by throws over the view: dark wet
     splats along the bottom and flecks round the edges, some dripping,
     gone in a few seconds); the high and medium qualities run all of it, low only the
     grade
@@ -346,7 +355,11 @@ by the blast that killed them, and drop their rifles.
   aiming puts the front sight in the middle of the view, the fresh clip or
   magazine seats in the picture, the rifle is carried in the picture at a
   sprint and out of it while changing weapons, and the sway, kick and
-  landing dip stay within a few degrees and centimetres and settle:
+  landing dip stay within a few degrees and centimetres and settle;
+  `tests/daze-check.mjs` — a blast dazes him by how close it went off (all
+  of it at a grenade's feet, none past 11 m, a charge nearly twice as far,
+  less behind a wall), it wears off over three to nine seconds, and the view
+  swims a degree or two round the aim — camera only, slowly — while it lasts:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs
@@ -357,6 +370,7 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/ai-check.mjs
       node fun/hedgerow/tests/fp-check.mjs
       node fun/hedgerow/tests/clutter-check.mjs
+      node fun/hedgerow/tests/daze-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to

@@ -660,6 +660,9 @@ function step() {
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
       const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;
       grade.uniforms.uHurt.value = player && player.alive ? clamp((0.6 - hp) * 1.8, 0, 1) : player ? lerp(0.8, 0.25, clamp((since - 0.6) / 0.8, 0, 1)) : 0;
+      // dazed by a blast close by (player.js): the view doubles, smears, drains and closes in
+      grade.uniforms.uDaze.value = live && player ? player.daze : 0;
+      grade.uniforms.uDazeT.value = player ? player.dazeT : 99;
     }
   }
   // aiming in brings things nearer: detail follows how big they look, not how far they are
@@ -670,6 +673,8 @@ function step() {
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
+  // and what he hears goes dull behind a ringing in the ears (clear again in the menus)
+  audio.daze(live && player ? player.daze : 0);
   input.endFrame();
 
   renderer.info.reset();
