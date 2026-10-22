@@ -1,7 +1,8 @@
 /* Hedgerow — fire as flame: procedural flames at each fire near the camera.
 
    Over every fire within 60 m (the burning truck, the house, the flak gun
-   once it is blown) stand three billboards, each turned to the camera about
+   once it is blown) stand five billboards over its whole breadth, rising
+   out of the wreck two to three metres, each turned to the camera about
    its upright axis, and each a body of flame worked out in its shader:
    turbulent noise rising through a shape that is wide at the base and licks
    up to points, eaten away from the top, coloured by its heat like a black
@@ -15,7 +16,7 @@
 
 import * as THREE from 'three';
 
-const PER = 3, MAXF = 6, RANGE = 60;
+const PER = 5, MAXF = 6, RANGE = 60;
 
 const VERT = /* glsl */ `
 attribute vec4 aFire;          // xyz: the base, w: size
@@ -30,7 +31,7 @@ void main() {
   t.y = 0.0;
   if (dot(t, t) < 1e-4) t = vec3(0.0, 0.0, 1.0);
   vec3 right = normalize(vec3(t.z, 0.0, -t.x));
-  float w = (0.85 + 0.4 * aSeed.y) * s, h = (1.5 + 0.8 * aSeed.y) * s;
+  float w = (0.95 + 0.45 * aSeed.y) * s, h = (1.8 + 1.1 * aSeed.y) * s;
   vec3 p = aFire.xyz + right * position.x * w + vec3(0.0, position.y * h, 0.0);
   vUv = vec2(position.x * 2.0, position.y);
   vSeed = aSeed.x;
@@ -108,13 +109,14 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
   mesh.name = 'flames';
   mesh.frustumCulled = false;
   mesh.renderOrder = 7;
-  // each fire's three flames: where round its base, how big, their seeds (fixed per fire)
+  // each fire's five flames: where round its base, how big, their seeds (fixed per fire)
   const layout = new WeakMap();
   const lay = (f) => {
     let l = layout.get(f);
     if (!l) {
       const k = (f.x * 12.9898 + f.z * 78.233) % 1;
-      l = [[-0.32, 0.1, 0.55, k], [0.3, -0.12, 0.7, k + 0.37], [0.02, 0.05, 1.0, k + 0.71]];
+      l = [[-0.45, 0.15, 0.6, k], [0.4, -0.15, 0.75, k + 0.37], [0.02, 0.05, 1.0, k + 0.71],
+        [-0.15, -0.38, 0.5, k + 0.19], [0.22, 0.36, 0.65, k + 0.53]];
       layout.set(f, l);
     }
     return l;
@@ -151,7 +153,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
         const l = lay(f);
         for (let j = 0; j < PER; j++) {
           const [ox, oz, share, seed] = l[j], k = i * PER + j;
-          fireA.array.set([f.x + ox * f.size, f.y - 0.1, f.z + oz * f.size, f.size], k * 4);
+          fireA.array.set([f.x + ox * f.size, f.y - 0.25, f.z + oz * f.size, f.size], k * 4);
           seedA.array[k * 2] = seed; seedA.array[k * 2 + 1] = share;
         }
       }
