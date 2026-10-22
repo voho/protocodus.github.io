@@ -14,11 +14,13 @@ import { RUTS_GLSL } from './ruts.js';
 import { dimFillSpecular, addFireBounce } from './fill.js';
 import { addCanopy } from './canopy.js';
 import { clamp } from './util.js';
+import { breathe } from './pace.js';
 
 const RES = 0.5;
 const CHUNK = 32;
 
-export function createTerrain(def, textures, shared) {
+// a row of the heightfield, a chunk of the mesh at a time, the browser getting its turns between (pace.js)
+export async function createTerrain(def, textures, shared) {
   const { minX, maxX, minZ, maxZ } = def.bounds;
   const nx = Math.round((maxX - minX) / RES) + 1;
   const nz = Math.round((maxZ - minZ) / RES) + 1;
@@ -26,6 +28,7 @@ export function createTerrain(def, textures, shared) {
   for (let j = 0; j < nz; j++) {
     const z = minZ + j * RES;
     for (let i = 0; i < nx; i++) H[j * nx + i] = def.height(minX + i * RES, z);
+    await breathe();
   }
 
   function height(x, z) {
@@ -95,6 +98,7 @@ export function createTerrain(def, textures, shared) {
       const x1 = Math.min(cx + CHUNK, maxX), z1 = Math.min(cz + CHUNK, maxZ);
       const step = isFine(cx, cz, x1, z1) ? 1 : 2;   // in master cells
       group.add(buildChunk(cx, cz, x1, z1, step));
+      await breathe();
     }
   }
 

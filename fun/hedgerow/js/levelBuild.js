@@ -15,8 +15,9 @@ import { createTerrain } from './terrain.js';
 import { createWorld } from './world.js';
 import { createStaticBatcher, instantiate, worldColliders, worldAnchor } from './assets.js';
 import { createVegetation } from './vegetation.js';
+import { breathe, mark } from './pace.js';
 import { createWaterMaterial } from './materials.js';
-import { buildCoverPoints } from './ai.js';
+import { buildCoverPointsPaced } from './ai.js';
 import { buildDistance } from './distance.js';
 import { CAPPED, FIRE_FOG } from './lights.js';
 import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './util.js';
@@ -34,7 +35,8 @@ const SURFACE = (name) => {
 
 const SEPARATE = new Set(['flak38', 'radio_table']);
 
-export function buildLevel(G, L, quality) {
+// built a piece at a time, the browser getting its turns between (pace.js): loading runs behind the menu
+export async function buildLevel(G, L, quality) {
   const models = G.models;
   const missing = new Set();
   const model = (name) => {
@@ -77,13 +79,19 @@ export function buildLevel(G, L, quality) {
   // (ponds.js) its edge is where the water meets the mesh, which at the coarse grid's metre made a
   // crater's bowl a handful of facets and the water's edge a polygon
   const fine = [...(L.fine || []), ...(L.craters || []).map((c) => [c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r])];
-  const terrain = createTerrain({ bounds: L.bounds, height, splat: L.splat, fine }, G.textures, G.shared);
+  await breathe();
+  mark('terrain');
+  const terrain = await createTerrain({ bounds: L.bounds, height, splat: L.splat, fine }, G.textures, G.shared);
   G.scene.add(terrain.group);
+  await breathe();
+  mark('distance');
   const far = buildDistance(G, L, { models, matlib: G.matlib, material: terrain.material });
   G.scene.add(far.group);
   const world = createWorld({ ...L.bounds, cell: 8, terrain, water: L.water });
   G.terrain = terrain;
   G.world = world;
+  await breathe();
+  mark('props');
 
   /* ---------- 3. props ---------- */
   const batch = createStaticBatcher(G.matlib, 48);
@@ -99,6 +107,7 @@ export function buildLevel(G, L, quality) {
   const wrecks = [];              // burning, with bits of themselves burning round them
 
   for (const p of L.props) {
+    await breathe();
     const m = model(p.m);
     if (!m) continue;
     const yaw = (p.yaw || 0) * DEG;
@@ -195,7 +204,9 @@ export function buildLevel(G, L, quality) {
   }
 
   // scattered vegetation and rocks (mature trees fall back to a scaled-up one)
+  mark('scatter');
   for (const s0 of L.scatter) {
+    await breathe();
     const s = models.has(s0.m) || !s0.alt ? s0 : { ...s0, m: s0.alt, scale: s0.scale * (s0.altScale || 1) };
     const m = model(s.m);
     if (!m) continue;
@@ -214,12 +225,17 @@ export function buildLevel(G, L, quality) {
   }
   // ground clutter, drawn like the cover, but never inside anything solid
   for (const c of L.clutter || []) {
+    await breathe();
     if (insideSolid(world, terrain, c.x, c.z)) continue;
     veg.add(c.m, c.x, terrain.height(c.x, c.z) - 0.02, c.z, c.yaw * DEG, c.scale, { cover: true });
   }
+  await breathe();
+  mark('vegetation');
   veg.finalize();
   G.scene.add(veg.group);
-  const staticGroup = batch.build();
+  await breathe();
+  mark('batch');
+  const staticGroup = await batch.buildPaced();
   // houses and props throw shadows from the lamps and fires, and take them
   staticGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   G.scene.add(staticGroup);
@@ -234,6 +250,8 @@ export function buildLevel(G, L, quality) {
   wall(B.maxX + 1, (B.minZ + B.maxZ) / 2, 1, (B.maxZ - B.minZ) / 2 + 2);
   wall((B.minX + B.maxX) / 2, B.minZ - 1, (B.maxX - B.minX) / 2 + 2, 1);
   wall((B.minX + B.maxX) / 2, B.maxZ + 1, (B.maxX - B.minX) / 2 + 2, 1);
+
+  await breathe();
 
   /* ---------- 5. enemies ---------- */
   const enemyDefs = [];
@@ -288,9 +306,13 @@ export function buildLevel(G, L, quality) {
   }
 
   /* ---------- 6. river, cover ---------- */
+  await breathe();
+  mark('river');
   const water = buildRiver(L.water, G.textures, G.shared);
   G.scene.add(water);
-  const cover = buildCoverPoints(world, terrain);
+  await breathe();
+  mark('cover points');
+  const cover = await buildCoverPointsPaced(world, terrain);
 
   // props: every prop as placed ({m: model, x, y, z, yaw, scale}; not the vegetation)
   return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact, signposts, wires };

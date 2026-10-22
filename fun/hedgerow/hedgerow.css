@@ -129,6 +129,8 @@ h2 { margin: 0 0 14px; font-family: var(--stamp); font-size: 30px; font-weight: 
 .menu-item:hover, .menu-item:focus-visible { background: var(--brass-soft); border-color: var(--brass); outline: none; }
 .menu-item.primary { background: var(--brass); border-color: var(--brass); color: #16130c; font-weight: 700; }
 .menu-item.primary:hover, .menu-item.primary:focus-visible { background: #e8b95c; }
+/* Move out while the world is still loading: waiting, counting */
+.menu-item:disabled, .menu-item:disabled:hover { cursor: default; background: transparent; border-color: var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
 .ghost { font: inherit; color: var(--ink); background: none; border: 1px solid var(--line-strong); padding: 8px 14px; cursor: pointer; }
 .row { display: flex; gap: 10px; width: min(440px, 100%); margin: 20px auto 0; }
 .row .menu-item { flex: 1; }

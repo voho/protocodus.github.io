@@ -187,6 +187,14 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (name === other || (o.name.startsWith(other))) { o.visible = false; return; }
       if (!o.name.endsWith('_merged')) o.material = matlib.resolve(o.material);
       o.frustumCulled = false;
+      // its bounds, for the renderer's sorting only (it is never culled): the bind pose's, with room
+      // for the limbs; left to three, the first frame he is drawn skinned every vertex on the CPU
+      // to find them (some ten milliseconds a soldier)
+      if (o.isSkinnedMesh) {
+        if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+        o.boundingSphere = o.geometry.boundingSphere.clone();
+        o.boundingSphere.radius += 0.6;
+      }
       o.receiveShadow = true;
       meshes.push(o);
     }

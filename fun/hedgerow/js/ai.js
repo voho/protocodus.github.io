@@ -40,6 +40,7 @@ import { createCharacter, mergedSoldier, randomFace } from './character.js';
 import { startReload as reloadSequence } from './reload.js';
 import { MOVE, SHOT, SIGHT } from './world.js';
 import { createNav } from './nav.js';
+import { breathe } from './pace.js';
 
 const R = rng(1944);
 const FACES = rng(1907);      // faces on their own stream, so they do not shift the AI's dice
@@ -52,38 +53,48 @@ const WEAPON_OF = { rifle: 'kar98k', smg: 'mp40', mg: 'mg42', sniper: 'sniper', 
 
 export function buildCoverPoints(world, terrain) {
   const points = [];
-  for (const col of world.colliders) {
-    if (!(col.flags & MOVE) || !(col.flags & SHOT)) continue;
-    if (col.type !== 'box') continue;
-    const ground = terrain.height(col.x, col.z);
-    const top = col.top - ground;
-    const low = top > 0.55 && top < 1.45;
-    const tall = top >= 1.45;
-    if (!low && !tall) continue;
-    if (col.hx * col.hz > 300) continue;           // whole houses: corners only
-    const off = 0.6;
-    const sides = [
-      [1, 0, col.hx, col.hz], [-1, 0, col.hx, col.hz], [0, 1, col.hz, col.hx], [0, -1, col.hz, col.hx],
-    ];
-    for (const [sx, sz, half, along] of sides) {
-      const n = tall ? 1 : Math.max(1, Math.floor((along * 2) / 1.4));
-      for (let k = 0; k < n; k++) {
-        const u = tall ? (k % 2 ? 1 : -1) * Math.max(0, along - 0.3) : (n === 1 ? 0 : -along + 0.5 + (k * (along * 2 - 1)) / Math.max(1, n - 1));
-        // local point
-        const lx = sx !== 0 ? sx * (half + off) : u;
-        const lz = sz !== 0 ? sz * (half + off) : u;
-        const wx = col.x + lx * col.c + lz * col.s;
-        const wz = col.z - lx * col.s + lz * col.c;
-        const nx = sx * col.c + sz * col.s, nz = -sx * col.s + sz * col.c;   // outward normal
-        const gy = world.groundAt(wx, wz, ground + 1, 0.5);
-        if (Math.abs(gy - ground) > 0.8) continue;
-        tmp.set(wx, gy, wz);
-        if (world.pushOut(tmp, 0.3, gy, 1.7, 0.45)) continue;
-        points.push({ x: wx, y: gy, z: wz, nx, nz, low, taken: null });
-      }
+  for (const col of world.colliders) coverBy(col, world, terrain, points);
+  return points;
+}
+
+/* the same, a collider at a time, the browser getting its turns between (loading, pace.js) */
+export async function buildCoverPointsPaced(world, terrain) {
+  const points = [];
+  for (const col of world.colliders) { coverBy(col, world, terrain, points); await breathe(); }
+  return points;
+}
+
+/* the cover points along one obstacle */
+function coverBy(col, world, terrain, points) {
+  if (!(col.flags & MOVE) || !(col.flags & SHOT)) return;
+  if (col.type !== 'box') return;
+  const ground = terrain.height(col.x, col.z);
+  const top = col.top - ground;
+  const low = top > 0.55 && top < 1.45;
+  const tall = top >= 1.45;
+  if (!low && !tall) return;
+  if (col.hx * col.hz > 300) return;             // whole houses: corners only
+  const off = 0.6;
+  const sides = [
+    [1, 0, col.hx, col.hz], [-1, 0, col.hx, col.hz], [0, 1, col.hz, col.hx], [0, -1, col.hz, col.hx],
+  ];
+  for (const [sx, sz, half, along] of sides) {
+    const n = tall ? 1 : Math.max(1, Math.floor((along * 2) / 1.4));
+    for (let k = 0; k < n; k++) {
+      const u = tall ? (k % 2 ? 1 : -1) * Math.max(0, along - 0.3) : (n === 1 ? 0 : -along + 0.5 + (k * (along * 2 - 1)) / Math.max(1, n - 1));
+      // local point
+      const lx = sx !== 0 ? sx * (half + off) : u;
+      const lz = sz !== 0 ? sz * (half + off) : u;
+      const wx = col.x + lx * col.c + lz * col.s;
+      const wz = col.z - lx * col.s + lz * col.c;
+      const nx = sx * col.c + sz * col.s, nz = -sx * col.s + sz * col.c;   // outward normal
+      const gy = world.groundAt(wx, wz, ground + 1, 0.5);
+      if (Math.abs(gy - ground) > 0.8) continue;
+      tmp.set(wx, gy, wz);
+      if (world.pushOut(tmp, 0.3, gy, 1.7, 0.45)) continue;
+      points.push({ x: wx, y: gy, z: wz, nx, nz, low, taken: null });
     }
   }
-  return points;
 }
 
 export function createEnemies(G, defs) {

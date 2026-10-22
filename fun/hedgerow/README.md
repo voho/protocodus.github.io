@@ -129,7 +129,14 @@ by the blast that killed them, and drop their rifles.
 * `js/` — three.js r185 (the site's vendored copy), plain ES modules, no build.
   * `main.js` boot, menus, frame loop with dynamic resolution (holds ~60 fps
     by scaling the render down to 60 % on slow GPUs and dense screens, and
-    back up when there is headroom) · `levelBuild.js` level data → world ·
+    back up when there is headroom); the loading runs in the background: the
+    menu shows at once and answers throughout, Move out counting the percent
+    until the mission is ready. Every long step (the models, the terrain, the
+    village, the decals, the canopy, the cover points) works in slices and
+    lets the page have its turn about every frame (`pace.js`); the shaders
+    are asked for all at once and compiled off the main thread, the textures
+    uploaded one a slice, and the soldiers and the mission set up behind
+    the menu, so Move out starts at once · `levelBuild.js` level data → world ·
     `levels/saint-clair.js` the mission (ground, props, enemies, objectives)
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
@@ -500,7 +507,7 @@ by the blast that killed them, and drop their rifles.
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `adapt.js` the eye adapting (the frame metered just ahead of the grade:
     the median of its log luminance over 32 x 18 patches, read back a few
-    frames later without stalling; the exposure closes down within half
+    frames later without stalling, and only once the mission is under way; the exposure closes down within half
     a second when a flare bursts and the whole view brightens, opens up
     again over a few seconds, never past the night's own, and holds still
     through a lightning stroke) ·

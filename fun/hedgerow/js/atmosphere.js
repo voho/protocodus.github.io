@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { rng, smoothstep } from './util.js';
 import { dimFillSpecular } from './fill.js';
+import { breathe } from './pace.js';
 
 function radialTexture(stops, size = 128) {
   const c = document.createElement('canvas');
@@ -184,7 +185,8 @@ function painter(S, ground, bare = false) {
   const mk = (fill) => {
     const c = document.createElement('canvas');
     c.width = c.height = S;
-    const g = c.getContext('2d');
+    // painted on the CPU: its pixels are read back (decalSet), which from a GPU canvas waits on the GPU
+    const g = c.getContext('2d', { willReadFrequently: true });
     g.fillStyle = fill;
     g.fillRect(0, 0, S, S);
     return g;
@@ -649,13 +651,13 @@ function plasterBreak(p, R, cx, cy, S, variant) {
   // in the shade of the plaster's lip near the edge: the break blurred, and darkened where that is thin
   const mask = document.createElement('canvas');
   mask.width = mask.height = p.S;
-  const mg = mask.getContext('2d');
+  const mg = mask.getContext('2d', { willReadFrequently: true });
   mg.filter = `blur(${(S * 0.03).toFixed(1)}px)`;
   mg.fillStyle = '#fff';
   mg.fill(shape);
   const shade = document.createElement('canvas');
   shade.width = shade.height = p.S;
-  const sg = shade.getContext('2d');
+  const sg = shade.getContext('2d', { willReadFrequently: true });
   sg.fillStyle = '#000';
   sg.fillRect(0, 0, p.S, p.S);
   sg.globalCompositeOperation = 'destination-out';
@@ -772,23 +774,26 @@ function decalMaterial(set, shared) {
 /* `pinned`: room for how many of each kind are put down for good with pin() (the walls' old damage,
    damage.js), before the fighting starts; those never make way for new ones. Plaster breaks
    ('spall') are only ever pinned. */
-export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
+// (painted a kind at a time, the browser getting its turns between: pace.js, while loading)
+export async function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
   const group = new THREE.Group();
   group.name = 'decals';
-  const sets = {
-    stone: decalSet(stoneHole, 9151, 'rgb(150,143,131)', 18),
-    wood: decalSet(woodHole, 4243, 'rgb(158,124,84)', 22),
-    metal: decalSet(metalHole, 777, 'rgb(150,151,154)', 20, true),
-    splat: decalSet(mudSplat, 3301, 'rgb(44,35,26)', 14),
-    scorch: decalSet(scorchMark, 6, 'rgb(12,11,9)', 0),
-    glass: decalSet(glassCrack, 2718, 'rgb(255,255,255)', 10),
+  const recipes = {
+    stone: [stoneHole, 9151, 'rgb(150,143,131)', 18],
+    wood: [woodHole, 4243, 'rgb(158,124,84)', 22],
+    metal: [metalHole, 777, 'rgb(150,151,154)', 20, true],
+    splat: [mudSplat, 3301, 'rgb(44,35,26)', 14],
+    scorch: [scorchMark, 6, 'rgb(12,11,9)', 0],
+    glass: [glassCrack, 2718, 'rgb(255,255,255)', 10],
   };
   // a break a metre or more across: painted at twice the texels
-  if (pinned.spall) sets.spall = decalSet(plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2);
+  if (pinned.spall) recipes.spall = [plasterBreak, 1871, 'rgb(112,104,92)', 16, false, CELL * 2];
   // and the old painted advertisements on the gables
-  if (pinned.sign) sets.sign = decalSet(wallAd, 1937, 'rgb(120,100,80)', 0, false, CELL * 2);
+  if (pinned.sign) recipes.sign = [wallAd, 1937, 'rgb(120,100,80)', 0, false, CELL * 2];
   // and the boots that went along the lanes before (prints.js)
-  if (pinned.boot) sets.boot = decalSet(bootPrint, 1940, 'rgb(46,37,28)', 16);
+  if (pinned.boot) recipes.boot = [bootPrint, 1940, 'rgb(46,37,28)', 16];
+  const sets = {};
+  for (const [k, r] of Object.entries(recipes)) { sets[k] = decalSet(...r); await breathe(); }
   const kinds = {};
   for (const k in sets) {
     const fixed = pinned[k] || 0, cap = (k === 'scorch' ? 24 : k === 'spall' || k === 'sign' || k === 'boot' ? 0 : k === 'glass' ? 60 : max) + fixed;

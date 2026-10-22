@@ -11,6 +11,7 @@
    shadows for the flare. A lightning stroke takes the flare's light, and its canopy with it. */
 
 import * as THREE from 'three';
+import { breathe } from './pace.js';
 
 /* the map, and the flare's light's direction (world, towards it), set each frame (setCanopyLight) */
 export const CANOPY_UNIFORMS = {
@@ -23,7 +24,8 @@ const KINDS = [[/^(pine|fir)/, 0.85], [/^(oak|beech)/, 0.8], [/^birch/, 0.55], [
 
 /* veg: the planted trees (vegetation.js: per kind its model and placements); bounds: the
    terrain's ({minX, maxX, minZ, maxZ}, m); cell: the map's metres per texel */
-export function buildCanopy(veg, bounds, { cell = 1 } = {}) {
+// (a kind of tree at a time, the browser getting its turns between: pace.js, while loading)
+export async function buildCanopy(veg, bounds, { cell = 1 } = {}) {
   const W = Math.ceil((bounds.maxX - bounds.minX) / cell), H = Math.ceil((bounds.maxZ - bounds.minZ) / cell);
   // the share of the sky each cell sees through the leaves over it, crowns overlapping
   const open = new Float32Array(W * H).fill(1);
@@ -33,6 +35,7 @@ export function buildCanopy(veg, bounds, { cell = 1 } = {}) {
     if (!thick) continue;
     const box = k.model.box, half = ((box.max.x - box.min.x) + (box.max.z - box.min.z)) * 0.25 * 0.9;
     for (const it of k.items) {
+      await breathe();
       const r = half * sc.setFromMatrixScale(it.m).x / cell;
       const cx = (it.x - bounds.minX) / cell, cz = (it.z - bounds.minZ) / cell;
       for (let j = Math.max(0, Math.floor(cz - r)); j <= Math.min(H - 1, Math.ceil(cz + r)); j++) {
@@ -51,6 +54,7 @@ export function buildCanopy(veg, bounds, { cell = 1 } = {}) {
   const R = Math.max(1, Math.round(2 / cell));
   for (let pass = 0; pass < 2; pass++) {
     for (let j = 0; j < H; j++) {
+      await breathe();
       for (let i = 0; i < W; i++) {
         let s = 0, n = 0;
         for (let d = -R; d <= R; d++) { const x = i + d; if (x >= 0 && x < W) { s += open[j * W + x]; n++; } }
@@ -58,6 +62,7 @@ export function buildCanopy(veg, bounds, { cell = 1 } = {}) {
       }
     }
     for (let j = 0; j < H; j++) {
+      await breathe();
       for (let i = 0; i < W; i++) {
         let s = 0, n = 0;
         for (let d = -R; d <= R; d++) { const y = j + d; if (y >= 0 && y < H) { s += tmp[y * W + i]; n++; } }

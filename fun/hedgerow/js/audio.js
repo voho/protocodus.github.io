@@ -30,8 +30,18 @@ export function createAudio() {
   let rainGain = null, windGain = null, rainLP = null, helmetGain = null;
   let dull = null, ring = null, dazed = 0;
 
+  /* on a click (the browser lets sound start only on one): the sound made if it is not yet, and
+     started */
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    prepare();
+  }
+
+  /* the context, the mixer and the loops, made while loading (main.js) and silent until a click
+     starts them: the browser's first audio context takes a quarter of a second to open, which on
+     the first click held the page */
+  function prepare() {
+    if (ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
@@ -517,7 +527,7 @@ export function createAudio() {
   }
 
   return {
-    init,
+    init, prepare,
     get ready() { return !!ctx; },
     setVolume(v) { volume = v; if (master) master.gain.value = v; },
     setListener(x, y, z, yaw) { listener.x = x; listener.y = y; listener.z = z; listener.yaw = yaw; },

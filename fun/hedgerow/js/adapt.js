@@ -59,9 +59,13 @@ export function createAdaptation({ base = 1.7, ref = -5, k = 0.75, min = 0.35 } 
   return {
     enabled: true, needsSwap: false,
     params: { base, ref, k, min },
+    // metering on (main.js: in play, a second after it starts): the readback waits on the GPU, and
+    // just after loading, while it is still busy taking up the textures and shaders, that held the
+    // page for hundreds of milliseconds; behind the menu the night's exposure stands
+    metering: false,
     setSize() {},
     render(renderer, writeBuffer, readBuffer) {
-      if (pending || ++frame % 6) return;
+      if (!this.metering || pending || ++frame % 6) return;
       material.uniforms.tSrc.value = readBuffer.texture;
       renderer.setRenderTarget(rt);
       renderer.render(quad, camera);

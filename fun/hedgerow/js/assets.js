@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../assets/vendor/GLTFLoader.js';
 import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { splitRooms, reseedRooms } from './rooms.js';
+import { breathe } from './pace.js';
 
 export async function loadModels(base, sets, onProgress) {
   const loader = new GLTFLoader();
@@ -28,7 +29,11 @@ export async function loadModels(base, sets, onProgress) {
       return;
     }
     if (set === 'soldier') out.soldier = gltf;
-    else readSet(gltf, set, out.models);
+    else {
+      // a model at a time, the browser getting its turns between them (pace.js)
+      gltf.scene.updateMatrixWorld(true);
+      for (const node of [...gltf.scene.children]) { readModel(node, set, out.models); await breathe(); }
+    }
     done++;
     onProgress?.(done / sets.length);
   }));
@@ -44,29 +49,32 @@ function parseExtra(v) {
 export function readSet(gltf, set, models) {
   const root = gltf.scene;
   root.updateMatrixWorld(true);
-  for (const node of root.children) {
-    const prims = [];
-    const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
-    node.traverse((o) => {
-      if (!o.isMesh) return;
-      const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-      const geo = normaliseGeometry(o.geometry, m);
-      const key = (o.material && o.material.name) || 'stone';
-      prims.push({ geometry: geo, key: key.replace(/\.\d+$/, ''), material: o.material, node: o === node ? null : o.name });
-    });
-    if (!prims.length) continue;
-    if (set === 'village') splitRooms(prims);       // lit windows get rooms behind them
-    const extras = node.userData || {};
-    const model = {
-      name: node.name, set, prims,
-      colliders: parseExtra(extras.colliders) || [],
-      anchors: parseExtra(extras.anchors) || {},
-      extras,
-      box: new THREE.Box3(),
-    };
-    for (const p of prims) { p.geometry.computeBoundingBox(); model.box.union(p.geometry.boundingBox); }
-    models.set(node.name, model);
-  }
+  for (const node of root.children) readModel(node, set, models);
+}
+
+/* one top-level node of a set (its matrices up to date) as a model */
+function readModel(node, set, models) {
+  const prims = [];
+  const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
+  node.traverse((o) => {
+    if (!o.isMesh) return;
+    const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const geo = normaliseGeometry(o.geometry, m);
+    const key = (o.material && o.material.name) || 'stone';
+    prims.push({ geometry: geo, key: key.replace(/\.\d+$/, ''), material: o.material, node: o === node ? null : o.name });
+  });
+  if (!prims.length) return;
+  if (set === 'village') splitRooms(prims);       // lit windows get rooms behind them
+  const extras = node.userData || {};
+  const model = {
+    name: node.name, set, prims,
+    colliders: parseExtra(extras.colliders) || [],
+    anchors: parseExtra(extras.anchors) || {},
+    extras,
+    box: new THREE.Box3(),
+  };
+  for (const p of prims) { p.geometry.computeBoundingBox(); model.box.union(p.geometry.boundingBox); }
+  models.set(node.name, model);
 }
 
 /* Float32 position/normal/uv/color(rgb) with the given transform baked in. */
@@ -111,6 +119,17 @@ export function instantiate(model, matlib) {
 export function createStaticBatcher(matlib, chunk = 48) {
   const buckets = new Map();   // chunkKey|material uuid -> {material, geos}
   const tmp = new THREE.Matrix4();
+  // one bucket merged into one mesh
+  const merge = (id, material, list) => {
+    const merged = mergeGeometries(list, false);
+    for (const g of list) g.dispose();
+    if (!merged) return null;
+    merged.computeBoundingSphere();
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.name = 'static:' + id;
+    mesh.matrixAutoUpdate = false;
+    return mesh;
+  };
   return {
     add(model, matrix, opts = {}) {
       const px = matrix.elements[12], pz = matrix.elements[14];
@@ -134,16 +153,15 @@ export function createStaticBatcher(matlib, chunk = 48) {
     build() {
       const group = new THREE.Group();
       group.name = 'static';
-      for (const [id, { material, geos: list }] of buckets) {
-        const merged = mergeGeometries(list, false);
-        for (const g of list) g.dispose();
-        if (!merged) continue;
-        merged.computeBoundingSphere();
-        const mesh = new THREE.Mesh(merged, material);
-        mesh.name = 'static:' + id;
-        mesh.matrixAutoUpdate = false;
-        group.add(mesh);
-      }
+      for (const [id, { material, geos }] of buckets) { const mesh = merge(id, material, geos); if (mesh) group.add(mesh); }
+      buckets.clear();
+      return group;
+    },
+    /* the same, a bucket at a time, the browser getting its turns between (loading, pace.js) */
+    async buildPaced() {
+      const group = new THREE.Group();
+      group.name = 'static';
+      for (const [id, { material, geos }] of buckets) { const mesh = merge(id, material, geos); if (mesh) group.add(mesh); await breathe(); }
       buckets.clear();
       return group;
     },

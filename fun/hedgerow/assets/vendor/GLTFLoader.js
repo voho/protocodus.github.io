@@ -3309,6 +3309,19 @@ class GLTFParser {
 
 			sourceURI = parser.getDependency( 'bufferView', sourceDef.bufferView ).then( function ( bufferView ) {
 
+				// Hedgerow: each image's blob made in a task of its own (registering a blob URL waits on the
+				// browser, and a model set carries a hundred images or more: made all at once they held the
+				// page for half a second while it loaded)
+				return new Promise( ( resolve ) => {
+
+					const channel = new MessageChannel();
+					channel.port1.onmessage = () => resolve( bufferView );
+					channel.port2.postMessage( 0 );
+
+				} );
+
+			} ).then( function ( bufferView ) {
+
 				isObjectURL = true;
 				const blob = new Blob( [ bufferView ], { type: sourceDef.mimeType } );
 				sourceURI = URL.createObjectURL( blob );
@@ -3351,7 +3364,12 @@ class GLTFParser {
 
 			if ( isObjectURL === true ) {
 
-				URL.revokeObjectURL( sourceURI );
+				// Hedgerow: the blob let go in a task of its own (another wait on the browser: many images
+				// finish decoding together, and their releases added up to a third of a second in one task)
+				const url = sourceURI;
+				const channel = new MessageChannel();
+				channel.port1.onmessage = () => URL.revokeObjectURL( url );
+				channel.port2.postMessage( 0 );
 
 			}
 

@@ -40,6 +40,8 @@ import { createEnemies } from './ai.js';
 import { createExplosives, createDebris } from './combat.js';
 import { createMission } from './mission.js';
 import { buildLevel } from './levelBuild.js';
+import { createNav } from './nav.js';
+import { breathe, yieldNow, mark } from './pace.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
 import { createAdaptation } from './adapt.js';
 import { createGrade } from './post.js';
@@ -106,6 +108,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
 let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
+let chain = [];        // the effects chain as applyGraphics last set it
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -120,10 +123,27 @@ function setLoading(frac, label) {
   f.style.width = `${(frac * 100).toFixed(0)}%`;
   $('[data-loading-bar]').setAttribute('aria-valuenow', Math.round(frac * 100));
   if (label) $('[data-loading-label]').textContent = label;
+  // Move out waits for the world, saying how far loading has got
+  const go = $('[data-action="start"]');
+  go.disabled = !ready;
+  go.textContent = ready ? 'Move out' : `Loading ${Math.round(frac * 100)}%`;
 }
-const nextPaint = () => new Promise(r => { requestAnimationFrame(() => r()); setTimeout(r, 120); });
+
+/* Loading runs behind the menu: the title and the menu are up and answering from the start (the
+   briefing can be read, the controls looked at, the settings changed, applied once the world is
+   ready), and Move out waits, counting, until it is. Every step of the build leaves the browser its
+   turns (breathe(), pace.js; inside the long steps too) and a performance mark ('hedgerow: <step>')
+   for a profile to find it by. */
+let ready = false, missionStarted = false, hdrChain = false;
+// the shader materials made while loading (noted by a hook on Material.setValues until the shaders
+// are warm), for warmShaders to compile those nothing draws yet: a pass that only runs under a flare,
+// while aiming, on the move
+const madeShaders = new Set();
+const setValues = THREE.Material.prototype.setValues, copyShader = THREE.ShaderMaterial.prototype.copy;
 
 async function boot() {
+  THREE.Material.prototype.setValues = function (values) { if (this.isShaderMaterial) madeShaders.add(this); return setValues.call(this, values); };
+  THREE.ShaderMaterial.prototype.copy = function (source) { madeShaders.add(this); return copyShader.call(this, source); };   // clones
   const probe = document.createElement('canvas').getContext('webgl2');
   if (!probe) { error('Hedgerow needs WebGL 2, which this browser or device does not provide.'); return; }
   const hdr = canRenderHalfFloat(probe);
@@ -134,7 +154,9 @@ async function boot() {
   // shadows from the lamp or fire nearest the camera (lights.js); the
   // preset at load decides (switching it later would recompile everything)
   renderer.shadowMap.enabled = !!quality.shadows;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCF (three r185 deprecates PCFSoftShadowMap and swaps it for this on the first shadow render, after
+  // the shaders had been compiled for the other: every one that takes shadows was compiled twice)
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.7;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -154,12 +176,27 @@ async function boot() {
   audio.setVolume(settings.volume);
   const events = createEvents();
 
+  // the sound, opened before the menu is there to be clicked (the browser's first audio context holds
+  // the page a quarter of a second; silent until a click starts it)
+  mark('sound');
+  audio.prepare();
+
+  // the menu at once; until the world is ready Move out shows how far loading has got
+  $('[data-menu]').hidden = false;
+  showBest();
+  if (params.has('go')) openBriefing();
+
+  mark('textures');
   setLoading(0.02, 'Loading textures');
   const textures = await loadTextures('assets/textures', (f) => setLoading(0.02 + f * 0.13));
+  mark('models');
   setLoading(0.15, 'Loading models');
   const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f) => setLoading(0.15 + f * 0.45));
   setLoading(0.62, 'Laying out Saint-Clair');
-  await nextPaint();
+  // each step of the layout: the bar moves on, the browser gets its turn, the step is marked
+  let laid = 0;
+  const next = async (name) => { setLoading(0.62 + 0.23 * Math.min(1, laid++ / 24)); await breathe(); mark(name); };
+  await next('materials');
 
   const matlib = createMaterialLibrary(textures, shared);
   const fogUniforms = { color: { value: fogColor }, density: { value: LEVEL.fog.density } };
@@ -180,14 +217,18 @@ async function boot() {
   G.halos = createHalos(LEVEL.fog.density);
   scene.add(G.halos.group);
   // room kept for the damage the walls already carry (damage.js)
-  G.decals = createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5, boot: 1100 } });
+  G.decals = await createDecals({ shared, pinned: { stone: 480, wood: 80, spall: 64, sign: 5, boot: 1100 } });
   scene.add(G.decals.group);
 
-  built = buildLevel(G, LEVEL, quality);
+  await next('level');
+  built = await buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
+  await next('walls');
   dressWalls(G, built.props, LEVEL.lines);
+  await next('boots');
   // and the boots that went along the lane and the track before (prints.js)
   printBoots(G, LEVEL.lines);
+  await next('panes');
   // the lit windows' glass, for the cracks a bullet leaves in it and the shards it breaks out
   const panes = paneRects(built.props);
   G.decals.setPanes(panes);
@@ -195,17 +236,22 @@ async function boot() {
   // and white sheets hung from a few of them (cloth.js)
   G.sheets = createSheets(panes, G.world, G.terrain, shared);
   if (G.sheets) scene.add(G.sheets.mesh);
+  await next('canopy');
   // and parachutes caught in the trees by the forest track (chutes.js)
   // the crowns over the forest floor, for a flare's light beyond its shadow map (canopy.js)
-  buildCanopy(built.veg, LEVEL.bounds);
+  await buildCanopy(built.veg, LEVEL.bounds);
+  await next('chutes');
   G.chutes = createChutes(built.veg, LEVEL.lines, G.terrain, shared);
   if (G.chutes) scene.add(G.chutes.group);
+  await next('signs');
   // the signposts, crowded with the occupiers' painted boards (signs.js)
   G.waysigns = createWaysigns(built.signposts, G.matlib);
   if (G.waysigns) scene.add(G.waysigns);
+  await next('wire');
   // and coils of concertina along the barbed wire (wire.js)
   G.concertina = createConcertina(built.wires);
   if (G.concertina) scene.add(G.concertina);
+  await next('casings');
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);
@@ -216,21 +262,27 @@ async function boot() {
   scene.add(G.chunks.mesh);
   // steam off the barrel of the gun in your hands after it has fired in the rain (steam.js)
   G.steam = createSteam(G, shared.rain);
+  await next('ponds');
   // rainwater standing in the shell craters (ponds.js)
   G.ponds = createPonds(LEVEL.craters, G.terrain, textures, shared);
   if (G.ponds) scene.add(G.ponds.mesh);
+  await next('drips');
   // the rain dripping off the eaves (drips.js)
   G.drips = createDrips(built.props, G.terrain);
   G.drips.drawLate(null, scene);
+  await next('ground map');
   // what grows and lies where; the meadow grass blade by blade round the camera, stones and twigs at your feet
   G.groundMap = createGroundMap(G.terrain, G.world, LEVEL.water?.level ?? -1e4, G.ponds?.list);
+  await next('ruts');
   // the lanes' wheel ruts (ruts.js, drawn by the terrain)
   const ruts = createRuts(LEVEL.lines);
   if (ruts) { shared.rutMap.value = ruts.tex; shared.rutMin.value.copy(ruts.min); shared.rutSize.value.copy(ruts.size); }
+  await next('grass');
   G.grass = createGrass({ map: G.groundMap, shared, n: quality.blades ?? 0, shocks: G.effects.shocks });
   scene.add(G.grass.mesh);
   G.clutter = createClutter({ map: G.groundMap, shared, on: quality.clutter ?? 0 });
   scene.add(G.clutter.group);
+  await next('fires');
   // the fires' flames, drawn as flame (flames.js)
   G.flames = createFlames(G.effects);
   G.flames.drawLate(null, scene);
@@ -240,12 +292,15 @@ async function boot() {
   // and the blasts' fireballs (fireball.js)
   G.fireballs = createFireballs(G.effects);
   G.fireballs.drawLate(null, scene);
+  await next('window light');
   // the light falling out of the lit windows (windowlight.js)
   G.windowLight = createWindowLight(collectPanes(scene));
+  await next('flares');
   // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
   G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
   setLoading(0.85, 'Rain over Normandy');
-  await nextPaint();
+  await yieldNow();
+  mark('weather');
 
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
@@ -254,6 +309,8 @@ async function boot() {
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
+  await breathe();
+  mark('environment');
 
   // reflections: the dusk sky as an environment map
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -265,8 +322,11 @@ async function boot() {
   scene.environmentIntensity = 0.8;
 
   G.rig = createCameraRig(camera, G.world);
+  await breathe();
+  mark('post');
 
   // post
+  hdrChain = hdr;
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
@@ -285,20 +345,26 @@ async function boot() {
     applyGraphics();
   }
 
-  // warm up: compile shaders with everything visible
+  // the soldiers and the mission, made now behind the menu so Move out starts at once
+  setLoading(0.89, 'Manning the posts');
+  await yieldNow();
+  mark('soldiers');
+  await prepareMission();
+
+  // the shaders, before anything is drawn with them
   setLoading(0.95, 'Checking weapons');
-  await nextPaint();
-  camera.position.set(0, 4, -10);
-  camera.lookAt(0, 2, 20);
-  renderer.compile(scene, camera);
+  await yieldNow();
+  mark('shaders');
+  menuCamera(0);
+  await warmShaders();
 
   setLoading(1, 'Ready');
+  mark('ready');
+  ready = true;
   $('[data-loading]').hidden = true;
-  $('[data-menu]').hidden = false;
-  showBest();
+  setLoading(1);
   state = 'menu';
   fade.classList.remove('on');
-  if (params.has('go')) openBriefing();
   if (FLY) startFly();
   // ?test=<glb path>&at=x,z: drop a model in front of the free camera (pipeline checks)
   if (params.get('test')) {
@@ -361,7 +427,8 @@ function applyGraphics() {
     // the passes after the first one that swaps render into the scene's own buffer, whose depth
     // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
     // in the chain may clear it, so depth clears are off from its start to its end
-    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), adapt, grade, CLEAR_DEPTH]);
+    chain = [KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), adapt, grade, CLEAR_DEPTH];
+    renderer.setEffects(chain);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -385,26 +452,184 @@ function openBriefing() {
   show('briefing');
 }
 
+/* The soldiers (his own body and the enemy) and the mission, made while loading, behind the menu:
+   hidden until the mission starts (the enemy then show themselves as they come into view, ai.js). */
+async function prepareMission() {
+  player = createPlayer(G);
+  G.player = player;
+  player.char.root.visible = false;
+  player.char.shadow.visible = false;
+  await breathe();
+  explosives = createExplosives(G);
+  G.explosives = explosives;
+  G.debris = createDebris(G);
+  await breathe();
+  mark('nav');
+  // the walk grid the enemy find their way by (ai.js would make it with them)
+  G.nav = createNav(G.world, LEVEL.playBounds || G.world.bounds);
+  await breathe();
+  mark('enemies');
+  enemies = createEnemies(G, built.enemyDefs);
+  G.enemies = enemies.list;
+  for (const e of enemies.list) { e.char.root.visible = false; e.char.shadow.visible = false; }
+  await breathe();
+  mark('mission');
+  mission = createMission(G, LEVEL, built);
+  G.mission = mission;
+  G.events.on('playerDied', onDeath);
+  G.events.on('missionComplete', onComplete);
+}
+
+/* The shaders, compiled before anything is drawn with them, and in the background: asked for all
+   at once (KHR_parallel_shader_compile compiles them off the main thread while the page carries on),
+   then waited for (whenCompiled).
+   Left to the first frames, the ninety-odd programs of the scene, the effects chain and the
+   soldiers compiled one after another on it, and the menu froze for four seconds as it appeared.
+   The scene is compiled as the chain draws it (into its half-float buffer, not tone-mapped), the
+   soldiers shown for it; the chain's own passes are found by running it once with the drawing taken
+   out, each draw it asks for noted, and compiled the same way. What is left - the shadow maps'
+   variants, the chain's output - compiles in one frame drawn unseen after (the flare's warm-up:
+   its shadow map drawn with everything that could cast in it). */
+async function warmShaders() {
+  const soldiers = [player.char.root, ...enemies.list.map((e) => e.char.root)];
+  const buffer = () => {
+    const t = new THREE.WebGLRenderTarget(4, 4, { type: hdrChain ? THREE.HalfFloatType : THREE.UnsignedByteType });
+    t.depthTexture = new THREE.DepthTexture(4, 4);
+    return t;
+  };
+  const a = buffer(), b = buffer();
+  const draws = [], compiled = new Set();
+  const compile = (object, cam, target) => { for (const m of renderer.compile(object, cam, target)) compiled.add(m); };
+  if (hdrChain && chain.length) {
+    // each draw compiled as it is asked for (a pass may change its material's defines between two)
+    const render = renderer.render;
+    renderer.render = (object, cam) => {
+      draws.push([object, cam]);
+      if (object !== scene) compile(object, cam);
+    };
+    try {
+      let read = a, write = b;
+      for (const pass of chain) {
+        if (pass.enabled === false) continue;
+        pass.render(renderer, write, read, 0);
+        if (pass.needsSwap !== false) [read, write] = [write, read];
+      }
+    } finally { renderer.render = render; }
+  }
+  const tone = renderer.toneMapping;
+  renderer.setRenderTarget(hdrChain ? a : null);
+  if (hdrChain) renderer.toneMapping = THREE.NoToneMapping;
+  for (const o of soldiers) o.visible = true;
+  compile(scene, camera);
+  for (const o of soldiers) o.visible = false;
+  // the passes' shaders nothing drew in that run (they run only now and then), on a stand-in for
+  // their full-screen triangle (position and uv only: what a geometry carries is in a shader's variant)
+  const tri = new THREE.BufferGeometry();
+  tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
+  tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 0, 0, 2, 0], 2));
+  const quad = new THREE.Mesh(tri), flat = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  for (const m of madeShaders) {
+    if (renderer.properties.get(m).currentProgram) continue;
+    quad.material = m;
+    compile(quad, flat);
+    await breathe();
+  }
+  THREE.Material.prototype.setValues = setValues;
+  THREE.ShaderMaterial.prototype.copy = copyShader;
+  madeShaders.clear();
+  // the shadow maps' own shaders: three's depth material (a flare, a lightning stroke) and distance
+  // material (a lamp, a fire), as WebGLShadowMap sets them up for each kind of thing that casts
+  // (skinned, instanced or plain; cut out by its alpha or not; which of its sides), or the thing's own
+  const kinds = new Map();
+  const flip = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    for (const m of [].concat(o.material)) {
+      const cut = !!((m.map || m.alphaMap) && m.alphaTest > 0) || m.alphaToCoverage;
+      const at = o.geometry.attributes;
+      const key = [o.isSkinnedMesh, o.isInstancedMesh, !!o.morphTargetInfluences, cut, m.shadowSide ?? flip[m.side], o.customDepthMaterial?.uuid, o.customDistanceMaterial?.uuid,
+        !!at.normal, !!at.uv, !!at.color, !!at.tangent].join();
+      if (!kinds.has(key)) kinds.set(key, [o, m]);
+    }
+  });
+  // (the shadow pass draws with no scene: no fog)
+  const fog = scene.fog;
+  scene.fog = null;
+  for (const [o, m] of kinds.values()) {
+    const was = o.material;
+    for (const [own, Kind] of [[o.customDepthMaterial, THREE.MeshDepthMaterial], [o.customDistanceMaterial, THREE.MeshDistanceMaterial]]) {
+      let d = own;
+      if (!d) {
+        d = new Kind();
+        d.side = m.shadowSide ?? flip[m.side];
+        d.map = m.map; d.alphaMap = m.alphaMap; d.alphaTest = m.alphaToCoverage ? 0.5 : m.alphaTest;
+      }
+      o.material = d;
+      compile(o, camera, scene);
+      o.material = was;
+    }
+  }
+  scene.fog = fog;
+  renderer.toneMapping = tone;
+  renderer.setRenderTarget(null);
+  // and meanwhile the textures go up to the GPU one at a time (the first frame drawn would otherwise
+  // have uploaded them all at once)
+  mark('textures up');
+  for (const t of textures([scene, ...draws.map(([object]) => object)])) { renderer.initTexture(t); await breathe(); }
+  await whenCompiled(compiled);
+  await yieldNow();
+  mark('warm frame');
+  // the frame drawn unseen (behind the fade, which still covers the canvas; to the screen, so the
+  // chain's output compiles too), the soldiers shown and casting for it
+  for (const o of soldiers) o.visible = true;
+  G.flares.warm(renderer, scene, camera, [
+    ...G.flares.castersOf(built.veg.group),
+    ...player.char.meshes, ...enemies.list.flatMap((e) => e.char.meshes),
+  ]);
+  for (const o of soldiers) o.visible = false;
+  a.dispose(); b.dispose();
+  await yieldNow();
+}
+
+/* until the programs these materials need are compiled: a status query a turn, one program at a
+   time (they come out much in the order they went in). Each query is a round trip to the GPU
+   process, and three's own wait (compileAsync) asked after every program still pending every ten
+   milliseconds - with ninety pending, a twentieth of a second of the page each time. */
+async function whenCompiled(materials) {
+  const programs = new Set();
+  for (const m of materials) { const p = renderer.properties.get(m).currentProgram; if (p) programs.add(p); }
+  for (const p of programs) {
+    while (!p.isReady()) await new Promise((resolve) => setTimeout(resolve, 16));
+    await breathe();
+  }
+}
+
+/* every texture the materials under these draw with (their maps and their shaders' uniforms), not
+   the render targets' */
+function textures(roots) {
+  const out = new Set();
+  const take = (v) => { if (v?.isTexture && !v.isRenderTargetTexture && (v.image || v.source?.data)) out.add(v); };
+  for (const root of roots) {
+    root.traverse((o) => {
+      for (const m of [].concat(o.material || [])) {
+        for (const v of Object.values(m)) take(v);
+        for (const u of Object.values(m.uniforms || {})) take(u?.value);
+        // and those its compiled shader added (onBeforeCompile: the ground's maps, the canopy's)
+        for (const u of Object.values(renderer.properties.get(m).uniforms || {})) take(u?.value);
+      }
+    });
+  }
+  return out;
+}
+
 function startMission() {
+  if (!ready) return;              // Move out waits for the world (it says how far loading has got)
+  mark('move out');
   audio.init();
-  if (!player) {
-    player = createPlayer(G);
-    G.player = player;
-    explosives = createExplosives(G);
-    G.explosives = explosives;
-    G.debris = createDebris(G);
-    enemies = createEnemies(G, built.enemyDefs);
-    G.enemies = enemies.list;
-    mission = createMission(G, LEVEL, built);
-    G.mission = mission;
-    G.events.on('playerDied', onDeath);
-    G.events.on('missionComplete', onComplete);
+  if (!missionStarted) {
+    missionStarted = true;
+    player.char.root.visible = true;
     mission.start();
-    // the flares' shadow shaders, now that the soldiers exist (not at the first flare)
-    G.flares.warm(renderer, scene, camera, [
-      ...G.flares.castersOf(built.veg.group),
-      ...player.char.meshes, ...enemies.list.flatMap((e) => e.char.meshes),
-    ]);
   }
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
   player.reset(spawn);
@@ -630,7 +855,7 @@ function step() {
   const live = playing || state === 'dead' || state === 'complete' || state === 'fly';
   if (state === 'paused' || state === 'menu' || state === 'loading') {
     // keep the world alive behind the menus, slowly
-    if (state === 'menu' && !player) menuCamera(dt);
+    if (state === 'menu' && !missionStarted) menuCamera(dt);
   }
   if (live || state === 'menu') G.time += dt;
   shared.time.value = G.time;
@@ -703,6 +928,7 @@ function step() {
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       grade.tick(dt);
+      adapt.metering = state === 'playing' && missionTime > 1;
       adapt.update(dt, renderer, flash);
       const hp = player ? player.health / 100 : 1;
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
@@ -789,7 +1015,7 @@ document.addEventListener('input', (e) => {
   settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value;
   saveSettings();
   if (k === 'volume') audio.setVolume(settings.volume);
-  if (G) applyGraphics();
+  if (ready) applyGraphics();
 });
 
 window.addEventListener('resize', () => {

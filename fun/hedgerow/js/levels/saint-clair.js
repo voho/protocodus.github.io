@@ -537,12 +537,14 @@ for (const [nx0, nz0] of [[-6.5, 89.5], [5, 287.5], [2, 392]]) {
 
 const R = rng(20250719);
 const scatter = [];
+// (each line looked at only near it, inside its box: the boxes are padded wider than any of these
+// distances, so the answers are the same, the module ready in a fraction of the time)
 function noTree(x, z) {
-  polylineDistance(STREET, x, z, tmpD); if (tmpD.d < 9 && z < 262) return true;
-  polylineDistance(LANE, x, z, tmpD); if (tmpD.d < 7.5 && z < 86) return true;
-  if (z > 276) { polylineDistance(TRACK, x, z, tmpD); if (tmpD.d < 4.5) return true; }
+  if (z < 262 && inBox(BOX.STREET, x, z)) { polylineDistance(STREET, x, z, tmpD); if (tmpD.d < 9) return true; }
+  if (z < 86 && inBox(BOX.LANE, x, z)) { polylineDistance(LANE, x, z, tmpD); if (tmpD.d < 7.5) return true; }
+  if (z > 276 && inBox(BOX.TRACK, x, z)) { polylineDistance(TRACK, x, z, tmpD); if (tmpD.d < 4.5) return true; }
   if (Math.abs(z - RIVER_Z(x)) < 12) return true;
-  for (const T of [TRENCH_W, TRENCH_E, TRENCH_C]) { polylineDistance(T, x, z, tmpD); if (tmpD.d < 3.5) return true; }
+  for (const [T, b] of TRENCHES) if (inBox(BOX[b], x, z)) { polylineDistance(T, x, z, tmpD); if (tmpD.d < 3.5) return true; }
   if (Math.hypot(x - CLEARING.x, z - CLEARING.z) < CLEARING.r) return true;
   if (Math.hypot(x - BUNKER.x, z - BUNKER.z) < 11) return true;
   for (const [fx, fz] of FOXHOLES) if (Math.hypot(x - fx, z - fz) < 3.5) return true;
@@ -597,9 +599,9 @@ for (let i = 0; i < 220; i++) {
 const cover = [];
 for (let i = 0; i < 42000; i++) {
   const x = R.range(-60, 60), z = R.range(-30, 570);
-  polylineDistance(STREET, x, z, tmpD); if (tmpD.d < 5.5 && z < 258) continue;
-  polylineDistance(LANE, x, z, tmpD); if (tmpD.d < 3.2 && z < 86) continue;
-  if (z > 276) { polylineDistance(TRACK, x, z, tmpD); if (tmpD.d < 2.2) continue; }
+  if (z < 258 && inBox(BOX.STREET, x, z)) { polylineDistance(STREET, x, z, tmpD); if (tmpD.d < 5.5) continue; }
+  if (z < 86 && inBox(BOX.LANE, x, z)) { polylineDistance(LANE, x, z, tmpD); if (tmpD.d < 3.2) continue; }
+  if (z > 276 && inBox(BOX.TRACK, x, z)) { polylineDistance(TRACK, x, z, tmpD); if (tmpD.d < 2.2) continue; }
   if (Math.abs(z - RIVER_Z(x)) < 7.5) continue;
   if (x > SQUARE.x0 && x < SQUARE.x1 && z > SQUARE.z0 && z < SQUARE.z1) continue;
   let m = 'grass_tuft';
