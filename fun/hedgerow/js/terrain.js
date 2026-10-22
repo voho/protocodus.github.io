@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { RUTS_GLSL } from './ruts.js';
-import { dimFillSpecular } from './fill.js';
+import { dimFillSpecular, addFireBounce } from './fill.js';
 import { clamp } from './util.js';
 
 const RES = 0.5;
@@ -377,6 +377,7 @@ export function createTerrainMaterial(textures, shared) {
         #ifdef OPAQUE
           gl_FragColor.a = mirrorAlpha(roughnessFactor, uWet);
         #endif`);
+    addFireBounce(shader, 'vWPos', 'normalize(vWNormal)');
     dimFillSpecular(shader);
   };
   return mat;

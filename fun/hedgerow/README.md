@@ -263,7 +263,12 @@ by the blast that killed them, and drop their rifles.
     the sun, the rim light of the overcast — model shapes but make no
     glints on the world: their direct specular is cut to a tenth on the
     ground, water, walls and leaves, where they made a sun on the puddles
-    under a sky with no sun; the soldiers and their weapons keep it),
+    under a sky with no sun; the soldiers and their weapons keep it; and
+    the fires' light thrown back off the street and the walls round them,
+    the four nearest: a warm fill, unshadowed, on what stands within ~20 m
+    of a fire, most on the side facing it, a third on its sides, little on
+    the side turned away, so a wreck's shadow side and the street behind
+    it are not black and a wall round a fire is not lit through),
     `lightloop.js` (three.js shades every point light on every pixel, even
     where its range has cut it to nothing; patched once at start, a light
     that does not reach a pixel is skipped there - the same picture, the
