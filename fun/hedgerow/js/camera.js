@@ -78,13 +78,37 @@ export function createCameraRig(camera, world) {
   }
 
   /* ---------- the death camera ---------- */
-  const dc = { t: 0, started: false, from: new THREE.Vector3(), pos: new THREE.Vector3(), look: new THREE.Vector3() };
+  const dc = {
+    t: 0, started: false, from: new THREE.Vector3(), pos: new THREE.Vector3(), look: new THREE.Vector3(),
+    eyeStart: false, q0inv: new THREE.Quaternion(), off: new THREE.Vector3(), camQ0: new THREE.Quaternion(),
+  };
   const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), vd = new THREE.Vector3();
-  const HOLD = 0.8, TRAVEL = 2.4;
-  /* `body`: where he fell; `killer`: the killer's head (null: just the fall). */
-  rig.deathCam = (dt, body, killer) => {
+  const qa = new THREE.Quaternion();
+  const HOLD = 0.8, HOLD_EYES = 1.1, TRAVEL = 2.4;
+  /* `body`: where he fell; `killer`: the killer's head (null: just the fall);
+     `eye` (first person): his head as it falls, {pos, quat} — the camera
+     goes down with it for the first moments (and stays with it when there
+     is no one to turn to), moving and turning as the head has since he was
+     hit, before it turns to the killer. */
+  rig.deathCam = (dt, body, killer, eye = null) => {
     dc.t += dt;
-    if (!killer || dc.t < HOLD) {
+    if (eye && (dc.t < HOLD_EYES || !killer)) {
+      if (!dc.eyeStart) {
+        dc.eyeStart = true;
+        dc.q0inv.copy(eye.quat).invert();
+        dc.off.copy(camera.position).sub(eye.pos).applyQuaternion(dc.q0inv);
+        dc.camQ0.copy(camera.quaternion);
+      }
+      camera.position.copy(dc.off).applyQuaternion(eye.quat).add(eye.pos);
+      camera.quaternion.copy(qa.copy(eye.quat).multiply(dc.q0inv)).multiply(dc.camQ0);
+      let g = world.terrain ? world.terrain.height(camera.position.x, camera.position.z) + 0.12 : -Infinity;
+      if (world.water && world.water.contains(camera.position.x, camera.position.z)) g = Math.max(g, world.water.level + 0.12);
+      if (camera.position.y < g) camera.position.y = g;
+      dc.pos.copy(camera.position);
+      dc.look.copy(camera.position).add(vd.set(0, 0, -1).applyQuaternion(camera.quaternion));
+      return;
+    }
+    if (!eye && (!killer || dc.t < HOLD)) {
       rig.update(dt, body, 0.6, false, 0);
       dc.pos.copy(camera.position);
       dc.look.copy(camera.position).add(rig.dir);
@@ -119,7 +143,9 @@ export function createCameraRig(camera, world) {
     camera.fov = damp(camera.fov, fov, 4, dt);
     camera.updateProjectionMatrix();
   };
-  rig.resetDeathCam = () => { dc.t = 0; dc.started = false; };
+  rig.resetDeathCam = () => { dc.t = 0; dc.started = false; dc.eyeStart = false; };
+  /* seconds since the death camera began */
+  rig.deathTime = () => dc.t;
 
   /* the aim blend, the recoil recovering, the shake dying away */
   function settle(dt, aiming, moveSpeed) {

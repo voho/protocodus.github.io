@@ -129,8 +129,9 @@ by the blast that killed them, and drop their rifles.
     `reload.js` (the reload's clip and magazine; in first person on
     the shouldered rifle, tilted into view, the fresh one seating in the
     picture), `camera.js` (at the eyes, down the
-    sights when aiming, flinching from a hit; the over-the-shoulder rig for
-    the death camera),
+    sights when aiming, flinching from a hit; dying, the eyes go down with
+    the body for a moment before the over-the-shoulder death camera turns to
+    the killer),
     `character.js` (rig, split upper/lower body animation, the upper body
     steadied on the gait in first person, the outfit's low-detail `_lod`
     mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`

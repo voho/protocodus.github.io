@@ -123,7 +123,8 @@ export function createPlayer(G) {
         const k = kind === 'bullet' ? 3.0 : 7;
         impulses.push({ part: kind === 'bullet' ? 'body' : 'all', vel: dir.multiplyScalar(k).add(new THREE.Vector3(0, kind === 'bullet' ? 0.4 : 3.5, 0)) });
       }
-      P.char.hideHead(false);
+      if (!FP) P.char.hideHead(false);      // first person: the eyes go down with him; the head shows once the camera has left it
+      P.headBack = !FP;
       P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
       G.audio.bodyFall(P.pos.x, P.pos.y, P.pos.z, G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z), 0.45, true);
       if (G.debris && P.char.weapon && P.char.ragdoll) G.debris.drop(P.char.weapon, new THREE.Vector3(0, 1, 0), { spin: 4, radius: 0.08 });
@@ -347,15 +348,24 @@ export function createPlayer(G) {
   /* ---------- per frame ---------- */
 
   const killerHead = new THREE.Vector3();
+  const deathEye = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
 
   P.update = (dt, input, settings) => {
     const ch = P.char;
     if (!P.alive) {
       ch.root.position.copy(P.pos);
       ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.5));
-      // the camera turns to the man who did it and follows him
+      // the camera turns to the man who did it and follows him (first person: after
+      // going down with the body for a moment)
       const k = P.killer && !P.killer.dead ? P.killer.char.headWorld(killerHead) : null;
-      G.rig.deathCam(dt, P.pos, k);
+      let eye = null;
+      if (FP && ch.bones?.head) {
+        eye = deathEye;
+        ch.bones.head.getWorldPosition(eye.pos);
+        ch.bones.head.getWorldQuaternion(eye.quat);
+      }
+      G.rig.deathCam(dt, P.pos, k, eye);
+      if (!P.headBack && k && G.rig.deathTime() > 1.1) { ch.hideHead(false); P.headBack = true; }
       return;
     }
     const w = weaponDef();

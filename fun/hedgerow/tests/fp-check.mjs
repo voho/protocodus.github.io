@@ -239,4 +239,34 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(Math.sign(mid[0].x) === -Math.sign(mid[1].x) && Math.abs(mid[0].x) > 0.001, 'and sways to alternate sides');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch and the head bob feel right');
+/* Dying in first person: for a moment the eyes go down with the body,
+   moving and turning as the head does, then the camera leaves for the man
+   who did it. */
+{
+  const camera = new THREE.PerspectiveCamera(68, 4 / 3, 0.05, 1000);
+  const rig = createCameraRig(camera, { raycast: () => null, terrain: null, water: null });
+  rig.updateFirstPerson(1 / 60, new THREE.Vector3(0, 1.6, 0), null, false);
+  const head = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
+  const killer = new THREE.Vector3(0, 1.6, 30);
+  const body = new THREE.Vector3();
+  rig.resetDeathCam();
+  let off = 0, drift = 0, q0 = null, turned = 0, tip0 = 0;
+  for (let i = 1; i <= 60; i++) {              // a second: he falls back and the head tips over
+    const t = i / 60, tip = -1.2 * Math.min(1, t * 1.5);
+    head.pos.set(0, 1.5 - 1.3 * Math.min(1, t * t * 2), -0.05 - 0.4 * t);
+    head.quat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), tip);
+    rig.deathCam(1 / 60, body, killer, head);
+    if (i === 1) { off = camera.position.distanceTo(head.pos); q0 = camera.quaternion.clone(); tip0 = tip; }
+    drift = Math.max(drift, Math.abs(camera.position.distanceTo(head.pos) - off));
+    turned = camera.quaternion.angleTo(q0);
+  }
+  console.log(`death: the eyes ride the falling head (${(drift * 1000).toFixed(3)} mm off), turning ${deg(turned).toFixed(1)}° with it`);
+  assert.ok(drift < 1e-4, 'the camera should keep its place on the falling head');
+  assert.ok(Math.abs(turned - Math.abs(-1.2 - tip0)) < 0.01, 'and turn as the head turns');
+  const before = camera.position.distanceTo(killer);
+  for (let i = 0; i < 150; i++) rig.deathCam(1 / 60, body, killer, head);
+  console.log(`death: then the camera leaves for the killer (${before.toFixed(1)} m off, then ${camera.position.distanceTo(killer).toFixed(1)} m)`);
+  assert.ok(camera.position.distanceTo(killer) < before - 5, 'then it should go to the man who did it');
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right');
