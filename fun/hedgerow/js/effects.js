@@ -427,7 +427,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   group.name = 'effects';
   group.add(alpha.mesh, add.mesh, thrown.mesh);
   const fires = [];
-  let groundFn = null;
+  let groundFn = null, paneAt = null;
 
   /* The effects-chain pass: the sprites drawn into the scene's buffer (the
      first pass reads it, with its depth) before anything else in the chain. */
@@ -563,6 +563,11 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   function impact(x, y, z, nx, ny, nz, surface = 'stone', dx = 0, dy = 0, dz = 0) {
     if (surface === 'water') return splash(x, y, z, 1);
     if (surface === 'foliage') return leaves(x, y, z, nx, ny, nz, dx, dy, dz);
+    // a lit window's glass, not the wall round it (the panes are atmosphere.js's)
+    if ((surface === 'stone' || surface === 'wood') && paneAt) {
+      const g = paneAt(x, y, z);
+      if (g) return glass(g.x, g.y, g.z, g.n.x, g.n.z);
+    }
     const s = IMPACT[surface] || IMPACT.stone;
     // dust puff pushed out of the surface
     for (let k = 0; k < 2; k++) {
@@ -596,6 +601,32 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
           life: 0.5, size: 0.022, color: C('#aab4ba', 0.75), color1: C('#aab4ba', 0.1), cell: CELLS.spark, gravity: 9.8, streak: 0.012,
         });
       }
+    }
+  }
+
+  /* a round through a window's glass (facing nx, nz): shards of it broken out, glinting as they turn
+     in the room's light and the lamps', falling, most just below the pane, a few thrown out further;
+     a fleck or two catching the light brightly for a moment */
+  function glass(x, y, z, nx, nz) {
+    for (let k = 0, n = 10 + Math.floor(R() * 7); k < n; k++) {
+      const out = 0.2 + R() * R() * 2.2, side = (R() - 0.5) * 1.2;
+      alpha.spawn({
+        x: x + nx * 0.03 + (R() - 0.5) * 0.08, y: y + (R() - 0.5) * 0.08, z: z + nz * 0.03 + (R() - 0.5) * 0.08,
+        vx: nx * out - nz * side, vy: R() * 1.2 - 0.2, vz: nz * out + nx * side,
+        life: 0.9 + R() * 0.6, size: 0.016 + R() * 0.024, color: C('#d4dde2', 0.9), color1: C('#c3ccd2', 0.75),
+        cell: CELLS.chunk, gravity: 9.8, rot: R() * 6, rotV: (R() - 0.5) * 30,
+      });
+    }
+    // flecks catching the light: a burst at the hole, and some going down with the shards, glinting
+    // as they turn
+    for (let k = 0; k < 10; k++) {
+      const fall = k >= 4;
+      add.spawn({
+        x: x + nx * 0.04, y: y + (R() - 0.5) * 0.1, z: z + nz * 0.04,
+        vx: nx * (0.3 + R() * (fall ? 0.8 : 1)) + (R() - 0.5) * 0.8, vy: R() * 0.8, vz: nz * (0.3 + R() * (fall ? 0.8 : 1)) + (R() - 0.5) * 0.8,
+        life: fall ? 0.5 + R() * 0.5 : 0.08 + R() * 0.12, size: fall ? 0.008 : 0.01,
+        color: C('#fff2d8', 1, fall ? 1.1 : 2.2), color1: C('#ffd8a0', 0, fall ? 0.6 : 1), cell: CELLS.spark, gravity: 9.8,
+      });
     }
   }
 
@@ -815,12 +846,14 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   }
 
   return {
-    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, steam, flareLaunch, update, fires,
+    group, muzzle, tracer, impact, blood, splash, explosion, addFire, smokePuff, shell, steam, glass, flareLaunch, update, fires,
     pass, usePass, late, useLate, setLights, shocks, blasts,
     setFlameShare(v) { flameShare = v; },
     /* the scene depth, its texel and whether to fade by it: for others drawn in the late pass */
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },
+    /* fn(x, y, z): the lit window pane a hit on a wall there went into, or null (decals.paneAt) */
+    setPaneAt(fn) { paneAt = fn; },
     setCasings(c) { casings = c; },
     get count() { return alpha.P.n + add.P.n + thrown.P.n; },
   };

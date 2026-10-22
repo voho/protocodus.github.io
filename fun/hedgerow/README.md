@@ -57,7 +57,8 @@ and flares,
 halos in the wet air, low mist, bullet holes that catch the light — stone
 chipped pale round a black hole, wood splintered, paint flaked off a dent to
 the bare steel, a lit window's glass starred with cracks that catch the
-room's light — mud kicked up and the scorch of blasts, the village's walls
+room's light and shards of it falling, glinting — mud kicked up and the
+scorch of blasts, the village's walls
 scarred by the fighting before you came (plaster blown off down to the
 stone or brick, machine-gun bursts stitched across the fronts) and high on
 their gables old painted advertisements, faded into the plaster, a low
