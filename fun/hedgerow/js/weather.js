@@ -148,6 +148,94 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
 }`;
 
+// the rain in the lamplight: rain at night is all but unseen save near a light, and there it is
+// thick with glittering streaks - far more than the near rain's few drops, which stand for the
+// rain out in the dark. So round each of a few lamps, fires and flashes near the eye a box of drops
+// of its own, falling through its light and seen only by the light they catch: brightest close to
+// it and seen against it, under a lamp's cap only below it, none where a roof or an eave keeps the
+// rain off; and for their few frames round a muzzle's or a shell's flash. The drops keep their
+// places in the world as the box follows its light (a fire's sways)
+const GLINT_VERT = /* glsl */ `
+${GUST_GLSL}
+${PHASE_GLSL}
+attribute vec4 aDrop;            // xyz: 0..1 position in its light's box, w: random
+attribute float aSlot;           // which light
+uniform vec4 uLamp[6];           // each light (four lamps or fires, two flashes), w: its box's half-size (0: none)
+uniform vec4 uLampCol[6];        // its light, w: under a cap the cosine from straight down where it gives out (-2: none)
+uniform vec4 uShelter[54];       // per light, 6 x 6 cells over its box: the top of the first thing over each
+uniform vec3 uVel;
+uniform float uTime, uLength, uWidth;
+uniform vec2 uScreen;
+uniform float uSoft;
+varying float vAlpha;
+varying vec2 vUv;
+varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
+void main() {
+  int s = int(aSlot + 0.5);
+  vec4 L = uLamp[s], C = uLampCol[s];
+  float R = L.w;
+  if (R <= 0.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+  // the box hangs below a capped lamp, round anything else
+  vec3 ctr = L.xyz - vec3(0.0, C.w > -1.5 ? R * 0.45 : 0.0, 0.0);
+  vec3 vel = uVel * (0.85 + 0.3 * aDrop.w);
+  vec3 o = mod((aDrop.xyz - 0.5) * 2.0 * R + vel * uTime - ctr + R, 2.0 * R) - R;
+  vec3 p = ctr + o;
+  // under a roof or an eave it is dry
+  ivec2 cell = clamp(ivec2((o.xz / R * 0.5 + 0.5) * 6.0), 0, 5);
+  int ci = s * 36 + cell.y * 6 + cell.x;
+  float open = step(uShelter[ci / 4][ci % 4], p.y);
+  float g = gust(p.xz, uTime, uVel.xz);
+  vec3 axis = normalize(vel + vec3(uVel.x, 0.0, uVel.z) * (g - 0.8) * 1.4);
+  vec3 toCam = normalize(cameraPosition - p);
+  vec3 side = normalize(cross(axis, toCam));
+  float len = uLength * (0.7 + 0.6 * aDrop.w);
+  float dist = length(p - cameraPosition);
+  float pxPerM = projectionMatrix[1][1] * 0.5 / (dist * (uSoft > 0.5 ? uScreen.y : 1.0 / 900.0));
+  float width = max(uWidth, 1.5 / pxPerM);
+  vec3 wp = p + side * (uv.x - 0.5) * width + axis * (uv.y - 0.5) * len;
+  // the light it catches, falling off from the light, the more seen against it
+  vec3 rel = p - L.xyz;
+  float dd = dot(rel, rel), rl = sqrt(dd + 1e-4);
+  float cap = smoothstep(C.w, C.w + 0.35, -rel.y / rl);
+  vLit = C.rgb * rainPhase(dot(toCam, rel) / rl) * cap / (1.0 + dd * 0.9);
+  // a ball of it, fading out before the box's faces, none right by the eye
+  vAlpha = (1.0 - smoothstep(0.6, 1.0, length(o) / R)) * smoothstep(1.2, 4.0, dist) * (uWidth / width)
+    * (0.6 + 0.8 * fract(aDrop.w * 7.31 + aDrop.x * 3.7)) * open;
+  vUv = uv;
+  vec4 mv = viewMatrix * vec4(wp, 1.0);
+  vDist = -mv.z;
+  vProj = vec2(projectionMatrix[2][2], projectionMatrix[3][2]);
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const GLINT_FRAG = /* glsl */ `
+uniform vec3 uColor;
+uniform float uOpacity, uSoft;
+uniform sampler2D tDepth;
+uniform vec2 uScreen;
+varying float vAlpha;
+varying vec2 vUv;
+varying vec3 vLit;
+varying float vDist;
+varying vec2 vProj;
+void main() {
+  if (uSoft > 0.5) {
+    float zd = texture2D(tDepth, gl_FragCoord.xy * uScreen).x * 2.0 - 1.0;
+    if (vDist > vProj.y / (zd + vProj.x)) discard;
+  }
+  float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;
+  float tail = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
+  float a = edge * tail * vAlpha * uOpacity * min(dot(vLit, vec3(0.33)) * 6.0, 1.0);
+  if (a < 0.004) discard;
+  // each drop a tiny image of the light, far brighter than the haze round it (or it is lost in it),
+  // short of blinding right by it
+  vec3 c = vLit * 60.0;
+  c *= min(1.0, 16.0 / max(c.r, max(c.g, max(c.b, 1e-4))));
+  gl_FragColor = vec4(uColor * 0.25 + c, min(a, 0.9));
+}`;
+
 // rain sheets: four cylinders round the eye, 14, 22, 36 and 57 m out, each carrying streaks one to
 // two pixels wide on an angular grid (so they stay put as the view turns) that fall at the rain's
 // speed and lean with its drift along the cylinder. SHEET_GLSL works out one cylinder's streak where
@@ -441,6 +529,52 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   rain.renderOrder = 5;
   group.add(rain);
 
+  // ---------- the rain in the lamplight ----------
+  const LAMPS = 4, FLASHES = 2, SLOTS = LAMPS + FLASHES, GRID = 6, PER_LAMP = Math.max(150, Math.round(count * 0.12));
+  const lgeo = new THREE.InstancedBufferGeometry();
+  lgeo.index = quad.index;
+  lgeo.attributes.position = quad.attributes.position;
+  lgeo.attributes.uv = quad.attributes.uv;
+  const ldrops = new Float32Array(SLOTS * PER_LAMP * 4), lslots = new Float32Array(SLOTS * PER_LAMP);
+  for (let i = 0; i < SLOTS * PER_LAMP; i++) {
+    for (let c = 0; c < 4; c++) ldrops[i * 4 + c] = R();
+    lslots[i] = i % SLOTS;        // the lights' drops taken turn about, so fewer drops thin each alike
+  }
+  lgeo.setAttribute('aDrop', new THREE.InstancedBufferAttribute(ldrops, 4));
+  lgeo.setAttribute('aSlot', new THREE.InstancedBufferAttribute(lslots, 1));
+  lgeo.instanceCount = SLOTS * PER_LAMP;
+  const glintUniforms = {
+    uLamp: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
+    uLampCol: { value: Array.from({ length: SLOTS }, () => new THREE.Vector4()) },
+    uShelter: { value: Array.from({ length: (SLOTS * GRID * GRID) / 4 }, () => new THREE.Vector4()) },
+    uVel: rainUniforms.uVel, uTime: rainUniforms.uTime, uLength: rainUniforms.uLength, uWidth: rainUniforms.uWidth,
+    uColor: rainUniforms.uColor, uOpacity: { value: 1 },
+    tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
+  };
+  const glints = new THREE.Mesh(lgeo, new THREE.ShaderMaterial({
+    vertexShader: GLINT_VERT, fragmentShader: GLINT_FRAG, uniforms: glintUniforms,
+    transparent: true, depthWrite: false, fog: false,
+  }));
+  glints.frustumCulled = false;
+  glints.renderOrder = 5;
+  group.add(glints);
+  // what keeps the rain off round a light: for each cell of its box the top of the first thing over
+  // it (where a drop would land), worked out once for each place a light is
+  const shelters = new Map();
+  const shelterOf = (x, z, r) => {
+    const key = `${Math.round(x * 2)},${Math.round(z * 2)},${Math.round(r * 4)}`;
+    let s = shelters.get(key);
+    if (!s) {
+      if (shelters.size > 64) shelters.clear();
+      s = new Float32Array(GRID * GRID);
+      for (let j = 0; j < GRID; j++) {
+        for (let i = 0; i < GRID; i++) s[j * GRID + i] = landY(x + ((i + 0.5) / GRID * 2 - 1) * r, z + ((j + 0.5) / GRID * 2 - 1) * r);
+      }
+      shelters.set(key, s);
+    }
+    return s;
+  };
+
   // ---------- rain sheets, further off (drawn only in the late pass: they need the depth) ----------
   const tri = new THREE.BufferGeometry();
   tri.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
@@ -561,6 +695,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
     rainUniforms.uTime.value = time;
     rainUniforms.uCam.value.copy(camera.position);
     rainUniforms.uOpacity.value = 0.2 * rainAmount;
+    glintUniforms.uOpacity.value = rainAmount;
     sheetUniforms.uOpacity.value = 0.16 * rainAmount;
     crownUniforms.uOpacity.value = 0.5 * rainAmount;
     splashUniforms.uTime.value = time;
@@ -633,6 +768,30 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
       const k = Math.min(l.intensity, 40) * 0.05;
       C[i].set(l.color.r * k, l.color.g * k, l.color.b * k);
     }
+    // the rain in the lamplight: round the nearest lamps under their caps and fires within 30 m
+    // (fading in from 22), not round a lamp in a window (its light may be inside a room); and round
+    // the flashes, which have slots of their own (a burst of fire would take the lamps' in turn)
+    const cam = rainUniforms.uCam.value, LP = glintUniforms.uLamp.value, LC = glintUniforms.uLampCol.value;
+    const SH = glintUniforms.uShelter.value;
+    let nl = 0, nf = 0;
+    for (const l of list) {
+      if (!l || (l.flash ? nf >= FLASHES : nl >= LAMPS)) continue;
+      if (!l.flash && !(l.cone != null || (l.fog != null && l.fog < 1))) continue;
+      const d = Math.hypot(l.x - cam.x, l.y - cam.y, l.z - cam.z);
+      if (d > 30) continue;
+      const n = l.flash ? LAMPS + nf++ : nl++;
+      const r = Math.min(4.5, Math.max(2.2, l.range * 0.25)), f = Math.min(1, Math.max(0, (d - 22) / 8));
+      // a flash at the eye (the player's own muzzle) is held for frames where a real one is over in a
+      // millisecond: lit round the eye that long it would fill the view, so little of it is kept
+      const e = l.flash ? Math.min(1, Math.max(0, (d - 1.5) / 2.5)) : 1;
+      const k = Math.min(l.intensity, 40) * 0.05 * (1 - f * f * (3 - 2 * f)) * (0.15 + 0.85 * e * e * (3 - 2 * e));
+      LP[n].set(l.x, l.y, l.z, r);
+      LC[n].set(l.color.r * k, l.color.g * k, l.color.b * k, l.cone ?? -2);
+      const s = shelterOf(l.x, l.z, r);
+      for (let c = 0; c < GRID * GRID; c++) SH[(n * GRID * GRID + c) >> 2].setComponent((n * GRID * GRID + c) & 3, s[c]);
+    }
+    for (; nl < LAMPS; nl++) LP[nl].w = 0;
+    for (; nf < FLASHES; nf++) LP[LAMPS + nf].w = 0;
   }
 
   /* the rain drawn in another scene after the frame (the late pass of effects.js, hidden
@@ -644,6 +803,9 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
     const own = { tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 } };
     const d = scene && depth ? depth : own;
     rainUniforms.tDepth = d.tDepth; rainUniforms.uScreen = d.uScreen; rainUniforms.uSoft = d.uSoft;
+    (scene || group).add(glints);
+    glints.material.depthTest = !scene;
+    glintUniforms.tDepth = d.tDepth; glintUniforms.uScreen = d.uScreen; glintUniforms.uSoft = d.uSoft;
     (scene || group).add(crowns);
     crowns.material.depthTest = !scene;
     crownUniforms.tDepth = d.tDepth; crownUniforms.uScreen = d.uScreen; crownUniforms.uSoft = d.uSoft;
@@ -659,7 +821,11 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   return {
     group, update, flashDir, setLights, setSkyLight, drawLate,
     get flash() { return flash; },
-    setCount(n) { geo.instanceCount = Math.min(n, count); sheets.visible = sheetsOn && n > 0; shell.visible = !sheetsOn && n > 0; },
+    setCount(n) {
+      geo.instanceCount = Math.min(n, count);
+      lgeo.instanceCount = Math.round((SLOTS * PER_LAMP * Math.min(n, count)) / count);
+      sheets.visible = sheetsOn && n > 0; shell.visible = !sheetsOn && n > 0;
+    },
     strikeNow(time) { scheduleStrike(time); },
   };
 }

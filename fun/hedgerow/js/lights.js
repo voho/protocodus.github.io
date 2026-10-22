@@ -173,7 +173,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     cand.length = 0;
     for (const f of flashes) {
       if (f === shadowOf2) continue;
-      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.now, range: f.range, score: 1e9, fog: f.fogNow });
+      cand.push({ x: f.x, y: f.y, z: f.z, color: f.color, intensity: f.now, range: f.range, score: 1e9, fog: f.fogNow, flash: true });
     }
     for (const s of statics) {
       if (!s.on || s === shadowOf || s === shadowOf2) continue;
@@ -187,7 +187,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     active.length = 0;
     // the shadow light is lit too (rain, light in the air): first in the list
     if (shadowOf) active.push({ x: shadowLight.position.x, y: shadowLight.position.y, z: shadowLight.position.z, color: shadowOf.color, intensity: shadowLight.intensity, range: shadowOf.range, score: best, fog: shadowOf.fog, cone: shadowOf.cone });
-    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2, fog: shadowOf2.flash ? shadowOf2.fogNow : shadowOf2.fog, cone: shadowOf2.cone });
+    if (shadowOf2) active.push({ x: shadowLight2.position.x, y: shadowLight2.position.y, z: shadowLight2.position.z, color: shadowOf2.color, intensity: shadowLight2.intensity, range: shadowOf2.range, score: best2, fog: shadowOf2.flash ? shadowOf2.fogNow : shadowOf2.fog, cone: shadowOf2.cone, flash: !!shadowOf2.flash });
     for (let i = 0; active.length < 8 && i < cand.length; i++) active.push(cand[i]);
     // the point lights: the candidates that light surfaces (a far light lit by its own means is only haze and glow)
     let ci = 0;
