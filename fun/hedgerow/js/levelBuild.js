@@ -93,6 +93,7 @@ export function buildLevel(G, L, quality) {
   const lamps = [];
   const fires = [];
   const contact = [];
+  const signposts = [];           // drawn with their painted boards by signs.js
 
   for (const p of L.props) {
     const m = model(p.m);
@@ -111,6 +112,8 @@ export function buildLevel(G, L, quality) {
     if (p.id) placed.set(p.id, rec);
     if (p.veg) {
       veg.add(p.m, p.x, y, p.z, yaw, scale);
+    } else if (p.m === 'signpost') {
+      signposts.push({ x: p.x, y, z: p.z, yaw });
     } else if (SEPARATE.has(p.m)) {
       const o = instantiate(m, G.matlib);
       o.position.set(p.x, y, p.z);
@@ -252,7 +255,7 @@ export function buildLevel(G, L, quality) {
   const cover = buildCoverPoints(world, terrain);
 
   // props: every prop as placed ({m: model, x, y, z, yaw, scale}; not the vegetation)
-  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact };
+  return { terrain, world, veg, placed, enemyDefs, cover, lamps, fires, water, staticGroup, height, props: contact, signposts };
 }
 
 /* Soft dark footprints on the ground under props and buildings: the

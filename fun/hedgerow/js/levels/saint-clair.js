@@ -331,6 +331,7 @@ P('church', -26.5, 165, 90, { pad: true, id: 'church' });
 P('house_g', 18.6, 157, -90, { pad: true, id: 'cafe' }); P('house_a', 18.3, 170, -90, { pad: true });
 P('fountain', 3, 165, 0);
 P('lamp_post', -9.5, 154, 90, { light: true }); P('lamp_post', 9.5, 177, -90, { light: true });
+P('signpost', -11.2, 151.8, 90);
 P('cross', -9, 181, 45);
 P('sandbags', -6, 174, 0); P('sandbags_curve', 7, 172, 180); P('sandbags_low', -10, 157, 70);
 P('crate_large', 9, 160, 20); P('crate', 10.2, 161.5, 70); P('barrel', -3, 180, 0);

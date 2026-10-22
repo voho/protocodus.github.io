@@ -328,7 +328,19 @@ by the blast that killed them, and drop their rifles.
     their folds, and swings out from the wall and ripples with the gusts
     that bend the trees, most at its hem and most in its house's lee, the
     motion and its shading worked out in the vertex shader, its shadow
-    moving with it),
+    moving with it), `signs.js` (the occupiers' direction posts where the
+    roads meet — by the lane, in the square under the lamp by the church,
+    at the north end of the street and at the camp: a leaning square post
+    crowded with five to eight boards, most of them arrows pointing down
+    their roads, each at its own height and length and a little askew —
+    the towns and how far, the way to the town major, the field police,
+    the dressing station, a command post, the fuel, and the warnings
+    "Achtung! Feindeinsicht", "Staub bringt Tod!"; painted yellow, white or
+    black and lettered in condensed road-sign capitals, chipped to the grey
+    wood, streaked by the rain, now and then shot through; cut with their
+    thickness, reading the right way from either side, wet like the rest;
+    levelBuild keeps the signpost model's collider and leaves the drawing
+    to it),
     `audio.js` (procedural, nothing downloaded; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
