@@ -174,6 +174,12 @@ export function buildLevel(G, L, quality) {
         G.lights.addStatic({ x: p.x + (bx * c + bz * s) * scale, y: y + (by + 1.4) * scale, z: p.z + (-bx * s + bz * c) * scale, color: '#ff8a3a', intensity: 18, range: 14, flicker: 0.5, fog: FIRE_FOG });
       }
     }
+    // still burning where the shelling left it (a charred beam, a log; p.burning: how big a fire): small
+    // flames on it, embers, a little smoke, and its flickering light on what is round it
+    if (p.burning) {
+      G.effects.addDebris(p.x, y + 0.2 * scale, p.z, p.burning);
+      G.lights.addStatic({ x: p.x, y: y + 1.0, z: p.z, color: '#ff8a3a', intensity: 16 * p.burning, range: 8 + 6 * p.burning, flicker: 0.5, fog: FIRE_FOG });
+    }
   }
 
   // the burning bits round a burning wreck: small fires of their own on the open ground near it,

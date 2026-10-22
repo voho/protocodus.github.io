@@ -50,7 +50,10 @@ the ford, a forest floor of last year's leaves with moss in the
 damp, leaves and litter in the gutters, brick bits round the shelled houses,
 stones and fallen branches along the lane and the forest track, whose mud is
 cut by two wheel ruts with a grassy crown between them and water standing in
-them in stretches, rainwater standing in the shell craters — rain in fine
+them in stretches, rainwater standing in the shell craters, in front of the
+trench line beams of a blown-in dugout and a log the shelling set alight
+still burning, each a pool of flickering light on the leaf litter with the
+rain glittering over it, the watchtower's lamp lit over the camp — rain in fine
 streaks, falling in sheets far down the street, sweeping across in gusts,
 dripping and pouring in broken strings off the eaves, lit by lamps, fires
 and flares,

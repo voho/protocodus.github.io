@@ -393,6 +393,10 @@ along(TRENCH_C, 3.9, -0.86, (x, z, yaw) => P('trench_wall', x, z, yaw + 180, { y
 const NEST_TRENCH = P('mg_nest', 2, 392, 180, { id: 'nest_trench' });
 P('barbed_wire', -3, 383, 0); P('barbed_wire', 7, 382.5, 0); P('hedgehog', 2, 380, 15);
 P('barbed_wire', -24, 380, 5); P('barbed_wire', 26, 380, -5); P('barbed_wire', -12, 381, 0); P('barbed_wire', 16, 381, 0);
+// in front of the line what the shelling set alight still burns - beams of a blown-in dugout, a log -
+// their light flickering over the wire and the parapet
+P('beam_charred', -14, 371, 35, { burning: 0.7 }); P('beam_charred', 19, 368.5, -60, { burning: 0.55 });
+P('log', 7.5, 361, 20, { burning: 0.6 });
 P('crate', -22, 398, 20); P('crate_large', 10, 398, -15);
 P('bunker', BUNKER.x, BUNKER.z, 180, { pad: true, id: 'bunker' });
 P('sandbags', -1, 452, -20); P('sandbags_curve', 16, 449, 200); P('barbed_wire', 6, 438, 0); P('barbed_wire', 14, 437, 10);
@@ -402,7 +406,7 @@ P('flak38', 4, 511, 200, { pad: true, id: 'flak' });
 P('sandbags_curve', 7.5, 508, 0); P('sandbags_curve', 0.5, 508, 90); P('sandbags', 4, 515.5, 180);
 P('tent', -13, 514, 120, { pad: true }); P('radio_table', -10, 509, 90, { id: 'radio' });
 P('truck', -6, 527, 95, { pad: true }); P('crate_large', -1, 523, 10); P('crate', 0.5, 524.5, 60); P('barrel', 9, 524, 0); P('barrel', 9.6, 524.8, 0); P('jerrycan', 10.2, 523.2, 40);
-P('watchtower', 17, 496, 200, { id: 'tower' });
+P('watchtower', 17, 496, 200, { id: 'tower', light: true });          // its lamp lit over the camp
 P('sandbags_low', -15, 500, 30); P('sandbags_low', 13, 519, -60);
 P('signpost', 3, 540, 180);
 // rocks and logs along the forest way
