@@ -160,7 +160,7 @@ const VERT = /* glsl */ `
 #define LIGHTS 8
 attribute vec3 aPos;
 attribute vec4 aColor;
-attribute vec4 aMisc;      // size, rotation, cell, unused
+attribute vec4 aMisc;      // size, rotation, cell, dense (1: mud and dirt, lit on the side facing the light)
 attribute vec3 aStretch;
 uniform float uFogDensity;
 uniform float uLit;        // 1: smoke and dust take the light; 0: fire and flashes make their own
@@ -214,12 +214,16 @@ void main() {
     // chosen in the dark) and the lamps, fires and flashes near, falling off
     // like the scene's point lights, relative to that ambient
     vec3 light = vec3(0.0);
+    vec3 toEye = normalize(cameraPosition - wp);
     for (int i = 0; i < LIGHTS; i++) {
       if (i >= uLightCount) break;
       vec3 L = uLightPos[i] - wp;
       float d2 = dot(L, L), r = uLightRange[i];
       float win = clamp(1.0 - d2 * d2 / (r * r * r * r), 0.0, 1.0);
-      light += uLightCol[i] * (win * win / max(d2, 0.3)) * 2.0;
+      // a clod of mud is lit on the side facing the light, which is not the side we see when the
+      // light is behind it: dark against a fireball, not glowing with it (smoke lets it through)
+      float side = aMisc.w > 0.5 ? 0.15 + 0.85 * smoothstep(-0.5, 0.6, dot(L * inversesqrt(max(d2, 1e-6)), toEye)) : 1.0;
+      light += uLightCol[i] * (win * win / max(d2, 0.3)) * 2.0 * side;
     }
     // a blast right beside it lights smoke up to a glow, not to white
     vColor.rgb *= uAmbient + light * 6.0 / (6.0 + light);
@@ -300,7 +304,7 @@ function createSystem(max, atlas, additive, fog, shared) {
     life: new Float32Array(max), age: new Float32Array(max),
     s0: new Float32Array(max), s1: new Float32Array(max),
     c0: new Float32Array(max * 4), c1: new Float32Array(max * 4),
-    rot: new Float32Array(max), rotV: new Float32Array(max), cell: new Float32Array(max),
+    rot: new Float32Array(max), rotV: new Float32Array(max), cell: new Float32Array(max), dense: new Float32Array(max),
     drag: new Float32Array(max), grav: new Float32Array(max), streak: new Float32Array(max),
     fadeIn: new Float32Array(max),
     // carried by the air: how much it rides the wind (its drag pulls it to the wind, not to rest),
@@ -321,13 +325,14 @@ function createSystem(max, atlas, additive, fog, shared) {
     P.cell[i] = o.cell; P.drag[i] = o.drag || 0; P.grav[i] = o.gravity || 0;
     P.streak[i] = o.streak || 0; P.fadeIn[i] = o.fadeIn || 0;
     P.ride[i] = o.ride || 0; P.swirl[i] = o.swirl || 0; P.ph[i] = (o.x * 1.7 + o.z * 2.3 + o.life * 5.1) % 6.2832;
+    P.dense[i] = o.dense ? 1 : 0;
     return i;
   }
 
   function kill(i) {
     const j = --P.n;
     if (i === j) return;
-    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'age', 's0', 's1', 'rot', 'rotV', 'cell', 'drag', 'grav', 'streak', 'fadeIn', 'ride', 'swirl', 'ph']) P[k][i] = P[k][j];
+    for (const k of ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'age', 's0', 's1', 'rot', 'rotV', 'cell', 'dense', 'drag', 'grav', 'streak', 'fadeIn', 'ride', 'swirl', 'ph']) P[k][i] = P[k][j];
     P.c0.copyWithin(i * 4, j * 4, j * 4 + 4);
     P.c1.copyWithin(i * 4, j * 4, j * 4 + 4);
   }
@@ -363,6 +368,7 @@ function createSystem(max, atlas, additive, fog, shared) {
       aMisc[i * 4] = P.s0[i] + (P.s1[i] - P.s0[i]) * Math.sqrt(t);
       aMisc[i * 4 + 1] = P.rot[i];
       aMisc[i * 4 + 2] = P.cell[i];
+      aMisc[i * 4 + 3] = P.dense[i];
       const st = P.streak[i];
       aStretch[i * 3] = P.vx[i] * st; aStretch[i * 3 + 1] = P.vy[i] * st; aStretch[i * 3 + 2] = P.vz[i] * st;
     }
@@ -413,9 +419,13 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   };
   const alpha = createSystem(3000, atlas, false, fog, shared);
   const add = createSystem(2500, atlas, true, fog, shared);
+  // and what a blast throws up, drawn with the late pass after its fireball (fireball.js), so the
+  // mud covers the fire it flies through
+  const thrown = createSystem(600, atlas, false, fog, shared);
+  thrown.mesh.renderOrder = 6.5;
   const group = new THREE.Group();
   group.name = 'effects';
-  group.add(alpha.mesh, add.mesh);
+  group.add(alpha.mesh, add.mesh, thrown.mesh);
   const fires = [];
   let groundFn = null;
 
@@ -439,7 +449,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   function usePass(on, scene) {
     pass.enabled = on;
     (on ? passScene : scene).add(group);
-    alpha.mesh.material.depthTest = add.mesh.material.depthTest = !on;
+    alpha.mesh.material.depthTest = add.mesh.material.depthTest = thrown.mesh.material.depthTest = !on;
     if (!on) shared.uSoft.value = 0;
   }
   /* The late pass: what would smear through the temporal anti-aliasing (taa.js) —
@@ -466,7 +476,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   function useLate(on, depth = null) {
     late.enabled = on;
     lateDepth = depth;
-    (on ? lateScene : group).add(add.mesh);
+    (on ? lateScene : group).add(add.mesh, thrown.mesh);
   }
   /* this frame's lights ([{x, y, z, color, intensity, range}], lights.js) and the ambient (1 = as chosen) */
   function setLights(list, ambient = 1) {
@@ -639,8 +649,9 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       if (blasts.length >= 4) blasts.shift();
       blasts.push({ x, y, z, scale, age: 0, seed: R() });
     }
-    // a short flash, and tongues of flame thrown out of the fireball (fireball.js draws its body)
-    add.spawn({ x, y: y + 0.5, z, life: 0.07, size: 2.2 * scale, size1: 3.5 * scale, color: C('#ffd9a0', 1, 2.2), color1: C('#ff7a20', 0, 1.0), cell: CELLS.flash, rot: R() * 6 });
+    // a short, sharp flash (a frame or two: a blast is not a ball of light), and tongues of flame
+    // thrown out of the fireball (fireball.js draws its body)
+    add.spawn({ x, y: y + 0.5, z, life: 0.045, size: 1.5 * scale, size1: 2.6 * scale, color: C('#ffe2b0', 1, 1.9), color1: C('#ff7a20', 0, 0.8), cell: CELLS.flash, rot: R() * 6 });
     for (let k = 0; k < (water ? 12 : 4); k++) {
       const a = R() * 6.28, r = R();
       add.spawn({
@@ -670,36 +681,39 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
         cell: CELLS.smoke, drag: 1.8, gravity: -0.25, rot: R() * 6, rotV: (R() - 0.5) * 0.6, fadeIn: 0.1,
       });
     }
-    // the column of earth (or water) the blast throws up, falling back:
-    // clods and spray stretched along their flight, fanning out a little
-    for (let k = 0; k < 16; k++) {
-      const a = R() * 6.28, r = R() * 0.4, out = 0.3 + R() * 1.4;
-      alpha.spawn({
-        x: x + Math.cos(a) * r, y: y + 0.15 + R() * 0.6, z: z + Math.sin(a) * r,
-        vx: Math.cos(a) * out * scale, vy: (6 + R() * 9) * scale, vz: Math.sin(a) * out * scale,
-        life: 1.0 + R() * 0.7, size: (0.25 + R() * 0.2) * scale, size1: (0.8 + R() * 0.5) * scale,
-        color: water ? C('#c4ccd0', 0.75) : C('#4a3a2a', 0.85), color1: water ? C('#b0b8bc', 0) : C('#4a3c2e', 0),
-        cell: CELLS.smoke, gravity: 9.8, drag: 0.5, streak: 0.075, fadeIn: 0.02,
+    // the column of earth (or water) the blast throws up, falling back: wet mud in dark jets fanning
+    // out of it, stretched along their flight - drawn after the fireball, so they cover the fire they
+    // fly through, and lit on the side facing a light (dark against the fireball)
+    for (let k = 0; k < (water ? 16 : 30); k++) {
+      const a = R() * 6.28, r = R() * 0.4, out = 0.3 + R() * R() * 3.2;
+      thrown.spawn({
+        x: x + Math.cos(a) * r, y: y + 0.15 + R() * 0.5, z: z + Math.sin(a) * r,
+        vx: Math.cos(a) * out * scale, vy: (5 + R() * 10) * scale, vz: Math.sin(a) * out * scale,
+        life: 1.0 + R() * 0.8, size: (0.3 + R() * 0.3) * scale, size1: (0.9 + R() * 0.7) * scale,
+        color: water ? C('#c4ccd0', 0.75) : C('#2c241b', 0.95), color1: water ? C('#b0b8bc', 0) : C('#2f281f', 0),
+        cell: CELLS.smoke, gravity: 9.8, drag: 0.5, streak: 0.075, fadeIn: 0.02, dense: !water,
       });
     }
-    // dust (or spray) rolling out along the ground
+    // dust (or spray) rolling out along the ground: from wet ground, more spray and smoke than
+    // dust - dark and low
     for (let k = 0; k < 14; k++) {
       const a = (k / 14) * 6.28 + R() * 0.3;
       alpha.spawn({
         x: x + Math.cos(a) * 0.6, y: y + 0.3, z: z + Math.sin(a) * 0.6,
-        vx: Math.cos(a) * (6 + R() * 5) * scale, vy: 0.3 + R() * 0.6, vz: Math.sin(a) * (6 + R() * 5) * scale,
-        life: 2.5 + R() * 2, size: 0.8 * scale, size1: (3.5 + R() * 2.5) * scale,
-        color: water ? C('#c0c8cc', 0.5) : C('#5e5546', 0.6), color1: water ? C('#a8b0b4', 0) : C('#463f35', 0),
+        vx: Math.cos(a) * (6 + R() * 5) * scale, vy: 0.2 + R() * 0.4, vz: Math.sin(a) * (6 + R() * 5) * scale,
+        life: 2.5 + R() * 2, size: 0.7 * scale, size1: (3 + R() * 2.2) * scale,
+        color: water ? C('#c0c8cc', 0.5) : C('#433c33', 0.5), color1: water ? C('#a8b0b4', 0) : C('#36312b', 0),
         cell: CELLS.smoke, drag: 3.2, rot: R() * 6, rotV: (R() - 0.5) * 0.8, fadeIn: 0.05,
       });
     }
-    // spray, or (the clods and stones are solid, chunks.js) fine dirt
-    for (let k = 0; k < (water ? 26 : 12); k++) {
+    // spray, or (the clods and stones are solid, chunks.js) a spray of fine mud flung out in streaks
+    for (let k = 0; k < (water ? 26 : 34); k++) {
       const a = R() * 6.28, up = 4 + R() * 9;
-      alpha.spawn({
-        x, y: y + 0.3, z, vx: Math.cos(a) * (2 + R() * 7) * scale, vy: up * scale, vz: Math.sin(a) * (2 + R() * 7) * scale,
-        life: 1.2 + R() * 1.2, size: water ? 0.06 + R() * 0.12 : 0.025 + R() * 0.035, color: water ? C('#c8d0d4', 0.8) : C('#241c14', 1), color1: water ? C('#c8d0d4', 0) : C('#241c14', 0.8),
+      (water ? alpha : thrown).spawn({
+        x, y: y + 0.3, z, vx: Math.cos(a) * (2 + R() * 8) * scale, vy: up * scale, vz: Math.sin(a) * (2 + R() * 8) * scale,
+        life: 1.2 + R() * 1.2, size: water ? 0.06 + R() * 0.12 : 0.03 + R() * 0.04, color: water ? C('#c8d0d4', 0.8) : C('#1e1812', 1), color1: water ? C('#c8d0d4', 0) : C('#1e1812', 0.8),
         cell: water ? CELLS.puff : CELLS.chunk, gravity: 9.8, rot: R() * 6, rotV: (R() - 0.5) * 20,
+        streak: water ? 0 : 0.02, dense: !water,
       });
     }
     for (let k = 0; k < 20; k++) {
@@ -797,6 +811,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     updateFires(dt, wind, camPos);
     alpha.update(dt, groundFn, wind);
     add.update(dt, groundFn, wind);
+    thrown.update(dt, groundFn, wind);
   }
 
   return {
@@ -807,6 +822,6 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
     depthUniforms: { tDepth: shared.tDepth, uScreen: shared.uScreen, uSoft: shared.uSoft },
     setGround(fn) { groundFn = fn; },
     setCasings(c) { casings = c; },
-    get count() { return alpha.P.n + add.P.n; },
+    get count() { return alpha.P.n + add.P.n + thrown.P.n; },
   };
 }
