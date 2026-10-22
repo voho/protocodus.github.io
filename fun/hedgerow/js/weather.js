@@ -67,8 +67,16 @@ export function gustAt(x, z, time, wx, wz) {
   return 0.55 + 1.05 * t * t * (3 - 2 * t);
 }
 
+// a drop sends on most of the light it catches as a lens does, little of it back: brightest seen
+// against a lamp, faint with the lamp beside or behind the eye (Henyey-Greenstein, g 0.45, 1 on
+// average over all ways; c the cosine between the way the eye looks and the way to the lamp)
+const PHASE_GLSL = /* glsl */ `
+float rainPhase(float c) { return 0.7975 / pow(1.2025 - 0.9 * c, 1.5); }
+`;
+
 const RAIN_VERT = /* glsl */ `
 ${GUST_GLSL}
+${PHASE_GLSL}
 attribute vec4 aDrop;            // xyz: 0..1 position in the box, w: random
 uniform vec3 uCam, uBox, uVel;
 uniform float uTime, uLength, uWidth;
@@ -100,11 +108,12 @@ void main() {
     * (uWidth / width) * (0.45 + 1.1 * fract(aDrop.w * 7.31 + aDrop.x * 3.7))
     * smoothstep(0.0, 0.35, g - fract(aDrop.w * 13.7) * 0.9);
   vUv = uv;
-  // drops passing near a lamp or a fire catch its light
-  vec3 lit = vec3(0.0);
+  // drops passing near a lamp or a fire catch its light, the more seen against it
+  vec3 lit = vec3(0.0), look = normalize(p - cameraPosition);
   for (int i = 0; i < 6; i++) {
     vec3 d = p - uLightPos[i];
-    lit += uLightCol[i] / (1.0 + dot(d, d) * 0.9);
+    float dd = dot(d, d);
+    lit += uLightCol[i] * rainPhase(-dot(look, d) * inversesqrt(dd + 1e-4)) / (1.0 + dd * 0.9);
   }
   vLit = lit;
   vec4 mv = viewMatrix * vec4(wp, 1.0);
@@ -135,7 +144,7 @@ void main() {
   float boost = min(dot(lit, vec3(0.33)), 4.0);
   // seen by the light they catch: a drop out in the dark (it shows the dark sky) hardly at all,
   // glittering by a lamp, a fire or a flare
-  float a = edge * tail * vAlpha * uOpacity * (uUnlit + uFlash + boost * 1.5);
+  float a = edge * tail * vAlpha * uOpacity * (uUnlit + uFlash + boost * 4.0);
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 3.0) + lit * 2.0, min(a, 0.9));
 }`;
 
@@ -144,8 +153,9 @@ void main() {
 // speed and lean with its drift along the cylinder. SHEET_GLSL works out one cylinder's streak where
 // a view ray meets it, for both ways of drawing them below
 const SHEET_GLSL = /* glsl */ `
+${PHASE_GLSL}
 uniform vec3 uColor, uVel, uSky;
-uniform float uTime, uOpacity, uFlash, uFog;
+uniform float uTime, uOpacity, uFlash, uFog, uUnlit;
 uniform vec3 uLightPos[6];
 uniform vec3 uLightCol[6];
 float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -171,16 +181,21 @@ float sheetStreak(vec3 P, float t, float fi, float theta, float vt, float fall, 
   if (k <= 0.0) return 0.0;
   return k * gust(P.xz, uTime, uVel.xz);       // only on a streak: it is the dearest part
 }
-// and its colour: lit by the lamps near it, seen by the light it catches (faint in the dark,
-// bright by a lamp or a fire)
-vec3 sheetLit(vec3 P) {
+// the light a streak at P catches, seen along dir: the lamps' near it, the more with one beyond it
+vec3 sheetLight(vec3 P, vec3 dir) {
   vec3 lit = uSky;
   for (int j = 0; j < 6; j++) {
     vec3 d = P - uLightPos[j];
-    lit += uLightCol[j] / (1.0 + dot(d, d) * 0.12);
+    float dd = dot(d, d);
+    lit += uLightCol[j] * rainPhase(-dot(dir, d) * inversesqrt(dd + 1e-4)) / (1.0 + dd * 0.12);
   }
-  return uColor * (0.3 + uFlash * 3.0) + lit * 2.0;
+  return lit;
 }
+// how much of a streak shows by that light: out in the dark it shows the dark beyond it and hardly
+// shows at all, by a lamp, a fire, a flare or in a flash of lightning it glitters
+float sheetSeen(vec3 lit) { return uUnlit + uFlash + min(dot(lit, vec3(0.33)), 4.0) * 4.0; }
+// and its colour
+vec3 sheetLit(vec3 lit) { return uColor * (0.3 + uFlash * 3.0) + lit * 2.0; }
 `;
 
 // with the late pass: a full-screen triangle, all four cylinders in one go, each hidden (softly)
@@ -224,7 +239,9 @@ void main() {
     vec3 P = cameraPosition + dir * t;
     float k = vis * sheetStreak(P, t, fi, theta, vt, fall, pxPerRad);
     if (k <= 0.0) continue;
-    sum += sheetLit(P) * k;
+    vec3 lit = sheetLight(P, dir);
+    k *= sheetSeen(lit);
+    sum += sheetLit(lit) * k;
     alpha += k;
   }
   if (alpha <= 0.001) discard;
@@ -260,7 +277,9 @@ void main() {
   vec3 tang = vec3(-sin(theta), 0.0, cos(theta));
   float k = sheetStreak(vP, t, vLayer, theta, dot(uVel.xz, tang.xz), -uVel.y, vPxPerRad);
   if (k <= 0.001) discard;
-  gl_FragColor = vec4(sheetLit(vP), min(k * uOpacity, 0.8));
+  vec3 lit = sheetLight(vP, dir);
+  k *= sheetSeen(lit);
+  gl_FragColor = vec4(sheetLit(lit), min(k * uOpacity, 0.8));
 }`;
 
 // the crowns: a quad standing on each young splash near the eye, droplets flung up and out
@@ -428,7 +447,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   const sheetUniforms = {
     uColor: rainUniforms.uColor, uVel: rainUniforms.uVel, uTime: rainUniforms.uTime, uFlash: rainUniforms.uFlash,
     uLightPos: rainUniforms.uLightPos, uLightCol: rainUniforms.uLightCol, uSky: rainUniforms.uSky,
-    uOpacity: { value: 0.16 }, uFog: { value: 0.012 },
+    uOpacity: { value: 0.16 }, uFog: { value: 0.012 }, uUnlit: { value: 0.5 },
     tDepth: { value: null }, uScreen: { value: new THREE.Vector2(1, 1) },
   };
   const sheets = new THREE.Mesh(tri, new THREE.ShaderMaterial({

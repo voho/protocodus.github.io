@@ -240,7 +240,11 @@ by the blast that killed them, and drop their rifles.
     four cylinders round the eye in one full-screen draw, hidden behind the
     scene by its depth (on low quality, which has no depth to read, the same
     four cylinders drawn as meshes with the scene, hidden by its depth test),
-    lit by the lamps near them and by a burning flare;
+    lit by the lamps near them and by a burning flare; the streaks near and
+    far seen by the light they catch, as rain at night is - hardly at all
+    out in the dark, where a drop shows only the dark beyond it, most with
+    a lamp or a fire beyond them, a drop sending on most of the light it
+    catches as a lens does (a Henyey-Greenstein lobe);
     rings where drops land - on the first thing in their way from above, a
     crate's lid, a sandbag, a step, the truck, a roof, so what is
     sheltered stays dry (on the river's surface over its bed) - and
