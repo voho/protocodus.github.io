@@ -143,6 +143,33 @@ export const SKIN_UNIFORMS = { uSkin: { value: 1 }, uCloth: { value: 1 }, uSkinD
 const CARRIED = /^(allied|axis|m1_garand|thompson|kar98k|mp40|mg42|grenade)/;
 // the guns (close-up wood and steel in addWeather: the one in your hands is half a metre from the eye)
 const GUN = /^(m1_garand|thompson|kar98k|mp40|mg42)/;
+
+/* The eye's own fill light. The rifle in your hands is seen from behind, and at night nearly all
+   the light in the world is in front of you, so it read as a black cut-out, its rear sight a
+   silhouette down the sights. As shooters light the weapon in your hands apart from the world, a
+   dim cool light from above and a little left of the eye, behind it, falls on what is within arm's
+   length (the gun, the hands on it, the sleeves: gun and soldier materials only, fading out
+   between 0.9 and 1.5 m), so the steel shows grey with a soft sheen and the walnut its grain.
+   Nothing further off takes it. */
+export const VIEW_FILL_UNIFORMS = { uViewFill: { value: 1 }, uViewFillColor: { value: new THREE.Color(0.64, 0.66, 0.72) } };
+function addViewFill(shader) {
+  Object.assign(shader.uniforms, VIEW_FILL_UNIFORMS);
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+        uniform float uViewFill;
+        uniform vec3 uViewFillColor;`)
+    .replace('#include <lights_fragment_begin>', `#include <lights_fragment_begin>
+        {
+          float vfk = uViewFill * (1.0 - smoothstep(0.9, 1.5, length(vViewPosition)));
+          if (vfk > 0.001) {
+            IncidentLight vfl;
+            vfl.direction = normalize(vec3(-0.3, 0.65, 0.7));     // view space: up, a little left, behind the eye
+            vfl.color = uViewFillColor * vfk;
+            vfl.visible = true;
+            RE_Direct(vfl, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
+          }
+        }`);
+}
 const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
 
 /* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
@@ -806,17 +833,21 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           float wk = wood * gunK;
           diffuseColor.rgb *= mix(1.0, (0.82 + 0.3 * fig) * (1.0 - 0.32 * line), wk);
           roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.82 + 0.16 * line, wk);
-          // the steel: Parkerized, a dark grey that is matte even wet, mottled where the finish has
-          // worn and pitted finer than that; and worn to the bright bare steel along its edges (where
-          // the surface turns sharply for how far a pixel spans)
+          // the steel: Parkerized, a coat of dark grey phosphate over it - not bare metal, so it shades
+          // as a dark grey with an oiled sheen (as bare metal this dark it mirrored the night as near
+          // black, the rifle a cut-out against the street) - matte even wet, mottled where the finish
+          // has worn and pitted finer than that; and worn through to the bare steel along its edges
+          // (where the surface turns sharply for how far a pixel spans)
           float m1 = gNoise(p.zy * 420.0 + p.x * 200.0), m2 = gNoise(p.xz * 900.0 + 3.1);
           float maa = 1.0 - smoothstep(0.35, 0.8, length(fwidth(p)) * 900.0);
           float curv = length(fwidth(vNormal)) / max(length(fwidth(vViewPosition)), 1e-6);
           float edge = smoothstep(500.0, 1500.0, curv);
           float sk = steel * gunK;
-          float park = clamp(max(roughnessFactor, 0.5) * (0.75 + 0.5 * m1) + 0.1 * (m2 - 0.5) * maa, 0.3, 1.0);
-          roughnessFactor = mix(roughnessFactor, mix(park, 0.25, edge), sk);
-          diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb * (0.42 + 0.2 * m1), diffuseColor.rgb * 1.3 + 0.04, edge), sk);
+          float park = clamp(0.62 * (0.8 + 0.4 * m1) + 0.1 * (m2 - 0.5) * maa, 0.4, 0.9);
+          roughnessFactor = mix(roughnessFactor, mix(park, 0.35, edge), sk);
+          vec3 phosphate = vec3(0.033, 0.034, 0.035) * (0.75 + 0.5 * m1);      // linear; about 50 in sRGB
+          diffuseColor.rgb = mix(diffuseColor.rgb, mix(phosphate, vec3(0.3, 0.3, 0.31), edge), sk);
+          metalnessFactor = mix(metalnessFactor, mix(0.08, 1.0, edge), sk);
           // their relief (m): the grain lines sunk a quarter of a millimetre, the pits a twentieth
           gunH = (-line * 0.25 * wk + (m2 - 0.5) * 0.06 * maa * sk) * 0.001;
         }`)
@@ -831,6 +862,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           if (dot(nb, nb) > 1e-24) normal = normalize(nb);
         }`);
     }
+    if (gun || skin) addViewFill(shader);
     addFireBounce(shader, 'vWPosM', 'normalize(vWNormalM)');
     if (!glints) dimFillSpecular(shader);
   };

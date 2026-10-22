@@ -216,9 +216,15 @@ by the blast that killed them, and drop their rifles.
     guns within 2.5 m (the
     one in your hands, half a metre from the eye, where its texture is
     spread thin) with the walnut's grain and figure along the stock, oiled
-    between the lines, and the steel a matte Parkerized grey, mottled where
-    the finish has worn, pitted, and worn bright along its edges, each
-    pattern fading before it gets finer than the pixels;
+    between the lines, and the steel a matte Parkerized grey (a coat of
+    phosphate, shaded as a dark grey with an oiled sheen, not as near-black
+    bare metal), mottled where the finish has worn, pitted, and worn bright
+    along its edges, each pattern fading before it gets finer than the
+    pixels; the eye's own fill light, as shooters light the gun in your
+    hands: a dim cool light from above and behind the eye on what is within
+    arm's length of it (the gun, the hands on it, the sleeves), so the rifle
+    reads at night with all the light in front of you instead of standing
+    black against the street;
     round a fire, the charred
     wood of a ruin glowing in the cracks of its char and a burnt-out wreck's
     metal a dull red with the heat) · `rooms.js` the rooms
