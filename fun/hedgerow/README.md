@@ -481,7 +481,10 @@ by the blast that killed them, and drop their rifles.
   Shared: `kit.py` (modelling helpers, palette, export), `bake.py` (the PBR
   bake), `surfaces.py` (procedural surfaces).
 * `assets/textures/*.webp` — tileable detail textures from
-  `python3 fun/hedgerow/tools/textures.py`.
+  `python3 fun/hedgerow/tools/textures.py` (the mud churned into lumps a
+  foot across and smaller ones squeezed up between them, its normals from
+  that relief and its gloss from where the water lies in the hollows, so a
+  flare or a fire ahead breaks up on it in glints instead of glazing it).
 * `tests/world-check.mjs` — collision world unit checks;
   `tests/character-check.mjs` — the aim pitch stays put under held poses
   (three's mixer skips unchanged bones), reload clip timing and the hand prop,
