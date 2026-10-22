@@ -12,7 +12,9 @@
    size, so never over a window, a shutter, a beam, a drainpipe, a corner or
    the ivy, and a plaster break only on a house's plaster (light and plain).
    How many marks a wall gets goes by how open the ground in front of it is
-   and how near that is to the lines the fighting follows. The marks are
+   and how near that is to the lines the fighting follows. High on the most
+   exposed houses' plaster, a few old painted advertisements, which the
+   breaks and the bursts go through. The marks are
    pinned decals in the bullet holes' own meshes (atmosphere.js; the breaks
    one more): the fighting never wears them away. Seeded, so the village is
    the same every time. */
@@ -24,6 +26,7 @@ const TOP = 5.5;              // nothing marked higher on a wall than this (m ov
 const BUILT = /^(house|barn|ruin|bunker)|^church$/;
 const PLASTERED = /^house/;
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const SIGN = [4.2, 3.7, 3.3], SIGNS = 5;     // a painted advertisement's widths to try (m), and how many
 
 /* a texture's colours, readable: drawn once at up to 1024 (enough to tell plaster, stone and a window apart) */
 function texels(tex) {
@@ -148,6 +151,7 @@ export function dressWalls(G, props, lines, { seed = 1944 } = {}) {
   const fronts = ['LANE', 'STREET', 'TRACK'].map((k) => lines?.[k]).filter(Boolean);
   const sides = new Map(), colours = new Map(), tmp = {};
   let breaks = 0, holes = 0;
+  const signs = [];
   for (const p of props) {
     const name = p.m.name || '', box = p.m.box;
     if (!BUILT.test(name)) continue;
@@ -198,6 +202,24 @@ export function dressWalls(G, props, lines, { seed = 1944 } = {}) {
         }
         return -1;
       };
+      // where an old painted advertisement could be: high on a house's open plaster (the sign fills
+      // 0.94 by 0.42 of its decal)
+      if (PLASTERED.test(name) && exposed > 0.3) {
+        let found = false;
+        for (const size of SIGN) {
+          const hw = Math.ceil(size * 0.47 / STEP), hh = Math.ceil(size * 0.21 / STEP);
+          for (let t = 0; t < 40 && !found; t++) {
+            const cell = pick(2.6, 4.9);
+            if (cell < 0) break;
+            const i = cell % s.W, j = (cell / s.W) | 0;
+            if (!fits(s, i, j, hw, hh, true)) continue;
+            at(s, cell, tmp);
+            signs.push({ x: tmp.x, y: tmp.y, z: tmp.z, nx, nz, size: size * k, exposed: exposed * size });
+            found = true;
+          }
+          if (found) break;
+        }
+      }
       // plaster blown off, bigger nearer the ground (the break fills an ellipse 0.94 by 0.62 of its
       // decal; a smaller one where a big one will not fit)
       const nb = PLASTERED.test(name) ? Math.floor(s.area * 0.1 * exposed + R()) : 0;
@@ -250,5 +272,14 @@ export function dressWalls(G, props, lines, { seed = 1944 } = {}) {
       }
     }
   }
-  return { breaks, holes };
+  // the advertisements: on the most exposed of those walls, no two within 20 m, each a different
+  // trade as far as they go
+  signs.sort((a, b) => b.exposed - a.exposed);
+  const put = [];
+  for (const g of signs) {
+    if (put.length >= SIGNS) break;
+    if (put.some((o) => Math.hypot(o.x - g.x, o.z - g.z) < 20)) continue;
+    if (decals.pin('sign', g.x, g.y, g.z, g.nx, 0, g.nz, g.size, false, R, true, put.length)) put.push(g);
+  }
+  return { breaks, holes, signs: put.length };
 }

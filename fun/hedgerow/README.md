@@ -59,7 +59,8 @@ chipped pale round a black hole, wood splintered, paint flaked off a dent to
 the bare steel, a lit window's glass starred with cracks that catch the
 room's light — mud kicked up and the scorch of blasts, the village's walls
 scarred by the fighting before you came (plaster blown off down to the
-stone or brick, machine-gun bursts stitched across the fronts), a low
+stone or brick, machine-gun bursts stitched across the fronts) and high on
+their gables old painted advertisements, faded into the plaster, a low
 cloud deck rolling overhead, its bellies lit orange from below over the
 burning farms, whose smoke climbs into it in leaning columns, and caught by
 the flashes of a distant barrage, searchlights sweeping
@@ -297,7 +298,11 @@ by the blast that killed them, and drop their rifles.
     colour, so plaster breaks, cannon-shell craters and machine-gun bursts
     go only on open, even wall — never across a window, a shutter or a
     corner — and only on walls that face open ground near the street, the
-    lane or the track), `casings.js` (the
+    lane or the track; and on the most exposed houses' plaster, 2.6–4.9 m
+    up, a few painted advertisements for the village's trades — VINS FINS,
+    QUINQUINA, CAFÉ · TABAC, ÉPICERIE — faded, flaked at their edges and
+    washed thin in streaks, which the breaks and the bursts go through),
+    `casings.js` (the
     brass thrown out of the gun — the Garand's long bottlenecked case, the
     Thompson's short one — tumbling past in the muzzle flash, bouncing and
     lying where it falls; the last 64 of each stay), `chunks.js` (what a
