@@ -477,10 +477,16 @@ by the blast that killed them, and drop their rifles.
     against the depth (walls in front are not bent, nor is the rifle) ·
     `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
+    `adapt.js` the eye adapting (the frame metered just ahead of the grade:
+    the median of its log luminance over 32 x 18 patches, read back a few
+    frames later without stalling; the exposure closes down within half
+    a second when a flare bursts and the whole view brightens, opens up
+    again over a few seconds, never past the night's own, and holds still
+    through a lightning stroke) ·
     `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
     hurt state, and the mud a blast close by throws over the view: dark wet
     splats along the bottom and flecks round the edges, some dripping,
-    gone in a few seconds); the high and medium qualities run all of it, low only the
+    gone in a few seconds); the high and medium qualities run all of it, low only the eye and the
     grade
 * `assets/models/*.glb` — built by the Blender scripts in `tools/blender/`;
   see `assets/models/MODELS.md` (pipeline, sizes, build commands),

@@ -41,6 +41,7 @@ import { createExplosives, createDebris } from './combat.js';
 import { createMission } from './mission.js';
 import { buildLevel } from './levelBuild.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
+import { createAdaptation } from './adapt.js';
 import { createGrade } from './post.js';
 import { createVolumetric } from './volumetric.js';
 import { createSSAO } from './ssao.js';
@@ -104,7 +105,7 @@ let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
 let built = null, player = null, enemies = null, mission = null, explosives = null;
-let bloom = null, grade = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
+let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let missionTime = 0;
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
@@ -269,6 +270,8 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
+    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens
+    adapt = createAdaptation({ base: renderer.toneMappingExposure });
     // a blast close by throws mud over the view (combat.js)
     G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
@@ -358,7 +361,7 @@ function applyGraphics() {
     // the passes after the first one that swaps render into the scene's own buffer, whose depth
     // the later ones still read (taa, the blur, the late particles, the haze, the focus): nothing
     // in the chain may clear it, so depth clears are off from its start to its end
-    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), grade, CLEAR_DEPTH]);
+    renderer.setEffects([KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), adapt, grade, CLEAR_DEPTH]);
   }
   G?.weather?.setCount(quality.rain);
   G?.grass?.setCount(quality.blades ?? 0);
@@ -536,7 +539,7 @@ function updateFly(dt) {
 window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
-  get fx() { return { volumetric, bloom, grade, ssao, dof, ssr, shafts, taa, distort, blur }; },
+  get fx() { return { volumetric, bloom, grade, adapt, ssao, dof, ssr, shafts, taa, distort, blur }; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -700,6 +703,7 @@ function step() {
     if (grade) {
       grade.uniforms.uTime.value = G.time;
       grade.tick(dt);
+      adapt.update(dt, renderer, flash);
       const hp = player ? player.health / 100 : 1;
       // dead: the red flash of the moment, then a light tint so the camera on the killer reads
       const since = player && !player.alive ? G.time - (player.diedAt ?? G.time) : 0;
