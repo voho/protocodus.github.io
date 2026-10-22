@@ -572,14 +572,40 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       if (g) return glass(g.x, g.y, g.z, g.n.x, g.n.z);
     }
     const s = IMPACT[surface] || IMPACT.stone;
-    // dust puff pushed out of the surface
-    for (let k = 0; k < 2; k++) {
+    if (surface === 'flesh') {
+      for (let k = 0; k < 2; k++) {
+        alpha.spawn({
+          x: x + nx * 0.05, y: y + ny * 0.05, z: z + nz * 0.05,
+          vx: nx * (0.8 + R()) + (R() - 0.5) * 0.6, vy: ny * (0.8 + R()) + 0.3, vz: nz * (0.8 + R()) + (R() - 0.5) * 0.6,
+          life: 0.7 + R() * 0.5, size: 0.15, size1: 0.7 + R() * 0.4,
+          color: C(s.dust, 0.75), color1: C(s.dust, 0), cell: CELLS.smoke, drag: 3.5, rot: R() * 6, rotV: (R() - 0.5),
+        });
+      }
+    } else {
+      // the hit bursts out of the surface: jets of dust and grit shot out of the hole in a cone round
+      // its face, thrown on along the way the round glanced off it, stopped short by the air in a
+      // third of a second; then what is left hangs a moment as a ragged cloud, smaller and darker
+      // than the jets were, and drifts off
+      const dn = dx * nx + dy * ny + dz * nz, rx = dx - 2 * dn * nx, ry = dy - 2 * dn * ny, rz = dz - 2 * dn * nz;
+      for (let k = 0, n = 2 + (R() < 0.5 ? 1 : 0); k < n; k++) {
+        const sp = 3 + R() * 4, gl = 0.6 + R() * 0.8;
+        alpha.spawn({
+          x: x + nx * 0.03, y: y + ny * 0.03, z: z + nz * 0.03,
+          vx: (nx + rx * gl * 0.5 + (R() - 0.5) * 0.9) * sp, vy: (ny + ry * gl * 0.5 + (R() - 0.5) * 0.9) * sp + 0.4, vz: (nz + rz * gl * 0.5 + (R() - 0.5) * 0.9) * sp,
+          life: 0.24 + R() * 0.14, size: 0.05, size1: 0.26 + R() * 0.12,
+          color: C(s.dust, 0.62), color1: C(s.dust, 0), cell: CELLS.smoke, drag: 7, rot: R() * 6, streak: 0.05,
+        });
+      }
       alpha.spawn({
-        x: x + nx * 0.05, y: y + ny * 0.05, z: z + nz * 0.05,
-        vx: nx * (0.8 + R()) + (R() - 0.5) * 0.6, vy: ny * (0.8 + R()) + 0.3, vz: nz * (0.8 + R()) + (R() - 0.5) * 0.6,
-        life: 0.7 + R() * 0.5, size: 0.15, size1: 0.7 + R() * 0.4,
-        color: C(s.dust, surface === 'flesh' ? 0.75 : 0.55), color1: C(s.dust, 0), cell: CELLS.smoke, drag: 3.5, rot: R() * 6, rotV: (R() - 0.5),
+        x: x + nx * 0.08, y: y + ny * 0.08, z: z + nz * 0.08,
+        vx: nx * (0.4 + R() * 0.5) + (R() - 0.5) * 0.3, vy: ny * (0.4 + R() * 0.5) + 0.25, vz: nz * (0.4 + R() * 0.5) + (R() - 0.5) * 0.3,
+        life: 0.9 + R() * 0.5, size: 0.1, size1: 0.45 + R() * 0.2, fadeIn: 0.06,
+        color: C(s.dust, 0.42), color1: C(s.dust, 0), cell: CELLS.smoke, drag: 3, rot: R() * 6, rotV: (R() - 0.5),
       });
+      // on stone, concrete and steel the round strikes white-hot for a frame or two
+      if (s.spark) {
+        add.spawn({ x: x + nx * 0.02, y: y + ny * 0.02, z: z + nz * 0.02, life: 0.035, size: 0.06, size1: 0.11, color: C('#ffe2b0', 1, 2.4), color1: C('#ff9a50', 0, 1.2), cell: CELLS.flash, rot: R() * 6.28 });
+      }
     }
     for (let k = 0; k < s.n; k++) {
       alpha.spawn({
