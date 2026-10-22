@@ -75,20 +75,23 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
   const projView = new THREE.Matrix4();
   const sphere = new THREE.Sphere();
 
-  function update(dt, camera, settings) {
+  /* `lodScale`: distances through the current view as they look at the base
+     view (util.js fovScale; below 1 when aiming in), so detail follows how big
+     things look; the ground cover reaches up to a third further zoomed in. */
+  function update(dt, camera, settings, lodScale = 1) {
     timer -= dt;
     if (timer > 0) return;
     timer = 0.12;
     projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projView);
     const cx = camera.position.x, cz = camera.position.z;
-    const nearD = settings?.treeNear ?? near;
-    const coverD = coverRadius * Math.sqrt(settings?.grass ?? 1);
+    const nearD = (settings?.treeNear ?? near) / lodScale;
+    const coverD = coverRadius * Math.sqrt(settings?.grass ?? 1) * Math.min(1.35, Math.max(1, 1 / lodScale));
     const coverDensity = settings?.grass ?? 1;
     for (const k of kinds.values()) {
       let nN = 0, nM = 0, nF = 0;
       const limit = k.cover ? coverD : far;
-      const midD2 = k.midMeshes ? Math.min(k.midD, nearD) ** 2 : Infinity;
+      const midD2 = k.midMeshes ? Math.min(k.midD / lodScale, nearD) ** 2 : Infinity;
       for (let i = 0; i < k.items.length; i++) {
         const it = k.items[i];
         const dx = it.x - cx, dz = it.z - cz;

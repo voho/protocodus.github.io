@@ -127,15 +127,20 @@ by the blast that killed them, and drop their rifles.
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
-    set has one, the `_lod` impostor beyond the quality's near range
+    set has one, the `_lod` impostor beyond the quality's near range (those
+    distances, and the soldiers' 30 m, as they look through the view: down
+    the sights they reach 1.4 times further)
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low
     at a sprint, up and aside at a wall, down out of sight while changing
-    weapons), `reload.js` (the reload's clip and magazine; in first person on
+    weapons), `viewmotion.js` (the springs on top: the rifle lags a quick
+    turn, kicks up with each shot and settles, the eye dips on a landing),
+    `reload.js` (the reload's clip and magazine; in first person on
     the shouldered rifle, tilted into view, the fresh one seating in the
     picture), `camera.js` (at the eyes, down the
-    sights when aiming; the over-the-shoulder rig for the death camera),
+    sights when aiming, flinching from a hit; the over-the-shoulder rig for
+    the death camera),
     `character.js` (rig, split upper/lower body animation, the upper body
     steadied on the gait in first person, the outfit's low-detail `_lod`
     mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
@@ -423,7 +428,9 @@ by the blast that killed them, and drop their rifles.
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
   in the ground and leave the far village in sight;
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
-  (with a gap so they don't flicker), trees sort into full, mid and far;
+  (with a gap so they don't flicker), trees sort into full, mid and far,
+  and down the sights detail reaches as far as the narrower view makes
+  things look near;
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
@@ -436,7 +443,8 @@ by the blast that killed them, and drop their rifles.
   still does (the gait's bob and twist steadied out of the upper body),
   aiming puts the front sight in the middle of the view, the fresh clip or
   magazine seats in the picture, the rifle is carried in the picture at a
-  sprint and out of it while changing weapons:
+  sprint and out of it while changing weapons, and the sway, kick and
+  landing dip stay within a few degrees and centimetres and settle:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs

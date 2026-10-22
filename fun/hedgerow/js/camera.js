@@ -34,6 +34,8 @@ export function createCameraRig(camera, world) {
     dir: new THREE.Vector3(0, 0, 1),
     bob: 0,
     roll: 0, sprintT: 0,
+    // first person: the head flinching from a hit (camera only; the aim stays)
+    flinchRoll: 0, flinchRollV: 0, flinchPitch: 0, flinchPitchV: 0,
   };
   const desired = new THREE.Vector3();
   const rightV = new THREE.Vector3();
@@ -57,6 +59,23 @@ export function createCameraRig(camera, world) {
   };
 
   rig.addShake = (amount) => { rig.shake = Math.min(1.5, rig.shake + amount); };
+
+  /* A hit, first person: the head snaps away from the side it came from
+     (`side` > 0: from his left) and up a little, and comes back. */
+  rig.flinch = (side, amount = 1) => {
+    rig.flinchRollV += -Math.sign(side || 1) * 2.2 * amount;
+    rig.flinchPitchV += 1.1 * amount;
+  };
+  function settleFlinch(dt) {
+    for (let left = dt; left > 1e-6;) {
+      const h = Math.min(left, 1 / 240);
+      rig.flinchRollV += (-500 * rig.flinchRoll - 34 * rig.flinchRollV) * h;
+      rig.flinchPitchV += (-500 * rig.flinchPitch - 34 * rig.flinchPitchV) * h;
+      rig.flinchRoll += rig.flinchRollV * h;
+      rig.flinchPitch += rig.flinchPitchV * h;
+      left -= h;
+    }
+  }
 
   /* ---------- the death camera ---------- */
   const dc = { t: 0, started: false, from: new THREE.Vector3(), pos: new THREE.Vector3(), look: new THREE.Vector3() };
@@ -142,7 +161,9 @@ export function createCameraRig(camera, world) {
     look.copy(desired).add(rig.dir);
     camera.lookAt(look);
     rig.roll = damp(rig.roll, clamp(strafe, -4, 4) * 0.008 * (1 - rig.aimT), 6, dt);
-    camera.rotateZ(rig.roll);
+    settleFlinch(dt);
+    camera.rotateZ(rig.roll + rig.flinchRoll);
+    camera.rotateX(rig.flinchPitch);
     // the over-the-shoulder orbit (death camera) starts from here, not 3 m back
     rig.dist = 0.3;
     const fov = lerp(rig.baseFov + CAMERA.sprintFov * rig.sprintT, CAMERA.fpAimFov * rig.baseFov / CAMERA.fov, rig.aimT);

@@ -3,12 +3,20 @@
 // beyond LOD_FAR and back inside LOD_NEAR (not in between, so he does not
 // flicker at the line). Vegetation sorts each tree into full, mid (its
 // thinned _mid model) and far (its _lod impostor) by distance, drops what is
-// behind the camera, and without a _mid model keeps the old two tiers.
+// behind the camera, and without a _mid model keeps the old two tiers. And
+// detail follows how big things look: down the sights (a narrower view) a
+// soldier and the trees keep their full detail further out.
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const THREE = await import('three');
 const { createCharacter, LOD_FAR, LOD_NEAR } = await import('../js/character.js');
 const { createVegetation } = await import('../js/vegetation.js');
+const { fovScale } = await import('../js/util.js');
+
+// down the iron sights (52°) from the 68° view: things look as at 0.72 of their distance
+const ads = fovScale(52, 68);
+assert.ok(Math.abs(ads - 0.723) < 0.005, `fovScale(52, 68) is ${ads}`);
+assert.equal(fovScale(68, 68), 1);
 
 const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || new THREE.MeshBasicMaterial() };
 
@@ -46,6 +54,11 @@ const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || 
   ch.setDistance((LOD_FAR + LOD_NEAR) / 2);
   assert.equal(shown(), 'axis', 'still full between the lines on the way out');
   assert.ok(ch.far === false);
+  // aiming at him 35 m off: ai.js gives the distance times the view's scale
+  ch.setDistance(LOD_FAR + 5);
+  assert.equal(shown(), 'axis_lod');
+  ch.setDistance(35 * ads);
+  assert.equal(shown(), 'axis', 'down the sights a soldier 35 m off has his full detail');
 
   // a rig without the low-detail meshes ignores distance
   const old = new THREE.Group();
@@ -82,6 +95,11 @@ const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || 
   assert.equal(count('oak_lod'), 1, 'impostor beyond 52 m');
   assert.equal(count('pine'), 3, 'no _mid model: full detail all the way to 52 m');
   assert.equal(count('pine_lod'), 1);
+  // down the sights: the oak at 30 m looks as at 22 m, full detail; the 45 m one stays mid
+  veg.update(1, camera, { treeNear: 52, grass: 1 }, ads);
+  assert.equal(count('oak'), 2, 'aiming in, the oak 30 m off has full detail');
+  assert.equal(count('oak_mid'), 1);
+  assert.equal(count('oak_lod'), 1, 'the one at 80 m still an impostor (52 m looks as 72 m)');
 }
 
-console.log(`lod-check: soldiers switch detail at ${LOD_FAR} m (back at ${LOD_NEAR} m); trees sort into full, mid and far, and the one behind the camera is dropped`);
+console.log(`lod-check: soldiers switch detail at ${LOD_FAR} m (back at ${LOD_NEAR} m); trees sort into full, mid and far, and the one behind the camera is dropped; down the sights detail reaches ${(1 / ads).toFixed(2)}x further`);

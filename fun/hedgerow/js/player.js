@@ -22,6 +22,7 @@ import { rayEnemies } from './combat.js';
 import { instantiate } from './assets.js';
 import { startReload as reloadSequence, startFirstPersonReload } from './reload.js';
 import { SHOT, MOVE } from './world.js';
+import { createViewMotion } from './viewmotion.js';
 
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vector3();
 
@@ -47,6 +48,9 @@ export function createPlayer(G) {
   const EYE_UP = 0.09, EYE_FORWARD = 0.08;
   const HIP_UP = 0.035, HIP_LEFT = 0.055, HIP_BACK = 0.03;
   const eyeOff = new THREE.Vector3(0, PLAYER.eye, 0);
+  // the rifle's lag behind quick turns, its kick, the dip of a landing (viewmotion.js)
+  const motion = createViewMotion();
+  let vm = { yaw: 0, pitch: 0, drop: 0 };
 
   const charOpts = () => ({ outfit: 'allied', weaponModel: G.models.get(WEAPONS[P.weapon || 'garand'].model), grenadeModel: G.models.get('grenade_us'), scene: G.scene });
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
@@ -86,7 +90,8 @@ export function createPlayer(G) {
     P.char.root.rotation.y = P.yaw;
     P.char.hideHead(FP);
     P.char.steady = FP;
-    P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 };
+    P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 }; P.pendingWeapon = null;
+    motion.reset(); vm = { yaw: 0, pitch: 0, drop: 0 };
     eyeOff.set(0, PLAYER.eye, 0);
     G.hud.health(P.health / PLAYER.health);
   };
@@ -104,6 +109,7 @@ export function createPlayer(G) {
     if (from) {
       const ang = Math.atan2(from.x - P.pos.x, from.z - P.pos.z);
       G.hud.damageFrom(wrapAngle(ang - G.rig.yaw));
+      if (FP) G.rig.flinch(wrapAngle(ang - G.rig.yaw), kind === 'bullet' ? 1 : 2);
     }
     if (P.health <= 0) {
       P.health = 0;
@@ -139,8 +145,9 @@ export function createPlayer(G) {
     P.reloadRun = null;
     P.weapon = id;
     P.reloading = 0;
-    P.switching = 0.45;
-    P.char.setWeapon(G.models.get(WEAPONS[id].model));
+    // first person: the gun in his hands goes down out of sight, is changed there, the new one comes up
+    if (FP) { P.switching = 0.5; P.pendingWeapon = id; }
+    else { P.switching = 0.45; P.char.setWeapon(G.models.get(WEAPONS[id].model)); }
     G.audio.switchWeapon();
     G.hud.weapon(WEAPONS[id].name, P.ammo[id], P.grenades);
   }
@@ -235,6 +242,7 @@ export function createPlayer(G) {
     }
     if (w.tracer) G.effects.tracer(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, mlen);
     G.rig.kick(w.recoil * (P.crouch ? 0.7 : 1) * lerp(1, 0.7, G.rig.aimT), (Math.random() - 0.5) * 2 * w.recoilYaw);
+    if (FP) motion.kick((w.kick ?? 0.04) * (P.crouch ? 0.8 : 1) * lerp(1, 0.75, G.rig.aimT));
     G.events.emit('noise', { x: P.pos.x, z: P.pos.z, radius: 75, kind: 'shot' });
 
     if (finalHit) {
@@ -312,6 +320,7 @@ export function createPlayer(G) {
     const k = 1 - Math.exp(-22 * dt);
     eyeOff.lerp(eyeW, k);
     eyeW.copy(P.pos).add(eyeOff);
+    eyeW.y += vm.drop;
     // the rifle's sight line, and the eye's place behind it
     let sight = null;
     const wpn = ch.weapon;
@@ -322,8 +331,9 @@ export function createPlayer(G) {
       sight = sightW.copy(rearW).addScaledVector(sDir, -w.sight.relief);
       // turn the body and bend the spine until the sights lie along the view
       G.rig.forward(vDir);
-      const eYaw = wrapAngle(Math.atan2(vDir.x, vDir.z) - Math.atan2(sDir.x, sDir.z));
-      const ePitch = Math.asin(clamp(vDir.y, -1, 1)) - Math.asin(clamp(sDir.y, -1, 1));
+      // (the sway and the kick are passing: what they move is not to be corrected)
+      const eYaw = wrapAngle(Math.atan2(vDir.x, vDir.z) - Math.atan2(sDir.x, sDir.z)) + vm.yaw;
+      const ePitch = Math.asin(clamp(vDir.y, -1, 1)) - Math.asin(clamp(sDir.y, -1, 1)) + vm.pitch;
       const g = 1 - Math.exp(-14 * dt);
       P.yawFix = clamp(P.yawFix + eYaw * g, -0.6, 0.6);
       P.pitchFix = clamp(P.pitchFix + ePitch * g, -0.6, 0.6);
@@ -446,6 +456,7 @@ export function createPlayer(G) {
       P.pos.y += P.vel.y * dt;
       const g2 = G.world.groundAt(P.pos.x, P.pos.z, Math.max(P.pos.y, ground), PLAYER.step);
       if (P.pos.y <= g2) {
+        if (FP && !P.grounded && P.vel.y < -3) motion.land(-P.vel.y);
         if (!P.grounded && P.vel.y < -6) G.audio.gear('land', G.world.surfaceUnder(P.pos.x, g2, P.pos.z));
         P.pos.y = g2; P.vel.y = 0; P.grounded = true;
       } else if (P.pos.y - g2 < 0.3 && P.vel.y <= 0 && P.grounded) {
@@ -464,6 +475,7 @@ export function createPlayer(G) {
     // timers
     P.cooldown -= dt;
     P.switching -= dt;
+    if (P.pendingWeapon && P.switching <= 0.25) { P.char.setWeapon(G.models.get(WEAPONS[P.pendingWeapon].model)); P.pendingWeapon = null; }
     P.throwing -= dt;
     P.spread = Math.max(0, P.spread - w.bloomDecay * P.spread * dt);
     if (P.reloading > 0) {
@@ -522,12 +534,13 @@ export function createPlayer(G) {
       // view to reload (the throw is the clip's own)
       upper = P.crouch ? 'crouch_aim' : 'aim';
       const t = P.reloading > 0 && P.reloadRun?.pose ? P.reloadRun.pose(1 - P.reloading / P.reloadTotal)
-        : P.switching > 0 ? { pitch: -0.8, yaw: 0, roll: 0 }
+        : P.switching > 0.25 ? { pitch: -0.8, yaw: 0, roll: 0 }
         : P.blocked ? { pitch: 0.55, yaw: 0.25, roll: 0.2 }
         : P.sprint ? { pitch: -0.15, yaw: -0.1, roll: -0.45 }
         : null;
       for (const k of ['pitch', 'yaw', 'roll']) P.arms[k] = damp(P.arms[k], t ? t[k] : 0, 10, dt);
-      ch.armsPitch = P.arms.pitch; ch.armsYaw = P.arms.yaw; ch.armsRoll = P.arms.roll;
+      vm = motion.update(dt, G.rig.yaw, G.rig.pitch, G.rig.aimT);
+      ch.armsPitch = P.arms.pitch + vm.pitch; ch.armsYaw = P.arms.yaw + vm.yaw; ch.armsRoll = P.arms.roll;
     } else if (aiming || firingRecently) upper = P.crouch ? 'crouch_aim' : 'aim';
     else if (P.crouch) upper = hSpeed > 0.3 ? 'crouch_walk' : 'crouch_idle';
     else upper = move;

@@ -50,6 +50,7 @@ export const WEAPONS = {
     recoil: 0.034, recoilYaw: 0.01, range: 260, sound: 'garand', tracer: false,
     // the sight line in the model (rear aperture, front post) and the eye behind it
     sight: { rear: [0, 0.089, 0.01], front: [0, 0.083, 0.76], relief: 0.16 }, reach: 0.95,
+    kick: 0.075,       // first person: how hard each shot throws the muzzle up (viewmotion.js)
   },
   thompson: {
     name: 'M1A1 Thompson', model: 'thompson', kind: 'smg',
@@ -57,7 +58,7 @@ export const WEAPONS = {
     mag: 30, reserve: 180, reload: 2.5, prop: 'thompson_mag', propSize: [0.035, 0.26, 0.075], drops: true, seated: 'thompson_mag_seated',
     spreadHip: 0.05, spreadAim: 0.018, spreadMove: 0.03, bloom: 0.008, bloomDecay: 5,
     recoil: 0.012, recoilYaw: 0.008, range: 120, sound: 'thompson', tracer: false,
-    sight: { rear: [0, 0.121, 0.06], front: [0, 0.104, 0.44], relief: 0.12 }, reach: 0.7,
+    sight: { rear: [0, 0.121, 0.06], front: [0, 0.104, 0.44], relief: 0.12 }, reach: 0.7, kick: 0.03,
     // where the magazine model sits in the gun (weapons.glb, thompson_mag_seated)
     seatedAt: { p: [0, -0.13, 0.104], q: [-0.62089, -0.066765, 0.166366, 0.763129] },
   },
