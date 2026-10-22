@@ -267,8 +267,11 @@ by the blast that killed them, and drop their rifles.
     white-hot star in ragged orange tongues of burning gas, never the same
     twice, a few grains of powder flung on ahead of it; the fires' embers
     carried off on the wind for seconds, swirling in its eddies as they
-    cool; blasts throw up a
-    column of earth and roll dust along the ground; a shot or a step into
+    cool; a blast flashes for a frame or two and throws up a geyser of wet
+    mud in dark jets and a spray of it in streaks, drawn after its fireball
+    so the mud covers the fire it flies through, and rolls low dark spray
+    and smoke along the ground (mud and dirt are lit on the side facing a
+    light, so they stand dark against the fireball); a shot or a step into
     water throws up a spout of spray and spreads a ring flat on it; a round
     into a hedge or a bush shreds leaves out of it that flutter down on the
     air, eddying and drifting downwind, with a twig or two and the rain
@@ -287,8 +290,9 @@ by the blast that killed them, and drop their rifles.
     and by flares and lightning, fading into the haze; drawn before the
     light in the rain, whose glow hangs in front of it), `fireball.js` (a
     blast's fireball: a billboard whose shader swells a ball of turbulent
-    flame in a tenth of a second, yellow at its heart and orange in its
-    folds, cooling from the outside in to a dull red glow inside a ball of
+    flame in a tenth of a second, white only at its heart for a frame or
+    two, yellow and orange in its folds, cooling from the outside in from
+    the start to a dull red glow inside a ball of
     smoke that rolls up and thins into the blast's dust), `atmosphere.js`
     (halos, mist, and decals: four painted variants of each kind with their
     own relief, drawn pulled a few centimetres towards the eye along their

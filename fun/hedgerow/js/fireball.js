@@ -65,8 +65,9 @@ void main() {
   float body = 1.0 - smoothstep(0.55, 1.0, edge);
   float fade = 1.0 - smoothstep(0.75, 1.5, t);
   if (body * fade < 0.01) discard;
-  // heat: hottest at the heart and at first; it cools from the outside in
-  float cool = smoothstep(0.04, 0.7, t);
+  // heat: hottest at the heart and at first; it cools from the outside in, from the start (white
+  // only for a frame or two, at its heart: a blast is not a ball of light)
+  float cool = smoothstep(0.0, 0.55, t);
   // (folds of cooler, sootier flame through it: the turbulence decides much of it)
   float heat = clamp((1.0 - edge) * 1.05 - cool * 1.1 + (n2 - 0.5) * 1.1 + (n1 - 0.5) * 0.5, 0.0, 1.0);
   // a black body: deep red, orange, yellow, white only at the hottest
