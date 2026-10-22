@@ -179,8 +179,9 @@ async function boot() {
   built = buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
   dressWalls(G, built.props, LEVEL.lines);
-  // the lit windows' glass, for the cracks a bullet leaves in it
+  // the lit windows' glass, for the cracks a bullet leaves in it and the shards it breaks out
   G.decals.setPanes(paneRects(built.props));
+  G.effects.setPaneAt(G.decals.paneAt);
   G.effects.setGround((x, z) => G.terrain.height(x, z));
   // the brass thrown out of the gun (casings.js), lying where it falls
   G.casings = createCasings(G);

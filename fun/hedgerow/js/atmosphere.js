@@ -784,9 +784,9 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
     return true;
   }
 
-  /* the lit panes (rooms.js paneRects), and the one a hit on a wall at (x, y, z) went into: the
-     collider's face is in front of the window's recess, so the hit is carried back along the pane's
-     facing onto the glass */
+  /* the lit panes (rooms.js paneRects), and the one a hit on a wall at (x, y, z) went into ({x, y, z,
+     n}, or null): the collider's face is in front of the window's recess, so the hit is carried back
+     along the pane's facing onto the glass (the effects ask too, effects.js setPaneAt) */
   let panes = [];
   function setPanes(list) { panes = list || []; }
   const v = new THREE.Vector3();
@@ -820,5 +820,5 @@ export function createDecals({ max = 200, shared = null, pinned = {} } = {}) {
 
   function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; } }
 
-  return { group, add, pin, impact, clear, setPanes };
+  return { group, add, pin, impact, clear, setPanes, paneAt };
 }
