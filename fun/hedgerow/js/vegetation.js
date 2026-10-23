@@ -114,10 +114,21 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
           nF++;
         }
       }
-      for (const m of k.nearMeshes) { m.count = nN; m.instanceMatrix.needsUpdate = true; }
-      if (k.midMeshes) for (const m of k.midMeshes) { m.count = nM; m.instanceMatrix.needsUpdate = true; }
-      if (k.farMeshes) for (const m of k.farMeshes) { m.count = nF; m.instanceMatrix.needsUpdate = true; }
+      for (const m of k.nearMeshes) fill(m, nN);
+      if (k.midMeshes) for (const m of k.midMeshes) fill(m, nM);
+      if (k.farMeshes) for (const m of k.farMeshes) fill(m, nF);
     }
+  }
+  /* n instances drawn: only those go up to the GPU (the buffer has room for every placement of the
+     kind), and an empty mesh is not drawn at all (nor its range sent: WebGL 2 reads a length of 0
+     as "to the end") */
+  function fill(m, n) {
+    m.count = n;
+    m.visible = n > 0;
+    if (!n) return;
+    m.instanceMatrix.clearUpdateRanges();
+    m.instanceMatrix.addUpdateRange(0, n * 16);
+    m.instanceMatrix.needsUpdate = true;
   }
 
   function stats() {
