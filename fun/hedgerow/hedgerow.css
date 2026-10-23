@@ -91,7 +91,7 @@ body.playing, body.playing #stage { cursor: none; }
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
   text-align: center;
 }
-.title-panel { text-align: center; background: transparent; border: none; box-shadow: none; backdrop-filter: none; }
+.title-panel { margin: auto; flex-shrink: 0; text-align: center; background: transparent; border: none; box-shadow: none; backdrop-filter: none; }
 
 .eyebrow {
   margin: 0 0 6px;
@@ -109,7 +109,15 @@ h2 { margin: 0 0 14px; font-family: var(--stamp); font-size: 30px; font-weight: 
 .loading { width: min(320px, 100%); margin: 0 auto; }
 .loading-track { height: 3px; background: var(--line); overflow: hidden; }
 .loading-fill { display: block; height: 100%; width: 0; background: var(--brass); transition: width 0.2s ease; }
-.loading-label { margin: 10px 0 0; font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
+.loading-label { min-height: 2.8em; margin: 10px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); letter-spacing: 0.06em; }
+.loading-summary { margin: 7px 0 12px; font-size: 12px; color: var(--muted); }
+.loading-steps { list-style: none; padding: 0; margin: 0 0 18px; text-align: left; font-size: 12px; line-height: 1.7; }
+.loading-steps li { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); }
+.loading-steps [data-loading-status] { flex-shrink: 0; }
+.loading-steps [data-state="loading"] { color: var(--brass); }
+.loading-steps [data-state="done"] [data-loading-status] { color: var(--green); }
+.loading-briefing { font-size: 13px; line-height: 1.5; color: var(--brass); }
+.loading-briefing[data-failed] { color: var(--red); }
 .error p { color: var(--red); }
 
 .menu { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: min(320px, 100%); margin: 0 auto; }

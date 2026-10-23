@@ -3,8 +3,8 @@
    Models carry palette keys as material names (tools/blender/kit.py). Each
    key maps to one shared MeshStandardMaterial here: the palette colour,
    a tiling detail texture (RGB normal, A albedo detail) in metres-based
-   UVs, and the rain: porous surfaces darken, everything loses roughness,
-   and upward faces get standing water and ripples. */
+   UVs, and the rain: porous surfaces darken and everything loses roughness.
+   Standing water and its ripples belong to the ground and water materials. */
 
 import * as THREE from 'three';
 import { GLSL_HELPERS } from './terrain.js';
@@ -319,8 +319,7 @@ export function createMaterialLibrary(textures, shared) {
 }
 
 /* Rain on a standard material: porous surfaces darken, everything gets
-   glossier, faces turned to the sky hold a film of water with ripples, and
-   (streaks) water runs down walls in rivulets that catch the light.
+   glossier, and (streaks) water runs down walls in rivulets that catch the light.
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
@@ -421,7 +420,6 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         varying vec3 vWNormalM;
         varying vec2 vDetailUv;
         varying vec3 vWPosM;
-        float mWetUp;
         ${bark ? `uniform sampler2D tBark;
         uniform float uBark, uMoss;
         varying vec3 vBarkP, vBarkN;
@@ -458,13 +456,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }` : ''}
         {
           ${detail ? `float detail = texture2D(tDetail, vDetailUv).a;
-          diffuseColor.rgb *= 0.55 + 0.9 * detail;` : `float detail = 0.5 + 0.8 * (dot(diffuseColor.rgb, vec3(0.3, 0.6, 0.1)) - 0.18);`}
-          float up = smoothstep(0.55, 0.95, vWNormalM.y);
-          // no standing water on leaves: a card's normal is the crown's, so a
-          // film would turn the whole top of a crown into one mirror
-          mWetUp = ${foliage ? '0.0' : 'up * uWet * smoothstep(0.35, 0.6, detail + 0.15)'};
+          diffuseColor.rgb *= 0.55 + 0.9 * detail;` : ''}
+          // Wet solid surfaces keep their own relief. Upward-facing normals do
+          // not mean a prop holds standing water: hay, crowns and curved steel
+          // otherwise acquire horizontal water rings and a mirror-like cap.
           diffuseColor.rgb *= mix(1.0, 0.62, uWet * uPorosity);
-          diffuseColor.rgb *= mix(1.0, 0.82, mWetUp);
         }
         ${streaks ? `// rain running down walls, close to the eye: rivulets ~22 cm apart, darker wet
         // stripes with a glossy core, each wandering as it runs and carrying water in
@@ -513,10 +509,10 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         ${grain ? `// close up, the grain of the surface (a baked texture stretched over a whole house goes
         // soft within a few metres): a metre of fine detail in world space, seen from the three
         // sides blended by which way the surface faces, gone by 7 m; its relief only on what is
-        // rough (stone, plaster, old wood: paint or metal, glossy in the rain, would glitter) and
-        // not under standing water, which fills it
+        // rough (stone, plaster, old wood: paint or metal, glossy in the rain, would glitter),
+        // preserving it on wet solids
         grainK = uGrain * (1.0 - smoothstep(3.0, 7.0, length(vViewPosition)));
-        grainN = grainK * smoothstep(0.55, 0.85, roughnessFactor) * (1.0 - mWetUp);
+        grainN = grainK * smoothstep(0.55, 0.85, roughnessFactor);
         if (grainK > 0.01) {
           grainW = pow(abs(vWNormalM), vec3(4.0));
           grainW /= dot(grainW, vec3(1.0));
@@ -527,7 +523,6 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           diffuseColor.rgb *= mix(1.0, 0.7 + 0.6 * g, grainK);
         }` : ''}
         roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
-        roughnessFactor = mix(roughnessFactor, 0.08, mWetUp * 0.8);
         ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);\n        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.75, mDamp);\n        roughnessFactor = mix(roughnessFactor, 0.9, mMud * 0.6);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
@@ -541,16 +536,11 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           vec3 dn = grainW.x * vec3(0.0, gx.y, gx.x) + grainW.y * vec3(gy.x, 0.0, gy.y) + grainW.z * vec3(gz.x, gz.y, 0.0);
           normal = normalize(normal + mat3(viewMatrix) * dn * grainN * 0.25);
         }` : ''}
-        if (mWetUp > 0.01) {
-          vec2 rip = rainRipples(vWPosM.xz * 1.9, uTime, rippleFade(length(vViewPosition))) * uRain * mWetUp;
-          mat3 tbnR = cotangentFrame(normal, -vViewPosition, vWPosM.xz);
-          normal = normalize(tbnR * normalize(vec3(rip * 0.8, 1.0)) * 0.5 + normal * 0.5);
-        }
         ${streaks ? `// a rivulet bulges out of the wall: its sides lean, so it catches the light across it
         if (mRiv > 0.01) normal = normalize(normal + mat3(viewMatrix) * mRivT * (mRivX * 3.0 * mRiv));` : ''}`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         #ifdef OPAQUE
-          gl_FragColor.a = mirrorAlpha(roughnessFactor, mWetUp);
+          gl_FragColor.a = mirrorAlpha(roughnessFactor, 0.0);
         #endif`);
     if (skin) {
       // where each point of him is in his own (bind-pose) space, for the close-up detail: it stays
@@ -1003,7 +993,7 @@ export async function loadTextures(base, onProgress) {
       tex.anisotropy = 8;
       tex.colorSpace = ground.includes(name) ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       out[name] = tex;
-      onProgress?.(++done / names.length);
+      onProgress?.(++done / names.length, { completed: done, total: names.length });
       resolve();
     }, undefined, reject);
   })));

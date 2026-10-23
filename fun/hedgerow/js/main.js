@@ -42,6 +42,7 @@ import { createMission } from './mission.js';
 import { buildLevel } from './levelBuild.js';
 import { createNav } from './nav.js';
 import { breathe, yieldNow, mark } from './pace.js';
+import { createLoadingProgress, LOADING_STAGES } from './loading.js';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
 import { createAdaptation } from './adapt.js';
 import { createGrade } from './post.js';
@@ -118,15 +119,43 @@ const shared = {
   rutMap: { value: null }, rutMin: { value: new THREE.Vector2() }, rutSize: { value: new THREE.Vector2(1, 1) },
 };
 
-function setLoading(frac, label) {
+const loadingSteps = $('[data-loading-steps]');
+for (const s of LOADING_STAGES) {
+  const row = document.createElement('li');
+  row.dataset.loadingStep = s.id;
+  const name = document.createElement('span');
+  name.textContent = s.label;
+  const status = document.createElement('span');
+  status.dataset.loadingStatus = '';
+  status.textContent = 'Waiting';
+  row.append(name, status);
+  loadingSteps.append(row);
+}
+const loading = createLoadingProgress(renderLoading);
+function renderLoading({ fraction: frac, completed, remaining, stages }) {
+  // Reserve 100% for the final ready state, even after rounding.
+  const percent = remaining ? Math.min(99, Math.floor(frac * 100)) : 100;
+  const current = stages.find(s => s.state === 'loading');
+  const label = current?.detail || (remaining ? 'Preparing to load' : 'Ready to move out');
   const f = $('[data-loading-fill]');
-  f.style.width = `${(frac * 100).toFixed(0)}%`;
-  $('[data-loading-bar]').setAttribute('aria-valuenow', Math.round(frac * 100));
-  if (label) $('[data-loading-label]').textContent = label;
+  f.style.width = `${percent}%`;
+  $('[data-loading-bar]').setAttribute('aria-valuenow', percent);
+  $('[data-loading-bar]').setAttribute('aria-valuetext', `${percent}%. ${label}`);
+  $('[data-loading-label]').textContent = label;
+  const summary = `${completed} of ${stages.length} steps done · ${remaining} left`;
+  $('[data-loading-summary]').textContent = summary;
+  for (const s of stages) {
+    const row = loadingSteps.querySelector(`[data-loading-step="${s.id}"]`);
+    row.dataset.state = s.state;
+    row.querySelector('[data-loading-status]').textContent = { done: 'Done', loading: 'Loading', waiting: 'Waiting' }[s.state];
+  }
+  const briefingLoad = $('[data-loading-briefing]');
+  briefingLoad.textContent = `${label}. ${summary}.`;
+  briefingLoad.hidden = ready;
   // Move out waits for the world, saying how far loading has got
   const go = $('[data-action="start"]');
   go.disabled = !ready;
-  go.textContent = ready ? 'Move out' : `Loading ${Math.round(frac * 100)}%`;
+  go.textContent = ready ? 'Move out' : `Loading ${percent}%`;
 }
 
 /* Loading runs behind the menu: the title and the menu are up and answering from the start (the
@@ -142,6 +171,8 @@ const madeShaders = new Set();
 const setValues = THREE.Material.prototype.setValues, copyShader = THREE.ShaderMaterial.prototype.copy;
 
 async function boot() {
+  loading.update('textures', 0, 'Preparing graphics and sound');
+  await yieldNow();
   THREE.Material.prototype.setValues = function (values) { if (this.isShaderMaterial) madeShaders.add(this); return setValues.call(this, values); };
   THREE.ShaderMaterial.prototype.copy = function (source) { madeShaders.add(this); return copyShader.call(this, source); };   // clones
   const probe = document.createElement('canvas').getContext('webgl2');
@@ -187,15 +218,27 @@ async function boot() {
   if (params.has('go')) openBriefing();
 
   mark('textures');
-  setLoading(0.02, 'Loading textures');
-  const textures = await loadTextures('assets/textures', (f) => setLoading(0.02 + f * 0.13));
+  loading.update('textures', 0, 'Loading surface textures');
+  const textures = await loadTextures('assets/textures', (f, info) => loading.update('textures', f,
+    info ? `Loading textures · ${info.completed} of ${info.total} ready` : 'Loading surface textures'));
+  loading.update('textures', 1);
   mark('models');
-  setLoading(0.15, 'Loading models');
-  const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f) => setLoading(0.15 + f * 0.45));
-  setLoading(0.62, 'Laying out Saint-Clair');
+  loading.update('models', 0, 'Loading village, military, nature, weapons and soldiers');
+  const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f, info) => loading.update('models', f,
+    `Loading models · ${info.completed} of ${info.total} sets ready`));
+  loading.update('models', 1);
   // each step of the layout: the bar moves on, the browser gets its turn, the step is marked
   let laid = 0;
-  const next = async (name) => { setLoading(0.62 + 0.23 * Math.min(1, laid++ / 24)); await breathe(); mark(name); };
+  const worldLabels = {
+    materials: 'Preparing surfaces and lighting', level: 'Building the village and countryside',
+    walls: 'Dressing village walls', boots: 'Adding tracks and ground detail', panes: 'Preparing windows and rooms',
+    canopy: 'Building tree canopies', chutes: 'Adding forest details', signs: 'Placing signposts',
+    wire: 'Placing barbed wire', casings: 'Preparing battlefield effects', ponds: 'Filling shell-crater pools',
+    drips: 'Preparing roof drips', 'ground map': 'Mapping the battlefield ground', ruts: 'Laying wheel ruts',
+    grass: 'Growing grass and ground cover', fires: 'Preparing fire and smoke',
+    'window light': 'Lighting windows', flares: 'Preparing illumination flares',
+  };
+  const next = async (name) => { loading.update('world', laid++ / 21, worldLabels[name]); await breathe(); mark(name); };
   await next('materials');
 
   const matlib = createMaterialLibrary(textures, shared);
@@ -298,7 +341,7 @@ async function boot() {
   await next('flares');
   // illumination flares over the front, now and then (their shadows at four times the lamps' map size)
   G.flares = createFlares(G, { shadows: quality.shadows ? quality.shadows * 4 : 0 });
-  setLoading(0.85, 'Rain over Normandy');
+  loading.update('world', 18 / 21, 'Preparing rain and mist');
   await yieldNow();
   mark('weather');
 
@@ -311,6 +354,7 @@ async function boot() {
   scene.add(G.weather.group);
   await breathe();
   mark('environment');
+  loading.update('world', 19 / 21, 'Preparing sky reflections');
 
   // reflections: the dusk sky as an environment map
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -324,6 +368,7 @@ async function boot() {
   G.rig = createCameraRig(camera, G.world);
   await breathe();
   mark('post');
+  loading.update('world', 20 / 21, 'Preparing lighting and camera effects');
 
   // post
   hdrChain = hdr;
@@ -346,23 +391,24 @@ async function boot() {
   }
 
   // the soldiers and the mission, made now behind the menu so Move out starts at once
-  setLoading(0.89, 'Manning the posts');
+  loading.update('world', 1);
+  loading.update('soldiers', 0, 'Placing soldiers and preparing the mission');
   await yieldNow();
   mark('soldiers');
   await prepareMission();
+  loading.update('soldiers', 1);
 
   // the shaders, before anything is drawn with them
-  setLoading(0.95, 'Checking weapons');
+  loading.update('shaders', 0, 'Compiling lighting and effects');
   await yieldNow();
   mark('shaders');
   menuCamera(0);
   await warmShaders();
 
-  setLoading(1, 'Ready');
   mark('ready');
   ready = true;
+  loading.update('shaders', 1);
   $('[data-loading]').hidden = true;
-  setLoading(1);
   state = 'menu';
   fade.classList.remove('on');
   if (FLY) startFly();
@@ -380,9 +426,13 @@ async function boot() {
 }
 
 function error(text) {
+  show('start');
   $('[data-loading]').hidden = true;
   $('[data-error]').hidden = false;
   $('[data-error-text]').textContent = text;
+  const briefingLoad = $('[data-loading-briefing]');
+  briefingLoad.dataset.failed = '';
+  briefingLoad.textContent = text;
 }
 
 function freshStats() {
@@ -575,10 +625,17 @@ async function warmShaders() {
   // and meanwhile the textures go up to the GPU one at a time (the first frame drawn would otherwise
   // have uploaded them all at once)
   mark('textures up');
-  for (const t of textures([scene, ...draws.map(([object]) => object)])) { renderer.initTexture(t); await breathe(); }
+  const uploads = textures([scene, ...draws.map(([object]) => object)]);
+  let uploaded = 0;
+  for (const t of uploads) {
+    renderer.initTexture(t);
+    loading.update('shaders', 0.25 + 0.25 * ++uploaded / uploads.size, `Uploading textures · ${uploaded} of ${uploads.size} ready`);
+    await breathe();
+  }
   await whenCompiled(compiled);
   await yieldNow();
   mark('warm frame');
+  loading.update('shaders', 0.96, 'Drawing the first frame');
   // the frame drawn unseen (behind the fade, which still covers the canvas; to the screen, so the
   // chain's output compiles too), the soldiers shown and casting for it
   for (const o of soldiers) o.visible = true;
@@ -598,8 +655,11 @@ async function warmShaders() {
 async function whenCompiled(materials) {
   const programs = new Set();
   for (const m of materials) { const p = renderer.properties.get(m).currentProgram; if (p) programs.add(p); }
+  let completed = 0;
+  loading.update('shaders', 0.5, `Compiling graphics · 0 of ${programs.size} programs ready`);
   for (const p of programs) {
     while (!p.isReady()) await new Promise((resolve) => setTimeout(resolve, 16));
+    loading.update('shaders', 0.5 + 0.45 * ++completed / programs.size, `Compiling graphics · ${completed} of ${programs.size} programs ready`);
     await breathe();
   }
 }
@@ -661,7 +721,7 @@ function pause() {
   show('pause');
 }
 
-const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', sniper: 'a sniper', officer: 'an officer' };
+const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', officer: 'an officer' };
 
 function onDeath() {
   G.stats.deaths++;

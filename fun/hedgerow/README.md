@@ -6,7 +6,7 @@ proof of concept has the first one:
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
-up the main street to the church square (sniper in the tower), over the
+up the main street to the church square, over the
 river (bridge under a machine gun, a ford downstream, a fallen tree
 upstream), through the forest's foxholes and trench line, past a concrete
 bunker, to the flak gun in the clearing — blow it up — and on to the rally
@@ -105,6 +105,7 @@ checkpoint; the enemies you killed stay dead. A grenade or a charge going
 off close by leaves you dazed for a few seconds, longer the closer it was:
 a white flash, then the ears ringing over a muffled world, the view doubled,
 swimming and closing in, your legs and your aim slow.
+When your grenade kills enemies, a notice shows that blast's kill count.
 
 The Germans are not statues. Patrols walk their beats and stop to look
 round. A shot or a grenade heard from a distance sends one or two of a
@@ -131,7 +132,11 @@ by the blast that killed them, and drop their rifles.
     by scaling the render down to 60 % on slow GPUs and dense screens, and
     back up when there is headroom); the loading runs in the background: the
     menu shows at once and answers throughout, Move out counting the percent
-    until the mission is ready. Every long step (the models, the terrain, the
+    until the mission is ready. `loading.js` tracks fixed work budgets for
+    textures, models, the battlefield, soldiers and graphics preparation;
+    the checklist names what is loading, done and waiting. Each parallel
+    model download keeps its own progress, so the bar never moves backwards,
+    and 100% waits for the first prepared frame. Every long step (the models, the terrain, the
     village, the decals, the canopy, the cover points) works in slices and
     lets the page have its turn about every frame (`pace.js`); the shaders
     are asked for all at once and compiled off the main thread, the textures
@@ -163,9 +168,11 @@ by the blast that killed them, and drop their rifles.
     steadied on the gait in first person, the head folded away from the
     eyes there with a stand-in of the head and helmet that draws nothing
     but casts, so your shadow keeps its head, the outfit's low-detail
-    `_lod` mesh beyond 30 m), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
+    `_lod` mesh beyond 30 m), `mounted-weapon.js` (the MG gunner's hands fitted
+    to its grips without stretching his arms, following its traverse and
+    letting go while ducking or falling), `ragdoll.js` (Verlet bodies driving the bones), `combat.js`
     (hit volumes, grenades, charges, dropped magazines and rifles), `ai.js`
-    (perception, cover, MG nests, sniper, reloads; patrols; sounds looked
+    (perception, cover, MG nests, reloads; patrols; sounds looked
     into; a lost player searched for where he was seen and ambushed along
     his way; the killer checks the body; soldiers out of view are not drawn
     and are posed five times a second), `nav.js` (the 2 m walk grid and A*
@@ -570,7 +577,15 @@ by the blast that killed them, and drop their rifles.
   `tests/daze-check.mjs` — a blast dazes him by how close it went off (all
   of it at a grenade's feet, none past 11 m, a charge nearly twice as far,
   less behind a wall), it wears off over three to nine seconds, and the view
-  swims a degree or two round the aim — camera only, slowly — while it lasts:
+  swims a degree or two round the aim — camera only, slowly — while it lasts;
+  `tests/combat-check.mjs` — each player grenade reports only its own kills,
+  excluding survivors, corpses and enemies behind cover; the mission has no sniper;
+  `tests/mg-pose-check.mjs` — the shipped MG and soldier keep both grips and
+  arm lengths through traverse, release while ducking and regrip afterward;
+  `tests/rain-surfaces-check.mjs` — solid props stay wet without water rings;
+  exposed ground, river and ponds retain their rain effects;
+  `tests/loading-check.mjs` — interleaved asset events never rewind progress,
+  completed stages stay done, and readiness waits for the final stage:
 
       node fun/hedgerow/tests/world-check.mjs
       node fun/hedgerow/tests/route-check.mjs
@@ -582,6 +597,10 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/fp-check.mjs
       node fun/hedgerow/tests/clutter-check.mjs
       node fun/hedgerow/tests/daze-check.mjs
+      node fun/hedgerow/tests/combat-check.mjs
+      node fun/hedgerow/tests/mg-pose-check.mjs
+      node fun/hedgerow/tests/rain-surfaces-check.mjs
+      node fun/hedgerow/tests/loading-check.mjs
 
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to

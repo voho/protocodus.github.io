@@ -495,13 +495,19 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   // where a drop lands: the first thing in its way from above (a crate's lid, a sandbag, the truck's
   // bonnet, a step, a roof - so what is sheltered under it stays dry), else the ground, or the
   // river's surface over it
-  const landY = (x, z) => {
+  const landY = (x, z, groundOnly = false) => {
     let y = terrain ? terrain.height(x, z) : 0;
     if (water && y < water.level && water.contains(x, z)) y = water.level;
     if (world) {
       const h = world.raycast(x, y + 30, z, 0, -1, 0, 30.05, SHOT, { noTerrain: true, noWater: true });
       // (not from inside something tall, where the ray starts: that is no top)
-      if (h && h.t > 0.01 && h.ny > 0.5 && h.y > y + 0.02) y = h.y;
+      if (h && h.t > 0.01 && h.ny > 0.5 && h.y > y + 0.02) {
+        // Ring quads lie horizontally: on a haystack or a curved prop they
+        // float above the mesh. Those surfaces still catch droplet crowns and
+        // shelter the ground below, but never receive ground/water rings.
+        if (groundOnly) return null;
+        y = h.y;
+      }
     }
     return y;
   };
@@ -728,7 +734,8 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
       splashAcc -= 1;
       const a = R() * Math.PI * 2, r = Math.sqrt(R()) * 16;
       const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
-      const y = landY(x, z);
+      const y = landY(x, z, true);
+      if (y === null) continue;
       const k = splashCursor * 4;
       splashes[k] = x; splashes[k + 1] = y; splashes[k + 2] = z; splashes[k + 3] = time - R() * 0.02;
       splashCursor = (splashCursor + 1) % SPL;
