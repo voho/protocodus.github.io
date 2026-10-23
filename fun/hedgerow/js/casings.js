@@ -28,6 +28,7 @@ export function createCasings(G) {
     const mesh = new THREE.InstancedMesh(geometry, material, CAP);
     mesh.name = 'casings';
     mesh.count = 0;
+    mesh.visible = false;         // (drawn once there is something to draw)
     mesh.frustumCulled = false;
     mesh.receiveShadow = true;
     return { mesh, list: [], cursor: 0, half: h / 2 };
@@ -48,6 +49,7 @@ export function createCasings(G) {
       c = { slot: K.list.length, p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), rest: false };
       K.list.push(c);
       K.mesh.count = K.list.length;
+      K.mesh.visible = true;
     } else {
       c = K.list[K.cursor];
       K.cursor = (K.cursor + 1) % CAP;
@@ -98,7 +100,7 @@ export function createCasings(G) {
     }
   }
 
-  function clear() { for (const K of kinds) { K.list.length = 0; K.cursor = 0; K.mesh.count = 0; } }
+  function clear() { for (const K of kinds) { K.list.length = 0; K.cursor = 0; K.mesh.count = 0; K.mesh.visible = false; } }
 
   return { group, eject, update, clear };
 }
