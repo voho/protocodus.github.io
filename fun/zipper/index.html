@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Zipper — one line through every cell</title>
+  <meta name="description"
+    content="A 3D logic puzzle in the browser: draw one unbroken line through every cell, passing the numbers in order and never crossing a wall. Endless boards in three sizes.">
+  <meta name="theme-color" content="#061018">
+  <meta property="og:title" content="Zipper — one line through every cell">
+  <meta property="og:description" content="Draw one unbroken line through every cell, numbers in order. Endless 3D puzzles in three sizes.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/zipper/">
+  <meta property="og:image" content="https://protocodus.cz/fun/zipper/zipper-card.webp">
+  <link rel="canonical" href="https://protocodus.cz/fun/zipper/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../shared/puzzle.css">
+  <link rel="stylesheet" href="./zipper.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+</head>
+
+<body>
+  <canvas id="stage" tabindex="0" aria-label="Zipper board. Arrow keys draw the line, Backspace takes it back."></canvas>
+  <p class="sr-only" data-status aria-live="polite"></p>
+
+  <div class="hud">
+    <header class="hud-top">
+      <div class="hud-brand">
+        <a class="back" href="/fun/"><span aria-hidden="true">←</span> Fun</a>
+        <div class="wordmark">
+          <h1>Zipper</h1>
+          <p>One line through every cell, numbers in order.</p>
+        </div>
+      </div>
+      <div class="hud-tools">
+        <fieldset class="segmented" aria-label="Difficulty">
+          <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
+          <label><input type="radio" name="difficulty" value="medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
+        </fieldset>
+        <button type="button" class="icon-btn" data-action="sound" aria-pressed="true" aria-label="Sound on">♪</button>
+        <button type="button" class="icon-btn" data-action="help" aria-label="How to play">?</button>
+      </div>
+    </header>
+    <footer class="hud-bottom">
+      <div class="status">
+        <output class="timer" data-timer aria-label="Time">0:00</output>
+        <span class="seed">Board <b data-seed>—</b></span>
+      </div>
+      <div class="toolbar" role="group" aria-label="Puzzle actions">
+        <button type="button" class="btn" data-action="hint">Hint <span class="badge" data-hints></span></button>
+        <button type="button" class="btn" data-action="reset">Reset</button>
+        <button type="button" class="btn btn-primary" data-action="new">New <span class="long">puzzle</span></button>
+      </div>
+      <div class="spacer"></div>
+    </footer>
+  </div>
+  <p class="toast" data-toast role="status"></p>
+
+  <dialog data-dialog="help" aria-labelledby="help-title">
+    <form method="dialog" class="card">
+      <p class="eyebrow">How to play</p>
+      <h2 id="help-title">One line, every cell.</h2>
+      <ul class="rules">
+        <li><span class="glyph">1</span><span><b>Start on 1, finish on the last number.</b> The line passes the numbers in order.</span></li>
+        <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12v12H4z"/><path d="M4 10h12M10 4v12"/></svg></span><span><b>Fill the board.</b> Every cell is visited exactly once, moving between neighbouring cells.</span></li>
+        <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M10 3v14"/><path d="M3 10h4m6 0h4" opacity="0.5"/></svg></span><span><b>Walls stop the line.</b> It cannot cross a glowing wall, or itself.</span></li>
+      </ul>
+      <p class="keys">Drag from the head of the line to draw; drag back along it to erase. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> draw and <kbd>⌫</kbd> steps back. <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound. Every board has exactly one solution.</p>
+      <div class="card-actions">
+        <button type="submit" class="btn btn-primary">Let me draw</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog data-dialog="win" aria-labelledby="win-title">
+    <div class="card">
+      <p class="eyebrow">Solved</p>
+      <h2 id="win-title">One line, no loose ends.</h2>
+      <p class="win-time" data-win-time>0:00</p>
+      <p data-win-note></p>
+      <div class="card-actions">
+        <button type="button" class="btn btn-primary" data-action="next">Next puzzle</button>
+        <button type="button" class="btn btn-ghost" data-action="harder">Go harder</button>
+        <button type="button" class="btn btn-ghost" data-action="stay">Keep looking</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="loading" data-loading><p><i></i><span data-loading-text>Laying out the board</span></p></div>
+  <noscript>
+    <div class="loading failed"><p>Zipper needs JavaScript and WebGL 2 to run.</p></div>
+  </noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
