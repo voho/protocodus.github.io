@@ -262,6 +262,54 @@ const smooth01 = (u) => u * u * (3 - 2 * u);
 const smoother01 = (u) => u * u * u * (u * (u * 6 - 15) + 10);
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 
+/* `Math.hypot`, written out for the mesh build, which normalises a normal or
+   measures a slope at every vertex it touches — hundreds of thousands of
+   times a build. V8 runs the built-in out of line and copies its arguments
+   into a fresh array on every call; these are the operations that built-in
+   performs (each magnitude scaled by the largest, Kahan-summed, rooted and
+   scaled back), so on V8 they return the same bits, and on other engines
+   they differ from the native one by at most the last place of a double —
+   far below the float32 the mesh stores. */
+function hypot2(a, b) {
+  const x = Math.abs(a);
+  const y = Math.abs(b);
+  let max = 0;
+  if (x > max) max = x;
+  if (y > max) max = y;
+  if (max === Infinity) return Infinity;
+  if (a !== a || b !== b) return NaN;
+  if (max === 0) return 0;
+  let n = x / max;
+  let sum = n * n;
+  const comp = (sum - 0) - n * n;
+  n = y / max;
+  sum += n * n - comp;
+  return Math.sqrt(sum) * max;
+}
+function hypot3(a, b, c) {
+  const x = Math.abs(a);
+  const y = Math.abs(b);
+  const z = Math.abs(c);
+  let max = 0;
+  if (x > max) max = x;
+  if (y > max) max = y;
+  if (z > max) max = z;
+  if (max === Infinity) return Infinity;
+  if (a !== a || b !== b || c !== c) return NaN;
+  if (max === 0) return 0;
+  let n = x / max;
+  let sum = n * n;
+  let comp = (sum - 0) - n * n;
+  n = y / max;
+  const s = n * n - comp;
+  const pre = sum + s;
+  comp = (pre - sum) - s;
+  sum = pre;
+  n = z / max;
+  sum += n * n - comp;
+  return Math.sqrt(sum) * max;
+}
+
 /* Value noise along a line. The band field is its only caller and it wants a
    field that varies down one axis, so `noise2` would be paying for four hashed
    lattice corners to interpolate between two — and this runs twice per vertex
@@ -3644,7 +3692,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         s0 += fromS[a4] * w; s1 += fromS[a4 + 1] * w;
         s2 += fromS[a4 + 2] * w; s3 += fromS[a4 + 3] * w;
       }
-      const len = Math.hypot(n0, n1, n2) || 1;
+      const len = hypot3(n0, n1, n2) || 1;
       n0 /= len; n1 /= len; n2 /= len;
     }
     const p = t * 3;
@@ -3736,7 +3784,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const n0 = normals[p] + morphDN[p] * (2 / 127);
       const n1 = normals[p + 1] + morphDN[p + 1] * (2 / 127);
       const n2 = normals[p + 2] + morphDN[p + 2] * (2 / 127);
-      const len = Math.hypot(n0, n1, n2) || 1;
+      const len = hypot3(n0, n1, n2) || 1;
       normals[p] = n0 / len; normals[p + 1] = n1 / len; normals[p + 2] = n2 / len;
       colors[p] += morphDC[p] / 127;
       colors[p + 1] += morphDC[p + 1] / 127;
@@ -3844,7 +3892,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           const dx2 = sxs[cNext] - sxs[cPrev] || 1;
           const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
           const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
-          const invNormal = 1 / Math.hypot(dx, 1, dz);
+          const invNormal = 1 / hypot3(dx, 1, dz);
           outNormals[p] = -dx * invNormal;
           outNormals[p + 1] = invNormal;
           outNormals[p + 2] = -dz * invNormal;
@@ -3869,9 +3917,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
             ctx.half + ctx.lipW + 70, farToCentre)
             * smoothstep(5, 34, h - ctx.base);
+          const farSteep = hypot2(-dx, grade - dz);
           const farRock = Math.max(
-            smoothstep(0.48, 0.92, Math.hypot(-dx, grade - dz)),
-            farFlank * smoothstep(0.30, 0.95, Math.hypot(-dx, grade - dz))
+            smoothstep(0.48, 0.92, farSteep),
+            farFlank * smoothstep(0.30, 0.95, farSteep)
               * (0.25 + 0.65 * farDetail),
           );
           const farKind = smoothstep(0.22, 0.78,
@@ -3963,7 +4012,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         // The other half of the radial skip: the far corners of the fan, which
         // the row test above cannot reach because their row is well inside it.
         if (lzSq + lx * lx >= FOG_SKIP_SQ) {
-          const invFar = 1 / Math.hypot(dx, 1, dz);
+          const invFar = 1 / hypot3(dx, 1, dz);
           outNormals[p] = -dx * invFar;
           outNormals[p + 1] = invFar;
           outNormals[p + 2] = -dz * invFar;
@@ -3984,9 +4033,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
             ctx.half + ctx.lipW + 70, farToCentre)
             * smoothstep(5, 34, h - ctx.base);
+          const farSteep = hypot2(-dx, grade - dz);
           const farRock = Math.max(
-            smoothstep(0.48, 0.92, Math.hypot(-dx, grade - dz)),
-            farFlank * smoothstep(0.30, 0.95, Math.hypot(-dx, grade - dz))
+            smoothstep(0.48, 0.92, farSteep),
+            farFlank * smoothstep(0.30, 0.95, farSteep)
               * (0.25 + 0.65 * farDetail),
           );
           const farKind = smoothstep(0.22, 0.78,
@@ -4051,7 +4101,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            already needed by the snow/rock palette makes this effectively free
            and, unlike averaging triangle faces, independent of which diagonal
            a graded cell happens to use. */
-        const invNormal = 1 / Math.hypot(dx, 1, dz);
+        const invNormal = 1 / hypot3(dx, 1, dz);
         outNormals[p] = -dx * invNormal;
         outNormals[p + 1] = invNormal;
         outNormals[p + 2] = -dz * invNormal;
