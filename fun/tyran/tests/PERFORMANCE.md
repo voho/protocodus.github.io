@@ -66,3 +66,14 @@ Both passes ran for 20 seconds in the same container at a 1440 × 960 viewport a
 | Fill pass: texture uploads (bytes) | 0.34 (177 KB) | 0.23 (79 KB) |
 
 Frame intervals under the software rasterizer are not reported; on the JavaScript pass both versions hold 60 FPS in this container.
+
+### 2026-10-23: texture lifetime across sectors
+
+Chrome 155 headless on an Apple-silicon Mac, 1440 × 960 at device pixel ratio 1. Before = the commit preceding this entry.
+
+- The renderer's texture cache held a strong reference to every canvas it had uploaded, so sprites that the ship, effect, projectile and world caches dropped kept their textures. `tyran.launch(0..11)` in a row (`tests/gpu-memory-check.mjs`): GPU texture bytes 54 → 246 MB (the 256 MB budget) before, 54 → 64 MB after; resident textures 869 → 321; evictions 315 → 0 (each eviction flushes the pending batch). One sector's flight (`frame-cost-check`, world 6, which previews world 0 first): 323 textures / 89 MB → 244 / 63 MB.
+- Per-frame cost is unchanged by design: js pass 0.65 → 0.71 ms script per frame (repeat runs vary by ±0.07), gpu pass 0.71 → 0.71 ms; 94 draw calls, 3.6k vertices and 5.7 screens of fill in both.
+- Measured and left alone (browser, renderer and GPU process CPU over 12 s windows, three runs each; the browser process alone varies 10–37%): the GPU process costs 16.4% of a core and the renderer 11.7% at 60 FPS. Removing 55 of 102 draw calls per frame (the ships' screen/source-over switches) saved 0.9 points of GPU-process CPU; shrinking the 2.2 MB per-frame vertex buffer orphan saved 0.3 (noise). Draw-call batching and buffer tuning are not worth their exactness risk.
+- Deferring the per-allocation `getError` to the end of a prewarm batch saved nothing: the 35 ms in a cold `selectWorld` is the wait for the uploads themselves.
+- Cold costs, unchanged: `selectWorld` into a never-prepared sector 100 ms (hull rasterization ≈ 48 ms, upload wait ≈ 35 ms); `tyran.launch` into one 230–330 ms (adds ≈ 80 ms of terrain rows). The hangar prepares the next sector in idle time.
+- `gpu-recovery-browser-check.mjs` failed before these changes on two stale assumptions (crowd braking slows the scroll; pooled strips are reused objects). It now passes, with its thresholds unchanged.
