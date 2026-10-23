@@ -71,6 +71,21 @@ function smoothNoise(x, y, seed = 0) {
   return (noise(ix, iy, seed) * (1 - u) + noise(ix + 1, iy, seed) * u) * (1 - v)
     + (noise(ix, iy + 1, seed) * (1 - u) + noise(ix + 1, iy + 1, seed) * u) * v;
 }
+// smoothNoise for a scan of neighbouring pixels: the four lattice values are kept while the lattice cell is
+// unchanged, so a cell that spans dozens of pixels costs four noise() calls instead of four per pixel.
+// The arithmetic is smoothNoise's own, so every value is identical.
+function latticeNoise() {
+  let cx = NaN, cy = NaN, cs = NaN, n00 = 0, n10 = 0, n01 = 0, n11 = 0;
+  return (x, y, seed = 0) => {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    if (ix !== cx || iy !== cy || seed !== cs) {
+      n00 = noise(ix, iy, seed); n10 = noise(ix + 1, iy, seed); n01 = noise(ix, iy + 1, seed); n11 = noise(ix + 1, iy + 1, seed);
+      cx = ix; cy = iy; cs = seed;
+    }
+    const fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    return (n00 * (1 - u) + n10 * u) * (1 - v) + (n01 * (1 - u) + n11 * u) * v;
+  };
+}
 // Code-drawn gradients, lamps, smoke and fire are baked once into small sprites and scaled with
 // drawImage: a radial gradient or shadowBlur per call was the renderer's largest state churn.
 const SPRITE_RADIUS = 48;
@@ -860,12 +875,13 @@ export class Renderer {
     const base = document.createElement('canvas'); base.width = state.width * 4; base.height = state.height * 4;
     this.fogNoise = new Uint8Array(base.width * base.height);
     const baseCtx = base.getContext('2d'), colors = baseCtx.createImageData(base.width, base.height);
+    const broadNoise = latticeNoise(), detailNoise = latticeNoise(), rustNoise = latticeNoise();
     for (let y = 0; y < base.height; y++) {
       if (y % 8 === 0) yield { value: .15 * y / base.height, label: `Laying ${environment.name.toLowerCase()}` };
       for (let x = 0; x < base.width; x++) {
-      const broad = smoothNoise(x / 43, y / 43, seed);
-      const detail = smoothNoise(x / 13, y / 13, seed + 9);
-      const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
+      const broad = broadNoise(x / 43, y / 43, seed);
+      const detail = detailNoise(x / 13, y / 13, seed + 9);
+      const rusty = Math.max(0, rustNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
       const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
       const warm = PROFILE_RELIEF[state.mapProfile]?.tint ?? 0;
       colors.data[i] = environment.ground[0] + c + rusty * environment.deposit[0] + warm;
@@ -1068,8 +1084,9 @@ export class Renderer {
     const rockMask = tileMask(i => state.terrain[i] === 1, 3);
     const basaltMask = tileMask((i, x, y) => coherentBasalt(state, i, x, y));
     stamp(basaltMask, '#7a7d76', 0, -1, .18);
+    const fleckNoise = latticeNoise(), seamNoise = latticeNoise();
     yield* plate(basaltMask, (x, y, data, at) => {
-      const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
+      const fleck = fleckNoise(x / 36, y / 36, seed + 61), seam = seamNoise(x / 92, y / 92, seed + 67);
       let [r, g, b] = environment.basalt;
       if (fleck > .62) { r += (106 - r) * .16; g += (111 - g) * .16; b += (106 - b) * .16; }
       if (Math.abs(seam - .5) < .008) { r += (29 - r) * .35; g += (34 - g) * .35; b += (36 - b) * .35; }
@@ -1080,8 +1097,9 @@ export class Renderer {
     if (state.terrain.includes(5)) {
       const craterMask = tileMask(i => state.terrain[i] === 5, 5);
       stamp(craterMask, '#928574', 0, 0, .24, 10);
+      const bowlNoise = latticeNoise(), foldNoise = latticeNoise();
       yield* plate(craterMask, (x, y, data, at) => {
-        const n = smoothNoise(x / 21, y / 21, seed + 95), fold = smoothNoise(x / 8, y / 8, seed + 97);
+        const n = bowlNoise(x / 21, y / 21, seed + 95), fold = foldNoise(x / 8, y / 8, seed + 97);
         // Keep the original granular ash visible through the bowl floor so it reads as
         // shallow traversable ground instead of a dark liquid pool or bottomless hole.
         data[at] = environment.ground[0] + 12 + n * 12 + fold * 7; data[at + 1] = environment.ground[1] + 9 + n * 9 + fold * 4; data[at + 2] = environment.ground[2] + 2 + n * 8; data[at + 3] = 118;
@@ -1102,8 +1120,9 @@ export class Renderer {
     stamp(rockMask, '#13191d', 3, 6, .30, 5);
     stamp(rockMask, '#2b2c2b', 0, 6); stamp(rockMask, '#403d37', 0, 3);
     stamp(rockMask, '#a29a87', -2, -2.5, .48);
+    const rockNoise = latticeNoise();
     yield* plate(rockMask, (x, y, data, at) => {
-      const n = smoothNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
+      const n = rockNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
       const light = Math.max(0, Math.min(1, (n - .58) * 6)) * .55, dark = Math.max(0, Math.min(1, (.40 - n) * 6)) * .55;
       let [r, g, b] = environment.rock;
       r += 15 * light - 23 * dark; g += 13 * light - 22 * dark; b += 10 * light - 19 * dark;
