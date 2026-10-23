@@ -33,7 +33,7 @@
 [Play Zipper](fun/zipper/index.html) is a 3D logic puzzle: draw one unbroken line through every cell of the board, passing the numbers in order and never crossing a glowing wall. Easy, medium and hard boards (5×5, 6×6 and 7×7) are generated on request or after a solve, and every board has exactly one solution.
 
 - Each board starts as a random path through every cell; the numbers and walls are drawn from that path, and the solver adds a number or a wall wherever a second path still fits, so the puzzle is both solvable and unique by construction. A seed in the address (`#medium-k7x2ab`) reopens the same board.
-- The line grows and shrinks after the pointer or the arrow keys, lights the tiles it covers, and the finished board hops along the line under confetti. Hints step a wrong line back or show the way to the next number.
+- The line grows and shrinks after the pointer or the arrow keys, lights the tiles it covers, and the finished board hops along the line under confetti. Hints highlight a wrong turn or the way to the next number; you make the changes yourself.
 - Shared with Patcher: a lit three.js table with soft shadows, studio reflections, HDR bloom and synthesised sound (`fun/shared/`).
 - Check: `node fun/zipper/tests/puzzle-check.mjs` (unique seeded boards, legal stepping, hints).
 
@@ -42,5 +42,6 @@
 [Play Patcher](fun/patcher/index.html) is a 3D logic puzzle in the Shikaku family: cut the whole board into rectangular patches, one clue in each. A number is the patch's cell count; the icon its shape (square, wide, tall, or the dashed icon that takes any). Easy, medium and hard boards (5×5, 7×7 and 9×9), generated on request or after a solve, each with exactly one solution.
 
 - A board starts as a random tiling, each patch given a clue; while a second cutting fits, a differing clue is strengthened (a number added, a shape named, the clue moved) until only the intended one remains. A deduction pass grades each board so that easy ones always have a forced patch and hard ones need a look ahead.
-- Drag from a clue to draw a patch, which drops onto the board with a bounce and a puff of dust; tap it to lift it again. The keyboard works too: arrows move, Enter starts and places a patch, X lifts one.
+- Drag from a clue to draw a patch, which drops onto the board with a bounce and a puff of dust; tap it to lift it again. Hints highlight a patch to draw or reconsider, without changing the board. The keyboard works too: arrows move, Enter starts and places a patch, X lifts one.
 - Check: `node fun/patcher/tests/puzzle-check.mjs` (unique seeded cuttings, graded deduction, rejections, hints).
+- Shared interaction check: `node fun/shared/tests/hint-interaction-check.mjs` (hints preserve player moves, timer, solved state and undo history).

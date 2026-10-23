@@ -47,7 +47,7 @@ for (const difficulty of Object.keys(DIFFICULTIES)) {
       down.push(patch);
     }
     assert.ok(isSolved(puzzle, down));
-    // Hints lift a wrong patch first, then show a patch; none once solved.
+    // Hints identify a wrong patch or suggest one to draw; none once solved.
     const first = hint(puzzle, []);
     assert.equal(first.type, 'show');
     assert.equal(rejectReason(puzzle, [], first.patch), null);

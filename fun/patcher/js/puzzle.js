@@ -292,8 +292,8 @@ export function isSolved(puzzle, patches) {
   return covered === puzzle.size * puzzle.size;
 }
 
-/* What to do for a hint: lift a patch that is not in the solution, or show
-   the patch of a clue that can be worked out now. */
+/* Guidance for a hint: identify a patch to reconsider, or show the patch
+   of a clue that can be worked out now. The caller only highlights it. */
 export function hint(puzzle, patches) {
   const same = (a, b) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
   const wrong = patches.find((patch) => !same(patch, puzzle.solution[patch.clue]));

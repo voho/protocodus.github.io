@@ -87,7 +87,6 @@ async function boot() {
     drag = null;
     cursor = -1;
     keyAnchor = -1;
-    stage.orbit(0);
     announce();
   }
 
@@ -97,7 +96,6 @@ async function boot() {
     sound.win();
     board.celebrate();
     stage.flash('#ffffff', 0.8);
-    stage.orbit(0.1);
     announce();
     const finished = puzzle;
     setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1600);
@@ -217,7 +215,7 @@ async function boot() {
     onNew: start,
     onReset() {
       if (!board) return;
-      if (solved) { solved = false; stage.orbit(0); }
+      if (solved) solved = false;
       for (const patch of patches.slice()) board.lift(patch.clue);
       if (patches.length) sound.lift();
       patches = [];
@@ -237,11 +235,11 @@ async function boot() {
       const next = hint(puzzle, patches);
       assisted = true;
       if (next.type === 'lift') {
-        lift(next.patch);
-        shell.toast('That patch was not in the solution, so it came off.');
+        board.show(next.patch, { mistake: true });
+        shell.toast('The highlighted patch blocks the solution. Tap it to lift it, then try another shape.', 5000);
       } else if (next.type === 'show') {
         board.show(next.patch);
-        shell.toast('There: a patch you can place now.');
+        shell.toast(`Try the highlighted ${next.patch.w} wide × ${next.patch.h} tall patch. Draw it yourself.`, 5000);
       }
       shell.countHint();
     },
