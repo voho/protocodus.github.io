@@ -11,11 +11,16 @@ node tests/models-check.mjs
 node tests/graphics-check.mjs
 node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
+node tests/trail-clods-check.mjs
 ```
 
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+The clod check compares packed snow-chunk instance matrices with the original
+quaternion path through trail recycling, anchor moves, fading and clear/reuse.
+It also reports a local CPU microbenchmark for packing one fixed frame; the
+orientation is now baked at placement without changing the GPU buffers.
 The riding check also pins the momentum rules: a flight pays the same air drag
 as the snow did, the tuck gains nothing on the flat or up a climb, an ollie
 never brakes the run along the slope, the board lands matched to the slope it

@@ -287,9 +287,9 @@ export function createTrail(THREE, shading) {
   const clodX = new Float32Array(clodCapacity);
   const clodY = new Float32Array(clodCapacity);
   const clodZ = new Float32Array(clodCapacity);
-  const clodNX = new Float32Array(clodCapacity);
-  const clodNY = new Float32Array(clodCapacity);
-  const clodNZ = new Float32Array(clodCapacity);
+  // Frozen rotation columns. Doubles preserve the same final Float32 instance
+  // matrices as composing the quaternion afresh throughout the fade.
+  const clodBasis = new Float64Array(clodCapacity * 9);
   const clodSize = new Float32Array(clodCapacity);
   const clodRandA = new Float32Array(clodCapacity);
   const clodRandB = new Float32Array(clodCapacity);
@@ -415,6 +415,26 @@ export function createTrail(THREE, shading) {
   const clodDummy = new THREE.Object3D();
   const clodUp = new THREE.Vector3(0, 1, 0);
   const clodNormal = new THREE.Vector3(0, 1, 0);
+
+  /* The snow normal and the three random turns stop changing when a section
+     is committed. Bake them when writing that section, rather than rebuilding
+     the same quaternion for every clod on every fade tick. A live section can
+     still be rewritten as the board moves, and recycling writes a fresh basis. */
+  function bakeClodBasis(id) {
+    clodNormal.set(Math.fround(baseNormal.x), Math.fround(baseNormal.y),
+      Math.fround(baseNormal.z)).normalize();
+    clodDummy.quaternion.setFromUnitVectors(clodUp, clodNormal);
+    clodDummy.rotateY(clodRandB[id] * Math.PI * 2);
+    clodDummy.rotateX((clodRandA[id] - 0.5) * 0.24);
+    clodDummy.rotateZ((clodRandC[id] - 0.5) * 0.20);
+    clodDummy.scale.set(1, 1, 1);
+    clodDummy.updateMatrix();
+    const e = clodDummy.matrix.elements;
+    const b = id * 9;
+    clodBasis[b] = e[0]; clodBasis[b + 1] = e[1]; clodBasis[b + 2] = e[2];
+    clodBasis[b + 3] = e[4]; clodBasis[b + 4] = e[5]; clodBasis[b + 5] = e[6];
+    clodBasis[b + 6] = e[8]; clodBasis[b + 7] = e[9]; clodBasis[b + 8] = e[10];
+  }
 
   // Reused cross-section scratch: no allocations while the board is moving.
   const laneD = new Float64Array(L);
@@ -770,9 +790,7 @@ export function createTrail(THREE, shading) {
         + sectionLat.y * outward + baseNormal.y * up;
       clodZ[id] = laneZ[ridgeLane] - anchorZ + tz * along
         + sectionLat.z * outward + baseNormal.z * up;
-      clodNX[id] = baseNormal.x;
-      clodNY[id] = baseNormal.y;
-      clodNZ[id] = baseNormal.z;
+      bakeClodBasis(id);
       const memberScale = j === 0 ? 1 : 0.55 + clodRandB[id] * 0.35;
       // Fractured slabs need enough footprint to read at chase distance, but
       // remain very thin and partially embedded so they never become pearls.
@@ -932,14 +950,14 @@ export function createTrail(THREE, shading) {
     attr.needsUpdate = true;
   }
 
-  /* Instance matrices bake position, orientation, scale and — because the
+  /* Instance matrices bake position, scale and — because the
      visible set is packed from the front — the packing order, so any change
      rebuilds from the first moved clod onward, and age moves every clod
      every frame. What is throttled instead is the cadence: a clod's scale
      drifts sub-pixel per frame, so the pass runs every second frame, plus
      immediately after a rebase, whose translation the matrices bake.
      Clusters are rejected wholesale by their stored sizes and one per-slot
-     age before any per-clod distance or quaternion work is paid, nothing is
+     age before any per-clod distance or matrix work is paid, nothing is
      flagged when nothing was written, and the upload covers only the packed
      live range rather than all 1,620 slots. */
   function updateClods(riderPos) {
@@ -968,19 +986,28 @@ export function createTrail(THREE, shading) {
         scale *= ageFade * (1 - smoothstep(28, 48, distance));
         if (scale <= 0.001) continue;
 
-        clodDummy.position.set(clodX[id], clodY[id], clodZ[id]);
-        clodNormal.set(clodNX[id], clodNY[id], clodNZ[id]).normalize();
-        clodDummy.quaternion.setFromUnitVectors(clodUp, clodNormal);
-        clodDummy.rotateY(clodRandB[id] * Math.PI * 2);
-        clodDummy.rotateX((clodRandA[id] - 0.5) * 0.24);
-        clodDummy.rotateZ((clodRandC[id] - 0.5) * 0.20);
-        clodDummy.scale.set(
-          scale * (0.72 + clodRandB[id] * 0.48),
-          scale * (0.12 + clodRandA[id] * 0.14),
-          scale * (0.92 + clodRandC[id] * 0.62),
-        );
-        clodDummy.updateMatrix();
-        clods.setMatrixAt(visibleClods, clodDummy.matrix);
+        const sx = scale * (0.72 + clodRandB[id] * 0.48);
+        const sy = scale * (0.12 + clodRandA[id] * 0.14);
+        const sz = scale * (0.92 + clodRandC[id] * 0.62);
+        const b = id * 9;
+        const m = visibleClods * 16;
+        const matrices = clods.instanceMatrix.array;
+        matrices[m] = clodBasis[b] * sx;
+        matrices[m + 1] = clodBasis[b + 1] * sx;
+        matrices[m + 2] = clodBasis[b + 2] * sx;
+        matrices[m + 3] = 0;
+        matrices[m + 4] = clodBasis[b + 3] * sy;
+        matrices[m + 5] = clodBasis[b + 4] * sy;
+        matrices[m + 6] = clodBasis[b + 5] * sy;
+        matrices[m + 7] = 0;
+        matrices[m + 8] = clodBasis[b + 6] * sz;
+        matrices[m + 9] = clodBasis[b + 7] * sz;
+        matrices[m + 10] = clodBasis[b + 8] * sz;
+        matrices[m + 11] = 0;
+        matrices[m + 12] = clodX[id];
+        matrices[m + 13] = clodY[id];
+        matrices[m + 14] = clodZ[id];
+        matrices[m + 15] = 1;
         visibleClods += 1;
       }
     }
