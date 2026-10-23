@@ -68,7 +68,6 @@ export const ENEMY_WEAPONS = {
   kar98k: { model: 'kar98k', interval: 1.7, burst: 1, damage: [22, 30], range: 85, sound: 'kar98k', tracer: 0.0, mag: 5, reload: 3.2, prop: 'kar98k_clip' },
   mp40: { model: 'mp40', interval: 0.11, burst: [4, 8], damage: [9, 13], range: 45, sound: 'mp40', tracer: 0.25, mag: 32, reload: 2.6, prop: 'mp40_mag', drops: true, seated: 'mp40_mag_seated' },
   mg42: { model: 'mg42', interval: 0.05, burst: [12, 26], damage: [10, 14], range: 110, sound: 'mg42', tracer: 0.34, mag: 75, reload: 5.5 },
-  sniper: { model: 'kar98k', interval: 3.6, burst: 1, damage: [62, 75], range: 170, sound: 'kar98k', tracer: 0.0, mag: 5, reload: 3.6, prop: 'kar98k_clip' },
 };
 
 // ground speed of each locomotion clip at 1x (no foot sliding), from the rig

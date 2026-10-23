@@ -16,6 +16,7 @@ import { clone as cloneSkinned } from '../assets/utils/SkeletonUtils.js';
 import { instantiate } from './assets.js';
 import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { createRagdoll } from './ragdoll.js';
+import { createMountedWeaponPose } from './mounted-weapon.js';
 
 const LOWER = new Set(['root', 'hips', 'thigh_l', 'shin_l', 'foot_l', 'thigh_r', 'shin_r', 'foot_r']);
 // first person: the head bone's scale while the head is folded away from the eyes
@@ -47,6 +48,29 @@ function splitClips(gltf) {
     lower[clip.name] = new THREE.AnimationClip(clip.name + '_lo', clip.duration, lo);
     upper[clip.name] = new THREE.AnimationClip(clip.name + '_up', clip.duration, up);
     full[clip.name] = clip;
+  }
+  // A sandbag-mounted MG sits below the standing shoulder but above a
+  // full kneel. Blend the authored lower poses once into a shallow crouch;
+  // the upper pose then leans the gunner onto the stock. Keeping it a clip
+  // gives the usual transitions into the full duck and back out again.
+  if (lower.idle && lower.crouch_idle) {
+    const duration = lower.idle.duration, steps = 60;
+    const times = Array.from({ length: steps + 1 }, (_, i) => i * duration / steps);
+    const q = new THREE.Quaternion(), q1 = new THREE.Quaternion();
+    const tracks = lower.idle.tracks.map((track) => {
+      const other = lower.crouch_idle.tracks.find((t) => t.name === track.name);
+      if (!other) return track.clone();
+      const a = track.createInterpolant(), b = other.createInterpolant(), size = track.getValueSize();
+      const values = [];
+      for (const time of times) {
+        const av = a.evaluate(time), bv = b.evaluate(time * lower.crouch_idle.duration / duration);
+        if (track.ValueTypeName === 'quaternion') {
+          q.fromArray(av).normalize().slerp(q1.fromArray(bv).normalize(), 0.3).toArray(values, values.length);
+        } else for (let i = 0; i < size; i++) values.push(THREE.MathUtils.lerp(av[i], bv[i], 0.3));
+      }
+      return new track.constructor(track.name, times, values);
+    });
+    lower.mg_ready = new THREE.AnimationClip('mg_ready_lo', duration, tracks);
   }
   gltf._split = { lower, upper, full };
   return gltf._split;
@@ -152,7 +176,7 @@ function createStandIn(matlib, { outfit, scene }) {
   return {
     root, bones: {}, mixer: { time: 0 }, socket: null, meshes: [body, head, helmet, gun], shadow,
     get weapon() { return gun; }, get dead() { return dead; }, get upper() { return 'idle'; },
-    aimPitch: 0, setWeapon() {}, holdLeft() {}, releaseLeft() {}, setDistance() {}, far: false, clipLength: () => null, hasClip: () => false, socketL: null,
+    aimPitch: 0, setWeapon() {}, holdLeft() {}, releaseLeft() {}, holdMountedWeapon() {}, setDistance() {}, far: false, clipLength: () => null, hasClip: () => false, socketL: null,
     animate(move) { crouch = move.startsWith('crouch') ? 1 : 0; },
     oneShot() { return 0.5; },
     die() { dead = true; },
@@ -227,6 +251,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   root.traverse((o) => { if (o.isBone) bones[o.name] = o; });
   const socket = root.getObjectByName('socket_weapon');
   const socketL = root.getObjectByName('socket_weapon_l');
+  let mountedPose = null;
 
   /* The head and helmet as one rigid piece in the head bone's own space, hung on the head
      bone and scaled back up from its shrinking: it sits where the full-size head would be,
@@ -432,6 +457,10 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     get ragdoll() { return ragdoll; },
     get upper() { return upperName; },
     setWeapon,
+    holdMountedWeapon(gun, anchors = {}) {
+      mountedPose?.restore();
+      mountedPose = gun ? createMountedWeaponPose(root, bones, socket, socketL, gun, anchors) : null;
+    },
     holdLeft,
     releaseLeft,
     /* distance from the camera: picks the full or the low-detail mesh */
@@ -447,6 +476,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     armsPitch: 0,       // first person: the arms and rifle swung up (+) or down about the chest,
     armsYaw: 0,         // turned to his left (+),
     armsRoll: 0,        // canted, top to his left (+)
+    mountedGrip: true,  // release the mounted gun while ducking behind it
 
     /* first person: the head (and the helmet on it) folded away from the eyes */
     hideHead(on) {
@@ -483,6 +513,8 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
        on a rig the ragdoll cannot drive, the death clip plays. */
     die(kind = 'death_fwd', { world = null, velocity, impulses } = {}) {
       if (dead) return;
+      mountedPose?.restore();
+      mountedPose = null;
       if (oneShot === 'throw') holdForThrow(false);
       holdLeft(null);
       dead = true;
@@ -521,6 +553,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (spineBase) bones.spine.quaternion.copy(spineBase);
       if (spinePosBase) bones.spine.position.copy(spinePosBase);
       if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
+      mountedPose?.restore();
       mixer.update(dt);
       if (oneShot && mixer.time >= oneShotEnd) {
         if (oneShot === 'throw') holdForThrow(false);
@@ -551,6 +584,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         bones.head.updateMatrixWorld(true);
       }
       if (!dead && (Math.abs(state.armsPitch) + Math.abs(state.armsYaw) + Math.abs(state.armsRoll)) > 1e-4) liftArms(state.armsPitch, state.armsYaw, state.armsRoll);
+      if (!dead && state.mountedGrip) mountedPose?.update();
       if (ground != null) {
         shadow.position.set(root.position.x, ground + 0.03, root.position.z);
         shadow.visible = root.visible;

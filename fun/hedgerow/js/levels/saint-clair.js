@@ -629,7 +629,6 @@ const enemies = [
   E('rifle', 21, 118, 180, 'street', { patrol: [[21, 103], [21, 135]] }),
   E('rifle', -21, 110, 180, 'street', { patrol: [[-21, 100], [-21, 130]] }),
   // the square
-  E('sniper', 0, 0, 90, 'square', { anchorOf: ['church', 'sniper'] }),
   E('smg', 2, 170, 180, 'square'),
   E('rifle', -6, 176, 180, 'square'),
   E('rifle', 7.5, 175, 190, 'square'),
@@ -713,7 +712,6 @@ const hints = [
   { x: -1, z: 42, r: 6, text: 'The lane leads straight into their machine gun', sub: 'Gaps in the hedges lead to the orchard (left) and the ditch (right)' },
   { x: 18, z: 76, r: 7, text: 'Space vaults over low walls' },
   { x: 0, z: 104, r: 7, text: 'G throws a grenade', sub: 'Hold G to cook it first' },
-  { x: 0, z: 140, r: 8, text: 'Watch the church tower', sub: 'A glint means a sniper is lining up' },
   { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies downstream (left), a fallen tree upstream (right)' },
 ];
 

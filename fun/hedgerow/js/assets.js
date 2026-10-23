@@ -12,21 +12,21 @@ import { GLTFLoader } from '../assets/vendor/GLTFLoader.js';
 import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { splitRooms, reseedRooms } from './rooms.js';
 import { breathe } from './pace.js';
+import { createAssetProgress } from './loading.js';
 
 export async function loadModels(base, sets, onProgress) {
   const loader = new GLTFLoader();
   const out = { models: new Map(), soldier: null };
-  let done = 0;
+  const progress = createAssetProgress(sets, onProgress);
   await Promise.all(sets.map(async (set) => {
     let gltf;
     try {
       gltf = await loader.loadAsync(`${base}/${set}.glb`, (e) => {
-        if (e.lengthComputable) onProgress?.((done + e.loaded / e.total) / sets.length);
+        // Leave room for decoding and extracting this set after its bytes arrive.
+        if (e.lengthComputable && e.total > 0) progress(set, 0.9 * e.loaded / e.total);
       });
     } catch (err) {
-      console.warn('[hedgerow] could not load', set, err);
-      done++;
-      return;
+      throw new Error(`Could not load ${set} models. Please retry.`, { cause: err });
     }
     if (set === 'soldier') out.soldier = gltf;
     else {
@@ -34,8 +34,7 @@ export async function loadModels(base, sets, onProgress) {
       gltf.scene.updateMatrixWorld(true);
       for (const node of [...gltf.scene.children]) { readModel(node, set, out.models); await breathe(); }
     }
-    done++;
-    onProgress?.(done / sets.length);
+    progress(set, 1);
   }));
   return out;
 }

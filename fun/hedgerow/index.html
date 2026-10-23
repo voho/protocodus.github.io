@@ -75,7 +75,9 @@
           aria-valuemax="100" aria-valuenow="0" data-loading-bar>
           <i class="loading-fill" data-loading-fill></i>
         </div>
-        <p class="loading-label" id="hedgerow-loading-label" data-loading-label>Loading</p>
+        <p class="loading-label" id="hedgerow-loading-label" data-loading-label>Preparing graphics and sound</p>
+        <p class="loading-summary" role="status" data-loading-summary>0 of 5 steps done · 5 left</p>
+        <ol class="loading-steps" data-loading-steps aria-label="Loading steps"></ol>
       </div>
       <div class="error" data-error hidden>
         <p data-error-text></p>
@@ -98,8 +100,9 @@
       <p class="when" data-briefing-when></p>
       <div class="briefing-text" data-briefing-text></div>
       <ul class="briefing-goals" data-briefing-goals></ul>
+      <p class="loading-briefing" data-loading-briefing>Preparing graphics and sound. 0 of 5 steps done · 5 left.</p>
       <div class="row">
-        <button type="button" class="menu-item primary" data-action="start">Move out</button>
+        <button type="button" class="menu-item primary" data-action="start" disabled>Loading 0%</button>
         <button type="button" class="menu-item" data-action="back">Back</button>
       </div>
       <p class="hint">Click to capture the mouse. Esc pauses.</p>

@@ -57,32 +57,37 @@ export function digitTexture(text, colour = '#f3f4f4', weight = 600) {
   });
 }
 
-/* A Patcher clue: the shape icon, with the number under it when there is
-   one. The any-shape icon is a dashed square. */
+/* A Patcher clue: a compact shape above the number, with a clear gap.
+   Geometry carries the meaning; a quiet tint helps distinguish it too. */
 export function clueTexture({ shape, number }, colour = '#f3f4f4') {
   return canvasTexture((ctx, size) => {
     const both = number !== null && number !== undefined;
+    const tint = { square: '#a5d8c5', wide: '#a8c4ed', tall: '#d2b4e4', any: '#e1c990' }[shape] || '#a5d8c5';
+    // Dark labels sit on coloured patches, light labels on dark tiles.
+    const iconColour = new THREE.Color(colour).lerp(new THREE.Color(tint), 0.28).getStyle();
     const icon = (cx, cy, scale) => {
-      const dims = { square: [1, 1], wide: [1.6, 0.9], tall: [0.9, 1.6], any: [1, 1] }[shape] || [1, 1];
+      const dims = { square: [0.65, 0.65], wide: [1.45, 0.24], tall: [0.24, 1.45], any: [0.65, 0.65] }[shape] || [0.65, 0.65];
       const w = dims[0] * scale, h = dims[1] * scale;
-      ctx.lineWidth = size * (both ? 0.05 : 0.06);
-      ctx.strokeStyle = colour;
+      ctx.lineWidth = size * 0.022;
+      ctx.strokeStyle = iconColour;
+      ctx.fillStyle = iconColour;
       ctx.lineJoin = 'round';
-      ctx.setLineDash(shape === 'any' ? [size * 0.06, size * 0.045] : []);
+      ctx.setLineDash(shape === 'any' ? [size * 0.035, size * 0.025] : []);
       ctx.beginPath();
-      ctx.roundRect(cx - w / 2, cy - h / 2, w, h, size * 0.035);
-      ctx.stroke();
+      ctx.roundRect(cx - w / 2, cy - h / 2, w, h, size * 0.012);
+      if (shape === 'any') ctx.stroke(); else ctx.fill();
       ctx.setLineDash([]);
     };
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = colour;
     if (both) {
-      icon(size / 2, size * 0.29, size * 0.25);
-      ctx.font = `600 ${Math.round(size * 0.46)}px ${LABEL_FONT}`;
-      ctx.fillText(String(number), size / 2, size * 0.72);
+      icon(size / 2, size * 0.23, size * 0.22);
+      ctx.fillStyle = colour;
+      ctx.font = `600 ${Math.round(size * 0.44)}px ${LABEL_FONT}`;
+      ctx.fillText(String(number), size / 2, size * 0.73);
     } else {
-      icon(size / 2, size / 2, size * 0.4);
+      icon(size / 2, size / 2, size * 0.29);
     }
   });
 }

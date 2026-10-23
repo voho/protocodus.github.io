@@ -199,6 +199,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     reject() { ghostShake = 1; stage.wake(); },
     /* A patch drops onto the board in its colour, with the clue on top. */
     place(patch, colour, onLand) {
+      hintGhost.visible = false;
       const material = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.5, metalness: 0, emissive: colour, emissiveIntensity: 0 });
       const mesh = new THREE.Mesh(patchGeometry(patch.w, patch.h), material);
       const [x, z] = rectCentre(patch);
@@ -219,6 +220,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     lift(clueIndex) {
       const entry = patches.get(clueIndex);
       if (!entry) return;
+      hintGhost.visible = false;
       patches.delete(clueIndex);
       entry.mesh.material.transparent = true;
       entry.mesh.castShadow = false;
@@ -232,11 +234,13 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       });
     },
     /* Outline the patch a hint points at, for a few seconds. */
-    show(rect) {
+    show(rect, { mistake = false } = {}) {
       placeGhost(hintGhost, rect);
+      hintGhost.position.y = TILE_H + (mistake ? PATCH_H + 0.025 : 0.06);
+      hintMaterial.color.set(mistake ? '#ff7777' : accent);
       hintGhost.visible = true;
-      hintUntil = stage.time + 3.5;
-      stage.wake(4);
+      hintUntil = stage.time + 5;
+      stage.wake(5.2);
     },
     celebrate() {
       const time = stage.time;

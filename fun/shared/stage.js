@@ -142,11 +142,11 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   const bloom = hdr ? createBloom({ strength: 0.36, threshold: 1, knee: 0.5, spread: 1.1, levels: mobile ? 4 : 5 }) : null;
   renderer.setEffects(bloom ? [bloom] : []);
 
-  // The camera settles onto the table from higher up and further away.
+  // The camera approaches the table at its fixed resting angle.
   const rig = {
-    azimuth: 0, elevation: elevation + 0.3, distance: 40,
+    azimuth: 0, elevation, distance: 40,
     target: { azimuth: 0, elevation, distance: 12 },
-    base: elevation, center: new THREE.Vector3(), orbit: 0, orbitSpeed: 0,
+    base: elevation, center: new THREE.Vector3(),
   };
   const pointer = { x: 0, y: 0 };
   let halfW = 3, halfD = 3, width = 1, height = 1;
@@ -205,10 +205,10 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   function frame(now) {
     if (!running) return;
     pendingFrame = requestAnimationFrame(frame);
-    // Loose enough that the idle sway's lag behind its target still counts as still.
+    // The tiny pointer response can finish settling at the idle frame rate.
     const settled = Math.abs(rig.target.distance - rig.distance) < 0.003
       && Math.abs(rig.target.azimuth - rig.azimuth) < 0.003 && Math.abs(rig.target.elevation - rig.elevation) < 0.003;
-    const active = now < activeUntil || !settled || rig.orbitSpeed !== 0 || flash > 0;
+    const active = now < activeUntil || !settled || flash > 0;
     if (!active && now - lastDraw < idleGap) return;
     // Exponential easing is stable for any step, so a slow device keeps the
     // same pace in real time rather than slowing every motion down.
@@ -217,11 +217,14 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
     lastDraw = now;
     time += dt;
     const k = 1 - Math.exp(-dt * 5);
-    rig.orbit += rig.orbitSpeed * dt;
     const parallax = reduced ? 0 : 1;
-    const sway = reduced ? 0 : Math.sin(time * 0.3) * 0.015;
-    rig.target.azimuth = rig.orbit + pointer.x * 0.08 * parallax + sway;
-    rig.target.elevation = rig.base - pointer.y * 0.05 * parallax;
+    // A small response to pointer motion always settles back to the same
+    // orientation, including after a solve or a change of puzzle.
+    const settle = Math.exp(-dt * 3);
+    pointer.x *= settle;
+    pointer.y *= settle;
+    rig.target.azimuth = pointer.x * 0.018 * parallax;
+    rig.target.elevation = rig.base - pointer.y * 0.012 * parallax;
     rig.azimuth += (rig.target.azimuth - rig.azimuth) * k;
     rig.elevation += (rig.target.elevation - rig.elevation) * k;
     rig.distance += (rig.target.distance - rig.distance) * k;
@@ -274,8 +277,6 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
     /* Something moved: draw every frame for the next `seconds`. */
     wake(seconds = 0.8) { activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000); },
     flash(colour, strength = 1) { flashLight.color.set(colour); flash = Math.max(flash, strength); },
-    /* Keep the camera turning slowly, for a solved board. */
-    orbit(speed) { rig.orbitSpeed = reduced ? 0 : speed; },
     /* Drifting specks in the air over the table, for depth. */
     dust({ count = 150, colour = accent, extent = 5, top = 4 } = {}) {
       const positions = new Float32Array(count * 3);

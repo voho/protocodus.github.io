@@ -161,11 +161,18 @@ export function createExplosives(G) {
       const k = hurt(p.pos.x, p.pos.y + 0.9, p.pos.z);
       if (k > 0) p.damage(GRENADE.damage * k * (e.kind === 'player' || e.kind === 'charge' ? 0.8 : G.diff.damage), e.pos, 'explosion', e.by || null);
     }
+    let kills = 0;
     for (const en of G.enemies) {
       if (en.dead) continue;
       const k = hurt(en.pos.x, en.pos.y + 0.9, en.pos.z);
-      if (k > 0) en.damage(GRENADE.damage * k * 1.4, e.pos, 'explosion', e.kind === 'player' || e.kind === 'charge');
-      else if (Math.hypot(en.pos.x - x, en.pos.z - z) < radius * 2) en.suppress(2);
+      if (k > 0) {
+        // damage returns true only when this hit killed a living enemy. Keep
+        // this local to the blast, independent of the mission's kill total.
+        if (en.damage(GRENADE.damage * k * 1.4, e.pos, 'explosion', e.kind === 'player' || e.kind === 'charge')) kills++;
+      } else if (Math.hypot(en.pos.x - x, en.pos.z - z) < radius * 2) en.suppress(2);
+    }
+    if (e.kind === 'player' && kills > 0) {
+      G.hud.notice('Grenade', `${kills} ${kills === 1 ? 'enemy' : 'enemies'} killed`, 3);
     }
     e.onBoom?.(e);
   }

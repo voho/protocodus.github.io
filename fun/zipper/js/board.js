@@ -50,13 +50,17 @@ export function createBoard(stage, puzzle, { accent, fx }) {
   disposables.push(puckGeometry);
   const pucks = new Map();
   puzzle.waypoints.forEach((cell, index) => {
-    const material = new THREE.MeshStandardMaterial({ color: '#eef2f4', roughness: 0.35, emissive: accentColour, emissiveIntensity: 0 });
+    const material = new THREE.MeshStandardMaterial({ color: '#eef2f4', roughness: 0.35, emissive: '#ffffff', emissiveIntensity: 0 });
     const puck = new THREE.Mesh(puckGeometry, material);
     puck.position.set(cellX(cell), TILE_H + 0.045, cellZ(cell));
     puck.castShadow = true;
     const texture = digitTexture(String(index + 1), '#0d0e12');
     const label = labelMesh(texture, 0.48, 1);
     label.position.y = 0.047;
+    // The path passes through numbered cells; their numerals stay readable
+    // over it, including the initial 1 beneath the line's starting point.
+    label.material.depthTest = false;
+    label.renderOrder = 4;
     puck.add(label);
     puck.userData = { glow: 0, pulse: 0, reached: false };
     group.add(puck);
@@ -105,6 +109,10 @@ export function createBoard(stage, puzzle, { accent, fx }) {
   let linePulse = 0;
   let headShake = 0;
   let dirty = true;
+  let hintCells = new Set();
+  let hintUntil = -1;
+  let hintMistake = false;
+  const mistakeColour = new THREE.Color('#ff7777');
 
   function rebuildLine() {
     const cells = shown.cells;
@@ -121,6 +129,9 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     }
     head.position.copy(points[points.length - 1]);
     tail.position.copy(points[0]);
+    const atNumber = puzzle.numbers[cells[cells.length - 1]] && shown.t >= 1;
+    head.visible = !atNumber;
+    tail.visible = !puzzle.numbers[cells[0]];
     if (points.length < 2) { tube.visible = false; return; }
     const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
     const geometry = new THREE.TubeGeometry(curve, Math.max(8, points.length * 8), LINE_R, 14, false);
@@ -163,7 +174,11 @@ export function createBoard(stage, puzzle, { accent, fx }) {
         if (u >= 1) data.hopAt = -1;
         else if (u > 0) hop = Math.sin(u * Math.PI);
       }
-      tile.material.emissiveIntensity = data.glow + data.press * 0.7 + hop * 0.45;
+      const hinted = time < hintUntil && hintCells.has(cell);
+      tile.material.emissive.copy(hinted && hintMistake ? mistakeColour : accentColour);
+      tile.material.emissiveIntensity = data.glow + data.press * 0.7 + hop * 0.45
+        + (hinted ? 0.5 + Math.sin(time * 6) * 0.2 : 0);
+      if (hinted) stage.wake(0.3);
       tile.material.color.lerpColors(baseColour, litColour, Math.min(1, data.glow * 2));
       tile.position.y = data.lift - data.press * 0.06 + hop * 0.18;
       tile.position.x = cellX(cell) + Math.sin(time * 60) * 0.04 * data.shake;
@@ -173,9 +188,9 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       const reached = onLine[cell] === 1;
       if (reached && !data.reached) data.pulse = 1;
       data.reached = reached;
-      data.glow = ease(data.glow, reached ? 1.1 : 0, dt, 10);
+      data.glow = ease(data.glow, reached ? 0.12 : 0, dt, 10);
       data.pulse = Math.max(0, data.pulse - dt * 3);
-      puck.material.emissiveIntensity = data.glow + data.pulse * 1.5;
+      puck.material.emissiveIntensity = data.glow + data.pulse * 0.15;
       const scale = 1 + Math.sin(data.pulse * Math.PI) * 0.22;
       puck.scale.set(scale, 1, scale);
       puck.position.y = TILE_H + 0.045 + tiles[cell].position.y;
@@ -209,6 +224,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     /* The middle of a cell's top, on the table. */
     centre(cell) { return new THREE.Vector3(cellX(cell), TILE_H, cellZ(cell)); },
     setPath(cells) {
+      hintCells.clear();
       const grew = cells.length > target.length;
       target = cells.slice();
       if (grew) tiles[cells[cells.length - 1]].userData.press = 1;
@@ -222,10 +238,17 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       headShake = 1;
       stage.wake();
     },
-    /* A hint has cut the line back: the cells it lost flare once. */
+    /* Cells removed by the player flare once. */
     flare(cells) {
       for (const cell of cells) tiles[cell].userData.press = 1;
       stage.wake();
+    },
+    /* Show guidance without adding or removing any part of the line. */
+    showHint(cells, { mistake = false } = {}) {
+      hintCells = new Set(cells);
+      hintMistake = mistake;
+      hintUntil = stage.time + 5;
+      stage.wake(5.2);
     },
     celebrate() {
       const time = stage.time;
