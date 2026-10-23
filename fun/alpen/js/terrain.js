@@ -1,4 +1,4 @@
-/* One deterministic heightfield serves riding, scenery, mesh generation and
+/* One deterministic heightfield serves riding, scenery, and the mesh and
    shadow workers. A broad groomed line crosses asymmetric glacial shoulders;
    the surrounding mountains rise over hundreds of metres rather than forming
    a continuous wall. The graded grid keeps fine detail under the board and
@@ -1953,11 +1953,36 @@ const vertsZ = zs.length;
    index buffer that a point query needs to know. */
 const CELL_PARITY = ((half.offsets.length - 1) + (bwd.offsets.length - 1) + 1) & 1;
 
-export function createTerrain(THREE, shading, maxAnisotropy = 1) {
-  const { spacing } = TERRAIN;
+/* ==========================================================================
+   The lattice
+   ========================================================================== */
 
-  const cols = vertsX - 1;
-  const rows = vertsZ - 1;
+/* The graded grid as plain numbers: the lanes, their ring strides, and the
+   radius past which the haze has closed. `createLattice` takes it as an
+   argument because a worker cannot work it out for itself. `config.js` sizes
+   the grid once, from the pointer this page has, and a worker has no pointer
+   to ask about — it would lay the desktop mountain out on a phone. So the
+   main thread's own numbers travel to it instead. */
+export function terrainLayout() {
+  return { xs, xStrides, zs, zStrides, fogSkipSq: FOG_SKIP_SQ };
+}
+
+/* EVERYTHING A RE-ANCHOR COMPUTES, and nothing it draws with.
+
+   The same code runs on both sides of a thread. `createTerrain` keeps one of
+   these to stand on — the first fill, a restart's fill, and any build the
+   worker could not deliver in time — and `terrain-worker.js` runs a replica,
+   which builds every ordinary re-anchor off the main thread and hands the
+   result back as typed arrays (see `adopt`). Three never appears in here:
+   the palette arrives converted and the grid arrives as `layout`, so the
+   lanes, the haze radius and the colours below are always the caller's. */
+export function createLattice(layout, palette) {
+  const { xs, xStrides, zs, zStrides } = layout;
+  const FOG_SKIP_SQ = layout.fogSkipSq;
+  const { cDeep, cGroom, cIce, cShade, cSlate, cIron } = palette;
+  const P = SNOWPACK;
+  const vertsX = xs.length;
+  const vertsZ = zs.length;
   const count = vertsX * vertsZ;
 
   let positions = new Float32Array(count * 3);
@@ -2013,30 +2038,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      re-indexed exactly, carries zeros and lands bit-exact; packed to a float
      height and normalised bytes, so each half uploads fourteen bytes a
      vertex. Written in place while the previous half is still playing,
-     because the GPU keeps its own copy until the next upload. */
-  const morphDY = new Float32Array(count);
-  const morphDN = new Int8Array(count * 3);   // normal delta / 2
-  const morphDC = new Int8Array(count * 3);   // vertex colour delta
-  const morphDS = new Int8Array(count * 4);   // snowpack delta
-  const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
-
-  // Alternate the diagonal through successive quads. Repeating one diagonal
-  // across the whole mountain creates long false creases in flat shading.
-  let t = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      // Columns run left to right and rows run from behind the rider to in
-      // front of them, so this is the winding that faces up
-      const a = r * vertsX + c;
-      if ((r + c) & 1) {
-        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX + 1;
-        indices[t++] = a; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
-      } else {
-        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX;
-        indices[t++] = a + 1; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
-      }
-    }
-  }
+     because the GPU keeps its own copy until the next upload — or, when
+     the worker built them, swapped in as their half begins (`adoptMorph`). */
+  let morphDY = new Float32Array(count);
+  let morphDN = new Int8Array(count * 3);   // normal delta / 2
+  let morphDC = new Int8Array(count * 3);   // vertex colour delta
+  let morphDS = new Int8Array(count * 4);   // snowpack delta
 
   // The smoothed lane gaps the mask loop below reads — see the note there.
   const cellXSmooth = new Float64Array(vertsX);
@@ -2092,6 +2099,1072 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         wall.bulk.lod[0], wall.bulk.lod[1], cell,
       );
       cellSizes[m] = cell;
+    }
+  }
+
+  const ctx = makeContext();
+
+  /* The snapped lattice for the anchor a build is running against.
+
+     Each lane's world sample is the nearest multiple of its ring stride —
+     see `graded`. For strides that divide the six-metre anchor grid this is
+     the identity (the anchor is itself a multiple of every one of them), so
+     the uniform field and the sub-hop rings sample exactly where they
+     always did; only the 12 m and 24 m rings genuinely snap, which is what
+     holds their world samples still between stride crossings instead of
+     dragging them six metres through never-sampled ground on every hop.
+     Recomputed whenever a build begins, into fixed arrays the two fill
+     passes read in place of the nominal offsets. */
+  const sxs = new Float64Array(vertsX);
+  const szs = new Float64Array(vertsZ);
+
+  function snapLattice(ax, az) {
+    for (let c = 0; c < vertsX; c++) {
+      const g = xStrides[c];
+      sxs[c] = Math.round((ax + xs[c]) / g) * g - ax;
+    }
+    /* Ring boundaries can tie or cross for a few anchor phases; a monotonic
+       guard keeps the mesh from folding. THE GUARD STAYS ON A GRID: the
+       colliding lane is pushed one whole neighbour-stride along, so it lands
+       on a world point the neighbouring ring holds anyway and re-indexes
+       with it. The first cut nudged by half a cell instead, which put the
+       lane off every grid — one lane at each affected seam re-sampled fresh
+       ground on every hop, a single vertical shimmer line standing on the
+       wall, on exactly the snow-flute band the whole rework is for. */
+    for (let c = 1; c < vertsX; c++) {
+      if (sxs[c] <= sxs[c - 1] + 1e-6) sxs[c] = sxs[c - 1] + xStrides[c - 1];
+    }
+    for (let r = 0; r < vertsZ; r++) {
+      const g = zStrides[r];
+      szs[r] = Math.round((az + zs[r]) / g) * g - az;
+    }
+    // zs runs from behind (+) to ahead (−), so the guard descends.
+    for (let r = 1; r < vertsZ; r++) {
+      if (szs[r] >= szs[r - 1] - 1e-6) szs[r] = szs[r - 1] - zStrides[r - 1];
+    }
+  }
+
+  const previousXs = new Float64Array(vertsX);
+  const previousZs = new Float64Array(vertsZ);
+  const reuseColumns = new Int32Array(vertsX);
+  const reuseRows = new Int32Array(vertsZ);
+  // Where each new lane falls in the old lattice: the lower old lane and the
+  // fraction towards the next, or -1 outside it. The geomorph reads these.
+  const bracketColumns = new Int32Array(vertsX);
+  const bracketRows = new Int32Array(vertsZ);
+  const fracColumns = new Float64Array(vertsX);
+  const fracRows = new Float64Array(vertsZ);
+  // And the other way round, for the lead: where each old lane falls in the
+  // new lattice, and the new lane it coincides with exactly, or -1.
+  const leadColumns = new Int32Array(vertsX);
+  const leadRows = new Int32Array(vertsZ);
+  const leadFracColumns = new Float64Array(vertsX);
+  const leadFracRows = new Float64Array(vertsZ);
+  const leadExactColumns = new Int32Array(vertsX);
+  const leadExactRows = new Int32Array(vertsZ);
+  let morphSource = false;
+  const heightReused = new Uint8Array(count);
+  // Vertices whose whole surface was copied from the live mesh: nothing about
+  // them changed, so the geomorph writes them zeros without looking.
+  const surfaceReused = new Uint8Array(count);
+  let heightsReady = false;
+  let heightsSeed, heightsAnchorX, heightsAnchorZ;
+  let reusedHeights = 0;
+  let reusedSurfaces = 0;
+  let surfaceSourceMatches = false;
+
+  /* `liveX`, `liveZ` and `liveSeed` name the anchor the live surface was
+     built for, which is what the surface reuse copies from and the
+     geomorph walks from. */
+  function prepareHeightReuse(ax, az, liveX, liveZ, liveSeed) {
+    const reusable = heightsReady && heightsSeed === getWorldSeed();
+    surfaceSourceMatches = reusable && heightsSeed === liveSeed
+      && heightsAnchorX === liveX && heightsAnchorZ === liveZ;
+    morphSource = false;
+    if (reusable) {
+      for (let c = 0; c < vertsX; c++) previousXs[c] = heightsAnchorX + sxs[c];
+      for (let r = 0; r < vertsZ; r++) previousZs[r] = heightsAnchorZ + szs[r];
+      [heights, previousHeights] = [previousHeights, heights];
+      [runnelCuts, previousRunnelCuts] = [previousRunnelCuts, runnelCuts];
+    }
+    heightsReady = false;
+    reusedHeights = 0;
+    reusedSurfaces = 0;
+    heightReused.fill(0);
+    snapLattice(ax, az);
+    reuseColumns.fill(-1);
+    reuseRows.fill(-1);
+    if (!reusable) return;
+
+    // Both grids are sorted world lattices. Match exact coordinates once per
+    // axis; never resample, round, or interpolate a retained height.
+    let before = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = ax + sxs[c];
+      while (before < vertsX && previousXs[before] < x) before++;
+      if (before < vertsX && previousXs[before] === x) reuseColumns[c] = before;
+    }
+    before = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = az + szs[r];
+      while (before < vertsZ && previousZs[before] > z) before++;
+      if (before < vertsZ && previousZs[before] === z) reuseRows[r] = before;
+    }
+
+    /* The live surface is the one the geomorph starts from, and it is only
+       known to be this lattice's predecessor when it was built from these
+       very heights. */
+    morphSource = surfaceSourceMatches;
+    if (!morphSource) return;
+    let lo = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = ax + sxs[c];
+      while (lo + 2 < vertsX && previousXs[lo + 1] <= x) lo++;
+      const span = previousXs[lo + 1] - previousXs[lo];
+      const f = (x - previousXs[lo]) / span;
+      bracketColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      fracColumns[c] = Math.min(1, Math.max(0, f));
+    }
+    lo = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = az + szs[r];
+      while (lo + 2 < vertsZ && previousZs[lo + 1] >= z) lo++;
+      const span = previousZs[lo] - previousZs[lo + 1];
+      const f = (previousZs[lo] - z) / span;
+      bracketRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      fracRows[r] = Math.min(1, Math.max(0, f));
+    }
+    leadExactColumns.fill(-1);
+    leadExactRows.fill(-1);
+    for (let c = 0; c < vertsX; c++) if (reuseColumns[c] >= 0) leadExactColumns[reuseColumns[c]] = c;
+    for (let r = 0; r < vertsZ; r++) if (reuseRows[r] >= 0) leadExactRows[reuseRows[r]] = r;
+    lo = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = previousXs[c];
+      while (lo + 2 < vertsX && ax + sxs[lo + 1] <= x) lo++;
+      const f = (x - ax - sxs[lo]) / (sxs[lo + 1] - sxs[lo]);
+      leadColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      leadFracColumns[c] = Math.min(1, Math.max(0, f));
+    }
+    lo = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = previousZs[r];
+      while (lo + 2 < vertsZ && az + szs[lo + 1] >= z) lo++;
+      const f = (az + szs[lo] - z) / (szs[lo] - szs[lo + 1]);
+      leadRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      leadFracRows[r] = Math.min(1, Math.max(0, f));
+    }
+  }
+
+  /* The surface on screen at each new vertex, as a delta from the new one.
+
+     Where the old lattice holds the same world point the old vertex is read
+     directly; elsewhere the old cell is interpolated on the same diagonal
+     the index buffer cut it along, so a vertex added inside an old triangle
+     starts exactly on that triangle. Ground the old mesh never covered —
+     the leading rows of the far edge, deep in the fog — starts as itself.
+
+     That is the follow, the second half of the geomorph. The lead, the
+     first, is the same sum the other way round: before the swap, each old
+     vertex walks to the new surface at its own world point. Where a commit
+     refines the lattice the follow does the work, the new vertices rising
+     out of the old triangles; where it coarsens — beside and behind the
+     rider, wherever the rings slide outwards — the follow alone cannot,
+     because the old fine detail between the new vertices would vanish at the
+     swap. The lead lays the old fine mesh down onto the new coarse surface
+     first, so by the swap both lattices draw the same ground wherever one
+     nests in the other. */
+  const byte = (v) => (v > 1 ? 127 : v < -1 ? -127 : Math.round(v * 127));
+
+  // The three corners of cell (r0, c0) under the point (fu, fv) inside it,
+  // cut on the diagonal the index buffer cuts that cell on, and their weights.
+  const corner = new Int32Array(3);
+  const weight = new Float64Array(3);
+  function cellCorners(r0, c0, fu, fv) {
+    const A = r0 * vertsX + c0;
+    const B = A + 1;
+    const C = A + vertsX;
+    const D = C + 1;
+    if ((r0 + c0) & 1) {
+      // Cut from A to D: see the index build.
+      if (fu >= fv) { corner[0] = A; weight[0] = 1 - fu; corner[1] = B; weight[1] = fu - fv; corner[2] = D; weight[2] = fv; }
+      else { corner[0] = A; weight[0] = 1 - fv; corner[1] = C; weight[1] = fv - fu; corner[2] = D; weight[2] = fu; }
+    } else if (fu + fv <= 1) {
+      corner[0] = A; weight[0] = 1 - fu - fv; corner[1] = B; weight[1] = fu; corner[2] = C; weight[2] = fv;
+    } else {
+      corner[0] = D; weight[0] = fu + fv - 1; corner[1] = C; weight[1] = 1 - fu; corner[2] = B; weight[2] = 1 - fv;
+    }
+  }
+
+  function clearDelta(t) {
+    const p = t * 3;
+    const q = t * 4;
+    morphDY[t] = 0;
+    morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
+    morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
+    morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
+  }
+
+  /* Vertex t's delta, into the morph attributes, from its own surface (the
+     `to` arrays) to the `from` surface at the same world point: from-vertex
+     `exact` where the lattices share the point, else the `from` cell that
+     `cellCorners` last set up. True if any of it is not zero. */
+  function writeDelta(t, exact, fromH, fromN, fromC, fromS, toH, toN, toC, toS) {
+    let h, n0, n1, n2, c0, c1, c2, s0, s1, s2, s3;
+    if (exact >= 0) {
+      const e3 = exact * 3;
+      const e4 = exact * 4;
+      h = fromH[exact];
+      n0 = fromN[e3]; n1 = fromN[e3 + 1]; n2 = fromN[e3 + 2];
+      c0 = fromC[e3]; c1 = fromC[e3 + 1]; c2 = fromC[e3 + 2];
+      s0 = fromS[e4]; s1 = fromS[e4 + 1]; s2 = fromS[e4 + 2]; s3 = fromS[e4 + 3];
+    } else {
+      h = n0 = n1 = n2 = c0 = c1 = c2 = s0 = s1 = s2 = s3 = 0;
+      for (let k = 0; k < 3; k++) {
+        const a = corner[k];
+        const w = weight[k];
+        const a3 = a * 3;
+        const a4 = a * 4;
+        h += fromH[a] * w;
+        n0 += fromN[a3] * w; n1 += fromN[a3 + 1] * w; n2 += fromN[a3 + 2] * w;
+        c0 += fromC[a3] * w; c1 += fromC[a3 + 1] * w; c2 += fromC[a3 + 2] * w;
+        s0 += fromS[a4] * w; s1 += fromS[a4 + 1] * w;
+        s2 += fromS[a4 + 2] * w; s3 += fromS[a4 + 3] * w;
+      }
+      const len = hypot3(n0, n1, n2) || 1;
+      n0 /= len; n1 /= len; n2 /= len;
+    }
+    const p = t * 3;
+    const q = t * 4;
+    morphDY[t] = h - toH[t];
+    morphDN[p] = byte((n0 - toN[p]) * 0.5);
+    morphDN[p + 1] = byte((n1 - toN[p + 1]) * 0.5);
+    morphDN[p + 2] = byte((n2 - toN[p + 2]) * 0.5);
+    morphDC[p] = byte(c0 - toC[p]);
+    morphDC[p + 1] = byte(c1 - toC[p + 1]);
+    morphDC[p + 2] = byte(c2 - toC[p + 2]);
+    morphDS[q] = byte(s0 - toS[q]);
+    morphDS[q + 1] = byte(s1 - toS[q + 1]);
+    morphDS[q + 2] = byte(s2 - toS[q + 2]);
+    morphDS[q + 3] = byte(s3 - toS[q + 3]);
+    return morphDY[t] !== 0 || (morphDN[p] | morphDN[p + 1] | morphDN[p + 2]
+      | morphDC[p] | morphDC[p + 1] | morphDC[p + 2]
+      | morphDS[q] | morphDS[q + 1] | morphDS[q + 2] | morphDS[q + 3]) !== 0;
+  }
+
+  // The follow: new vertex i, from the old surface to its own.
+  function fillMorphRows(rowFrom, rowTo) {
+    let i = rowFrom * vertsX;
+    for (let r = rowFrom; r < rowTo; r++) {
+      const exactRow = reuseRows[r];
+      const or = bracketRows[r];
+      const fv = fracRows[r];
+      for (let c = 0; c < vertsX; c++, i++) {
+        if (heightReused[i] && surfaceReused[i]) { clearDelta(i); continue; }
+        const exactColumn = reuseColumns[c];
+        let exact = -1;
+        if (exactRow >= 0 && exactColumn >= 0) {
+          exact = exactRow * vertsX + exactColumn;
+        } else {
+          const oc = bracketColumns[c];
+          if (or < 0 || oc < 0) { clearDelta(i); continue; }
+          cellCorners(or, oc, fracColumns[c], fv);
+        }
+        writeDelta(i, exact, previousHeights, normals, colors, surface,
+          heights, buildNormals, buildColors, buildSurface);
+      }
+    }
+  }
+
+  // The lead: old vertex j, from its own surface to the new one there. Old
+  // ground the new lattice has let go of, at its trailing edge, stays put.
+  // `leadMoved` remembers which ones it moved: a few per cent of them, and
+  // the fold need touch no others.
+  const leadMoved = new Uint8Array(count);
+  function fillLeadRows(rowFrom, rowTo) {
+    let j = rowFrom * vertsX;
+    for (let r = rowFrom; r < rowTo; r++) {
+      const exactRow = leadExactRows[r];
+      const nr = leadRows[r];
+      const fv = leadFracRows[r];
+      for (let c = 0; c < vertsX; c++, j++) {
+        const exactColumn = leadExactColumns[c];
+        let exact = -1;
+        leadMoved[j] = 0;
+        if (exactRow >= 0 && exactColumn >= 0) {
+          exact = exactRow * vertsX + exactColumn;
+          if (heightReused[exact] && surfaceReused[exact]) { clearDelta(j); continue; }
+        } else {
+          const nc = leadColumns[c];
+          if (nr < 0 || nc < 0) { clearDelta(j); continue; }
+          cellCorners(nr, nc, leadFracColumns[c], fv);
+        }
+        // Lead deltas are the old vertex's (from its own surface to the new
+        // one), so the roles of the two surfaces swap.
+        leadMoved[j] = writeDelta(j, exact, heights, buildNormals, buildColors,
+          buildSurface, previousHeights, normals, colors, surface) ? 1 : 0;
+      }
+    }
+  }
+
+  /* The lead has played: what is on screen is the old surface plus its
+     deltas, exactly as the GPU dequantises them, so that is the surface the
+     follow must start from. Folded into the old arrays, which the swap is
+     about to retire anyway — and which are therefore not the old lattice's
+     own surface any more, which `reset` knows. In row batches like
+     everything else here: the whole lattice at once is a frame's hitch on a
+     slow machine. */
+  function foldLeadRows(rowFrom, rowTo) {
+    for (let j = rowFrom * vertsX; j < rowTo * vertsX; j++) {
+      if (!leadMoved[j]) continue;
+      const p = j * 3;
+      const q = j * 4;
+      previousHeights[j] += morphDY[j];
+      const n0 = normals[p] + morphDN[p] * (2 / 127);
+      const n1 = normals[p + 1] + morphDN[p + 1] * (2 / 127);
+      const n2 = normals[p + 2] + morphDN[p + 2] * (2 / 127);
+      const len = hypot3(n0, n1, n2) || 1;
+      normals[p] = n0 / len; normals[p + 1] = n1 / len; normals[p + 2] = n2 / len;
+      colors[p] += morphDC[p] / 127;
+      colors[p + 1] += morphDC[p + 1] / 127;
+      colors[p + 2] += morphDC[p + 2] / 127;
+      surface[q] += morphDS[q] / 127;
+      surface[q + 1] += morphDS[q + 1] / 127;
+      surface[q + 2] += morphDS[q + 2] / 127;
+      surface[q + 3] += morphDS[q + 3] / 127;
+    }
+  }
+
+  function fillHeightRows(ax, az, rowFrom, rowTo) {
+    let i = rowFrom * vertsX;
+    for (let r = rowFrom; r < rowTo; r++) {
+      const previousRow = reuseRows[r];
+      let contextReady = false;
+      for (let c = 0; c < vertsX; c++, i++) {
+        const previousColumn = reuseColumns[c];
+        const old = previousRow * vertsX + previousColumn;
+        // The same coordinate can cross a detail fade when the camera moves.
+        // Reuse only if every actual height-generator input still matches.
+        if (previousRow >= 0 && previousColumn >= 0
+          && coarseDetailMask[i] === coarseDetailMask[old]
+          && fineDetailMask[i] === fineDetailMask[old]
+          && mogulDetailMask[i] === mogulDetailMask[old]
+          && flankDetailMask[i] === flankDetailMask[old]
+          && bulkDetailMask[i] === bulkDetailMask[old]
+          && cellSizes[i] === cellSizes[old]) {
+          heights[i] = previousHeights[old];
+          runnelCuts[i] = previousRunnelCuts[old];
+          heightReused[i] = 1;
+          reusedHeights++;
+          continue;
+        }
+        if (!contextReady) {
+          rowContext(az + szs[r], ctx);
+          contextReady = true;
+        }
+        heights[i] = heightIn(
+          ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
+          mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i], cellSizes[i],
+        );
+        runnelCuts[i] = runnelCut;
+      }
+    }
+    if (rowTo === vertsZ) {
+      heightsReady = true;
+      heightsSeed = getWorldSeed();
+      heightsAnchorX = ax;
+      heightsAnchorZ = az;
+    }
+  }
+
+  function fillSurfaceRows(
+    ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
+    rowFrom, rowTo,
+  ) {
+    surfaceReused.fill(0, rowFrom * vertsX, rowTo * vertsX);
+    let i = rowFrom * vertsX;
+    let p = i * 3;
+    let q = i * 4;
+    let g = i * 2;
+    for (let r = rowFrom; r < rowTo; r++) {
+      const lz = szs[r];
+      const wz = az + lz;
+      const rPrev = Math.max(0, r - 1);
+      const rNext = Math.min(vertsZ - 1, r + 1);
+      const dz2 = szs[rNext] - szs[rPrev] || 1;
+      const oldRow = reuseRows[r];
+      const reuseSurfaceRow = surfaceSourceMatches && outColors !== colors
+        && r > 0 && r + 1 < vertsZ && oldRow > 0 && oldRow + 1 < vertsZ
+        && reuseRows[r - 1] === oldRow - 1 && reuseRows[r + 1] === oldRow + 1;
+      // The haze is radial and this test used to be one-dimensional, so a
+      // vertex four hundred metres down the hill *and* four hundred to the
+      // side — a corner of the grid, and there are a great many of them — was
+      // paying the full materials pass to decide a colour a kilometre away
+      // behind a curtain that closes at five hundred and sixty. Squared, so
+      // the row's own share is one compare and no root.
+      const lzSq = lz * lz;
+      /* Even rows whose full material pass is hidden by haze still need the
+         row-level flank facts. They are four slow noise samples shared by the
+         entire row, and keeping them lets the silhouette remain the same
+         slate/iron mountain instead of turning back into deep snow as soon as
+         the radial material shortcut begins. */
+      if (!rowContext(wz, ctx).wallReady) wallFields(ctx);
+      const grade = gradeAt(wz);
+
+      /* Vertices past `FOG_ROW_SKIP` are behind a closed curtain in every
+         weather, so the snowpack's whole materials pass — two band octaves,
+         the mottle, the aspect, the groom — would be deciding colours nobody
+         can see. Heights stay exact because the skyline is the one thing fog
+         leaves, and the central-difference normal is kept because it is a
+         handful of arithmetic and it is what lights that skyline. The colour
+         is the deep-snow stop and both surface fields are zero, which is also
+         what the real pass converges to under a kilometre of altitude. */
+      if (lzSq >= FOG_SKIP_SQ) {
+        for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
+          const h = heights[i];
+          const wx = ax + sxs[c];
+          outPositions[p] = sxs[c];
+          outPositions[p + 1] = h - ay;
+          outPositions[p + 2] = lz;
+          const cPrev = Math.max(0, c - 1);
+          const cNext = Math.min(vertsX - 1, c + 1);
+          const dx2 = sxs[cNext] - sxs[cPrev] || 1;
+          const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
+          const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
+          const invNormal = 1 / hypot3(dx, 1, dz);
+          outNormals[p] = -dx * invNormal;
+          outNormals[p + 1] = invNormal;
+          outNormals[p + 2] = -dz * invNormal;
+          /* The full snowpack is invisible here, but the silhouette's slope is
+             not. Classify obvious walls from the normal already being paid for
+             so a distant side mountain cannot collapse into one featureless
+             white sheet merely because its material noise was skipped. */
+          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
+             fork the flank fields belong to whichever branch is nearer, and
+             measuring the side off the raw midline instead handed geometry
+             built from one flank's noise the other flank's palette across
+             up to a full split width of ground. */
+          const farCentre = ctx.split > 0
+            ? (Math.abs(wx - (ctx.mid - ctx.split))
+              <= Math.abs(wx - (ctx.mid + ctx.split))
+              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+            : ctx.mid;
+          const farToCentre = Math.abs(wx - farCentre);
+          const farSide = wx < farCentre;
+          const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
+          const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
+          const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
+            ctx.half + ctx.lipW + 70, farToCentre)
+            * smoothstep(5, 34, h - ctx.base);
+          const farSteep = hypot2(-dx, grade - dz);
+          const farRock = Math.max(
+            smoothstep(0.48, 0.92, farSteep),
+            farFlank * smoothstep(0.30, 0.95, farSteep)
+              * (0.25 + 0.65 * farDetail),
+          );
+          const farKind = smoothstep(0.22, 0.78,
+            farBroad * 0.62 + farDetail * 0.38);
+          const farRockR = cSlate[1][0] + (cIron[1][0] - cSlate[1][0]) * farKind;
+          const farRockG = cSlate[1][1] + (cIron[1][1] - cSlate[1][1]) * farKind;
+          const farRockB = cSlate[1][2] + (cIron[1][2] - cSlate[1][2]) * farKind;
+          const farStone = farRock * 0.86;
+          outColors[p] = cDeep[0] + (farRockR - cDeep[0]) * farStone;
+          outColors[p + 1] = cDeep[1] + (farRockG - cDeep[1]) * farStone;
+          outColors[p + 2] = cDeep[2] + (farRockB - cDeep[2]) * farStone;
+          outSurface[q] = 0;
+          outSurface[q + 1] = 0;
+          outSurface[q + 2] = farRock;
+          outSurface[q + 3] = farKind;
+          outGroomFrame[g] = 0;
+          outGroomFrame[g + 1] = 0;
+        }
+        continue;
+      }
+
+      /* One-metre central differences are far below the route's hundred-
+         metre wander wavelengths but broad enough to ignore float chatter.
+         Both possible branch frames are row facts; choosing between them per
+         vertex is then one compare and two array writes. */
+      const frameLeft = groomFrameOriginAt(wz, -1);
+      const frameRight = groomFrameOriginAt(wz, 1);
+      const frameSlopeLeft = (groomFrameOriginAt(wz + 1, -1)
+        - groomFrameOriginAt(wz - 1, -1)) * 0.5;
+      const frameSlopeRight = (groomFrameOriginAt(wz + 1, 1)
+        - groomFrameOriginAt(wz - 1, 1)) * 0.5;
+
+      /* Altitude, and it is free. `ctx.base` is the grade's own integral,
+         which is exactly how far below the top of the run this row lies, and
+         the row context has already worked it out. Everything downhill of the
+         snow line's lower stop reads one, so past about five kilometres of
+         riding the altitude term has said all it has to say and the bands and
+         the relief carry the mountain on their own. */
+      const alt = smoothstep(P.snowLine[0], P.snowLine[1], -ctx.base);
+      /* The altitude term saturates by design (see the head of the file);
+         the chapter is what varies the pack for ever after: a glacier
+         shelf sheds cover, a powder bowl deepens it. */
+      const rowCover = P.base + P.altitude * alt + ctx.chapterCover;
+      const bandZ = wz * P.band.freq;
+
+      for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
+        const lx = sxs[c];
+        const wx = ax + lx;
+        const h = heights[i];
+
+        outPositions[p] = lx;
+        outPositions[p + 1] = h - ay;
+        outPositions[p + 2] = lz;
+
+        // Material and curvature are unchanged only when the whole five-point
+        // stencil survived. Copy from the separate live buffers, never from a
+        // partially written build or across the fog shortcut's boundary.
+        const oldColumn = reuseColumns[c];
+        if (reuseSurfaceRow && c > 0 && c + 1 < vertsX
+          && oldColumn > 0 && oldColumn + 1 < vertsX
+          && reuseColumns[c - 1] === oldColumn - 1
+          && reuseColumns[c + 1] === oldColumn + 1
+          && heightReused[i] && heightReused[i - 1] && heightReused[i + 1]
+          && heightReused[i - vertsX] && heightReused[i + vertsX]
+          && lzSq + lx * lx < FOG_SKIP_SQ) {
+          const old = oldRow * vertsX + oldColumn;
+          const op = old * 3;
+          const oldX = positions[op], oldZ = positions[op + 2];
+          if (oldX * oldX + oldZ * oldZ < FOG_SKIP_SQ) {
+            for (let a = 0; a < 3; a++) {
+              outNormals[p + a] = normals[op + a];
+              outColors[p + a] = colors[op + a];
+            }
+            for (let a = 0; a < 4; a++) outSurface[q + a] = surface[old * 4 + a];
+            outGroomFrame[g] = groomFrame[old * 2];
+            outGroomFrame[g + 1] = groomFrame[old * 2 + 1];
+            reusedSurfaces++;
+            surfaceReused[i] = 1;
+            continue;
+          }
+        }
+
+        const cPrev = Math.max(0, c - 1);
+        const cNext = Math.min(vertsX - 1, c + 1);
+        const dx2 = sxs[cNext] - sxs[cPrev] || 1;
+        const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
+        const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
+
+        // The other half of the radial skip: the far corners of the fan, which
+        // the row test above cannot reach because their row is well inside it.
+        if (lzSq + lx * lx >= FOG_SKIP_SQ) {
+          const invFar = 1 / hypot3(dx, 1, dz);
+          outNormals[p] = -dx * invFar;
+          outNormals[p + 1] = invFar;
+          outNormals[p + 2] = -dz * invFar;
+          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
+             fork the flank fields belong to whichever branch is nearer, and
+             measuring the side off the raw midline instead handed geometry
+             built from one flank's noise the other flank's palette across
+             up to a full split width of ground. */
+          const farCentre = ctx.split > 0
+            ? (Math.abs(wx - (ctx.mid - ctx.split))
+              <= Math.abs(wx - (ctx.mid + ctx.split))
+              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+            : ctx.mid;
+          const farToCentre = Math.abs(wx - farCentre);
+          const farSide = wx < farCentre;
+          const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
+          const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
+          const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
+            ctx.half + ctx.lipW + 70, farToCentre)
+            * smoothstep(5, 34, h - ctx.base);
+          const farSteep = hypot2(-dx, grade - dz);
+          const farRock = Math.max(
+            smoothstep(0.48, 0.92, farSteep),
+            farFlank * smoothstep(0.30, 0.95, farSteep)
+              * (0.25 + 0.65 * farDetail),
+          );
+          const farKind = smoothstep(0.22, 0.78,
+            farBroad * 0.62 + farDetail * 0.38);
+          const farRockR = cSlate[1][0] + (cIron[1][0] - cSlate[1][0]) * farKind;
+          const farRockG = cSlate[1][1] + (cIron[1][1] - cSlate[1][1]) * farKind;
+          const farRockB = cSlate[1][2] + (cIron[1][2] - cSlate[1][2]) * farKind;
+          const farStone = farRock * 0.86;
+          outColors[p] = cDeep[0] + (farRockR - cDeep[0]) * farStone;
+          outColors[p + 1] = cDeep[1] + (farRockG - cDeep[1]) * farStone;
+          outColors[p + 2] = cDeep[2] + (farRockB - cDeep[2]) * farStone;
+          outSurface[q] = 0;
+          outSurface[q + 1] = 0;
+          outSurface[q + 2] = farRock;
+          outSurface[q + 3] = farKind;
+          outGroomFrame[g] = 0;
+          outGroomFrame[g + 1] = 0;
+          continue;
+        }
+
+        /* Object-space curvature replaces the broad screen-space occlusion
+           that used to band the lower frame. Uneven-grid second differences
+           find real bowls and crests in the sampled heightfield; a restrained
+           colour response then preserves those folds when diffuse light is
+           nearly frontal. Because it follows metres of world geometry and is
+           filtered by the same LOD mask, it cannot form display-row moire. */
+        let curvature = 0;
+        // And the same with the runnels taken back out, for `gullyHold`.
+        let gullyCurve = 0;
+        const hg = h + runnelCuts[i];
+        if (c > 0 && c + 1 < vertsX) {
+          const stepL = Math.abs(sxs[c] - sxs[cPrev]);
+          const stepR = Math.abs(sxs[cNext] - sxs[c]);
+          const iL = r * vertsX + cPrev;
+          const iR = r * vertsX + cNext;
+          const slopeL = (h - heights[iL]) / stepL;
+          const slopeR = (heights[iR] - h) / stepR;
+          curvature += 2 * (slopeR - slopeL) / (stepL + stepR);
+          gullyCurve += 2 * ((heights[iR] + runnelCuts[iR] - hg) / stepR
+            - (hg - heights[iL] - runnelCuts[iL]) / stepL) / (stepL + stepR);
+        }
+        if (r > 0 && r + 1 < vertsZ) {
+          const stepB = Math.abs(szs[r] - szs[rPrev]);
+          const stepF = Math.abs(szs[rNext] - szs[r]);
+          const iB = rPrev * vertsX + c;
+          const iF = rNext * vertsX + c;
+          const slopeB = (h - heights[iB]) / stepB;
+          const slopeF = (heights[iF] - h) / stepF;
+          curvature += 2 * (slopeF - slopeB) / (stepB + stepF);
+          gullyCurve += 2 * ((heights[iF] + runnelCuts[iF] - hg) / stepF
+            - (hg - heights[iB] - runnelCuts[iB]) / stepB) / (stepB + stepF);
+        }
+        /* The new rider-scale pillows are deliberately low: geometry that
+           stays believable under a board only moves a few pixels in profile.
+           Let real object-space curvature carry more of their visual read.
+           This remains tied to metres and the spectral LOD masks above, so it
+           cannot reform the old screen-row bands or lower-frame moire. */
+        const cavityShade = smoothstep(0.0006, 0.010, curvature) * 0.20;
+        const crestLift = smoothstep(0.0008, 0.012, -curvature) * 0.070;
+
+        /* Height-field normal at this sample. Using the finite differences
+           already needed by the snow/rock palette makes this effectively free
+           and, unlike averaging triangle faces, independent of which diagonal
+           a graded cell happens to use. */
+        const invNormal = 1 / hypot3(dx, 1, dz);
+        outNormals[p] = -dx * invNormal;
+        outNormals[p + 1] = invNormal;
+        outNormals[p + 2] = -dz * invNormal;
+
+        /* The horizontal part of the surface normal, taken against the grade
+           rather than against flat — the whole hill is tilted, and a piste is
+           not a cliff just for being a piste.
+
+           That subtraction used to be an addition, and it was a real bug
+           rather than a taste: the height rises with z and so does `gradeAt`,
+           so `dz + grade` on perfectly groomed ground came to twice the
+           grade — 0.64 at the top of the run and 0.47 in a mellow chapter —
+           against a rock threshold that started at 0.5. Every steep chapter
+           of the mountain therefore had a grey wash of stone mixed into its
+           flattest snow, every mellow chapter had none, and nothing else on
+           the hill could get a word in. It is also why aspect was never going
+           to work until it was fixed: a bearing measured off a vector that is
+           mostly the grade is a bearing that says "downhill" everywhere. */
+        const sx = -dx;
+        const sz = grade - dz;
+        const steep = Math.sqrt(sx * sx + sz * sz);
+
+        // Which way this face is turned, against the bearing the sun spends
+        // its day around, and normalised so it is a direction and not a
+        // steepness. The constant keeps flat ground — where there is no
+        // meaningful aspect at all — from being handed a loud one.
+        const face = (sx * P.sunX + sz * P.sunZ) / (steep + 0.22);
+
+        // How far above the plane the grade says this row should be on. In
+        // the corridor that is the ridge and roll octaves, so it reads as
+        // crests and hollows; outside it, it is the lip and then the wall.
+        const relief = h - ctx.base;
+
+        // Which stretch of mountain this is. Sheared, so the strata run
+        // across the hill on the diagonal rather than squarely, and two
+        // octaves so a band has a grain as well as an edge.
+        const bu = bandZ + wx * P.band.shear * P.band.freq;
+        const band = noise1(bu, P.band.seed) * 0.68
+          + noise1(bu * 3.1 + 11.3, P.band.seed + 4) * 0.32;
+
+        // Machine-compacted snow, measured to whichever branch is nearer, so
+        // both sides of a route island get the same hardpack response. The
+        // branch centre itself is kept: every side-keyed field below must
+        // agree with `heightIn`, which keys its walls off the nearest
+        // branch, not the raw midline.
+        const nearCentre = ctx.split > 0
+          ? (Math.abs(wx - (ctx.mid - ctx.split))
+            <= Math.abs(wx - (ctx.mid + ctx.split))
+            ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+          : ctx.mid;
+        const toCentre = Math.abs(wx - nearCentre);
+        /* Corduroy exists only on the ribbon the groomer actually drove —
+           the guide line through the gates — while the corridor around it
+           is regular skied-in snow: still compacted enough to keep most of
+           its cover, but matte, and with no machine pattern on it. */
+        const corridorMask = 1 - smoothstep(ctx.half - 4, ctx.half + 10, toCentre);
+        const ribbon = 1 - smoothstep(guide.tol - 3, guide.tol + 6,
+          Math.abs(wx - ctx.guideX));
+        const groomed = ribbon * corridorMask;
+        const pisteCover = corridorMask * (0.55 + 0.45 * ribbon);
+
+        /* The budget. Everything above, summed and then clamped — summed
+           rather than multiplied because a product crowds towards the middle
+           and never reaches either end, and the ends are the whole point:
+           ground that is genuinely bare and ground that is genuinely buried.
+
+           The groomed term is last and it is the one that is not about
+           weather. A piste is a machine's work: that snow was put there and
+           is kept there, which is exactly why a real high-alpine run is a
+           white ribbon laid across bare rock — and why the route stays
+           legible here after the mountain around it has gone to stone. */
+        const cover = clamp01(rowCover
+          + P.bandWeight * (band * 2 - 1)
+          - P.crestWeight * smoothstep(P.crest[0], P.crest[1], relief)
+            * smoothstep(0.12, 0.70, steep)
+          - P.scourWeight * smoothstep(P.scour[0], P.scour[1], relief)
+            * smoothstep(0.38, 1.10, steep)
+          + P.driftWeight * (1 - smoothstep(P.drift[0], P.drift[1], relief))
+          - P.aspectWeight * (face > 0 ? face : 0)
+          + P.shadeWeight * (face < 0 ? -face : 0)
+          + P.groomed * pisteCover);
+
+        /* Rock, which is not a separate decision from the snow — it is where
+           the snow ran out. Two ways for that to happen: the ground got too
+           steep to hold what little it had, and the ground had nothing to
+           hold in the first place. The first threshold slides with the cover,
+           because thin snow slides off slopes deep snow sits on quite
+           happily, and that is one phenomenon and so it is one term. */
+        /* Broad flank outcrops. The containment wall eventually lies back to
+           a modest grade, so steepness alone reburied its largest visible
+           faces in a smooth white sheet. The same kilometre-scale material
+           band and side-specific geology that shape the wall expose coherent
+           ribs through that snow. Nothing is screen-space and nothing moves
+           with the sun; it is a fixed property of the terrain.
+
+           Hoisted above the rock terms because `steepRock` needs it too. It
+           used to be computed after them and therefore could not reach the
+           one term that matters most on the biggest thing in frame. */
+        const sideDetail = wx < nearCentre
+          ? ctx.wallDetailLeft : ctx.wallDetailRight;
+        const outcropBand = smoothstep(0.30, 0.70,
+          band * 0.55 + sideDetail * 0.45);
+        const slip = P.slip[0] + P.hold * cover;
+        /* …and the steep face keeps snow in its ledges.
+
+           This term saturates at one across the whole containment wall, and
+           because the four rock reasons are combined with `Math.max` a
+           saturated `steepRock` overrode every other one — including the
+           outcrop field that exists precisely to stop a face reading as a
+           single material. The result was the largest object on the screen
+           rendered as one flat slab of brown with no variation anywhere in
+           it, which is the honest description of what a real face never
+           looks like: rock steep enough to shed a snowfield still holds it
+           on every bench, ledge and hollow, and those are what give a
+           mountainside its shape at distance. Modulated by the same field
+           the flank band already uses, so the two agree about where the
+           geology is rather than each inventing its own. */
+        /* Mountain cliff rock on steep faces and containment flanks */
+        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]) * 0.85, steep)
+          * (0.65 + 0.35 * outcropBand);
+        const thinRock = smoothstep(P.thin[0], P.thin[1], cover)
+          * smoothstep(0.18, 0.65, steep);
+        const zoneRock = smoothstep(ctx.half + ctx.powderW + 4,
+          ctx.half + ctx.powderW + 18, toCentre)
+          * (0.08 + 0.40 * outcropBand);
+        /* The side mountain walls: steep rocky cliff faces framing the valley */
+        const flank = smoothstep(ctx.half + ctx.bandW * 0.5,
+          ctx.half + ctx.bandW + ctx.lipW + 32, toCentre);
+        const flankRock = flank * smoothstep(5, 24, relief)
+          * smoothstep(0.22, 0.75, steep) * (0.35 + 0.65 * outcropBand);
+        /* Wind scours the ribs. A face's convex ribs and arêtes lose their
+           snow to the wind long before its hollows do, and those dark lines
+           down the snow are most of what makes a mountainside read as one at
+           a distance. Curvature is the lattice's own, so it is there on the
+           widest cells wherever the ribs are. */
+        const ridgeRock = flank * smoothstep(5, 24, relief)
+          * smoothstep(0.003, 0.015, -curvature)
+          * smoothstep(0.10, 0.40, steep) * (0.45 + 0.55 * outcropBand);
+        /* No stone inside the corridor at all — the physics has no plate of
+           rock under three centimetres of snow in its model, so the picture
+           must not either. Outside it, all four reasons apply, except in the
+           hollows, where whatever slid off the ribs either side is lying. A
+           scoured face used to be stone from edge to edge, and in shade, with
+           its plates mipped to their mean, that read as one smooth blue dome;
+           snow in its gullies draws the couloirs down it. The runnels are
+           left out of the hollows: they are a regular fluting, and snow in
+           every channel drew a comb down the lower face wherever the cells
+           were fine enough to carry them.
+
+           The hold is graded and broken up. It came on over so little
+           curvature that a broad channel's floor went to full snow inside
+           one far cell, a straight, ruled stripe down the face. Now it
+           builds across the hollow's whole concave width, so a couloir fades
+           into the rock either side, and a noise twice as long down the
+           fall line as across it scales the curvature it is judged on, so
+           the snow lies in tongues and fans with stone showing between
+           them. Only asked where it can change anything. */
+        const bare = Math.max(steepRock, thinRock, zoneRock, flankRock);
+        let gullyHold = 0;
+        if (bare > 0 && gullyCurve * 1.5 > P.gully[0]) {
+          // Half to one and a half times the curvature, by the patchwork
+          const patch = 0.5 + noise2(wx * 0.05, wz * 0.025, 517);
+          gullyHold = smoothstep(P.gully[0], P.gully[1], gullyCurve * patch);
+        }
+        const rock = (1 - corridorMask) * Math.max(bare * (1 - gullyHold), ridgeRock);
+
+        /* Snow, along the axis of what it has been through rather than of how
+           bright it is. Deep cover is soft and pale; thin cover is what the
+           wind left, which is névé, which is ice, which is blue. Then a
+           lift towards the shade stop for the broad wind-packed patches and
+           for faces turned away from where the sun goes — snow lying in the
+           mountain's own shadow is the bluest thing on it. */
+        /* Albedo describes snowpack, not a lamp. The old lee-face term baked a
+           permanent cobalt shadow into the vertex colour and the live sun,
+           hemisphere, terrain horizon and post grade all shaded it again.
+           Broad wind crust keeps the material variation, but its direction is
+           now free to respond honestly when the sun moves across the sky. */
+        const packField = noise2(wx * 0.02, wz * 0.02, 7);
+        const icy = clamp01((1 - smoothstep(P.pack[0], P.pack[1], cover))
+          + ctx.chapterIcy * (1 - pisteCover) * (0.45 + 0.55 * packField));
+        /* Wind crust and the broad pack mottle are both things that happen to
+           snow nobody is maintaining, and the machine takes out both. The
+           suppression used to be `groomed` — the corduroy ribbon alone, sixteen
+           metres of a fifty-metre run — so four fifths of the piste kept a
+           wind-crust dimming it has not had since the last time a groomer drove
+           over it. It is `pisteCover` now, which is the whole corridor with the
+           ribbon weighted highest, and the mottle goes with it: a tilled
+           surface is uniform, and the patchiness that gives the open mountain
+           its shape is exactly what a piste does not have. */
+        const crust = (1 - pisteCover) * icy * (0.35 + 0.65 * packField);
+        const dim = packField * 0.18 * (1 - 0.75 * pisteCover) + crust * 0.14;
+        let cr = cDeep[0] + (cIce[0] - cDeep[0]) * icy;
+        let cg = cDeep[1] + (cIce[1] - cDeep[1]) * icy;
+        let cb = cDeep[2] + (cIce[2] - cDeep[2]) * icy;
+        cr += (cShade[0] - cr) * dim;
+        cg += (cShade[1] - cg) * dim;
+        cb += (cShade[2] - cb) * dim;
+        cr += (cShade[0] - cr) * cavityShade;
+        cg += (cShade[1] - cg) * cavityShade;
+        cb += (cShade[2] - cb) * cavityShade;
+        cr += (cDeep[0] - cr) * crestLift;
+        cg += (cDeep[1] - cg) * crestLift;
+        cb += (cDeep[2] - cb) * crestLift;
+        /* …and then the piste is lifted off the top of the snow axis entirely.
+
+           Everything above this line is a scale of what the weather has done to
+           the ground, and `deep` is its bright end. A maintained run is not on
+           that scale at all, so it gets its own stop above it — and it is taken
+           after the relief terms rather than before them, because `crestLift`
+           pulls towards `deep` and would otherwise spend part of its lift
+           dragging the piste back down its own axis.
+
+           Scaled by `pisteCover`, so the corduroy is the brightest of it, the
+           corridor around the ribbon most of the way there, and the fade dies
+           exactly where the mask does — which is the same edge the crown is
+           standing on, so the tonal step and the geometric one are one step. */
+        const lift = pisteCover * P.groomLift;
+        if (lift > 0.002) {
+          cr += (cGroom[0] - cr) * lift;
+          cg += (cGroom[1] - cg) * lift;
+          cb += (cGroom[2] - cb) * lift;
+        }
+        const cavityValue = 1 - cavityShade * 0.70;
+        cr *= cavityValue;
+        cg *= cavityValue;
+        cb *= cavityValue;
+
+        const rockKind = smoothstep(0.34, 0.72, band);
+        if (rock > 0.002) {
+          /* Rock catches the light along its ridges and holds none of it in
+             the clefts, which is most of what makes a cliff read as rock.
+
+             And which rock is the band's decision, so a stretch of mountain
+             is made of one stone all the way through instead of every cliff
+             on the hill being the same grey. That was the complaint that is
+             hardest to argue with: a single stone colour makes a hundred
+             separate cliffs read as one repeated asset. */
+          const mottle = noise2(wx * 0.16, wz * 0.16, 11);
+          const d0 = cSlate[0], d1 = cSlate[1], w0 = cIron[0], w1 = cIron[1];
+          const lo0 = d0[0] + (w0[0] - d0[0]) * rockKind;
+          const lo1 = d0[1] + (w0[1] - d0[1]) * rockKind;
+          const lo2 = d0[2] + (w0[2] - d0[2]) * rockKind;
+          const hi0 = d1[0] + (w1[0] - d1[0]) * rockKind;
+          const hi1 = d1[1] + (w1[1] - d1[1]) * rockKind;
+          const hi2 = d1[2] + (w1[2] - d1[2]) * rockKind;
+          cr += (lo0 + (hi0 - lo0) * mottle - cr) * rock;
+          cg += (lo1 + (hi1 - lo1) * mottle - cg) * rock;
+          cb += (lo2 + (hi2 - lo2) * mottle - cb) * rock;
+        }
+
+        /* Thin wind slab and machine-compacted piste carry the sharper ice
+           reflection. Deep snow keeps a small value because its crystal
+           facets still return the sun; exposed rock gets none. This stays a
+           continuous vertex field, so the light travels in broad patches
+           rather than sparkling at screen-pixel frequency. */
+        const reliefReflect = clamp01(1 - cavityShade * 2.1 + crestLift * 1.4);
+        outSurface[q] = clamp01(0.16 + icy * 0.78 + groomed * 0.16)
+          * (1 - rock) * reliefReflect;
+        // Corduroy belongs only to snow. Keeping rock out here makes the
+        // fragment mask independent of the palette's luminance threshold.
+        outSurface[q + 1] = groomed * (1 - rock);
+        outSurface[q + 2] = rock;
+        outSurface[q + 3] = rockKind;
+        const frameRightSide = wx >= nearCentre;
+        outGroomFrame[g] = frameRightSide ? frameRight : frameLeft;
+        outGroomFrame[g + 1] = frameRightSide ? frameSlopeRight : frameSlopeLeft;
+
+        outColors[p] = cr;
+        outColors[p + 1] = cg;
+        outColors[p + 2] = cb;
+      }
+    }
+  }
+
+  /* A whole lattice straight into the live surface: the first frame, a
+     restart, and the worker's replica catching up with a surface the main
+     thread laid down itself. There is no live surface to reuse or walk from,
+     only heights. `cold` forgets those too. */
+  function fill(ax, az, ay, cold = false) {
+    if (cold) heightsReady = false;
+    prepareHeightReuse(ax, az, NaN, NaN, undefined);
+    fillHeightRows(ax, az, 0, vertsZ);
+    fillSurfaceRows(
+      ax, az, ay, positions, normals, colors, surface, groomFrame,
+      0, vertsZ,
+    );
+  }
+
+  // The finished build becomes the live surface, and the live surface the
+  // next build's scratch. Every commit, on either thread, is this swap.
+  function commitSurface() {
+    [positions, buildPositions] = [buildPositions, positions];
+    [normals, buildNormals] = [buildNormals, normals];
+    [colors, buildColors] = [buildColors, colors];
+    [surface, buildSurface] = [buildSurface, surface];
+    [groomFrame, buildGroomFrame] = [buildGroomFrame, groomFrame];
+  }
+
+  /* A build the worker finished, taken in exactly as `fillHeightRows` and
+     `fillSurfaceRows` would have left it: its heights and its surface in
+     place of this lattice's scratch. Returns the arrays it displaced, which
+     nothing here reads again, so the worker can fill them next time. */
+  function adopt(result, ax, az) {
+    const spent = [heights, runnelCuts, buildPositions, buildNormals,
+      buildColors, buildSurface, buildGroomFrame];
+    ({ heights, runnelCuts } = result);
+    [buildPositions, buildNormals, buildColors, buildSurface,
+      buildGroomFrame] = result.surface;
+    heightsReady = true;
+    heightsSeed = result.seed;
+    heightsAnchorX = ax;
+    heightsAnchorZ = az;
+    reusedHeights = result.reusedHeights;
+    reusedSurfaces = result.reusedSurfaces;
+    return spent;
+  }
+
+  // …and one half of its geomorph, in place of deltas that have played out.
+  function adoptMorph(deltas) {
+    const spent = [morphDY, morphDN, morphDC, morphDS];
+    [morphDY, morphDN, morphDC, morphDS] = deltas;
+    return spent;
+  }
+
+  function clearMorph() {
+    morphDY.fill(0);
+    morphDN.fill(0);
+    morphDC.fill(0);
+    morphDS.fill(0);
+  }
+
+  // Rows `rowFrom` to `rowTo` of one stage of a build. The stages are listed
+  // above `startLead`; 3 and 4 are waits and have no rows.
+  function buildRows(stage, ax, az, ay, rowFrom, rowTo) {
+    if (stage === 0) {
+      fillHeightRows(ax, az, rowFrom, rowTo);
+    } else if (stage === 1) {
+      fillSurfaceRows(
+        ax, az, ay, buildPositions, buildNormals, buildColors, buildSurface,
+        buildGroomFrame, rowFrom, rowTo,
+      );
+    } else if (stage === 2) {
+      fillLeadRows(rowFrom, rowTo);
+    } else if (stage === 5) {
+      foldLeadRows(rowFrom, rowTo);
+    } else {
+      fillMorphRows(rowFrom, rowTo);
+    }
+  }
+
+  return {
+    vertsX,
+    vertsZ,
+    get positions() { return positions; },
+    get normals() { return normals; },
+    get colors() { return colors; },
+    get surface() { return surface; },
+    get groomFrame() { return groomFrame; },
+    get heights() { return heights; },
+    get runnelCuts() { return runnelCuts; },
+    get morphDY() { return morphDY; },
+    get morphDN() { return morphDN; },
+    get morphDC() { return morphDC; },
+    get morphDS() { return morphDS; },
+    get morphSource() { return morphSource; },
+    get reusedHeights() { return reusedHeights; },
+    get reusedSurfaces() { return reusedSurfaces; },
+    prepareHeightReuse,
+    buildRows,
+    fill,
+    commitSurface,
+    adopt,
+    adoptMorph,
+    clearMorph,
+  };
+}
+
+export function createTerrain(THREE, shading, maxAnisotropy = 1) {
+  const { spacing } = TERRAIN;
+
+  const cols = vertsX - 1;
+  const rows = vertsZ - 1;
+  const count = vertsX * vertsZ;
+
+  /* The palette, unpacked into plain numbers.
+
+     `THREE.Color` is what these are written as, because a hex string is the
+     only form of a colour anybody can read — but its `lerp` is a method call
+     on an object and the colour pass is the innermost loop in this file, so
+     the values are pulled out into flat triples once and the loop does its
+     own arithmetic. Six mixes per vertex that used to be six method calls.
+     And they are pulled out here, where three is, because the lattice that
+     mixes them also runs in a worker that never imports it.
+
+     SNOW IS NEVER WHITE, and the numbers themselves are in `SNOWPACK`. */
+  const rgb = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
+  const P = SNOWPACK;
+  const palette = {
+    cDeep: rgb(P.deep),
+    cGroom: rgb(P.groom),
+    cIce: rgb(P.ice),
+    cShade: rgb(P.shade),
+    cSlate: [rgb(P.slate[0]), rgb(P.slate[1])],
+    cIron: [rgb(P.iron[0]), rgb(P.iron[1])],
+  };
+  const lattice = createLattice(terrainLayout(), palette);
+
+  const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
+
+  // Alternate the diagonal through successive quads. Repeating one diagonal
+  // across the whole mountain creates long false creases in flat shading.
+  let t = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      // Columns run left to right and rows run from behind the rider to in
+      // front of them, so this is the winding that faces up
+      const a = r * vertsX + c;
+      if ((r + c) & 1) {
+        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX + 1;
+        indices[t++] = a; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
+      } else {
+        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX;
+        indices[t++] = a + 1; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
+      }
     }
   }
 
@@ -2501,23 +3574,23 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',
-    new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.positions, 3).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aSmoothNormal',
-    new THREE.BufferAttribute(normals, 3).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.normals, 3).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('color',
-    new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.colors, 3).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aSurface',
-    new THREE.BufferAttribute(surface, 4).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.surface, 4).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aGroomFrame',
-    new THREE.BufferAttribute(groomFrame, 2).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.groomFrame, 2).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aMorphDY',
-    new THREE.BufferAttribute(morphDY, 1).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.morphDY, 1).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aMorphDN',
-    new THREE.BufferAttribute(morphDN, 3, true).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.morphDN, 3, true).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aMorphDC',
-    new THREE.BufferAttribute(morphDC, 3, true).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.morphDC, 3, true).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aMorphDS',
-    new THREE.BufferAttribute(morphDS, 4, true).setUsage(THREE.DynamicDrawUsage));
+    new THREE.BufferAttribute(lattice.morphDS, 4, true).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   // The corner of the grid, not its longest side. `ahead` alone was already
   // short of the far columns and is now short of the tail as well; the mesh is
@@ -3444,959 +4517,27 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      genuinely move through it — the trees, the huts, the animals and the
      rider — which is what it was worth having for. */
 
-  /* The palette, unpacked into plain numbers.
-
-     `THREE.Color` is what these are written as, because a hex string is the
-     only form of a colour anybody can read — but its `lerp` is a method call
-     on an object and the colour pass is the innermost loop in this file, so
-     the values are pulled out into flat triples once and the loop does its
-     own arithmetic. Six mixes per vertex that used to be six method calls.
-
-     SNOW IS NEVER WHITE, and the numbers themselves are in `SNOWPACK`. */
-  const rgb = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
-  const P = SNOWPACK;
-  const cDeep = rgb(P.deep);
-  const cGroom = rgb(P.groom);
-  const cIce = rgb(P.ice);
-  const cShade = rgb(P.shade);
-  const cSlate = [rgb(P.slate[0]), rgb(P.slate[1])];
-  const cIron = [rgb(P.iron[0]), rgb(P.iron[1])];
-
-  const ctx = makeContext();
-
   let anchorX = NaN;
   let anchorZ = NaN;
   let anchorY = NaN;
   let anchorSeed;
-  /* The snapped lattice for the anchor a build is running against.
 
-     Each lane's world sample is the nearest multiple of its ring stride —
-     see `graded`. For strides that divide the six-metre anchor grid this is
-     the identity (the anchor is itself a multiple of every one of them), so
-     the uniform field and the sub-hop rings sample exactly where they
-     always did; only the 12 m and 24 m rings genuinely snap, which is what
-     holds their world samples still between stride crossings instead of
-     dragging them six metres through never-sampled ground on every hop.
-     Recomputed whenever a build begins, into fixed arrays the two fill
-     passes read in place of the nominal offsets. */
-  const sxs = new Float64Array(vertsX);
-  const szs = new Float64Array(vertsZ);
-
-  function snapLattice(ax, az) {
-    for (let c = 0; c < vertsX; c++) {
-      const g = xStrides[c];
-      sxs[c] = Math.round((ax + xs[c]) / g) * g - ax;
-    }
-    /* Ring boundaries can tie or cross for a few anchor phases; a monotonic
-       guard keeps the mesh from folding. THE GUARD STAYS ON A GRID: the
-       colliding lane is pushed one whole neighbour-stride along, so it lands
-       on a world point the neighbouring ring holds anyway and re-indexes
-       with it. The first cut nudged by half a cell instead, which put the
-       lane off every grid — one lane at each affected seam re-sampled fresh
-       ground on every hop, a single vertical shimmer line standing on the
-       wall, on exactly the snow-flute band the whole rework is for. */
-    for (let c = 1; c < vertsX; c++) {
-      if (sxs[c] <= sxs[c - 1] + 1e-6) sxs[c] = sxs[c - 1] + xStrides[c - 1];
-    }
-    for (let r = 0; r < vertsZ; r++) {
-      const g = zStrides[r];
-      szs[r] = Math.round((az + zs[r]) / g) * g - az;
-    }
-    // zs runs from behind (+) to ahead (−), so the guard descends.
-    for (let r = 1; r < vertsZ; r++) {
-      if (szs[r] >= szs[r - 1] - 1e-6) szs[r] = szs[r - 1] - zStrides[r - 1];
-    }
-  }
-
-  const previousXs = new Float64Array(vertsX);
-  const previousZs = new Float64Array(vertsZ);
-  const reuseColumns = new Int32Array(vertsX);
-  const reuseRows = new Int32Array(vertsZ);
-  // Where each new lane falls in the old lattice: the lower old lane and the
-  // fraction towards the next, or -1 outside it. The geomorph reads these.
-  const bracketColumns = new Int32Array(vertsX);
-  const bracketRows = new Int32Array(vertsZ);
-  const fracColumns = new Float64Array(vertsX);
-  const fracRows = new Float64Array(vertsZ);
-  // And the other way round, for the lead: where each old lane falls in the
-  // new lattice, and the new lane it coincides with exactly, or -1.
-  const leadColumns = new Int32Array(vertsX);
-  const leadRows = new Int32Array(vertsZ);
-  const leadFracColumns = new Float64Array(vertsX);
-  const leadFracRows = new Float64Array(vertsZ);
-  const leadExactColumns = new Int32Array(vertsX);
-  const leadExactRows = new Int32Array(vertsZ);
-  let morphSource = false;
-  const heightReused = new Uint8Array(count);
-  // Vertices whose whole surface was copied from the live mesh: nothing about
-  // them changed, so the geomorph writes them zeros without looking.
-  const surfaceReused = new Uint8Array(count);
-  let heightsReady = false;
-  let heightsSeed, heightsAnchorX, heightsAnchorZ;
-  let reusedHeights = 0;
-  let reusedSurfaces = 0;
-  let surfaceSourceMatches = false;
-
-  function prepareHeightReuse(ax, az) {
-    const reusable = heightsReady && heightsSeed === getWorldSeed();
-    surfaceSourceMatches = reusable && heightsSeed === anchorSeed
-      && heightsAnchorX === anchorX && heightsAnchorZ === anchorZ;
-    morphSource = false;
-    if (reusable) {
-      for (let c = 0; c < vertsX; c++) previousXs[c] = heightsAnchorX + sxs[c];
-      for (let r = 0; r < vertsZ; r++) previousZs[r] = heightsAnchorZ + szs[r];
-      [heights, previousHeights] = [previousHeights, heights];
-      [runnelCuts, previousRunnelCuts] = [previousRunnelCuts, runnelCuts];
-    }
-    heightsReady = false;
-    reusedHeights = 0;
-    reusedSurfaces = 0;
-    heightReused.fill(0);
-    snapLattice(ax, az);
-    reuseColumns.fill(-1);
-    reuseRows.fill(-1);
-    if (!reusable) return;
-
-    // Both grids are sorted world lattices. Match exact coordinates once per
-    // axis; never resample, round, or interpolate a retained height.
-    let before = 0;
-    for (let c = 0; c < vertsX; c++) {
-      const x = ax + sxs[c];
-      while (before < vertsX && previousXs[before] < x) before++;
-      if (before < vertsX && previousXs[before] === x) reuseColumns[c] = before;
-    }
-    before = 0;
-    for (let r = 0; r < vertsZ; r++) {
-      const z = az + szs[r];
-      while (before < vertsZ && previousZs[before] > z) before++;
-      if (before < vertsZ && previousZs[before] === z) reuseRows[r] = before;
-    }
-
-    /* The live surface is the one the geomorph starts from, and it is only
-       known to be this lattice's predecessor when it was built from these
-       very heights. */
-    morphSource = surfaceSourceMatches;
-    if (!morphSource) return;
-    let lo = 0;
-    for (let c = 0; c < vertsX; c++) {
-      const x = ax + sxs[c];
-      while (lo + 2 < vertsX && previousXs[lo + 1] <= x) lo++;
-      const span = previousXs[lo + 1] - previousXs[lo];
-      const f = (x - previousXs[lo]) / span;
-      bracketColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
-      fracColumns[c] = Math.min(1, Math.max(0, f));
-    }
-    lo = 0;
-    for (let r = 0; r < vertsZ; r++) {
-      const z = az + szs[r];
-      while (lo + 2 < vertsZ && previousZs[lo + 1] >= z) lo++;
-      const span = previousZs[lo] - previousZs[lo + 1];
-      const f = (previousZs[lo] - z) / span;
-      bracketRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
-      fracRows[r] = Math.min(1, Math.max(0, f));
-    }
-    leadExactColumns.fill(-1);
-    leadExactRows.fill(-1);
-    for (let c = 0; c < vertsX; c++) if (reuseColumns[c] >= 0) leadExactColumns[reuseColumns[c]] = c;
-    for (let r = 0; r < vertsZ; r++) if (reuseRows[r] >= 0) leadExactRows[reuseRows[r]] = r;
-    lo = 0;
-    for (let c = 0; c < vertsX; c++) {
-      const x = previousXs[c];
-      while (lo + 2 < vertsX && ax + sxs[lo + 1] <= x) lo++;
-      const f = (x - ax - sxs[lo]) / (sxs[lo + 1] - sxs[lo]);
-      leadColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
-      leadFracColumns[c] = Math.min(1, Math.max(0, f));
-    }
-    lo = 0;
-    for (let r = 0; r < vertsZ; r++) {
-      const z = previousZs[r];
-      while (lo + 2 < vertsZ && az + szs[lo + 1] >= z) lo++;
-      const f = (az + szs[lo] - z) / (szs[lo] - szs[lo + 1]);
-      leadRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
-      leadFracRows[r] = Math.min(1, Math.max(0, f));
-    }
-  }
-
-  /* The surface on screen at each new vertex, as a delta from the new one.
-
-     Where the old lattice holds the same world point the old vertex is read
-     directly; elsewhere the old cell is interpolated on the same diagonal
-     the index buffer cut it along, so a vertex added inside an old triangle
-     starts exactly on that triangle. Ground the old mesh never covered —
-     the leading rows of the far edge, deep in the fog — starts as itself.
-
-     That is the follow, the second half of the geomorph. The lead, the
-     first, is the same sum the other way round: before the swap, each old
-     vertex walks to the new surface at its own world point. Where a commit
-     refines the lattice the follow does the work, the new vertices rising
-     out of the old triangles; where it coarsens — beside and behind the
-     rider, wherever the rings slide outwards — the follow alone cannot,
-     because the old fine detail between the new vertices would vanish at the
-     swap. The lead lays the old fine mesh down onto the new coarse surface
-     first, so by the swap both lattices draw the same ground wherever one
-     nests in the other. */
-  const byte = (v) => (v > 1 ? 127 : v < -1 ? -127 : Math.round(v * 127));
-
-  // The three corners of cell (r0, c0) under the point (fu, fv) inside it,
-  // cut on the diagonal the index buffer cuts that cell on, and their weights.
-  const corner = new Int32Array(3);
-  const weight = new Float64Array(3);
-  function cellCorners(r0, c0, fu, fv) {
-    const A = r0 * vertsX + c0;
-    const B = A + 1;
-    const C = A + vertsX;
-    const D = C + 1;
-    if ((r0 + c0) & 1) {
-      // Cut from A to D: see the index build.
-      if (fu >= fv) { corner[0] = A; weight[0] = 1 - fu; corner[1] = B; weight[1] = fu - fv; corner[2] = D; weight[2] = fv; }
-      else { corner[0] = A; weight[0] = 1 - fv; corner[1] = C; weight[1] = fv - fu; corner[2] = D; weight[2] = fu; }
-    } else if (fu + fv <= 1) {
-      corner[0] = A; weight[0] = 1 - fu - fv; corner[1] = B; weight[1] = fu; corner[2] = C; weight[2] = fv;
-    } else {
-      corner[0] = D; weight[0] = fu + fv - 1; corner[1] = C; weight[1] = 1 - fu; corner[2] = B; weight[2] = 1 - fv;
-    }
-  }
-
-  function clearDelta(t) {
-    const p = t * 3;
-    const q = t * 4;
-    morphDY[t] = 0;
-    morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
-    morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
-    morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
-  }
-
-  /* Vertex t's delta, into the morph attributes, from its own surface (the
-     `to` arrays) to the `from` surface at the same world point: from-vertex
-     `exact` where the lattices share the point, else the `from` cell that
-     `cellCorners` last set up. True if any of it is not zero. */
-  function writeDelta(t, exact, fromH, fromN, fromC, fromS, toH, toN, toC, toS) {
-    let h, n0, n1, n2, c0, c1, c2, s0, s1, s2, s3;
-    if (exact >= 0) {
-      const e3 = exact * 3;
-      const e4 = exact * 4;
-      h = fromH[exact];
-      n0 = fromN[e3]; n1 = fromN[e3 + 1]; n2 = fromN[e3 + 2];
-      c0 = fromC[e3]; c1 = fromC[e3 + 1]; c2 = fromC[e3 + 2];
-      s0 = fromS[e4]; s1 = fromS[e4 + 1]; s2 = fromS[e4 + 2]; s3 = fromS[e4 + 3];
-    } else {
-      h = n0 = n1 = n2 = c0 = c1 = c2 = s0 = s1 = s2 = s3 = 0;
-      for (let k = 0; k < 3; k++) {
-        const a = corner[k];
-        const w = weight[k];
-        const a3 = a * 3;
-        const a4 = a * 4;
-        h += fromH[a] * w;
-        n0 += fromN[a3] * w; n1 += fromN[a3 + 1] * w; n2 += fromN[a3 + 2] * w;
-        c0 += fromC[a3] * w; c1 += fromC[a3 + 1] * w; c2 += fromC[a3 + 2] * w;
-        s0 += fromS[a4] * w; s1 += fromS[a4 + 1] * w;
-        s2 += fromS[a4 + 2] * w; s3 += fromS[a4 + 3] * w;
-      }
-      const len = hypot3(n0, n1, n2) || 1;
-      n0 /= len; n1 /= len; n2 /= len;
-    }
-    const p = t * 3;
-    const q = t * 4;
-    morphDY[t] = h - toH[t];
-    morphDN[p] = byte((n0 - toN[p]) * 0.5);
-    morphDN[p + 1] = byte((n1 - toN[p + 1]) * 0.5);
-    morphDN[p + 2] = byte((n2 - toN[p + 2]) * 0.5);
-    morphDC[p] = byte(c0 - toC[p]);
-    morphDC[p + 1] = byte(c1 - toC[p + 1]);
-    morphDC[p + 2] = byte(c2 - toC[p + 2]);
-    morphDS[q] = byte(s0 - toS[q]);
-    morphDS[q + 1] = byte(s1 - toS[q + 1]);
-    morphDS[q + 2] = byte(s2 - toS[q + 2]);
-    morphDS[q + 3] = byte(s3 - toS[q + 3]);
-    return morphDY[t] !== 0 || (morphDN[p] | morphDN[p + 1] | morphDN[p + 2]
-      | morphDC[p] | morphDC[p + 1] | morphDC[p + 2]
-      | morphDS[q] | morphDS[q + 1] | morphDS[q + 2] | morphDS[q + 3]) !== 0;
-  }
-
-  // The follow: new vertex i, from the old surface to its own.
-  function fillMorphRows(rowFrom, rowTo) {
-    let i = rowFrom * vertsX;
-    for (let r = rowFrom; r < rowTo; r++) {
-      const exactRow = reuseRows[r];
-      const or = bracketRows[r];
-      const fv = fracRows[r];
-      for (let c = 0; c < vertsX; c++, i++) {
-        if (heightReused[i] && surfaceReused[i]) { clearDelta(i); continue; }
-        const exactColumn = reuseColumns[c];
-        let exact = -1;
-        if (exactRow >= 0 && exactColumn >= 0) {
-          exact = exactRow * vertsX + exactColumn;
-        } else {
-          const oc = bracketColumns[c];
-          if (or < 0 || oc < 0) { clearDelta(i); continue; }
-          cellCorners(or, oc, fracColumns[c], fv);
-        }
-        writeDelta(i, exact, previousHeights, normals, colors, surface,
-          heights, buildNormals, buildColors, buildSurface);
-      }
-    }
-  }
-
-  // The lead: old vertex j, from its own surface to the new one there. Old
-  // ground the new lattice has let go of, at its trailing edge, stays put.
-  // `leadMoved` remembers which ones it moved: a few per cent of them, and
-  // the fold need touch no others.
-  const leadMoved = new Uint8Array(count);
-  function fillLeadRows(rowFrom, rowTo) {
-    let j = rowFrom * vertsX;
-    for (let r = rowFrom; r < rowTo; r++) {
-      const exactRow = leadExactRows[r];
-      const nr = leadRows[r];
-      const fv = leadFracRows[r];
-      for (let c = 0; c < vertsX; c++, j++) {
-        const exactColumn = leadExactColumns[c];
-        let exact = -1;
-        leadMoved[j] = 0;
-        if (exactRow >= 0 && exactColumn >= 0) {
-          exact = exactRow * vertsX + exactColumn;
-          if (heightReused[exact] && surfaceReused[exact]) { clearDelta(j); continue; }
-        } else {
-          const nc = leadColumns[c];
-          if (nr < 0 || nc < 0) { clearDelta(j); continue; }
-          cellCorners(nr, nc, leadFracColumns[c], fv);
-        }
-        // Lead deltas are the old vertex's (from its own surface to the new
-        // one), so the roles of the two surfaces swap.
-        leadMoved[j] = writeDelta(j, exact, heights, buildNormals, buildColors,
-          buildSurface, previousHeights, normals, colors, surface) ? 1 : 0;
-      }
-    }
-  }
-
-  /* The lead has played: what is on screen is the old surface plus its
-     deltas, exactly as the GPU dequantises them, so that is the surface the
-     follow must start from. Folded into the old arrays, which the swap is
-     about to retire anyway — and which are therefore not the old lattice's
-     own surface any more, which `reset` knows. In row batches like
-     everything else here: the whole lattice at once is a frame's hitch on a
-     slow machine. */
-  function foldLeadRows(rowFrom, rowTo) {
-    for (let j = rowFrom * vertsX; j < rowTo * vertsX; j++) {
-      if (!leadMoved[j]) continue;
-      const p = j * 3;
-      const q = j * 4;
-      previousHeights[j] += morphDY[j];
-      const n0 = normals[p] + morphDN[p] * (2 / 127);
-      const n1 = normals[p + 1] + morphDN[p + 1] * (2 / 127);
-      const n2 = normals[p + 2] + morphDN[p + 2] * (2 / 127);
-      const len = hypot3(n0, n1, n2) || 1;
-      normals[p] = n0 / len; normals[p + 1] = n1 / len; normals[p + 2] = n2 / len;
-      colors[p] += morphDC[p] / 127;
-      colors[p + 1] += morphDC[p + 1] / 127;
-      colors[p + 2] += morphDC[p + 2] / 127;
-      surface[q] += morphDS[q] / 127;
-      surface[q + 1] += morphDS[q + 1] / 127;
-      surface[q + 2] += morphDS[q + 2] / 127;
-      surface[q + 3] += morphDS[q + 3] / 127;
-    }
-  }
-
-  function fillHeightRows(ax, az, rowFrom, rowTo) {
-    let i = rowFrom * vertsX;
-    for (let r = rowFrom; r < rowTo; r++) {
-      const previousRow = reuseRows[r];
-      let contextReady = false;
-      for (let c = 0; c < vertsX; c++, i++) {
-        const previousColumn = reuseColumns[c];
-        const old = previousRow * vertsX + previousColumn;
-        // The same coordinate can cross a detail fade when the camera moves.
-        // Reuse only if every actual height-generator input still matches.
-        if (previousRow >= 0 && previousColumn >= 0
-          && coarseDetailMask[i] === coarseDetailMask[old]
-          && fineDetailMask[i] === fineDetailMask[old]
-          && mogulDetailMask[i] === mogulDetailMask[old]
-          && flankDetailMask[i] === flankDetailMask[old]
-          && bulkDetailMask[i] === bulkDetailMask[old]
-          && cellSizes[i] === cellSizes[old]) {
-          heights[i] = previousHeights[old];
-          runnelCuts[i] = previousRunnelCuts[old];
-          heightReused[i] = 1;
-          reusedHeights++;
-          continue;
-        }
-        if (!contextReady) {
-          rowContext(az + szs[r], ctx);
-          contextReady = true;
-        }
-        heights[i] = heightIn(
-          ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
-          mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i], cellSizes[i],
-        );
-        runnelCuts[i] = runnelCut;
-      }
-    }
-    if (rowTo === vertsZ) {
-      heightsReady = true;
-      heightsSeed = getWorldSeed();
-      heightsAnchorX = ax;
-      heightsAnchorZ = az;
-    }
-  }
-
-  function fillSurfaceRows(
-    ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
-    rowFrom, rowTo,
-  ) {
-    surfaceReused.fill(0, rowFrom * vertsX, rowTo * vertsX);
-    let i = rowFrom * vertsX;
-    let p = i * 3;
-    let q = i * 4;
-    let g = i * 2;
-    for (let r = rowFrom; r < rowTo; r++) {
-      const lz = szs[r];
-      const wz = az + lz;
-      const rPrev = Math.max(0, r - 1);
-      const rNext = Math.min(vertsZ - 1, r + 1);
-      const dz2 = szs[rNext] - szs[rPrev] || 1;
-      const oldRow = reuseRows[r];
-      const reuseSurfaceRow = surfaceSourceMatches && outColors !== colors
-        && r > 0 && r + 1 < vertsZ && oldRow > 0 && oldRow + 1 < vertsZ
-        && reuseRows[r - 1] === oldRow - 1 && reuseRows[r + 1] === oldRow + 1;
-      // The haze is radial and this test used to be one-dimensional, so a
-      // vertex four hundred metres down the hill *and* four hundred to the
-      // side — a corner of the grid, and there are a great many of them — was
-      // paying the full materials pass to decide a colour a kilometre away
-      // behind a curtain that closes at five hundred and sixty. Squared, so
-      // the row's own share is one compare and no root.
-      const lzSq = lz * lz;
-      /* Even rows whose full material pass is hidden by haze still need the
-         row-level flank facts. They are four slow noise samples shared by the
-         entire row, and keeping them lets the silhouette remain the same
-         slate/iron mountain instead of turning back into deep snow as soon as
-         the radial material shortcut begins. */
-      if (!rowContext(wz, ctx).wallReady) wallFields(ctx);
-      const grade = gradeAt(wz);
-
-      /* Vertices past `FOG_ROW_SKIP` are behind a closed curtain in every
-         weather, so the snowpack's whole materials pass — two band octaves,
-         the mottle, the aspect, the groom — would be deciding colours nobody
-         can see. Heights stay exact because the skyline is the one thing fog
-         leaves, and the central-difference normal is kept because it is a
-         handful of arithmetic and it is what lights that skyline. The colour
-         is the deep-snow stop and both surface fields are zero, which is also
-         what the real pass converges to under a kilometre of altitude. */
-      if (lzSq >= FOG_SKIP_SQ) {
-        for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
-          const h = heights[i];
-          const wx = ax + sxs[c];
-          outPositions[p] = sxs[c];
-          outPositions[p + 1] = h - ay;
-          outPositions[p + 2] = lz;
-          const cPrev = Math.max(0, c - 1);
-          const cNext = Math.min(vertsX - 1, c + 1);
-          const dx2 = sxs[cNext] - sxs[cPrev] || 1;
-          const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
-          const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
-          const invNormal = 1 / hypot3(dx, 1, dz);
-          outNormals[p] = -dx * invNormal;
-          outNormals[p + 1] = invNormal;
-          outNormals[p + 2] = -dz * invNormal;
-          /* The full snowpack is invisible here, but the silhouette's slope is
-             not. Classify obvious walls from the normal already being paid for
-             so a distant side mountain cannot collapse into one featureless
-             white sheet merely because its material noise was skipped. */
-          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
-             fork the flank fields belong to whichever branch is nearer, and
-             measuring the side off the raw midline instead handed geometry
-             built from one flank's noise the other flank's palette across
-             up to a full split width of ground. */
-          const farCentre = ctx.split > 0
-            ? (Math.abs(wx - (ctx.mid - ctx.split))
-              <= Math.abs(wx - (ctx.mid + ctx.split))
-              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
-            : ctx.mid;
-          const farToCentre = Math.abs(wx - farCentre);
-          const farSide = wx < farCentre;
-          const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
-          const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
-          const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
-            ctx.half + ctx.lipW + 70, farToCentre)
-            * smoothstep(5, 34, h - ctx.base);
-          const farSteep = hypot2(-dx, grade - dz);
-          const farRock = Math.max(
-            smoothstep(0.48, 0.92, farSteep),
-            farFlank * smoothstep(0.30, 0.95, farSteep)
-              * (0.25 + 0.65 * farDetail),
-          );
-          const farKind = smoothstep(0.22, 0.78,
-            farBroad * 0.62 + farDetail * 0.38);
-          const farRockR = cSlate[1][0] + (cIron[1][0] - cSlate[1][0]) * farKind;
-          const farRockG = cSlate[1][1] + (cIron[1][1] - cSlate[1][1]) * farKind;
-          const farRockB = cSlate[1][2] + (cIron[1][2] - cSlate[1][2]) * farKind;
-          const farStone = farRock * 0.86;
-          outColors[p] = cDeep[0] + (farRockR - cDeep[0]) * farStone;
-          outColors[p + 1] = cDeep[1] + (farRockG - cDeep[1]) * farStone;
-          outColors[p + 2] = cDeep[2] + (farRockB - cDeep[2]) * farStone;
-          outSurface[q] = 0;
-          outSurface[q + 1] = 0;
-          outSurface[q + 2] = farRock;
-          outSurface[q + 3] = farKind;
-          outGroomFrame[g] = 0;
-          outGroomFrame[g + 1] = 0;
-        }
-        continue;
-      }
-
-      /* One-metre central differences are far below the route's hundred-
-         metre wander wavelengths but broad enough to ignore float chatter.
-         Both possible branch frames are row facts; choosing between them per
-         vertex is then one compare and two array writes. */
-      const frameLeft = groomFrameOriginAt(wz, -1);
-      const frameRight = groomFrameOriginAt(wz, 1);
-      const frameSlopeLeft = (groomFrameOriginAt(wz + 1, -1)
-        - groomFrameOriginAt(wz - 1, -1)) * 0.5;
-      const frameSlopeRight = (groomFrameOriginAt(wz + 1, 1)
-        - groomFrameOriginAt(wz - 1, 1)) * 0.5;
-
-      /* Altitude, and it is free. `ctx.base` is the grade's own integral,
-         which is exactly how far below the top of the run this row lies, and
-         the row context has already worked it out. Everything downhill of the
-         snow line's lower stop reads one, so past about five kilometres of
-         riding the altitude term has said all it has to say and the bands and
-         the relief carry the mountain on their own. */
-      const alt = smoothstep(P.snowLine[0], P.snowLine[1], -ctx.base);
-      /* The altitude term saturates by design (see the head of the file);
-         the chapter is what varies the pack for ever after: a glacier
-         shelf sheds cover, a powder bowl deepens it. */
-      const rowCover = P.base + P.altitude * alt + ctx.chapterCover;
-      const bandZ = wz * P.band.freq;
-
-      for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
-        const lx = sxs[c];
-        const wx = ax + lx;
-        const h = heights[i];
-
-        outPositions[p] = lx;
-        outPositions[p + 1] = h - ay;
-        outPositions[p + 2] = lz;
-
-        // Material and curvature are unchanged only when the whole five-point
-        // stencil survived. Copy from the separate live buffers, never from a
-        // partially written build or across the fog shortcut's boundary.
-        const oldColumn = reuseColumns[c];
-        if (reuseSurfaceRow && c > 0 && c + 1 < vertsX
-          && oldColumn > 0 && oldColumn + 1 < vertsX
-          && reuseColumns[c - 1] === oldColumn - 1
-          && reuseColumns[c + 1] === oldColumn + 1
-          && heightReused[i] && heightReused[i - 1] && heightReused[i + 1]
-          && heightReused[i - vertsX] && heightReused[i + vertsX]
-          && lzSq + lx * lx < FOG_SKIP_SQ) {
-          const old = oldRow * vertsX + oldColumn;
-          const op = old * 3;
-          const oldX = positions[op], oldZ = positions[op + 2];
-          if (oldX * oldX + oldZ * oldZ < FOG_SKIP_SQ) {
-            for (let a = 0; a < 3; a++) {
-              outNormals[p + a] = normals[op + a];
-              outColors[p + a] = colors[op + a];
-            }
-            for (let a = 0; a < 4; a++) outSurface[q + a] = surface[old * 4 + a];
-            outGroomFrame[g] = groomFrame[old * 2];
-            outGroomFrame[g + 1] = groomFrame[old * 2 + 1];
-            reusedSurfaces++;
-            surfaceReused[i] = 1;
-            continue;
-          }
-        }
-
-        const cPrev = Math.max(0, c - 1);
-        const cNext = Math.min(vertsX - 1, c + 1);
-        const dx2 = sxs[cNext] - sxs[cPrev] || 1;
-        const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
-        const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
-
-        // The other half of the radial skip: the far corners of the fan, which
-        // the row test above cannot reach because their row is well inside it.
-        if (lzSq + lx * lx >= FOG_SKIP_SQ) {
-          const invFar = 1 / hypot3(dx, 1, dz);
-          outNormals[p] = -dx * invFar;
-          outNormals[p + 1] = invFar;
-          outNormals[p + 2] = -dz * invFar;
-          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
-             fork the flank fields belong to whichever branch is nearer, and
-             measuring the side off the raw midline instead handed geometry
-             built from one flank's noise the other flank's palette across
-             up to a full split width of ground. */
-          const farCentre = ctx.split > 0
-            ? (Math.abs(wx - (ctx.mid - ctx.split))
-              <= Math.abs(wx - (ctx.mid + ctx.split))
-              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
-            : ctx.mid;
-          const farToCentre = Math.abs(wx - farCentre);
-          const farSide = wx < farCentre;
-          const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
-          const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
-          const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
-            ctx.half + ctx.lipW + 70, farToCentre)
-            * smoothstep(5, 34, h - ctx.base);
-          const farSteep = hypot2(-dx, grade - dz);
-          const farRock = Math.max(
-            smoothstep(0.48, 0.92, farSteep),
-            farFlank * smoothstep(0.30, 0.95, farSteep)
-              * (0.25 + 0.65 * farDetail),
-          );
-          const farKind = smoothstep(0.22, 0.78,
-            farBroad * 0.62 + farDetail * 0.38);
-          const farRockR = cSlate[1][0] + (cIron[1][0] - cSlate[1][0]) * farKind;
-          const farRockG = cSlate[1][1] + (cIron[1][1] - cSlate[1][1]) * farKind;
-          const farRockB = cSlate[1][2] + (cIron[1][2] - cSlate[1][2]) * farKind;
-          const farStone = farRock * 0.86;
-          outColors[p] = cDeep[0] + (farRockR - cDeep[0]) * farStone;
-          outColors[p + 1] = cDeep[1] + (farRockG - cDeep[1]) * farStone;
-          outColors[p + 2] = cDeep[2] + (farRockB - cDeep[2]) * farStone;
-          outSurface[q] = 0;
-          outSurface[q + 1] = 0;
-          outSurface[q + 2] = farRock;
-          outSurface[q + 3] = farKind;
-          outGroomFrame[g] = 0;
-          outGroomFrame[g + 1] = 0;
-          continue;
-        }
-
-        /* Object-space curvature replaces the broad screen-space occlusion
-           that used to band the lower frame. Uneven-grid second differences
-           find real bowls and crests in the sampled heightfield; a restrained
-           colour response then preserves those folds when diffuse light is
-           nearly frontal. Because it follows metres of world geometry and is
-           filtered by the same LOD mask, it cannot form display-row moire. */
-        let curvature = 0;
-        // And the same with the runnels taken back out, for `gullyHold`.
-        let gullyCurve = 0;
-        const hg = h + runnelCuts[i];
-        if (c > 0 && c + 1 < vertsX) {
-          const stepL = Math.abs(sxs[c] - sxs[cPrev]);
-          const stepR = Math.abs(sxs[cNext] - sxs[c]);
-          const iL = r * vertsX + cPrev;
-          const iR = r * vertsX + cNext;
-          const slopeL = (h - heights[iL]) / stepL;
-          const slopeR = (heights[iR] - h) / stepR;
-          curvature += 2 * (slopeR - slopeL) / (stepL + stepR);
-          gullyCurve += 2 * ((heights[iR] + runnelCuts[iR] - hg) / stepR
-            - (hg - heights[iL] - runnelCuts[iL]) / stepL) / (stepL + stepR);
-        }
-        if (r > 0 && r + 1 < vertsZ) {
-          const stepB = Math.abs(szs[r] - szs[rPrev]);
-          const stepF = Math.abs(szs[rNext] - szs[r]);
-          const iB = rPrev * vertsX + c;
-          const iF = rNext * vertsX + c;
-          const slopeB = (h - heights[iB]) / stepB;
-          const slopeF = (heights[iF] - h) / stepF;
-          curvature += 2 * (slopeF - slopeB) / (stepB + stepF);
-          gullyCurve += 2 * ((heights[iF] + runnelCuts[iF] - hg) / stepF
-            - (hg - heights[iB] - runnelCuts[iB]) / stepB) / (stepB + stepF);
-        }
-        /* The new rider-scale pillows are deliberately low: geometry that
-           stays believable under a board only moves a few pixels in profile.
-           Let real object-space curvature carry more of their visual read.
-           This remains tied to metres and the spectral LOD masks above, so it
-           cannot reform the old screen-row bands or lower-frame moire. */
-        const cavityShade = smoothstep(0.0006, 0.010, curvature) * 0.20;
-        const crestLift = smoothstep(0.0008, 0.012, -curvature) * 0.070;
-
-        /* Height-field normal at this sample. Using the finite differences
-           already needed by the snow/rock palette makes this effectively free
-           and, unlike averaging triangle faces, independent of which diagonal
-           a graded cell happens to use. */
-        const invNormal = 1 / hypot3(dx, 1, dz);
-        outNormals[p] = -dx * invNormal;
-        outNormals[p + 1] = invNormal;
-        outNormals[p + 2] = -dz * invNormal;
-
-        /* The horizontal part of the surface normal, taken against the grade
-           rather than against flat — the whole hill is tilted, and a piste is
-           not a cliff just for being a piste.
-
-           That subtraction used to be an addition, and it was a real bug
-           rather than a taste: the height rises with z and so does `gradeAt`,
-           so `dz + grade` on perfectly groomed ground came to twice the
-           grade — 0.64 at the top of the run and 0.47 in a mellow chapter —
-           against a rock threshold that started at 0.5. Every steep chapter
-           of the mountain therefore had a grey wash of stone mixed into its
-           flattest snow, every mellow chapter had none, and nothing else on
-           the hill could get a word in. It is also why aspect was never going
-           to work until it was fixed: a bearing measured off a vector that is
-           mostly the grade is a bearing that says "downhill" everywhere. */
-        const sx = -dx;
-        const sz = grade - dz;
-        const steep = Math.sqrt(sx * sx + sz * sz);
-
-        // Which way this face is turned, against the bearing the sun spends
-        // its day around, and normalised so it is a direction and not a
-        // steepness. The constant keeps flat ground — where there is no
-        // meaningful aspect at all — from being handed a loud one.
-        const face = (sx * P.sunX + sz * P.sunZ) / (steep + 0.22);
-
-        // How far above the plane the grade says this row should be on. In
-        // the corridor that is the ridge and roll octaves, so it reads as
-        // crests and hollows; outside it, it is the lip and then the wall.
-        const relief = h - ctx.base;
-
-        // Which stretch of mountain this is. Sheared, so the strata run
-        // across the hill on the diagonal rather than squarely, and two
-        // octaves so a band has a grain as well as an edge.
-        const bu = bandZ + wx * P.band.shear * P.band.freq;
-        const band = noise1(bu, P.band.seed) * 0.68
-          + noise1(bu * 3.1 + 11.3, P.band.seed + 4) * 0.32;
-
-        // Machine-compacted snow, measured to whichever branch is nearer, so
-        // both sides of a route island get the same hardpack response. The
-        // branch centre itself is kept: every side-keyed field below must
-        // agree with `heightIn`, which keys its walls off the nearest
-        // branch, not the raw midline.
-        const nearCentre = ctx.split > 0
-          ? (Math.abs(wx - (ctx.mid - ctx.split))
-            <= Math.abs(wx - (ctx.mid + ctx.split))
-            ? ctx.mid - ctx.split : ctx.mid + ctx.split)
-          : ctx.mid;
-        const toCentre = Math.abs(wx - nearCentre);
-        /* Corduroy exists only on the ribbon the groomer actually drove —
-           the guide line through the gates — while the corridor around it
-           is regular skied-in snow: still compacted enough to keep most of
-           its cover, but matte, and with no machine pattern on it. */
-        const corridorMask = 1 - smoothstep(ctx.half - 4, ctx.half + 10, toCentre);
-        const ribbon = 1 - smoothstep(guide.tol - 3, guide.tol + 6,
-          Math.abs(wx - ctx.guideX));
-        const groomed = ribbon * corridorMask;
-        const pisteCover = corridorMask * (0.55 + 0.45 * ribbon);
-
-        /* The budget. Everything above, summed and then clamped — summed
-           rather than multiplied because a product crowds towards the middle
-           and never reaches either end, and the ends are the whole point:
-           ground that is genuinely bare and ground that is genuinely buried.
-
-           The groomed term is last and it is the one that is not about
-           weather. A piste is a machine's work: that snow was put there and
-           is kept there, which is exactly why a real high-alpine run is a
-           white ribbon laid across bare rock — and why the route stays
-           legible here after the mountain around it has gone to stone. */
-        const cover = clamp01(rowCover
-          + P.bandWeight * (band * 2 - 1)
-          - P.crestWeight * smoothstep(P.crest[0], P.crest[1], relief)
-            * smoothstep(0.12, 0.70, steep)
-          - P.scourWeight * smoothstep(P.scour[0], P.scour[1], relief)
-            * smoothstep(0.38, 1.10, steep)
-          + P.driftWeight * (1 - smoothstep(P.drift[0], P.drift[1], relief))
-          - P.aspectWeight * (face > 0 ? face : 0)
-          + P.shadeWeight * (face < 0 ? -face : 0)
-          + P.groomed * pisteCover);
-
-        /* Rock, which is not a separate decision from the snow — it is where
-           the snow ran out. Two ways for that to happen: the ground got too
-           steep to hold what little it had, and the ground had nothing to
-           hold in the first place. The first threshold slides with the cover,
-           because thin snow slides off slopes deep snow sits on quite
-           happily, and that is one phenomenon and so it is one term. */
-        /* Broad flank outcrops. The containment wall eventually lies back to
-           a modest grade, so steepness alone reburied its largest visible
-           faces in a smooth white sheet. The same kilometre-scale material
-           band and side-specific geology that shape the wall expose coherent
-           ribs through that snow. Nothing is screen-space and nothing moves
-           with the sun; it is a fixed property of the terrain.
-
-           Hoisted above the rock terms because `steepRock` needs it too. It
-           used to be computed after them and therefore could not reach the
-           one term that matters most on the biggest thing in frame. */
-        const sideDetail = wx < nearCentre
-          ? ctx.wallDetailLeft : ctx.wallDetailRight;
-        const outcropBand = smoothstep(0.30, 0.70,
-          band * 0.55 + sideDetail * 0.45);
-        const slip = P.slip[0] + P.hold * cover;
-        /* …and the steep face keeps snow in its ledges.
-
-           This term saturates at one across the whole containment wall, and
-           because the four rock reasons are combined with `Math.max` a
-           saturated `steepRock` overrode every other one — including the
-           outcrop field that exists precisely to stop a face reading as a
-           single material. The result was the largest object on the screen
-           rendered as one flat slab of brown with no variation anywhere in
-           it, which is the honest description of what a real face never
-           looks like: rock steep enough to shed a snowfield still holds it
-           on every bench, ledge and hollow, and those are what give a
-           mountainside its shape at distance. Modulated by the same field
-           the flank band already uses, so the two agree about where the
-           geology is rather than each inventing its own. */
-        /* Mountain cliff rock on steep faces and containment flanks */
-        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]) * 0.85, steep)
-          * (0.65 + 0.35 * outcropBand);
-        const thinRock = smoothstep(P.thin[0], P.thin[1], cover)
-          * smoothstep(0.18, 0.65, steep);
-        const zoneRock = smoothstep(ctx.half + ctx.powderW + 4,
-          ctx.half + ctx.powderW + 18, toCentre)
-          * (0.08 + 0.40 * outcropBand);
-        /* The side mountain walls: steep rocky cliff faces framing the valley */
-        const flank = smoothstep(ctx.half + ctx.bandW * 0.5,
-          ctx.half + ctx.bandW + ctx.lipW + 32, toCentre);
-        const flankRock = flank * smoothstep(5, 24, relief)
-          * smoothstep(0.22, 0.75, steep) * (0.35 + 0.65 * outcropBand);
-        /* Wind scours the ribs. A face's convex ribs and arêtes lose their
-           snow to the wind long before its hollows do, and those dark lines
-           down the snow are most of what makes a mountainside read as one at
-           a distance. Curvature is the lattice's own, so it is there on the
-           widest cells wherever the ribs are. */
-        const ridgeRock = flank * smoothstep(5, 24, relief)
-          * smoothstep(0.003, 0.015, -curvature)
-          * smoothstep(0.10, 0.40, steep) * (0.45 + 0.55 * outcropBand);
-        /* No stone inside the corridor at all — the physics has no plate of
-           rock under three centimetres of snow in its model, so the picture
-           must not either. Outside it, all four reasons apply, except in the
-           hollows, where whatever slid off the ribs either side is lying. A
-           scoured face used to be stone from edge to edge, and in shade, with
-           its plates mipped to their mean, that read as one smooth blue dome;
-           snow in its gullies draws the couloirs down it. The runnels are
-           left out of the hollows: they are a regular fluting, and snow in
-           every channel drew a comb down the lower face wherever the cells
-           were fine enough to carry them.
-
-           The hold is graded and broken up. It came on over so little
-           curvature that a broad channel's floor went to full snow inside
-           one far cell, a straight, ruled stripe down the face. Now it
-           builds across the hollow's whole concave width, so a couloir fades
-           into the rock either side, and a noise twice as long down the
-           fall line as across it scales the curvature it is judged on, so
-           the snow lies in tongues and fans with stone showing between
-           them. Only asked where it can change anything. */
-        const bare = Math.max(steepRock, thinRock, zoneRock, flankRock);
-        let gullyHold = 0;
-        if (bare > 0 && gullyCurve * 1.5 > P.gully[0]) {
-          // Half to one and a half times the curvature, by the patchwork
-          const patch = 0.5 + noise2(wx * 0.05, wz * 0.025, 517);
-          gullyHold = smoothstep(P.gully[0], P.gully[1], gullyCurve * patch);
-        }
-        const rock = (1 - corridorMask) * Math.max(bare * (1 - gullyHold), ridgeRock);
-
-        /* Snow, along the axis of what it has been through rather than of how
-           bright it is. Deep cover is soft and pale; thin cover is what the
-           wind left, which is névé, which is ice, which is blue. Then a
-           lift towards the shade stop for the broad wind-packed patches and
-           for faces turned away from where the sun goes — snow lying in the
-           mountain's own shadow is the bluest thing on it. */
-        /* Albedo describes snowpack, not a lamp. The old lee-face term baked a
-           permanent cobalt shadow into the vertex colour and the live sun,
-           hemisphere, terrain horizon and post grade all shaded it again.
-           Broad wind crust keeps the material variation, but its direction is
-           now free to respond honestly when the sun moves across the sky. */
-        const packField = noise2(wx * 0.02, wz * 0.02, 7);
-        const icy = clamp01((1 - smoothstep(P.pack[0], P.pack[1], cover))
-          + ctx.chapterIcy * (1 - pisteCover) * (0.45 + 0.55 * packField));
-        /* Wind crust and the broad pack mottle are both things that happen to
-           snow nobody is maintaining, and the machine takes out both. The
-           suppression used to be `groomed` — the corduroy ribbon alone, sixteen
-           metres of a fifty-metre run — so four fifths of the piste kept a
-           wind-crust dimming it has not had since the last time a groomer drove
-           over it. It is `pisteCover` now, which is the whole corridor with the
-           ribbon weighted highest, and the mottle goes with it: a tilled
-           surface is uniform, and the patchiness that gives the open mountain
-           its shape is exactly what a piste does not have. */
-        const crust = (1 - pisteCover) * icy * (0.35 + 0.65 * packField);
-        const dim = packField * 0.18 * (1 - 0.75 * pisteCover) + crust * 0.14;
-        let cr = cDeep[0] + (cIce[0] - cDeep[0]) * icy;
-        let cg = cDeep[1] + (cIce[1] - cDeep[1]) * icy;
-        let cb = cDeep[2] + (cIce[2] - cDeep[2]) * icy;
-        cr += (cShade[0] - cr) * dim;
-        cg += (cShade[1] - cg) * dim;
-        cb += (cShade[2] - cb) * dim;
-        cr += (cShade[0] - cr) * cavityShade;
-        cg += (cShade[1] - cg) * cavityShade;
-        cb += (cShade[2] - cb) * cavityShade;
-        cr += (cDeep[0] - cr) * crestLift;
-        cg += (cDeep[1] - cg) * crestLift;
-        cb += (cDeep[2] - cb) * crestLift;
-        /* …and then the piste is lifted off the top of the snow axis entirely.
-
-           Everything above this line is a scale of what the weather has done to
-           the ground, and `deep` is its bright end. A maintained run is not on
-           that scale at all, so it gets its own stop above it — and it is taken
-           after the relief terms rather than before them, because `crestLift`
-           pulls towards `deep` and would otherwise spend part of its lift
-           dragging the piste back down its own axis.
-
-           Scaled by `pisteCover`, so the corduroy is the brightest of it, the
-           corridor around the ribbon most of the way there, and the fade dies
-           exactly where the mask does — which is the same edge the crown is
-           standing on, so the tonal step and the geometric one are one step. */
-        const lift = pisteCover * P.groomLift;
-        if (lift > 0.002) {
-          cr += (cGroom[0] - cr) * lift;
-          cg += (cGroom[1] - cg) * lift;
-          cb += (cGroom[2] - cb) * lift;
-        }
-        const cavityValue = 1 - cavityShade * 0.70;
-        cr *= cavityValue;
-        cg *= cavityValue;
-        cb *= cavityValue;
-
-        const rockKind = smoothstep(0.34, 0.72, band);
-        if (rock > 0.002) {
-          /* Rock catches the light along its ridges and holds none of it in
-             the clefts, which is most of what makes a cliff read as rock.
-
-             And which rock is the band's decision, so a stretch of mountain
-             is made of one stone all the way through instead of every cliff
-             on the hill being the same grey. That was the complaint that is
-             hardest to argue with: a single stone colour makes a hundred
-             separate cliffs read as one repeated asset. */
-          const mottle = noise2(wx * 0.16, wz * 0.16, 11);
-          const d0 = cSlate[0], d1 = cSlate[1], w0 = cIron[0], w1 = cIron[1];
-          const lo0 = d0[0] + (w0[0] - d0[0]) * rockKind;
-          const lo1 = d0[1] + (w0[1] - d0[1]) * rockKind;
-          const lo2 = d0[2] + (w0[2] - d0[2]) * rockKind;
-          const hi0 = d1[0] + (w1[0] - d1[0]) * rockKind;
-          const hi1 = d1[1] + (w1[1] - d1[1]) * rockKind;
-          const hi2 = d1[2] + (w1[2] - d1[2]) * rockKind;
-          cr += (lo0 + (hi0 - lo0) * mottle - cr) * rock;
-          cg += (lo1 + (hi1 - lo1) * mottle - cg) * rock;
-          cb += (lo2 + (hi2 - lo2) * mottle - cb) * rock;
-        }
-
-        /* Thin wind slab and machine-compacted piste carry the sharper ice
-           reflection. Deep snow keeps a small value because its crystal
-           facets still return the sun; exposed rock gets none. This stays a
-           continuous vertex field, so the light travels in broad patches
-           rather than sparkling at screen-pixel frequency. */
-        const reliefReflect = clamp01(1 - cavityShade * 2.1 + crestLift * 1.4);
-        outSurface[q] = clamp01(0.16 + icy * 0.78 + groomed * 0.16)
-          * (1 - rock) * reliefReflect;
-        // Corduroy belongs only to snow. Keeping rock out here makes the
-        // fragment mask independent of the palette's luminance threshold.
-        outSurface[q + 1] = groomed * (1 - rock);
-        outSurface[q + 2] = rock;
-        outSurface[q + 3] = rockKind;
-        const frameRightSide = wx >= nearCentre;
-        outGroomFrame[g] = frameRightSide ? frameRight : frameLeft;
-        outGroomFrame[g + 1] = frameRightSide ? frameSlopeRight : frameSlopeLeft;
-
-        outColors[p] = cr;
-        outColors[p + 1] = cg;
-        outColors[p + 2] = cb;
-      }
-    }
-  }
-
-  function fill(
-    ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
-  ) {
-    prepareHeightReuse(ax, az);
-    fillHeightRows(ax, az, 0, vertsZ);
-    fillSurfaceRows(
-      ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
-      0, vertsZ,
-    );
-  }
-
+  /* The lattice swaps arrays rather than copying them, at every commit and
+     whenever a build comes back from the worker, so an upload first points
+     the attributes at whatever it holds now. */
   function publish() {
-    geometry.attributes.position.needsUpdate = true;
-    geometry.attributes.aSmoothNormal.needsUpdate = true;
-    geometry.attributes.color.needsUpdate = true;
-    geometry.attributes.aSurface.needsUpdate = true;
-    geometry.attributes.aGroomFrame.needsUpdate = true;
-    geometry.attributes.aMorphDY.needsUpdate = true;
-    geometry.attributes.aMorphDN.needsUpdate = true;
-    geometry.attributes.aMorphDC.needsUpdate = true;
-    geometry.attributes.aMorphDS.needsUpdate = true;
+    const a = geometry.attributes;
+    a.position.array = lattice.positions;
+    a.aSmoothNormal.array = lattice.normals;
+    a.color.array = lattice.colors;
+    a.aSurface.array = lattice.surface;
+    a.aGroomFrame.array = lattice.groomFrame;
+    a.position.needsUpdate = true;
+    a.aSmoothNormal.needsUpdate = true;
+    a.color.needsUpdate = true;
+    a.aSurface.needsUpdate = true;
+    a.aGroomFrame.needsUpdate = true;
+    uploadMorph();
   }
 
   /* Each half takes a fifth of a second: long enough that a distant slope
@@ -4412,19 +4553,21 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const easeMorph = (t) => t * t * (3 - 2 * t);
   // Nothing to walk from: a cold fill shows its own surface at once.
   function settleMorph() {
-    morphDY.fill(0);
-    morphDN.fill(0);
-    morphDC.fill(0);
-    morphDS.fill(0);
+    lattice.clearMorph();
     morphT = 1;
     morphPhase = 0;
     morphK.value = 0;
   }
   function uploadMorph() {
-    geometry.attributes.aMorphDY.needsUpdate = true;
-    geometry.attributes.aMorphDN.needsUpdate = true;
-    geometry.attributes.aMorphDC.needsUpdate = true;
-    geometry.attributes.aMorphDS.needsUpdate = true;
+    const a = geometry.attributes;
+    a.aMorphDY.array = lattice.morphDY;
+    a.aMorphDN.array = lattice.morphDN;
+    a.aMorphDC.array = lattice.morphDC;
+    a.aMorphDS.array = lattice.morphDS;
+    a.aMorphDY.needsUpdate = true;
+    a.aMorphDN.needsUpdate = true;
+    a.aMorphDC.needsUpdate = true;
+    a.aMorphDS.needsUpdate = true;
   }
 
   // Six-metre anchor steps keep the fine lattice fixed in world space.
@@ -4432,7 +4575,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   // Adapt rebuild cadence to CPU duty; a two-stride cap preserves the
   // collision-exact near field. Keep the old console probe harmless.
-  const probe = { snapMorph: false };
+  // `buildHere` keeps every re-anchor on the main thread, worker or not.
+  const probe = { snapMorph: false, buildHere: false };
 
   const ANCHOR_MUL_MAX = 2;
   const ANCHOR_DWELL = 3;    // commits to hold a level before moving again
@@ -4447,13 +4591,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let leadZ = NaN;
   let leadVX = 0;
   let leadVZ = 0;
+  let frameMs = 1000 / 60;
   let anchorMul = 1;
   let anchorDwell = 0;
   let buildStartedAt = 0;
   let buildIdleFrom = 0;
 
   // Fill the next lattice in short row batches while the current one stays
-  // fixed in world space. Shadow tiles are prepared separately in a worker.
+  // fixed in world space, whenever it is built here rather than in the
+  // worker (see below). Shadow tiles are prepared in a worker of their own.
   const BUILD_BUDGET_MS = 4.0;
   /* …and twice that while the rider is outrunning the fine lattice, which
      only flow speeds do. Hurrying the morph instead shortened the cycle as
@@ -4467,28 +4613,186 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let build = null;
   const clockNow = () => (globalThis.performance?.now?.() ?? Date.now());
 
+  /* THE BUILD, OFF THE MAIN THREAD.
+
+     A re-anchor is some thirty milliseconds of arithmetic on a fast laptop:
+     heights, surface and both halves of the geomorph for a hundred and
+     thirty-six thousand vertices, which the budget above spread over a
+     dozen frames, four milliseconds at a time, every time the anchor moved.
+     Nothing else on the main thread cost as much, and on a phone it cost
+     several times more. So a module worker builds it: `terrain-worker.js`
+     runs the same `createLattice` over the same seeded modules, from a
+     replica of this lattice, and posts the finished arrays back. Swapping
+     them in costs nothing, and they are the bits the stages below would
+     have computed. The stages stay, for browsers without module workers, a
+     worker that has failed, and a build that would not arrive in time.
+
+     In time means before the rider outruns the live lattice. A result still
+     has to wait out any follow that is playing and then play its own lead,
+     and all of that before the rider is three quarters of the uniform field
+     from the anchor, where `update` calls it outrunning. If the worker's
+     usual turnaround would miss that and a build here would not, the build
+     is finished here, at once: one long frame is cheaper than the board
+     running out onto coarse rings. If neither would make it, which only
+     flow speeds manage, the worker is still the sooner of the two, and no
+     frame is spent. A worker that goes quiet for a second hands its builds
+     back to the rows-a-frame stages, and after five it is retired. */
+  const MESH_FIRST_LATENCY_MS = 250; // before any answer: module load, a cold replica
+  const MESH_STALL_MS = 1000;        // past this an answer is not coming soon,
+  const MESH_DEAD_MS = 5000;         // and past this not at all: retire the worker
+  let meshWorker = null;
+  let meshJobId = 0;
+  const meshJobs = new Map();        // posted and not yet answered, by id
+  let meshSpare = [];                // arrays this thread is done with, for the worker to refill
+  let meshLatency = 0;               // post to answer, smoothed
+  let meshBuildMs = 0;               // the worker's own time per build, smoothed
+  let meshLateBuilds = 0;            // builds finished here because it would have been late
+
+  function startMeshWorker() {
+    if (typeof Worker === 'undefined') return;
+    try {
+      meshWorker = new Worker(
+        new URL('./terrain-worker.js', import.meta.url), { type: 'module' },
+      );
+      meshWorker.onmessage = onMeshResult;
+      meshWorker.onerror = retireMeshWorker;
+      meshWorker.onmessageerror = retireMeshWorker;
+      // The grid and the palette as this thread has them; see `terrainLayout`.
+      meshWorker.postMessage({ layout: terrainLayout(), palette });
+    } catch {
+      retireMeshWorker();
+    }
+  }
+
+  function retireMeshWorker() {
+    meshWorker?.terminate();
+    meshWorker = null;
+    meshJobs.clear();
+    meshSpare = [];
+    // A build that was waiting on it carries on here, as builds always did.
+    if (build) build.job = null;
+  }
+
+  function spend(arrays) {
+    if (meshWorker) meshSpare.push(...arrays);
+  }
+
+  function postMeshJob(next) {
+    if (!meshWorker || probe.buildHere) return;
+    const job = { id: ++meshJobId, postedAt: clockNow(), result: null };
+    const spare = [...new Set(meshSpare.map((a) => a.buffer))]
+      .filter((buffer) => buffer.byteLength > 0);
+    meshSpare = [];
+    meshJobs.set(job.id, job);
+    next.job = job;
+    try {
+      meshWorker.postMessage({
+        id: job.id,
+        seed: getWorldSeed(),
+        ax: next.ax,
+        az: next.az,
+        ay: next.ay,
+        morph: next.morph,
+        // The live surface, which the geomorph walks from.
+        from: { ax: anchorX, az: anchorZ, ay: anchorY },
+        spare,
+      }, spare);
+    } catch {
+      retireMeshWorker();
+    }
+  }
+
+  function onMeshResult(event) {
+    const result = event.data;
+    const job = meshJobs.get(result.id);
+    if (!job) return;
+    meshJobs.delete(result.id);
+    const latency = clockNow() - job.postedAt;
+    meshLatency = meshLatency ? meshLatency + (latency - meshLatency) * 0.25 : latency;
+    meshBuildMs = meshBuildMs
+      ? meshBuildMs + (result.buildMs - meshBuildMs) * 0.25 : result.buildMs;
+    if (build?.job === job) {
+      job.result = result;
+      return;
+    }
+    // Answered after it stopped being wanted (a restart, a new seed, or a
+    // build finished here first): only its arrays are still worth anything.
+    spend([result.heights, result.runnelCuts, ...result.surface,
+      ...(result.lead ?? []), ...(result.follow ?? [])]);
+  }
+
+  // The worker's build, taken in where stages 0 to 2 would have left it.
+  function installMeshResult(next) {
+    const { result } = next.job;
+    next.job = null;
+    spend(lattice.adopt(result, next.ax, next.az));
+    next.lead = result.lead;
+    next.follow = result.follow;
+    next.busy += result.buildMs;
+    next.stage = next.morph ? 3 : 2;
+    next.row = 0;
+  }
+
+  /* Whether a build still waiting on the worker should go on here instead,
+     and with what budget: 0 to keep waiting, `budget` to carry on a few
+     rows a frame as builds always did, Infinity to finish it now. */
+  function meshTakeOver(next, budget) {
+    const now = clockNow();
+    const waited = now - next.job.postedAt;
+    // The worker answers in order, so its silence dates from the oldest job
+    // still unanswered, which may be one a build here has already replaced.
+    let silent = waited;
+    for (const job of meshJobs.values()) silent = Math.max(silent, now - job.postedAt);
+    if (silent > MESH_DEAD_MS) {
+      retireMeshWorker();
+      return budget;
+    }
+    // An answer already overdue is expected to keep it up for half as long
+    // again as it has been waited for; a worker that has stalled, for ever.
+    const expected = meshLatency || MESH_FIRST_LATENCY_MS;
+    const stalled = silent > Math.max(4 * expected, MESH_STALL_MS);
+    const eta = stalled ? Infinity : Math.max(expected - waited, waited / 2);
+    // What a result still has to sit through: the rest of any follow that is
+    // playing, and its own lead.
+    const need = (1 - morphT + (next.morph ? 1 : 0)) * MORPH_SECONDS * 1000;
+    // When the rider, carrying on as now, is outrunning the live lattice.
+    const edge = TERRAIN.uniformNear * 0.75;
+    const rx = leadX - anchorX;
+    const rz = leadZ - anchorZ;
+    const rv = rx * leadVX + rz * leadVZ;
+    const vv = leadVX * leadVX + leadVZ * leadVZ;
+    const inside = rx * rx + rz * rz - edge * edge;
+    const left = inside >= 0 ? 0
+      : vv > 1e-4 ? (Math.sqrt(rv * rv - vv * inside) - rv) / vv * 1000 : Infinity;
+    if (eta + need <= left) return 0;
+    const here = meshBuildMs || expected;
+    if (!stalled) return here + need <= left ? Infinity : 0;
+    // A worker that has gone quiet hands back to the rows-a-frame build,
+    // unless only finishing at once would still be in time.
+    const sliced = Math.ceil(here / budget) * frameMs;
+    return sliced + need > left && here + need <= left ? Infinity : budget;
+  }
+
+  startMeshWorker();
+
   function beginBuild(ax, az, ay) {
     // The snapped lattice belongs to the build's own anchor and holds still
     // for its whole amortised run — the live surface never reads it.
-    prepareHeightReuse(ax, az);
-    build = { ax, az, ay, stage: 0, row: 0, morph: morphSource && !probe.snapMorph, busy: 0 };
+    lattice.prepareHeightReuse(ax, az, anchorX, anchorZ, anchorSeed);
+    build = {
+      ax, az, ay, stage: 0, row: 0, morph: lattice.morphSource && !probe.snapMorph,
+      busy: 0, job: null, lead: null, follow: null,
+    };
     buildStartedAt = clockNow();
+    postMeshJob(build);
   }
 
   function commitBuild(next) {
     // Publish one complete surface atomically. The dyadic world lattice does
     // not morph: copying/translation through a third buffer only cost time
     // and exposed the previous surface for an extra frame at each anchor.
-    [positions, buildPositions] = [buildPositions, positions];
-    [normals, buildNormals] = [buildNormals, normals];
-    [colors, buildColors] = [buildColors, colors];
-    [surface, buildSurface] = [buildSurface, surface];
-    [groomFrame, buildGroomFrame] = [buildGroomFrame, groomFrame];
-    geometry.attributes.position.array = positions;
-    geometry.attributes.aSmoothNormal.array = normals;
-    geometry.attributes.color.array = colors;
-    geometry.attributes.aSurface.array = surface;
-    geometry.attributes.aGroomFrame.array = groomFrame;
+    if (next.follow) spend(lattice.adoptMorph(next.follow));
+    lattice.commitSurface();
     anchorX = next.ax;
     anchorZ = next.az;
     anchorY = next.ay;
@@ -4527,10 +4831,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   /* The stages: 0 heights, 1 surface, 2 the lead's deltas, 3 waiting for
      the last follow to finish, 4 the lead playing, 5 folding it in, 6 the
      follow's deltas, then the swap. A build with nothing to morph from goes
-     from 1 to the swap once the last follow has finished. Busy time is the
-     work stages' own, for the anchor's duty cycle: waiting out a morph is
-     not load. */
+     from 1 to the swap once the last follow has finished. A build from the
+     worker arrives at 3 (or 2) with 5 and 6 done as well, and swaps as soon
+     as its lead has played. Busy time is the work stages' own, or the
+     worker's, for the anchor's duty cycle: waiting out a morph is not load. */
   function startLead() {
+    if (build.lead) spend(lattice.adoptMorph(build.lead));
     uploadMorph();
     morphPhase = 1;
     morphT = 0;
@@ -4540,6 +4846,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function advanceBuild(budget = BUILD_BUDGET_MS) {
     if (!build) return;
+    if (build.job) {
+      if (build.job.result) {
+        installMeshResult(build);
+      } else {
+        const takeOver = meshTakeOver(build, budget);
+        if (!takeOver) return;
+        // Its answer will be thrown away when it lands.
+        meshLateBuilds++;
+        build.job = null;
+        budget = takeOver;
+      }
+    }
     if (build.stage === 2 && !build.morph) {
       if (morphT >= 1) commitBuild(build);
       return;
@@ -4550,6 +4868,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
     if (build.stage === 4) {
       if (morphT < 1) return;
+      if (build.follow) {
+        commitBuild(build);
+        return;
+      }
       build.stage = 5;
       build.row = 0;
     }
@@ -4557,22 +4879,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const deadline = started + budget;
     do {
       const rowTo = Math.min(vertsZ, build.row + BUILD_BATCH_ROWS);
-      if (build.stage === 0) {
-        fillHeightRows(build.ax, build.az, build.row, rowTo);
-      } else if (build.stage === 1) {
-        fillSurfaceRows(
-          build.ax, build.az, build.ay,
-          buildPositions, buildNormals, buildColors, buildSurface,
-          buildGroomFrame,
-          build.row, rowTo,
-        );
-      } else if (build.stage === 2) {
-        fillLeadRows(build.row, rowTo);
-      } else if (build.stage === 5) {
-        foldLeadRows(build.row, rowTo);
-      } else {
-        fillMorphRows(build.row, rowTo);
-      }
+      lattice.buildRows(build.stage, build.ax, build.az, build.ay, build.row, rowTo);
       build.row = rowTo;
 
       if (build.row >= vertsZ) {
@@ -4596,6 +4903,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
     leadX = x;
     leadZ = z;
+    if (dt > 0) frameMs = dt * 1000;
     const outrun = Math.hypot(x - anchorX, z - anchorZ) > TERRAIN.uniformNear * 0.75;
     if (morphT < 1) {
       morphT = Math.min(1, morphT + Math.max(0, dt) / MORPH_SECONDS);
@@ -4644,7 +4952,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorSeed = getWorldSeed();
       mesh.position.set(ax, ay, az);
       setTileOrigins(ax, az);
-      fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+      lattice.fill(ax, az, ay);
       settleMorph();
       publish();
       return;
@@ -4708,7 +5016,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
        lattice's own surface. So the abandoned build takes them down with
        it: a fresh fill, the same as a moved anchor. */
     if (!sameAnchor || morphPhase === 1) {
-      fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+      lattice.fill(ax, az, ay);
       settleMorph();
       publish();
     } else if (morphT < 1) {
@@ -4750,8 +5058,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     probe,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing: morphT < 1, morph: +morphK.value.toFixed(3), morphPhase, anchorMul,
-      reusedHeights, reusedSurfaces,
+      reusedHeights: lattice.reusedHeights,
+      reusedSurfaces: lattice.reusedSurfaces,
       chapter: chapterNameAt(anchorZ),
+      worker: {
+        running: !!meshWorker,
+        latency: +meshLatency.toFixed(1),
+        buildMs: +meshBuildMs.toFixed(1),
+        pending: meshJobs.size,
+        lateBuilds: meshLateBuilds,
+      },
       shade: {
         page: [shadePageSamplesX, shadePageSamplesZ],
         span: [shadePageSpanX, shadePageSpanZ],
