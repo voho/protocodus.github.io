@@ -73,6 +73,27 @@ function steer(c, ship, dir) {
   c.roll = off > 20 * deg ? clamp(Math.atan2(d[0], d[1]) * 1.5, -1, 1) : 0;
 }
 
+/* How far along the sweep from p0, `reach` metres along dir, a ball of
+   radius R first touches a rock or one of the `near` hulls (1: nothing). */
+function clearance(field, near, p0, dir, reach, R) {
+  addScaled(tmpB, p0, dir, reach);
+  const hit = field.sweepSphere(p0, tmpB, R);
+  let t = hit ? hit.t : 1;
+  for (const e of near) {
+    const h = sweepCompound(e, p0, tmpB, R);
+    if (h && h.t < t) t = h.t;
+  }
+  return t;
+}
+
+// Every pilot avoids twenty times a second, and one in danger tries
+// twenty-six whiskers: their directions are worked out in these rather
+// than in new arrays.
+const NONE = [], WHISKERS = [0, 25, 50, 80], Y_AXIS = [0, 1, 0], X_AXIS = [1, 0, 0];
+const vHatS = [0, 0, 0], upS = [0, 0, 0], rightS = [0, 0, 0], downS = [0, 0, 0], leftS = [0, 0, 0];
+const bentS = [0, 0, 0], dirS = [0, 0, 0], bestS = [0, 0, 0], localS = [0, 0, 0], awayS = [0, 0, 0];
+const nearS = [], aroundS = [];
+
 /* Avoidance. Returns the direction to fly and fills strafe, lift and
    throttle overrides when the danger is close. Large ships (ctx.larges)
    count as obstacles exactly as rocks do. */
@@ -83,48 +104,42 @@ function avoid(me, ctx, want, c) {
   const reach = Math.max(120, speed * horizon) + 40;
   const R = me.radius + 14;
   const p0 = ship.pos;
-  const vHat = speed > 3 ? scale([0, 0, 0], ship.vel, 1 / speed) : forward([0, 0, 0], ship);
-  const near = [];
-  for (const e of ctx.larges ?? []) {
+  const vHat = speed > 3 ? scale(vHatS, ship.vel, 1 / speed) : forward(vHatS, ship);
+  const near = nearS;
+  near.length = 0;
+  for (const e of ctx.larges ?? NONE) {
     if (!e.alive || e === me || e.id === me.ignoreId) continue;
     const dd = Math.hypot(e.ship.pos[0] - p0[0], e.ship.pos[1] - p0[1], e.ship.pos[2] - p0[2]);
     if (dd < e.radius + reach + R) near.push(e);
   }
-  const clearance = dir => {
-    addScaled(tmpB, p0, dir, reach);
-    const hit = field.sweepSphere(p0, tmpB, R);
-    let t = hit ? hit.t : 1;
-    for (const e of near) {
-      const h = sweepCompound(e, p0, tmpB, R);
-      if (h && h.t < t) t = h.t;
-    }
-    return t;
-  };
-  const tVel = clearance(vHat);
-  const tWant = clearance(want);
+  const tVel = clearance(field, near, p0, vHat, reach, R);
+  const tWant = clearance(field, near, p0, want, reach, R);
   let chosen = want;
   if (tVel < 1 || tWant < 1) {
     // Whiskers: the wanted direction and the current velocity, each bent
     // 25°, 50° and 80° four ways in the ship's frame.
-    const up = qRotate([0, 0, 0], ship.q, [0, 1, 0]);
-    const right = qRotate([0, 0, 0], ship.q, [1, 0, 0]);
-    let best = -Infinity;
-    for (const base of [want, vHat]) {
-      for (const angle of [0, 25, 50, 80]) {
-        const a = angle * deg;
-        const axes = angle === 0 ? [up] : [up, right, scale([0, 0, 0], up, -1), scale([0, 0, 0], right, -1)];
-        for (const axis of axes) {
-          const dir = normalize([0, 0, 0], addScaled([0, 0, 0], scale([0, 0, 0], base, Math.cos(a)), axis, Math.sin(a)));
-          const t = clearance(dir);
+    const up = qRotate(upS, ship.q, Y_AXIS);
+    const right = qRotate(rightS, ship.q, X_AXIS);
+    const down = scale(downS, up, -1), left = scale(leftS, right, -1);
+    let best = -Infinity, found = false;
+    for (let b = 0; b < 2; b++) {
+      const base = b === 0 ? want : vHat;
+      for (const angle of WHISKERS) {
+        const a = angle * deg, cos = Math.cos(a), sin = Math.sin(a);
+        for (let k = 0; k < (angle === 0 ? 1 : 4); k++) {
+          const axis = k === 0 ? up : k === 1 ? right : k === 2 ? down : left;
+          const dir = normalize(dirS, addScaled(bentS, scale(bentS, base, cos), axis, sin));
+          const t = clearance(field, near, p0, dir, reach, R);
           const score = t * 3 + dot(dir, want) * 0.6 + dot(dir, vHat) * 0.9;
-          if (score > best) { best = score; chosen = dir; }
+          if (score > best) { best = score; bestS[0] = dir[0]; bestS[1] = dir[1]; bestS[2] = dir[2]; found = true; }
         }
       }
     }
+    if (found) chosen = [bestS[0], bestS[1], bestS[2]];
     const impact = tVel * reach / Math.max(speed, 1);
     if (impact < 1.4) {
       // Close: brake and slide toward the clear side with the lateral thrusters.
-      const local = qRotateInv([0, 0, 0], ship.q, chosen);
+      const local = qRotateInv(localS, ship.q, chosen);
       c.strafe = clamp(local[0] * 3, -1, 1);
       c.lift = clamp(local[1] * 3, -1, 1);
       c.throttleSet = impact < 0.8 ? -0.35 : 0.15;
@@ -132,13 +147,15 @@ function avoid(me, ctx, want, c) {
     }
   }
   // Anything already alongside: push straight away from it.
-  for (const h of field.queryRadius(p0, me.radius + 30)) {
-    const away = sub([0, 0, 0], p0, h.pos);
-    const local = qRotateInv([0, 0, 0], ship.q, normalize(away, away));
+  aroundS.length = 0;
+  for (const h of field.queryRadius(p0, me.radius + 30, aroundS)) {
+    const away = sub(awayS, p0, h.pos);
+    const local = qRotateInv(localS, ship.q, normalize(away, away));
     c.strafe = clamp(c.strafe + local[0] * 2, -1, 1);
     c.lift = clamp(c.lift + local[1] * 2, -1, 1);
     if (local[2] > 0.3) c.throttleSet = Math.min(c.throttleSet ?? 1, -0.35);
   }
+  aroundS.length = 0;
   return chosen;
 }
 

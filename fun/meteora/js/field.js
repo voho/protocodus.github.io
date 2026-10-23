@@ -251,6 +251,21 @@ function sharedBelt(seed, cfg) {
 
 /* ---------- the live field ---------- */
 
+// A query's candidates, ascending, in place. They are distinct, so this is
+// exactly Array#sort's order, without the copy it makes of the list on
+// every call — and every ship asks for its contacts every step. The lists
+// are a few cells' worth; a long one still goes to Array#sort.
+function sortIds(ids) {
+  const n = ids.length;
+  if (n > 48) { ids.sort((a, b) => a - b); return; }
+  for (let i = 1; i < n; i++) {
+    const v = ids[i];
+    let j = i - 1;
+    while (j >= 0 && ids[j] > v) { ids[j + 1] = ids[j]; j--; }
+    ids[j + 1] = v;
+  }
+}
+
 export function createField(seed, cfg = FIELD) {
   const belt = sharedBelt(seed, cfg);
   const rng = makeRng((seed * 7919 + 17) >>> 0);
@@ -296,7 +311,7 @@ export function createField(seed, cfg = FIELD) {
     nextStamp();
     collectBox(p[0] - r, p[1] - r, p[2] - r, p[0] + r, p[1] + r, p[2] + r);
     for (const i of belt.big) if (stamp[i] !== stampId) { stamp[i] = stampId; candidates.push(i); }
-    candidates.sort((a, b) => a - b);
+    sortIds(candidates);
     for (const i of candidates) {
       if (!field.alive[i]) continue;
       const dx = belt.pos[3 * i] - p[0], dy = belt.pos[3 * i + 1] - p[1], dz = belt.pos[3 * i + 2] - p[2];
@@ -398,7 +413,7 @@ export function createField(seed, cfg = FIELD) {
     nextStamp();
     collectBox(p[0] - r, p[1] - r, p[2] - r, p[0] + r, p[1] + r, p[2] + r);
     for (const i of belt.big) if (stamp[i] !== stampId) { stamp[i] = stampId; candidates.push(i); }
-    candidates.sort((a, b) => a - b);
+    sortIds(candidates);
     for (const i of candidates) {
       if (!field.alive[i]) continue;
       const cx = belt.pos[3 * i], cy = belt.pos[3 * i + 1], cz = belt.pos[3 * i + 2];
@@ -475,7 +490,9 @@ export function createField(seed, cfg = FIELD) {
         Math.max(ax, bx) + r, Math.max(ay, by) + r, Math.max(az, bz) + r);
     }
     for (const i of belt.big) if (stamp[i] !== stampId) { stamp[i] = stampId; candidates.push(i); }
-    let best = Infinity, ref = null, centre = null;
+    // The nearest touch so far, by index (a belt rock) or rock (a fragment);
+    // what it hit is written out once, at the end.
+    let best = Infinity, hitIndex = -1, hitRock = null;
     for (const i of candidates) {
       if (!field.alive[i]) continue;
       const cx = belt.pos[3 * i], cy = belt.pos[3 * i + 1], cz = belt.pos[3 * i + 2];
@@ -484,9 +501,8 @@ export function createField(seed, cfg = FIELD) {
       // A pebble against a wide sweep: its shape is lost in the sweep's own size.
       if (belt.collide[i] < 0.25 * r) { t = span[0]; NL[0] = NaN; }
       else { staticFrame(i); t = march(SHAPES[belt.type[i]], belt.radius[i], cx, cy, cz, p0, d, length, span[0], Math.min(span[1], best), r); }
-      if (t >= 0 && (t < best || (t === best && ref && ref.kind === 'static' && i < ref.index))) {
-        best = t; centre = [cx, cy, cz];
-        ref = { kind: 'static', index: i, pos: centre, radius: belt.radius[i] };
+      if (t >= 0 && (t < best || (t === best && hitIndex >= 0 && i < hitIndex))) {
+        best = t; hitIndex = i;
         if (Number.isNaN(NL[0])) hitNormal[0] = NaN; else turn(hitNormal, NL[0], NL[1], NL[2], 1);
       }
     }
@@ -495,12 +511,19 @@ export function createField(seed, cfg = FIELD) {
       dynamicFrame(rock);
       const t = march(SHAPES[rock.type], rock.radius, rock.pos[0], rock.pos[1], rock.pos[2], p0, d, length, span[0], Math.min(span[1], best), r);
       if (t >= 0 && t < best) {
-        best = t; centre = rock.pos;
-        ref = { kind: 'dynamic', index: rock.id, rock, pos: rock.pos, radius: rock.radius };
+        best = t; hitRock = rock;
         turn(hitNormal, NL[0], NL[1], NL[2], 1);
       }
     }
-    if (!ref) return null;
+    let ref, centre;
+    if (hitRock) {
+      centre = hitRock.pos;
+      ref = { kind: 'dynamic', index: hitRock.id, rock: hitRock, pos: hitRock.pos, radius: hitRock.radius };
+    } else if (hitIndex >= 0) {
+      const i = hitIndex;
+      centre = [belt.pos[3 * i], belt.pos[3 * i + 1], belt.pos[3 * i + 2]];
+      ref = { kind: 'static', index: i, pos: centre, radius: belt.radius[i] };
+    } else return null;
     const point = [p0[0] + d[0] * best, p0[1] + d[1] * best, p0[2] + d[2] * best];
     const normal = Number.isNaN(hitNormal[0])
       ? normalize([0, 0, 0], [point[0] - centre[0], point[1] - centre[1], point[2] - centre[2]])
