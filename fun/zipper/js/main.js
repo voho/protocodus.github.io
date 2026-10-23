@@ -76,7 +76,7 @@ async function boot() {
     stage.orbit(0.1);
     announce();
     const finished = puzzle;
-    setTimeout(() => { if (puzzle === finished) shell.showWin({ ms, assisted }); }, 1500);
+    setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
   }
 
   function step(cell) {
@@ -180,11 +180,11 @@ async function boot() {
     onHint() {
       if (!board || solved) return;
       const next = hint(puzzle, path);
+      assisted = true;
       if (next.type === 'cut') {
         cutTo(next.keep - 1);
         shell.toast('The line had gone wrong there, so it stepped back.');
       } else if (next.type === 'extend') {
-        assisted = true;
         for (const cell of next.cells) path.push(cell);
         board.setPath(path);
         shell.begin();

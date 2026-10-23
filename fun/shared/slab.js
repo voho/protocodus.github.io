@@ -87,14 +87,19 @@ export function clueTexture({ shape, number }, colour = '#f3f4f4') {
   });
 }
 
+const planes = new Map();
+
 /* A flat label lying on a slab, `size` across, brighter than one for
-   `intensity` above one (which the bloom picks up). */
+   `intensity` above one (which the bloom picks up). The plane is shared
+   by every label of that size, so a board has only its textures and
+   materials to release. */
 export function labelMesh(texture, size, intensity = 1) {
+  if (!planes.has(size)) planes.set(size, new THREE.PlaneGeometry(size, size));
   const material = new THREE.MeshBasicMaterial({
     map: texture, transparent: true, depthWrite: false,
     color: new THREE.Color(intensity, intensity, intensity),
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+  const mesh = new THREE.Mesh(planes.get(size), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.renderOrder = 2;
   return mesh;

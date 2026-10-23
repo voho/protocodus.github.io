@@ -45,6 +45,9 @@ async function boot() {
   let solved = false;
   let assisted = false;
   let drag = null;
+  // Keyboard: a cursor cell, and the cell a patch is being grown from.
+  let cursor = -1;
+  let keyAnchor = -1;
 
   const inside = (patch, cell) => {
     const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
@@ -82,6 +85,8 @@ async function boot() {
     solved = false;
     assisted = false;
     drag = null;
+    cursor = -1;
+    keyAnchor = -1;
     stage.orbit(0);
     announce();
   }
@@ -95,7 +100,7 @@ async function boot() {
     stage.orbit(0.1);
     announce();
     const finished = puzzle;
-    setTimeout(() => { if (puzzle === finished) shell.showWin({ ms, assisted }); }, 1600);
+    setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1600);
   }
 
   function place(patch, record = true) {
@@ -168,9 +173,6 @@ async function boot() {
   canvas.addEventListener('pointerleave', () => { if (!drag) board?.hover(-1); });
   canvas.addEventListener('blur', () => board?.hover(-1));
 
-  // Keyboard: a cursor cell, a patch grown from where Enter was pressed.
-  let cursor = -1;
-  let keyAnchor = -1;
   canvas.addEventListener('keydown', (event) => {
     if (!board || solved) return;
     const n = puzzle.size;

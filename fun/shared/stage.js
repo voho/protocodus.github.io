@@ -152,6 +152,7 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   let halfW = 3, halfD = 3, width = 1, height = 1;
   const listeners = new Set();
   let running = false, last = 0, time = 0, flash = 0;
+  let pendingFrame = 0;
   /* The table is still most of the time. While nothing moves it is drawn
      a few times a second (the dust and the sway drift on), and every
      change wakes it up to the full frame rate for a moment. */
@@ -203,7 +204,7 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
 
   function frame(now) {
     if (!running) return;
-    requestAnimationFrame(frame);
+    pendingFrame = requestAnimationFrame(frame);
     // Loose enough that the idle sway's lag behind its target still counts as still.
     const settled = Math.abs(rig.target.distance - rig.distance) < 0.003
       && Math.abs(rig.target.azimuth - rig.azimuth) < 0.003 && Math.abs(rig.target.elevation - rig.elevation) < 0.003;
@@ -310,9 +311,11 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
       running = true;
       last = performance.now();
       stage.wake(1);
-      requestAnimationFrame(frame);
+      // A frame queued before a stop would otherwise run alongside this one.
+      cancelAnimationFrame(pendingFrame);
+      pendingFrame = requestAnimationFrame(frame);
     },
-    stop() { running = false; },
+    stop() { running = false; cancelAnimationFrame(pendingFrame); },
   };
 
   window.addEventListener('pointermove', (event) => {
