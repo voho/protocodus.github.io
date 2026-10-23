@@ -696,6 +696,8 @@ export class Renderer {
     this.rankBadges = new Map();
     this.lastMinimap = -Infinity;
     this.resetFrameState();
+    // The tactical map can change size without a window resize (layout breakpoints, collapsed panels).
+    if (minimapCanvas && globalThis.ResizeObserver) { this.minimapWatch = new ResizeObserver(() => { this.minimapBounds = null; this.lastMinimap = -Infinity; }); this.minimapWatch.observe(minimapCanvas); }
     // Screen shake is render-only and follows the operating system's reduced-motion preference.
     this.reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     assetsReady.then(() => { if (this.groundImage !== terrainImages.ground) this.terrainSource = null; });
@@ -775,7 +777,7 @@ export class Renderer {
       for (const badge of this.rankBadges.values()) badge.width = badge.height = 0;
       this.rankBadges.clear();
     }
-    this.dpr = dpr;
+    this.dpr = dpr; this.minimapBounds = null;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -799,6 +801,7 @@ export class Renderer {
     this.terrainSource = this.groundImage = null;
     this.fogTint = this.minimapBase = this.miniTiles = null;
     this.knownOre = this.knownMineralTypes = this.fogNoise = null;
+    this.oreState = this.oreGrid = this.oreTypes = this.fogImage = this.miniImage = this.minimapBounds = null;
     this.fogVisible = this.fogExplored = null;
     this.rockProps = []; this.propRows = []; this.scenery = [];
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
@@ -1620,13 +1623,15 @@ export class Renderer {
     if (!changed) changed = !sameBytes(visible, this.fogVisible) || !sameBytes(explored, this.fogExplored);
     if (!changed) return false;
     this.fogVisible = visible.slice(); this.fogExplored = explored.slice();
-    const low = this.fogLow.getContext('2d'), data = low.createImageData(state.width, state.height);
-    for (let i = 0; i < visible.length; i++) {
-      const p = i * 4;
-      data.data[p] = 12; data.data[p + 1] = 19; data.data[p + 2] = 27;
-      data.data[p + 3] = visible[i] ? 0 : explored[i] ? 162 : 255;
+    // One image serves every update: its colour is fixed when it is made, and only the coverage alpha changes.
+    const low = this.fogLow.getContext('2d');
+    if (this.fogImage?.width !== state.width || this.fogImage.height !== state.height) {
+      this.fogImage = low.createImageData(state.width, state.height);
+      for (let p = 0; p < this.fogImage.data.length; p += 4) { this.fogImage.data[p] = 12; this.fogImage.data[p + 1] = 19; this.fogImage.data[p + 2] = 27; }
     }
-    low.putImageData(data, 0, 0);
+    const data = this.fogImage.data;
+    for (let i = 0, p = 3; i < visible.length; i++, p += 4) data[p] = visible[i] ? 0 : explored[i] ? 162 : 255;
+    low.putImageData(this.fogImage, 0, 0);
     // The baked tint keeps its colour; the blurred low-res coverage only shapes its alpha.
     const ctx = this.fog.getContext('2d');
     ctx.clearRect(0, 0, this.fog.width, this.fog.height);
@@ -1750,9 +1755,13 @@ export class Renderer {
       drawSpriteShadow(ctx, wallVisual(e), clock);
     }
     world();
-    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport.
-    for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
-      this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport. In the live loop
+    // minerals and sensor coverage change only inside a simulation tick, so the sweep runs once per tick.
+    if (!(this.blending && state === this.oreState && time === this.oreTime && this.knownOre === this.oreGrid && this.knownMineralTypes === this.oreTypes)) {
+      for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
+        this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+      }
+      this.oreState = state; this.oreTime = time; this.oreGrid = this.knownOre; this.oreTypes = this.knownMineralTypes;
     }
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const i = y * W + x;
@@ -2267,7 +2276,7 @@ export class Renderer {
     const y = Math.round(py + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(px);
     const rank = unitRank(entity), team = entity.team === 1 ? 1 : 0;
     const group = team === 0 && entity.controlGroup >= 1 && entity.controlGroup <= 5 ? entity.controlGroup : 0;
-    const key = `${team}:${rank}:${group}`;
+    const key = (group * 4 + rank) * 2 + team;
     let badge = this.rankBadges.get(key);
     if (!badge) { badge = this.createRankBadge(team, rank, group); this.rankBadges.set(key, badge); }
     ctx.drawImage(badge, x - 14, y - (group ? 4 : 2), badge.width / this.dpr, badge.height / this.dpr);
@@ -2296,7 +2305,8 @@ export class Renderer {
   }
 
   minimapLayout(state) {
-    const c = this.minimap, bounds = c.getBoundingClientRect();
+    // Measuring forces a layout whenever the HUD changed; the box only changes with the window or the layout.
+    const c = this.minimap, bounds = this.minimapBounds ??= c.getBoundingClientRect();
     const w = bounds.width || 200, h = bounds.height || 150, s = Math.min(w / state.width, h / state.height);
     return { w, h, s, ox: (w - state.width * s) / 2, oy: (h - state.height * s) / 2 };
   }
@@ -2313,14 +2323,16 @@ export class Renderer {
     rect(ctx, 0, 0, w, h, '#0d1720');
     const visible = state.visible?.[0], explored = state.explored?.[0];
     if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
-    const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
+    const tiles = this.miniTiles.getContext('2d');
+    if (this.miniImage?.width !== state.width || this.miniImage.height !== state.height) this.miniImage = tiles.createImageData(state.width, state.height);
+    const img = this.miniImage, data = img.data;
     // Ash, raised rock, basalt, retired lava (older saves load it as rock), deadwood roots (warm grey-brown, so groves never
     // read as rock walls), crater floors.
     const {mini} = environmentFor(state);
     const palette = [mini.ground, mini.rock, mini.basalt, mini.rock, mini.tree, mini.crater];
     const ore = [[131, 213, 201], [131, 213, 201], [118, 183, 249], [247, 121, 153]];
     for (let i = 0; i < state.terrain.length; i++) {
-      if (explored && !explored[i]) continue;
+      if (explored && !explored[i]) { data[i * 4 + 3] = 0; continue; }
       const color = this.knownOre[i] > 0 ? ore[this.knownMineralTypes[i] || 1] : palette[state.terrain[i]] || palette[0], p = i * 4, dim = visible && !visible[i] ? .5 : 0;
       data[p] = color[0] + (10 - color[0]) * dim; data[p + 1] = color[1] + (21 - color[1]) * dim; data[p + 2] = color[2] + (32 - color[2]) * dim; data[p + 3] = 255;
     }
