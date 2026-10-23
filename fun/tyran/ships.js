@@ -35,9 +35,11 @@ export function shipPalette(world = 0, fallback = '#ff7866') {
   return palette || { id: 'custom', primary: fallback, rim: '#d9f5ff', core: '#ffffff', engine: '#ff9a4b', glow: fallback };
 }
 
+// Set once the renderer has seen this artwork: a sprite the caches drop frees its texture too.
+let gpuCache = null;
 function releaseSprite(sprite) {
   if (sprite.shadow) { releaseSprite(sprite.shadow); releaseSprite(sprite.flash); }
-  else sprite.width = sprite.height = 1;
+  else { gpuCache?.release(sprite); sprite.width = sprite.height = 1; }
 }
 
 // One fleet and the pilot liveries fit together. Visiting all ten sectors must
@@ -818,6 +820,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
 
 // Preflight uploads only artwork drawn directly in flight.
 export function warmGpuShipSprites(gpu) {
+  gpuCache = gpu;
   for (const cache of [hulls, flames, glows, lights]) gpu.prewarm([...cache.values()]);
   for (const sprites of silhouettes.values()) gpu.prewarm([sprites.shadow, sprites.flash]);
 }

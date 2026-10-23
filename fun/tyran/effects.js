@@ -35,7 +35,8 @@ function warmSparkTexture(color) {
   });
   sparkTextures.set(color, levels);
 }
-function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
+let gpuCache = null;
+function releaseTexture(canvas) { gpuCache?.release(canvas); canvas.width = canvas.height = 1; }
 export function effectTextureStats() {
   let bytes = 0;
   for (const canvas of textures.values()) bytes += canvas.width * canvas.height * 4;
@@ -420,6 +421,7 @@ export class Effects {
 }
 
 export function warmGpuEffectTextures(gpu) {
+  gpuCache = gpu;
   gpu.prewarm([...textures.values()]);
   for (const levels of sparkTextures.values()) gpu.prewarm(levels);
   for (let i = 0; i < 16; i++) { const sprite = spriteCell('effects', i); if (sprite) gpu.prewarm(sprite); }

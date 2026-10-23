@@ -256,8 +256,10 @@ export class StructureEffects {
     }
     c.globalAlpha=alpha;
   }
+  /** Every surface this biome owns, for releasing the renderer's copies when the biome is replaced. */
+  sources() {return [this.light,this.heat,this.fire,this.smoke,...this.foundations.values(),...this.fixtures.values(),...this.fixtureGlows.values()];}
   memoryStats() {
-    const images=[this.light,this.heat,this.fire,this.smoke,...this.foundations.values(),...this.fixtures.values(),...this.fixtureGlows.values()];
+    const images=this.sources();
     return {spriteCount:images.length,spriteLimit:48,spriteBytes:images.reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0)};
   }
 }

@@ -172,6 +172,7 @@ export class WorldRenderer {
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
+    this.releaseGpuSources();
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.resetTiles();
     this.terrain=new TerrainSprites(this.index,this.palette);this.sprites.clear();this.damageSpriteKeys.clear();this.activitySprites=new Map();this.clouds=[];
     this.extendClouds();
@@ -185,6 +186,12 @@ export class WorldRenderer {
     });
     for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
     this.warmScenery();
+  }
+  /** Free the renderer's copies of this sector's artwork before the next sector replaces it. */
+  releaseGpuSources() {
+    const gpu=this.gpu;if(!gpu)return;
+    for(const source of [this.cloudSprite,this.cloudShadowSprite,this.lightSprite,this.radarSweepSprite,this.shaftSprite,this.vignetteSprite,this.siteSprites.supplyHalo,
+      ...this.activitySprites.values(),...this.structureEffects.sources(),...this.sprites.values()])gpu.release(source);
   }
   warmGpuSources(gpu) {
     this.gpu = gpu;
@@ -216,7 +223,9 @@ export class WorldRenderer {
   }
   refreshSpriteAssets() {
     if(this.assetRevision===spriteRevision)return;
-    this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
+    this.assetRevision=spriteRevision;
+    for(const source of [this.cloudSprite,this.cloudShadowSprite,...this.sprites.values()])this.gpu?.release(source);
+    this.sprites.clear();this.damageSpriteKeys.clear();
     this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;
     this.terrain.materials.clear();this.terrain.edges.clear();
     // Sprite atlases finish one sheet at a time, sometimes in flight. Resident
