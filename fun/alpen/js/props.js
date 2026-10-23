@@ -114,6 +114,7 @@ import { track } from './loading.js';
 import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { onHutGround } from './huts.js';
+import { bindDistancePrefix } from './instance-lod.js';
 
 const {
   band, ahead, behind, biomes: BIOMES,
@@ -2602,13 +2603,11 @@ export function createProps(THREE, shading) {
     return out;
   };
 
-  /* Textured props wear their own baked map. The baseColor map (albedo with
-     the model's ambient occlusion pre-multiplied) carries all the colour, so
-     this material's whole job is snow: a per-vertex mask from how much of
-     the world's up a face sees, settled a little harder where the scan is
-     open and pale, painted in the same prop snow as everything else and
-     routed into the sheen carve-out so the dusting sparkles like the ground
-     while the stone under it stays matte. */
+  /* Textured props keep their baked albedo. Snow collects on their upward
+     faces and in the plate's dark recesses, with a broken boundary instead
+     of washing every stone and log in pale paint. The existing filtered
+     texture supplies the breakup; no new map, noise field or draw is needed.
+     Fresh snowfall fills more of the ledges but never a face's underside. */
   const photoMat = (map, snowAmount, fadeFar = null) => {
     const m = new THREE.MeshLambertMaterial({ map });
     m.onBeforeCompile = (shader) => {
@@ -2623,6 +2622,7 @@ export function createProps(THREE, shading) {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
         uniform float uSnowAmount;
+        uniform float uSnowFresh;
         varying float vSnowT;`)
         .replace('#include <project_vertex>', `#include <project_vertex>
         {
@@ -2633,7 +2633,9 @@ export function createProps(THREE, shading) {
               vec2(0.1271, 0.3117))) * 437.585);
           #endif
           float snowPocket = 0.88 + 0.12 * sin(position.x * 3.1 + position.z * 2.7);
-          vSnowT = uSnowAmount * snowExposure * snowPocket * smoothstep(0.32, 0.82, n64WN.y);
+          float n64SnowLoad = mix(uSnowAmount, max(uSnowAmount, 0.92), uSnowFresh);
+          vSnowT = clamp(n64SnowLoad * snowExposure * snowPocket, 0.0, 1.0)
+            * smoothstep(mix(0.32, 0.16, uSnowFresh), 0.82, n64WN.y);
         }
         vN64Sheen = vSnowT;`);
       shader.fragmentShader = shader.fragmentShader
@@ -2642,8 +2644,13 @@ export function createProps(THREE, shading) {
         .replace('#include <map_fragment>', `#include <map_fragment>
         {
           float n64Lum = dot(diffuseColor.rgb, vec3(0.30, 0.55, 0.15));
-          float n64Settle = vSnowT * (0.55 + 0.85 * smoothstep(0.06, 0.42, n64Lum));
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957),
+          // The hump confines the plate's influence to the snow boundary.
+          // Bare vertical stone stays bare, a full snow cap stays solid,
+          // and mip filtering naturally smooths its breakup in the distance.
+          float n64Pocket = (0.30 - n64Lum) * 0.65;
+          float n64Settle = smoothstep(0.12, 0.68, vSnowT
+            + n64Pocket * (4.0 * vSnowT * (1.0 - vSnowT)));
+          diffuseColor.rgb = mix(diffuseColor.rgb, ${floraSnowColour},
             clamp(n64Settle, 0.0, 0.96));
         }`);
     };
@@ -3299,6 +3306,9 @@ export function createProps(THREE, shading) {
       impostorMeshes.push(cards);
     });
     forestLod = true;
+    // The shader still handles the crossfade and any distant holes inside
+    // the prefix; fully faded trailing trees need no vertex invocation.
+    for (const pool of treePools) bindDistancePrefix(pool.mesh, TREE_LOD[1]);
     // and draw the near trees for the near rings only, from the next rebuild
     treePools.forEach((p, i) => {
       p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);

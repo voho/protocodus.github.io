@@ -6,6 +6,7 @@ import { createProps } from '../js/props.js';
 import { createShading } from '../js/shading.js';
 import { allTracked } from '../js/loading.js';
 import { getWorldSeed, setWorldSeed } from '../js/noise.js';
+import { bindDistancePrefix } from '../js/instance-lod.js';
 
 const SIZE = 256;
 const CLIP = 'if (vLodFar >= 220.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);';
@@ -108,6 +109,43 @@ export async function runForestClipCheck() {
     const shadow = draw();
     assert(shadow.some((byte, i) => byte !== empty[i]),
       'distant detailed trees retain their shadow silhouette');
+    tree.visible = false;
+    const batch = new THREE.InstancedMesh(source.geometry, source.material, 6);
+    batch.frustumCulled = false;
+    const matrix = new THREE.Matrix4();
+    for (const [i, z] of [0, -90, 70, -120, -250, -500].entries()) {
+      batch.setMatrixAt(i, matrix.makeTranslation(0, 0, z));
+      batch.setColorAt(i, new THREE.Color(0xffffff));
+    }
+    scene.add(batch);
+    camera.position.set(0, height / 2, 100);
+    camera.lookAt(0, height / 2, 0);
+    camera.updateMatrixWorld();
+    const untrimmed = draw();
+    let submitted = 0;
+    bindDistancePrefix(batch, 220);
+    const trim = batch.onBeforeRender;
+    batch.onBeforeRender = function (...args) {
+      trim.apply(this, args);
+      submitted = this.count;
+    };
+    const trimmed = draw();
+    assert(submitted === 4 && batch.count === 6, 'skip faded vertices and restore the complete pool');
+    assert(trimmed.every((byte, i) => byte === untrimmed[i]), 'batch trimming preserves every rendered pixel');
+    scene.remove(batch);
+
+    props.group.updateMatrixWorld(true);
+    let fullTriangles = 0, keptTriangles = 0;
+    for (const mesh of sources) {
+      const triangles = mesh.geometry.index.count / 3;
+      fullTriangles += mesh.count * triangles;
+      const full = mesh.count;
+      mesh.onBeforeRender(renderer, scene, camera, mesh.geometry, mesh.material, null);
+      keptTriangles += mesh.count * triangles;
+      mesh.onAfterRender(renderer, scene, camera, mesh.geometry, mesh.material, null);
+      assert(mesh.count === full, 'production tree pools restore their original counts');
+    }
+    assert(keptTriangles < fullTriangles, 'the production forest submits fewer detailed tree triangles');
     let total = 0, clipped = 0;
     for (const mesh of sources) for (let i = 0; i < mesh.count; i++) {
       const matrix = mesh.instanceMatrix.array;
@@ -117,7 +155,8 @@ export async function runForestClipCheck() {
     assert(clipped > 0, 'the streamed forest contains fully faded detailed trees');
     assert(renderer.getContext().getError() === renderer.getContext().NO_ERROR,
       'tree and depth shaders compile and render without WebGL errors');
-    return { cases: records, nearInstances: total, fullyFadedInstances: clipped };
+    return { cases: records, batchPixelsChanged: 0, fullTriangles, keptTriangles,
+      nearInstances: total, fullyFadedInstances: clipped };
   } finally {
     legacy.dispose();
     target.dispose();
