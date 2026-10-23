@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Patcher — cut the board into patches</title>
+  <meta name="description"
+    content="A 3D logic puzzle in the browser: cut the whole board into rectangles, one clue in each, matching the clue's size and shape. Endless boards in three sizes.">
+  <meta name="theme-color" content="#120c14">
+  <meta property="og:title" content="Patcher — cut the board into patches">
+  <meta property="og:description" content="Cut the board into patches, one clue each, matching size and shape. Endless 3D puzzles in three sizes.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/patcher/">
+  <meta property="og:image" content="https://protocodus.cz/fun/patcher/patcher-card.webp">
+  <link rel="canonical" href="https://protocodus.cz/fun/patcher/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../shared/puzzle.css">
+  <link rel="stylesheet" href="./patcher.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+</head>
+
+<body>
+  <canvas id="stage" tabindex="0" aria-label="Patcher board. Arrow keys move, Enter starts and places a patch, X lifts one."></canvas>
+  <p class="sr-only" data-status aria-live="polite"></p>
+
+  <div class="hud">
+    <header class="hud-top">
+      <div class="hud-brand">
+        <a class="back" href="/fun/"><span aria-hidden="true">←</span> Fun</a>
+        <div class="wordmark">
+          <h1>Patcher</h1>
+          <p>Cut the board into patches, one clue each.</p>
+        </div>
+      </div>
+      <div class="hud-tools">
+        <fieldset class="segmented" aria-label="Difficulty">
+          <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
+          <label><input type="radio" name="difficulty" value="medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
+        </fieldset>
+        <button type="button" class="icon-btn" data-action="sound" aria-pressed="true" aria-label="Sound on">♪</button>
+        <button type="button" class="icon-btn" data-action="help" aria-label="How to play">?</button>
+      </div>
+    </header>
+    <footer class="hud-bottom">
+      <div class="status">
+        <output class="timer" data-timer aria-label="Time">0:00</output>
+        <span class="seed">Board <b data-seed>—</b></span>
+      </div>
+      <div class="toolbar" role="group" aria-label="Puzzle actions">
+        <button type="button" class="btn" data-action="undo">Undo</button>
+        <button type="button" class="btn" data-action="hint">Hint <span class="badge" data-hints></span></button>
+        <button type="button" class="btn" data-action="reset">Reset</button>
+        <button type="button" class="btn btn-primary" data-action="new">New <span class="long">puzzle</span></button>
+      </div>
+      <div class="spacer"></div>
+    </footer>
+  </div>
+  <p class="toast" data-toast role="status"></p>
+
+  <dialog data-dialog="help" aria-labelledby="help-title">
+    <form method="dialog" class="card">
+      <p class="eyebrow">How to play</p>
+      <h2 id="help-title">Every clue gets one patch.</h2>
+      <ul class="rules">
+        <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h14v14H3z"/><path d="M3 9h8V3M11 9v8"/></svg></span><span><b>Cover the whole board with rectangles.</b> Each patch holds exactly one clue, and no two patches overlap.</span></li>
+        <li><span class="glyph">6</span><span><b>A number is the patch's size,</b> in cells.</span></li>
+        <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h16v8H2z"/></svg></span><span><b>The icon is its shape:</b> square, wide (wider than tall) or tall. The dashed icon takes any rectangle.</span></li>
+      </ul>
+      <p class="keys">Drag from a clue to draw its patch; tap a patch to lift it again. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> move, <kbd>Enter</kbd> starts and places a patch and <kbd>X</kbd> lifts one. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound. Every board has exactly one solution.</p>
+      <div class="card-actions">
+        <button type="submit" class="btn btn-primary">Let me cut</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog data-dialog="win" aria-labelledby="win-title">
+    <div class="card">
+      <p class="eyebrow">Solved</p>
+      <h2 id="win-title">Not a cell to spare.</h2>
+      <p class="win-time" data-win-time>0:00</p>
+      <p data-win-note></p>
+      <div class="card-actions">
+        <button type="button" class="btn btn-primary" data-action="next">Next puzzle</button>
+        <button type="button" class="btn btn-ghost" data-action="harder">Go harder</button>
+        <button type="button" class="btn btn-ghost" data-action="stay">Keep looking</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="loading" data-loading><p><i></i><span data-loading-text>Laying out the board</span></p></div>
+  <noscript>
+    <div class="loading failed"><p>Patcher needs JavaScript and WebGL 2 to run.</p></div>
+  </noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
