@@ -724,18 +724,24 @@ export function shipSpriteMemory() {
   return { caches, estimatedBytes: Object.values(caches).reduce((sum, cache) => sum + cache.bytes, 0) };
 }
 
-/** Prepare cached artwork between stages, keeping vector rasterization out of combat. */
-export function warmShipSprites(color,world=0,player=false) {
+/**
+ * Prepare cached artwork between stages, keeping vector rasterization out of combat. Without `defer` the
+ * fleet is built at once; with it, `defer(key, step)` receives each hull's silhouettes, livery and lights to run later.
+ */
+export function warmShipSprites(color,world=0,player=false,defer=null) {
   syncRasterAssets();
   const palette=typeof color==='object'&&color ? color : player ? playerPalette(color||'#71ecff') : shipPalette(world,color||'#ff7866');
   color=palette.primary;
   world=Math.abs(Math.floor(world||0))%10;
-  flameSprite(palette.engine||color);lightStyles(palette.glow||color);
-  if (!player) flameSprite(palette.engine||color, true);
+  const step=(name,work)=>defer?defer(`ships:${palette.id||color}:${player?'p':'e'}${world}:${name}`,work):work();
+  step('flames',()=>{
+    flameSprite(palette.engine||color);lightStyles(palette.glow||color);
+    if (!player) flameSprite(palette.engine||color, true);
+  });
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
-    silhouetteSprites(kind,player,world);
-    hullSprite(kind,color,world,player,palette);
-    lightsSprite(kind,palette.glow||color,player,palette,world);
+    step(`${kind}s`,()=>{syncRasterAssets();silhouetteSprites(kind,player,world);});
+    step(`${kind}h`,()=>{syncRasterAssets();hullSprite(kind,color,world,player,palette);});
+    step(`${kind}l`,()=>{syncRasterAssets();lightsSprite(kind,palette.glow||color,player,palette,world);});
   }
 }
 
