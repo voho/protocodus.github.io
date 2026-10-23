@@ -451,13 +451,17 @@ const FRAG_RECOVER = `
    own width and the sparkles swam as the camera moved. The modulo is linear,
    so wrapping the camera on the CPU in double precision first and adding the
    small view offset afterwards addresses exactly the same cells, and no
-   operand here is ever larger than the 64-metre period. */
+   operand here grows with the length of the run. */
 const FRAG_SHEEN_GRADIENTS = `
     float n64GDist = length(vN64View);
-    vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
-    vec2 n64GPos = mod(uCamWrap + (n64WDir * n64GDist).xz, 64.0);
+    vec2 n64GOffset = (vN64View * mat3(viewMatrix)).xz;
+    vec2 n64GPos = mod(uCamWrap + n64GOffset, 64.0);
     vec2 n64CrystalUV = n64GPos * 32.0;
-    float n64Footprint = max(length(dFdx(n64CrystalUV)), length(dFdy(n64CrystalUV)));
+    // Differentiate the continuous offset, not its wrapped address. A quad
+    // crossing 64 m otherwise sees a jump of 2048 cells and erases its glints.
+    // Rotation already preserves length; no normalize-and-rescale is needed.
+    vec2 n64CrystalLinear = n64GOffset * 32.0;
+    float n64Footprint = max(length(dFdx(n64CrystalLinear)), length(dFdy(n64CrystalLinear)));
 `;
 
 const FRAG_SHEEN = `

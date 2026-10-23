@@ -207,6 +207,10 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+`await (await import('./tests/glint-seam-browser-check.mjs')).runGlintSeamCheck()`
+executes the production snow-crystal coordinates and coverage on real derivative
+quads. Crystals crossing the 64 m wrapping seam match an interior patch at the
+start, 26 km and 1,000 km down a run, while undersampled crystals still fade.
 `await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck()`
 checks the world target's unused depth resolve in WebGL. With MSAA enabled it
 removes one full-size depth blit while preserving every output pixel, including
