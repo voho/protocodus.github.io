@@ -876,9 +876,10 @@ function committedRoute(o){
 function unitsNear(list,u,r){
   const out=[],r2=r*r,near=r2*(1-1e-5),far=r2*(1+1e-5);
   for(let i=0;i<list.length;i++){
-    const e=list[i];if(e===u||e.kind!=='unit'||!(e.hp>0))continue;
+    const e=list[i];if(e===u)continue;
+    // Position first: most of a bucket query lies outside the radius, and the position decides those cheaply.
     const dx=u.x-e.x,dy=u.y-e.y,q=dx*dx+dy*dy;
-    if(q<near||q<far&&Math.hypot(dx,dy)<r)out.push(e);
+    if((q<near||q<far&&Math.hypot(dx,dy)<r)&&e.kind==='unit'&&e.hp>0)out.push(e);
   }
   return out;
 }
@@ -994,8 +995,11 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   let followingSpeed=baseSpeed;
   const formation=isCommanded(u.order)?u.order.formation:null;
   for(const other of neighbors){
-    const ox=other.x-u.x,oy=other.y-u.y,forward=ox*fx+oy*fy,lateral=Math.abs(oy*fx-ox*fy),spacing=unitSpacing(u,other,s.time);
-    if(!spacing||forward<=0)continue;
+    const ox=other.x-u.x,oy=other.y-u.y,forward=ox*fx+oy*fy;
+    if(forward<=0)continue;
+    const spacing=unitSpacing(u,other,s.time);
+    if(!spacing)continue;
+    const lateral=Math.abs(oy*fx-ox*fy);
     // Members of one formation can recognize their common route while turning.
     // Independent traffic must already face the same way before following it.
     // Only a moving ally can form a convoy, so no other neighbour needs its route weighed.
@@ -1204,7 +1208,11 @@ function explore(s,u,dt,movement){
 
 export function targetDistance(a,b){const ca=center(a),cb=center(b);return Math.max(0,distance(ca,cb)-(b.kind==='building'?b.size*.45:0));}
 function acquire(s,e,r,closest=false){
-  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,center(e),r+1.5)){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=closest?0:enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score||value===score&&enemy.id<best.id){score=value;best=enemy;}}
+  const from=center(e),reach=r*r*(1+1e-5);
+  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,from,r+1.5)){if(enemy.team===e.team||!alive(enemy))continue;
+    // A unit clearly beyond range is out before its visibility is looked up; buildings keep the exact path.
+    if(enemy.kind!=='building'){const dx=from.x-enemy.x,dy=from.y-enemy.y;if(dx*dx+dy*dy>reach)continue;}
+    if(!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=closest?0:enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score||value===score&&enemy.id<best.id){score=value;best=enemy;}}
   return best;
 }
 
@@ -1482,8 +1490,11 @@ function separateUnits(s,dt,movement){
     const candidates=neighbors(i,i);
     for(let index=0;index<candidates.length;index++){
     const j=candidates[index];
-    const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y;const min=unitSpacing(a,b,s.time);
-    // A pair clearly farther apart than its spacing needs no exact distance.
+    const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y;
+    // A pair farther apart than its widest possible spacing needs neither the spacing nor an exact distance.
+    const widest=(a.size+b.size)*.43;
+    if(dx*dx+dy*dy>widest*widest*(1+1e-5))continue;
+    const min=unitSpacing(a,b,s.time);
     if(min>0&&dx*dx+dy*dy>min*min*(1+1e-5))continue;
     let d=Math.hypot(dx,dy);
     if(d>=min)continue;if(d<.001){dx=.01;dy=.004;d=Math.hypot(dx,dy);}
