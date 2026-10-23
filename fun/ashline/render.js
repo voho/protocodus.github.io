@@ -17,9 +17,10 @@ const TEAM = [
 const SIZES = Object.assign(Object.create(null), Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size])));
 const entityRole = e => buildingRole(unitRole(e));
 const wallKey = e => `${e.team}:${e.x}:${e.y}`;
+const WALL_SIDES = [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]];
 function wallConnections(e, walls) {
   let bits = 0;
-  for (const [dx, dy, bit] of [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]]) if (walls.has(`${e.team}:${e.x + dx}:${e.y + dy}`)) bits |= bit;
+  for (const [dx, dy, bit] of WALL_SIDES) if (walls.has(`${e.team}:${e.x + dx}:${e.y + dy}`)) bits |= bit;
   return bits;
 }
 const BUILDINGS = new Set(Object.keys(SIZES));
