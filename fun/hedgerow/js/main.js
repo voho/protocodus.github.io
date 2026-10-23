@@ -794,11 +794,14 @@ function castShadows() {
     flareShadows = fl;
     for (const m of G.flares.castersOf(built.veg.group)) m.castShadow = fl;
   }
-  sl.shadow.autoUpdate = !fl;
+  // (and a light with nothing to light, waiting below the level, draws nothing into its six maps:
+  // unlit, its shadows are never looked up, and the frame it takes a lamp they are drawn again)
+  G.lights.held = fl;
+  sl.shadow.autoUpdate = !fl && !!G.lights.shadowOf;
   if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
   lampShadowOf = G.lights.shadowOf;
   if (sl2) {
-    sl2.shadow.autoUpdate = !fl;
+    sl2.shadow.autoUpdate = !fl && !!G.lights.shadowOf2;
     if (fl && G.lights.shadowOf2 !== lampShadowOf2) sl2.shadow.needsUpdate = true;
     lampShadowOf2 = G.lights.shadowOf2;
   }
