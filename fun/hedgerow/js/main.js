@@ -330,8 +330,10 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
-    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens
+    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens; the
+    // grade applies its factor, found and kept on the GPU (nothing is read back)
     adapt = createAdaptation({ base: renderer.toneMappingExposure });
+    grade.adaptation = adapt;
     // a blast close by throws mud over the view (combat.js)
     G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
