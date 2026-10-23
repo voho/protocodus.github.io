@@ -212,6 +212,11 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+`await (await import('./tests/shade-radius-browser-check.mjs')).runShadeRadiusCheck()`
+compares complete lit snow shaders with and without the horizon-map radius
+guard. It covers ground and raised receivers, sun angles, clouds and fragment
+quads across the fade cutoff. Three horizon/height reads are skipped once the
+fade reaches zero, while distant cloud shade remains active.
 `await (await import('./tests/glint-seam-browser-check.mjs')).runGlintSeamCheck()`
 executes the production snow-crystal coordinates and coverage on real derivative
 quads. Crystals crossing the 64 m wrapping seam match an interior patch at the

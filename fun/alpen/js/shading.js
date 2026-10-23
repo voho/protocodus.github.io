@@ -1076,68 +1076,72 @@ const FRAG_SHADE_GRADIENTS = `
 
 const FRAG_SHADE = `#include <lights_fragment_maps>
   if (uShadeLevel > 0.002) {
-    /* World modulo is the torus address. It has no camera/anchor uniform and
-       therefore cannot slide when the render mesh re-centres. A one-texel
-       gutter around each direction layer makes the spatial seam filter into
-       its own opposite edge instead of into the neighbouring bearing. */
-    vec2 n64ShadeUv = fract(n64ShadeW.xz
-      / vec2(${asFloat(SHADE_PAGE_SPAN_X)}, ${asFloat(SHADE_PAGE_SPAN_Z)}));
-    float n64ShadeLo = floor(uShadeSlice);
-    float n64ShadeHi = min(n64ShadeLo + 1.0, ${asFloat(SHADE_DIRECTIONS - 1)});
-    /* Smoothed, because what the two slices hold is a max-slope horizon,
-       not a shadow mask: blended linearly the result is continuous but its
-       derivative kinks at every slice boundary, and with the sun crossing
-       one slice in a couple of game minutes the terrain shadow edge
-       ratcheted with a visible hitch at each crossing. */
-    float n64ShadeBearing = fract(uShadeSlice);
-    n64ShadeBearing = n64ShadeBearing * n64ShadeBearing * (3.0 - 2.0 * n64ShadeBearing);
-    vec2 n64ShadeLayerLo = vec2(
-      mod(n64ShadeLo, ${asFloat(SHADE_DIRECTION_COLS)}),
-      floor(n64ShadeLo / ${asFloat(SHADE_DIRECTION_COLS)}));
-    vec2 n64ShadeLayerHi = vec2(
-      mod(n64ShadeHi, ${asFloat(SHADE_DIRECTION_COLS)}),
-      floor(n64ShadeHi / ${asFloat(SHADE_DIRECTION_COLS)}));
-    vec2 n64ShadeLayerSize = vec2(
-      ${asFloat(SHADE_LAYER_SAMPLES_X)}, ${asFloat(SHADE_LAYER_SAMPLES_Z)});
-    vec2 n64ShadePage = vec2(
-      ${asFloat(SHADE_PAGE_SAMPLES_X)}, ${asFloat(SHADE_PAGE_SAMPLES_Z)});
-    vec2 n64ShadeAtlasLo = (
-      n64ShadeLayerLo * n64ShadeLayerSize
-      + vec2(1.0) + n64ShadeUv * n64ShadePage)
-      / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
-    vec2 n64ShadeAtlasHi = (
-      n64ShadeLayerHi * n64ShadeLayerSize
-      + vec2(1.0) + n64ShadeUv * n64ShadePage)
-      / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
-    // The horizon and height atlases have one mip level; keep their linear
-    // filtering without asking skipped fragments for implicit derivatives.
-    vec2 n64ShadeH = mix(
-      texture2DLodEXT(uShadeMap, n64ShadeAtlasLo, 0.0).rg,
-      texture2DLodEXT(uShadeMap, n64ShadeAtlasHi, 0.0).rg, n64ShadeBearing);
-    float n64ShadeGround = n64ShadeW.z * ${asFloat(SHADE_GRADE)}
-      + texture2DLodEXT(uShadeHeightMap, n64ShadeUv, 0.0).r;
-    float n64SunSlope = uSunDir.y / max(length(uSunDir.xz), 0.001);
-
-    float n64ShadeUp = clamp(
-      (n64ShadeW.y - n64ShadeGround) * ${asFloat(1 / SHADE_RAISE)},
-      0.0, 1.0);
-    /* A real penumbra belongs to the sun's angular disc, not to whichever
-       blocker happened to win one sampled bearing. Constant angular width
-       avoids invented wide edges when the winner changes between directions. */
-    float n64ShadeGroundLit = smoothstep(
-      n64ShadeH.x - ${asFloat(SHADE_SOFTNESS)},
-      n64ShadeH.x + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
-    float n64ShadeRaisedLit = smoothstep(
-      n64ShadeH.y - ${asFloat(SHADE_SOFTNESS)},
-      n64ShadeH.y + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
     float n64ShadeIn = 1.0 - smoothstep(
       ${asFloat(SHADE_RADIUS * 0.82)}, ${asFloat(SHADE_RADIUS)},
       length(n64ShadeW.xz - cameraPosition.xz));
-    float n64ShadeAmount = 1.0 - mix(
-      n64ShadeGroundLit, n64ShadeRaisedLit, n64ShadeUp);
-    reflectedLight.directDiffuse *= 1.0
-      - n64ShadeAmount * n64ShadeIn * uShadeLevel;
-    n64SunVis = 1.0 - n64ShadeAmount * n64ShadeIn * uShadeLevel;
+    // The horizon field has no influence beyond its resident radius. Keep
+    // cloud shade global, but avoid three atlas reads once this fade is zero.
+    if (n64ShadeIn > 0.0) {
+      /* World modulo is the torus address. It has no camera/anchor uniform and
+         therefore cannot slide when the render mesh re-centres. A one-texel
+         gutter around each direction layer makes the spatial seam filter into
+         its own opposite edge instead of into the neighbouring bearing. */
+      vec2 n64ShadeUv = fract(n64ShadeW.xz
+        / vec2(${asFloat(SHADE_PAGE_SPAN_X)}, ${asFloat(SHADE_PAGE_SPAN_Z)}));
+      float n64ShadeLo = floor(uShadeSlice);
+      float n64ShadeHi = min(n64ShadeLo + 1.0, ${asFloat(SHADE_DIRECTIONS - 1)});
+      /* Smoothed, because what the two slices hold is a max-slope horizon,
+         not a shadow mask: blended linearly the result is continuous but its
+         derivative kinks at every slice boundary, and with the sun crossing
+         one slice in a couple of game minutes the terrain shadow edge
+         ratcheted with a visible hitch at each crossing. */
+      float n64ShadeBearing = fract(uShadeSlice);
+      n64ShadeBearing = n64ShadeBearing * n64ShadeBearing * (3.0 - 2.0 * n64ShadeBearing);
+      vec2 n64ShadeLayerLo = vec2(
+        mod(n64ShadeLo, ${asFloat(SHADE_DIRECTION_COLS)}),
+        floor(n64ShadeLo / ${asFloat(SHADE_DIRECTION_COLS)}));
+      vec2 n64ShadeLayerHi = vec2(
+        mod(n64ShadeHi, ${asFloat(SHADE_DIRECTION_COLS)}),
+        floor(n64ShadeHi / ${asFloat(SHADE_DIRECTION_COLS)}));
+      vec2 n64ShadeLayerSize = vec2(
+        ${asFloat(SHADE_LAYER_SAMPLES_X)}, ${asFloat(SHADE_LAYER_SAMPLES_Z)});
+      vec2 n64ShadePage = vec2(
+        ${asFloat(SHADE_PAGE_SAMPLES_X)}, ${asFloat(SHADE_PAGE_SAMPLES_Z)});
+      vec2 n64ShadeAtlasLo = (
+        n64ShadeLayerLo * n64ShadeLayerSize
+        + vec2(1.0) + n64ShadeUv * n64ShadePage)
+        / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
+      vec2 n64ShadeAtlasHi = (
+        n64ShadeLayerHi * n64ShadeLayerSize
+        + vec2(1.0) + n64ShadeUv * n64ShadePage)
+        / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
+      // The horizon and height atlases have one mip level; keep their linear
+      // filtering without asking skipped fragments for implicit derivatives.
+      vec2 n64ShadeH = mix(
+        texture2DLodEXT(uShadeMap, n64ShadeAtlasLo, 0.0).rg,
+        texture2DLodEXT(uShadeMap, n64ShadeAtlasHi, 0.0).rg, n64ShadeBearing);
+      float n64ShadeGround = n64ShadeW.z * ${asFloat(SHADE_GRADE)}
+        + texture2DLodEXT(uShadeHeightMap, n64ShadeUv, 0.0).r;
+      float n64SunSlope = uSunDir.y / max(length(uSunDir.xz), 0.001);
+
+      float n64ShadeUp = clamp(
+        (n64ShadeW.y - n64ShadeGround) * ${asFloat(1 / SHADE_RAISE)},
+        0.0, 1.0);
+      /* A real penumbra belongs to the sun's angular disc, not to whichever
+         blocker happened to win one sampled bearing. Constant angular width
+         avoids invented wide edges when the winner changes between directions. */
+      float n64ShadeGroundLit = smoothstep(
+        n64ShadeH.x - ${asFloat(SHADE_SOFTNESS)},
+        n64ShadeH.x + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
+      float n64ShadeRaisedLit = smoothstep(
+        n64ShadeH.y - ${asFloat(SHADE_SOFTNESS)},
+        n64ShadeH.y + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
+      float n64ShadeAmount = 1.0 - mix(
+        n64ShadeGroundLit, n64ShadeRaisedLit, n64ShadeUp);
+      reflectedLight.directDiffuse *= 1.0
+        - n64ShadeAmount * n64ShadeIn * uShadeLevel;
+      n64SunVis = 1.0 - n64ShadeAmount * n64ShadeIn * uShadeLevel;
+    }
 
     /* CLOUD SHADOWS, projected over the mountain rather than painted into the
        sky. The deck already has an amount and a wind; this is its consequence
