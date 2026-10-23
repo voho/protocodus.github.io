@@ -322,6 +322,13 @@ export class WorldRenderer {
     const job=this.warmJobs.shift();this.warmKeys.delete(job.key);
     return job;
   }
+  /** Take and run the next job. The renderer checks its uploads at the next frame instead of waiting for the driver here. */
+  runNext() {
+    const job=this.takeJob(),gpu=this.gpu;
+    if(!gpu){job.work();return;}
+    gpu.deferChecks=true;
+    try{job.work();}finally{gpu.deferChecks=false;}
+  }
   restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
     // A prop owns either remaining HP or a destroyed marker, never both. Normalize
     // older saves that wrote destroyed IDs to both collections (including zero HP).
@@ -375,7 +382,7 @@ export class WorldRenderer {
   prepareFlight(width,height,scroll=0) {
     this.refreshSpriteAssets();this.prepare(width,height,scroll);
     this.draining=true;
-    try{while(this.warmJobs.length)this.takeJob().work();}
+    try{while(this.warmJobs.length)this.runNext();}
     finally{this.draining=false;}
   }
   /** Yield between small batches while loading, independent of browser idle support. */
@@ -388,7 +395,7 @@ export class WorldRenderer {
       const start=performance.now();
       this.draining=true;
       try{
-        do this.takeJob().work();
+        do this.runNext();
         while(this.warmJobs.length&&performance.now()-start<6);
       }finally{this.draining=false;}
       if(this.warmJobs.length)await new Promise(resolve=>setTimeout(resolve,0));
@@ -399,7 +406,7 @@ export class WorldRenderer {
     let remaining=this.warmJobs.length;
     if(!remaining)return 0;
     const start=performance.now();let ran=0;
-    do{this.takeJob().work();ran++;}
+    do{this.runNext();ran++;}
     while(--remaining>0&&this.warmJobs.length&&performance.now()-start<budgetMs);
     return ran;
   }
@@ -499,7 +506,7 @@ export class WorldRenderer {
       // still progresses without inheriting a long task. Jobs that wait for
       // a pooled surface re-queue themselves and run at most once per pass.
       while(remaining-->0&&this.warmJobs.length){
-        this.takeJob().work();
+        this.runNext();
         if(deadline.didTimeout||deadline.timeRemaining()<=3||performance.now()-start>=3)break;
       }
       this.runWarmQueue();

@@ -357,6 +357,8 @@ function warmGpuSources() {
   warmGpuShipSprites(gpu); warmGpuArt(); warmGpuMeteors(meteorWorld);
   if (vignette) gpu.prewarm(vignette);
   world.warmGpuSources(gpu);
+  // Uploads queued by background preparation are checked before any frame can draw with them.
+  gpu.verifyUploads();
 }
 // Projectile, effect and pickup artwork: the same for every sector.
 function warmGpuArt() {
