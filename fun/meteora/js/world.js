@@ -41,7 +41,7 @@ import { stepSentries } from './detection.js';
 import { subsystemWorld, toWorld } from './compound.js';
 import { makeRng } from './rng.js';
 import { createWell } from './well.js';
-import { clamp, dot, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
+import { clamp, dot, hypot3, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
 
 export const IDLE = Object.freeze({ ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false });
 const FOLD_SMALL = 1.1, FOLD_LARGE = 2.6;
@@ -329,7 +329,7 @@ export function autoTarget(world) {
   const p = world.player.ship.pos;
   let best = null, bestD = Infinity;
   for (const e of hostiles(world)) {
-    const d = Math.hypot(e.ship.pos[0] - p[0], e.ship.pos[1] - p[1], e.ship.pos[2] - p[2]) - (e.big ? e.radius * 0.5 : 0);
+    const d = hypot3(e.ship.pos[0] - p[0], e.ship.pos[1] - p[1], e.ship.pos[2] - p[2]) - (e.big ? e.radius * 0.5 : 0);
     if (d < bestD) { bestD = d; best = e; }
   }
   if (!best) return null;
@@ -363,7 +363,7 @@ export function targetTorpedo(world) {
   let best = null, bestD = Infinity;
   for (const m of world.weapons.missiles) {
     if (m.team === 0 || m.hp <= 0) continue;
-    const d = Math.hypot(m.pos[0] - p.pos[0], m.pos[1] - p.pos[1], m.pos[2] - p.pos[2]);
+    const d = hypot3(m.pos[0] - p.pos[0], m.pos[1] - p.pos[1], m.pos[2] - p.pos[2]);
     if (d < bestD) { bestD = d; best = m; }
   }
   if (!best) return false;
@@ -406,7 +406,7 @@ export function callRepair(world) {
   let from = null, bestD = 6000;
   for (const e of world.active) {
     if (e.team !== 0 || !e.big || (e.role !== 'capital' && e.role !== 'station')) continue;
-    const d = Math.hypot(e.ship.pos[0] - p.ship.pos[0], e.ship.pos[1] - p.ship.pos[1], e.ship.pos[2] - p.ship.pos[2]);
+    const d = hypot3(e.ship.pos[0] - p.ship.pos[0], e.ship.pos[1] - p.ship.pos[1], e.ship.pos[2] - p.ship.pos[2]);
     if (d < bestD) { bestD = d; from = e; }
   }
   let pos, fold = false, fwd;
@@ -596,7 +596,7 @@ function aiTarget(world, e) {
   const o = e.orders ?? {};
   const leader = e.leaderId != null ? world.byId.get(e.leaderId) : null;
   const near = (pos, r) => world.active.filter(x => x.team !== e.team && (x.team >= 0 || (e.prefer && x.tags.has(e.prefer))) && targetable(x)
-    && Math.hypot(x.ship.pos[0] - pos[0], x.ship.pos[1] - pos[1], x.ship.pos[2] - pos[2]) < r);
+    && hypot3(x.ship.pos[0] - pos[0], x.ship.pos[1] - pos[1], x.ship.pos[2] - pos[2]) < r);
   // Ordered somewhere (the jump, a hold point): fly there, fight nothing.
   if (o.type === 'jump' || o.type === 'hold') return null;
   if (o.type === 'attack') {
@@ -761,7 +761,7 @@ function stepScan(world, dt) {
   if (!p?.alive || !t || !t.scan || t.scan.done || world.state !== 'flying') { world.scanning = null; return; }
   const owner = world.target;
   const at = world.targetSub?.scan ? subsystemWorld([0, 0, 0], owner, world.targetSub) : owner.ship.pos;
-  const d = Math.hypot(at[0] - p.ship.pos[0], at[1] - p.ship.pos[1], at[2] - p.ship.pos[2]) - (owner.big && !world.targetSub ? owner.radius * 0.5 : 0);
+  const d = hypot3(at[0] - p.ship.pos[0], at[1] - p.ship.pos[1], at[2] - p.ship.pos[2]) - (owner.big && !world.targetSub ? owner.radius * 0.5 : 0);
   const inRange = d <= t.scan.range, inCone = angleFromNose(world, at) <= SCAN_CONE;
   world.scanning = { target: t, inRange, inCone, distance: d };
   if (!inRange || !inCone) return;
@@ -912,10 +912,10 @@ export function stepWorld(world, input, dt) {
   if (p) {
     const area = world.missionDef?.area;
     if (area) {
-      world.leaving = Math.hypot(p.ship.pos[0] - area.centre[0], p.ship.pos[1] - area.centre[1], p.ship.pos[2] - area.centre[2]) > area.radius;
+      world.leaving = hypot3(p.ship.pos[0] - area.centre[0], p.ship.pos[1] - area.centre[1], p.ship.pos[2] - area.centre[2]) > area.radius;
     } else {
       const half = field.cfg.half, pos = p.ship.pos;
-      const outside = Math.hypot(
+      const outside = hypot3(
         Math.max(0, Math.abs(pos[0]) - half[0]), Math.max(0, Math.abs(pos[1]) - half[1]), Math.max(0, Math.abs(pos[2]) - half[2]));
       world.leaving = outside > COMBAT.leaving;
     }

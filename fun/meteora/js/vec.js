@@ -26,6 +26,44 @@ export function cross(o, a, b) {
   o[0] = x; o[1] = y; o[2] = z; return o;
 }
 export const lenSq = a => a[0] * a[0] + a[1] * a[1] + a[2] * a[2];
+/* Math.hypot of three or four numbers, worked out as V8 works it out —
+   scaled by the largest, the squares Kahan-summed — so the bits are those
+   of Math.hypot in the engine the checks run in, but as plain functions
+   these are inlined. Math.hypot is a builtin call that boxes its arguments
+   and builds an array every time, and the simulation's hot paths make
+   some three hundred calls a step. */
+export function hypot3(x, y, z) {
+  x = Math.abs(x); y = Math.abs(y); z = Math.abs(z);
+  let max = 0;
+  if (x > max) max = x;
+  if (y > max) max = y;
+  if (z > max) max = z;
+  if (max === Infinity) return Infinity;
+  if (x !== x || y !== y || z !== z) return NaN;
+  if (max === 0) return 0;
+  let sum = 0, comp = 0, n, s, p;
+  n = x / max; s = n * n - comp; p = sum + s; comp = p - sum - s; sum = p;
+  n = y / max; s = n * n - comp; p = sum + s; comp = p - sum - s; sum = p;
+  n = z / max; s = n * n - comp; p = sum + s; sum = p;
+  return Math.sqrt(sum) * max;
+}
+export function hypot4(x, y, z, w) {
+  x = Math.abs(x); y = Math.abs(y); z = Math.abs(z); w = Math.abs(w);
+  let max = 0;
+  if (x > max) max = x;
+  if (y > max) max = y;
+  if (z > max) max = z;
+  if (w > max) max = w;
+  if (max === Infinity) return Infinity;
+  if (x !== x || y !== y || z !== z || w !== w) return NaN;
+  if (max === 0) return 0;
+  let sum = 0, comp = 0, n, s, p;
+  n = x / max; s = n * n - comp; p = sum + s; comp = p - sum - s; sum = p;
+  n = y / max; s = n * n - comp; p = sum + s; comp = p - sum - s; sum = p;
+  n = z / max; s = n * n - comp; p = sum + s; comp = p - sum - s; sum = p;
+  n = w / max; s = n * n - comp; p = sum + s; sum = p;
+  return Math.sqrt(sum) * max;
+}
 export const len = a => Math.sqrt(lenSq(a));
 export function distSq(a, b) {
   const x = a[0] - b[0], y = a[1] - b[1], z = a[2] - b[2];
@@ -54,7 +92,7 @@ export function qMul(o, a, b) {
   return o;
 }
 export function qNormalize(q) {
-  const l = Math.hypot(q[0], q[1], q[2], q[3]);
+  const l = hypot4(q[0], q[1], q[2], q[3]);
   if (l < 1e-12) { q[0] = 0; q[1] = 0; q[2] = 0; q[3] = 1; return q; }
   q[0] /= l; q[1] /= l; q[2] /= l; q[3] /= l;
   return q;

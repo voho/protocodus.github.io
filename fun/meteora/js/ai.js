@@ -37,7 +37,7 @@ import { ENEMY_CANNON } from './config.js';
 import { makeRng } from './rng.js';
 import { sweepCompound, subsystemWorld, toWorld } from './compound.js';
 import {
-  addScaled, clamp, cross, dot, len, normalize, qRotate, qRotateInv, scale, sub,
+  addScaled, clamp, cross, dot, hypot3, len, normalize, qRotate, qRotateInv, scale, sub,
 } from './vec.js';
 
 const THINK = 1 / 20;
@@ -109,7 +109,7 @@ function avoid(me, ctx, want, c) {
   near.length = 0;
   for (const e of ctx.larges ?? NONE) {
     if (!e.alive || e === me || e.id === me.ignoreId) continue;
-    const dd = Math.hypot(e.ship.pos[0] - p0[0], e.ship.pos[1] - p0[1], e.ship.pos[2] - p0[2]);
+    const dd = hypot3(e.ship.pos[0] - p0[0], e.ship.pos[1] - p0[1], e.ship.pos[2] - p0[2]);
     if (dd < e.radius + reach + R) near.push(e);
   }
   const tVel = clearance(field, near, p0, vHat, reach, R);

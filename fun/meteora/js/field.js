@@ -27,7 +27,7 @@
 
 import { FIELD } from './config.js';
 import { fbm3, makeRng, noise3 } from './rng.js';
-import { normalize, qIntegrate, qRotate, qRotateInv } from './vec.js';
+import { hypot3, normalize, qIntegrate, qRotate, qRotateInv } from './vec.js';
 import { SHAPES } from './rock-shapes.js';
 import { shapeRadius } from './rock-shapes-core.js';
 
@@ -152,14 +152,14 @@ export function generateBelt(seed, cfg = FIELD) {
   const clearings = cfg.clear ?? [], lanes = cfg.lanes ?? [];
   const inClearing = (x, y, z, R) => {
     for (const c of clearings) {
-      if (Math.hypot(x - c.pos[0], y - c.pos[1], z - c.pos[2]) - R < c.r) return true;
+      if (hypot3(x - c.pos[0], y - c.pos[1], z - c.pos[2]) - R < c.r) return true;
     }
     for (const l of lanes) {
       const ax = l.a[0], ay = l.a[1], az = l.a[2];
       const dx = l.b[0] - ax, dy = l.b[1] - ay, dz = l.b[2] - az;
       const L2 = dx * dx + dy * dy + dz * dz;
       const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy + (z - az) * dz) / L2)) : 0;
-      if (Math.hypot(x - ax - dx * t, y - ay - dy * t, z - az - dz * t) - R < l.r) return true;
+      if (hypot3(x - ax - dx * t, y - ay - dy * t, z - az - dz * t) - R < l.r) return true;
     }
     return false;
   };
@@ -212,7 +212,7 @@ export function generateBelt(seed, cfg = FIELD) {
     const x = Math.fround(cfg.spawn[0] + Math.cos(angle) * d);
     const y = Math.fround(cfg.spawn[1] + rng.range(-300, 300));
     const z = Math.fround(cfg.spawn[2] + Math.sin(angle) * d);
-    if (Math.hypot(x - cfg.spawn[0], y - cfg.spawn[1], z - cfg.spawn[2]) - R < 900 && R > 0) continue;
+    if (hypot3(x - cfg.spawn[0], y - cfg.spawn[1], z - cfg.spawn[2]) - R < 900 && R > 0) continue;
     if (cfg.edge && x * cfg.edge.normal[0] + y * cfg.edge.normal[1] + z * cfg.edge.normal[2] - R < cfg.edge.at) continue;
     if (!fits(x, y, z, R, true)) continue;
     place(largeType, x, y, z, s, true);
@@ -364,25 +364,25 @@ export function createField(seed, cfg = FIELD) {
      crosses it, and its slope from two neighbouring readings. */
   const NL = [0, 0, 0], EPS = 0.08;
   const skin = (map, R, lx, ly, lz) => {
-    let d = Math.hypot(lx, ly, lz);
+    let d = hypot3(lx, ly, lz);
     if (d < 1e-9) { lx = 0; ly = 1e-9; lz = 0; d = 1e-9; }
     const ux = lx / d, uy = ly / d, uz = lz / d;
     const s0 = R * shapeRadius(map, ux, uy, uz);
     const bx = Math.abs(uy) < 0.9 ? 0 : 1, by = Math.abs(uy) < 0.9 ? 1 : 0;
     let e1x = by * uz, e1y = -bx * uz, e1z = bx * uy - by * ux;
-    const l1 = Math.hypot(e1x, e1y, e1z);
+    const l1 = hypot3(e1x, e1y, e1z);
     e1x /= l1; e1y /= l1; e1z /= l1;
     const e2x = uy * e1z - uz * e1y, e2y = uz * e1x - ux * e1z, e2z = ux * e1y - uy * e1x;
     let ax = ux + EPS * e1x, ay = uy + EPS * e1y, az = uz + EPS * e1z;
-    let k = Math.hypot(ax, ay, az); ax /= k; ay /= k; az /= k;
+    let k = hypot3(ax, ay, az); ax /= k; ay /= k; az /= k;
     const s1 = R * shapeRadius(map, ax, ay, az);
     let cx = ux + EPS * e2x, cy = uy + EPS * e2y, cz = uz + EPS * e2z;
-    k = Math.hypot(cx, cy, cz); cx /= k; cy /= k; cz /= k;
+    k = hypot3(cx, cy, cz); cx /= k; cy /= k; cz /= k;
     const s2 = R * shapeRadius(map, cx, cy, cz);
     const p1x = ax * s1 - ux * s0, p1y = ay * s1 - uy * s0, p1z = az * s1 - uz * s0;
     const p2x = cx * s2 - ux * s0, p2y = cy * s2 - uy * s0, p2z = cz * s2 - uz * s0;
     let nx = p1y * p2z - p1z * p2y, ny = p1z * p2x - p1x * p2z, nz = p1x * p2y - p1y * p2x;
-    const nl = Math.hypot(nx, ny, nz) || 1;
+    const nl = hypot3(nx, ny, nz) || 1;
     nx /= nl; ny /= nl; nz /= nl;
     if (nx * ux + ny * uy + nz * uz < 0) { nx = -nx; ny = -ny; nz = -nz; }
     NL[0] = nx; NL[1] = ny; NL[2] = nz;
@@ -417,14 +417,14 @@ export function createField(seed, cfg = FIELD) {
     for (const i of candidates) {
       if (!field.alive[i]) continue;
       const cx = belt.pos[3 * i], cy = belt.pos[3 * i + 1], cz = belt.pos[3 * i + 2];
-      if (Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz) >= r + belt.collide[i]) continue;
+      if (hypot3(p[0] - cx, p[1] - cy, p[2] - cz) >= r + belt.collide[i]) continue;
       staticFrame(i);
       const h = outside(SHAPES[belt.type[i]], belt.radius[i], cx, cy, cz, p[0], p[1], p[2]);
       if (h >= r) continue;
       out.push({ kind: 'static', index: i, pos: posOf(i), radius: belt.radius[i], depth: r - h, normal: normalize([0, 0, 0], turn([0, 0, 0], NL[0], NL[1], NL[2], 1)) });
     }
     for (const rock of field.dynamic) {
-      if (Math.hypot(p[0] - rock.pos[0], p[1] - rock.pos[1], p[2] - rock.pos[2]) >= r + rock.collide) continue;
+      if (hypot3(p[0] - rock.pos[0], p[1] - rock.pos[1], p[2] - rock.pos[2]) >= r + rock.collide) continue;
       dynamicFrame(rock);
       const h = outside(SHAPES[rock.type], rock.radius, rock.pos[0], rock.pos[1], rock.pos[2], p[0], p[1], p[2]);
       if (h >= r) continue;

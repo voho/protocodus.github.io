@@ -39,4 +39,17 @@ test('rng.unit is on the unit sphere and noise stays in range', () => {
     assert.ok(n >= -1 && n <= 1 && f >= -1.01 && f <= 1.01);
   }
 });
+test('hypot3 and hypot4 give Math.hypot to the last bit (the simulation relies on it)', () => {
+  const edge = [0, -0, 1, -2.5, 5e-324, 1e-300, 1e300, 1.7976931348623157e308, Infinity, -Infinity, NaN];
+  for (const x of edge) for (const y of edge) for (const z of edge) {
+    assert.ok(Object.is(V.hypot3(x, y, z), Math.hypot(x, y, z)), `hypot3(${x}, ${y}, ${z})`);
+    assert.ok(Object.is(V.hypot4(x, y, z, 0.75), Math.hypot(x, y, z, 0.75)), `hypot4(${x}, ${y}, ${z}, 0.75)`);
+  }
+  const rng = makeRng(17);
+  for (let i = 0; i < 200000; i++) {
+    const s = 10 ** rng.range(-6, 6), x = rng.range(-1, 1) * s, y = rng.range(-1, 1) * s, z = rng.range(-1, 1) * s, w = rng.range(-1, 1);
+    assert.ok(Object.is(V.hypot3(x, y, z), Math.hypot(x, y, z)), `hypot3(${x}, ${y}, ${z})`);
+    assert.ok(Object.is(V.hypot4(x, y, z, w), Math.hypot(x, y, z, w)), `hypot4(${x}, ${y}, ${z}, ${w})`);
+  }
+});
 await run();
