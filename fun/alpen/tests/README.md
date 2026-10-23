@@ -12,6 +12,7 @@ node tests/graphics-check.mjs
 node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
 node tests/trail-clods-check.mjs
+node tests/solid-index-check.mjs
 ```
 
 These cover jump charge and timing, ballistic flight, trick landing assistance,
@@ -21,6 +22,10 @@ The clod check compares packed snow-chunk instance matrices with the original
 quaternion path through trail recycling, anchor moves, fading and clear/reuse.
 It also reports a local CPU microbenchmark for packing one fixed frame; the
 orientation is now baked at placement without changing the GPU buffers.
+The solid-index check compares z-window queries with the full prop scan across
+seeded streaming, resets and collider refits, preserving object identity and
+source order for compound contacts. It counts candidate and property visits
+to verify that physics and camera queries inspect only nearby colliders.
 The riding check also pins the momentum rules: a flight pays the same air drag
 as the snow did, the tuck gains nothing on the flat or up a climb, an ollie
 never brakes the run along the slope, the board lands matched to the slope it

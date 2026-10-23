@@ -114,6 +114,7 @@ import { track } from './loading.js';
 import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { onHutGround } from './huts.js';
+import { createSolidIndex } from './solid-index.js';
 
 const {
   band, ahead, behind, biomes: BIOMES,
@@ -3833,6 +3834,7 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < solids.length; i++) {
       if (solids[i].fit) solids[i].fit[0](solids[i]);
     }
+    solidIndex.rebuild();
   }
   // Every soft hull measured again, once a model has replaced its stand-in.
   function remeasureScrub() {
@@ -3902,8 +3904,9 @@ export function createProps(THREE, shading) {
 
   // --- collision -----------------------------------------------------------
   // Flat array of {x, z, r, kind, top}, rebuilt whenever the bands change.
-  // A few hundred entries, scanned by z-window in the rider's step.
+  // The rider and chase camera query a stable z-window shortlist.
   const solids = [];
+  const solidIndex = createSolidIndex(solids, band);
   // Slalom gates, remembered rather than merely drawn, so a run can be scored
   // for taking the line the poles are describing. Rebuilt with the bands.
   const gates = [];
@@ -5037,6 +5040,7 @@ export function createProps(THREE, shading) {
     for (const b of bandCache.keys()) {
       if (b < first - 2 || b > last + 2) bandCache.delete(b);
     }
+    solidIndex.rebuild();
   }
 
   let currentBand = NaN;
@@ -5161,6 +5165,6 @@ export function createProps(THREE, shading) {
 
   return {
     group, update, reset, rearm, setAir, reopenGatesBelow,
-    solids, gates, debugBiomes,
+    solids, gates, debugBiomes, querySolids: solidIndex.query,
   };
 }
