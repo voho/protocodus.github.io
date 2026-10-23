@@ -39,6 +39,10 @@ function halo(color) {
   circle(c,64,64,64,g);return out;
 }
 
+// The flame sheet and the smoke puff are the same in every biome. Painting the flame's twelve noise frames
+// costs several milliseconds, so the first biome builds them and every later one shares them.
+const shared={fire:null,smoke:null};
+
 /**
  * All animation derives from the render clock and seeded prop geometry. There
  * is no particle ledger: eviction/reload reproduces the same standing damage,
@@ -50,7 +54,7 @@ export class StructureEffects {
     this.index=index;this.palette=palette;this.accent=accent;
     this.foundations=new Map();this.fixtures=new Map();this.fixtureBounds=new Map();this.fixtureGlows=new Map();this.glowBounds=new Map();
     this.light=halo(accent);this.heat=halo('#ff8339');
-    this.fire=this.makeFire();this.smoke=this.makeSmoke();
+    this.fire=shared.fire||=this.makeFire();this.smoke=shared.smoke||=this.makeSmoke();
   }
   getFoundation(type,variant=0) {
     const kind=FOUNDATIONS[type];if(!kind)return null;
