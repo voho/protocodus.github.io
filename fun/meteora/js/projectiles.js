@@ -10,11 +10,16 @@
    moves bolts eight metres a step; each is drawn where it is between steps. */
 
 import { STEP } from './config.js';
+import { hypot3 } from './vec.js';
 
 const PLAYER_BOLT = [0.45, 0.62, 1.0], ENEMY_BOLT = [1.0, 0.32, 0.1];
 
 export function createProjectiles(glow) {
   const flashes = [];
+  // Bolts are the most numerous sprites after the explosions' in a fight:
+  // each goes to the batch in this one array (glow.addFrom), not as a
+  // dozen numbers that would each be boxed on the way into glow.add.
+  const o = new Float64Array(12);
   return {
     flash(pos, team, colour = null, size = 1) {
       flashes.push({ pos, age: 0, team, colour, size });
@@ -22,19 +27,24 @@ export function createProjectiles(glow) {
     add(weapons, alpha, dt, world = null, fx = null) {
       const back = (1 - alpha) * STEP;
       for (const b of weapons.bolts) {
-        const speed = Math.hypot(b.vel[0], b.vel[1], b.vel[2]) || 1;
+        const speed = hypot3(b.vel[0], b.vel[1], b.vel[2]) || 1;
         const dx = b.vel[0] / speed, dy = b.vel[1] / speed, dz = b.vel[2] / speed;
         const x = b.pos[0] - b.vel[0] * back, y = b.pos[1] - b.vel[1] * back, z = b.pos[2] - b.vel[2] * back;
         const w = b.w;
         const col = w?.color ?? (b.team === 0 ? PLAYER_BOLT : ENEMY_BOLT);
+        o[0] = x; o[1] = y; o[2] = z;
         if (w?.flak) {
-          glow.add(x, y, z, 1.1, col[0], col[1], col[2], 3);
-          glow.add(x, y, z, 0.35, 1, 0.95, 0.85, 4);
+          o[3] = 1.1; o[4] = col[0]; o[5] = col[1]; o[6] = col[2]; o[7] = 3; o[8] = 0; o[9] = 0; o[10] = 0; o[11] = 0;
+          glow.addFrom(o);
+          o[3] = 0.35; o[4] = 1; o[5] = 0.95; o[6] = 0.85; o[7] = 4;
+          glow.addFrom(o);
           continue;
         }
         const length = w?.length ?? 8, width = w?.width ?? 0.8;
-        glow.add(x, y, z, width, col[0], col[1], col[2], 2.2, dx, dy, dz, length * 1.2);
-        glow.add(x, y, z, width * 0.32, 1, 0.97, 0.92, 5, dx, dy, dz, length);
+        o[3] = width; o[4] = col[0]; o[5] = col[1]; o[6] = col[2]; o[7] = 2.2; o[8] = dx; o[9] = dy; o[10] = dz; o[11] = length * 1.2;
+        glow.addFrom(o);
+        o[3] = width * 0.32; o[4] = 1; o[5] = 0.97; o[6] = 0.92; o[7] = 5; o[11] = length;
+        glow.addFrom(o);
       }
       for (const m of weapons.missiles) {
         const x = m.pos[0] - m.vel[0] * back, y = m.pos[1] - m.vel[1] * back, z = m.pos[2] - m.vel[2] * back;
