@@ -221,6 +221,14 @@ const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
   chapters, sideHits, tors, pillows, crests } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
+/* The grade's integral is taken for every row context, and so for nearly
+   every point query in the game, and half of its trigonometry was a
+   constant: each wave's `amp / freq` and `cos(phase)` are fixed by the
+   config. Taken once here, the sum is the same operations on the same
+   values, bit for bit. */
+const GRADE_TERMS = GRADE.waves.map((w) => ({
+  freq: w.freq, phase: w.phase, scale: w.amp / w.freq, rest: Math.cos(w.phase),
+}));
 
 /* Which octave each column of a character profile belongs to. The profiles in
    the config are written as bare arrays because five aligned numbers under a
@@ -389,6 +397,7 @@ const chapterScratch = {
   z: NaN, seed: NaN, name: '', corridor: 1, lip: 1, wallH: 1, wallW: 1,
   powder: 1, rock: 1, oct: [1, 1, 1, 1, 1], icy: 0, cover: 0,
   trees: 1, cliffs: 1, tors: 1, pillows: 1, crest: 1,
+  flatBlock: NaN, flatSeed: NaN,
 };
 
 /* The blended profile at z. One shared scratch, memoised on (z, seed):
@@ -404,10 +413,18 @@ function chapterTraitsAt(z) {
   const p = -z / chapters.period;
   const b = Math.floor(p);
   const f = p - b;
-  const cur = CHAPTERS[chapterIndexAt(b)];
-  const nxt = CHAPTERS[chapterIndexAt(b + 1)];
   const span = chapters.edge / chapters.period;
   const t = smoother01(clamp01((f - (1 - span)) / span));
+  /* Away from a chapter's edge the blend weight is exactly zero, and then
+     nothing below depends on z: every row and point query in the same
+     chapter interior as the last one blends the same two chapters by the
+     same zero. Most of the run is interior, so the scratch already holds
+     the answer and only its key moves. */
+  if (t === 0 && out.flatBlock === b && out.flatSeed === seed) return out;
+  out.flatBlock = t === 0 ? b : NaN;
+  out.flatSeed = seed;
+  const cur = CHAPTERS[chapterIndexAt(b)];
+  const nxt = CHAPTERS[chapterIndexAt(b + 1)];
   out.name = t < 0.5 ? cur.name : nxt.name;
   out.corridor = cur.corridor + (nxt.corridor - cur.corridor) * t;
   out.lip = cur.lip + (nxt.lip - cur.lip) * t;
@@ -497,10 +514,14 @@ function gateSlotZ(k) {
    hops branches mid-fork. Continuous by construction, because the split
    itself opens and closes smoothly and the side holds while it does. */
 function courseCentreAt(z) {
-  const s = forkSplit(z);
-  if (s <= 0) return wanderAt(z);
+  return courseCentreFrom(z, wanderAt(z), forkSplit(z));
+}
+
+// The same, from a mid-line and split the caller has already worked out.
+function courseCentreFrom(z, mid, s) {
+  if (s <= 0) return mid;
   const b = Math.floor(-z / route.period);
-  return wanderAt(z) + (hash2(b, 5501, 53) < 0.5 ? -s : s);
+  return mid + (hash2(b, 5501, 53) < 0.5 ? -s : s);
 }
 
 /* Remembered per slot, as the side hits are: every row asks for the gates
@@ -532,17 +553,24 @@ function gateSlotX(k) {
    Slot zero is a virtual gate on the centre line, which keeps the line
    defined from the start hut to the first panel. */
 export function guideAt(z) {
+  return guideFrom(z, courseCentreAt(z));
+}
+
+/* The line about a course centre the caller already has. The row context
+   works out the mid-line and the split for itself, and asking `guideAt`
+   there evaluated both a second time for every row and every point query. */
+function guideFrom(z, centre) {
   let k = Math.max(0, Math.floor(-z / guide.every));
   let zA = k === 0 ? -0.25 * guide.every : gateSlotZ(k);
   if (z > zA) {
-    if (k === 0) return courseCentreAt(z);
+    if (k === 0) return centre;
     k -= 1;
     zA = k === 0 ? -0.25 * guide.every : gateSlotZ(k);
   }
   const zB = gateSlotZ(k + 1);
   const t = smooth01(clamp01((zA - z) / (zA - zB)));
   const offA = k === 0 ? 0 : gateSlotOff(k);
-  return courseCentreAt(z) + offA + (gateSlotOff(k + 1) - offA) * t;
+  return centre + offA + (gateSlotOff(k + 1) - offA) * t;
 }
 
 /* Every gate slot inside [zLo, zHi), for whoever plants the poles. */
@@ -840,6 +868,8 @@ function makeContext() {
     wallBroadRight: 0.5,
     wallDetailLeft: 0.5,
     wallDetailRight: 0.5,
+    wallReady: false,     // the four wall fields above are this row's
+    hazardsReady: false,  // …and so are the drops and knolls below
     nCliffs: 0,
     cliffX: [0, 0],
     cliffA: [0, 0],
@@ -994,26 +1024,36 @@ function rowContext(z, ctx) {
   // The grade, integrated. d/dz of this is base + Σ amp·sin(freq·z + phase),
   // which is the pitch the rider actually feels underneath them.
   let base = GRADE.base * z;
-  for (let i = 0; i < GRADE.waves.length; i++) {
-    const w = GRADE.waves[i];
-    base -= (w.amp / w.freq) * (Math.cos(w.freq * z + w.phase) - Math.cos(w.phase));
+  for (let i = 0; i < GRADE_TERMS.length; i++) {
+    const w = GRADE_TERMS[i];
+    base -= w.scale * (Math.cos(w.freq * z + w.phase) - w.rest);
   }
   ctx.base = base;
 
-  ctx.mid = wanderAt(z);
+  /* The mid-line and the route's curvature read the same sines: `wanderAt`
+     and the banking sum below, taken in one pass over the waves. Each sum
+     still adds its terms in its own order, so both are what they were. */
+  let mid = 0;
+  let curvature = 0;
+  for (let i = 0; i < wander.length; i++) {
+    const w = wander[i];
+    const s = Math.sin(z * w.freq);
+    mid += s * w.amp;
+    curvature -= s * w.amp * w.freq * w.freq;
+  }
+  ctx.mid = mid;
   ctx.split = forkSplit(z);
   ctx.half = corridorHalfAt(z);
   const zw = bandWidthsAt(z, ctxBandScratch);
   ctx.powderW = zw[0];
   ctx.rockW = zw[1];
   ctx.bandW = zw[0] + zw[1];
-  ctx.guideX = guideAt(z);
+  // `guideAt(z)`, from the centre this context already holds.
+  ctx.guideX = guideFrom(z, courseCentreFrom(z, ctx.mid, ctx.split));
   // Broad, low rollers stay comfortably below the downhill grade. Banking
   // follows actual route curvature and vanishes gently through a fork.
   ctx.groomRoll = (noise1(z * 0.018, 211) * 2 - 1)
     * (0.35 + 0.75 * ctx.swells + 0.25 * ctx.bumps);
-  let curvature = 0;
-  for (const w of wander) curvature -= Math.sin(z * w.freq) * w.amp * w.freq * w.freq;
   ctx.turnBank = Math.max(-0.045, Math.min(0.045, -curvature * 180))
     * (1 - smoothstep(0, ctx.half, ctx.split));
   /* Which of the two branches is the high one, and by how much. Hashed off
@@ -1031,11 +1071,44 @@ function rowContext(z, ctx) {
   const v = 1 + wall.lipVary * snoise2(z * wall.lipFreq, 0, 23);
   ctx.lipW = wall.lipWidth * v;
   ctx.lipH = wall.lipHeight * v * chapterLip;
-  /* The flank fields are row facts. Precomputing both sides here avoids four
-     identical noise samples for every lateral vertex in a generated row —
-     and `heightAt`, which asks for only one point, still takes the exact same
-     route through the same context. Smooth noise, like the ribs and channels
-     they scale: see `snoise2Smooth`. */
+  /* The flank fields, and the drops and knolls in range, are row facts that
+     only some ground reads: the wall's lip and face, and whatever lies
+     outside the corridor. A row of the mesh asks for all of them, and so do
+     its first vertices; but most single-point queries — the rider, the
+     board's track, the other riders, the animals — stand on the groomed run
+     and never reach them. So they are worked out on first use (see
+     `wallFields` and `hazardFields` below), from this same row, which makes
+     them the same numbers whoever asks first. */
+  ctx.wallReady = false;
+  ctx.hazardsReady = false;
+
+  /* Side hits crossing this row. A hit stands between its own gate and the
+     next, so only the three slots at and above this row can reach it; the
+     along-slope profile is a row fact and is resolved here, leaving the
+     vertex loop one lateral falloff per hit. */
+  ctx.nHits = 0;
+  const kz = Math.floor(-z / guide.every);
+  for (let k = kz - 2; k <= kz && ctx.nHits < 2; k++) {
+    if (k < sideHits.from) continue;
+    const hit = sideHitFor(k);
+    if (!hit) continue;
+    const p = sideHitProfile(hit, hit.zc - z);
+    if (p <= 0) continue;
+    ctx.hitX[ctx.nHits] = hit.x;
+    ctx.hitR[ctx.nHits] = hit.rx;
+    ctx.hitP[ctx.nHits] = hit.h * p;
+    ctx.nHits += 1;
+  }
+  return ctx;
+}
+
+/* The flank fields of `rowContext`'s row, on first use. Precomputing both
+   sides once a row avoids four identical noise samples for every lateral
+   vertex in a generated row — and `heightAt`, which asks for only one point,
+   still takes the exact same route through the same context. Smooth noise,
+   like the ribs and channels they scale: see `snoise2Smooth`. */
+function wallFields(ctx) {
+  const z = ctx.z;
   const S = wall.structure;
   ctx.wallBroadLeft = 0.5
     + 0.5 * snoise2Smooth(z * S.broadFreq, -7.3, S.broadSeed);
@@ -1045,7 +1118,14 @@ function rowContext(z, ctx) {
     + 0.5 * snoise2Smooth(z * S.detailFreq, -11.9, S.detailSeed);
   ctx.wallDetailRight = 0.5
     + 0.5 * snoise2Smooth(z * S.detailFreq, 11.9, S.detailSeed);
+  ctx.wallReady = true;
+  return ctx;
+}
 
+/* The drops and knolls that reach `rowContext`'s row, on first use: only the
+   ground outside the corridor carries them. */
+function hazardFields(ctx) {
+  const z = ctx.z;
   /* Any drop whose face or runout reaches this far down the hill. A drop
      spans about seventy metres against a period of two hundred and sixty, so
      only this block and the one above it can ever be in range. */
@@ -1107,24 +1187,7 @@ function rowContext(z, ctx) {
     ctx.kh[ctx.nKnolls] = knoll.rise * knoll.rz * knollMix;
     ctx.nKnolls += 1;
   }
-
-  /* Side hits crossing this row. A hit stands between its own gate and the
-     next, so only the three slots at and above this row can reach it; the
-     along-slope profile is a row fact and is resolved here, leaving the
-     vertex loop one lateral falloff per hit. */
-  ctx.nHits = 0;
-  const kz = Math.floor(-z / guide.every);
-  for (let k = kz - 2; k <= kz && ctx.nHits < 2; k++) {
-    if (k < sideHits.from) continue;
-    const hit = sideHitFor(k);
-    if (!hit) continue;
-    const p = sideHitProfile(hit, hit.zc - z);
-    if (p <= 0) continue;
-    ctx.hitX[ctx.nHits] = hit.x;
-    ctx.hitR[ctx.nHits] = hit.rx;
-    ctx.hitP[ctx.nHits] = hit.h * p;
-    ctx.nHits += 1;
-  }
+  ctx.hazardsReady = true;
   return ctx;
 }
 
@@ -1460,6 +1523,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   }
   const over = past - ctx.bandW;
   if (over > 0) {
+    if (!ctx.wallReady) wallFields(ctx);
     /* The launchable bank remains a smooth quarterpipe across its width, but
        its shoulder now follows the same slow left/right geology as the wall
        behind it. That creates broad folds down the valley without putting a
@@ -1563,6 +1627,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
      of up to a centimetre and a half in the ground the physics stands on. */
   const beyondF = 1 - corridorF;
   if (beyondF > 0) {
+    if (!ctx.hazardsReady) hazardFields(ctx);
     for (let i = 0; i < ctx.nKnolls; i++) {
       const dx = (x - ctx.kx[i]) / ctx.krx[i];
       if (dx <= -1 || dx >= 1) continue;
@@ -3756,7 +3821,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          entire row, and keeping them lets the silhouette remain the same
          slate/iron mountain instead of turning back into deep snow as soon as
          the radial material shortcut begins. */
-      rowContext(wz, ctx);
+      if (!rowContext(wz, ctx).wallReady) wallFields(ctx);
       const grade = gradeAt(wz);
 
       /* Vertices past `FOG_ROW_SKIP` are behind a closed curtain in every
