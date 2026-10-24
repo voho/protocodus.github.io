@@ -34,9 +34,11 @@
         <div class="wordmark">
           <h1>Zipper</h1>
           <p>One line through every cell, numbers in order.</p>
+          <div class="world-chip"><i aria-hidden="true"></i><span data-world-name>Loading scenery</span><span class="board-size" data-board-size></span></div>
         </div>
       </div>
       <div class="hud-tools">
+        <button type="button" class="btn daily-btn" data-action="daily" aria-pressed="false">Daily <span class="long">puzzle</span></button>
         <fieldset class="segmented" aria-label="Difficulty">
           <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
           <label><input type="radio" name="difficulty" value="medium" checked><span>Medium</span></label>
@@ -49,14 +51,19 @@
     <footer class="hud-bottom">
       <div class="status">
         <output class="timer" data-timer aria-label="Time">0:00</output>
-        <span class="seed">Board <b data-seed>—</b></span>
+        <button type="button" class="seed share-seed" data-action="share" title="Copy a link to this board" aria-label="Copy puzzle link">Board <b data-seed>—</b> <span aria-hidden="true">↗</span></button>
       </div>
       <div class="toolbar" role="group" aria-label="Puzzle actions">
+        <button type="button" class="btn" data-action="undo" disabled>Undo</button>
         <button type="button" class="btn" data-action="hint">Hint <span class="badge" data-hints></span></button>
         <button type="button" class="btn" data-action="reset">Reset</button>
         <button type="button" class="btn btn-primary" data-action="new">New <span class="long">puzzle</span></button>
       </div>
-      <div class="spacer"></div>
+      <div class="progress-area">
+        <div class="progress-caption"><span data-progress-detail>Follow the numbers</span><span data-progress-count>0 / 0</span></div>
+        <progress data-progress value="0" max="1" aria-label="Board coverage"></progress>
+        <p class="play-feedback" data-feedback>Drag the line or tap a neighbouring cell.</p>
+      </div>
     </footer>
   </div>
   <p class="toast" data-toast role="status"></p>
@@ -70,7 +77,7 @@
         <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12v12H4z"/><path d="M4 10h12M10 4v12"/></svg></span><span><b>Fill the board.</b> Every cell is visited exactly once, moving between neighbouring cells.</span></li>
         <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M10 3v14"/><path d="M3 10h4m6 0h4" opacity="0.5"/></svg></span><span><b>Walls stop the line.</b> It cannot cross a glowing wall, or itself.</span></li>
       </ul>
-      <p class="keys">Drag from the head of the line to draw; drag back along it to erase. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> draw and <kbd>⌫</kbd> steps back. <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound. Every board has exactly one solution. Hints highlight a route or a wrong turn; you draw or retrace the line yourself.</p>
+      <p class="keys">Drag from the head of the line, or tap neighbouring cells. Retrace the line to erase, or use Undo. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> draw and <kbd>⌫</kbd> steps back. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound. Try a Daily puzzle, or New for an endless supply. Six worlds bring fresh scenery and colours. Every board has exactly one solution. Hints highlight a route or a wrong turn; you draw or retrace the line yourself.</p>
       <div class="card-actions">
         <button type="submit" class="btn btn-primary">Let me draw</button>
       </div>

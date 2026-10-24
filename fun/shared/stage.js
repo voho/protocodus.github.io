@@ -8,7 +8,7 @@ const BACKDROP_VERTEX = /* glsl */ `
 varying vec2 vUv;
 void main() {
   vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_Position = vec4(position.xy * 2.0, 1.0, 1.0);
 }`;
 
 /* A vertical gradient with a soft pool of light behind the board, two
@@ -17,7 +17,7 @@ void main() {
    hangs in front of the camera, so it is screen space. */
 const BACKDROP_FRAGMENT = /* glsl */ `
 uniform vec3 uTop, uBottom, uGlow, uBlobA, uBlobB, uPulseColour;
-uniform float uAspect, uTime, uPulse;
+uniform float uAspect, uTime, uPulse, uMotif;
 uniform vec2 uPulseAt;
 varying vec2 vUv;
 void main() {
@@ -31,6 +31,25 @@ void main() {
   colour += uGlow * exp(-dot(d, d) * 4.0);
   vec2 q = p - (uPulseAt - 0.5) * vec2(uAspect, 1.0);
   colour += uPulseColour * uPulse * exp(-dot(q, q) * 5.0);
+  // Quiet, distinct scenery behind the table. Analytic shapes need no assets.
+  float pattern = 0.0;
+  if (uMotif < 0.5) {
+    float ribbon = sin(p.x * 4.0 + sin(p.y * 6.0 + uTime * 0.08) * 1.4);
+    pattern = pow(max(0.0, 1.0 - abs(p.y - ribbon * 0.18 - 0.15)), 14.0) * 0.18;
+  } else if (uMotif < 1.5) {
+    pattern = pow(0.5 + 0.5 * sin(length(p - vec2(0.4, -0.5)) * 28.0 - uTime * 0.13), 10.0) * 0.065;
+  } else if (uMotif < 2.5) {
+    vec2 grid = fract((p + vec2(uTime * 0.003, uTime * 0.006)) * 9.0) - 0.5;
+    pattern = exp(-dot(grid, grid) * 110.0) * 0.12;
+  } else if (uMotif < 3.5) {
+    pattern = pow(0.5 + 0.5 * sin(p.y * 32.0 + sin(p.x * 3.0) * 3.0), 6.0) * 0.08;
+  } else if (uMotif < 4.5) {
+    pattern = pow(0.5 + 0.5 * sin(p.y * 43.0 + sin(p.x * 7.0 + uTime * 0.07)), 12.0) * 0.07;
+  } else {
+    vec2 grid = fract(p * 14.0) - 0.5;
+    pattern = exp(-dot(grid, grid) * 180.0) * (0.06 + 0.04 * sin(uTime * 0.3 + floor(p.x * 14.0)));
+  }
+  colour += uGlow * pattern * 2.0;
   colour *= 1.0 - 0.6 * smoothstep(0.4, 1.05, length(p));
   gl_FragColor = vec4(colour, 1.0);
 }`;
@@ -90,14 +109,15 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // A touch screen is almost always a phone or a tablet: fewer pixels, a
   // smaller shadow map and a lower idle frame rate keep it cool.
-  const mobile = window.matchMedia('(pointer: coarse)').matches;
+  const mobile = window.matchMedia('(any-pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({
     canvas, antialias: true, powerPreference: 'high-performance',
     // In HDR the path, the numbers and the walls keep their real brightness
     // until the tone mapping, and the bloom can let the brightest bleed.
     outputBufferType: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
+  let pixelRatio = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = exposure;
@@ -122,6 +142,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
       uPulseAt: { value: new THREE.Vector2(0.5, 0.5) },
       uAspect: { value: 1 },
       uTime: { value: 0 },
+      uMotif: { value: 0 },
     },
     depthTest: false, depthWrite: false,
   });
@@ -171,6 +192,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
   const pointer = { x: 0, y: 0 };
   let halfW = 3, halfD = 3, width = 1, height = 1;
   const listeners = new Set();
+  const atmosphere = [];
   let running = false, last = 0, time = 0, flash = 0;
   let pendingFrame = 0;
   // A move lands: a pulse of light in the backdrop and a nudge of the camera.
@@ -180,7 +202,8 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
      change wakes it up to the full frame rate for a moment. */
   let activeUntil = 0;
   let lastDraw = 0;
-  const idleGap = (mobile ? 1 / 10 : 1 / 20) * 1000;
+  const idleGap = reduced ? 1000 : (mobile ? 1 / 15 : 1 / 24) * 1000;
+  let slowFrames = 0, qualityCooldown = 0, previousActive = false;
 
   /* Whether the board's corners all land inside `limits` (in clip space)
      from `distance` away at the resting angle. */
@@ -188,7 +211,8 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
   const corner = new THREE.Vector3();
   function fits(distance, limits) {
     fitCamera.fov = camera.fov; fitCamera.aspect = camera.aspect; fitCamera.near = camera.near; fitCamera.far = camera.far;
-    fitCamera.updateProjectionMatrix();
+    if (camera.view?.enabled) fitCamera.setViewOffset(width, height, 0, camera.view.offsetY, width, height);
+    else fitCamera.updateProjectionMatrix();
     fitCamera.position.set(rig.center.x, rig.center.y + Math.sin(rig.base) * distance, rig.center.z + Math.cos(rig.base) * distance);
     fitCamera.lookAt(rig.center);
     fitCamera.updateMatrixWorld();
@@ -201,10 +225,14 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
   /* The nearest the camera can stand with the whole board clear of the
      panels at the top and bottom of the window. */
   function refit() {
-    const pad = 20;
+    const pad = height < 500 ? 8 : 14;
     const topBar = document.querySelector('.hud-top')?.getBoundingClientRect().bottom ?? 80;
-    const bottomBar = height - (document.querySelector('.hud-bottom')?.getBoundingClientRect().top ?? height - 90);
-    const limits = { x: 0.88, top: 1 - 2 * (topBar + pad) / height, bottom: 1 - 2 * (bottomBar + pad) / height };
+    const bottomTop = document.querySelector('.hud-bottom')?.getBoundingClientRect().top ?? height - 90;
+    // Shift the optical centre into the free space between the controls.
+    // A centered frustum wastes much of a phone's asymmetric play area.
+    const centreY = (topBar + bottomTop) / 2;
+    camera.setViewOffset(width, height, 0, height / 2 - centreY, width, height);
+    const limits = { x: 0.92, top: 1 - 2 * (topBar + pad) / height, bottom: 2 * (bottomTop - pad) / height - 1 };
     let near = 2, far = 90;
     for (let i = 0; i < 26; i++) {
       const middle = (near + far) / 2;
@@ -222,6 +250,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     backdropMesh.scale.set(span * camera.aspect * 1.02, span * 1.02, 1);
     backdropMaterial.uniforms.uAspect.value = camera.aspect;
     refit();
+    rig.distance = rig.target.distance;
   }
 
   function frame(now) {
@@ -234,7 +263,22 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     if (!active && now - lastDraw < idleGap) return;
     // Exponential easing is stable for any step, so a slow device keeps the
     // same pace in real time rather than slowing every motion down.
-    const dt = Math.min(active ? 0.1 : 0.25, Math.max(0, (now - last) / 1000));
+    const frameGap = now - last;
+    // Reduce resolution only after sustained slow active frames; idle throttling
+    // and returning from a background tab must never lower the quality.
+    if (active && previousActive && now > qualityCooldown) {
+      slowFrames = frameGap > 28 ? slowFrames + 1 : Math.max(0, slowFrames - 2);
+      if (slowFrames >= 75 && pixelRatio > 0.8) {
+        pixelRatio = Math.max(0.8, pixelRatio - 0.25);
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setSize(width, height, false);
+        if (pixelRatio <= 1) renderer.setEffects([]);
+        qualityCooldown = now + 4000;
+        slowFrames = 0;
+      }
+    }
+    previousActive = active;
+    const dt = Math.min(active ? 0.1 : 0.25, Math.max(0, frameGap / 1000));
     last = now;
     lastDraw = now;
     time += dt;
@@ -262,7 +306,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     flashLight.intensity = flash * flash * 60;
     pulse = Math.max(0, pulse - dt * 1.8);
     backdropMaterial.uniforms.uPulse.value = pulse * pulse;
-    backdropMaterial.uniforms.uTime.value = time;
+    backdropMaterial.uniforms.uTime.value = reduced ? 0 : time;
     // The rim light wanders between the two accents, so highlights never sit still.
     rim.color.copy(rimAccent).lerp(rimSecondary, 0.5 + 0.5 * Math.sin(time * 0.23));
     for (const listener of listeners) listener(dt, time);
@@ -276,6 +320,29 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
 
   const stage = {
     renderer, scene, camera, key, rim, hdr, reduced,
+    setTheme(theme) {
+      const uniforms = backdropMaterial.uniforms;
+      uniforms.uTop.value.set(theme.top);
+      uniforms.uBottom.value.set(theme.bottom);
+      uniforms.uGlow.value.set(theme.accent).multiplyScalar(0.035);
+      uniforms.uBlobA.value.set(theme.accent).multiplyScalar(0.04);
+      uniforms.uBlobB.value.set(theme.secondary).multiplyScalar(0.035);
+      uniforms.uMotif.value = theme.motif;
+      rimAccent.set(theme.accent); rimSecondary.set(theme.secondary);
+      for (const { geometry, material, vertex } of atmosphere) {
+        if (!vertex) material.color.set(theme.accent);
+        else {
+          const colours = geometry.attributes.color;
+          const tint = new THREE.Color();
+          for (let i = 0; i < colours.count; i++) {
+            tint.set(theme.palette[i % theme.palette.length]);
+            colours.setXYZ(i, tint.r, tint.g, tint.b);
+          }
+          colours.needsUpdate = true;
+        }
+      }
+      stage.wake(1);
+    },
     get time() { return time; },
     get width() { return width; },
     get height() { return height; },
@@ -305,7 +372,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     onFrame(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     /* Something moved: draw every frame for the next `seconds`. */
     wake(seconds = 0.8) { activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000); },
-    flash(colour, strength = 1) { flashLight.color.set(colour); flash = Math.max(flash, strength); },
+    flash(colour, strength = 1) { if (reduced) return; flashLight.color.set(colour); flash = Math.max(flash, strength); stage.wake(); },
     /* A glossy material: a clear coat on a desktop GPU, plain shading on a
        phone, where the second specular lobe is not worth the heat. */
     material({ clearcoat = 1, clearcoatRoughness = 0.12, ...rest }) {
@@ -313,6 +380,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     },
     /* Light blooms in the backdrop behind a point on the table. */
     pulse(point, colour, strength = 1) {
+      if (reduced) return;
       corner.copy(point).project(camera);
       backdropMaterial.uniforms.uPulseAt.value.set((corner.x + 1) / 2, (corner.y + 1) / 2);
       backdropMaterial.uniforms.uPulseColour.value.set(colour).multiplyScalar(0.35);
@@ -348,6 +416,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
         const points = new THREE.Points(geometry, material);
         points.frustumCulled = false;
         scene.add(points);
+        atmosphere.push({ geometry, material, vertex: true });
         const phase = Float32Array.from({ length: n }, () => Math.random() * Math.PI * 2);
         stage.onFrame((dt, t) => {
           if (reduced) return;
@@ -365,6 +434,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     },
     /* Drifting specks in the air over the table, for depth. */
     dust({ count = 150, colour = accent, extent = 5, top = 4 } = {}) {
+      count = Math.round(count * (mobile ? 0.5 : 1));
       const positions = new Float32Array(count * 3);
       for (let i = 0; i < count; i++) {
         positions[i * 3] = (Math.random() * 2 - 1) * extent;
@@ -380,6 +450,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
       const points = new THREE.Points(geometry, material);
       points.frustumCulled = false;
       scene.add(points);
+      atmosphere.push({ geometry, material, vertex: false });
       const phase = Float32Array.from({ length: count }, () => Math.random() * Math.PI * 2);
       stage.onFrame((dt, t) => {
         if (reduced) return;
@@ -397,6 +468,7 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
       if (running) return;
       running = true;
       last = performance.now();
+      previousActive = false; slowFrames = 0;
       stage.wake(1);
       // A frame queued before a stop would otherwise run alongside this one.
       cancelAnimationFrame(pendingFrame);
@@ -413,6 +485,9 @@ export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155',
     stage.wake(0.5);
   });
   window.addEventListener('resize', () => { resize(); stage.wake(1); });
+  window.visualViewport?.addEventListener('resize', () => { resize(); stage.wake(1); });
+  const controlsObserver = new ResizeObserver(() => { resize(); stage.wake(1); });
+  for (const panel of document.querySelectorAll('.hud-top, .hud-bottom')) controlsObserver.observe(panel);
   // A lost context (a tab in the background too long, a driver reset)
   // comes back by itself; three re-uploads what it needs.
   canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); stage.stop(); });

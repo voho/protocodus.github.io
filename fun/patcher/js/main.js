@@ -5,6 +5,7 @@ import { createSound } from '../../shared/sound.js';
 import { createShell } from '../../shared/shell.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
+import { themeFor } from '../../shared/themes.js';
 import { generate, cluesInside, rejectReason, isSolved, hint } from './puzzle.js';
 import { createBoard, PALETTE } from './board.js';
 
@@ -46,6 +47,10 @@ async function boot() {
   let solved = false;
   let assisted = false;
   let drag = null;
+  let tapAnchor = -1;
+  let theme = null;
+  let shell = null;
+  let winTimer = 0;
   // Keyboard: a cursor cell, and the cell a patch is being grown from.
   let cursor = -1;
   let keyAnchor = -1;
@@ -60,15 +65,22 @@ async function boot() {
     return { x: Math.min(ax, bx), y: Math.min(ay, by), w: Math.abs(ax - bx) + 1, h: Math.abs(ay - by) + 1 };
   };
   const colourFor = (clue) => {
-    if (!colours.has(clue)) colours.set(clue, PALETTE[colours.size % PALETTE.length]);
+    if (!colours.has(clue)) {
+      const palette = theme?.palette || PALETTE;
+      colours.set(clue, palette[colours.size % palette.length]);
+    }
     return colours.get(clue);
   };
 
   function announce() {
-    status.textContent = solved ? 'Solved.' : `${patches.length} of ${puzzle.clues.length} patches placed.`;
+    const covered = patches.reduce((sum, patch) => sum + patch.w * patch.h, 0);
+    status.textContent = solved ? 'Solved.' : `${patches.length} of ${puzzle.clues.length} patches placed. ${covered} of ${puzzle.size * puzzle.size} cells covered.`;
+    shell?.setProgress?.(covered, puzzle.size * puzzle.size, `${patches.length} / ${puzzle.clues.length} patches`);
+    shell?.setUndoAvailable?.(!solved && undo.length > 0);
   }
 
   function start(difficulty, seed) {
+    clearTimeout(winTimer);
     try {
       puzzle = generate(difficulty, seed);
     } catch (error) {
@@ -78,8 +90,11 @@ async function boot() {
       setTimeout(() => shell.load(difficulty, randomSeed()), 0);
       return;
     }
+    cancelSelection();
     board?.dispose();
-    board = createBoard(stage, puzzle, { accent: ACCENT, fx });
+    theme = themeFor(seed, 'patcher');
+    stage.setTheme(theme);
+    board = createBoard(stage, puzzle, { accent: theme.accent, fx, theme });
     patches = [];
     undo = [];
     colours = new Map();
@@ -99,13 +114,15 @@ async function boot() {
     stage.flash('#ffffff', 0.8);
     announce();
     const finished = puzzle;
-    setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1600);
+    clearTimeout(winTimer);
+    winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1600);
   }
 
   function place(patch, record = true) {
     patches.push(patch);
     if (record) undo.push({ type: 'place', patch });
-    board.place(patch, colourFor(patch.clue), () => { sound.place(); stage.flash(colourFor(patch.clue), 0.12); });
+    sound.place();
+    board.place(patch, colourFor(patch.clue), () => { stage.flash(colourFor(patch.clue), 0.12); });
     shell.begin();
     announce();
     if (isSolved(puzzle, patches)) finish();
@@ -123,81 +140,133 @@ async function boot() {
     const point = stage.pick(event.clientX, event.clientY, 0.14);
     return point ? board.cellAt(point, clamp) : -1;
   };
+  function cancelSelection() {
+    const pointerId = drag?.pointerId;
+    drag = null;
+    tapAnchor = -1;
+    keyAnchor = -1;
+    board?.preview(null);
+    shell?.clearFeedback?.();
+    if (pointerId !== undefined && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
+  }
+
+  function preview(rect) {
+    const reason = rejectReason(puzzle, patches, rect);
+    board.preview(rect, reason === null);
+    const dimensions = `${rect.w} × ${rect.h} · ${rect.w * rect.h} cells`;
+    shell?.setFeedback?.(`${dimensions} · ${reason ? REASONS[reason] : 'Ready to place'}`);
+  }
+
   canvas.addEventListener('pointerdown', (event) => {
-    if (!board || solved || event.button > 0) return;
+    if (!board || solved || drag || event.button > 0 || event.isPrimary === false) return;
     sound.unlock();
     canvas.focus({ preventScroll: true });
     const cell = cellFromEvent(event, false);
-    if (cell < 0) return;
+    if (cell < 0) { cancelSelection(); return; }
+    keyAnchor = -1;
+    board.preview(null);
+    shell?.clearFeedback?.();
     canvas.setPointerCapture(event.pointerId);
-    const covering = patches.find((p) => inside(p, cell));
-    if (covering) { lift(covering); return; }
-    const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
-    drag = { anchor: cell, cell, left: x, right: x, top: y, bottom: y, rect: rectBetween(cell, cell), moved: false };
-    board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
+    if (tapAnchor === cell) { cancelSelection(); return; }
+    const anchor = tapAnchor >= 0 ? tapAnchor : cell;
+    const completingTap = tapAnchor >= 0;
+    const covering = completingTap ? null : patches.find((p) => inside(p, cell));
+    tapAnchor = -1;
+    drag = { pointerId: event.pointerId, anchor, cell, rect: rectBetween(anchor, cell),
+      moved: completingTap, completingTap, covering, startX: event.clientX, startY: event.clientY };
+    if (!covering) preview(drag.rect);
   });
   canvas.addEventListener('pointermove', (event) => {
     if (!board) return;
     if (drag) {
+      if (event.pointerId !== drag.pointerId) return;
+      if (drag.covering) {
+        if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 8) drag.moved = true;
+        return;
+      }
       const cell = cellFromEvent(event, true);
       if (cell >= 0 && cell !== drag.cell) {
         drag.cell = cell;
         drag.moved = true;
-        // The patch is painted: every cell the pointer has passed stays in
-        // it, so going up and then down keeps the top cells and joins the
-        // bottom ones, rather than stretching between the start and the
-        // pointer alone.
-        const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
-        drag.left = Math.min(drag.left, x); drag.right = Math.max(drag.right, x);
-        drag.top = Math.min(drag.top, y); drag.bottom = Math.max(drag.bottom, y);
-        drag.rect = { x: drag.left, y: drag.top, w: drag.right - drag.left + 1, h: drag.bottom - drag.top + 1 };
-        board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
+        // The opposite corner follows the pointer in both directions, so
+        // overshooting a small patch never forces the player to start over.
+        drag.rect = rectBetween(drag.anchor, cell);
+        preview(drag.rect);
       }
     } else if (event.pointerType === 'mouse') {
-      board.hover(cellFromEvent(event, false));
+      const cell = cellFromEvent(event, false);
+      board.hover(cell);
+      if (tapAnchor >= 0 && cell >= 0) preview(rectBetween(tapAnchor, cell));
     }
   });
-  /* A drawn rectangle is let go: it lands, or the reason it cannot shows. */
+  /* A rectangle lands on release; feedback explains an invalid choice. */
   function commit(rect, moved, anchor) {
     board.preview(null);
+    shell?.clearFeedback?.();
     if (solved) return;
     const reason = rejectReason(puzzle, patches, rect);
     if (!reason) { place({ clue: cluesInside(puzzle, rect)[0], ...rect }); return; }
     const isClue = puzzle.clues.some((clue) => clue.cell === anchor);
-    if (!moved && !isClue) shell.toast('Drag from a clue to draw its patch.');
-    else if (!moved && (reason === 'number' || reason === 'shape')) shell.toast('Drag to draw a bigger patch.');
-    else { board.reject(); sound.buzz(); shell.toast(REASONS[reason]); }
+    if (!moved && !isClue) shell.toast('Drag between opposite corners, or tap both corners.');
+    else if (!moved && (reason === 'number' || reason === 'shape')) shell.toast('Choose the opposite corner to make a bigger patch.');
+    else { board.reject(rect); sound.buzz(); shell.toast(REASONS[reason]); }
   }
   const release = (event) => {
-    if (!drag || !board) return;
-    const { rect, moved, anchor } = drag;
+    if (!drag || !board || event.pointerId !== drag.pointerId) return;
+    if (event.type === 'pointercancel' || event.type === 'lostpointercapture') { cancelSelection(); return; }
+    const current = drag;
     drag = null;
-    if (event.type === 'pointercancel') { board.preview(null); return; }
-    commit(rect, moved, anchor);
+    if (current.covering) {
+      if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > 8) current.moved = true;
+      if (!current.moved) lift(current.covering);
+      return;
+    }
+    // Some devices deliver a final position only on pointerup.
+    const cell = cellFromEvent(event, true);
+    if (cell >= 0 && cell !== current.cell) {
+      current.rect = rectBetween(current.anchor, cell);
+      current.moved = true;
+    }
+    if (!current.moved && rejectReason(puzzle, patches, current.rect)) {
+      tapAnchor = current.anchor;
+      preview(current.rect);
+      shell?.setFeedback?.('Corner selected · tap the opposite corner, or tap here to cancel');
+      return;
+    }
+    commit(current.rect, current.moved, current.anchor);
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('lostpointercapture', release);
   canvas.addEventListener('pointerleave', () => { if (!drag) board?.hover(-1); });
-  canvas.addEventListener('blur', () => board?.hover(-1));
+  canvas.addEventListener('blur', () => { cancelSelection(); board?.hover(-1); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelSelection(); });
 
   canvas.addEventListener('keydown', (event) => {
-    if (!board || solved) return;
+    if (event.key === 'Escape' && (drag || keyAnchor >= 0 || tapAnchor >= 0)) {
+      event.preventDefault();
+      cancelSelection();
+      return;
+    }
+    if (!board || solved || drag) return;
     const n = puzzle.size;
     if (cursor < 0) cursor = 0;
     const c = cursor % n, r = Math.floor(cursor / n);
     const moves = { ArrowUp: [c, r - 1], ArrowDown: [c, r + 1], ArrowLeft: [c - 1, r], ArrowRight: [c + 1, r] };
     if (event.key in moves) {
       event.preventDefault();
+      if (tapAnchor >= 0) { tapAnchor = -1; board.preview(null); shell?.clearFeedback?.(); }
       const [nc, nr] = moves[event.key];
       cursor = Math.max(0, Math.min(n - 1, nr)) * n + Math.max(0, Math.min(n - 1, nc));
       board.hover(cursor);
       if (keyAnchor >= 0) {
         const rect = rectBetween(keyAnchor, cursor);
-        board.preview(rect, rejectReason(puzzle, patches, rect) === null);
+        preview(rect);
       }
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       sound.unlock();
+      tapAnchor = -1;
       if (keyAnchor >= 0) {
         const anchor = keyAnchor;
         keyAnchor = -1;
@@ -205,25 +274,24 @@ async function boot() {
         return;
       }
       const covering = patches.find((p) => inside(p, cursor));
-      if (covering) { lift(covering); return; }
+      if (covering) { cancelSelection(); lift(covering); return; }
       keyAnchor = cursor;
       board.hover(cursor);
-      board.preview(rectBetween(cursor, cursor), rejectReason(puzzle, patches, rectBetween(cursor, cursor)) === null);
-    } else if (event.key === 'Escape' && keyAnchor >= 0) {
-      event.preventDefault();
-      keyAnchor = -1;
-      board.preview(null);
+      preview(rectBetween(cursor, cursor));
     } else if (event.key === 'x' || event.key === 'Delete' || event.key === 'Backspace') {
       const covering = patches.find((p) => inside(p, cursor));
-      if (covering) { event.preventDefault(); lift(covering); }
+      if (covering) { event.preventDefault(); cancelSelection(); lift(covering); }
     }
   });
 
-  const shell = createShell({
+  shell = createShell({
     storageKey: 'patcher', sound,
     onNew: start,
     onReset() {
       if (!board) return;
+      clearTimeout(winTimer);
+      cancelSelection();
+      board.clearHint?.();
       if (solved) solved = false;
       for (const patch of patches.slice()) board.lift(patch.clue);
       if (patches.length) sound.lift();
@@ -234,6 +302,7 @@ async function boot() {
     },
     onUndo() {
       if (!board || solved) return;
+      cancelSelection();
       const last = undo.pop();
       if (!last) return;
       if (last.type === 'place') lift(last.patch, false);
@@ -241,6 +310,7 @@ async function boot() {
     },
     onHint() {
       if (!board || solved) return;
+      cancelSelection();
       const next = hint(puzzle, patches);
       assisted = true;
       if (next.type === 'lift') {
@@ -254,6 +324,7 @@ async function boot() {
     },
   });
 
+  announce();
   stage.start();
   document.body.classList.add('ready');
   // For the browser check: where a cell is on the page.
