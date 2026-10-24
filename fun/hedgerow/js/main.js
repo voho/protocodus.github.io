@@ -987,7 +987,6 @@ function step() {
     G.fireballs.update(flash, G.flares.burning ? G.flares.light : null);
     G.windowLight?.update(camera);
     if (grade) {
-      grade.uniforms.uTime.value = G.time;
       grade.tick(dt);
       adapt.metering = state === 'playing' && missionTime > 1;
       adapt.update(dt, renderer, flash);

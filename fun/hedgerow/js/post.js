@@ -2,8 +2,8 @@
    bloom (still in linear HDR; three tone-maps afterwards): a sharpening
    held inside each pixel's neighbourhood (no halos), a gentle S-curve
    about mid grey (readable shadows, firm highlights), a cool, slightly
-   desaturated grade with warm highlights, a light vignette, subtle film grain that lives
-   in the shadows, and the hurt state (red edges, drained colour, a little
+   desaturated grade with warm highlights, a light vignette,
+   and the hurt state (red edges, drained colour, a little
    chromatic split). Dazed by a blast close by (daze.js), he sees double —
    a ghost of the view drifting slowly round it — smeared towards the edges,
    drained of colour, the dark closing in from the sides and coming and
@@ -19,7 +19,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
 const FRAG = /* glsl */ `
 uniform sampler2D tSrc;
-uniform float uTime, uHurt, uFlash, uSat, uGrain, uAspect, uSharp, uContrast;
+uniform float uHurt, uFlash, uSat, uAspect, uSharp, uContrast;
 uniform float uDaze, uDazeT;  // dazed by a blast (0..1), seconds since it
 uniform vec2 uTexel;
 uniform vec3 uMud;          // how much mud (0: none), its seed, seconds since it hit
@@ -122,11 +122,6 @@ void main() {
   col *= 1.0 - uDaze * 0.15 * (0.5 + 0.5 * sin(uDazeT * 2.4));
   // hurt: red at the edges
   col = mix(col, vec3(0.35, 0.02, 0.01) * (0.6 + l), uHurt * smoothstep(0.1, 0.6, r2) * 0.75);
-  // Subtle grain, strongest in the shadows. The noise floor follows the strength too,
-  // so reducing grain also clears the dark areas instead of leaving static over them.
-  float g = hash(vUv * vec2(1931.0, 1137.0) + fract(uTime * 7.13)) - 0.5;
-  float gk = uGrain * mix(1.6, 0.6, smoothstep(0.02, 0.4, l));
-  col += (col * gk + vec3(uGrain * 0.03)) * g;
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }`;
 
@@ -137,8 +132,8 @@ export function createGrade() {
   const material = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: {
-      tSrc: { value: null }, uTime: { value: 0 }, uHurt: { value: 0 }, uFlash: { value: 0 },
-      uSat: { value: 0.82 }, uGrain: { value: 0.025 }, uAspect: { value: 1.6 },
+      tSrc: { value: null }, uHurt: { value: 0 }, uFlash: { value: 0 },
+      uSat: { value: 0.82 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.02 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
       uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 },
     },

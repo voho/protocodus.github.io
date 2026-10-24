@@ -81,10 +81,10 @@ throws every house's shadow across the street.
 Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
-gentle contrast, sharpening, subtle grain — going soft behind whatever you
+gentle contrast and sharpening — going soft behind whatever you
 aim at.
 The ambient light keeps the lane and forest readable, with a light vignette
-and restrained grain so shadow detail stays clear.
+and no film grain so shadow detail stays clear.
 
 ## Controls
 
@@ -527,7 +527,7 @@ by the blast that killed them, and drop their rifles.
     a second when a flare bursts and the whole view brightens, opens up
     again over a few seconds, never past the night's own, and holds still
     through a lightning stroke) ·
-    `post.js` the grade (sharpening, contrast, colour, vignette, grain, the
+    `post.js` the grade (sharpening, contrast, colour, vignette, the
     hurt state, the daze of a blast close by — a white flash, then the view
     doubled, smeared towards the edges, drained and closing in — and the
     mud a blast close by throws over the view: dark wet
