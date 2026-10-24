@@ -105,7 +105,7 @@ async function boot() {
   function place(patch, record = true) {
     patches.push(patch);
     if (record) undo.push({ type: 'place', patch });
-    board.place(patch, colourFor(patch.clue), () => { sound.place(); stage.flash(colourFor(patch.clue), 0.25); });
+    board.place(patch, colourFor(patch.clue), () => { sound.place(); stage.flash(colourFor(patch.clue), 0.12); });
     shell.begin();
     announce();
     if (isSolved(puzzle, patches)) finish();
