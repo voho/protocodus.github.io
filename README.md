@@ -40,7 +40,7 @@
 
 ## Patcher
 
-[Play Patcher](fun/patcher/index.html) is a 3D logic puzzle in the Shikaku family: cut the whole board into rectangular patches, one clue in each. A number is the patch's cell count; the icon its shape (square, wide, tall, or the dashed icon that takes any). Easy, medium and hard boards (5×5, 7×7 and 9×9), generated on request or after a solve, each with exactly one solution.
+[Play Patcher](fun/patcher/index.html) is a 3D logic puzzle in the Shikaku family: cut the whole board into rectangular patches, one clue in each. A number is the patch's cell count; the icon its shape (a square, a wide bar, a tall bar, or a ring that takes any). Easy, medium and hard boards (5×5, 7×7 and 9×9), generated on request or after a solve, each with exactly one solution.
 
 - A board starts as a random tiling, each patch given a clue; while a second cutting fits, a differing clue is strengthened (a number added, a shape named, the clue moved) until only the intended one remains. A deduction pass grades each board so that easy ones always have a forced patch and hard ones need a look ahead.
 - Drag from a clue to draw a patch, which drops onto the board with a bounce and a puff of dust; tap it to lift it again. Hints highlight a patch to draw or reconsider, without changing the board. The keyboard works too: arrows move, Enter starts and places a patch, X lifts one.
