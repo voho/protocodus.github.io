@@ -29,7 +29,8 @@ export const BASE_HEIGHT = 360;
 
 /* Pick once, before terrain grids and scenery pools are built. Pointer
    capabilities survive rotation; a narrow desktop window is still desktop.
-   Workers use the desktop defaults, with identical terrain and physics. */
+   Workers use the desktop defaults, with identical terrain and physics; the
+   mesh worker is handed the page's own grid (see `terrainLayout`). */
 export const MOBILE_RENDER = typeof window !== 'undefined'
   && !!window.matchMedia?.('(pointer: coarse)')?.matches
   && !!window.matchMedia?.('(hover: none)')?.matches;
