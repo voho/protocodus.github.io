@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
-export async function gameHarness(game, puzzle, logic) {
+export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } = {}) {
   const listeners = new Map();
   const windowListeners = new Map();
   const documentListeners = new Map();
@@ -13,7 +13,7 @@ export async function gameHarness(game, puzzle, logic) {
   const captures = new Set();
   const state = {
     mutations: [], highlights: [], inputs: [], previews: [], progress: [], feedback: [],
-    begins: 0, finishes: 0, wins: 0, hints: 0, toasts: [], undoAvailable: false,
+    begins: 0, finishes: 0, wins: 0, hints: 0, toasts: [], undoAvailable: false, starts: 0, errors: [], ready: false,
   };
   const canvas = {
     addEventListener(name, listener) { listeners.set(name, listener); },
@@ -40,10 +40,14 @@ export async function gameHarness(game, puzzle, logic) {
   const context = vm.createContext({
     ...logic,
     hint(p, input) { state.inputs.push(structuredClone(input)); return logic.hint(p, input); },
-    generate: () => structuredClone(puzzle),
+    generate: () => {
+      if (failGenerations-- > 0) throw new Error('Simulated generation failure');
+      return structuredClone(puzzle);
+    },
+    randomSeed: () => 'retryseed',
     themeFor: () => ({ accent: '#87d7be', palette: ['#87d7be'] }),
     createStage: () => ({
-      dust() {}, bokeh() {}, start() {}, flash() {}, setTheme() {},
+      dust() {}, bokeh() {}, start() { state.starts++; }, flash() {}, setTheme() {},
       pick: (x, y) => ({ x: x / 100, z: y / 100 }), project() {},
     }),
     createBoard: () => board,
@@ -53,6 +57,7 @@ export async function gameHarness(game, puzzle, logic) {
       state.actions = options;
       options.onNew('easy', 'test');
       return {
+        load: (difficulty, seed) => options.onNew(difficulty, seed),
         begin: () => state.begins++, finish: () => { state.finishes++; return 0; },
         countHint: () => state.hints++, toast: (text) => state.toasts.push(text),
         setProgress: (...args) => state.progress.push(args),
@@ -67,11 +72,11 @@ export async function gameHarness(game, puzzle, logic) {
       addEventListener: (name, listener) => documentListeners.set(name, listener),
       getElementById: () => canvas,
       querySelector: (selector) => selector === '[data-status]' ? status : {},
-      body: { classList: { add() {} } },
+      body: { classList: { add(name) { if (name === 'ready') state.ready = true; } } },
     },
     window: { addEventListener: (name, listener) => windowListeners.set(name, listener) },
     setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
-    clearTimeout(id) { timers.delete(id); }, console,
+    clearTimeout(id) { timers.delete(id); }, console: { ...console, error: (error) => state.errors.push(error.message) },
   });
   const source = (await readFile(new URL(`../../${game}/js/main.js`, import.meta.url), 'utf8'))
     .replace(/^import .*;\n/gm, '').replace('  boot();', '  globalThis.booted = boot();');

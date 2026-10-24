@@ -47,6 +47,7 @@ async function boot() {
   const head = () => path[path.length - 1];
 
   function announce() {
+    if (!puzzle) return;
     let next = 1;
     for (const cell of path) if (puzzle.numbers[cell]) next = puzzle.numbers[cell] + 1;
     next = Math.min(next, puzzle.waypoints.length);
@@ -59,8 +60,8 @@ async function boot() {
     try {
       puzzle = generate(difficulty, seed);
     } catch (error) {
-      // Never happens in the checks, but a board that cannot be verified
-      // must not reach the table: take another seed instead.
+      // An unverified board must not reach the table. Retry next turn
+      // with a fresh seed, including during initial startup.
       console.error(error);
       setTimeout(() => shell.load(difficulty, randomSeed()), 0);
       return;

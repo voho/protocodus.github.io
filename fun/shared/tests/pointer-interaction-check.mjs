@@ -129,4 +129,13 @@ const solvePatch = () => {
 solvePatch(); replayPatch.actions.onReset(); solvePatch(); replayPatch.runTimers();
 assert.equal(replayPatch.wins, 1, 'Patcher: replay cancels the previous celebration result');
 
+for (const [game, puzzle, logic] of [['zipper', zipPuzzle, zipper], ['patcher', patchPuzzle, patcher]]) {
+  const recovery = await gameHarness(game, puzzle, logic, { failGenerations: 1 });
+  assert.equal(recovery.ready, true, `${game}: generation failure cannot abort initial boot`);
+  assert.equal(recovery.starts, 1, `${game}: the renderer starts while waiting to retry`);
+  assert.equal(recovery.errors.length, 1, `${game}: failed generation is reported`);
+  recovery.runTimers();
+  assert.equal(recovery.progress.at(-1)[0], game === 'zipper' ? 1 : 0, `${game}: retry loads a playable board`);
+}
+
 console.log('Pointer interaction checks passed: fast drawing, reversible rectangles, two-corner taps, pointer ownership, cancellation, undo and reset.');

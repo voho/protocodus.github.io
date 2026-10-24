@@ -73,6 +73,7 @@ async function boot() {
   };
 
   function announce() {
+    if (!puzzle) return;
     const covered = patches.reduce((sum, patch) => sum + patch.w * patch.h, 0);
     status.textContent = solved ? 'Solved.' : `${patches.length} of ${puzzle.clues.length} patches placed. ${covered} of ${puzzle.size * puzzle.size} cells covered.`;
     shell?.setProgress?.(covered, puzzle.size * puzzle.size, `${patches.length} / ${puzzle.clues.length} patches`);
@@ -84,8 +85,8 @@ async function boot() {
     try {
       puzzle = generate(difficulty, seed);
     } catch (error) {
-      // Never happens in the checks, but a board that cannot be verified
-      // must not reach the table: take another seed instead.
+      // An unverified board must not reach the table. Retry next turn
+      // with a fresh seed, including during initial startup.
       console.error(error);
       setTimeout(() => shell.load(difficulty, randomSeed()), 0);
       return;
