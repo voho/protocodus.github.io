@@ -21,8 +21,8 @@
     import { clueTexture, waitForFont } from '../slab.js';
     await waitForFont();
     const clues = [
-      { shape: 'square', number: 4 }, { shape: 'wide', number: 6 }, { shape: 'tall', number: 3 }, { shape: 'any', number: 2 },
-      { shape: 'square' }, { shape: 'wide' }, { shape: 'tall' }, { shape: 'any' },
+      { shape: 'square', number: 4 }, { shape: 'wide', number: 6 }, { shape: 'tall', number: 3 },
+      { shape: 'square' }, { shape: 'wide' }, { shape: 'tall' },
     ];
     for (const [label, px] of [['on screen (72 px tile)', 72], ['enlarged (200 px tile)', 200]]) {
       for (const [surface, colour] of [['tile', '#f6e7b8'], ['patch', '#1a1420']]) {

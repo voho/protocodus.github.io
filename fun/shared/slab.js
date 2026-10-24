@@ -59,26 +59,16 @@ export function digitTexture(text, colour = '#f3f4f4', weight = 600) {
 
 /* A Patcher clue: the shape above the number. Square, wide and tall are
    solid silhouettes of the rectangle to draw, in proportions far enough
-   apart to tell at a glance; the any-shape clue is a ring, nothing like a
-   rectangle, so a number-only clue never reads as a broken square. */
+   apart to tell at a glance. */
 export function clueTexture({ shape, number }, colour = '#f3f4f4') {
   return canvasTexture((ctx, size) => {
     const both = number !== null && number !== undefined;
-    const tint = { square: '#8fe0c4', wide: '#8cc2ff', tall: '#d9b2f5', any: '#f0cf7a' }[shape] || '#8fe0c4';
+    const tint = { square: '#8fe0c4', wide: '#8cc2ff', tall: '#d9b2f5' }[shape] || '#8fe0c4';
     // Dark labels sit on coloured patches, light labels on dark tiles; the
     // tint only nudges either towards its shape's colour.
     const ink = new THREE.Color(colour).lerp(new THREE.Color(tint), 0.4).getStyle();
     const icon = (cx, cy, long) => {
       ctx.fillStyle = ink;
-      ctx.strokeStyle = ink;
-      ctx.lineJoin = 'round';
-      if (shape === 'any') {
-        ctx.lineWidth = long * 0.16;
-        ctx.beginPath();
-        ctx.arc(cx, cy, long * 0.36, 0, Math.PI * 2);
-        ctx.stroke();
-        return;
-      }
       const [w, h] = { square: [0.62, 0.62], wide: [1, 0.42], tall: [0.42, 1] }[shape] || [0.62, 0.62];
       ctx.beginPath();
       ctx.roundRect(cx - w * long / 2, cy - h * long / 2, w * long, h * long, long * 0.06);
