@@ -31,6 +31,7 @@ for (const difficulty of Object.keys(DIFFICULTIES)) {
     assert.ok(cover.every((c) => c !== -1), 'the whole board is covered');
     assert.ok(isSolved(puzzle, puzzle.solution));
     assert.ok(puzzle.solution.filter((p) => p.w * p.h === 1).length <= spec.singles);
+    assert.ok(puzzle.clues.every((c) => ['square', 'wide', 'tall'].includes(c.shape)), 'every clue names a rectangle shape');
     const { solutions, exhausted } = solve(puzzle, { limit: 3 });
     assert.equal(exhausted, false, `${difficulty}/${seed}: solver ran out of budget`);
     assert.equal(solutions.length, 1, `${difficulty}/${seed}: exactly one cutting`);
@@ -60,7 +61,7 @@ for (const difficulty of Object.keys(DIFFICULTIES)) {
 const puzzle = generate('medium', 'alpha');
 const [first, second] = puzzle.solution;
 assert.equal(rejectReason(puzzle, [first], first), 'overlap');
-const wide = puzzle.solution.find((p, k) => puzzle.clues[k].number && puzzle.clues[k].shape !== 'any' && p.w > 1);
+const wide = puzzle.solution.find((p, k) => puzzle.clues[k].number && p.w > 1);
 if (wide) {
   const clue = puzzle.clues[wide.clue];
   assert.equal(rejectReason(puzzle, [], { ...wide, w: wide.w - 1 }), clue.number ? 'number' : 'shape');
@@ -74,6 +75,6 @@ const empty = (() => {
 })();
 assert.equal(rejectReason(puzzle, [], empty), 'no-clue');
 assert.deepEqual([shapeOf(2, 2), shapeOf(3, 1), shapeOf(1, 3)], ['square', 'wide', 'tall']);
-assert.equal(fitsClue({ number: null, shape: 'any' }, 4, 1), true);
+assert.equal(fitsClue({ number: null, shape: 'wide' }, 4, 1), true);
 assert.equal(fitsClue({ number: 4, shape: 'wide' }, 2, 2), false);
 console.log('Patcher checks passed: unique seeded cuttings, graded deduction, rejections, hints.\n' + report.join('\n'));
