@@ -35,7 +35,7 @@
 
 - Each board starts as a random path through every cell; the numbers and walls are drawn from that path, and the solver adds a number or a wall wherever a second path still fits, so the puzzle is both solvable and unique by construction. A seed in the address (`#medium-k7x2ab`) reopens the same board.
 - The line grows and shrinks after the pointer or the arrow keys, lights the tiles it covers, and the finished board hops along the line under confetti. Hints highlight a wrong turn or the way to the next number; you make the changes yourself.
-- Shared with Patcher: a lit three.js table with soft shadows, studio reflections, HDR bloom and synthesised sound (`fun/shared/`).
+- Shared with Patcher: a lit three.js table with soft shadows, studio reflections, HDR bloom and synthesised sound (`fun/shared/`). Glossy candy-coloured tiles and patches, a slow aurora and drifting bokeh behind the board that never stop, and a ripple across the board, a bloom in the backdrop and a nudge of the camera on every move, with a rainbow wave and confetti on a solve.
 - Check: `node fun/zipper/tests/puzzle-check.mjs` (unique seeded boards, legal stepping, hints).
 
 ## Patcher

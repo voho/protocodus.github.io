@@ -11,18 +11,27 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 
-/* A vertical gradient with a soft pool of light behind the board and
-   darker corners. It hangs in front of the camera, so it is screen space. */
+/* A vertical gradient with a soft pool of light behind the board, two
+   slow drifting pools of colour that never stop (an aurora, at a crawl),
+   a pulse of light where the last move landed, and darker corners. It
+   hangs in front of the camera, so it is screen space. */
 const BACKDROP_FRAGMENT = /* glsl */ `
-uniform vec3 uTop, uBottom, uGlow;
-uniform float uAspect;
+uniform vec3 uTop, uBottom, uGlow, uBlobA, uBlobB, uPulseColour;
+uniform float uAspect, uTime, uPulse;
+uniform vec2 uPulseAt;
 varying vec2 vUv;
 void main() {
+  vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
   vec3 colour = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y));
-  vec2 d = (vUv - vec2(0.5, 0.56)) * vec2(uAspect, 1.0);
+  vec2 a = vec2(sin(uTime * 0.11) * 0.55, cos(uTime * 0.08) * 0.28 + 0.12);
+  vec2 b = vec2(cos(uTime * 0.07) * 0.6, sin(uTime * 0.09) * 0.3 - 0.08);
+  colour += uBlobA * exp(-dot(p - a, p - a) * 2.6);
+  colour += uBlobB * exp(-dot(p - b, p - b) * 2.2);
+  vec2 d = p - vec2(0.0, 0.06);
   colour += uGlow * exp(-dot(d, d) * 4.0);
-  float edge = length((vUv - 0.5) * vec2(uAspect, 1.0));
-  colour *= 1.0 - 0.6 * smoothstep(0.4, 1.05, edge);
+  vec2 q = p - (uPulseAt - 0.5) * vec2(uAspect, 1.0);
+  colour += uPulseColour * uPulse * exp(-dot(q, q) * 5.0);
+  colour *= 1.0 - 0.6 * smoothstep(0.4, 1.05, length(p));
   gl_FragColor = vec4(colour, 1.0);
 }`;
 
@@ -43,6 +52,10 @@ function studioEnvironment(renderer, accent) {
   add(new THREE.PlaneGeometry(4, 9), '#cfe0ff', 3, [-11.9, 2, 0], [0, Math.PI / 2, 0]);
   add(new THREE.PlaneGeometry(4, 9), '#ffe2c4', 2, [11.9, 2, -3], [0, -Math.PI / 2, 0]);
   add(new THREE.PlaneGeometry(14, 1.2), accent, 4, [0, 5, -11.9], [0, 0, 0]);
+  // Two coloured panels low at the sides: the gloss on the tiles and the
+  // candy patches picks up a pink and a blue glint, as a sweet would.
+  add(new THREE.PlaneGeometry(6, 2), '#ff7fb3', 2.5, [-8, -2, 9], [0, Math.PI * 0.8, 0]);
+  add(new THREE.PlaneGeometry(6, 2), '#7fb8ff', 2.5, [8, -1, 9], [0, -Math.PI * 0.8, 0]);
   const pmrem = new THREE.PMREMGenerator(renderer);
   const texture = pmrem.fromScene(room, 0.04).texture;
   pmrem.dispose();
@@ -67,7 +80,7 @@ function dotTexture() {
 }
 
 /* `null` when the browser has no WebGL 2; the page says so itself. */
-export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposure = 1.05, elevation = 0.98 } = {}) {
+export function createStage(canvas, { accent = '#87D7BE', secondary = '#f6d155', backdrop = {}, exposure = 1.1, elevation = 0.98 } = {}) {
   let probe = null;
   try { probe = document.createElement('canvas').getContext('webgl2'); } catch { probe = null; }
   if (!probe) return null;
@@ -102,7 +115,13 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
       uTop: { value: new THREE.Color(backdrop.top || '#10202b') },
       uBottom: { value: new THREE.Color(backdrop.bottom || '#05080c') },
       uGlow: { value: new THREE.Color(backdrop.glow || accent).multiplyScalar(backdrop.glowStrength ?? 0.12) },
+      uBlobA: { value: new THREE.Color(backdrop.blobA || accent).multiplyScalar(backdrop.blobStrength ?? 0.07) },
+      uBlobB: { value: new THREE.Color(backdrop.blobB || secondary).multiplyScalar(backdrop.blobStrength ?? 0.07) },
+      uPulseColour: { value: new THREE.Color(accent) },
+      uPulse: { value: 0 },
+      uPulseAt: { value: new THREE.Vector2(0.5, 0.5) },
       uAspect: { value: 1 },
+      uTime: { value: 0 },
     },
     depthTest: false, depthWrite: false,
   });
@@ -113,7 +132,7 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   camera.add(backdropMesh);
 
   scene.environment = studioEnvironment(renderer, accent);
-  scene.environmentIntensity = 0.55;
+  scene.environmentIntensity = 0.7;
 
   scene.add(new THREE.HemisphereLight('#9fc3d8', '#0a0d12', 0.5));
   const key = new THREE.DirectionalLight('#fff3e2', 2.6);
@@ -125,9 +144,10 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 40;
   scene.add(key, key.target);
-  const rim = new THREE.DirectionalLight(accent, 1.4);
+  const rim = new THREE.DirectionalLight(accent, 1.5);
   rim.position.set(4, 5, -8);
   scene.add(rim);
+  const rimAccent = new THREE.Color(accent), rimSecondary = new THREE.Color(secondary);
   const flashLight = new THREE.PointLight('#ffffff', 0, 14, 1.4);
   flashLight.position.set(0, 2.5, 0);
   scene.add(flashLight);
@@ -139,7 +159,7 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   floor.receiveShadow = true;
   scene.add(floor);
 
-  const bloom = hdr ? createBloom({ strength: 0.36, threshold: 1, knee: 0.5, spread: 1.1, levels: mobile ? 4 : 5 }) : null;
+  const bloom = hdr ? createBloom({ strength: 0.42, threshold: 1, knee: 0.5, spread: 1.15, levels: mobile ? 4 : 5 }) : null;
   renderer.setEffects(bloom ? [bloom] : []);
 
   // The camera approaches the table at its fixed resting angle.
@@ -153,12 +173,14 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
   const listeners = new Set();
   let running = false, last = 0, time = 0, flash = 0;
   let pendingFrame = 0;
+  // A move lands: a pulse of light in the backdrop and a nudge of the camera.
+  let pulse = 0, kick = 0;
   /* The table is still most of the time. While nothing moves it is drawn
      a few times a second (the dust and the sway drift on), and every
      change wakes it up to the full frame rate for a moment. */
   let activeUntil = 0;
   let lastDraw = 0;
-  const idleGap = (mobile ? 1 / 8 : 1 / 20) * 1000;
+  const idleGap = (mobile ? 1 / 10 : 1 / 20) * 1000;
 
   /* Whether the board's corners all land inside `limits` (in clip space)
      from `distance` away at the resting angle. */
@@ -208,7 +230,7 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
     // The tiny pointer response can finish settling at the idle frame rate.
     const settled = Math.abs(rig.target.distance - rig.distance) < 0.003
       && Math.abs(rig.target.azimuth - rig.azimuth) < 0.003 && Math.abs(rig.target.elevation - rig.elevation) < 0.003;
-    const active = now < activeUntil || !settled || flash > 0;
+    const active = now < activeUntil || !settled || flash > 0 || pulse > 0 || kick > 0.001;
     if (!active && now - lastDraw < idleGap) return;
     // Exponential easing is stable for any step, so a slow device keeps the
     // same pace in real time rather than slowing every motion down.
@@ -228,14 +250,21 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
     rig.azimuth += (rig.target.azimuth - rig.azimuth) * k;
     rig.elevation += (rig.target.elevation - rig.elevation) * k;
     rig.distance += (rig.target.distance - rig.distance) * k;
-    const flat = Math.cos(rig.elevation) * rig.distance;
+    kick *= Math.exp(-dt * 7);
+    const distance = rig.distance * (1 - kick * 0.02);
+    const flat = Math.cos(rig.elevation) * distance;
     camera.position.set(
       rig.center.x + Math.sin(rig.azimuth) * flat,
-      rig.center.y + Math.sin(rig.elevation) * rig.distance,
+      rig.center.y + Math.sin(rig.elevation) * distance,
       rig.center.z + Math.cos(rig.azimuth) * flat);
     camera.lookAt(rig.center);
     flash = Math.max(0, flash - dt * 2.2);
     flashLight.intensity = flash * flash * 60;
+    pulse = Math.max(0, pulse - dt * 1.8);
+    backdropMaterial.uniforms.uPulse.value = pulse * pulse;
+    backdropMaterial.uniforms.uTime.value = time;
+    // The rim light wanders between the two accents, so highlights never sit still.
+    rim.color.copy(rimAccent).lerp(rimSecondary, 0.5 + 0.5 * Math.sin(time * 0.23));
     for (const listener of listeners) listener(dt, time);
     renderer.render(scene, camera);
   }
@@ -277,6 +306,63 @@ export function createStage(canvas, { accent = '#87D7BE', backdrop = {}, exposur
     /* Something moved: draw every frame for the next `seconds`. */
     wake(seconds = 0.8) { activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000); },
     flash(colour, strength = 1) { flashLight.color.set(colour); flash = Math.max(flash, strength); },
+    /* A glossy material: a clear coat on a desktop GPU, plain shading on a
+       phone, where the second specular lobe is not worth the heat. */
+    material({ clearcoat = 1, clearcoatRoughness = 0.12, ...rest }) {
+      return mobile ? new THREE.MeshStandardMaterial(rest) : new THREE.MeshPhysicalMaterial({ clearcoat, clearcoatRoughness, ...rest });
+    },
+    /* Light blooms in the backdrop behind a point on the table. */
+    pulse(point, colour, strength = 1) {
+      corner.copy(point).project(camera);
+      backdropMaterial.uniforms.uPulseAt.value.set((corner.x + 1) / 2, (corner.y + 1) / 2);
+      backdropMaterial.uniforms.uPulseColour.value.set(colour).multiplyScalar(0.35);
+      pulse = Math.max(pulse, Math.min(1.4, strength));
+      stage.wake(1);
+    },
+    /* The camera leans in a touch and springs back: the weight of a move. */
+    kick(amount = 1) { if (!reduced) kick = Math.max(kick, amount); stage.wake(1); },
+    /* Big soft discs of colour drifting behind and around the board,
+       slowly, forever. */
+    bokeh({ count = 36, colours = [accent, secondary, '#ffffff'], extent = 8, depth = 12 } = {}) {
+      const layers = [];
+      for (const [size, share, speed] of [[0.9, 0.45, 0.04], [0.45, 0.55, 0.07]]) {
+        const n = Math.max(4, Math.round(count * share * (mobile ? 0.5 : 1)));
+        const positions = new Float32Array(n * 3), colourData = new Float32Array(n * 3);
+        const tint = new THREE.Color();
+        for (let i = 0; i < n; i++) {
+          // Well behind the far edge of any board, so the depth test keeps
+          // them off the tiles and they only show around the board.
+          positions[i * 3] = (Math.random() * 2 - 1) * extent;
+          positions[i * 3 + 1] = Math.random() * 7 - 1.5;
+          positions[i * 3 + 2] = -6 - Math.random() * depth;
+          tint.set(colours[i % colours.length]);
+          colourData.set([tint.r, tint.g, tint.b], i * 3);
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colourData, 3));
+        const material = new THREE.PointsMaterial({
+          size, map: dotTexture(), vertexColors: true, transparent: true, opacity: 0.18,
+          blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+        });
+        const points = new THREE.Points(geometry, material);
+        points.frustumCulled = false;
+        scene.add(points);
+        const phase = Float32Array.from({ length: n }, () => Math.random() * Math.PI * 2);
+        stage.onFrame((dt, t) => {
+          if (reduced) return;
+          const p = geometry.attributes.position.array;
+          for (let i = 0; i < n; i++) {
+            p[i * 3 + 1] += dt * speed;
+            p[i * 3] += Math.sin(t * 0.2 + phase[i]) * dt * 0.08;
+            if (p[i * 3 + 1] > 5.5) p[i * 3 + 1] = -1.5;
+          }
+          geometry.attributes.position.needsUpdate = true;
+        });
+        layers.push(points);
+      }
+      return layers;
+    },
     /* Drifting specks in the air over the table, for depth. */
     dust({ count = 150, colour = accent, extent = 5, top = 4 } = {}) {
       const positions = new Float32Array(count * 3);

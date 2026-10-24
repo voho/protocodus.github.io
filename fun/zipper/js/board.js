@@ -23,24 +23,25 @@ export function createBoard(stage, puzzle, { accent, fx }) {
 
   const plinthSize = n * CELL + 0.5;
   const plinth = new THREE.Mesh(slabGeometry(plinthSize, plinthSize, 0.3, 0.26, 0.05),
-    new THREE.MeshStandardMaterial({ color: '#0d131a', roughness: 0.3, metalness: 0.25 }));
+    stage.material({ color: '#0b1220', roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
   plinth.position.y = -0.3;
   plinth.castShadow = plinth.receiveShadow = true;
   group.add(plinth);
   disposables.push(plinth.material);
 
   const tileGeometry = slabGeometry(TILE, TILE, TILE_H, TILE_R, 0.035);
-  const baseColour = new THREE.Color('#1b2733');
-  const litColour = baseColour.clone().lerp(accentColour, 0.45);
   const tiles = [];
   for (let cell = 0; cell < N; cell++) {
-    const material = new THREE.MeshStandardMaterial({
-      color: baseColour, roughness: 0.42, metalness: 0.08, emissive: accentColour, emissiveIntensity: 0,
-    });
+    // Deep jewel tones, cyan at one corner shading to violet at the other,
+    // that light up to candy brightness under the line.
+    const hue = 0.5 + 0.28 * ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
+    const base = new THREE.Color().setHSL(hue, 0.6, 0.2, THREE.SRGBColorSpace);
+    const lit = new THREE.Color().setHSL(hue, 0.95, 0.52, THREE.SRGBColorSpace);
+    const material = stage.material({ color: base, roughness: 0.32, metalness: 0.05, emissive: accentColour, emissiveIntensity: 0, clearcoatRoughness: 0.2 });
     const mesh = new THREE.Mesh(tileGeometry, material);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
     mesh.castShadow = mesh.receiveShadow = true;
-    mesh.userData = { glow: 0, lift: 0, press: 0, shake: 0, hopAt: -1, on: false };
+    mesh.userData = { glow: 0, lift: 0, press: 0, shake: 0, hopAt: -1, on: false, base, lit, hue: -1 };
     group.add(mesh);
     tiles.push(mesh);
     disposables.push(material);
@@ -50,7 +51,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
   disposables.push(puckGeometry);
   const pucks = new Map();
   puzzle.waypoints.forEach((cell, index) => {
-    const material = new THREE.MeshStandardMaterial({ color: '#eef2f4', roughness: 0.35, emissive: '#ffffff', emissiveIntensity: 0 });
+    const material = stage.material({ color: '#ffffff', roughness: 0.15, metalness: 0, emissive: '#ffffff', emissiveIntensity: 0, clearcoatRoughness: 0.05 });
     const puck = new THREE.Mesh(puckGeometry, material);
     puck.position.set(cellX(cell), TILE_H + 0.045, cellZ(cell));
     puck.castShadow = true;
@@ -84,7 +85,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     disposables.push(material);
   }
 
-  const lineMaterial = new THREE.MeshStandardMaterial({ color: accentColour, emissive: accentColour, emissiveIntensity: 1.3, roughness: 0.25 });
+  const lineMaterial = stage.material({ color: accentColour, emissive: accentColour, emissiveIntensity: 1.3, roughness: 0.15, clearcoatRoughness: 0.05 });
   const tube = new THREE.Mesh(new THREE.BufferGeometry(), lineMaterial);
   tube.castShadow = true;
   tube.visible = false;
@@ -113,6 +114,24 @@ export function createBoard(stage, puzzle, { accent, fx }) {
   let hintUntil = -1;
   let hintMistake = false;
   const mistakeColour = new THREE.Color('#ff7777');
+  // A ripple: every tile rises and flashes in turn by its distance from a move.
+  const rippleAt = new Float32Array(N).fill(-1);
+  const rippleColour = new THREE.Color(accent);
+  let rippleStrength = 1;
+  let rippleStarted = -1;
+  let sparkleAt = 0;
+  const distance = (a, b) => Math.abs((a % n) - (b % n)) + Math.abs(Math.floor(a / n) - Math.floor(b / n));
+  function ripple(from, colour, strength = 1) {
+    // A fast drag steps several times a second; the small ripples wait their
+    // turn so the board pulses rather than whites out.
+    if (strength < 0.5 && stage.time - rippleStarted < 0.3) return;
+    rippleStarted = stage.time;
+    rippleColour.set(colour);
+    rippleStrength = strength;
+    for (let cell = 0; cell < N; cell++) rippleAt[cell] = stage.time + distance(from, cell) * 0.04;
+    stage.wake(1.5);
+  }
+  const at = (cell, y = LINE_Y) => new THREE.Vector3(cellX(cell), y, cellZ(cell));
 
   function rebuildLine() {
     const cells = shown.cells;
@@ -159,12 +178,19 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     }
     if (dirty) { rebuildLine(); dirty = false; stage.wake(0.3); }
     if (fx.confetti.alive || fx.sparks.alive) stage.wake(0.3);
+    // The head sheds a sparkle or two while the line is on the move.
+    if (shown.t < 1 && time > sparkleAt) {
+      sparkleAt = time + 0.08;
+      fx.sparks.burst({ origin: head.position, count: 1, colours: ['#ffffff', accent], speed: [0.3, 0.8], spread: Math.PI, gravityPull: -0.6, airDrag: 2, lifespan: [0.25, 0.45], size: [0.04, 0.04], spinRate: 3 });
+    }
+    group.position.y = stage.reduced ? 0 : Math.sin(time * 0.6) * 0.03;
 
     for (let cell = 0; cell < N; cell++) {
       const tile = tiles[cell];
       const data = tile.userData;
       const on = onLine[cell] === 1;
       data.glow = ease(data.glow, on ? 0.5 : hovered === cell ? 0.2 : 0, dt, 12);
+      // Covered tiles show their candy colour; the accent glow stays a tint.
       data.lift = ease(data.lift, hovered === cell && !on ? 0.05 : 0, dt, 14);
       data.press = Math.max(0, data.press - dt * 5);
       data.shake = Math.max(0, data.shake - dt * 4);
@@ -174,13 +200,23 @@ export function createBoard(stage, puzzle, { accent, fx }) {
         if (u >= 1) data.hopAt = -1;
         else if (u > 0) hop = Math.sin(u * Math.PI);
       }
+      let wave = 0;
+      if (rippleAt[cell] >= 0) {
+        const u = (time - rippleAt[cell]) / 0.45;
+        if (u >= 1) rippleAt[cell] = -1;
+        else if (u > 0) wave = Math.sin(u * Math.PI) * rippleStrength;
+      }
       const hinted = time < hintUntil && hintCells.has(cell);
-      tile.material.emissive.copy(hinted && hintMistake ? mistakeColour : accentColour);
-      tile.material.emissiveIntensity = data.glow + data.press * 0.7 + hop * 0.45
+      const emissive = tile.material.emissive;
+      emissive.copy(hinted && hintMistake ? mistakeColour : accentColour);
+      if (wave > 0) emissive.lerp(rippleColour, Math.min(1, wave));
+      // A solved board runs a rainbow along the line as the tiles hop.
+      if (hop > 0 && data.hue >= 0) emissive.setHSL((data.hue + time * 0.15) % 1, 1, 0.6, THREE.SRGBColorSpace);
+      tile.material.emissiveIntensity = data.glow * 0.35 + data.press * 0.7 + hop * 0.7 + wave * 0.55
         + (hinted ? 0.5 + Math.sin(time * 6) * 0.2 : 0);
       if (hinted) stage.wake(0.3);
-      tile.material.color.lerpColors(baseColour, litColour, Math.min(1, data.glow * 2));
-      tile.position.y = data.lift - data.press * 0.06 + hop * 0.18;
+      tile.material.color.lerpColors(data.base, data.lit, Math.min(1, data.glow * 2));
+      tile.position.y = data.lift - data.press * 0.06 + hop * 0.18 + wave * 0.07;
       tile.position.x = cellX(cell) + Math.sin(time * 60) * 0.04 * data.shake;
     }
     for (const [cell, puck] of pucks) {
@@ -226,8 +262,20 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     setPath(cells) {
       hintCells.clear();
       const grew = cells.length > target.length;
+      const shrank = cells.length < target.length;
       target = cells.slice();
-      if (grew) tiles[cells[cells.length - 1]].userData.press = 1;
+      const head = cells[cells.length - 1];
+      if (grew) {
+        tiles[head].userData.press = 1;
+        const number = puzzle.numbers[head];
+        // Every step sends a small ripple across the board; a number reached
+        // sends a bright one, lights the backdrop and nudges the camera.
+        ripple(head, number ? '#ffffff' : accent, number ? 1 : 0.25);
+        fx.sparks.burst({ origin: at(head), count: number ? 26 : 4, colours: ['#ffffff', accent, '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
+        if (number) { stage.pulse(at(head), accent, 1); stage.kick(0.6); }
+      } else if (shrank) {
+        ripple(head, '#ffffff', 0.2);
+      }
       stage.wake();
     },
     /* The line was pushed against a wall, or at a number out of turn. */
@@ -252,8 +300,11 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     },
     celebrate() {
       const time = stage.time;
-      target.forEach((cell, i) => { tiles[cell].userData.hopAt = time + 0.1 + i * 0.03; });
+      target.forEach((cell, i) => { tiles[cell].userData.hopAt = time + 0.1 + i * 0.03; tiles[cell].userData.hue = i / target.length; });
       linePulse = 0.7;
+      ripple(target[target.length - 1], '#ffffff', 1.2);
+      stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
+      stage.kick(1.2);
       stage.wake(4);
       const colours = [accent, '#f6d155', '#ffffff', '#f29e8e', '#9fb8ff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
