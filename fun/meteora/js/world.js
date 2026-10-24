@@ -198,7 +198,7 @@ export function createWorld({ seed = 1234, storage = null, fieldCfg = FIELD, mis
   const threat = { locked: false, missileInbound: false };
   world.scratch = {
     controls: {}, aim: [0, 0, 0], from: [0, 0, 0], threat,
-    aiCtx: { field: null, target: null, threat, wasHit: false, larges: world.larges, leader: null, home: null, aimError: 1, thinkScale: 1, frozen: false },
+    aiCtx: { field: null, target: null, threat, wasHit: false, larges: world.larges, smalls: world.smalls, leader: null, home: null, aimError: 1, thinkScale: 1, frozen: false },
     weaponsCtx: {
       field: null, entities: world.active, smalls: world.smalls, larges: world.larges, events: world.events,
       damage: (target, amount, point, dir, o) => damageEntity(world, target, amount, point, dir, o),
@@ -233,7 +233,7 @@ export function resetWorld(world, { mission = world.missionDef, loadout = world.
   world.speedLock = false; world.leaving = false;
   world.stats = {
     shots: 0, hits: 0, kills: {}, killCount: 0, damageTaken: 0, hullTaken: 0, torpedoesDowned: 0, subsystems: 0,
-    rocks: 0, missilesFired: 0, saves: 0, bestStreak: 0, repairs: 0, detected: 0,
+    rocks: 0, missilesFired: 0, saves: 0, bestStreak: 0, repairs: 0, detected: 0, commandKills: 0,
   };
   world.streak = { count: 0, last: -99, mult: 1 };
   world.repair = { charges: world.diff.repairDrones, droneId: null };
@@ -436,11 +436,12 @@ export function wingOrder(world, order) {
   if (!wing.length) return false;
   for (const e of wing) {
     if (order === 'attack') {
-      if (world.target && !world.target.proxy && world.target.team === 1) e.orders = { type: 'attack', target: world.target };
+      if (world.target?.alive && !world.target.proxy && (world.target.team === 1 || (world.target.team < 0 && world.target.rock))) e.orders = { type: 'attack', target: world.target };
       else e.orders = { type: 'cover' };
     } else e.orders = { type: order };
     e.brain.retarget = 0;
   }
+  if (order === 'attack' && wing.some(e => e.orders?.type === 'attack')) world.target.commandedBy = p.id;
   world.events.push({ type: 'wingOrder', order, names: wing.map(e => e.name), target: order === 'attack' ? world.target?.name ?? null : null });
   return true;
 }
@@ -595,6 +596,7 @@ function tailgun(world, p, dt) {
 function aiTarget(world, e) {
   const o = e.orders ?? {};
   const leader = e.leaderId != null ? world.byId.get(e.leaderId) : null;
+  const choose = (list, options = {}) => pickTarget(e, list, { allies: world.smalls.filter(x => x.team === e.team), ...options });
   const near = (pos, r) => world.active.filter(x => x.team !== e.team && (x.team >= 0 || (e.prefer && x.tags.has(e.prefer))) && targetable(x)
     && Math.hypot(x.ship.pos[0] - pos[0], x.ship.pos[1] - pos[1], x.ship.pos[2] - pos[2]) < r);
   // Ordered somewhere (the jump, a hold point): fly there, fight nothing.
@@ -604,17 +606,18 @@ function aiTarget(world, e) {
     e.orders = leader ? { type: 'cover' } : null;
   }
   if (o.type === 'strike' && o.target?.alive) return o.target;
-  if (o.type === 'form' && leader?.alive) return e.sinceHit < 2 ? pickTarget(e, near(e.ship.pos, 800)) : null;
+  if (o.type === 'form' && leader?.alive) return e.sinceHit < 2 ? choose(near(e.ship.pos, 800)) : null;
   if (leader?.alive && (o.type === 'cover' || !o.type)) {
+    if (Math.hypot(...e.ship.pos.map((v, k) => v - leader.ship.pos[k])) > 3200) return null;
     const list = near(leader.ship.pos, 2600);
-    return list.length ? pickTarget(e, list, { protect: leader, player: world.player, prefer: e.prefer }) : null;
+    return list.length ? choose(list, { protect: leader, player: world.player, prefer: e.prefer }) : null;
   }
   const protect = e.protectId != null ? world.byId.get(e.protectId) : null;
   if (protect?.alive) {
     const list = near(protect.ship.pos, 3500);
-    if (list.length) return pickTarget(e, list, { protect, player: world.player, prefer: e.prefer });
+    if (list.length) return choose(list, { protect, player: world.player, prefer: e.prefer });
   }
-  return pickTarget(e, world.active, { player: world.player, prefer: e.prefer, playerBias: e.playerBias });
+  return choose(world.active, { player: world.player, prefer: e.prefer, playerBias: e.playerBias });
 }
 
 /* The subsystem a bomber was sent at; once that is gone, another live one
@@ -634,6 +637,8 @@ function aiStep(world, e, dt) {
     const t = aiTarget(world, e);
     if (t !== brain.target) {
       brain.target = t; brain.targetSub = null; brain.strafePoint = null;
+      brain.lockTimer = 0; brain.sightTimer = 0;
+      if (brain.state !== 'evade' && brain.state !== 'recover') { brain.state = 'approach'; brain.timer = 0; }
       if (t && e.role === 'bomber' && t.big && e.orders?.sub) brain.targetSub = strikeSub(t, e.orders.sub);
     }
   }
@@ -649,6 +654,7 @@ function aiStep(world, e, dt) {
   ctx.home = e.home;
   ctx.aimError = e.team === 1 ? world.diff.enemyAim * (e.def.ace ? 0.5 : 1) : 0.8;
   ctx.thinkScale = e.team === 1 ? world.diff.aiThink : 1;
+  ctx.tactics = e.team === 1 ? ({ recruit: 0, pilot: 0.35, veteran: 0.7, ace: 1 }[world.diffKey] ?? 0.7) : 0.5;
   ctx.frozen = e.frozen;
   const c = e.disabled ? NEUTRAL_CONTROLS : thinkPilot(brain, e, ctx, dt);
   stepShip(e.ship, c, dt);
@@ -799,6 +805,11 @@ function report(world) {
       } else if (e.lastHitBy != null) {
         const killer = world.byId.get(e.lastHitBy);
         if (killer) killer.kills++;
+        if (killer?.wingmate && e.commandedBy === p?.id && world.state === 'flying') {
+          const points = world.mission?.scoreKill ? world.mission.scoreKill(e) : (e.def.score ?? 100);
+          world.stats.commandKills++;
+          award(world, points * 0.4, e.ship.pos, `${killer.name} · command assist`);
+        }
       }
     }
   }

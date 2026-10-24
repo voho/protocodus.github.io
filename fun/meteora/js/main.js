@@ -984,6 +984,7 @@ function tick(dt) {
   }
   if (!paused && mode !== 'loading') advance(world, controls, dt);
   handleEvents(drainEvents(world));
+  if (flying) chatter.update(world);
   // Radio lines are heard as they appear: the squelch, then the voice.
   if (flight && voices.update(world, paused)) audio?.handle({ type: 'radioLine' }, world);
 

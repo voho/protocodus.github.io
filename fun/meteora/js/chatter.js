@@ -29,10 +29,18 @@ export const LINES = {
     saint: ['Bombers — they\'re the priority.', 'Heavy frames, lining up. Kill them first.'],
     wren: ['Mauls! Going for the big ships!', 'Bombers inbound!'],
   },
+  attack: { saint: ['On your target. Stay on my wing.'], wren: ['I have your target, Lead. Going in.'] },
+  cover: { saint: ['Covering you. I will take the one on your tail.'], wren: ['Right here, Lead. I have your back.'] },
+  form: { saint: ['Rejoining. Bringing it in close.'], wren: ['Forming on you. Ready when you are.'] },
+  presence: {
+    saint: ['Still with you, Lantern. Take a breath.', 'Your six is clear. We are doing all right.'],
+    wren: ['Right off your wing, Lead. You are not losing me out here.', 'I can see your running lights. Still here.'],
+  },
+  rescue: { saint: ['I see the one on you. Bring it across my nose.'], wren: ['Coming to help, Lead. Keep moving!'] },
 };
 
 export function createChatter() {
-  let quietUntil = 8, lastTorpedo = -99, lastBomber = -99, seed = 3;
+  let quietUntil = 8, lastTorpedo = -99, lastBomber = -99, lastPresence = 0, lastRescue = -99, seed = 3;
   const pick = list => list[(seed = (seed * 16807) % 2147483647) % list.length];
   const said = new Set();
 
@@ -51,11 +59,28 @@ export function createChatter() {
   }
 
   return {
-    reset() { quietUntil = 8; lastTorpedo = -99; lastBomber = -99; said.clear(); },
+    reset() { quietUntil = 8; lastTorpedo = -99; lastBomber = -99; lastPresence = 0; lastRescue = -99; said.clear(); },
+    update(world) {
+      if (world.state !== 'flying' || !world.mission || world.missionDef?.id === 'm03' && !world.mission.wing.length) return;
+      const now = world.mission.time;
+      const close = world.mission.wing.filter(e => e.alive && !e.disabled && Math.hypot(...e.ship.pos.map((v, k) => v - world.player.ship.pos[k])) < 1800);
+      const helper = close.find(e => ['Saint', 'Wren'].includes(e.name) && e.brain?.target?.brain?.target === world.player);
+      if (helper && world.player.hull < world.player.maxHull * 0.55 && now - lastRescue > 45) {
+        if (speak(world, helper.name.toLowerCase(), 'rescue')) lastRescue = now;
+      } else if (now - lastPresence > 65 && close.length && !close.some(e => e.brain?.target)) {
+        const speaker = close.find(e => ['Saint', 'Wren'].includes(e.name));
+        if (speaker && speak(world, speaker.name.toLowerCase(), 'presence')) lastPresence = now;
+      }
+    },
     handle(e, world) {
       if (world.state !== 'flying' || !world.mission?.m) return;
       const now = world.mission.time;
       switch (e.type) {
+        case 'wingOrder': {
+          const who = e.names.includes('Saint') ? 'saint' : 'wren';
+          if (LINES[e.order]) speak(world, who, e.order);
+          break;
+        }
         case 'shipKilled': {
           if (e.team !== 1 || e.by == null) break;
           const killer = world.byId.get(e.by);

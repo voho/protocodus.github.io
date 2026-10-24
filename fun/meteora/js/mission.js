@@ -28,6 +28,7 @@ import { spawn, spawnPlayer, foldOut as worldFoldOut } from './world.js';
 import { fireBeam } from './turrets.js';
 import { count as diffCount } from './difficulty.js';
 import { qLookRotation, qRotate, normalize, sub } from './vec.js';
+import { OPERATIONS } from './operations.js';
 
 const TICK = 1 / 20;
 export const SPEAKERS = {
@@ -51,7 +52,7 @@ export const SPEAKERS = {
 export const readTime = text => Math.min(9, 1.6 + text.length * 0.055);
 
 export function defineMission(def) {
-  return { ...def, create: world => createRuntime(world, def) };
+  return { ...def, operation: OPERATIONS[def.id] ?? null, create: world => createRuntime(world, def) };
 }
 
 function createRuntime(world, def) {
@@ -68,7 +69,7 @@ function createRuntime(world, def) {
   const rt = {
     // The first step ticks the script, so a mission's opening happens at once.
     def, world, time: 0, acc: TICK, started: false, threads: [], objectives: [], byId: new Map(),
-    timers: new Map(), radio: [], hints: [], flags: {}, handlers: new Map(), cursor: 0,
+    timers: new Map(), radio: [], hints: [], flags: {}, wing: [], handlers: new Map(), cursor: 0,
     outcome: null, reason: null, outcomeAt: null, rearm: def.rearm ?? null, scoreKill: def.scoreKill ? e => def.scoreKill(e, world) : null,
     music: def.music ?? 'calm', lastLine: null,
   };
@@ -268,6 +269,7 @@ function makeApi(rt) {
         const at = [base[0] + off[0], base[1] + off[1], base[2] + off[2]];
         const e = spawn(w, cls, { team: 0, name: names?.[k] ?? `${prefix} ${first + k}`, pos: at, q: [...leader.ship.q], slot, leader, orders: { type: 'cover' }, missiles: 4, ...o });
         e.ship.vel = [...leader.ship.vel];
+        if (leader === w.player) { e.tags.add('wingmate'); e.wingmate = true; rt.wing.push(e); }
         out.push(e);
       }
       return out;
@@ -363,6 +365,7 @@ export function results(world) {
     bonusDone, bonusTotal: bonus.length,
     score: world.score + timeBonus + objectiveScore, combatScore: world.score, timeBonus, objectiveScore,
     stats: { ...world.stats, accuracy: world.stats.shots ? world.stats.hits / world.stats.shots : 0 },
+    wing: rt.wing.map(e => ({ name: e.name, alive: rt.def.id === 'm10' && ['Saint', 'Wren'].includes(e.name) ? !!e.escaped : e.alive || e.departed, kills: e.kills })),
     flags: { ...rt.flags }, difficulty: world.diffKey,
   };
 }

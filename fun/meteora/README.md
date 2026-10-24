@@ -115,18 +115,28 @@ print your keys.
 | 1 | Red Eye | Patrol to the *Saint Amaro*'s last fix, scan the wreck, meet what cut her open. Teaches the controls. |
 | 2 | Ore Run | Escort three ore freighters home; a rockslide stops the convoy under fire. |
 | 3 | Deep Signal | Recon: scan three signals without the Harrow's Eyes seeing you, then run. |
-| 4 | Seedfall | Destroy eight seeded asteroids before they hatch; three start falling on Varlaam. |
-| 5 | Hold Varlaam | Hold the station while six shuttles evacuate it; bombers go for the reactor. |
-| 6 | The Long Night | Guard the *Perpetua* for six minutes against torpedo bombers, in the gas giant's shadow. |
-| 7 | Cut the Line | Stop the Harrow's ore haulers before they reach the fold point — in open space, no rock to hide behind. |
+| 4 | Seedfall | Open orbital demolition: eight seeded asteroids, visible hatching clocks and a warning before the outer seeds ignite toward Varlaam. |
+| 5 | Hold Varlaam | Defend open evacuation lanes while six shuttles escape, intercept bombers and cover a crippled wingmate. |
+| 6 | The Long Night | Guard the *Perpetua* for six minutes in an open eclipse corridor. Cover an engine repair crew and read a feint before a close bomber fold. |
+| 7 | Cut the Line | Stop ore haulers in open space while an ace hunts you. Silence the escort relay to prevent reinforcements. |
 | 8 | Heart of the Mother | A fleet assault: bring down a Mother's shields past her corvettes, crack her reactor, get clear. |
-| 9 | The Narrows | The last convoy out of Stefanos — and not every ship in it is ours. |
+| 9 | The Narrows | Screen the last convoy out of Stefanos. Scan a suspicious manifest early to seal an infiltrator's launch doors and authorize fleet support. |
 | 10 | Long Mercy | The last battle: every ship the belt has left against everything the Vanguard sends, until the ark can jump. |
 | ✦ | The Well | *Special operation, open once Mission 8 is won.* A convoy dropped on a black hole: match each falling hulk and latch a rescue beacon before it reaches the horizon — and do not go below your point of no return. |
 
 Special operations sit outside the ten: the campaign does not wait for
 them and they unlock nothing, but they earn medals, commendations and
 evidence for the case file, and the story notices when they were flown.
+
+The campaign unfolds in three acts: **The silence** (focused patrol,
+escort and reconnaissance), **A home under siege** (demolition,
+evacuation, carrier defense and interdiction), and **The long mercy**
+(coordinated assault, convoy screening and a fleet rearguard). Briefings
+show each sortie's role, stakes, pace and tactical advice, with a reminder
+of how the selected difficulty changes the fight. Later missions ask you
+to manage several fronts at once. Optional successes change the battle:
+repairing the engines buys endurance, cutting the relay removes an escort,
+and checking the manifest prevents launches from the stolen transport.
 
 Every place looks its own: its own sun, its own gas giant (or none), its
 own nebulae, Milky Way, light and dust. Sector Seven is home; the
@@ -135,7 +145,7 @@ Kalavryta Deep is dark and choked with dust; Varlaam sits under a cold
 blue ice giant, full in Mission 4 and a thin crescent three days later;
 the long night is flown under an eclipse, the giant a black disc ringed
 with fire; the Roussanou drag is open space under a violet nebula; the
-Deep Anchorage is a quarry of big rocks under a dead star's red shell;
+Deep Anchorage is a quarry of big rocks under a dead star's amber shell;
 the Narrows run beneath a rust giant filling a fifth of the sky; and the
 belt's edge is the last rock behind you and nothing ahead but the Milky
 Way.
@@ -157,11 +167,24 @@ over the speed panel) full thrust no longer climbs. The hole's size is
 drawn true to the physics of light; its pull is scaled so a hulk takes
 minutes, not milliseconds, to fall.
 
+The opening patrol has sparse rock against a teal nebula; the ore lane is
+gold, the Deep green and black, Seedfall cold blue, the evacuation rose and
+violet, the eclipse cobalt, the drag ultraviolet, the Narrows copper and
+turquoise, and the final jump pearl blue and rose. Seedfall, the station
+evacuation, the eclipse corridor and the supply drag have no procedural
+asteroid field: the mission's ships and objectives define the space.
+
 Each mission has primary objectives, bonus objectives (which raise the
 medal from bronze to silver to gold) and a score from kills, streaks,
 objectives, time and difficulty. Wins unlock the rest of the armoury in
-story order, and sixteen commendations reward particular feats; the
-score adds up to a rank, from Cadet to Wing Commander.
+story order, and eighteen commendations reward particular feats; the
+score adds up to a rank, from Cadet to Wing Commander. A wingmate killing
+a target you designated earns 40% of its base score as a command assist,
+without counting as a personal kill or extending your streak. Three such
+kills in a successful sortie earn **Lantern Lead**. Debriefs include the
+squadron's kills and return status and a personal note based on the
+objectives you completed. Saint and Wren must actually reach the final
+drive ring to earn their escape bonus.
 
 ## Ships and loadouts
 
@@ -221,8 +244,14 @@ tighter timers, more guns finished on the Mother, older seeds.
   restocks the banks, then leaves. Below 30 % the HUD warns HULL CRITICAL
   and an alarm sounds.
 - **Wing orders:** Saint and Wren attack your target (1), cover you (2) or
-  form up (3). Between the script's lines they call their kills, shout when
-  they are hit, and warn you of bombers and torpedoes.
+  form up (3). Their names, hull and status stay visible above the speed
+  panel. They acknowledge orders and check in during quiet stretches,
+  share targets, prioritize attackers of the ship they protect, regroup if
+  too far away and break off to recharge when badly hurt. They give other
+  fighters space and hold fire when a friendly or rock blocks a shot.
+  Veteran and Ace opponents flank and strafe more aggressively, and can
+  disengage to recover too. Between the script's lines your wing calls
+  kills, warns of bombers and torpedoes and responds when you need cover.
 - **Large ships** are built of collision spheres, carry subsystems
   (generators, engines, reactors, bays, beam emitters) and turrets. V
   cycles a target's subsystems; torpedoes lock on the selected one. Turrets
@@ -241,6 +270,8 @@ tighter timers, more guns finished on the Mother, older seeds.
 - The HUD shows the target box with hull, shield and subsystem, the lead
   marker, nav markers, a radar, objectives and timers, the radio, the
   escorts' hulls, hit markers, damage direction and streak callouts.
+  Target a seed to see its hatching clock, or a Maul to see its remaining
+  torpedoes and whether it has begun a firing run.
 
 ## Flight
 
@@ -361,6 +392,11 @@ node tools/balance.mjs m05 --runs 3 --diff pilot,ace
 With `--idle` nobody flies: the player cannot be hurt and the Harrow
 ignore it. Every mission should then fail from Pilot up — one that still
 wins does not need the player, which is a design bug the tool catches.
+
+`tactics-check.mjs` exercises target sharing, blocked firing lanes,
+wingman recovery, command scoring, the relay and repair branches, and an
+actual manifest scan in the moving convoy. New radio lines use the same
+Kokoro cast and recording pipeline as the existing campaign.
 
 `?mission=m04` launches a mission directly, `?debug` shows frame time,
 draw calls and the simulation state, and `?bench` runs the performance

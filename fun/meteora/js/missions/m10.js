@@ -266,15 +266,25 @@ export default defineMission({
     m.say('ferrante', 'Ring is open! All wings, inside the ring — now, now, now!');
     m.hideNav('mercy');
     const saint = m.get('Saint'), wren = m.get('Wren');
-    for (const e of [saint, wren]) if (e?.alive) { e.orders = { type: 'jump' }; e.leaderId = null; e.home = ringCentre(); e.brain.target = null; }
+    const wing = [saint, wren].filter(Boolean);
+    for (const e of wing) if (e.alive) { e.orders = { type: 'jump' }; e.leaderId = null; e.home = ringCentre(); e.brain.target = null; e.brain.retarget = 0; }
+    m.thread((function* () {
+      while (m.timeLeft('ring') > 0) {
+        for (const e of wing) if (e.alive && !e.escaped && m.dist(e, ringCentre()) < ringRadius) {
+          e.escaped = true; m.foldOut(e);
+          m.say(e.name.toLowerCase(), 'Through the ring, Lead. Come on. Come home.');
+        }
+        if (wing.length === 2 && wing.every(e => e.escaped)) { m.complete('wing'); return; }
+        yield m.wait(0.1);
+      }
+    })(), 'wing-jump');
     yield m.until(() => m.dist(m.player, ringCentre()) < ringRadius || m.timeLeft('ring') <= 0);
     if (m.dist(m.player, ringCentre()) < ringRadius) {
       m.complete('jump');
-      if (saint?.alive && wren?.alive) m.complete('wing');
       w.events.push({ type: 'jump', id: mercy.id, pos: ringCentre() });
-      m.removeTimer('ring');
       m.music('calm');
       yield m.say('ferrante', 'Folding. Godspeed, Perpetua.');
+      m.removeTimer('ring');
       m.win();
     } else {
       m.fail('jump', 'The fold closed without you.');

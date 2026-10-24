@@ -558,6 +558,11 @@ export function createHud(canvas) {
     }
   }
 
+  const wingRoster = world => (world.mission?.wing ?? []).filter(e => ['Saint', 'Wren'].includes(e.name));
+  const wingTop = (world, count) => w < 1000
+    ? h - 212 - 2 * Math.min(88, Math.max(58, h * 0.09)) - count * 29
+    : h - 172 - count * 29 - (world.well ? 84 : 0);
+
   function flightPanel(world) {
     const p = world.player, ship = p.ship;
     const speed = Math.hypot(...ship.vel);
@@ -577,6 +582,21 @@ export function createHud(canvas) {
     if (wing.length) {
       const order = wing[0].orders?.type ?? 'cover';
       text(`WING ${wing.length} · ${order === 'attack' ? 'ATTACKING' : order === 'form' ? 'FORMING UP' : 'COVERING'}`, x0, y0 + 120, 10, GREEN_DIM, 'left', 600);
+    }
+    const roster = wingRoster(world);
+    if (roster.length) {
+      const top = wingTop(world, roster.length);
+      panel(x0 - 12, top - 18, 214, 28 + roster.length * 29);
+      text('LANTERN WING', x0, top, 10, GREEN, 'left', 600);
+      roster.forEach((e, i) => {
+        const y = top + 20 + i * 29, f = Math.max(0, e.hull / e.maxHull);
+        const d = Math.hypot(...e.ship.pos.map((v, k) => v - p.ship.pos[k]));
+        const status = e.departed ? 'AWAY' : !e.alive ? 'LOST' : e.disabled ? 'DISABLED'
+          : d > 3000 ? 'REJOINING' : e.brain?.target ? 'ENGAGING' : 'ON WING';
+        text(e.name, x0, y, 11, e.alive ? INK : RED, 'left');
+        text(`${status} ${e.alive && !e.departed ? `${Math.round(f * 100)}%` : ''}`, x0 + 180, y, 9, f < 0.35 ? RED : MUTED, 'right');
+        bar(x0, y + 7, 180, e.alive ? f : 0, f < 0.35 ? RED : GREEN, null, false, 2);
+      });
     }
   }
 
@@ -709,6 +729,12 @@ export function createHud(canvas) {
     bar(tx, by, tw, hull, hull < 0.3 ? RED : colour, null, false, 5);
     const sub = world.targetSub;
     if (sub && target.big) text(`▸ ${sub.name}${sub.alive === false ? ' · destroyed' : ''}`, tx, y + H - 11, 10, AMBER, 'left', 600);
+    else if (target.hatch && !target.hatch.done) {
+      const left = Math.max(0, Math.ceil(target.hatch.at - world.time));
+      text(`HATCH IN ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, tx, y + H - 11, 10, left < 45 ? RED : AMBER, 'left', 600);
+    } else if (target.role === 'bomber' && target.torpedoes > 0) {
+      text(target.brain?.state === 'lineup' ? 'TORPEDO RUN · INTERCEPT' : `${target.torpedoes} TORPEDOES ARMED`, tx, y + H - 11, 10, target.brain?.state === 'lineup' ? RED : AMBER, 'left', 600);
+    }
     else if (world.well && !target.proxy) {
       const t = horizonOf(world, target);
       if (Number.isFinite(t)) text(`HORIZON IN ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, tx, y + H - 11, 10, t < 45 ? RED : AMBER, 'left', 600);
@@ -971,6 +997,9 @@ export function createHud(canvas) {
         const R = Math.min(88, Math.max(58, h * 0.09)), wide = w >= 1000;
         panels.push([16, h - 150, 230, h], [w - 240, h - 168, w - 8, h]);
         panels.push(wide ? [234, h - 2 * R - 32, 242 + 2 * R + 8, h] : [12, h - 2 * R - 200, 2 * R + 24, h - 160]);
+        const count = wingRoster(world).length;
+        if (count) { const top = wingTop(world, count); panels.push([16, top - 18, 230, top + 10 + count * 29]); }
+        if (world.well) panels.push(wide ? [16, h - 226, 230, h - 164] : [w - 240, h - 246, w - 26, h - 184]);
         if (target && Math.min(340, w - 520) >= 250) panels.push([w / 2 - 170, h - 116, w / 2 + 170, h - 12]);
       }
       // The directives (and under them the radio) first, so the arrows know

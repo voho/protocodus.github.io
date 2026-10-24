@@ -39,7 +39,19 @@ const VARLAAM_SKY = {
 export const LOOKS = {
   // Sector Seven — home: the giant the Perpetua orbits over one shoulder,
   // the sun over the other. The menus fly here, and Survival.
-  sector7: {},
+  sector7: {
+    sky: {
+      seed: 17,
+      nebulae: [
+        { kind: 'reflection', at: [0.25, 0.3, -0.92], radius: 0.62, gain: 0.66, tint: [0.4, 1.1, 1.25] },
+        { kind: 'emission', at: [-0.5, 0.2, -0.8], radius: 0.28, gain: 0.35, tint: [0.5, 0.8, 1.15] },
+        { kind: 'dark', at: [0.1, 0.1, -0.98], radius: 0.24, gain: 0.85 },
+      ],
+      veils: [{ a: [0.05, 0.38, 0.42], b: [0.1, 0.2, 0.4], gain: 0.08 }],
+    },
+    light: { hemi: { sky: 0x6baebc, ground: 0x405465, intensity: 0.48 } },
+    dust: { amount: 0.65, tint: [0.55, 0.9, 1] },
+  },
 
   // The Roussanou lane runs under the giant, in a long golden afternoon.
   roussanou: {
@@ -48,7 +60,7 @@ export const LOOKS = {
       galaxy: { normal: [0.1, 0.85, -0.5], band: 0.9 },
       nebulae: [
         { kind: 'reflection', at: [-0.62, 0.48, 0.62], radius: 0.2, gain: 0.32 },
-        { kind: 'emission', at: { band: 0.25 }, radius: 0.28, gain: 0.28, tint: [1.1, 0.8, 0.55] },
+        { kind: 'emission', at: [-0.5, 0.3, -0.8], radius: 0.55, gain: 0.62, tint: [1.3, 0.82, 0.35] },
         { kind: 'dark', at: { band: 0.2 }, radius: 0.3, gain: 1 },
         { kind: 'planetary', at: { off: 0.2 }, radius: 0.02, gain: 0.5 },
       ],
@@ -74,7 +86,7 @@ export const LOOKS = {
         { kind: 'dark', at: [-0.5, 0.1, -0.86], radius: 0.55, gain: 1 },
         { kind: 'dark', at: [0.45, -0.35, -0.82], radius: 0.42, gain: 1 },
         { kind: 'emission', at: { off: 0.3 }, radius: 0.16, gain: 0.16, tint: [1, 0.55, 0.5] },
-        { kind: 'remnant', at: { band: 0.4 }, radius: 0.14, gain: 0.18, tint: [0.5, 1, 0.7] },
+        { kind: 'remnant', at: [-0.15, 0.3, -0.94], radius: 0.48, gain: 0.4, tint: [0.35, 1.15, 0.65] },
         { kind: 'dark', at: { band: 0.25 }, radius: 0.35, gain: 1 },
       ],
       veils: [
@@ -107,6 +119,12 @@ export const LOOKS = {
   varlaamLate: {
     sky: {
       ...VARLAAM_SKY,
+      seed: 51,
+      nebulae: [
+        { kind: 'emission', at: [0.18, 0.28, -0.94], radius: 0.65, gain: 0.65, tint: [1.3, 0.35, 0.7] },
+        { kind: 'reflection', at: [-0.55, 0.3, -0.78], radius: 0.4, gain: 0.45, tint: [0.85, 0.45, 1.25] },
+        { kind: 'dark', at: [0.4, -0.1, -0.91], radius: 0.2, gain: 0.8 },
+      ],
       veils: [
         { a: [0.5, 0.12, 0.15], b: [0.35, 0.15, 0.4], gain: 0.06 },
         { a: [0.1, 0.35, 0.5], b: [0.4, 0.2, 0.2], gain: 0.04 },
@@ -114,7 +132,7 @@ export const LOOKS = {
       sun: { dir: [-0.55, 0.42, -0.72], colour: [1, 0.88, 0.76], corona: [1, 0.66, 0.42] },
     },
     light: { sun: { colour: 0xffe0c0, intensity: 5 }, hemi: { sky: 0x8a9cc8, ground: 0x40506a, intensity: 0.42 } },
-    dust: { amount: 0.8, tint: [0.95, 0.8, 0.8] },
+    dust: { amount: 0.3, tint: [1, 0.6, 0.8] },
   },
 
   // The long night: the Perpetua crawls through the giant's shadow. The
@@ -126,7 +144,7 @@ export const LOOKS = {
       galaxy: { normal: [0.4, 0.8, -0.45], band: 1.25 },
       stars: 1.35,
       nebulae: [
-        { kind: 'emission', at: [0.5, -0.2, -0.84], radius: 0.4, gain: 0.36 },
+        { kind: 'emission', at: [0.5, -0.2, -0.84], radius: 0.6, gain: 0.58, tint: [0.35, 0.55, 1.4] },
         { kind: 'remnant', at: { band: 0.4 }, radius: 0.15, gain: 0.3 },
         { kind: 'reflection', at: { off: 0.3 }, radius: 0.12, gain: 0.2 },
         { kind: 'dark', at: { band: 0.2 }, radius: 0.24, gain: 1 },
@@ -139,7 +157,7 @@ export const LOOKS = {
       sun: { dir: [-0.69, 0.2, 0.69], distance: 80000 },
     },
     light: { sun: { colour: 0xff7a48, intensity: 1.3 }, hemi: { sky: 0x3a4868, ground: 0x502818, intensity: 0.42 }, ambient: 0.06, fill: 1.7, environment: 0.3 },
-    dust: { amount: 0.7, tint: [0.85, 0.6, 0.5] },
+    dust: { amount: 0.18, tint: [0.65, 0.7, 1] },
   },
 
   // The Roussanou drag: open space between the belt and the Anchorage,
@@ -149,7 +167,7 @@ export const LOOKS = {
       seed: 77,
       galaxy: { normal: [0.6, 0.75, -0.28], band: 1 },
       nebulae: [
-        { kind: 'emission', at: [-0.1, 0.3, -0.95], radius: 0.55, gain: 0.42, tint: [1.2, 0.55, 1.35] },
+        { kind: 'emission', at: [-0.1, 0.3, -0.95], radius: 0.72, gain: 0.65, tint: [1.2, 0.4, 1.4] },
         { kind: 'reflection', at: [-0.45, 0.5, -0.74], radius: 0.24, gain: 0.3, tint: [0.9, 0.6, 1.25] },
         { kind: 'planetary', at: { off: 0.2 }, radius: 0.02, gain: 0.55 },
         { kind: 'dark', at: { band: 0.2 }, radius: 0.22, gain: 1 },
@@ -172,7 +190,7 @@ export const LOOKS = {
       seed: 88,
       galaxy: { normal: [-0.2, 0.85, 0.48], band: 0.7 },
       nebulae: [
-        { kind: 'remnant', at: [0.05, 0.12, -0.99], radius: 0.45, gain: 0.55, tint: [1.25, 0.55, 0.45] },
+        { kind: 'remnant', at: [0.05, 0.12, -0.99], radius: 0.62, gain: 0.72, tint: [1.4, 0.62, 0.2] },
         { kind: 'emission', at: [-0.5, 0.4, -0.77], radius: 0.34, gain: 0.38, tint: [1.1, 0.7, 0.8] },
         { kind: 'dark', at: { band: 0.2 }, radius: 0.3, gain: 1 },
         { kind: 'dark', at: [0.4, -0.25, -0.88], radius: 0.25, gain: 1 },
@@ -197,7 +215,7 @@ export const LOOKS = {
       nebulae: [
         { kind: 'emission', at: { band: 0.3 }, radius: 0.3, gain: 0.26, tint: [1.15, 0.85, 0.5] },
         { kind: 'dark', at: { band: 0.2 }, radius: 0.3, gain: 1 },
-        { kind: 'reflection', at: { off: 0.3 }, radius: 0.14, gain: 0.2 },
+        { kind: 'reflection', at: [-0.45, 0.3, -0.84], radius: 0.48, gain: 0.62, tint: [0.35, 1.2, 0.95] },
         { kind: 'remnant', at: { band: 0.5 }, radius: 0.12, gain: 0.22 },
       ],
       veils: [
@@ -242,8 +260,8 @@ export const LOOKS = {
       galaxy: { normal: [0.9, 0.2, -0.26], centre: [-0.31, -0.2, -0.93], band: 1.6 },
       stars: 1.15,
       nebulae: [
-        { kind: 'reflection', at: [0.35, 0.3, -0.89], radius: 0.3, gain: 0.45 },
-        { kind: 'emission', at: { band: 0.2 }, radius: 0.25, gain: 0.3 },
+        { kind: 'reflection', at: [0.35, 0.3, -0.89], radius: 0.55, gain: 0.65, tint: [0.65, 0.9, 1.3] },
+        { kind: 'emission', at: [-0.3, 0.12, -0.94], radius: 0.48, gain: 0.55, tint: [1.25, 0.72, 0.95] },
         { kind: 'planetary', at: { off: 0.25 }, radius: 0.02, gain: 0.6 },
         { kind: 'dark', at: { band: 0.15 }, radius: 0.25, gain: 1 },
       ],

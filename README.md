@@ -19,7 +19,7 @@
 
 ## Meteora
 
-[Play Meteora](fun/meteora/index.html) is a space-combat campaign in the spirit of FreeSpace, set in a dense asteroid belt around a red dwarf. Ten missions follow the Belt Watch's Lantern Wing from a missing ore tug to the evacuation of the whole belt, with briefings, a hangar, debriefs, medals, ranks and four difficulties.
+[Play Meteora](fun/meteora/index.html) is a space-combat campaign in the spirit of FreeSpace, set around a red dwarf. Ten missions in three acts follow the Belt Watch's Lantern Wing from a missing ore tug through a siege to the evacuation of the whole belt, with briefings, a hangar, debriefs, medals, ranks and four difficulties. Patrols, dense-rock recon and convoy lanes alternate with open orbital demolition, exposed station defense and fleet actions beneath distinct nebulae.
 
 - The missions vary: patrol and first contact, convoy escort through a rockslide, stealth recon past sensor Eyes, destroying seeded asteroids, holding a station during an evacuation, guarding the carrier *Perpetua* under an eclipse, cutting an enemy supply line in open space, a fleet assault on a Mother-class capital ship, a convoy with a traitor, and a last battle around a colony ark until it jumps — plus a special operation, a rescue from a convoy falling into a black hole (drawn with real gravitational lensing). Every place has its own sky, light and dust, and the story is uncovered clue by clue in a case file. Flight training teaches the basics first.
 - Choose an interceptor, a fighter or a bomber, a gun, missiles or torpedoes and a reactor; every mission recommends a loadout and says why, and the hangar warns when a choice will not do the job.
@@ -27,6 +27,7 @@
 - The ships, stations and capital ships are built by committed Blender scripts with baked textures, and their turrets, bays, subsystems and lights come from the models.
 - Synthesised 3D sound, live generated music and a voiced radio (the browser's own speech synthesis reads the radio, the briefings and the debriefs); every mission opens and closes on a camera shot, and the big moments get cutaways. Survival mode keeps the old endless waves.
 - See the [game guide](fun/meteora/README.md) for the controls, the campaign, the armoury, the model pipeline and the checks.
+- Tactical choices change the fight: a silenced relay cancels reinforcements, an early cargo scan seals an infiltrator's launch doors, and a protected repair crew restores the carrier's engines. Wingmen acknowledge orders, split threats, regroup and disengage when badly hurt; designated wing kills earn command assists. Personal debrief notes remember the people and ships you brought home.
 
 ## Zipper
 

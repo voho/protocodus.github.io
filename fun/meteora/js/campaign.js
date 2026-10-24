@@ -97,6 +97,7 @@ export function rankOf(total) {
 /* ---------- commendations ---------- */
 
 export const COMMENDATIONS = [
+  { id: 'wing-lead', name: 'Lantern Lead', text: 'Win a mission with three kills by your wing on designated targets.', test: r => r.won && (r.stats.commandKills ?? 0) >= 3 },
   { id: 'first', name: 'First Light', text: 'Win your first mission.', test: r => r.won },
   { id: 'untouchable', name: 'Untouchable', text: 'Win a mission without taking hull damage.', test: r => r.won && r.stats.hullTaken < 0.5 },
   { id: 'ace', name: 'Ace', text: 'Five kills in one mission.', test: r => r.stats.killCount >= 5 },
