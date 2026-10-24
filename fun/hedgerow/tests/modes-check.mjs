@@ -1,6 +1,6 @@
 // Run with: node fun/hedgerow/tests/modes-check.mjs
 // Mode keys are edges, day/night reuses the scene, and exposure never applies
-// a light reading captured before the mode changed.
+// a light reading captured before the mode changed (the eye stays on the GPU).
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const THREE = await import('three');
@@ -8,6 +8,7 @@ const { createInput } = await import('../js/input.js');
 const { createLighting } = await import('../js/lights.js');
 const { createSky, DAY_FOG_COLOR } = await import('../js/sky.js');
 const { createAdaptation } = await import('../js/adapt.js');
+const { createGrade } = await import('../js/post.js');
 
 {
   const previousWindow = globalThis.window, previousDocument = globalThis.document;
@@ -98,56 +99,58 @@ const { createAdaptation } = await import('../js/adapt.js');
 }
 
 {
-  const adapt = createAdaptation();
+  const adapt = createAdaptation(), grade = createGrade();
+  grade.adaptation = adapt;
   adapt.metering = true;
-  const requests = [];
+  const open = adapt.texture, draws = [];
   const renderer = {
     toneMappingExposure: 1.7,
-    setRenderTarget() {}, render() {},
-    readRenderTargetPixelsAsync(target, x, y, width, height, buffer) {
-      return new Promise((resolve) => requests.push({ buffer, resolve }));
+    setRenderTarget() {},
+    render(object) {
+      draws.push(Object.fromEntries(Object.entries(object.material.uniforms).map(([name, u]) => [name, u.value])));
     },
+    readRenderTargetPixels() { throw new Error('gameplay exposure must stay on the GPU'); },
+    readRenderTargetPixelsAsync() { throw new Error('gameplay exposure must stay on the GPU'); },
   };
   const render = () => adapt.render(renderer, null, { texture: null });
-  const request = () => { for (let i = 0; i < 6; i++) render(); };
-  const finish = async (logLuminance) => {
-    const { buffer, resolve } = requests.shift();
-    const encoded = (logLuminance + 16) / 24 * 255;
-    for (let i = 0; i < buffer.length; i += 4) {
-      buffer[i] = Math.floor(encoded);
-      buffer[i + 1] = Math.round((encoded % 1) * 255);
-    }
-    resolve();
-    await Promise.resolve();
-  };
-  request();
-  await finish(-3);
-  assert.ok(Math.abs(adapt.metered + 3) < 0.001);
-  adapt.update(1, renderer);
-  assert.ok(adapt.factor < 1, 'a bright night scene lowers exposure');
+  for (let frame = 0; frame < 6; frame++) { adapt.update(1 / 60, renderer); render(); }
+  assert.notEqual(adapt.texture, open, 'after metering, the grade reads the GPU eye state');
+  adapt.factor = 0.4;
+  adapt.update(0.1, renderer, 1); // reset must also clear this old mode's lightning hold
+  render();
 
-  request();
-  assert.equal(requests.length, 1);
+  for (const [base, ref] of [[1.15, -1.5], [1.7, -5]]) {
+    adapt.reset({ base, ref });
+    assert.equal(adapt.texture, open, 'a switch immediately disconnects the old mode texture');
+    assert.equal(adapt.factor, 1);
+    assert.ok(Number.isNaN(adapt.metered), 'old diagnostic luminance is discarded');
+    grade.render(renderer, null, { texture: null });
+    assert.equal(draws.at(-1).tAdapt, open, 'the grade uses the reset eye before the next sample');
+    assert.equal(grade.uniforms.uGrain, undefined, 'GPU exposure does not restore film grain');
+    adapt.update(1 / 60, renderer);
+    render();
+    const first = draws.at(-1);
+    assert.equal(first.tPrev, open, 'the new GPU state starts from the open eye');
+    assert.equal(first.uReset, 2, 'factor, target, and metering history are all reset');
+    assert.equal(first.uResetFactor, 1, 'a previous forced factor does not survive the switch');
+    assert.equal(first.uRef, ref, 'the GPU receives the chosen mode reference');
+    assert.equal(first.uRetarget, 1, 'an old lightning hold does not survive the switch');
+    assert.equal(first.uFresh, 0, 'the metering cadence restarts');
+    for (let frame = 1; frame < 6; frame++) { adapt.update(1 / 60, renderer); render(); }
+    assert.equal(draws.at(-1).uFresh, 1, 'fresh mode metering resumes on the sixth frame');
+    assert.equal(adapt.params.base, base);
+  }
+  assert.equal(renderer.toneMappingExposure, 1.7, 'GPU adaptation does not overwrite the renderer base');
+
+  // Only explicit diagnostics read pixels, and report the active mode's base exposure.
   adapt.reset({ base: 1.15, ref: -1.5 });
-  assert.equal(adapt.factor, 1);
-  assert.equal(adapt.metered, null);
-  request();
-  assert.equal(requests.length, 1, 'reset does not overlap a pending readback');
-  await finish(4);
-  assert.equal(adapt.metered, null, 'a late night-mode reading cannot alter daylight exposure');
-  adapt.update(1, renderer);
-  assert.equal(renderer.toneMappingExposure, 1.15);
-
-  request();
-  await finish(-2);
-  assert.ok(Math.abs(adapt.metered + 2) < 0.001, 'fresh daylight samples still arrive');
-  adapt.update(1, renderer);
-  assert.equal(adapt.factor, 1, 'daylight uses its brighter metering reference');
-  adapt.reset({ base: 1.7, ref: -5 });
-  adapt.update(1, renderer);
-  assert.equal(renderer.toneMappingExposure, 1.7, 'returning to night restores its base exposure');
-  assert.equal(adapt.metered, null);
-  assert.equal(adapt.params.ref, -5);
+  render();
+  renderer.readRenderTargetPixels = (target, x, y, width, height, out) => {
+    if (width === 1) out.set([0.5, 0.5, -2, 1]);
+    else for (let i = 0; i < out.length; i += 4) out.set([-2, 0, 0, 1], i);
+  };
+  const measured = await adapt.read();
+  assert.equal(measured.exposure, 1.15 * 0.5, 'diagnostics use the changed mode base');
 }
 
-console.log('modes-check: keys trigger once per press; day/night reuses and restores lights and sky; exposure rejects stale mode readings');
+console.log('modes-check: keys trigger once per press; day/night reuses and restores lights and sky; GPU exposure resets mode history without readback');

@@ -27,7 +27,7 @@ async function gameHarness(game, puzzle, logic) {
     ...logic,
     hint(p, input) { state.inputs.push(structuredClone(input)); return logic.hint(p, input); },
     generate: () => puzzle,
-    createStage: () => ({ dust() {}, start() {}, flash() {}, pick: (x) => ({ x }), project() {} }),
+    createStage: () => ({ dust() {}, bokeh() {}, start() {}, flash() {}, pick: (x) => ({ x }), project() {} }),
     createBoard: () => board,
     createBursts: () => ({}),
     createSound: () => new Proxy({}, { get: () => () => {} }),
@@ -89,17 +89,20 @@ zip.key('ArrowRight');
 assert.equal(zip.finishes, 1, 'Zipper: the player completes the board');
 
 const patchPuzzle = {
-  size: 2, clues: [{ cell: 0, number: 2, shape: 'any' }, { cell: 3, number: 2, shape: 'any' }],
-  solution: [{ clue: 0, x: 0, y: 0, w: 2, h: 1 }, { clue: 1, x: 0, y: 1, w: 2, h: 1 }],
+  size: 3,
+  clues: [{ cell: 1, number: 3, shape: 'wide' }, { cell: 3, number: 2, shape: 'tall' }, { cell: 8, number: 4, shape: 'square' }],
+  solution: [{ clue: 0, x: 0, y: 0, w: 3, h: 1 }, { clue: 1, x: 0, y: 1, w: 1, h: 2 }, { clue: 2, x: 1, y: 1, w: 2, h: 2 }],
 };
 const patch = await gameHarness('patcher', patchPuzzle, patcher);
 assert.deepEqual(patch.checkHint().patch, patchPuzzle.solution[0], 'Patcher: suggest without placing');
+// A tall 1×2 from the top-left corner: the right shape and count for the
+// second clue, in the wrong place.
 patch.key('Enter'); patch.key('ArrowDown'); patch.key('Enter');
-const wrong = { clue: 0, x: 0, y: 0, w: 1, h: 2 };
+const wrong = { clue: 1, x: 0, y: 0, w: 1, h: 2 };
 assert.deepEqual(patch.mutations.at(-1), ['place', wrong]);
 assert.deepEqual(patch.checkHint(), { patch: wrong, mistake: true }, 'Patcher: highlight a mistake without lifting it');
 patch.actions.onUndo();
-assert.deepEqual(patch.mutations.at(-1), ['lift', 0], 'Patcher: Hint must preserve undo history');
+assert.deepEqual(patch.mutations.at(-1), ['lift', 1], 'Patcher: Hint must preserve undo history');
 patch.checkHint();
 assert.deepEqual(patch.inputs.at(-1), [], 'Patcher: player undo removed the patch');
 

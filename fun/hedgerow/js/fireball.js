@@ -143,6 +143,7 @@ export function createFireballs(effects, { gain = 0.9 } = {}) {
         ageA.array[i * 2] = b.age; ageA.array[i * 2 + 1] = b.seed;
       }
       geo.instanceCount = n;
+      mesh.visible = n > 0;
       blastA.needsUpdate = true;
       ageA.needsUpdate = true;
     },

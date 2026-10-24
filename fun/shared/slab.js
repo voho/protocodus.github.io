@@ -57,37 +57,32 @@ export function digitTexture(text, colour = '#f3f4f4', weight = 600) {
   });
 }
 
-/* A Patcher clue: a compact shape above the number, with a clear gap.
-   Geometry carries the meaning; a quiet tint helps distinguish it too. */
+/* A Patcher clue: the shape above the number. Square, wide and tall are
+   solid silhouettes of the rectangle to draw, in proportions far enough
+   apart to tell at a glance. */
 export function clueTexture({ shape, number }, colour = '#f3f4f4') {
   return canvasTexture((ctx, size) => {
     const both = number !== null && number !== undefined;
-    const tint = { square: '#a5d8c5', wide: '#a8c4ed', tall: '#d2b4e4', any: '#e1c990' }[shape] || '#a5d8c5';
-    // Dark labels sit on coloured patches, light labels on dark tiles.
-    const iconColour = new THREE.Color(colour).lerp(new THREE.Color(tint), 0.28).getStyle();
-    const icon = (cx, cy, scale) => {
-      const dims = { square: [0.65, 0.65], wide: [1.45, 0.24], tall: [0.24, 1.45], any: [0.65, 0.65] }[shape] || [0.65, 0.65];
-      const w = dims[0] * scale, h = dims[1] * scale;
-      ctx.lineWidth = size * 0.022;
-      ctx.strokeStyle = iconColour;
-      ctx.fillStyle = iconColour;
-      ctx.lineJoin = 'round';
-      ctx.setLineDash(shape === 'any' ? [size * 0.035, size * 0.025] : []);
+    const tint = { square: '#8fe0c4', wide: '#8cc2ff', tall: '#d9b2f5' }[shape] || '#8fe0c4';
+    // Dark labels sit on coloured patches, light labels on dark tiles; the
+    // tint only nudges either towards its shape's colour.
+    const ink = new THREE.Color(colour).lerp(new THREE.Color(tint), 0.4).getStyle();
+    const icon = (cx, cy, long) => {
+      ctx.fillStyle = ink;
+      const [w, h] = { square: [0.62, 0.62], wide: [1, 0.42], tall: [0.42, 1] }[shape] || [0.62, 0.62];
       ctx.beginPath();
-      ctx.roundRect(cx - w / 2, cy - h / 2, w, h, size * 0.012);
-      if (shape === 'any') ctx.stroke(); else ctx.fill();
-      ctx.setLineDash([]);
+      ctx.roundRect(cx - w * long / 2, cy - h * long / 2, w * long, h * long, long * 0.06);
+      ctx.fill();
     };
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = colour;
     if (both) {
-      icon(size / 2, size * 0.23, size * 0.22);
+      icon(size / 2, size * 0.24, size * 0.46);
       ctx.fillStyle = colour;
       ctx.font = `600 ${Math.round(size * 0.44)}px ${LABEL_FONT}`;
-      ctx.fillText(String(number), size / 2, size * 0.73);
+      ctx.fillText(String(number), size / 2, size * 0.72);
     } else {
-      icon(size / 2, size / 2, size * 0.29);
+      icon(size / 2, size / 2, size * 0.6);
     }
   });
 }

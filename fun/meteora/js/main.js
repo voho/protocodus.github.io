@@ -446,7 +446,11 @@ function resize() {
   hud?.resize();
 }
 
+// Bumped whenever the effects are cleared (a launch, a restart, the menu):
+// an effect timed in one flight must not go off in the next.
+let effectsRun = 0;
 function clearEffects() {
+  effectsRun++;
   fx.clear(); folds.clear(); shields.clear(); entities.clear(); plumes.reset(); hud.reset(); audio?.reset(); chatter.reset();
   critical.clear();
   wreck = null; lastKnock = -Infinity; deadTimer = 0; outcomeAt = null; debriefShown = false; slowmo = 0; jumped = false;
@@ -888,12 +892,15 @@ function handleEvents(events) {
         jolt(e.pos, 1, 9000);
         if (!REDUCED_MOTION) slowmo = 1;
         break;
-      case 'flares':
-        // Fold after fold at the belt's edge, a beat apart.
+      case 'flares': {
+        // Fold after fold at the belt's edge, a beat apart — over four
+        // seconds, so not into the flight after a restart.
+        const run = effectsRun;
         e.positions.forEach((pos, k) => setTimeout(() => {
-          if (mode === 'flight') folds.open({ type: 'hold', pos, q: e.facing?.[k] ?? [0, 0, 0, 1], radius: 480, team: e.team ?? 1, dur: 7 });
+          if (mode === 'flight' && run === effectsRun) folds.open({ type: 'hold', pos, q: e.facing?.[k] ?? [0, 0, 0, 1], radius: 480, team: e.team ?? 1, dur: 7 });
         }, 350 * k));
         break;
+      }
       case 'ringOpen': {
         // The Long Mercy's drive ring opens: a fold held open in the hoop.
         const ark = world.byId.get(e.id);
@@ -984,6 +991,7 @@ function tick(dt) {
   }
   if (!paused && mode !== 'loading') advance(world, controls, dt);
   handleEvents(drainEvents(world));
+  if (flying) chatter.update(world);
   // Radio lines are heard as they appear: the squelch, then the voice.
   if (flight && voices.update(world, paused)) audio?.handle({ type: 'radioLine' }, world);
 

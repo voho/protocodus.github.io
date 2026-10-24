@@ -123,6 +123,7 @@ const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || 
   const selected = (meshes, ids) => {
     for (const m of meshes) {
       assert.equal(m.count, ids.length);
+      assert.equal(m.visible, ids.length > 0, 'empty batches skip drawing and populated batches remain visible');
       for (let i = 0; i < ids.length; i++) {
         const actual = new THREE.Matrix4();
         m.getMatrixAt(i, actual);
@@ -168,6 +169,11 @@ const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || 
   selected(k.nearMeshes, [4]);
   selected(k.farMeshes, []);
   assert.deepEqual(near.updateRanges, [{ start: 0, count: 16 }]);
+  camera.lookAt(0, 2, 100);
+  camera.updateMatrixWorld();
+  veg.update(1, camera, { treeNear: 35, grass: 1 });
+  selected(k.nearMeshes, [0, 1, 2]);
+  selected(k.farMeshes, [3]);
 }
 
 console.log(`lod-check: soldiers switch detail at ${LOD_FAR} m (back at ${LOD_NEAR} m); trees sort into full, mid and far, and the one behind the camera is dropped; down the sights detail reaches ${(1 / ads).toFixed(2)}x further`);

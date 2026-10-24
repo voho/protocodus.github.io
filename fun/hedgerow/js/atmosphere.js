@@ -804,6 +804,7 @@ export async function createDecals({ max = 200, shared = null, pinned = {} } = {
     // the cracks in a lit window catch the room's light behind them
     if (k === 'glass') { m.material.emissive.set('#ffcc94'); m.material.emissiveMap = sets[k].map; m.material.emissiveIntensity = 0.9; }
     m.count = 0;
+    m.visible = false;            // (drawn once there is something to draw)
     m.frustumCulled = false;
     // the signs under the breaks, the breaks under the holes: old damage goes through the paint,
     // new shots land in old damage
@@ -842,6 +843,7 @@ export async function createDecals({ max = 200, shared = null, pinned = {} } = {
     K.n = Math.max(K.n, K.cursor + 1);
     K.cursor = K.cursor + 1 < K.cap ? K.cursor + 1 : K.base;
     K.mesh.count = K.n;
+    K.mesh.visible = true;
   }
 
   /* One for good (before any add() of its kind); false once its kind's pinned room is full. */
@@ -852,6 +854,7 @@ export async function createDecals({ max = 200, shared = null, pinned = {} } = {
     K.cursor = Math.max(K.cursor, K.base);
     K.n = Math.max(K.n, K.base);
     K.mesh.count = K.n;
+    K.mesh.visible = true;
     return true;
   }
 
@@ -889,7 +892,7 @@ export async function createDecals({ max = 200, shared = null, pinned = {} } = {
     else add('stone', x, y, zz, nx, ny, nz, (surface === 'sandbag' ? 0.12 : 0.16) + r * 0.07);
   }
 
-  function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; } }
+  function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; K.mesh.visible = K.n > 0; } }
 
   return { group, add, pin, impact, clear, setPanes, paneAt };
 }

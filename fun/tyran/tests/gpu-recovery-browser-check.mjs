@@ -22,7 +22,7 @@ async function open(){
  });
  await page.addInitScript(()=>{let id=0;const frames=new Map();window.requestAnimationFrame=fn=>{frames.set(++id,fn);return id;};window.cancelAnimationFrame=id=>frames.delete(id);let time=1000;window.__frame=()=>{time+=1000/60;const callbacks=[...frames.values()];frames.clear();for(const fn of callbacks)fn(time);};localStorage.clear();localStorage.setItem('tyran-muted','true');});
  await page.goto(url);await page.waitForFunction(()=>window.__recoveryQA&&window.tyran,null,{polling:20});
- await page.evaluate(async()=>{await tyran.world.ready;tyran.launch(6,null,false);await tyran.world.ready;const s=tyran.state;s.time=35;s.duration=1e6;s.enemies=[];s.bullets=[];s.events=[];s.director.clock=999;for(const p of s.players)p.hurt=1e8;tyran.fx.reset();await tyran.world.prepareReady(s.width,s.height,s.scroll);__recoveryQA.render();});
+ await page.evaluate(async()=>{await tyran.world.ready;tyran.launch(6,null,false);await tyran.world.ready;const s=tyran.state;s.time=35;s.duration=1e6;s.enemies=[];s.bullets=[];s.events=[];s.director.clock=999;s.director.hold=true;for(const p of s.players)p.hurt=1e8;tyran.fx.reset();await tyran.world.prepareReady(s.width,s.height,s.scroll);__recoveryQA.render();});
  await page.waitForTimeout(100);return page;
 }
 const digest=pixels=>createHash('sha256').update(Buffer.from(pixels,'base64')).digest('hex');
@@ -32,9 +32,9 @@ try{
  assert.equal(initial.backend,'gpu');
  await page.evaluate(()=>__lossExt.loseContext());await page.waitForFunction(()=>__recoveryQA.gpu.contextLost,null,{polling:10});
  const streamed=await page.evaluate(async()=>{
-  const g=__recoveryQA.gpu,w=tyran.world,s=tyran.state,before=g.stats.uploads,initial=new Set(w.sceneryLayers[0].values());let fresh=0;
+  const g=__recoveryQA.gpu,w=tyran.world,s=tyran.state,before=g.stats.uploads,initial=new Set(w.sceneryLayers[0].keys());let fresh=0;
   for(let i=0;i<8;i++){tyran.step(3);await w.prepareReady(s.width,s.height,s.scroll);const rendered=__recoveryQA.render();if(rendered.backend!=='native')throw Error('Native fallback required while lost');}
-  for(const surface of w.sceneryLayers[0].values())if(!initial.has(surface))fresh++;
+  for(const row of w.sceneryLayers[0].keys())if(!initial.has(row))fresh++;
   const buildings=new Set(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
   const prop=w.visibleProps.find(p=>buildings.has(p.type)&&p.hp>0&&p.maxHp>0);let damaged=false;
   if(prop){const old=prop.hp;w.hit((prop.x+w.parallaxX)*w.scale,(prop.y+s.scroll)*w.scale,0,prop.maxHp*.6,s.scroll);await w.prepareReady(s.width,s.height,s.scroll);__recoveryQA.render();damaged=prop.hp<old;}

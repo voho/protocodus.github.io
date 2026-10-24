@@ -23,7 +23,7 @@ export default defineMission({
   field: FIELD, fieldSeed: 7077, seed: 707, par: 540, env: 'drag',
   start: { pos: START, forward: dir(START, ROUTE[1]), speed: 80 },
   area: { centre: [0, 0, 0], radius: 7500 },
-  models: ['fighter', 'interceptor', 'maul', 'warden', 'talon', 'drone'],
+  models: ['fighter', 'interceptor', 'maul', 'warden', 'talon', 'sentry', 'drone'],
   music: 'tension',
   recommend: {
     hull: 'kestrel', primary: 'ion', secondaries: ['hornet', 'hornet'], reactor: 'hearth',
@@ -49,6 +49,7 @@ export default defineMission({
     { text: 'Stop at least three of the six haulers (four on Veteran and Ace)' },
     { text: 'Stop all six', bonus: true },
     { text: 'Destroy the Ninth Hand', bonus: true },
+    { text: 'Silence the escort relay before it transmits', bonus: true },
   ],
   debrief: {
     won: 'VANGUARD SEVEN. PERPETUA PROGRAM. TASK: PREPARE HABITAT. STATUS: IN PROGRESS. The Harrow are the Vanguard — the fabricators the Perpetua\'s builders sent a century ahead to make a home ready. They found no world, so they began to build one, from the outer belt, and they have been building for two hundred years. To them, we are debris in the construction zone. Okonkwo has found one more thing in the tug\'s memory: where the foreman is. A Mother, at the Deep Anchorage.',
@@ -95,6 +96,17 @@ export default defineMission({
     m.objective('stop', `Stop at least ${need === 3 ? 'three' : 'four'} of the six haulers`, { count: { n: 0, of: 6 } });
     m.objective('all', 'Stop all six', { bonus: true });
     m.objective('ninth', 'Destroy the Ninth Hand', { bonus: true });
+    m.objective('relay', 'Silence the escort relay before it transmits', { bonus: true });
+    const relay = m.spawn('eye', { team: 1, role: 'relay', pos: add(ROUTE[2], [0, 450, 0]), name: 'Escort relay', objective: true, tags: ['relay'] });
+    relay.noAutoTarget = true;
+    m.timer('relay', 'Relay transmits', { recruit: 105, pilot: 90, veteran: 75, ace: 65 }[m.diff.key]);
+    onDeath(m, relay, () => {
+      if (m.failed('relay')) return;
+      m.complete('relay'); m.removeTimer('relay');
+      m.flag('relaySilent', true);
+      m.say('okonkwo', 'Relay dark. Their second group will have no heavy escort. You made a hole in their schedule.');
+    });
+    m.on('timerDone', ev => { if (ev.id === 'relay') { m.fail('relay'); m.removeTimer('relay'); m.say('saint', 'The relay got a call out. Expect reinforcements on the next group.'); } });
     m.on('departed', ev => {
       if (!ev.tags?.includes('hauler')) return;
       reached++;
@@ -124,6 +136,7 @@ export default defineMission({
     yield m.say('doukas', 'Lantern, there\'s the line. Six haulers. Cut it.');
     m.say('okonkwo', 'The tugs are shielded like nothing we\'ve seen on a drone. Strip the shields, then the tug.');
     m.hint('Each hauler has two tugs. Kill both and it stops.', 9);
+    m.say('wren', 'Relay above the line, transmitting an escort request. We can cut that too — your call, Lead.');
     for (let k = 0; k < 3; k++) launch(k, k * 420);
     const warden = m.spawn('warden', { team: 1, pos: add(ROUTE[1], [200, 200, 300]), forward: dir(ROUTE[1], ROUTE[2]), name: 'Warden', tags: ['escort'],
       helm: { path: ROUTE.slice(2), speed: 34, then: 'hold' } });
@@ -149,7 +162,7 @@ export default defineMission({
     yield m.wait(45);
     for (let k = 3; k < 6; k++) launch(k, (k - 3) * 420);
     wave(m, 'thorn', m.n(3), add(ROUTE[0], [400, 200, 300]), { toward: haulers[3] });
-    wave(m, 'talon', m.n(2), add(ROUTE[0], [-300, 0, 500]), { toward: m.player });
+    if (!m.done('relay')) wave(m, 'talon', m.n(2), add(ROUTE[0], [-300, 0, 500]), { toward: m.player });
     yield m.say('doukas', 'Second group leaving Roussanou. Three more haulers.');
 
     yield m.until(() => haulers.length === 6 && haulers.every(h => stopped(h) || h.departed));

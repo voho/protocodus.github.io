@@ -129,8 +129,13 @@ export default defineMission({
     yield m.wait(20);
     m.music('combat');
     const front = add(lead().ship.pos, dir(ROUTE[1], ROUTE[2]).map(v => v * 1700));
-    const w1 = wave(m, 'thorn', m.n(4), add(front, [300, 200, 0]), { toward: lead(), prefer: 'convoy' });
-    yield m.say('saint', 'Here they come — they\'re going for the freighters!');
+    const raiders = m.n(4), frontCount = Math.ceil(raiders / 2);
+    const w1 = wave(m, 'thorn', frontCount, add(front, [300, 200, 0]), { toward: lead(), prefer: 'convoy' });
+    // A pincer forces the escort to choose a flank rather than shooting
+    // through one queue of raiders. Total strength stays the same.
+    const rear = mules.at(-1);
+    w1.push(...wave(m, 'thorn', raiders - frontCount, add(rear.ship.pos, [-1100, -180, 500]), { toward: rear, orders: { type: 'attack', target: rear } }));
+    yield m.say('saint', 'Split attack! I see the front group — check the last Mule, Lead!');
     yield m.until(() => w1.every(e => !e.alive) || m.time > 120);
     if (!slide.boulders.length) m.music('calm');
     if (w1.every(e => !e.alive)) {

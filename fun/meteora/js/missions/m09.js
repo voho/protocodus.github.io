@@ -52,7 +52,7 @@ export default defineMission({
   objectivesPreview: [
     { text: 'Three transports reach the Long Mercy' },
     { text: 'All loyal transports arrive', bonus: true },
-    { text: 'Destroy the traitor within 30 s', bonus: true },
+    { text: 'Stop the infiltrator within 30 s of identification', bonus: true },
   ],
   debrief: {
     won: 'The Narrows are behind us and the Long Mercy is as full as she will ever be: forty-one thousand people, three hundred years after the Perpetua brought their ancestors here. Skiff 4 had been boarded at the docks while it loaded; no one aboard survived the boarding. Okonkwo says the seeds in its hold were hours from opening. The drive is ready, or as ready as Okonkwo can make it. One jump left.',
@@ -63,6 +63,8 @@ export default defineMission({
     m.wing('kestrel', 2, { names: ['Saint', 'Wren'], tags: ['lantern'] });
     const ships = convoy(m, [['skiff', 'Skiff 2'], ['mule', 'Mule 5'], ['skiff', 'Skiff 3'], ['skiff', 'Skiff 4'], ['mule', 'Mule 6']], ROUTE, { speed: 48, spacing: 240, then: 'hold', tags: ['convoy'] });
     m.flag('convoy', ships.map(e => e.id));
+    const suspect = ships.find(e => e.name === 'Skiff 4');
+    suspect.scan = { time: 4, range: 420, progress: 0, done: false, label: 'Skiff 4 cargo manifest' };
     const vigil = m.spawn('halberd', { team: 0, pos: add(ROUTE[0], [250, 140, 250]), forward: dir(ROUTE[0], ROUTE[1]), name: 'Halberd Vigil',
       helm: { path: [add(ROUTE[1], [250, 140, 0]), ...ROUTE.slice(2).map(p => add(p, [220, 140, 0]))], speed: 48, then: 'hold' } });
     m.flag('vigil', vigil.id);
@@ -78,6 +80,11 @@ export default defineMission({
     const T = tally(m, loyal);
     const vigil = w.byId.get(m.flags.vigil);
     const lead = () => loyal.find(e => e.alive && !T.arrived.has(e.id)) ?? loyal[0];
+    m.on('scanned', ev => {
+      if (ev.id !== traitor.id && ev.label !== 'Skiff 4 cargo manifest') return;
+      m.flag('identified', true);
+      m.say('okonkwo', 'That hold is drawing power through a dead crew compartment. Seeds. I can lock its launch doors — Vigil, you have confirmation.');
+    });
     m.objective('arrive', 'Three transports reach the Long Mercy', { count: { n: 0, of: 4 } });
     m.objective('all', 'All loyal transports arrive', { bonus: true });
     for (const s of loyal) onDeath(m, s, () => {
@@ -88,6 +95,8 @@ export default defineMission({
     m.thread((function* () { for (;;) { yield m.wait(0.5); m.progress('arrive', T.arrived.size, 4); } })(), 'tally');
 
     yield m.say('doukas', 'Lantern, Vigil. This is the last convoy. Get them through.');
+    m.say('wren', 'Skiff 4 is repeating its docking clearance word for word. Could be a damaged transmitter. Can you get close and check the manifest?');
+    m.hint('{cycleFriendly} selects transports. Keep Skiff 4 ahead within 420 m to inspect its hold.', 12);
     m.say('halo', 'Vigil here. Lantern, we\'ll take the big ones. You keep the small ones off the transports.');
     yield m.wait(18);
     m.music('combat');
@@ -96,8 +105,10 @@ export default defineMission({
     yield m.say('saint', 'Contacts, both sides of the lane!');
 
     // Skiff 4 turns.
-    yield m.until(() => m.dist(lead(), ROUTE[2]) < 600 || m.time > 150);
+    yield m.until(() => m.flags.identified || m.dist(lead(), ROUTE[2]) < 600 || m.time > 150);
     if (traitor.alive) {
+      const identified = !!m.flags.identified;
+      traitor.scan.done = true;
       traitor.team = 1;
       traitor.tags.delete('convoy');
       traitor.tags.add('traitor');
@@ -109,16 +120,16 @@ export default defineMission({
       traitor.maxShield *= k; traitor.shield *= k;
       // Nobody fires on a Skiff full of our own people on their own say-so:
       // the call is Lantern One's (1 still sends the wing at it).
-      traitor.noAutoTarget = true;
+      traitor.noAutoTarget = !identified;
       // Its stolen engines are pushed harder on the harder settings.
       const run = { recruit: 60, pilot: 72, veteran: 85, ace: 95 }[m.diff.key] ?? 85;
-      traitor.helm = { path: [add(MERCY, [0, 0, 500])], index: 0, speed: run, arrive: 400, then: 'hold', loop: false, done: false, halt: false };
-      traitor.launcher = { cls: 'thorn', interval: 12, max: m.n(3), timer: 4, spawned: [], wave: 1, prefer: 'convoy' };
+      traitor.helm = { path: [add(MERCY, [0, 0, 500])], index: 0, speed: run * (identified ? 0.65 : 1), arrive: 400, then: 'hold', loop: false, done: false, halt: false };
+      traitor.launcher = identified ? null : { cls: 'thorn', interval: 12, max: m.n(3), timer: 4, spawned: [], wave: 1, prefer: 'convoy' };
       // No bays on a Skiff: its hold launches from the hull.
       traitor.launchFromHull = true;
       w.events.push({ type: 'turncoat', id: traitor.id });
       m.objective('traitor', 'Stop Skiff 4 before it docks');
-      m.objective('fast', 'Destroy the traitor within 30 s', { bonus: true });
+      m.objective('fast', 'Stop the infiltrator within 30 s of identification', { bonus: true });
       const turned = m.time;
       onDeath(m, traitor, () => {
         m.complete('traitor');
@@ -130,7 +141,9 @@ export default defineMission({
       m.target(traitor);
       yield m.say('mule', 'Skiff 4 is off the lane — Skiff 4, respond!');
       yield m.say('okonkwo', 'Its transponder changed. It\'s Harrow — boarded at the docks. That hold is full of seeds!');
-      yield m.say('halo', 'Vigil won\'t fire on a transport without a kill order. Your call, Lantern — your shot.');
+      yield m.say('halo', identified
+        ? 'Manifest confirms a hostile boarding. Vigil engaging; the launch doors are sealed. Good catch, Lantern.'
+        : 'Vigil will not fire on a transport without confirmation. Your call, Lantern — your shot.');
       m.hint('Stop Skiff 4: {cycleTarget} selects it, {wingAttack} sends your wing.', 8);
     }
 

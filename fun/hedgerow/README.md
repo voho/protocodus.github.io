@@ -528,8 +528,9 @@ by the blast that killed them, and drop their rifles.
     `dof.js`
     focus on what is under the crosshair while aiming · `bloom.js` ·
     `adapt.js` the eye adapting (the frame metered just ahead of the grade:
-    the median of its log luminance over 32 x 18 patches, read back a few
-    frames later without stalling, and only once the mission is under way; the exposure closes down within half
+    the median of its log luminance over 32 x 18 patches, found on the GPU
+    and kept there in a one-pixel texture the grade multiplies in, so nothing
+    is ever read back to stall the frame, and only once the mission is under way; the exposure closes down within half
     a second when a flare bursts and the whole view brightens, opens up
     again over a few seconds, never past the night's own, and holds still
     through a lightning stroke) ·
@@ -585,7 +586,7 @@ by the blast that killed them, and drop their rifles.
   `tests/hud-check.mjs` — the compass follows heading and objectives without
   layout reads or repeated unchanged DOM writes;
   `tests/modes-check.mjs` — mode keys trigger once per press, day/night reuses
-  lights and sky, and exposure drops readings from before a mode switch;
+  lights and sky, and GPU exposure clears the previous mode's history without readback;
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the

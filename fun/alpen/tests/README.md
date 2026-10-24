@@ -7,6 +7,7 @@ node tests/riding-check.mjs
 node tests/touch-input-check.mjs
 node tests/flow-check.mjs
 node tests/terrain-shadow-check.mjs
+node tests/terrain-worker-check.mjs
 node tests/models-check.mjs
 node tests/graphics-check.mjs
 node tests/instance-lod-check.mjs
@@ -343,6 +344,25 @@ The reuse buffers add about 0.94 MiB of CPU memory and no GPU memory.
 Frame intervals stayed at 16.7 ms median / 17.6 ms p95 in both versions; GPU
 timings varied without a clear overall change. These local measurements show
 additional CPU headroom, not a guaranteed FPS increase on other hardware.
+
+Terrain re-anchors are now built in a module worker (`js/terrain-worker.js`,
+running the same `createLattice` from `terrain.js`), and the terrain worker
+check proves they are the same bits. A deterministic 60 s streaming ride
+(a flow burst, snapped builds, a restart, a new seed and a checkpoint jump)
+hashes every mesh buffer at every upload with every build on the main thread
+and then with every build in the worker, on the desktop and phone grids, and
+each pair must match upload for upload. It then holds the worker's answers
+back (a few frames, every sixth for 0.75 s, one never) and requires the late
+builds to be finished on the main thread, the silent worker to be retired, and
+every surface shown to match a fresh build of its transition. Node has no web
+Worker, so the check runs the worker module on `worker_threads`.
+In headless Chrome on an M1 Max (ANGLE Metal, 60 Hz, the attract demo on
+seed `alpen01`, two alternating 60 s rounds per version, about 1.7 km and 140
+re-anchors each), the terrain's main-thread time fell from 0.80–0.92 ms to
+0.01 ms a frame and its worst frame from 4.4 to 0.2 ms; the whole frame's
+main-thread time fell from 2.70–3.04 to 2.02–2.17 ms on average and from
+8.7–9.6 to 5.1–5.7 ms at worst. The worker answered in 23–31 ms and was
+never late. Phones were not measured.
 
 The follow-up pass verified A/Start pause and resume through the production
 loop with a simulated controller, plus actual touch jump and pause controls

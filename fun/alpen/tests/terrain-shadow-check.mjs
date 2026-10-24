@@ -209,8 +209,7 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
   .replace('    initializeShadowCache(x, z);\n    snapSnowReady();', '    snapSnowReady();')
   .replace('    mesh,\n    setSun,', `    mesh,
     checkCold(x, z) {
-      heightsReady = false;
-      fill(x, z, heightAt(x, z), positions, normals, colors, surface, groomFrame);
+      lattice.fill(x, z, heightAt(x, z), true);
     },
     checkStream(x, z) {
       beginBuild(x, z, heightAt(x, z));
@@ -223,17 +222,18 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
       while (build && build.stage < 4) { morphT = 1; advanceBuild(); }
     },
     checkFinish() { while (build) { morphT = 1; advanceBuild(); } },
-    checkMorph: () => [morphDY, morphDN, morphDC, morphDS, morphK.value, morphPhase],
+    checkMorph: () => [lattice.morphDY, lattice.morphDN, lattice.morphDC, lattice.morphDS,
+      morphK.value, morphPhase],
     checkAnchor: () => [anchorX, anchorY, anchorZ],
     checkInterrupt(x, z, stage) {
       beginBuild(x, z, heightAt(x, z));
-      fillHeightRows(x, z, 0, stage ? vertsZ : 4);
-      if (stage) fillSurfaceRows(x, z, build.ay, buildPositions, buildNormals,
-        buildColors, buildSurface, buildGroomFrame, 0, 4);
+      lattice.buildRows(0, x, z, build.ay, 0, stage ? vertsZ : 4);
+      if (stage) lattice.buildRows(1, x, z, build.ay, 0, 4);
       build.stage = stage;
       build.row = 4;
     },
-    checkBuffers: () => [heights, positions, normals, colors, surface, groomFrame],
+    checkBuffers: () => [lattice.heights, lattice.positions, lattice.normals, lattice.colors,
+      lattice.surface, lattice.groomFrame],
     vertsX,
     vertsZ,
     checkTiles(ax, az) {
@@ -243,7 +243,7 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
         ice: tileIce.value.toArray(), groomZ: tileGroomZ.value, tile: snowTile.value.toArray(),
       };
     },
-    checkReuse: () => [reusedHeights, reusedSurfaces],
+    checkReuse: () => [lattice.reusedHeights, lattice.reusedSurfaces],
     setSun,`);
 const { createTerrain } = await import('data:text/javascript;base64,'
   + Buffer.from(terrainSource).toString('base64'));

@@ -45,7 +45,7 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
 
   function flush(batch, count) {
     if (!batch) return;
-    for (const m of batch.meshes) m.count = count;
+    for (const m of batch.meshes) { m.count = count; m.visible = count > 0; }
     if (batch.last < 0) return;
     // Three clears ranges after an upload. If this batch was not drawn,
     // preserve its pending changes and coalesce them into one bounded range.

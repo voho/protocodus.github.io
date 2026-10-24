@@ -41,7 +41,7 @@ import { stepSentries } from './detection.js';
 import { subsystemWorld, toWorld } from './compound.js';
 import { makeRng } from './rng.js';
 import { createWell } from './well.js';
-import { clamp, dot, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
+import { clamp, dot, hypot3, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
 
 export const IDLE = Object.freeze({ ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false });
 const FOLD_SMALL = 1.1, FOLD_LARGE = 2.6;
@@ -198,7 +198,7 @@ export function createWorld({ seed = 1234, storage = null, fieldCfg = FIELD, mis
   const threat = { locked: false, missileInbound: false };
   world.scratch = {
     controls: {}, aim: [0, 0, 0], from: [0, 0, 0], threat,
-    aiCtx: { field: null, target: null, threat, wasHit: false, larges: world.larges, leader: null, home: null, aimError: 1, thinkScale: 1, frozen: false },
+    aiCtx: { field: null, target: null, threat, wasHit: false, larges: world.larges, smalls: world.smalls, leader: null, home: null, aimError: 1, thinkScale: 1, frozen: false },
     weaponsCtx: {
       field: null, entities: world.active, smalls: world.smalls, larges: world.larges, events: world.events,
       damage: (target, amount, point, dir, o) => damageEntity(world, target, amount, point, dir, o),
@@ -233,7 +233,7 @@ export function resetWorld(world, { mission = world.missionDef, loadout = world.
   world.speedLock = false; world.leaving = false;
   world.stats = {
     shots: 0, hits: 0, kills: {}, killCount: 0, damageTaken: 0, hullTaken: 0, torpedoesDowned: 0, subsystems: 0,
-    rocks: 0, missilesFired: 0, saves: 0, bestStreak: 0, repairs: 0, detected: 0,
+    rocks: 0, missilesFired: 0, saves: 0, bestStreak: 0, repairs: 0, detected: 0, commandKills: 0,
   };
   world.streak = { count: 0, last: -99, mult: 1 };
   world.repair = { charges: world.diff.repairDrones, droneId: null };
@@ -329,7 +329,7 @@ export function autoTarget(world) {
   const p = world.player.ship.pos;
   let best = null, bestD = Infinity;
   for (const e of hostiles(world)) {
-    const d = Math.hypot(e.ship.pos[0] - p[0], e.ship.pos[1] - p[1], e.ship.pos[2] - p[2]) - (e.big ? e.radius * 0.5 : 0);
+    const d = hypot3(e.ship.pos[0] - p[0], e.ship.pos[1] - p[1], e.ship.pos[2] - p[2]) - (e.big ? e.radius * 0.5 : 0);
     if (d < bestD) { bestD = d; best = e; }
   }
   if (!best) return null;
@@ -363,7 +363,7 @@ export function targetTorpedo(world) {
   let best = null, bestD = Infinity;
   for (const m of world.weapons.missiles) {
     if (m.team === 0 || m.hp <= 0) continue;
-    const d = Math.hypot(m.pos[0] - p.pos[0], m.pos[1] - p.pos[1], m.pos[2] - p.pos[2]);
+    const d = hypot3(m.pos[0] - p.pos[0], m.pos[1] - p.pos[1], m.pos[2] - p.pos[2]);
     if (d < bestD) { bestD = d; best = m; }
   }
   if (!best) return false;
@@ -406,7 +406,7 @@ export function callRepair(world) {
   let from = null, bestD = 6000;
   for (const e of world.active) {
     if (e.team !== 0 || !e.big || (e.role !== 'capital' && e.role !== 'station')) continue;
-    const d = Math.hypot(e.ship.pos[0] - p.ship.pos[0], e.ship.pos[1] - p.ship.pos[1], e.ship.pos[2] - p.ship.pos[2]);
+    const d = hypot3(e.ship.pos[0] - p.ship.pos[0], e.ship.pos[1] - p.ship.pos[1], e.ship.pos[2] - p.ship.pos[2]);
     if (d < bestD) { bestD = d; from = e; }
   }
   let pos, fold = false, fwd;
@@ -436,11 +436,12 @@ export function wingOrder(world, order) {
   if (!wing.length) return false;
   for (const e of wing) {
     if (order === 'attack') {
-      if (world.target && !world.target.proxy && world.target.team === 1) e.orders = { type: 'attack', target: world.target };
+      if (world.target?.alive && !world.target.proxy && (world.target.team === 1 || (world.target.team < 0 && world.target.rock))) e.orders = { type: 'attack', target: world.target };
       else e.orders = { type: 'cover' };
     } else e.orders = { type: order };
     e.brain.retarget = 0;
   }
+  if (order === 'attack' && wing.some(e => e.orders?.type === 'attack')) world.target.commandedBy = p.id;
   world.events.push({ type: 'wingOrder', order, names: wing.map(e => e.name), target: order === 'attack' ? world.target?.name ?? null : null });
   return true;
 }
@@ -595,8 +596,9 @@ function tailgun(world, p, dt) {
 function aiTarget(world, e) {
   const o = e.orders ?? {};
   const leader = e.leaderId != null ? world.byId.get(e.leaderId) : null;
+  const choose = (list, options = {}) => pickTarget(e, list, { allies: world.smalls.filter(x => x.team === e.team), ...options });
   const near = (pos, r) => world.active.filter(x => x.team !== e.team && (x.team >= 0 || (e.prefer && x.tags.has(e.prefer))) && targetable(x)
-    && Math.hypot(x.ship.pos[0] - pos[0], x.ship.pos[1] - pos[1], x.ship.pos[2] - pos[2]) < r);
+    && hypot3(x.ship.pos[0] - pos[0], x.ship.pos[1] - pos[1], x.ship.pos[2] - pos[2]) < r);
   // Ordered somewhere (the jump, a hold point): fly there, fight nothing.
   if (o.type === 'jump' || o.type === 'hold') return null;
   if (o.type === 'attack') {
@@ -604,17 +606,18 @@ function aiTarget(world, e) {
     e.orders = leader ? { type: 'cover' } : null;
   }
   if (o.type === 'strike' && o.target?.alive) return o.target;
-  if (o.type === 'form' && leader?.alive) return e.sinceHit < 2 ? pickTarget(e, near(e.ship.pos, 800)) : null;
+  if (o.type === 'form' && leader?.alive) return e.sinceHit < 2 ? choose(near(e.ship.pos, 800)) : null;
   if (leader?.alive && (o.type === 'cover' || !o.type)) {
+    if (Math.hypot(...e.ship.pos.map((v, k) => v - leader.ship.pos[k])) > 3200) return null;
     const list = near(leader.ship.pos, 2600);
-    return list.length ? pickTarget(e, list, { protect: leader, player: world.player, prefer: e.prefer }) : null;
+    return list.length ? choose(list, { protect: leader, player: world.player, prefer: e.prefer }) : null;
   }
   const protect = e.protectId != null ? world.byId.get(e.protectId) : null;
   if (protect?.alive) {
     const list = near(protect.ship.pos, 3500);
-    if (list.length) return pickTarget(e, list, { protect, player: world.player, prefer: e.prefer });
+    if (list.length) return choose(list, { protect, player: world.player, prefer: e.prefer });
   }
-  return pickTarget(e, world.active, { player: world.player, prefer: e.prefer, playerBias: e.playerBias });
+  return choose(world.active, { player: world.player, prefer: e.prefer, playerBias: e.playerBias });
 }
 
 /* The subsystem a bomber was sent at; once that is gone, another live one
@@ -634,6 +637,8 @@ function aiStep(world, e, dt) {
     const t = aiTarget(world, e);
     if (t !== brain.target) {
       brain.target = t; brain.targetSub = null; brain.strafePoint = null;
+      brain.lockTimer = 0; brain.sightTimer = 0;
+      if (brain.state !== 'evade' && brain.state !== 'recover') { brain.state = 'approach'; brain.timer = 0; }
       if (t && e.role === 'bomber' && t.big && e.orders?.sub) brain.targetSub = strikeSub(t, e.orders.sub);
     }
   }
@@ -649,6 +654,7 @@ function aiStep(world, e, dt) {
   ctx.home = e.home;
   ctx.aimError = e.team === 1 ? world.diff.enemyAim * (e.def.ace ? 0.5 : 1) : 0.8;
   ctx.thinkScale = e.team === 1 ? world.diff.aiThink : 1;
+  ctx.tactics = e.team === 1 ? ({ recruit: 0, pilot: 0.35, veteran: 0.7, ace: 1 }[world.diffKey] ?? 0.7) : 0.5;
   ctx.frozen = e.frozen;
   const c = e.disabled ? NEUTRAL_CONTROLS : thinkPilot(brain, e, ctx, dt);
   stepShip(e.ship, c, dt);
@@ -761,7 +767,7 @@ function stepScan(world, dt) {
   if (!p?.alive || !t || !t.scan || t.scan.done || world.state !== 'flying') { world.scanning = null; return; }
   const owner = world.target;
   const at = world.targetSub?.scan ? subsystemWorld([0, 0, 0], owner, world.targetSub) : owner.ship.pos;
-  const d = Math.hypot(at[0] - p.ship.pos[0], at[1] - p.ship.pos[1], at[2] - p.ship.pos[2]) - (owner.big && !world.targetSub ? owner.radius * 0.5 : 0);
+  const d = hypot3(at[0] - p.ship.pos[0], at[1] - p.ship.pos[1], at[2] - p.ship.pos[2]) - (owner.big && !world.targetSub ? owner.radius * 0.5 : 0);
   const inRange = d <= t.scan.range, inCone = angleFromNose(world, at) <= SCAN_CONE;
   world.scanning = { target: t, inRange, inCone, distance: d };
   if (!inRange || !inCone) return;
@@ -799,6 +805,11 @@ function report(world) {
       } else if (e.lastHitBy != null) {
         const killer = world.byId.get(e.lastHitBy);
         if (killer) killer.kills++;
+        if (killer?.wingmate && e.commandedBy === p?.id && world.state === 'flying') {
+          const points = world.mission?.scoreKill ? world.mission.scoreKill(e) : (e.def.score ?? 100);
+          world.stats.commandKills++;
+          award(world, points * 0.4, e.ship.pos, `${killer.name} · command assist`);
+        }
       }
     }
   }
@@ -912,10 +923,10 @@ export function stepWorld(world, input, dt) {
   if (p) {
     const area = world.missionDef?.area;
     if (area) {
-      world.leaving = Math.hypot(p.ship.pos[0] - area.centre[0], p.ship.pos[1] - area.centre[1], p.ship.pos[2] - area.centre[2]) > area.radius;
+      world.leaving = hypot3(p.ship.pos[0] - area.centre[0], p.ship.pos[1] - area.centre[1], p.ship.pos[2] - area.centre[2]) > area.radius;
     } else {
       const half = field.cfg.half, pos = p.ship.pos;
-      const outside = Math.hypot(
+      const outside = hypot3(
         Math.max(0, Math.abs(pos[0]) - half[0]), Math.max(0, Math.abs(pos[1]) - half[1]), Math.max(0, Math.abs(pos[2]) - half[2]));
       world.leaving = outside > COMBAT.leaving;
     }

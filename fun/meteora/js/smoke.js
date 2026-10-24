@@ -169,7 +169,32 @@ export function createSmokeBatch(scene, sunDir, capacity = 1536) {
   // in depth order at `end`.
   const stage = new Float32Array(capacity * 12), depth = new Float32Array(capacity), order = new Uint16Array(capacity);
   let n = 0, camX = 0, camY = 0, camZ = 0, fwdX = 0, fwdY = 0, fwdZ = -1;
-  const byDepth = (a, b) => depth[b] - depth[a];
+  // Farthest first, ties in the order they came: each puff's key is its
+  // depth's bits, turned so they sort as the depth does, above its index.
+  // The keys sort natively; a comparator would be called, and its answer
+  // boxed, some fifteen thousand times a frame in a big fight.
+  const depthBits = new Uint32Array(depth.buffer), keys = new Float64Array(capacity);
+
+  /* A puff handed over as its eleven numbers in one array `p`, in add's
+     order — for the explosions' thousands a frame, which would each have
+     every number boxed on the way into add. */
+  const one = new Float64Array(11);
+  const addFrom = p => {
+    const x = p[0], y = p[1], z = p[2], size = p[3];
+    let alpha = p[7];
+    if (n >= capacity || alpha <= 0.002) return;
+    const px = x - camX, py = y - camY, pz = z - camZ;
+    const ahead = px * fwdX + py * fwdY + pz * fwdZ;
+    const clearance = Math.sqrt(px * px + py * py + pz * pz) - size;
+    if (clearance <= 0.5 || ahead - size <= 0.5) return;
+    alpha *= Math.min(1, clearance / (size * 2), (ahead - size) / (size * 2));
+    const s = n * 12;
+    stage[s] = x; stage[s + 1] = y; stage[s + 2] = z; stage[s + 3] = size;
+    stage[s + 4] = p[4]; stage[s + 5] = p[5]; stage[s + 6] = p[6]; stage[s + 7] = alpha;
+    stage[s + 8] = p[8]; stage[s + 9] = p[9]; stage[s + 10] = p[10]; stage[s + 11] = 0;
+    depth[n] = ahead;
+    n++;
+  };
 
   return {
     mesh,
@@ -186,22 +211,23 @@ export function createSmokeBatch(scene, sunDir, capacity = 1536) {
     // Position, half-width, albedo and opacity, rotation, atlas cell (0–3)
     // and fire glow.
     add(x, y, z, size, r, g, b, alpha, angle = 0, cell = 0, glow = 0) {
-      if (n >= capacity || alpha <= 0.002) return;
-      const px = x - camX, py = y - camY, pz = z - camZ;
-      const ahead = px * fwdX + py * fwdY + pz * fwdZ;
-      const clearance = Math.sqrt(px * px + py * py + pz * pz) - size;
-      if (clearance <= 0.5 || ahead - size <= 0.5) return;
-      alpha *= Math.min(1, clearance / (size * 2), (ahead - size) / (size * 2));
-      const s = n * 12;
-      stage[s] = x; stage[s + 1] = y; stage[s + 2] = z; stage[s + 3] = size;
-      stage[s + 4] = r; stage[s + 5] = g; stage[s + 6] = b; stage[s + 7] = alpha;
-      stage[s + 8] = angle; stage[s + 9] = cell; stage[s + 10] = glow; stage[s + 11] = 0;
-      depth[n] = ahead;
-      order[n] = n;
-      n++;
+      const p = one;
+      p[0] = x; p[1] = y; p[2] = z; p[3] = size; p[4] = r; p[5] = g; p[6] = b; p[7] = alpha;
+      p[8] = angle; p[9] = cell; p[10] = glow;
+      addFrom(p);
     },
+    addFrom,
     end() {
-      order.subarray(0, n).sort(byDepth);
+      for (let k = 0; k < n; k++) {
+        const bits = depthBits[k];
+        // Float bits sort as the number does once negatives are flipped
+        // whole and positives get the sign bit; then larger means nearer.
+        const key = bits & 0x80000000 ? ~bits >>> 0 : (bits | 0x80000000) >>> 0;
+        keys[k] = (0xffffffff - key) * 65536 + k;
+      }
+      keys.subarray(0, n).sort();
+      // (Exact, and quicker than %, which is a call for doubles.)
+      for (let k = 0; k < n; k++) { const key = keys[k]; order[k] = key - Math.floor(key / 65536) * 65536; }
       for (let k = 0; k < n; k++) {
         const s = order[k] * 12, i = k * 4;
         center[i] = stage[s]; center[i + 1] = stage[s + 1]; center[i + 2] = stage[s + 2]; center[i + 3] = stage[s + 3];

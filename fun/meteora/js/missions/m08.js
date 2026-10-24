@@ -74,7 +74,7 @@ export default defineMission({
     const mother = m.spawn('mother', { team: 1, pos: MOTHER, forward: [0, 0, 1], name: 'Mother', objective: true, beamAuto: false });
     mother.launcher = { cls: ['thorn', 'thorn', 'talon'], interval: 30, max: m.n(6), timer: 15, spawned: [], wave: 2 };
     // She is still building her defences: not every gun is finished.
-    const guns = { recruit: 4, pilot: 5, veteran: 5, ace: 5 }[m.diff.key] ?? 5;
+    const guns = { recruit: 4, pilot: 5, veteran: 6, ace: 7 }[m.diff.key] ?? 5;
     mother.turrets.forEach((t, i) => { if (i >= guns) { t.alive = false; t.hull = 0; } });
     m.flag('mother', mother.id);
     m.nav('m', 'Mother', MOTHER, { r: 1500 });
@@ -115,7 +115,7 @@ export default defineMission({
       }
       if (ev.kind === 'bay') {
         m.say('wren', 'Launch bay destroyed!');
-        if (bays.every(s => !s.alive)) m.complete('bays');
+        if (bays.every(s => !s.alive)) { m.complete('bays'); m.say('halo', 'Both bays sealed. Clear skies for Ember — that is your opening!'); }
       }
       if (ev.kind === 'beam') m.say('saint', 'That beam emitter is scrap. Nice.');
     });
@@ -161,6 +161,7 @@ export default defineMission({
     m.show('reactor');
     for (const e of ember) if (e.alive) { e.orders = { type: 'strike', target: mother, sub: reactor.name }; e.brain.retarget = 0; }
     yield m.say('ember', 'Shields are down! Ember, on the reactor — Lances away when you have tone!');
+    if (bays.some(s => s.alive)) m.say('saint', 'Those bays are still live. We can keep chasing fighters or close the doors, Lead.');
     m.hint('Target the Mother, {cycleSub} to the reactor, hold until the Lance locks.', 9);
 
     yield m.until(() => !reactor.alive || dead());

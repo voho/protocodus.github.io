@@ -96,6 +96,9 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
   });
   const cam = new THREE.Vector3(), camFwd = new THREE.Vector3(), camPrev = new THREE.Vector3(), camVel = [0, 0, 0];
   let haveCam = false, clock = 0;
+  // Each frame's sparks and puffs go to their batches through these (the
+  // batches' addFrom), not as a dozen numbers each, which would be boxed.
+  const sprite = new Float64Array(12), puffOut = new Float64Array(11);
   const dir = [0, 0, 0];
 
   /* ---------- emitters ---------- */
@@ -481,14 +484,19 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
       let ax = 0, ay = 0, az = 0, length = 0;
       if (G.streak[i] > 0) {
         const rx = G.vx[i] - camVel[0], ry = G.vy[i] - camVel[1], rz = G.vz[i] - camVel[2];
-        const speed = Math.hypot(rx, ry, rz);
+        // (Square roots, not Math.hypot: twice a spark a frame, its boxed
+        // arguments and scratch array were most of a big fight's garbage.)
+        const speed = Math.sqrt(rx * rx + ry * ry + rz * rz);
         if (speed > 1e-3) { ax = rx / speed; ay = ry / speed; az = rz / speed; length = speed * G.streak[i]; }
       }
-      const least = Math.hypot(x - cam.x, y - cam.y, z - cam.z) * PIXEL;
+      const cx = x - cam.x, cy = y - cam.y, cz = z - cam.z;
+      const least = Math.sqrt(cx * cx + cy * cy + cz * cz) * PIXEL;
       if (size < least) { const f = size / least; power *= length > 0 ? f : f * f; size = least; }
-      glow.add(x, y, z, size,
-        G.r[i] + (G.r2[i] - G.r[i]) * t, G.g[i] + (G.g2[i] - G.g[i]) * t, G.b[i] + (G.b2[i] - G.b[i]) * t,
-        power, ax, ay, az, length);
+      const o = sprite;
+      o[0] = x; o[1] = y; o[2] = z; o[3] = size;
+      o[4] = G.r[i] + (G.r2[i] - G.r[i]) * t; o[5] = G.g[i] + (G.g2[i] - G.g[i]) * t; o[6] = G.b[i] + (G.b2[i] - G.b[i]) * t;
+      o[7] = power; o[8] = ax; o[9] = ay; o[10] = az; o[11] = length;
+      glow.addFrom(o);
     }
 
     const S = puffs;
@@ -506,8 +514,10 @@ export function createExplosions(scene, glow, smoke, chipModel, { reducedMotion 
       const size = S.size[i] * (1 + (S.grow[i] - 1) * (1 - (1 - t) ** 2.2));
       const fadeOut = t < 0.35 ? 1 : 1 - (t - 0.35) / 0.65;
       const alpha = S.alpha[i] * Math.min(1, age / S.fadeIn[i]) * fadeOut * fadeOut;
-      smoke.add(S.x[i], S.y[i], S.z[i], size, S.r[i], S.g[i], S.b[i], alpha, S.angle[i], S.cell[i],
-        S.glow[i] * Math.exp(-age / S.glowLife[i]));
+      const o = puffOut;
+      o[0] = S.x[i]; o[1] = S.y[i]; o[2] = S.z[i]; o[3] = size; o[4] = S.r[i]; o[5] = S.g[i]; o[6] = S.b[i];
+      o[7] = alpha; o[8] = S.angle[i]; o[9] = S.cell[i]; o[10] = S.glow[i] * Math.exp(-age / S.glowLife[i]);
+      smoke.addFrom(o);
     }
 
     for (const l of lights) {

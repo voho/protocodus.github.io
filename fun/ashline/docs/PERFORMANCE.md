@@ -77,6 +77,21 @@ ASHLINE_SCENES=duel ASHLINE_TICKS=18000 node tests/performance-benchmark.mjs
 
 The state digest covers every saved field. Typed events and team statistics, added after this pass, therefore change the digests relative to `4563439`; with team statistics removed and events reduced to text, team and time, all four scenes still match it.
 
+## Simulation, renderer and loading, 2026-10-23
+
+Against `3bdd0cfb`, three alternating runs each (80 ticks at 600 units, 30 at 2,000), median of the per-run medians and p95s in ms/tick on a shared machine, so compare these figures only with each other. All eight final-state digests and that of the 18,000-tick duel (`b9e47bea`) match the baseline; the duel takes 4.29 → 3.60 s in total. Run `ASHLINE_SIM_URL=file:///…/fun/ashline/sim.js` against a copy of the previous checkout, as above.
+
+| Scene | 600: median | 600: p95 | 2,000: median | 2,000: p95 |
+| --- | --- | --- | --- | --- |
+| March | 20.42 → 13.86 | 25.71 → 17.97 | 73.16 → 52.18 | 80.76 → 58.87 |
+| Obstructed routes | 28.77 → 25.09 | 33.83 → 32.69 | 46.76 → 38.01 | 53.06 → 45.34 |
+| Battle | 23.56 → 16.60 | 31.93 → 25.80 | 79.92 → 51.40 | 111.52 → 60.36 |
+| Harvesting | 20.69 → 16.75 | 25.13 → 22.49 | 54.36 → 43.25 | 61.50 → 50.72 |
+
+- **Radius tests.** `Math.hypot` ran about 740,000 times per tick at 2,000 units. The Boids, neighbour, blocker, separation and targeting tests now compare squared lengths and call it only within 1e-5 of the limit. Neighbour scans test position before type, spacing and visibility, only moving allies have a convoy route weighed, and bucket queries sort entry indices as a typed array. A* still dominates the obstructed scene (about 40% of a tick).
+- **Renderer.** The mineral-memory sweep runs once per tick instead of every frame, the tactical map's box is cached rather than forcing a layout each frame, and the fog and minimap images are reused. Canvas output is pixel-identical in a fogged and an open fixture; `draw()` median 3.60 → 3.50 ms at 126 units in headless Chrome, where software rasterisation hides most of the saving.
+- **Terrain bake.** Noise layers keep their four lattice values per cell (bit-identical: 8.26 million samples compared). Deploy to a playable Expanse sector: 3.4–3.6 → 2.9–3.1 s.
+
 ## Larger sectors, 2026-10-11
 
 New skirmishes default to the 256 × 192 Expanse, and 320 × 240 Wilds is the largest size. One Veteran AI-versus-AI game per size, stepped at 50 ms, on the shared 4-core container while other checks ran:

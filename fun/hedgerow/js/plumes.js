@@ -154,6 +154,7 @@ export function createPlumes(effects, { fog }) {
         n++;
       }
       geo.instanceCount = n;
+      mesh.visible = n > 0;
       plumeA.needsUpdate = true;
       seedA.needsUpdate = true;
     },

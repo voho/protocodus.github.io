@@ -289,6 +289,7 @@ function createSystem(max, atlas, additive, fog, shared) {
     aStretch: new THREE.InstancedBufferAttribute(aStretch, 3),
   };
   for (const [k, a] of Object.entries(attrs)) { a.setUsage(THREE.DynamicDrawUsage); geo.setAttribute(k, a); }
+  const attrList = Object.values(attrs);
   geo.instanceCount = 0;
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
@@ -380,7 +381,11 @@ function createSystem(max, atlas, additive, fog, shared) {
       aStretch[i * 3] = P.vx[i] * st; aStretch[i * 3 + 1] = P.vy[i] * st; aStretch[i * 3 + 2] = P.vz[i] * st;
     }
     geo.instanceCount = P.n;
-    for (const a of Object.values(attrs)) {
+    // none alive: nothing drawn and nothing sent (an empty range would send the whole buffer,
+    // WebGL 2 reading a length of 0 as "to the end")
+    mesh.visible = P.n > 0;
+    if (!P.n) return;
+    for (const a of attrList) {
       a.clearUpdateRanges();
       a.addUpdateRange(0, P.n * a.itemSize);
       a.needsUpdate = true;

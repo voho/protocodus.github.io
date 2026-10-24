@@ -19,7 +19,7 @@ const SEEDS = [
 ].map(([c, b, d, y]) => at(c, b, d, y));
 
 const FIELD = belt({
-  spawn: START, density: 0.65, landmarks: 3,
+  spawn: START, density: 0, landmarks: 0,
   clear: [{ pos: VARLAAM, r: 650 }, ...SEEDS.map(p => ({ pos: p, r: 90 }))],
   lanes: SEEDS.map(p => ({ a: p, b: VARLAAM, r: 70 })),
 });
@@ -124,7 +124,13 @@ export default defineMission({
     })(), 'tally');
 
     // The surprise: three seeds fall on Varlaam.
-    yield m.wait(90);
+    yield m.until(() => m.time >= 78 || destroyed() === seeds.length);
+    if (seeds.some(e => e.alive && !e.hatched)) {
+      m.say('okonkwo', 'Thermal spikes on the outer seeds. Those are thrusters, not growths. Twelve seconds to ignition!');
+      m.timer('ignition', 'Seed ignition', 12);
+    }
+    yield m.until(() => m.time >= 90 || destroyed() === seeds.length);
+    m.removeTimer('ignition');
     const movers = seeds.filter(e => e.alive && !e.hatched).sort((a, b) => m.dist(b, varlaam) - m.dist(a, varlaam)).slice(0, 3);
     if (movers.length) {
       m.music('climax');
@@ -135,7 +141,7 @@ export default defineMission({
         s.helm = { path: [[...VARLAAM]], index: 0, speed, arrive: 330, then: 'hold', loop: false, done: false, halt: false };
         s.burning = true;
       }
-      yield m.say('varlaam', `Three of them just lit engines — they\'re falling on us!`);
+      yield m.say('varlaam', `${movers.length} seeds just lit engines — they are falling on us!`);
       m.say('okonkwo', 'They\'re throwing rocks at us. Simple. Effective.');
       m.say('wren', 'Not my home. Not today.');
       m.objective('fall', 'Stop the seeds falling on Varlaam', { count: { n: 0, of: movers.length } });

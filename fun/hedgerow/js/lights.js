@@ -83,6 +83,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const shadowLight2 = shadows && second ? shadowCaster() : null;
   let shadowOf = null;      // the static it is standing in for
   let shadowOf2 = null;
+  let held = false;         // the shadow maps held still (a flare's shadows are being drawn)
   const wp = new THREE.Vector3();
 
   const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog, cone}
@@ -124,8 +125,8 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     };
     // where a fire's light is now: its flames sway and leap, and the light with them (a lamp's
     // flame, a lantern's, hardly moves); in step with its flicker, higher when it flares up.
-    // Not while the shadow map holds still (a flare's shadows are being drawn)
-    const sway = shadowLight.shadow.autoUpdate !== false;
+    // Not while the shadow map holds still (a flare's shadows are being drawn: main.js sets `held`)
+    const sway = !held;
     const wander = (s, out) => {
       out.x = s.x; out.y = s.y; out.z = s.z;
       if (!sway || !s.flicker || s.flicker < 0.3) return out;
@@ -223,5 +224,8 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     }
   }
 
-  return { hemi, key, rim, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; } };
+  return {
+    hemi, key, rim, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; },
+    get held() { return held; }, set held(v) { held = v; },
+  };
 }

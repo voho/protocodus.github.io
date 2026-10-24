@@ -15,7 +15,7 @@ const FOLD = [2600, 300, 1800];
 const START = [-300, 200, -1300];
 
 const FIELD = belt({
-  spawn: START, density: 0.85, landmarks: 3,
+  spawn: START, density: 0, landmarks: 0,
   clear: [{ pos: VARLAAM, r: 650 }, { pos: FOLD, r: 300 }],
   lanes: [{ a: VARLAAM, b: FOLD, r: 200 }],
 });
@@ -36,7 +36,7 @@ export default defineMission({
     stages: [
       { text: 'Varlaam is coming home with us. Six Skiffs will carry everyone on the rock to the Perpetua\'s fold point, one at a time, thirty-five seconds apart.', focus: VARLAAM },
       { text: 'The Harrow will come for the shuttles. Okonkwo expects something new: the Mother in the Deep was building heavier frames. Bombers.', focus: FOLD },
-      { text: 'Hold the door until the last Skiff is away. Torpedoes in flight can be shot down — B targets the nearest one.', focus: VARLAAM },
+      { text: 'The approach has been swept clear for evacuation: open sight lines, no rock cover. Hold the door until the last Skiff is away. Torpedoes in flight can be shot down — B targets the nearest one.', focus: VARLAAM },
     ],
   },
   map: {
@@ -54,7 +54,7 @@ export default defineMission({
     { text: 'No torpedo strikes Varlaam', bonus: true },
   ],
   debrief: {
-    won: 'Varlaam is empty: three thousand people asleep in the Perpetua\'s holds and corridors, and a rock with its lights still burning behind them. Wren flew home on a Tender\'s tow line and did not say a word until she had seen her mother\'s name on the manifest. The Harrow have bombers now. Every pilot in the Watch has seen the gun-camera footage of the Mauls lining up, and nobody is joking about red eyes any more. Okonkwo watches a different half-second of it, over and over: the Perpetua\'s beacon sweeping the formation, and every bomber checking its run.',
+    won: 'Varlaam is empty. The survivors sleep in the Perpetua\'s holds and corridors, and behind them is a rock with its lights still burning. The Harrow have bombers now. Every pilot in the Watch has seen the gun-camera footage of the Mauls lining up, and nobody is joking about red eyes any more. Okonkwo watches a different half-second of it, over and over: the Perpetua\'s beacon sweeping the formation, and every bomber checking its run.',
     lost: 'Varlaam fell with people still aboard. The Watch will remember the names.',
   },
 
@@ -216,6 +216,8 @@ export default defineMission({
       m.complete('skiffs');
       if (escaped() === 6) m.complete('allskiffs');
       m.complete('station');
+      m.flag('evacuated', escaped());
+      m.flag('wrenRescued', m.done('wren'));
       m.music('calm');
       yield m.say('varlaam', 'Last Skiff clear. Varlaam is… empty. Thank you, Lantern Wing.');
       m.win();

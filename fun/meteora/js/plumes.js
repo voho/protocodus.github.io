@@ -20,7 +20,7 @@
 
 import * as THREE from 'three';
 import { hardpoints } from './hardpoints.js';
-import { qRotateInv } from './vec.js';
+import { hypot3, qRotateInv } from './vec.js';
 
 const STYLES = {
   watch: { core: [0.75, 0.86, 1.0], sheath: [0.32, 0.5, 1.0], fire: [1.0, 0.5, 0.16], boost: [1.0, 0.92, 0.8] },
@@ -35,12 +35,28 @@ const fract = x => x - Math.floor(x);
 // instead of blowing out into a white disc.
 const soft = x => 2.2 * (1 - Math.exp(-x / 2.2));
 const hash = (a, b) => fract(Math.sin(a * 127.1 + b * 311.7) * 43758.5453);
-const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const mix3 = (o, a, b, t) => { o[0] = a[0] + (b[0] - a[0]) * t; o[1] = a[1] + (b[1] - a[1]) * t; o[2] = a[2] + (b[2] - a[2]) * t; return o; };
+const EMBER = [1.0, 0.82, 0.4];
 
 export function createPlumes(glow) {
   const eased = new Map();   // entity id → { power, boost }
   const p = new THREE.Vector3(), d = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3();
   const local = [0, 0, 0];
+  // A fighter in view adds some fifty sprites a frame. Each goes to the
+  // batch in one array (glow.addFrom) — passed as a dozen numbers into
+  // glow.add, every one would be boxed — and the colours are mixed in
+  // place: no garbage a frame.
+  const sprite = new Float64Array(12), result = { power: 0, boost: 0 };
+  const ring = [0, 0, 0], throat = [0, 0, 0], streak = [0, 0, 0], tail = [0, 0, 0], base = [0, 0, 0], col = [0, 0, 0];
+  const put = (x, y, z, size, r, g, b, intensity, ax, ay, az, length) => {
+    const o = sprite;
+    o[0] = x; o[1] = y; o[2] = z; o[3] = size; o[4] = r; o[5] = g; o[6] = b; o[7] = intensity;
+    o[8] = ax; o[9] = ay; o[10] = az; o[11] = length;
+    glow.addFrom(o);
+  };
+  // A flame sprite that drifts past the lens would fill the screen.
+  let viewer = false, camX = 0, camY = 0, camZ = 0;
+  const nearFade = (x, y, z) => (viewer ? Math.min(1, Math.max(0, (hypot3(x - camX, y - camY, z - camZ) - 5) / 12)) : 1);
 
   return {
     forget(id) { eased.delete(id); },
@@ -61,10 +77,8 @@ export function createPlumes(glow) {
       e.boost += ((ship.afterburner ? 1 : 0) - e.boost) * (1 - Math.exp(-dt * 6));
       const power = e.power, boost = e.boost;
       const big = !!entity.big;
-      // A flame sprite that drifts past the lens would fill the screen.
-      const nearFade = camera
-        ? (x, y, z) => { const r = Math.hypot(x - camera.position.x, y - camera.position.y, z - camera.position.z); return Math.min(1, Math.max(0, (r - 5) / 12)); }
-        : () => 1;
+      viewer = !!camera;
+      if (camera) { camX = camera.position.x; camY = camera.position.y; camZ = camera.position.z; }
 
       for (const nozzle of hp.nozzles) {
         const r0 = (nozzle.size ?? 0.5) * scale;
@@ -75,12 +89,13 @@ export function createPlumes(glow) {
         if (big) {
           // A capital engine: a wide, steady glow and a short bright cone.
           const glowPower = (0.6 + 1.6 * power) * (0.95 + 0.1 * flick);
-          glow.add(p.x, p.y, p.z, r0 * 1.6, ...style.core, glowPower * 1.4);
+          put(p.x, p.y, p.z, r0 * 1.6, style.core[0], style.core[1], style.core[2], glowPower * 1.4, 0, 0, 0, 0);
           const L = r0 * (1.2 + 2.8 * power);
-          glow.add(p.x + d.x * L * 0.5, p.y + d.y * L * 0.5, p.z + d.z * L * 0.5, r0 * 0.9, ...style.sheath, glowPower, d.x, d.y, d.z, L);
+          put(p.x + d.x * L * 0.5, p.y + d.y * L * 0.5, p.z + d.z * L * 0.5, r0 * 0.9, style.sheath[0], style.sheath[1], style.sheath[2], glowPower, d.x, d.y, d.z, L);
           for (let i = 1; i <= 4; i++) {
             const t = i / 4, at = L * t;
-            glow.add(p.x + d.x * at, p.y + d.y * at, p.z + d.z * at, r0 * (1 + 0.6 * t), ...mix3(style.core, style.sheath, t), glowPower * (1 - t) * 0.9);
+            const c = mix3(ring, style.core, style.sheath, t);
+            put(p.x + d.x * at, p.y + d.y * at, p.z + d.z * at, r0 * (1 + 0.6 * t), c[0], c[1], c[2], glowPower * (1 - t) * 0.9, 0, 0, 0, 0);
           }
           continue;
         }
@@ -99,14 +114,15 @@ export function createPlumes(glow) {
         const fireAmount = Math.max(0, Math.min(1, (power - 0.45) / 0.6)) * (1 - 0.5 * boost);
 
         // The glowing throat, visible even at a standstill.
-        const throat = mix3(style.core, style.boost, boost);
-        glow.add(p.x, p.y, p.z, r0 * (1.3 + 0.9 * power), throat[0], throat[1], throat[2], soft((0.5 + 2.4 * power + 1.4 * boost) * flick) * axial);
+        mix3(throat, style.core, style.boost, boost);
+        put(p.x, p.y, p.z, r0 * (1.3 + 0.9 * power), throat[0], throat[1], throat[2], soft((0.5 + 2.4 * power + 1.4 * boost) * flick) * axial, 0, 0, 0, 0);
 
         // Continuous core streak, through the hot first part of the flame;
         // it dims if its far end comes near the lens.
         const mid = length * 0.3, reach = length * 0.6;
-        glow.add(p.x + d.x * mid, p.y + d.y * mid, p.z + d.z * mid, r0 * (0.5 + 0.2 * boost),
-          ...mix3(style.sheath, style.boost, 0.35 + 0.5 * boost),
+        mix3(streak, style.sheath, style.boost, 0.35 + 0.5 * boost);
+        put(p.x + d.x * mid, p.y + d.y * mid, p.z + d.z * mid, r0 * (0.5 + 0.2 * boost),
+          streak[0], streak[1], streak[2],
           soft((0.5 + 1.2 * power + 0.7 * boost) * flick) * axial * nearFade(p.x + d.x * reach, p.y + d.y * reach, p.z + d.z * reach),
           d.x, d.y, d.z, reach);
 
@@ -116,12 +132,17 @@ export function createPlumes(glow) {
           const at = length * Math.pow(t, 1.15);
           const jitter = 0.85 + 0.3 * hash(seed + i, Math.floor(time * 45));
           const diamond = 1 + boost * 0.9 * Math.pow(Math.max(0, Math.cos(t * Math.PI * 9)), 6) * (1 - t);
-          const tail = mix3(style.sheath, style.fire, fireAmount * t);
-          const col = mix3(mix3(style.core, tail, Math.min(1, t * 2.2)), style.boost, boost * (1 - t) * 0.8);
+          mix3(tail, style.sheath, style.fire, fireAmount * t);
+          mix3(col, mix3(base, style.core, tail, Math.min(1, t * 2.2)), style.boost, boost * (1 - t) * 0.8);
           const size = r0 * (0.75 + 1.1 * t + 0.6 * boost * t) * jitter;
           const x = p.x + d.x * at, y = p.y + d.y * at, z = p.z + d.z * at;
           const intensity = soft(power * Math.pow(1 - t, 1.5) * (1.4 + 1.3 * boost) * diamond * jitter) * axial * nearFade(x, y, z);
-          glow.add(x, y, z, size, col[0], col[1], col[2], intensity);
+          // (Written out here and below: these two loops are most of the
+          // sprites, and put is not inlined at every call.)
+          const o = sprite;
+          o[0] = x; o[1] = y; o[2] = z; o[3] = size; o[4] = col[0]; o[5] = col[1]; o[6] = col[2]; o[7] = intensity;
+          o[8] = 0; o[9] = 0; o[10] = 0; o[11] = 0;
+          glow.addFrom(o);
         }
 
         // Tongues of fire at speed: flickering, wandering off the axis.
@@ -132,9 +153,13 @@ export function createPlumes(glow) {
             const swing = r0 * (0.4 + 1.6 * life);
             const a = hash(seed * 3 + k, Math.floor(time * 30)) * Math.PI * 2;
             const ox = Math.cos(a) * swing, oy = Math.sin(a) * swing;
-            const col = mix3(style.fire, [1.0, 0.82, 0.4], 1 - life);
+            mix3(col, style.fire, EMBER, 1 - life);
             const x = p.x + d.x * at + side.x * ox + up.x * oy, y = p.y + d.y * at + side.y * ox + up.y * oy, z = p.z + d.z * at + side.z * ox + up.z * oy;
-            glow.add(x, y, z, r0 * (0.6 + 1.0 * life), col[0], col[1], col[2], fireAmount * 1.6 * (1 - life) * flick * axial * nearFade(x, y, z));
+            const o = sprite;
+            o[0] = x; o[1] = y; o[2] = z; o[3] = r0 * (0.6 + 1.0 * life); o[4] = col[0]; o[5] = col[1]; o[6] = col[2];
+            o[7] = fireAmount * 1.6 * (1 - life) * flick * axial * nearFade(x, y, z);
+            o[8] = 0; o[9] = 0; o[10] = 0; o[11] = 0;
+            glow.addFrom(o);
           }
         }
       }
@@ -151,11 +176,12 @@ export function createPlumes(glow) {
             d.set(port.dir[0], port.dir[1], port.dir[2]).applyQuaternion(object.quaternion);
             const k = fired.intensity * fade * (0.5 + 0.7 * hash(fired.index, Math.floor(time * 50)));
             const x = p.x + d.x * 0.35, y = p.y + d.y * 0.35, z = p.z + d.z * 0.35;
-            glow.add(x, y, z, 0.16, 0.85, 0.9, 1, 0.5 * k * nearFade(x, y, z), d.x, d.y, d.z, 0.55);
+            put(x, y, z, 0.16, 0.85, 0.9, 1, 0.5 * k * nearFade(x, y, z), d.x, d.y, d.z, 0.55);
           }
         }
       }
-      return { power, boost };
+      result.power = power; result.boost = boost;
+      return result;
     },
   };
 }

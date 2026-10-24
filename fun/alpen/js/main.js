@@ -502,6 +502,7 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 
 const demo = { t: 0, turn: 0, stall: 0 };
 let sparkCarry = 0;   // fractional overdrive sparks owed — see the emit below
+let scrapeCarry = 0;  // fractional fall-scrape puffs owed — the same idea
 let chatterBuzz = 0;  // seconds until the next ice-chatter pulse on the pad
 let chapterCheck = 0; // seconds until the chapter is next looked up
 const prev = new THREE.Vector3();
@@ -1868,8 +1869,23 @@ function frame(now) {
       const backX = horizontal > 0.1 ? -rider.vel.x / horizontal : -rider.heading.x;
       const backZ = horizontal > 0.1 ? -rider.vel.z / horizontal : -rider.heading.z;
       const drag = Math.min(1, rider.speed / 24);
-      spray.burst(rider.pos, backX * (0.5 + drag), backZ * (0.5 + drag),
-        Math.max(1, Math.round(1 + drag * 4)), 0.38 + drag * 0.62);
+      /* Budgeted against time, like the sparks below: the authored look is
+         one frame's puffs at 60 Hz. Emitted per frame, a 144 Hz panel threw
+         2.4 times the powder, and at 240 Hz five puffs a frame turned the
+         1300-slot spray pool over in about a second, recycling the
+         wipeout's own plume before it had settled. Never more in one frame
+         than a 60 Hz frame throws, so a slower device does no more work
+         than it did; what it cannot fit is forgiven, not banked. */
+      const perFrame = Math.max(1, Math.round(1 + drag * 4));
+      scrapeCarry += dt * 60 * perFrame;
+      const puffs = Math.min(perFrame, Math.round(scrapeCarry));
+      scrapeCarry = Math.min(1, scrapeCarry - puffs);
+      if (puffs > 0) {
+        spray.burst(rider.pos, backX * (0.5 + drag), backZ * (0.5 + drag),
+          puffs, 0.38 + drag * 0.62);
+      }
+    } else {
+      scrapeCarry = 0;
     }
 
     /* The max-flow crystal wake (see `sparks` in particles.js), budgeted

@@ -23,6 +23,9 @@ const [{ createWorld, startRun, stepWorld }, { NEUTRAL_CONTROLS }, { STEP }, THR
   { createPlumes }, { createProjectiles }, { createCuller }, { FIELD }, { createSmokeBatch }, { createExplosions }] = await Promise.all([
   js('world.js'), js('flight.js'), js('config.js'), import('three'), js('glow.js'), js('plumes.js'),
   js('projectiles.js'), js('cull.js'), js('config.js'), js('smoke.js'), js('explosions.js')]);
+// The fight is Survival's waves, the world's default mission once its module
+// is loaded (main.js loads it); without it the world is empty but for the player.
+await js('missions/survival.js');
 
 const gc = { count: 0, ms: 0 };
 new PerformanceObserver(list => { for (const e of list.getEntries()) { gc.count++; gc.ms += e.duration; } }).observe({ entryTypes: ['gc'] });
@@ -61,7 +64,7 @@ console.log(`sim      ${stats(steps)}  gc ${gc.count} (${gc.ms.toFixed(1)} ms) p
 const scene = new THREE.Scene();
 const glow = createGlowBatch(scene);
 const plumes = createPlumes(glow), projectiles = createProjectiles(glow);
-const ships = [world.player, ...world.enemies.filter(e => e.alive)].slice(0, 11);
+const ships = [world.player, ...world.entities.filter(e => e.team === 1 && e.alive)].slice(0, 11);
 const objects = ships.map(e => {
   const o = new THREE.Object3D();
   o.position.set(...e.ship.pos); o.quaternion.set(...e.ship.q);

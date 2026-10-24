@@ -163,31 +163,51 @@ export function stepShip(ship, c, dt) {
    that twist lines up with what the controller is asking for, scaled by
    how hard it is asking. */
 const push = [0, 0, 0], torque = [0, 0, 0], lin = [0, 0, 0], ang = [0, 0, 0];
+// Each port's push and twist directions never change: worked out once per
+// set of ports, six numbers a port, rather than for every small craft at
+// every step.
+const portAxes = new WeakMap();
+function axesOf(ports) {
+  let axes = portAxes.get(ports);
+  if (!axes || axes.length !== ports.length * 6) {
+    axes = new Float64Array(ports.length * 6);
+    for (let index = 0; index < ports.length; index++) {
+      const p = ports[index], k = index * 6;
+      scale(push, p.dir, -1);
+      normalize(torque, cross(torque, p.pos, push));
+      axes[k] = push[0]; axes[k + 1] = push[1]; axes[k + 2] = push[2];
+      axes[k + 3] = torque[0]; axes[k + 4] = torque[1]; axes[k + 5] = torque[2];
+    }
+    portAxes.set(ports, axes);
+  }
+  return axes;
+}
 export function selectRcsPorts(ports, accel, alpha, S, out = []) {
   lin[0] = accel[0]; lin[1] = accel[1]; lin[2] = Math.max(0, accel[2]);
   const linMag = len(lin), angMag = len(alpha);
   let n = 0;
-  out.length = 0;
-  if (linMag < 1e-6 && angMag < 1e-6) return out;
+  if (linMag < 1e-6 && angMag < 1e-6) { out.length = 0; return out; }
   normalize(lin, lin);
   normalize(ang, alpha);
+  const A = S.angAccel;
   const linScale = Math.min(1, linMag / S.accel.lateral);
-  const angScale = Math.min(1, angMag / Math.max(...S.angAccel));
+  const angScale = Math.min(1, angMag / Math.max(A[0], A[1], A[2]));
+  const axes = axesOf(ports);
   for (let index = 0; index < ports.length; index++) {
-    const p = ports[index];
-    scale(push, p.dir, -1);
-    normalize(torque, cross(torque, p.pos, push));
-    const l = linMag > 1e-6 ? dot(push, lin) * linScale : 0;
-    const r = angMag > 1e-6 ? dot(torque, ang) * angScale : 0;
+    const k = index * 6;
+    const l = linMag > 1e-6 ? (axes[k] * lin[0] + axes[k + 1] * lin[1] + axes[k + 2] * lin[2]) * linScale : 0;
+    const r = angMag > 1e-6 ? (axes[k + 3] * ang[0] + axes[k + 4] * ang[1] + axes[k + 5] * ang[2]) * angScale : 0;
     const intensity = Math.min(1, Math.max(l, r));
     if (intensity > 0.15 && (l > 0.5 * linScale || r > 0.3 * angScale)) {
-      // Entries are reused from step to step; only a new high-water mark allocates.
+      // Entries are reused from step to step; only a new high-water mark
+      // allocates. The list is written in place and cut to length after:
+      // emptied first and pushed to, it would get a new store every step.
       if (!out.pool) out.pool = [];
       const entry = out.pool[n] ?? (out.pool[n] = { index: 0, intensity: 0 });
       entry.index = index; entry.intensity = intensity;
-      out.push(entry);
-      n++;
+      out[n++] = entry;
     }
   }
+  out.length = n;
   return out;
 }

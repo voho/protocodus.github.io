@@ -19,6 +19,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
 const FRAG = /* glsl */ `
 uniform sampler2D tSrc;
+uniform sampler2D tAdapt;      // the eye (adapt.js): its exposure factor, one pixel
 uniform float uHurt, uFlash, uSat, uAspect, uSharp, uContrast;
 uniform float uDaze, uDazeT;  // dazed by a blast (0..1), seconds since it
 uniform vec2 uTexel;
@@ -122,6 +123,8 @@ void main() {
   col *= 1.0 - uDaze * 0.15 * (0.5 + 0.5 * sin(uDazeT * 2.4));
   // hurt: red at the edges
   col = mix(col, vec3(0.35, 0.02, 0.01) * (0.6 + l), uHurt * smoothstep(0.1, 0.6, r2) * 0.75);
+  // the eye's exposure (adapt.js), here where the tone mapping that follows would have scaled by it
+  col *= texture2D(tAdapt, vec2(0.5)).r;
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }`;
 
@@ -129,10 +132,14 @@ export function createGrade() {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 0, 0, 2, 0], 2));
+  // the eye wide open, until an adaptation is attached (`adaptation`, set by main.js)
+  const open = new THREE.DataTexture(new Float32Array([1, 1, 1, 1]), 1, 1, THREE.RGBAFormat, THREE.FloatType);
+  open.minFilter = open.magFilter = THREE.NearestFilter;
+  open.needsUpdate = true;
   const material = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: {
-      tSrc: { value: null }, uHurt: { value: 0 }, uFlash: { value: 0 },
+      tSrc: { value: null }, tAdapt: { value: open }, uHurt: { value: 0 }, uFlash: { value: 0 },
       uSat: { value: 0.82 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.02 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
       uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 },
@@ -144,6 +151,7 @@ export function createGrade() {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   return {
     enabled: true, needsSwap: true, uniforms: material.uniforms,
+    adaptation: null,               // adapt.js: the eye whose exposure factor the grade applies
     /* a blast close by: mud thrown over the view (0..1, how close) */
     spatter(amount) {
       const m = material.uniforms.uMud.value;
@@ -159,6 +167,7 @@ export function createGrade() {
     },
     setSize(w, h) { material.uniforms.uAspect.value = w / Math.max(1, h); material.uniforms.uTexel.value.set(1 / w, 1 / h); },
     render(renderer, writeBuffer, readBuffer) {
+      if (this.adaptation) material.uniforms.tAdapt.value = this.adaptation.texture;
       material.uniforms.tSrc.value = readBuffer.texture;
       renderer.setRenderTarget(writeBuffer);
       renderer.render(quad, camera);
