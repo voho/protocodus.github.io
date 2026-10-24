@@ -37,4 +37,10 @@ let cases=0;
   c.endFrame();assert.equal(surface.draws.length,60);assert.deepEqual(surface.draws.map(d=>d.images[0].source),Array.from({length:10},()=>sprites).flat());
   c.dispose();cases++;
 }
+{
+  const {c,surface}=renderer(),sprites=Array.from({length:4},(_,i)=>image(`release${i}`));c.prewarm(sprites);c.beginFrame();
+  assert.equal(c.release(sprites[0]),true);assert.equal(c.release(sprites[0]),true);assert.equal(c.release({width:1,height:1}),false,'Unknown sources are ignored');
+  assert.equal(c._cache.size,4,'A release waits for the frame boundary');c.endFrame();c.beginFrame();
+  assert.equal(c._cache.size,3,'The released source loses its texture at the next frame');c.prewarm(sprites[0]);assert.equal(c._cache.size,4,'A released source that is drawn again uploads afresh');c.dispose();cases++;
+}
 console.log(`GPU batch checks passed (${cases} groups).`);

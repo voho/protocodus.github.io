@@ -141,7 +141,7 @@ export class GPUCanvas2D {
   this._vertices=new Float32Array(CAPACITY*STRIDE);this._count=0;this._batchStart=0;this._batchTextures=[];this._commands=[];this._commandCount=0;this._gradientSnapshots=new WeakMap();this._cache=new Map();this._textureUse=0;this._dirty=new WeakMap();this._lost=false;this._failure=null;this._restoreEpoch=0;
   this._softLayer=null;this._softLayerScale=0;this._softDrawing=false;this._softState=state();this._softStack=[];this._clearColor=[0,0,0];this._pendingReleases=[];
   this._disposed=false;this._contextAvailable=true;this._recoveryActive=false;this._recoverySources=new Map();this._recoveryPending=new Map();this._recoveryBytes=0;this._recoveryPrewarm=null;this._recoveryPromise=null;
-  this._errors=[];this._metrics={frames:0,drawCalls:0,frameDrawCalls:0,vertices:0,uploads:0,partialUploads:0,uploadedBytes:0,textureBytes:0,evictions:0,restores:0,vertexUploads:0,vertexUploadBytes:0,frameSegments:0,vertexOrphans:0,vertexOrphanBytes:0,frameVertexOrphans:0};
+  this._errors=[];this._unchecked=0;this._fence=null;this.deferChecks=false;this._metrics={frames:0,drawCalls:0,frameDrawCalls:0,vertices:0,uploads:0,partialUploads:0,uploadedBytes:0,textureBytes:0,evictions:0,restores:0,vertexUploads:0,vertexUploadBytes:0,frameSegments:0,vertexOrphans:0,vertexOrphanBytes:0,frameVertexOrphans:0};
   try{this._initialize();this.reset();}catch(error){this.fail(error);throw error;}
   this.canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this._loseContext();});
   this.canvas.addEventListener('webglcontextrestored',()=>{if(this._disposed||this._failure)return;this._contextAvailable=true;return this._recoveryPromise=this._restore();});
@@ -150,7 +150,7 @@ export class GPUCanvas2D {
  get contextLost(){return this._lost;}
  get failure(){return this._failure;}
  get stats(){this.checkErrors();return {...this._metrics,errors:this._errors.slice(),textureCount:this._cache.size,maxTextureBytes:MAX_BYTES,maxTextures:MAX_TEXTURES,textureUnits:TEXTURE_UNITS,maxTextureSize:this.maxTextureSize,softLayerBytes:this._softLayer?.bytes||0,maxSoftLayerBytes:MAX_SOFT_LAYER_BYTES,recoverySources:this._recoverySources.size,recoveryPending:this._recoveryPending.size,recoverySourceBytes:this._recoveryBytes,usable:this.usable};}
- checkErrors(){if(this._lost)return this._errors.slice();let error;for(let i=0;i<8&&(error=this.gl.getError())!==this.gl.NO_ERROR;i++)this._errors.push(error);return this._errors.slice();}
+ checkErrors(){if(this._lost)return this._errors.slice();this._verifyUploads(true);let error;for(let i=0;i<8&&(error=this.gl.getError())!==this.gl.NO_ERROR;i++)this._errors.push(error);return this._errors.slice();}
  _initialize(){
   const gl=this.gl,compile=(type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){const message=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw Error(message);}return shader;};
   const vertex=compile(gl.VERTEX_SHADER,VERTEX);
@@ -183,18 +183,19 @@ export class GPUCanvas2D {
  }
  setRecoveryPrewarm(callback){this._recoveryPrewarm=typeof callback==='function'?callback:null;}
  fail(error){
-  this._failure ||= String(error);this._restoreEpoch++;this._recoveryActive=false;this._count=this._batchStart=this._commandCount=0;this._batchTextures.length=0;
+  this._failure ||= String(error);this._restoreEpoch++;this._recoveryActive=false;this._count=this._batchStart=this._commandCount=0;this._unchecked=0;this._batchTextures.length=0;
   this._recoverySources.clear();this._recoveryPending.clear();this._recoveryBytes=0;this._releaseResources();
  }
  _releaseResources(){
   const gl=this.gl,valid=this._contextAvailable&&!gl.isContextLost();
   this._releaseSoftLayer();
   if(valid){
+   if(this._fence)gl.deleteSync(this._fence.sync);
    for(const entry of this._cache.values())gl.deleteTexture(entry.texture);
    if(this._white)gl.deleteTexture(this._white);if(this._buffer)gl.deleteBuffer(this._buffer);if(this._vao)gl.deleteVertexArray(this._vao);
    if(this.program)gl.deleteProgram(this.program);if(this.imageProgram)gl.deleteProgram(this.imageProgram);
   }
-  this._cache.clear();this._metrics.textureBytes=0;this._commands.length=0;this._batchTextures.length=0;
+  this._cache.clear();this._fence=null;this._metrics.textureBytes=0;this._commands.length=0;this._batchTextures.length=0;
   this._white=this._buffer=this._vao=this.program=this.imageProgram=this._activeProgram=null;
   this._boundTextures?.fill(null);this._batchTexture=this._actualTexture=null;this._softDrawing=false;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;
  }
@@ -212,7 +213,7 @@ export class GPUCanvas2D {
  }
  _loseContext(){
   if(this._disposed||!this._contextAvailable)return;
-  this._lost=true;this._contextAvailable=false;this._recoveryActive=false;this._restoreEpoch++;this._count=this._batchStart=this._commandCount=0;this._batchTextures.length=0;this._softLayer=null;this._softDrawing=false;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;
+  this._lost=true;this._contextAvailable=false;this._recoveryActive=false;this._restoreEpoch++;this._count=this._batchStart=this._commandCount=0;this._unchecked=0;this._fence=null;this._batchTextures.length=0;this._softLayer=null;this._softDrawing=false;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;
   for(const [source]of [...this._cache].sort((a,b)=>a[1].lastUse-b[1].lastUse))this._queueRecoverySource(source);
  }
  _pruneRecoveryCache(){
@@ -256,7 +257,7 @@ export class GPUCanvas2D {
   if(this._softDrawing&&!this._lost){this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,null);this.gl.viewport(0,0,this.canvas.width,this.canvas.height);}this._softDrawing=false;
  }
  resize(width,height){width=Math.max(1,Math.round(width));height=Math.max(1,Math.round(height));const changed=this.canvas.width!==width||this.canvas.height!==height,recovering=this._recoveryActive;this.reset();if(changed){this._restoreEpoch++;this.canvas.width=width;this.canvas.height=height;}if(this.usable){this.gl.viewport(0,0,width,height);this._setProgramSizes(width,height);if(this._softLayerScale)this.prepareSoftLayer(this._softLayerScale);}else if(changed&&recovering&&this._contextAvailable&&!this._disposed)this._recoveryPromise=this._restore(false);return this;}
- beginFrame(){if(!this.usable)return false;if(this._pendingReleases.length)this._flushReleases();this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl,clear=this._clearColor;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);gl.clearColor(clear[0],clear[1],clear[2],1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
+ beginFrame(){if(!this.usable||!this._verifyUploads())return false;if(this._pendingReleases.length)this._flushReleases();this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl,clear=this._clearColor;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);gl.clearColor(clear[0],clear[1],clear[2],1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
  /** Opaque frame background. The world's terrain covers every pixel, so the
   * clear replaces a blended full-screen fill without changing the picture. */
  setClearColor(value){const c=parseColor(value),target=this._clearColor;target[0]=c[0];target[1]=c[1];target[2]=c[2];this.clearColorValue=value;}
@@ -474,6 +475,35 @@ export class GPUCanvas2D {
    this.flush();this._forgetTexture(entry.texture);this.gl.deleteTexture(entry.texture);this._cache.delete(source);this._metrics.textureBytes-=entry.bytes;this._metrics.evictions++;if(this._batchTexture===entry.texture)this._batchTexture=null;if(this._actualTexture===entry.texture)this._actualTexture=null;
   }
  }
+ /**
+  * Background preparation sets `deferChecks`: a new texture's allocation query is a round trip that waits for the
+  * driver to finish every upload queued before it, which can stall the main thread for tens of milliseconds. Those
+  * queries are left for the frame loop, which asks a fence whether the driver has caught up and only then queries
+  * (at no cost). `wait` asks at once, as a launch must before the first frame. Uploads made inside a frame or on
+  * request are always checked immediately.
+  */
+ _verifyUploads(wait=false){
+  if(!this._unchecked)return true;
+  const gl=this.gl;
+  if(gl.isContextLost()){this._loseContext();return false;}
+  const fence=this._fence;
+  if(!wait){
+   if(!fence||fence.count!==this._unchecked){
+    // Fence everything uploaded so far and ask again at the next frame. Without a fence, ask now.
+    if(fence)gl.deleteSync(fence.sync);
+    const sync=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);
+    this._fence=sync?{sync,count:this._unchecked}:null;
+    if(sync){gl.flush();return true;}
+   }else if(gl.getSyncParameter(fence.sync,gl.SYNC_STATUS)!==gl.SIGNALED)return true;
+  }
+  if(this._fence){gl.deleteSync(this._fence.sync);this._fence=null;}
+  this._unchecked=0;
+  const error=gl.getError();
+  if(error===gl.NO_ERROR)return true;
+  this._errors.push(error);this.fail(`Texture upload failed (${error})`);return false;
+ }
+ /** Settle every deferred upload check now. */
+ verifyUploads(){return this._verifyUploads(true);}
  _texture(source,restoring=false,width,height){
   if(!source||this._disposed||this._failure||!this._contextAvailable||(!this.usable&&!restoring))return null;if(width===undefined||height===undefined)[width,height]=sizeOf(source);if(!width||!height)return null;if(width>this.maxTextureSize||height>this.maxTextureSize){this.fail(`Source ${width}x${height} exceeds MAX_TEXTURE_SIZE ${this.maxTextureSize}`);return null;}
   const version=source._tyranTextureVersion||0;let entry=this._cache.get(source);
@@ -498,7 +528,10 @@ export class GPUCanvas2D {
   // subimage updates stay asynchronous: getError would serialize every small
   // scenery patch with the GPU. Exceptions and context loss still fall back.
   if(gl.isContextLost()){this._loseContext();return null;}
-  if(allocated){const error=gl.getError();if(error!==gl.NO_ERROR){this._errors.push(error);this.fail(`Texture upload failed (${error})`);return null;}}
+  if(allocated){
+   if(this.deferChecks&&!restoring)this._unchecked++;
+   else{const error=gl.getError();if(error!==gl.NO_ERROR){this._errors.push(error);this.fail(`Texture upload failed (${error})`);return null;}}
+  }
   this._evict(source);return entry;
   }catch(error){if(gl.isContextLost())this._loseContext();else this.fail(error);return null;}
  }

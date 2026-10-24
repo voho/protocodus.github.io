@@ -23,6 +23,9 @@ const HOSTILE = Object.freeze([
   { cell: 11, body: [56, 56], frame: [8, 8] },
 ]);
 
+// Set once the renderer has seen these textures, so dropped ones free theirs.
+let gpuCache = null;
+function clearTextures() { for (const texture of textures.values()) gpuCache?.release(texture); textures.clear(); }
 function surface() {
   const canvas = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(SIZE, SIZE);
   canvas.width = canvas.height = SIZE;
@@ -81,10 +84,10 @@ function fallback(context, info, color) {
 }
 
 export function projectileTexture(bullet) {
-  if (revision !== spriteRevision) { textures.clear(); revision = spriteRevision; }
+  if (revision !== spriteRevision) { clearTextures(); revision = spriteRevision; }
   const info = profile(bullet), color = bullet.weaponColor || bullet.color || '#ffffff', key = `${info.cell}:${color}`;
   if (textures.has(key)) return textures.get(key);
-  if (textures.size >= 128) { const oldest = textures.keys().next().value; textures.delete(oldest); requested.delete(oldest); }
+  if (textures.size >= 128) { const oldest = textures.keys().next().value; gpuCache?.release(textures.get(oldest)); textures.delete(oldest); requested.delete(oldest); }
   requested.set(key, { team: bullet.team, kind: bullet.kind, variant: bullet.variant, color });
   const canvas = surface(), context = canvas.getContext('2d'), source = spriteCell('projectiles', info.cell);
   const glow = context.createRadialGradient(HALF, HALF, 1, HALF, HALF, HALF * .92);
@@ -127,7 +130,7 @@ function artFor(bullet) {
 /** Submit a volley in painter order, retaining the camera transform only once. */
 export function drawProjectiles(ctx, bullets, alpha = 1, width = Infinity, height = Infinity) {
   if (!bullets.length) return;
-  if (revision !== spriteRevision) { textures.clear(); revision = spriteRevision; }
+  if (revision !== spriteRevision) { clearTextures(); revision = spriteRevision; }
   const { a, b, c, d, e, f } = ctx.getTransform();
   ctx.save(); ctx.globalCompositeOperation = 'source-over';
   let dimmed = false;
@@ -155,8 +158,8 @@ export function warmProjectileTextures(weapons = [], spectrum = []) {
 }
 
 spritesReady.then(() => {
-  textures.clear(); revision = spriteRevision;
+  clearTextures(); revision = spriteRevision;
   for (const bullet of requested.values()) projectileTexture(bullet);
 });
 
-export function warmGpuProjectileTextures(gpu) { gpu.prewarm([...textures.values()]); }
+export function warmGpuProjectileTextures(gpu) { gpuCache = gpu; gpu.prewarm([...textures.values()]); }
