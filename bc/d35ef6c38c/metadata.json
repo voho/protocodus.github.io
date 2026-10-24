@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "bcd35ef6c38c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "fun/meteora/js/ai.js",
+    "fun/meteora/js/combat.js",
+    "fun/meteora/js/cull.js",
+    "fun/meteora/js/explosions.js",
+    "fun/meteora/js/field.js",
+    "fun/meteora/js/flight.js",
+    "fun/meteora/js/glow.js",
+    "fun/meteora/js/main.js",
+    "fun/meteora/js/plumes.js",
+    "fun/meteora/js/projectiles.js",
+    "fun/meteora/js/smoke.js",
+    "fun/meteora/js/turrets.js",
+    "fun/meteora/js/vec.js",
+    "fun/meteora/js/world.js",
+    "fun/meteora/tests/vec-check.mjs",
+    "fun/meteora/tools/bench.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bc/d35ef6c38c/0/metadata.json",
+      "transcript": "/bc/d35ef6c38c/0/full.jsonl",
+      "context": "/bc/d35ef6c38c/0/context.md",
+      "content_hash": "/bc/d35ef6c38c/0/content_hash.txt",
+      "prompt": "/bc/d35ef6c38c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2740,
+    "cache_creation_tokens": 1711727,
+    "cache_read_tokens": 47768044,
+    "output_tokens": 328542,
+    "api_call_count": 113
+  }
+}
