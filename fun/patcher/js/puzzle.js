@@ -2,35 +2,33 @@
 
    A board is a square grid with clue cells. The board is cut into
    rectangles ("patches") so that every patch holds exactly one clue and
-   matches it: a number is the patch's cell count, and the icon its shape —
-   square, wide (wider than tall), tall, or the dashed one that takes any.
+   matches it: the icon is the patch's shape — square, wide (wider than
+   tall) or tall — and a number, when there is one, its cell count.
 
    A puzzle starts as a random tiling of the grid, each patch given a clue
    cell and a clue. The solver then looks for a second cutting; while one
    exists, a clue that differs between the two is strengthened (a number
-   added, a shape named, the clue cell moved) until only the intended one
-   fits. A deduction pass grades what it takes to solve, so each difficulty
-   plays as it says. */
+   added, or the clue cell moved) until only the intended one fits. A
+   deduction pass grades what it takes to solve, so each difficulty plays
+   as it says. */
 import { createRng } from '../../shared/rng.js';
 
-/* `kinds`: how clues are written. full: number and shape; number: number
-   with the any-shape icon; shape: shape without a number; any: the
-   any-shape icon alone, which other clues have to pin down. `level` is the
-   deduction a board may need: 1 means some clue always has one patch
-   left, 2 that some cell can be covered one way only, 3 that it takes
-   looking ahead. */
+/* `kinds`: how clues are written. full: shape and number; shape: the shape
+   alone, which the neighbours have to size. `level` is the deduction a
+   board may need: 1 means some clue always has one patch left, 2 that some
+   cell can be covered one way only, 3 that it takes looking ahead. */
 export const DIFFICULTIES = {
-  easy: { size: 5, maxArea: 6, singles: 0, kinds: { full: 0.7, number: 0.3, shape: 0, any: 0 }, level: [1, 1] },
-  medium: { size: 7, maxArea: 8, singles: 1, kinds: { full: 0.35, number: 0.35, shape: 0.25, any: 0.05 }, level: [1, 2] },
-  hard: { size: 9, maxArea: 10, singles: 1, kinds: { full: 0.2, number: 0.35, shape: 0.35, any: 0.1 }, level: [2, 3] },
+  easy: { size: 5, maxArea: 6, singles: 0, kinds: { full: 0.8, shape: 0.2 }, level: [1, 1] },
+  medium: { size: 7, maxArea: 8, singles: 1, kinds: { full: 0.55, shape: 0.45 }, level: [1, 2] },
+  hard: { size: 9, maxArea: 10, singles: 1, kinds: { full: 0.35, shape: 0.65 }, level: [2, 3] },
 };
 
 export const shapeOf = (w, h) => (w === h ? 'square' : w > h ? 'wide' : 'tall');
 
-/* Whether a w×h patch of this clue's number and shape is allowed. */
+/* Whether a w×h patch of this clue's shape and number is allowed. */
 export function fitsClue(clue, w, h) {
   if (clue.number && clue.number !== w * h) return false;
-  return clue.shape === 'any' || clue.shape === shapeOf(w, h);
+  return clue.shape === shapeOf(w, h);
 }
 
 /* A random cutting of the grid into rectangles: the first free cell (in
@@ -187,8 +185,8 @@ function clueFor(rect, kind, rng) {
   for (let j = 0; j < rect.h; j++) for (let i = 0; i < rect.w; i++) cells.push((rect.y + j) * rect.n + rect.x + i);
   return {
     cell: rng.pick(cells),
-    number: kind === 'full' || kind === 'number' ? rect.w * rect.h : null,
-    shape: kind === 'full' || kind === 'shape' ? shapeOf(rect.w, rect.h) : 'any',
+    number: kind === 'full' ? rect.w * rect.h : null,
+    shape: shapeOf(rect.w, rect.h),
   };
 }
 
@@ -208,7 +206,6 @@ function strengthen(puzzle, other, rng) {
   for (const { k, rect, alt } of differing) {
     const clue = puzzle.clues[k];
     if (!clue.number) { clue.number = rect.w * rect.h; return true; }
-    if (clue.shape === 'any') { clue.shape = shapeOf(rect.w, rect.h); return true; }
     // Same size and shape, another place: move the clue off the other patch.
     const inside = (p, cell) => { const x = cell % n, y = Math.floor(cell / n); return x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h; };
     const moves = [];
@@ -282,7 +279,7 @@ export function rejectReason(puzzle, patches, rect) {
   }
   const clue = puzzle.clues[inside[0]];
   if (clue.number && clue.number !== rect.w * rect.h) return 'number';
-  if (clue.shape !== 'any' && clue.shape !== shapeOf(rect.w, rect.h)) return 'shape';
+  if (clue.shape !== shapeOf(rect.w, rect.h)) return 'shape';
   return null;
 }
 
