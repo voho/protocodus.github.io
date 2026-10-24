@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!-- Every Patcher clue drawing, on a dark tile and on a pastel patch, at the
+     size it has on screen and enlarged. Open from a server at the repository
+     root: /fun/shared/tests/clue-sampler.html -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Clue sampler</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #15101a; color: #f3f4f4; font: 14px system-ui, sans-serif; }
+    .row { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+    .row span { width: 150px; color: #aaa; }
+    .tile { border-radius: 10px; background: #2a2331; display: grid; place-items: center; }
+    .patch { background: #c8e67a; }
+    canvas { display: block; }
+  </style>
+  <script type="importmap">{ "imports": { "three": "/assets/vendor/three/three.module.min.js" } }</script>
+</head>
+<body>
+  <script type="module">
+    import { clueTexture, waitForFont } from '../slab.js';
+    await waitForFont();
+    const clues = [
+      { shape: 'square', number: 4 }, { shape: 'wide', number: 6 }, { shape: 'tall', number: 3 }, { shape: 'any', number: 2 },
+      { shape: 'square' }, { shape: 'wide' }, { shape: 'tall' }, { shape: 'any' },
+    ];
+    for (const [label, px] of [['on screen (72 px tile)', 72], ['enlarged (200 px tile)', 200]]) {
+      for (const [surface, colour] of [['tile', '#f6e7b8'], ['patch', '#1a1420']]) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `<span>${label}, ${surface}</span>`;
+        for (const clue of clues) {
+          const box = document.createElement('div');
+          box.className = `tile ${surface}`;
+          box.style.width = box.style.height = `${px}px`;
+          const texture = clueTexture({ shape: clue.shape, number: clue.number ?? null }, colour);
+          const canvas = document.createElement('canvas');
+          const side = Math.round(px * 0.8 / 0.9);
+          canvas.width = canvas.height = side;
+          canvas.getContext('2d').drawImage(texture.image, 0, 0, side, side);
+          box.append(canvas);
+          row.append(box);
+        }
+        document.body.append(row);
+      }
+    }
+    document.body.dataset.ready = 'true';
+  </script>
+</body>
+</html>

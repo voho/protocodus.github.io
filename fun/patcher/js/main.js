@@ -131,7 +131,8 @@ async function boot() {
     canvas.setPointerCapture(event.pointerId);
     const covering = patches.find((p) => inside(p, cell));
     if (covering) { lift(covering); return; }
-    drag = { anchor: cell, cell, rect: rectBetween(cell, cell), moved: false };
+    const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
+    drag = { anchor: cell, cell, left: x, right: x, top: y, bottom: y, rect: rectBetween(cell, cell), moved: false };
     board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
   });
   canvas.addEventListener('pointermove', (event) => {
@@ -141,7 +142,14 @@ async function boot() {
       if (cell >= 0 && cell !== drag.cell) {
         drag.cell = cell;
         drag.moved = true;
-        drag.rect = rectBetween(drag.anchor, cell);
+        // The patch is painted: every cell the pointer has passed stays in
+        // it, so going up and then down keeps the top cells and joins the
+        // bottom ones, rather than stretching between the start and the
+        // pointer alone.
+        const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
+        drag.left = Math.min(drag.left, x); drag.right = Math.max(drag.right, x);
+        drag.top = Math.min(drag.top, y); drag.bottom = Math.max(drag.bottom, y);
+        drag.rect = { x: drag.left, y: drag.top, w: drag.right - drag.left + 1, h: drag.bottom - drag.top + 1 };
         board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
       }
     } else if (event.pointerType === 'mouse') {
