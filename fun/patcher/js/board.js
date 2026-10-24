@@ -127,8 +127,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
         if (u >= 1) rippleAt[cell] = -1;
         else if (u > 0) wave = Math.sin(u * Math.PI) * rippleStrength;
       }
-      tile.material.emissive.copy(accentColour);
-      if (wave > 0) tile.material.emissive.lerp(rippleColour, Math.min(1, wave));
+      tile.material.emissive.copy(wave > 0 ? rippleColour : accentColour);
       tile.material.emissiveIntensity = data.glow + wave * 0.5;
       tile.position.y = data.lift - data.press * 0.06 + wave * 0.06;
       if (wave > 0) busy = true;
@@ -145,9 +144,11 @@ export function createBoard(stage, puzzle, { accent, fx }) {
           entry.landed = time;
           for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) tiles[(patch.y + j) * n + patch.x + i].userData.press = 1;
           // The landing runs a ripple out across the board in the patch's
-          // colour, blooms in the backdrop and nudges the camera.
-          ripple(x, z, entry.colour, 1);
-          stage.pulse(new THREE.Vector3(x, TILE_H, z), entry.colour, 1);
+          // colour, glows in the backdrop and nudges the camera. Gentle,
+          // since a move lands many times a game: the colour should tint
+          // the board, not wash over it.
+          ripple(x, z, entry.colour, 0.3);
+          stage.pulse(new THREE.Vector3(x, TILE_H, z), entry.colour, 0.6);
           stage.kick(0.7);
           fx.dust.burst({
             origin: new THREE.Vector3(x, TILE_H + 0.05, z), count: 14 + patch.w * patch.h * 2,
