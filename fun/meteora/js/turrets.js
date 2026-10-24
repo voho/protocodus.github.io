@@ -24,7 +24,7 @@
 import { leadPoint, fireBolt } from './weapons.js';
 import { toWorld, sweepCompound, subsystemAt } from './compound.js';
 import { GUNS } from './loadout.js';
-import { addScaled, clamp, cross, dot, len, normalize, qRotate, qRotateInv, sub } from './vec.js';
+import { addScaled, clamp, cross, dot, hypot3, len, normalize, qRotate, qRotateInv, sub } from './vec.js';
 
 const tmp = [0, 0, 0], from = [0, 0, 0], up = [0, 0, 0], lead = [0, 0, 0], dir = [0, 0, 0], want = [0, 0, 0], axis = [0, 0, 0];
 const ON_TARGET = 0.05;   // radians: close enough to fire
@@ -63,7 +63,7 @@ function pick(world, owner, t, origin, range) {
     let torpedo = null, torpedoD = range;
     for (const m of world.weapons.missiles) {
       if (m.hp <= 0 || m.team === owner.team) continue;
-      const d = Math.hypot(m.pos[0] - origin[0], m.pos[1] - origin[1], m.pos[2] - origin[2]);
+      const d = hypot3(m.pos[0] - origin[0], m.pos[1] - origin[1], m.pos[2] - origin[2]);
       if (d < torpedoD) { torpedoD = d; torpedo = m; }
     }
     if (torpedo) return { missile: torpedo };
@@ -71,7 +71,7 @@ function pick(world, owner, t, origin, range) {
   let best = null, bestScore = Infinity;
   for (const e of world.active) {
     if (e.team === owner.team || e.team < 0 || e.hidden || e.untargetable || e.noAutoTarget || e.role === 'prop') continue;
-    let d = Math.hypot(e.ship.pos[0] - origin[0], e.ship.pos[1] - origin[1], e.ship.pos[2] - origin[2]);
+    let d = hypot3(e.ship.pos[0] - origin[0], e.ship.pos[1] - origin[1], e.ship.pos[2] - origin[2]);
     if (e.big) d -= e.radius * 0.6;
     if (d > range) continue;
     // Above the turret's own deck.
@@ -164,7 +164,7 @@ export function stepBeam(world, owner, dt) {
       let best = null, bestD = Infinity;
       for (const e of world.active) {
         if (!e.big || e.team === owner.team || e.team < 0 || e.role === 'prop') continue;
-        const d = Math.hypot(e.ship.pos[0] - b.from[0], e.ship.pos[1] - b.from[1], e.ship.pos[2] - b.from[2]) - e.radius;
+        const d = hypot3(e.ship.pos[0] - b.from[0], e.ship.pos[1] - b.from[1], e.ship.pos[2] - b.from[2]) - e.radius;
         if (d < w.range && d < bestD) { bestD = d; best = e; }
       }
       if (best) fireBeam(world, owner, best);
