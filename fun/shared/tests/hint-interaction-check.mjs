@@ -27,7 +27,7 @@ async function gameHarness(game, puzzle, logic) {
     ...logic,
     hint(p, input) { state.inputs.push(structuredClone(input)); return logic.hint(p, input); },
     generate: () => puzzle,
-    createStage: () => ({ dust() {}, start() {}, flash() {}, pick: (x) => ({ x }), project() {} }),
+    createStage: () => ({ dust() {}, bokeh() {}, start() {}, flash() {}, pick: (x) => ({ x }), project() {} }),
     createBoard: () => board,
     createBursts: () => ({}),
     createSound: () => new Proxy({}, { get: () => () => {} }),

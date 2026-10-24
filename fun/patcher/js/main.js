@@ -21,8 +21,8 @@ const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
 const stage = createStage(canvas, {
-  accent: ACCENT, elevation: 1.02,
-  backdrop: { top: '#2a1a2e', bottom: '#060308', glow: '#f29e8e', glowStrength: 0.1 },
+  accent: ACCENT, secondary: '#ff6b9d', elevation: 1.02,
+  backdrop: { top: '#2a1a2e', bottom: '#060308', glow: '#f29e8e', glowStrength: 0.1, blobA: '#ff6b9d', blobB: '#7ad3ff', blobStrength: 0.08 },
 });
 if (!stage) {
   loading.classList.add('failed');
@@ -35,6 +35,7 @@ async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), dust: createBursts(stage.scene, { max: 300, additive: true }) };
   stage.dust({ colour: '#f6d155', extent: 6 });
+  stage.bokeh({ colours: [ACCENT, '#ff6b9d', '#7ad3ff', '#ffffff'] });
   const sound = createSound('patcher');
 
   let puzzle = null;

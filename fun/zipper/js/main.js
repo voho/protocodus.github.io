@@ -14,8 +14,8 @@ const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
 const stage = createStage(canvas, {
-  accent: ACCENT, elevation: 1.0,
-  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13 },
+  accent: ACCENT, secondary: '#8f7cff', elevation: 1.0,
+  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13, blobA: '#2fd9c0', blobB: '#7a5cff', blobStrength: 0.08 },
 });
 if (!stage) {
   loading.classList.add('failed');
@@ -28,6 +28,7 @@ async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), sparks: createBursts(stage.scene, { max: 300, additive: true }) };
   stage.dust({ colour: ACCENT, extent: 6 });
+  stage.bokeh({ colours: [ACCENT, '#7a5cff', '#ffffff', '#f6d155'] });
   const sound = createSound('zipper');
 
   let puzzle = null;
