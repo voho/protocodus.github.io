@@ -375,8 +375,10 @@ async function boot() {
   if (hdr) {
     bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
     grade = createGrade();
-    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens
+    // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens; the
+    // grade applies its factor, found and kept on the GPU (nothing is read back)
     adapt = createAdaptation({ base: renderer.toneMappingExposure });
+    grade.adaptation = adapt;
     // a blast close by throws mud over the view (combat.js)
     G.spatter = (amount) => grade.spatter(amount);
     volumetric = createVolumetric(camera);
@@ -854,11 +856,14 @@ function castShadows() {
     flareShadows = fl;
     for (const m of G.flares.castersOf(built.veg.group)) m.castShadow = fl;
   }
-  sl.shadow.autoUpdate = !fl;
+  // (and a light with nothing to light, waiting below the level, draws nothing into its six maps:
+  // unlit, its shadows are never looked up, and the frame it takes a lamp they are drawn again)
+  G.lights.held = fl;
+  sl.shadow.autoUpdate = !fl && !!G.lights.shadowOf;
   if (fl && G.lights.shadowOf !== lampShadowOf) sl.shadow.needsUpdate = true;
   lampShadowOf = G.lights.shadowOf;
   if (sl2) {
-    sl2.shadow.autoUpdate = !fl;
+    sl2.shadow.autoUpdate = !fl && !!G.lights.shadowOf2;
     if (fl && G.lights.shadowOf2 !== lampShadowOf2) sl2.shadow.needsUpdate = true;
     lampShadowOf2 = G.lights.shadowOf2;
   }

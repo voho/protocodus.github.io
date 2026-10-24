@@ -37,6 +37,7 @@ export function createChunks(G) {
   const mesh = new THREE.InstancedMesh(lumpGeometry(), G.matlib.get('dirt'), CAP);
   mesh.name = 'chunks';
   mesh.count = 0;
+  mesh.visible = false;           // (drawn once there is something to draw)
   mesh.frustumCulled = false;
   mesh.castShadow = false;
   mesh.receiveShadow = true;
@@ -55,6 +56,7 @@ export function createChunks(G) {
         c = { slot: list.length, p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), s: new THREE.Vector3(), rest: false };
         list.push(c);
         mesh.count = list.length;
+        mesh.visible = true;
       } else {
         c = list[cursor];
         cursor = (cursor + 1) % CAP;
@@ -103,7 +105,7 @@ export function createChunks(G) {
     if (moved) mesh.instanceMatrix.needsUpdate = true;
   }
 
-  function clear() { list.length = 0; cursor = 0; mesh.count = 0; }
+  function clear() { list.length = 0; cursor = 0; mesh.count = 0; mesh.visible = false; }
 
   return { mesh, burst, update, clear };
 }

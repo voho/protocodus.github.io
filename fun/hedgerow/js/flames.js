@@ -162,6 +162,7 @@ export function createFlames(effects, { gain = 1.4 } = {}) {
         }
       }
       geo.instanceCount = n * PER;
+      mesh.visible = n > 0;
       fireA.needsUpdate = true;
       seedA.needsUpdate = true;
     },

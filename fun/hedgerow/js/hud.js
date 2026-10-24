@@ -40,9 +40,13 @@ export function createHud(root) {
 
   let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false;
   let objectiveAngle = null, objectiveDist = 0;
+  // the compass's width, read again only after a resize or the HUD shown (read each frame, after the
+  // frame's other writes to the HUD, it made the browser lay the page out there and then, mid-frame)
+  let compassW = -1;
+  window.addEventListener('resize', () => { compassW = -1; });
 
   return {
-    show(on) { root.hidden = !on; },
+    show(on) { root.hidden = !on; compassW = -1; },
 
     /* `sights`: aiming means looking down the iron sights (first person): the
        crosshair gives way to them */
@@ -106,13 +110,15 @@ export function createHud(root) {
     compass(yaw) {
       // heading: north = +z. yaw 0 looks north; turning left increases yaw (towards +x = west)
       const heading = -yaw;
-      const w = el.compass.clientWidth;
+      if (compassW < 0) compassW = el.compass.clientWidth;
+      const w = compassW;
       el.strip.style.transform = `translateX(${(w / 2 - heading * PX_PER_RAD).toFixed(1)}px)`;
       if (objectiveAngle == null) { el.mark.style.display = 'none'; return; }
       el.mark.style.display = '';
       const x = clamp(w / 2 - objectiveAngle * PX_PER_RAD, 8, w - 8);
       el.mark.style.left = `${x.toFixed(1)}px`;
-      el.dist.textContent = `${Math.round(objectiveDist)} m`;
+      const dist = `${Math.round(objectiveDist)} m`;
+      if (el.dist.textContent !== dist) el.dist.textContent = dist;
     },
 
     notice(text, sub = '', time = 3) {
