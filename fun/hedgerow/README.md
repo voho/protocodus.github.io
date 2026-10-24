@@ -100,7 +100,13 @@ and no film grain so shadow detail stays clear.
 | 1 / 2 / wheel | M1 Garand / Thompson |
 | G | grenade (hold to cook) |
 | E | use (set the charge) |
+| I | toggle invincibility |
+| O | switch night / day |
 | Esc | pause |
+
+The mission starts at night. Press **O** during play to switch to daylight
+or back to night; **I** switches damage protection on or off. A notice confirms
+each change. Both choices last until the page is reloaded, including checkpoint retries.
 
 Health comes back when you stay out of fire. Dying returns you to the last
 checkpoint; the enemies you killed stay dead. A grenade or a charge going
@@ -578,6 +584,8 @@ by the blast that killed them, and drop their rifles.
   mixed static batches merge correctly, flat normals and parachutes stay intact;
   `tests/hud-check.mjs` — the compass follows heading and objectives without
   layout reads or repeated unchanged DOM writes;
+  `tests/modes-check.mjs` — mode keys trigger once per press, day/night reuses
+  lights and sky, and exposure drops readings from before a mode switch;
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
@@ -616,6 +624,7 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/clutter-cells-check.mjs
       node fun/hedgerow/tests/assets-check.mjs
       node fun/hedgerow/tests/hud-check.mjs
+      node fun/hedgerow/tests/modes-check.mjs
       node fun/hedgerow/tests/ai-check.mjs
       node fun/hedgerow/tests/fp-check.mjs
       node fun/hedgerow/tests/clutter-check.mjs

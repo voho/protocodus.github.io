@@ -39,6 +39,24 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const rim = new THREE.DirectionalLight('#566577', 0.3);
   rim.position.set(30, 40, -40);
   scene.add(rim);
+  let daylight = false;
+  let ambientIntensity = AMBIENT_INTENSITY, keyIntensity = 1.2, keyHeight = 25;
+
+  // Change the existing lights, keeping the shader's light and shadow counts fixed.
+  function setDaylight(enabled) {
+    daylight = !!enabled;
+    ambientIntensity = daylight ? 2.8 : AMBIENT_INTENSITY;
+    keyIntensity = daylight ? 2.2 : 1.2;
+    keyHeight = daylight ? 85 : 25;
+    hemi.color.set(daylight ? '#c6d2df' : '#6c7888');
+    hemi.groundColor.set(daylight ? '#6d7569' : '#2a241c');
+    hemi.intensity = ambientIntensity;
+    key.color.set(daylight ? '#fff1d9' : '#9a8f86');
+    key.intensity = keyIntensity;
+    key.position.y = keyHeight;
+    rim.color.set(daylight ? '#b7c7d6' : '#566577');
+    rim.intensity = daylight ? 0.6 : 0.3;
+  }
 
   const lights = [];
   for (let i = 0; i < pool; i++) {
@@ -94,9 +112,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const active = [];
   function update(dt, time, cam, lightning = 0) {
     // lightning lifts the sky's light a little; its hard light comes from the bolt (flares.js)
-    hemi.intensity = AMBIENT_INTENSITY + lightning * 0.8;
-    key.intensity = 1.2 + lightning * 0.6;
-    key.position.set(cam.x + 60, 25 + lightning * 40, cam.z + 30);
+    hemi.intensity = ambientIntensity + lightning * 0.8;
+    key.intensity = keyIntensity + lightning * 0.6;
+    key.position.set(cam.x + 60, keyHeight + lightning * 40, cam.z + 30);
     key.target.position.set(cam.x, 0, cam.z);
 
     const flick = (s) => {
@@ -205,5 +223,5 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     }
   }
 
-  return { hemi, key, rim, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; } };
+  return { hemi, key, rim, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; } };
 }

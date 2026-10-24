@@ -10,6 +10,9 @@
 
 import * as THREE from 'three';
 
+// Shared with the scene and particle fog so the daytime horizon has no seam.
+export const DAY_FOG_COLOR = '#aab6be';
+
 const VERT = /* glsl */ `
 varying vec3 vDir;
 void main() {
@@ -28,7 +31,7 @@ uniform float uArty;
 uniform vec3 uArtyDir;
 uniform float uFlare;
 uniform vec3 uFlareDir;
-uniform float uFront;
+uniform float uFront, uNightGlow;
 uniform vec3 uCam;
 uniform vec4 uFires[6];
 varying vec3 vDir;
@@ -173,7 +176,7 @@ void main() {
     float r2 = dot(dp, dp) + 102400.0;
     fire += f.z * (0.8 + 0.2 * sin(uTime * 6.3 + f.w) * sin(uTime * 2.9 + f.w * 1.7)) * 320.0 / (r2 * sqrt(r2));
   }
-  col += vec3(1.0, 0.42, 0.14) * fire * 4500.0 * cloud * (0.35 + 0.65 * belly) * smoothstep(0.02, 0.2, el);
+  col += vec3(1.0, 0.42, 0.14) * fire * 4500.0 * cloud * (0.35 + 0.65 * belly) * smoothstep(0.02, 0.2, el) * uNightGlow;
   // the far barrage's flashes catch the cloud over the horizon
   float ad0 = max(dot(normalize(vec3(d.x, 0.0, d.z)), uArtyDir), 0.0);
   col += vec3(1.0, 0.6, 0.3) * uArty * pow(ad0, 5.0) * exp(-max(el, 0.0) * 4.0) * cloud * 0.12;
@@ -213,8 +216,13 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
     uFlare: { value: 0 },
     uFlareDir: { value: new THREE.Vector3(0, 0.6, 0.8) },
     uFront: { value: 1 },
+    uNightGlow: { value: 1 },
     uCam: { value: new THREE.Vector3() },
     uFires: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
+  };
+  const night = {
+    zenith: uniforms.uZenith.value.clone(), horizon: uniforms.uHorizon.value.clone(),
+    glow: uniforms.uGlow.value.clone(), fog: uniforms.uFog.value.clone(),
   };
   let fires = null;
   const mat = new THREE.ShaderMaterial({
@@ -229,6 +237,14 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
   mesh.renderOrder = 1000;
   return {
     mesh, uniforms,
+    setDaylight(enabled) {
+      uniforms.uZenith.value.set(enabled ? '#94a5b8' : night.zenith);
+      uniforms.uHorizon.value.set(enabled ? '#bdc8cf' : night.horizon);
+      uniforms.uGlow.value.set(enabled ? '#000000' : night.glow);
+      uniforms.uFog.value.set(enabled ? DAY_FOG_COLOR : night.fog);
+      uniforms.uFront.value = enabled ? 0 : 1;
+      uniforms.uNightGlow.value = enabled ? 0.05 : 1;
+    },
     /* the fires whose glow the cloud carries (effects.js addFire records: x, z, size, on) */
     setFires(list) { fires = list; },
     update(dt, time, camera, flash, flashDir) {

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
 import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
 import { loadModels } from './assets.js';
-import { createSky } from './sky.js';
+import { createSky, DAY_FOG_COLOR } from './sky.js';
 import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
@@ -72,6 +72,7 @@ const DEBUG = params.has('debug');
 const FLY = params.has('fly');
 const GOD = params.has('god');
 const AT = params.get('at')?.split(',').map(Number);
+const NIGHT_EXPOSURE = 1.7, DAY_EXPOSURE = 1.15;
 
 const canvas = document.getElementById('stage');
 const $ = (s) => document.querySelector(s);
@@ -189,7 +190,7 @@ async function boot() {
   // the shaders had been compiled for the other: every one that takes shadows was compiled twice)
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.7;
+  renderer.toneMappingExposure = NIGHT_EXPOSURE;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -247,7 +248,7 @@ async function boot() {
     scene, camera, renderer, input, hud, audio, events, settings, shared, textures, matlib,
     models: lib.models, soldier: lib.soldier, level: LEVEL,
     diff: DIFFICULTY[settings.difficulty] || DIFFICULTY.regular,
-    time: 0, lightning: 0, godMode: GOD,
+    time: 0, lightning: 0, godMode: GOD, daylight: false,
     stats: freshStats(),
   };
   G.effects = createEffects({ fog: fogUniforms, camera, wet: shared.wet });
@@ -356,13 +357,16 @@ async function boot() {
   mark('environment');
   loading.update('world', 19 / 21, 'Preparing sky reflections');
 
-  // reflections: the dusk sky as an environment map
+  // Bake both skies once; changing time of day only swaps the cached reflection map.
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
   const envSky = createSky({ fog: LEVEL.fog.color });
   envSky.mesh.material.depthTest = false;
   envScene.add(envSky.mesh);
-  scene.environment = pmrem.fromScene(envScene, 0, 0.1, 1000).texture;
+  G.environments = { night: pmrem.fromScene(envScene, 0, 0.1, 1000) };
+  envSky.setDaylight(true);
+  G.environments.day = pmrem.fromScene(envScene, 0, 0.1, 1000);
+  scene.environment = G.environments.night.texture;
   scene.environmentIntensity = 0.8;
 
   G.rig = createCameraRig(camera, G.world);
@@ -404,6 +408,10 @@ async function boot() {
   mark('shaders');
   menuCamera(0);
   await warmShaders();
+  // Keep temporary sky programs alive until warm-up has skipped their compiled shaders.
+  envSky.mesh.geometry.dispose();
+  envSky.mesh.material.dispose();
+  pmrem.dispose();
 
   mark('ready');
   ready = true;
@@ -489,6 +497,21 @@ function applyGraphics() {
 }
 
 /* ---------- mission flow ---------- */
+
+function setDaylight(on) {
+  G.daylight = on;
+  G.lights.setDaylight(on);
+  G.sky.setDaylight(on);
+  const fog = on ? DAY_FOG_COLOR : LEVEL.fog.color;
+  scene.fog.color.set(fog);
+  // The background color also backs the particles' shared fog uniform.
+  scene.background.set(fog);
+  scene.environment = G.environments[on ? 'day' : 'night'].texture;
+  const exposure = on ? DAY_EXPOSURE : NIGHT_EXPOSURE;
+  adapt?.reset({ base: exposure, ref: on ? -1.5 : -5 });
+  renderer.toneMappingExposure = exposure;
+  taa?.reset();
+}
 
 function openBriefing() {
   $('[data-briefing-title]').textContent = LEVEL.title;
@@ -920,6 +943,17 @@ function step() {
   }
   if (live || state === 'menu') G.time += dt;
   shared.time.value = G.time;
+
+  if (playing || state === 'fly') {
+    if (input.pressed('KeyI')) {
+      G.godMode = !G.godMode;
+      hud.notice(`Invincibility ${G.godMode ? 'on' : 'off'}`, 'I · toggle invincibility', 2);
+    }
+    if (input.pressed('KeyO')) {
+      setDaylight(!G.daylight);
+      hud.notice(G.daylight ? 'Daytime' : 'Nighttime', 'O · switch day / night', 2);
+    }
+  }
 
   if (playing) {
     missionTime += dt;

@@ -64,6 +64,12 @@ export function createAdaptation({ base = 1.7, ref = -5, k = 0.75, min = 0.35 } 
     // page for hundreds of milliseconds; behind the menu the night's exposure stands
     metering: false,
     setSize() {},
+    // A day/night switch discards the previous light reading, including one still on the GPU.
+    reset({ base = this.params.base, ref = this.params.ref } = {}) {
+      this.params.base = base;
+      this.params.ref = ref;
+      frame = 0; metered = null; factor = target = 1; holdT = 0; stale = true;
+    },
     render(renderer, writeBuffer, readBuffer) {
       if (!this.metering || pending || ++frame % 6) return;
       material.uniforms.tSrc.value = readBuffer.texture;
