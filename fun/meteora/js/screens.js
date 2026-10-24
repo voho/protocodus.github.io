@@ -15,6 +15,7 @@ import { CLASSES, HULLS } from './catalog.js';
 import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, SECONDARIES, assess, bankCount, matchesRecommendation, normalizeLoadout, ratings } from './loadout.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './difficulty.js';
 import { MISSIONS, SPECIAL_OPS, TRAINING, COMMENDATIONS, RANKS, isAvailable, missionById, missionLabel, nextMission, rankOf } from './campaign.js';
+import { aftermath, difficultyTactics } from './operations.js';
 import { PROLOGUE, CODEX, HINTS, CASE_FILE } from './story.js';
 
 const KEY = 'meteora.settings';
@@ -100,7 +101,8 @@ function drawMap(canvas, mission, focus, t) {
   let seed = mission.number * 977 + 13;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   ctx.fillStyle = 'rgba(160, 170, 190, 0.18)';
-  for (let k = 0; k < 900; k++) {
+  const rockCount = Math.min(900, (mission.field?.types ?? []).reduce((n, t) => n + t.count, 0));
+  for (let k = 0; k < rockCount; k++) {
     const x = (rnd() - 0.5) * extent * 2, z = (rnd() - 0.5) * extent * 2;
     const clear = (mission.map.icons ?? []).some(i => (i.kind === 'capital' || i.kind === 'station' || i.kind === 'capital-enemy') && Math.hypot(i.pos[0] - x, i.pos[2] - z) < 700);
     if (clear) continue;
@@ -349,7 +351,7 @@ export function createScreens(root, settings, handlers) {
       const card = (m, num, cls, open, where) => {
         const best = progress.best[m.id];
         const b = el(doc, 'button', { type: 'button', class: `mission${cls}`, disabled: !open });
-        b.innerHTML = `<span class="num">${num}</span><strong>${open ? m.title : 'Classified'}</strong>${where ? `<span class="where">${where}</span>` : ''}${best ? `<span class="score">${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
+        b.innerHTML = `<span class="num">${num}</span><strong>${open ? m.title : 'Classified'}</strong>${open && m.operation ? `<span class="mission-role">${m.operation.role}</span>` : ''}${where ? `<span class="where">${where}</span>` : ''}${best ? `<span class="score">${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
         if (open) b.addEventListener('click', () => onPick(m));
         return b;
       };
@@ -361,6 +363,7 @@ export function createScreens(root, settings, handlers) {
       const grid = el(doc, 'div', { class: 'mission-grid' });
       for (const m of MISSIONS) {
         const open = isAvailable(progress, m);
+        if ([1, 4, 8].includes(m.number)) grid.append(el(doc, 'p', { class: 'campaign-act', text: m.operation.act }));
         grid.append(card(m, `Mission ${m.number}`, m === next && !progress.best[m.id] ? ' next' : '', open, open ? m.location : ''));
       }
       box.append(extra, grid);
@@ -371,6 +374,16 @@ export function createScreens(root, settings, handlers) {
       $('[data-brief-eyebrow]').textContent = `${missionLabel(mission)} · ${mission.location}`;
       $('[data-brief-title]').textContent = mission.title;
       $('[data-brief-dateline]').textContent = mission.dateline ?? '';
+      const operation = $('[data-brief-operation]');
+      operation.textContent = '';
+      if (mission.operation) {
+        operation.append(el(doc, 'span', { class: 'eyebrow', text: `${mission.operation.act} / ${mission.operation.role}` }),
+          el(doc, 'p', { text: mission.operation.stakes }), el(doc, 'small', { text: mission.operation.pace }));
+      }
+      operation.hidden = !mission.operation;
+      const tactics = $('[data-brief-tactics]');
+      const showTactics = key => { tactics.textContent = [mission.operation?.tactic, difficultyTactics(key)].filter(Boolean).join(' '); };
+      showTactics(difficultyKey);
       const obj = $('[data-brief-objectives]');
       obj.textContent = '';
       for (const o of mission.objectivesPreview) obj.append(el(doc, 'li', { class: o.bonus ? 'bonus' : '', text: o.text }));
@@ -389,6 +402,7 @@ export function createScreens(root, settings, handlers) {
         b.addEventListener('click', () => {
           for (const o of seg.children) o.setAttribute('aria-checked', String(o === b));
           onDifficulty(key);
+          showTactics(key);
         });
         seg.append(b);
       }
@@ -529,6 +543,9 @@ export function createScreens(root, settings, handlers) {
       const story = !mission ? 'The waves never stop. How long can you last?'
         : res.won ? mission.debrief.won
           : res.died ? (mission.debrief.died ?? SHOT_DOWN) : mission.debrief.lost;
+      const personal = aftermath(res);
+      $('[data-debrief-aftermath]').textContent = personal;
+      $('[data-debrief-aftermath]').hidden = !personal;
       $('[data-debrief-text]').textContent = story;
       // What this mission added to the case file — and a clue left behind.
       const ev = $('[data-debrief-evidence]');
@@ -554,6 +571,8 @@ export function createScreens(root, settings, handlers) {
       row('Accuracy', res.stats.shots ? `${Math.round(res.stats.accuracy * 100)}%` : '—');
       if (res.stats.bestStreak > 1) row('Best streak', String(res.stats.bestStreak));
       if (res.stats.torpedoesDowned) row('Torpedoes shot down', String(res.stats.torpedoesDowned));
+      if (res.stats.commandKills) row('Wing command assists', String(res.stats.commandKills));
+      for (const wingman of res.wing ?? []) row(wingman.name, `${wingman.alive ? 'Returned' : 'Lost'} · ${wingman.kills} kills`);
       row('Score', res.score.toLocaleString('en'), 'total');
       const parts = [`combat ${res.combatScore.toLocaleString('en')}`];
       if (res.won) parts.push(`objectives ${res.objectiveScore.toLocaleString('en')}`, `time ${res.timeBonus.toLocaleString('en')}`);

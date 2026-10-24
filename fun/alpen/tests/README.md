@@ -10,6 +10,7 @@ node tests/terrain-shadow-check.mjs
 node tests/terrain-worker-check.mjs
 node tests/models-check.mjs
 node tests/graphics-check.mjs
+node tests/instance-lod-check.mjs
 node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
 ```
@@ -227,6 +228,21 @@ the check allows at most one byte of GPU rounding difference.
 compares the real tree models and distant images before and after vertex
 clipping, including the 170–220 m transition and both sides of its cutoff.
 It also checks that distant trees still cast their original shadow silhouette.
+It compares a complete tree batch before and after trimming its fully faded
+tail, checks exact pixel equality, and reports the detailed tree triangles
+submitted by the production pools. The Node instance LOD check covers arbitrary
+pool ordering, transformed parents, multiple cameras, cutoff precision and
+restoring counts without rewriting or uploading instance buffers.
+In Chromium's software WebGL renderer, the seeded forest fixture submitted
+222,858 → 195,750 detailed tree triangles (12.2% fewer), with zero changed
+image bytes. This measures geometry savings, not a hardware FPS improvement.
+The accompanying surface pass gives modeled stone and deadwood broken snow
+caps that fill with the storm, using their existing albedo maps and the same
+linear snow colour as the vegetation. The opening now starts in daylight so
+the rider, course contours and forest shadows are visible immediately.
+Browser QA covered charged keyboard and native touch jumps through landing,
+pause/resume at 960×600 and 390×844, and terrain resets at 2.2 and 8 km.
+The final captures reported no runtime/shader errors or horizontal overflow.
 The graphics check's resolution governor cases tell a slow GPU from a slow frame clock: a
 30 fps cap (or a frame time resolution does not change) walks down, finds
 nothing gained at the floor and returns to full resolution for good; a GPU

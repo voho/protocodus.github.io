@@ -16,7 +16,7 @@ const HOME = [400, 180, 2600];
 const PERPETUA = [400, 180, 3700];
 
 const FIELD = belt({
-  spawn: START, density: 0.9, landmarks: 4,
+  spawn: START, density: 0.42, sizes: [0.25, 0.5, 0.8, 1, 1], landmarks: 2,
   clear: [{ pos: ALPHA, r: 260 }, { pos: PERPETUA, r: 950 }],
   lanes: [{ a: HOME, b: PERPETUA, r: 400 }],
 });
@@ -124,19 +124,21 @@ export default defineMission({
     m.music('combat');
     const ambushAt = add(m.player.ship.pos, dir(m.player.ship.pos, BETA).map(v => v * 1300));
     const first = wave(m, 'thorn', m.n(3), add(ambushAt, [0, -150, 0]), { toward: m.player, spread: 200 });
-    yield m.say('saint', 'Contacts! Three, low — unknown configuration!');
+    yield m.say('saint', `Contacts! ${first.length}, low — unknown configuration!`);
     m.say('doukas', 'Weapons free, Lantern. Weapons free!');
     m.complete('beta');
     m.objective('hostiles', 'Destroy the hostiles');
     m.hint('{cycleTarget} targets a hostile. Crosshair on the red diamond, left click.', 8);
     yield m.until(() => first.filter(e => e.alive).length <= Math.max(0, first.length - 2));
     const second = wave(m, 'thorn', m.n(2), m.offscreen(m.player, 1500), { toward: m.player });
-    yield m.say('saint', 'Two more behind us — they were waiting!');
+    yield m.say('saint', `${second.length} more behind us — they were waiting! Stay with me, Lead.`);
     m.hint('Keep the target ahead until it locks, then right click: missile.', 8);
     yield m.until(() => [...first, ...second].every(e => !e.alive));
     m.complete('hostiles');
     m.music('calm');
-    yield m.say('saint', 'Red eyes. I\'m not sleeping tonight.');
+    if (saint.alive) yield m.say('saint', m.done('recorder')
+      ? 'We got her voice back. Whatever happens next, Amaro does not just disappear.'
+      : 'Red eyes. I\'m not sleeping tonight. Next time we bring a recorder home.');
     if (m.player.hull < m.player.maxHull * 0.5) m.hint('Hull damaged: {repair} calls a repair drone.', 8);
     yield m.say('doukas', 'Lantern, come home. I want every frame of those sensor logs on my desk.');
     m.showNav('home');

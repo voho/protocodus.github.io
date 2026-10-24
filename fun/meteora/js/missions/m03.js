@@ -132,6 +132,7 @@ export default defineMission({
 
     yield m.say('doukas', 'Three signals, Lantern. Look, scan, leave. If anything with a red eye sees you — you were never there.');
     yield m.say('okonkwo', 'The Eyes see heat and noise. Keep your speed down and your guns cold. Rocks are your friends today.');
+    m.say('wren', 'Holding outside the net. You are alone on their sensors, not on ours. I will be here.');
     m.hint('Stay outside an Eye\'s ring or behind a rock. Slower is quieter.', 10);
     yield m.until(() => m.done('a') || m.done('b'));
     if (m.done('a')) yield m.say('saint', 'They\'re… taking it apart. Plate by plate.');
@@ -164,7 +165,7 @@ export default defineMission({
     m.timer('run', 'Fold point', run);
     m.on('timerDone', ev => { if (ev.id === 'run' && !m.done('run')) m.fail('run', 'The Harrow cut off your escape.'); });
     m.thread((function* () {
-      yield m.until(() => m.dist(m.player, SIG_C) > 2600);
+      yield m.until(() => m.dist(m.player, SIG_C) > 2000 || m.timeLeft('run') < run * 0.55);
       const help = m.wing('kestrel', 1, { names: ['Wren'], fold: true, pos: add(m.player.ship.pos, [80, 40, 300]) });
       m.order(help, { type: 'cover' });
       yield m.say('wren', 'Lantern One, Wren! Coming in hot — keep running, I\'ve got your tail!');

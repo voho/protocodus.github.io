@@ -303,8 +303,8 @@ export function straightLine(n, from, to) {
   return cells;
 }
 
-/* What to do for a hint: cut back a path that has left the solution, or
-   show the way to the next number. */
+/* Guidance for a hint: identify the part to retrace after a wrong turn,
+   or the way to the next number. The caller only highlights these cells. */
 export function hint(puzzle, path) {
   const { solution } = puzzle;
   let good = 0;

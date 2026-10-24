@@ -1,7 +1,7 @@
 /* Hedgerow — enemy soldiers.
 
    Each German soldier has a post (standing guard, patrolling, manning a
-   machine gun or watching from the church tower) and a leash around it.
+   machine gun) and a leash around it.
 
    Perception: a sight cone shortened by the player's crouch, the dark and
    distance, lengthened when the player fires; line of sight through the
@@ -26,8 +26,7 @@
    to fire. Suppression (bullets landing close) keeps them down. If the
    player stays out of sight close by, they may throw a stick grenade; if
    the player disappears for long, they go and look. Machine gunners swing
-   their gun within its arc and hose the last known position; the sniper
-   aims slowly, and the glint of his scope gives him away.
+   their gun within its arc and hose the last known position.
 
    Enemy fire is resolved as a roll against the player's exposure (head /
    chest visible), distance, stance and movement; misses still land
@@ -46,8 +45,8 @@ const R = rng(1944);
 const FACES = rng(1907);      // faces on their own stream, so they do not shift the AI's dice
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
 
-const BASE_ACC = { rifle: 0.5, smg: 0.3, mg: 0.2, sniper: 0.85, officer: 0.4 };
-const WEAPON_OF = { rifle: 'kar98k', smg: 'mp40', mg: 'mg42', sniper: 'sniper', officer: 'mp40' };
+const BASE_ACC = { rifle: 0.5, smg: 0.3, mg: 0.2, officer: 0.4 };
+const WEAPON_OF = { rifle: 'kar98k', smg: 'mp40', mg: 'mg42', officer: 'mp40' };
 
 /* ---------- cover points from the world's low obstacles ---------- */
 
@@ -119,17 +118,6 @@ export function createEnemies(G, defs) {
     return out;
   };
 
-  // sniper glint
-  const glintTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d');
-    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.15, 'rgba(255,240,200,0.8)'); gr.addColorStop(1, 'rgba(255,200,120,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    g.fillStyle = 'rgba(255,255,255,0.7)'; g.fillRect(0, 31, 64, 2); g.fillRect(31, 0, 2, 64);
-    return new THREE.CanvasTexture(c);
-  })();
-
   for (const d of defs) enemies.push(spawn(d));
 
   function spawn(d) {
@@ -146,8 +134,8 @@ export function createEnemies(G, defs) {
       phase: 'hide', phaseTimer: 0, grenades: type === 'rifle' ? 1 : type === 'smg' ? 1 : 0, grenadeCheck: 2 + R() * 3,
       perceiveTimer: R() * 0.15, searchTimer: 0, stuck: 0, lastPos: new THREE.Vector3(), alertAt: -1,
       patrol: d.patrol || null, patrolIdx: 0, patrolWait: 0,
-      leash: d.hold ? 0 : d.leash ?? (type === 'mg' || type === 'sniper' ? 0 : 18),
-      mg: null, glint: null, active: false, firstShot: true, shotsAtTarget: 0,
+      leash: d.hold ? 0 : d.leash ?? (type === 'mg' ? 0 : 18),
+      mg: null, active: false, firstShot: true, shotsAtTarget: 0,
       mag: wdef.mag || 30, reloadT: 0, reloadTotal: 1, reloadStage: 0,
       path: null, pathIdx: 0, pathFails: 0, srch: null, amb: null, alertCover: false,
       patience: 10, waryUntil: -1, scanPhase: R() * 6,
@@ -172,15 +160,14 @@ export function createEnemies(G, defs) {
         g.rotation.y = d.gun[3];
         G.scene.add(g);
         e.mg = { mesh: g, x: d.gun[0], y: d.gun[1], z: d.gun[2], baseYaw: d.gun[3], arc: d.arc ?? 1.0, muzzle: model.anchors.muzzle || [0, 0.25, 0.9] };
+        g.updateMatrixWorld(true);
+        e.mg.gunner = g.worldToLocal(e.pos.clone());
+        // The model anchor centres the body; seat the butt against the
+        // right shoulder, just in front of it, instead of through the neck.
+        e.mg.gunner.x += 0.14;
+        e.mg.gunner.z -= 0.08;
+        e.char.holdMountedWeapon(g, model.anchors);
       }
-    }
-    if (type === 'sniper') {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTex, color: '#ffe6b0', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-      s.scale.set(0.9, 0.9, 1);
-      s.visible = false;
-      G.scene.add(s);
-      e.glint = s;
-      e.stance = 'stand';
     }
     e.damage = (amount, from, part, byPlayer) => damage(e, amount, from, part, byPlayer);
     e.suppress = (t, from) => suppress(e, t, from);
@@ -258,7 +245,6 @@ export function createEnemies(G, defs) {
     if (G.debris && e.char.weapon && e.char.ragdoll) {
       G.debris.drop(e.char.weapon, new THREE.Vector3((R() - 0.5) * 1.5, 1.2, (R() - 0.5) * 1.5), { spin: 5, radius: 0.08, life: 240 });
     }
-    if (e.glint) e.glint.visible = false;
     G.stats.kills++;
     if (part === 'head') G.stats.headshots++;
     G.events.emit('enemyKilled', e);
@@ -316,7 +302,7 @@ export function createEnemies(G, defs) {
           e.lastKnown = { x, z };
           e.awareness = Math.max(e.awareness, 0.85);
           e.state = 'alert';
-          e.alertCover = e.type !== 'mg' && e.type !== 'sniper';
+          e.alertCover = e.type !== 'mg';
           e.path = null;
         }
       }
@@ -332,7 +318,7 @@ export function createEnemies(G, defs) {
     }
   });
 
-  const canLeave = (e) => e.leash > 0 && !e.def.hold && e.type !== 'mg' && e.type !== 'sniper';
+  const canLeave = (e) => e.leash > 0 && !e.def.hold && e.type !== 'mg';
 
   /* ---------- perception ---------- */
 
@@ -354,7 +340,7 @@ export function createEnemies(G, defs) {
     const combat = e.state === 'combat';
     // looking for him (searching, waiting in ambush, still wary): eyes open wider
     const ready = e.state === 'search' || e.state === 'ambush' || e.state === 'alert' || G.time < e.waryUntil;
-    let range = (e.type === 'sniper' ? 150 : e.type === 'mg' ? 95 : ENEMY.viewRange) * p.visible * (combat ? 1.7 : ready ? 1.25 : 1);
+    let range = (e.type === 'mg' ? 95 : ENEMY.viewRange) * p.visible * (combat ? 1.7 : ready ? 1.25 : 1);
     if (G.lightning > 0.4) range *= 1.4;
     if (dist > range) return;
     const ang = Math.abs(wrapAngle(Math.atan2(dx, dz) - e.yaw));
@@ -706,35 +692,6 @@ export function createEnemies(G, defs) {
     } else e.aimTimer = Math.max(e.aimTimer, 0.4);
   }
 
-  function updateSniper(e, dt) {
-    const p = G.player;
-    const lk = e.lastKnown || { x: p.pos.x, z: p.pos.z };
-    face(e, lk.x, lk.z, 3, dt);
-    e.stance = e.suppressed > 0 ? 'crouch' : 'stand';
-    e.suppressed = Math.max(0, e.suppressed - dt);
-    e.fireTimer -= dt;
-    const glint = e.glint;
-    if (e.sees && e.suppressed <= 0) {
-      e.aimTimer += dt;
-      if (glint) {
-        glint.visible = true;
-        e.char.headWorld(glint.position);
-        glint.position.y += 0.02;
-        const k = Math.min(1, e.aimTimer / 1.8);
-        glint.material.opacity = 0.35 + 0.65 * k * (0.75 + 0.25 * Math.sin(G.time * 18));
-        glint.scale.setScalar(0.6 + k * 0.8);
-      }
-      if (e.aimTimer > 2.1 && e.fireTimer <= 0 && e.reloadT <= 0) {
-        shoot(e);
-        e.fireTimer = e.wdef.interval;
-        e.aimTimer = 0.6;
-      }
-    } else {
-      e.aimTimer = Math.max(0, e.aimTimer - dt * 2);
-      if (glint) glint.visible = e.aimTimer > 0.2;
-    }
-  }
-
   /* ---------- walking somewhere ---------- */
 
   /* Along a path on the walk grid to (tx, tz), looking where he goes or at
@@ -821,7 +778,7 @@ export function createEnemies(G, defs) {
     }
     // standing guard: back at the post, looking round a little
     e.vel.set(0, 0, 0);
-    if (e.type !== 'mg' && e.type !== 'sniper' && Math.hypot(e.home.x - e.pos.x, e.home.z - e.pos.z) > 0.6) {
+    if (e.type !== 'mg' && Math.hypot(e.home.x - e.pos.x, e.home.z - e.pos.z) > 0.6) {
       if (goTo(e, e.home.x, e.home.z, ENEMY.walk, dt)) e.path = null;
       return;
     }
@@ -1082,15 +1039,27 @@ export function createEnemies(G, defs) {
         G.audio.footstep(e.pos.x, e.pos.y, e.pos.z, G.world.surfaceUnder(e.pos.x, e.pos.y, e.pos.z), crouch ? 0.5 : speed > 3 ? 1.1 : 0.8, false, { run: speed > 3, wet: G.shared.wet.value });
       }
     }
-    const firing = e.state === 'combat' && (e.phase === 'peek' || e.phase === 'open' || e.type === 'mg' || e.type === 'sniper') && speed < 3;
+    const firing = e.state === 'combat' && (e.phase === 'peek' || e.phase === 'open' || e.type === 'mg') && speed < 3;
     // looking for him, waiting for him, or wary after a scare: rifle up
     const ready = (e.state === 'search' && e.srch?.reason !== 'body') || e.state === 'ambush' || e.state === 'alert' ||
       (G.time < e.waryUntil && e.state !== 'idle');
     let upper = firing || (ready && speed < 3) ? (crouch ? 'crouch_aim' : 'aim') : move;
-    if (e.type === 'mg') upper = crouch ? 'crouch_idle' : 'crouch_aim';
-    if (e.type === 'mg' && !crouch) move = 'crouch_idle';
+    if (e.type === 'mg') {
+      // Lean square over the mounted gun; its grip anchors pose both arms.
+      // The full crouch puts the shoulders below this chest-high mount,
+      // while a rifle's bladed aiming pose twists them away from the stock.
+      ch.mountedGrip = !crouch;
+      move = crouch ? 'crouch_idle' : e.mg && e.mg.y - e.pos.y < 1 ? 'mg_ready' : 'idle';
+      upper = 'crouch_idle';
+      if (e.mg) {
+        e.mg.mesh.updateMatrixWorld(true);
+        // Traverse about the bipod together, keeping the gunner behind the
+        // stock instead of leaving him planted as the gun swings away.
+        e.pos.copy(e.mg.gunner).applyMatrix4(e.mg.mesh.matrixWorld);
+      }
+    }
     ch.animate(move, upper, gait);
-    if (firing && e.lastKnown) {
+    if (firing && e.lastKnown && !e.mg) {
       const p = G.player;
       const dy = (p.pos.y + 1.2) - (e.pos.y + 1.4);
       const dh = Math.hypot(e.lastKnown.x - e.pos.x, e.lastKnown.z - e.pos.z);
@@ -1152,7 +1121,6 @@ export function createEnemies(G, defs) {
       }
       if (e.state === 'combat') {
         if (e.type === 'mg') updateMG(e, dt);
-        else if (e.type === 'sniper') updateSniper(e, dt);
         else updateCombatRifle(e, dt);
       } else if (e.state === 'search') updateSearch(e, dt);
       else if (e.state === 'ambush') updateAmbush(e, dt);
@@ -1165,7 +1133,7 @@ export function createEnemies(G, defs) {
       if ((e.state === 'alert' || (e.state !== 'combat' && e.state !== 'ambush' && e.awareness > 0.15)) && dPl < 70) {
         const ang = wrapAngle(Math.atan2(e.pos.x - p.pos.x, e.pos.z - p.pos.z) - G.rig.yaw);
         aware.push({ angle: ang, level: clamp(e.awareness, 0, 1), alert: false, d: dPl });
-      } else if (e.state === 'combat' && e.sees && dPl < 60 && (e.type === 'sniper' || e.type === 'mg')) {
+      } else if (e.state === 'combat' && e.sees && dPl < 60 && e.type === 'mg') {
         const ang = wrapAngle(Math.atan2(e.pos.x - p.pos.x, e.pos.z - p.pos.z) - G.rig.yaw);
         aware.push({ angle: ang, level: 1, alert: true, d: dPl });
       }
@@ -1186,7 +1154,6 @@ export function createEnemies(G, defs) {
       e.phase = 'hide'; e.suppressed = 0; e.vel.set(0, 0, 0); e.health = ENEMY.health * (e.def.tough || 1);
       e.mag = e.wdef.mag || 30; e.reloadT = 0; e.reloadRun?.end(); e.reloadRun = null; e.char.holdLeft(null);
       e.srch = null; e.amb = null; e.path = null; e.alertCover = false; e.waryUntil = -1; e.patrolIdx = 0; e.patrolWait = 0;
-      if (e.glint) e.glint.visible = false;
       if (e.mg) e.mg.mesh.rotation.y = e.mg.baseYaw;
     }
     intel.clear();

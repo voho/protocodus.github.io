@@ -21,8 +21,8 @@ const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
 const stage = createStage(canvas, {
-  accent: ACCENT, elevation: 1.02,
-  backdrop: { top: '#2a1a2e', bottom: '#060308', glow: '#f29e8e', glowStrength: 0.1 },
+  accent: ACCENT, secondary: '#ff6b9d', elevation: 1.02,
+  backdrop: { top: '#2a1a2e', bottom: '#060308', glow: '#f29e8e', glowStrength: 0.1, blobA: '#ff6b9d', blobB: '#7ad3ff', blobStrength: 0.08 },
 });
 if (!stage) {
   loading.classList.add('failed');
@@ -35,6 +35,7 @@ async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), dust: createBursts(stage.scene, { max: 300, additive: true }) };
   stage.dust({ colour: '#f6d155', extent: 6 });
+  stage.bokeh({ colours: [ACCENT, '#ff6b9d', '#7ad3ff', '#ffffff'] });
   const sound = createSound('patcher');
 
   let puzzle = null;
@@ -87,7 +88,6 @@ async function boot() {
     drag = null;
     cursor = -1;
     keyAnchor = -1;
-    stage.orbit(0);
     announce();
   }
 
@@ -97,7 +97,6 @@ async function boot() {
     sound.win();
     board.celebrate();
     stage.flash('#ffffff', 0.8);
-    stage.orbit(0.1);
     announce();
     const finished = puzzle;
     setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1600);
@@ -133,7 +132,8 @@ async function boot() {
     canvas.setPointerCapture(event.pointerId);
     const covering = patches.find((p) => inside(p, cell));
     if (covering) { lift(covering); return; }
-    drag = { anchor: cell, cell, rect: rectBetween(cell, cell), moved: false };
+    const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
+    drag = { anchor: cell, cell, left: x, right: x, top: y, bottom: y, rect: rectBetween(cell, cell), moved: false };
     board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
   });
   canvas.addEventListener('pointermove', (event) => {
@@ -143,7 +143,14 @@ async function boot() {
       if (cell >= 0 && cell !== drag.cell) {
         drag.cell = cell;
         drag.moved = true;
-        drag.rect = rectBetween(drag.anchor, cell);
+        // The patch is painted: every cell the pointer has passed stays in
+        // it, so going up and then down keeps the top cells and joins the
+        // bottom ones, rather than stretching between the start and the
+        // pointer alone.
+        const x = cell % puzzle.size, y = Math.floor(cell / puzzle.size);
+        drag.left = Math.min(drag.left, x); drag.right = Math.max(drag.right, x);
+        drag.top = Math.min(drag.top, y); drag.bottom = Math.max(drag.bottom, y);
+        drag.rect = { x: drag.left, y: drag.top, w: drag.right - drag.left + 1, h: drag.bottom - drag.top + 1 };
         board.preview(drag.rect, rejectReason(puzzle, patches, drag.rect) === null);
       }
     } else if (event.pointerType === 'mouse') {
@@ -217,7 +224,7 @@ async function boot() {
     onNew: start,
     onReset() {
       if (!board) return;
-      if (solved) { solved = false; stage.orbit(0); }
+      if (solved) solved = false;
       for (const patch of patches.slice()) board.lift(patch.clue);
       if (patches.length) sound.lift();
       patches = [];
@@ -237,11 +244,11 @@ async function boot() {
       const next = hint(puzzle, patches);
       assisted = true;
       if (next.type === 'lift') {
-        lift(next.patch);
-        shell.toast('That patch was not in the solution, so it came off.');
+        board.show(next.patch, { mistake: true });
+        shell.toast('The highlighted patch blocks the solution. Tap it to lift it, then try another shape.', 5000);
       } else if (next.type === 'show') {
         board.show(next.patch);
-        shell.toast('There: a patch you can place now.');
+        shell.toast(`Try the highlighted ${next.patch.w} wide × ${next.patch.h} tall patch. Draw it yourself.`, 5000);
       }
       shell.countHint();
     },

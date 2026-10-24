@@ -201,7 +201,9 @@ const BANDS = [
    still longer than the glance that takes it in; three minutes is the
    fastest clock that keeps that true. */
 const DAY_SECONDS = 180;
-const START_TOD = 0.34;      // a bright morning, so the first look is the best one
+// Start with the sun high enough to reach the course between its shoulders.
+// At 0.34 the opening snow and rider spent the invitation in mountain shade.
+const START_TOD = 0.45;
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
 /* And the whole weather clock runs at this multiple of real time.
 

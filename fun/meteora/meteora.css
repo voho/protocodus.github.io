@@ -268,6 +268,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .missions { display: grid; gap: 18px; align-content: start; }
 .mission-extra { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mission-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.campaign-act { grid-column: 1 / -1; margin: 20px 0 3px; color: var(--amber, #ffb347); font: 500 12px Orbitron, sans-serif; letter-spacing: .08em; }
+.mission-role { color: #9fc5de; font-size: 11px; line-height: 1.5; }
+.operation { margin: 16px 0; padding: 13px 16px; border-left: 2px solid #ffb347; background: rgba(127,216,255,.04); }
+.operation .eyebrow { font-size: 10px; line-height: 1.6; }
+.operation p { margin: 8px 0; color: #ece9e1; line-height: 1.5; }
+.operation small, .tactical-advice { color: #a0b2cd; font-size: 12px; line-height: 1.6; }
+.tactical-advice { padding-left: 12px; border-left: 1px solid rgba(127,216,255,.3); }
 .mission {
   position: relative; display: flex; flex-direction: column; gap: 3px; text-align: left;
   padding: 14px 14px 13px; min-height: 104px;
@@ -392,6 +399,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .medal-row strong { font-size: 18px; letter-spacing: 0.12em; }
 .medal-row span { color: var(--muted); font-size: 15px; }
 .debrief .story-text { font-size: 18px; margin-bottom: 4px; }
+.sortie-aftermath { padding: 12px 16px; margin: 14px 0; border-left: 2px solid var(--gold); color: #d9d3c4; background: rgba(255,193,78,.05); font-size: 15px; line-height: 1.6; }
 .debrief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 36px; }
 .record { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0; font-size: 15px; max-width: 400px; }
 .record dt { color: var(--muted); }

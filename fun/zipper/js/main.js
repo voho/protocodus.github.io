@@ -14,8 +14,8 @@ const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
 const stage = createStage(canvas, {
-  accent: ACCENT, elevation: 1.0,
-  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13 },
+  accent: ACCENT, secondary: '#8f7cff', elevation: 1.0,
+  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13, blobA: '#2fd9c0', blobB: '#7a5cff', blobStrength: 0.08 },
 });
 if (!stage) {
   loading.classList.add('failed');
@@ -28,6 +28,7 @@ async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), sparks: createBursts(stage.scene, { max: 300, additive: true }) };
   stage.dust({ colour: ACCENT, extent: 6 });
+  stage.bokeh({ colours: [ACCENT, '#7a5cff', '#ffffff', '#f6d155'] });
   const sound = createSound('zipper');
 
   let puzzle = null;
@@ -62,7 +63,6 @@ async function boot() {
     path = [puzzle.waypoints[0]];
     solved = false;
     assisted = false;
-    stage.orbit(0);
     board.setPath(path);
     announce();
   }
@@ -73,7 +73,6 @@ async function boot() {
     sound.win();
     board.celebrate();
     stage.flash(ACCENT, 1);
-    stage.orbit(0.1);
     announce();
     const finished = puzzle;
     setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
@@ -172,7 +171,7 @@ async function boot() {
     onNew: start,
     onReset() {
       if (!board) return;
-      if (solved) { solved = false; stage.orbit(0); }
+      if (solved) solved = false;
       cutTo(0);
       shell.restart();
       announce();
@@ -182,16 +181,12 @@ async function boot() {
       const next = hint(puzzle, path);
       assisted = true;
       if (next.type === 'cut') {
-        cutTo(next.keep - 1);
-        shell.toast('The line had gone wrong there, so it stepped back.');
+        board.showHint(path.slice(next.keep), { mistake: true });
+        shell.toast('The highlighted part takes a wrong turn. Retrace it to the last unmarked cell.', 5000);
       } else if (next.type === 'extend') {
-        for (const cell of next.cells) path.push(cell);
-        board.setPath(path);
-        shell.begin();
-        sound.number();
-        shell.toast('There: the way to the next number.');
-        announce();
-        if (isSolved(puzzle, path)) finish();
+        board.showHint(next.cells);
+        const number = puzzle.numbers[next.cells.at(-1)];
+        shell.toast(`Follow the highlighted cells to ${number}. Draw the line yourself.`, 5000);
       }
       shell.countHint();
     },

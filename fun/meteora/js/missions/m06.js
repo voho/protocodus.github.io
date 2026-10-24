@@ -4,7 +4,8 @@
    crawls toward the rally point where the Watch's two gunships will meet
    her. Six minutes. The Harrow throw everything they have at her: Thorns,
    Talons and, above all, Mauls. Halfway through, a bomber flight breaks
-   out of the rock close aboard. And Okonkwo starts to read the Harrow's
+   through a close fold under the hull. An engineering crew needs cover
+   during an engine patch. And Okonkwo starts to read the Harrow's
    transponders. */
 
 import { defineMission } from '../mission.js';
@@ -15,7 +16,7 @@ const PERPETUA = [0, 0, 1200];
 const RALLY = [0, 0, -1600];
 const START = [600, 260, -600];
 const FIELD = belt({
-  spawn: START, density: 0.85, landmarks: 3,
+  spawn: START, density: 0, landmarks: 0,
   clear: [{ pos: PERPETUA, r: 1000 }, { pos: RALLY, r: 1000 }],
   lanes: [{ a: PERPETUA, b: RALLY, r: 950 }],
 });
@@ -37,7 +38,7 @@ export default defineMission({
     stages: [
       { text: 'The Perpetua\'s engines are three hundred years old and failing. She is carrying Varlaam\'s people to the rally point, where the Halberds Ardent and Vigil will meet her.', focus: PERPETUA },
       { text: 'It will take six minutes. The Harrow know where she is. Expect bombers in numbers: kill the Mauls first, shoot down what they launch.', focus: RALLY },
-      { text: 'Half her turrets are dead and Halo wing is one ship. Lose two of her three engines and she drifts into the rock. Her life is in your hands.', focus: PERPETUA },
+      { text: 'The eclipse corridor is open space. Half her turrets are dead and Halo wing is one ship. Lose two engines and she cannot reach the rally. Watch for close fold signatures; repair crews may need cover.', focus: PERPETUA },
     ],
   },
   map: {
@@ -96,7 +97,7 @@ export default defineMission({
       if (ev.id !== perpetua.id || ev.kind !== 'engine') return;
       const left = engines.filter(s => s.alive).length;
       m.say('perpetua', left >= 2 ? 'Engine down! We can make it on two — not on one!' : 'Second engine gone — we\'re losing way, we\'re drifting!');
-      if (left < 2) m.fail('engines', 'The Perpetua lost two engines and drifted into the rock.');
+      if (left < 2) m.fail('engines', 'The Perpetua lost two engines and could not reach the rally.');
     });
     m.on('shipHit', ev => { if (ev.id === perpetua.id && perpetua.hull < perpetua.maxHull * 0.75) m.fail('hull'); });
     m.on('missileLaunch', ev => {
@@ -111,6 +112,25 @@ export default defineMission({
       mauls.push(...b);
       return b;
     };
+    // A brief maintenance operation changes the middle of the defense.
+    // Covering the crew buys real engine health for the final bomber rush.
+    m.thread((function* () {
+      yield m.until(() => m.time >= 125);
+      const crew = m.spawn('tender', { team: 0, pos: add(perpetua.ship.pos, [680, 360, 750]), name: 'Engine repair crew',
+        objective: true, hullScale: 2, helm: { path: [add(perpetua.ship.pos, [680, 360, 400])], speed: 18 } });
+      m.objective('crew', 'Cover the engine repair crew', { bonus: true });
+      m.timer('patch', 'Engine patch', 40);
+      m.say('perpetua', 'Engineering team outside the hull. Forty seconds to brace the engines. Lantern, give them a clear sky.');
+      const hunters = wave(m, 'thorn', m.n(2), add(crew.ship.pos, [1300, 300, 400]), { toward: crew, orders: { type: 'attack', target: crew } });
+      yield m.until(() => !crew.alive || m.timeLeft('patch') <= 0);
+      m.removeTimer('patch');
+      if (crew.alive) {
+        for (const e of engines) if (e.alive) e.hull = Math.min(e.maxHull, e.hull + e.maxHull * 0.4);
+        m.complete('crew'); m.foldOut(crew);
+        m.say('perpetua', 'Braces locked. Engines holding. That cover bought us the rest of the night.');
+      } else { m.fail('crew'); m.say('perpetua', 'Repair crew lost. We keep going on what we have.'); }
+      for (const h of hunters) if (h.alive) m.order(h, { type: 'attack', target: m.player });
+    })(), 'repairs');
 
     yield m.say('doukas', 'All wings, Perpetua. Six minutes to the rally point. She can\'t run or hide. Keep everything off her.');
     m.say('halo', 'Halo Lead, on the Perpetua. Glad to have you, Lantern.');
@@ -120,7 +140,7 @@ export default defineMission({
     const port = at(PERPETUA, 280, 3000, 200);
     wave(m, 'thorn', m.n(5), port, { toward: perpetua });
     bombers(m.n(3), add(port, [0, -300, -300]), 'sub_engine_0');
-    yield m.say('saint', 'First wave to port: fighters and two bombers!');
+    yield m.say('saint', 'First wave to port: fighters above, bombers below!');
 
     yield m.wait(70);
     const starboard = at(PERPETUA, 95, 3000, -150);
@@ -137,12 +157,16 @@ export default defineMission({
     m.say('okonkwo', 'Commander — their transponders broadcast a registry. It\'s old. It\'s… formatted like ours.');
     m.say('doukas', 'Later, Doctor.');
 
-    // 3:30 — the ambush from the rocks.
-    yield m.until(() => m.time >= 210);
+    // 3:30 — the close fold, warned ten seconds before the bombers arrive.
+    yield m.until(() => m.time >= 200);
+    m.say('halo', 'Close fold distortion under the carrier. That front group is a feint — check below us!');
+    m.timer('close', 'Close fold signatures', 10);
+    yield m.wait(10);
+    m.removeTimer('close');
     m.music('climax');
     const close = add(perpetua.ship.pos, [-650, -280, -300]);
-    bombers(m.n(3), close, 'sub_engine_2', { fold: false });
-    yield m.say('perpetua', 'Proximity alarm — Mauls inside eight hundred metres! They were in the rocks!');
+    bombers(m.n(3), close, 'sub_engine_2');
+    yield m.say('perpetua', 'Proximity alarm — Mauls folded inside eight hundred metres!');
     m.say('doukas', 'Lantern, they\'re on top of us!');
 
     yield m.wait(60);
