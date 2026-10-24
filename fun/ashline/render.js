@@ -17,9 +17,10 @@ const TEAM = [
 const SIZES = Object.assign(Object.create(null), Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size])));
 const entityRole = e => buildingRole(unitRole(e));
 const wallKey = e => `${e.team}:${e.x}:${e.y}`;
+const WALL_SIDES = [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]];
 function wallConnections(e, walls) {
   let bits = 0;
-  for (const [dx, dy, bit] of [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]]) if (walls.has(`${e.team}:${e.x + dx}:${e.y + dy}`)) bits |= bit;
+  for (const [dx, dy, bit] of WALL_SIDES) if (walls.has(`${e.team}:${e.x + dx}:${e.y + dy}`)) bits |= bit;
   return bits;
 }
 const BUILDINGS = new Set(Object.keys(SIZES));
@@ -70,6 +71,21 @@ function smoothNoise(x, y, seed = 0) {
   const fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
   return (noise(ix, iy, seed) * (1 - u) + noise(ix + 1, iy, seed) * u) * (1 - v)
     + (noise(ix, iy + 1, seed) * (1 - u) + noise(ix + 1, iy + 1, seed) * u) * v;
+}
+// smoothNoise for a scan of neighbouring pixels: the four lattice values are kept while the lattice cell is
+// unchanged, so a cell that spans dozens of pixels costs four noise() calls instead of four per pixel.
+// The arithmetic is smoothNoise's own, so every value is identical.
+function latticeNoise() {
+  let cx = NaN, cy = NaN, cs = NaN, n00 = 0, n10 = 0, n01 = 0, n11 = 0;
+  return (x, y, seed = 0) => {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    if (ix !== cx || iy !== cy || seed !== cs) {
+      n00 = noise(ix, iy, seed); n10 = noise(ix + 1, iy, seed); n01 = noise(ix, iy + 1, seed); n11 = noise(ix + 1, iy + 1, seed);
+      cx = ix; cy = iy; cs = seed;
+    }
+    const fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    return (n00 * (1 - u) + n10 * u) * (1 - v) + (n01 * (1 - u) + n11 * u) * v;
+  };
 }
 // Code-drawn gradients, lamps, smoke and fire are baked once into small sprites and scaled with
 // drawImage: a radial gradient or shadowBlur per call was the renderer's largest state churn.
@@ -696,6 +712,8 @@ export class Renderer {
     this.rankBadges = new Map();
     this.lastMinimap = -Infinity;
     this.resetFrameState();
+    // The tactical map can change size without a window resize (layout breakpoints, collapsed panels).
+    if (minimapCanvas && globalThis.ResizeObserver) { this.minimapWatch = new ResizeObserver(() => { this.minimapBounds = null; this.lastMinimap = -Infinity; }); this.minimapWatch.observe(minimapCanvas); }
     // Screen shake is render-only and follows the operating system's reduced-motion preference.
     this.reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     assetsReady.then(() => { if (this.groundImage !== terrainImages.ground) this.terrainSource = null; });
@@ -775,7 +793,7 @@ export class Renderer {
       for (const badge of this.rankBadges.values()) badge.width = badge.height = 0;
       this.rankBadges.clear();
     }
-    this.dpr = dpr;
+    this.dpr = dpr; this.minimapBounds = null;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -799,6 +817,7 @@ export class Renderer {
     this.terrainSource = this.groundImage = null;
     this.fogTint = this.minimapBase = this.miniTiles = null;
     this.knownOre = this.knownMineralTypes = this.fogNoise = null;
+    this.oreState = this.oreGrid = this.oreTypes = this.fogImage = this.miniImage = this.minimapBounds = null;
     this.fogVisible = this.fogExplored = null;
     this.rockProps = []; this.propRows = []; this.scenery = [];
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
@@ -857,12 +876,13 @@ export class Renderer {
     const base = document.createElement('canvas'); base.width = state.width * 4; base.height = state.height * 4;
     this.fogNoise = new Uint8Array(base.width * base.height);
     const baseCtx = base.getContext('2d'), colors = baseCtx.createImageData(base.width, base.height);
+    const broadNoise = latticeNoise(), detailNoise = latticeNoise(), rustNoise = latticeNoise();
     for (let y = 0; y < base.height; y++) {
       if (y % 8 === 0) yield { value: .15 * y / base.height, label: `Laying ${environment.name.toLowerCase()}` };
       for (let x = 0; x < base.width; x++) {
-      const broad = smoothNoise(x / 43, y / 43, seed);
-      const detail = smoothNoise(x / 13, y / 13, seed + 9);
-      const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
+      const broad = broadNoise(x / 43, y / 43, seed);
+      const detail = detailNoise(x / 13, y / 13, seed + 9);
+      const rusty = Math.max(0, rustNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
       const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
       const warm = PROFILE_RELIEF[state.mapProfile]?.tint ?? 0;
       colors.data[i] = environment.ground[0] + c + rusty * environment.deposit[0] + warm;
@@ -1065,8 +1085,9 @@ export class Renderer {
     const rockMask = tileMask(i => state.terrain[i] === 1, 3);
     const basaltMask = tileMask((i, x, y) => coherentBasalt(state, i, x, y));
     stamp(basaltMask, '#7a7d76', 0, -1, .18);
+    const fleckNoise = latticeNoise(), seamNoise = latticeNoise();
     yield* plate(basaltMask, (x, y, data, at) => {
-      const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
+      const fleck = fleckNoise(x / 36, y / 36, seed + 61), seam = seamNoise(x / 92, y / 92, seed + 67);
       let [r, g, b] = environment.basalt;
       if (fleck > .62) { r += (106 - r) * .16; g += (111 - g) * .16; b += (106 - b) * .16; }
       if (Math.abs(seam - .5) < .008) { r += (29 - r) * .35; g += (34 - g) * .35; b += (36 - b) * .35; }
@@ -1077,8 +1098,9 @@ export class Renderer {
     if (state.terrain.includes(5)) {
       const craterMask = tileMask(i => state.terrain[i] === 5, 5);
       stamp(craterMask, '#928574', 0, 0, .24, 10);
+      const bowlNoise = latticeNoise(), foldNoise = latticeNoise();
       yield* plate(craterMask, (x, y, data, at) => {
-        const n = smoothNoise(x / 21, y / 21, seed + 95), fold = smoothNoise(x / 8, y / 8, seed + 97);
+        const n = bowlNoise(x / 21, y / 21, seed + 95), fold = foldNoise(x / 8, y / 8, seed + 97);
         // Keep the original granular ash visible through the bowl floor so it reads as
         // shallow traversable ground instead of a dark liquid pool or bottomless hole.
         data[at] = environment.ground[0] + 12 + n * 12 + fold * 7; data[at + 1] = environment.ground[1] + 9 + n * 9 + fold * 4; data[at + 2] = environment.ground[2] + 2 + n * 8; data[at + 3] = 118;
@@ -1099,8 +1121,9 @@ export class Renderer {
     stamp(rockMask, '#13191d', 3, 6, .30, 5);
     stamp(rockMask, '#2b2c2b', 0, 6); stamp(rockMask, '#403d37', 0, 3);
     stamp(rockMask, '#a29a87', -2, -2.5, .48);
+    const rockNoise = latticeNoise();
     yield* plate(rockMask, (x, y, data, at) => {
-      const n = smoothNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
+      const n = rockNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
       const light = Math.max(0, Math.min(1, (n - .58) * 6)) * .55, dark = Math.max(0, Math.min(1, (.40 - n) * 6)) * .55;
       let [r, g, b] = environment.rock;
       r += 15 * light - 23 * dark; g += 13 * light - 22 * dark; b += 10 * light - 19 * dark;
@@ -1620,13 +1643,15 @@ export class Renderer {
     if (!changed) changed = !sameBytes(visible, this.fogVisible) || !sameBytes(explored, this.fogExplored);
     if (!changed) return false;
     this.fogVisible = visible.slice(); this.fogExplored = explored.slice();
-    const low = this.fogLow.getContext('2d'), data = low.createImageData(state.width, state.height);
-    for (let i = 0; i < visible.length; i++) {
-      const p = i * 4;
-      data.data[p] = 12; data.data[p + 1] = 19; data.data[p + 2] = 27;
-      data.data[p + 3] = visible[i] ? 0 : explored[i] ? 162 : 255;
+    // One image serves every update: its colour is fixed when it is made, and only the coverage alpha changes.
+    const low = this.fogLow.getContext('2d');
+    if (this.fogImage?.width !== state.width || this.fogImage.height !== state.height) {
+      this.fogImage = low.createImageData(state.width, state.height);
+      for (let p = 0; p < this.fogImage.data.length; p += 4) { this.fogImage.data[p] = 12; this.fogImage.data[p + 1] = 19; this.fogImage.data[p + 2] = 27; }
     }
-    low.putImageData(data, 0, 0);
+    const data = this.fogImage.data;
+    for (let i = 0, p = 3; i < visible.length; i++, p += 4) data[p] = visible[i] ? 0 : explored[i] ? 162 : 255;
+    low.putImageData(this.fogImage, 0, 0);
     // The baked tint keeps its colour; the blurred low-res coverage only shapes its alpha.
     const ctx = this.fog.getContext('2d');
     ctx.clearRect(0, 0, this.fog.width, this.fog.height);
@@ -1750,9 +1775,13 @@ export class Renderer {
       drawSpriteShadow(ctx, wallVisual(e), clock);
     }
     world();
-    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport.
-    for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
-      this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport. In the live loop
+    // minerals and sensor coverage change only inside a simulation tick, so the sweep runs once per tick.
+    if (!(this.blending && state === this.oreState && time === this.oreTime && this.knownOre === this.oreGrid && this.knownMineralTypes === this.oreTypes)) {
+      for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
+        this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+      }
+      this.oreState = state; this.oreTime = time; this.oreGrid = this.knownOre; this.oreTypes = this.knownMineralTypes;
     }
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const i = y * W + x;
@@ -2267,7 +2296,7 @@ export class Renderer {
     const y = Math.round(py + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(px);
     const rank = unitRank(entity), team = entity.team === 1 ? 1 : 0;
     const group = team === 0 && entity.controlGroup >= 1 && entity.controlGroup <= 5 ? entity.controlGroup : 0;
-    const key = `${team}:${rank}:${group}`;
+    const key = (group * 4 + rank) * 2 + team;
     let badge = this.rankBadges.get(key);
     if (!badge) { badge = this.createRankBadge(team, rank, group); this.rankBadges.set(key, badge); }
     ctx.drawImage(badge, x - 14, y - (group ? 4 : 2), badge.width / this.dpr, badge.height / this.dpr);
@@ -2296,7 +2325,8 @@ export class Renderer {
   }
 
   minimapLayout(state) {
-    const c = this.minimap, bounds = c.getBoundingClientRect();
+    // Measuring forces a layout whenever the HUD changed; the box only changes with the window or the layout.
+    const c = this.minimap, bounds = this.minimapBounds ??= c.getBoundingClientRect();
     const w = bounds.width || 200, h = bounds.height || 150, s = Math.min(w / state.width, h / state.height);
     return { w, h, s, ox: (w - state.width * s) / 2, oy: (h - state.height * s) / 2 };
   }
@@ -2313,14 +2343,16 @@ export class Renderer {
     rect(ctx, 0, 0, w, h, '#0d1720');
     const visible = state.visible?.[0], explored = state.explored?.[0];
     if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
-    const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
+    const tiles = this.miniTiles.getContext('2d');
+    if (this.miniImage?.width !== state.width || this.miniImage.height !== state.height) this.miniImage = tiles.createImageData(state.width, state.height);
+    const img = this.miniImage, data = img.data;
     // Ash, raised rock, basalt, retired lava (older saves load it as rock), deadwood roots (warm grey-brown, so groves never
     // read as rock walls), crater floors.
     const {mini} = environmentFor(state);
     const palette = [mini.ground, mini.rock, mini.basalt, mini.rock, mini.tree, mini.crater];
     const ore = [[131, 213, 201], [131, 213, 201], [118, 183, 249], [247, 121, 153]];
     for (let i = 0; i < state.terrain.length; i++) {
-      if (explored && !explored[i]) continue;
+      if (explored && !explored[i]) { data[i * 4 + 3] = 0; continue; }
       const color = this.knownOre[i] > 0 ? ore[this.knownMineralTypes[i] || 1] : palette[state.terrain[i]] || palette[0], p = i * 4, dim = visible && !visible[i] ? .5 : 0;
       data[p] = color[0] + (10 - color[0]) * dim; data[p + 1] = color[1] + (21 - color[1]) * dim; data[p + 2] = color[2] + (32 - color[2]) * dim; data[p + 3] = 255;
     }

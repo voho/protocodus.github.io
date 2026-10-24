@@ -1770,7 +1770,8 @@ function frame(now) {
   try { frameStep(now); } finally { requestFrame(); }
 }
 function frameStep(now) {
-  const elapsed = Math.min((now - lastTime) / 1000, .2); lastTime = now;
+  // The frame timestamp can precede the performance.now() that restarted the clock on launch or resume.
+  const elapsed = Math.max(0, Math.min((now - lastTime) / 1000, .2)); lastTime = now;
   if (!busy()) {
     // Speed controls fixed simulation time; input/rendering still get a turn
     // between expensive ticks when large battles exceed the frame's CPU budget.
