@@ -3,7 +3,7 @@
   "checkpoint_id": "bcd35ef6c38c",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 10,
+  "checkpoints_count": 11,
   "files_touched": [
     "fun/meteora/js/ai.js",
     "fun/meteora/js/combat.js",
@@ -29,6 +29,13 @@
       "context": "/bc/d35ef6c38c/0/context.md",
       "content_hash": "/bc/d35ef6c38c/0/content_hash.txt",
       "prompt": "/bc/d35ef6c38c/0/prompt.txt"
+    },
+    {
+      "metadata": "/bc/d35ef6c38c/1/metadata.json",
+      "transcript": "/bc/d35ef6c38c/1/full.jsonl",
+      "context": "",
+      "content_hash": "/bc/d35ef6c38c/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
