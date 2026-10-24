@@ -89,16 +89,19 @@ function crownOf(model, name) {
   if (cr) return cr;
   let top = 0;
   for (const prim of model.prims || []) {
-    const P = prim.geometry?.attributes.position;
-    if (P) for (let i = 0; i < P.count; i++) top = Math.max(top, P.getY(i));
+    const P = prim.geometry?.attributes.position, index = prim.geometry?.index;
+    if (P) for (let i = 0, n = index ? index.count : P.count; i < n; i++) top = Math.max(top, P.getY(index ? index.getX(i) : i));
   }
   const xs = [], ys = [], zs = [];
   for (const prim of model.prims || []) {
-    const P = prim.geometry?.attributes.position;
+    const P = prim.geometry?.attributes.position, index = prim.geometry?.index;
     if (!P) continue;
-    for (let i = 0; i < P.count; i++) {
-      if (P.getY(i) < top * 0.36) continue;
-      xs.push(P.getX(i)); ys.push(P.getY(i)); zs.push(P.getZ(i));
+    // Preserve the triangle-corner weighting of the original unindexed
+    // models when fitting the crown's quantiles.
+    for (let i = 0, n = index ? index.count : P.count; i < n; i++) {
+      const v = index ? index.getX(i) : i;
+      if (P.getY(v) < top * 0.36) continue;
+      xs.push(P.getX(v)); ys.push(P.getY(v)); zs.push(P.getZ(v));
     }
   }
   if (xs.length < 20) return null;

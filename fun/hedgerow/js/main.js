@@ -909,7 +909,8 @@ if (DEBUG) setInterval(() => { if (performance.now() - lastStep > 150) step(); }
 function step() {
   lastStep = performance.now();
   timer.update();
-  const dt = Math.min(timer.getDelta(), 0.05);
+  const elapsed = timer.getDelta();
+  const dt = Math.min(elapsed, 0.05);
   if (!G || !G.weather || !G.rig) return;
   const playing = state === 'playing';
   const live = playing || state === 'dead' || state === 'complete' || state === 'fly';
@@ -1003,7 +1004,7 @@ function step() {
   G.lodScale = fovScale(camera.fov, G.rig?.baseFov ?? camera.fov);
   built.veg.update(dt, camera, quality, G.lodScale);
   G.grass.update(camera, player?.pos, renderer.domElement.height);
-  G.clutter.update(camera);
+  G.clutter.update(camera, renderer.domElement.width, renderer.domElement.height);
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
@@ -1018,9 +1019,12 @@ function step() {
   taa?.restore();
   blur?.store();
 
-  fpsAcc += dt; fpsFrames++;
-  if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }
   if (DEBUG) {
+    // Measure real frame time, not the capped simulation step (which
+    // otherwise reports at least 20 fps even when rendering is slower).
+    fpsAcc += elapsed; fpsFrames++;
+    if (fpsAcc < 0.5) return;
+    fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0;
     const i = renderer.info;
     const p = player ? player.pos : camera.position;
     const vs = built.veg.stats();

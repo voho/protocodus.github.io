@@ -81,8 +81,10 @@ throws every house's shadow across the street.
 Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
-contrast, sharpening, grain in the shadows — going soft behind whatever you
+gentle contrast, sharpening, subtle grain — going soft behind whatever you
 aim at.
+The ambient light keeps the lane and forest readable, with a light vignette
+and restrained grain so shadow detail stays clear.
 
 ## Controls
 
@@ -148,7 +150,11 @@ by the blast that killed them, and drop their rifles.
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
     set has one, the `_lod` impostor beyond the quality's near range (those
     distances, and the soldiers' 30 m, as they look through the view: down
-    the sights they reach 1.4 times further)
+    the sights they reach 1.4 times further); the parts of each model share
+    one placement buffer per tier, and only changed selections upload again
+  * `assets.js` retains shared vertex indices for military, nature and weapon
+    models, reducing geometry memory and allowing the scene and shadow passes
+    to reuse vertices; village window extraction keeps its flat triangles
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low
@@ -200,11 +206,14 @@ by the blast that killed them, and drop their rifles.
     height as the mesh draws it · `grass.js` the meadow grass on the GPU:
     one instanced draw of tufts of blades round the camera (high ~21 m,
     medium ~14 m, none on low), each placed, sized and leaned by a hash of
-    its world cell; tufts out of view collapse before the expensive part;
+    its world cell; `grass-cells.js` removes cells outside conservative view
+    bounds before they reach the GPU, preserving the original cell
+    hashes and density; the shader still rejects individual hidden tufts;
     light shines through the blades as through the leaves, most at their tips;
     the ground under it turns to dark, dry sward · `clutter.js` the same
     for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
-    lying along the slope (high and medium)
+    lying along the slope (high and medium); `clutter-cells.js` culls whole
+    cells conservatively before drawing, and empty cells skip terrain samples
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
     two sides, per species; on the other baked solids within ~7 m a
@@ -558,7 +567,17 @@ by the blast that killed them, and drop their rifles.
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
   (with a gap so they don't flicker), trees sort into full, mid and far,
   and down the sights detail reaches as far as the narrower view makes
-  things look near;
+  things look near; shared vegetation buffers preserve transforms and upload
+  only changed slots, including after a turn or a quality change;
+  `tests/grass-check.mjs` — compacted grass cells preserve the shader's
+  visibility bounds across camera angles, terrain heights and quality
+  changes, without repeated uploads for a stationary view;
+  `tests/clutter-cells-check.mjs` — ground clutter stays within conservative
+  bounds across camera angles, terrain heights, TAA jitter and quality changes;
+  `tests/assets-check.mjs` — indexed models retain every triangle attribute,
+  mixed static batches merge correctly, flat normals and parachutes stay intact;
+  `tests/hud-check.mjs` — the compass follows heading and objectives without
+  layout reads or repeated unchanged DOM writes;
   `tests/ai-check.mjs` — on the real level: every patrol route walkable, a
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
@@ -593,6 +612,10 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/ragdoll-check.mjs
       node fun/hedgerow/tests/distance-check.mjs
       node fun/hedgerow/tests/lod-check.mjs
+      node fun/hedgerow/tests/grass-check.mjs
+      node fun/hedgerow/tests/clutter-cells-check.mjs
+      node fun/hedgerow/tests/assets-check.mjs
+      node fun/hedgerow/tests/hud-check.mjs
       node fun/hedgerow/tests/ai-check.mjs
       node fun/hedgerow/tests/fp-check.mjs
       node fun/hedgerow/tests/clutter-check.mjs
@@ -602,9 +625,28 @@ by the blast that killed them, and drop their rifles.
       node fun/hedgerow/tests/rain-surfaces-check.mjs
       node fun/hedgerow/tests/loading-check.mjs
 
+For a repeatable visibility benchmark on the shipped colliders and sampled
+terrain, run `node fun/hedgerow/tests/sight-benchmark.mjs`. It compares the
+boolean visibility query with the equivalent nearest-hit raycast, checks
+that all answers agree, and reports alternating-batch median timings.
+Visibility stops at the first blocker, and enemies only check the player's
+head when the chest is hidden. A local run of 8,354 sight lines took about
+half as much CPU time; the grass check submits about 65% fewer tufts in its
+forward-facing view. These measure individual workloads, not overall FPS.
+
+Further frame savings retain the same rendered content: shared model indices
+reduce the shipped static model library's geometry storage by 33%; the clutter
+check submits about 67% fewer pieces in its forward view. Aiming computes its
+three focus samples at the fullscreen triangle's vertices, and volumetric
+lighting samples shadow visibility only where that light can contribute.
+Resting ragdolls keep their final bone pose, and the compass lets CSS handle
+responsive positioning without forcing a layout calculation each frame.
+
 URL switches for testing: `?debug` (frame stats), `?god`, `?fly` (free
 camera; WASD, Q/E, Shift), `?at=x,z` (start elsewhere), `?go` (straight to
 the briefing), `?test=<glb>` (drop a model in front of the free camera).
+The debug FPS uses uncapped wall time; the simulation's 50 ms step limit does
+not hide frames slower than 20 FPS. The overlay refreshes twice a second.
 
 Type: everything is set on the typewriter — Courier Prime (OFL) for the
 interface and Special Elite (Apache 2.0) for the wordmark and headings,

@@ -123,8 +123,6 @@ void main() {
   if (uShaftCol.r + uShaftCol.g + uShaftCol.b > 0.0) col += uShaftCol * shaftLayer(vUv, v.z);
   vec3 dir = normalize(mat3(uViewInv) * v.xyz);
   vec3 add = vec3(0.0);
-  // the first light is the one casting shadows: its glow only where the air is not in shadow
-  float pv = uPVis > 0.5 ? pvisLayer(vUv, v.z) : 1.0;
   for (int i = 0; i < MAX; i++) {
     if (i >= uCount) break;
     vec3 L = uPos[i] - uCam;
@@ -136,6 +134,9 @@ void main() {
     float w = sqrt(R * R - h2);
     float ta = max(0.0, t0 - w), tb = min(T, t0 + w);
     if (tb <= ta) continue;
+    // Only the first light uses the shadow visibility layer. Its nine depth and nine
+    // visibility taps cannot contribute unless this ray actually passes through its glow.
+    float pv = i == 0 && uPVis > 0.5 ? pvisLayer(vUv, v.z) : 1.0;
     float h = sqrt(h2) + 0.35;                 // a soft core: no singularity at the bulb
     float I;
     if (uCone[i] > -1.5) {
@@ -162,7 +163,7 @@ void main() {
     // rain curtains drifting with the wind, round the closest point of approach
     vec3 q = uCam + dir * clamp(t0, ta, tb);
     float n = noise(vec3(q.x * 0.35 + uWind.x * uTime, q.y * 0.18 - uTime * 0.9, q.z * 0.35 + uWind.y * uTime));
-    add += uCol[i] * I * edge * phase * (0.55 + 0.9 * n) * (i == 0 ? pv : 1.0);
+    add += uCol[i] * I * edge * phase * (0.55 + 0.9 * n) * pv;
   }
   col += add * uDensity * (0.6 + 0.4 * uRain);
   gl_FragColor = vec4(col, 1.0);

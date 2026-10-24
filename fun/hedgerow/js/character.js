@@ -537,8 +537,11 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
 
     update(dt, ground = null) {
       if (ragdoll) {
+        const moving = !ragdoll.asleep;
         ragdoll.step(dt);
-        ragdoll.pose();
+        // Keep the last moving frame's resting pose, then leave its bones
+        // alone until the physics moves again. Shadows still track visibility.
+        if (moving || !ragdoll.asleep) ragdoll.pose();
         if (ground != null) {
           const p = ragdoll.pelvis;
           shadow.position.set(p.x, ground + 0.03, p.z);

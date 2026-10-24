@@ -26,9 +26,11 @@ export const CAPPED = 0.1;
 /* A fire lights everything round it, but its light in the air is held down, so its flames stay the
    brightest thing there, standing out of their glow instead of drowned in an orange fog. */
 export const FIRE_FOG = 0.35;
+// Enough diffuse sky light to read the lane and forest without lifting lamps or the sky.
+const AMBIENT_INTENSITY = 4.4;
 
 export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512, second = false } = {}) {
-  const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', 3.2);
+  const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', AMBIENT_INTENSITY);
   scene.add(hemi);
   const key = new THREE.DirectionalLight('#9a8f86', 1.2);
   key.position.set(60, 25, 30);
@@ -92,7 +94,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const active = [];
   function update(dt, time, cam, lightning = 0) {
     // lightning lifts the sky's light a little; its hard light comes from the bolt (flares.js)
-    hemi.intensity = 3.2 + lightning * 0.8;
+    hemi.intensity = AMBIENT_INTENSITY + lightning * 0.8;
     key.intensity = 1.2 + lightning * 0.6;
     key.position.set(cam.x + 60, 25 + lightning * 40, cam.z + 30);
     key.target.position.set(cam.x, 0, cam.z);

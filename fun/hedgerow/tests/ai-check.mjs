@@ -219,4 +219,28 @@ const D = (type, x, z, yaw, group, o = {}) => ({ type, at: [x, z], yaw, group, .
   console.log(`ok    the death camera turns to the killer and follows him from ${dist.toFixed(1)} m`);
 }
 
+/* ---------- head-only exposure and full cover ---------- */
+for (const crouch of [false, true]) for (const chestVisible of [false, true]) for (const headVisible of [false, true]) {
+  const G = game([0, 90]);
+  G.player.crouch = crouch;
+  const chestY = G.player.pos.y + (crouch ? 0.8 : 1.2);
+  const checks = [];
+  G.world = {
+    ...world,
+    clear(ax, ay, az, bx, by, bz) {
+      const chest = Math.abs(by - chestY) < 1e-6;
+      checks.push(chest ? 'chest' : 'head');
+      return chest ? chestVisible : headVisible;
+    },
+  };
+  const en = createEnemies(G, [D('rifle', 0, 80, 0, 'visibility', { hold: true })]);
+  const e = en.list[0];
+  e.perceiveTimer = 0;
+  en.update(1 / 60);
+  assert.equal(e.sees, chestVisible || headVisible, 'either visible target point reveals the player');
+  assert.equal(e.exposure, chestVisible ? 1 : headVisible ? 0.45 : 0, 'cover retains partial or full exposure');
+  assert.deepEqual(checks, chestVisible ? ['chest'] : ['chest', 'head'], 'full exposure needs only one visibility query');
+}
+console.log('ok    chest, head-only and fully hidden exposure, standing and crouched');
+
 console.log('ai-check: patrols walk, sounds get looked into, lost contact means a search and an ambush, the killer checks the body, the camera follows him');

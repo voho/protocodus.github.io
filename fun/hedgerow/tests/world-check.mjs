@@ -3,7 +3,7 @@
 // walking into walls, stepping onto low tops, the river.
 import assert from 'node:assert/strict';
 import { createWorld, MOVE, SHOT, SIGHT } from '../js/world.js';
-import { polylineDistance, rectDistance } from '../js/util.js';
+import { polylineDistance, rectDistance, rng } from '../js/util.js';
 
 const near = (a, b, eps = 1e-3) => Math.abs(a - b) < eps;
 
@@ -55,6 +55,40 @@ assert.ok(h && h.t > 9 && h.t < 10, `rotated box hit near 9.7, got ${h && h.t}`)
 assert.ok(w.clear(0, 1, 0, 0, 1, 9, SIGHT), 'clear in front of the wall');
 assert.ok(!w.clear(0, 1, 0, 0, 1, 20, SIGHT), 'not clear through the wall');
 assert.ok(w.clear(0, 3, 0, 0, 3, 20, SIGHT), 'clear over the wall top');
+assert.ok(w.clear(0, 1, 0, 0, 1, 9.78, SIGHT), 'the final 5 cm of a sight line are ignored');
+assert.ok(!w.clear(0, 1, 0, 0, 1, 9.81, SIGHT), 'a blocker before the endpoint margin counts');
+assert.ok(w.clear(0, 1, 0, 0, 1, 0), 'a zero-length sight line is clear');
+
+// The boolean query must agree with the full hit query, including rotated
+// boxes, cylinders, terrain, all masks and origins outside the grid.
+const R = rng(1944);
+for (let i = 0; i < 3000; i++) {
+  const ax = R() * 130 - 65, ay = R() * 8 - 1, az = R() * 140 - 65;
+  const bx = R() * 130 - 65, by = R() * 8 - 1, bz = R() * 140 - 65;
+  const dx = bx - ax, dy = by - ay, dz = bz - az, len = Math.hypot(dx, dy, dz);
+  const mask = 1 + Math.floor(R() * 7);
+  const hit = w.raycast(ax, ay, az, dx / len, dy / len, dz / len, len - 0.05, mask, { noWater: true });
+  assert.equal(w.clear(ax, ay, az, bx, by, bz, mask), !hit, `sight line ${i} agrees with the nearest-hit query`);
+}
+
+// An obstacle settles visibility without marching the ground or computing
+// a hit's rendering details. A terrain-only blocker must still be found.
+{
+  let marches = 0, details = 0;
+  const ground = {
+    ...terrain,
+    raycast(...args) { marches++; return terrain.raycast(...args); },
+    normal() { details++; return [0, 1, 0]; },
+    surfaceAt() { details++; return 'mud'; },
+  };
+  const sight = createWorld({ minX: -10, maxX: 10, minZ: -10, maxZ: 30, terrain: ground });
+  sight.add({ type: 'box', x: 0, y: 1, z: 5, hx: 2, hy: 1, hz: 0.5 });
+  assert.equal(sight.clear(0, 1, 0, 0, 1, 20), false);
+  assert.equal(marches, 0, 'a collider blocker avoids the terrain march');
+  assert.equal(sight.clear(5, 1, 0, 5, -1, 20), false);
+  assert.equal(marches, 1, 'open collider space still checks the terrain');
+  assert.equal(details, 0, 'visibility does not need terrain normals or surface materials');
+}
 
 // walking into the wall
 const p = { x: 0, z: 9.7 };

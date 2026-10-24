@@ -58,7 +58,9 @@ function readModel(node, set, models) {
   node.traverse((o) => {
     if (!o.isMesh) return;
     const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    const geo = normaliseGeometry(o.geometry, m);
+    // Window extraction walks flat triangles; the other sets can retain
+    // their indices so the main view and every shadow pass reuse vertices.
+    const geo = normaliseGeometry(o.geometry, m, set !== 'village');
     const key = (o.material && o.material.name) || 'stone';
     prims.push({ geometry: geo, key: key.replace(/\.\d+$/, ''), material: o.material, node: o === node ? null : o.name });
   });
@@ -77,8 +79,10 @@ function readModel(node, set, models) {
 }
 
 /* Float32 position/normal/uv/color(rgb) with the given transform baked in. */
-function normaliseGeometry(src, matrix) {
-  const g = src.index ? src.toNonIndexed() : src.clone();
+function normaliseGeometry(src, matrix, keepIndex = true) {
+  // Without authored normals the old path generated a flat normal for
+  // each triangle. Keep that fallback instead of smoothing shared edges.
+  const g = src.index && (!keepIndex || !src.attributes.normal) ? src.toNonIndexed() : src.clone();
   const n = g.attributes.position.count;
   const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 3);
   const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, Cc = g.attributes.color;
@@ -97,6 +101,7 @@ function normaliseGeometry(src, matrix) {
   out.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
   out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (g.index) out.setIndex(g.index);
   if (!N) out.computeVertexNormals();
   g.dispose();
   return out;
@@ -120,6 +125,16 @@ export function createStaticBatcher(matlib, chunk = 48) {
   const tmp = new THREE.Matrix4();
   // one bucket merged into one mesh
   const merge = (id, material, list) => {
+    // A palette material can occur in both indexed models and unindexed
+    // window/flat-normal geometry. Promote only such mixed buckets; do
+    // not add an unnecessary index buffer to wholly unindexed buildings.
+    if (list.some(g => g.index) && list.some(g => !g.index)) for (const g of list) {
+      if (g.index) continue;
+      const n = g.attributes.position.count;
+      const indices = n > 65535 ? new Uint32Array(n) : new Uint16Array(n);
+      for (let i = 0; i < n; i++) indices[i] = i;
+      g.setIndex(new THREE.BufferAttribute(indices, 1));
+    }
     const merged = mergeGeometries(list, false);
     for (const g of list) g.dispose();
     if (!merged) return null;

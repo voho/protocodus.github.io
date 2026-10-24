@@ -40,6 +40,10 @@ export function createHud(root) {
 
   let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false;
   let objectiveAngle = null, objectiveDist = 0;
+  let lastHeading = null, lastBearing = null, lastDistance = null, markerShown = null;
+  // Let CSS centre and clamp the compass against its current width. Reading
+  // clientWidth here would flush the HUD's pending layout every frame.
+  el.strip.style.left = '50%';
 
   return {
     show(on) { root.hidden = !on; },
@@ -106,13 +110,21 @@ export function createHud(root) {
     compass(yaw) {
       // heading: north = +z. yaw 0 looks north; turning left increases yaw (towards +x = west)
       const heading = -yaw;
-      const w = el.compass.clientWidth;
-      el.strip.style.transform = `translateX(${(w / 2 - heading * PX_PER_RAD).toFixed(1)}px)`;
-      if (objectiveAngle == null) { el.mark.style.display = 'none'; return; }
-      el.mark.style.display = '';
-      const x = clamp(w / 2 - objectiveAngle * PX_PER_RAD, 8, w - 8);
-      el.mark.style.left = `${x.toFixed(1)}px`;
-      el.dist.textContent = `${Math.round(objectiveDist)} m`;
+      const offset = (-heading * PX_PER_RAD).toFixed(1);
+      if (offset !== lastHeading) {
+        el.strip.style.transform = `translateX(${offset}px)`;
+        lastHeading = offset;
+      }
+      const shown = objectiveAngle != null;
+      if (shown !== markerShown) { el.mark.style.display = shown ? '' : 'none'; markerShown = shown; }
+      if (!shown) return;
+      const bearing = (-objectiveAngle * PX_PER_RAD).toFixed(1);
+      if (bearing !== lastBearing) {
+        el.mark.style.left = `clamp(8px, calc(50% + ${bearing}px), calc(100% - 8px))`;
+        lastBearing = bearing;
+      }
+      const distance = Math.round(objectiveDist);
+      if (distance !== lastDistance) { el.dist.textContent = `${distance} m`; lastDistance = distance; }
     },
 
     notice(text, sub = '', time = 3) {

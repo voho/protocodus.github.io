@@ -5,8 +5,9 @@
    (its thinned _mid model, when there is one, from `midNear` metres; big
    trees a little further) and "far" (its _lod impostor) by distance to the
    camera, dropping the ones behind the camera or beyond the fog, and the
-   instance buffers are refilled. Ground cover (grass, ferns, reeds) only exists in
-   a radius around the camera. */
+   instance buffers change only where that selection changes. Each model's
+   primitives share its placement buffer. Ground cover (grass, ferns, reeds)
+   only exists in a radius around the camera. */
 
 import * as THREE from 'three';
 
@@ -14,20 +15,49 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
   const group = new THREE.Group();
   group.name = 'vegetation';
   const kinds = new Map();      // model name -> kind
-  const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
+  const tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   let timer = 0;
 
-  function meshesFor(model, capacity) {
-    return model.prims.map((p) => {
-      const m = new THREE.InstancedMesh(p.geometry, matlib.resolve(p.material), capacity);
-      m.count = 0;
+  function batchFor(model, capacity) {
+    const matrix = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 16), 16);
+    matrix.setUsage(THREE.DynamicDrawUsage);
+    const meshes = model.prims.map((p) => {
+      const m = new THREE.InstancedMesh(p.geometry, matlib.resolve(p.material), 0);
+      m.instanceMatrix = matrix;
       m.frustumCulled = false;
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.name = model.name + ':' + p.key;
       group.add(m);
       return m;
     });
+    return { meshes, matrix, ids: new Int32Array(capacity).fill(-1), first: Infinity, last: -1 };
+  }
+
+  function place(batch, slot, id, matrix) {
+    // Placements are static. Retain unused slots too: hiding the last tree
+    // and showing it again need not copy or upload its transform.
+    if (batch.ids[slot] === id) return;
+    batch.ids[slot] = id;
+    matrix.toArray(batch.matrix.array, slot * 16);
+    batch.first = Math.min(batch.first, slot * 16);
+    batch.last = Math.max(batch.last, (slot + 1) * 16);
+  }
+
+  function flush(batch, count) {
+    if (!batch) return;
+    for (const m of batch.meshes) m.count = count;
+    if (batch.last < 0) return;
+    // Three clears ranges after an upload. If this batch was not drawn,
+    // preserve its pending changes and coalesce them into one bounded range.
+    for (const r of batch.matrix.updateRanges) {
+      batch.first = Math.min(batch.first, r.start);
+      batch.last = Math.max(batch.last, r.start + r.count);
+    }
+    batch.matrix.clearUpdateRanges();
+    batch.matrix.addUpdateRange(batch.first, batch.last - batch.first);
+    batch.matrix.needsUpdate = true;
+    batch.first = Infinity;
+    batch.last = -1;
   }
 
   function kindOf(name, cover) {
@@ -65,9 +95,16 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
   function finalize() {
     for (const k of kinds.values()) {
       const n = k.items.length;
-      k.nearMeshes = meshesFor(k.model, n);
-      if (k.lod && !k.cover) k.farMeshes = meshesFor(k.lod, n);
-      if (k.mid && !k.cover) k.midMeshes = meshesFor(k.mid, n);
+      k.nearBatch = batchFor(k.model, n);
+      k.nearMeshes = k.nearBatch.meshes;
+      if (k.lod && !k.cover) {
+        k.farBatch = batchFor(k.lod, n);
+        k.farMeshes = k.farBatch.meshes;
+      }
+      if (k.mid && !k.cover) {
+        k.midBatch = batchFor(k.mid, n);
+        k.midMeshes = k.midBatch.meshes;
+      }
     }
   }
 
@@ -103,20 +140,20 @@ export function createVegetation(library, matlib, { near = 60, far = 175, coverR
         if (!frustum.intersectsSphere(sphere)) continue;
         if (!k.farMeshes || d2 < nearD * nearD) {
           if (d2 < midD2) {
-            for (const m of k.nearMeshes) m.setMatrixAt(nN, it.m);
+            place(k.nearBatch, nN, i, it.m);
             nN++;
           } else {
-            for (const m of k.midMeshes) m.setMatrixAt(nM, it.m);
+            place(k.midBatch, nM, i, it.m);
             nM++;
           }
         } else {
-          for (const m of k.farMeshes) m.setMatrixAt(nF, it.m);
+          place(k.farBatch, nF, i, it.m);
           nF++;
         }
       }
-      for (const m of k.nearMeshes) { m.count = nN; m.instanceMatrix.needsUpdate = true; }
-      if (k.midMeshes) for (const m of k.midMeshes) { m.count = nM; m.instanceMatrix.needsUpdate = true; }
-      if (k.farMeshes) for (const m of k.farMeshes) { m.count = nF; m.instanceMatrix.needsUpdate = true; }
+      flush(k.nearBatch, nN);
+      flush(k.midBatch, nM);
+      flush(k.farBatch, nF);
     }
   }
 
