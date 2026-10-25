@@ -26,9 +26,11 @@ export const CAPPED = 0.1;
 /* A fire lights everything round it, but its light in the air is held down, so its flames stay the
    brightest thing there, standing out of their glow instead of drowned in an orange fog. */
 export const FIRE_FOG = 0.35;
+// Enough diffuse sky light to read the lane and forest without lifting lamps or the sky.
+const AMBIENT_INTENSITY = 4.4;
 
 export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512, second = false } = {}) {
-  const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', 3.2);
+  const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', AMBIENT_INTENSITY);
   scene.add(hemi);
   const key = new THREE.DirectionalLight('#9a8f86', 1.2);
   key.position.set(60, 25, 30);
@@ -37,6 +39,24 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const rim = new THREE.DirectionalLight('#566577', 0.3);
   rim.position.set(30, 40, -40);
   scene.add(rim);
+  let daylight = false;
+  let ambientIntensity = AMBIENT_INTENSITY, keyIntensity = 1.2, keyHeight = 25;
+
+  // Change the existing lights, keeping the shader's light and shadow counts fixed.
+  function setDaylight(enabled) {
+    daylight = !!enabled;
+    ambientIntensity = daylight ? 2.8 : AMBIENT_INTENSITY;
+    keyIntensity = daylight ? 2.2 : 1.2;
+    keyHeight = daylight ? 85 : 25;
+    hemi.color.set(daylight ? '#c6d2df' : '#6c7888');
+    hemi.groundColor.set(daylight ? '#6d7569' : '#2a241c');
+    hemi.intensity = ambientIntensity;
+    key.color.set(daylight ? '#fff1d9' : '#9a8f86');
+    key.intensity = keyIntensity;
+    key.position.y = keyHeight;
+    rim.color.set(daylight ? '#b7c7d6' : '#566577');
+    rim.intensity = daylight ? 0.6 : 0.3;
+  }
 
   const lights = [];
   for (let i = 0; i < pool; i++) {
@@ -63,6 +83,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const shadowLight2 = shadows && second ? shadowCaster() : null;
   let shadowOf = null;      // the static it is standing in for
   let shadowOf2 = null;
+  let held = false;         // the shadow maps held still (a flare's shadows are being drawn)
   const wp = new THREE.Vector3();
 
   const statics = [];       // {x,y,z,color,intensity,range,flicker,phase,shadow, far, fog, cone}
@@ -92,9 +113,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   const active = [];
   function update(dt, time, cam, lightning = 0) {
     // lightning lifts the sky's light a little; its hard light comes from the bolt (flares.js)
-    hemi.intensity = 3.2 + lightning * 0.8;
-    key.intensity = 1.2 + lightning * 0.6;
-    key.position.set(cam.x + 60, 25 + lightning * 40, cam.z + 30);
+    hemi.intensity = ambientIntensity + lightning * 0.8;
+    key.intensity = keyIntensity + lightning * 0.6;
+    key.position.set(cam.x + 60, keyHeight + lightning * 40, cam.z + 30);
     key.target.position.set(cam.x, 0, cam.z);
 
     const flick = (s) => {
@@ -104,8 +125,8 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     };
     // where a fire's light is now: its flames sway and leap, and the light with them (a lamp's
     // flame, a lantern's, hardly moves); in step with its flicker, higher when it flares up.
-    // Not while the shadow map holds still (a flare's shadows are being drawn)
-    const sway = shadowLight.shadow.autoUpdate !== false;
+    // Not while the shadow map holds still (a flare's shadows are being drawn: main.js sets `held`)
+    const sway = !held;
     const wander = (s, out) => {
       out.x = s.x; out.y = s.y; out.z = s.z;
       if (!sway || !s.flicker || s.flicker < 0.3) return out;
@@ -203,5 +224,8 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     }
   }
 
-  return { hemi, key, rim, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; } };
+  return {
+    hemi, key, rim, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; },
+    get held() { return held; }, set held(v) { held = v; },
+  };
 }

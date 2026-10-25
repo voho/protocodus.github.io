@@ -122,7 +122,7 @@ function indexEntity(s,e){
   // Only the two touched buckets change membership; cached rectangles check their bucket versions.
   bumpVersion(spatial.versions,key);
   if(previous){bumpVersion(spatial.versions,previous.key);const bucket=spatial.buckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);}
-  const entry={e,key,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);
+  const entry={e,key,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);spatial.list[entry.index]=e;
   if(!previous){
     const owned=spatial.owned[e.team];owned.all.push(e);
     const role=entityRole(e);
@@ -133,7 +133,7 @@ function indexEntity(s,e){
   if(!spatial.buckets.has(key))spatial.buckets.set(key,[]);spatial.buckets.get(key).push(entry);
 }
 function beginSpatialStep(s){
-  spatialStates.set(s,{buckets:new Map(),versions:new Map(),entries:new Map(),queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
+  spatialStates.set(s,{buckets:new Map(),versions:new Map(),entries:new Map(),list:[],queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
   for(const e of s.entities)if(alive(e))indexEntity(s,e);
 }
 function nearbyEntities(s,p,r){
@@ -145,12 +145,17 @@ function nearbyEntities(s,p,r){
     for(let y=top;y<=bottom&&valid;y++)for(let x=left;x<=right&&valid;x++)valid=(versions.get(bucketKey(x,y))||0)===cached.stamp[n++];
     if(valid)return cached.result;
   }
-  const entries=[],stamp=[];
+  const found=[],stamp=[];let count=0;
   for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
     const k=bucketKey(x,y),bucket=spatial.buckets.get(k);stamp.push(versions.get(k)||0);
-    if(bucket)for(const entry of bucket)entries.push(entry);
+    if(bucket){found.push(bucket);count+=bucket.length;}
   }
-  const result=entries.sort((a,b)=>a.index-b.index).map(entry=>entry.e);
+  // Entry indices are unique integers; a plain numeric typed-array sort orders them without comparator calls.
+  const order=new Int32Array(count);let n=0;
+  for(const bucket of found)for(let i=0;i<bucket.length;i++)order[n++]=bucket[i].index;
+  order.sort();
+  const result=[],list=spatial.list;
+  for(let i=0;i<count;i++)result.push(list[order[i]]);
   // Callers filter live positions; membership/order only changes on bucket moves
   // and births. Bound retained queries even for unusually scattered armies.
   if(queries.size>=256)queries.clear();
@@ -858,6 +863,26 @@ function clearStep(s,u,x,y){
   return true;
 }
 function unitSpacing(a,b,time){return(a.size+b.size)*.43*(a.team===b.team&&(a.passUntil>time&&a.passTargetId===b.id||b.passUntil>time&&b.passTargetId===a.id)?0:1);}
+const isCommanded=order=>order.type==='move'||order.type==='attackMove';
+// The leg a unit is committed to: its first planned point that is not a flock correction, else its next
+// point, its pullout, or its order.
+function committedRoute(o){
+  const path=o.path;
+  for(let i=0;i<path.length;i++)if(!path[i].flock)return path[i];
+  return path[0]||o.yieldPoint||(isCommanded(o.order)?o.order:null);
+}
+// Live units other than u within r of it, in list order. Squared lengths settle every pair except
+// those within rounding of r, which still take the exact Math.hypot comparison.
+function unitsNear(list,u,r){
+  const out=[],r2=r*r,near=r2*(1-1e-5),far=r2*(1+1e-5);
+  for(let i=0;i<list.length;i++){
+    const e=list[i];if(e===u)continue;
+    // Position first: most of a bucket query lies outside the radius, and the position decides those cheaply.
+    const dx=u.x-e.x,dy=u.y-e.y,q=dx*dx+dy*dy;
+    if((q<near||q<far&&Math.hypot(dx,dy)<r)&&e.kind==='unit'&&e.hp>0)out.push(e);
+  }
+  return out;
+}
 
 function segmentDistance(a,b,p){
   const dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);
@@ -950,7 +975,10 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   // Boids neighbors lie within 4 tiles. When that whole expanded square is free of
   // static blockers, every swept clearStep to them succeeds; only the leash remains.
   const openArea=clearRect(s,clearanceGrids.get(s),u.x-4.2,u.y-4.2,u.x+4.2,u.y+4.2);
-  const flock=spatialStates.get(s).flock(u).filter(openArea?other=>insideMovementLeash(u,other.x,other.y):other=>clearStep(s,u,other.x,other.y));
+  // Only a defending unit holding an anchor can lose neighbors to its leash; in the open every other one is kept as is.
+  let flock=spatialStates.get(s).flock(u);
+  if(!openArea)flock=flock.filter(other=>clearStep(s,u,other.x,other.y));
+  else if(u.defendAnchor&&effectiveUnitStance(u)==='defend')flock=flock.filter(other=>insideMovementLeash(u,other.x,other.y));
   const steering=flockSteering(u,{x:tx,y:ty},flock,s.time,p);
   let heading=Math.atan2(dy,dx);
   if(steering&&!p.trafficId){
@@ -963,21 +991,29 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   // vehicle inertia cannot make the body slide sideways or orbit a waypoint.
   const alignment=Math.max(0,Math.cos(headingError));
   const baseSpeed=Math.min(unitStats(u).speed,u.order.speedLimit??Infinity)*abilitySpeed(s,u);
-  const fx=Math.cos(u.angle),fy=Math.sin(u.angle),neighbors=nearbyEntities(s,u,4).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<4);
+  const fx=Math.cos(u.angle),fy=Math.sin(u.angle),neighbors=unitsNear(nearbyEntities(s,u,4),u,4);
   let followingSpeed=baseSpeed;
+  const formation=isCommanded(u.order)?u.order.formation:null;
   for(const other of neighbors){
-    const ox=other.x-u.x,oy=other.y-u.y,forward=ox*fx+oy*fy,lateral=Math.abs(oy*fx-ox*fy),spacing=unitSpacing(u,other,s.time);
-    if(!spacing||forward<=0)continue;
-    // A newly commanded leader may not have planned its path yet this tick.
-    // Its order still describes the convoy; do not mistake it for parked traffic.
-    const route=other.path.find(p=>!p.flock)||other.path[0]||other.yieldPoint||(['move','attackMove'].includes(other.order.type)?other.order:null),rx=(route?.x??other.x)-other.x,ry=(route?.y??other.y)-other.y,rd=Math.hypot(rx,ry);
-    const formation=['move','attackMove'].includes(u.order.type)?u.order.formation:null;
-    const otherFormation=['move','attackMove'].includes(other.order.type)?other.order.formation:null;
-    const sameFormation=formation&&otherFormation&&formation.x===otherFormation.x&&formation.y===otherFormation.y;
+    const ox=other.x-u.x,oy=other.y-u.y,forward=ox*fx+oy*fy;
+    if(forward<=0)continue;
+    const spacing=unitSpacing(u,other,s.time);
+    if(!spacing)continue;
+    const lateral=Math.abs(oy*fx-ox*fy);
     // Members of one formation can recognize their common route while turning.
     // Independent traffic must already face the same way before following it.
-    const convoy=other.team===u.team&&other.order.type!=='idle'&&rd>.1&&
-      (sameFormation?(rx*dx+ry*dy)/(rd*d):(rx*fx+ry*fy)/rd)>.9;
+    // Only a moving ally can form a convoy, so no other neighbour needs its route weighed.
+    let convoy=false,sameFormation=null;
+    if(other.team===u.team&&other.order.type!=='idle'){
+      // A newly commanded leader may not have planned its path yet this tick.
+      // Its order still describes the convoy; do not mistake it for parked traffic.
+      const route=committedRoute(other),rx=(route?.x??other.x)-other.x,ry=(route?.y??other.y)-other.y,rd=Math.hypot(rx,ry);
+      if(rd>.1){
+        const otherFormation=isCommanded(other.order)?other.order.formation:null;
+        sameFormation=formation&&otherFormation&&formation.x===otherFormation.x&&formation.y===otherFormation.y;
+        convoy=(sameFormation?(rx*dx+ry*dy)/(rd*d):(rx*fx+ry*fy)/rd)>.9;
+      }
+    }
     // An intact formation shares speed and turn limits. Its translated parallel
     // trajectories cannot collide; braking behind diagonal ranks would break
     // that agreement and manufacture congestion on the first movement frame.
@@ -1020,11 +1056,15 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     if(!clearStep(s,u,p.x,p.y)){u.repath=0;u.path=[];}
     return false;
   }
-  const blocker=neighbors.find(other=>{
-    const next=Math.hypot(nx-other.x,ny-other.y);
-    if(next>=unitSpacing(u,other,s.time)-.001||next>=distance(u,other)-.001)return false;
-    if(other.team===u.team)intent.traffic=true;return true;
-  });
+  let blocker;
+  for(let i=0;i<neighbors.length&&!blocker;i++){
+    const other=neighbors[i],gap=unitSpacing(u,other,s.time)-.001,bx=nx-other.x,by=ny-other.y;
+    // A neighbour clearly beyond the gap cannot block; only near ones need the exact distance.
+    if(gap>0&&bx*bx+by*by>gap*gap*(1+1e-5))continue;
+    const next=Math.hypot(bx,by);
+    if(next>=gap||next>=distance(u,other)-.001)continue;
+    if(other.team===u.team)intent.traffic=true;blocker=other;
+  }
   if(blocker){
     u.moveSpeed=0;
     u.trafficBlockedAt??=s.time;
@@ -1042,7 +1082,7 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     // parked formation. Search the crowd once a bypass reaches a second body.
     if(p.trafficId&&p.trafficId!==blocker.id&&(blocker.order.type==='idle'||blocker.formationReady)&&Math.hypot(tx-u.x,ty-u.y)<6&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
       u.crowdPlanAt=s.time+1;pathBudget--;
-      const crowd=nearbyEntities(s,u,8).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<8);
+      const crowd=unitsNear(nearbyEntities(s,u,8),u,8);
       const goal=u.path.find(p=>!p.flock)||{x:tx,y:ty};
       const route=findTrafficDetour(u,goal,crowd,(a,b)=>insideMovementLeash(u,b.x,b.y)&&clearStep(s,a,b.x,b.y));
       if(route){while(u.path[0]?.flock)u.path.shift();u.path.unshift(...route.map(p=>({...p,flock:true,trafficId:blocker.id})));return false;}
@@ -1058,7 +1098,7 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     }else if((!detour||!patient)&&blocker.team===u.team)intent.passTargetId=blocker.id;
     else if(s.time-u.trafficBlockedAt>.5&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
       u.crowdPlanAt=s.time+1;pathBudget--;
-      const crowd=nearbyEntities(s,u,8).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<8);
+      const crowd=unitsNear(nearbyEntities(s,u,8),u,8);
       const goal=u.path.find(p=>!p.flock)||{x:tx,y:ty};
       const route=findTrafficDetour(u,goal,crowd,(a,b)=>insideMovementLeash(u,b.x,b.y)&&clearStep(s,a,b.x,b.y));
       if(route){while(u.path[0]?.flock)u.path.shift();u.path.unshift(...route.map(p=>({...p,flock:true,trafficId:blocker.id})));}
@@ -1168,7 +1208,11 @@ function explore(s,u,dt,movement){
 
 export function targetDistance(a,b){const ca=center(a),cb=center(b);return Math.max(0,distance(ca,cb)-(b.kind==='building'?b.size*.45:0));}
 function acquire(s,e,r,closest=false){
-  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,center(e),r+1.5)){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=closest?0:enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score||value===score&&enemy.id<best.id){score=value;best=enemy;}}
+  const from=center(e),reach=r*r*(1+1e-5);
+  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,from,r+1.5)){if(enemy.team===e.team||!alive(enemy))continue;
+    // A unit clearly beyond range is out before its visibility is looked up; buildings keep the exact path.
+    if(enemy.kind!=='building'){const dx=from.x-enemy.x,dy=from.y-enemy.y;if(dx*dx+dy*dy>reach)continue;}
+    if(!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=closest?0:enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score||value===score&&enemy.id<best.id){score=value;best=enemy;}}
   return best;
 }
 
@@ -1443,10 +1487,16 @@ function separateUnits(s,dt,movement){
     return list.sort((a,b)=>a-b);
   };
   for(let i=0;i<units.length;i++){
-    const candidates=neighbors(i,i),pending=new Set(candidates);
+    const candidates=neighbors(i,i);
     for(let index=0;index<candidates.length;index++){
-    const j=candidates[index];pending.delete(j);
-    const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);const min=unitSpacing(a,b,s.time);
+    const j=candidates[index];
+    const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y;
+    // A pair farther apart than its widest possible spacing needs neither the spacing nor an exact distance.
+    const widest=(a.size+b.size)*.43;
+    if(dx*dx+dy*dy>widest*widest*(1+1e-5))continue;
+    const min=unitSpacing(a,b,s.time);
+    if(min>0&&dx*dx+dy*dy>min*min*(1+1e-5))continue;
+    let d=Math.hypot(dx,dy);
     if(d>=min)continue;if(d<.001){dx=.01;dy=.004;d=Math.hypot(dx,dy);}
     const intentA=movement.get(a.id),intentB=movement.get(b.id),movingA=!!intentA&&!intentA.rotating,movingB=!!intentB&&!intentB.rotating,shareA=movingA===movingB?.5:movingA?1:0;
     const push=Math.min((min-d)*.9,dt*1.8),px=dx/d*push,py=dy/d*push;
@@ -1461,6 +1511,8 @@ function separateUnits(s,dt,movement){
     displace(a,intentA,-shareA);displace(b,intentB,1-shareA);
     const changed=relocate(i);relocate(j);
     if(changed){
+      // Bodies still to visit; one already visited returns to the list when it comes back into range.
+      const pending=new Set(candidates.slice(index+1));
       for(const next of neighbors(i,j))if(!pending.has(next)){candidates.push(next);pending.add(next);}
       const tail=candidates.splice(index+1).sort((a,b)=>a-b);candidates.push(...tail);
     }

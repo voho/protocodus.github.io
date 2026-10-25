@@ -46,7 +46,23 @@ export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.
       radius = Math.max(radius, d + reach[i]);
       maxDraw = Math.max(maxDraw, draw[belt.type[i]]);
     }
-    return { members: Int32Array.from(list), cx, cy, cz, radius, maxDraw, distance: 0 };
+    // The members by size, each size in index order, and how far from the
+    // centre each size's rocks reach: a size whose rocks are all beyond its
+    // draw distance is passed over without visiting them (the pebbles,
+    // drawn to 1.5 km, are over half the belt).
+    const members = new Int32Array(list.length), starts = new Int32Array(types + 1), extent = new Float64Array(types);
+    let n = 0;
+    for (let t = 0; t < types; t++) {
+      starts[t] = n;
+      for (const i of list) {
+        if (belt.type[i] !== t) continue;
+        members[n++] = i;
+        const d = Math.sqrt((belt.pos[3 * i] - cx) ** 2 + (belt.pos[3 * i + 1] - cy) ** 2 + (belt.pos[3 * i + 2] - cz) ** 2);
+        extent[t] = Math.max(extent[t], d + reach[i]);
+      }
+    }
+    starts[types] = n;
+    return { members, starts, extent, cx, cy, cz, radius, maxDraw, distance: 0 };
   });
   // Cells visited nearest first, so each size's list runs near to far and
   // the GPU's depth test can reject rocks hidden behind nearer ones before
@@ -83,23 +99,30 @@ export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.
           if (s < cell.radius) inside = false;
         }
         if (outside) continue;
-        const members = cell.members;
-        for (let m = 0; m < members.length; m++) {
-          const i = members[m];
-          if (!alive[i]) continue;
-          const px = belt.pos[3 * i], py = belt.pos[3 * i + 1], pz = belt.pos[3 * i + 2];
-          const r = reach[i], type = belt.type[i];
-          const d = Math.sqrt((px - ex) ** 2 + (py - ey) ** 2 + (pz - ez) ** 2);
-          if (d - r > draw[type]) continue;
-          if (!inside) {
-            let visible = true;
-            for (let k = 0; k < 6; k++) {
-              if (planes[4 * k] * px + planes[4 * k + 1] * py + planes[4 * k + 2] * pz + planes[4 * k + 3] < -r) { visible = false; break; }
+        const { members, starts, extent } = cell;
+        for (let type = 0; type < types; type++) {
+          // Every rock of this size is at least distance − extent away, so
+          // past its draw distance none would pass the test below; the metre
+          // to spare is far more than the rounding in either.
+          if (cell.distance - extent[type] > draw[type] + 1) continue;
+          const lists = out[type];
+          for (let m = starts[type], end = starts[type + 1]; m < end; m++) {
+            const i = members[m];
+            if (!alive[i]) continue;
+            const px = belt.pos[3 * i], py = belt.pos[3 * i + 1], pz = belt.pos[3 * i + 2];
+            const r = reach[i];
+            const d = Math.sqrt((px - ex) ** 2 + (py - ey) ** 2 + (pz - ez) ** 2);
+            if (d - r > draw[type]) continue;
+            if (!inside) {
+              let visible = true;
+              for (let k = 0; k < 6; k++) {
+                if (planes[4 * k] * px + planes[4 * k + 1] * py + planes[4 * k + 2] * pz + planes[4 * k + 3] < -r) { visible = false; break; }
+              }
+              if (!visible) continue;
             }
-            if (!visible) continue;
+            const list = d > lod[i] ? lists.far : lists.near;
+            list.index[list.count++] = i;
           }
-          const list = d > lod[i] ? out[type].far : out[type].near;
-          list.index[list.count++] = i;
         }
       }
       return out;

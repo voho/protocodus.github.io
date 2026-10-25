@@ -172,8 +172,9 @@ export class WorldRenderer {
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
+    this.releaseGpuSources();
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.resetTiles();
-    this.terrain=new TerrainSprites(this.index,this.palette);this.sprites.clear();this.damageSpriteKeys.clear();this.activitySprites=new Map();this.clouds=[];
+    this.terrain=new TerrainSprites(this.index,this.palette);this.sprites.clear();this.damageSpriteKeys.clear();this.activitySprites=new Map();this.fixtureDone=new Set();this.clouds=[];
     this.extendClouds();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();
     this.structureEffects=new StructureEffects(this.index,this.palette,this.world.accent);
@@ -183,8 +184,17 @@ export class WorldRenderer {
     this.ready=spritesReady.then(()=>{
       if(this.index===nextIndex&&this.levelHash===nextHash)this.refreshSpriteAssets();
     });
-    for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
-    this.warmScenery();
+    // The first frames draw these at once, so they go ahead of the terrain materials.
+    this.queueGpuUpload();this.warmScenery();
+    for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant),false,true);
+  }
+  /** Upload the sector's atmosphere sprites before its first preview frame draws them; the renderer is known after the first sweep. */
+  queueGpuUpload() {this.queueWarm('gpu:sector',()=>{if(this.gpu)this.warmGpuSources(this.gpu);},false,true);}
+  /** Free the renderer's copies of this sector's artwork before the next sector replaces it. */
+  releaseGpuSources() {
+    const gpu=this.gpu;if(!gpu)return;
+    for(const source of [this.cloudSprite,this.cloudShadowSprite,this.lightSprite,this.radarSweepSprite,this.shaftSprite,this.vignetteSprite,this.siteSprites.supplyHalo,
+      ...this.activitySprites.values(),...this.structureEffects.sources(),...this.sprites.values()])gpu.release(source);
   }
   warmGpuSources(gpu) {
     this.gpu = gpu;
@@ -199,7 +209,10 @@ export class WorldRenderer {
     for(const type of types)for(let variant=0;variant<5;variant++){
       this.queueWarm(`sprite:${type}:${variant}:0`,()=>this.getSprite(type,variant));
       this.queueWarm(`foundation:${type}:${variant}`,()=>this.structureEffects.getFoundation(type,variant));
-      if(variant===0)this.queueWarm(`fixture:${type}`,()=>{this.structureEffects.getFixtures(type);this.structureEffects.getFixtureGlow(type);this.getActivitySprite(type,false);this.getActivitySprite(type,true);});
+      if(variant===0)this.queueWarm(`fixture:${type}`,()=>{
+        const effects=this.structureEffects,made=[effects.getFixtures(type),effects.getFixtureGlow(type),this.getActivitySprite(type,false),this.getActivitySprite(type,true)];
+        this.gpu?.prewarm(made);this.fixtureDone.add(type);
+      },false,true);
       if(damage&&BUILDINGS.has(type))for(let stage=1;stage<=2;stage++){
         this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
       }
@@ -209,14 +222,16 @@ export class WorldRenderer {
     if(this.flightAssetsQueued)return;
     this.flightAssetsQueued=true;
     for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++){
-      this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
-      if(material)for(let mask=1;mask<15;mask++)this.queueWarm(`edge:${material}:${variant}:${mask}`,()=>this.terrain.get(material,variant,mask));
+      this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant),false,true);
+      if(material)for(let mask=1;mask<15;mask++)this.queueWarm(`edge:${material}:${variant}:${mask}`,()=>this.terrain.get(material,variant,mask),false,true);
     }
     this.warmScenery(true);
   }
   refreshSpriteAssets() {
     if(this.assetRevision===spriteRevision)return;
-    this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
+    this.assetRevision=spriteRevision;
+    for(const source of [this.cloudSprite,this.cloudShadowSprite,...this.sprites.values()])this.gpu?.release(source);
+    this.sprites.clear();this.damageSpriteKeys.clear();
     this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;
     this.terrain.materials.clear();this.terrain.edges.clear();
     // Sprite atlases finish one sheet at a time, sometimes in flight. Resident
@@ -225,7 +240,7 @@ export class WorldRenderer {
     for(const row of this.tiles.keys())this.staleTiles.add(row);
     for(const row of this.sceneryLayers[0].keys())this.staleStrips.add(row);
     this.dropPendingStrips();
-    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.warmScenery();
+    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.queueGpuUpload();this.warmScenery();
   }
   /** Abandon staged builds whose jobs were dropped; the next frame queues them again. */
   dropPendingStrips() {
@@ -292,12 +307,27 @@ export class WorldRenderer {
       for(let i=0;i<7;i++)this.clouds.push({x:group*WIDTH+rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
     }
   }
-  queueWarm(key,work,urgent=false) {
+  queueWarm(key,work,urgent=false,first=false) {
     if(this.warmKeys.has(key))return;
     this.warmKeys.add(key);
-    // Strip steps go first so streaming never waits behind sprite warm-ups.
-    if(urgent)this.warmJobs.unshift({key,work});else this.warmJobs.push({key,work});
+    // Strip steps go first so streaming never waits behind sprite warm-ups. Jobs that strips and the first frames
+    // depend on (terrain materials and masks, a sector's fixtures) lead even those: a strip that met a missing
+    // material would paint every one of them inside a single step.
+    const job={key,work,first};
+    if(first||urgent){let at=0;while(at<this.warmJobs.length&&this.warmJobs[at].first)at++;this.warmJobs.splice(at,0,job);}
+    else this.warmJobs.push(job);
     this.runWarmQueue();
+  }
+  takeJob() {
+    const job=this.warmJobs.shift();this.warmKeys.delete(job.key);
+    return job;
+  }
+  /** Take and run the next job. The renderer checks its uploads at the next frame instead of waiting for the driver here. */
+  runNext() {
+    const job=this.takeJob(),gpu=this.gpu;
+    if(!gpu){job.work();return;}
+    gpu.deferChecks=true;
+    try{job.work();}finally{gpu.deferChecks=false;}
   }
   restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
     // A prop owns either remaining HP or a destroyed marker, never both. Normalize
@@ -352,18 +382,20 @@ export class WorldRenderer {
   prepareFlight(width,height,scroll=0) {
     this.refreshSpriteAssets();this.prepare(width,height,scroll);
     this.draining=true;
-    try{while(this.warmJobs.length){const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}}
+    try{while(this.warmJobs.length)this.runNext();}
     finally{this.draining=false;}
   }
   /** Yield between small batches while loading, independent of browser idle support. */
   async prepareReady(width,height,scroll=0) {
     await this.ready;
+    // Begin in a task of its own: the caller's click or frame has already used part of its budget.
+    await new Promise(resolve=>setTimeout(resolve,0));
     const epoch=this.warmEpoch;this.prepare(width,height,scroll);
     while(epoch===this.warmEpoch&&this.warmJobs.length){
       const start=performance.now();
       this.draining=true;
       try{
-        do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
+        do this.runNext();
         while(this.warmJobs.length&&performance.now()-start<6);
       }finally{this.draining=false;}
       if(this.warmJobs.length)await new Promise(resolve=>setTimeout(resolve,0));
@@ -374,7 +406,7 @@ export class WorldRenderer {
     let remaining=this.warmJobs.length;
     if(!remaining)return 0;
     const start=performance.now();let ran=0;
-    do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();ran++;}
+    do{this.runNext();ran++;}
     while(--remaining>0&&this.warmJobs.length&&performance.now()-start<budgetMs);
     return ran;
   }
@@ -474,7 +506,7 @@ export class WorldRenderer {
       // still progresses without inheriting a long task. Jobs that wait for
       // a pooled surface re-queue themselves and run at most once per pass.
       while(remaining-->0&&this.warmJobs.length){
-        const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();
+        this.runNext();
         if(deadline.didTimeout||deadline.timeRemaining()<=3||performance.now()-start>=3)break;
       }
       this.runWarmQueue();
@@ -814,8 +846,11 @@ export class WorldRenderer {
         if(this.destroyed.has(prop.id))continue;
         const y=prop.y+scroll;if(y<-PAD||y>h+PAD||prop.x<-PAD||prop.x>this.viewportWidth+PAD)continue;
         prop.screenX=prop.x+view.x;prop.screenY=y;this.visibleProps.push(prop);
-        this.drawStructureActivity(c,prop,time,quality,motion);
-        this.structureEffects.draw(c,prop,time,quality,motion);
+        // A preview that is still preparing leaves a structure's lights out until its art exists, rather than painting it inside the frame.
+        if(!this.deferStrips||this.fixtureDone.has(prop.type)){
+          this.drawStructureActivity(c,prop,time,quality,motion);
+          this.structureEffects.draw(c,prop,time,quality,motion);
+        }
         if(prop.emissive&&quality!=='low'){
           const power=STRUCTURE_SPRITES.includes(prop.type)?[1,.52,.19,0][structureStage(prop)]:1;
           const radius=prop.size*.65;c.globalAlpha=(.1+Math.sin((motion?time:0)*1.7+prop.variant*2)*.03)*power;

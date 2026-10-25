@@ -102,4 +102,78 @@ const matlib = { get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m || 
   assert.equal(count('oak_lod'), 1, 'the one at 80 m still an impostor (52 m looks as 72 m)');
 }
 
+/* ---------- vegetation uploads ---------- */
+{
+  const model = (name) => ({
+    name, box: new THREE.Box3(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(1, 2, 1)),
+    prims: ['trunk', 'leaves', 'twigs'].map(key => ({ key, geometry: new THREE.BoxGeometry(1, 1, 1), material: new THREE.MeshBasicMaterial() })),
+  });
+  const veg = createVegetation(new Map([['tree', model('tree')], ['tree_lod', model('tree_lod')]]), matlib);
+  for (const z of [10, 20, 30, 40, -40]) veg.add('tree', 0, 0, z, z / 100, 1 + z / 200);
+  veg.finalize();
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 2000);
+  camera.position.set(0, 2, 0);
+  camera.lookAt(0, 2, 100);
+  camera.updateMatrixWorld();
+  const k = veg.kinds.get('tree');
+  const near = k.nearMeshes[0].instanceMatrix, far = k.farMeshes[0].instanceMatrix;
+  assert.ok(k.nearMeshes.every(m => m.instanceMatrix === near), 'all full-detail parts share one placement buffer');
+  assert.ok(k.farMeshes.every(m => m.instanceMatrix === far), 'all distant parts share one placement buffer');
+  assert.notEqual(near, far, 'different detail levels retain separate selections');
+  const selected = (meshes, ids) => {
+    for (const m of meshes) {
+      assert.equal(m.count, ids.length);
+      assert.equal(m.visible, ids.length > 0, 'empty batches skip drawing and populated batches remain visible');
+      for (let i = 0; i < ids.length; i++) {
+        const actual = new THREE.Matrix4();
+        m.getMatrixAt(i, actual);
+        const expected = new Float32Array(k.items[ids[i]].m.elements);
+        assert.deepEqual(actual.elements, Array.from(expected), `${m.name} retains the placement, rotation and scale`);
+      }
+    }
+  };
+  veg.update(1, camera, { treeNear: 15, grass: 1 });
+  selected(k.nearMeshes, [0]);
+  selected(k.farMeshes, [1, 2, 3]);
+  assert.deepEqual(near.updateRanges, [{ start: 0, count: 16 }], 'only the newly visible transform needs uploading');
+  // A second selection before the first upload must retain pending data.
+  veg.update(1, camera, { treeNear: 35, grass: 1 });
+  selected(k.nearMeshes, [0, 1, 2]);
+  selected(k.farMeshes, [3]);
+  assert.deepEqual(near.updateRanges, [{ start: 0, count: 48 }], 'unconsumed upload ranges are preserved');
+  // Simulate the renderer consuming the upload, then keep the same view.
+  near.clearUpdateRanges();
+  far.clearUpdateRanges();
+  const versions = [near.version, far.version];
+  for (let i = 0; i < 20; i++) veg.update(1, camera, { treeNear: 35, grass: 1 });
+  assert.deepEqual([near.version, far.version], versions, 'a stable selection never uploads again');
+  assert.deepEqual(near.updateRanges, []);
+  // Counts can shrink and grow without touching a retained prefix.
+  veg.update(1, camera, { treeNear: 15, grass: 1 });
+  selected(k.nearMeshes, [0]);
+  assert.equal(near.version, versions[0]);
+  veg.update(1, camera, { treeNear: 35, grass: 1 });
+  selected(k.nearMeshes, [0, 1, 2]);
+  assert.equal(near.version, versions[0]);
+  // Force an immediate re-evaluation even though the normal update is throttled.
+  veg.forceUpdate();
+  veg.update(0, camera, { treeNear: 45, grass: 1 });
+  selected(k.nearMeshes, [0, 1, 2, 3]);
+  selected(k.farMeshes, []);
+  assert.deepEqual(near.updateRanges, [{ start: 48, count: 16 }], 'only the appended tree is uploaded');
+  // Turning around replaces the selection, including a changed first slot.
+  camera.lookAt(0, 2, -100);
+  camera.updateMatrixWorld();
+  near.clearUpdateRanges();
+  veg.update(1, camera, { treeNear: 45, grass: 1 });
+  selected(k.nearMeshes, [4]);
+  selected(k.farMeshes, []);
+  assert.deepEqual(near.updateRanges, [{ start: 0, count: 16 }]);
+  camera.lookAt(0, 2, 100);
+  camera.updateMatrixWorld();
+  veg.update(1, camera, { treeNear: 35, grass: 1 });
+  selected(k.nearMeshes, [0, 1, 2]);
+  selected(k.farMeshes, [3]);
+}
+
 console.log(`lod-check: soldiers switch detail at ${LOD_FAR} m (back at ${LOD_NEAR} m); trees sort into full, mid and far, and the one behind the camera is dropped; down the sights detail reaches ${(1 / ads).toFixed(2)}x further`);

@@ -223,11 +223,20 @@ export function resolveShipRock(entity, field, events) {
   }
 }
 
+// Every pair of small craft is tested every step and almost none touch:
+// the test allocates nothing (the response, with its closures, is a
+// function of its own, or every call would make their context).
+const apart = [0, 0, 0];
 export function resolveShipShip(a, b, events) {
-  const C = COMBAT.collision;
-  const dd = sub([0, 0, 0], a.ship.pos, b.ship.pos);
-  const dist = len(dd), reach = a.radius + b.radius;
+  sub(apart, a.ship.pos, b.ship.pos);
+  const dist = len(apart), reach = a.radius + b.radius;
   if (dist >= reach) return;
+  shipsTouch(a, b, dist, reach, events);
+}
+
+function shipsTouch(a, b, dist, reach, events) {
+  const C = COMBAT.collision;
+  const dd = [apart[0], apart[1], apart[2]];
   const n = dist > 1e-9 ? normalize(dd, dd) : [0, 1, 0];
   const ia = 1 / a.ship.stats.mass, ib = 1 / b.ship.stats.mass;
   const depth = reach - dist;

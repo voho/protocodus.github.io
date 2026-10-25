@@ -5,18 +5,18 @@ import { createSound } from '../../shared/sound.js';
 import { createShell } from '../../shared/shell.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
+import { createThemeSwitch } from '../../shared/themes.js';
 import { generate, canStep, isSolved, hint, straightLine } from './puzzle.js';
 import { createBoard } from './board.js';
 
-const ACCENT = '#87d7be';
 const canvas = document.getElementById('stage');
 const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
-const stage = createStage(canvas, {
-  accent: ACCENT, secondary: '#8f7cff', elevation: 1.0,
-  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13, blobA: '#2fd9c0', blobB: '#7a5cff', blobStrength: 0.08 },
-});
+// The theme is picked before the table is built; a later pick redresses it.
+let retheme = null;
+const themes = createThemeSwitch({ fallback: 'ocean', onChange: (theme) => retheme?.(theme) });
+const stage = createStage(canvas, { theme: themes.current });
 if (!stage) {
   loading.classList.add('failed');
   loading.querySelector('[data-loading-text]').textContent = 'Zipper needs WebGL 2, which this browser or device does not provide.';
@@ -27,8 +27,6 @@ if (!stage) {
 async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), sparks: createBursts(stage.scene, { max: 300, additive: true }) };
-  stage.dust({ colour: ACCENT, extent: 6 });
-  stage.bokeh({ colours: [ACCENT, '#7a5cff', '#ffffff', '#f6d155'] });
   const sound = createSound('zipper');
 
   let puzzle = null;
@@ -36,30 +34,45 @@ async function boot() {
   let path = [];
   let solved = false;
   let assisted = false;
-  let dragging = false;
+  let activePointer = null;
+  let lastPoint = null;
   let lastCell = -1;
+  let shell;
+  let winTimer = 0;
+  let pointerBatch = false;
+  let pathDirty = false;
+  let pathSound = null;
+  let numberReached = false;
+  const erasedCells = new Set();
 
   const N = () => puzzle.size * puzzle.size;
   const head = () => path[path.length - 1];
 
   function announce() {
+    if (!puzzle) return;
     let next = 1;
     for (const cell of path) if (puzzle.numbers[cell]) next = puzzle.numbers[cell] + 1;
-    status.textContent = solved ? 'Solved.' : `${path.length} of ${N()} cells. Next number ${Math.min(next, puzzle.waypoints.length)}.`;
+    next = Math.min(next, puzzle.waypoints.length);
+    status.textContent = solved ? 'Solved.' : `${path.length} of ${N()} cells. Next number ${next}.`;
+    shell?.setProgress?.(path.length, N(), solved ? 'Every cell connected' : `Next: ${next} of ${puzzle.waypoints.length}`);
+    shell?.setUndoAvailable?.(!solved && path.length > 1);
   }
 
   function start(difficulty, seed) {
     try {
       puzzle = generate(difficulty, seed);
     } catch (error) {
-      // Never happens in the checks, but a board that cannot be verified
-      // must not reach the table: take another seed instead.
+      // An unverified board must not reach the table. Retry next turn
+      // with a fresh seed, including during initial startup.
       console.error(error);
       setTimeout(() => shell.load(difficulty, randomSeed()), 0);
       return;
     }
+    releasePointer();
+    clearTimeout(winTimer);
     board?.dispose();
-    board = createBoard(stage, puzzle, { accent: ACCENT, fx });
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
     path = [puzzle.waypoints[0]];
     solved = false;
     assisted = false;
@@ -67,27 +80,50 @@ async function boot() {
     announce();
   }
 
+  /* The same board and line, dressed in the theme just picked. */
+  function rebuild() {
+    releasePointer();
+    board.dispose();
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
+    board.setPath(path, true);
+  }
+
+  // A fast swipe can traverse many cells in one browser event. Keep every
+  // logical step, but upload the line, update the HUD and play feedback once.
+  function publishPath(force = false) {
+    if (pointerBatch && !force) { pathDirty = true; return; }
+    pathDirty = false;
+    if (erasedCells.size) { board.flare([...erasedCells]); erasedCells.clear(); }
+    board.setPath(path);
+    if (pathSound === 'step') sound.step(path.length / N());
+    else if (pathSound === 'back') sound.back();
+    if (numberReached) sound.number();
+    pathSound = null;
+    numberReached = false;
+    announce();
+  }
+
   function finish() {
     solved = true;
+    publishPath(true);
     const ms = shell.finish();
     sound.win();
     board.celebrate();
-    stage.flash(ACCENT, 1);
-    announce();
+    stage.flash(themes.current.accent, 1);
     const finished = puzzle;
-    setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
+    winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
   }
 
   function step(cell) {
     if (solved) return false;
     if (canStep(puzzle, path, cell)) {
       path.push(cell);
-      board.setPath(path);
       shell.begin();
-      sound.step(path.length / N());
-      if (puzzle.numbers[cell]) sound.number();
-      announce();
+      pathSound = 'step';
+      if (puzzle.numbers[cell]) numberReached = true;
       if (isSolved(puzzle, path)) finish();
+      else publishPath();
       return true;
     }
     if (!path.includes(cell)) {
@@ -99,12 +135,12 @@ async function boot() {
   }
 
   function cutTo(index) {
+    index = Math.max(0, index);
     if (index >= path.length - 1) return;
-    board.flare(path.slice(index + 1));
+    for (let i = index + 1; i < path.length; i++) erasedCells.add(path[i]);
     path.length = index + 1;
-    board.setPath(path);
-    sound.back();
-    announce();
+    pathSound = 'back';
+    publishPath();
   }
 
   /* The pointer has reached `cell`: on the line it cuts the line back,
@@ -119,35 +155,82 @@ async function boot() {
     if (line) for (const c of line) if (!step(c)) break;
   }
 
-  const cellFromEvent = (event) => {
+  // Sample the pointer's actual route through the table. A quick swipe can
+  // skip several cells between browser events, including around a corner;
+  // interpolating table coordinates keeps the line under the finger.
+  function followPointer(event) {
     const point = stage.pick(event.clientX, event.clientY, 0.16);
-    return point ? board.cellAt(point) : -1;
-  };
+    if (!point) { lastPoint = null; return; }
+    const next = { x: point.x, z: point.z };
+    const previous = lastPoint || next;
+    const distance = Math.hypot(next.x - previous.x, next.z - previous.z);
+    const samples = Math.min(160, Math.max(1, Math.ceil(distance / 0.22)));
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples;
+      const cell = board.cellAt({ x: previous.x + (next.x - previous.x) * t, z: previous.z + (next.z - previous.z) * t });
+      if (cell >= 0 && cell !== lastCell) {
+        lastCell = cell;
+        moveTo(cell, true);
+      }
+    }
+    lastPoint = next;
+  }
+
+  function samplePointer(event, coalesced = false) {
+    pointerBatch = true;
+    try {
+      if (coalesced) for (const sample of event.getCoalescedEvents?.() || []) followPointer(sample);
+      followPointer(event);
+    } finally {
+      pointerBatch = false;
+      if (pathDirty) publishPath();
+    }
+  }
+
+  function releasePointer() {
+    const pointer = activePointer;
+    activePointer = null;
+    lastPoint = null;
+    lastCell = -1;
+    if (pointer !== null && canvas.hasPointerCapture?.(pointer)) canvas.releasePointerCapture(pointer);
+  }
+
   canvas.addEventListener('pointerdown', (event) => {
-    if (!board || event.button > 0) return;
+    if (!board || solved || event.button > 0 || activePointer !== null) return;
+    const point = stage.pick(event.clientX, event.clientY, 0.16);
+    const cell = point ? board.cellAt(point) : -1;
+    if (cell < 0) return;
     sound.unlock();
     canvas.focus({ preventScroll: true });
-    const cell = cellFromEvent(event);
-    if (cell < 0) return;
-    canvas.setPointerCapture(event.pointerId);
-    dragging = true;
+    activePointer = event.pointerId;
+    lastPoint = { x: point.x, z: point.z };
     lastCell = cell;
+    canvas.setPointerCapture(event.pointerId);
     moveTo(cell, false);
   });
   canvas.addEventListener('pointermove', (event) => {
     if (!board) return;
-    const cell = cellFromEvent(event);
-    if (dragging) {
-      if (cell >= 0 && cell !== lastCell) { lastCell = cell; moveTo(cell, true); }
+    if (activePointer !== null) {
+      if (event.pointerId !== activePointer) return;
+      samplePointer(event, true);
     } else if (event.pointerType === 'mouse') {
-      board.hover(cell);
+      const point = stage.pick(event.clientX, event.clientY, 0.16);
+      board.hover(point ? board.cellAt(point) : -1);
     }
   });
-  const release = () => { dragging = false; lastCell = -1; };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
-  canvas.addEventListener('pointerleave', () => { if (!dragging) board?.hover(-1); });
-  canvas.addEventListener('blur', () => board?.hover(-1));
+  canvas.addEventListener('pointerup', (event) => {
+    if (event.pointerId !== activePointer) return;
+    samplePointer(event);
+    releasePointer();
+  });
+  canvas.addEventListener('pointercancel', (event) => {
+    if (event.pointerId === activePointer) releasePointer();
+  });
+  canvas.addEventListener('lostpointercapture', (event) => {
+    if (event.pointerId === activePointer) releasePointer();
+  });
+  canvas.addEventListener('pointerleave', () => { if (activePointer === null) board?.hover(-1); });
+  canvas.addEventListener('blur', () => { releasePointer(); board?.hover(-1); });
 
   canvas.addEventListener('keydown', (event) => {
     if (!board || solved) return;
@@ -166,15 +249,22 @@ async function boot() {
     }
   });
 
-  const shell = createShell({
+  shell = createShell({
     storageKey: 'zipper', sound,
     onNew: start,
     onReset() {
       if (!board) return;
+      releasePointer();
+      clearTimeout(winTimer);
       if (solved) solved = false;
       cutTo(0);
       shell.restart();
       announce();
+    },
+    onUndo() {
+      if (!board || solved) return;
+      releasePointer();
+      cutTo(path.length - 2);
     },
     onHint() {
       if (!board || solved) return;
@@ -192,6 +282,12 @@ async function boot() {
     },
   });
 
+  announce();
+  retheme = (theme) => {
+    stage.setTheme(theme);
+    if (board) rebuild();
+    shell.toast(theme.label);
+  };
   stage.start();
   document.body.classList.add('ready');
   // For the browser check: where a cell is on the page.

@@ -23,6 +23,7 @@ import * as THREE from 'three';
 import { FOLIAGE_UNIFORMS } from './materials.js';
 import { dimFillSpecular } from './fill.js';
 import { GUST_GLSL } from './weather.js';
+import { createGrassCells } from './grass-cells.js';
 
 const SEGS = 3, TUFT = 5;
 export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, shocks = null }) {
@@ -39,8 +40,20 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
   const geo = new THREE.InstancedBufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setIndex(idx);
-  // three draws no more instances than its instanced attributes hold: a dummy one, sized for the most
-  geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(max * max), 1));
+  // Filter whole rows against conservative view bounds before submitting
+  // their tufts. The texture's filtered heights cannot exceed its extrema.
+  let minHeight = Infinity, maxHeight = -Infinity;
+  const ground = map.tex.image?.data;
+  if (ground && (map.tex.type === THREE.HalfFloatType || map.tex.type === THREE.FloatType)) {
+    for (let i = 3; i < ground.length; i += 4) {
+      const h = map.tex.type === THREE.HalfFloatType ? THREE.DataUtils.fromHalfFloat(ground[i]) : ground[i];
+      minHeight = Math.min(minHeight, h);
+      maxHeight = Math.max(maxHeight, h);
+    }
+  }
+  const cells = createGrassCells(max, spacing, minHeight, maxHeight);
+  const cellAttribute = new THREE.InstancedBufferAttribute(cells.cells, 1).setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('aCell', cellAttribute);
   geo.instanceCount = n * n;
 
   // the ground under the grass reads the same map (terrain.js)
@@ -69,6 +82,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
         uniform sampler2D tGround;
         uniform vec2 uMapMin, uMapSize, uOrigin, uWind;
         uniform float uN, uSpacing, uRadius, uTime, uPixel;
+        attribute float aCell;
         uniform vec3 uPlayer;
         uniform vec4 uShock[3];
         varying float vT;
@@ -85,7 +99,7 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
         }`)
       .replace('#include <beginnormal_vertex>', `
         // this tuft's cell and everything the hash of it says
-        float id = float(gl_InstanceID);
+        float id = aCell;
         vec2 cell = uOrigin + vec2(mod(id, uN), floor(id / uN));
         vec4 h = hash4(cell);
         vec2 root = (cell + 0.5 + (h.xy - 0.5) * 1.4) * uSpacing;
@@ -209,6 +223,13 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
     update(camera, player, height = 768) {
       const o = uniforms.uOrigin.value;
       o.set(Math.floor(camera.position.x / spacing) - n / 2, Math.floor(camera.position.z / spacing) - n / 2);
+      camera.updateMatrixWorld();
+      geo.instanceCount = cells.update(camera, n, o.x, o.y);
+      if (cells.changed && geo.instanceCount) {
+        cellAttribute.clearUpdateRanges();
+        cellAttribute.addUpdateRange(0, geo.instanceCount);
+        cellAttribute.needsUpdate = true;
+      }
       uniforms.uPixel.value = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / height;
       if (player) uniforms.uPlayer.value.copy(player);
       const sv = uniforms.uShock.value;
@@ -218,8 +239,18 @@ export function createGrass({ map, shared, n = 192, max = 192, spacing = 0.22, s
       }
     },
     setCount(m) {
-      n = Math.min(m, max);
+      const next = Math.min(m, max);
+      if (next === n) return;
+      n = next;
       geo.instanceCount = n * n;
+      // A quality change can be rendered before the next update. Restore
+      // the full new grid first; the next camera update compacts it again.
+      for (let i = 0; i < geo.instanceCount; i++) cells.cells[i] = i;
+      if (geo.instanceCount) {
+        cellAttribute.clearUpdateRanges();
+        cellAttribute.addUpdateRange(0, geo.instanceCount);
+        cellAttribute.needsUpdate = true;
+      }
       uniforms.uN.value = n;
       uniforms.uRadius.value = n * spacing * 0.5;
       if (shared.grassR) shared.grassR.value = n > 0 ? uniforms.uRadius.value : 0;

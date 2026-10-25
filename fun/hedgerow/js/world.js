@@ -154,8 +154,9 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
   /* Nearest hit along a ray. Returns null or {t, x, y, z, nx, ny, nz,
      collider, surface}. `mask` selects collider flags; terrain is always
      tested unless noTerrain. */
-  function raycast(ox, oy, oz, dx, dy, dz, maxT, mask = SHOT, opts = {}) {
+  function traceRay(ox, oy, oz, dx, dy, dz, maxT, mask, opts, anyHit = false) {
     let best = maxT, hit = null, bnx = 0, bny = 1, bnz = 0;
+    const normal = anyHit ? null : tmpN;
     // walk the grid cells along the ray (2D DDA)
     stamp++;
     let gx = Math.floor((ox - minX) / cell), gz = Math.floor((oz - minZ) / cell);
@@ -172,9 +173,14 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
           col.stamp = stamp;
           if (!(col.flags & mask) || col === opts.ignore) continue;
           const t = col.type === 'box'
-            ? rayBox(col, ox, oy, oz, dx, dy, dz, best, tmpN)
-            : rayCyl(col, ox, oy, oz, dx, dy, dz, best, tmpN);
-          if (t < best) { best = t; hit = col; bnx = tmpN.x; bny = tmpN.y; bnz = tmpN.z; }
+            ? rayBox(col, ox, oy, oz, dx, dy, dz, best, normal)
+            : rayCyl(col, ox, oy, oz, dx, dy, dz, best, normal);
+          if (t < best) {
+            // Sight and cover checks only need a blocker. Once there is
+            // one, neither nearer colliders nor the terrain can clear it.
+            if (anyHit) return true;
+            best = t; hit = col; bnx = tmpN.x; bny = tmpN.y; bnz = tmpN.z;
+          }
         }
       }
       const tNext = Math.min(tMaxX, tMaxZ);
@@ -187,6 +193,7 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
     if (terrain && !opts.noTerrain) {
       const tt = terrain.raycast(ox, oy, oz, dx, dy, dz, best);
       if (tt < best) {
+        if (anyHit) return true;
         best = tt; hit = 'terrain';
         const x = ox + dx * tt, z = oz + dz * tt;
         const nn = terrain.normal(x, z);
@@ -213,12 +220,17 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
     };
   }
 
+  function raycast(ox, oy, oz, dx, dy, dz, maxT, mask = SHOT, opts = {}) {
+    return traceRay(ox, oy, oz, dx, dy, dz, maxT, mask, opts);
+  }
+
   /* Is the segment between two points clear for this mask? */
+  const sightOptions = { noWater: true };
   function clear(ax, ay, az, bx, by, bz, mask = SIGHT) {
     const dx = bx - ax, dy = by - ay, dz = bz - az;
     const L = Math.hypot(dx, dy, dz);
     if (L < 1e-6) return true;
-    return !raycast(ax, ay, az, dx / L, dy / L, dz / L, L - 0.05, mask, { noWater: true });
+    return !traceRay(ax, ay, az, dx / L, dy / L, dz / L, L - 0.05, mask, sightOptions, true);
   }
 
   /* ---------- character movement ---------- */

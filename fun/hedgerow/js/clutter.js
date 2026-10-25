@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { rng } from './util.js';
 import { GROUND_GLSL } from './groundmap.js';
 import { dimFillSpecular } from './fill.js';
+import { createClutterCells } from './clutter-cells.js';
 
 /* a stone: a once-subdivided icosahedron, its points pushed in and out, flattened */
 function stoneGeometry(seed = 3) {
@@ -75,7 +76,7 @@ const KINDS = {
   twig: { channel: 'z', spacing: 0.4, radius: 9, density: 0.75, seed: 37.0 },
 };
 
-function createKind(kind, geometry, map, shared) {
+function createKind(kind, geometry, map, shared, minHeight, maxHeight) {
   const K = KINDS[kind];
   const n = Math.ceil((K.radius * 2) / K.spacing);
   const geo = new THREE.InstancedBufferGeometry();
@@ -83,8 +84,9 @@ function createKind(kind, geometry, map, shared) {
   geo.setAttribute('position', geometry.attributes.position);
   geo.setAttribute('normal', geometry.attributes.normal);
   if (geometry.attributes.bend) geo.setAttribute('bend', geometry.attributes.bend);
-  // three draws no more instances than its instanced attributes hold: a dummy one
-  geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(n * n), 1));
+  const cells = createClutterCells(n, K.spacing, minHeight, maxHeight);
+  const cellAttribute = new THREE.InstancedBufferAttribute(cells.cells, 1).setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('aCell', cellAttribute);
   geo.instanceCount = n * n;
   const uniforms = {
     ...map.uniforms, tGround: { value: map.tex }, uMapSize: { value: map.size },
@@ -103,6 +105,7 @@ function createKind(kind, geometry, map, shared) {
         uniform vec2 uMapSize, uOrigin;
         ${GROUND_GLSL}
         uniform float uN, uSpacing, uRadius, uDensity;
+        attribute float aCell;
         ${stone ? '' : 'attribute float bend;'}
         varying vec3 vTint;
         varying float vMud;
@@ -124,16 +127,26 @@ function createKind(kind, geometry, map, shared) {
         }`)
       .replace('#include <beginnormal_vertex>', `
         // this piece's cell and everything the hash of it says
-        float id = float(gl_InstanceID);
+        float id = aCell;
         vec2 cell = uOrigin + vec2(mod(id, uN), floor(id / uN));
         vec4 h = hash4(cell + ${K.seed.toFixed(1)});
-        vec4 h2 = hash4(cell + vec2(${K.seed.toFixed(1)}, 991.0));
         vec2 xz = (cell + 0.5 + (h.xy - 0.5) * 0.9) * uSpacing;
-        float gy = groundY(xz);
         float dist = length(xz - cameraPosition.xz);
         // some everywhere, more where they gather
-        float gathered = 0.35 + 1.3 * smoothstep(0.3, 0.85, vnoise(xz / 1.7 + ${K.seed.toFixed(1)}));
-        float here = step(h.z, cover(xz).${K.channel} * uDensity * gathered) * (1.0 - smoothstep(uRadius * 0.7, uRadius, dist));
+        float here = 0.0;
+        if (dist < uRadius) {
+          float density = cover(xz).${K.channel} * uDensity;
+          if (density > 0.0 || h.z == 0.0) {
+            float gathered = 0.35 + 1.3 * smoothstep(0.3, 0.85, vnoise(xz / 1.7 + ${K.seed.toFixed(1)}));
+            here = step(h.z, density * gathered) * (1.0 - smoothstep(uRadius * 0.7, uRadius, dist));
+          }
+        }
+        // Zero-sized pieces cannot rasterize. Skip their five terrain
+        // samples (twenty texel fetches), shape work and vertex transforms.
+        if (here <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        vec3 objectNormal;
+        vec4 h2 = hash4(cell + vec2(${K.seed.toFixed(1)}, 991.0));
+        float gy = groundY(xz);
         // the slope it lies on
         float hx = groundY(xz + vec2(0.4, 0.0)) - groundY(xz - vec2(0.4, 0.0));
         float hz = groundY(xz + vec2(0.0, 0.4)) - groundY(xz - vec2(0.0, 0.4));
@@ -151,7 +164,7 @@ function createKind(kind, geometry, map, shared) {
         vec3 sc = vec3(1.0, mix(0.7, 1.15, h2.y), mix(0.65, 1.0, h2.z)) * s;
         vec3 lp = position * sc;
         lp.y += 0.2 * sc.y;
-        vec3 objectNormal = normalize(basis * (normal / max(sc, vec3(1e-5))));
+        objectNormal = normalize(basis * (normal / max(sc, vec3(1e-5))));
         vTint = vec3(h2.w, h2.y, step(0.82, h2.z));
         // how near the ground this point of it is (in its own height: 0 where it meets the mud)
         vMud = 1.0 - smoothstep(0.0, 0.35, position.y + 0.2);` : `
@@ -163,7 +176,7 @@ function createKind(kind, geometry, map, shared) {
         vec3 lp = position * sc;
         lp.z += bend * len * (h2.z > 0.5 ? 1.0 : -1.0);
         lp.y += rad * 0.7;
-        vec3 objectNormal = normalize(basis * (normal / max(sc, vec3(1e-5))));
+        objectNormal = normalize(basis * (normal / max(sc, vec3(1e-5))));
         vTint = vec3(h2.w, h2.z, 0.0);`}
         piecePos = vec3(xz.x, gy, xz.y) + basis * lp;
         #ifdef USE_TANGENT
@@ -196,8 +209,15 @@ function createKind(kind, geometry, map, shared) {
   mesh.receiveShadow = true;
   return {
     mesh,
-    update(camera) {
-      uniforms.uOrigin.value.set(Math.floor(camera.position.x / K.spacing) - n / 2, Math.floor(camera.position.z / K.spacing) - n / 2);
+    update(camera, width, height) {
+      const origin = uniforms.uOrigin.value;
+      origin.set(Math.floor(camera.position.x / K.spacing) - n / 2, Math.floor(camera.position.z / K.spacing) - n / 2);
+      geo.instanceCount = cells.update(camera, origin.x, origin.y, width, height);
+      if (cells.changed && geo.instanceCount) {
+        cellAttribute.clearUpdateRanges();
+        cellAttribute.addUpdateRange(0, geo.instanceCount);
+        cellAttribute.needsUpdate = true;
+      }
     },
   };
 }
@@ -205,12 +225,21 @@ function createKind(kind, geometry, map, shared) {
 export function createClutter({ map, shared, on = 1 }) {
   const group = new THREE.Group();
   group.name = 'clutter';
-  const kinds = [createKind('stone', stoneGeometry(), map, shared), createKind('twig', twigGeometry(), map, shared)];
+  let minHeight = Infinity, maxHeight = -Infinity;
+  const heightMap = map.uniforms.tHeight.value;
+  if (heightMap?.type === THREE.FloatType && heightMap.image?.data) {
+    for (const h of heightMap.image.data) { minHeight = Math.min(minHeight, h); maxHeight = Math.max(maxHeight, h); }
+  }
+  const kinds = [createKind('stone', stoneGeometry(), map, shared, minHeight, maxHeight), createKind('twig', twigGeometry(), map, shared, minHeight, maxHeight)];
   for (const k of kinds) group.add(k.mesh);
   group.visible = !!on;
   return {
     group,
-    update(camera) { if (group.visible) for (const k of kinds) k.update(camera); },
+    update(camera, width, height) {
+      if (!group.visible) return;
+      camera.updateMatrixWorld();
+      for (const k of kinds) k.update(camera, width, height);
+    },
     setOn(v) { group.visible = !!v; },
   };
 }

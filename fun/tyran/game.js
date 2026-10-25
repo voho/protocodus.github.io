@@ -332,28 +332,42 @@ function syncArenaSize() {
   if (rect.width !== surfaceWidth || rect.height !== surfaceHeight) resize();
 }
 
+// A sector's fleet and effect artwork is built on the world's warm queue, one hull class at a time, and uploaded as it
+// is made: choosing a sector or reaching the shop spreads the work over frames, and launching finishes what is left.
 function warmFleet(index) {
   index = environmentIndex(index);
-  warmShipSprites(SHIP_PALETTES[index], index);
-  warmShipSprites('#a4ffee', index, true);
-  warmShipSprites(DRONE_COLOR, index, true); warmShipSprites(CAPTIVE_COLOR, index, true);
-  warmProjectileTextures([...WEAPONS, ...PRIMARIES, { id: 'drone', kind: 'pulse', color: DRONE_COLOR }], BULLET_SPECTRUM);
-  for (const kind of BONUS_KINDS) pickupTexture(kind);
-  warmEffectsTextures([WORLDS[index].color, ...WEAPONS.filter(weapon => weapon.splash).map(weapon => weapon.color)]);
-  pilotBarrierTexture(); mineTexture();
   meteorWorld = METEOR_WORLDS.has(index) ? index : -1;
-  warmGpuSources();
+  const ships = (key, step) => world.queueWarm(`fleet:${key}`, () => { step(); if (gpu) warmGpuShipSprites(gpu); });
+  warmShipSprites(SHIP_PALETTES[index], index, false, ships);
+  warmShipSprites('#a4ffee', index, true, ships);
+  warmShipSprites(DRONE_COLOR, index, true, ships); warmShipSprites(CAPTIVE_COLOR, index, true, ships);
+  world.queueWarm(`fleet:art:${index}`, () => {
+    warmProjectileTextures([...WEAPONS, ...PRIMARIES, { id: 'drone', kind: 'pulse', color: DRONE_COLOR }], BULLET_SPECTRUM);
+    for (const kind of BONUS_KINDS) pickupTexture(kind);
+    warmEffectsTextures([WORLDS[index].color, ...WEAPONS.filter(weapon => weapon.splash).map(weapon => weapon.color)]);
+    pilotBarrierTexture(); mineTexture();
+    if (gpu) warmGpuArt();
+  });
+  if (gpu && meteorWorld >= 0) world.queueWarm(`fleet:meteors:${index}`, () => warmGpuMeteors(index));
 }
 
 function warmGpuSources() {
   if (!gpu) return;
   gpu.prepareSoftLayer(.5);
-  warmGpuShipSprites(gpu); warmGpuProjectileTextures(gpu); warmGpuEffectTextures(gpu);
-  for (const kind of BONUS_KINDS) gpu.prewarm(pickupTexture(kind));
-  gpu.prewarm(pilotBarrierTexture()); gpu.prewarm(mineTexture());
-  if (meteorWorld >= 0) for (let variant = 0; variant < 5; variant++) { const rock = world.getSprite(METEOR_SPRITES[meteorWorld], variant); gpu.prewarm(rock); gpu.prewarm(meteorShadow(rock)); }
+  warmGpuShipSprites(gpu); warmGpuArt(); warmGpuMeteors(meteorWorld);
   if (vignette) gpu.prewarm(vignette);
   world.warmGpuSources(gpu);
+  // Uploads queued by background preparation are checked before any frame can draw with them.
+  gpu.verifyUploads();
+}
+// Projectile, effect and pickup artwork: the same for every sector.
+function warmGpuArt() {
+  warmGpuProjectileTextures(gpu); warmGpuEffectTextures(gpu);
+  for (const kind of BONUS_KINDS) gpu.prewarm(pickupTexture(kind));
+  gpu.prewarm(pilotBarrierTexture()); gpu.prewarm(mineTexture());
+}
+function warmGpuMeteors(index) {
+  if (index >= 0) for (let variant = 0; variant < 5; variant++) { const rock = world.getSprite(METEOR_SPRITES[index], variant); gpu.prewarm(rock); gpu.prewarm(meteorShadow(rock)); }
 }
 
 // Contextual notices share a compact overlay without moving the arena.
@@ -565,7 +579,8 @@ function showHangar(bonus, loading = false) {
   // The cleared world's destruction ledger is no longer needed after its guardian.
   const prepareNext = () => {
     if (scene !== 'hangar' || !state || nextSector(state.level) !== next) return;
-    warmFleet(next); world.setWorld(next, sectorSeed(next)); world.prepare(W, H);
+    world.setWorld(next, sectorSeed(next)); warmFleet(next);
+    world.prepareReady(W, H).catch(() => {});
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(prepareNext);
   else setTimeout(prepareNext, 0);

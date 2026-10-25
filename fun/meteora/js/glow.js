@@ -79,6 +79,42 @@ export function createGlowBatch(scene, capacity = 4096) {
   scene.add(mesh);
 
   let n = 0, camX = 0, camY = 0, camZ = 0, fwdX = 0, fwdY = 0, fwdZ = -1, haveCamera = false;
+  /* A sprite handed over as its twelve numbers in one array `s`, in add's
+     order: position, half-width, colour, intensity, stretch axis and
+     length. The explosions add thousands a frame in a big fight this way:
+     passed one by one into a function too big to be inlined, every number
+     would be boxed on the way — a few hundred kilobytes of garbage a frame. */
+  const one = new Float64Array(12);
+  const addFrom = s => {
+    const x = s[0], y = s[1], z = s[2], size = s[3], ax = s[8], ay = s[9], az = s[10], length = s[11];
+    let intensity = s[7];
+    if (n >= capacity || intensity <= 0) return;
+    // The chase camera sits inside the length of the player's own plume.
+    // A sprite level with the camera plane, or behind it, projects to a
+    // degenerate quad that can cover the whole screen — several layers
+    // deep with additive blending — so it is dropped; one close to the
+    // camera fades. Both are judged at the sprite's nearest point (the
+    // nearer end of a streak): its depth along the view, and its
+    // clearance from the camera.
+    if (haveCamera) {
+      let px = x - camX, py = y - camY, pz = z - camZ;
+      let depth = px * fwdX + py * fwdY + pz * fwdZ;
+      if (length > 0) {
+        const end = Math.abs(ax * fwdX + ay * fwdY + az * fwdZ) * length / 2;
+        depth -= end;
+        const along = Math.max(-length / 2, Math.min(length / 2, -(px * ax + py * ay + pz * az)));
+        px += ax * along; py += ay * along; pz += az * along;
+      }
+      const clearance = Math.sqrt(px * px + py * py + pz * pz) - size;
+      if (clearance <= 0.5 || depth - size <= 0.5) return;
+      intensity *= Math.min(1, clearance / (size * 3), (depth - size) / (size * 3));
+    }
+    const i = n * 4;
+    center[i] = x; center[i + 1] = y; center[i + 2] = z; center[i + 3] = size;
+    color[i] = s[4]; color[i + 1] = s[5]; color[i + 2] = s[6]; color[i + 3] = intensity;
+    axis[i] = ax; axis[i + 1] = ay; axis[i + 2] = az; axis[i + 3] = length;
+    n++;
+  };
   return {
     mesh,
     get count() { return n; },
@@ -89,33 +125,12 @@ export function createGlowBatch(scene, capacity = 4096) {
     begin() { n = 0; },
     // Position, half-width, colour × intensity, and an optional stretch axis.
     add(x, y, z, size, r, g, b, intensity, ax = 0, ay = 0, az = 0, length = 0) {
-      if (n >= capacity || intensity <= 0) return;
-      // The chase camera sits inside the length of the player's own plume.
-      // A sprite level with the camera plane, or behind it, projects to a
-      // degenerate quad that can cover the whole screen — several layers
-      // deep with additive blending — so it is dropped; one close to the
-      // camera fades. Both are judged at the sprite's nearest point (the
-      // nearer end of a streak): its depth along the view, and its
-      // clearance from the camera.
-      if (haveCamera) {
-        let px = x - camX, py = y - camY, pz = z - camZ;
-        let depth = px * fwdX + py * fwdY + pz * fwdZ;
-        if (length > 0) {
-          const end = Math.abs(ax * fwdX + ay * fwdY + az * fwdZ) * length / 2;
-          depth -= end;
-          const along = Math.max(-length / 2, Math.min(length / 2, -(px * ax + py * ay + pz * az)));
-          px += ax * along; py += ay * along; pz += az * along;
-        }
-        const clearance = Math.sqrt(px * px + py * py + pz * pz) - size;
-        if (clearance <= 0.5 || depth - size <= 0.5) return;
-        intensity *= Math.min(1, clearance / (size * 3), (depth - size) / (size * 3));
-      }
-      const i = n * 4;
-      center[i] = x; center[i + 1] = y; center[i + 2] = z; center[i + 3] = size;
-      color[i] = r; color[i + 1] = g; color[i + 2] = b; color[i + 3] = intensity;
-      axis[i] = ax; axis[i + 1] = ay; axis[i + 2] = az; axis[i + 3] = length;
-      n++;
+      const s = one;
+      s[0] = x; s[1] = y; s[2] = z; s[3] = size; s[4] = r; s[5] = g; s[6] = b; s[7] = intensity;
+      s[8] = ax; s[9] = ay; s[10] = az; s[11] = length;
+      addFrom(s);
     },
+    addFrom,
     end() {
       geometry.instanceCount = n;
       for (const a of attrs) { a.clearUpdateRanges(); a.addUpdateRange(0, n * 4); a.needsUpdate = true; }

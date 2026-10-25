@@ -346,8 +346,10 @@ export function createEnemies(G, defs) {
     const ang = Math.abs(wrapAngle(Math.atan2(dx, dz) - e.yaw));
     const fov = combat ? Math.PI : e.state === 'ambush' ? ENEMY.viewFov * 1.5 : ready ? ENEMY.viewFov * 1.4 : ENEMY.viewFov;
     if (ang > fov) return;
-    const seeHead = G.world.clear(eye.x, eye.y, eye.z, head.x, head.y, head.z, SIGHT);
     const seeChest = G.world.clear(eye.x, eye.y, eye.z, chest.x, chest.y, chest.z, SIGHT);
+    // A clear chest already gives full exposure; only check above cover
+    // when the chest is hidden.
+    const seeHead = !seeChest && G.world.clear(eye.x, eye.y, eye.z, head.x, head.y, head.z, SIGHT);
     if (!seeHead && !seeChest) return;
     e.sees = true;
     e.exposure = seeChest ? 1 : 0.45;

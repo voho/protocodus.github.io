@@ -228,6 +228,25 @@ kbd {
   color: var(--paper);
 }
 .card-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.themes { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: border-color 180ms ease, color 180ms ease;
+}
+.theme:hover { border-color: var(--line-lift); color: var(--paper); }
+.theme[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--paper); }
+/* Three colours of the world: its sky, its accent and its second colour. */
+.swatch { width: 48px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--a) 0 46%, var(--b) 46% 73%, var(--c) 73%); }
 .win-time { margin-top: 14px; font-size: 3.8rem; font-weight: 500; line-height: 1; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
 
 /* ---------- loading ---------- */
@@ -265,6 +284,7 @@ body.ready .loading { opacity: 0; visibility: hidden; }
   .btn { min-height: 38px; padding: 0 11px; font-size: 0.8125rem; }
   .long { display: none; }
   .card { padding: 22px; }
+  .themes { grid-template-columns: repeat(2, 1fr); }
   .win-time { font-size: 3rem; }
 }
 /* Blurring the live canvas behind every panel costs a phone's GPU each frame. */
@@ -273,4 +293,87 @@ body.ready .loading { opacity: 0; visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* The scenery name and coverage stay quiet until the player needs them. */
+:root { --secondary: #aa96ff; }
+.world-chip { display: flex; align-items: center; gap: 7px; margin-top: 7px; font-size: 0.75rem; color: var(--accent); }
+.world-chip { padding: 0; border: 0; background: transparent; }
+.world-chip:hover [data-world-name], .world-chip:focus-visible [data-world-name] { text-decoration: underline; }
+.world-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.board-size { padding-left: 7px; border-left: 1px solid var(--line-lift); color: var(--muted); font-variant-numeric: tabular-nums; }
+.daily-btn { min-height: 44px; border: 1px solid var(--line-lift); background: var(--glass); white-space: nowrap; }
+.daily-btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.icon-btn, .back { min-width: 44px; min-height: 44px; }
+.icon-btn { width: 44px; height: 44px; }
+.segmented span { min-height: 36px; }
+.btn { min-height: 44px; }
+.share-seed { padding: 7px 0 0; border: 0; background: transparent; text-align: left; }
+.share-seed:hover, .share-seed:focus-visible { color: var(--accent); }
+.share-seed span { color: var(--accent); }
+.progress-area { width: min(28vw, 280px); min-width: 160px; pointer-events: none; }
+.progress-caption { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 0.75rem; }
+[data-progress-count] { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--accent); }
+progress { display: block; appearance: none; -webkit-appearance: none; width: 100%; height: 4px; margin-top: 7px; border: 0; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,0.12); color: var(--accent); }
+progress::-webkit-progress-bar { background: rgba(255,255,255,0.12); border-radius: 4px; }
+progress::-webkit-progress-value { background: var(--accent); border-radius: 4px; transition: width 160ms ease; }
+progress::-moz-progress-bar { background: var(--accent); border-radius: 4px; }
+.play-feedback { margin-top: 7px; min-height: 2.6em; color: var(--faint); font-size: 0.72rem; line-height: 1.3; text-wrap: balance; }
+#stage:focus-visible { outline: none; }
+body:has(#stage:focus-visible) .progress-area { filter: brightness(1.25); }
+@media (max-width: 920px) {
+  .hud-brand { gap: 10px; }
+  .wordmark p { display: none; }
+  .hud-tools { gap: 6px; }
+  .wordmark h1 { font-size: 1.5rem; }
+}
+@media (max-width: 720px) {
+  .hud { padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  .hud-top { gap: 10px; }
+  .hud-brand { align-items: center; }
+  .wordmark h1 { line-height: 1; }
+  .world-chip { margin-top: 5px; }
+  .icon-btn[data-action="theme"] { display: none; }
+  .hud-tools { justify-content: flex-start; gap: 6px; }
+  .hud-tools .segmented { margin-right: auto; }
+  .segmented { padding: 3px; }
+  .segmented span { min-height: 38px; padding: 0 10px; }
+  .hud-bottom { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 10px; }
+  .progress-area { grid-column: 1 / -1; grid-row: 1; width: 100%; min-width: 0; }
+  .progress-caption { font-size: 0.75rem; }
+  .play-feedback { min-height: 1.3em; font-size: 0.7rem; margin-top: 6px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .status { grid-row: 2; }
+  .toolbar { grid-row: 2; justify-self: end; gap: 2px; border-radius: 18px; }
+  .toolbar .btn { min-height: 44px; min-width: 44px; padding: 0 10px; border-radius: 13px; font-size: 0.8rem; gap: 3px; }
+  .timer { font-size: 1.4rem; }
+  .seed { font-size: 0.65rem; }
+  .share-seed { padding-top: 6px; }
+  .toast { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 116px); border-radius: 14px; font-size: 0.8rem; }
+  .daily-btn { padding: 0 11px; font-size: 0.8125rem; }
+}
+@media (max-width: 359px) {
+  .segmented span { padding: 0 7px; }
+  .hud-tools { gap: 4px; }
+  .toolbar .btn { padding: 0 7px; }
+  .daily-btn { padding: 0 9px; }
+  .hud { padding-left: 8px; padding-right: 8px; }
+}
+/* A single-row header leaves room for the board on a phone held sideways. */
+@media (max-height: 520px) and (min-width: 540px) {
+  .hud { padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+  .hud-top { display: flex; align-items: center; }
+  .wordmark h1 { font-size: 1.25rem; line-height: 1; }
+  .wordmark p, .world-chip, .hud-tools .long { display: none; }
+  .hud-tools { gap: 6px; }
+  .hud-bottom { display: flex; align-items: flex-end; }
+  .progress-area { width: min(30vw, 220px); }
+  .play-feedback { min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toolbar { border-radius: 18px; }
+  .toolbar .btn { min-height: 44px; padding: 0 10px; }
+  .timer { font-size: 1.4rem; }
+  .toast { bottom: 80px; }
+  .card { max-height: 94dvh; padding: 18px 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  progress::-webkit-progress-value { transition: none; }
 }

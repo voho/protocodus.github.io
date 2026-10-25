@@ -7,6 +7,7 @@ import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const THREE = await import('three');
 const { createRagdoll } = await import('../js/ragdoll.js');
+const { createCharacter } = await import('../js/character.js');
 
 // a standing rig, bones pointing along +Y (as the game's rig does)
 const bones = {};
@@ -35,6 +36,7 @@ for (const [s, x] of [['l', 0.2], ['r', -0.2]]) {
   bone(`foot_${s}`, `shin_${s}`, 0, 0.45, 0);
 }
 rootObj.updateMatrixWorld(true);
+const standingRig = rootObj.clone();
 
 const world = { groundAt: () => 0, pushOut: () => false };
 const shotFrom = new THREE.Vector3(0, 0, -10);          // shot from behind (-z): falls towards +z
@@ -62,4 +64,33 @@ for (const [i, j] of [[6, 7], [7, 8], [14, 15], [15, 16], [0, 1]]) {
 // the bones follow the particles: the head bone ends near the head particle
 const hp = bones.head.getWorldPosition(new THREE.Vector3());
 assert.ok(hp.distanceTo(rd.positions[3]) < 0.2, `the head bone follows the ragdoll (${hp.distanceTo(rd.positions[3]).toFixed(2)} m off)`);
+
+// Through the character update, the first fall and final settling frame
+// must both reach the bones. Sleeping bodies keep their pose without
+// rebuilding every bone matrix; their contact shadow still follows state.
+{
+  const ch = createCharacter({ scene: standingRig, animations: [] }, {
+    get: () => new THREE.MeshBasicMaterial(), resolve: (m) => m,
+  }, { scene: new THREE.Scene() });
+  ch.die('death_fwd', { world, impulses: [{ part: 'body', vel: new THREE.Vector3(0, 0.4, 3.4) }] });
+  const r = ch.ragdoll;
+  const pose = r.pose;
+  let poses = 0, finalPose = false;
+  r.pose = () => { poses++; finalPose = r.asleep; pose(); };
+  ch.update(1 / 60, 0);
+  assert.equal(poses, 1, 'the initial falling frame is posed');
+  for (let i = 0; i < 600 && !r.asleep; i++) ch.update(1 / 60, 0);
+  assert.ok(r.asleep && finalPose, 'the frame that puts the body to sleep is posed');
+  const before = poses;
+  const snapshot = () => Object.values(ch.bones).flatMap(b => [...b.position.toArray(), ...b.quaternion.toArray()]);
+  const resting = snapshot();
+  for (let i = 0; i < 60; i++) {
+    ch.root.visible = i % 2 === 0;
+    ch.update(1 / 60, 0.5);
+    assert.equal(ch.shadow.visible, ch.root.visible, 'the sleeping contact shadow follows visibility');
+    assert.equal(ch.shadow.position.y, 0.53, 'the contact shadow still follows the supplied ground');
+  }
+  assert.equal(poses, before, 'a sleeping body does not rebuild its unchanged bone pose');
+  assert.deepEqual(snapshot(), resting, 'the complete resting pose remains unchanged');
+}
 console.log(`ragdoll-check: falls and lies still after ${t.toFixed(1)} s, pelvis ${rd.pelvis.y.toFixed(2)} m, pushed ${(rd.pelvis.z - start[0].z).toFixed(2)} m`);

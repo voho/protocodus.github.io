@@ -16,36 +16,46 @@
 
 import * as THREE from 'three';
 
-const VERT = /* glsl */ `
-varying vec2 vUv;
-void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-
-const FRAG = /* glsl */ `
-uniform sampler2D tSrc, tDepth;
+const DEPTH = /* glsl */ `
+uniform sampler2D tDepth;
 uniform mat4 uProjInv;
-uniform float uAim, uMaxPx, uNearPx;
-uniform vec2 uTexel;
-varying vec2 vUv;
-
 float dist(vec2 uv) {
   float d = texture2D(tDepth, uv).x;
   if (d >= 1.0) return 1e4;
   vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   return length(v.xyz / v.w);
-}
+}`;
+
+const VERT = /* glsl */ `
+${DEPTH}
+uniform vec2 uTexel;
+varying vec2 vUv;
+varying float vFocus;
+// The focus is identical across the frame. Find it at the triangle's three vertices
+// instead of repeating these three depth taps for every pixel.
+float focusAt(vec2 uv) { float d = dist(uv); return d < 1.2 ? 1e4 : d; }
+void main() {
+  vUv = uv;
+  vFocus = max(min(min(focusAt(vec2(0.5)), focusAt(vec2(0.5) + uTexel * vec2(6.0, 0.0))), focusAt(vec2(0.5) - uTexel * vec2(6.0, 0.0))), 2.0);
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}`;
+
+const FRAG = /* glsl */ `
+${DEPTH}
+uniform sampler2D tSrc;
+uniform float uAim, uMaxPx, uNearPx;
+uniform vec2 uTexel;
+varying vec2 vUv;
+varying float vFocus;
+
 // blur in pixels for a point at distance d with the focus at f
 float coc(float d, float f) {
   float far = clamp((d - f) / max(d, 1e-3) * 1.25, 0.0, 1.0) * uMaxPx;
   float near = (1.0 - smoothstep(0.18, 0.45, d)) * uNearPx;
   return max(far, near) * uAim;
 }
-// a focus tap: past the rifle (nearer than 1.2 m is the gun itself)
-float focusAt(vec2 uv) { float d = dist(uv); return d < 1.2 ? 1e4 : d; }
-
 void main() {
-  // the focus: what lies under the crosshair (a few taps, the nearest wins)
-  float f = min(min(focusAt(vec2(0.5)), focusAt(vec2(0.5) + uTexel * vec2(6.0, 0.0))), focusAt(vec2(0.5) - uTexel * vec2(6.0, 0.0)));
-  f = max(f, 2.0);
+  float f = vFocus;
   vec3 c0 = texture2D(tSrc, vUv).rgb;
   float r0 = coc(dist(vUv), f);
   if (r0 < 0.5) { gl_FragColor = vec4(c0, 1.0); return; }
