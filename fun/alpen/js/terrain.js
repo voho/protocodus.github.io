@@ -2144,6 +2144,74 @@ export function createLattice(layout, palette) {
     }
   }
 
+  /* THE SIDE FANS' SNOWPACK, on the columns' own spacing.
+
+     Out to either side the rows beside the rider are still three quarters
+     of a metre apart where the columns have grown to six, twelve and twenty-
+     four, and the snowpack turns curvature and slope into snow or stone over
+     a few metres. Across the columns that edge can only move a whole column
+     at a time; down a column it moved within one row. So a couloir or an
+     arête crossing a wall on the diagonal was drawn as a staircase — each
+     column band its own short, sharp-ended stretch of it, one band along
+     from the last — and from the piste every far wall wore a comb of teeth.
+     Most of what crosses a wall that way is the arêtes and couloirs of
+     `TERRAIN.crests`; without them the comb goes too.
+
+     So where a column is coarser than the rows, the full pass runs only on
+     the rows whose world z is a whole number of that column's stride: a
+     square grid on the wall, on the same world rows every hop. The rows in
+     between take the straight line from one of those to the next, which is
+     how a square mesh would have drawn the crease. Their heights, positions
+     and normals stay their own, so the ground and its lighting are exactly
+     what they were; only the colour stops resolving along the wall what the
+     lattice cannot resolve across it. The near field is square already, and
+     the far run ahead keeps every column: its rows are the coarse ones, and
+     its fine columns are what draw the piste's edges. */
+  const unit = Math.min(...xStrides, ...zStrides);
+  const columnUnits = Int32Array.from(xStrides, (s) => Math.round(s / unit));
+  const rowUnits = Int32Array.from(zStrides, (s) => Math.round(s / unit));
+
+  // Whether vertex (r, c) of the lattice anchored at `az` is one of those rows
+  // in between: finer than its column, off the column's world grid, not the
+  // first or last row, and short of the haze, which keeps its own shortcut.
+  function inBetween(r, c, az) {
+    const s = columnUnits[c];
+    if (rowUnits[r] >= s || r === 0 || r === vertsZ - 1) return false;
+    const lz = szs[r];
+    const lx = sxs[c];
+    if (lz * lz + lx * lx >= FOG_SKIP_SQ) return false;
+    return (Math.round((az + lz) / unit) & (s - 1)) !== 0;
+  }
+
+  /* Row r has just been worked out in full wherever it is not in between, so
+     each column it closes a run of rows in gets them drawn in now, from the
+     column's last full row above. Rows always build in order, and a build's
+     arrays persist across its batches, so that row is always there. */
+  function fillBetween(r, az, outColors, outSurface) {
+    if (r === 0) return;
+    for (let c = 0; c < vertsX; c++) {
+      if (!inBetween(r - 1, c, az) || inBetween(r, c, az)) continue;
+      let top = r - 1;
+      while (inBetween(top, c, az)) top--;
+      const a = top * vertsX + c;
+      const b = r * vertsX + c;
+      const z0 = szs[top];
+      const span = szs[r] - z0;
+      for (let k = top + 1; k < r; k++) {
+        const t = (szs[k] - z0) / span;
+        const v = k * vertsX + c;
+        for (let e = 0; e < 3; e++) {
+          outColors[v * 3 + e] = outColors[a * 3 + e]
+            + (outColors[b * 3 + e] - outColors[a * 3 + e]) * t;
+        }
+        for (let e = 0; e < 4; e++) {
+          outSurface[v * 4 + e] = outSurface[a * 4 + e]
+            + (outSurface[b * 4 + e] - outSurface[a * 4 + e]) * t;
+        }
+      }
+    }
+  }
+
   const previousXs = new Float64Array(vertsX);
   const previousZs = new Float64Array(vertsZ);
   const reuseColumns = new Int32Array(vertsX);
@@ -2578,6 +2646,7 @@ export function createLattice(layout, palette) {
           outGroomFrame[g] = 0;
           outGroomFrame[g + 1] = 0;
         }
+        fillBetween(r, az, outColors, outSurface);
         continue;
       }
 
@@ -2614,14 +2683,41 @@ export function createLattice(layout, palette) {
         outPositions[p + 1] = h - ay;
         outPositions[p + 2] = lz;
 
+        /* One of the rows in between (see `inBetween`): its own normal and
+           groom frame, and its snowpack drawn in by `fillBetween` once the
+           column's next full row is down. */
+        if (inBetween(r, c, az)) {
+          const cPrev = Math.max(0, c - 1);
+          const cNext = Math.min(vertsX - 1, c + 1);
+          const dx2 = sxs[cNext] - sxs[cPrev] || 1;
+          const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
+          const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
+          const invNormal = 1 / hypot3(dx, 1, dz);
+          outNormals[p] = -dx * invNormal;
+          outNormals[p + 1] = invNormal;
+          outNormals[p + 2] = -dz * invNormal;
+          const centre = ctx.split > 0
+            ? (Math.abs(wx - (ctx.mid - ctx.split))
+              <= Math.abs(wx - (ctx.mid + ctx.split))
+              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+            : ctx.mid;
+          const rightSide = wx >= centre;
+          outGroomFrame[g] = rightSide ? frameRight : frameLeft;
+          outGroomFrame[g + 1] = rightSide ? frameSlopeRight : frameSlopeLeft;
+          continue;
+        }
+
         // Material and curvature are unchanged only when the whole five-point
         // stencil survived. Copy from the separate live buffers, never from a
-        // partially written build or across the fog shortcut's boundary.
+        // partially written build or across the fog shortcut's boundary —
+        // and only from a vertex that was worked out in full itself, which
+        // the same lane strides at the same world point guarantee.
         const oldColumn = reuseColumns[c];
         if (reuseSurfaceRow && c > 0 && c + 1 < vertsX
           && oldColumn > 0 && oldColumn + 1 < vertsX
           && reuseColumns[c - 1] === oldColumn - 1
           && reuseColumns[c + 1] === oldColumn + 1
+          && xStrides[oldColumn] === xStrides[c] && zStrides[oldRow] === zStrides[r]
           && heightReused[i] && heightReused[i - 1] && heightReused[i + 1]
           && heightReused[i - vertsX] && heightReused[i + vertsX]
           && lzSq + lx * lx < FOG_SKIP_SQ) {
@@ -3012,6 +3108,7 @@ export function createLattice(layout, palette) {
         outColors[p + 1] = cg;
         outColors[p + 2] = cb;
       }
+      fillBetween(r, az, outColors, outSurface);
     }
   }
 
