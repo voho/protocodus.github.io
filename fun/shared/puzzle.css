@@ -228,6 +228,25 @@ kbd {
   color: var(--paper);
 }
 .card-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.themes { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: border-color 180ms ease, color 180ms ease;
+}
+.theme:hover { border-color: var(--line-lift); color: var(--paper); }
+.theme[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--paper); }
+/* Three colours of the world: its sky, its accent and its second colour. */
+.swatch { width: 48px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--a) 0 46%, var(--b) 46% 73%, var(--c) 73%); }
 .win-time { margin-top: 14px; font-size: 3.8rem; font-weight: 500; line-height: 1; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
 
 /* ---------- loading ---------- */
@@ -265,6 +284,7 @@ body.ready .loading { opacity: 0; visibility: hidden; }
   .btn { min-height: 38px; padding: 0 11px; font-size: 0.8125rem; }
   .long { display: none; }
   .card { padding: 22px; }
+  .themes { grid-template-columns: repeat(2, 1fr); }
   .win-time { font-size: 3rem; }
 }
 /* Blurring the live canvas behind every panel costs a phone's GPU each frame. */

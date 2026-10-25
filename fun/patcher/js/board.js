@@ -9,11 +9,9 @@ const PATCH_H = 0.3, PATCH_GAP = 0.12, PATCH_R = 0.18;
 const DROP_FROM = 2.4;
 const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
 
-// Candy: saturated, glossy, never two alike side by side.
-export const PALETTE = ['#ff6b9d', '#ffb347', '#ffe066', '#9bf27a', '#5fe3c8', '#7ad3ff', '#c58bff', '#ff8f6b', '#ff79c6', '#8affd6', '#ffd36b', '#9c9bff'];
-
-export function createBoard(stage, puzzle, { accent, fx }) {
+export function createBoard(stage, puzzle, { theme, fx }) {
   const n = puzzle.size, N = n * n;
+  const accent = theme.accent;
   const group = new THREE.Group();
   stage.scene.add(group);
   const mid = (n - 1) / 2;
@@ -25,7 +23,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
 
   const plinthSize = n * CELL + 0.5;
   const plinth = new THREE.Mesh(slabGeometry(plinthSize, plinthSize, 0.3, 0.26, 0.05),
-    stage.material({ color: '#160d1c', roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
+    stage.material({ color: theme.plinth, roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
   plinth.position.y = -0.3;
   plinth.castShadow = plinth.receiveShadow = true;
   group.add(plinth);
@@ -35,17 +33,18 @@ export function createBoard(stage, puzzle, { accent, fx }) {
   const tiles = [];
   const clueOf = new Int16Array(N).fill(-1);
   puzzle.clues.forEach((clue, k) => { clueOf[clue.cell] = k; });
+  const { hue, sat, light } = theme.tiles;
   for (let cell = 0; cell < N; cell++) {
-    // Dark glossy tiles, violet at one corner shading to wine at the other.
-    const hue = 0.78 + 0.14 * ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
-    const base = new THREE.Color().setHSL(hue, 0.4, 0.17, THREE.SRGBColorSpace);
+    // Dark glossy tiles in the theme's hues, shading from one corner to the other.
+    const h = hue[0] + (hue[1] - hue[0]) * ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
+    const base = new THREE.Color().setHSL(h, sat, light, THREE.SRGBColorSpace);
     const material = stage.material({ color: base, roughness: 0.3, metalness: 0.1, emissive: accentColour, emissiveIntensity: 0 });
     const mesh = new THREE.Mesh(tileGeometry, material);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
     mesh.castShadow = mesh.receiveShadow = true;
     mesh.userData = { glow: 0, lift: 0, press: 0, label: null };
     if (clueOf[cell] >= 0) {
-      const texture = clueTexture(puzzle.clues[clueOf[cell]], '#f6e7b8');
+      const texture = clueTexture(puzzle.clues[clueOf[cell]], theme.ink);
       const label = labelMesh(texture, 0.8, 1.2);
       label.position.y = TILE_H + 0.002;
       mesh.add(label);
@@ -144,12 +143,11 @@ export function createBoard(stage, puzzle, { accent, fx }) {
           entry.landed = time;
           for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) tiles[(patch.y + j) * n + patch.x + i].userData.press = 1;
           // The landing runs a ripple out across the board in the patch's
-          // colour, glows in the backdrop and nudges the camera. Gentle,
-          // since a move lands many times a game: the colour should tint
-          // the board, not wash over it.
+          // colour and glows in the backdrop. Gentle, since a move lands
+          // many times a game: the colour should tint the board, not wash
+          // over it.
           ripple(x, z, entry.colour, 0.3);
           stage.pulse(new THREE.Vector3(x, TILE_H, z), entry.colour, 0.6);
-          stage.kick(0.7);
           fx.dust.burst({
             origin: new THREE.Vector3(x, TILE_H + 0.05, z), count: 14 + patch.w * patch.h * 2,
             colours: [entry.colour, '#ffffff'], speed: [0.8, 2.2], direction: new THREE.Vector3(0, 0.35, 0), spread: 1.5,
@@ -229,13 +227,14 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       stage.wake();
     },
     reject() { ghostShake = 1; stage.wake(); },
-    /* A patch drops onto the board in its colour, with the clue on top. */
-    place(patch, colour, onLand) {
+    /* A patch drops onto the board in its colour, with the clue on top;
+       `settled` puts it straight down, as after a change of theme. */
+    place(patch, colour, onLand, settled = false) {
       hintGhost.visible = false;
       const material = stage.material({ color: colour, roughness: 0.2, metalness: 0, emissive: colour, emissiveIntensity: 0.06, clearcoatRoughness: 0.06 });
       const mesh = new THREE.Mesh(patchGeometry(patch.w, patch.h), material);
       const [x, z] = rectCentre(patch);
-      mesh.position.set(x, TILE_H + DROP_FROM, z);
+      mesh.position.set(x, TILE_H + (settled ? 0 : DROP_FROM), z);
       mesh.castShadow = mesh.receiveShadow = true;
       const clue = puzzle.clues[patch.clue];
       const texture = clueTexture(clue, '#1a1420');
@@ -246,7 +245,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       group.add(mesh);
       const tileLabel = tiles[clue.cell].userData.label;
       if (tileLabel) tileLabel.visible = false;
-      patches.set(patch.clue, { patch, mesh, label, colour, state: 'drop', t: 0, landed: 0, lift: 0, hopAt: -1, hue: -1, onLand });
+      patches.set(patch.clue, { patch, mesh, label, colour, state: settled ? 'rest' : 'drop', t: 0, landed: settled ? -10 : 0, lift: 0, hopAt: -1, hue: -1, onLand });
       stage.wake(2);
     },
     lift(clueIndex) {
@@ -281,9 +280,8 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       order.forEach((entry, i) => { entry.hopAt = time + 0.1 + i * 0.05; entry.hue = i / order.length; });
       ripple(0, 0, '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
-      stage.kick(1.2);
       stage.wake(4);
-      const colours = [...PALETTE, '#ffffff'];
+      const colours = [...theme.palette, '#ffffff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1.2, 0), count: 240, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
     },
     dispose() {

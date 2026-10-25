@@ -27,7 +27,7 @@ async function gameHarness(game, puzzle, logic) {
     ...logic,
     hint(p, input) { state.inputs.push(structuredClone(input)); return logic.hint(p, input); },
     generate: () => puzzle,
-    createStage: () => ({ dust() {}, bokeh() {}, start() {}, flash() {}, pick: (x) => ({ x }), project() {} }),
+    createStage: () => ({ start() {}, flash() {}, setTheme() {}, pick: (x) => ({ x }), project() {} }),
     createBoard: () => board,
     createBursts: () => ({}),
     createSound: () => new Proxy({}, { get: () => () => {} }),
@@ -41,7 +41,7 @@ async function gameHarness(game, puzzle, logic) {
       };
     },
     waitForFont: () => Promise.resolve(),
-    PALETTE: ['#87d7be'],
+    createThemeSwitch: () => ({ current: { label: 'Test', accent: '#87d7be', palette: ['#87d7be'] } }),
     document: {
       getElementById: () => canvas,
       querySelector: (selector) => selector === '[data-status]' ? status : {},

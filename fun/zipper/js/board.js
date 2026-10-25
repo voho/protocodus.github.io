@@ -11,8 +11,9 @@ const STEP_TIME = 0.085;
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
 
-export function createBoard(stage, puzzle, { accent, fx }) {
+export function createBoard(stage, puzzle, { theme, fx }) {
   const n = puzzle.size, N = n * n;
+  const accent = theme.accent;
   const group = new THREE.Group();
   stage.scene.add(group);
   const mid = (n - 1) / 2;
@@ -23,7 +24,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
 
   const plinthSize = n * CELL + 0.5;
   const plinth = new THREE.Mesh(slabGeometry(plinthSize, plinthSize, 0.3, 0.26, 0.05),
-    stage.material({ color: '#0b1220', roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
+    stage.material({ color: theme.plinth, roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
   plinth.position.y = -0.3;
   plinth.castShadow = plinth.receiveShadow = true;
   group.add(plinth);
@@ -31,12 +32,15 @@ export function createBoard(stage, puzzle, { accent, fx }) {
 
   const tileGeometry = slabGeometry(TILE, TILE, TILE_H, TILE_R, 0.035);
   const tiles = [];
+  const { hue, sat, light, lit: litSpec } = theme.tiles;
   for (let cell = 0; cell < N; cell++) {
-    // Deep jewel tones, cyan at one corner shading to violet at the other,
-    // that light up to candy brightness under the line.
-    const hue = 0.5 + 0.28 * ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
-    const base = new THREE.Color().setHSL(hue, 0.6, 0.2, THREE.SRGBColorSpace);
-    const lit = new THREE.Color().setHSL(hue, 0.95, 0.52, THREE.SRGBColorSpace);
+    // Deep tones in the theme's hues, shading from one corner to the
+    // other, that light up to candy brightness under the line.
+    const spread = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
+    const h = hue[0] + (hue[1] - hue[0]) * spread;
+    const base = new THREE.Color().setHSL(h, sat, light, THREE.SRGBColorSpace);
+    const litHue = litSpec.hue ? litSpec.hue[0] + (litSpec.hue[1] - litSpec.hue[0]) * spread : h;
+    const lit = new THREE.Color().setHSL(litHue, litSpec.sat, litSpec.light, THREE.SRGBColorSpace);
     const material = stage.material({ color: base, roughness: 0.32, metalness: 0.05, emissive: accentColour, emissiveIntensity: 0, clearcoatRoughness: 0.2 });
     const mesh = new THREE.Mesh(tileGeometry, material);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
@@ -69,7 +73,7 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     disposables.push(material, texture, label.material);
   });
 
-  const wallColour = new THREE.Color('#f6d155');
+  const wallColour = new THREE.Color(theme.wall);
   const wallAlong = slabGeometry(0.1, 0.96, 0.34, 0.05, 0.015);
   const wallAcross = slabGeometry(0.96, 0.1, 0.34, 0.05, 0.015);
   const walls = new Map();
@@ -259,8 +263,18 @@ export function createBoard(stage, puzzle, { accent, fx }) {
     hover(cell) { if (cell !== hovered) { hovered = cell; stage.wake(); } },
     /* The middle of a cell's top, on the table. */
     centre(cell) { return new THREE.Vector3(cellX(cell), TILE_H, cellZ(cell)); },
-    setPath(cells) {
+    /* `settled` shows the line as it stands, without growing it, as
+       after a change of theme. */
+    setPath(cells, settled = false) {
       hintCells.clear();
+      if (settled) {
+        target = cells.slice();
+        shown.cells = cells.slice();
+        shown.t = 1;
+        dirty = true;
+        stage.wake();
+        return;
+      }
       const grew = cells.length > target.length;
       const shrank = cells.length < target.length;
       target = cells.slice();
@@ -269,10 +283,10 @@ export function createBoard(stage, puzzle, { accent, fx }) {
         tiles[head].userData.press = 1;
         const number = puzzle.numbers[head];
         // Every step sends a small ripple across the board; a number reached
-        // sends a bright one, lights the backdrop and nudges the camera.
+        // sends a bright one and lights the backdrop.
         ripple(head, number ? '#ffffff' : accent, number ? 1 : 0.25);
-        fx.sparks.burst({ origin: at(head), count: number ? 26 : 4, colours: ['#ffffff', accent, '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
-        if (number) { stage.pulse(at(head), accent, 1); stage.kick(0.6); }
+        fx.sparks.burst({ origin: at(head), count: number ? 26 : 4, colours: ['#ffffff', accent, theme.wall], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
+        if (number) stage.pulse(at(head), accent, 1);
       } else if (shrank) {
         ripple(head, '#ffffff', 0.2);
       }
@@ -304,9 +318,8 @@ export function createBoard(stage, puzzle, { accent, fx }) {
       linePulse = 0.7;
       ripple(target[target.length - 1], '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
-      stage.kick(1.2);
       stage.wake(4);
-      const colours = [accent, '#f6d155', '#ffffff', '#f29e8e', '#9fb8ff'];
+      const colours = [accent, theme.secondary, theme.wall, '#ffffff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
       target.filter((_, i) => i % 3 === 0).forEach((cell, i) => {
         setTimeout(() => fx.sparks.burst({ origin: new THREE.Vector3(cellX(cell), LINE_Y, cellZ(cell)), count: 10, colours: [accent, '#ffffff'], speed: [0.6, 1.8], spread: 1.2, gravityPull: 1.5, airDrag: 2, lifespan: [0.5, 0.9], size: [0.06, 0.06], spinRate: 4 }), 100 + i * 90);
