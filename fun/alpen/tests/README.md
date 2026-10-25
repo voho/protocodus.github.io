@@ -218,11 +218,19 @@ WebGL context and checks the old 47 m repetition at 2.4 km and the 160 m
 repetition at 8 and 12 km against a legacy fixture. It also checks that the
 crowns remain compact, retain their tone, stay fixed to the ground as the
 view moves, and fade to their mean beyond 16 km.
+Both crown fields also fade to their mean as their cells shrink to a few
+pixels on screen. Before that, a forested slope two to five kilometres out
+was one even dotting of identical crowns, the most visible repeating pattern
+in the distance, with the 47 m field drawing diagonal dashes over it. The
+slow field now sets how open each stand is, scaling the snow between the
+crowns around its old amount so the forest keeps its tone, and the slope
+reads as stands. The check's magnified views stay above that pixel fade.
 For the mountain rendering optimization, run
 `await (await import('./tests/backdrop-performance-browser-check.mjs')).runBackdropPerformanceCheck()`.
 It compares the full lit image with the original texture-reading path at
 near and far distances, across fade cutoffs, on steep cliffs and at the
-panorama seam. Texture reads are skipped only after their fade reaches zero;
+panorama seam. The reference applies the same distance and pixel fades,
+unconditionally. Texture reads are skipped only after their fade reaches zero;
 the check allows at most one byte of GPU rounding difference.
 `await (await import('./tests/forest-clip-browser-check.mjs')).runForestClipCheck()`
 compares the real tree models and distant images before and after vertex

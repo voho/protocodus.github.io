@@ -9,13 +9,19 @@ import { getWorldSeed, setWorldSeed } from '../js/noise.js';
 const SIZE = 128;
 const REFERENCE_DETAIL = `
     vec3 slow = texture2D(uNoise, vReal.xz / 2300.0).rgb;
-    vec3 fast = referenceLandNoise(vReal.xz / 160.0 + vec2(0.37, 0.11));
-    float fine = referenceLandNoise(mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0
-      + vec2(0.71, 0.23)).g;
+    vec2 fastUv = vReal.xz / 160.0 + vec2(0.37, 0.11);
+    vec2 fineUv = mat2(0.8, -0.6, 0.6, 0.8) * vReal.xz / 47.0 + vec2(0.71, 0.23);
+    vec3 fast = referenceLandNoise(fastUv);
+    float fine = referenceLandNoise(fineUv).g;
     float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
     float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
-    fast = mix(vec3(0.5), fast, mid);
-    fine = mix(0.5, fine, near);
+    // Each field's fade by the pixels one of its cells covers, unconditionally.
+    float fineSeen = smoothstep(2.0, 6.0,
+      0.125 / max(max(length(dFdx(fineUv)), length(dFdy(fineUv))), 1e-6));
+    float fastSeen = smoothstep(2.5, 8.0,
+      0.125 / max(max(length(dFdx(fastUv)), length(dFdy(fastUv))), 1e-6));
+    fast = mix(vec3(0.5), fast, mid * fastSeen);
+    fine = mix(0.5, fine, near * fineSeen);
     vec3 an = abs(n) + 0.001;
     vec3 q = vReal / 230.0;
     vec3 r = vec3(0.8 * vReal.x - 0.6 * vReal.z, vReal.y, 0.6 * vReal.x + 0.8 * vReal.z) / 61.0;

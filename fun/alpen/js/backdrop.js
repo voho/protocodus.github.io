@@ -276,14 +276,28 @@ const BACKDROP_FRAG = `
        still has valid mip levels where the fade crosses a pixel quad. */
     float near = 1.0 - smoothstep(2600.0, 7000.0, vDist);
     float mid = 1.0 - smoothstep(5000.0, 16000.0, vDist);
+    /* And by the pixel as well as by the kilometre. A field's cell is an
+       eighth of its tile, and once one covers only a few pixels the crowns
+       it draws are dots: one size, one spacing, laid evenly over every
+       forested slope in view. That even dotting was the pattern a hillside
+       showed two to five kilometres out, and the fine field, its cells under
+       two pixels by then, drew diagonal dashes over it. Each now fades to
+       its mean before its cells get that small, on any screen, and the fine
+       one stops being read once it is gone. */
+    float fineSeen = smoothstep(2.0, 6.0,
+      0.125 / max(max(length(fineDx), length(fineDy)), 1e-6));
+    float fastSeen = smoothstep(2.5, 8.0,
+      0.125 / max(max(length(fastDx), length(fastDy)), 1e-6));
     vec3 fast = vec3(0.5);
     float fine = 0.5;
     vec3 strata = vec3(0.42);
-    if (near > 0.0) {
-      fine = mix(0.5, landNoise(fineUv, fineDx, fineDy).g, near);
+    if (near * fineSeen > 0.0) {
+      fine = mix(0.5, landNoise(fineUv, fineDx, fineDy).g, near * fineSeen);
     }
     if (mid > 0.0) {
-      fast = mix(vec3(0.5), landNoise(fastUv, fastDx, fastDy), mid);
+      if (fastSeen > 0.0) {
+        fast = mix(vec3(0.5), landNoise(fastUv, fastDx, fastDy), mid * fastSeen);
+      }
       vec3 an = abs(n) + 0.001;
       strata = ((textureGrad(uRockDetail, q.zy, qDx.zy, qDy.zy).rgb
           + textureGrad(uRockDetail, r.zy + 0.31, rDx.zy, rDy.zy).rgb) * an.x
@@ -313,7 +327,20 @@ const BACKDROP_FRAG = `
        A little: snow is forty times brighter than a spruce crown, so a
        third of it was enough to turn a whole forest belt mid-grey. */
     float crowns = smoothstep(0.3, 0.7, fine + (fast.g - 0.5) * 0.5);
-    vec3 forestColor = mix(uForest, uSnow * 0.8, 0.06 + 0.12 * (1.0 - crowns));
+    /* Stands. A forest is not one density from valley to treeline: there
+       are dense dark stands, open larch with snow showing through, and
+       clearings, a few hundred metres each. The slow field and a second
+       read of it, turned and at a scale no multiple of the first, so the two
+       never line up again in view, decide how open the forest is here. That
+       variation is what a distant forested slope still shows once its
+       crowns have gone below the pixel. It scales the snow between the
+       crowns rather than adding to it, about the amount there was, because
+       a little more snow on average turns a whole forest belt grey. */
+    float stand = slow.b * 0.55 + texture2D(uNoise,
+      mat2(0.6, -0.8, 0.8, 0.6) * vReal.xz / 1370.0 + vec2(0.29, 0.83)).b * 0.45;
+    float standOpen = smoothstep(0.30, 0.80, stand);
+    vec3 forestColor = mix(uForest, uSnow * 0.8,
+      (0.06 + 0.12 * (1.0 - crowns)) * mix(0.45, 1.65, standOpen));
     vec3 albedo = uSnow * snow + forestColor * forest + uIce * ice + rockColor * rock;
 
     // and the strata tilt the light on the rock

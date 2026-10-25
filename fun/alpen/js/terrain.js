@@ -3973,7 +3973,22 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         vec2 n64DetailDy = dFdy(n64DetailUv);
         vec2 n64GroomDetailDx = n64CordColorDx;
         vec2 n64GroomDetailDy = n64CordColorDy;
-        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
+        /* The far drift lines meander. Dead straight across a whole slope
+           they read as a washboard from anywhere above it, and on the side
+           slopes, which they cross square, as contour lines stacked up the
+           hill. So a slow warp, the sky's value noise at about a hundred
+           metres and at thirty, bends each line up to a dozen metres
+           sideways and stretches and squeezes its spacing by as much as a
+           half: lines bunch, part and run out the way drifts do. Only past
+           fifty-five metres, because the field is never live nearer than
+           sixty, so nothing shows the seam this leaves in the phase's own
+           footprint there. */
+        float n64FarWarp = 0.0;
+        if (vDist > 55.0) {
+          n64FarWarp = (n64Noise(vWorld.xz * 0.0105) - 0.5) * 26.0
+            + (n64Noise(vWorld.xz * 0.034 + 5.3) - 0.5) * 7.0;
+        }
+        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174 + n64FarWarp;
         float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
         float n64FarSwayA = n64FarAlong * 0.0628;
         float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
@@ -4163,19 +4178,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           // dissolves before its own period can approach the pixel: this game
           // has been burned by resampled near-pixel patterns before, so the
           // fades are the load-bearing part and not a nicety.
+          /* And they are taken from the periods themselves now: each carrier
+             is whole at eight pixels a period and gone at four, the footprint
+             being the period over eight and over four. The old gates were set
+             by hand and ran on far past that. The slate beds, 4.9 m apart,
+             were still at nine tenths of their strength at three and a half
+             pixels a period and only gone at one and a half, below the two
+             any pattern can be drawn at, so a far slate face could only show
+             them as an even hatch. The joints are thin lines rather than a
+             wave, so they keep a wider margin, gone at eight. */
           float n64StrataUp = dot(normalize(vSmoothNormal), viewMatrix[1].xyz);
           float n64SlateBeds = sin(n64SlateW * 1.276272)
-              * (1.0 - smoothstep(1.4, 3.5, n64SlateFoot))
+              * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot))
             + sin(n64SlateW * 3.926991) * 0.7
-              * (1.0 - smoothstep(0.30, 0.90, n64SlateFoot));
+              * (1.0 - smoothstep(0.20, 0.40, n64SlateFoot));
           float n64SlateInk = smoothstep(0.08, 0.92, n64SlateBeds) * 0.12;
 
           float n64IronBeds = sin(n64IronW * 0.785398)
-            * (1.0 - smoothstep(1.6, 4.2, n64IronFoot));
+            * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
           float n64IronShelf = smoothstep(-0.35, 0.72, n64IronBeds) * 0.075;
           float n64JointWave = abs(sin(n64JointW * 0.589049));
           float n64IronJoint = (1.0 - smoothstep(0.03, 0.24, n64JointWave))
-            * (1.0 - smoothstep(0.35, 1.10, n64JointFoot)) * 0.11;
+            * (1.0 - smoothstep(0.30, 0.67, n64JointFoot)) * 0.11;
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
           /* TRIPLANAR, because a top-down projection has no area to give a
@@ -4273,10 +4297,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            iron follows the broader shelf dip. Their derivative gates are the
            ones already measured above, and the entire response disappears on
            snow through the explicit material channel. */
+        // Gone at four pixels a period, like the beds they lean (see there).
         float n64SlateLean = cos(mod(n64SlateC, 64.0) * 1.276272)
-          * (1.0 - smoothstep(0.45, 1.35, n64SlateFoot));
+          * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot));
         float n64IronLean = cos(mod(n64IronC, 64.0) * 0.785398)
-          * (1.0 - smoothstep(0.80, 2.40, n64IronFoot));
+          * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
         vec3 n64SlateDir = normalize(vec3(-0.22, 0.0, -0.11));
         vec3 n64IronDir = normalize(vec3(0.14, 0.0, -0.18));
         vec3 n64RockLean = mix(n64SlateDir * n64SlateLean,
@@ -4378,10 +4403,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            meeting at a ring.
            (No back-ticks in here: this comment is inside a template literal.)
 
-           Two things stop it becoming wallpaper. The ridge lines are bent by
-           their own long axis, so they braid and lean instead of combing; and
-           one slow noise field decides where the wind has actually worked, so
-           the drifts come in fields with smooth snow between them.
+           Three things stop it becoming wallpaper. The ridge lines are bent
+           by their own long axis, so they braid and lean instead of combing;
+           a slow warp, taken with the phases above the fog exit, makes them
+           meander and vary their spacing as well; and two slow noise fields
+           decide where the wind has actually worked, so the drifts come in
+           runs and fields with smooth snow between them.
 
            ON THE PISTE IT IS A DIFFERENT SURFACE, chosen by the same groom
            mask the plates use — because a piste is not wind-blown. What a
@@ -4413,7 +4440,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            almost all of the variation is across the run, which is the axis a
            grazing view foreshortens least. */
         if (n64FarLive > 0.003) {
-          float n64FarPatch = 0.26 + 0.74 * n64Noise(vWorld.xz * 0.0135);
+          // Firm edges, so the fields read as fields and the snow between
+          // them as calm, rather than one ripple at two strengths; and broken
+          // again at a third of the scale, so a field is drifts in runs of a
+          // few dozen metres, never one ripple carried across a whole slope.
+          float n64FarPatch = 0.18 + 0.82 * smoothstep(0.30, 0.75,
+            n64Noise(vWorld.xz * 0.0135));
+          float n64FarRuns = smoothstep(0.28, 0.68,
+            n64Noise(vWorld.xz * 0.027 + 11.7));
           /* THE MATERIAL, NOT THE TEXTURE. Which of the two far fields this
              ground gets is a question about whether a machine drove over it,
              and the groom *blend* is that answer — the generated groom mask
@@ -4430,7 +4464,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              on a wall face stack into contour rings, a fingerprint up the
              face: nothing drifts in regular stripes up forty degrees.
              Whole to twenty-six, as steep as the run itself gets. */
-          float n64FarWindLevel = n64FarLive * n64FarPatch
+          float n64FarWindLevel = n64FarLive * n64FarPatch * n64FarRuns
             * (1.0 - n64GroomBlend)
             * smoothstep(0.77, 0.90, dot(normalize(vSmoothNormal), viewMatrix[1].xyz));
           float n64FarA = 0.215 * n64FarWindLevel * n64FarFadeA;
