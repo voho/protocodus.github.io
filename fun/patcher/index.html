@@ -34,9 +34,11 @@
         <div class="wordmark">
           <h1>Patcher</h1>
           <p>Cut the board into patches, one clue each.</p>
+          <button type="button" class="world-chip" data-action="theme" title="Change theme"><i aria-hidden="true"></i><span data-world-name>Loading scenery</span><span class="board-size" data-board-size></span></button>
         </div>
       </div>
       <div class="hud-tools">
+        <button type="button" class="btn daily-btn" data-action="daily" aria-pressed="false">Daily <span class="long">puzzle</span></button>
         <fieldset class="segmented" aria-label="Difficulty">
           <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
           <label><input type="radio" name="difficulty" value="medium" checked><span>Medium</span></label>
@@ -50,7 +52,7 @@
     <footer class="hud-bottom">
       <div class="status">
         <output class="timer" data-timer aria-label="Time">0:00</output>
-        <span class="seed">Board <b data-seed>—</b></span>
+        <button type="button" class="seed share-seed" data-action="share" title="Copy a link to this board" aria-label="Copy puzzle link">Board <b data-seed>—</b> <span aria-hidden="true">↗</span></button>
       </div>
       <div class="toolbar" role="group" aria-label="Puzzle actions">
         <button type="button" class="btn" data-action="undo">Undo</button>
@@ -58,7 +60,11 @@
         <button type="button" class="btn" data-action="reset">Reset</button>
         <button type="button" class="btn btn-primary" data-action="new">New <span class="long">puzzle</span></button>
       </div>
-      <div class="spacer"></div>
+      <div class="progress-area">
+        <div class="progress-caption"><span data-progress-detail>Find a rectangle</span><span data-progress-count>0 / 0</span></div>
+        <progress data-progress value="0" max="1" aria-label="Board coverage"></progress>
+        <p class="play-feedback" data-feedback>Drag opposite corners, or tap one then the other.</p>
+      </div>
     </footer>
   </div>
   <p class="toast" data-toast role="status"></p>
@@ -72,9 +78,9 @@
         <li><span class="glyph">6</span><span><b>A number is the patch's size,</b> in cells.</span></li>
         <li><span class="glyph"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h16v8H2z"/></svg></span><span><b>The icon is its shape:</b> a square, a wide bar (wider than tall) or a tall bar. Without a number, the neighbours decide its size.</span></li>
       </ul>
-      <p class="keys">Drag from a clue to draw its patch; tap a patch to lift it again. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> move, <kbd>Enter</kbd> starts and places a patch and <kbd>X</kbd> lifts one. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound · <kbd>T</kbd> theme. Every board has exactly one solution. Hints highlight a patch to draw or reconsider; you place or lift it yourself.</p>
+      <p class="keys">Drag between opposite corners, or tap one corner then the other. The preview shows its size and whether it fits. Tap a placed patch to lift it again; Escape cancels a selection. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> move, <kbd>Enter</kbd> starts and places a patch and <kbd>X</kbd> lifts one. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> reset · <kbd>H</kbd> hint · <kbd>M</kbd> sound · <kbd>T</kbd> theme. Try a Daily puzzle, or New for an endless supply. Six themes bring their own scenery, colours and weather. Every board has exactly one solution. Hints highlight a patch to draw or reconsider; you place or lift it yourself.</p>
       <div class="card-actions">
-        <button type="submit" class="btn btn-primary">Let me cut</button>
+        <button type="submit" class="btn btn-primary">Let me patch</button>
       </div>
     </form>
   </dialog>

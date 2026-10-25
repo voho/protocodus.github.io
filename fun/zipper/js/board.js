@@ -11,9 +11,8 @@ const STEP_TIME = 0.085;
 const easeOut = (t) => 1 - (1 - t) ** 3;
 const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
 
-export function createBoard(stage, puzzle, { theme, fx }) {
+export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   const n = puzzle.size, N = n * n;
-  const accent = theme.accent;
   const group = new THREE.Group();
   stage.scene.add(group);
   const mid = (n - 1) / 2;
@@ -24,7 +23,7 @@ export function createBoard(stage, puzzle, { theme, fx }) {
 
   const plinthSize = n * CELL + 0.5;
   const plinth = new THREE.Mesh(slabGeometry(plinthSize, plinthSize, 0.3, 0.26, 0.05),
-    stage.material({ color: theme.plinth, roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
+    stage.material({ color: theme.plinth || '#0b1220', roughness: 0.2, metalness: 0.3, clearcoatRoughness: 0.08 }));
   plinth.position.y = -0.3;
   plinth.castShadow = plinth.receiveShadow = true;
   group.add(plinth);
@@ -32,15 +31,12 @@ export function createBoard(stage, puzzle, { theme, fx }) {
 
   const tileGeometry = slabGeometry(TILE, TILE, TILE_H, TILE_R, 0.035);
   const tiles = [];
-  const { hue, sat, light, lit: litSpec } = theme.tiles;
   for (let cell = 0; cell < N; cell++) {
-    // Deep tones in the theme's hues, shading from one corner to the
-    // other, that light up to candy brightness under the line.
-    const spread = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
-    const h = hue[0] + (hue[1] - hue[0]) * spread;
-    const base = new THREE.Color().setHSL(h, sat, light, THREE.SRGBColorSpace);
-    const litHue = litSpec.hue ? litSpec.hue[0] + (litSpec.hue[1] - litSpec.hue[0]) * spread : h;
-    const lit = new THREE.Color().setHSL(litHue, litSpec.sat, litSpec.light, THREE.SRGBColorSpace);
+    // Each seeded world shades between two jewel tones, then lights up
+    // with its candy palette beneath the line.
+    const gradient = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
+    const base = new THREE.Color(theme.tileA || '#164350').lerp(new THREE.Color(theme.tileB || '#392957'), gradient);
+    const lit = accentColour.clone().lerp(new THREE.Color(theme.secondary || '#8f7cff'), gradient).multiplyScalar(0.35);
     const material = stage.material({ color: base, roughness: 0.32, metalness: 0.05, emissive: accentColour, emissiveIntensity: 0, clearcoatRoughness: 0.2 });
     const mesh = new THREE.Mesh(tileGeometry, material);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
@@ -73,13 +69,13 @@ export function createBoard(stage, puzzle, { theme, fx }) {
     disposables.push(material, texture, label.material);
   });
 
-  const wallColour = new THREE.Color(theme.wall);
+  const wallColour = new THREE.Color(theme.wall || '#f6d155');
   const wallAlong = slabGeometry(0.1, 0.96, 0.34, 0.05, 0.015);
   const wallAcross = slabGeometry(0.96, 0.1, 0.34, 0.05, 0.015);
   const walls = new Map();
   for (const [a, b] of puzzle.walls) {
     const sameRow = Math.abs(a - b) === 1;
-    const material = new THREE.MeshStandardMaterial({ color: wallColour, emissive: wallColour, emissiveIntensity: 1.5, roughness: 0.4 });
+    const material = new THREE.MeshStandardMaterial({ color: wallColour, emissive: wallColour, emissiveIntensity: 0.9, roughness: 0.4 });
     const mesh = new THREE.Mesh(sameRow ? wallAlong : wallAcross, material);
     mesh.position.set((cellX(a) + cellX(b)) / 2, 0, (cellZ(a) + cellZ(b)) / 2);
     mesh.castShadow = true;
@@ -89,10 +85,22 @@ export function createBoard(stage, puzzle, { theme, fx }) {
     disposables.push(material);
   }
 
-  const lineMaterial = stage.material({ color: accentColour, emissive: accentColour, emissiveIntensity: 1.3, roughness: 0.15, clearcoatRoughness: 0.05 });
-  const tube = new THREE.Mesh(new THREE.BufferGeometry(), lineMaterial);
-  tube.castShadow = true;
-  tube.visible = false;
+  const lineMaterial = stage.material({ color: accentColour, emissive: accentColour, emissiveIntensity: 0.85, roughness: 0.15, clearcoatRoughness: 0.05 });
+  // Fixed instanced segments avoid allocating a new tube geometry on every
+  // animation frame. Rounded joins keep the line smooth at the cell centres.
+  const tubeGeometry = new THREE.CylinderGeometry(LINE_R, LINE_R, 1, 12);
+  const jointGeometry = new THREE.SphereGeometry(LINE_R, 16, 10);
+  const tube = new THREE.InstancedMesh(tubeGeometry, lineMaterial, N - 1);
+  const joints = new THREE.InstancedMesh(jointGeometry, lineMaterial, N);
+  for (const mesh of [tube, joints]) {
+    mesh.count = 0;
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.castShadow = true;
+  }
+  const lineDummy = new THREE.Object3D();
+  const lineDirection = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
   const tail = new THREE.Mesh(new THREE.SphereGeometry(LINE_R, 24, 16), lineMaterial);
   tail.castShadow = true;
   const headMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: accentColour, emissiveIntensity: 2.2, roughness: 0.2 });
@@ -101,12 +109,18 @@ export function createBoard(stage, puzzle, { theme, fx }) {
   const lamp = new THREE.PointLight(accentColour, 3, 4.5, 1.6);
   lamp.position.y = 0.45;
   head.add(lamp);
-  group.add(tube, tail, head);
-  disposables.push(lineMaterial, headMaterial, tail.geometry, head.geometry);
+  const nextRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.40, 48),
+    new THREE.MeshBasicMaterial({ color: accentColour, side: THREE.DoubleSide }));
+  const headRing = new THREE.Mesh(new THREE.RingGeometry(0.315, 0.342, 48),
+    new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }));
+  for (const ring of [nextRing, headRing]) ring.rotation.x = -Math.PI / 2;
+  group.add(tube, joints, tail, head, nextRing, headRing);
+  disposables.push(lineMaterial, headMaterial, tubeGeometry, jointGeometry, tail.geometry, head.geometry, nextRing.geometry, nextRing.material, headRing.geometry, headRing.material);
 
   stage.frame(plinthSize / 2, plinthSize / 2);
 
   let target = [puzzle.waypoints[0]];
+  let nextNumber = 2;
   const shown = { cells: [puzzle.waypoints[0]], t: 1 };
   const onLine = new Uint8Array(N);
   const points = [];
@@ -124,6 +138,7 @@ export function createBoard(stage, puzzle, { theme, fx }) {
   let rippleStrength = 1;
   let rippleStarted = -1;
   let sparkleAt = 0;
+  const celebrationTimers = new Set();
   const distance = (a, b) => Math.abs((a % n) - (b % n)) + Math.abs(Math.floor(a / n) - Math.floor(b / n));
   function ripple(from, colour, strength = 1) {
     // A fast drag steps several times a second; the small ripples wait their
@@ -155,12 +170,27 @@ export function createBoard(stage, puzzle, { theme, fx }) {
     const atNumber = puzzle.numbers[cells[cells.length - 1]] && shown.t >= 1;
     head.visible = !atNumber;
     tail.visible = !puzzle.numbers[cells[0]];
-    if (points.length < 2) { tube.visible = false; return; }
-    const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
-    const geometry = new THREE.TubeGeometry(curve, Math.max(8, points.length * 8), LINE_R, 14, false);
-    tube.geometry.dispose();
-    tube.geometry = geometry;
-    tube.visible = true;
+    headRing.position.set(head.position.x, TILE_H + 0.105, head.position.z);
+    headRing.visible = Boolean(atNumber);
+    tube.count = Math.max(0, points.length - 1);
+    joints.count = points.length > 1 ? points.length : 0;
+    for (let i = 0; i < points.length; i++) {
+      lineDummy.position.copy(points[i]);
+      lineDummy.quaternion.identity();
+      lineDummy.scale.set(1, 1, 1);
+      lineDummy.updateMatrix();
+      joints.setMatrixAt(i, lineDummy.matrix);
+      if (!i) continue;
+      lineDirection.subVectors(points[i], points[i - 1]);
+      const length = lineDirection.length();
+      lineDummy.position.copy(points[i]).add(points[i - 1]).multiplyScalar(0.5);
+      lineDummy.quaternion.setFromUnitVectors(up, lineDirection.normalize());
+      lineDummy.scale.set(1, Math.max(0.001, length), 1);
+      lineDummy.updateMatrix();
+      tube.setMatrixAt(i - 1, lineDummy.matrix);
+    }
+    tube.instanceMatrix.needsUpdate = true;
+    joints.instanceMatrix.needsUpdate = true;
   }
 
   function update(dt, time) {
@@ -183,11 +213,18 @@ export function createBoard(stage, puzzle, { theme, fx }) {
     if (dirty) { rebuildLine(); dirty = false; stage.wake(0.3); }
     if (fx.confetti.alive || fx.sparks.alive) stage.wake(0.3);
     // The head sheds a sparkle or two while the line is on the move.
-    if (shown.t < 1 && time > sparkleAt) {
+    if (!stage.reduced && shown.t < 1 && time > sparkleAt) {
       sparkleAt = time + 0.08;
       fx.sparks.burst({ origin: head.position, count: 1, colours: ['#ffffff', accent], speed: [0.3, 0.8], spread: Math.PI, gravityPull: -0.6, airDrag: 2, lifespan: [0.25, 0.45], size: [0.04, 0.04], spinRate: 3 });
     }
     group.position.y = stage.reduced ? 0 : Math.sin(time * 0.6) * 0.03;
+    nextRing.visible = nextNumber <= puzzle.waypoints.length;
+    if (nextRing.visible) {
+      const cell = puzzle.waypoints[nextNumber - 1];
+      nextRing.position.set(cellX(cell), TILE_H + 0.105 + tiles[cell].position.y, cellZ(cell));
+      const pulse = stage.reduced ? 1 : 1 + Math.sin(time * 3) * 0.045;
+      nextRing.scale.set(pulse, pulse, 1);
+    }
 
     for (let cell = 0; cell < N; cell++) {
       const tile = tiles[cell];
@@ -216,12 +253,12 @@ export function createBoard(stage, puzzle, { theme, fx }) {
       if (wave > 0) emissive.lerp(rippleColour, Math.min(1, wave));
       // A solved board runs a rainbow along the line as the tiles hop.
       if (hop > 0 && data.hue >= 0) emissive.setHSL((data.hue + time * 0.15) % 1, 1, 0.6, THREE.SRGBColorSpace);
-      tile.material.emissiveIntensity = data.glow * 0.35 + data.press * 0.7 + hop * 0.7 + wave * 0.55
+      tile.material.emissiveIntensity = data.glow * 0.18 + data.press * 0.7 + hop * 0.7 + wave * 0.55
         + (hinted ? 0.5 + Math.sin(time * 6) * 0.2 : 0);
       if (hinted) stage.wake(0.3);
       tile.material.color.lerpColors(data.base, data.lit, Math.min(1, data.glow * 2));
-      tile.position.y = data.lift - data.press * 0.06 + hop * 0.18 + wave * 0.07;
-      tile.position.x = cellX(cell) + Math.sin(time * 60) * 0.04 * data.shake;
+      tile.position.y = stage.reduced ? 0 : data.lift - data.press * 0.06 + hop * 0.18 + wave * 0.07;
+      tile.position.x = cellX(cell) + (stage.reduced ? 0 : Math.sin(time * 60) * 0.04 * data.shake);
     }
     for (const [cell, puck] of pucks) {
       const data = puck.userData;
@@ -231,19 +268,20 @@ export function createBoard(stage, puzzle, { theme, fx }) {
       data.glow = ease(data.glow, reached ? 0.12 : 0, dt, 10);
       data.pulse = Math.max(0, data.pulse - dt * 3);
       puck.material.emissiveIntensity = data.glow + data.pulse * 0.15;
-      const scale = 1 + Math.sin(data.pulse * Math.PI) * 0.22;
+      puck.material.color.set('#ffffff').lerp(accentColour, reached ? 0.23 : 0);
+      const scale = stage.reduced ? 1 : 1 + Math.sin(data.pulse * Math.PI) * 0.22;
       puck.scale.set(scale, 1, scale);
       puck.position.y = TILE_H + 0.045 + tiles[cell].position.y;
     }
     for (const wall of walls.values()) {
       wall.userData.flash = Math.max(0, wall.userData.flash - dt * 4);
-      wall.material.emissiveIntensity = 1.5 + wall.userData.flash * 3;
-      wall.position.y = Math.sin(time * 50) * 0.03 * wall.userData.flash;
+      wall.material.emissiveIntensity = 0.9 + wall.userData.flash * 2.6;
+      wall.position.y = stage.reduced ? 0 : Math.sin(time * 50) * 0.03 * wall.userData.flash;
     }
     linePulse = Math.max(0, linePulse - dt * 1.2);
-    lineMaterial.emissiveIntensity = 1.3 + linePulse * 0.9;
+    lineMaterial.emissiveIntensity = 0.85 + linePulse * 0.6;
     headShake = Math.max(0, headShake - dt * 5);
-    const beat = 1 + Math.sin(time * 4) * 0.05 + headShake * 0.3;
+    const beat = stage.reduced ? 1 : 1 + Math.sin(time * 4) * 0.05 + headShake * 0.3;
     head.scale.set(beat, beat, beat);
     headMaterial.emissiveIntensity = 2.2 + linePulse;
     lamp.intensity = 2.6 + Math.sin(time * 4) * 0.4 + linePulse * 4;
@@ -267,17 +305,12 @@ export function createBoard(stage, puzzle, { theme, fx }) {
        after a change of theme. */
     setPath(cells, settled = false) {
       hintCells.clear();
-      if (settled) {
-        target = cells.slice();
-        shown.cells = cells.slice();
-        shown.t = 1;
-        dirty = true;
-        stage.wake();
-        return;
-      }
-      const grew = cells.length > target.length;
-      const shrank = cells.length < target.length;
+      const grew = !settled && cells.length > target.length;
+      const shrank = !settled && cells.length < target.length;
       target = cells.slice();
+      nextNumber = 2;
+      for (const cell of cells) if (puzzle.numbers[cell]) nextNumber = puzzle.numbers[cell] + 1;
+      if (settled) { shown.cells = cells.slice(); shown.t = 1; dirty = true; stage.wake(); return; }
       const head = cells[cells.length - 1];
       if (grew) {
         tiles[head].userData.press = 1;
@@ -285,7 +318,7 @@ export function createBoard(stage, puzzle, { theme, fx }) {
         // Every step sends a small ripple across the board; a number reached
         // sends a bright one and lights the backdrop.
         ripple(head, number ? '#ffffff' : accent, number ? 1 : 0.25);
-        fx.sparks.burst({ origin: at(head), count: number ? 26 : 4, colours: ['#ffffff', accent, theme.wall], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
+        fx.sparks.burst({ origin: at(head), count: stage.reduced ? 0 : number ? 26 : 4, colours: ['#ffffff', accent, theme.wall || '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
         if (number) stage.pulse(at(head), accent, 1);
       } else if (shrank) {
         ripple(head, '#ffffff', 0.2);
@@ -314,21 +347,27 @@ export function createBoard(stage, puzzle, { theme, fx }) {
     },
     celebrate() {
       const time = stage.time;
-      target.forEach((cell, i) => { tiles[cell].userData.hopAt = time + 0.1 + i * 0.03; tiles[cell].userData.hue = i / target.length; });
+      if (!stage.reduced) target.forEach((cell, i) => { tiles[cell].userData.hopAt = time + 0.1 + i * 0.03; tiles[cell].userData.hue = i / target.length; });
       linePulse = 0.7;
       ripple(target[target.length - 1], '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
       stage.wake(4);
-      const colours = [accent, theme.secondary, theme.wall, '#ffffff'];
-      fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
-      target.filter((_, i) => i % 3 === 0).forEach((cell, i) => {
-        setTimeout(() => fx.sparks.burst({ origin: new THREE.Vector3(cellX(cell), LINE_Y, cellZ(cell)), count: 10, colours: [accent, '#ffffff'], speed: [0.6, 1.8], spread: 1.2, gravityPull: 1.5, airDrag: 2, lifespan: [0.5, 0.9], size: [0.06, 0.06], spinRate: 4 }), 100 + i * 90);
+      const colours = theme.palette || [accent, '#f6d155', '#ffffff', '#f29e8e', '#9fb8ff'];
+      fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: stage.reduced ? 0 : 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
+      if (!stage.reduced) target.filter((_, i) => i % 3 === 0).forEach((cell, i) => {
+        const timer = setTimeout(() => {
+          celebrationTimers.delete(timer);
+          fx.sparks.burst({ origin: new THREE.Vector3(cellX(cell), LINE_Y, cellZ(cell)), count: 10, colours: [accent, '#ffffff'], speed: [0.6, 1.8], spread: 1.2, gravityPull: 1.5, airDrag: 2, lifespan: [0.5, 0.9], size: [0.06, 0.06], spinRate: 4 });
+        }, 100 + i * 90);
+        celebrationTimers.add(timer);
       });
     },
     dispose() {
       stopFrames();
+      for (const timer of celebrationTimers) clearTimeout(timer);
       stage.scene.remove(group);
-      tube.geometry.dispose();
+      tube.dispose();
+      joints.dispose();
       for (const item of disposables) item.dispose();
     },
   };

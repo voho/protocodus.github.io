@@ -3,9 +3,9 @@ import { createStage } from '../../shared/stage.js';
 import { createBursts } from '../../shared/particles.js';
 import { createSound } from '../../shared/sound.js';
 import { createShell } from '../../shared/shell.js';
-import { createThemeSwitch } from '../../shared/themes.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
+import { createThemeSwitch } from '../../shared/themes.js';
 import { generate, canStep, isSolved, hint, straightLine } from './puzzle.js';
 import { createBoard } from './board.js';
 
@@ -34,30 +34,40 @@ async function boot() {
   let path = [];
   let solved = false;
   let assisted = false;
-  let dragging = false;
+  let activePointer = null;
+  let lastPoint = null;
   let lastCell = -1;
+  let shell;
+  let winTimer = 0;
 
   const N = () => puzzle.size * puzzle.size;
   const head = () => path[path.length - 1];
 
   function announce() {
+    if (!puzzle) return;
     let next = 1;
     for (const cell of path) if (puzzle.numbers[cell]) next = puzzle.numbers[cell] + 1;
-    status.textContent = solved ? 'Solved.' : `${path.length} of ${N()} cells. Next number ${Math.min(next, puzzle.waypoints.length)}.`;
+    next = Math.min(next, puzzle.waypoints.length);
+    status.textContent = solved ? 'Solved.' : `${path.length} of ${N()} cells. Next number ${next}.`;
+    shell?.setProgress?.(path.length, N(), solved ? 'Every cell connected' : `Next: ${next} of ${puzzle.waypoints.length}`);
+    shell?.setUndoAvailable?.(!solved && path.length > 1);
   }
 
   function start(difficulty, seed) {
     try {
       puzzle = generate(difficulty, seed);
     } catch (error) {
-      // Never happens in the checks, but a board that cannot be verified
-      // must not reach the table: take another seed instead.
+      // An unverified board must not reach the table. Retry next turn
+      // with a fresh seed, including during initial startup.
       console.error(error);
       setTimeout(() => shell.load(difficulty, randomSeed()), 0);
       return;
     }
+    releasePointer();
+    clearTimeout(winTimer);
     board?.dispose();
-    board = createBoard(stage, puzzle, { theme: themes.current, fx });
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
     path = [puzzle.waypoints[0]];
     solved = false;
     assisted = false;
@@ -67,8 +77,10 @@ async function boot() {
 
   /* The same board and line, dressed in the theme just picked. */
   function rebuild() {
+    releasePointer();
     board.dispose();
-    board = createBoard(stage, puzzle, { theme: themes.current, fx });
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
     board.setPath(path, true);
   }
 
@@ -80,7 +92,7 @@ async function boot() {
     stage.flash(themes.current.accent, 1);
     announce();
     const finished = puzzle;
-    setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
+    winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
   }
 
   function step(cell) {
@@ -104,6 +116,7 @@ async function boot() {
   }
 
   function cutTo(index) {
+    index = Math.max(0, index);
     if (index >= path.length - 1) return;
     board.flare(path.slice(index + 1));
     path.length = index + 1;
@@ -124,35 +137,73 @@ async function boot() {
     if (line) for (const c of line) if (!step(c)) break;
   }
 
-  const cellFromEvent = (event) => {
+  // Sample the pointer's actual route through the table. A quick swipe can
+  // skip several cells between browser events, including around a corner;
+  // interpolating table coordinates keeps the line under the finger.
+  function followPointer(event) {
     const point = stage.pick(event.clientX, event.clientY, 0.16);
-    return point ? board.cellAt(point) : -1;
-  };
+    if (!point) { lastPoint = null; return; }
+    const next = { x: point.x, z: point.z };
+    const previous = lastPoint || next;
+    const distance = Math.hypot(next.x - previous.x, next.z - previous.z);
+    const samples = Math.min(160, Math.max(1, Math.ceil(distance / 0.22)));
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples;
+      const cell = board.cellAt({ x: previous.x + (next.x - previous.x) * t, z: previous.z + (next.z - previous.z) * t });
+      if (cell >= 0 && cell !== lastCell) {
+        lastCell = cell;
+        moveTo(cell, true);
+      }
+    }
+    lastPoint = next;
+  }
+
+  function releasePointer() {
+    const pointer = activePointer;
+    activePointer = null;
+    lastPoint = null;
+    lastCell = -1;
+    if (pointer !== null && canvas.hasPointerCapture?.(pointer)) canvas.releasePointerCapture(pointer);
+  }
+
   canvas.addEventListener('pointerdown', (event) => {
-    if (!board || event.button > 0) return;
+    if (!board || solved || event.button > 0 || activePointer !== null) return;
+    const point = stage.pick(event.clientX, event.clientY, 0.16);
+    const cell = point ? board.cellAt(point) : -1;
+    if (cell < 0) return;
     sound.unlock();
     canvas.focus({ preventScroll: true });
-    const cell = cellFromEvent(event);
-    if (cell < 0) return;
-    canvas.setPointerCapture(event.pointerId);
-    dragging = true;
+    activePointer = event.pointerId;
+    lastPoint = { x: point.x, z: point.z };
     lastCell = cell;
+    canvas.setPointerCapture(event.pointerId);
     moveTo(cell, false);
   });
   canvas.addEventListener('pointermove', (event) => {
     if (!board) return;
-    const cell = cellFromEvent(event);
-    if (dragging) {
-      if (cell >= 0 && cell !== lastCell) { lastCell = cell; moveTo(cell, true); }
+    if (activePointer !== null) {
+      if (event.pointerId !== activePointer) return;
+      const samples = event.getCoalescedEvents?.() || [];
+      for (const sample of samples) followPointer(sample);
+      followPointer(event);
     } else if (event.pointerType === 'mouse') {
-      board.hover(cell);
+      const point = stage.pick(event.clientX, event.clientY, 0.16);
+      board.hover(point ? board.cellAt(point) : -1);
     }
   });
-  const release = () => { dragging = false; lastCell = -1; };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
-  canvas.addEventListener('pointerleave', () => { if (!dragging) board?.hover(-1); });
-  canvas.addEventListener('blur', () => board?.hover(-1));
+  canvas.addEventListener('pointerup', (event) => {
+    if (event.pointerId !== activePointer) return;
+    followPointer(event);
+    releasePointer();
+  });
+  canvas.addEventListener('pointercancel', (event) => {
+    if (event.pointerId === activePointer) releasePointer();
+  });
+  canvas.addEventListener('lostpointercapture', (event) => {
+    if (event.pointerId === activePointer) releasePointer();
+  });
+  canvas.addEventListener('pointerleave', () => { if (activePointer === null) board?.hover(-1); });
+  canvas.addEventListener('blur', () => { releasePointer(); board?.hover(-1); });
 
   canvas.addEventListener('keydown', (event) => {
     if (!board || solved) return;
@@ -171,15 +222,22 @@ async function boot() {
     }
   });
 
-  const shell = createShell({
+  shell = createShell({
     storageKey: 'zipper', sound,
     onNew: start,
     onReset() {
       if (!board) return;
+      releasePointer();
+      clearTimeout(winTimer);
       if (solved) solved = false;
       cutTo(0);
       shell.restart();
       announce();
+    },
+    onUndo() {
+      if (!board || solved) return;
+      releasePointer();
+      cutTo(path.length - 2);
     },
     onHint() {
       if (!board || solved) return;
@@ -197,6 +255,7 @@ async function boot() {
     },
   });
 
+  announce();
   retheme = (theme) => {
     stage.setTheme(theme);
     if (board) rebuild();
