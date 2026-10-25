@@ -237,8 +237,11 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
      panels at the top and bottom of the window. */
   function refit() {
     const pad = height < 500 ? 8 : 14;
-    const topBar = document.querySelector('.hud-top')?.getBoundingClientRect().bottom ?? 80;
-    const bottomTop = document.querySelector('.hud-bottom')?.getBoundingClientRect().top ?? height - 90;
+    // A panel that is missing or hidden has no size; the board then takes
+    // the whole window rather than squeezing against its edge.
+    const panel = (selector) => { const rect = document.querySelector(selector)?.getBoundingClientRect(); return rect?.height > 0 ? rect : null; };
+    const topBar = panel('.hud-top')?.bottom ?? 0;
+    const bottomTop = panel('.hud-bottom')?.top ?? height;
     // Shift the optical centre into the free space between the controls.
     // A centered frustum wastes much of a phone's asymmetric play area.
     const centreY = (topBar + bottomTop) / 2;
