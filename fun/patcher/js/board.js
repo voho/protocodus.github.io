@@ -1,13 +1,17 @@
 /* Patcher — the board on the table: clue tiles, the patches that drop onto
    them, the ghost of the patch being drawn, and the hint outline. */
 import * as THREE from 'three';
+import { createTileBatch } from '../../shared/tiles.js';
 import { slabGeometry, clueTexture, labelMesh } from '../../shared/slab.js';
 
 const CELL = 1;
 const TILE = 0.9, TILE_H = 0.14, TILE_R = 0.16;
 const PATCH_H = 0.3, PATCH_GAP = 0.12, PATCH_R = 0.18;
 const DROP_FROM = 0.8;
-const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
+const ease = (value, goal, dt, speed) => {
+  const next = value + (goal - value) * (1 - Math.exp(-dt * speed));
+  return Math.abs(next - goal) < 0.0001 ? goal : next;
+};
 
 export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
   const n = puzzle.size, N = n * n;
@@ -35,17 +39,21 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
   disposables.push(edge.material);
 
   const tileGeometry = slabGeometry(TILE, TILE, TILE_H, TILE_R, 0.035);
-  const tiles = [];
+  const tileBatch = createTileBatch(stage, tileGeometry, N, {
+    roughness: 0.32, metalness: 0.05, clearcoatRoughness: 0.2,
+  });
+  const { tiles } = tileBatch;
+  group.add(tileBatch.mesh);
   const clueOf = new Int16Array(N).fill(-1);
   puzzle.clues.forEach((clue, k) => { clueOf[clue.cell] = k; });
   for (let cell = 0; cell < N; cell++) {
     // Dark glossy tiles, violet at one corner shading to wine at the other.
     const blend = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
     const base = new THREE.Color(theme.tileA || '#221a3b').lerp(new THREE.Color(theme.tileB || '#3d192b'), blend);
-    const material = stage.material({ color: base, roughness: 0.3, metalness: 0.1, emissive: accentColour, emissiveIntensity: 0 });
-    const mesh = new THREE.Mesh(tileGeometry, material);
+    const mesh = tiles[cell];
+    mesh.material.color.copy(base);
+    mesh.material.emissive.copy(accentColour);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
-    mesh.castShadow = mesh.receiveShadow = true;
     mesh.userData = { glow: 0, lift: 0, press: 0, label: null };
     if (clueOf[cell] >= 0) {
       const texture = clueTexture(puzzle.clues[clueOf[cell]], theme.clue || '#f6e7b8');
@@ -56,8 +64,6 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       disposables.push(texture, label.material);
     }
     group.add(mesh);
-    tiles.push(mesh);
-    disposables.push(material);
   }
 
   const patchGeometry = (w, h) => slabGeometry(w * CELL - PATCH_GAP, h * CELL - PATCH_GAP, PATCH_H, PATCH_R, 0.045);
@@ -87,6 +93,8 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
   group.add(hintGhost);
   disposables.push(ghostMaterial, hintMaterial);
 
+  tileBatch.flush();
+  stage.invalidateShadows?.();
   stage.frame(plinthSize / 2, plinthSize / 2);
 
   let hovered = -1;
@@ -94,6 +102,7 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
   let rejectUntil = -1;
   let hintUntil = -1;
   let hoveredPatch = null;
+  let previewKey = null;
   // A ripple: every tile rises and flashes in turn by its distance from a move.
   const rippleAt = new Float32Array(N).fill(-1);
   const rippleColour = new THREE.Color(accent);
@@ -124,12 +133,14 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
 
   function update(dt, time) {
     hoveredPatch = hovered >= 0 ? patchAt(hovered) : null;
-    let busy = lifting.length > 0 || hintGhost.visible || ghost.visible || fx.confetti.alive || fx.dust.alive;
-    group.position.y = stage.reduced ? 0 : Math.sin(time * 0.6) * 0.03;
+    let busy = lifting.length > 0 || (!stage.reduced && (hintGhost.visible || ghost.visible)) || fx.confetti.alive || fx.dust.alive;
     for (let cell = 0; cell < N; cell++) {
       const tile = tiles[cell];
       const data = tile.userData;
-      const free = !patchAt(cell);
+      const free = coveredBy[cell] < 0;
+      const glow = hovered === cell && free ? 0.16 : 0;
+      const lift = hovered === cell && free ? 0.05 : 0;
+      if (data.glow === glow && data.lift === lift && data.press === 0 && rippleAt[cell] < 0) continue;
       data.glow = ease(data.glow, hovered === cell && free ? 0.16 : 0, dt, 12);
       data.lift = ease(data.lift, hovered === cell && free ? 0.05 : 0, dt, 14);
       data.press = Math.max(0, data.press - dt * 5);
@@ -146,13 +157,18 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
     }
     for (const entry of patches.values()) {
       const { mesh, patch } = entry;
-      const [x, z] = rectCentre(patch);
+      const wasY = mesh.position.y, wasScale = mesh.scale.y;
+      const isHovered = hoveredPatch === entry;
+      const bob = !stage.reduced && isHovered ? 0.05 : 0;
+      if (entry.state === 'rest' && entry.settled && entry.hopAt < 0 && entry.lift === bob && entry.hovered === isHovered) continue;
+      entry.hovered = isHovered;
       if (entry.state === 'drop') {
         busy = true;
         entry.t = stage.reduced ? 1 : Math.min(1, entry.t + dt / 0.14);
         mesh.position.y = TILE_H + (1 - entry.t * entry.t) * DROP_FROM;
         if (entry.t >= 1) {
           entry.state = 'rest';
+          const [x, z] = rectCentre(patch);
           entry.landed = time;
           for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) tiles[(patch.y + j) * n + patch.x + i].userData.press = 1;
           // The landing runs a ripple out across the board in the patch's
@@ -179,15 +195,17 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
           if (v >= 1) entry.hopAt = -1;
           else if (v > 0 && !stage.reduced) hop = Math.sin(v * Math.PI);
         }
-        const bob = !stage.reduced && hoveredPatch === entry ? 0.05 : 0;
         entry.lift = ease(entry.lift, bob, dt, 14);
+        if (entry.lift !== bob) busy = true;
         mesh.scale.set(1 + 0.1 * spring, 1 - 0.26 * spring, 1 + 0.1 * spring);
         mesh.position.y = TILE_H + entry.lift + hop * 0.28;
         // A solved board runs a rainbow across the patches as they hop.
         if (hop > 0 && entry.hue >= 0) mesh.material.emissive.setHSL((entry.hue + time * 0.15) % 1, 1, 0.6, THREE.SRGBColorSpace);
         else mesh.material.emissive.set(entry.colour);
-        mesh.material.emissiveIntensity = 0.06 + hop * 0.7 + (hoveredPatch === entry ? 0.12 : 0);
+        mesh.material.emissiveIntensity = 0.06 + hop * 0.7 + (isHovered ? 0.12 : 0);
+        entry.settled = u >= 1.2 && entry.hopAt < 0;
       }
+      if (mesh.position.y !== wasY || mesh.scale.y !== wasScale) stage.invalidateShadows?.();
     }
     for (let i = lifting.length - 1; i >= 0; i--) {
       const entry = lifting[i];
@@ -209,6 +227,7 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
     if (rejectUntil >= 0 && time >= rejectUntil) {
       rejectUntil = -1;
       ghost.visible = outline.visible = false;
+      previewKey = null;
     }
     if (ghost.visible) {
       ghost.position.x += (stage.reduced ? 0 : Math.sin(time * 60) * 0.05 * ghostShake) - (ghost.userData.shakeX || 0);
@@ -219,6 +238,7 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       hintMaterial.opacity = 0.26 + (stage.reduced ? 0 : Math.sin(time * 7) * 0.1);
       if (time > hintUntil) hintGhost.visible = false;
     }
+    tileBatch.flush();
     fx.confetti.update(dt);
     fx.dust.update(dt);
     if (busy) stage.wake(0.3);
@@ -236,6 +256,9 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
     centre(cell) { return new THREE.Vector3(cellX(cell), TILE_H, cellZ(cell)); },
     /* The patch being drawn, or null for none. */
     preview(rect, ok) {
+      const key = rect ? `${rect.x}:${rect.y}:${rect.w}:${rect.h}:${ok}` : null;
+      if (key === previewKey && rejectUntil < 0) return;
+      previewKey = key;
       rejectUntil = -1;
       if (!rect) { ghost.visible = false; outline.visible = false; return; }
       placeGhost(ghost, rect);
@@ -274,7 +297,8 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       const tileLabel = tiles[clue.cell].userData.label;
       if (tileLabel) tileLabel.visible = false;
       for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) coveredBy[(patch.y + j) * n + patch.x + i] = patch.clue;
-      patches.set(patch.clue, { patch, mesh, label, texture, colour, state: settled ? 'rest' : 'drop', t: 0, landed: settled ? -10 : 0, lift: 0, hopAt: -1, hue: -1, onLand });
+      patches.set(patch.clue, { patch, mesh, label, texture, colour, state: settled ? 'rest' : 'drop', t: 0, landed: settled ? -10 : 0, settled, hovered: false, lift: 0, hopAt: -1, hue: -1, onLand });
+      stage.invalidateShadows?.();
       stage.wake(2);
     },
     lift(clueIndex) {
@@ -285,6 +309,7 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       for (let cell = 0; cell < N; cell++) if (coveredBy[cell] === clueIndex) coveredBy[cell] = -1;
       entry.mesh.material.transparent = true;
       entry.mesh.castShadow = false;
+      stage.invalidateShadows?.();
       lifting.push({ mesh: entry.mesh, label: entry.label, texture: entry.texture, t: 0 });
       const tileLabel = tiles[puzzle.clues[clueIndex].cell].userData.label;
       if (tileLabel) tileLabel.visible = true;
@@ -318,6 +343,8 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
     dispose() {
       stopFrames();
       stage.scene.remove(group);
+      tileBatch.dispose();
+      stage.invalidateShadows?.();
       for (const entry of patches.values()) { entry.mesh.material.dispose(); entry.label.material.dispose(); entry.texture.dispose(); }
       for (const entry of lifting) { entry.mesh.material.dispose(); entry.label?.material.dispose(); entry.texture?.dispose(); }
       for (const item of disposables) item.dispose();

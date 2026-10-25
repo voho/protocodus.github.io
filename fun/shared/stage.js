@@ -1,10 +1,49 @@
-/* A lit table for a small puzzle, seen straight from above: renderer,
+/* A lit table for a small puzzle, seen at a gentle, fixed tilt: renderer,
    camera, lights, reflections, backdrop, bloom, the weather of a theme
    and the frame loop, shared by Zipper and Patcher. A board adds its own
    meshes to `scene` and asks the stage to frame them. */
 import * as THREE from 'three';
 import { createBloom, canRenderHalfFloat } from './bloom.js';
 import { createBursts } from './particles.js';
+
+// The table stays aligned with the controls; only the camera leans back.
+const TILT = THREE.MathUtils.degToRad(12);
+const CAMERA_UP = Math.cos(TILT), CAMERA_BACK = Math.sin(TILT);
+
+/* Weather moves analytically in the vertex shader. Its buffers are uploaded
+   once, rather than rewritten by JavaScript every frame. */
+const WEATHER_VERTEX = /* glsl */ `
+attribute vec3 color;
+attribute vec2 motion;
+uniform float uTime, uSize, uScale, uRise, uSway, uLow, uHigh, uExtent, uTwinkle, uBokeh;
+varying vec3 vColour;
+void main() {
+  float phase = motion.x, pace = motion.y;
+  vec3 p = position;
+  if (uBokeh > 0.5) {
+    p.x = mod(p.x + uExtent + uTime * uSway * cos(phase) + (sin(uTime * 0.2 + phase) - sin(phase)) * 0.5, uExtent * 2.0) - uExtent;
+    p.z = mod(p.z + uExtent + uTime * uSway * sin(phase), uExtent * 2.0) - uExtent;
+  } else {
+    p.y = uLow + mod(p.y - uLow + uTime * uRise * pace, uHigh - uLow);
+    p.x += (sin(uTime * 0.5 + phase) - sin(phase)) * uSway * 2.0;
+    p.z += (cos(uTime * 0.4 + phase * 1.7) - cos(phase * 1.7)) * uSway * 2.5;
+  }
+  float bright = uTwinkle > 0.0 ? 0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * uTwinkle * pace + phase)) : 1.0;
+  vColour = color * bright;
+  vec4 viewPosition = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * viewPosition;
+  gl_PointSize = uSize * uScale / max(1.0, -viewPosition.z);
+}`;
+const WEATHER_FRAGMENT = /* glsl */ `
+uniform sampler2D uDot;
+uniform float uOpacity;
+varying vec3 vColour;
+void main() {
+  vec4 dotColour = texture2D(uDot, gl_PointCoord);
+  gl_FragColor = vec4(vColour * dotColour.rgb, dotColour.a * uOpacity);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
 
 const BACKDROP_VERTEX = /* glsl */ `
 varying vec2 vUv;
@@ -60,8 +99,8 @@ void main() {
 /* Reflections come from a small lit room rendered once into a PMREM: a
    dim glow overhead, a cool and a warm panel at the sides, a strip in the
    accent behind and two glints in the theme's colours low at the sides.
-   Seen from straight above, every flat top mirrors the ceiling, so the
-   ceiling stays soft and the colour comes in on the bevels. */
+   The flat tops mostly mirror the ceiling, so the ceiling stays soft
+   and the colour comes in on the bevels. */
 function studioEnvironment(renderer, accent, secondary) {
   const room = new THREE.Scene();
   const add = (geometry, colour, intensity, position, rotation, side = THREE.DoubleSide) => {
@@ -79,10 +118,10 @@ function studioEnvironment(renderer, accent, secondary) {
   add(new THREE.PlaneGeometry(6, 2), accent, 2.5, [-8, -2, 9], [0, Math.PI * 0.8, 0]);
   add(new THREE.PlaneGeometry(6, 2), secondary, 2.5, [8, -1, 9], [0, -Math.PI * 0.8, 0]);
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const texture = pmrem.fromScene(room, 0.04).texture;
+  const environment = pmrem.fromScene(room, 0.04);
   pmrem.dispose();
   room.traverse((object) => { object.geometry?.dispose(); object.material?.dispose(); });
-  return texture;
+  return environment;
 }
 
 /* A soft round dot for the weather. */
@@ -114,25 +153,27 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   // smaller shadow map and a lower idle frame rate keep it cool.
   const mobile = window.matchMedia('(any-pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({
-    canvas, antialias: true, powerPreference: 'high-performance',
+    canvas, antialias: true, powerPreference: 'low-power',
     // In HDR the path, the numbers and the walls keep their real brightness
     // until the tone mapping, and the bloom can let the brightest bleed.
     outputBufferType: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
   });
-  let pixelRatio = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
+  let qualityRatio = Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.5);
+  let pixelRatio = qualityRatio;
+  const pixelBudget = mobile ? 1400000 : 2400000;
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = exposure;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.setClearColor(0x000000, 1);
 
   const scene = new THREE.Scene();
-  // A long lens straight above the table, so the board reads as flat as a
-  // printed grid and the depth is left to the light, the shadows and the
-  // bevels. It never turns or tilts; up on the screen is the far side of
-  // the table.
+  // A long lens and a slight fixed lean show the bevels and slab depth
+  // while keeping the grid easy to read. There is no orbit or board spin.
   const camera = new THREE.PerspectiveCamera(24, 1, 0.5, 200);
   camera.up.set(0, 0, -1);
   scene.add(camera);
@@ -163,12 +204,11 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   scene.environmentIntensity = 0.6;
   const hemisphere = new THREE.HemisphereLight('#ffffff', '#000000', 0.5);
   scene.add(hemisphere);
-  // The key light comes in low enough that its glint on the glossy tops
-  // misses a camera straight above, and the shadows show the relief.
+  // The low key light and the camera's tilt reveal the shallow relief.
   const key = new THREE.DirectionalLight('#ffffff', 2.6);
   key.position.set(-6, 8, 7);
   key.castShadow = true;
-  key.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
+  key.shadow.mapSize.set(mobile ? 768 : 1024, mobile ? 768 : 1024);
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.03;
   key.shadow.camera.near = 1;
@@ -189,7 +229,7 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  const bloom = hdr ? createBloom({ strength: 0.42, threshold: 1, knee: 0.5, spread: 1.15, levels: mobile ? 4 : 5 }) : null;
+  const bloom = hdr ? createBloom({ strength: 0.32, threshold: 1, knee: 0.5, spread: 1.15, levels: mobile ? 3 : 4, resolutionScale: 0.5 }) : null;
   renderer.setEffects(bloom ? [bloom] : []);
   const dot = dotTexture();
 
@@ -198,15 +238,16 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   let halfW = 3, halfD = 3, width = 1, height = 1;
   const listeners = new Set();
   let running = false, last = 0, time = 0, flash = 0;
-  let pendingFrame = 0;
+  let pendingFrame = 0, pendingTimer = 0;
   // A move lands: a pulse of light in the backdrop.
   let pulse = 0;
-  /* The table is still most of the time. While nothing moves it is drawn
-     a few times a second (the weather drifts on), and every change wakes
-     it up to the full frame rate for a moment. */
+  /* Sleep between ambient frames instead of polling requestAnimationFrame.
+     Input cancels that sleep immediately. Reduced motion sleeps completely
+     once a move settles. Active animation is capped at 60 draws per second. */
   let activeUntil = 0;
   let lastDraw = 0;
-  const idleGap = reduced ? 1000 : (mobile ? 1 / 15 : 1 / 24) * 1000;
+  const idleGap = reduced ? Infinity : 1000 / (mobile ? 10 : 12);
+  let nextDraw = 0;
   let slowFrames = 0, qualityCooldown = 0, previousActive = false;
   // What a theme dresses: the pool of light it may breathe, its
   // reflections and its weather.
@@ -224,7 +265,7 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     if (camera.view?.enabled) fitCamera.setViewOffset(width, height, 0, camera.view.offsetY, width, height);
     else fitCamera.updateProjectionMatrix();
     fitCamera.up.copy(camera.up);
-    fitCamera.position.set(rig.center.x, rig.center.y + distance, rig.center.z);
+    fitCamera.position.set(rig.center.x, rig.center.y + distance * CAMERA_UP, rig.center.z + distance * CAMERA_BACK);
     fitCamera.lookAt(rig.center);
     fitCamera.updateMatrixWorld();
     for (const x of [-halfW, halfW]) for (const z of [-halfD, halfD]) for (const y of [-0.4, 0.9]) {
@@ -254,9 +295,16 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     }
     rig.target.distance = far;
   }
+  function placeCamera() {
+    camera.position.set(rig.center.x, rig.center.y + rig.distance * CAMERA_UP, rig.center.z + rig.distance * CAMERA_BACK);
+    camera.lookAt(rig.center);
+    camera.updateMatrixWorld();
+  }
   function resize() {
     width = canvas.clientWidth || window.innerWidth;
     height = canvas.clientHeight || window.innerHeight;
+    pixelRatio = Math.min(qualityRatio, Math.sqrt(pixelBudget / (width * height)));
+    renderer.setPixelRatio(pixelRatio);
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
@@ -268,14 +316,28 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     const before = rig.target.distance;
     refit();
     if (Math.abs(rig.distance - before) < 0.05) rig.distance = rig.target.distance;
+    placeCamera();
   }
 
+  function isActive(now) {
+    return now < activeUntil || Math.abs(rig.target.distance - rig.distance) >= 0.003 || flash > 0 || pulse > 0;
+  }
+  function schedule() {
+    if (!running || pendingFrame || pendingTimer) return;
+    const now = performance.now();
+    if (isActive(now)) pendingFrame = requestAnimationFrame(frame);
+    else if (!reduced) pendingTimer = setTimeout(() => {
+      pendingTimer = 0;
+      if (running) pendingFrame = requestAnimationFrame(frame);
+    }, Math.max(0, idleGap - (now - lastDraw)));
+  }
   function frame(now) {
+    pendingFrame = 0;
     if (!running) return;
-    pendingFrame = requestAnimationFrame(frame);
     const settled = Math.abs(rig.target.distance - rig.distance) < 0.003;
-    const active = now < activeUntil || !settled || flash > 0 || pulse > 0;
-    if (!active && now - lastDraw < idleGap) return;
+    const active = isActive(now);
+    if (active && now + 0.5 < nextDraw) { schedule(); return; }
+    nextDraw = active ? Math.max(now - 1000 / 60, nextDraw) + 1000 / 60 : now;
     // Exponential easing is stable for any step, so a slow device keeps the
     // same pace in real time rather than slowing every motion down.
     const frameGap = now - last;
@@ -284,7 +346,7 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     if (active && previousActive && now > qualityCooldown) {
       slowFrames = frameGap > 28 ? slowFrames + 1 : Math.max(0, slowFrames - 2);
       if (slowFrames >= 75 && pixelRatio > 0.8) {
-        pixelRatio = Math.max(0.8, pixelRatio - 0.25);
+        qualityRatio = pixelRatio = Math.max(0.8, pixelRatio - 0.25);
         renderer.setPixelRatio(pixelRatio);
         renderer.setSize(width, height, false);
         if (pixelRatio <= 1) renderer.setEffects([]);
@@ -297,68 +359,60 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     last = now;
     lastDraw = now;
     time += dt;
-    rig.distance += (rig.target.distance - rig.distance) * (1 - Math.exp(-dt * 5));
-    camera.position.set(rig.center.x, rig.center.y + rig.distance, rig.center.z);
-    camera.lookAt(rig.center);
+    if (!settled) {
+      rig.distance += (rig.target.distance - rig.distance) * (1 - Math.exp(-dt * 5));
+      placeCamera();
+    }
     flash = Math.max(0, flash - dt * 2.2);
     flashLight.intensity = flash * flash * 60;
     pulse = Math.max(0, pulse - dt * 1.8);
     backdropMaterial.uniforms.uPulse.value = pulse * pulse;
-    backdropMaterial.uniforms.uTime.value = reduced ? 0 : time;
+    const sceneryTime = reduced ? 0 : time;
+    backdropMaterial.uniforms.uTime.value = sceneryTime;
     // A volcano's glow swells and fades; elsewhere the pool of light holds still.
-    backdropMaterial.uniforms.uGlow.value.copy(glowBase).multiplyScalar(1 + breathe * (0.5 + 0.5 * Math.sin(time * 0.7)));
+    backdropMaterial.uniforms.uGlow.value.copy(glowBase).multiplyScalar(1 + breathe * (0.5 + 0.5 * Math.sin(sceneryTime * 0.7)));
     // The rim light wanders between the two accents, so highlights never sit still.
-    rim.color.copy(rimAccent).lerp(rimSecondary, 0.5 + 0.5 * Math.sin(time * 0.23));
+    rim.color.copy(rimAccent).lerp(rimSecondary, 0.5 + 0.5 * Math.sin(sceneryTime * 0.23));
     for (const listener of listeners) listener(dt, time);
     renderer.render(scene, camera);
+    schedule();
   }
 
-  /* A drifting cloud of soft dots: fireflies, bubbles, snow, embers or a
-     starfield, by the spec's speeds. Each dot's brightness breathes on its
-     own when `twinkle` is set. Sizes follow the camera's height, so the
-     dots stay the same on the screen whatever board is framed. */
-  function pointsCloud({ count = 80, colours = ['#ffffff'], size = 0.12, extent = 7, floor: low = -1, ceiling = 4, rise = 0, sway = 0.2, twinkle = 0 }) {
+  /* One upload per cloud; only time and projected size change per frame. */
+  function pointsCloud({ count = 80, colours = ['#ffffff'], size = 0.12, extent = 7, floor: low = -1, ceiling = 4, rise = 0, sway = 0.2, twinkle = 0, bokeh = false, opacity = 0.6 }) {
     const n = Math.max(4, Math.round(count * (mobile ? 0.5 : 1)));
-    const positions = new Float32Array(n * 3), colourData = new Float32Array(n * 3), base = new Float32Array(n * 3);
-    const phase = new Float32Array(n), pace = new Float32Array(n);
+    const positions = new Float32Array(n * 3), coloursData = new Float32Array(n * 3);
+    const motion = new Float32Array(n * 2);
     const tint = new THREE.Color();
     for (let i = 0; i < n; i++) {
       positions[i * 3] = (Math.random() * 2 - 1) * extent;
       positions[i * 3 + 1] = low + Math.random() * (ceiling - low);
       positions[i * 3 + 2] = (Math.random() * 2 - 1) * extent;
-      tint.set(colours[i % colours.length]);
-      base.set([tint.r, tint.g, tint.b], i * 3);
-      colourData.set([tint.r, tint.g, tint.b], i * 3);
-      phase[i] = Math.random() * Math.PI * 2;
-      pace[i] = 0.6 + Math.random() * 0.8;
+      tint.set(colours[i % colours.length]).toArray(coloursData, i * 3);
+      motion[i * 2] = Math.random() * Math.PI * 2;
+      motion[i * 2 + 1] = 0.6 + Math.random() * 0.8;
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colourData, 3));
-    const material = new THREE.PointsMaterial({
-      size, map: dot, vertexColors: true, transparent: true, opacity: 0.6,
-      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    geometry.setAttribute('color', new THREE.BufferAttribute(coloursData, 3));
+    geometry.setAttribute('motion', new THREE.BufferAttribute(motion, 2));
+    const material = new THREE.ShaderMaterial({
+      vertexShader: WEATHER_VERTEX, fragmentShader: WEATHER_FRAGMENT,
+      uniforms: {
+        uDot: { value: dot }, uTime: { value: 0 }, uSize: { value: size },
+        uScale: { value: 1 }, uOpacity: { value: opacity },
+        uRise: { value: rise }, uSway: { value: sway },
+        uLow: { value: low }, uHigh: { value: ceiling }, uExtent: { value: extent },
+        uTwinkle: { value: twinkle }, uBokeh: { value: bokeh ? 1 : 0 },
+      },
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
     scene.add(points);
     const stop = stage.onFrame((dt, t) => {
-      material.size = size * rig.distance / 30;
-      if (reduced) return;
-      const p = geometry.attributes.position.array, c = geometry.attributes.color.array;
-      for (let i = 0; i < n; i++) {
-        p[i * 3 + 1] += dt * rise * pace[i];
-        p[i * 3] += Math.sin(t * 0.5 + phase[i]) * dt * sway;
-        p[i * 3 + 2] += Math.cos(t * 0.4 + phase[i] * 1.7) * dt * sway;
-        if (rise > 0 && p[i * 3 + 1] > ceiling) p[i * 3 + 1] = low;
-        else if (rise < 0 && p[i * 3 + 1] < low) p[i * 3 + 1] = ceiling;
-        if (twinkle) {
-          const bright = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * twinkle * pace[i] + phase[i]));
-          c[i * 3] = base[i * 3] * bright; c[i * 3 + 1] = base[i * 3 + 1] * bright; c[i * 3 + 2] = base[i * 3 + 2] * bright;
-        }
-      }
-      geometry.attributes.position.needsUpdate = true;
-      if (twinkle) geometry.attributes.color.needsUpdate = true;
+      material.uniforms.uTime.value = reduced ? 0 : t;
+      material.uniforms.uScale.value = height * pixelRatio * 0.5 * rig.distance / 30;
     });
     return { dispose() { stop(); scene.remove(points); geometry.dispose(); material.dispose(); } };
   }
@@ -378,54 +432,16 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
           direction: new THREE.Vector3(-Math.cos(angle), 1.2, -Math.sin(angle)), speed: [1.5, 4], spread: 0.7,
           gravityPull: 5, airDrag: 1.2, lifespan: [0.3, 0.8], size: [0.12, 0.03], spinRate: 2,
         });
-        stage.wake(1.2);
       }
       bursts.update(dt);
-      if (bursts.alive) stage.wake(0.3);
     });
     return { dispose() { stop(); scene.remove(bursts.mesh); bursts.mesh.geometry.dispose(); bursts.mesh.material.dispose(); } };
   }
 
-  /* Big soft discs of colour drifting under the table, slowly, forever;
-     the board hides the ones beneath it. */
+  /* Soft discs below the board share the same shader as the weather. */
   function bokeh(colours, extent = 11) {
-    const layers = [];
-    for (const [size, share, speed] of [[2.4, 0.45, 0.05], [1.2, 0.55, 0.08]]) {
-      const n = Math.max(4, Math.round(36 * share * (mobile ? 0.5 : 1)));
-      const positions = new Float32Array(n * 3), colourData = new Float32Array(n * 3);
-      const tint = new THREE.Color();
-      for (let i = 0; i < n; i++) {
-        positions[i * 3] = (Math.random() * 2 - 1) * extent;
-        positions[i * 3 + 1] = -7 + Math.random() * 4;
-        positions[i * 3 + 2] = (Math.random() * 2 - 1) * extent;
-        tint.set(colours[i % colours.length]);
-        colourData.set([tint.r, tint.g, tint.b], i * 3);
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute('color', new THREE.BufferAttribute(colourData, 3));
-      const material = new THREE.PointsMaterial({
-        size, map: dot, vertexColors: true, transparent: true, opacity: 0.18,
-        blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
-      });
-      const points = new THREE.Points(geometry, material);
-      points.frustumCulled = false;
-      scene.add(points);
-      const phase = Float32Array.from({ length: n }, () => Math.random() * Math.PI * 2);
-      const stop = stage.onFrame((dt, t) => {
-        material.size = size * rig.distance / 30;
-        if (reduced) return;
-        const p = geometry.attributes.position.array;
-        for (let i = 0; i < n; i++) {
-          p[i * 3] += dt * speed * Math.cos(phase[i]) + Math.sin(t * 0.2 + phase[i]) * dt * 0.1;
-          p[i * 3 + 2] += dt * speed * Math.sin(phase[i]);
-          if (p[i * 3] > extent) p[i * 3] = -extent; else if (p[i * 3] < -extent) p[i * 3] = extent;
-          if (p[i * 3 + 2] > extent) p[i * 3 + 2] = -extent; else if (p[i * 3 + 2] < -extent) p[i * 3 + 2] = extent;
-        }
-        geometry.attributes.position.needsUpdate = true;
-      });
-      layers.push({ dispose() { stop(); scene.remove(points); geometry.dispose(); material.dispose(); } });
-    }
+    const layers = [[2.4, 16, 0.05], [1.2, 20, 0.08]].map(([size, count, sway]) =>
+      pointsCloud({ colours, size, count, sway, extent, floor: -7, ceiling: -3, bokeh: true, opacity: 0.18 }));
     return { dispose() { for (const layer of layers) layer.dispose(); } };
   }
 
@@ -446,7 +462,9 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
       const reach = Math.max(w, d) + 1.5;
       Object.assign(key.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach });
       key.shadow.camera.updateProjectionMatrix();
+      stage.invalidateShadows();
       refit();
+      stage.wake(1);
     },
     /* The point on the plane y = `planeY` under a pointer, or null. */
     pick(clientX, clientY, planeY = 0) {
@@ -464,7 +482,15 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     },
     onFrame(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     /* Something moved: draw every frame for the next `seconds`. */
-    wake(seconds = 0.8) { activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000); },
+    wake(seconds = 0.8) {
+      activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000);
+      clearTimeout(pendingTimer);
+      pendingTimer = 0;
+      schedule();
+    },
+    /* Board animation explicitly marks its shadows dirty; ambient light and
+       weather reuse the last map. This does not prolong an animation. */
+    invalidateShadows() { renderer.shadowMap.needsUpdate = true; },
     flash(colour, strength = 1) { if (reduced) return; flashLight.color.set(colour); flash = Math.max(flash, strength); stage.wake(); },
     /* A glossy material: a clear coat on a desktop GPU, plain shading on a
        phone, where the second specular lobe is not worth the heat. */
@@ -495,11 +521,12 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
       hemisphere.color.set(light.sky);
       hemisphere.groundColor.set(light.ground);
       key.color.set(light.key);
+      stage.invalidateShadows();
       rimAccent.set(theme.accent);
       rimSecondary.set(theme.secondary);
       environment?.dispose();
       environment = studioEnvironment(renderer, theme.accent, theme.secondary);
-      scene.environment = environment;
+      scene.environment = environment.texture;
       for (const item of weather) item.dispose();
       weather.length = 0;
       weather.push(bokeh(theme.bokeh));
@@ -507,16 +534,19 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
       stage.wake(1);
     },
     start() {
-      if (running) return;
+      if (running || document.hidden) return;
       running = true;
       last = performance.now();
+      nextDraw = last;
       previousActive = false; slowFrames = 0;
       stage.wake(1);
-      // A frame queued before a stop would otherwise run alongside this one.
-      cancelAnimationFrame(pendingFrame);
-      pendingFrame = requestAnimationFrame(frame);
     },
-    stop() { running = false; cancelAnimationFrame(pendingFrame); },
+    stop() {
+      running = false;
+      cancelAnimationFrame(pendingFrame);
+      clearTimeout(pendingTimer);
+      pendingFrame = pendingTimer = 0;
+    },
   };
 
   window.addEventListener('resize', () => { resize(); stage.wake(1); });
@@ -526,10 +556,11 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   // A lost context (a tab in the background too long, a driver reset)
   // comes back by itself; three re-uploads what it needs.
   canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); stage.stop(); });
-  canvas.addEventListener('webglcontextrestored', () => { stage.start(); stage.wake(1); });
+  canvas.addEventListener('webglcontextrestored', () => { stage.invalidateShadows(); if (!document.hidden) stage.start(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stage.stop(); else stage.start(); });
   resize();
   stage.setTheme(theme);
-  rig.distance = rig.target.distance * 1.6;
+  rig.distance = rig.target.distance * (reduced ? 1 : 1.6);
+  placeCamera();
   return stage;
 }

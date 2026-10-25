@@ -77,4 +77,17 @@ assert.equal(rejectReason(puzzle, [], empty), 'no-clue');
 assert.deepEqual([shapeOf(2, 2), shapeOf(3, 1), shapeOf(1, 3)], ['square', 'wide', 'tall']);
 assert.equal(fitsClue({ number: null, shape: 'wide' }, 4, 1), true);
 assert.equal(fitsClue({ number: 4, shape: 'wide' }, 2, 2), false);
+// Indexing by covered cell preserves ambiguous solution order, already placed
+// patches and the search budget, all of which generation relies on.
+const strips = {
+  size: 4,
+  clues: [{ cell: 0, number: null, shape: 'tall' }, { cell: 15, number: null, shape: 'tall' }],
+};
+const stripSolutions = [3, 2, 1].map((w) => [
+  { clue: 0, x: 0, y: 0, w, h: 4 },
+  { clue: 1, x: w, y: 0, w: 4 - w, h: 4 },
+]);
+assert.deepEqual(solve(strips, { limit: 10 }), { solutions: stripSolutions, exhausted: false });
+assert.deepEqual(solve(strips, { placed: [stripSolutions[1][0]] }), { solutions: [stripSolutions[1]], exhausted: false });
+assert.deepEqual(solve(strips, { budget: 1 }), { solutions: [], exhausted: true });
 console.log('Patcher checks passed: unique seeded cuttings, graded deduction, rejections, hints.\n' + report.join('\n'));

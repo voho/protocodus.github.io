@@ -92,10 +92,11 @@ const material = (fragmentShader, uniforms) => new THREE.ShaderMaterial({
 /* A pass for `renderer.setEffects`: it reads the HDR scene and writes the
    scene with its bloom into the next buffer. `strength` scales the glow,
    `threshold` is the brightness (in linear units, before exposure) where
-   it starts, `knee` how softly, `spread` how far each level reaches. */
+   it starts, `knee` how softly, `spread` how far each level reaches.
+   `resolutionScale` reduces just the glow buffers, keeping the scene sharp. */
 // Five levels reach about a tenth of the screen; a sixth, a few pixels
 // across, cost more GPU time than all the others on the GPUs we measured.
-export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread = 1, levels = 5 } = {}) {
+export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread = 1, levels = 5, resolutionScale = 1 } = {}) {
   const LEVELS = levels;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
@@ -127,7 +128,7 @@ export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread
   const pass = {
     enabled: true, needsSwap: true,
     setSize(width, height) {
-      let w = width, h = height;
+      let w = width * resolutionScale, h = height * resolutionScale;
       for (let i = 0; i < LEVELS; i++) {
         w = Math.max(1, Math.round(w / 2)); h = Math.max(1, Math.round(h / 2));
         downs[i].setSize(w, h);

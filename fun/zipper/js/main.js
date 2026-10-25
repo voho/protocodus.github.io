@@ -39,6 +39,11 @@ async function boot() {
   let lastCell = -1;
   let shell;
   let winTimer = 0;
+  let pointerBatch = false;
+  let pathDirty = false;
+  let pathSound = null;
+  let numberReached = false;
+  const erasedCells = new Set();
 
   const N = () => puzzle.size * puzzle.size;
   const head = () => path[path.length - 1];
@@ -84,13 +89,28 @@ async function boot() {
     board.setPath(path, true);
   }
 
+  // A fast swipe can traverse many cells in one browser event. Keep every
+  // logical step, but upload the line, update the HUD and play feedback once.
+  function publishPath(force = false) {
+    if (pointerBatch && !force) { pathDirty = true; return; }
+    pathDirty = false;
+    if (erasedCells.size) { board.flare([...erasedCells]); erasedCells.clear(); }
+    board.setPath(path);
+    if (pathSound === 'step') sound.step(path.length / N());
+    else if (pathSound === 'back') sound.back();
+    if (numberReached) sound.number();
+    pathSound = null;
+    numberReached = false;
+    announce();
+  }
+
   function finish() {
     solved = true;
+    publishPath(true);
     const ms = shell.finish();
     sound.win();
     board.celebrate();
     stage.flash(themes.current.accent, 1);
-    announce();
     const finished = puzzle;
     winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
   }
@@ -99,12 +119,11 @@ async function boot() {
     if (solved) return false;
     if (canStep(puzzle, path, cell)) {
       path.push(cell);
-      board.setPath(path);
       shell.begin();
-      sound.step(path.length / N());
-      if (puzzle.numbers[cell]) sound.number();
-      announce();
+      pathSound = 'step';
+      if (puzzle.numbers[cell]) numberReached = true;
       if (isSolved(puzzle, path)) finish();
+      else publishPath();
       return true;
     }
     if (!path.includes(cell)) {
@@ -118,11 +137,10 @@ async function boot() {
   function cutTo(index) {
     index = Math.max(0, index);
     if (index >= path.length - 1) return;
-    board.flare(path.slice(index + 1));
+    for (let i = index + 1; i < path.length; i++) erasedCells.add(path[i]);
     path.length = index + 1;
-    board.setPath(path);
-    sound.back();
-    announce();
+    pathSound = 'back';
+    publishPath();
   }
 
   /* The pointer has reached `cell`: on the line it cuts the line back,
@@ -158,6 +176,17 @@ async function boot() {
     lastPoint = next;
   }
 
+  function samplePointer(event, coalesced = false) {
+    pointerBatch = true;
+    try {
+      if (coalesced) for (const sample of event.getCoalescedEvents?.() || []) followPointer(sample);
+      followPointer(event);
+    } finally {
+      pointerBatch = false;
+      if (pathDirty) publishPath();
+    }
+  }
+
   function releasePointer() {
     const pointer = activePointer;
     activePointer = null;
@@ -183,9 +212,7 @@ async function boot() {
     if (!board) return;
     if (activePointer !== null) {
       if (event.pointerId !== activePointer) return;
-      const samples = event.getCoalescedEvents?.() || [];
-      for (const sample of samples) followPointer(sample);
-      followPointer(event);
+      samplePointer(event, true);
     } else if (event.pointerType === 'mouse') {
       const point = stage.pick(event.clientX, event.clientY, 0.16);
       board.hover(point ? board.cellAt(point) : -1);
@@ -193,7 +220,7 @@ async function boot() {
   });
   canvas.addEventListener('pointerup', (event) => {
     if (event.pointerId !== activePointer) return;
-    followPointer(event);
+    samplePointer(event);
     releasePointer();
   });
   canvas.addEventListener('pointercancel', (event) => {

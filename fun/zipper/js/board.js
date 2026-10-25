@@ -1,6 +1,7 @@
 /* Zipper — the board on the table: tiles, numbered pucks, glowing walls
    and the line itself, which grows and shrinks after the player's path. */
 import * as THREE from 'three';
+import { createTileBatch } from '../../shared/tiles.js';
 import { slabGeometry, digitTexture, labelMesh } from '../../shared/slab.js';
 
 const CELL = 1;
@@ -9,7 +10,10 @@ const LINE_Y = TILE_H + 0.16;
 const LINE_R = 0.14;
 const STEP_TIME = 0.085;
 const easeOut = (t) => 1 - (1 - t) ** 3;
-const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
+const ease = (value, goal, dt, speed) => {
+  const next = value + (goal - value) * (1 - Math.exp(-dt * speed));
+  return Math.abs(next - goal) < 0.0001 ? goal : next;
+};
 
 export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   const n = puzzle.size, N = n * n;
@@ -30,24 +34,26 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   disposables.push(plinth.material);
 
   const tileGeometry = slabGeometry(TILE, TILE, TILE_H, TILE_R, 0.035);
-  const tiles = [];
+  const tileBatch = createTileBatch(stage, tileGeometry, N, {
+    roughness: 0.32, metalness: 0.05, clearcoatRoughness: 0.2,
+  });
+  const { tiles } = tileBatch;
+  group.add(tileBatch.mesh);
   for (let cell = 0; cell < N; cell++) {
     // Each seeded world shades between two jewel tones, then lights up
     // with its candy palette beneath the line.
     const gradient = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
     const base = new THREE.Color(theme.tileA || '#164350').lerp(new THREE.Color(theme.tileB || '#392957'), gradient);
     const lit = accentColour.clone().lerp(new THREE.Color(theme.secondary || '#8f7cff'), gradient).multiplyScalar(0.35);
-    const material = stage.material({ color: base, roughness: 0.32, metalness: 0.05, emissive: accentColour, emissiveIntensity: 0, clearcoatRoughness: 0.2 });
-    const mesh = new THREE.Mesh(tileGeometry, material);
+    const mesh = tiles[cell];
+    mesh.material.color.copy(base);
+    mesh.material.emissive.copy(accentColour);
     mesh.position.set(cellX(cell), 0, cellZ(cell));
-    mesh.castShadow = mesh.receiveShadow = true;
     mesh.userData = { glow: 0, lift: 0, press: 0, shake: 0, hopAt: -1, on: false, base, lit, hue: -1 };
     group.add(mesh);
-    tiles.push(mesh);
-    disposables.push(material);
   }
 
-  const puckGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.09, 40);
+  const puckGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.09, 24);
   disposables.push(puckGeometry);
   const pucks = new Map();
   puzzle.waypoints.forEach((cell, index) => {
@@ -101,25 +107,28 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   const lineDummy = new THREE.Object3D();
   const lineDirection = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
-  const tail = new THREE.Mesh(new THREE.SphereGeometry(LINE_R, 24, 16), lineMaterial);
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(LINE_R, 16, 10), lineMaterial);
   tail.castShadow = true;
   const headMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: accentColour, emissiveIntensity: 2.2, roughness: 0.2 });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(LINE_R * 1.45, 28, 20), headMaterial);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(LINE_R * 1.45, 18, 12), headMaterial);
   head.castShadow = true;
   const lamp = new THREE.PointLight(accentColour, 3, 4.5, 1.6);
   lamp.position.y = 0.45;
   head.add(lamp);
-  const nextRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.40, 48),
+  const nextRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.40, 32),
     new THREE.MeshBasicMaterial({ color: accentColour, side: THREE.DoubleSide }));
-  const headRing = new THREE.Mesh(new THREE.RingGeometry(0.315, 0.342, 48),
+  const headRing = new THREE.Mesh(new THREE.RingGeometry(0.315, 0.342, 32),
     new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }));
   for (const ring of [nextRing, headRing]) ring.rotation.x = -Math.PI / 2;
   group.add(tube, joints, tail, head, nextRing, headRing);
   disposables.push(lineMaterial, headMaterial, tubeGeometry, jointGeometry, tail.geometry, head.geometry, nextRing.geometry, nextRing.material, headRing.geometry, headRing.material);
 
+  tileBatch.flush();
+  stage.invalidateShadows?.();
   stage.frame(plinthSize / 2, plinthSize / 2);
 
   let target = [puzzle.waypoints[0]];
+  let common = 1;
   let nextNumber = 2;
   const shown = { cells: [puzzle.waypoints[0]], t: 1 };
   const onLine = new Uint8Array(N);
@@ -194,8 +203,6 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   }
 
   function update(dt, time) {
-    let common = 0;
-    while (common < shown.cells.length && common < target.length && shown.cells[common] === target[common]) common++;
     const pending = (shown.cells.length - common) + (target.length - common);
     const rate = (1 / STEP_TIME) * Math.max(1, pending * 0.75);
     if (shown.cells.length > common) {
@@ -203,21 +210,20 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       if (shown.t <= 0) { shown.cells.pop(); shown.t = 1; }
       dirty = true;
     } else if (target.length > shown.cells.length) {
-      if (shown.t >= 1) { shown.cells.push(target[shown.cells.length]); shown.t = 0; }
+      if (shown.t >= 1) { shown.cells.push(target[shown.cells.length]); common++; shown.t = 0; }
       shown.t = Math.min(1, shown.t + dt * rate);
       dirty = true;
     } else if (shown.t < 1) {
       shown.t = Math.min(1, shown.t + dt * rate);
       dirty = true;
     }
-    if (dirty) { rebuildLine(); dirty = false; stage.wake(0.3); }
+    if (dirty) { rebuildLine(); dirty = false; stage.invalidateShadows?.(); stage.wake(0.3); }
     if (fx.confetti.alive || fx.sparks.alive) stage.wake(0.3);
     // The head sheds a sparkle or two while the line is on the move.
     if (!stage.reduced && shown.t < 1 && time > sparkleAt) {
       sparkleAt = time + 0.08;
       fx.sparks.burst({ origin: head.position, count: 1, colours: ['#ffffff', accent], speed: [0.3, 0.8], spread: Math.PI, gravityPull: -0.6, airDrag: 2, lifespan: [0.25, 0.45], size: [0.04, 0.04], spinRate: 3 });
     }
-    group.position.y = stage.reduced ? 0 : Math.sin(time * 0.6) * 0.03;
     nextRing.visible = nextNumber <= puzzle.waypoints.length;
     if (nextRing.visible) {
       const cell = puzzle.waypoints[nextNumber - 1];
@@ -230,6 +236,11 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       const tile = tiles[cell];
       const data = tile.userData;
       const on = onLine[cell] === 1;
+      const glow = on ? 0.5 : hovered === cell ? 0.2 : 0;
+      const lift = hovered === cell && !on ? 0.05 : 0;
+      const hinted = time < hintUntil && hintCells.has(cell);
+      if (data.glow === glow && data.lift === lift && data.press === 0 && data.shake === 0 && data.hopAt < 0 && rippleAt[cell] < 0 && !hinted && !data.hinted) continue;
+      data.hinted = hinted;
       data.glow = ease(data.glow, on ? 0.5 : hovered === cell ? 0.2 : 0, dt, 12);
       // Covered tiles show their candy colour; the accent glow stays a tint.
       data.lift = ease(data.lift, hovered === cell && !on ? 0.05 : 0, dt, 14);
@@ -247,14 +258,13 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
         if (u >= 1) rippleAt[cell] = -1;
         else if (u > 0) wave = Math.sin(u * Math.PI) * rippleStrength;
       }
-      const hinted = time < hintUntil && hintCells.has(cell);
       const emissive = tile.material.emissive;
       emissive.copy(hinted && hintMistake ? mistakeColour : accentColour);
       if (wave > 0) emissive.lerp(rippleColour, Math.min(1, wave));
       // A solved board runs a rainbow along the line as the tiles hop.
       if (hop > 0 && data.hue >= 0) emissive.setHSL((data.hue + time * 0.15) % 1, 1, 0.6, THREE.SRGBColorSpace);
       tile.material.emissiveIntensity = data.glow * 0.18 + data.press * 0.7 + hop * 0.7 + wave * 0.55
-        + (hinted ? 0.5 + Math.sin(time * 6) * 0.2 : 0);
+        + (hinted ? 0.5 + (stage.reduced ? 0 : Math.sin(time * 6) * 0.2) : 0);
       if (hinted) stage.wake(0.3);
       tile.material.color.lerpColors(data.base, data.lit, Math.min(1, data.glow * 2));
       tile.position.y = stage.reduced ? 0 : data.lift - data.press * 0.06 + hop * 0.18 + wave * 0.07;
@@ -264,7 +274,9 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       const data = puck.userData;
       const reached = onLine[cell] === 1;
       if (reached && !data.reached) data.pulse = 1;
+      if (reached === data.reached && data.pulse === 0 && data.glow === (reached ? 0.12 : 0) && puck.position.y === TILE_H + 0.045 + tiles[cell].position.y) continue;
       data.reached = reached;
+      const previousY = puck.position.y, previousScale = puck.scale.x;
       data.glow = ease(data.glow, reached ? 0.12 : 0, dt, 10);
       data.pulse = Math.max(0, data.pulse - dt * 3);
       puck.material.emissiveIntensity = data.glow + data.pulse * 0.15;
@@ -272,19 +284,26 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       const scale = stage.reduced ? 1 : 1 + Math.sin(data.pulse * Math.PI) * 0.22;
       puck.scale.set(scale, 1, scale);
       puck.position.y = TILE_H + 0.045 + tiles[cell].position.y;
+      if (puck.position.y !== previousY || puck.scale.x !== previousScale) stage.invalidateShadows?.();
     }
     for (const wall of walls.values()) {
+      if (wall.userData.flash === 0 && wall.position.y === 0) continue;
       wall.userData.flash = Math.max(0, wall.userData.flash - dt * 4);
       wall.material.emissiveIntensity = 0.9 + wall.userData.flash * 2.6;
       wall.position.y = stage.reduced ? 0 : Math.sin(time * 50) * 0.03 * wall.userData.flash;
+      stage.invalidateShadows?.();
     }
     linePulse = Math.max(0, linePulse - dt * 1.2);
     lineMaterial.emissiveIntensity = 0.85 + linePulse * 0.6;
     headShake = Math.max(0, headShake - dt * 5);
-    const beat = stage.reduced ? 1 : 1 + Math.sin(time * 4) * 0.05 + headShake * 0.3;
-    head.scale.set(beat, beat, beat);
+    const beat = stage.reduced ? 1 : 1 + headShake * 0.3;
+    if (head.scale.x !== beat) {
+      head.scale.set(beat, beat, beat);
+      if (head.visible) stage.invalidateShadows?.();
+    }
     headMaterial.emissiveIntensity = 2.2 + linePulse;
-    lamp.intensity = 2.6 + Math.sin(time * 4) * 0.4 + linePulse * 4;
+    lamp.intensity = 2.6 + (stage.reduced ? 0 : Math.sin(time * 4) * 0.4) + linePulse * 4;
+    tileBatch.flush();
     fx.confetti.update(dt);
     fx.sparks.update(dt);
   }
@@ -308,9 +327,11 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       const grew = !settled && cells.length > target.length;
       const shrank = !settled && cells.length < target.length;
       target = cells.slice();
+      common = 0;
+      while (common < shown.cells.length && common < target.length && shown.cells[common] === target[common]) common++;
       nextNumber = 2;
       for (const cell of cells) if (puzzle.numbers[cell]) nextNumber = puzzle.numbers[cell] + 1;
-      if (settled) { shown.cells = cells.slice(); shown.t = 1; dirty = true; stage.wake(); return; }
+      if (settled) { shown.cells = cells.slice(); common = shown.cells.length; shown.t = 1; dirty = true; stage.wake(); return; }
       const head = cells[cells.length - 1];
       if (grew) {
         tiles[head].userData.press = 1;
@@ -366,6 +387,8 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       stopFrames();
       for (const timer of celebrationTimers) clearTimeout(timer);
       stage.scene.remove(group);
+      tileBatch.dispose();
+      stage.invalidateShadows?.();
       tube.dispose();
       joints.dispose();
       for (const item of disposables) item.dispose();

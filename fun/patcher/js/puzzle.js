@@ -110,6 +110,13 @@ export function solve(puzzle, { limit = 2, placed = [], candidates = allCandidat
     chosen[patch.clue] = patch;
     for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) cover[(patch.y + j) * n + patch.x + i] = patch.clue;
   }
+  // Index once in the same order as the clue lists. The search repeatedly
+  // asks which patches cover one cell; scanning every patch at every node
+  // spends most of its time checking rectangles elsewhere on the board.
+  const byCell = Array.from({ length: n * n }, () => []);
+  for (const list of candidates) for (const candidate of list) {
+    for (const cell of candidate.cells) byCell[cell].push(candidate);
+  }
   const solutions = [];
   let nodes = 0;
   let exhausted = false;
@@ -125,9 +132,8 @@ export function solve(puzzle, { limit = 2, placed = [], candidates = allCandidat
     for (let cell = 0; cell < n * n; cell++) {
       if (cover[cell] !== -1) continue;
       const list = [];
-      for (let k = 0; k < candidates.length; k++) {
-        if (used[k]) continue;
-        for (const candidate of candidates[k]) if (candidate.cells.includes(cell) && open(candidate)) list.push(candidate);
+      for (const candidate of byCell[cell]) {
+        if (!used[candidate.clue] && open(candidate)) list.push(candidate);
       }
       if (bestList === null || list.length < bestList.length) { bestCell = cell; bestList = list; }
       if (list.length === 0) break;

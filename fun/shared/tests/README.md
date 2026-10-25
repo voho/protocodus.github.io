@@ -5,17 +5,24 @@ Run these from the repository root:
 ```sh
 node fun/zipper/tests/puzzle-check.mjs
 node fun/patcher/tests/puzzle-check.mjs
+node fun/patcher/tests/board-render-check.mjs
 node fun/zipper/tests/board-render-check.mjs
+node fun/zipper/tests/input-batching-check.mjs
 node fun/shared/tests/hint-interaction-check.mjs
 node fun/shared/tests/pointer-interaction-check.mjs
 node fun/shared/tests/theme-check.mjs
 node fun/shared/tests/shell-check.mjs
+node fun/shared/tests/stage-check.mjs
 ```
 
 The checks cover seeded solvability and uniqueness, difficulty grading, fixed
 rendering buffers and cleanup, non-mutating hints, fast pointer samples, touch
 ownership, reversible rectangles, corner taps, cancellation, replay timing,
-scenery contrast and daily seeds, and the active-play clock.
+scenery contrast and daily seeds, and the active-play clock. Stage checks use
+a fake clock and real Three.js camera math to verify the fixed slight tilt,
+framing and picking, sleeping idle scheduler, prompt input wakeups, static
+shadow invalidation and background/reduced-motion suspension. These scheduling
+checks do not claim hardware-specific frame rates or CPU percentages.
 
 ## Browser checks
 
