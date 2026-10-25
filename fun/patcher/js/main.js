@@ -5,11 +5,10 @@ import { createSound } from '../../shared/sound.js';
 import { createShell } from '../../shared/shell.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
-import { themeFor } from '../../shared/themes.js';
+import { createThemeSwitch } from '../../shared/themes.js';
 import { generate, cluesInside, rejectReason, isSolved, hint } from './puzzle.js';
-import { createBoard, PALETTE } from './board.js';
+import { createBoard } from './board.js';
 
-const ACCENT = '#f6d155';
 const REASONS = {
   'no-clue': 'A patch needs a clue inside it.',
   'two-clues': 'Only one clue per patch.',
@@ -21,10 +20,10 @@ const canvas = document.getElementById('stage');
 const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
-const stage = createStage(canvas, {
-  accent: ACCENT, secondary: '#ff6b9d', elevation: 1.02,
-  backdrop: { top: '#2a1a2e', bottom: '#060308', glow: '#f29e8e', glowStrength: 0.1, blobA: '#ff6b9d', blobB: '#7ad3ff', blobStrength: 0.08 },
-});
+// The theme is picked before the table is built; a later pick redresses it.
+let retheme = null;
+const themes = createThemeSwitch({ fallback: 'jungle', onChange: (theme) => retheme?.(theme) });
+const stage = createStage(canvas, { theme: themes.current });
 if (!stage) {
   loading.classList.add('failed');
   loading.querySelector('[data-loading-text]').textContent = 'Patcher needs WebGL 2, which this browser or device does not provide.';
@@ -35,8 +34,6 @@ if (!stage) {
 async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), dust: createBursts(stage.scene, { max: 300, additive: true }) };
-  stage.dust({ colour: '#f6d155', extent: 6 });
-  stage.bokeh({ colours: [ACCENT, '#ff6b9d', '#7ad3ff', '#ffffff'] });
   const sound = createSound('patcher');
 
   let puzzle = null;
@@ -48,7 +45,6 @@ async function boot() {
   let assisted = false;
   let drag = null;
   let tapAnchor = -1;
-  let theme = null;
   let shell = null;
   let winTimer = 0;
   // Keyboard: a cursor cell, and the cell a patch is being grown from.
@@ -66,7 +62,7 @@ async function boot() {
   };
   const colourFor = (clue) => {
     if (!colours.has(clue)) {
-      const palette = theme?.palette || PALETTE;
+      const palette = themes.current.palette;
       colours.set(clue, palette[colours.size % palette.length]);
     }
     return colours.get(clue);
@@ -93,8 +89,7 @@ async function boot() {
     }
     cancelSelection();
     board?.dispose();
-    theme = themeFor(seed, 'patcher');
-    stage.setTheme(theme);
+    const theme = themes.current;
     board = createBoard(stage, puzzle, { accent: theme.accent, fx, theme });
     patches = [];
     undo = [];
@@ -105,6 +100,17 @@ async function boot() {
     cursor = -1;
     keyAnchor = -1;
     announce();
+  }
+
+  /* The same board and patches, dressed in the theme just picked. */
+  function rebuild() {
+    cancelSelection();
+    board.dispose();
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, fx, theme });
+    colours = new Map();
+    for (const patch of patches) board.place(patch, colourFor(patch.clue), null, true);
+    if (cursor >= 0) board.hover(cursor);
   }
 
   function finish() {
@@ -326,6 +332,11 @@ async function boot() {
   });
 
   announce();
+  retheme = (theme) => {
+    stage.setTheme(theme);
+    if (board) rebuild();
+    shell.toast(theme.label);
+  };
   stage.start();
   document.body.classList.add('ready');
   // For the browser check: where a cell is on the page.

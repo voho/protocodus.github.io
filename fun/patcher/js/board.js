@@ -9,9 +9,6 @@ const PATCH_H = 0.3, PATCH_GAP = 0.12, PATCH_R = 0.18;
 const DROP_FROM = 0.8;
 const ease = (value, goal, dt, speed) => value + (goal - value) * (1 - Math.exp(-dt * speed));
 
-// Candy: saturated, glossy, never two alike side by side.
-export const PALETTE = ['#ff6b9d', '#ffb347', '#ffe066', '#9bf27a', '#5fe3c8', '#7ad3ff', '#c58bff', '#ff8f6b', '#ff79c6', '#8affd6', '#ffd36b', '#9c9bff'];
-
 export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
   const n = puzzle.size, N = n * n;
   const group = new THREE.Group();
@@ -159,12 +156,11 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
           entry.landed = time;
           for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) tiles[(patch.y + j) * n + patch.x + i].userData.press = 1;
           // The landing runs a ripple out across the board in the patch's
-          // colour, glows in the backdrop and nudges the camera. Gentle,
-          // since a move lands many times a game: the colour should tint
-          // the board, not wash over it.
+          // colour and glows in the backdrop. Gentle, since a move lands
+          // many times a game: the colour should tint the board, not wash
+          // over it.
           ripple(x, z, entry.colour, 0.3);
           stage.pulse(new THREE.Vector3(x, TILE_H, z), entry.colour, 0.6);
-          if (!stage.reduced) stage.kick(0.4);
           fx.dust.burst({
             origin: new THREE.Vector3(x, TILE_H + 0.05, z), count: stage.reduced ? 0 : Math.min(32, 10 + patch.w * patch.h * 2),
             colours: [entry.colour, '#ffffff'], speed: [0.8, 2.2], direction: new THREE.Vector3(0, 0.35, 0), spread: 1.5,
@@ -260,13 +256,14 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       rejectUntil = stage.time + 0.35;
       stage.wake(0.5);
     },
-    /* A patch drops onto the board in its colour, with the clue on top. */
-    place(patch, colour, onLand) {
+    /* A patch drops onto the board in its colour, with the clue on top;
+       `settled` puts it straight down, as after a change of theme. */
+    place(patch, colour, onLand, settled = false) {
       hintGhost.visible = false;
       const material = stage.material({ color: colour, roughness: 0.2, metalness: 0, emissive: colour, emissiveIntensity: 0.06, clearcoatRoughness: 0.06 });
       const mesh = new THREE.Mesh(patchGeometry(patch.w, patch.h), material);
       const [x, z] = rectCentre(patch);
-      mesh.position.set(x, TILE_H + DROP_FROM, z);
+      mesh.position.set(x, TILE_H + (settled ? 0 : DROP_FROM), z);
       mesh.castShadow = mesh.receiveShadow = true;
       const clue = puzzle.clues[patch.clue];
       const texture = clueTexture(clue, '#1a1420');
@@ -277,7 +274,7 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       const tileLabel = tiles[clue.cell].userData.label;
       if (tileLabel) tileLabel.visible = false;
       for (let j = 0; j < patch.h; j++) for (let i = 0; i < patch.w; i++) coveredBy[(patch.y + j) * n + patch.x + i] = patch.clue;
-      patches.set(patch.clue, { patch, mesh, label, texture, colour, state: 'drop', t: 0, landed: 0, lift: 0, hopAt: -1, hue: -1, onLand });
+      patches.set(patch.clue, { patch, mesh, label, texture, colour, state: settled ? 'rest' : 'drop', t: 0, landed: settled ? -10 : 0, lift: 0, hopAt: -1, hue: -1, onLand });
       stage.wake(2);
     },
     lift(clueIndex) {
@@ -314,9 +311,8 @@ export function createBoard(stage, puzzle, { accent, fx, theme = {} }) {
       order.forEach((entry, i) => { entry.hopAt = time + 0.1 + i * 0.05; entry.hue = i / order.length; });
       ripple(0, 0, '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
-      if (!stage.reduced) stage.kick(1.2);
       stage.wake(4);
-      const colours = [...(theme.palette || PALETTE), '#ffffff'];
+      const colours = [...(theme.palette || []), '#ffffff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1.2, 0), count: stage.reduced ? 0 : 180, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
     },
     dispose() {

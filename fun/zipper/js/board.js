@@ -301,22 +301,25 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
     hover(cell) { if (cell !== hovered) { hovered = cell; stage.wake(); } },
     /* The middle of a cell's top, on the table. */
     centre(cell) { return new THREE.Vector3(cellX(cell), TILE_H, cellZ(cell)); },
-    setPath(cells) {
+    /* `settled` shows the line as it stands, without growing it, as
+       after a change of theme. */
+    setPath(cells, settled = false) {
       hintCells.clear();
-      const grew = cells.length > target.length;
-      const shrank = cells.length < target.length;
+      const grew = !settled && cells.length > target.length;
+      const shrank = !settled && cells.length < target.length;
       target = cells.slice();
       nextNumber = 2;
       for (const cell of cells) if (puzzle.numbers[cell]) nextNumber = puzzle.numbers[cell] + 1;
+      if (settled) { shown.cells = cells.slice(); shown.t = 1; dirty = true; stage.wake(); return; }
       const head = cells[cells.length - 1];
       if (grew) {
         tiles[head].userData.press = 1;
         const number = puzzle.numbers[head];
         // Every step sends a small ripple across the board; a number reached
-        // sends a bright one, lights the backdrop and nudges the camera.
+        // sends a bright one and lights the backdrop.
         ripple(head, number ? '#ffffff' : accent, number ? 1 : 0.25);
-        fx.sparks.burst({ origin: at(head), count: stage.reduced ? 0 : number ? 26 : 4, colours: ['#ffffff', accent, '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
-        if (number) { stage.pulse(at(head), accent, 1); stage.kick(0.6); }
+        fx.sparks.burst({ origin: at(head), count: stage.reduced ? 0 : number ? 26 : 4, colours: ['#ffffff', accent, theme.wall || '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
+        if (number) stage.pulse(at(head), accent, 1);
       } else if (shrank) {
         ripple(head, '#ffffff', 0.2);
       }
@@ -348,7 +351,6 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       linePulse = 0.7;
       ripple(target[target.length - 1], '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
-      stage.kick(1.2);
       stage.wake(4);
       const colours = theme.palette || [accent, '#f6d155', '#ffffff', '#f29e8e', '#9fb8ff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: stage.reduced ? 0 : 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });

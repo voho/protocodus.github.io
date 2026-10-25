@@ -1,6 +1,6 @@
 /* Shared controls, daily boards, feedback and a clock that counts play time. */
 import { randomSeed } from './rng.js';
-import { themeFor, dailySeed } from './themes.js';
+import { dailySeed } from './themes.js';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
@@ -56,16 +56,11 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
     if (win.open) win.close();
     toast.classList.remove('on');
     if (feedback) feedback.textContent = defaultFeedback;
-    const theme = themeFor(seed, storageKey);
-    document.documentElement.style.setProperty('--accent', theme.accent);
-    document.documentElement.style.setProperty('--secondary', theme.secondary);
-    document.body.dataset.world = theme.id;
-    if ($('[data-world-name]')) $('[data-world-name]').textContent = theme.name;
     const sizes = storageKey === 'patcher' ? [5, 7, 9] : [5, 6, 7];
     const size = sizes[DIFFICULTIES.indexOf(difficulty)];
     if ($('[data-board-size]')) $('[data-board-size]').textContent = `${size} × ${size}`;
     dailyButton?.setAttribute('aria-pressed', String(seed === dailySeed()));
-    onNew(difficulty, seed, theme);
+    onNew(difficulty, seed);
   }
 
   function showToast(text, ms = 2600) {
@@ -130,7 +125,7 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
   win.querySelector('[data-action="harder"]').addEventListener('click', () => { shell.fresh(DIFFICULTIES[Math.min(2, DIFFICULTIES.indexOf(difficulty) + 1)]); focusBoard(); });
   win.querySelector('[data-action="stay"]').addEventListener('click', () => win.close());
   $('[data-action="share"]')?.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(location.href); showToast('Puzzle link copied. Same board, same scenery.'); }
+    try { await navigator.clipboard.writeText(location.href); showToast('Puzzle link copied.'); }
     catch { showToast('Copy the address to share this puzzle.'); }
   });
   const reflectSound = () => {
@@ -141,7 +136,7 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
   soundButton.addEventListener('click', () => { sound.toggle(); reflectSound(); });
   reflectSound();
   document.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey || help.open || win.open) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || help.open || win.open || $('dialog[open]')) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName) || event.target?.isContentEditable) return;
     const key = event.key.toLowerCase();
     if (key === 'n') shell.fresh();

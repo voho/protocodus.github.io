@@ -1,6 +1,6 @@
 // Run with: node fun/shared/tests/theme-check.mjs
 import assert from 'node:assert/strict';
-import { WORLDS, themeFor, dailySeed } from '../themes.js';
+import { THEMES, dailySeed } from '../themes.js';
 import { generate as zipper } from '../../zipper/js/puzzle.js';
 import { generate as patcher } from '../../patcher/js/puzzle.js';
 
@@ -16,29 +16,32 @@ function contrast(a, b) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-assert.ok(WORLDS.length >= 4, 'A new puzzle should offer several distinct worlds');
-assert.equal(new Set(WORLDS.map(({ id }) => id)).size, WORLDS.length, 'World identities must be unique');
-assert.equal(new Set(WORLDS.map(({ top, bottom }) => `${top}:${bottom}`)).size, WORLDS.length, 'Worlds need distinct backdrops');
-for (const world of WORLDS) {
-  for (const key of ['accent', 'secondary', 'top', 'bottom', 'tileA', 'tileB', 'plinth', 'wall', 'clue']) {
-    assert.match(world[key], /^#[\da-f]{6}$/i, `${world.id}: valid ${key} colour`);
+const names = Object.keys(THEMES);
+assert.ok(names.length >= 6, 'A puzzle offers several distinct themes');
+assert.equal(new Set(names.map((name) => THEMES[name].label)).size, names.length, 'Theme labels are unique');
+assert.equal(new Set(names.map((name) => `${THEMES[name].backdrop.top}:${THEMES[name].backdrop.bottom}`)).size, names.length, 'Themes need distinct backdrops');
+for (const name of names) {
+  const theme = THEMES[name];
+  for (const key of ['accent', 'secondary', 'clue', 'plinth', 'tileA', 'tileB', 'wall']) {
+    assert.match(theme[key], /^#[\da-f]{6}$/i, `${name}: valid ${key} colour`);
   }
-  assert.ok(contrast(world.clue, world.tileA) >= 4.5, `${world.id}: clues remain readable on the first tile colour`);
-  assert.ok(contrast(world.clue, world.tileB) >= 4.5, `${world.id}: clues remain readable on the second tile colour`);
-  for (const colour of world.palette) {
-    assert.ok(contrast(colour, '#1a1420') >= 4.5, `${world.id}: placed patches preserve dark clue contrast`);
+  for (const key of ['top', 'bottom', 'glow', 'blobA', 'blobB']) assert.match(theme.backdrop[key], /^#[\da-f]{6}$/i, `${name}: valid backdrop ${key}`);
+  for (const key of ['key', 'sky', 'ground']) assert.match(theme.light[key], /^#[\da-f]{6}$/i, `${name}: valid light ${key}`);
+  assert.ok(Number.isInteger(theme.motif) && theme.motif >= 0 && theme.motif <= 5, `${name}: motif names a backdrop pattern`);
+  assert.ok(contrast(theme.clue, theme.tileA) >= 4.5, `${name}: clues remain readable on the first tile colour`);
+  assert.ok(contrast(theme.clue, theme.tileB) >= 4.5, `${name}: clues remain readable on the second tile colour`);
+  assert.ok(contrast('#0d0e12', theme.accent) >= 4.5, `${name}: the accent carries dark ink on buttons`);
+  assert.equal(theme.palette.length, 12, `${name}: a dozen patch colours`);
+  assert.equal(new Set(theme.palette).size, 12, `${name}: patch colours are distinct`);
+  for (const colour of theme.palette) {
+    assert.ok(contrast(colour, '#1a1420') >= 4.5, `${name}: placed patches preserve dark clue contrast (${colour})`);
   }
-}
-for (const game of ['zipper', 'patcher']) {
-  const seen = new Set();
-  for (let i = 0; i < 120; i++) {
-    const seed = `scenery${i}`;
-    const world = themeFor(seed, game);
-    assert.ok(WORLDS.includes(world), `${game}: selected world is supported`);
-    assert.deepEqual(themeFor(seed, game), world, `${game}: a shared puzzle link preserves scenery`);
-    seen.add(world.id);
+  assert.ok(theme.bokeh.length >= 3, `${name}: bokeh colours`);
+  assert.ok(theme.ambient.length >= 1, `${name}: some weather`);
+  for (const spec of theme.ambient) {
+    if (spec.kind === 'sparks') assert.ok(spec.every[0] > 0 && spec.every[1] >= spec.every[0], `${name}: spark showers have an interval`);
+    else assert.ok(spec.count > 0 && spec.size > 0 && spec.colours.length, `${name}: a cloud has dots, a size and colours`);
   }
-  assert.equal(seen.size, WORLDS.length, `${game}: every world is reachable across puzzle seeds`);
 }
 
 const today = dailySeed(new Date(2026, 9, 24, 23, 59));
@@ -48,4 +51,4 @@ assert.match(today, /^[a-z0-9]{3,16}$/, 'Daily board links use the supported see
 for (const generate of [zipper, patcher]) {
   assert.deepEqual(generate('medium', today), generate('medium', today), 'Daily puzzles are reproducible');
 }
-console.log(`Theme checks passed: ${WORLDS.length} reachable worlds, deterministic scenery, readable palettes and local daily boards.`);
+console.log(`Theme checks passed: ${names.length} themes with readable clues, patches and buttons, weather specs and local daily boards.`);

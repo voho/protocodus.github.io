@@ -45,9 +45,9 @@ export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } =
       return structuredClone(puzzle);
     },
     randomSeed: () => 'retryseed',
-    themeFor: () => ({ accent: '#87d7be', palette: ['#87d7be'] }),
+    createThemeSwitch: () => ({ current: { label: 'Test', accent: '#87d7be', palette: ['#87d7be'] } }),
     createStage: () => ({
-      dust() {}, bokeh() {}, start() { state.starts++; }, flash() {}, setTheme() {},
+      start() { state.starts++; }, flash() {}, setTheme() {},
       pick: (x, y) => ({ x: x / 100, z: y / 100 }), project() {},
     }),
     createBoard: () => board,
@@ -67,7 +67,6 @@ export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } =
       };
     },
     waitForFont: () => Promise.resolve(),
-    PALETTE: ['#87d7be'],
     document: {
       addEventListener: (name, listener) => documentListeners.set(name, listener),
       getElementById: () => canvas,

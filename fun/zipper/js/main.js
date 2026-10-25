@@ -5,19 +5,18 @@ import { createSound } from '../../shared/sound.js';
 import { createShell } from '../../shared/shell.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
-import { themeFor } from '../../shared/themes.js';
+import { createThemeSwitch } from '../../shared/themes.js';
 import { generate, canStep, isSolved, hint, straightLine } from './puzzle.js';
 import { createBoard } from './board.js';
 
-const ACCENT = '#87d7be';
 const canvas = document.getElementById('stage');
 const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
 
-const stage = createStage(canvas, {
-  accent: ACCENT, secondary: '#8f7cff', elevation: 1.0,
-  backdrop: { top: '#0e2432', bottom: '#030609', glow: ACCENT, glowStrength: 0.13, blobA: '#2fd9c0', blobB: '#7a5cff', blobStrength: 0.08 },
-});
+// The theme is picked before the table is built; a later pick redresses it.
+let retheme = null;
+const themes = createThemeSwitch({ fallback: 'ocean', onChange: (theme) => retheme?.(theme) });
+const stage = createStage(canvas, { theme: themes.current });
 if (!stage) {
   loading.classList.add('failed');
   loading.querySelector('[data-loading-text]').textContent = 'Zipper needs WebGL 2, which this browser or device does not provide.';
@@ -28,8 +27,6 @@ if (!stage) {
 async function boot() {
   await waitForFont();
   const fx = { confetti: createBursts(stage.scene, { max: 400 }), sparks: createBursts(stage.scene, { max: 300, additive: true }) };
-  stage.dust({ colour: ACCENT, extent: 6 });
-  stage.bokeh({ colours: [ACCENT, '#7a5cff', '#ffffff', '#f6d155'] });
   const sound = createSound('zipper');
 
   let puzzle = null;
@@ -69,8 +66,7 @@ async function boot() {
     releasePointer();
     clearTimeout(winTimer);
     board?.dispose();
-    const theme = themeFor(seed, 'zipper');
-    stage.setTheme?.(theme);
+    const theme = themes.current;
     board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
     path = [puzzle.waypoints[0]];
     solved = false;
@@ -79,12 +75,21 @@ async function boot() {
     announce();
   }
 
+  /* The same board and line, dressed in the theme just picked. */
+  function rebuild() {
+    releasePointer();
+    board.dispose();
+    const theme = themes.current;
+    board = createBoard(stage, puzzle, { accent: theme.accent, theme, fx });
+    board.setPath(path, true);
+  }
+
   function finish() {
     solved = true;
     const ms = shell.finish();
     sound.win();
     board.celebrate();
-    stage.flash(ACCENT, 1);
+    stage.flash(themes.current.accent, 1);
     announce();
     const finished = puzzle;
     winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
@@ -251,6 +256,11 @@ async function boot() {
   });
 
   announce();
+  retheme = (theme) => {
+    stage.setTheme(theme);
+    if (board) rebuild();
+    shell.toast(theme.label);
+  };
   stage.start();
   document.body.classList.add('ready');
   // For the browser check: where a cell is on the page.

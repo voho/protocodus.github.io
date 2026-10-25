@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { themeFor, dailySeed } from '../themes.js';
+import { dailySeed } from '../themes.js';
 
 function element() {
   const listeners = new Map();
@@ -38,7 +38,7 @@ const window = element();
 const location = { hash: '#medium-alpha', href: 'https://example.test/zipper/#medium-alpha' };
 let clock = 0, tick;
 const context = vm.createContext({
-  document, window, location, themeFor, dailySeed, randomSeed: () => 'newseed',
+  document, window, location, dailySeed, randomSeed: () => 'newseed',
   history: { replaceState(_state, _title, hash) { location.hash = hash; } },
   localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) },
   performance: { now: () => clock }, setInterval(callback) { tick = callback; },
@@ -57,8 +57,6 @@ const shell = context.createShell({
 assert.equal(shell.difficulty, 'medium');
 assert.equal(shell.seed, 'alpha');
 assert.equal(actions.new.length, 1, 'Initial shared link loads once');
-assert.equal(document.body.dataset.world, themeFor('alpha', 'zipper').id, 'The shell reflects seeded scenery');
-assert.equal($('[data-world-name]').textContent, themeFor('alpha', 'zipper').name, 'The scenery label matches the loaded world');
 clock = 3000; tick();
 assert.equal($('[data-timer]').textContent, '0:00', 'Looking at a board does not start the timer');
 shell.begin();
