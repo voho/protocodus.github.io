@@ -462,5 +462,16 @@ await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck()
 This uses and disposes a separate offscreen WebGL context. It injects NaN,
 positive infinity and negative infinity at idle and maximum speed, checks all
 bloom/ray targets, and compares valid HDR images with the safeguard disabled.
-All six cases passed locally: over 26,000 affected pixels fell to at most five,
-and the valid images remained pixel-identical.
+With the safeguard, all six cases must stay finite and local. Without it,
+negative infinity must still spread through bloom; NaN and positive infinity
+need not. The Karis bright pass (`7bc08d3a`, after this check was written)
+clamps each tap with `min(tap, 24.0)`. That always turns positive infinity
+into 24, and NaN too wherever `min()` returns the number rather than the NaN,
+as an M1 Max does; one tap of 24 among three dark ones then stays under the
+threshold. Negative infinity passes `min()`, and its Karis weight,
+1/(1 − ∞) = −0, turns it into NaN. Until the check allowed for this it failed
+its own fixture on every commit from `7bc08d3a` on. On an M1 Max under ANGLE
+Metal and GL, unguarded negative infinity put 2,055 invalid half-floats into
+the bloom and ray targets and changed 26,192 pixels at both speeds, NaN and
+positive infinity changed 5–11 pixels, and with the safeguard every case
+changed at most five; the valid images stayed within one 8-bit step.

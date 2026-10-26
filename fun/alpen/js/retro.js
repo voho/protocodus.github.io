@@ -23,6 +23,8 @@ const VERT = `
 // One invalid HDR texel otherwise spreads through both bloom kernels into a
 // large rectangle. Keep valid radiance unchanged and contain invalid samples
 // before filtering or grading. Three's WebGL2 shaders provide isnan/isinf.
+// The bright pass's min(tap, 24.0) is no substitute: -Inf passes it (its Karis
+// weight then makes NaN), and by GLSL's own definition min(NaN, 24.0) is NaN.
 const SCENE_SAMPLE = `
   vec3 sceneColor(vec2 uv) {
     vec3 c = texture2D(tDiffuse, uv).rgb;

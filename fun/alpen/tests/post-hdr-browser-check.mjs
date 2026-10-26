@@ -108,11 +108,17 @@ export async function runPostHdrCheck() {
         const invalidAfter = invalidPostChannels();
         const before = differences(clean, broken, 12);
         const after = differences(clean, repaired, 12);
-        assert(invalidBefore > 0, 'fixture reproduces invalid HDR spreading through bloom');
-        assert(before.changedPixels > 100, 'one invalid texel reproduces a visible rectangular artifact');
+        // Unguarded, only -Inf is sure to reach bloom. The bright pass's
+        // min(tap, 24.0) turns +Inf into 24, and NaN as well wherever min()
+        // returns the number (an M1 Max does); one Karis-weighted tap of 24
+        // among three dark ones then stays under the threshold. -Inf passes
+        // min(), and its Karis weight, 1 / (1 - inf) = -0, makes it NaN.
+        const spread = invalidBefore > 0;
+        if (value === -Infinity) assert(spread, 'fixture reproduces invalid HDR spreading through bloom');
+        if (spread) assert(before.changedPixels > 100, 'one invalid texel reproduces a visible rectangular artifact');
         assert(invalidAfter === 0, 'all bloom and ray targets remain finite');
         assert(after.changedPixels < 80, 'the invalid texel remains local rather than spreading into a block');
-        records.push({ speed, value: String(value), finiteDifference, invalidBefore, invalidAfter, before, after });
+        records.push({ speed, value: String(value), finiteDifference, spread, invalidBefore, invalidAfter, before, after });
       }
     }
     assert(gl.getError() === gl.NO_ERROR, 'no WebGL errors');
