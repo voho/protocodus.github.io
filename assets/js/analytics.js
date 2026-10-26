@@ -5,7 +5,7 @@
   if (window.protocodusAnalytics) return;
 
   // Pages need only this stable script URL; sibling versions are managed here.
-  const version = '20261026.2';
+  const version = '20261026.3';
   const scriptUrl = document.currentScript?.src || new URL('/assets/js/analytics.js', location.href).href;
   const scriptStates = {};
   const eventCounts = {};
@@ -18,7 +18,7 @@
   const local = /^(localhost|127\..*|\[::1\])$/.test(location.hostname) || location.protocol === 'file:';
   let enabled = (!local || config.debug) && window.protocodusAnalyticsEnabled !== false;
   const events = new Set(('page_view view_item view_item_list select_item shop_click file_download contact_click social_click navigation_click outbound_click screenshot_open section_view scroll_depth engagement_time disclosure_toggle ui_action video_start video_progress video_pause video_complete video_seek video_error audio_start audio_progress audio_pause audio_complete audio_seek audio_error game_start game_end game_action level_start level_end web_vital exception').split(' '));
-  const fields = new Set(('page_location page_referrer page_title page_type page_path product_id game_name game_mode difficulty level checkpoint result score duration_seconds hints_used action theme link_url link_domain link_id section_id method file_name file_extension percent engagement_time_msec media_provider media_id media_duration current_time chapter_seconds watched_seconds error_code metric_name metric_value metric_rating error_type error_source fatal item_list_id items').split(' '));
+  const fields = new Set(('page_location page_referrer page_title page_type page_path product_id game_name game_mode difficulty level checkpoint result score duration_seconds hints_used action theme cta_id cta_location link_url link_domain link_id section_id method file_name file_extension percent engagement_time_msec media_provider media_id media_duration current_time chapter_seconds watched_seconds error_code metric_name metric_value metric_rating error_type error_source fatal item_list_id items').split(' '));
   const products = new Set(['youknow', 'maremba', 'acustra', 'electry', 'ceres', 'press78', 'lamer', 'podcare']);
   const games = new Set(['tyran', 'ashline', 'alpen', 'meteora', 'hedgerow', 'zipper', 'patcher']);
   const path = location.pathname.replace(/index\.html$/, '');
@@ -155,6 +155,16 @@
   try { initialize(); pageView(); } catch {}
 
   function sectionOf(element) { return element.closest('section[id], main[id], footer[id]')?.id || ''; }
+  function ctaContext(element) {
+    if (!element.dataset.analyticsCta) return {};
+    return {
+      cta_id: element.dataset.analyticsCta,
+      // Capture the source before navigation changes section_id to its target.
+      cta_location: sectionOf(element) || (element.closest('.product-card') ? 'product_card' : element.closest('.mobile-menu') ? 'mobile_menu'
+        : element.closest('header') ? 'header' : element.closest('footer') ? 'footer' : 'content'),
+      ...(element.dataset.analyticsAction ? { action: element.dataset.analyticsAction } : {}),
+    };
+  }
   function productOf(element, url) {
     const candidate = /^\/product\/([^/]+)\//.exec(url.pathname)?.[1]
       || element.closest('.product-card')?.className.match(/\bp-([\w]+)\b/)?.[1]
@@ -167,7 +177,7 @@
     const link = event.target.closest?.('a[href]');
     if (!link || link.closest('[data-analytics-ignore]')) return;
     const href = link.getAttribute('href');
-    const base = { section_id: sectionOf(link), link_id: link.id || '' };
+    const base = { section_id: sectionOf(link), link_id: link.id || '', ...ctaContext(link) };
     if (/^(mailto|tel):/i.test(href)) {
       track('contact_click', { ...base, method: href.startsWith('tel:') ? 'phone' : 'email' });
       return;
@@ -207,9 +217,15 @@
     if (!button || button.disabled || button.closest('[data-analytics-ignore]')) return;
     // Game boards and tactical controls can fire constantly. Only explicit HUD
     // actions are observed here; lifecycle outcomes come from the game itself.
-    const action = button.dataset.action || (button.classList.contains('menu-toggle') ? 'menu_toggle' : '');
-    if (['theme', 'sound', 'help', 'daily', 'share', 'reset', 'new', 'hint', 'menu_toggle'].includes(action)) {
-      track('ui_action', { action, section_id: sectionOf(button) });
+    const action = button.dataset.analyticsAction || button.dataset.action || (button.classList.contains('menu-toggle') ? 'menu_toggle' : '');
+    if (button.hasAttribute('data-analytics-cta') || ['theme', 'sound', 'help', 'daily', 'share', 'reset', 'new', 'hint', 'menu_toggle'].includes(action)) {
+      const params = { action: action || 'button_click', section_id: sectionOf(button), ...ctaContext(button) };
+      const chapter = button.getAttribute('data-start');
+      if (action === 'play_chapter' && button.closest('.lamer-chapters') && chapter?.trim()) {
+        const seconds = Number(chapter);
+        if (Number.isFinite(seconds) && seconds >= 0) params.chapter_seconds = seconds;
+      }
+      track('ui_action', params);
     }
   });
   document.querySelectorAll('details').forEach((details, index) => {

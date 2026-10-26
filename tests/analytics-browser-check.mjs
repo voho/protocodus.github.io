@@ -57,6 +57,9 @@ try {
   rows = await events();
   assert.equal(rows.filter(row => row.event === 'protocodus.shop_click').length, 1);
   assert.equal(rows.find(row => row.event === 'protocodus.shop_click').analytics.product_id, 'maremba');
+  assert.equal(rows.find(row => row.event === 'protocodus.shop_click').analytics.cta_id, 'product_maremba_shop');
+  assert.equal(rows.find(row => row.event === 'protocodus.shop_click').analytics.cta_location, 'products');
+  assert.equal(rows.find(row => row.event === 'protocodus.shop_click').analytics.action, 'open_shop');
   await page.waitForFunction(() => window.dataLayer.some(row => row.event === 'protocodus.view_item_list'));
 
   await page.goto(origin + '/product/maremba/?token=secret');
@@ -69,6 +72,18 @@ try {
   rows = await events();
   assert.equal(rows.filter(row => row.event === 'protocodus.select_item').length, 0);
   assert.ok(rows.some(row => row.event === 'protocodus.navigation_click'));
+  const listen = rows.find(row => row.event === 'protocodus.navigation_click').analytics;
+  assert.equal(listen.cta_id, 'hero_listen');
+  assert.equal(listen.cta_location, 'top', 'CTA placement records its source rather than the destination');
+  assert.equal(listen.section_id, 'listen');
+  await page.evaluate(() => document.addEventListener('click', event => { if (event.target.closest('a')) event.preventDefault(); }));
+  await page.locator('[data-analytics-cta="support_email"]').click();
+  rows = await events();
+  const support = rows.filter(row => row.event === 'protocodus.contact_click');
+  assert.equal(support.length, 1);
+  assert.equal(support[0].analytics.cta_id, 'support_email');
+  assert.equal(support[0].analytics.cta_location, 'support');
+  assert.doesNotMatch(JSON.stringify(support), /@|mailto:|subject=/);
 
   await page.goto(origin + '/product/lamer/');
   await page.waitForFunction(() => window.protocodusAnalytics?.status().scripts.media === 'loaded');
@@ -82,6 +97,14 @@ try {
   await page.locator('#lamer-video').evaluate(video => { video.currentTime = 72; });
   await page.waitForFunction(() => window.dataLayer.some(row => row.event === 'protocodus.video_seek'));
   assert.equal((await events()).filter(row => row.event === 'protocodus.video_progress').length, 0);
+  for (const start of [0, 24, 48, 72]) await page.locator(`.lamer-chapters button[data-start="${start}"]`).click();
+  await page.locator('.lamer-chapters button[data-start="24"]').focus();
+  await page.keyboard.press('Enter');
+  rows = await events();
+  const chapters = rows.filter(row => row.event === 'protocodus.ui_action' && row.analytics.action === 'play_chapter');
+  assert.equal(chapters.length, 5, 'Each pointer or keyboard chapter activation emits one CTA event');
+  assert.deepEqual(chapters.map(row => row.analytics.chapter_seconds), [0, 24, 48, 72, 24]);
+  assert.ok(chapters.every(row => row.analytics.product_id === 'lamer' && row.analytics.cta_location === 'demo'));
 
   await page.goto(origin + '/fun/zipper/#medium-analytics-private-seed');
   await page.waitForFunction(() => window.protocodusAnalytics?.isEnabled());

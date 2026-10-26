@@ -106,6 +106,38 @@ completion, or visitors who block analytics. `shop_click` is **not** a `purchase
 and contact clicks are **not** confirmed leads. Configure shop-side reporting
 separately if completed sales are needed.
 
+## Product calls to action
+
+Important existing product links and buttons carry fixed `data-analytics-cta`
+and `data-analytics-action` attributes. The shared collector adds `cta_id`,
+`cta_location` and `action` to their existing semantic event, alongside
+`product_id`. It does not emit a second generic click event. This distinguishes
+the hero Shop button, the release-section Shop link, manuals, full-size panels,
+demo links, release notes, source/native guides and support email links.
+
+The source `cta_location` is captured before a navigation event's `section_id`
+changes to its destination. For example, the hero Listen link has source `top`
+and destination `listen`. Nested icons and middle clicks retain the same CTA
+identity; normal keyboard activation works through the browser's click event.
+
+Lamer chapter buttons emit one `ui_action` with `action: 'play_chapter'` and
+`chapter_seconds`, even if playback is still loading. The later media lifecycle
+events report actual playback/seeking. Disabled or ignored controls emit no CTA
+event. Visible text, email addresses, mail subjects and input values are never
+used to name CTAs.
+
+For a new CTA, add these attributes to its existing link or button, without an
+inline tracking handler:
+
+```html
+<a href="https://www.reasonstudios.com/shop/rack-extension/maremba/"
+   data-analytics-cta="hero_shop" data-analytics-action="open_shop">Get Maremba</a>
+```
+
+Keep CTA IDs unique within a page and reuse action names for equivalent intent.
+`node tests/product-cta-check.mjs` verifies authored CTA coverage and event
+routing/privacy without contacting Google.
+
 ## Data boundaries and controls
 
 - No input/form values, email addresses, game seeds, saves, raw exception text,
@@ -134,6 +166,7 @@ Run:
 node tests/analytics-check.mjs
 node tests/analytics-media-check.mjs
 node tests/analytics-performance-check.mjs
+node tests/product-cta-check.mjs
 node tests/game-analytics-check.mjs
 node tests/site-content-check.mjs
 node tests/navigation-check.mjs
@@ -168,7 +201,7 @@ INP without a user interaction or a final LCP/CLS until a visibility transition.
 
 Recommended GA4 event-scoped custom dimensions: `page_type`, `product_id`,
 `game_name`, `game_mode`, `difficulty`, `section_id`, `action`, `result`,
-`media_provider`, `media_id`, `metric_name`, `metric_rating`. Numeric metrics:
+`cta_id`, `cta_location`, `media_provider`, `media_id`, `metric_name`, `metric_rating`. Numeric metrics:
 `duration_seconds`, `hints_used`, `watched_seconds`, `metric_value` (split by
 `metric_name`; CLS has no unit, other vitals are milliseconds). GA4's standard
 ecommerce reports use the supplied `items` arrays. Consider `shop_click` and
