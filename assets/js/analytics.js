@@ -4,6 +4,11 @@
   'use strict';
   if (window.protocodusAnalytics) return;
 
+  // Pages need only this stable script URL; sibling versions are managed here.
+  const version = '20261026.2';
+  const scriptUrl = document.currentScript?.src || new URL('/assets/js/analytics.js', location.href).href;
+  const scriptStates = {};
+  const eventCounts = {};
   const config = Object.assign({
     measurementId: 'G-0TEFG3XSN5',
     tagManagerId: 'GTM-TZZVDH4B',
@@ -13,7 +18,7 @@
   const local = /^(localhost|127\..*|\[::1\])$/.test(location.hostname) || location.protocol === 'file:';
   let enabled = (!local || config.debug) && window.protocodusAnalyticsEnabled !== false;
   const events = new Set(('page_view view_item view_item_list select_item shop_click file_download contact_click social_click navigation_click outbound_click screenshot_open section_view scroll_depth engagement_time disclosure_toggle ui_action video_start video_progress video_pause video_complete video_seek video_error audio_start audio_progress audio_pause audio_complete audio_seek audio_error game_start game_end game_action level_start level_end web_vital exception').split(' '));
-  const fields = new Set(('page_location page_referrer page_title page_type page_path product_id game_name game_mode difficulty level result score duration_seconds hints_used action theme link_url link_domain link_id section_id method file_name file_extension percent engagement_time_msec media_provider media_id media_duration current_time chapter_seconds watched_seconds error_code metric_name metric_value metric_rating error_type error_source fatal item_list_id items').split(' '));
+  const fields = new Set(('page_location page_referrer page_title page_type page_path product_id game_name game_mode difficulty level checkpoint result score duration_seconds hints_used action theme link_url link_domain link_id section_id method file_name file_extension percent engagement_time_msec media_provider media_id media_duration current_time chapter_seconds watched_seconds error_code metric_name metric_value metric_rating error_type error_source fatal item_list_id items').split(' '));
   const products = new Set(['youknow', 'maremba', 'acustra', 'electry', 'ceres', 'press78', 'lamer', 'podcare']);
   const games = new Set(['tyran', 'ashline', 'alpen', 'meteora', 'hedgerow', 'zipper', 'patcher']);
   const path = location.pathname.replace(/index\.html$/, '');
@@ -69,11 +74,26 @@
   function isEnabled() {
     return enabled && window.protocodusAnalyticsEnabled !== false && window['ga-disable-' + config.measurementId] !== true;
   }
-  function loadScript(src) {
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = src;
-    document.head.appendChild(script);
+  function loadScript(name, src) {
+    if (scriptStates[name]) return;
+    scriptStates[name] = 'requested';
+    try {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = src;
+      script.addEventListener('load', () => { scriptStates[name] = 'loaded'; }, { once: true });
+      script.addEventListener('error', () => { scriptStates[name] = 'failed'; }, { once: true });
+      document.head.appendChild(script);
+    } catch { scriptStates[name] = 'failed'; }
+  }
+  function loadFeatures() {
+    const sibling = name => {
+      const url = new URL('analytics-' + name + '.js', scriptUrl);
+      url.searchParams.set('v', version);
+      return url.href;
+    };
+    loadScript('performance', sibling('performance'));
+    if (document.querySelector('video, audio, iframe.soundcloud-player')) loadScript('media', sibling('media'));
   }
   function initialize() {
     if (loaded || !isEnabled()) return;
@@ -87,12 +107,13 @@
     if (config.transport === 'gtag') {
       window.gtag('js', new Date());
       window.gtag('config', config.measurementId, { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false });
-      loadScript('https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(config.measurementId));
+      loadScript('ga4', 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(config.measurementId));
     }
     if (/^GTM-[A-Z0-9]+$/.test(config.tagManagerId)) {
       window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
-      loadScript('https://www.googletagmanager.com/gtm.js?id=' + config.tagManagerId);
+      loadScript('gtm', 'https://www.googletagmanager.com/gtm.js?id=' + config.tagManagerId);
     }
+    loadFeatures();
   }
   function track(name, params = {}) {
     try {
@@ -102,6 +123,7 @@
       // Nested replacement prevents a preceding product/media event leaking fields
       // into a later event when GTM's Version 1 data-layer variable is used.
       window.dataLayer.push({ event: 'protocodus.' + name, analytics: payload });
+      eventCounts[name] = (eventCounts[name] || 0) + 1;
       if (config.transport === 'gtag') window.gtag('event', name, Object.assign({}, payload, {
         send_to: config.measurementId, transport_type: 'beacon', ...(config.debug ? { debug_mode: true } : {}),
       }));
@@ -115,6 +137,12 @@
   }
   window.protocodusAnalytics = Object.freeze({
     track, isEnabled,
+    // Queued event counts and loader state are diagnostics, not receipt in GA.
+    status: () => ({
+      enabled: isEnabled(), transport: config.transport,
+      measurementId: config.measurementId, tagManagerId: config.tagManagerId,
+      version, page: { ...context }, events: { ...eventCounts }, scripts: { ...scriptStates },
+    }),
     setEnabled(value) {
       enabled = value === true;
       window.protocodusAnalyticsEnabled = enabled;
@@ -126,7 +154,7 @@
   });
   try { initialize(); pageView(); } catch {}
 
-  function sectionOf(element) { return element.closest('section[id], main[id]')?.id || ''; }
+  function sectionOf(element) { return element.closest('section[id], main[id], footer[id]')?.id || ''; }
   function productOf(element, url) {
     const candidate = /^\/product\/([^/]+)\//.exec(url.pathname)?.[1]
       || element.closest('.product-card')?.className.match(/\bp-([\w]+)\b/)?.[1]
@@ -168,7 +196,7 @@
     // Only fixed, same-page section IDs are sent, never arbitrary URL fragments.
     if (url.origin === location.origin && url.pathname === location.pathname && url.hash) {
       const target = document.getElementById(url.hash.slice(1));
-      if (target?.matches('section[id], main[id]')) params.section_id = target.id;
+      if (target?.matches('section[id], main[id], footer[id]')) params.section_id = target.id;
     }
     track(name, params);
   }
@@ -199,7 +227,7 @@
         if (!entry.isIntersecting || seen.has(entry.target) || !isEnabled()) return;
         seen.add(entry.target);
         const element = entry.target;
-        if (element.matches('section[id]')) track('section_view', { section_id: element.id });
+        if (element.matches('section[id], footer[id]')) track('section_view', { section_id: element.id });
         else {
           const link = element.matches('a') ? element : element.querySelector('a[href]');
           const url = new URL(link?.href || location.href, location.href);
@@ -213,7 +241,7 @@
         observer.unobserve(element);
       });
     }, { threshold: 0.25 });
-    document.querySelectorAll('section[id], .product-card, a.game').forEach(element => observer.observe(element));
+    document.querySelectorAll('section[id], footer[id], .product-card, a.game').forEach(element => observer.observe(element));
   }
   const depths = new Set();
   function scrollDepth() {
@@ -251,8 +279,15 @@
   window.addEventListener('error', event => {
     if (errorCount >= 5 || !isEnabled()) return;
     const source = safeUrl(event.filename || event.target?.src || '');
-    if (!source || new URL(source).origin !== location.origin || /analytics(?:-media)?\.js/.test(source)) return;
+    if (!source || new URL(source).origin !== location.origin || /analytics(?:-[\w]+)?\.js/.test(source)) return;
     errorCount++;
     track('exception', { error_type: event.error?.name || 'resource_error', error_source: source, fatal: false });
   }, true);
+  window.addEventListener('unhandledrejection', event => {
+    if (errorCount >= 5 || !isEnabled()) return;
+    errorCount++;
+    const name = event.reason?.name;
+    const types = ['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'URIError', 'EvalError', 'AbortError'];
+    track('exception', { error_type: types.includes(name) ? name : 'unhandled_rejection', action: 'unhandled_rejection', fatal: false });
+  });
 })();

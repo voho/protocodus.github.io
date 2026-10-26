@@ -1,8 +1,30 @@
 # Website analytics
 
-Every public HTML page loads the shared analytics scripts and the GTM noscript
-fallback. The destinations are GA4 **G-0TEFG3XSN5** and the newly created Google
+Every public HTML page loads one shared analytics entry point and the GTM noscript
+fallback. The destinations are GA4 **G-0TEFG3XSN5** and Google
 Tag Manager container **GTM-TZZVDH4B**.
+
+## Shared setup and new pages
+
+Each page needs only this stable, deferred JavaScript include:
+
+```html
+<script defer src="/assets/js/analytics.js"></script>
+```
+
+The entry point owns configuration, GA/GTM loading, page context, interactions,
+diagnostics and helper versions. It loads Web Vitals tracking once, and demo
+tracking only on pages containing native video/audio or a SoundCloud player.
+Do not include `analytics-media.js` or `analytics-performance.js` in page HTML.
+Changing analytics behavior or helper versions requires editing shared files,
+without changing the include on every page.
+
+The small `<noscript>` GTM iframe remains immediately inside each `<body>`.
+It cannot be injected by JavaScript and still work when JavaScript is disabled.
+The coverage check verifies its container ID matches the shared configuration.
+New static pages still need the one include and this fallback; the test discovers
+all public HTML files and fails if any page omits them. Both Cloudflare's static
+hosting and GitHub Pages serve the same HTML, without a template/build dependency.
 
 ## Delivery and duplicate prevention
 
@@ -59,11 +81,13 @@ be changed by the static website.
 | `video_*`, `audio_*` | Native video/audio and SoundCloud start, pause, progress, completion, seek and errors |
 | `game_start`, `game_end` | Actual starts and decided outcomes in all seven games; mode, difficulty, score and active duration where available |
 | `web_vital` | CLS, LCP, INP, FCP, TTFB from locally vendored official `web-vitals`; value and rating |
-| `exception` | Up to five same-origin error categories/source paths per page; no raw messages/stacks |
+| `exception` | Up to five same-origin runtime/resource errors and unhandled promise-rejection categories per page; no raw messages/stacks |
 
 Media progress uses unique played ranges at 25/50/75%, so jumping to a chapter
 does not imply watching the skipped video. Completion means reaching the end;
-progress indicates how much was watched. SoundCloud uses its official Widget
+progress indicates how much was watched. Pause, completion, seek and error events
+retain the actual watched total; disabled collection intervals are excluded.
+SoundCloud uses its official Widget
 API; blocked widgets cannot report listening. The SoundCloud track identifier is
 only its numeric playlist index, never its title or creator metadata.
 
@@ -71,8 +95,11 @@ Game starts come from the game state, rather than a Play-link click. Pausing doe
 not start another attempt. Zipper/Patcher start at the first move and record
 difficulty, daily/puzzle mode, active solve time and hints used. Tyran reports each
 sector attempt, Meteora each mission attempt, Ashline each operation/skirmish,
-and Hedgerow each mission/checkpoint attempt. Alpen is endless: it reports
-drop-ins and restarts without inventing a win or loss.
+and Hedgerow each mission/checkpoint attempt. Ashline identifies campaign,
+training, relay, survival and skirmish, with authored mission, difficulty and
+displayed end score. Hedgerow includes normalized difficulty, fixed level,
+checkpoint and retry action. Alpen is endless: it reports drop-ins and restarts
+with the authored chapter, without inventing a win or loss.
 
 The site cannot observe purchases completed on Reason Studios, download
 completion, or visitors who block analytics. `shop_click` is **not** a `purchase`,
@@ -107,15 +134,31 @@ Run:
 node tests/analytics-check.mjs
 node tests/analytics-media-check.mjs
 node tests/analytics-performance-check.mjs
+node tests/game-analytics-check.mjs
+node tests/site-content-check.mjs
 node tests/navigation-check.mjs
 node tests/background-check.mjs
 node fun/shared/tests/shell-check.mjs
 ```
 
 `node tests/analytics-browser-check.mjs` additionally verifies real page loading,
-Web Vitals and native video playback with Playwright and Chromium installed.
+the shared loader on every public page, Web Vitals and native video playback
+with Playwright and Chromium installed.
 Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`. All third-party
 requests in that test are stubbed, so QA does not send events to Google.
+
+For a visitor-side diagnosis, open the browser console and run:
+
+```js
+window.protocodusAnalytics.status()
+```
+
+This returns the enabled state, destination IDs, shared version, page context,
+counts of events queued on this page and each loader's `requested`, `loaded` or
+`failed` state. A page without demos should have no `media` loader. These states
+help distinguish disabled collection, missing scripts and event generation;
+they do **not** prove that Google's servers accepted an event. Use GA4 Realtime
+or DebugView for that last check.
 
 After deployment, use GTM Preview for the container and GA4 Realtime/DebugView for
 the measurement ID. Check a product view, shop click, guide download, video play

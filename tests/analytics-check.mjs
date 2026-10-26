@@ -25,6 +25,7 @@ class Events {
       entry.callback.call(this, event);
       if (entry.once) this.removeEventListener(event.type, entry.callback);
     }
+    if (typeof this[`on${event.type}`] === 'function') this[`on${event.type}`](event);
     return !event.defaultPrevented;
   }
 }
@@ -105,6 +106,7 @@ function browser(href = 'https://protocodus.cz/product/maremba/', config, option
   document.head = document.documentElement.appendChild(new Element('head'));
   document.body = document.documentElement.appendChild(new Element('body'));
   document.createElement = (tagName) => new Element(tagName);
+  document.currentScript = new Element('script', { src: options.scriptSrc || 'https://protocodus.cz/assets/js/analytics.js' });
   document.querySelectorAll = (selector) => document.documentElement.querySelectorAll(selector);
   document.querySelector = (selector) => document.querySelectorAll(selector)[0] || null;
   document.getElementById = (id) => document.querySelector(`#${id}`);
@@ -183,19 +185,26 @@ function htmlFiles(directory = root) {
   });
 }
 function checkPageCoverage() {
-const files = htmlFiles();
-assert.equal(files.length, 18, 'All existing public HTML entry points remain covered');
-for (const file of files) {
-  const html = readFileSync(file, 'utf8');
-  const includes = [...html.matchAll(/<script\b[^>]*src=["'][^"']*\/assets\/js\/analytics\.js(?:\?[^"']*)?["'][^>]*>/gi)];
-  assert.equal(includes.length, 1, `${file.pathname}: load shared analytics exactly once`);
-  assert.match(includes[0][0], /\bdefer\b/, `${file.pathname}: analytics must not block document parsing`);
-  assert.doesNotMatch(html, /googletagmanager\.com\/gtag\/js/, `${file.pathname}: avoid an independent duplicate Google loader`);
-}
+  const files = htmlFiles();
+  assert.ok(files.length >= 18, 'Discover all existing public HTML entry points and any new pages');
+  for (const file of files) {
+    const html = readFileSync(file, 'utf8');
+    const includes = [...html.matchAll(/<script\b[^>]*src=["'][^"']*\/assets\/js\/analytics\.js(?:\?[^"']*)?["'][^>]*>/gi)];
+    assert.equal(includes.length, 1, `${file.pathname}: load shared analytics exactly once`);
+    assert.match(includes[0][0], /\bdefer\b/, `${file.pathname}: analytics must not block document parsing`);
+    assert.match(includes[0][0], /src=["']\/assets\/js\/analytics\.js["']/, `${file.pathname}: the stable entry point keeps helper versions centralized`);
+    assert.doesNotMatch(html, /<script\b[^>]*src=["'][^"']*analytics-(?:media|performance)\.js/i, `${file.pathname}: the shared entry point owns helper loading`);
+    assert.doesNotMatch(html, /googletagmanager\.com\/gtag\/js/, `${file.pathname}: avoid an independent duplicate Google loader`);
+    const fallbacks = [...html.matchAll(/<iframe\b[^>]*src=["']https:\/\/www\.googletagmanager\.com\/ns\.html\?id=([^"'&]+)["'][^>]*>/gi)];
+    assert.equal(fallbacks.length, 1, `${file.pathname}: retain one no-JavaScript GTM fallback`);
+    assert.equal(fallbacks[0][1], 'GTM-TZZVDH4B', `${file.pathname}: the fallback must use the real container ID`);
+  }
 }
 
 const defaultSite = browser();
 assert.ok(defaultSite.window.protocodusAnalytics, 'Expose the shared event API');
+assert.equal(defaultSite.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-performance.js')).length, 1, 'Enabled analytics loads performance reporting centrally');
+assert.equal(defaultSite.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 0, 'Pages without media skip the media helper');
 assert.equal(defaultSite.scripts.filter((script) => script.src.includes('googletagmanager.com/gtag/js')).length, 1, 'Load GA4 once');
 assert.equal(defaultSite.scripts.filter((script) => script.src.includes('googletagmanager.com/gtm.js') && script.src.includes('GTM-TZZVDH4B')).length, 1, 'Load the newly created GTM container');
 assert.equal(defaultSite.commands().filter(([command, id]) => command === 'config' && id === 'G-0TEFG3XSN5').length, 1, 'Initialize the existing GA property once');
@@ -207,6 +216,53 @@ assert.equal(defaultSite.customEvents('page_view').length, 1, 'Expose page views
 defaultSite.run();
 assert.equal(defaultSite.scripts.filter((script) => script.src.includes('googletagmanager.com/gtag/js')).length, 1, 'Including the script twice must not add loaders');
 assert.equal(defaultSite.gaEvents('page_view').length, 1, 'Including the script twice must not add page views');
+assert.equal(defaultSite.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-performance.js')).length, 1, 'Including the entry point twice does not duplicate helper requests');
+
+const diagnostics = defaultSite.window.protocodusAnalytics.status();
+assert.equal(diagnostics.enabled, true);
+assert.equal(diagnostics.transport, 'gtag');
+assert.equal(diagnostics.measurementId, 'G-0TEFG3XSN5');
+assert.equal(diagnostics.tagManagerId, 'GTM-TZZVDH4B');
+assert.equal(diagnostics.page.page_type, 'product');
+assert.equal(diagnostics.page.product_id, 'maremba');
+assert.equal(diagnostics.events.page_view, 1, 'Diagnostics count one explicit page view');
+assert.equal(diagnostics.scripts.ga4, 'requested');
+assert.equal(diagnostics.scripts.gtm, 'requested');
+assert.equal(diagnostics.scripts.performance, 'requested');
+assert.equal(diagnostics.scripts.media, undefined, 'Diagnostics distinguish unneeded helpers from requested ones');
+const gaScript = defaultSite.scripts.find((script) => script.src.includes('/gtag/js'));
+const tagScript = defaultSite.scripts.find((script) => script.src.includes('/gtm.js'));
+gaScript.dispatchEvent({ type: 'load' });
+tagScript.dispatchEvent({ type: 'error' });
+assert.equal(defaultSite.window.protocodusAnalytics.status().scripts.ga4, 'loaded', 'Successful loader completion is visible in diagnostics');
+assert.equal(defaultSite.window.protocodusAnalytics.status().scripts.gtm, 'failed', 'Failed GTM loading is visible in diagnostics');
+defaultSite.window.protocodusAnalytics.track('game_action', { action: 'hint' });
+assert.equal(defaultSite.gaEvents('game_action').length, 1, 'A failed script does not stop generating analytics events');
+assert.equal(defaultSite.window.protocodusAnalytics.status().events.game_action, 1);
+assert.equal(defaultSite.scripts.filter((script) => script.src.includes('/gtm.js')).length, 1, 'A failed optional loader is not retried on every event');
+
+const helpers = browser('https://protocodus.cz/product/lamer/', undefined, {
+  scriptSrc: 'https://static.example.test/site-assets/analytics.js?cache=custom',
+  setup({ document, Element }) { document.body.appendChild(new Element('video')); },
+});
+const mediaHelper = helpers.scripts.find((script) => new URL(script.src).pathname.endsWith('/analytics-media.js'));
+const performanceHelper = helpers.scripts.find((script) => new URL(script.src).pathname.endsWith('/analytics-performance.js'));
+assert.ok(mediaHelper, 'A native media element causes the media helper to load');
+assert.equal(new URL(mediaHelper.src).origin, 'https://static.example.test');
+assert.equal(new URL(mediaHelper.src).pathname, '/site-assets/analytics-media.js', 'Helper URLs are relative to the entry script rather than the current product route');
+assert.equal(new URL(performanceHelper.src).pathname, '/site-assets/analytics-performance.js');
+assert.ok(new URL(mediaHelper.src).searchParams.get('v'), 'The entry point applies the centrally maintained helper version');
+mediaHelper.dispatchEvent({ type: 'error' });
+performanceHelper.dispatchEvent({ type: 'load' });
+assert.equal(helpers.window.protocodusAnalytics.status().scripts.media, 'failed');
+assert.equal(helpers.window.protocodusAnalytics.status().scripts.performance, 'loaded');
+assert.equal(helpers.gaEvents('page_view').length, 1, 'Optional helper failure does not lose the page view');
+helpers.run();
+assert.equal(helpers.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'Duplicate entry includes do not duplicate media requests');
+const soundCloudPage = browser('https://protocodus.cz/product/youknow/', undefined, {
+  setup({ document, Element }) { document.body.appendChild(new Element('iframe', { class: 'soundcloud-player' })); },
+});
+assert.equal(soundCloudPage.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'SoundCloud widgets also enable the shared media helper');
 
 const unsafe = browser('https://protocodus.cz/product/maremba/?email=private%40example.com&token=secret&utm_source=newsletter&utm_medium=email#private-board', undefined, {
   referrer: 'https://search.example/results?q=private%40example.com&utm_campaign=launch#private-fragment',
@@ -273,6 +329,7 @@ const api = links.window.protocodusAnalytics;
 const before = links.gaEvents().length;
 assert.doesNotThrow(() => api.track('unapproved_event', { email: 'private@example.com' }));
 assert.equal(links.gaEvents().length, before, 'Unknown event names are ignored');
+assert.equal(api.status().events.unapproved_event, undefined, 'Unknown names are not counted in diagnostics');
 assert.doesNotThrow(() => api.track('game_start', {
   game_name: 'zipper', difficulty: 'hard', email: 'private@example.com',
   private_payload: { secret: 'private-value' },
@@ -291,10 +348,13 @@ assert.equal(links.customEvents('game_action').at(-1).analytics.difficulty, unde
 api.setEnabled(false);
 const disabledCount = links.gaEvents().length;
 const disabledLayerCount = links.customEvents().length;
+const disabledDiagnosticCounts = JSON.stringify(api.status().events);
 api.track('game_start', { game_name: 'zipper' });
 links.click(shop);
 assert.equal(links.gaEvents().length, disabledCount, 'Disabling analytics suppresses both API and interaction events');
 assert.equal(links.customEvents().length, disabledLayerCount, 'Disabled analytics does not send GTM events either');
+assert.equal(JSON.stringify(api.status().events), disabledDiagnosticCounts, 'Disabled calls do not inflate diagnostic event counts');
+assert.equal(api.status().enabled, false);
 api.setEnabled(true);
 api.track('game_start', { game_name: 'zipper' });
 assert.equal(links.gaEvents('game_start').length, 2, 'Tracking can be re-enabled');
@@ -302,10 +362,12 @@ assert.equal(links.gaEvents('game_start').length, 2, 'Tracking can be re-enabled
 const optedOut = browser('https://protocodus.cz/', undefined, { window: { protocodusAnalyticsEnabled: false } });
 assert.equal(optedOut.scripts.length, 0, 'An existing analytics opt-out prevents loading Google scripts');
 assert.equal(optedOut.customEvents().length, 0, 'An existing analytics opt-out prevents data-layer events');
+assert.equal(Object.keys(optedOut.window.protocodusAnalytics.status().scripts).length, 0, 'Disabled startup does not request Google scripts or local helpers');
 optedOut.window.protocodusAnalytics.setEnabled(true);
 assert.equal(optedOut.window.protocodusAnalytics.isEnabled(), true, 'The public setter overrides an initial disabled state');
 assert.equal(optedOut.gaEvents('page_view').length, 1, 'Enabling after startup sends the initial page view once');
 assert.equal(optedOut.scripts.filter((script) => script.src.includes('/gtag/js')).length, 1, 'Enabling after startup loads GA');
+assert.equal(optedOut.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-performance.js')).length, 1, 'Enabling after startup loads the central helper too');
 optedOut.window.protocodusAnalytics.setEnabled(true);
 assert.equal(optedOut.gaEvents('page_view').length, 1, 'Repeated enable calls do not duplicate page views');
 
@@ -322,6 +384,61 @@ assert.equal(impressions.gaEvents('view_item_list').length, 1, 'An unlinked prod
 assert.equal(impressions.gaEvents('view_item_list')[0][2].product_id, 'podcare');
 cards.callback([{ target: unlinkedProduct, isIntersecting: true }]);
 assert.equal(impressions.gaEvents('view_item_list').length, 1, 'Repeated visibility notifications do not duplicate impressions');
+
+let contactFooter, contactMail, contactNavigation, arbitraryAnchor;
+const footerPage = browser('https://protocodus.cz/', undefined, {
+  setup({ document, Element }) {
+    contactFooter = document.body.appendChild(new Element('footer', { id: 'contact' }));
+    contactMail = contactFooter.appendChild(new Element('a', { href: 'mailto:private-footer@example.com?subject=private-topic' }));
+    contactNavigation = document.body.appendChild(new Element('a', { href: '#contact' }));
+    const unrelated = document.body.appendChild(new Element('div', { id: 'untracked-fragment' }));
+    unrelated.textContent = 'This is not an authored section';
+    arbitraryAnchor = document.body.appendChild(new Element('a', { href: '#untracked-fragment' }));
+  },
+});
+footerPage.click(contactMail);
+assert.equal(footerPage.gaEvents('contact_click')[0][2].section_id, 'contact', 'Contact links retain their footer source section');
+footerPage.click(contactNavigation);
+assert.equal(footerPage.gaEvents('navigation_click')[0][2].section_id, 'contact', 'A known contact footer is an allowed same-page navigation target');
+footerPage.click(arbitraryAnchor);
+assert.equal(footerPage.gaEvents('navigation_click').at(-1)[2].section_id, '', 'Arbitrary fragment targets do not become analytics sections');
+const footerObserver = footerPage.observers.find((observer) => observer.targets.includes(contactFooter));
+assert.ok(footerObserver, 'Observe the authored contact footer for visibility');
+footerObserver.callback([{ target: contactFooter, isIntersecting: true }]);
+footerObserver.callback([{ target: contactFooter, isIntersecting: true }]);
+assert.equal(footerPage.gaEvents('section_view').length, 1, 'Repeated visibility notifications record the footer once');
+assert.equal(footerPage.gaEvents('section_view')[0][2].section_id, 'contact');
+assert.doesNotMatch(JSON.stringify(footerPage.window.dataLayer), /private-footer|private-topic|untracked-fragment/, 'Footer tracking preserves contact and fragment privacy');
+
+const rejections = browser();
+rejections.window.dispatchEvent({ type: 'unhandledrejection', reason: {
+  name: 'TypeError', message: 'private-rejection-message', stack: 'private-rejection-stack',
+} });
+assert.equal(rejections.gaEvents('exception')[0][2].error_type, 'TypeError', 'Recognized rejection error names retain their category');
+assert.equal(rejections.gaEvents('exception')[0][2].action, 'unhandled_rejection');
+rejections.window.dispatchEvent({ type: 'unhandledrejection', reason: 'private-raw-rejection' });
+rejections.window.dispatchEvent({ type: 'unhandledrejection', reason: {
+  name: 'PrivateCustomError', message: 'private-custom-message', stack: 'private-custom-stack',
+} });
+assert.deepEqual(Array.from(rejections.gaEvents('exception').slice(1), (entry) => entry[2].error_type), ['unhandled_rejection', 'unhandled_rejection'], 'Unknown names and free strings use the fixed rejection category');
+assert.doesNotMatch(JSON.stringify(rejections.window.dataLayer), /private-rejection|private-raw|PrivateCustomError|private-custom/, 'Rejections never collect arbitrary names, reasons, messages, or stacks');
+
+const mixedErrors = browser();
+for (let i = 0; i < 3; i++) mixedErrors.window.dispatchEvent({ type: 'error', filename: 'https://protocodus.cz/assets/js/main.js', error: { name: 'TypeError' } });
+for (let i = 0; i < 4; i++) mixedErrors.window.dispatchEvent({ type: 'unhandledrejection', reason: { name: 'RangeError' } });
+mixedErrors.window.dispatchEvent({ type: 'error', filename: 'https://protocodus.cz/assets/js/main.js', error: { name: 'ReferenceError' } });
+assert.equal(mixedErrors.gaEvents('exception').length, 5, 'Runtime errors and promise rejections share one five-event page cap');
+assert.deepEqual(Array.from(mixedErrors.gaEvents('exception'), (entry) => entry[2].error_type), ['TypeError', 'TypeError', 'TypeError', 'RangeError', 'RangeError']);
+
+const disabledErrors = browser();
+disabledErrors.window.protocodusAnalytics.setEnabled(false);
+for (let i = 0; i < 8; i++) disabledErrors.window.dispatchEvent({ type: 'unhandledrejection', reason: { name: 'AbortError', message: 'private-disabled' } });
+assert.equal(disabledErrors.gaEvents('exception').length, 0, 'Disabled analytics sends no rejection event');
+assert.equal(disabledErrors.customEvents('exception').length, 0, 'Disabled analytics sends no GTM rejection event');
+assert.equal(disabledErrors.window.protocodusAnalytics.status().events.exception, undefined, 'Disabled rejections do not increment diagnostics');
+disabledErrors.window.protocodusAnalytics.setEnabled(true);
+for (let i = 0; i < 6; i++) disabledErrors.window.dispatchEvent({ type: 'unhandledrejection', reason: { name: 'AbortError' } });
+assert.equal(disabledErrors.gaEvents('exception').length, 5, 'Disabled rejections do not consume the later enabled error budget');
 
 const errors = browser();
 for (let i = 0; i < 8; i++) errors.window.dispatchEvent({
