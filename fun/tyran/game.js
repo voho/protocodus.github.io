@@ -78,6 +78,26 @@ const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
 let pendingAutosave = null;
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
+// One start/end pair per sector attempt; pausing and reopening saved reports
+// must not count as another flight or victory.
+let analyticsFlight = null;
+function trackFlightStart() {
+  if (!state || (analyticsFlight?.state === state && analyticsFlight.level === state.level)) return;
+  analyticsFlight = { state, level: state.level, time: state.time, ended: false };
+  window.protocodusAnalytics?.track('game_start', {
+    game_name: 'tyran', game_mode: activeCampaign ? 'campaign' : 'practice',
+    level: state.level + 1, difficulty: state.difficulty,
+  });
+}
+function trackFlightEnd(result) {
+  if (!analyticsFlight || analyticsFlight.state !== state || analyticsFlight.ended) return;
+  analyticsFlight.ended = true;
+  window.protocodusAnalytics?.track('game_end', {
+    game_name: 'tyran', game_mode: activeCampaign ? 'campaign' : 'practice',
+    level: state.level + 1, difficulty: state.difficulty, result,
+    score: Math.floor(state.score), duration_seconds: Math.max(0, state.time - analyticsFlight.time),
+  });
+}
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let surfaceWidth = 0, surfaceHeight = 0;
 let announcementUntil = 0, helpPaused = false, helpFocus = null;
@@ -220,6 +240,7 @@ function scaleScriptX(enemy, factor) {
 
 function setScreen(next) {
   scene = next;
+  if (next === 'playing') trackFlightStart();
   // Only the title and shop previews wait for queued strips. Flight, the pause
   // overlay, the bonus outro and the end screen show the live arena, which may
   // still scroll and must never leave a bare row at the top.
@@ -560,6 +581,7 @@ function updateBonusOutro(dt) {
 }
 
 function showHangar(bonus, loading = false) {
+  if (!loading) trackFlightEnd('win');
   const next = nextSector(state.level);
   if (activeCampaign) unlocked = Math.max(unlocked, next);
   setScreen('hangar'); $('announcement').hidden = true;
@@ -657,6 +679,7 @@ function renderWeapons() {
 
 function showEnd(won, loading = false) {
   if (won) { showHangar(0, loading); return; }
+  if (!loading) trackFlightEnd('loss');
   setScreen('end'); $('announcement').hidden = true;
   endFade = { elapsed: 0, complete: false };
   $('end-screen').hidden = true;

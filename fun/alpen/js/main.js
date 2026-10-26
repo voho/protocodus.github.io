@@ -579,7 +579,10 @@ function begin() {
      already behind them and nothing above them but a mountain they never
      rode. The full reset forgets any checkpoint and puts them on the start
      line at z = 0, where the seeded mountain begins. */
-  if (!runStarted) restart(true);
+  if (!runStarted) {
+    restart(true);
+    window.protocodusAnalytics?.track('game_start', { game_name: 'alpen', game_mode: 'freeride' });
+  }
   runStarted = true;
   game.mode = 'playing';
   pausedRendered = false;
@@ -739,6 +742,7 @@ function restartRun() {
   audio.start();
   showMuted(audio.muted);
   restart();
+  window.protocodusAnalytics?.track('game_start', { game_name: 'alpen', game_mode: 'freeride' });
   game.mode = 'playing';
   pausedRendered = false;
   curtain.classList.remove('on');

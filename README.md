@@ -4,6 +4,12 @@
 
 [protocodus.cz](https://protocodus.cz/)
 
+## Analytics
+
+Shared GA4 and Google Tag Manager tracking covers every public page, product
+interest, shop/contact/download clicks, demos, games and Web Vitals. See
+[analytics setup, event coverage and verification](docs/analytics.md).
+
 ## Tyran
 
 [Play Tyran](fun/tyran/index.html) is a ten-sector scrolling top-down shooter with solo and two-player flight. Each sector has a dedicated terrain palette and destructible scenery, plus a ship palette reserved for enemies so hostile craft stay readable against the ground.

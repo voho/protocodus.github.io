@@ -112,6 +112,21 @@ let built = null, player = null, enemies = null, mission = null, explosives = nu
 let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let chain = [];        // the effects chain as applyGraphics last set it
 let missionTime = 0;
+let analyticsAttemptActive = false, analyticsAttemptStart = 0;
+function trackAttemptStart() {
+  analyticsAttemptActive = true;
+  analyticsAttemptStart = missionTime;
+  window.protocodusAnalytics?.track('game_start', { game_name: 'hedgerow', game_mode: 'mission' });
+}
+function trackAttemptEnd(result, score) {
+  if (!analyticsAttemptActive) return;
+  analyticsAttemptActive = false;
+  window.protocodusAnalytics?.track('game_end', {
+    game_name: 'hedgerow', game_mode: 'mission', result,
+    duration_seconds: Math.max(0, Math.round(missionTime - analyticsAttemptStart)),
+    ...(Number.isFinite(score) ? { score } : {}),
+  });
+}
 const shared = {
   wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
   relief: { value: 1 },       // the ground's relief near the eye (terrain.js), by quality
@@ -721,6 +736,7 @@ function startMission() {
   hud.weapon('M1 Garand', player.ammo.garand, player.grenades);
   missionTime = 0;
   G.stats = freshStats();
+  trackAttemptStart();
   resume();
   hud.notice(LEVEL.title, LEVEL.when, 4);
 }
@@ -750,6 +766,7 @@ const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the 
 
 function onDeath() {
   G.stats.deaths++;
+  if (!mission.done) trackAttemptEnd('loss');
   // who did it: the camera turns to him (camera.js) while the line says so
   const k = player.killer;
   if (k) {
@@ -779,6 +796,7 @@ function retryCheckpoint() {
     G.steam.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
+    trackAttemptStart();
     fade.classList.remove('on');
   }, 350);
   resume();
@@ -794,6 +812,7 @@ function onComplete() {
     const acc = s.shots ? s.hits / s.shots : 0;
     const timeBonus = Math.max(0, Math.round((900 - missionTime) * 3));
     const score = s.kills * 100 + s.headshots * 60 + s.objectives * 400 + Math.round(acc * 1500) + timeBonus - s.deaths * 300;
+    trackAttemptEnd('win', score);
     let best = 0;
     try { best = Number(localStorage.getItem('hedgerow.best') || 0); if (score > best) localStorage.setItem('hedgerow.best', String(score)); } catch { /* */ }
     const rows = [

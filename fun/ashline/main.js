@@ -289,6 +289,7 @@ function checkIntercept(now) {
 async function reset(prepared, restored) {
   cancelFormationGesture();
   game = prepared;
+  analyticsStarted = false;
   view.selected.clear(); keys.clear();
   view.placement = null; view.placementReason = ''; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
   view.wallStart = null; view.wallPlan = null; view.abilityPreview = null;
@@ -1197,9 +1198,21 @@ function showMenu(finished = false, guide = false) {
   refreshSaveControls(); updateHUD();
 }
 
+// A prepared or restored battlefield is only a start when play actually begins.
+let analyticsStarted = false, analyticsStartTime = 0;
+function trackOperationStart() {
+  if (analyticsStarted || game.status !== 'playing') return;
+  analyticsStarted = true;
+  analyticsStartTime = game.time;
+  window.protocodusAnalytics?.track('game_start', {
+    game_name: 'ashline', game_mode: game.mission ? 'operation' : 'skirmish',
+  });
+}
+
 function resume() {
   if (!launched || game.status !== 'playing') return;
   $('menu').close(); paused = false; accumulator = 0;
+  trackOperationStart();
   audio.unlock(); audio.setPaused(false);
   $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
   updateHUD(); canvas.focus({ preventScroll: true });
@@ -1326,6 +1339,7 @@ async function prepareOperation(restore = false) {
       showMenu(); playSound('confirm');
     } else {
       paused = false; audio.setPaused(false);
+      trackOperationStart();
       $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
       canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
       // The simulation's opening line is pinned by save and digest checks; the Charter framing lives here.
@@ -1759,6 +1773,14 @@ function simulateFrameStep(dt) {
   renderer.snapshot(game); // Frames until the next tick blend from these poses.
   updateGame(game, dt); soundscape.tick(game);
   if (game.status === 'playing') return true;
+  if (analyticsStarted) {
+    analyticsStarted = false;
+    window.protocodusAnalytics?.track('game_end', {
+      game_name: 'ashline', game_mode: game.mission ? 'operation' : 'skirmish',
+      result: game.status === 'victory' ? 'win' : 'loss',
+      duration_seconds: Math.max(0, Math.round(game.time - analyticsStartTime)),
+    });
+  }
   showMenu(true); playSound(game.status); return false;
 }
 

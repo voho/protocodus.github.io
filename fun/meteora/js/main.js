@@ -610,6 +610,10 @@ async function launch(mission, loadout) {
   if (!BENCH && !AUTOPILOT && roomForIntro()) chase.intro(4.6);
   mode = 'flight';
   flightSince = performance.now();
+  if (!AUTOPILOT) window.protocodusAnalytics?.track('game_start', {
+    game_name: 'meteora', game_mode: survivalRun ? 'survival' : mission.training ? 'training' : mission.special ? 'special' : 'campaign',
+    level: def.id, difficulty: world.diff.key,
+  });
   screens.show(null, { remember: false });
   document.activeElement?.blur?.();
   audio?.start();
@@ -999,6 +1003,16 @@ function tick(dt) {
   if (flight && world.mission?.outcome && !debriefShown) {
     if (outcomeAt == null) {
       outcomeAt = performance.now();
+      // Capture the decided result once, before the closing shot. Benchmarks
+      // and the debug pilot are simulations rather than player sessions.
+      if (!AUTOPILOT) {
+        const result = results(world);
+        window.protocodusAnalytics?.track('game_end', {
+          game_name: 'meteora', game_mode: survivalRun ? 'survival' : currentMission.training ? 'training' : currentMission.special ? 'special' : 'campaign',
+          level: result.id, difficulty: world.diff.key, result: result.won ? 'win' : 'loss',
+          score: result.score, duration_seconds: result.time,
+        });
+      }
       // The closing shot, unless the wreck camera already has the view or
       // the fold has taken the fighter away.
       if (world.player.alive && world.state !== 'dead' && !jumped) chase.outro();
