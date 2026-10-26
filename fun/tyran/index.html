@@ -19,9 +19,7 @@
   <link rel="preload" href="./assets/hero.jpg" as="image">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./flight-layout.css">
-  <script defer src="/assets/js/analytics.js?v=20261026"></script>
-  <script defer src="/assets/js/analytics-media.js?v=20261026"></script>
-  <script defer src="/assets/js/analytics-performance.js?v=20261026"></script>
+  <script defer src="/assets/js/analytics.js"></script>
 </head>
 <body data-ready="false">
   <!-- Google Tag Manager (noscript) -->
@@ -79,7 +77,7 @@
       <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
     </header>
   </section>
-  <div class="touch-controls" id="touch-controls"><div id="touch-stick" class="touch-stick" role="region" aria-label="Drag to steer"><span></span></div><div class="touch-weapons"><button id="touch-fire" class="touch-fire" type="button" aria-label="Hold for primary pulse fire"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2v7m0 14v7M2 16h7m14 0h7" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg><span>Pulse</span></button><button id="touch-secondary" class="touch-fire touch-secondary" type="button" aria-label="Hold for secondary plasma fire; uses energy"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="10" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="currentColor"/></svg><span>Plasma</span></button><button id="touch-bomb" class="touch-fire touch-bomb" type="button" aria-label="Detonate a nova charge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 3 9 9-3-6 7 6 7-9-3-3 9-3-9-9 3 6-7-6-7 9 3 3-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Nova <b id="touch-bomb-count">3</b></span></button></div></div>
+  <div class="touch-controls" id="touch-controls"><div id="touch-stick" class="touch-stick" role="region" aria-label="Drag to steer"><span></span></div><div class="touch-weapons"><button id="touch-fire" class="touch-fire" type="button" aria-label="Hold for primary gun fire"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2v7m0 14v7M2 16h7m14 0h7" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg><span>Primary</span></button><button id="touch-secondary" class="touch-fire touch-secondary" type="button" aria-label="Hold for secondary plasma fire; uses energy"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="10" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="currentColor"/></svg><span>Plasma</span></button><button id="touch-bomb" class="touch-fire touch-bomb" type="button" aria-label="Detonate a nova charge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 3 9 9-3-6 7 6 7-9-3-3 9-3-9-9 3 6-7-6-7 9 3 3-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Nova <b id="touch-bomb-count">3</b></span></button></div></div>
   </div>
 
   <main id="menu-screen" class="menu-screen" aria-label="Flight command" inert>
@@ -187,7 +185,7 @@
       </header>
       <section class="manual-section" aria-labelledby="manual-controls-title">
         <h3 id="manual-controls-title">Controls</h3>
-        <p class="touch-help"><strong>Touch.</strong> Drag left to steer. Hold Pulse or Plasma to fire; tap Nova to detonate.</p>
+        <p class="touch-help"><strong>Touch.</strong> Drag left to steer. Hold Primary or Plasma to fire; tap Nova to detonate.</p>
         <dl class="manual-keys">
           <div><dt><kbd>arrows</kbd> / <kbd>wasd</kbd></dt><dd>Move</dd></div>
           <div><dt><kbd>enter</kbd> / <kbd>space</kbd></dt><dd>Primary gun</dd></div>

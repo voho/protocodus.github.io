@@ -12,13 +12,16 @@
   };
   const number = (value) => Number.isFinite(value) && value >= 0 ? Math.round(value * 100) / 100 : 0;
   const product = location.pathname.match(/^\/product\/([a-z0-9-]+)\//)?.[1] || 'demo';
+  const sessions = [];
   // Count unique, continuously played ranges, so scrubbing or replaying a chapter
   // cannot report unwatched material as a progress milestone.
   function coverage() {
     let ranges = [], previous = null, at = 0;
     return {
       reset() { ranges = []; previous = null; },
+      suspend() { previous = null; at = performance.now(); },
       jump(position) { previous = position; at = performance.now(); },
+      total() { return ranges.reduce((sum, [start, end]) => sum + end - start, 0); },
       sample(position, playing, rate = 1) {
         const now = performance.now(), elapsed = (now - at) / 1000;
         const delta = previous === null ? 0 : position - previous;
@@ -34,17 +37,18 @@
           ranges = merged;
         }
         previous = position; at = now;
-        return ranges.reduce((sum, [start, end]) => sum + end - start, 0);
+        return this.total();
       },
     };
   }
   function session(kind, provider, id) {
     const watched = coverage();
+    sessions.push(watched);
     let started = false, completed = false, milestones = new Set();
     return {
       watched,
       reset() { watched.reset(); started = completed = false; milestones = new Set(); },
-      params(position, duration, seconds = 0) {
+      params(position, duration, seconds = watched.total()) {
         return { media_provider: provider, media_id: id(), media_duration: number(duration), current_time: number(position), watched_seconds: number(seconds) };
       },
       start(position, duration) {
@@ -54,7 +58,7 @@
         if (!started) { started = true; send(`${kind}_start`, this.params(position, duration)); }
       },
       progress(position, duration, playing, rate) {
-        if (!enabled()) { this.reset(); return; }
+        if (!enabled()) { watched.suspend(); return; }
         if (!started && playing) this.start(position, duration);
         const seconds = watched.sample(position, playing, rate);
         if (!started || !(duration > 0)) return;
@@ -71,6 +75,12 @@
       },
     };
   }
+  // The core emits this on both enabling and disabling. Invalidate only the
+  // sampling baseline, preserving previously watched ranges while excluding any
+  // playback that happened while collection was disabled, even without updates.
+  window.addEventListener('protocodus:analytics-enabled', () => {
+    sessions.forEach((watched) => watched.suspend());
+  });
 
   document.querySelectorAll('video, audio').forEach((media, index) => {
     const kind = media.tagName.toLowerCase() === 'video' ? 'video' : 'audio';

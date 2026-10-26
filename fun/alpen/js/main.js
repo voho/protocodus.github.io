@@ -565,6 +565,12 @@ let runStarted = false;
 // Nothing draws while the context is gone, so nothing may start a run.
 let contextLost = false;
 
+function trackRunStart(action) {
+  window.protocodusAnalytics?.track('game_start', {
+    game_name: 'alpen', game_mode: 'freeride', level: chapterNameAt(rider.pos.z), action,
+  });
+}
+
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
@@ -581,7 +587,7 @@ function begin() {
      line at z = 0, where the seeded mountain begins. */
   if (!runStarted) {
     restart(true);
-    window.protocodusAnalytics?.track('game_start', { game_name: 'alpen', game_mode: 'freeride' });
+    trackRunStart('drop_in');
   }
   runStarted = true;
   game.mode = 'playing';
@@ -742,7 +748,7 @@ function restartRun() {
   audio.start();
   showMuted(audio.muted);
   restart();
-  window.protocodusAnalytics?.track('game_start', { game_name: 'alpen', game_mode: 'freeride' });
+  trackRunStart('restart');
   game.mode = 'playing';
   pausedRendered = false;
   curtain.classList.remove('on');

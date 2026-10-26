@@ -16,6 +16,8 @@ import { createCampaign } from './campaign-ui.js';
 import { missionAllows } from './mission.js';
 import { ENVIRONMENTS } from './environments.js';
 import { resolveSkirmish } from './skirmish-setup.js';
+import { CAMPAIGN, MISSIONS, SKIRMISH_MODES } from './campaign.js';
+import { matchReport } from './debrief.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world'), tacticalMap = document.querySelector('.tactical-map');
@@ -1200,13 +1202,26 @@ function showMenu(finished = false, guide = false) {
 
 // A prepared or restored battlefield is only a start when play actually begins.
 let analyticsStarted = false, analyticsStartTime = 0;
+function operationAnalyticsContext(state = game) {
+  const missionId = state.mission?.id;
+  const definition = Object.hasOwn(MISSIONS, missionId ?? '') ? MISSIONS[missionId] : null;
+  const skirmishMode = definition && SKIRMISH_MODES.find(mode => mode.mission === definition.id);
+  const gameMode = definition && CAMPAIGN.includes(definition.id) ? 'campaign'
+    : definition?.id === 'drill' ? 'training'
+    : definition?.score === 'survival' ? 'survival'
+    : skirmishMode?.id === 'relay' ? 'relay' : 'skirmish';
+  return {
+    game_name: 'ashline', game_mode: gameMode,
+    level: definition?.id ?? SKIRMISH_MODES[0].id,
+    difficulty: ['easy', 'normal', 'hard'].includes(state.difficulty) ? state.difficulty : 'normal',
+  };
+}
+
 function trackOperationStart() {
   if (analyticsStarted || game.status !== 'playing') return;
   analyticsStarted = true;
   analyticsStartTime = game.time;
-  window.protocodusAnalytics?.track('game_start', {
-    game_name: 'ashline', game_mode: game.mission ? 'operation' : 'skirmish',
-  });
+  window.protocodusAnalytics?.track('game_start', operationAnalyticsContext());
 }
 
 function resume() {
@@ -1776,8 +1791,9 @@ function simulateFrameStep(dt) {
   if (analyticsStarted) {
     analyticsStarted = false;
     window.protocodusAnalytics?.track('game_end', {
-      game_name: 'ashline', game_mode: game.mission ? 'operation' : 'skirmish',
+      ...operationAnalyticsContext(),
       result: game.status === 'victory' ? 'win' : 'loss',
+      score: matchReport(game).score,
       duration_seconds: Math.max(0, Math.round(game.time - analyticsStartTime)),
     });
   }

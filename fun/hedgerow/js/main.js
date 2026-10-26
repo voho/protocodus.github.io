@@ -113,16 +113,23 @@ let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, do
 let chain = [];        // the effects chain as applyGraphics last set it
 let missionTime = 0;
 let analyticsAttemptActive = false, analyticsAttemptStart = 0;
-function trackAttemptStart() {
+function analyticsAttemptContext() {
+  const checkpoint = Number.isInteger(mission?.checkpoint) && mission.checkpoint >= 0 && mission.checkpoint < LEVEL.checkpoints.length ? mission.checkpoint : 0;
+  return {
+    game_name: 'hedgerow', game_mode: 'mission', level: LEVEL.id,
+    difficulty: Object.hasOwn(DIFFICULTY, settings.difficulty) ? settings.difficulty : 'regular', checkpoint,
+  };
+}
+function trackAttemptStart(action = 'mission_start') {
   analyticsAttemptActive = true;
   analyticsAttemptStart = missionTime;
-  window.protocodusAnalytics?.track('game_start', { game_name: 'hedgerow', game_mode: 'mission' });
+  window.protocodusAnalytics?.track('game_start', { ...analyticsAttemptContext(), action });
 }
 function trackAttemptEnd(result, score) {
   if (!analyticsAttemptActive) return;
   analyticsAttemptActive = false;
   window.protocodusAnalytics?.track('game_end', {
-    game_name: 'hedgerow', game_mode: 'mission', result,
+    ...analyticsAttemptContext(), result,
     duration_seconds: Math.max(0, Math.round(missionTime - analyticsAttemptStart)),
     ...(Number.isFinite(score) ? { score } : {}),
   });
@@ -796,7 +803,7 @@ function retryCheckpoint() {
     G.steam.clear();
     enemies.resetLiving();
     player.reset(spawn, inventory);
-    trackAttemptStart();
+    trackAttemptStart('checkpoint_retry');
     fade.classList.remove('on');
   }, 350);
   resume();
