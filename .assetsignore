@@ -24,5 +24,6 @@ fun/tyran/tools/**
 **/test-results/**
 **/AGENTS.md
 **/README.md
+docs/**
 product/SCREENSHOTS.md
 wrangler.jsonc

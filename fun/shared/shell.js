@@ -24,6 +24,10 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
 
   let difficulty = 'medium', seed = null, startedAt = null, elapsed = 0;
   let ticking = false, hints = 0, toastTimer = 0;
+  let analyticsStarted = false, analyticsFinished = false;
+  const track = (event, parameters = {}) => window.protocodusAnalytics?.track(event, {
+    game_name: storageKey, game_mode: seed === dailySeed() ? 'daily' : 'puzzle', difficulty, ...parameters,
+  });
   const format = (ms) => {
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -49,6 +53,7 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
     radios.forEach((radio) => { radio.checked = radio.value === difficulty; });
     seedOut.textContent = seed;
     startedAt = null; elapsed = 0; ticking = false; hints = 0;
+    analyticsStarted = false; analyticsFinished = false;
     timerOut.textContent = '0:00';
     hintButton.disabled = false;
     hintButton.querySelector('[data-hints]')?.replaceChildren();
@@ -73,15 +78,26 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
     get difficulty() { return difficulty; }, get seed() { return seed; }, get hints() { return hints; },
     load,
     fresh: (nextDifficulty = difficulty) => load(nextDifficulty, randomSeed()),
-    begin() { ticking = true; resumeClock(); },
+    begin() {
+      if (!analyticsStarted) { analyticsStarted = true; track('game_start'); }
+      ticking = true; resumeClock();
+    },
     finish() {
       pauseClock(); ticking = false;
+      if (analyticsStarted && !analyticsFinished) {
+        analyticsFinished = true;
+        track('game_end', { result: 'win', duration_seconds: Math.round(elapsed / 1000), hints_used: hints });
+      }
       timerOut.textContent = format(elapsed);
       hintButton.disabled = true;
       if (undoButton) undoButton.disabled = true;
       return elapsed;
     },
-    restart() { startedAt = null; elapsed = 0; ticking = false; timerOut.textContent = '0:00'; hintButton.disabled = false; },
+    restart() {
+      startedAt = null; elapsed = 0; ticking = false;
+      analyticsStarted = false; analyticsFinished = false;
+      timerOut.textContent = '0:00'; hintButton.disabled = false;
+    },
     setProgress(done, total, detail = '') {
       const progress = $('[data-progress]');
       if (progress) { progress.max = total; progress.value = done; progress.setAttribute('aria-valuetext', `${done} of ${total}. ${detail}`); }

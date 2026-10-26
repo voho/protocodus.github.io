@@ -35,6 +35,8 @@ const document = Object.assign(element(), {
   querySelector: (selector) => selectors.has(selector) ? $(selector) : null, querySelectorAll: () => radios,
 });
 const window = element();
+const analyticsEvents = [];
+window.protocodusAnalytics = { track: (event, parameters) => analyticsEvents.push({ event, parameters }) };
 const location = { hash: '#medium-alpha', href: 'https://example.test/zipper/#medium-alpha' };
 let clock = 0, tick;
 const context = vm.createContext({
@@ -57,9 +59,17 @@ const shell = context.createShell({
 assert.equal(shell.difficulty, 'medium');
 assert.equal(shell.seed, 'alpha');
 assert.equal(actions.new.length, 1, 'Initial shared link loads once');
+assert.equal(analyticsEvents.length, 0, 'Loading a puzzle is not a play start');
 clock = 3000; tick();
 assert.equal($('[data-timer]').textContent, '0:00', 'Looking at a board does not start the timer');
 shell.begin();
+shell.begin();
+assert.equal(analyticsEvents.length, 1, 'Repeated play inputs emit one start per attempt');
+assert.equal(analyticsEvents[0].event, 'game_start');
+assert.equal(analyticsEvents[0].parameters.game_name, 'zipper');
+assert.equal(analyticsEvents[0].parameters.difficulty, 'medium');
+assert.equal(analyticsEvents[0].parameters.game_mode, 'puzzle');
+assert.equal('seed' in analyticsEvents[0].parameters, false, 'Puzzle seeds are not sent');
 clock += 2200; tick();
 assert.equal($('[data-timer]').textContent, '0:02');
 $('[data-action="help"]').emit('click');
@@ -77,6 +87,10 @@ clock += 2000;
 document.hidden = false; document.emit('visibilitychange');
 clock += 1000;
 assert.equal(shell.finish(), 4000, 'Finishing prevents the clock from resuming');
+assert.equal(analyticsEvents.length, 2, 'Repeated finish calls emit one end per attempt');
+assert.equal(analyticsEvents[1].event, 'game_end');
+assert.equal(analyticsEvents[1].parameters.result, 'win');
+assert.equal(analyticsEvents[1].parameters.duration_seconds, 4, 'Analytics uses active play time');
 assert.equal($('[data-action="hint"]').disabled, true, 'Solved boards disable hints');
 shell.restart();
 assert.equal($('[data-timer]').textContent, '0:00');
@@ -91,6 +105,9 @@ assert.equal($('[data-action="undo"]').disabled, false);
 $('[data-action="daily"]').emit('click');
 assert.equal(shell.seed, dailySeed(), 'Daily button opens today’s deterministic board');
 assert.equal($('[data-action="daily"]').attributes['aria-pressed'], 'true');
+shell.begin();
+assert.equal(analyticsEvents.at(-1).parameters.game_mode, 'daily');
+assert.equal(analyticsEvents.filter(({ event }) => event === 'game_start').length, 2, 'A new board starts a new attempt');
 shell.fresh('hard');
 assert.equal(location.hash, '#hard-newseed', 'New puzzles retain a shareable difficulty and seed');
 assert.equal($('[data-action="daily"]').attributes['aria-pressed'], 'false');
@@ -104,4 +121,6 @@ assert.equal(actions.hints, 1, 'Editing fields and modified shortcuts keep their
 key('?');
 key('h');
 assert.equal(actions.hints, 1, 'Open modal dialogs suppress game shortcuts');
-console.log('Shell checks passed: active play time, help/background pauses, finish/reset, daily links, accessible progress and keyboard focus rules.');
+delete window.protocodusAnalytics;
+assert.doesNotThrow(() => { shell.begin(); shell.finish(); }, 'Games remain playable when analytics is unavailable');
+console.log('Shell checks passed: active play time, help/background pauses, finish/reset, daily links, accessible progress, keyboard focus and deduplicated optional analytics.');
