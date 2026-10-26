@@ -69,11 +69,11 @@
       <a href="/#company" class="mobile-link">Company</a>
       <a href="/#contact" class="mobile-link">Contact</a>
     </nav>
-    <div class="mobile-foot"><a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a></div>
+    <div class="mobile-foot"><a href="mailto:protocodus@proton.me" class="mobile-mail" data-analytics-cta="mobile_support" data-analytics-action="contact_support">protocodus@proton.me</a></div>
   </div>
 
   <main id="main">
-    <div class="wrap back-nav"><a href="/#products" class="back-link"><span aria-hidden="true">←</span> All products</a></div>
+    <div class="wrap back-nav"><a href="/#products" class="back-link" data-analytics-cta="all_products" data-analytics-action="view_details"><span aria-hidden="true">←</span> All products</a></div>
 
     <section class="hero instrument-hero" id="top">
       <div class="wrap instrument-layout">
@@ -89,8 +89,8 @@
             <ul class="instrument-facts" aria-label="Effect highlights"><li>Two real codecs</li><li>8–256 kbps targets</li><li>1–4 passes</li></ul>
             <div class="hero-actions">
               <span class="product-status">Coming soon!</span>
-              <a href="#demo" class="detail-link">Hear it in action <span aria-hidden="true">↓</span></a>
-              <a href="#controls" class="detail-link">Explore the controls <span aria-hidden="true">↓</span></a>
+              <a href="#demo" class="detail-link" data-analytics-cta="hero_demo" data-analytics-action="watch_demo">Hear it in action <span aria-hidden="true">↓</span></a>
+              <a href="#controls" class="detail-link" data-analytics-cta="hero_controls" data-analytics-action="view_details">Explore the controls <span aria-hidden="true">↓</span></a>
             </div>
             <p class="availability-note">A codec effect Rack Extension for Reason 14 or later. Stereo in and out, with latency compensation for the processed and dry paths.</p>
           </div>
@@ -111,18 +111,18 @@
         <figure class="lamer-demo">
           <video id="lamer-video" controls playsinline preload="none" width="1280" height="720" poster="lamer-demo-poster.jpg?v=20261014-f9" aria-label="Lamer Degrader: MP3 and OGG with one and two passes" aria-describedby="demo-caption">
             <source src="lamer-demo.mp4?v=20261014-f9" type="video/mp4">
-            <p><a href="lamer-demo.mp4">Download the Lamer demo video</a>.</p>
+            <p><a href="lamer-demo.mp4" data-analytics-cta="demo_download" data-analytics-action="download_demo">Download the Lamer demo video</a>.</p>
           </video>
           <figcaption id="demo-caption">100% wet · Filters Off · Bitrate Crossfade Off. Each section plays the loop twice, with the same gain throughout. Real Lamer processing; animated llamas on presentation duty.</figcaption>
         </figure>
         <div class="lamer-chapters" role="group" aria-label="Play a demo chapter" hidden>
-          <button type="button" data-start="0" aria-controls="lamer-video"><span>0:00</span><strong>MP3</strong> 1 pass</button>
-          <button type="button" data-start="24" aria-controls="lamer-video"><span>0:24</span><strong>OGG</strong> 1 pass</button>
-          <button type="button" data-start="48" aria-controls="lamer-video"><span>0:48</span><strong>MP3</strong> 2 passes</button>
-          <button type="button" data-start="72" aria-controls="lamer-video"><span>1:12</span><strong>OGG</strong> 2 passes</button>
+          <button type="button" data-start="0" aria-controls="lamer-video" data-analytics-cta="chapter_0" data-analytics-action="play_chapter"><span>0:00</span><strong>MP3</strong> 1 pass</button>
+          <button type="button" data-start="24" aria-controls="lamer-video" data-analytics-cta="chapter_24" data-analytics-action="play_chapter"><span>0:24</span><strong>OGG</strong> 1 pass</button>
+          <button type="button" data-start="48" aria-controls="lamer-video" data-analytics-cta="chapter_48" data-analytics-action="play_chapter"><span>0:48</span><strong>MP3</strong> 2 passes</button>
+          <button type="button" data-start="72" aria-controls="lamer-video" data-analytics-cta="chapter_72" data-analytics-action="play_chapter"><span>1:12</span><strong>OGG</strong> 2 passes</button>
         </div>
         <p class="lamer-video-status" role="status" hidden></p>
-        <a class="detail-link lamer-video-link" href="lamer-demo.mp4" target="_blank" rel="noopener">Open video in a separate tab <span aria-hidden="true">↗</span></a>
+        <a class="detail-link lamer-video-link" href="lamer-demo.mp4" target="_blank" rel="noopener" data-analytics-cta="demo_video" data-analytics-action="watch_demo">Open video in a separate tab <span aria-hidden="true">↗</span></a>
       </div>
     </section>
 
@@ -134,7 +134,7 @@
           <p class="lede">Both codecs transform audio into frequency components, allocate a finite bit budget and quantize the result before decoding it back to sound. Masking and bandwidth decisions depend on the signal, so a transient, a sustained chord and a noisy texture erode differently. Lower the bitrate to expose that behavior.</p>
         </div>
         <figure class="shot lamer-panel">
-          <a class="screenshot-link" href="Lamer_Degrader_Front.png?v=20261014-f9" aria-label="View the Lamer Degrader front panel at full size">
+          <a class="screenshot-link" href="Lamer_Degrader_Front.png?v=20261014-f9" aria-label="View the Lamer Degrader front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
             <img src="lamer-panel.webp?v=20261014-f9" width="1600" height="293" loading="lazy" decoding="async" alt="Lamer front panel with MP3 selected, OGG sleeping, LP and HP off, the large Bitrate knob, four Rounds buttons and Mix">
             <span class="shot-caption">Front panel <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
@@ -171,7 +171,7 @@
           <p class="lede">Stereo audio in and out, a standard Reason power switch and a compact 2RU panel. Automate Bitrate, Rounds, LP, HP and Mix, with smoothed controls and fades when processing paths change.</p>
         </div>
         <figure class="shot lamer-panel">
-          <a class="screenshot-link" href="Lamer_Degrader_Back.png?v=20261014-f9" aria-label="View the Lamer Degrader rear panel at full size">
+          <a class="screenshot-link" href="Lamer_Degrader_Back.png?v=20261014-f9" aria-label="View the Lamer Degrader rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
             <img src="lamer-rear.webp?v=20261014-f9" width="1600" height="293" loading="lazy" decoding="async" alt="Lamer rear panel with two llamas, the Bitrate Crossfade switch, stereo audio inputs and outputs, and three routing icons">
             <span class="shot-caption">Rear panel <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
@@ -213,7 +213,7 @@
         <span class="tag">Support &amp; availability</span>
         <h2 class="title">Let's talk texture.</h2>
         <p class="lede">Ask about Lamer, your Reason setup or release availability. For technical help, include your Reason version, operating system and a description of the issue.</p>
-        <a href="mailto:protocodus@proton.me?subject=Lamer%20Degrader" class="mail">protocodus@proton.me</a>
+        <a href="mailto:protocodus@proton.me?subject=Lamer%20Degrader" class="mail" data-analytics-cta="support_email" data-analytics-action="contact_support">protocodus@proton.me</a>
       </div></div>
     </section>
   </main>

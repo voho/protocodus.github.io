@@ -60,13 +60,13 @@
       <a href="/#contact" class="mobile-link">Contact</a>
     </nav>
     <div class="mobile-foot">
-      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+      <a href="mailto:protocodus@proton.me" class="mobile-mail" data-analytics-cta="mobile_support" data-analytics-action="contact_support">protocodus@proton.me</a>
     </div>
   </div>
 
   <main id="main">
     <div class="wrap back-nav">
-      <a href="/#products" class="back-link"><span aria-hidden="true">←</span> All products</a>
+      <a href="/#products" class="back-link" data-analytics-cta="all_products" data-analytics-action="view_details"><span aria-hidden="true">←</span> All products</a>
     </div>
 
     <section class="hero instrument-hero" id="top">
@@ -81,14 +81,14 @@
           <div class="instrument-actions">
             <ul class="instrument-facts" aria-label="Instrument highlights"><li>Up to 16 voices</li><li>100 Rack patches</li><li>8 CV inputs</li></ul>
             <div class="hero-actions">
-              <a href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/" class="btn btn-primary">Reason Shop · version 1.3.0 <span aria-hidden="true">↗</span></a>
-              <a href="#listen" class="detail-link">Listen to YouKnow <span aria-hidden="true">↓</span></a>
+              <a href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/" class="btn btn-primary" data-analytics-cta="hero_shop" data-analytics-action="open_shop">Reason Shop · version 1.3.0 <span aria-hidden="true">↗</span></a>
+              <a href="#listen" class="detail-link" data-analytics-cta="hero_listen" data-analytics-action="listen_demo">Listen to YouKnow <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">For Reason 14 or later. These panels show the unreleased 1.3.2 Rack candidate; the current Shop release is 1.3.0. <a href="#versions" class="text-link">See what changed</a>.</p>
+            <p class="availability-note">For Reason 14 or later. These panels show the unreleased 1.3.2 Rack candidate; the current Shop release is 1.3.0. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">See what changed</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="YouKnow_Front.png?v=20261018-youknow132-f4-refresh" aria-label="View the YouKnow Rack Extension front panel at full size">
+          <a class="screenshot-link" href="YouKnow_Front.png?v=20261018-youknow132-f4-refresh" aria-label="View the YouKnow Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
             <img src="youknow-rack-front.webp?v=20261018-youknow132-f4-refresh" width="1600" height="1171" fetchpriority="high" decoding="async" alt="YouKnow 1.3.2 Rack candidate front panel with synthesis faders, chorus, performance controls and processing status readouts">
             <span class="shot-caption">Rack candidate 1.3.2 · front panel <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
@@ -125,7 +125,7 @@
             <p>Opposing delay modulation, charge-transfer loss, saturation and the surrounding filters create stereo motion with softened highs. A separate noise control sets the modelled chorus hiss.</p>
           </li>
         </ul>
-        <a href="#details" class="text-link resource-link">Follow the model through the signal path <span aria-hidden="true">↓</span></a>
+        <a href="#details" class="text-link resource-link" data-analytics-cta="signal_path" data-analytics-action="view_details">Follow the model through the signal path <span aria-hidden="true">↓</span></a>
       </div>
     </section>
 
@@ -138,9 +138,9 @@
         </div>
         <div class="soundcloud-shell">
           <iframe class="soundcloud-player" title="YouKnow sound demos - v1 on SoundCloud" width="100%" height="450" scrolling="no" loading="lazy" allow="autoplay; encrypted-media" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Fplaylists%2F2299308180&amp;color=%2303422e&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=true&amp;show_artwork=false&amp;visual=false"></iframe>
-          <p class="soundcloud-attribution"><a href="https://soundcloud.com/protocodus" target="_blank" rel="noopener noreferrer">Protocodus</a> · <a href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1" target="_blank" rel="noopener noreferrer">YouKnow sound demos - v1</a></p>
+          <p class="soundcloud-attribution"><a href="https://soundcloud.com/protocodus" target="_blank" rel="noopener noreferrer">Protocodus</a> · <a href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1" target="_blank" rel="noopener noreferrer" data-analytics-cta="playlist_attribution" data-analytics-action="listen_demo">YouKnow sound demos - v1</a></p>
         </div>
-        <a class="text-link resource-link" href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1">Open the playlist on SoundCloud <span aria-hidden="true">↗</span></a>
+        <a class="text-link resource-link" href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1" data-analytics-cta="listen_playlist" data-analytics-action="listen_demo">Open the playlist on SoundCloud <span aria-hidden="true">↗</span></a>
       </div>
     </section>
 
@@ -206,7 +206,7 @@
           <h2 class="title">Flip the rack.<br>Shape the response.</h2>
           <p class="lede">Keep the front focused on playing, then turn to the rear for modulation connections, model character and processing quality. Reason recalls the instrument, its patches and its automation with your song.</p>
           <figure class="shot">
-            <a class="screenshot-link" href="YouKnow_Back.png?v=20261018-youknow132-f4-refresh" aria-label="View the YouKnow Rack Extension rear panel at full size">
+            <a class="screenshot-link" href="YouKnow_Back.png?v=20261018-youknow132-f4-refresh" aria-label="View the YouKnow Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
               <img src="youknow-rack-back.webp?v=20261018-youknow132-f4-refresh" width="1600" height="1171" loading="lazy" decoding="async" alt="YouKnow 1.3.2 Rack candidate rear panel with five processing quality selectors, Unit Character, Aging, Sync LFO, eight CV inputs and stereo audio outputs">
               <span class="shot-caption">Rack candidate 1.3.2 · rear panel <span>View full size <span aria-hidden="true">↗</span></span></span>
             </a>
@@ -218,11 +218,11 @@
             <div><dt>Host</dt><dd>Reason 14 or later</dd></div>
             <div><dt>Instrument</dt><dd>Up to 16 MIDI voices<br>100 patches · 8RU panel</dd></div>
             <div><dt>Connections</dt><dd>8 CV inputs<br>Stereo audio outputs</dd></div>
-            <div><dt>Shop release</dt><dd>1.3.0 · released 13 October 2026<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/">View current Shop version ↗</a></dd></div>
+            <div><dt>Shop release</dt><dd>1.3.0 · released 13 October 2026<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/" data-analytics-cta="release_shop" data-analytics-action="open_shop">View current Shop version ↗</a></dd></div>
             <div><dt>Latest candidate</dt><dd>1.3.2 · updated 20 October 2026<br>Unreleased; not yet accepted for the Reason Shop</dd></div>
           </dl>
-          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261026-contact">Earlier 1.3.2f4 player guide (PDF) <span aria-hidden="true">↗</span></a>
-          <p class="availability-note">The PDF predates the latest VCA Level range and factory calibration. See the <a href="#playing">current level and calibration settings</a> above.</p>
+          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261026-contact" data-analytics-cta="player_guide" data-analytics-action="download_guide">Earlier 1.3.2f4 player guide (PDF) <span aria-hidden="true">↗</span></a>
+          <p class="availability-note">The PDF predates the latest VCA Level range and factory calibration. See the <a href="#playing" data-analytics-cta="calibration_settings" data-analytics-action="view_details">current level and calibration settings</a> above.</p>
         </aside>
       </div>
     </section>
@@ -253,8 +253,8 @@
           </article>
         </div>
         <div class="resource-links">
-          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/CHANGELOG.md">Full Rack change history <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/Docs/release/release-evidence.md">Candidate validation and limits <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/CHANGELOG.md" data-analytics-cta="changelog" data-analytics-action="view_release_notes">Full Rack change history <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/protocodus/reason-rack-extensions/blob/main/Examples/YouKnow/Docs/release/release-evidence.md" data-analytics-cta="candidate_evidence" data-analytics-action="view_source">Candidate validation and limits <span aria-hidden="true">↗</span></a>
         </div>
       </div>
     </section>
@@ -269,7 +269,7 @@
         <ul class="features">
           <li><h3>Native formats</h3><p>VST3, CLAP and standalone on macOS, Windows and Linux, plus Audio Unit on macOS. Package targets are macOS 11 or later on Apple silicon and Intel, Windows x64 and Linux x64. These are native formats; the Rack Extension installs through Reason.</p></li>
           <li><h3>Download status</h3><p>The source repository links the latest main-build packages. They require GitHub sign-in and expire after 30 days. These are development downloads: macOS bundles are ad-hoc signed and not notarized, and Windows binaries are unsigned. No signed, tagged native release has been published.</p></li>
-          <li><h3>Choose the matching guide</h3><p>The Rack candidate’s patch bank, Reason note response and defaults are described above. Native Original timing, the native preset bank and Output Trim follow their separate guide and release notes.</p><a class="text-link resource-link" href="https://github.com/protocodus/virtual-instrument-youknow#downloads">Native downloads and guide <span aria-hidden="true">↗</span></a></li>
+          <li><h3>Choose the matching guide</h3><p>The Rack candidate’s patch bank, Reason note response and defaults are described above. Native Original timing, the native preset bank and Output Trim follow their separate guide and release notes.</p><a class="text-link resource-link" href="https://github.com/protocodus/virtual-instrument-youknow#downloads" data-analytics-cta="native_downloads" data-analytics-action="view_source">Native downloads and guide <span aria-hidden="true">↗</span></a></li>
         </ul>
       </div>
     </section>
@@ -280,7 +280,7 @@
           <span class="tag">Support</span>
           <h2 class="title">Need a hand with YouKnow?</h2>
           <p class="lede">Email your YouKnow and Reason versions, operating system, patch name and a description of the issue.</p>
-          <a href="mailto:protocodus@proton.me?subject=YouKnow%20Rack%20Extension" class="mail">protocodus@proton.me</a>
+          <a href="mailto:protocodus@proton.me?subject=YouKnow%20Rack%20Extension" class="mail" data-analytics-cta="support_email" data-analytics-action="contact_support">protocodus@proton.me</a>
         </div>
       </div>
     </section>
