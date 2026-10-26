@@ -16,6 +16,9 @@ const WEATHER_VERTEX = /* glsl */ `
 attribute vec3 color;
 attribute vec2 motion;
 uniform float uTime, uSize, uScale, uRise, uSway, uLow, uHigh, uExtent, uTwinkle, uBokeh;
+#ifdef QUIET_TABLE
+  uniform vec2 uBoard;
+#endif
 varying vec3 vColour;
 void main() {
   float phase = motion.x, pace = motion.y;
@@ -30,6 +33,11 @@ void main() {
   }
   float bright = uTwinkle > 0.0 ? 0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * uTwinkle * pace + phase)) : 1.0;
   vColour = color * bright;
+  #ifdef QUIET_TABLE
+    // Keep atmospheric detail around the table, clear of the clues.
+    float edge = max(abs(p.x) / uBoard.x, abs(p.z) / uBoard.y);
+    vColour *= smoothstep(0.96, 1.4, edge);
+  #endif
   vec4 viewPosition = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * viewPosition;
   gl_PointSize = uSize * uScale / max(1.0, -viewPosition.z);
@@ -96,6 +104,58 @@ void main() {
   gl_FragColor = vec4(colour, 1.0);
 }`;
 
+/* Patcher's quieter table: layered, slow light seen through smoke, water
+   or an aurora. Analytic contours share one existing backdrop draw; there
+   are no noise octaves, texture reads or additional rendering passes. */
+const ATELIER_BACKDROP_FRAGMENT = /* glsl */ `
+uniform vec3 uTop, uBottom, uGlow, uBlobA, uBlobB, uPulseColour;
+uniform float uAspect, uTime, uPulse, uMotif;
+uniform vec2 uPulseAt;
+varying vec2 vUv;
+void main() {
+  vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+  float t = uTime * 0.11;
+  vec2 q = p + vec2(sin(p.y * 2.1 + t) * 0.085, sin(p.x * 1.8 - t * 0.7) * 0.065);
+  vec3 colour = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y));
+  float flow = sin(q.x * 3.4 + q.y * 2.1 + sin(q.y * 3.8 - t) * 0.65 + t * 0.35);
+  float veil = smoothstep(-0.8, 0.85, flow);
+  colour += mix(uBlobA, uBlobB, veil) * (0.22 + 0.65 * veil);
+  vec2 pool = q - vec2(-0.22, 0.12);
+  colour += uGlow * exp(-dot(pool, pool) * 1.8) * 0.45;
+
+  float pattern;
+  if (uMotif < 0.5) {
+    // Broad auroral folds.
+    float ribbon = (q.y + sin(q.x * 2.4 + t * 0.7) * 0.15 - 0.12) * 9.0;
+    pattern = exp(-ribbon * ribbon) * 0.45;
+  } else if (uMotif < 1.5) {
+    // Two crossing swells leave small, soft caustics.
+    float crest = sin(q.x * 5.0 + sin(q.y * 2.5 + t) * 0.8) + sin(q.y * 5.0 - t * 0.8);
+    pattern = smoothstep(1.15, 1.95, crest) * 0.55;
+  } else if (uMotif < 2.5) {
+    // Dappled light through an indistinct canopy.
+    float shaft = sin(q.x * 5.0 + q.y * 1.4 + sin(q.y * 2.0 - t) * 0.8);
+    pattern = smoothstep(0.2, 1.0, shaft) * (0.2 + 0.25 * vUv.y);
+  } else if (uMotif < 3.5) {
+    // Raking light over distant, oblique metal seams.
+    float seam = q.x * 0.8 + q.y * 2.0 + sin(q.x * 2.0 + t) * 0.035;
+    pattern = smoothstep(0.8, 1.0, sin(seam * 8.0)) * 0.3;
+  } else if (uMotif < 4.5) {
+    // Slow heat folds rather than bright lava stripes.
+    float heat = sin(q.x * 3.0 + q.y * 4.0 - t) + sin(q.x * 5.0 - q.y * 2.5 + t * 0.6) * 0.5;
+    pattern = smoothstep(0.7, 1.4, heat) * 0.5;
+  } else {
+    // A distant orbital arc dissolves into dust.
+    pattern = exp(-abs(length(q - vec2(-0.35, -0.6)) - 0.8) * 18.0) * 0.35;
+  }
+  float margin = smoothstep(0.15, 0.85, length(p * vec2(0.85, 1.0)));
+  colour += uGlow * pattern * margin * 1.5;
+  vec2 pulse = p - (uPulseAt - 0.5) * vec2(uAspect, 1.0);
+  colour += uPulseColour * uPulse * exp(-dot(pulse, pulse) * 4.0) * 0.35;
+  colour *= 1.0 - smoothstep(0.35, 1.25, length(p)) * 0.48;
+  gl_FragColor = vec4(colour, 1.0);
+}`;
+
 /* Reflections come from a small lit room rendered once into a PMREM: a
    dim glow overhead, a cool and a warm panel at the sides, a strip in the
    accent behind and two glints in the theme's colours low at the sides.
@@ -141,7 +201,8 @@ function dotTexture() {
 }
 
 /* `null` when the browser has no WebGL 2; the page says so itself. */
-export function createStage(canvas, { theme, exposure = 1.1 }) {
+export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic' }) {
+  const atelier = ambience === 'atelier';
   let probe = null;
   try { probe = document.createElement('canvas').getContext('webgl2'); } catch { probe = null; }
   if (!probe) return null;
@@ -179,7 +240,7 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   scene.add(camera);
 
   const backdropMaterial = new THREE.ShaderMaterial({
-    vertexShader: BACKDROP_VERTEX, fragmentShader: BACKDROP_FRAGMENT,
+    vertexShader: BACKDROP_VERTEX, fragmentShader: atelier ? ATELIER_BACKDROP_FRAGMENT : BACKDROP_FRAGMENT,
     uniforms: {
       uTop: { value: new THREE.Color() },
       uBottom: { value: new THREE.Color() },
@@ -223,9 +284,9 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
   scene.add(flashLight);
 
   // The board floats; its shadow lands on an invisible floor below.
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: 0.3 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: atelier ? 0.12 : 0.3 }));
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -1;
+  floor.position.y = atelier ? -0.7 : -1;
   floor.receiveShadow = true;
   scene.add(floor);
 
@@ -380,15 +441,17 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
 
   /* One upload per cloud; only time and projected size change per frame. */
   function pointsCloud({ count = 80, colours = ['#ffffff'], size = 0.12, extent = 7, floor: low = -1, ceiling = 4, rise = 0, sway = 0.2, twinkle = 0, bokeh = false, opacity = 0.6 }) {
-    const n = Math.max(4, Math.round(count * (mobile ? 0.5 : 1)));
+    const n = Math.max(4, Math.round(count * (mobile ? 0.5 : 1) * (atelier ? 0.45 : 1)));
     const positions = new Float32Array(n * 3), coloursData = new Float32Array(n * 3);
     const motion = new Float32Array(n * 2);
-    const tint = new THREE.Color();
+    const tint = new THREE.Color(), neutral = atelier ? new THREE.Color('#abb7ae') : null;
     for (let i = 0; i < n; i++) {
       positions[i * 3] = (Math.random() * 2 - 1) * extent;
       positions[i * 3 + 1] = low + Math.random() * (ceiling - low);
       positions[i * 3 + 2] = (Math.random() * 2 - 1) * extent;
-      tint.set(colours[i % colours.length]).toArray(coloursData, i * 3);
+      tint.set(colours[i % colours.length]);
+      if (atelier) tint.lerp(neutral, 0.4);
+      tint.toArray(coloursData, i * 3);
       motion[i * 2] = Math.random() * Math.PI * 2;
       motion[i * 2 + 1] = 0.6 + Math.random() * 0.8;
     }
@@ -398,9 +461,11 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     geometry.setAttribute('motion', new THREE.BufferAttribute(motion, 2));
     const material = new THREE.ShaderMaterial({
       vertexShader: WEATHER_VERTEX, fragmentShader: WEATHER_FRAGMENT,
+      defines: atelier ? { QUIET_TABLE: 1 } : {},
       uniforms: {
-        uDot: { value: dot }, uTime: { value: 0 }, uSize: { value: size },
-        uScale: { value: 1 }, uOpacity: { value: opacity },
+        uDot: { value: dot }, uTime: { value: 0 }, uSize: { value: size * (atelier ? 0.7 : 1) },
+        uScale: { value: 1 }, uOpacity: { value: opacity * (atelier ? 0.42 : 1) },
+        uBoard: { value: new THREE.Vector2(halfW, halfD) },
         uRise: { value: rise }, uSway: { value: sway },
         uLow: { value: low }, uHigh: { value: ceiling }, uExtent: { value: extent },
         uTwinkle: { value: twinkle }, uBokeh: { value: bokeh ? 1 : 0 },
@@ -413,6 +478,7 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
     const stop = stage.onFrame((dt, t) => {
       material.uniforms.uTime.value = reduced ? 0 : t;
       material.uniforms.uScale.value = height * pixelRatio * 0.5 * rig.distance / 30;
+      if (atelier) material.uniforms.uBoard.value.set(halfW, halfD);
     });
     return { dispose() { stop(); scene.remove(points); geometry.dispose(); material.dispose(); } };
   }
@@ -518,6 +584,14 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
       u.uMotif.value = theme.motif;
       glowBase.set(backdrop.glow).multiplyScalar(backdrop.glowStrength);
       breathe = backdrop.breathe || 0;
+      if (atelier) {
+        u.uTop.value.set('#101c20').lerp(new THREE.Color(backdrop.top), 0.38);
+        u.uBottom.value.set('#060a0e').lerp(new THREE.Color(backdrop.bottom), 0.2);
+        u.uBlobA.value.set(backdrop.blobA).lerp(new THREE.Color('#7b8d8d'), 0.45).multiplyScalar(backdrop.blobStrength * 0.6);
+        u.uBlobB.value.set(backdrop.blobB).lerp(new THREE.Color('#7b8d8d'), 0.45).multiplyScalar(backdrop.blobStrength * 0.6);
+        glowBase.set(backdrop.glow).lerp(new THREE.Color('#8c9a98'), 0.65).multiplyScalar(backdrop.glowStrength * 0.45);
+        breathe *= 0.2;
+      }
       hemisphere.color.set(light.sky);
       hemisphere.groundColor.set(light.ground);
       key.color.set(light.key);
@@ -530,7 +604,12 @@ export function createStage(canvas, { theme, exposure = 1.1 }) {
       for (const item of weather) item.dispose();
       weather.length = 0;
       weather.push(bokeh(theme.bokeh));
-      for (const spec of theme.ambient) weather.push(spec.kind === 'sparks' ? sparkShower(spec) : pointsCloud(spec));
+      for (const spec of theme.ambient) {
+        // Patcher's industrial light is a few drifting embers, keeping its
+        // atmosphere entirely in the same static-buffer weather shader.
+        if (atelier && spec.kind === 'sparks') weather.push(pointsCloud({ count: 24, colours: spec.colours, size: 0.12, rise: 0.16, sway: 0.12, twinkle: 0.9 }));
+        else weather.push(spec.kind === 'sparks' ? sparkShower(spec) : pointsCloud(spec));
+      }
       stage.wake(1);
     },
     start() {

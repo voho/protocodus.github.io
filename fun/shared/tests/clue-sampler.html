@@ -5,6 +5,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clue sampler</title>
   <style>
     body { margin: 0; padding: 24px; background: #15101a; color: #f3f4f4; font: 14px system-ui, sans-serif; }
@@ -22,9 +23,10 @@
     await waitForFont();
     const clues = [
       { shape: 'square', number: 4 }, { shape: 'wide', number: 6 }, { shape: 'tall', number: 3 },
+      { shape: 'square', number: 16 }, { shape: 'wide', number: 12 }, { shape: 'tall', number: 10 },
       { shape: 'square' }, { shape: 'wide' }, { shape: 'tall' },
     ];
-    for (const [label, px] of [['on screen (72 px tile)', 72], ['enlarged (200 px tile)', 200]]) {
+    for (const [label, px] of [['small phone (36 px key)', 36], ['on screen (72 px key)', 72], ['enlarged (200 px key)', 200]]) {
       for (const [surface, colour] of [['tile', '#f6e7b8'], ['patch', '#1a1420']]) {
         const row = document.createElement('div');
         row.className = 'row';
@@ -35,7 +37,7 @@
           box.style.width = box.style.height = `${px}px`;
           const texture = clueTexture({ shape: clue.shape, number: clue.number ?? null }, colour);
           const canvas = document.createElement('canvas');
-          const side = Math.round(px * 0.8 / 0.9);
+          const side = Math.round(px * 0.76 / 0.88);
           canvas.width = canvas.height = side;
           canvas.getContext('2d').drawImage(texture.image, 0, 0, side, side);
           box.append(canvas);

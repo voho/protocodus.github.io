@@ -57,33 +57,74 @@ export function digitTexture(text, colour = '#f3f4f4', weight = 600) {
   });
 }
 
-/* A Patcher clue: the shape above the number. Square, wide and tall are
-   solid silhouettes of the rectangle to draw, in proportions far enough
-   apart to tell at a glance. */
+/* A Patcher clue: wide and square silhouettes above their numbers, tall
+   silhouettes beside them. Shape-only clues sit in the middle of a key. */
 export function clueTexture({ shape, number }, colour = '#f3f4f4') {
   return canvasTexture((ctx, size) => {
     const both = number !== null && number !== undefined;
     const tint = { square: '#8fe0c4', wide: '#8cc2ff', tall: '#d9b2f5' }[shape] || '#8fe0c4';
-    // Dark labels sit on coloured patches, light labels on dark tiles; the
-    // tint only nudges either towards its shape's colour.
-    const ink = new THREE.Color(colour).lerp(new THREE.Color(tint), 0.4).getStyle();
-    const icon = (cx, cy, long) => {
+    // Placed patches keep the same dark ink for both icon and number.
+    // Only pale ink on empty slots takes a faint hint of the shape colour;
+    // tinting dark ink towards a pastel would wash out its contrast.
+    const inkColour = new THREE.Color(colour);
+    const luminance = inkColour.r * 0.2126 + inkColour.g * 0.7152 + inkColour.b * 0.0722;
+    const ink = luminance < 0.15 ? colour : inkColour.lerp(new THREE.Color(tint), 0.18).getStyle();
+    const icon = (x, y, width, height) => {
       ctx.fillStyle = ink;
-      const [w, h] = { square: [0.62, 0.62], wide: [1, 0.42], tall: [0.42, 1] }[shape] || [0.62, 0.62];
       ctx.beginPath();
-      ctx.roundRect(cx - w * long / 2, cy - h * long / 2, w * long, h * long, long * 0.06);
+      ctx.roundRect(x, y, width, height, size * 0.025);
       ctx.fill();
     };
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (both) {
-      icon(size / 2, size * 0.24, size * 0.46);
-      ctx.fillStyle = colour;
-      ctx.font = `600 ${Math.round(size * 0.44)}px ${LABEL_FONT}`;
-      ctx.fillText(String(number), size / 2, size * 0.72);
-    } else {
-      icon(size / 2, size / 2, size * 0.6);
+    if (!both) {
+      const dimensions = { square: [0.44, 0.44], wide: [0.64, 0.26], tall: [0.26, 0.64] };
+      const [width, height] = dimensions[shape] || dimensions.square;
+      icon(size * (1 - width) / 2, size * (1 - height) / 2, size * width, size * height);
+      return;
     }
+
+    const beside = shape === 'tall';
+    const text = String(number);
+    const top = size * (beside ? 0.18 : 0.56), bottom = size * (beside ? 0.82 : 0.90);
+    let fontSize = Math.round(size * 0.47);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const measure = () => {
+      ctx.font = `600 ${fontSize}px ${LABEL_FONT}`;
+      const metrics = ctx.measureText(text);
+      return {
+        left: metrics.actualBoundingBoxLeft ?? 0,
+        right: metrics.actualBoundingBoxRight ?? metrics.width,
+        ascent: metrics.actualBoundingBoxAscent ?? fontSize * 0.72,
+        descent: metrics.actualBoundingBoxDescent ?? fontSize * 0.02,
+      };
+    };
+    let bounds = measure();
+    const fit = Math.min(1, size * (beside ? 0.52 : 0.80) / (bounds.left + bounds.right),
+      (bottom - top) / (bounds.ascent + bounds.descent));
+    if (fit < 1) {
+      fontSize = Math.max(1, Math.floor(fontSize * fit));
+      bounds = measure();
+    }
+    let textX;
+    if (beside) {
+      // The tall icon and visible digit ink form one centered group, with
+      // a 12% gutter and at least 10% safe padding on either side.
+      const width = size * 0.16, height = size * 0.56, gap = size * 0.12;
+      const left = (size - width - gap - bounds.left - bounds.right) / 2;
+      icon(left, (size - height) / 2, width, height);
+      textX = left + width + gap + bounds.left;
+    } else {
+      // Horizontal silhouettes sit in their own padded band. Their bottom
+      // stays at least 10% above the number's measured ink.
+      const dimensions = { square: [0.30, 0.30], wide: [0.48, 0.19] };
+      const [width, height] = dimensions[shape] || dimensions.square;
+      icon(size * (1 - width) / 2, size * (0.28 - height / 2), size * width, size * height);
+      textX = size / 2 + (bounds.left - bounds.right) / 2;
+    }
+    // Font baselines and digit side-bearings differ across fallback faces.
+    // Center the visible glyphs, rather than the nominal line-height box.
+    ctx.fillStyle = colour;
+    ctx.fillText(text, textX, (top + bottom + bounds.ascent - bounds.descent) / 2);
   });
 }
 

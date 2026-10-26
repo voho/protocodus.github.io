@@ -23,7 +23,7 @@ const status = document.querySelector('[data-status]');
 // The theme is picked before the table is built; a later pick redresses it.
 let retheme = null;
 const themes = createThemeSwitch({ fallback: 'jungle', onChange: (theme) => retheme?.(theme) });
-const stage = createStage(canvas, { theme: themes.current });
+const stage = createStage(canvas, { theme: themes.current, ambience: 'atelier' });
 if (!stage) {
   loading.classList.add('failed');
   loading.querySelector('[data-loading-text]').textContent = 'Patcher needs WebGL 2, which this browser or device does not provide.';

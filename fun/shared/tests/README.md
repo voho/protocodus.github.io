@@ -6,6 +6,7 @@ Run these from the repository root:
 node fun/zipper/tests/puzzle-check.mjs
 node fun/patcher/tests/puzzle-check.mjs
 node fun/patcher/tests/board-render-check.mjs
+node fun/patcher/tests/clue-layout-check.mjs
 node fun/zipper/tests/board-render-check.mjs
 node fun/zipper/tests/input-batching-check.mjs
 node fun/shared/tests/hint-interaction-check.mjs
@@ -22,7 +23,12 @@ scenery contrast and daily seeds, and the active-play clock. Stage checks use
 a fake clock and real Three.js camera math to verify the fixed slight tilt,
 framing and picking, sleeping idle scheduler, prompt input wakeups, static
 shadow invalidation and background/reduced-motion suspension. These scheduling
-checks do not claim hardware-specific frame rates or CPU percentages.
+checks do not claim hardware-specific frame rates or CPU percentages. Clue
+layout checks cover horizontal spacing for tall clues, vertical spacing for
+wide/square clues and safe margins against normal,
+wide, tall and legacy font metrics, plus actual icon ink contrast across
+all six theme palettes. `/fun/shared/tests/clue-sampler.html` previews the
+clues on small phone keys, desktop keys and enlarged patches.
 
 ## Browser checks
 

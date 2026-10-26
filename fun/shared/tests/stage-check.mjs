@@ -10,7 +10,7 @@ import { THEMES } from '../themes.js';
 const source = (await readFile(new URL('../stage.js', import.meta.url), 'utf8'))
   .replace(/^import .*;\n/gm, '').replace('export function createStage', 'globalThis.createStage = function');
 
-function harness({ reduced = false, mobile = false, width = 1280, height = 800, frameHz = 60 } = {}) {
+function harness({ reduced = false, mobile = false, width = 1280, height = 800, frameHz = 60, ambience, theme = THEMES.ocean } = {}) {
   let now = 0, nextId = 0;
   const jobs = new Map(), documentListeners = new Map();
   const frames = [], callbacks = { raf: 0, timer: 0 };
@@ -25,7 +25,7 @@ function harness({ reduced = false, mobile = false, width = 1280, height = 800, 
     setPixelRatio(value) { this.pixelRatio = value; }
     setSize() {}
     setClearColor() {}
-    setEffects() {}
+    setEffects(effects) { this.effects = effects; }
     render(scene, camera) { scene.updateMatrixWorld(true); frames.push(now); }
   }
   class PMREMGenerator {
@@ -69,7 +69,7 @@ function harness({ reduced = false, mobile = false, width = 1280, height = 800, 
     clearTimeout: (id) => jobs.delete(id),
   });
   vm.runInContext(source, context, { filename: 'stage.js' });
-  const stage = context.createStage(fakeCanvas, { theme: THEMES.ocean });
+  const stage = context.createStage(fakeCanvas, { theme, ambience });
   function advance(ms) {
     const end = now + ms;
     let iterations = 0;
@@ -177,5 +177,42 @@ for (const frameHz of [120, 144]) {
   h.stage.wake(0.1);
   h.advance(100);
   assert.ok(h.frames.length > count, 'reduced motion still redraws after input');
+}
+
+for (const reduced of [false, true]) {
+  const classic = harness({ reduced });
+  const h = harness({ reduced, ambience: 'atelier' });
+  const clouds = (stage) => stage.scene.children.filter((object) => object.isPoints);
+  const particleCount = (stage) => clouds(stage).reduce((count, cloud) => count + cloud.geometry.attributes.position.count, 0);
+  assert.ok(particleCount(h.stage) < particleCount(classic.stage), 'the quiet table draws fewer atmospheric particles');
+  assert.equal(h.stage.camera.children.length, classic.stage.camera.children.length, 'the quiet table uses the existing single backdrop mesh');
+  assert.equal(h.stage.renderer.effects.length, classic.stage.renderer.effects.length, 'the quiet table adds no rendering passes');
+  const backdrop = h.stage.camera.children[0].material;
+  assert.notEqual(backdrop.fragmentShader, classic.stage.camera.children[0].material.fragmentShader, 'the quieter art direction is opt in');
+  h.stage.frame(4.9, 4.9);
+  h.stage.start();
+  h.advance(8000);
+  classic.stage.start();
+  classic.advance(8000);
+  assert.ok(Math.max(...backdrop.uniforms.uGlow.value.toArray()) < Math.max(...classic.stage.camera.children[0].material.uniforms.uGlow.value.toArray()), 'ambient light stays restrained');
+  const geometry = clouds(h.stage).flatMap((cloud) => Object.values(cloud.geometry.attributes).map((attribute) => [attribute, attribute.version]));
+  const count = h.frames.length;
+  const sceneryTime = backdrop.uniforms.uTime.value;
+  h.advance(1000);
+  for (const [attribute, version] of geometry) assert.equal(attribute.version, version, 'quiet scenery moves without uploading geometry');
+  for (const cloud of clouds(h.stage)) {
+    assert.equal(cloud.material.uniforms.uBoard.value.x, 4.9, 'weather keeps the board centre clear after framing');
+    assert.equal(cloud.material.uniforms.uBoard.value.y, 4.9);
+  }
+  if (reduced) {
+    assert.equal(backdrop.uniforms.uTime.value, 0, 'reduced motion freezes organic backdrop flow');
+    assert.equal(h.frames.length, count, 'the quiet reduced-motion table sleeps when settled');
+    assert.equal(h.jobs.size, 0);
+  } else {
+    assert.ok(backdrop.uniforms.uTime.value > sceneryTime, 'organic scenery keeps drifting at idle');
+    assert.ok(h.frames.length - count <= 13, 'quiet scenery preserves the low idle frame rate');
+  }
+  h.stage.stop();
+  classic.stage.stop();
 }
 console.log('Stage checks passed: fixed tilt, framing/picking, idle scheduling, active response, static weather buffers, shadow invalidation, reflection cleanup and tab suspension.');

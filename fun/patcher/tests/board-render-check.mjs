@@ -26,7 +26,7 @@ const context = vm.createContext({
     return cachedSlabs.get(key);
   },
   clueTexture: () => new THREE.Texture(),
-  labelMesh: () => new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial()),
+  labelMesh: (texture, size) => new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial()),
 });
 for (const [path, entry] of [['../../shared/tiles.js', 'createTileBatch'], ['../js/board.js', 'createBoard']]) {
   const source = (await readFile(new URL(path, import.meta.url), 'utf8'))
@@ -60,6 +60,11 @@ assert.equal(group.position.y, 0, 'the board holds still in the tilted view');
 
 const clueCell = puzzle.clues[0].cell;
 const labelHolder = group.children.find((child) => child.userData.label && child.position.x === board.centre(clueCell).x && child.position.z === board.centre(clueCell).z);
+tiles.geometry.computeBoundingBox();
+const tileWidth = tiles.geometry.boundingBox.max.x - tiles.geometry.boundingBox.min.x;
+const labelWidth = labelHolder.userData.label.geometry.parameters.width;
+assert.ok((1 - tileWidth) >= 0.11, 'neighbouring keys have a clear gutter');
+assert.ok((tileWidth - labelWidth) / 2 >= 0.05, 'labels are inset from the key bevels before their internal ink padding');
 board.hover(clueCell);
 advance(1);
 assert.ok(labelHolder.position.y > 0, 'a clue label follows its raised tile');
@@ -92,6 +97,8 @@ board.preview(patch, true);
 const previewWakes = wakes;
 board.preview({ ...patch }, true);
 assert.equal(wakes, previewWakes, 'repeated pointer samples in one rectangle do not wake the renderer again');
+advance(2);
+assert.equal(wakes, previewWakes, 'a held selection breathes at the ambient rate without extending active rendering');
 board.preview(null);
 stage.reduced = true;
 const beforeReducedPreview = wakes;

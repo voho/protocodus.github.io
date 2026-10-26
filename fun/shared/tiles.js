@@ -2,7 +2,7 @@
    relief vary independently without one physical material per cell. */
 import * as THREE from 'three';
 
-export function createTileBatch(stage, sourceGeometry, count, options) {
+export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin', ...options }) {
   // The slab cache belongs to every board; instance attributes belong only
   // to this board and must never be attached to the cached geometry.
   const geometry = sourceGeometry.clone();
@@ -20,10 +20,12 @@ export function createTileBatch(stage, sourceGeometry, count, options) {
       .replace('#include <common>', '#include <common>\nvarying vec3 vTileEmission;\nvarying vec2 vTileSurface;')
       // A restrained satin finish gives the tile tops relief without a
       // texture fetch, animated shader or another rendering pass.
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= 0.985 + 0.025 * clamp(vTileSurface.x - vTileSurface.y, -1.0, 1.0);')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' + (finish === 'inset'
+        ? 'float keyEdge = smoothstep(0.31, 0.435, max(abs(vTileSurface.x), abs(vTileSurface.y)));\ndiffuseColor.rgb *= 1.035 - keyEdge * 0.12;'
+        : 'diffuseColor.rgb *= 0.985 + 0.025 * clamp(vTileSurface.x - vTileSurface.y, -1.0, 1.0);'))
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTileEmission;');
   };
-  material.customProgramCacheKey = () => 'puzzle-instanced-tiles-v1';
+  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v2-${finish}`;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'tiles';
   mesh.castShadow = mesh.receiveShadow = true;
