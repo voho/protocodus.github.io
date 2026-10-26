@@ -300,10 +300,11 @@ for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(gro
 /* The chase camera's per-frame shortlist of trunks — see `beginBlockedSpan`.
    One reused array; it never escapes the frame that filled it. */
 const blockedSpan = [];
+const cameraPropSolids = [];
 let blockedSpanActive = false;
-// Both lists are filled in place and never replaced, so one hoisted pair
-// serves every frame.
-const cameraSolids = [props.solids, huts.solids];
+// The indexed prop shortlist and the hut list are filled in place, so one
+// hoisted pair serves every frame.
+const cameraSolids = [cameraPropSolids, huts.solids];
 
 const world = {
   height: heightAt,
@@ -334,9 +335,9 @@ const world = {
      twelve hundred entries — so the chase camera was scanning tens of
      thousands of records a frame, several times the cost of the rider's own
      collision pass, to ask about a handful of trunks beside one line. The
-     probes all lie between the rider and the wanted boom point, so one pass
-     per frame collects everything whose circle could reach that segment's
-     bounding box and the probes then walk the shortlist.
+     probes all lie between the rider and the wanted boom point. The prop
+     index first selects this segment's z interval, then the bounding box
+     narrows it for all of this frame's probes.
 
      Conservative by construction, and therefore bit-identical: the box is
      the whole segment, grown by the largest radius any probe can ask for,
@@ -347,6 +348,7 @@ const world = {
     const hiX = (x0 > x1 ? x0 : x1) + maxR;
     const loZ = (z0 < z1 ? z0 : z1) - maxR;
     const hiZ = (z0 > z1 ? z0 : z1) + maxR;
+    props.querySolids(loZ, hiZ, cameraPropSolids);
     blockedSpan.length = 0;
     for (const solids of cameraSolids) {
       for (let i = 0; i < solids.length; i++) {
@@ -1351,13 +1353,15 @@ function sweepBox(ax, az, bx, bz, s, radius, out) {
 
 // Stamped on a shared contact the rider began this step inside; see `collideWith`.
 let collideStep = 0;
+const collisionPropSolids = [];
 
 function collide() {
   const zLo = Math.min(prev.z, rider.pos.z) - RIDER.radius;
   const zHi = Math.max(prev.z, rider.pos.z) + RIDER.radius;
   collideStep += 1;
   // The huts keep their own short list; see `HUT_BOXES` in huts.js.
-  if (collideWith(props.solids, zLo, zHi)) return;
+  props.querySolids(zLo, zHi, collisionPropSolids);
+  if (collideWith(collisionPropSolids, zLo, zHi)) return;
   collideWith(huts.solids, zLo, zHi);
 }
 

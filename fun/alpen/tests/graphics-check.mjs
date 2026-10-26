@@ -423,6 +423,7 @@ for (const distance of [0, 12000, 1000000]) {
 
 // Count actual render submissions and reject texture/attachment feedback.
 let target = null, submissions = 0, lastComposite = null, canvasSizes = 0, clears = 0;
+let worldTarget = null;
 const postGeometries = new Set();
 let blurShader = '';
 const renderer = {
@@ -437,6 +438,7 @@ const renderer = {
   render(scene) {
     if (this.autoClear) this.clear();
     submissions++;
+    if (target?.depthBuffer) worldTarget = target;
     scene.traverse(object => {
       const uniforms = object.material?.uniforms;
       if (!uniforms) return;
@@ -463,6 +465,9 @@ renderFrame();
 const fullPasses = submissions;
 const fullWidth = retro.width;
 assert.equal(fullPasses, 8, 'world, tight bloom, wide bloom and composite');
+assert.equal(worldTarget.depthBuffer, true, 'world rendering retains depth testing');
+assert.equal(worldTarget.resolveDepthBuffer, false, 'postprocessing does not resolve unused world depth');
+assert.equal(worldTarget.depthTexture, null, 'no downstream pass samples world depth');
 assert.equal(clears, 1, 'clear world once; fullscreen passes overwrite their targets');
 assert.equal(renderer.autoClear, true, 'post stack restores renderer clearing policy');
 assert.equal(renderer.info.autoReset, false, 'renderer statistics cover the full frame');

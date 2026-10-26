@@ -528,6 +528,10 @@ export function createRetro(THREE, renderer) {
   };
 
   const scene3d = new THREE.WebGLRenderTarget(BASE_W, BASE_H, targetOpts);
+  // Depth is needed while drawing the world, but postprocessing only reads
+  // colour. Resolving multisampled depth would copy an unused full-size
+  // attachment every frame; keeping it transient also helps tiled GPUs.
+  scene3d.resolveDepthBuffer = false;
   // The scene renders offscreen, so context antialiasing alone cannot smooth
   // its silhouettes. Use conservative WebGL2 MSAA and fall back cleanly to an
   // ordinary target on WebGL1 or hardware that exposes no samples. The

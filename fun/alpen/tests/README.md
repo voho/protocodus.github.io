@@ -13,11 +13,21 @@ node tests/graphics-check.mjs
 node tests/instance-lod-check.mjs
 node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
+node tests/trail-clods-check.mjs
+node tests/solid-index-check.mjs
 ```
 
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+The clod check compares packed snow-chunk instance matrices with the original
+quaternion path through trail recycling, anchor moves, fading and clear/reuse.
+It also reports a local CPU microbenchmark for packing one fixed frame; the
+orientation is now baked at placement without changing the GPU buffers.
+The solid-index check compares z-window queries with the full prop scan across
+seeded streaming, resets and collider refits, preserving object identity and
+source order for compound contacts. It counts candidate and property visits
+to verify that physics and camera queries inspect only nearby colliders.
 The riding check also pins the momentum rules: a flight pays the same air drag
 as the snow did, the tuck gains nothing on the flat or up a climb, an ollie
 never brakes the run along the slope, the board lands matched to the slope it
@@ -204,6 +214,19 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+`await (await import('./tests/shade-radius-browser-check.mjs')).runShadeRadiusCheck()`
+compares complete lit snow shaders with and without the horizon-map radius
+guard. It covers ground and raised receivers, sun angles, clouds and fragment
+quads across the fade cutoff. Three horizon/height reads are skipped once the
+fade reaches zero, while distant cloud shade remains active.
+`await (await import('./tests/glint-seam-browser-check.mjs')).runGlintSeamCheck()`
+executes the production snow-crystal coordinates and coverage on real derivative
+quads. Crystals crossing the 64 m wrapping seam match an interior patch at the
+start, 26 km and 1,000 km down a run, while undersampled crystals still fade.
+`await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck()`
+checks the world target's unused depth resolve in WebGL. With MSAA enabled it
+removes one full-size depth blit while preserving every output pixel, including
+overlapping surfaces and antialiased edges; the non-MSAA fallback is checked too.
 The mobile rendering check boots separate phone and desktop profiles. Phones
 use a 450 m fog curtain, fewer outer terrain rows and scenery bands, smaller
 world buffers, and lighter shadow and fog-panorama targets. Portrait and
