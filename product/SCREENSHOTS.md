@@ -17,7 +17,7 @@ Rack device, such as Septum, have no page.
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
 | Aculele | Rack 0.3.0d1 final first-pass panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `3f161d1c`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
-| Respira | Rack 0.1.0d1 redesigned first-pass panel previews committed in `Examples/Respira/Docs/screenshots/`, main revision `70df34a8`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
+| Respira | Rack 0.1.0d1 final first-pass panel previews (the red panel the owner chose) committed in `Examples/Respira/Docs/screenshots/`, main revision `c2268f5c`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
 | Aculyre | Rack 0.4.0d1 final first-pass panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `854e3197` (byte-identical to the branch revision `2ecab2ac` first published); no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
 | Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
 | Podcare | Existing repository illustration | Existing card retained |
@@ -149,8 +149,10 @@ the panel's lettering with its RE pair at half opacity, a one-line description,
 the Protocodus logo at the bottom); the thumbnails also serve as the pages'
 social images. The panels were rendered while each instrument's first pass was
 still under way; they are replaced once each first pass is done.
-Respira's images and thumbnail were refreshed the same day from its redesigned
-panel (white wordmark, darker oxblood finish, the gauge over Air and Keyboard).
+Respira's images and thumbnail were refreshed twice the same day: from its
+redesigned panel (darker oxblood finish, the gauge over Air and Keyboard), then
+from the red panel the owner chose, whose wordmark is solid white with no
+dimmed RE pair; its thumbnail's wordmark follows the panel.
 Aculele's rear image was refreshed from its 0.3.0d1 panels, which add the F0
 chuck keyswitch; its front and thumbnail are byte-identical to the first ones.
 Aculyre's merged panels are byte-identical to the ones first published.
