@@ -17,7 +17,7 @@ Rack device, such as Septum, have no page.
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
 | Aculele | Rack 0.2.0d2 development panel previews from `Examples/Aculele/Design/render_panels.py --review`, branch revision `e769e2e5`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
-| Respira | Rack 0.1.0d1 development panel previews committed in `Examples/Respira/Docs/screenshots/`, main revision `d3b03a2f`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
+| Respira | Rack 0.1.0d1 final first-pass panel previews committed in `Examples/Respira/Docs/screenshots/`, main revision `28707b7f`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
 | Aculyre | Rack 0.4.0d1 development panel previews from `Examples/Aculyre/Design/render_panels.py`, branch revision `2ecab2ac`; no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
 | Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
 | Podcare | Existing repository illustration | Existing card retained |
@@ -95,7 +95,7 @@ features. The relevant source is under `Examples/<Product>` in the
 - Respira: the mod wheel as the hand on the bellows, nothing sounding without
   air, simulated steel reeds in their own chambers, eight registers over five
   ranks, Assist, Air, the split keyboard's bass and chord buttons, pitch bend,
-  Momentum on the rear, a dry stereo output and eight register patches plus
+  Momentum and oversampling on the rear, a dry stereo output and eight register patches plus
   Init, from the Rack README at 0.1.0d1 and the canonical README.
 - Aculyre: one bridge bar on a modal soundbox so idle strings ring in sympathy,
   a 16-string steel or nylon lyre harp and a six-string gut lyre with a 20 ms
