@@ -16,7 +16,7 @@ Rack device, such as Septum, have no page.
 | Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
-| Aculele | Rack 0.2.0d2 development panel previews from `Examples/Aculele/Design/render_panels.py --review`, branch revision `e769e2e5`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
+| Aculele | Rack 0.3.0d1 final first-pass panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `3f161d1c`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
 | Respira | Rack 0.1.0d1 redesigned first-pass panel previews committed in `Examples/Respira/Docs/screenshots/`, main revision `70df34a8`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
 | Aculyre | Rack 0.4.0d1 final first-pass panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `854e3197` (byte-identical to the branch revision `2ecab2ac` first published); no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
 | Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
@@ -87,9 +87,10 @@ features. The relevant source is under `Examples/<Product>` in the
   redistribution of the imported bank has not been cleared (Press78 README).
 - Aculele: soprano, concert and tenor bodies; spruce, mahogany or maple;
   nylon or fluorocarbon strings in standard (re-entrant), Low G or D tuning;
-  finger, pick, thumb and strum playing with keyswitched strokes; stereo mic,
+  finger, pick, thumb and strum playing, the strum down with the nail and up
+  with the pad, with keyswitched strokes and a held F0 chuck; stereo mic,
   mono mic and piezo capture; a direct piezo output; Note/Gate CV; rear
-  oversampling; seven factory patches; from the Rack README at 0.2.0d2 and the
+  oversampling; seven factory patches; from the Rack README at 0.3.0d1 and the
   canonical README. Body dimensions are described as published, not measured;
   no other manufacturer's name appears on the page.
 - Respira: the mod wheel as the hand on the bellows, nothing sounding without
@@ -150,6 +151,9 @@ social images. The panels were rendered while each instrument's first pass was
 still under way; they are replaced once each first pass is done.
 Respira's images and thumbnail were refreshed the same day from its redesigned
 panel (white wordmark, darker oxblood finish, the gauge over Air and Keyboard).
+Aculele's rear image was refreshed from its 0.3.0d1 panels, which add the F0
+chuck keyswitch; its front and thumbnail are byte-identical to the first ones.
+Aculyre's merged panels are byte-identical to the ones first published.
 
 ### Public Shop media review — 27 October 2026
 
