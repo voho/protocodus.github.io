@@ -3,10 +3,10 @@
   "reviewed": "2026-10-27",
   "availability": "coming_soon",
   "source_version": "0.1.0d1",
-  "source_format": "Rack Extension final first-pass panel previews committed by the device's Design/render_panels.py in Docs/screenshots/ (not a Shop release; no SDK build).",
+  "source_format": "Rack Extension redesigned first-pass panel previews committed by the device's Design/render_panels.py in Docs/screenshots/ (not a Shop release; no SDK build).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "28707b7f7f4c00da377d6d14347c83d33949dec3",
+  "source_commit": "70df34a81f193e35e91dae601e55ae8d85aafdb5",
   "instrument_repository": "protocodus/virtual-instrument-respira",
   "instrument_commit": "5ea4bc1fd68c53825f592f88c8a41191326a4840",
   "feature_sources": [
@@ -17,39 +17,39 @@
   "assets": [
     {
       "file": "respira-rack-front.webp",
-      "sha256": "a2bf93be4cf9e878116eff1698eb3316d16e2e95114b734e8c00aed46372de08",
-      "bytes": 140724,
+      "sha256": "b507d79c9255b12fcc71e128d4bdf8867483e8fafb53598f3d02a42820f3c337",
+      "bytes": 146568,
       "dimensions": [
         1508,
         552
       ],
       "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "61f8595d6d8af43ef40de154833ec58bd9a52c789a5a34e1c92e7d18aef33ada",
+      "source_sha256": "f1c96b79827d8d5f95a53becade9205df2f2e7ee75493bd184ed57849177f9a3",
       "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
     },
     {
       "file": "respira-rack-rear.webp",
-      "sha256": "ab76339296e9654f3ef789302cba2737c414d59f89184e9adc67fdbc37e19f13",
-      "bytes": 175400,
+      "sha256": "42e5cab4769cd3178ec39c73b9cb612c4f69a98e4f8f85557f94dfe5a7602225",
+      "bytes": 210048,
       "dimensions": [
         1508,
         552
       ],
       "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-      "source_sha256": "59c032b6d4d400cbd4693f2d8475bea1f9cfc32135f9cccf6a28dfc38699dc3f",
+      "source_sha256": "9b0e8630b03f9945ed1235a9525dfd1619fd13b0d4e837ea4e642ae1102ab203",
       "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
     },
     {
       "file": "Respira_Thumbnail_800.png",
-      "sha256": "5b0aa8733a020ebefa0a76f474239bac0dd5beb7941b14ed61ceec35a6edc6eb",
-      "bytes": 370539,
+      "sha256": "3c4ffd6cf4d75e05b6c3a564692dbb18bbe857e7b6ee9e31167b365b85bbfe46",
+      "bytes": 376284,
       "dimensions": [
         800,
         800
       ],
       "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "61f8595d6d8af43ef40de154833ec58bd9a52c789a5a34e1c92e7d18aef33ada",
-      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name drawn by the device renderer's own nickel-script wordmark(), its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+      "source_sha256": "f1c96b79827d8d5f95a53becade9205df2f2e7ee75493bd184ed57849177f9a3",
+      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name drawn by the device renderer's own script wordmark(), its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
     }
   ]
 }
