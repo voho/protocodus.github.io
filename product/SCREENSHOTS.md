@@ -1,6 +1,7 @@
 # Product media and claim sources
 
-Reviewed 16 October 2026. The product catalog and instrument details describe
+Product images reviewed 27 October 2026 against the current public Reason Shop
+galleries. The product catalog and instrument details describe
 Reason Rack Extensions. Podcare remains a separate podcast production tool.
 Product pages cover Rack Extensions and Podcare only; instruments without a
 Rack device, such as Taikor and Septum, have no page.
@@ -9,24 +10,39 @@ Rack device, such as Taikor and Septum, have no page.
 
 | Product | Source | Web media |
 | --- | --- | --- |
-| YouKnow | Rack 1.3.2 candidate prepared 18 October 2026; exact source build and SHA-256 records in `youknow/ASSET_PROVENANCE.json` | Fresh complete front/rear PNGs, 800 × 800 thumbnail, candidate PDF, 1600 × 1171 rack WebPs and proportional panel/card variants |
-| Maremba | Rack 1.5.1f7 release panels and player guide, revision `e2b36073` | `maremba-panel.webp` and `maremba-rear.webp`, 1600 × 1171; card 880 × 644; original front/back PNGs and guide copied from the release |
-| Acustra | Current Rack release front/back renders, revision `af1708c8` | `acustra-rack-front.webp` and `acustra-rack-rear.webp`, 1457 × 1200 |
-| Electry | Complete Rack renders in `Design/Rendered`, revision `c140bb8f` | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
-| Ceres | Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json) | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
-| Press78 | Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77` | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
-| Lamer Degrader | Existing Rack 1.0.0f9 promotional assets and processed demonstration | Existing panel, rear, mascots and video retained |
+| YouKnow | Public Shop listing 1.3.0; current gallery rear prints 1.3.0f4. Exact URLs and SHA-256 records are in `youknow/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack WebPs, 1600 × 1171; 800 × 800 public Shop thumbnail; proportional panel/rear/card aliases. The earlier 1.3.2f4 candidate PDF is unchanged. |
+| Maremba | Public Shop listing 1.5.0; current gallery rear prints 1.5.7f5. Exact URLs and SHA-256 records are in `maremba/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 1171; card 880 × 644; exact 800 × 800 public Shop thumbnail. The earlier 1.5.1f7 player guide is unchanged. |
+| Acustra | Public Shop listing 1.3.2; current gallery rear prints 1.9.0d2. Exact URLs and SHA-256 records are in `acustra/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack/panel/rear WebP aliases, 1457 × 1200; card 880 × 725. The existing quick-start PDF is unchanged. |
+| Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
+| Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
+| Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
+| Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
 | Podcare | Existing repository illustration | Existing card retained |
 
-New WebP conversions preserve the full panel and its aspect ratio. Complete
-Rack renders include controls; bare panel backgrounds are not used as interface
-screenshots. Source panels and guides can represent a newer development revision
-than the version available in the store; store release versions are not inferred
-from local source metadata.
+Released-product panel PNGs and the Shop thumbnails used on this site are exact
+copies of the current public Shop originals. Updated WebP conversions preserve
+the complete panel and its aspect ratio, using quality 90 and method 6;
+proportional size changes use Lanczos resizing. Complete Rack panels include
+controls; bare panel backgrounds are not used as interface screenshots.
+
+The current public gallery artwork for Maremba and Acustra prints a newer build
+than each product's public version listing. Matching those published gallery
+images does not verify publication of a newer downloadable binary: the release
+listings remain 1.5.0 and 1.3.2 respectively. No release version is inferred from
+an image caption or local source metadata.
+
+This image refresh leaves every PDF at its earlier revision, including YouKnow's
+1.3.2f4 candidate guide. Earlier source receipts remain in each product's
+provenance record. Upcoming Ceres, Electry and Press78 media and page claims are
+unchanged; their retained candidate panels do not advertise the latest local
+development builds as Shop releases. Detailed model research and earlier
+validation below retain their original revision scope.
 
 ## Claim boundaries
 
-The Rack READMEs, exposed properties and active DSP paths establish the marketed
+The following notes retain the earlier model research and candidate claim
+boundaries; candidate-only features are not evidence of Shop publication.
+The Rack READMEs, exposed properties and active DSP paths establish the described
 features. The relevant source is under `Examples/<Product>` in the
 [Reason Rack Extensions repository](https://github.com/protocodus/reason-rack-extensions).
 
@@ -74,11 +90,15 @@ features. The relevant source is under `Examples/<Product>` in the
 ## Store and demo verification
 
 The [Protocodus Reason Shop catalog](https://www.reasonstudios.com/shop/browse/?developer=Protocodus)
-contains [YouKnow](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/)
-and [Maremba](https://www.reasonstudios.com/shop/rack-extension/maremba/).
-Other Rack products use “Coming soon!” without invented store URLs.
+lists four published products: [YouKnow](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/),
+[Maremba](https://www.reasonstudios.com/shop/rack-extension/maremba/),
+[Acustra](https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/)
+and [Lamer Degrader](https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/).
+Ceres, Electry and Press78 retain their upcoming-product status.
 
-The [SoundCloud sets page](https://soundcloud.com/protocodus/sets) contains:
+The following [SoundCloud sets page](https://soundcloud.com/protocodus/sets)
+observations are retained from the 16 October review; audio and video were not
+refreshed or reverified in this image update:
 
 | Product | Playlist | Public tracks at review |
 | --- | --- | --- |
@@ -90,7 +110,19 @@ Both playable embeds share the original YouKnow dark treatment in the shared
 stylesheet: source accent `#03422e`, artwork hidden, nonvisual player, inversion
 filter and a forced-colors override. Lamer's existing local video is retained.
 
-## Validation
+## Validation history
+
+### Public Shop media review — 27 October 2026
+
+Current public Shop HTML supplies the front/rear gallery and thumbnail URLs.
+Exact downloaded PNG hashes, dimensions and source URLs are recorded in the four
+released products' `ASSET_PROVENANCE.json` files. YouKnow, Maremba and Acustra
+panels and their proportional aliases now follow those public images. Lamer's
+existing PNGs and thumbnail already match the current Shop originals and retain
+their bytes. Existing PDF, audio and video files are outside this refresh.
+
+The sections below describe their dated revisions, including superseded media;
+they are historical records rather than claims about the current image files.
 
 ### Ceres first-release candidate — 23 October 2026
 

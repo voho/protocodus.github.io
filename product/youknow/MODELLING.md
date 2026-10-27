@@ -1,11 +1,25 @@
 # YouKnow Rack Extension product-page sources
 
-## Current page review — 18 October 2026
+## Current media review — 27 October 2026
+
+The screenshots, thumbnail and proportional WebP variants now match the current
+public [Reason Shop gallery](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/).
+The original PNGs match the published 1.3.0f4 artwork byte for byte. The page's
+release feature summary reflects its four quality controls and 42 custom
+controls; the separate 1.3.2 candidate history remains available below.
+
+The Shop currently lists version 1.3.0 and a release date of 5 October 2026.
+The earlier observation of 13 October is retained in the historical receipts,
+not used as the current listing date. `ASSET_PROVENANCE.json` records the exact
+public image URLs, hashes, dimensions and conversion settings. The existing
+1.3.2f4 PDF remains unchanged and is explicitly labelled as a candidate guide.
+
+## Historical feature review — 18 October 2026
 
 The page distinguishes the **published Rack Extension 1.3.0** (13 October 2026)
 from the **unreleased 1.3.2 candidate** prepared on 18 October. Publication is
 verified against the primary [Reason Shop page](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/).
-The current screenshots and PDF represent the later candidate; their exact
+At that review, the screenshots and PDF represented the later candidate; their exact
 renderer source, bytes, dimensions and conversion settings are recorded in
 `ASSET_PROVENANCE.json`. The latest panel refresh refines control-group centering,
 label alignment and padding without changing controls or sound settings. Front

@@ -1,104 +1,218 @@
 {
   "product": "Acustra Acoustic Guitar",
-  "source_version": "1.3.3f2",
-  "reviewed": "2026-10-14",
-  "availability": "coming_soon",
   "format": "Reason Rack Extension",
-  "rack_source": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/Examples/Acustra",
-  "canonical_instrument_commit": "90d2d8c502fc65efcf864be54b3738d6c5e79aa1",
-  "asset_origin": "Complete front and rear composites of the prepared Rack Extension runtime artwork and default controls. These are composed panels, not live host screenshots.",
-  "feature_sources": [
-    "README.md",
-    "info.lua",
-    "motherboard_def.lua",
-    "delivery-20261014/Acustra/1.3.3f2/documentation/Acustra-1.3.3f2-QuickStart-source.txt"
-  ],
+  "checked_on": "2026-10-27",
+  "availability": "available_in_reason_shop",
+  "public_release": {
+    "version": "1.3.2",
+    "released_on": "2026-10-20",
+    "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/"
+  },
+  "artwork_source": {
+    "kind": "current_published_reason_shop_gallery",
+    "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+    "visible_rear_build": "1.9.0d2",
+    "selection_note": "The user requested artwork matching the published Reason Shop. These complete panel images are exact copies of the current public Shop gallery originals, not newer local development renders.",
+    "version_note": "The Shop listing identifies public release 1.3.2, while its current rear-panel gallery image visibly prints v1.9.0d2. This observed artwork/listing discrepancy is preserved and does not establish publication of a 1.9.0 device binary."
+  },
+  "asset_origin": "Complete front and rear composites currently published in the Reason Shop gallery, including controls and displayed values. These are composed panels, not live host screenshots.",
   "export_method": {
-    "png": "Byte-for-byte release asset copy.",
-    "webp": "Lossless full-size WebP; card uses Lanczos resizing to 880 px width, quality 92.",
+    "png": "Byte-for-byte copies of the current public Shop gallery PNG originals.",
+    "webp": "Quality 90, method 6; full-size panel and rear aliases retain all 1457 x 1200 pixels. The card uses proportional Lanczos resizing to 880 x 725 without cropping.",
     "pillow_version": "11.0.0"
   },
   "assets": [
     {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/shop-images/Acustra_Front.png",
-      "source_sha256": "f34ff2e40174f4b5ab96a924ebb255e8f6bec04d87e18f8450cabaf4581cfad8",
       "file": "Acustra_Front.png",
-      "sha256": "f34ff2e40174f4b5ab96a924ebb255e8f6bec04d87e18f8450cabaf4581cfad8",
+      "sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557",
       "dimensions": [
         1457,
         1200
       ],
-      "bytes": 1553656,
-      "webp": {
-        "file": "acustra-panel.webp",
-        "sha256": "4deec262c4847c73b2d89434e1cf5426703627a72f839e4bd3965c884ec2522e",
-        "bytes": 1164730,
-        "dimensions": [
-          1457,
-          1200
-        ],
-        "decoded_pixels_match_source": true
-      }
+      "bytes": 1551821,
+      "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
+      "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557",
+      "source_last_modified_utc": "2026-10-27T05:07:09Z",
+      "byte_exact_source_copy": true,
+      "webp_aliases": [
+        {
+          "file": "acustra-rack-front.webp",
+          "sha256": "00276993de0a745d32a11aa8a45fc91bb6764bd35e914ff80b354750c8b1839a",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "bytes": 228340
+        },
+        {
+          "file": "acustra-panel.webp",
+          "sha256": "00276993de0a745d32a11aa8a45fc91bb6764bd35e914ff80b354750c8b1839a",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "bytes": 228340
+        }
+      ]
     },
     {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/shop-images/Acustra_Back.png",
-      "source_sha256": "efc3c15e4a2062759a15e59fac1ffd0cd0cd3a3cab6956b5746ad610de0d23ae",
       "file": "Acustra_Back.png",
-      "sha256": "efc3c15e4a2062759a15e59fac1ffd0cd0cd3a3cab6956b5746ad610de0d23ae",
+      "sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a",
       "dimensions": [
         1457,
         1200
       ],
-      "bytes": 1543584,
-      "webp": {
-        "file": "acustra-rear.webp",
-        "sha256": "9978c09e5cf5dfcc31f827eb805048d31d47e92fb1a490c824f1eda4ca948454",
-        "bytes": 1173320,
-        "dimensions": [
-          1457,
-          1200
-        ],
-        "decoded_pixels_match_source": true
-      }
+      "bytes": 1542103,
+      "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Back.png",
+      "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a",
+      "source_last_modified_utc": "2026-10-27T05:07:09Z",
+      "byte_exact_source_copy": true,
+      "webp_aliases": [
+        {
+          "file": "acustra-rack-rear.webp",
+          "sha256": "55a871d89c5d40d24c011e52fd01aaaf3150ba9fa97e70ed46d97b5db8013894",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "bytes": 192108
+        },
+        {
+          "file": "acustra-rear.webp",
+          "sha256": "55a871d89c5d40d24c011e52fd01aaaf3150ba9fa97e70ed46d97b5db8013894",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "bytes": 192108
+        }
+      ]
     }
   ],
   "homepage_card": {
     "file": "acustra-card.webp",
-    "sha256": "93869c388ff41742aa1ca79bf56077be6ddb5e38378bfd073d02d4916429dad7",
+    "sha256": "c70cec68574a0eb57f63790aae7e90871c1bc69ec57a290f1467723aa492167c",
     "dimensions": [
       880,
       725
     ],
+    "bytes": 107974,
     "source": "Acustra_Front.png",
-    "bytes": 125794
+    "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
+    "resampling": "Lanczos; full panel resized proportionally to 880 px width without cropping"
   },
-  "guide": {
-    "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/documentation/Acustra-1.3.3f2-QuickStart.pdf",
-    "source_sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
+  "preserved_document": {
     "file": "Acustra_QuickStart.pdf",
     "sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
-    "export_method": "Byte-for-byte copy of the matching prepared 1.3.3f2 four-page quickstart."
+    "note": "The historical QuickStart PDF is unchanged by this artwork refresh; its original source receipt is preserved below."
   },
-  "site_media_refresh": {
-    "checked_on": "2026-10-16",
-    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
-    "files": {
-      "acustra-rack-front.webp": {
-        "sha256": "561bc8b3326f9c6bf485fbe681b6ad7173389510c3aae27fe13540c64a7147c1",
-        "bytes": 260798,
-        "dimensions": [
-          1457,
-          1200
-        ]
-      },
-      "acustra-rack-rear.webp": {
-        "sha256": "955918f7d4e4964d45ffa4186521f47058e2fd62b6383993473a61f309424aad",
-        "bytes": 224674,
-        "dimensions": [
-          1457,
-          1200
-        ]
+  "historical_receipts": [
+    {
+      "scope": "Superseded 14 October 2026 source receipt and 16 October 2026 site-media refresh; these records describe earlier files, not the current artwork.",
+      "receipt": {
+        "product": "Acustra Acoustic Guitar",
+        "source_version": "1.3.3f2",
+        "reviewed": "2026-10-14",
+        "availability": "coming_soon",
+        "format": "Reason Rack Extension",
+        "rack_source": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/Examples/Acustra",
+        "canonical_instrument_commit": "90d2d8c502fc65efcf864be54b3738d6c5e79aa1",
+        "asset_origin": "Complete front and rear composites of the prepared Rack Extension runtime artwork and default controls. These are composed panels, not live host screenshots.",
+        "feature_sources": [
+          "README.md",
+          "info.lua",
+          "motherboard_def.lua",
+          "delivery-20261014/Acustra/1.3.3f2/documentation/Acustra-1.3.3f2-QuickStart-source.txt"
+        ],
+        "export_method": {
+          "png": "Byte-for-byte release asset copy.",
+          "webp": "Lossless full-size WebP; card uses Lanczos resizing to 880 px width, quality 92.",
+          "pillow_version": "11.0.0"
+        },
+        "assets": [
+          {
+            "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/shop-images/Acustra_Front.png",
+            "source_sha256": "f34ff2e40174f4b5ab96a924ebb255e8f6bec04d87e18f8450cabaf4581cfad8",
+            "file": "Acustra_Front.png",
+            "sha256": "f34ff2e40174f4b5ab96a924ebb255e8f6bec04d87e18f8450cabaf4581cfad8",
+            "dimensions": [
+              1457,
+              1200
+            ],
+            "bytes": 1553656,
+            "webp": {
+              "file": "acustra-panel.webp",
+              "sha256": "4deec262c4847c73b2d89434e1cf5426703627a72f839e4bd3965c884ec2522e",
+              "bytes": 1164730,
+              "dimensions": [
+                1457,
+                1200
+              ],
+              "decoded_pixels_match_source": true
+            }
+          },
+          {
+            "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/shop-images/Acustra_Back.png",
+            "source_sha256": "efc3c15e4a2062759a15e59fac1ffd0cd0cd3a3cab6956b5746ad610de0d23ae",
+            "file": "Acustra_Back.png",
+            "sha256": "efc3c15e4a2062759a15e59fac1ffd0cd0cd3a3cab6956b5746ad610de0d23ae",
+            "dimensions": [
+              1457,
+              1200
+            ],
+            "bytes": 1543584,
+            "webp": {
+              "file": "acustra-rear.webp",
+              "sha256": "9978c09e5cf5dfcc31f827eb805048d31d47e92fb1a490c824f1eda4ca948454",
+              "bytes": 1173320,
+              "dimensions": [
+                1457,
+                1200
+              ],
+              "decoded_pixels_match_source": true
+            }
+          }
+        ],
+        "homepage_card": {
+          "file": "acustra-card.webp",
+          "sha256": "93869c388ff41742aa1ca79bf56077be6ddb5e38378bfd073d02d4916429dad7",
+          "dimensions": [
+            880,
+            725
+          ],
+          "source": "Acustra_Front.png",
+          "bytes": 125794
+        },
+        "guide": {
+          "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Acustra/1.3.3f2/documentation/Acustra-1.3.3f2-QuickStart.pdf",
+          "source_sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
+          "file": "Acustra_QuickStart.pdf",
+          "sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
+          "export_method": "Byte-for-byte copy of the matching prepared 1.3.3f2 four-page quickstart."
+        },
+        "site_media_refresh": {
+          "checked_on": "2026-10-16",
+          "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+          "files": {
+            "acustra-rack-front.webp": {
+              "sha256": "561bc8b3326f9c6bf485fbe681b6ad7173389510c3aae27fe13540c64a7147c1",
+              "bytes": 260798,
+              "dimensions": [
+                1457,
+                1200
+              ]
+            },
+            "acustra-rack-rear.webp": {
+              "sha256": "955918f7d4e4964d45ffa4186521f47058e2fd62b6383993473a61f309424aad",
+              "bytes": 224674,
+              "dimensions": [
+                1457,
+                1200
+              ]
+            }
+          }
+        }
       }
     }
-  }
+  ]
 }
