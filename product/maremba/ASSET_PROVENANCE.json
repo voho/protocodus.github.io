@@ -2,56 +2,6 @@
   "published_version": "1.5.0",
   "published_on": "2026-10-13",
   "shop_url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
-  "site_media_refresh": {
-    "checked_on": "2026-10-16",
-    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
-    "files": {
-      "Maremba_Front.png": {
-        "sha256": "7fcf912dbe502bc9c2fb084dba6a42e685b067f4fac4dd13efd59e4603e5e46f",
-        "bytes": 3459485,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "Maremba_Back.png": {
-        "sha256": "2fd333b6bd2928a6dec31f06c09ebc613e892ff5d4e8d3136f203576becc09d8",
-        "bytes": 3228499,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "Maremba_User_Guide.pdf": {
-        "sha256": "f1579577af59e8321c96adf8fcd758d77af3826f0197941f501f580733f19072",
-        "bytes": 9289796
-      },
-      "maremba-panel.webp": {
-        "sha256": "bc0988f71ccd4e49954af5b60af80e03de6cfdceb2f765b91a36dd7f777db5e1",
-        "bytes": 676698,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "maremba-rear.webp": {
-        "sha256": "1b013c9bc55218b54b3fa3f07828ce3bce8fa5e5f4df349a41ca7c2837f5b352",
-        "bytes": 640214,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "maremba-card.webp": {
-        "sha256": "ad8a6a564880936a622f5f0869b690569a1b7a90a00f9bda7c558e46c612dbc0",
-        "bytes": 176218,
-        "dimensions": [
-          880,
-          644
-        ]
-      }
-    }
-  },
   "prior_media_receipt": {
     "checked_on": "2026-10-14",
     "source_repository": "https://github.com/protocodus/reason-rack-extensions",
@@ -120,6 +70,161 @@
       "source": "Examples/Maremba/docs/USER_GUIDE.md",
       "source_sha256": "2394798358676477e752b772d1727b2a5992a4cdd90905a37bb6825967ae7484",
       "method": "Unmodified renderer, source guide, info.lua and complete panels from source_revision; deterministic 10-page PDF."
+    }
+  },
+  "prior_site_media_refresh": {
+    "checked_on": "2026-10-16",
+    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+    "files": {
+      "Maremba_Front.png": {
+        "sha256": "7fcf912dbe502bc9c2fb084dba6a42e685b067f4fac4dd13efd59e4603e5e46f",
+        "bytes": 3459485,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Back.png": {
+        "sha256": "2fd333b6bd2928a6dec31f06c09ebc613e892ff5d4e8d3136f203576becc09d8",
+        "bytes": 3228499,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_User_Guide.pdf": {
+        "sha256": "f1579577af59e8321c96adf8fcd758d77af3826f0197941f501f580733f19072",
+        "bytes": 9289796
+      },
+      "maremba-panel.webp": {
+        "sha256": "bc0988f71ccd4e49954af5b60af80e03de6cfdceb2f765b91a36dd7f777db5e1",
+        "bytes": 676698,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-rear.webp": {
+        "sha256": "1b013c9bc55218b54b3fa3f07828ce3bce8fa5e5f4df349a41ca7c2837f5b352",
+        "bytes": 640214,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-card.webp": {
+        "sha256": "ad8a6a564880936a622f5f0869b690569a1b7a90a00f9bda7c558e46c612dbc0",
+        "bytes": 176218,
+        "dimensions": [
+          880,
+          644
+        ]
+      }
+    }
+  },
+  "site_media_refresh": {
+    "checked_on": "2026-10-27",
+    "source_notes": "Current front, rear and thumbnail originals served by the public Reason Shop. PNGs are exact copies. The public product listing remains version 1.5.0, released 2026-10-13; the current rear artwork prints build 1.5.7f5. Artwork does not establish the version of the downloadable binary. Historical local development source records below do not describe this refresh.",
+    "public_listing": {
+      "version": "1.5.0",
+      "released_on": "2026-10-13",
+      "shop_url": "https://www.reasonstudios.com/shop/rack-extension/maremba/"
+    },
+    "artwork_build": "1.5.7f5 (printed on the public Shop rear image)",
+    "sources": {
+      "front": {
+        "url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_Front.png",
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "bytes": 3150098,
+        "sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a",
+        "server_metadata": [
+          "Last-Modified: Tue, 27 Oct 2026 05:06:40 GMT",
+          "ETag: \"35f6b023d0062b28ce505f236b819475\"",
+          "Content-Type: image/png"
+        ]
+      },
+      "back": {
+        "url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_Back.png",
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "bytes": 2914412,
+        "sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12",
+        "server_metadata": [
+          "Last-Modified: Tue, 27 Oct 2026 05:06:41 GMT",
+          "ETag: \"dcae3d9e69cd57d83e49e36465c5b308\"",
+          "Content-Type: image/png"
+        ]
+      },
+      "thumbnail": {
+        "url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34041/Maremba_Thumbnail_800.png",
+        "dimensions": [
+          800,
+          800
+        ],
+        "bytes": 687903,
+        "sha256": "c733b0c47bee98f141138a9a1afd35a9c994c392138914d84f7787b2b82e628a",
+        "server_metadata": [
+          "Last-Modified: Tue, 06 Oct 2026 18:40:55 GMT",
+          "ETag: \"910dfe4d08e5e5067a41647c668d2b4a\"",
+          "Content-Type: image/png"
+        ]
+      }
+    },
+    "derivatives": "Complete front and rear panels converted to RGB WebP at original 1600 × 1171, quality 90, method 6. The front card is proportionally resized with Lanczos to 880 × 644 at quality 90, method 6. No crop, axis stretch or panel compositing. The PDF is unchanged.",
+    "files": {
+      "Maremba_Front.png": {
+        "sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a",
+        "bytes": 3150098,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Back.png": {
+        "sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12",
+        "bytes": 2914412,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "Maremba_Thumbnail_800.png": {
+        "sha256": "c733b0c47bee98f141138a9a1afd35a9c994c392138914d84f7787b2b82e628a",
+        "bytes": 687903,
+        "dimensions": [
+          800,
+          800
+        ]
+      },
+      "maremba-panel.webp": {
+        "sha256": "29cc18fe31f427fc3beb0d7d7471098f72c13446c494a36da1a3687756999aa8",
+        "bytes": 564196,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-rear.webp": {
+        "sha256": "83c2ea617435a4e29f7e3d88941d5f1335ca3bea8e6dfcc318a933658573d898",
+        "bytes": 512138,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "maremba-card.webp": {
+        "sha256": "2b0c49eb60c4d8bceeaed3b5bb9eda805588cbcd3ae339f2eb9676607cf5d110",
+        "bytes": 144690,
+        "dimensions": [
+          880,
+          644
+        ]
+      }
     }
   }
 }

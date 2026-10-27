@@ -1,120 +1,34 @@
 {
-  "checked_on": "2026-10-18",
+  "checked_on": "2026-10-27",
   "shop_release": {
     "version": "1.3.0",
-    "released_on": "2026-10-13",
+    "released_on": "2026-10-05",
     "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-    "basis": "Public Documents & specs section; candidate files below are later material, not the current Shop media."
+    "basis": "Version and Released date observed in the public Shop Documents & specs section on 27 October 2026. Earlier receipts recorded a different release date and remain historical below."
   },
   "current_site_media": {
-    "version": "1.3.2",
-    "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
-    "prepared_on": "2026-10-18",
-    "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-    "source_revision": "8ebc10efc04aa92f2518f154030979235de4ccfc",
-    "source_build": "1.3.2f4",
-    "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
-    "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f4",
-    "panel_source": "Complete renderer-composed front and rear with runtime controls. Front slider labels share consistent top spacing and visible sliders share an even bottom margin. Both free-mode RATE and DLY numeric readouts remain blank; synced note divisions are retained. PNGs copied byte-for-byte from Release/1.3.2f4. The guide derives from the same release with the website contact correction recorded below. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
-    "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
-    "files": {
-      "YouKnow_Front.png": {
-        "sha256": "a8e9eae6e49c3964d566a36059d4a31696c580839e0155feb3898e5a3a76fa88",
-        "bytes": 1087183,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "YouKnow_Back.png": {
-        "sha256": "836882ac1d30dde519fe06a91ac01e9ed62af8818860c5ece48ed0bebb8cbfd3",
-        "bytes": 1908698,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "YouKnow_Thumbnail_800.png": {
-        "sha256": "839deecacf288f6b5dfdfe9e7d51f79e97cb6e4bcfa77bd9dbfac47f410cf88e",
-        "bytes": 343900,
-        "dimensions": [
-          800,
-          800
-        ]
-      },
-      "YouKnow_User_Manual.pdf": {
-        "sha256": "cba6e9baf5a320d51e5725c06595b7bda6edd297e06cbcd51235a4a1be56f78a",
-        "bytes": 4002884
-      },
-      "youknow-rack-front.webp": {
-        "sha256": "47a67edd1253e8c84836bcdfeb84f4f35e18902b80eeab57202cc76d5ea38135",
-        "bytes": 135776,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "youknow-rack-back.webp": {
-        "sha256": "74f7d45df569a265aaebc90c31c9f3168f9af77fc66dfced5e1d96eb3d0bf82c",
-        "bytes": 161492,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "youknow-panel.webp": {
-        "sha256": "6b61e409ea95ef634be34cbe176643d1d7084a32e6dd1b36019937768a69cf37",
-        "bytes": 117250,
-        "dimensions": [
-          1400,
-          1025
-        ]
-      },
-      "youknow-rear.webp": {
-        "sha256": "fddd0ac2fd3ecb3dc802d5184cca87c37ef1f968f00d2391a668c223471e0e5b",
-        "bytes": 124720,
-        "dimensions": [
-          1400,
-          1025
-        ]
-      },
-      "youknow-card.webp": {
-        "sha256": "8afbea3fc1035544a8cd63f41bf1fbf26a5b0929f06fff7a31301a5a4f0bf68d",
-        "bytes": 61646,
-        "dimensions": [
-          900,
-          659
-        ]
-      }
+    "status": "Current public Reason Shop gallery and thumbnail; selected to match the Shop rather than development artwork",
+    "version": "1.3.0",
+    "visible_rear_build": "1.3.0f4",
+    "panel_source": "Complete, unmodified public Shop front and rear PNGs, copied byte-for-byte. The thumbnail is the exact public Shop original.",
+    "source_urls": {
+      "YouKnow_Front.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
+      "YouKnow_Back.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png",
+      "YouKnow_Thumbnail_800.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34040/YouKnow_Thumbnail_800.png"
     },
-    "website_contact_update": {
-      "updated_on": "2026-10-26",
-      "source_sha256": "88b56e7dc1a4a811771465df4f34deed39142665b63ffd7ead051c89c0d6c0d2",
-      "support_email": "protocodus@proton.me",
-      "changes": "Replaced the two old +support addresses and their two mailto annotations. All other extracted text and all seven pages are preserved. The guide remains the earlier 1.3.2f4 technical revision."
-    }
-  },
-  "historical_published_media": {
-    "checked_on": "2026-10-14",
-    "published_version": "1.3.0",
-    "published_on": "2026-10-13",
-    "shop_url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-    "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-    "source_revision": "4b99c934a66ed22d5e8e64677ac1b1aae9330375",
-    "source_build": "1.3.0f4",
-    "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-u45-20261008/Examples/YouKnow/Release/1.3.0f4",
-    "panel_source": "Complete composed front/rear release panels, including runtime controls.",
-    "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
+    "derivatives": "Pillow 11.0.0; WebP quality 90, method 6; complete panels, Lanczos proportional resizing for 1400px panel/rear and 900px card aliases.",
     "files": {
-      "YouKnow_Back.png": {
-        "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
       "YouKnow_Front.png": {
         "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
+        "bytes": 1094852,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      "YouKnow_Back.png": {
+        "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
+        "bytes": 1537438,
         "dimensions": [
           1600,
           1171
@@ -122,310 +36,497 @@
       },
       "YouKnow_Thumbnail_800.png": {
         "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
+        "bytes": 346071,
         "dimensions": [
           800,
           800
         ]
       },
-      "YouKnow_User_Manual.pdf": {
-        "sha256": "9310937042ebf0ac55955e4e68d78274081a240ccd3a1bc8a587ee09ad9fa9e1"
-      },
-      "youknow-card.webp": {
-        "sha256": "695ab4dabe2f55ea377e27b61a41d4c91726eae68d39af58b506688edc3512e7",
+      "youknow-rack-front.webp": {
+        "sha256": "75f509169d7bebcc05a268398596b5467abb5d6b9ec700cdec3c2b7c1686d337",
+        "bytes": 136420,
         "dimensions": [
-          900,
-          659
+          1600,
+          1171
+        ]
+      },
+      "youknow-rack-back.webp": {
+        "sha256": "0a8ea91d30e350d0a7531ded2565b4a2d192e15d938e379ffa69ccc8c376d690",
+        "bytes": 185142,
+        "dimensions": [
+          1600,
+          1171
         ]
       },
       "youknow-panel.webp": {
-        "sha256": "aa4e04296e4c83deeede80d336da061058aa44cca8d22dd325f9f59ef86f0299",
+        "sha256": "c9c01cfdb0592e1d23d0ea2ffa4037ea32ea455490b24f0e69a76112f0716837",
+        "bytes": 117078,
         "dimensions": [
           1400,
           1025
         ]
       },
       "youknow-rear.webp": {
-        "sha256": "635ccc57b54feac26c4d5535ee8250617627f8a337c44aa5b11d65a39584457e",
+        "sha256": "670d6a04ed22ec1abd6dcb3abc2f856028cd8161e27b7ca9c61248c20b06b41c",
+        "bytes": 141778,
         "dimensions": [
           1400,
           1025
         ]
-      }
-    },
-    "release_match": "Published Shop PNGs are byte-identical to the 1.3.0f4 release package front and rear; manual and thumbnail copied from that same package.",
-    "public_panel_urls": [
-      "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
-      "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png"
-    ],
-    "site_media_refresh": {
-      "checked_on": "2026-10-16",
-      "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
-      "files": {
-        "youknow-rack-front.webp": {
-          "sha256": "091f4f890940be897eed304f4be7f9c7b243701471cfd0c2976e2d0854df9cf2",
-          "bytes": 117790,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-rack-back.webp": {
-          "sha256": "97d29f0c59d44e2f3f317479a694a5926e31302f969a2038a6171941cc04fb0c",
-          "bytes": 148360,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        }
+      },
+      "youknow-card.webp": {
+        "sha256": "09454800a28c44c62c60e63f69394b171482da56859b5fd8d0fe84653b123f14",
+        "bytes": 62332,
+        "dimensions": [
+          900,
+          659
+        ]
       }
     }
   },
-  "previous_site_media": [
+  "retained_candidate_guide": {
+    "file": "YouKnow_User_Manual.pdf",
+    "version": "1.3.2f4",
+    "status": "Earlier unreleased candidate guide; unchanged by the public-image synchronization",
+    "sha256": "cba6e9baf5a320d51e5725c06595b7bda6edd297e06cbcd51235a4a1be56f78a",
+    "basis": {
+      "updated_on": "2026-10-26",
+      "source_sha256": "88b56e7dc1a4a811771465df4f34deed39142665b63ffd7ead051c89c0d6c0d2",
+      "support_email": "protocodus@proton.me",
+      "changes": "Replaced the two old +support addresses and their two mailto annotations. All other extracted text and all seven pages are preserved. The guide remains the earlier 1.3.2f4 technical revision."
+    }
+  },
+  "historical_receipts": [
     {
-      "version": "1.3.2",
-      "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
-      "prepared_on": "2026-10-18",
-      "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-      "source_revision": "a499bda3e227e586a7df5aad83a966bfdbbe74b7",
-      "source_build": "1.3.2f1",
-      "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/dist",
-      "panel_source": "Complete renderer-composed front and rear with runtime controls; PNG/PDF copied byte-for-byte from the final dist handoff. The square thumbnail uses the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
-      "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
-      "files": {
-        "YouKnow_Front.png": {
-          "sha256": "d9515f5b7c27d25ddc2dbdac4f63a91edee86379f3c3a2f154f3da5c77bc3ec4",
-          "bytes": 1088776,
-          "dimensions": [
-            1600,
-            1171
-          ]
+      "checked_on": "2026-10-18",
+      "shop_release": {
+        "version": "1.3.0",
+        "released_on": "2026-10-13",
+        "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+        "basis": "Public Documents & specs section; candidate files below are later material, not the current Shop media."
+      },
+      "current_site_media": {
+        "version": "1.3.2",
+        "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
+        "prepared_on": "2026-10-18",
+        "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+        "source_revision": "8ebc10efc04aa92f2518f154030979235de4ccfc",
+        "source_build": "1.3.2f4",
+        "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
+        "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f4",
+        "panel_source": "Complete renderer-composed front and rear with runtime controls. Front slider labels share consistent top spacing and visible sliders share an even bottom margin. Both free-mode RATE and DLY numeric readouts remain blank; synced note divisions are retained. PNGs copied byte-for-byte from Release/1.3.2f4. The guide derives from the same release with the website contact correction recorded below. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
+        "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
+        "files": {
+          "YouKnow_Front.png": {
+            "sha256": "a8e9eae6e49c3964d566a36059d4a31696c580839e0155feb3898e5a3a76fa88",
+            "bytes": 1087183,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Back.png": {
+            "sha256": "836882ac1d30dde519fe06a91ac01e9ed62af8818860c5ece48ed0bebb8cbfd3",
+            "bytes": 1908698,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Thumbnail_800.png": {
+            "sha256": "839deecacf288f6b5dfdfe9e7d51f79e97cb6e4bcfa77bd9dbfac47f410cf88e",
+            "bytes": 343900,
+            "dimensions": [
+              800,
+              800
+            ]
+          },
+          "YouKnow_User_Manual.pdf": {
+            "sha256": "cba6e9baf5a320d51e5725c06595b7bda6edd297e06cbcd51235a4a1be56f78a",
+            "bytes": 4002884
+          },
+          "youknow-rack-front.webp": {
+            "sha256": "47a67edd1253e8c84836bcdfeb84f4f35e18902b80eeab57202cc76d5ea38135",
+            "bytes": 135776,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "youknow-rack-back.webp": {
+            "sha256": "74f7d45df569a265aaebc90c31c9f3168f9af77fc66dfced5e1d96eb3d0bf82c",
+            "bytes": 161492,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "youknow-panel.webp": {
+            "sha256": "6b61e409ea95ef634be34cbe176643d1d7084a32e6dd1b36019937768a69cf37",
+            "bytes": 117250,
+            "dimensions": [
+              1400,
+              1025
+            ]
+          },
+          "youknow-rear.webp": {
+            "sha256": "fddd0ac2fd3ecb3dc802d5184cca87c37ef1f968f00d2391a668c223471e0e5b",
+            "bytes": 124720,
+            "dimensions": [
+              1400,
+              1025
+            ]
+          },
+          "youknow-card.webp": {
+            "sha256": "8afbea3fc1035544a8cd63f41bf1fbf26a5b0929f06fff7a31301a5a4f0bf68d",
+            "bytes": 61646,
+            "dimensions": [
+              900,
+              659
+            ]
+          }
         },
-        "YouKnow_Back.png": {
-          "sha256": "5a98acdf96b2cd5d7d5a53adb812607538c46909fee87309d12b06991ef63d4d",
-          "bytes": 1908147,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "YouKnow_Thumbnail_800.png": {
-          "sha256": "99b9b1d93d8ea21c9daf447d563d6d7e876e2ffc1875f8567178420a6dcd93d0",
-          "bytes": 349890,
-          "dimensions": [
-            800,
-            800
-          ]
-        },
-        "YouKnow_User_Manual.pdf": {
-          "sha256": "925f66446db95f59a7a6f24bc24a8d79c9475c055def4ab04175fbba8227c2c9",
-          "bytes": 3994180
-        },
-        "youknow-rack-front.webp": {
-          "sha256": "46dafbddba99422a64b48a8824b3194a1e8d593d0226bbd0e6903b5a0f216086",
-          "bytes": 139628,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-rack-back.webp": {
-          "sha256": "f51e568d73640f20cc2a0f8b5c89ce880ac8031104696cd5e68f3a2e3f4a5c94",
-          "bytes": 161156,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-panel.webp": {
-          "sha256": "dd17d5bf3941ca43dc8be52a2db6c2cd8d55b9a078257f192b712aeb655656c0",
-          "bytes": 117332,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-rear.webp": {
-          "sha256": "4294d5dfbd0edfbcda6890977dbd547e2999fe61bb3394381adc1b0ad7440a50",
-          "bytes": 124478,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-card.webp": {
-          "sha256": "3cf82ddd6ae8769549f363e18a5d32eb3cacd8a11c17e6ce5363aee2c32b7f13",
-          "bytes": 61620,
-          "dimensions": [
-            900,
-            659
-          ]
+        "website_contact_update": {
+          "updated_on": "2026-10-26",
+          "source_sha256": "88b56e7dc1a4a811771465df4f34deed39142665b63ffd7ead051c89c0d6c0d2",
+          "support_email": "protocodus@proton.me",
+          "changes": "Replaced the two old +support addresses and their two mailto annotations. All other extracted text and all seven pages are preserved. The guide remains the earlier 1.3.2f4 technical revision."
         }
-      }
-    },
-    {
-      "version": "1.3.2",
-      "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
-      "prepared_on": "2026-10-18",
-      "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-      "source_revision": "0d04dc409e1839f3c63cb65b47f2ac2fb54ca141",
-      "source_build": "1.3.2f2",
-      "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f2",
-      "panel_source": "Complete renderer-composed front and rear with runtime controls, refined control-group centering, label alignment and padding. PNG/PDF copied byte-for-byte from Release/1.3.2f2. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
-      "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
-      "files": {
-        "YouKnow_Front.png": {
-          "sha256": "d3046723705de97e2e6220be3db05358375f50ed429c88a6b06f094d33ba5db8",
-          "bytes": 1089292,
-          "dimensions": [
-            1600,
-            1171
-          ]
+      },
+      "historical_published_media": {
+        "checked_on": "2026-10-14",
+        "published_version": "1.3.0",
+        "published_on": "2026-10-13",
+        "shop_url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+        "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+        "source_revision": "4b99c934a66ed22d5e8e64677ac1b1aae9330375",
+        "source_build": "1.3.0f4",
+        "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-u45-20261008/Examples/YouKnow/Release/1.3.0f4",
+        "panel_source": "Complete composed front/rear release panels, including runtime controls.",
+        "derivatives": "Panel/rear WebP: proportional Lanczos resize to 1400px wide, quality 88. Card WebP: 900px wide, quality 86.",
+        "files": {
+          "YouKnow_Back.png": {
+            "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Front.png": {
+            "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Thumbnail_800.png": {
+            "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
+            "dimensions": [
+              800,
+              800
+            ]
+          },
+          "YouKnow_User_Manual.pdf": {
+            "sha256": "9310937042ebf0ac55955e4e68d78274081a240ccd3a1bc8a587ee09ad9fa9e1"
+          },
+          "youknow-card.webp": {
+            "sha256": "695ab4dabe2f55ea377e27b61a41d4c91726eae68d39af58b506688edc3512e7",
+            "dimensions": [
+              900,
+              659
+            ]
+          },
+          "youknow-panel.webp": {
+            "sha256": "aa4e04296e4c83deeede80d336da061058aa44cca8d22dd325f9f59ef86f0299",
+            "dimensions": [
+              1400,
+              1025
+            ]
+          },
+          "youknow-rear.webp": {
+            "sha256": "635ccc57b54feac26c4d5535ee8250617627f8a337c44aa5b11d65a39584457e",
+            "dimensions": [
+              1400,
+              1025
+            ]
+          }
         },
-        "YouKnow_Back.png": {
-          "sha256": "bb51c9d2af53197c1fa44d24fcbbbaa8aceb36f8ab0be5a2cd44e2175cd39d72",
-          "bytes": 1908868,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "YouKnow_Thumbnail_800.png": {
-          "sha256": "0e916065932f98b26731b7d6cbd0a16306a597110d0fd494b9343da032784168",
-          "bytes": 344130,
-          "dimensions": [
-            800,
-            800
-          ]
-        },
-        "YouKnow_User_Manual.pdf": {
-          "sha256": "ee5725386b8714c67e7cb1c0eb19a86f3351bb32dcd8440f1ccb9425be6c1880",
-          "bytes": 3998244
-        },
-        "youknow-rack-front.webp": {
-          "sha256": "fb8331a4ff1aba3de350d450f2067aa81309f0fe66140b7f5da1b19f3dcbe2d8",
-          "bytes": 136518,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-rack-back.webp": {
-          "sha256": "3548c71fe51a71dcf1da35bcfa98d6bbd223c3f2b9bd628845b8143388f45ef8",
-          "bytes": 161242,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-panel.webp": {
-          "sha256": "3b7b932c7410e07bf30033a93810db09d60b75020bae4ca737b414689e69957c",
-          "bytes": 117482,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-rear.webp": {
-          "sha256": "8aa748afea2311608ff0fac692f7f008d1f2b2c3f8d7841493899518e229b329",
-          "bytes": 124798,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-card.webp": {
-          "sha256": "826556b1ef0246bb64c53e49aac0e0c0aa2a6cac3b16138367c606cf83632945",
-          "bytes": 61694,
-          "dimensions": [
-            900,
-            659
-          ]
+        "release_match": "Published Shop PNGs are byte-identical to the 1.3.0f4 release package front and rear; manual and thumbnail copied from that same package.",
+        "public_panel_urls": [
+          "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
+          "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png"
+        ],
+        "site_media_refresh": {
+          "checked_on": "2026-10-16",
+          "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
+          "files": {
+            "youknow-rack-front.webp": {
+              "sha256": "091f4f890940be897eed304f4be7f9c7b243701471cfd0c2976e2d0854df9cf2",
+              "bytes": 117790,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-rack-back.webp": {
+              "sha256": "97d29f0c59d44e2f3f317479a694a5926e31302f969a2038a6171941cc04fb0c",
+              "bytes": 148360,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            }
+          }
         }
-      }
-    },
-    {
-      "version": "1.3.2",
-      "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
-      "prepared_on": "2026-10-18",
-      "source_repository": "https://github.com/protocodus/reason-rack-extensions",
-      "source_revision": "bc6427bc487f82c48639d5d72eedeba489cf3927",
-      "source_build": "1.3.2f3",
-      "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f3",
-      "panel_source": "Complete renderer-composed front and rear with runtime controls. Both free-mode RATE and DLY numeric readouts are blank; synced note divisions remain available. PNG/PDF copied byte-for-byte from Release/1.3.2f3. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
-      "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
-      "files": {
-        "YouKnow_Front.png": {
-          "sha256": "68323cd3d62b102530553399c10387b5b18a3e4739e4fa7d6e9c312eaefe75e5",
-          "bytes": 1088218,
-          "dimensions": [
-            1600,
-            1171
-          ]
+      },
+      "previous_site_media": [
+        {
+          "version": "1.3.2",
+          "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
+          "prepared_on": "2026-10-18",
+          "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+          "source_revision": "a499bda3e227e586a7df5aad83a966bfdbbe74b7",
+          "source_build": "1.3.2f1",
+          "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
+          "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/dist",
+          "panel_source": "Complete renderer-composed front and rear with runtime controls; PNG/PDF copied byte-for-byte from the final dist handoff. The square thumbnail uses the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
+          "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
+          "files": {
+            "YouKnow_Front.png": {
+              "sha256": "d9515f5b7c27d25ddc2dbdac4f63a91edee86379f3c3a2f154f3da5c77bc3ec4",
+              "bytes": 1088776,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Back.png": {
+              "sha256": "5a98acdf96b2cd5d7d5a53adb812607538c46909fee87309d12b06991ef63d4d",
+              "bytes": 1908147,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Thumbnail_800.png": {
+              "sha256": "99b9b1d93d8ea21c9daf447d563d6d7e876e2ffc1875f8567178420a6dcd93d0",
+              "bytes": 349890,
+              "dimensions": [
+                800,
+                800
+              ]
+            },
+            "YouKnow_User_Manual.pdf": {
+              "sha256": "925f66446db95f59a7a6f24bc24a8d79c9475c055def4ab04175fbba8227c2c9",
+              "bytes": 3994180
+            },
+            "youknow-rack-front.webp": {
+              "sha256": "46dafbddba99422a64b48a8824b3194a1e8d593d0226bbd0e6903b5a0f216086",
+              "bytes": 139628,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-rack-back.webp": {
+              "sha256": "f51e568d73640f20cc2a0f8b5c89ce880ac8031104696cd5e68f3a2e3f4a5c94",
+              "bytes": 161156,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-panel.webp": {
+              "sha256": "dd17d5bf3941ca43dc8be52a2db6c2cd8d55b9a078257f192b712aeb655656c0",
+              "bytes": 117332,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-rear.webp": {
+              "sha256": "4294d5dfbd0edfbcda6890977dbd547e2999fe61bb3394381adc1b0ad7440a50",
+              "bytes": 124478,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-card.webp": {
+              "sha256": "3cf82ddd6ae8769549f363e18a5d32eb3cacd8a11c17e6ce5363aee2c32b7f13",
+              "bytes": 61620,
+              "dimensions": [
+                900,
+                659
+              ]
+            }
+          }
         },
-        "YouKnow_Back.png": {
-          "sha256": "bc88bf99000c89400692d8841d0fadace3bca968e514e24b7e770313c79552ba",
-          "bytes": 1908811,
-          "dimensions": [
-            1600,
-            1171
-          ]
+        {
+          "version": "1.3.2",
+          "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
+          "prepared_on": "2026-10-18",
+          "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+          "source_revision": "0d04dc409e1839f3c63cb65b47f2ac2fb54ca141",
+          "source_build": "1.3.2f2",
+          "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
+          "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f2",
+          "panel_source": "Complete renderer-composed front and rear with runtime controls, refined control-group centering, label alignment and padding. PNG/PDF copied byte-for-byte from Release/1.3.2f2. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
+          "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
+          "files": {
+            "YouKnow_Front.png": {
+              "sha256": "d3046723705de97e2e6220be3db05358375f50ed429c88a6b06f094d33ba5db8",
+              "bytes": 1089292,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Back.png": {
+              "sha256": "bb51c9d2af53197c1fa44d24fcbbbaa8aceb36f8ab0be5a2cd44e2175cd39d72",
+              "bytes": 1908868,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Thumbnail_800.png": {
+              "sha256": "0e916065932f98b26731b7d6cbd0a16306a597110d0fd494b9343da032784168",
+              "bytes": 344130,
+              "dimensions": [
+                800,
+                800
+              ]
+            },
+            "YouKnow_User_Manual.pdf": {
+              "sha256": "ee5725386b8714c67e7cb1c0eb19a86f3351bb32dcd8440f1ccb9425be6c1880",
+              "bytes": 3998244
+            },
+            "youknow-rack-front.webp": {
+              "sha256": "fb8331a4ff1aba3de350d450f2067aa81309f0fe66140b7f5da1b19f3dcbe2d8",
+              "bytes": 136518,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-rack-back.webp": {
+              "sha256": "3548c71fe51a71dcf1da35bcfa98d6bbd223c3f2b9bd628845b8143388f45ef8",
+              "bytes": 161242,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-panel.webp": {
+              "sha256": "3b7b932c7410e07bf30033a93810db09d60b75020bae4ca737b414689e69957c",
+              "bytes": 117482,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-rear.webp": {
+              "sha256": "8aa748afea2311608ff0fac692f7f008d1f2b2c3f8d7841493899518e229b329",
+              "bytes": 124798,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-card.webp": {
+              "sha256": "826556b1ef0246bb64c53e49aac0e0c0aa2a6cac3b16138367c606cf83632945",
+              "bytes": 61694,
+              "dimensions": [
+                900,
+                659
+              ]
+            }
+          }
         },
-        "YouKnow_Thumbnail_800.png": {
-          "sha256": "cbe6407a30bc39dff104aa3508b4a918eccddf8af741dc45e63a934ef4d4cdfc",
-          "bytes": 343674,
-          "dimensions": [
-            800,
-            800
-          ]
-        },
-        "YouKnow_User_Manual.pdf": {
-          "sha256": "1781f600fc87105be40d7fb5908684047708db546fd0e585eded2309d4c2b569",
-          "bytes": 3996966
-        },
-        "youknow-rack-front.webp": {
-          "sha256": "9932fb8cf00c7f87108b371532f670b203c089a30bd1eddbfc117153a4c40eb9",
-          "bytes": 136134,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-rack-back.webp": {
-          "sha256": "38a3e7508a3846bfc89f689dc99fc28c336d5b4aa7df641c91713cd91d608b6a",
-          "bytes": 161182,
-          "dimensions": [
-            1600,
-            1171
-          ]
-        },
-        "youknow-panel.webp": {
-          "sha256": "c819f95c9ced0b242856820467f2a49a90c2474dedbb2d41da9ccbf814dcd266",
-          "bytes": 117130,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-rear.webp": {
-          "sha256": "8a5e866e6805fe67bfc5365aaa33d30535256de6fedb851ae0c9a4913a4f68fb",
-          "bytes": 124638,
-          "dimensions": [
-            1400,
-            1025
-          ]
-        },
-        "youknow-card.webp": {
-          "sha256": "3f746bc05febf2d6eca33a72b1eae7fc031a1e1f928d82cc26bc6e49f95e98a0",
-          "bytes": 61572,
-          "dimensions": [
-            900,
-            659
-          ]
+        {
+          "version": "1.3.2",
+          "status": "Unreleased Rack candidate; not accepted or published in the Reason Shop",
+          "prepared_on": "2026-10-18",
+          "source_repository": "https://github.com/protocodus/reason-rack-extensions",
+          "source_revision": "bc6427bc487f82c48639d5d72eedeba489cf3927",
+          "source_build": "1.3.2f3",
+          "canonical_revision": "468710551e68c0393f609135f7926d85c562952c",
+          "source_path": "/Users/vojta/Dev/reason-rack-extension/youknow-latest-20261018/Examples/YouKnow/Release/1.3.2f3",
+          "panel_source": "Complete renderer-composed front and rear with runtime controls. Both free-mode RATE and DLY numeric readouts are blank; synced note divisions remain available. PNG/PDF copied byte-for-byte from Release/1.3.2f3. The square thumbnail retains the company background, front panel, large product wordmark and official Protocodus logo at the bottom.",
+          "derivatives": "Pillow 11.0.0 WebP quality 90, method 6. Full rack WebPs retain 1600x1171; panel/rear resize proportionally to width 1400 and card to width 900 using Lanczos.",
+          "files": {
+            "YouKnow_Front.png": {
+              "sha256": "68323cd3d62b102530553399c10387b5b18a3e4739e4fa7d6e9c312eaefe75e5",
+              "bytes": 1088218,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Back.png": {
+              "sha256": "bc88bf99000c89400692d8841d0fadace3bca968e514e24b7e770313c79552ba",
+              "bytes": 1908811,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "YouKnow_Thumbnail_800.png": {
+              "sha256": "cbe6407a30bc39dff104aa3508b4a918eccddf8af741dc45e63a934ef4d4cdfc",
+              "bytes": 343674,
+              "dimensions": [
+                800,
+                800
+              ]
+            },
+            "YouKnow_User_Manual.pdf": {
+              "sha256": "1781f600fc87105be40d7fb5908684047708db546fd0e585eded2309d4c2b569",
+              "bytes": 3996966
+            },
+            "youknow-rack-front.webp": {
+              "sha256": "9932fb8cf00c7f87108b371532f670b203c089a30bd1eddbfc117153a4c40eb9",
+              "bytes": 136134,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-rack-back.webp": {
+              "sha256": "38a3e7508a3846bfc89f689dc99fc28c336d5b4aa7df641c91713cd91d608b6a",
+              "bytes": 161182,
+              "dimensions": [
+                1600,
+                1171
+              ]
+            },
+            "youknow-panel.webp": {
+              "sha256": "c819f95c9ced0b242856820467f2a49a90c2474dedbb2d41da9ccbf814dcd266",
+              "bytes": 117130,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-rear.webp": {
+              "sha256": "8a5e866e6805fe67bfc5365aaa33d30535256de6fedb851ae0c9a4913a4f68fb",
+              "bytes": 124638,
+              "dimensions": [
+                1400,
+                1025
+              ]
+            },
+            "youknow-card.webp": {
+              "sha256": "3f746bc05febf2d6eca33a72b1eae7fc031a1e1f928d82cc26bc6e49f95e98a0",
+              "bytes": 61572,
+              "dimensions": [
+                900,
+                659
+              ]
+            }
+          }
         }
-      }
+      ]
     }
   ]
 }
