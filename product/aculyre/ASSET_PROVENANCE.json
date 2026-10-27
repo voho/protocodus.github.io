@@ -1,0 +1,55 @@
+{
+  "product": "Aculyre",
+  "reviewed": "2026-10-27",
+  "availability": "coming_soon",
+  "source_version": "0.4.0d1",
+  "source_format": "Rack Extension development panel previews rendered by the device's python3 Design/render_panels.py (not a Shop release; no SDK build).",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "claude/project-thread-i48g08",
+  "source_commit": "2ecab2ac43e7ecdf4df35545829696b1ac265fb0",
+  "instrument_repository": "protocodus/virtual-instrument-aculyre",
+  "instrument_commit": "117b9b513b7b1b2c5b7033739278be5c3ec56b67",
+  "feature_sources": [
+    "Examples/Aculyre/README.md",
+    "Examples/Aculyre/info.lua",
+    "virtual-instrument-aculyre/README.md"
+  ],
+  "assets": [
+    {
+      "file": "aculyre-rack-front.webp",
+      "sha256": "5315cd8cc1d3680e1bf5b17f5ed1828052aaaf4318c9613f1df2aa8aba3092e6",
+      "bytes": 147056,
+      "dimensions": [
+        1508,
+        828
+      ],
+      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
+      "source_sha256": "0530a8239410d5ac489863031aae042cda3733f8be47fc9f963be44608d8cd66",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+    },
+    {
+      "file": "aculyre-rack-rear.webp",
+      "sha256": "9ab09a98ed98655dd21992926d25547fc84f73239a2885d42b7008fd15ef33b9",
+      "bytes": 126912,
+      "dimensions": [
+        1508,
+        828
+      ],
+      "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
+      "source_sha256": "6d0472be180316dc57c3496b65cfb361b9589b372f0002253872742abd3db308",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+    },
+    {
+      "file": "Aculyre_Thumbnail_800.png",
+      "sha256": "e6bcbdb55f9ec7a1b70e76747226b4d8bdc8978a0beaeab19a3cd334c4aa193e",
+      "bytes": 405989,
+      "dimensions": [
+        800,
+        800
+      ],
+      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
+      "source_sha256": "0530a8239410d5ac489863031aae042cda3733f8be47fc9f963be44608d8cd66",
+      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name in the panel's own lettering with its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+    }
+  ]
+}

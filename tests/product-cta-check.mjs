@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { browser } from './helpers/analytics-harness.mjs';
 
 const root = new URL('../', import.meta.url);
-const products = ['youknow', 'maremba', 'acustra', 'electry', 'ceres', 'press78', 'lamer'];
+const products = ['youknow', 'maremba', 'acustra', 'electry', 'ceres', 'press78', 'aculele', 'respira', 'aculyre', 'lamer'];
 const fixedId = /^[a-z][a-z0-9_]*$/;
 const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 

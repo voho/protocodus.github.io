@@ -16,6 +16,9 @@ Rack device, such as Septum, have no page.
 | Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
+| Aculele | Rack 0.2.0d2 development panel previews from `Examples/Aculele/Design/render_panels.py --review`, branch revision `e769e2e5`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
+| Respira | Rack 0.1.0d1 development panel previews committed in `Examples/Respira/Docs/screenshots/`, main revision `d3b03a2f`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
+| Aculyre | Rack 0.4.0d1 development panel previews from `Examples/Aculyre/Design/render_panels.py`, branch revision `2ecab2ac`; no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
 | Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
 | Podcare | Existing repository illustration | Existing card retained |
 
@@ -82,6 +85,27 @@ features. The relevant source is under `Examples/<Product>` in the
   circuit, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
   `SHOP.md` at 0.1.0b15. The factory bank is not described: commercial
   redistribution of the imported bank has not been cleared (Press78 README).
+- Aculele: soprano, concert and tenor bodies; spruce, mahogany or maple;
+  nylon or fluorocarbon strings in standard (re-entrant), Low G or D tuning;
+  finger, pick, thumb and strum playing with keyswitched strokes; stereo mic,
+  mono mic and piezo capture; a direct piezo output; Note/Gate CV; rear
+  oversampling; seven factory patches; from the Rack README at 0.2.0d2 and the
+  canonical README. Body dimensions are described as published, not measured;
+  no other manufacturer's name appears on the page.
+- Respira: the mod wheel as the hand on the bellows, nothing sounding without
+  air, simulated steel reeds in their own chambers, eight registers over five
+  ranks, Assist, Air, the split keyboard's bass and chord buttons, pitch bend,
+  Momentum on the rear, a dry stereo output and eight register patches plus
+  Init, from the Rack README at 0.1.0d1 and the canonical README.
+- Aculyre: one bridge bar on a modal soundbox so idle strings ring in sympathy,
+  a 16-string steel or nylon lyre harp and a six-string gut lyre with a 20 ms
+  crossfade between them, finger/nail/pick, pluck position and angle, release,
+  mute, sympathy, sharping levers, the live string display, rear oversampling,
+  Note/Gate CV, stereo outputs and eight factory patches, from the Rack README
+  at 0.4.0d1 and the canonical README.
+- None of the three has been built with the Jukebox SDK or loaded in Reason.
+  Their pages name no Reason version, no CPU figure and no sound claim beyond
+  what the models do; requirements and banks are confirmed at release.
 - Lamer: genuine MP3/Vorbis encoding and decoding, spectral bit allocation,
   quantization, repeated generations, prefilters and latency-aligned dry/wet.
   Bitrate is a coding target. Encoder changes and Bitrate Crossfade remain
@@ -94,7 +118,8 @@ lists four published products: [YouKnow](https://www.reasonstudios.com/shop/rack
 [Maremba](https://www.reasonstudios.com/shop/rack-extension/maremba/),
 [Acustra](https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/)
 and [Lamer Degrader](https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/).
-Ceres, Electry and Press78 retain their upcoming-product status.
+Ceres, Electry and Press78 retain their upcoming-product status; Aculele, Respira
+and Aculyre join them as coming soon.
 
 The following [SoundCloud sets page](https://soundcloud.com/protocodus/sets)
 observations are retained from the 16 October review; audio and video were not
@@ -111,6 +136,18 @@ stylesheet: source accent `#03422e`, artwork hidden, nonvisual player, inversion
 filter and a forced-colors override. Lamer's existing local video is retained.
 
 ## Validation history
+
+### Aculele, Respira and Aculyre coming soon — 27 October 2026
+
+Three coming-soon catalog cards, product pages and availability rows are added.
+Their panels are 2x development previews rendered by each device's own panel
+renderer from the revisions in its `ASSET_PROVENANCE.json`, converted to WebP at
+quality 90 and method 6 without cropping. Each 800 × 800 thumbnail follows the
+Shop thumbnail layout (the front panel on the Protocodus background, the name in
+the panel's lettering with its RE pair at half opacity, a one-line description,
+the Protocodus logo at the bottom); the thumbnails also serve as the pages'
+social images. The panels were rendered while each instrument's first pass was
+still under way; they are replaced once each first pass is done.
 
 ### Public Shop media review — 27 October 2026
 

@@ -1,0 +1,55 @@
+{
+  "product": "Aculele",
+  "reviewed": "2026-10-27",
+  "availability": "coming_soon",
+  "source_version": "0.2.0d2",
+  "source_format": "Rack Extension development panel previews rendered by the device's python3 Design/render_panels.py --review DIR (not a Shop release; no SDK build).",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "claude/project-thread-gx92ym",
+  "source_commit": "e769e2e5e21fabf92a5adfb14c7f74fc7e24be40",
+  "instrument_repository": "protocodus/virtual-instrument-aculele",
+  "instrument_commit": "3773bc42a1231899f4e1eab1b32f8a9f5069195b",
+  "feature_sources": [
+    "Examples/Aculele/README.md",
+    "Examples/Aculele/info.lua",
+    "virtual-instrument-aculele/README.md"
+  ],
+  "assets": [
+    {
+      "file": "aculele-rack-front.webp",
+      "sha256": "45256a8b0327de88cac76daf79128844f295c58c2a07c6458537a080d783ea9c",
+      "bytes": 207456,
+      "dimensions": [
+        1508,
+        1104
+      ],
+      "source": "Examples/Aculele/Design/render_panels.py --review DIR: front-2x.png",
+      "source_sha256": "1047072bc87bb5bf5161cee7b8e269f6ff4c843a3b4bc01802488c4d2b7036f6",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+    },
+    {
+      "file": "aculele-rack-rear.webp",
+      "sha256": "552ab9e69905cfc6f4e9198051b2731900b909ad90100e0d7577c28157161158",
+      "bytes": 159248,
+      "dimensions": [
+        1508,
+        1104
+      ],
+      "source": "Examples/Aculele/Design/render_panels.py --review DIR: back-2x.png",
+      "source_sha256": "00139cf8b6ae67d3457d95972e5bde9c504d6c496541cee164b36d72681a98c7",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+    },
+    {
+      "file": "Aculele_Thumbnail_800.png",
+      "sha256": "5374d10781995f26c98b500fa9d232fe63b58ad11717a1ed8fe09b52f8e924d0",
+      "bytes": 427583,
+      "dimensions": [
+        800,
+        800
+      ],
+      "source": "Examples/Aculele/Design/render_panels.py --review DIR: front-2x.png",
+      "source_sha256": "1047072bc87bb5bf5161cee7b8e269f6ff4c843a3b4bc01802488c4d2b7036f6",
+      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name in the panel's own lettering with its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+    }
+  ]
+}
