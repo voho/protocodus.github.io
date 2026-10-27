@@ -78,6 +78,10 @@ p { text-wrap: pretty; }
 .btn-secondary { background: transparent; border-color: var(--line-lift); }
 .btn-secondary:hover { background: var(--accent-subtle); border-color: var(--accent); }
 .btn span { flex: none; }
+/* Official Shop badge: 56px high, with more than 20% clear space on every side.
+   https://developer.reasonstudios.com/learning-and-support/marketing */
+.shop-badge { display: inline-flex; flex: none; padding: 12px; }
+.shop-badge img { width: auto; height: 56px; max-width: none; flex: none; }
 
 /* Navigation */
 .site-header { position: sticky; top: 0; z-index: 1000; min-height: var(--header-height); background: rgba(13, 14, 18, 0.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
