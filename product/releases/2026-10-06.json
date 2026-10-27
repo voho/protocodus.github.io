@@ -176,51 +176,6 @@
         "archive_contents_and_checksums": "passed",
         "processor": "passed"
       }
-    },
-    {
-      "product": "Taikor",
-      "version": "1.0.0",
-      "source_revision": "d25128ef4c452789426bcae7da8b9a49d9d2775e",
-      "built_utc_date": "2026-10-06",
-      "platform": "Linux-x64",
-      "status": "development",
-      "formats": [
-        "VST3",
-        "CLAP",
-        "standalone"
-      ],
-      "compiler": "14.2.0",
-      "runtime_minimum_symbols": {
-        "GLIBC": "2.38",
-        "GLIBCXX": "3.4.32"
-      },
-      "required_shared_libraries": [
-        "ld-linux-x86-64.so.2",
-        "libasound.so.2",
-        "libc.so.6",
-        "libfontconfig.so.1",
-        "libfreetype.so.6",
-        "libgcc_s.so.1",
-        "libm.so.6",
-        "libstdc++.so.6"
-      ],
-      "known_issue": null,
-      "binaries": {
-        "CLAP/Taikor.clap": "6120606d9f10ddd0caa422664c2bae42a8ec69d229f7ad5bb8da70367935a0ee",
-        "Standalone/Taikor": "4a24e2b5a3676b15d2e37f7e6c1c47b28bfcd694c07adbe4c94685b647009f6b",
-        "VST3/Taikor.vst3/Contents/x86_64-linux/Taikor.so": "3e58a956c92a73b4093f87119b471e039e6e856d10bf9d8cb2cb83c06185981f"
-      },
-      "archive": "Taikor-1.0.0-d25128ef-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "d596609da28879dc0d44a162eb2ba6c0c211bc61438ba84d7b63fd979858b3c4",
-      "archive_bytes": 26118002,
-      "checks": {
-        "build": "passed",
-        "dynamic_vst3_midi_state": "passed",
-        "standalone_window": "passed",
-        "archive_contents_and_checksums": "passed",
-        "processor": "passed",
-        "dynamic_clap_midi_state": "passed"
-      }
     }
   ],
   "rack": {

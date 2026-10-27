@@ -4,7 +4,7 @@ Product images reviewed 27 October 2026 against the current public Reason Shop
 galleries. The product catalog and instrument details describe
 Reason Rack Extensions. Podcare remains a separate podcast production tool.
 Product pages cover Rack Extensions and Podcare only; instruments without a
-Rack device, such as Taikor and Septum, have no page.
+Rack device, such as Septum, have no page.
 
 ## Current media
 
