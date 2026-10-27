@@ -82,6 +82,9 @@ p { text-wrap: pretty; }
    https://developer.reasonstudios.com/learning-and-support/marketing */
 .shop-badge { display: inline-flex; flex: none; padding: 12px; }
 .shop-badge img { width: auto; height: 56px; max-width: none; flex: none; }
+/* Lists keep the official 50px minimum height and 20% clear space. */
+.shop-badge--compact { padding: 10px; }
+.shop-badge--compact img { height: 50px; }
 
 /* Navigation */
 .site-header { position: sticky; top: 0; z-index: 1000; min-height: var(--header-height); background: rgba(13, 14, 18, 0.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
@@ -156,6 +159,9 @@ p { text-wrap: pretty; }
 .product-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .product-tags > span { display: inline-flex; align-items: center; padding: 0.3rem 0.65rem; border: 1px solid var(--line-lift); border-radius: var(--radius-sm); color: var(--signal, var(--accent)); font-size: 0.75rem; font-weight: 500; line-height: 1.5; }
 .product-tags > .product-type { color: var(--fg-muted); }
+/* Unlinked compatibility logo; 6px clear space is 25% of its 24px height. */
+.product-tags > .rack-extension-mark { padding: 6px; border: 0; border-radius: 0; }
+.rack-extension-mark img { width: auto; height: 24px; max-width: none; }
 .product-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin-top: 1.5rem; }
 .product-actions .product-more { margin: 0; }
 .product-status { display: inline-flex; align-items: center; min-height: 44px; padding: 0.55rem 0.9rem; border: 1px solid var(--line-lift); border-radius: var(--radius-sm); color: var(--fg-muted); font-size: 0.875rem; font-weight: 500; line-height: 1.5; }
