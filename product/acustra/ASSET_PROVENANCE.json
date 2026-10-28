@@ -1,19 +1,19 @@
 {
   "product": "Acustra Acoustic Guitar",
   "format": "Reason Rack Extension",
-  "checked_on": "2026-10-27",
+  "checked_on": "2026-10-28",
   "availability": "available_in_reason_shop",
   "public_release": {
-    "version": "1.3.2",
-    "released_on": "2026-10-20",
-    "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/"
+    "version": "1.9.0",
+    "first_released_on": "2026-10-20",
+    "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+    "basis": "Version 1.9.0, its version history and 'Released: 2026-10-20' read from the public Shop page on 28 October 2026. The Shop keeps the first release date when the version changes, so 20 October 2026 is 1.3.2's date, not 1.9.0's."
   },
   "artwork_source": {
     "kind": "current_published_reason_shop_gallery",
     "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
     "visible_rear_build": "1.9.0d2",
-    "selection_note": "The user requested artwork matching the published Reason Shop. These complete panel images are exact copies of the current public Shop gallery originals, not newer local development renders.",
-    "version_note": "The Shop listing identifies public release 1.3.2, while its current rear-panel gallery image visibly prints v1.9.0d2. This observed artwork/listing discrepancy is preserved and does not establish publication of a 1.9.0 device binary."
+    "selection_note": "The user requested artwork matching the published Reason Shop. These complete panel images are exact copies of the current public Shop gallery originals, not newer local development renders. Re-checked 28 October 2026: the site PNGs are byte-identical to the Shop's Acustra_1.9.0_Front.png and Acustra_1.9.0_Back.png."
   },
   "asset_origin": "Complete front and rear composites currently published in the Reason Shop gallery, including controls and displayed values. These are composed panels, not live host screenshots.",
   "export_method": {
@@ -100,11 +100,6 @@
     "source": "Acustra_Front.png",
     "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
     "resampling": "Lanczos; full panel resized proportionally to 880 px width without cropping"
-  },
-  "preserved_document": {
-    "file": "Acustra_QuickStart.pdf",
-    "sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
-    "note": "The historical QuickStart PDF is unchanged by this artwork refresh; its original source receipt is preserved below."
   },
   "historical_receipts": [
     {
@@ -213,6 +208,26 @@
           }
         }
       }
+    },
+    {
+      "public_release_as_recorded_2026-10-27": {
+        "version": "1.3.2",
+        "released_on": "2026-10-20",
+        "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/"
+      },
+      "artwork_version_note": "The Shop listing identifies public release 1.3.2, while its current rear-panel gallery image visibly prints v1.9.0d2. This observed artwork/listing discrepancy is preserved and does not establish publication of a 1.9.0 device binary.",
+      "preserved_document": {
+        "file": "Acustra_QuickStart.pdf",
+        "sha256": "4af278bb4c8f779c2d919aae6ace2fa842c77c53dad67d485ce28cb21b9cedc8",
+        "note": "The historical QuickStart PDF is unchanged by this artwork refresh; its original source receipt is preserved below."
+      }
     }
-  ]
+  ],
+  "quick_start": {
+    "file": "Acustra_QuickStart.pdf",
+    "sha256": "5545104206fe8f76f2f450669bfe2d12e1edeedf4cedd88908943e1d0f8472f7",
+    "bytes": 870472,
+    "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/48e71b162547/Acustra_QuickStart_1.9.0.pdf",
+    "note": "Byte-for-byte copy of the 1.9.0 Quick Start the Shop page offers; it replaces the retained 1.3.3f2 guide."
+  }
 }

@@ -1,6 +1,6 @@
 # Product media and claim sources
 
-Product images reviewed 27 October 2026 against the current public Reason Shop
+Product images reviewed 28 October 2026 against the current public Reason Shop
 galleries. The product catalog and instrument details describe
 Reason Rack Extensions. Podcare remains a separate podcast production tool.
 Product pages cover Rack Extensions and Podcare only; instruments without a
@@ -10,9 +10,9 @@ Rack device, such as Septum, have no page.
 
 | Product | Source | Web media |
 | --- | --- | --- |
-| YouKnow | Public Shop listing 1.3.0; current gallery rear prints 1.3.0f4. Exact URLs and SHA-256 records are in `youknow/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack WebPs, 1600 × 1171; 800 × 800 public Shop thumbnail; proportional panel/rear/card aliases. The earlier 1.3.2f4 candidate PDF is unchanged. |
-| Maremba | Public Shop listing 1.5.0; current gallery rear prints 1.5.7f5. Exact URLs and SHA-256 records are in `maremba/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 1171; card 880 × 644; exact 800 × 800 public Shop thumbnail. The earlier 1.5.1f7 player guide is unchanged. |
-| Acustra | Public Shop listing 1.3.2; current gallery rear prints 1.9.0d2. Exact URLs and SHA-256 records are in `acustra/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack/panel/rear WebP aliases, 1457 × 1200; card 880 × 725. The existing quick-start PDF is unchanged. |
+| YouKnow | Public Shop listing 1.3.5; current gallery rear prints 1.3.5f5. Exact URLs and SHA-256 records are in `youknow/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack WebPs, 1600 × 1171; 800 × 800 public Shop thumbnail; proportional panel/rear/card aliases; the Shop's 1.3.5f5 user guide. |
+| Maremba | Public Shop listing 1.5.7; current gallery rear prints 1.5.7f5. Exact URLs and SHA-256 records are in `maremba/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 1171; card 880 × 644; exact 800 × 800 public Shop thumbnail; the Shop's 1.5.7f5 player guide. |
+| Acustra | Public Shop listing 1.9.0; current gallery rear prints 1.9.0d2. Exact URLs and SHA-256 records are in `acustra/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack/panel/rear WebP aliases, 1457 × 1200; card 880 × 725; the Shop's 1.9.0 Quick Start. |
 | Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
@@ -28,15 +28,14 @@ the complete panel and its aspect ratio, using quality 90 and method 6;
 proportional size changes use Lanczos resizing. Complete Rack panels include
 controls; bare panel backgrounds are not used as interface screenshots.
 
-The current public gallery artwork for Maremba and Acustra prints a newer build
-than each product's public version listing. Matching those published gallery
-images does not verify publication of a newer downloadable binary: the release
-listings remain 1.5.0 and 1.3.2 respectively. No release version is inferred from
-an image caption or local source metadata.
+On 28 October 2026 the public listings read Acustra 1.9.0, Maremba 1.5.7,
+YouKnow 1.3.5 and Lamer 1.0.0. Each version on this site is the one its Shop
+listing states; no release version is inferred from an image caption or local
+source metadata. The Shop keeps a product's first release date when its version
+changes, so the dates shown are first-release dates.
 
-This image refresh leaves every PDF at its earlier revision, including YouKnow's
-1.3.2f4 candidate guide. Earlier source receipts remain in each product's
-provenance record. Upcoming Ceres, Electry and Press78 media and page claims are
+The guides offered are the Shop's own current PDFs. Earlier source receipts
+remain in each product's provenance record. Upcoming Ceres, Electry and Press78 media and page claims are
 unchanged; their retained candidate panels do not advertise the latest local
 development builds as Shop releases. Detailed model research and earlier
 validation below retain their original revision scope.
@@ -52,11 +51,12 @@ features. The relevant source is under `Examples/<Product>` in the
 - YouKnow: nonlinear oscillator/filter/amplifier/chorus path, persistent voice
   states, 100 independently authored Rack patches (99 sounds plus Init), up to
   16 voices (six by default), eight CV inputs and 43 automatable custom controls
-  in the latest candidate. Default processing is 1x/Poly/Cubic/Normal solver/
+  in the 1.3.5 Shop release. Default processing is 1x/Poly/Cubic/Normal solver/
   Normal Circuit Rate; Aging starts at 50% and Sync LFO off. Native Original
   timing, its 144-preset bank, SysEx and output menus are identified separately.
 - Acustra: coupled strings, bridge/body response, hand contact, microphones and
-  piezo electronics. Four body choices, two active woods, four tunings and eight
+  piezo electronics, with 1.9.0's per-contact pitch variation and player contact
+  on the body. Four body choices, two active woods, four tunings and eight
   Rack patches follow the exposed edition. Desktop-only features are omitted.
 - Electry: eight-string physical model, seven articulations and direct pickup
   output. The Rack edition bypasses the desktop amp/effect chain. CC1 controls

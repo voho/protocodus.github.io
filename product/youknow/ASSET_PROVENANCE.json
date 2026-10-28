@@ -1,100 +1,10 @@
 {
-  "checked_on": "2026-10-27",
+  "checked_on": "2026-10-28",
   "shop_release": {
-    "version": "1.3.0",
+    "version": "1.3.5",
     "released_on": "2026-10-05",
     "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-    "basis": "Version and Released date observed in the public Shop Documents & specs section on 27 October 2026. Earlier receipts recorded a different release date and remain historical below."
-  },
-  "current_site_media": {
-    "status": "Current public Reason Shop gallery and thumbnail; selected to match the Shop rather than development artwork",
-    "version": "1.3.0",
-    "visible_rear_build": "1.3.0f4",
-    "panel_source": "Complete, unmodified public Shop front and rear PNGs, copied byte-for-byte. The thumbnail is the exact public Shop original.",
-    "source_urls": {
-      "YouKnow_Front.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
-      "YouKnow_Back.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png",
-      "YouKnow_Thumbnail_800.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34040/YouKnow_Thumbnail_800.png"
-    },
-    "derivatives": "Pillow 11.0.0; WebP quality 90, method 6; complete panels, Lanczos proportional resizing for 1400px panel/rear and 900px card aliases.",
-    "files": {
-      "YouKnow_Front.png": {
-        "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
-        "bytes": 1094852,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "YouKnow_Back.png": {
-        "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
-        "bytes": 1537438,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "YouKnow_Thumbnail_800.png": {
-        "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
-        "bytes": 346071,
-        "dimensions": [
-          800,
-          800
-        ]
-      },
-      "youknow-rack-front.webp": {
-        "sha256": "75f509169d7bebcc05a268398596b5467abb5d6b9ec700cdec3c2b7c1686d337",
-        "bytes": 136420,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "youknow-rack-back.webp": {
-        "sha256": "0a8ea91d30e350d0a7531ded2565b4a2d192e15d938e379ffa69ccc8c376d690",
-        "bytes": 185142,
-        "dimensions": [
-          1600,
-          1171
-        ]
-      },
-      "youknow-panel.webp": {
-        "sha256": "c9c01cfdb0592e1d23d0ea2ffa4037ea32ea455490b24f0e69a76112f0716837",
-        "bytes": 117078,
-        "dimensions": [
-          1400,
-          1025
-        ]
-      },
-      "youknow-rear.webp": {
-        "sha256": "670d6a04ed22ec1abd6dcb3abc2f856028cd8161e27b7ca9c61248c20b06b41c",
-        "bytes": 141778,
-        "dimensions": [
-          1400,
-          1025
-        ]
-      },
-      "youknow-card.webp": {
-        "sha256": "09454800a28c44c62c60e63f69394b171482da56859b5fd8d0fe84653b123f14",
-        "bytes": 62332,
-        "dimensions": [
-          900,
-          659
-        ]
-      }
-    }
-  },
-  "retained_candidate_guide": {
-    "file": "YouKnow_User_Manual.pdf",
-    "version": "1.3.2f4",
-    "status": "Earlier unreleased candidate guide; unchanged by the public-image synchronization",
-    "sha256": "cba6e9baf5a320d51e5725c06595b7bda6edd297e06cbcd51235a4a1be56f78a",
-    "basis": {
-      "updated_on": "2026-10-26",
-      "source_sha256": "88b56e7dc1a4a811771465df4f34deed39142665b63ffd7ead051c89c0d6c0d2",
-      "support_email": "protocodus@proton.me",
-      "changes": "Replaced the two old +support addresses and their two mailto annotations. All other extracted text and all seven pages are preserved. The guide remains the earlier 1.3.2f4 technical revision."
-    }
+    "basis": "Version 1.3.5, its version history and 'Released: 2026-10-05' read from the public Shop page on 28 October 2026."
   },
   "historical_receipts": [
     {
@@ -527,6 +437,194 @@
           }
         }
       ]
+    },
+    {
+      "recorded_on": "2026-10-27",
+      "shop_release": {
+        "version": "1.3.0",
+        "released_on": "2026-10-05",
+        "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+        "basis": "Version and Released date observed in the public Shop Documents & specs section on 27 October 2026. Earlier receipts recorded a different release date and remain historical below."
+      },
+      "site_media": {
+        "status": "Current public Reason Shop gallery and thumbnail; selected to match the Shop rather than development artwork",
+        "version": "1.3.0",
+        "visible_rear_build": "1.3.0f4",
+        "panel_source": "Complete, unmodified public Shop front and rear PNGs, copied byte-for-byte. The thumbnail is the exact public Shop original.",
+        "source_urls": {
+          "YouKnow_Front.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Front.png",
+          "YouKnow_Back.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.0_Back.png",
+          "YouKnow_Thumbnail_800.png": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34040/YouKnow_Thumbnail_800.png"
+        },
+        "derivatives": "Pillow 11.0.0; WebP quality 90, method 6; complete panels, Lanczos proportional resizing for 1400px panel/rear and 900px card aliases.",
+        "files": {
+          "YouKnow_Front.png": {
+            "sha256": "ac9d6e529018647fa75a8948725c42d1a070e05275946ce571091aa59cba01e3",
+            "bytes": 1094852,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Back.png": {
+            "sha256": "6e350ae2741f8a20c5c060788a458a1af7d9a5415b61a1cc824816ab1e85d642",
+            "bytes": 1537438,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "YouKnow_Thumbnail_800.png": {
+            "sha256": "2634b3435e88f972a2d4bc7ebf4108e4f35e4f2521286c13d802871b5e2eeec9",
+            "bytes": 346071,
+            "dimensions": [
+              800,
+              800
+            ]
+          },
+          "youknow-rack-front.webp": {
+            "sha256": "75f509169d7bebcc05a268398596b5467abb5d6b9ec700cdec3c2b7c1686d337",
+            "bytes": 136420,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "youknow-rack-back.webp": {
+            "sha256": "0a8ea91d30e350d0a7531ded2565b4a2d192e15d938e379ffa69ccc8c376d690",
+            "bytes": 185142,
+            "dimensions": [
+              1600,
+              1171
+            ]
+          },
+          "youknow-panel.webp": {
+            "sha256": "c9c01cfdb0592e1d23d0ea2ffa4037ea32ea455490b24f0e69a76112f0716837",
+            "bytes": 117078,
+            "dimensions": [
+              1400,
+              1025
+            ]
+          },
+          "youknow-rear.webp": {
+            "sha256": "670d6a04ed22ec1abd6dcb3abc2f856028cd8161e27b7ca9c61248c20b06b41c",
+            "bytes": 141778,
+            "dimensions": [
+              1400,
+              1025
+            ]
+          },
+          "youknow-card.webp": {
+            "sha256": "09454800a28c44c62c60e63f69394b171482da56859b5fd8d0fe84653b123f14",
+            "bytes": 62332,
+            "dimensions": [
+              900,
+              659
+            ]
+          }
+        }
+      },
+      "retained_candidate_guide": {
+        "file": "YouKnow_User_Manual.pdf",
+        "version": "1.3.2f4",
+        "status": "Earlier unreleased candidate guide; unchanged by the public-image synchronization",
+        "sha256": "cba6e9baf5a320d51e5725c06595b7bda6edd297e06cbcd51235a4a1be56f78a",
+        "basis": {
+          "updated_on": "2026-10-26",
+          "source_sha256": "88b56e7dc1a4a811771465df4f34deed39142665b63ffd7ead051c89c0d6c0d2",
+          "support_email": "protocodus@proton.me",
+          "changes": "Replaced the two old +support addresses and their two mailto annotations. All other extracted text and all seven pages are preserved. The guide remains the earlier 1.3.2f4 technical revision."
+        }
+      }
     }
-  ]
+  ],
+  "current_site_media": {
+    "status": "Current public Reason Shop gallery, thumbnail and user guide, copied byte for byte",
+    "version": "1.3.5",
+    "visible_rear_build": "1.3.5f5",
+    "derivatives": "Pillow 12.3.0; WebP quality 90, method 6; rack front/back at full size, panel/rear aliases Lanczos-resized to 1400 px wide and the card to 900 px.",
+    "files": [
+      {
+        "file": "YouKnow_Front.png",
+        "sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac",
+        "bytes": 928388,
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png"
+      },
+      {
+        "file": "YouKnow_Back.png",
+        "sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3",
+        "bytes": 818865,
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png"
+      },
+      {
+        "file": "YouKnow_Thumbnail_800.png",
+        "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+        "bytes": 254791,
+        "dimensions": [
+          800,
+          800
+        ],
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png"
+      },
+      {
+        "file": "YouKnow_User_Manual.pdf",
+        "sha256": "ea8d333f1d2b4229dcaa568b0a7585b6afdeccffceaae5ef9eac177f1f0c5208",
+        "bytes": 2320689,
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/6e4821620655/YouKnow_User_Manual.pdf"
+      },
+      {
+        "file": "youknow-rack-front.webp",
+        "sha256": "92b2daa50f96d662bb580386a506be92f1df3df13e6df2c74fd25da14ffd0dc3",
+        "bytes": 100360,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      {
+        "file": "youknow-rack-back.webp",
+        "sha256": "929883d325987dd7907f7c1e5f1f789505ce95462a4de13bcdacb8e5de4c9720",
+        "bytes": 79586,
+        "dimensions": [
+          1600,
+          1171
+        ]
+      },
+      {
+        "file": "youknow-panel.webp",
+        "sha256": "b0f2fc99286ca624e8312060dfaec85008fe340174ffa36d4f450d508d56af38",
+        "bytes": 85456,
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      {
+        "file": "youknow-rear.webp",
+        "sha256": "bb0a202866786982f4d39f6490e15f318df2570235e5a3e19f38d1fad73bb3c1",
+        "bytes": 66156,
+        "dimensions": [
+          1400,
+          1025
+        ]
+      },
+      {
+        "file": "youknow-card.webp",
+        "sha256": "32641befc231e8671e0322c8002ac9f1356e7da9d4989c01e3c5125ee3501946",
+        "bytes": 49416,
+        "dimensions": [
+          900,
+          659
+        ]
+      }
+    ]
+  }
 }

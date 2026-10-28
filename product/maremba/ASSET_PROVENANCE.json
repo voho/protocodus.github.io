@@ -1,5 +1,5 @@
 {
-  "published_version": "1.5.0",
+  "published_version": "1.5.7",
   "published_on": "2026-10-13",
   "shop_url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
   "prior_media_receipt": {
@@ -226,5 +226,28 @@
         ]
       }
     }
+  },
+  "published_on_basis": "The public Shop page on 28 October 2026 shows version 1.5.7 and 'Released: 2026-10-13', the first release date (1.5.0).",
+  "shop_media_refresh_2026_10_28": {
+    "checked_on": "2026-10-28",
+    "note": "Maremba_Front.png and Maremba_Back.png already matched the Shop's Maremba_1.5.7 originals byte for byte and are unchanged; the thumbnail and the player guide are replaced by the Shop's current originals.",
+    "files": [
+      {
+        "file": "Maremba_Thumbnail_800.png",
+        "sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f",
+        "bytes": 655922,
+        "dimensions": [
+          800,
+          800
+        ],
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png"
+      },
+      {
+        "file": "Maremba_User_Guide.pdf",
+        "sha256": "9add504e2838394617c7fae17da113c62537593cb182daaccfb669d2cb733b4a",
+        "bytes": 8466764,
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/10133a7fa125/Maremba_User_Guide.pdf"
+      }
+    ]
   }
 }
