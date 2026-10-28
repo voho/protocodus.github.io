@@ -16,9 +16,9 @@ Rack device, such as Septum, have no page.
 | Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
 | Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
 | Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
-| Aculele | Rack 0.3.0d1 final first-pass panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `3f161d1c`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
-| Respira | Rack 0.1.0d1 final first-pass panel previews (the red panel the owner chose) committed in `Examples/Respira/Docs/screenshots/`, main revision `c2268f5c`; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
-| Aculyre | Rack 0.4.0d1 final first-pass panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `854e3197` (byte-identical to the branch revision `2ecab2ac` first published); no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
+| Aculele | Rack 0.4.13d1 panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `88c0d09e`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
+| Respira | Rack 0.1.0d7 panel previews (the red panel the owner chose) committed in `Examples/Respira/Docs/screenshots/`, main revision `88c0d09e`; the front WebP is byte-identical to the 0.1.0d1 one; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
+| Aculyre | Rack 0.5.0d1 panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `88c0d09e`; no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
 | Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
 | Podcare | Existing repository illustration | Existing card retained |
 
@@ -85,25 +85,34 @@ features. The relevant source is under `Examples/<Product>` in the
   circuit, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
   `SHOP.md` at 0.1.0b15. The factory bank is not described: commercial
   redistribution of the imported bank has not been cleared (Press78 README).
-- Aculele: soprano, concert and tenor bodies; spruce, mahogany or maple;
-  nylon or fluorocarbon strings in standard (re-entrant), Low G or D tuning;
-  finger, pick, thumb and strum playing, the strum down with the nail and up
-  with the pad, with keyswitched strokes and a held F0 chuck; stereo mic,
-  mono mic and piezo capture; a direct piezo output; Note/Gate CV; rear
-  oversampling; seven factory patches; from the Rack README at 0.3.0d1 and the
-  canonical README. Body dimensions are described as published, not measured;
-  no other manufacturer's name appears on the page.
-- Respira: the mod wheel as the hand on the bellows, nothing sounding without
+- Aculele: soprano, concert and tenor bodies; spruce, mahogany or maple; nylon
+  or fluorocarbon strings in standard (re-entrant), Low G or D tuning; finger,
+  pick, thumb and strum playing, the strum down with the nail and up with the
+  pad (the thumb's upstroke on its nail), with keyswitched strokes and a held
+  F0 chuck that also stops sustained strings; upper body resonances spread at
+  the density counted on a measured ukulele top; chord-book shapes, open
+  strings only in first position; stereo mic, mono mic and piezo capture; a
+  direct piezo output; every patch at -9 VU with bodies, woods, techniques and
+  captures within 1.5 dB, behind the shared output limiter; Note/Gate CV; rear
+  oversampling and piezo blend polarity; seven factory patches; from the Rack
+  README at 0.4.13d1 and the canonical README. Body dimensions are described as
+  published, not measured; no other manufacturer's name appears on the page.
+- Respira: the mod wheel as the hand on the bellows, no reed sounding without
   air, simulated steel reeds in their own chambers, eight registers over five
-  ranks, Assist, Air, the split keyboard's bass and chord buttons, pitch bend,
-  Momentum and oversampling on the rear, a dry stereo output and eight register patches plus
-  Init, from the Rack README at 0.1.0d1 and the canonical README.
+  ranks, Assist, Air, aftertouch as a half-pressed key, the bass box, the
+  split keyboard's bass and chord buttons, pitch bend, the mechanism's knocks
+  with or without air (the owner's 2026-10-28 exception), Momentum, Mechanics
+  and oversampling on the rear, a dry stereo output and eight register patches
+  plus Init, from the Rack README at 0.1.0d7 and the canonical README.
 - Aculyre: one bridge bar on a modal soundbox so idle strings ring in sympathy,
   a 16-string steel or nylon lyre harp and a six-string gut lyre with a 20 ms
   crossfade between them, finger/nail/pick, pluck position and angle, release,
-  mute, sympathy, sharping levers, the live string display, rear oversampling,
-  Note/Gate CV, stereo outputs and eight factory patches, from the Rack README
-  at 0.4.0d1 and the canonical README.
+  mute, sympathy, sharping levers, the live string display, hand tuning and
+  pluck scatter, a piezo under the bridge bar blended with the microphones,
+  every patch at -9 VU through either, Width and oversampling on the rear,
+  Note/Gate CV, stereo outputs and nine factory patches, from the Rack README
+  at 0.5.0d1 and the canonical README. Aculyre 0.6.0, not yet merged, is not
+  described.
 - None of the three has been built with the Jukebox SDK or loaded in Reason.
   Their pages name no Reason version, no CPU figure and no sound claim beyond
   what the models do; requirements and banks are confirmed at release.
@@ -137,6 +146,17 @@ stylesheet: source accent `#03422e`, artwork hidden, nonvisual player, inversion
 filter and a forced-colors override. Lamer's existing local video is retained.
 
 ## Validation history
+
+### Coming-soon refresh — 28 October 2026
+
+Aculele, Respira and Aculyre pages and media follow Rack main `88c0d09e`:
+Aculele 0.4.13d1, Respira 0.1.0d7 and Aculyre 0.5.0d1. The panels were
+re-rendered by each device's own renderer and converted as before; Respira's
+front is byte-identical to its 0.1.0d1 WebP, so only its rear and thumbnail
+change. Each `ASSET_PROVENANCE.json` keeps the 27 October records under
+`earlier_reviews`. Work that is only on branches (Aculyre 0.6.0, Keyra's
+upright mode) is not described. None of the three has been built with the
+Jukebox SDK.
 
 ### Aculele, Respira and Aculyre coming soon — 27 October 2026
 

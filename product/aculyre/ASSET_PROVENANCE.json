@@ -1,14 +1,14 @@
 {
   "product": "Aculyre",
-  "reviewed": "2026-10-27",
+  "reviewed": "2026-10-28",
   "availability": "coming_soon",
-  "source_version": "0.4.0d1",
-  "source_format": "Rack Extension final first-pass panel previews rendered by the device's python3 Design/render_panels.py (not a Shop release; no SDK build).",
+  "source_version": "0.5.0d1",
+  "source_format": "Rack Extension panel previews rendered by the device's python3 Design/render_panels.py into Design/Rendered/ (not a Shop release; no SDK build).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "854e3197976af2fd3ee38ac70ab9d1d4e1f49049",
+  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
   "instrument_repository": "protocodus/virtual-instrument-aculyre",
-  "instrument_commit": "2e970f9a1a692361a6316605b9297e4e678714c6",
+  "instrument_commit": "b633e9a7d81fd2b4776ec8d52a3ec1eeaa195f88",
   "feature_sources": [
     "Examples/Aculyre/README.md",
     "Examples/Aculyre/info.lua",
@@ -17,39 +17,61 @@
   "assets": [
     {
       "file": "aculyre-rack-front.webp",
-      "sha256": "5315cd8cc1d3680e1bf5b17f5ed1828052aaaf4318c9613f1df2aa8aba3092e6",
-      "bytes": 147056,
+      "sha256": "d1a073eef8655fd23acd3f44a8c706d5d072ea42c4985bfbdfb9d4c531030c89",
+      "bytes": 146606,
       "dimensions": [
         1508,
         828
       ],
       "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "0530a8239410d5ac489863031aae042cda3733f8be47fc9f963be44608d8cd66",
+      "source_sha256": "a2350a3c76691d7a665b2d3311f8fe1609d3e0a3ed8a971882986da53ecdeb50",
       "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
     },
     {
       "file": "aculyre-rack-rear.webp",
-      "sha256": "9ab09a98ed98655dd21992926d25547fc84f73239a2885d42b7008fd15ef33b9",
-      "bytes": 126912,
+      "sha256": "7c8222ba6cd7334b44d2d12a56e8f582723ba10ad171b63b0a256dfa9d79c252",
+      "bytes": 129450,
       "dimensions": [
         1508,
         828
       ],
       "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-      "source_sha256": "6d0472be180316dc57c3496b65cfb361b9589b372f0002253872742abd3db308",
+      "source_sha256": "c7f162cc0d9e45fd1ce7bee8951c32faad0e2b03ce4956bfe80c7f0c2d7f4be5",
       "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
     },
     {
       "file": "Aculyre_Thumbnail_800.png",
-      "sha256": "e6bcbdb55f9ec7a1b70e76747226b4d8bdc8978a0beaeab19a3cd334c4aa193e",
-      "bytes": 405989,
+      "sha256": "a0f82102c43862556d3f0c91565bf5534046793f5c8dc96b79cc951cbf0db265",
+      "bytes": 405624,
       "dimensions": [
         800,
         800
       ],
       "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "0530a8239410d5ac489863031aae042cda3733f8be47fc9f963be44608d8cd66",
+      "source_sha256": "a2350a3c76691d7a665b2d3311f8fe1609d3e0a3ed8a971882986da53ecdeb50",
       "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name in the panel's own lettering with its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "reviewed": "2026-10-27",
+      "source_version": "0.4.0d1",
+      "source_commit": "854e3197976af2fd3ee38ac70ab9d1d4e1f49049",
+      "instrument_commit": "2e970f9a1a692361a6316605b9297e4e678714c6",
+      "assets": [
+        {
+          "file": "aculyre-rack-front.webp",
+          "sha256": "5315cd8cc1d3680e1bf5b17f5ed1828052aaaf4318c9613f1df2aa8aba3092e6"
+        },
+        {
+          "file": "aculyre-rack-rear.webp",
+          "sha256": "9ab09a98ed98655dd21992926d25547fc84f73239a2885d42b7008fd15ef33b9"
+        },
+        {
+          "file": "Aculyre_Thumbnail_800.png",
+          "sha256": "e6bcbdb55f9ec7a1b70e76747226b4d8bdc8978a0beaeab19a3cd334c4aa193e"
+        }
+      ]
     }
   ]
 }
