@@ -1,65 +1,100 @@
 {
   "product": "Electry",
-  "reviewed": "2026-10-14",
+  "reviewed": "2026-10-28",
   "availability": "coming_soon",
-  "source_version": "1.2.0",
-  "source_format": "Plug-in / standalone; no Rack Extension source or release exists in the audited Rack repository.",
-  "source_directory": "/Users/vojta/Dev/virtual-instrument-electry",
-  "source_commit": "1fe45d6fec2e14148bfc8fd9addece722b7d9cec",
+  "source_version": "1.2.8d2",
+  "source_format": "Rack Extension panel renders committed in Examples/Electry/Design/Rendered/ (not a Shop release).",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
+  "instrument_repository": "protocodus/virtual-instrument-electry",
+  "instrument_commit": "616708e08af67b712afce6131847ab5f94d15a65",
   "feature_sources": [
-    {
-      "file": "README.md",
-      "sha256": "f697f39c8f06b831f79aa35dc3fbdbc5782e27fbee1de894c2e9ea2a6805f783"
-    },
-    {
-      "file": "CMakeLists.txt",
-      "sha256": "d453e55f121df9156300a9925bd4f0b59dbf6e7412117570a4b87b0a116fc17b"
-    }
+    "Examples/Electry/README.md",
+    "Examples/Electry/CHANGELOG.md",
+    "Examples/Electry/info.lua"
   ],
-  "asset_origin": "Retained authentic complete plug-in editor images from the prior website audit. Features checked against current canonical README and source; no Rack panel or Rack version is invented.",
-  "previous_media_audit": "../SCREENSHOTS.md (6 October 2026 audit)",
   "assets": [
     {
-      "file": "electry-panel.webp",
-      "sha256": "28e15a31a220df1ed271edca7f91f84804f122e0d7ec0619743a3bef2cf12d80",
-      "bytes": 81346,
+      "file": "electry-rack-front.webp",
+      "sha256": "d0ddf5c7fd0920fb0499e9652bd1a14b6a038308dbcb0eef01420edcd4b9b9bd",
+      "bytes": 99110,
       "dimensions": [
-        1180,
-        910
+        754,
+        621
       ],
-      "change": "Retained without modification."
+      "source": "Examples/Electry/Design/Rendered/front.png",
+      "source_sha256": "cf23ff9be749a0473733685d4d6e48a646b64a489df8013e7d696b6655731fde",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
     },
     {
-      "file": "electry-card.webp",
-      "sha256": "3d14a5a2f24e6256a81edeaf96010ee2ff084d74a509ef35bd137e37030c13c9",
-      "bytes": 59352,
+      "file": "electry-rack-rear.webp",
+      "sha256": "83d2cb9cd6a5b9d06ac98130e9d9d0b79b93ba8c2fd15d5ea83fe4272ced93a6",
+      "bytes": 90144,
       "dimensions": [
-        880,
-        679
+        754,
+        621
       ],
-      "change": "Retained without modification."
+      "source": "Examples/Electry/Design/Rendered/back.png",
+      "source_sha256": "960ff664380b69b7ca7fcfcca245751cde076dc34b3c3363d72c2d84ce687ad0",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
     }
   ],
-  "site_media_refresh": {
-    "checked_on": "2026-10-16",
-    "source_notes": "See ../SCREENSHOTS.md for current Rack source revisions and source/development boundaries. Earlier receipt fields describe the prior media revision.",
-    "files": {
-      "electry-rack-front.webp": {
-        "sha256": "d4803b5874fda9b4cf45bb4d9749b6d90483e91de608fdd39428507f3d928d7a",
-        "bytes": 116492,
-        "dimensions": [
-          754,
-          621
-        ]
-      },
-      "electry-rack-rear.webp": {
-        "sha256": "b3318806f9fda8b496ebf8f4bd13f9b80e93e64709bff1c5bd3c82c902e404c0",
-        "bytes": 116266,
-        "dimensions": [
-          754,
-          621
-        ]
-      }
+  "earlier_reviews": [
+    {
+      "reviewed": "2026-10-16",
+      "source_note": "Rack 1.0.0d9 renders from Design/Rendered, revision c140bb8f (see ../SCREENSHOTS.md).",
+      "assets": [
+        {
+          "file": "electry-rack-front.webp",
+          "sha256": "d4803b5874fda9b4cf45bb4d9749b6d90483e91de608fdd39428507f3d928d7a"
+        },
+        {
+          "file": "electry-rack-rear.webp",
+          "sha256": "b3318806f9fda8b496ebf8f4bd13f9b80e93e64709bff1c5bd3c82c902e404c0"
+        }
+      ]
+    },
+    {
+      "reviewed": "2026-10-14",
+      "source_version": "1.2.0",
+      "source_format": "Plug-in / standalone; no Rack Extension source or release exists in the audited Rack repository.",
+      "source_directory": "/Users/vojta/Dev/virtual-instrument-electry",
+      "source_commit": "1fe45d6fec2e14148bfc8fd9addece722b7d9cec",
+      "feature_sources": [
+        {
+          "file": "README.md",
+          "sha256": "f697f39c8f06b831f79aa35dc3fbdbc5782e27fbee1de894c2e9ea2a6805f783"
+        },
+        {
+          "file": "CMakeLists.txt",
+          "sha256": "d453e55f121df9156300a9925bd4f0b59dbf6e7412117570a4b87b0a116fc17b"
+        }
+      ],
+      "asset_origin": "Retained authentic complete plug-in editor images from the prior website audit. Features checked against current canonical README and source; no Rack panel or Rack version is invented.",
+      "previous_media_audit": "../SCREENSHOTS.md (6 October 2026 audit)",
+      "assets": [
+        {
+          "file": "electry-panel.webp",
+          "sha256": "28e15a31a220df1ed271edca7f91f84804f122e0d7ec0619743a3bef2cf12d80",
+          "bytes": 81346,
+          "dimensions": [
+            1180,
+            910
+          ],
+          "change": "Retained without modification."
+        },
+        {
+          "file": "electry-card.webp",
+          "sha256": "3d14a5a2f24e6256a81edeaf96010ee2ff084d74a509ef35bd137e37030c13c9",
+          "bytes": 59352,
+          "dimensions": [
+            880,
+            679
+          ],
+          "change": "Retained without modification."
+        }
+      ]
     }
-  }
+  ]
 }

@@ -13,9 +13,9 @@ Rack device, such as Septum, have no page.
 | YouKnow | Public Shop listing 1.3.5; current gallery rear prints 1.3.5f5. Exact URLs and SHA-256 records are in `youknow/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack WebPs, 1600 × 1171; 800 × 800 public Shop thumbnail; proportional panel/rear/card aliases; the Shop's 1.3.5f5 user guide. |
 | Maremba | Public Shop listing 1.5.7; current gallery rear prints 1.5.7f5. Exact URLs and SHA-256 records are in `maremba/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 1171; card 880 × 644; exact 800 × 800 public Shop thumbnail; the Shop's 1.5.7f5 player guide. |
 | Acustra | Public Shop listing 1.9.0; current gallery rear prints 1.9.0d2. Exact URLs and SHA-256 records are in `acustra/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack/panel/rear WebP aliases, 1457 × 1200; card 880 × 725; the Shop's 1.9.0 Quick Start. |
-| Electry | Unchanged complete Rack renders in `Design/Rendered`, revision `c140bb8f`; earlier candidate media retained. | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
-| Ceres | Unchanged Rack 1.0.0f1 first-public-release candidate prepared 23 October 2026; exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
-| Press78 | Unchanged Rack 0.1.0b15 panel renders `Docs/screenshots/Press78_{Front,Back}.png`, canonical revision `1f74ad77`; earlier candidate media retained. | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
+| Electry | Rack 1.2.8d2 panel renders committed in `Examples/Electry/Design/Rendered/`, main revision `88c0d09e`; the front adds the pitch and mod wheels, Bend Range and Sustain. Records in [`electry/ASSET_PROVENANCE.json`](electry/ASSET_PROVENANCE.json). | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
+| Ceres | Rack 1.0.3f1 first-public-release candidate built 23 October 2026, from the release materials in the Rack repository's `dist/` at main `88c0d09e` (the front and thumbnail are unchanged from 1.0.0f1); exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
+| Press78 | Rack 0.1.13b9 panel previews committed in `Examples/Press78/Docs/screenshots/`, main revision `88c0d09e`. Records in [`press78/ASSET_PROVENANCE.json`](press78/ASSET_PROVENANCE.json). | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
 | Aculele | Rack 0.4.13d1 panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `88c0d09e`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
 | Respira | Rack 0.1.0d7 panel previews (the red panel the owner chose) committed in `Examples/Respira/Docs/screenshots/`, main revision `88c0d09e`; the front WebP is byte-identical to the 0.1.0d1 one; no SDK build. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
 | Aculyre | Rack 0.5.0d1 panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `88c0d09e`; no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
@@ -35,9 +35,9 @@ source metadata. The Shop keeps a product's first release date when its version
 changes, so the dates shown are first-release dates.
 
 The guides offered are the Shop's own current PDFs. Earlier source receipts
-remain in each product's provenance record. Upcoming Ceres, Electry and Press78 media and page claims are
-unchanged; their retained candidate panels do not advertise the latest local
-development builds as Shop releases. Detailed model research and earlier
+remain in each product's provenance record. Upcoming Ceres, Electry and Press78
+panels follow their current Rack builds; none of them is presented as a Shop
+release. Detailed model research and earlier
 validation below retain their original revision scope.
 
 ## Claim boundaries
@@ -60,18 +60,22 @@ features. The relevant source is under `Examples/<Product>` in the
   Rack patches follow the exposed edition. Desktop-only features are omitted.
 - Electry: eight-string physical model, seven articulations and direct pickup
   output. The Rack edition bypasses the desktop amp/effect chain. CC1 controls
-  palm muting; CC2 controls body resonance. No MPE claim is made.
+  palm muting; CC2 controls body resonance. 23 front controls, pitch and mod
+  wheels, a 0–24 semitone Bend Range (2 by default) and a Sustain switch that
+  damps or rings released notes, from the Rack README and changelog at
+  1.2.8d2. No MPE claim is made.
 - Maremba: bar/tine modes, nonlinear contact, resonators, sympathetic coupling,
   membranes, Close/Room/Piezo paths, seven audio outputs and 20 Rack patches.
   Drive affects Main; direct captures retain their independent calibration.
-- Ceres: 1.0.0f1 circuit-modelled Rack candidate for Reason 14 or later,
+- Ceres: 1.0.3f1 circuit-modelled Rack candidate for Reason 14 or later,
   with 1–16 voices per layer, Mono/Double layering, mixed saw/pulse/sine/noise
   sources, resonant high-/low-pass filters, filter and amplifier envelopes,
   PWM, SUB and ring modulation, velocity response and Sustain I/II. Front
   BRILLIANCE/RESONANCE levers and rear EXT IN support tonal control and external
   audio modulation; no CV inputs are claimed. The 6RU edition has 23 accepted
   patches: 13 labelled Classic Estimates, nine modern basses/plucks/pads and
-  Init. Classic patches project the original table through the available Rack
+  Init, all with 1.8-cent drift and 0.5-cent voice spread, and output trims
+  lowered where loud chords drove the peak guard. Classic patches project the original table through the available Rack
   controls; no measured hardware-equivalence claim is made. Voice count and
   1x/2x/4x quality are saved with the patch; Init uses four voices, Mono and 1x.
   Stereo-linked final sample-peak protection has a −1 dBFS ceiling, immediate
@@ -82,8 +86,10 @@ features. The relevant source is under `Examples/<Product>` in the
   `ceres/ASSET_PROVENANCE.json`, including the release player guide, parameter
   manifest, accepted bank comparison and output-protection source.
 - Press78: two-operator FM, per-operator envelopes, LFO, chorus and output
-  circuit, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
-  `SHOP.md` at 0.1.0b15. The factory bank is not described: commercial
+  circuit, the rear Preamp/AUX/Phones stage with Ideal, low-battery and AC
+  power, Double's two units with spread and detune, front pitch and modulation
+  wheels, twelve voices, Note/Gate/FM/Level CV and stereo outputs, from its
+  `SHOP.md` and README at 0.1.13b9. The factory bank is not described: commercial
   redistribution of the imported bank has not been cleared (Press78 README).
 - Aculele: soprano, concert and tenor bodies; spruce, mahogany or maple; nylon
   or fluorocarbon strings in standard (re-entrant), Low G or D tuning; finger,
@@ -157,6 +163,15 @@ change. Each `ASSET_PROVENANCE.json` keeps the 27 October records under
 `earlier_reviews`. Work that is only on branches (Aculyre 0.6.0, Keyra's
 upright mode) is not described. None of the three has been built with the
 Jukebox SDK.
+
+The other coming-soon pages follow the same revision. Ceres moves from the
+1.0.0f1 candidate to the built 1.0.3f1 first-release candidate: its rear panel
+and player guide are the Rack repository's `dist/` copies, and the front and
+thumbnail are byte-identical. Press78 (0.1.13b9) and Electry (1.2.8d2) show
+their current panels, whose fronts add pitch and modulation wheels, Double on
+Press78 and Bend Range and Sustain on Electry; their pages describe those.
+Newer Ceres source (1.0.5f1, CPU work) was built for Recon on 27 October but
+has no release materials, so the page stays on 1.0.3f1.
 
 ### Aculele, Respira and Aculyre coming soon — 27 October 2026
 

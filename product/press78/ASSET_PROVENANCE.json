@@ -1,39 +1,61 @@
 {
   "product": "Press78",
-  "reviewed": "2026-10-19",
+  "reviewed": "2026-10-28",
   "availability": "coming_soon",
-  "source_version": "0.1.0b15",
-  "source_format": "Rack Extension development panels (not a Shop release).",
-  "source_repository": "protocodus/virtual-instrument-press78",
-  "source_commit": "1f74ad774157698b33380de973ebc44b98b73839",
+  "source_version": "0.1.13b9",
+  "source_format": "Rack Extension panel previews committed in Examples/Press78/Docs/screenshots/ (not a Shop release).",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
+  "instrument_repository": "protocodus/virtual-instrument-press78",
+  "instrument_commit": "995e59984dee0d0b616da98038ce6ed1fff662c5",
   "feature_sources": [
-    "README.md",
-    "SHOP.md"
+    "Examples/Press78/README.md",
+    "Examples/Press78/SHOP.md",
+    "Examples/Press78/CHANGELOG.md"
   ],
   "assets": [
     {
       "file": "press78-rack-front.webp",
-      "sha256": "7417c91be78d0e6eebe8848cfde884a85c345f01ed654a5364fe11197526b81e",
-      "bytes": 53762,
+      "sha256": "58f8ae6ea6a2578ef1b52c3c92a3f64144a6732a753663e009e69cc59cb8c8d1",
+      "bytes": 52728,
       "dimensions": [
         754,
         552
       ],
-      "source": "Docs/screenshots/Press78_Front.png",
-      "source_sha256": "29abe1f957f3c733567187b8f00bc38c38c24ef2d85a65f5844103e12f8cec2d",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+      "source": "Examples/Press78/Docs/screenshots/Press78_Front.png",
+      "source_sha256": "0bd3b7c56ed6ec89b9c9bf2eaae51c2e9ba7bf19a6f44bf3f2ae3a04072ff496",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
     },
     {
       "file": "press78-rack-rear.webp",
-      "sha256": "109fdba326dd95517712aeea091d5e2df4858b7183247d0385658da6d71def53",
-      "bytes": 39318,
+      "sha256": "c3f1a35753b7c059d50f6c6b0e7abcb22d53603a3b4c856b4ef42fe2b4c483a9",
+      "bytes": 47202,
       "dimensions": [
         754,
         552
       ],
-      "source": "Docs/screenshots/Press78_Back.png",
-      "source_sha256": "f474d48799a3bc17a5685983f877e9d76a06a9dc52263c083e6b7071f371f7cc",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full panel, original size."
+      "source": "Examples/Press78/Docs/screenshots/Press78_Back.png",
+      "source_sha256": "74ddf8a8087c8b79a68f91c736895cbfe57de40d754ee8bcfd489d3b101a9923",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "reviewed": "2026-10-19",
+      "source_version": "0.1.0b15",
+      "source_repository": "protocodus/virtual-instrument-press78",
+      "source_commit": "1f74ad774157698b33380de973ebc44b98b73839",
+      "assets": [
+        {
+          "file": "press78-rack-front.webp",
+          "sha256": "7417c91be78d0e6eebe8848cfde884a85c345f01ed654a5364fe11197526b81e"
+        },
+        {
+          "file": "press78-rack-rear.webp",
+          "sha256": "109fdba326dd95517712aeea091d5e2df4858b7183247d0385658da6d71def53"
+        }
+      ]
     }
   ]
 }
