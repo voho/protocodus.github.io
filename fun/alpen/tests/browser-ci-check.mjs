@@ -120,6 +120,8 @@ try {
     const { name, ...options } = profile;
     const page = await browser.newPage(options);
     page.setDefaultTimeout(180000);
+    let engineRequests = 0;
+    page.on('request', request => { if (new URL(request.url()).pathname === '/assets/vendor/three/three.module.min.js') engineRequests++; });
     page.on('pageerror', error => { errors.push(error.message); console.error(profile.name + ': ' + error.message); });
     page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(profile.name + ': ' + message.text()); } });
     try {
@@ -129,6 +131,8 @@ try {
       await page.waitForFunction(() => window.__alpen && document.body.classList.contains('ready'));
       await page.evaluate(async () => { await Promise.all([__alpen.terrain.surfacesReady, __alpen.sky.backdropReady]); });
       const bootMs = Date.now() - started;
+      assert.equal(await page.locator('link[rel="modulepreload"][href="/assets/vendor/three/three.module.min.js"]').count(), 1, 'the engine preload hint is present');
+      assert.equal(engineRequests, 1, 'the engine preload is reused by the module graph');
       console.log('Alpen boot ready: ' + profile.name + ' in ' + bootMs + ' ms');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), profile.name + ': no horizontal overflow');
       await page.locator('.drop-in').click();
@@ -182,7 +186,7 @@ try {
         await page.keyboard.press('KeyR');
         assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 0, 'real restart clears grab discoveries');
       }
-      results.push({ profile: profile.name, bootMs, gameplay: 'passed' });
+      results.push({ profile: profile.name, bootMs, engineRequests, gameplay: 'passed' });
       console.log('Alpen gameplay passed: ' + profile.name);
       await page.addStyleTag({ content: '.hud,.curtain,.pad{visibility:hidden!important}' });
       const locations = await page.evaluate(async () => {
@@ -205,6 +209,7 @@ try {
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
         }));
         results.push({ gpuChecks: checks });
+        console.log('Alpen GPU checks: ' + JSON.stringify(checks));
       }
       assert.deepEqual(errors, [], 'no runtime, shader or resource errors');
       console.log('Alpen profile passed: ' + profile.name);
@@ -214,5 +219,5 @@ try {
     } finally { await page.close(); }
   }
   await writeFile(output + '/results.json', JSON.stringify(results, null, 2));
-  console.log('Alpen browser QA passed: boot, real controls, grab rewards, chapters, weather and GPU postprocessing.');
+  console.log('Alpen browser QA passed: ' + profiles.map(profile => profile.name).join(', ') + '; boot, controls and rendered scenes' + (profiles.some(profile => profile.name === 'desktop') ? ', grab rewards, chapters, weather and GPU postprocessing.' : '.'));
 } finally { await browser.close(); }
