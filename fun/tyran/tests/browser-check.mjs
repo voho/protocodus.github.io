@@ -8,7 +8,10 @@ const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const output = process.env.TYRAN_SCREENSHOTS || '/tmp/tyran-qa';
 await mkdir(output, { recursive: true });
 const errors = [];
-const watch = page => { page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); }); };
+const watch = page => {
+  page.on('pageerror', error => { errors.push(error.message); console.error('Page error:', error.message); });
+  page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error('Browser console:', message.text()); } });
+};
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } }); watch(page);
   await page.goto(url); await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
@@ -154,12 +157,16 @@ try {
   assert.equal(await page.evaluate(() => tyran.world.index), 0);
   assert.equal(await page.locator('#hud #level-number').count(), 0, 'Mission metadata stays out of the active HUD');
   assert(await page.locator('#announcement').isHidden(), 'New-sector launch does not show a mission-name announcement');
+  // Dispose each running arena before the next fixture. In software WebGL,
+  // concurrent flight loops can starve a later phone context during preflight.
+  await page.close();
   // Storage denial must not prevent boot or play.
   const restricted = await browser.newPage(); watch(restricted);
   await restricted.addInitScript(() => { Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage disabled');}}); });
   await restricted.goto(url); await restricted.waitForFunction(()=>window.tyran);
   await restricted.locator('#launch-button').click();
   assert.equal(await restricted.evaluate(()=>tyran.scene),'playing');
+  await restricted.close();
   // Mobile layout, actual touch movement/fire, and no horizontal overflow.
   const mobile = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2}); watch(mobile);
   await mobile.goto(url); await mobile.waitForFunction(()=>window.tyran);
