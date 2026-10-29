@@ -1,0 +1,85 @@
+name: Tyran game QA
+
+on:
+  pull_request:
+    paths:
+      - 'fun/tyran/**'
+      - '.github/workflows/tyran-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tyran-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    name: Touch, missions and renderer coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TYRAN_PLAYWRIGHT: ${{ runner.temp }}/tyran-browser/node_modules/playwright/index.mjs
+      TYRAN_BROWSER: chromium
+      TYRAN_URL: http://127.0.0.1:8773/fun/tyran/
+      TYRAN_SOFTWARE_GPU: '1'
+      TYRAN_PERF_PROFILE: '0'
+      TYRAN_PERF_SECONDS: '20'
+      TYRAN_SCREENSHOTS: ${{ runner.temp }}/tyran-qa
+      TYRAN_UI_OUTPUT: ${{ runner.temp }}/tyran-ui-qa
+      TYRAN_FRAME_OUTPUT: ${{ runner.temp }}/tyran-frame-cost
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Check input and objective logic
+        run: |
+          node fun/tyran/tests/touch-input-check.mjs
+          node fun/tyran/tests/objective-tracker-check.mjs
+          node fun/tyran/tests/browser-options-check.mjs
+      - name: Install pinned browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tyran-browser" --no-save --package-lock=false playwright@1.64.1
+          node "$RUNNER_TEMP/tyran-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Serve the checkout
+        run: |
+          python3 -m http.server 8773 --bind 127.0.0.1 > "$RUNNER_TEMP/tyran-server.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent --output /dev/null "$TYRAN_URL"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+      - name: Check touch input and mobile HUD
+        timeout-minutes: 15
+        run: |
+          node fun/tyran/tests/browser-check.mjs
+          node fun/tyran/tests/unobstructed-arena-check.mjs
+      - name: Check live objectives and checkpoint flow
+        timeout-minutes: 5
+        run: node fun/tyran/tests/mission-browser-check.mjs
+      - name: Measure JavaScript frame cost
+        timeout-minutes: 5
+        env:
+          TYRAN_FRAME_MODE: js
+        run: node fun/tyran/tests/frame-cost-check.mjs
+      - name: Check software WebGL renderer
+        timeout-minutes: 5
+        env:
+          TYRAN_FRAME_MODE: gpu
+        run: node fun/tyran/tests/frame-cost-check.mjs
+      - name: Save screenshots, coverage reports and server log
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: tyran-qa
+          path: |
+            ${{ runner.temp }}/tyran-qa/
+            ${{ runner.temp }}/tyran-ui-qa/
+            ${{ runner.temp }}/tyran-frame-cost/
+            ${{ runner.temp }}/tyran-server.log
+          retention-days: 7

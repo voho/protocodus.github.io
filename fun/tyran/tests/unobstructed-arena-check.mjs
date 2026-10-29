@@ -1,9 +1,10 @@
 // Compact transparent flight instruments overlay a full-screen arena.
 import assert from 'node:assert/strict';
+import { chromiumOptions } from './browser-options.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
-const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
+const browser = await chromium.launch(chromiumOptions());
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/';
 const output = process.env.TYRAN_UI_OUTPUT || '/tmp/tyran-ui-qa';
 const errors = [], results = [];

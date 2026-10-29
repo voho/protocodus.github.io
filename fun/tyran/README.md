@@ -147,6 +147,11 @@ Damage refreshes only the affected part of a scenery strip, retaining overlappin
 
 ## Verification
 
+The **Tyran game QA** GitHub Actions workflow runs on pull requests that change this game. It checks touch ownership, objectives, mobile portrait/landscape layout, the mission/checkpoint flow and both JavaScript-only and WebGL rendering paths. It serves the checkout on loopback with pinned Playwright/Chromium and uploads screenshots and JSON reports. Software-renderer timings verify coverage; they do not measure a phone's frame rate.
+
+The four CI browser harnesses share `tests/browser-options.mjs`. Local runs keep their existing browser defaults. To opt into software WebGL on a GPU-less machine, set `TYRAN_SOFTWARE_GPU=1`, `TYRAN_BROWSER=chromium` and an explicit loopback `TYRAN_URL`; remote origins are rejected for this mode.
+
+
 ```sh
 node fun/tyran/tests/sim-check.mjs --balance
 node fun/tyran/tests/sim-check.mjs --endless-balance
@@ -208,6 +213,7 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/sec
 node fun/tyran/tests/combat-feedback-check.mjs
 node fun/tyran/tests/touch-input-check.mjs
 node fun/tyran/tests/objective-tracker-check.mjs
+node fun/tyran/tests/browser-options-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/unobstructed-arena-check.mjs
 node fun/tyran/tests/difficulty-check.mjs
 node fun/tyran/tests/difficulty-balance.mjs --modes=easy,medium,hard,real --attempts=100 --workers=4

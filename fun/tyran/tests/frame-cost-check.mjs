@@ -6,6 +6,7 @@
 //   TYRAN_FRAME_MODE=gpu  runs the real renderer and sums the analytic fill area of every triangle.
 // Usage: TYRAN_BROWSER=chromium TYRAN_FRAME_MODE=js node fun/tyran/tests/frame-cost-check.mjs
 import assert from 'node:assert/strict';
+import { chromiumOptions } from './browser-options.mjs';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,7 +24,7 @@ const label = process.env.TYRAN_FRAME_LABEL || mode;
 const out = process.env.TYRAN_FRAME_OUTPUT || join(tmpdir(), 'tyran-frame-cost');
 await mkdir(out, { recursive: true });
 
-const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
+const browser = await chromium.launch(chromiumOptions());
 const page = await browser.newPage({ viewport, deviceScaleFactor: dpr });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));

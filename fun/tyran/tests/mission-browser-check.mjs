@@ -2,9 +2,10 @@
 // Sector objectives on the pause screen, the shop debrief with rank and next
 // goals, and a defeated flight that retries from its checkpoint.
 import assert from 'node:assert/strict';
+import { chromiumOptions } from './browser-options.mjs';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
-const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
+const browser = await chromium.launch(chromiumOptions());
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const output = process.env.TYRAN_SCREENSHOTS || '/tmp/tyran-qa';
 await mkdir(output, { recursive: true });
