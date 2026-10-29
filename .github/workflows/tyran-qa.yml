@@ -19,15 +19,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      TYRAN_PLAYWRIGHT: ${{ runner.temp }}/tyran-browser/node_modules/playwright/index.mjs
       TYRAN_BROWSER: chromium
       TYRAN_URL: http://127.0.0.1:8773/fun/tyran/
       TYRAN_SOFTWARE_GPU: '1'
       TYRAN_PERF_PROFILE: '0'
       TYRAN_PERF_SECONDS: '20'
-      TYRAN_SCREENSHOTS: ${{ runner.temp }}/tyran-qa
-      TYRAN_UI_OUTPUT: ${{ runner.temp }}/tyran-ui-qa
-      TYRAN_FRAME_OUTPUT: ${{ runner.temp }}/tyran-frame-cost
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -35,6 +31,12 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+      - name: Configure browser and artifact paths
+        run: |
+          echo "TYRAN_PLAYWRIGHT=$RUNNER_TEMP/tyran-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "TYRAN_SCREENSHOTS=$RUNNER_TEMP/tyran-qa" >> "$GITHUB_ENV"
+          echo "TYRAN_UI_OUTPUT=$RUNNER_TEMP/tyran-ui-qa" >> "$GITHUB_ENV"
+          echo "TYRAN_FRAME_OUTPUT=$RUNNER_TEMP/tyran-frame-cost" >> "$GITHUB_ENV"
       - name: Check input and objective logic
         run: |
           node fun/tyran/tests/touch-input-check.mjs
