@@ -323,11 +323,12 @@ const BACKDROP_FRAG = `
       smoothstep(2.0, 7.0, 0.125 / max(max(length(faceZYdx), length(faceZYdy)), 1e-6)));
     vec2 faceWeight = abs(n.zx);
     faceWeight /= max(faceWeight.x + faceWeight.y, 1e-5);
-    float faceMask = smoothstep(0.05, 0.42, 1.0 - n.y)
+    float faceMask = smoothstep(0.001, 0.03, 1.0 - n.y)
       * (1.0 - smoothstep(0.12, 0.58, cover.g))
       * (1.0 - smoothstep(30000.0, 45000.0, vDist))
       * (1.0 - clamp(uWhiteout, 0.0, 1.0));
     float snowPocket = 0.0;
+    float gullyShade = 0.0;
     if (faceMask * dot(faceSeen, faceWeight) > 0.0) {
       vec3 faceA = textureGrad(uNoise, faceXY, faceXYdx, faceXYdy).rgb;
       vec3 faceB = textureGrad(uNoise, faceZY, faceZYdx, faceZYdy).rgb;
@@ -336,10 +337,11 @@ const BACKDROP_FRAG = `
         + (faceB - 0.5) * faceWeight.y * faceSeen.y;
       vec2 across = vec2(n.z, -n.x) / max(length(n.xz), 1e-5);
       vec2 outward = n.xz / max(length(n.xz), 1e-5);
-      n.xz += (across * (face.g - 0.5) * 0.95
-        + outward * (face.b - 0.5) * 0.20) * faceMask;
+      n.xz += (across * (face.g - 0.5) * 0.80
+        + outward * (face.b - 0.5) * 0.75) * faceMask;
       snowPocket = (smoothstep(0.32, 0.68, face.b) - 0.5) * 0.26 * faceMask;
       cavity *= 1.0 + (face.b - 0.5) * 0.24 * faceMask;
+      gullyShade = 0.35 * faceMask * (1.0 - smoothstep(0.34, 0.48, face.g));
     }
 
 
@@ -394,6 +396,7 @@ const BACKDROP_FRAG = `
     float open = clamp(vAO * (0.55 + 0.9 * cavity), 0.0, 1.0);
     vec3 fill = mix(uGroundFill * 0.55, uSkyFill, 0.5 + 0.5 * n.y) * (0.52 + 0.4 * open)
       * vec3(0.78, 0.90, 1.14);
+    fill *= 1.0 - gullyShade;
     vec3 c = albedo * (fill + uKeyLight * direct * 1.1) * 0.3183099;
     // the alpenglow is light arriving on snow, and it is added
     c += uAlpenglow * direct * (snow + ice);

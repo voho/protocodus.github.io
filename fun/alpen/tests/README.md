@@ -525,8 +525,10 @@ CI fetches the two baseline source files pinned to commit `a3edd9d9cd0d3de13a384
 
 Sidewall arêtes and bulk gullies have stronger relief, with an earlier coarse-cell fade so wide rings keep the existing geomorph bound. Existing filtered rock bedding, joints and normal relief have greater contrast. The corridor and its twenty-metre powder apron remain unchanged; no terrain vertices, height octaves or texture samples are added by the sidewall pass.
 
-The loaded distant model gains broad, vertically coherent crags and snow channels. Two conditional samples of the existing noise map supply structure at resolvable scales, with pixel-footprint, forest, slope, whiteout and distance fades. The model, skyline, textures and draw counts stay unchanged.
+The loaded distant model gains broad, vertically coherent crags, snow channels and bounded indirect-light occlusion in gullies. Two conditional samples of the existing noise map supply structure at resolvable scales, with pixel-footprint, forest, slope, whiteout and distance fades. The model, skyline, textures and draw counts stay unchanged.
 
 The browser detail profile compares baseline `ebb84e90` with current code at identical seed, time, camera and full art render scale. It captures both sidewalls and the far horn/massif, including native-resolution crops. Capture setup freezes test-only weather/cloud clocks and asserts all 24 model sectors/maps are loaded and fallback ranges hidden. The ordinary mobile/desktop profiles keep adaptive rendering enabled.
 
-The actual-shader crag check verifies visible mineral-slope detail and exact bypass for forests, flat ground, unresolved patterns, whiteout and distant cutoff. Existing forest-pattern and shader-filtering checks run too. Paired artwork captures are visual evidence, not device frame-rate measurements.
+The actual-shader crag check verifies normal and final-color responses on fully snowy and bare mineral faces and exact bypass for forests, flat ground, unresolved patterns, whiteout and distant cutoff. Existing forest-pattern and shader-filtering checks run too. Paired artwork captures are visual evidence, not device frame-rate measurements.
+
+The paired capture also renders the actual horn/massif material in isolation to report eligibility, pixel visibility, snow/forest coverage and final RGB differences. This catches a procedural effect that changes an encoded normal but remains imperceptible on the real mountain under the current light.

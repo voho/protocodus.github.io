@@ -239,6 +239,15 @@ try {
               { name: 'massif', x: 700, y: 120, width: 400, height: 320 }] },
         ];
         for (const view of views) await capture(page, name + '-' + view.name, view.z, .48, 0, null, view);
+        if (!baseline) {
+          const view = views.find(v => v.name === 'far-range');
+          const modelDetail = await page.evaluate(async view =>
+            (await import('./tests/backdrop-crags-browser-check.mjs')).inspectBackdropModel(__alpen, view), view);
+          results.push({ modelDetail });
+          console.log('ALPEN_MODEL_DETAIL ' + JSON.stringify(modelDetail));
+          assert(modelDetail.every(r => r.pixels > 1000 && r.changedFraction > .1 && r.largest >= 3),
+            'actual horn and massif faces show final-color detail');
+        }
         assert.deepEqual(errors, [], 'paired art captures remain error-free');
         console.log('Alpen paired detail captures passed: ' + name);
         continue;
