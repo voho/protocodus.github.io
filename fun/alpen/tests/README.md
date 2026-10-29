@@ -494,3 +494,5 @@ ALPEN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs ALPEN_URL=http://127.0.0
 ```
 
 Use `ALPEN_BROWSER=chromium` for Playwright's bundled Chromium. A GPU-less Linux runner can opt into `ALPEN_SOFTWARE_GPU=1` only with a loopback URL. `ALPEN_QA_THUMBNAILS=1` emits compact QA scene images alongside the full PNG artifacts.
+
+CI device profiles run independently. Scene captures settle visual state without redundant intermediate GPU draws, then execute a complete production frame to refresh sky and rider shadows before recording. Capture metadata omits performance timings from that setup period.

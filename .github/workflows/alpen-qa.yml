@@ -35,10 +35,15 @@ jobs:
             node "tests/$test.mjs"
           done
   browser:
-    name: Real controls, mountain scenes and shaders
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, portrait, landscape]
+    name: Browser ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
+      ALPEN_QA_PROFILE: ${{ matrix.profile }}
       ALPEN_BROWSER: chromium
       ALPEN_URL: http://127.0.0.1:8773/fun/alpen/
       ALPEN_SOFTWARE_GPU: '1'
@@ -75,7 +80,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: alpen-qa
+          name: alpen-qa-${{ matrix.profile }}
           path: |
             ${{ runner.temp }}/alpen-qa/
             ${{ runner.temp }}/alpen-server.log

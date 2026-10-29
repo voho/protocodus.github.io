@@ -54,7 +54,25 @@ async function capture(page, label, z, tod, storm) {
     a.terrain.reset(x, z); a.terrain.snapSnowReady(); a.sky.snapBackdrop();
     a.retro.fade(1); a.flicker.freezeResolution = true; a.game.mode = 'attract';
   }, { z, tod, storm });
-  await frames(page, 45);
+  // Settle the production visual update order without repeatedly rasterizing
+  // an unchanged scene on a software GPU. One real frame below repairs every
+  // cached GPU layer, including the rider's private depth shadow.
+  await page.evaluate(() => {
+    window.__alpenQARender = __alpen.renderer.render;
+    __alpen.renderer.render = () => {};
+  });
+  try {
+    await frames(page, 45);
+  } finally {
+    await page.evaluate(() => {
+      __alpen.renderer.render = window.__alpenQARender;
+      delete window.__alpenQARender;
+      __alpen.sky.refreshProbe();
+      __alpen.flicker.shadowEveryFrame = true;
+      __alpen.renderer.shadowMap.needsUpdate = true;
+    });
+  }
+  await frames(page, 1);
   await page.evaluate(() => { __alpen.game.mode = 'paused'; });
   await frames(page, 2);
   const visual = await page.evaluate(async () => {
@@ -76,9 +94,11 @@ async function capture(page, label, z, tod, storm) {
       const luma = pixels[i] * .2126 + pixels[i + 1] * .7152 + pixels[i + 2] * .0722;
       low = Math.min(low, luma); high = Math.max(high, luma);
     }
+    const debug = a.debug();
+    delete debug.performance; // Capture-only settling is not a timing benchmark.
     return { finite, contrast: high - low, glError: a.renderer.getContext().getError(),
       chapter: chapterNameAt(a.rider.pos.z), weather: a.weather.state.conditions,
-      phase: a.weather.state.phase, debug: a.debug(),
+      phase: a.weather.state.phase, debug,
       data_url: small.toDataURL('image/jpeg', .6) };
   });
   assert(visual.finite, label + ': scene values remain finite');
@@ -90,11 +110,13 @@ async function capture(page, label, z, tod, storm) {
   results.push({ label, ...visual });
 }
 try {
-  for (const profile of [
+  const profiles = [
     { name: 'desktop', viewport: { width: 1100, height: 700 }, deviceScaleFactor: 1 },
     { name: 'portrait', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
     { name: 'landscape', viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  ]) {
+  ].filter(profile => !process.env.ALPEN_QA_PROFILE || profile.name === process.env.ALPEN_QA_PROFILE);
+  assert(profiles.length, 'valid ALPEN_QA_PROFILE');
+  for (const profile of profiles) {
     const { name, ...options } = profile;
     const page = await browser.newPage(options);
     page.setDefaultTimeout(180000);
@@ -107,6 +129,7 @@ try {
       await page.waitForFunction(() => window.__alpen && document.body.classList.contains('ready'));
       await page.evaluate(async () => { await Promise.all([__alpen.terrain.surfacesReady, __alpen.sky.backdropReady]); });
       const bootMs = Date.now() - started;
+      console.log('Alpen boot ready: ' + profile.name + ' in ' + bootMs + ' ms');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), profile.name + ': no horizontal overflow');
       await page.locator('.drop-in').click();
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
@@ -160,6 +183,7 @@ try {
         assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 0, 'real restart clears grab discoveries');
       }
       results.push({ profile: profile.name, bootMs, gameplay: 'passed' });
+      console.log('Alpen gameplay passed: ' + profile.name);
       await page.addStyleTag({ content: '.hud,.curtain,.pad{visibility:hidden!important}' });
       const locations = await page.evaluate(async () => {
         const { chapterNameAt } = await import('./js/terrain.js');
@@ -170,6 +194,7 @@ try {
         }
         return found;
       });
+      assert.equal(locations.length, 3, 'the fixed seed exposes three distinct terrain chapters');
       await capture(page, profile.name + '-clear', locations[0].z, .48, 0);
       if (profile.name === 'desktop') {
         for (let index = 1; index < locations.length; index++) await capture(page, 'chapter-' + index, locations[index].z, .48, 0);
@@ -184,7 +209,7 @@ try {
       assert.deepEqual(errors, [], 'no runtime, shader or resource errors');
       console.log('Alpen profile passed: ' + profile.name);
     } catch (error) {
-      await page.screenshot({ path: output + '/' + profile.name + '-failure.png' }).catch(() => {});
+      await page.screenshot({ path: output + '/' + profile.name + '-failure.png', timeout: 10000 }).catch(() => {});
       throw error;
     } finally { await page.close(); }
   }
