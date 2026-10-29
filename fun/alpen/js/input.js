@@ -88,7 +88,6 @@ export function createInput(target, hooks = {}) {
   let gpJumpHeld = false;
   let gpMenuHeld = false;
   let gpBackHeld = false;
-  let gpJumpStepSeen = false;
   const state = {
     turn: 0, turnIntent: 0, tuck: false, brake: false, jump: false,
     // How hard, 0..1, while `tuck`/`brake` are true: 1 from a key or a
@@ -103,12 +102,23 @@ export function createInput(target, hooks = {}) {
   const touch = { left: false, right: false, tuck: false, brake: false, jump: false, grab: false, flip: false };
 
   const held = (name) => BINDINGS[name].some((c) => down.has(c)) || touch[name];
+  const jumpHeld = () => held('jump') || gpJumpHeld;
+  // A charge belongs to the combined command, not to the device that began it.
+  function jumpChanged(wasHeld, cancelled = false) {
+    const isHeld = jumpHeld();
+    if (isHeld && !wasHeld) jumpStepSeen = false;
+    if (wasHeld && !isHeld) {
+      if (cancelled) hooks.cancelJump?.();
+      else if (!jumpStepSeen) jumpTapPending = true;
+    }
+  }
 
   const CODES = new Set(Object.values(BINDINGS).flat());
 
   function onKey(e, isDown) {
     const bound = CODES.has(e.code);
     const jumpKey = BINDINGS.jump.includes(e.code);
+    const wasJumpHeld = jumpKey && jumpHeld();
     // Space and the arrows scroll the page otherwise, which on a game that
     // fills the viewport is a bug rather than a preference. Repeats included:
     // the key is still down, so the page would still scroll.
@@ -124,14 +134,13 @@ export function createInput(target, hooks = {}) {
       if (isDown) {
         if (!down.has(e.code)) {
           state.anyPressed = true;
-          if (jumpKey) jumpStepSeen = false;
         }
         down.add(e.code);
       } else {
-        if (jumpKey && !jumpStepSeen && down.has(e.code)) jumpTapPending = true;
         down.delete(e.code);
       }
     }
+    if (jumpKey) jumpChanged(wasJumpHeld);
     if (isDown && hooks.key) hooks.key(e);
   }
 
@@ -221,13 +230,11 @@ export function createInput(target, hooks = {}) {
          through the same pulse machine. Consumption is the test, not frame
          counting: `stepped()` reports the actual read, so a press the rider
          already charged from is never replayed as extra charge on top. */
-      if (gpJump && !gpJumpHeld) {
-        state.anyPressed = true;
-        gpJumpStepSeen = false;
-      }
-      if (!gpJump && gpJumpHeld && !gpJumpStepSeen) jumpTapPending = true;
-      gpJumpHeld = gpJump;
     }
+    const wasJumpHeld = jumpHeld();
+    if (gpJump && !gpJumpHeld) state.anyPressed = true;
+    gpJumpHeld = gpJump;
+    jumpChanged(wasJumpHeld, !hasGamepads);
 
     const keyTurn = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
     const want = Math.abs(gpTurn) > Math.abs(keyTurn) ? gpTurn : keyTurn;
@@ -281,8 +288,7 @@ export function createInput(target, hooks = {}) {
      the only thing that lets a latched tap move on, so a frame that runs no
      steps at all cannot consume one. */
   function stepped() {
-    if (held('jump') && state.jump) jumpStepSeen = true;
-    if (gpJumpHeld && state.jump) gpJumpStepSeen = true;
+    if (jumpHeld() && state.jump) jumpStepSeen = true;
     // Retire each pulse half on this clock, including several physics ticks
     // in one render frame. A tap gets the same charge at 30 Hz and 240 Hz.
     if (jumpPulse === PULSE_PRESS) {
@@ -311,14 +317,11 @@ export function createInput(target, hooks = {}) {
       };
       const sync = (e, cancelled = false) => {
         e.preventDefault();
+        const wasJumpHeld = name === 'jump' && jumpHeld();
         const v = touchButtons.some((b) => b.name === name && (b.pointers.size || b.keyboardHeld));
-        if (name === 'jump') {
-          if (v && !touch[name]) jumpStepSeen = false;
-          if (!v && touch[name] && !jumpStepSeen && !cancelled) jumpTapPending = true;
-          if (!v && touch[name] && cancelled) hooks.cancelJump?.();
-        }
         if (v && !touch[name]) state.anyPressed = true;
         touch[name] = v;
+        if (name === 'jump') jumpChanged(wasJumpHeld, cancelled);
         el.classList.toggle('on', !!(pointers.size || button.keyboardHeld));
       };
       button.sync = sync;
@@ -409,8 +412,7 @@ export function createInput(target, hooks = {}) {
     state.anyPressed = false;
     // Held buttons belong to the paused gesture, not a fresh tap to replay
     // when physics resumes. The next new press resets these flags normally.
-    jumpStepSeen = held('jump');
-    gpJumpStepSeen = gpJumpHeld;
+    jumpStepSeen = jumpHeld();
     jumpTapPending = false;
     jumpPulse = PULSE_NONE;
   }
@@ -419,19 +421,23 @@ export function createInput(target, hooks = {}) {
      trusted: losing focus is exactly the case where the keyup goes to somebody
      else and never arrives here. */
   function clear() {
+    // Clear every physical source before issuing one cancellation, including
+    // a release that arrived between physics steps.
+    clearTouch(false);
     down.clear();
     // The pad cannot be emptied, only distrusted — see the poll in `update`.
     gamepadSuppressed = true;
     gpJumpHeld = false;
     gpMenuHeld = false;
     gpBackHeld = false;
-    gpJumpStepSeen = false;
     calm();
+    hooks.cancelJump?.();
   }
 
-  function clearTouch() {
-    if (touch.jump) hooks.cancelJump?.();
+  function clearTouch(notify = true) {
+    const wasJumpHeld = jumpHeld();
     for (const k of Object.keys(touch)) touch[k] = false;
+    if (notify) jumpChanged(wasJumpHeld, true);
     const captured = touchButtons.flatMap((button) => [...button.pointers]);
     for (const button of touchButtons) {
       const { el, pointers } = button;

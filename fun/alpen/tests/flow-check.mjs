@@ -10,6 +10,7 @@ import {
 import { setWorldSeed } from '../js/noise.js';
 import {
   comboFor, feedFlow, flowFromPoints, stepFlowMeter, scoreTrick, repeatShare,
+  firstGrabShare, GRAB_DISCOVERY_BONUS,
 } from '../js/flow.js';
 
 const dt = 1 / 120;
@@ -270,3 +271,38 @@ for (const seed of seeds) {
 }
 
 console.log('Flow checks passed: multiplier steps, hold and fade, tuck spend, cruise ceiling, trick-built max, and side hits (placement, untouched corduroy, flights, airless line) on three seeds.');
+
+// Learning each grab earns a small points premium without feeding extra flow.
+{
+  const discovered = new Set();
+  const s = {
+    judged: true, verdict: CLEAN, halfTurns: 1, flipTurns: 0, spin: 3, flips: 0,
+    grabKind: 0, grabTime: RIDER.grabHold[0] + 0.1, airTime: 1,
+    switchStance: false, takeoffSpeed: 18, lipPop: false,
+  };
+  const before = JSON.stringify(s), basePoints = scoreTrick(s).points;
+  for (const change of [
+    { judged: false }, { verdict: SKETCHY }, { verdict: BAIL },
+    { grabTime: 0 }, { grabTime: RIDER.grabHold[0] },
+    { grabKind: -1 }, { grabKind: RIDER.grabs.length }, { grabKind: 0.5 },
+  ]) assert.equal(firstGrabShare(discovered, { ...s, ...change }), 1,
+    'ineligible landings do not consume a discovery');
+  assert.equal(discovered.size, 0);
+  assert.equal(GRAB_DISCOVERY_BONUS, 0.12);
+  assert.equal(firstGrabShare(discovered, s), 1.12);
+  assert.equal(firstGrabShare(discovered, s), 1);
+  assert.equal(firstGrabShare(discovered, { ...s, halfTurns: 4, spin: 12, grabTime: 0.8 }), 1,
+    'a new spin does not rediscover the same grab');
+  for (const grabKind of [1, 2]) {
+    assert.equal(firstGrabShare(discovered, { ...s, grabKind }), 1.12);
+    assert.equal(firstGrabShare(discovered, { ...s, grabKind }), 1);
+  }
+  assert.deepEqual([...discovered], [0, 1, 2]);
+  assert.equal(JSON.stringify(s), before);
+  assert.equal(scoreTrick(s).points, basePoints, 'flow still uses the original trick payout');
+  const recent = ['INDY', 'INDY'];
+  assert.equal(repeatShare(recent, 'INDY'), SCORE.repeatShare);
+  discovered.clear();
+  assert.equal(firstGrabShare(discovered, s), 1.12, 'restart restores discoveries');
+}
+console.log('Grab discovery checks passed: eligibility, variety, repeat rules and reset.');

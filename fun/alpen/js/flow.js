@@ -24,9 +24,22 @@
    in the air is already in the middle of the next thing. */
 
 import { RIDER, SCORE } from './config.js';
-import { SKETCHY } from './rider.js';
+import { CLEAN, SKETCHY } from './rider.js';
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+export const GRAB_DISCOVERY_BONUS = 0.12;
+
+// Reward trying each configured grab once without changing flow progression.
+export function firstGrabShare(discovered, s) {
+  const kind = s.grabKind;
+  if (!s.judged || s.verdict !== CLEAN
+    || !(s.grabTime > RIDER.grabHold[0])
+    || !Number.isInteger(kind) || kind < 0 || kind >= RIDER.grabs.length
+    || discovered.has(kind)) return 1;
+  discovered.add(kind);
+  return 1 + GRAB_DISCOVERY_BONUS;
+}
 
 /* What a payout is worth in meter. Sub-linear on purpose: a trick worth ten
    times another should not fill the bar ten times faster, or one enormous

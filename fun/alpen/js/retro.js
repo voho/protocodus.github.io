@@ -23,8 +23,9 @@ const VERT = `
 // One invalid HDR texel otherwise spreads through both bloom kernels into a
 // large rectangle. Keep valid radiance unchanged and contain invalid samples
 // before filtering or grading. Three's WebGL2 shaders provide isnan/isinf.
-// The bright pass's min(tap, 24.0) is no substitute: -Inf passes it (its Karis
-// weight then makes NaN), and by GLSL's own definition min(NaN, 24.0) is NaN.
+// The bright pass's min(tap, 24.0) is no substitute: -Inf can pass it, and
+// Karis weighting can generate NaN. Propagation varies across GPU drivers;
+// reject nonfinite scene samples before any filtering.
 const SCENE_SAMPLE = `
   vec3 sceneColor(vec2 uv) {
     vec3 c = texture2D(tDiffuse, uv).rgb;
@@ -488,6 +489,13 @@ export function createRetro(THREE, renderer) {
   renderer.info.autoReset = false;
   const gl = renderer.getContext();
   const isWebGL2 = renderer.capabilities.isWebGL2;
+  // Area budgets alone can still exceed a low-limit GPU in a wide viewport.
+  const validLimit = value => Number.isFinite(value) && value > 0 ? value : Infinity;
+  const renderbufferLimit = validLimit(gl.getParameter?.(gl.MAX_RENDERBUFFER_SIZE));
+  const viewportLimit = gl.getParameter?.(gl.MAX_VIEWPORT_DIMS);
+  const textureLimit = validLimit(renderer.capabilities.maxTextureSize);
+  const rasterWidth = Math.min(textureLimit, renderbufferLimit, validLimit(viewportLimit?.[0]));
+  const rasterHeight = Math.min(textureLimit, renderbufferLimit, validLimit(viewportLimit?.[1]));
   const hdr = isWebGL2
     && (renderer.extensions.has('EXT_color_buffer_float')
       || renderer.extensions.has('EXT_color_buffer_half_float'));
@@ -773,7 +781,8 @@ export function createRetro(THREE, renderer) {
     const rawDpr = Math.min(RENDER.maxPixelRatio, window.devicePixelRatio || 1);
     const pixelBudget = RENDER.maxPixels || 3840 * 2160;
     const budgetDpr = Math.sqrt(pixelBudget / (nextCssW * nextCssH));
-    const nextDpr = Math.max(0.5, Math.min(rawDpr, budgetDpr));
+    const nextDpr = Math.min(Math.max(0.5, Math.min(rawDpr, budgetDpr)),
+      rasterWidth / nextCssW, rasterHeight / nextCssH);
     const nextDisplayW = Math.max(2, Math.round(nextCssW * nextDpr));
     const nextDisplayH = Math.max(2, Math.round(nextCssH * nextDpr));
 
