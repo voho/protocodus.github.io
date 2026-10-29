@@ -113,7 +113,6 @@ export async function runPostHdrCheck() {
         // infinities. Some drivers spread -Inf through Karis weighting and
         // bloom; others sanitize it. Guarded safety below is always required.
         const spread = invalidBefore > 0;
-        if (spread) assert(before.changedPixels > 100, 'one invalid texel reproduces a visible rectangular artifact');
         assert(invalidAfter === 0, 'all bloom and ray targets remain finite');
         assert(after.changedPixels < 80, 'the invalid texel remains local rather than spreading into a block');
         records.push({ speed, value: String(value), finiteDifference, spread, invalidBefore, invalidAfter, before, after });

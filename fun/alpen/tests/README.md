@@ -466,8 +466,8 @@ bloom/ray targets, and compares valid HDR images with the safeguard disabled.
 With the safeguard, all six cases must stay finite and local. Without it,
 spreading is diagnostic rather than required: GLSL ES 3.00 sections 4.5.1–4.5.2
 allow NaN propagation and precision conversion to vary across drivers.
-The report records `unguardedSpreadCases`, and any observed spread must also
-reproduce a visible artifact. The Karis bright pass (`7bc08d3a`, after this check was written)
+The report records `unguardedSpreadCases` and changed pixel counts; invalid
+intermediate values need not survive later passes as a visible artifact. The Karis bright pass (`7bc08d3a`, after this check was written)
 clamps each tap with `min(tap, 24.0)`. That always turns positive infinity
 into 24, and NaN too wherever `min()` returns the number rather than the NaN,
 as an M1 Max does; one tap of 24 among three dark ones then stays under the
