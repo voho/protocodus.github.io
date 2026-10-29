@@ -502,3 +502,11 @@ ALPEN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs ALPEN_URL=http://127.0.0
 Use `ALPEN_BROWSER=chromium` for Playwright's bundled Chromium. A GPU-less Linux runner can opt into `ALPEN_SOFTWARE_GPU=1` only with a loopback URL. `ALPEN_QA_THUMBNAILS=1` emits compact QA scene images alongside the full PNG artifacts.
 
 CI device profiles run independently. Scene captures settle visual state without redundant intermediate GPU draws, then execute a complete production frame to refresh sky and rider shadows before recording. Capture metadata omits performance timings from that setup period.
+
+## Natural jumps and varied side hits
+
+A charged ollie adds a modest leg impulse while the terrain tangent preserves approach speed and takeoff angle. Riding checks measure actual apex heights, speed and angle response, charge timing, and clean trick landings rather than only comparing velocity with configuration values.
+
+Marked side hits vary their longitudinal profile and footprint. Rollers, drifts and wind lips have different crowns, shoulders and runouts; seeded placement remains deterministic and the central ribbon remains clear. Terrain checks sample the actual height field with and without the features to compare normalized silhouettes.
+
+Browser QA uses the shared seed `1EE9566` and captures a consistent three-quarter view of each side-hit family, alongside the existing terrain, weather and device checks. Camera overrides are confined to capture setup, run through the production visual update order, and are restored afterwards.

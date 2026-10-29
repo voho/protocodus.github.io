@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const { chromium } = await import(process.env.ALPEN_PLAYWRIGHT || 'playwright');
 const url = new URL(process.env.ALPEN_URL || 'http://127.0.0.1:8773/fun/alpen/');
-url.searchParams.set('seed', 'alpen01');
+url.searchParams.set('seed', '1EE9566');
 const software = process.env.ALPEN_SOFTWARE_GPU === '1';
 if (software && !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
   throw new Error('Software WebGL QA requires a loopback ALPEN_URL.');
@@ -38,76 +38,94 @@ async function fixedWeather(page) {
     await route.fulfill({ response, body });
   });
 }
-async function capture(page, label, z, tod, storm) {
-  await page.evaluate(async ({ z, tod, storm }) => {
-    const a = __alpen;
-    const { guideAt } = await import('./js/terrain.js');
-    a.game.mode = 'paused';
-    a.rider.step = () => {}; // Capture only: actual production visual updates keep running.
-    const x = guideAt(z);
-    a.rider.reset(z, x); a.chase.reset(); a.trail.clear(); a.spray.clear();
-    a.wildlife.reset(); a.huts.reset(); a.mountainLife.reset(z);
-    a.model.reset(); a.shading.reset(); a.props.reset(z, 1);
-    const w = a.weather.check(tod, storm);
-    a.sky.update(a.rider.pos, w, 0);
-    a.terrain.setSun(a.sky.sunDir.x, a.sky.sunDir.y, a.sky.sunDir.z, a.sky.shadowLevel);
-    a.terrain.reset(x, z); a.terrain.snapSnowReady(); a.sky.snapBackdrop();
-    a.retro.fade(1); a.flicker.freezeResolution = true; a.game.mode = 'attract';
-  }, { z, tod, storm });
-  // Settle the production visual update order without repeatedly rasterizing
-  // an unchanged scene on a software GPU. One real frame below repairs every
-  // cached GPU layer, including the rider's private depth shadow.
-  await page.evaluate(() => {
-    window.__alpenQARender = __alpen.renderer.render;
-    __alpen.renderer.render = () => {};
-  });
+async function capture(page, label, z, tod, storm, hit = null) {
   try {
-    await frames(page, 45);
-  } finally {
+    await page.evaluate(async ({ z, tod, storm, hit }) => {
+      const a = __alpen;
+      const { guideAt, heightAt } = await import('./js/terrain.js');
+      a.game.mode = 'paused';
+      a.rider.step = () => {}; // Capture only: actual production visual updates keep running.
+      const x = hit?.x ?? guideAt(z);
+      a.rider.reset(z, x); a.chase.reset(); a.trail.clear(); a.spray.clear();
+      a.wildlife.reset(); a.huts.reset(); a.mountainLife.reset(z);
+      a.model.reset(); a.shading.reset(); a.props.reset(z, 1);
+      const w = a.weather.check(tod, storm);
+      a.sky.update(a.rider.pos, w, 0);
+      a.terrain.setSun(a.sky.sunDir.x, a.sky.sunDir.y, a.sky.sunDir.z, a.sky.shadowLevel);
+      a.terrain.reset(x, z); a.terrain.snapSnowReady(); a.sky.snapBackdrop();
+      a.retro.fade(1); a.flicker.freezeResolution = true; a.game.mode = 'attract';
+      if (hit) {
+        window.__alpenQAChase = a.chase.update;
+        const y = heightAt(hit.x, hit.z);
+        a.chase.update = () => {
+          a.camera.position.set(hit.x - hit.side * (1.6 * hit.halfWidth + 5),
+            y + Math.max(7, hit.face * .5), hit.z + Math.max(10, hit.face * .8));
+          a.camera.up.set(0, 1, 0);
+          a.camera.lookAt(hit.x, y - .3, hit.z - hit.lee * .25);
+          a.camera.updateMatrixWorld();
+        };
+      }
+    }, { z, tod, storm, hit });
+    // Settle the production visual update order without repeatedly rasterizing
+    // an unchanged scene on a software GPU. One real frame below repairs every
+    // cached GPU layer, including the rider's private depth shadow.
     await page.evaluate(() => {
-      __alpen.renderer.render = window.__alpenQARender;
-      delete window.__alpenQARender;
-      __alpen.sky.refreshProbe();
-      __alpen.flicker.shadowEveryFrame = true;
-      __alpen.renderer.shadowMap.needsUpdate = true;
+      window.__alpenQARender = __alpen.renderer.render;
+      __alpen.renderer.render = () => {};
     });
-  }
-  await frames(page, 1);
-  await page.evaluate(() => { __alpen.game.mode = 'paused'; });
-  await frames(page, 2);
-  const visual = await page.evaluate(async () => {
-    const a = __alpen;
-    const { chapterNameAt } = await import('./js/terrain.js');
-    const finite = [...a.rider.pos.toArray(), ...a.rider.normal.toArray(),
-      ...a.camera.position.toArray(), ...a.camera.quaternion.toArray(), a.camera.fov,
-      ...a.sky.sunDir.toArray(), a.weather.state.tod, a.weather.state.storm].every(Number.isFinite);
-    a.sky.refreshProbe(); a.sky.renderProbe(a.renderer);
-    a.retro.render(a.scene, a.camera, true);
-    const small = document.createElement('canvas');
-    const factor = Math.min(512 / innerWidth, 320 / innerHeight);
-    small.width = Math.round(innerWidth * factor); small.height = Math.round(innerHeight * factor);
-    const context = small.getContext('2d');
-    context.drawImage(a.renderer.domElement, 0, 0, small.width, small.height);
-    const pixels = context.getImageData(0, 0, small.width, small.height).data;
-    let low = 255, high = 0;
-    for (let i = 0; i < pixels.length; i += 4) {
-      const luma = pixels[i] * .2126 + pixels[i + 1] * .7152 + pixels[i + 2] * .0722;
-      low = Math.min(low, luma); high = Math.max(high, luma);
+    try {
+      await frames(page, 45);
+    } finally {
+      await page.evaluate(() => {
+        __alpen.renderer.render = window.__alpenQARender;
+        delete window.__alpenQARender;
+        __alpen.sky.refreshProbe();
+        __alpen.flicker.shadowEveryFrame = true;
+        __alpen.renderer.shadowMap.needsUpdate = true;
+      });
     }
-    const debug = a.debug();
-    delete debug.performance; // Capture-only settling is not a timing benchmark.
-    return { finite, contrast: high - low, glError: a.renderer.getContext().getError(),
-      chapter: chapterNameAt(a.rider.pos.z), weather: a.weather.state.conditions,
-      phase: a.weather.state.phase, debug,
-      data_url: small.toDataURL('image/jpeg', .6) };
-  });
-  assert(visual.finite, label + ': scene values remain finite');
-  assert.equal(visual.glError, 0, label + ': no WebGL error');
-  assert(visual.contrast > 15, label + ': rendered image has real scene contrast');
-  await page.locator('#stage').screenshot({ path: output + '/' + label + '.png' });
-  if (process.env.ALPEN_QA_THUMBNAILS === '1') console.log('ALPEN_VISUAL ' + JSON.stringify({ label, chapter: visual.chapter, phase: visual.phase, data_url: visual.data_url }));
-  delete visual.data_url;
-  results.push({ label, ...visual });
+    await frames(page, 1);
+    await page.evaluate(() => { __alpen.game.mode = 'paused'; });
+    await frames(page, 2);
+    const visual = await page.evaluate(async () => {
+      const a = __alpen;
+      const { chapterNameAt } = await import('./js/terrain.js');
+      const finite = [...a.rider.pos.toArray(), ...a.rider.normal.toArray(),
+        ...a.camera.position.toArray(), ...a.camera.quaternion.toArray(), a.camera.fov,
+        ...a.sky.sunDir.toArray(), a.weather.state.tod, a.weather.state.storm].every(Number.isFinite);
+      a.sky.refreshProbe(); a.sky.renderProbe(a.renderer);
+      a.retro.render(a.scene, a.camera, true);
+      const small = document.createElement('canvas');
+      const factor = Math.min(512 / innerWidth, 320 / innerHeight);
+      small.width = Math.round(innerWidth * factor); small.height = Math.round(innerHeight * factor);
+      const context = small.getContext('2d');
+      context.drawImage(a.renderer.domElement, 0, 0, small.width, small.height);
+      const pixels = context.getImageData(0, 0, small.width, small.height).data;
+      let low = 255, high = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const luma = pixels[i] * .2126 + pixels[i + 1] * .7152 + pixels[i + 2] * .0722;
+        low = Math.min(low, luma); high = Math.max(high, luma);
+      }
+      const debug = a.debug();
+      delete debug.performance; // Capture-only settling is not a timing benchmark.
+      return { finite, contrast: high - low, glError: a.renderer.getContext().getError(),
+        chapter: chapterNameAt(a.rider.pos.z), weather: a.weather.state.conditions,
+        phase: a.weather.state.phase, debug,
+        data_url: small.toDataURL('image/jpeg', .6) };
+    });
+    assert(visual.finite, label + ': scene values remain finite');
+    assert.equal(visual.glError, 0, label + ': no WebGL error');
+    assert(visual.contrast > 15, label + ': rendered image has real scene contrast');
+    await page.locator('#stage').screenshot({ path: output + '/' + label + '.png' });
+    if (process.env.ALPEN_QA_THUMBNAILS === '1') console.log('ALPEN_VISUAL ' + JSON.stringify({ label, chapter: visual.chapter, phase: visual.phase, data_url: visual.data_url }));
+    delete visual.data_url;
+    results.push({ label, ...(hit ? { sideHit: hit } : {}), ...visual });
+  } finally {
+    if (hit) await page.evaluate(() => {
+      if (window.__alpenQAChase) __alpen.chase.update = window.__alpenQAChase;
+      delete window.__alpenQAChase;
+    }).catch(() => {});
+  }
 }
 try {
   const profiles = [
@@ -202,6 +220,14 @@ try {
       await capture(page, profile.name + '-clear', locations[0].z, .48, 0);
       if (profile.name === 'desktop') {
         for (let index = 1; index < locations.length; index++) await capture(page, 'chapter-' + index, locations[index].z, .48, 0);
+        const bulges = await page.evaluate(async () => {
+          const { sideHitsIn } = await import('./js/terrain.js');
+          const hits = sideHitsIn(-8000, -100);
+          return ['roller', 'drift', 'windlip'].map(shape => hits.find(hit => hit.shape === shape)).filter(Boolean);
+        });
+        assert.equal(bulges.length, 3, 'the preview seed exposes three distinct bulge shapes');
+        for (const hit of bulges) await capture(page, 'bulge-' + hit.shape,
+          hit.z + hit.face + 3, .48, 0, hit);
         await capture(page, 'dusk', locations[0].z, .79, 0);
         await capture(page, 'blizzard', locations[0].z, .48, 1);
         const checks = await page.evaluate(async () => ({

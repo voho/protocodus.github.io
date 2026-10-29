@@ -966,39 +966,30 @@ export const TERRAIN = {
     seed: 9431,
   },
 
-  /* Side hits: a wind lip beside the corduroy, one gate slot in `1/chance`
-     at most. See the long note above `sideHitFor` in terrain.js.
+  /* Optional side hits beside the corduroy. Rounded rollers, drifts and
+     wind lips vary their crown slope, shoulder, width and runout. The
+     steepest face stays within the lip slope budget and normalization keeps
+     the true peak at the chosen rise.
 
-     Sized from the ballistics rather than by eye. Leaving a face at slope
-     `lip` over the grade at speed v, with the lip `rise` metres above the
-     snow the rider comes down on, the flight lasts about
-     (lip·v + √((lip·v)² + 2·g·rise)) / g — so the ranges below give roughly
-     0.8 s at 20 m/s and 1.3 s at 35, which is the band where a 360 or a
-     flip fits and where a pop on the lip turns it into a 540 or a cork.
-     The same sum says what it costs to arrive too fast: the touchdown's
-     normal speed is the square root, and at about 40 m/s it passes the
-     sketchy threshold, so the biggest hit on the run is also the one worth
-     checking speed for.
-
-     `offset` is metres past the ribbon's edge to the crest's middle (the
-     spec'd 6–12 beside the corduroy), `clear` keeps at least that share of
-     the hit's own half-width off the ribbon as well, and `inside` is the
-     share of it that must stay inside the groomed corridor — past that the
-     trees begin, and a hit must land its rider on the run. `between` places
-     it between one gate and the next; `from` leaves the opening slots
-     clean; `mask` is the metres over which the ribbon mask releases. */
+     Offset is measured beyond the ribbon, clear protects its inner edge,
+     inside keeps the crest within the corridor, and mask blends back into
+     the untouched racing line. Placement and shape are seeded per slot. */
   sideHits: {
     seed: 8111,
     from: 2,
     chance: 0.62,
-    between: [0.35, 0.65],
+    between: [0.24, 0.76],
     offset: [6, 12],
     clear: 0.75,
     inside: 0.55,
-    halfWidth: [8, 12],
-    rise: [0.9, 1.35],
-    lip: [0.34, 0.46],
-    lee: 0.45,
+    halfWidth: [5, 15],
+    rise: [0.45, 1.35],
+    lip: [0.20, 0.44],
+    lee: [0.45, 1.05],
+    crownSlope: [[0.15, 0.8], [0.9, 1.6], [1.8, 2.7]],
+    shoulder: [-0.3, 0.7],
+    sweep: 0.45,
+    taper: 0.3,
     mask: 4,
   },
 
@@ -1687,29 +1678,16 @@ export const RIDER = {
   // Failed flips can still bail below this; truly larger impacts still crash.
   softImpact: 9,      // m/s into the slope
   hardImpact: 32,
-  // Ollie: held to charge, released to pop.
+  // The ramp supplies speed * sin(actual takeoff angle); the legs add a
+  // modest ollie. On flat snow a full charge rises about 0.93 m at gravity 22,
+  // and a quick tap about 0.24 m, so speed and angle dominate kicker height.
   chargeTime: 0.45,
-  popMin: 7.0,
-  popMax: 14.0,
-  /* Popping off the lip.
-
-     A pop released in the last breath before the ground leaves is worth more
-     than the same pop released halfway up the ramp, which is the one piece
-     of timing the sport actually asks of you and the one thing the old jump
-     had no opinion about. The window is generous — a sixth of a second — and
-     it is checked against the launch rather than against the lip's geometry,
-     so it pays out identically off a kicker, a cornice and the crest of a
-     roller. */
+  popMin: 3.2,
+  popMax: 6.4,
+  // Keep the timing window forgiving, with a small premium on leg effort.
+  // This never multiplies the momentum already supplied by the ramp.
   lipWindow: 0.16,
-  /* Trimmed from 1.45. With the side hits beside the ribbon a perfect pop is
-     something a player now meets several times a kilometre rather than once
-     a run, and at half as much again it was two and a half to three seconds
-     of air off a one-metre drift — three seconds is not a lip pop, it is a
-     cliff, and it came down past the bail line one time in four. A quarter
-     more still reads unmistakably as the timed one: measured on the side
-     hits of three seeds the median air is 2.2 s against the plain pop's
-     1.9. */
-  lipBonus: 1.25,
+  lipBonus: 1.10,
   /* How much of a rider's own pop they are braced to land — see `land` in
      rider.js. The raised heavy line never comes nearer the bail than
      `bracedMargin` metres a second. */

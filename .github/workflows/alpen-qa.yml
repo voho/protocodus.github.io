@@ -31,7 +31,7 @@ jobs:
           node-version: '22'
       - name: Check physics, controls, variety and rendering
         run: |
-          for test in riding-check touch-input-check flow-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
+          for test in riding-check touch-input-check flow-check side-hit-shape-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
             node "tests/$test.mjs"
           done
   browser:
