@@ -1622,10 +1622,10 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
           left ? crests.seed : crests.seed + 7);
         const e1 = CREST_ROUND[0] * cell;
         const a1 = 1 - roundedAbs(n1, e1);
-        // A ninety-five metre ridge is four samples a wavelength on the widest
-        // ring, which is too few to keep its shape from one commit to the
-        // next: the gullies leave before that, and this keeps half.
-        const far = 1 - 0.5 * smoothstep(12, 24, cell);
+        // Sharper arêtes keep their full relief on fine flank cells. Begin
+        // their fade earlier so wide rings carry broad ribs without
+        // introducing detail their triangles cannot hold.
+        const far = 1 - 0.68 * smoothstep(6, 24, cell);
         h += crestScale * far * crests.amp * (a1 * a1 - 0.35 + 0.45 * e1 * e1);
         // The second octave is a thirty-five metre ridge, nearer the runnels'
         // scale than the gullies', so it leaves with the runnels.
@@ -4285,14 +4285,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
               * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot))
             + sin(n64SlateW * 3.926991) * 0.7
               * (1.0 - smoothstep(0.20, 0.40, n64SlateFoot));
-          float n64SlateInk = smoothstep(0.08, 0.92, n64SlateBeds) * 0.12;
+          float n64SlateInk = smoothstep(0.08, 0.92, n64SlateBeds) * 0.18;
 
           float n64IronBeds = sin(n64IronW * 0.785398)
             * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
-          float n64IronShelf = smoothstep(-0.35, 0.72, n64IronBeds) * 0.075;
+          float n64IronShelf = smoothstep(-0.35, 0.72, n64IronBeds) * 0.11;
           float n64JointWave = abs(sin(n64JointW * 0.589049));
           float n64IronJoint = (1.0 - smoothstep(0.03, 0.24, n64JointWave))
-            * (1.0 - smoothstep(0.30, 0.67, n64JointFoot)) * 0.11;
+            * (1.0 - smoothstep(0.30, 0.67, n64JointFoot)) * 0.15;
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
           /* TRIPLANAR, because a top-down projection has no area to give a
@@ -4400,7 +4400,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         vec3 n64RockLean = mix(n64SlateDir * n64SlateLean,
           n64IronDir * n64IronLean, clamp(vRockKind, 0.0, 1.0));
         normal = normalize(normal + mat3(viewMatrix) * n64RockLean
-          * vRock * 0.12);
+          * vRock * 0.18);
         /* The plates' height, spent as light rather than geometry: its
            slope leans the smooth normal — powder sastrugi off-piste and
            machine ribs on it, at a scale the 75 cm mesh cannot carry. */

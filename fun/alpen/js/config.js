@@ -622,7 +622,7 @@ export const TERRAIN = {
        runnels. `grain` is the opposite end, a couple of metres of broken
        surface that only survives near the camera. */
     bulk: {
-      depth: 5.2,          // metres from buttress to gully at full steepness
+      depth: 8.0,          // metres from buttress to gully at full steepness
       wave: 70,            // metres across the flank between gullies
       waveZ: 130,          // …and how far they stretch down it
       grain: 0.85,         // the broken surface over the top
@@ -961,8 +961,8 @@ export const TERRAIN = {
     seed: 9377,
   },
   crests: {
-    amp: 18,
-    fine: 6,
+    amp: 28,
+    fine: 9,
     seed: 9431,
   },
 

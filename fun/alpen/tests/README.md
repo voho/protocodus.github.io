@@ -520,3 +520,13 @@ Shadow atlas installation copies contiguous typed-array rows, splitting only at 
 Paused menu and lens fades reuse the completed HDR/light targets and redraw the final composite. The first paused frame, resizing, restored contexts, changed sun rays and a newly needed wide halo require a full render. Active riding always executes the full scene pipeline. Graphics checks cover invalidation and renderer error cleanup; `paused-composite-browser-check.mjs` compares actual cached/full pixels. The desktop gameplay check also counts continued paused-frame submissions.
 
 CI fetches the two baseline source files pinned to commit `a3edd9d9cd0d3de13a384ea15e572df79a3dc60e`. Paired CPU measurements are diagnostic and have no timing pass threshold; software WebGL checks establish rendering correctness rather than physical-device frame rate.
+
+## Mountain sidewalls and distant rock faces
+
+Sidewall arêtes and bulk gullies have stronger relief, with an earlier coarse-cell fade so wide rings keep the existing geomorph bound. Existing filtered rock bedding, joints and normal relief have greater contrast. The corridor and its twenty-metre powder apron remain unchanged; no terrain vertices, height octaves or texture samples are added by the sidewall pass.
+
+The loaded distant model gains broad, vertically coherent crags and snow channels. Two conditional samples of the existing noise map supply structure at resolvable scales, with pixel-footprint, forest, slope, whiteout and distance fades. The model, skyline, textures and draw counts stay unchanged.
+
+The browser detail profile compares baseline `ebb84e90` with current code at identical seed, time, camera and full art render scale. It captures both sidewalls and the far horn/massif, including native-resolution crops. Capture setup freezes test-only weather/cloud clocks and asserts all 24 model sectors/maps are loaded and fallback ranges hidden. The ordinary mobile/desktop profiles keep adaptive rendering enabled.
+
+The actual-shader crag check verifies visible mineral-slope detail and exact bypass for forests, flat ground, unresolved patterns, whiteout and distant cutoff. Existing forest-pattern and shader-filtering checks run too. Paired artwork captures are visual evidence, not device frame-rate measurements.

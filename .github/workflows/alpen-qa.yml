@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [desktop, portrait, landscape]
+        profile: [desktop, portrait, landscape, detail]
     name: Browser ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -81,6 +81,14 @@ jobs:
             sleep 1
           done
           exit 1
+      - name: Fetch fixed artwork baseline
+        if: matrix.profile == 'detail'
+        run: |
+          mkdir -p "$RUNNER_TEMP/alpen-detail-before"
+          for file in config terrain backdrop; do
+            curl --fail --silent --show-error --retry 3 --output "$RUNNER_TEMP/alpen-detail-before/$file.js" "https://raw.githubusercontent.com/voho/protocodus.github.io/ebb84e902a97c7f97f7e4423544c49c1b21ed270/fun/alpen/js/$file.js"
+          done
+          echo "ALPEN_DETAIL_BASE=$RUNNER_TEMP/alpen-detail-before" >> "$GITHUB_ENV"
       - name: Check real gameplay and capture mountain scenes
         timeout-minutes: 25
         run: node tests/browser-ci-check.mjs

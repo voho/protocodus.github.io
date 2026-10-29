@@ -192,6 +192,24 @@ assert.ok(downhillSamples / apronSamples > 0.99, 'The easy guide line must keep 
   }
 }
 
+{
+  setWorldSeed('1EE9566');
+  const protectedPoints = [];
+  for (const z of [-250.3, -850.3, -1725.7, -2410.7, -3250.1]) {
+    const half = corridorHalfAt(z);
+    for (const c of centersAt(z)) for (const d of [-half - 20, -half, -half * .5, 0, half * .5, half, half + 20]) {
+      protectedPoints.push([c + d, z, heightAt(c + d, z)]);
+    }
+  }
+  const { amp, fine } = TERRAIN.crests;
+  const depth = TERRAIN.wall.bulk.depth;
+  try {
+    TERRAIN.crests.amp = 0; TERRAIN.crests.fine = 0; TERRAIN.wall.bulk.depth = 0;
+    for (const [x, z, h] of protectedPoints) assert.equal(heightAt(x, z), h,
+      'mountain sculpting leaves the corridor and powder apron unchanged');
+  } finally { TERRAIN.crests.amp = amp; TERRAIN.crests.fine = fine; TERRAIN.wall.bulk.depth = depth; }
+}
+
 setWorldSeed('alpen-check');
 const original = heightAt(12.7, -719.2);
 setWorldSeed('fresh-powder');
