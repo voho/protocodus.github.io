@@ -18,16 +18,16 @@ class Target {
   releasePointerCapture(id) { if (this.captures.delete(id)) this.emit('lostpointercapture', id); }
   emit(type, id, extra = {}) {
     const event = { pointerId: id, pointerType: 'touch', clientX: 100, clientY: 100,
-      preventDefault() { this.consumed = true; }, ...extra };
+      preventDefault() { this.consumed = true; }, stopImmediatePropagation() { this.stopped = true; }, ...extra };
     for (const callback of this.listeners.get(type) || []) callback(event);
     return event;
   }
 }
 function setup(size) {
-  const stick = new Target(size), buttons = { fire: new Target(), secondary: new Target(), bomb: new Target() };
+  const root = new Target(), stick = new Target(size), buttons = { fire: new Target(), secondary: new Target(), bomb: new Target() };
   let playing = true, gestures = 0;
-  const input = createTouchControls({ stick, buttons, isPlaying: () => playing, onGesture: () => gestures++ });
-  return { stick, buttons, input, setPlaying: value => playing = value, gestures: () => gestures };
+  const input = createTouchControls({ stick, buttons, clickRoot: root, isPlaying: () => playing, onGesture: () => gestures++ });
+  return { root, stick, buttons, input, setPlaying: value => playing = value, gestures: () => gestures };
 }
 const close = (actual, expected) => assert(Math.abs(actual - expected) < 1e-9, `${actual} ~= ${expected}`);
 
@@ -116,4 +116,27 @@ const close = (actual, expected) => assert(Math.abs(actual - expected) < 1e-9, `
   assert.equal(input.pointer, 6); assert(input.fire); assert.equal(gestures(), 2);
   setPlaying(false); input.reset(); assert(!input.fire); assert.equal(input.pointer, null);
 }
-console.log('Touch input: ownership, cancellation, reset, assist, dead zone and capture checks passed.');
+// Touch releases cannot activate a pause control revealed under the finger.
+// A fresh gesture (including reused IDs) and keyboard activation remain usable.
+{
+  const { root, stick, buttons, input } = setup();
+  stick.emit('pointerdown', 1); input.reset();
+  const old = root.emit('click', 1);
+  assert(old.consumed && old.stopped, 'a click from the old flight gesture is blocked at capture');
+  buttons.fire.emit('pointerdown', 2); buttons.fire.emit('pointerup', 2);
+  assert(root.emit('click', 2).consumed, 'pointer-driven weapon buttons do not need compatibility clicks');
+  stick.emit('pointerdown', 3); input.reset();
+  root.emit('pointerdown', 3);
+  assert(!root.emit('click', 3).consumed, 'a fresh menu gesture may reuse a cancelled pointer ID');
+  stick.emit('pointerdown', 4);
+  assert(!root.emit('click', 99).consumed, 'another pointer remains independent');
+  assert(!root.emit('click', -1).consumed, 'keyboard activation remains independent');
+  assert(!root.emit('click', undefined).consumed, 'programmatic activation remains independent');
+  input.reset();
+  stick.emit('pointerdown', 5, { pointerType: 'mouse' });
+  assert(!root.emit('click', 5).consumed, 'mouse control gestures are not captured');
+  for (let id = 10; id < 50; id++) { stick.emit('pointerdown', id); stick.emit('pointercancel', id); }
+  assert(!root.emit('click', 10).consumed, 'abandoned click ownership is bounded');
+  assert(root.emit('click', 49).consumed, 'the newest cancelled control gesture remains protected');
+}
+console.log('Touch input: ownership, cancellation, reset, assist, dead zone, capture and pause-click checks passed.');

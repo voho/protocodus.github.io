@@ -18,7 +18,7 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 - **Pause, upgrades and debrief:** arrows or WASD navigate the available controls; **Enter** or **Space** selects or buys. Shop navigation follows the card layout and skips unavailable items. Purchases keep focus in the shop. Tab remains available.
 - **Manual:** ↑ ↓ or W/S scroll; **Enter**, **Space**, **Escape** or **Back** returns.
 - **Weapons:** your ship carries one primary gun (Pulse Array, Scatter Cannon or Lance Driver) and the Plasma Mortar. Each fire key uses its own weapon directly; there is no weapon-switch key. The six-tier Ion armament upgrade improves every gun and drone.
-- **Touch:** drag the left control to steer, hold Primary or Plasma on the right to fire and tap Nova to detonate. Optional **Steer & fire** in the title menu or Pause fires the primary while the steering stick is held, including at rest; Plasma still takes priority and Nova stays manual. The preference is remembered in this browser and starts off. Release the stick and fire buttons for the normal weapons-rest shield recovery; its post-hit delay still applies. Each control owns its pointer, so another finger cannot cancel a held action; pausing releases every control. A circular dead zone prevents resting-thumb drift, and touch controls also appear on hybrid touchscreen devices.
+- **Touch:** drag the left control to steer, hold Primary or Plasma on the right to fire and tap Nova to detonate. Optional **Steer & fire** in the title menu or Pause fires the primary while the steering stick is held, including at rest; Plasma still takes priority and Nova stays manual. The preference is remembered in this browser and starts off. Release the stick and fire buttons for the normal weapons-rest shield recovery; its post-hit delay still applies. Each control owns its pointer, so another finger cannot cancel a held action; pausing releases every control. A lifted control finger cannot activate a newly opened pause-menu button beneath it. A circular dead zone prevents resting-thumb drift, and touch controls also appear on hybrid touchscreen devices.
 
 ## How a sector plays
 
@@ -145,6 +145,10 @@ Damage refreshes only the affected part of a scenery strip, retaining overlappin
 | `audio.js` | CC0 sound effects with synthesized stand-ins for missing files, and the streamed soundtrack through one media element |
 | `index.html`, `style.css`, `flight-layout.css` | Responsive menus and compact instruments over the full-screen arena |
 
+Terrain strip density also respects the active GPU's texture size limit before startup and after resizing, so landscape phones with 4096-pixel limits retain WebGL rendering when their lower-density strips fit.
+
+Adaptive backing resolution keeps a 60 Hz target even when a flight starts slowly: sustained load steps the canvas scale down to 70%, while recovery needs both stable cadence and spare render time. This changes pixel density without changing physics, mission speed or HUD text.
+
 ## Verification
 
 The **Tyran game QA** GitHub Actions workflow runs on pull requests that change this game. It checks touch ownership, objectives, mobile portrait/landscape layout, the mission/checkpoint flow and both JavaScript-only and WebGL rendering paths. It serves the checkout on loopback with pinned Playwright/Chromium and uploads screenshots and JSON reports. Software-renderer timings verify coverage; they do not measure a phone's frame rate.
@@ -214,6 +218,8 @@ node fun/tyran/tests/combat-feedback-check.mjs
 node fun/tyran/tests/touch-input-check.mjs
 node fun/tyran/tests/objective-tracker-check.mjs
 node fun/tyran/tests/browser-options-check.mjs
+node fun/tyran/tests/adaptive-resolution-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/texture-limit-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/unobstructed-arena-check.mjs
 node fun/tyran/tests/difficulty-check.mjs
 node fun/tyran/tests/difficulty-balance.mjs --modes=easy,medium,hard,real --attempts=100 --workers=4

@@ -415,6 +415,8 @@ try {
         await page.evaluate(() => tyran.pause());
         assert.equal(await page.locator('#touch-fire').getAttribute('data-held'), 'false', 'pause releases assisted fire');
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        assert.equal(await page.locator('#pause-touch-assist-toggle').getAttribute('aria-pressed'), 'true',
+          'lifting the old stick finger cannot click a pause setting beneath it');
         await page.locator('#pause-touch-assist-toggle').click();
         assert.equal(await page.locator('#pause-touch-assist-toggle').getAttribute('aria-pressed'), 'false');
         await page.evaluate(() => tyran.pause());

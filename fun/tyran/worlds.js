@@ -198,6 +198,7 @@ export class WorldRenderer {
   }
   warmGpuSources(gpu) {
     this.gpu = gpu;
+    this.updateDetailScale();
     gpu.prewarm([...this.sceneryLayers[0].values(), this.cloudSprite, this.cloudShadowSprite,
       this.lightSprite, this.radarSweepSprite, this.shaftSprite, this.vignetteSprite,
       this.structureEffects.light, this.structureEffects.heat, this.structureEffects.fire,
@@ -283,9 +284,12 @@ export class WorldRenderer {
   /** True while the row ahead is within half a strip of entering the viewport. */
   rowImminent(row) {return -this.scroll-(row+1)*TILE<TILE*.45;}
   updateDetailScale() {
-    // Keep native detail through 32:9. Extremely wide canvases fall back before
-    // a strip would exceed the 8192-pixel backing-width portability boundary.
-    const scale=(this.mapWidth+MARGIN*2)*this.preferredDetailScale<=8192?this.preferredDetailScale:1;
+    // Preserve the GPU renderer on devices below the general 8192-pixel cap.
+    // Both dimensions must fit before selecting higher-density terrain.
+    const deviceLimit=this.gpu?.maxTextureSize;
+    const limit=Number.isFinite(deviceLimit)&&deviceLimit>0?Math.min(8192,deviceLimit):8192;
+    const scale=(this.mapWidth+MARGIN*2)*this.preferredDetailScale<=limit
+      &&TILE*this.preferredDetailScale<=limit?this.preferredDetailScale:1;
     if(scale===this.detailScale)return;
     this.detailScale=scale;this.clearStripCaches();
   }

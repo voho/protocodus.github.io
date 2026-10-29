@@ -20,6 +20,7 @@ import { warmShopArt, shopArtMarkup } from './shop-art.js';
 import { directionForKey, interfaceControls, focusInterfaceControl, moveInterfaceFocus } from './interface-navigation.js';
 import { createTouchControls } from './touch-input.js';
 import { objectiveTracker } from './objective-tracker.js';
+import { adaptiveResolutionScale } from './adaptive-resolution.js';
 
 const environment = level => WORLDS[environmentIndex(level)];
 const sectorLabel = level => `Sector ${String(level + 1).padStart(2, '0')} · Cycle ${campaignCycle(level) + 1}`;
@@ -71,6 +72,8 @@ function syncGpuDisplay() {
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 // The title preview starts before flight preparation; it never builds strips inside a frame.
 world.deferStrips = true;
+// Know the device texture limit before startup previews prepare terrain strips.
+if (gpu) world.warmGpuSources(gpu);
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
@@ -134,7 +137,7 @@ const controls = [{ x: 0, y: 0, fire: false, secondary: false, bomb: false }];
 const touch = createTouchControls({
   stick: $('touch-stick'),
   buttons: { fire: $('touch-fire'), secondary: $('touch-secondary'), bomb: $('touch-bomb') },
-  isPlaying: () => scene === 'playing', onGesture: () => audio.start(), consume: consumeInput,
+  clickRoot: window, isPlaying: () => scene === 'playing', onGesture: () => audio.start(), consume: consumeInput,
 });
 
 let bestScore = 0;
@@ -1252,10 +1255,9 @@ function frame(time) {
       perf.frameMs = frameAverage; perf.fps = 1000 / frameAverage;
       const wallClock = time / 1000;
       // Reduce only backing resolution under sustained load; physics and game speed stay fixed.
-      if (adaptiveResolution && wallClock - lastAdapt > 4 && frameAverage > Math.max(25, fastestFrame * 1.55) && resolutionScale > .7) {
-        resolutionScale = Math.max(.7, resolutionScale - .1); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
-      } else if (adaptiveResolution && wallClock - lastAdapt > 12 && frameAverage < Math.max(18, fastestFrame * 1.15) && perf.renderMs < 7 && resolutionScale < 1) {
-        resolutionScale = Math.min(1, resolutionScale + .05); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
+      const nextScale = adaptiveResolution ? adaptiveResolutionScale(resolutionScale, frameAverage, fastestFrame, perf.renderMs, wallClock - lastAdapt) : resolutionScale;
+      if (nextScale !== resolutionScale) {
+        resolutionScale = nextScale; sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
       }
     }
   } else if (preview) previewScroll += dt * 45;

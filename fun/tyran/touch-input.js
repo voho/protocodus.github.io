@@ -1,13 +1,26 @@
 // Pointer ownership keeps independent touch gestures from cancelling one another.
 // The adapter accepts touch/pen only; desktop input remains in game.js.
-export function createTouchControls({ stick, buttons = {}, isPlaying, onGesture = () => {}, consume = event => event.preventDefault() }) {
+export function createTouchControls({ stick, buttons = {}, clickRoot, isPlaying, onGesture = () => {}, consume = event => { event.preventDefault(); event.stopImmediatePropagation?.(); } }) {
   const owners = new Map();
+  // A control's click may arrive after pause released its capture, with a new
+  // menu button beneath that finger. Pointer-driven controls need no click.
+  const pendingClicks = new Set();
+  clickRoot?.addEventListener('pointerdown', event => pendingClicks.delete(event.pointerId), { capture: true });
+  clickRoot?.addEventListener('click', event => {
+    if (pendingClicks.delete(event.pointerId)) consume(event);
+  }, { capture: true });
   const touch = { x: 0, y: 0, fire: false, secondary: false, bomb: false, pointer: null, assist: false };
   let originX = 0, originY = 0, radius = 30;
   const channels = ['fire', 'secondary', 'bomb'];
   const accepts = event => (event.pointerType === 'touch' || event.pointerType === 'pen') && isPlaying();
   const capture = (target, pointer) => {
-    try { target.setPointerCapture(pointer); return true; } catch { return false; }
+    try {
+      target.setPointerCapture(pointer);
+      pendingClicks.delete(pointer);
+      if (pendingClicks.size >= 32) pendingClicks.delete(pendingClicks.values().next().value);
+      pendingClicks.add(pointer);
+      return true;
+    } catch { return false; }
   };
   const releaseCapture = (target, pointer) => {
     if (pointer == null) return;
