@@ -390,6 +390,32 @@ gamepad.clear(); gamepad.update(0.2);
 assert.equal(gamepad.state.turn, 0, 'blur suppresses held controller input until neutral');
 gamepad.dispose();
 
+// Keyboard and controller may take over one continuous charge in either direction.
+{
+  const pad = { axes: [0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+  pads = [pad];
+  const target = new Target();
+  let cancelled = 0;
+  const input = createInput(target, { cancelJump: () => cancelled++ });
+  pad.buttons[0].pressed = true; input.update(dt); input.stepped();
+  send(target, 'keydown', { code: 'Space' });
+  pad.buttons[0].pressed = false; input.update(dt); input.stepped();
+  assert.equal(input.state.jump, true, 'keyboard preserves a sampled pad charge');
+  send(target, 'keyup', { code: 'Space' }); input.update(dt);
+  assert.equal(input.state.jump, false);
+  send(target, 'keydown', { code: 'Space' }); input.update(dt); input.stepped();
+  pad.buttons[0].pressed = true; input.update(dt);
+  send(target, 'keyup', { code: 'Space' }); input.update(dt); input.stepped();
+  assert.equal(input.state.jump, true, 'pad preserves a sampled keyboard charge');
+  pad.buttons[0].pressed = false; input.update(dt);
+  assert.equal(input.state.jump, false);
+  pad.buttons[0].pressed = true; input.update(dt); input.stepped();
+  const before = cancelled; input.clear();
+  assert.equal(cancelled, before + 1, 'pad-only focus loss cancels once');
+  input.update(dt); assert.equal(input.state.jump, false);
+  input.dispose(); pads = [];
+}
+
 // A release is player intent even while the ground steering ramp is still
 // unwinding. Feed the actual input state into a nearly completed 360: the
 // old double smoothing kept spinning through the remaining landing window.

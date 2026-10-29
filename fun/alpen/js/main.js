@@ -50,6 +50,7 @@ import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import {
   comboFor, feedFlow, flowFromPoints, stepFlowMeter, scoreTrick, repeatShare,
+  firstGrabShare, GRAB_DISCOVERY_BONUS,
 } from './flow.js';
 import {
   randomWorldSeed, setWorldSeed, worldSeedCode,
@@ -476,6 +477,7 @@ const game = {
   manualWeather: 0,
   pisteOffset: 0,
   recentTricks: [],      // the previous landings' names — see `repeatShare`
+  discoveredGrabs: new Set(), // first clean landing of each grab this run
   chapter: '',           // the stretch of range the run is in, once announced
 };
 bootGameRef = game;
@@ -657,6 +659,7 @@ function restart(fullReset = false) {
     : resumeDist >= 1000 ? 1000 : 0;
   game.maxSpeedAnnounced = 0;
   game.recentTricks.length = 0;
+  game.discoveredGrabs.clear();
   // Where the run resumes is not news; only crossing into the next one is.
   game.chapter = chapterNameAt(rider.pos.z);
   chapterCheck = 0;
@@ -875,7 +878,8 @@ function scoreLanding(s) {
   // The same move a third time in five pays less (see `repeatShare`). Its
   // identity is its clean name — SWITCH, the grab and all.
   const repeat = repeatShare(game.recentTricks, trickName(s, CLEAN));
-  const pts = earned * repeat * game.combo;
+  const grabShare = firstGrabShare(game.discoveredGrabs, s);
+  const pts = earned * repeat * grabShare * game.combo;
   /* The kicker says why the number is what it is: what went wrong first,
      if anything, then the multiplier and every factor that paid. "×7 · LIP
      · FAST · SWITCH" is the scoring rules taught one landing at a time;
@@ -885,6 +889,7 @@ function scoreLanding(s) {
     s.reason,
     game.combo > 1 ? `×${game.combo}` : '',
     ...trick.factors,
+    grabShare > 1 ? `New grab +${Math.round(GRAB_DISCOVERY_BONUS * 100)}%` : '',
     repeat < 1 ? `Repeat ×${repeat}` : '',
   ].filter(Boolean).join(' · ');
   award(pts, name, s.verdict === SKETCHY ? 'warn' : '', kicker ? { kicker } : null);
@@ -893,7 +898,8 @@ function scoreLanding(s) {
      it; a switch cork 900 held to the snow is most of a bar. The multiplier
      is deliberately NOT in that number — paying flow on the already-
      multiplied score would compound, and a meter that fills faster the
-     fuller it is has no middle. Nor is the repeat share: see `repeatShare`. */
+     fuller it is has no middle. Neither repeat penalties nor first-grab
+     premiums feed the meter: it still follows the original trick payout. */
   feedFlow(game, flowFromPoints(earned)
     * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy));
   syncCombo();

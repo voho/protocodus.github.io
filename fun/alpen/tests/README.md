@@ -15,6 +15,7 @@ node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
 node tests/trail-clods-check.mjs
 node tests/solid-index-check.mjs
+node tests/render-limit-check.mjs
 ```
 
 These cover jump charge and timing, ballistic flight, trick landing assistance,
@@ -475,3 +476,21 @@ Metal and GL, unguarded negative infinity put 2,055 invalid half-floats into
 the bloom and ray targets and changed 26,192 pixels at both speeds, NaN and
 positive infinity changed 5–11 pixels, and with the safeguard every case
 changed at most five; the valid images stayed within one 8-bit step.
+
+## Riding and hardware compatibility pass
+
+Jump charge now follows combined keyboard, touch and controller ownership. Releasing or cancelling one source leaves another held source intact; hard focus loss cancels pending charge exactly once. The controls and riding checks cover device handoffs and interrupted releases.
+
+A run rewards the first clean, held landing of each configured grab with 12% extra points. The existing trick kicker explains the premium, repeat penalties remain, and flow still uses the original trick payout. Restarting clears the bounded discovery set.
+
+The post stack caps both output dimensions against texture, renderbuffer and viewport limits while retaining the existing area budget and aspect ratio. Device limits override the normal DPR floor when necessary. The new render-limit check covers landscape, portrait, unusually wide windows and independent device limits.
+
+The scoped **Alpen game QA** workflow runs all Node checks and a real Chromium pass. The browser pass checks boot, native controls, grab reward/reset integration, three device layouts, terrain chapters, clear/dusk/blizzard scenes, and the existing depth/HDR shader regressions. PNG captures and JSON scene reports are saved as an artifact. Software GPU mode is for coverage and does not benchmark a physical phone.
+
+To run the browser pass locally, serve the repository root and run from `fun/alpen`:
+
+```sh
+ALPEN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs ALPEN_URL=http://127.0.0.1:8773/fun/alpen/ node tests/browser-ci-check.mjs
+```
+
+Use `ALPEN_BROWSER=chromium` for Playwright's bundled Chromium. A GPU-less Linux runner can opt into `ALPEN_SOFTWARE_GPU=1` only with a loopback URL. `ALPEN_QA_THUMBNAILS=1` emits compact QA scene images alongside the full PNG artifacts.

@@ -161,6 +161,38 @@ send(otherBrake, 'pointerup', { pointerId: 15 });
 step();
 assert.equal(input.state.brake, false);
 
+// A charge is shared across devices until its final owner releases.
+send(target, 'keydown', { code: 'Space' });
+step(); input.stepped();
+press('jump', 17);
+send(target, 'keyup', { code: 'Space' });
+step(); input.stepped();
+assert.equal(input.state.jump, true, 'keyboard handoff cannot release a held thumb');
+step(); input.stepped();
+assert.equal(input.state.jump, true);
+release('jump', 17); step();
+assert.equal(input.state.jump, false);
+send(target, 'keydown', { code: 'Space' });
+step(); input.stepped();
+const beforeCancel = cancelled;
+press('jump', 18);
+send(buttons.jump, 'pointercancel', { pointerId: 18 });
+step(); input.stepped();
+assert.equal(cancelled, beforeCancel, 'Space still owns the charge');
+assert.equal(input.state.jump, true);
+send(target, 'keyup', { code: 'Space' }); step();
+assert.equal(input.state.jump, false);
+
+// Hard focus loss cancels buffered charge exactly once, even after keyup.
+for (const releaseBeforeBlur of [false, true]) {
+  send(target, 'keydown', { code: 'Space' }); step(); input.stepped();
+  if (releaseBeforeBlur) send(target, 'keyup', { code: 'Space' });
+  const before = cancelled;
+  send(browser, 'blur'); step();
+  assert.equal(cancelled, before + 1, 'hard clear always cancels one pending charge');
+  assert.equal(input.state.jump, false);
+}
+
 input.dispose();
 press('jump', 16);
 send(buttons.jump, 'click', { detail: 0 });

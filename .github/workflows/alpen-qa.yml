@@ -1,0 +1,82 @@
+name: Alpen game QA
+
+on:
+  pull_request:
+    paths:
+      - 'fun/alpen/**'
+      - '.github/workflows/alpen-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alpen-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: fun/alpen
+
+jobs:
+  logic:
+    name: Riding, terrain and render budgets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Check physics, controls, variety and rendering
+        run: |
+          for test in riding-check touch-input-check flow-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
+            node "tests/$test.mjs"
+          done
+  browser:
+    name: Real controls, mountain scenes and shaders
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      ALPEN_BROWSER: chromium
+      ALPEN_URL: http://127.0.0.1:8773/fun/alpen/
+      ALPEN_SOFTWARE_GPU: '1'
+      ALPEN_QA_THUMBNAILS: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Configure browser and artifact paths
+        run: |
+          echo "ALPEN_PLAYWRIGHT=$RUNNER_TEMP/alpen-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "ALPEN_QA_OUTPUT=$RUNNER_TEMP/alpen-qa" >> "$GITHUB_ENV"
+      - name: Install pinned browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/alpen-browser" --no-save --package-lock=false playwright@1.64.1
+          node "$RUNNER_TEMP/alpen-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Serve the checkout
+        run: |
+          python3 -m http.server 8773 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/alpen-server.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent --output /dev/null "$ALPEN_URL"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+      - name: Check real gameplay and capture mountain scenes
+        timeout-minutes: 25
+        run: node tests/browser-ci-check.mjs
+      - name: Save screenshots, scene reports and server log
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: alpen-qa
+          path: |
+            ${{ runner.temp }}/alpen-qa/
+            ${{ runner.temp }}/alpen-server.log
+          retention-days: 7
