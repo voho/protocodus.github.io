@@ -17,6 +17,21 @@ try {
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
   await page.evaluate(() => tyran.launch(2, null, false));
 
+  // Live goals use the existing quiet first row; notices retain priority.
+  await page.evaluate(() => {
+    const s = tyran.state;
+    s.director.hold = true;
+    s.director.objectives = [{ kind: 'survivor', target: 1, done: false }, { kind: 'squads', target: 3, done: false }];
+    s.stats.squads = 1; tyran.step(0);
+    document.querySelector('#announcement').hidden = true;
+  });
+  assert(await page.locator('#objective-hud').isVisible());
+  assert.equal(await page.locator('#objective-label').textContent(), 'Wipe out 3 squadrons');
+  assert.equal(await page.locator('#objective-progress').textContent(), '1 / 3');
+  await page.evaluate(() => { document.querySelector('#announcement').hidden = false; });
+  assert(await page.locator('#objective-hud').isHidden(), 'notices take priority');
+  await page.evaluate(() => { document.querySelector('#announcement').hidden = true; tyran.state.director.hold = false; });
+
   // Pausing lists both goals with live progress.
   await page.evaluate(() => tyran.pause());
   const listed = await page.locator('#pause-objectives li').allTextContents();

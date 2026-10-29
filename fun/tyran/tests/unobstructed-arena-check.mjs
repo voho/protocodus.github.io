@@ -89,7 +89,7 @@ async function audit(page, label, touch) {
     // These independent instruments may rearrange or share a slot when one is
     // hidden, but two visible groups must never cover each other's content.
     const groups = ['.player-resources', '.pilot-bonuses',
-      '.loadout-line', '#announcement', '#boss-hud', '#challenge-hud', '#combat-feedback', '.scoreboard', '#pause-button']
+      '.loadout-line', '#announcement', '#objective-hud', '#boss-hud', '#challenge-hud', '#combat-feedback', '.scoreboard', '#pause-button']
       .flatMap(selector => {
         const el = document.querySelector(selector);
         return visible(el) ? [{ selector, ...bounds(el) }] : [];
@@ -114,7 +114,7 @@ async function audit(page, label, touch) {
       ['#p1-bombs', '.loadout-item'], ['#p1-drones', '.loadout-item'], ['#p1-lives', '.loadout-item'],
       ['#p1-hull-value', '.hull-line'], ['#p1-shield-value', '.shield-line'],
       ['#p1-energy-status', '#p1-energy-line'], ['#boss-status', '#boss-hud'],
-      ['#challenge-count', '#challenge-hud'],
+      ['#challenge-count', '#challenge-hud'], ['#objective-progress', '#objective-hud'],
       ['#p1-rapid-time', '#p1-rapid'], ['#p1-invulnerable-time', '#p1-invulnerable'],
       ['#combat-feedback-score', '.combat-feedback-totals'], ['#combat-feedback-credits', '.combat-feedback-totals'],
     ];
@@ -169,6 +169,7 @@ async function audit(page, label, touch) {
       rootOverflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
       valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize), shadow: getComputedStyle(document.querySelector(selector)).textShadow })),
       notice: document.querySelector('#announcement-title').textContent, announcementVisible, rewardVisible,
+      objectiveVisible: visible(document.querySelector('#objective-hud')),
       persistentStatusVisible: visible(document.querySelector(tyran.state.challenge && !tyran.state.challenge.done ? '#challenge-hud' : '#boss-hud')),
       canvasText: [...__uiCanvasText], textFit, groupOverlaps, horizontalGroups,
     };
@@ -202,6 +203,7 @@ async function audit(page, label, touch) {
     assert(result.persistentStatusVisible, `${label}: a temporary notice never replaces the boss or challenge status`);
     assert.equal(result.rewardVisible, false, `${label}: temporary notices take priority over the reward row`);
   }
+  if (result.persistentStatusVisible || result.announcementVisible) assert.equal(result.objectiveVisible, false, `${label}: combat status takes priority over objectives`);
   assert.deepEqual(result.groupOverlaps, [], `${label}: independent visible HUD instruments never overlap`);
   if (result.viewport.width >= 1200) for (const group of result.horizontalGroups) {
     const firstCenter = group.boxes[0].y + group.boxes[0].height / 2;
@@ -340,9 +342,10 @@ try {
       const quiet = await page.evaluate(() => ({
         announcement: document.querySelector('#announcement').hidden,
         updatesVisible: getComputedStyle(document.querySelector('.flight-updates')).display !== 'none',
+        objectiveVisible: !document.querySelector('#objective-hud').hidden && getComputedStyle(document.querySelector('#objective-hud')).display !== 'none',
         missionVisible: tyran.worlds.some(world => document.querySelector('#hud').innerText.includes(world.name)),
       }));
-      assert.deepEqual(quiet, { announcement: true, updatesVisible: false, missionVisible: false }, 'quiet flight has no mission metadata or empty message panel');
+      assert.deepEqual(quiet, { announcement: true, updatesVisible: true, objectiveVisible: true, missionVisible: false }, 'quiet flight shows an actionable objective without world metadata');
       await page.evaluate(async () => {
         const { spawnEnemy, killEnemy } = await import('./sim.js');
         const s = tyran.state, p = s.players[0];
@@ -394,6 +397,26 @@ try {
         assert(await page.evaluate(() => tyran.state.players[0].x) > before, 'the overlaid joystick still steers');
         await audit(page, `${label}-steering`, true);
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+        // One-thumb mode is opt-in, fires even with a neutral held stick,
+        // and loses all ownership when paused. No automatic Nova or Plasma.
+        await page.evaluate(() => tyran.pause());
+        await page.locator('#pause-touch-assist-toggle').click();
+        assert.equal(await page.locator('#pause-touch-assist-toggle').getAttribute('aria-pressed'), 'true');
+        await page.evaluate(() => { tyran.pause(); tyran.state.players[0].fire = 0; });
+        const shotsBefore = await page.evaluate(() => tyran.state.stats.shots);
+        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 8 }] });
+        await page.evaluate(() => __uiAdvance(12));
+        assert(await page.evaluate(() => tyran.state.stats.shots) > shotsBefore, 'holding the neutral stick fires the primary');
+        assert.equal(await page.locator('#touch-fire').getAttribute('data-held'), 'true');
+        assert.equal(await page.locator('#touch-secondary').getAttribute('data-held'), 'false');
+        assert.equal(await page.locator('#touch-bomb').getAttribute('data-held'), 'false');
+        await page.evaluate(() => tyran.pause());
+        assert.equal(await page.locator('#touch-fire').getAttribute('data-held'), 'false', 'pause releases assisted fire');
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await page.locator('#pause-touch-assist-toggle').click();
+        assert.equal(await page.locator('#pause-touch-assist-toggle').getAttribute('aria-pressed'), 'false');
+        await page.evaluate(() => tyran.pause());
         await session.detach();
       }
       await page.evaluate(async () => {

@@ -153,7 +153,7 @@ body:is([data-scene=menu],[data-scene=hangar]) #flight-header,body:not([data-sce
 #game-canvas.gpu-backing-hidden{opacity:0!important}
 
 /* Persistent pressed feedback also covers steering-assisted primary fire. */
-#flight-layout .touch-fire[data-held=true]{background:#634535b3;border-color:#ffc4a3;box-shadow:0 0 0 2px #ffc4a326}
-#flight-layout .touch-secondary[data-held=true]{background:#594675b3;border-color:#e2c4ff}
-#flight-layout .touch-bomb[data-held=true]{background:#61552cb3;border-color:#fff0c2}
+#flight-layout :is(#touch-fire,#touch-secondary,#touch-bomb)[data-held=true]{background:#634535b3;border-color:#ffc4a3;box-shadow:0 0 0 2px #ffc4a326}
+#flight-layout #touch-secondary[data-held=true]{background:#594675b3;border-color:#e2c4ff}
+#flight-layout #touch-bomb[data-held=true]{background:#61552cb3;border-color:#fff0c2}
 #flight-layout .touch-stick[data-held=true]{border-color:#d3ecd7;background:#16382599}
