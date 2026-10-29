@@ -687,4 +687,51 @@ assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed
 streaks.update(1 / 60, camera, new THREE.Vector3(0, 0, -STREAKS.full), STREAKS.full, wind);
 assert.equal(streaks.lines.geometry.drawRange.count, STREAKS.count * 6);
 assert.equal(streaks.lines.visible, true);
+
+{
+  const oldExtensions = renderer.extensions, oldElement = renderer.domElement;
+  renderer.extensions = { has: () => false, get: () => null };
+  renderer.domElement = new EventTarget();
+  try {
+    const paused = createRetro(THREE, renderer); paused.setSize(320, 180);
+    renderer.info.reset(); assert.equal(paused.renderComposite(), false); assert.equal(submissions, 0);
+    paused.render(scene, camera);
+    paused.fade(.42); paused.crash(.6); paused.updateEffects(.1, false);
+    renderer.info.reset(); assert.equal(paused.renderComposite(), true);
+    assert.equal(submissions, 1, 'paused fade only submits final composite'); assert.equal(clears, 0);
+    assert.equal(target, null); assert.equal(renderer.autoClear, true);
+    assert(lastComposite.uFade.value < 1 && lastComposite.uFade.value > .42);
+    assert(lastComposite.uFall.value > 0);
+    renderer.autoClear = false; renderer.info.reset(); assert(paused.renderComposite());
+    assert.equal(renderer.autoClear, false); renderer.autoClear = true;
+    paused.setSize(321, 180); renderer.info.reset();
+    assert.equal(paused.renderComposite(), false); assert.equal(submissions, 0);
+    paused.render(scene, camera); paused.setSun(.4, .6, .7); renderer.info.reset();
+    assert.equal(paused.renderComposite(), false); assert.equal(submissions, 0);
+    paused.render(scene, camera);
+    const draw = renderer.render;
+    try {
+      renderer.render = () => { throw Error('cached post failure'); };
+      assert.throws(() => paused.renderComposite(), /cached post failure/);
+      assert.equal(target, null); assert.equal(renderer.autoClear, true);
+    } finally { renderer.render = draw; }
+    renderer.info.reset();
+    assert.equal(paused.renderComposite(), false, 'failed cached draw invalidates'); assert.equal(submissions, 0);
+    paused.render(scene, camera);
+    renderer.domElement.dispatchEvent(new Event('webglcontextrestored'));
+    renderer.info.reset();
+    assert.equal(paused.renderComposite(), false, 'context restoration invalidates'); assert.equal(submissions, 0);
+    const drive = (done, dt) => {
+      for (let i = 0; i < 20000 && !done(); i++) paused.updatePerformance(typeof dt === 'function' ? dt() : dt);
+      assert(done());
+    };
+    drive(() => paused.scale <= .7, () => .012 + .03 * paused.scale * paused.scale);
+    paused.updateEffects(2, false); paused.render(scene, camera);
+    drive(() => paused.scale > .75, 1 / 90); paused.render(scene, camera);
+    paused.updateEffects(.05, false); renderer.info.reset();
+    assert.equal(paused.renderComposite(), false, 'new halo needs its current wide image'); assert.equal(submissions, 0);
+    paused.render(scene, camera); renderer.info.reset(); assert(paused.renderComposite()); assert.equal(submissions, 1);
+  } finally { renderer.autoClear = true; renderer.extensions = oldExtensions; renderer.domElement = oldElement; }
+}
+
 console.log(`Graphics checks passed: ${geometries.size} geometries, ${weatherCases} weather cases; shadows ${shadowRates.join(', ')}; stable backdrop and ${fullPasses} → ${fullPasses - 3} → ${fullPasses} post passes.`);

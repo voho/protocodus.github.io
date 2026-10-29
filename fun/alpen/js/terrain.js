@@ -3428,13 +3428,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function installShadowRegion(result, publish = true) {
     const { originTileX, originTileZ, tilesX, tilesZ, width, height } = result;
+    const pageX = mod(originTileX * shadeTileSamples, shadePageSamplesX);
+    const pageZ = mod(originTileZ * shadeTileSamples, shadePageSamplesZ);
+    // World rows are contiguous except at the atlas torus seam. Split there
+    // and copy the typed ranges without per-texel modulo and channel writes.
     for (let y = 0; y < height; y++) {
-      const worldCellZ = originTileZ * shadeTileSamples + y;
-      const py = mod(worldCellZ, shadePageSamplesZ);
-      for (let x = 0; x < width; x++) {
-        const worldCellX = originTileX * shadeTileSamples + x;
-        const px = mod(worldCellX, shadePageSamplesX);
-        shadeHeightData[py * shadePageSamplesX + px] = result.ground[y * width + x];
+      const py = (pageZ + y) % shadePageSamplesZ;
+      for (let x = 0, px = pageX; x < width; px = 0) {
+        const n = Math.min(width - x, shadePageSamplesX - px);
+        const src = y * width + x;
+        shadeHeightData.set(result.ground.subarray(src, src + n), py * shadePageSamplesX + px);
+        x += n;
       }
     }
     for (let direction = 0; direction < shadeDirections; direction++) {
@@ -3442,12 +3446,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamplesZ + 1;
       const srcBase = direction * width * height * 2;
       for (let y = 0; y < height; y++) {
-        const py = mod(originTileZ * shadeTileSamples + y, shadePageSamplesZ);
-        for (let x = 0; x < width; x++) {
-          const px = mod(originTileX * shadeTileSamples + x, shadePageSamplesX);
+        const py = (pageZ + y) % shadePageSamplesZ;
+        for (let x = 0, px = pageX; x < width; px = 0) {
+          const n = Math.min(width - x, shadePageSamplesX - px);
           const src = srcBase + (y * width + x) * 2;
           const dst = ((oy + py) * shadeAtlasWidth + ox + px) * 2;
-          copyRG(result.horizon, src, shadeAtlasData, dst);
+          shadeAtlasData.set(result.horizon.subarray(src, src + n * 2), dst);
+          x += n;
         }
       }
     }

@@ -510,3 +510,13 @@ A charged ollie adds a modest leg impulse while the terrain tangent preserves ap
 Marked side hits vary their longitudinal profile and footprint. Rollers, drifts and wind lips have different crowns, shoulders and runouts; seeded placement remains deterministic and the central ribbon remains clear. Terrain checks sample the actual height field with and without the features to compare normalized silhouettes.
 
 Browser QA uses the shared seed `1EE9566` and captures a consistent three-quarter view of each side-hit family, alongside the existing terrain, weather and device checks. Camera overrides are confined to capture setup, run through the production visual update order, and are restored afterwards.
+
+## Frame overhead and paused composition
+
+The trail writer leaves normal generation to the final longitudinal/transverse pass, eliminating an intermediate result that was overwritten before upload. `trail-normals-check.mjs` takes the actual baseline trail module path, compares all buffers and state through 1,600 frames, then reports alternating fixed-ground writer timings.
+
+Shadow atlas installation copies contiguous typed-array rows, splitting only at torus seams. The terrain check verifies actual installation against an independent world-texel oracle, including negative coordinates, multi-page wraps, resident slots and untouched gutters. `shadow-install-benchmark.mjs` takes the baseline terrain module path and reports paired installation CPU times for a tile, five individual incoming tiles and an opening region.
+
+Paused menu and lens fades reuse the completed HDR/light targets and redraw the final composite. The first paused frame, resizing, restored contexts, changed sun rays and a newly needed wide halo require a full render. Active riding always executes the full scene pipeline. Graphics checks cover invalidation and renderer error cleanup; `paused-composite-browser-check.mjs` compares actual cached/full pixels. The desktop gameplay check also counts continued paused-frame submissions.
+
+CI fetches the two baseline source files pinned to commit `a3edd9d9cd0d3de13a384ea15e572df79a3dc60e`. Paired CPU measurements are diagnostic and have no timing pass threshold; software WebGL checks establish rendering correctness rather than physical-device frame rate.

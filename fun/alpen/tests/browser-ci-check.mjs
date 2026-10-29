@@ -179,6 +179,34 @@ try {
       }
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => __alpen.game.mode === 'paused');
+      if (profile.name === 'desktop') {
+        const pausedFrames = await page.evaluate(async () => {
+          const a = __alpen, original = a.renderer.render;
+          let submissions = 0, worlds = 0;
+          a.renderer.render = function(scene, camera) {
+            submissions++; if (scene === a.scene) worlds++;
+            return original.call(this, scene, camera);
+          };
+          a.retro.crash(.6);
+          const samples = [];
+          try {
+            for (let frame = 0; frame < 5; frame++) {
+              submissions = 0; worlds = 0;
+              await new Promise(resolve => requestAnimationFrame(resolve));
+              samples.push({ submissions, worlds });
+            }
+          } finally {
+            a.renderer.render = original;
+            a.retro.updateEffects(5, false);
+            a.retro.updateEffects(5, false);
+          }
+          return samples;
+        });
+        assert(pausedFrames.slice(1).every(frame => frame.submissions === 1 && frame.worlds === 0),
+          'continued paused fades draw only the final composite');
+        results.push({ pausedFrames });
+        console.log('Alpen paused frame submissions: ' + JSON.stringify(pausedFrames));
+      }
       await page.locator('.drop-in').click();
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
       if (profile.name === 'desktop') {
@@ -233,6 +261,7 @@ try {
         const checks = await page.evaluate(async () => ({
           depth: await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck(),
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
+          paused: await (await import('./tests/paused-composite-browser-check.mjs')).runPausedCompositeCheck(),
         }));
         results.push({ gpuChecks: checks });
         console.log('Alpen GPU checks: ' + JSON.stringify(checks));
