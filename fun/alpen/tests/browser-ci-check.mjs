@@ -204,6 +204,13 @@ try {
           const response = await route.fetch(); let body = await response.text();
           assert.equal(body.split('    time += dt;').length, 2, 'sky clock anchor');
           body = body.replace('    time += dt;', '    time = 0;');
+          for (const axis of ['x', 'y']) {
+            const from = axis === 'x'
+              ? '    mistDrift.x = (mistDrift.x - w.windX * MIST.drift * mistCell.x * dt) % 1;'
+              : '    mistDrift.y = (mistDrift.y - w.windZ * MIST.drift * mistCell.y * dt) % 1;';
+            assert.equal(body.split(from).length, 2, 'mist clock anchor ' + axis);
+            body = body.replace(from, '    mistDrift.' + axis + ' = 0;');
+          }
           await route.fulfill({ response, body });
         });
       }
