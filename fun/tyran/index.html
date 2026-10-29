@@ -60,6 +60,7 @@
       <div class="flight-updates hud-island">
         <div class="flight-messages" id="flight-messages">
           <div class="announcement" id="announcement" role="status" aria-live="polite" hidden><p id="announcement-kicker"></p><svg class="status-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 2 8 8-8 8-8-8 8-8Z"/><path d="M10 6v4m0 3h.01"/></svg><h2 id="announcement-title">Flight update</h2><span id="announcement-description"></span></div>
+          <div id="objective-hud" class="objective-hud" role="group" aria-label="Sector objective" hidden><svg class="status-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="2"/></svg><span id="objective-label"></span><strong id="objective-progress"></strong></div>
           <div class="boss-hud" id="boss-hud" hidden><div><span class="boss-alert"><span class="live-dot"></span> Capital ship detected</span><svg class="status-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m10 2 7 5v6l-7 5-7-5V7l7-5Z"/><path d="m6 8 4 5 4-5"/></svg><strong id="boss-name">100%</strong><span class="boss-status" id="boss-status">Armor sealed</span></div><div class="boss-meter"><i id="boss-fill"></i></div></div>
           <div class="challenge-hud" id="challenge-hud" role="status" aria-label="Challenge progress" hidden><span class="challenge-caption"><svg class="status-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/><path d="M10 1v4m0 10v4M1 10h4m10 0h4"/></svg>Challenge</span><strong id="challenge-count">0 / 40 hits</strong></div>
         </div>
@@ -114,6 +115,7 @@
           </fieldset>
           <button type="button" class="menu-row" id="sector-flight-button" data-row="practice"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label" id="practice-label">Practice sector 01</span><small id="practice-route">Separate from your campaign.</small></button>
           <button type="button" class="menu-row" id="help-button" data-row="manual"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Flight manual</span></button>
+          <div class="touch-assist-setting"><button id="touch-assist-toggle" class="touch-assist-toggle" type="button" aria-pressed="false" aria-describedby="touch-assist-note">Steer &amp; fire off</button><small id="touch-assist-note">Fire your primary while holding the stick.</small></div>
         </nav>
       </div>
     </section>
@@ -138,7 +140,7 @@
         <button type="button" class="secondary-button" id="restart-button">Restart sector</button>
         <button type="button" class="secondary-button menu-return-button" id="menu-button">Main menu <span aria-hidden="true">←</span></button>
       </div>
-      <div class="pause-settings"><button id="pause-sound-toggle" class="secondary-button" type="button" aria-pressed="true">Sound on</button></div>
+      <div class="pause-settings"><button id="pause-sound-toggle" class="secondary-button" type="button" aria-pressed="true">Sound on</button><button id="pause-touch-assist-toggle" class="secondary-button touch-assist-toggle" type="button" aria-pressed="false" title="Fire your primary while holding the steering stick.">Steer &amp; fire off</button></div>
       <p class="modal-footnote"><kbd>Esc</kbd> Resume</p>
     </div>
   </section>
@@ -185,7 +187,7 @@
       </header>
       <section class="manual-section" aria-labelledby="manual-controls-title">
         <h3 id="manual-controls-title">Controls</h3>
-        <p class="touch-help"><strong>Touch.</strong> Drag left to steer. Hold Primary or Plasma to fire; tap Nova to detonate.</p>
+        <p class="touch-help"><strong>Touch.</strong> Drag left to steer. Hold Primary or Plasma to fire; tap Nova to detonate. Enable <strong>Steer &amp; fire</strong> in the menu or Pause to fire your primary while holding the stick. Release the stick and both fire buttons to let your weapons rest; shield recovery still waits after a hit. Plasma and Nova stay manual.</p>
         <dl class="manual-keys">
           <div><dt><kbd>arrows</kbd> / <kbd>wasd</kbd></dt><dd>Move</dd></div>
           <div><dt><kbd>enter</kbd> / <kbd>space</kbd></dt><dd>Primary gun</dd></div>

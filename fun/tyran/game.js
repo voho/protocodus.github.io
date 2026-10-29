@@ -18,6 +18,8 @@ import { environmentIndex, campaignCycle, normalizeLevel } from './campaign.js';
 import { ENCOUNTER_BRIEFS, ACE_NAMES, encounterSummary } from './encounters.js';
 import { warmShopArt, shopArtMarkup } from './shop-art.js';
 import { directionForKey, interfaceControls, focusInterfaceControl, moveInterfaceFocus } from './interface-navigation.js';
+import { createTouchControls } from './touch-input.js';
+import { objectiveTracker } from './objective-tracker.js';
 
 const environment = level => WORLDS[environmentIndex(level)];
 const sectorLabel = level => `Sector ${String(level + 1).padStart(2, '0')} · Cycle ${campaignCycle(level) + 1}`;
@@ -129,12 +131,17 @@ const environmentHit = (...args) => {
 };
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
 const controls = [{ x: 0, y: 0, fire: false, secondary: false, bomb: false }];
-const touch = { x: 0, y: 0, fire: false, secondary: false, bomb: false, pointer: null, originX: 0, originY: 0 };
+const touch = createTouchControls({
+  stick: $('touch-stick'),
+  buttons: { fire: $('touch-fire'), secondary: $('touch-secondary'), bomb: $('touch-bomb') },
+  isPlaying: () => scene === 'playing', onGesture: () => audio.start(), consume: consumeInput,
+});
 
 let bestScore = 0;
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
   selectedDifficulty = normalizeDifficulty(localStorage.getItem('tyran-difficulty'));
+  touch.setAssist(localStorage.getItem('tyran-touch-assist') === 'true');
   bestScore = Math.max(0, Math.floor(Number(localStorage.getItem('tyran-best-score')) || 0));
 } catch { /* Local saves are optional in private/restricted browsing. */ }
 
@@ -261,10 +268,7 @@ function setScreen(next) {
   if (next === 'playing' && state) { world.prepareFlight(W, H, state.scroll); warmGpuSources(); }
   if (next !== 'playing') {
     if (next !== 'bonus-outro') audio.pause();
-    keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = touch.bomb = false;
-    const pointer = touch.pointer; touch.pointer = null;
-    if (pointer != null && stick?.hasPointerCapture(pointer)) stick.releasePointerCapture(pointer);
-    stick?.style.setProperty('--stick-x', '0px'); stick?.style.setProperty('--stick-y', '0px');
+    keys.clear(); touch.reset();
   }
   if (next !== 'bonus-outro') {
     bonusOutro = null; $('bonus-outro-fade').hidden = true;
@@ -480,6 +484,14 @@ function renderCombatFeedback() {
 function refreshHUD() {
   if (!state) return;
   renderCombatFeedback();
+  const tracked = objectiveTracker(state);
+  setHidden($('objective-hud'), !tracked);
+  if (tracked) {
+    setText($('objective-label'), tracked.label);
+    setText($('objective-progress'), tracked.progress);
+    setAttribute($('objective-hud'), 'aria-label', tracked.description);
+    setAttribute($('objective-hud'), 'data-complete', String(tracked.complete));
+  }
   const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
   if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
   // Endless runs keep the instrument width stable; exact totals remain
@@ -1501,10 +1513,20 @@ function syncSettings() {
   $('sound-toggle').dataset.muted = String(audio.muted); $('sound-toggle').title = audio.muted ? 'Sound off · V' : 'Sound on · V';
   if ($('sound-label')) $('sound-label').textContent = audio.muted ? 'Sound off' : 'Sound on';
   if ($('pause-sound-toggle')) { $('pause-sound-toggle').textContent = audio.muted ? 'Sound off · V' : 'Sound on · V'; $('pause-sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); }
+  for (const id of ['touch-assist-toggle', 'pause-touch-assist-toggle']) {
+    setText($(id), `Steer & fire ${touch.assist ? 'on' : 'off'}`);
+    setAttribute($(id), 'aria-pressed', String(touch.assist));
+  }
   fx.quality = quality;
+}
+function toggleTouchAssist() {
+  touch.setAssist(!touch.assist); syncSettings();
+  try { localStorage.setItem('tyran-touch-assist', String(touch.assist)); } catch { /* optional */ }
 }
 on('sound-toggle', toggleSound);
 on('pause-sound-toggle', toggleSound);
+on('touch-assist-toggle', toggleTouchAssist);
+on('pause-touch-assist-toggle', toggleTouchAssist);
 on('fullscreen-toggle', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { $('fullscreen-toggle').title = 'Fullscreen is unavailable in this browser'; } });
 function closeHelp() { $('help-screen').hidden = true; requestFrame(); if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
 on('help-button', () => {
@@ -1512,26 +1534,6 @@ on('help-button', () => {
   // Arrows/WASD scroll the manual; Enter/Space or Escape return to the menu.
   $('help-screen').hidden = false; $('help-screen').scrollTop = 0; $('help-screen').focus();
 }); on('help-close', closeHelp);
-
-const stick = $('touch-stick');
-if (stick) {
-  stick.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || scene !== 'playing' || touch.pointer != null) return; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); consumeInput(e); });
-  stick.addEventListener('pointermove', e => { if (scene !== 'playing' || e.pointerId !== touch.pointer) return; consumeInput(e); touch.x = clamp((e.clientX - touch.originX) / 42, -1, 1); touch.y = clamp((e.clientY - touch.originY) / 42, -1, 1); stick.style.setProperty('--stick-x', `${touch.x * 24}px`); stick.style.setProperty('--stick-y', `${touch.y * 24}px`); });
-  const release = e => { if (e.pointerId !== touch.pointer) return; consumeInput(e); touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
-  stick.addEventListener('pointerup', release); stick.addEventListener('pointercancel', release); stick.addEventListener('lostpointercapture', release);
-}
-for (const [id, channel] of [['touch-fire', 'fire'], ['touch-secondary', 'secondary'], ['touch-bomb', 'bomb']]) {
-  const button = $(id);
-  if (!button) continue;
-  button.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'mouse' || scene !== 'playing') return;
-    touch[channel] = true; button.setPointerCapture(event.pointerId); audio.start(); consumeInput(event);
-  });
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(name, event => {
-    if (event.pointerType === 'mouse') return;
-    consumeInput(event); touch[channel] = false;
-  });
-}
 
 $('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i === 0 ? 'active' : ''}" data-world="${i}" aria-pressed="${i === 0}" aria-label="Preview sector ${i + 1}: ${w.name}" style="--world-color:${w.color || w.accent}"><span class="world-number">${String(i + 1).padStart(2, '0')}</span><span class="world-name">${w.name}</span><span class="world-type">${w.subtitle || w.id}</span><span class="world-orbit" aria-hidden="true"></span></button>`).join('');
   $('world-list').addEventListener('click', event => { const button = event.target.closest('button[data-world]'); if (button) { document.body.dataset.preview = 'true'; selectWorld(Number(button.dataset.world)); } });
