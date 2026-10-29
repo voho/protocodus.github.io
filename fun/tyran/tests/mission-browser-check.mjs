@@ -2,9 +2,10 @@
 // Sector objectives on the pause screen, the shop debrief with rank and next
 // goals, and a defeated flight that retries from its checkpoint.
 import assert from 'node:assert/strict';
+import { chromiumOptions } from './browser-options.mjs';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
-const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
+const browser = await chromium.launch(chromiumOptions());
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const output = process.env.TYRAN_SCREENSHOTS || '/tmp/tyran-qa';
 await mkdir(output, { recursive: true });
@@ -16,6 +17,21 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
   await page.evaluate(() => tyran.launch(2, null, false));
+
+  // Live goals use the existing quiet first row; notices retain priority.
+  await page.evaluate(() => {
+    const s = tyran.state;
+    s.director.hold = true;
+    s.director.objectives = [{ kind: 'survivor', target: 1, done: false }, { kind: 'squads', target: 3, done: false }];
+    s.stats.squads = 1; tyran.step(0);
+    document.querySelector('#announcement').hidden = true;
+  });
+  assert(await page.locator('#objective-hud').isVisible());
+  assert.equal(await page.locator('#objective-label').textContent(), 'Wipe out 3 squadrons');
+  assert.equal(await page.locator('#objective-progress').textContent(), '1 / 3');
+  await page.evaluate(() => { document.querySelector('#announcement').hidden = false; });
+  assert(await page.locator('#objective-hud').isHidden(), 'notices take priority');
+  await page.evaluate(() => { document.querySelector('#announcement').hidden = true; tyran.state.director.hold = false; });
 
   // Pausing lists both goals with live progress.
   await page.evaluate(() => tyran.pause());

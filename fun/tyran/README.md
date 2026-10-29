@@ -18,7 +18,7 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 - **Pause, upgrades and debrief:** arrows or WASD navigate the available controls; **Enter** or **Space** selects or buys. Shop navigation follows the card layout and skips unavailable items. Purchases keep focus in the shop. Tab remains available.
 - **Manual:** ↑ ↓ or W/S scroll; **Enter**, **Space**, **Escape** or **Back** returns.
 - **Weapons:** your ship carries one primary gun (Pulse Array, Scatter Cannon or Lance Driver) and the Plasma Mortar. Each fire key uses its own weapon directly; there is no weapon-switch key. The six-tier Ion armament upgrade improves every gun and drone.
-- **Touch:** drag the left control to steer, hold Pulse or Plasma on the right to fire and tap Nova to detonate.
+- **Touch:** drag the left control to steer, hold Primary or Plasma on the right to fire and tap Nova to detonate. Optional **Steer & fire** in the title menu or Pause fires the primary while the steering stick is held, including at rest; Plasma still takes priority and Nova stays manual. The preference is remembered in this browser and starts off. Release the stick and fire buttons for the normal weapons-rest shield recovery; its post-hit delay still applies. Each control owns its pointer, so another finger cannot cancel a held action; pausing releases every control. A lifted control finger cannot activate a newly opened pause-menu button beneath it. A circular dead zone prevents resting-thumb drift, and touch controls also appear on hybrid touchscreen devices.
 
 ## How a sector plays
 
@@ -37,7 +37,7 @@ Ten authored strategies (`tactics.js`) give the environments different wave orde
 
 Destroying every ship of a squadron before any escapes pays a squadron bonus; every third wiped squadron drops a power core. Enraged guardians launch pairs of diving interceptors. Guardians fight in one of three styles by environment, beside an aimed fan: the original rotating ring (Emerald Frontier, Azure Archipelago, Inferno Foundry, Obsidian Citadel), a twin-arm spiral (Polar Silence, Shattered Orbit, Neon Afterlife) or a downward curtain with a sweeping gap (Sunken Empire, Red Horizon, Luminous Garden). A curtain sends every round down, so it carries two fewer rounds, flies slower and pairs with a narrower aimed fan.
 
-**Objectives, ranks and checkpoints** (`objectives.js`). Every sector sets two objectives drawn from the campaign salt: wipe squadrons, shoot down divers, demolish buildings, down formation leaders, hunt a scheduled ace, or clear the sector with set accuracy, an untouched hull or no ships lost. The opening sector draws gentle goals and a sector never sets more than one flight-long goal. Progress goals pay credits and score the moment they are met; flight-long goals are judged at the clear. Objectives (half the points), accuracy, ships lost and hull hits grade the sector S to D, adding 50%, 30%, 15%, 5% or nothing to the clear bonus. The pause screen lists live progress; the shop shows the rank, both results and the next sector's goals. Reaching the middle wave marks a checkpoint, announced with that wave's briefing; when the last ship falls, **Retry from checkpoint** restarts there with the sector clock, terrain position, flight report and already-paid objectives restored. Between waves a battered pilot gets up to 2.4 seconds more rest (below 60% hull) so shields can recover.
+**Objectives, ranks and checkpoints** (`objectives.js`). Every sector sets two objectives drawn from the campaign salt: wipe squadrons, shoot down divers, demolish buildings, down formation leaders, hunt a scheduled ace, or clear the sector with set accuracy, an untouched hull or no ships lost. The opening sector draws gentle goals and a sector never sets more than one flight-long goal. Progress goals pay credits and score the moment they are met; flight-long goals are judged at the clear. Objectives (half the points), accuracy, ships lost and hull hits grade the sector S to D, adding 50%, 30%, 15%, 5% or nothing to the clear bonus. A compact in-flight tracker shows one active objective and its live progress, prioritizing progress goals before goals judged at sector clear. Announcements, guardian status and challenge progress take priority over the tracker; rewards retain their own row. The pause screen lists both objectives; the shop shows the rank, both results and the next sector's goals. Reaching the middle wave marks a checkpoint, announced with that wave's briefing; when the last ship falls, **Retry from checkpoint** restarts there with the sector clock, terrain position, flight report and already-paid objectives restored. Between waves a battered pilot gets up to 2.4 seconds more rest (below 60% hull) so shields can recover.
 
 After the guardians of sectors 1, 3, 5, 7 and 9, a **challenging stage** flies 40 ships through acrobatic figure-eight, orbit and loop paths without firing or colliding. The stage reports hits out of 40 and pays credits and score per hit, with a large perfect bonus. After the result's 2.6-second hold, the entire screen and all audio fade together over 1.5 seconds. The challenge track continues through the fade, followed by a brief silent black frame before the upgrade shop opens. The transition freezes flight, preserves the player's mute preference and saves the completed round immediately; resuming that save goes straight to the shop.
 
@@ -145,7 +145,16 @@ Damage refreshes only the affected part of a scenery strip, retaining overlappin
 | `audio.js` | CC0 sound effects with synthesized stand-ins for missing files, and the streamed soundtrack through one media element |
 | `index.html`, `style.css`, `flight-layout.css` | Responsive menus and compact instruments over the full-screen arena |
 
+Terrain strip density also respects the active GPU's texture size limit before startup and after resizing, so landscape phones with 4096-pixel limits retain WebGL rendering when their lower-density strips fit.
+
+Adaptive backing resolution keeps a 60 Hz target even when a flight starts slowly: sustained load steps the canvas scale down to 70%, while recovery needs both stable cadence and spare render time. This changes pixel density without changing physics, mission speed or HUD text.
+
 ## Verification
+
+The **Tyran game QA** GitHub Actions workflow runs on pull requests that change this game. It checks touch ownership, objectives, mobile portrait/landscape layout, the mission/checkpoint flow and both JavaScript-only and WebGL rendering paths. It serves the checkout on loopback with pinned Playwright/Chromium and uploads screenshots and JSON reports. Software-renderer timings verify coverage; they do not measure a phone's frame rate.
+
+The four CI browser harnesses share `tests/browser-options.mjs`. Local runs keep their existing browser defaults. To opt into software WebGL on a GPU-less machine, set `TYRAN_SOFTWARE_GPU=1`, `TYRAN_BROWSER=chromium` and an explicit loopback `TYRAN_URL`; remote origins are rejected for this mode.
+
 
 ```sh
 node fun/tyran/tests/sim-check.mjs --balance
@@ -206,6 +215,11 @@ node fun/tyran/tests/gpu-deferred-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/first-frame-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/sector-entry-check.mjs
 node fun/tyran/tests/combat-feedback-check.mjs
+node fun/tyran/tests/touch-input-check.mjs
+node fun/tyran/tests/objective-tracker-check.mjs
+node fun/tyran/tests/browser-options-check.mjs
+node fun/tyran/tests/adaptive-resolution-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/texture-limit-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/unobstructed-arena-check.mjs
 node fun/tyran/tests/difficulty-check.mjs
 node fun/tyran/tests/difficulty-balance.mjs --modes=easy,medium,hard,real --attempts=100 --workers=4
