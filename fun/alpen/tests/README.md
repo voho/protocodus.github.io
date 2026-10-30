@@ -60,7 +60,10 @@ Timing feedback is pinned too: holding a charge towards a pitch break lights
 `lipAhead` a few tenths early and never on the open pitch, `lipReady` is the
 release test itself, releasing while it is lit is the lip pop, and
 `perfectPop` fires after `launch` so the launch's banner clear cannot erase
-it. Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
+it. Real downhill tap and full-charge flights receive their sound and pad
+pulse even when world-space velocity points down. Natural departures retain
+their existing threshold, and a late lip release keeps its single timing cue.
+Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
 UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
 Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
 off a crest is a HEAVY LANDING, but the same impact after a full pop is clean.
@@ -76,6 +79,10 @@ board orientation after recovery, and the next jump.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+The production crash handler immediately replaces queued celebrations and
+airborne flashes without losing their banked score or best. Hare near-miss
+rewards require controlled riding or flight; falls and getting up cannot
+produce points, a whoosh or a reward pulse.
 Qualified grounded butters show their live name and release advice before
 the scored award takes over. Pauses, falls and an ended press clear that
 guidance; stable feedback causes no text, visibility, style or dataset writes.
@@ -220,6 +227,10 @@ matrix stays finite, both ankles stay in their bindings, the indy hand still
 lands on the toe edge, the head leads each turn by less than the cap, a hard
 stop pitches the chest forwards and settles, and breathing never scales or
 shears the head.
+Real landings also exercise reset and teleport while a tilt correction is
+active. The first root and shipped-board transforms match a fresh rig on
+flat and sloped snow, including zero-time redraws; the next ordinary landing
+still blends smoothly into the surface.
 The arms (`ARMS` in `riderModel.js`) are driven through the states they
 answer, and in every frame of it each glove stays out of the jacket and
 twelve centimetres from every leg bone (but in a grab), and each elbow keeps

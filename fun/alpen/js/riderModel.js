@@ -2224,6 +2224,12 @@ export function createRiderModel(THREE, shading) {
   let flewLast = false;
   let gliding = false;
 
+  function resetLandingFrame() {
+    airUpDrawn.copy(UP);
+    upGlide.copy(NO_TURN);
+    flewLast = gliding = false;
+  }
+
   /* The blob shadow's frame, preassembled. `shadowFlat` is the constant
      -PI/2 about X that lays the disc into the ground plane; the spin and the
      tilt are rewritten every frame in `update`. Composed as tilt·spin·flat
@@ -2610,6 +2616,9 @@ export function createRiderModel(THREE, shading) {
       s.pop = s.popAim = s.popShown = 0;
       s.thump = s.thumpAim = s.thumpShown = 0;
       s.tumbleLag = rider.tumble;
+      // A relocation starts on its own surface. The previous landing's
+      // tilt must not carry through a reset or an attract-loop teleport.
+      resetLandingFrame();
     }
 
     /* …and what kind of landing it was, which the spring's rate cannot say.
@@ -3847,6 +3856,7 @@ export function createRiderModel(THREE, shading) {
 
   function reset() {
     seen = false;
+    resetLandingFrame();
     s.down = 0;
     s.air = 0;
     s.grab = 0;
