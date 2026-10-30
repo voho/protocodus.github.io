@@ -60,6 +60,11 @@ The raised line stops `bracedMargin` short of the bail, so a too-fast popped
 air is still heavy, and past the bail no pop saves it. On the side hits of
 three seeds, a bot releasing on the lip cue now lands seven perfect pops in
 twelve clean, where before none of them landed clean.
+Airborne collisions during a flip recover upright through both normal rest
+and the fall timeout. The remaining pitch enters the existing visual glide,
+preserving orientation at recovery and avoiding a permanent inverted stance.
+Checks cover signed and multiple rotations, an existing glide, the rendered
+board orientation after recovery, and the next jump.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.

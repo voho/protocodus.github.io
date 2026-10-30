@@ -2895,8 +2895,8 @@ export function createRiderModel(THREE, shading) {
        physics zeroing it at the end snapped what was left. */
     if (rider.state === 'fall') s.tumbleShown = rider.tumble;
     else s.tumbleShown -= TAU * Math.round(s.tumbleShown / TAU);
-    // `flipGlide` is the un-drained remainder of the last landing's pitch
-    // snap — presentation only, exactly like `yawGlide` on the axis above.
+    // `flipGlide` is the un-drained pitch correction from landing or recovery
+    // — presentation only, exactly like `yawGlide` on the axis above.
     qx.setFromAxisAngle(AX, rider.flip + rider.flipGlide
       + s.tumbleShown * s.down + tweakPitch);
     qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down) + tweakRoll);
