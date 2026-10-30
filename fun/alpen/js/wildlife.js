@@ -1047,6 +1047,11 @@ export function createWildlife(THREE, shading) {
     eyeCount = 0;
 
     // --- rabbits -----------------------------------------------------------
+    // Preserve the authored 60 Hz coast across any frame interval. The old
+    // damp-before-move steps sum to v * .15 * (1 - decay), so both the final
+    // speed and distance stay the same; a zero-time redraw advances neither.
+    const coastDecay = Math.pow(0.9, dt * 60);
+    const coastTravel = 0.15 * (1 - coastDecay);
     let n = 0;
     for (const r of hares) {
       if (!r.alive || r.z > rz + 26) placeRabbit(r, rider);
@@ -1072,13 +1077,15 @@ export function createWildlife(THREE, shading) {
         r.vx = Math.sin(r.yaw) * sp;
         r.vz = Math.cos(r.yaw) * sp;
         r.hop += dt * WILDLIFE.rabbitHop;
+        r.x += r.vx * dt;
+        r.z += r.vz * dt;
       } else {
-        r.vx *= 0.9;
-        r.vz *= 0.9;
+        r.x += r.vx * coastTravel;
+        r.z += r.vz * coastTravel;
+        r.vx *= coastDecay;
+        r.vz *= coastDecay;
         r.hop += dt * 0.9;
       }
-      r.x += r.vx * dt;
-      r.z += r.vz * dt;
 
       if (!r.seen && dist < 2.6 && Math.abs(dz) < 2.0) {
         r.seen = true;

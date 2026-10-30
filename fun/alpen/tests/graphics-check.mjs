@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createSky } from '../js/sky.js';
 import { createRetro } from '../js/retro.js';
-import { createSnowfall, createSpray, createStreaks } from '../js/particles.js';
+import { createSnowfall, createSpray, createStreaks, getPointSizeCap, setPointSizeCap } from '../js/particles.js';
 import { RENDER, GRADE, SNOW, STREAKS } from '../js/config.js';
 
 const motionPreference = { matches: false };
@@ -651,6 +651,71 @@ assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed
 streaks.update(1 / 60, camera, new THREE.Vector3(0, 0, -STREAKS.full), STREAKS.full, wind);
 assert.equal(streaks.lines.geometry.drawRange.count, STREAKS.count * 6);
 assert.equal(streaks.lines.visible, true);
+
+// Smoke owns a world-space size, so its CPU scale is half the live world
+// framebuffer height. The render camera supplies the remaining projection
+// factor in the actual vertex shader (covered by the native browser check).
+{
+  const { createHuts } = await import('../js/huts.js');
+  const { createShading } = await import('../js/shading.js');
+  const { allTracked } = await import('../js/loading.js');
+  await allTracked();
+  const hutURL = new URL('../assets/models/huts/mountain-hut.glb', import.meta.url);
+  const hutBytes = await readFile(hutURL);
+  const previousFetch = globalThis.fetch, previousDpr = window.devicePixelRatio;
+  const previousBuffer = { ...RENDER.buffer }, previousCap = getPointSizeCap();
+  const previousFov = RENDER.fov;
+  const smokePost = createRetro(THREE, renderer);
+  try {
+    globalThis.fetch = async url => url === hutURL.href ? {
+      ok: true,
+      arrayBuffer: async () => hutBytes.buffer.slice(hutBytes.byteOffset,
+        hutBytes.byteOffset + hutBytes.byteLength),
+    } : previousFetch(url);
+    window.devicePixelRatio = 1;
+    smokePost.setSize(640, 360);
+    const huts = createHuts(TestTHREE, createShading(THREE));
+    await allTracked();
+    const uniforms = huts.smoke.material.uniforms;
+    assert.ok(huts.smoke.isPoints && huts.group.children.includes(huts.smoke));
+    close(uniforms.uScale.value, 180, 'smoke starts with half its actual target height');
+    const rider = { pos: new THREE.Vector3(0, 0, -600), state: 'ride', speed: 12, grounded: true };
+    const update = () => huts.update(0, rider, w);
+    setPointSizeCap(1024);
+    update();
+    close(uniforms.uScale.value, 180, 'smoke updates keep projection in the render camera');
+    close(uniforms.uMaxSize.value, 122.4, 'ordinary smoke overdraw stays within 34% of the target height');
+
+    window.devicePixelRatio = 4;
+    const dense = smokePost.setSize(640, 360);
+    assert.equal(dense.dpr, RENDER.maxPixelRatio, 'the real post stack caps device pixels');
+    assert.equal(dense.height, 720);
+    update();
+    close(uniforms.uScale.value, 360, 'smoke follows capped framebuffer pixels without a second DPR factor');
+    smokePost.setSize(1000, 360);
+    update();
+    close(uniforms.uScale.value, 360, 'a wider target does not enlarge a smoke puff');
+
+    setPointSizeCap(64);
+    update();
+    close(uniforms.uMaxSize.value, 64, 'the native point limit wins on a tall target');
+    smokePost.setSize(320, 80);
+    update();
+    close(uniforms.uScale.value, 80, 'smoke responds immediately to a shorter live target');
+    close(uniforms.uMaxSize.value, 54.4, 'the framebuffer overdraw limit wins on a short target');
+
+    RENDER.fov = 43;
+    update();
+    close(uniforms.uScale.value, 80, 'CPU smoke scale does not bake in the configured chase lens');
+  } finally {
+    await allTracked();
+    globalThis.fetch = previousFetch;
+    window.devicePixelRatio = previousDpr;
+    Object.assign(RENDER.buffer, previousBuffer);
+    RENDER.fov = previousFov;
+    setPointSizeCap(previousCap);
+  }
+}
 
 {
   const oldExtensions = renderer.extensions, oldElement = renderer.domElement;

@@ -814,6 +814,7 @@ try {
         const checks = await page.evaluate(async () => ({
           depth: await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck(),
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
+          smokeProjection: (await import('./tests/smoke-projection-browser-check.mjs')).runSmokeProjectionCheck(),
           audio: await (await import('./tests/audio-browser-check.mjs')).runAudioCheck(),
           timing: await (await import('./tests/gpu-timing-browser-check.mjs')).runGpuTimingCheck(),
           paused: await (await import('./tests/paused-composite-browser-check.mjs')).runPausedCompositeCheck(),

@@ -179,6 +179,10 @@ kind 0; its extras agree with `CHIMNEY`, `TERRACE_DECK`, `PLINTH_DEPTH` and
 is at the deck height, a ray from the room out through every pane meets
 nothing while one beside it meets the wall, and everything below head
 height but the snow lies inside the collision boxes.
+Smoke checks cover framebuffer resizing, capped device pixels and sprite-size
+limits. A native GPU fixture compares the production smoke vertex shader with
+an equally sized mesh at 65/72/75/82° fields of view on two buffers. Both keep
+the same projected size, while smoke retains its one-pixel floor and size cap.
 And it checks `weld`, which the prop pools, the forest cards and the animals
 draw through: every corner keeps every attribute bit for bit through the
 index, shared corners really are merged, and a pool still waiting on its
@@ -339,7 +343,10 @@ edge. That edge is now 24 bands (960 m) out and moves with the rider
 continuously. Only props carry the fade term, and it reads the view direction
 after it is declared. The model check also covers wildlife arrival: a hare
 placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
-passes read the same value, so its shadow arrives with it. The modelled
+passes read the same value, so its shadow arrives with it. Hare coasting
+matches the original 60 Hz path at 20/30/60/120/240 Hz and mixed frame times;
+zero-time redraws preserve velocity and position. Fleeing, mesh pools and
+the one existing terrain sample per hare remain checked. The modelled
 animals (`alpine-wildlife.glb`, from `tools/blender/wildlife.py`) are
 checked too: each pool's node is inside its budget (hare 4500, deer body
 2000, hind head 1200, stag head 1400 for its twelve points, wolf 3200), on
