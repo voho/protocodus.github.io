@@ -3,7 +3,7 @@
    12 Hz and only changed values touch the DOM; charge uses a composited bar.
    There is no full-window bitmap repaint or blur over the moving playfield. */
 import { gradeAt } from './terrain.js';
-import { SCORE } from './config.js';
+import { RIDER, SCORE } from './config.js';
 
 export const HUD_WIDTH = 640;
 export const HUD_HEIGHT = 360;
@@ -27,6 +27,7 @@ const QUEUE_MAX = 4;
    rides the kicker line above them for this long instead of replacing them. */
 const FLASH_HOLD = 1.3;
 const HINT_SECONDS = 7;
+const GRAB_RELEASE_LEAD = 0.65;
 const fmt = new Intl.NumberFormat('en-US');
 
 export function createHud(root) {
@@ -167,9 +168,16 @@ export function createHud(root) {
         name = bannerName;
         tone = bannerTone;
       } else if (inAir) {
-        kicker = flashing ? `${flashText} · ${air}` : air;
+        // Use the rider's existing ballistic prediction: this is advice,
+        // never an extra terrain query or an automatic release. A brief
+        // roller is not a judged trick, and falls are not flights.
+        const releaseGrab = rider.state === 'air' && rider.grabbing
+          && rider.airTime >= RIDER.minJudgedAir
+          && rider.touchdownIn >= 0 && rider.touchdownIn <= GRAB_RELEASE_LEAD;
+        kicker = releaseGrab ? `Release grab to land · ${air}`
+          : flashing ? `${flashText} · ${air}` : air;
         name = g.liveTrick || 'Find your landing';
-        tone = flashing && flashTone ? flashTone : 'air';
+        tone = releaseGrab ? 'warn' : flashing && flashTone ? flashTone : 'air';
       } else {
         kicker = 'Freeride';
         name = flashText;

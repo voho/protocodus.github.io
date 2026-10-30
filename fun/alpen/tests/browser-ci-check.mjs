@@ -6,6 +6,7 @@ const { chromium } = await import(process.env.ALPEN_PLAYWRIGHT || 'playwright');
 const url = new URL(process.env.ALPEN_URL || 'http://127.0.0.1:8773/fun/alpen/');
 url.searchParams.set('seed', '1EE9566');
 const software = process.env.ALPEN_SOFTWARE_GPU === '1';
+const timerChecks = process.env.ALPEN_GPU_TIMERS === '1';
 if (software && !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
   throw new Error('Software WebGL QA requires a loopback ALPEN_URL.');
 }
@@ -13,7 +14,10 @@ const output = process.env.ALPEN_QA_OUTPUT || '/tmp/alpen-qa';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   channel: process.env.ALPEN_BROWSER || 'chrome', headless: true,
-  args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [],
+  args: [
+    ...(software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : []),
+    ...(timerChecks ? ['--enable-webgl-developer-extensions'] : []),
+  ],
 });
 const results = [], errors = [];
 const compare = process.env.ALPEN_QA_PROFILE === 'detail';
@@ -22,6 +26,68 @@ const frames = (page, count) => page.evaluate(count => new Promise(resolve => {
   const tick = () => { if (--left <= 0) resolve(); else requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }), count);
+async function checkMotionPreference(page) {
+  const sample = () => page.evaluate(() => {
+    const a = __alpen;
+    try {
+      a.retro.setSpeed(250);
+      return { blur: a.retro.blur, aberration: a.retro.aberration };
+    } finally { a.retro.setSpeed(a.rider.speed); }
+  });
+  const before = await sample();
+  assert(before.blur > 0 && before.aberration > 0, 'normal motion retains speed effects');
+  try {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForFunction(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+    assert.deepEqual(await sample(), { blur: 0, aberration: 0 }, 'live reduced motion removes blur and chromatic split');
+  } finally {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.waitForFunction(() => !matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  assert.deepEqual(await sample(), before, 'restoring the preference restores the original speed effects');
+}
+async function checkGrabAdvice(page) {
+  // createHud wires its document's menu. A separate realm keeps this fixture
+  // from leaving duplicate menu listeners on the production page.
+  const frameNode = await page.evaluateHandle(() => {
+    const node = document.createElement('iframe');
+    node.hidden = true;
+    document.body.appendChild(node);
+    return node;
+  });
+  try {
+    const fixture = await frameNode.asElement().contentFrame();
+    const advice = await fixture.evaluate(async () => {
+      const { createHud } = await import('/fun/alpen/js/hud.js');
+      const root = document.body.appendChild(document.createElement('div'));
+      const hud = createHud(root);
+      const game = {
+        mode: 'playing', score: 0, best: 0, bestAtStart: 0, combo: 1, flow: 0,
+        gateRun: 0, pisteOffset: 0, liveTrick: 'BACKSIDE 180',
+        weather: { phase: 'Day', conditions: 'Clear', storm: 0 },
+        rider: { state: 'air', grounded: false, grabbing: true, airTime: .8,
+          touchdownIn: .2, speed: 10, distance: 100, drop: 20,
+          pos: { z: -100 }, charging: false, charge: 0 },
+      };
+      hud.update(game, .1);
+      const held = {
+        kicker: root.querySelector('.event-kicker').textContent,
+        trick: root.querySelector('.event-name').textContent,
+        grabbing: game.rider.grabbing,
+      };
+      game.rider.grabbing = false;
+      hud.update(game, .1);
+      return { held, released: root.querySelector('.event-kicker').textContent };
+    });
+    assert.equal(advice.held.kicker, 'Release grab to land · 0.8 s airtime', 'the real HUD gives timely release advice');
+    assert.equal(advice.held.trick, 'BACKSIDE 180', 'release advice keeps the live trick readable');
+    assert.equal(advice.held.grabbing, true, 'advice does not change the player grab');
+    assert.equal(advice.released, '0.8 s airtime', 'release clears the advice');
+  } finally {
+    await frameNode.evaluate(node => node.remove());
+    await frameNode.dispose();
+  }
+}
 async function fixedWeather(page) {
   await page.route('**/fun/alpen/js/weather.js', async route => {
     const response = await route.fetch();
@@ -189,6 +255,7 @@ try {
     page.on('pageerror', error => { errors.push(error.message); console.error(profile.name + ': ' + error.message); });
     page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.error(profile.name + ': ' + message.text()); } });
     try {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
       await fixedWeather(page);
       if (compare) {
         await page.route(/\/fun\/alpen\/js\/(config|terrain|backdrop)\.js$/, async route => {
@@ -224,6 +291,13 @@ try {
       assert.equal(engineRequests, 1, 'the engine preload is reused by the module graph');
       console.log('Alpen boot ready: ' + profile.name + ' in ' + bootMs + ' ms');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), profile.name + ': no horizontal overflow');
+      const dropInArrow = page.locator('.drop-in svg.drop-in-arrow');
+      assert.equal(await dropInArrow.count(), 1, 'the title action uses one font-independent arrow');
+      assert(await dropInArrow.isVisible(), 'the title arrow is visible before starting');
+      const arrowSize = await dropInArrow.boundingBox();
+      assert(arrowSize && arrowSize.width > 0 && arrowSize.height > 0, 'the title arrow has visible geometry');
+      await checkMotionPreference(page);
+      await checkGrabAdvice(page);
       if (compare) {
         await page.addStyleTag({ content: '.hud,.curtain,.pad{visibility:hidden!important}' });
         const views = [
@@ -360,11 +434,14 @@ try {
         const checks = await page.evaluate(async () => ({
           depth: await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck(),
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
+          audio: await (await import('./tests/audio-browser-check.mjs')).runAudioCheck(),
+          timing: await (await import('./tests/gpu-timing-browser-check.mjs')).runGpuTimingCheck(),
           paused: await (await import('./tests/paused-composite-browser-check.mjs')).runPausedCompositeCheck(),
           crags: await (await import('./tests/backdrop-crags-browser-check.mjs')).runBackdropCragCheck(),
           backdropDetail: await (await import('./tests/backdrop-detail-browser-check.mjs')).runBackdropDetailCheck(),
           backdropFiltering: await (await import('./tests/backdrop-performance-browser-check.mjs')).runBackdropPerformanceCheck(),
         }));
+        if (timerChecks) assert.equal(checks.timing.skipped, false, 'requested native GPU timing coverage is available');
         results.push({ gpuChecks: checks });
         console.log('Alpen GPU checks: ' + JSON.stringify(checks));
       }

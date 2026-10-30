@@ -572,6 +572,71 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   assert.ok(at[0].back < at[1].back && at[1].back < at[2].back, 'and the boom keeps pulling back');
   assert.ok(at[2].fov < 76, 'without running away');
 }
+// A live OS comfort preference removes incidental movement while preserving
+// the camera's actual job: keeping the rider, landing and terrain in view.
+{
+  const preference = { matches: false };
+  let queries = 0;
+  window.matchMedia = () => { queries++; return preference; };
+  const cam = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 2000);
+  const view = createChaseCamera(THREE, cam);
+  const r = rider();
+  r.vel.set(0, 0, -96);
+  r.roll = 0.5; r.carveLoad = 1; r.chatter = 1;
+  r.compression = 0.5; r.tucking = true;
+  r.normal.set(0.35, 0.93, 0.1).normalize();
+  const settle = () => { for (let i = 0; i < 600; i++) view.update(r, 1 / 60, flat); };
+  settle();
+  assert.ok(cam.fov > 70, 'normal riding retains speed-responsive framing');
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+  assert.ok(Math.abs(right.y) > 0.01, 'normal riding retains its bank');
+
+  // The camera was created before the preference changed.
+  preference.matches = true;
+  settle();
+  assert.ok(Math.abs(cam.fov - 65) < 0.011, 'comfort settles to a stable lens at speed');
+  right.set(1, 0, 0).applyQuaternion(cam.quaternion);
+  assert.ok(Math.abs(right.y) < 1e-8, 'comfort levels the horizon');
+  const position = cam.position.clone(), orientation = cam.quaternion.clone();
+  const fov = cam.fov;
+  view.kick(2); view.land(RIDER.hardImpact);
+  for (let i = 0; i < 60; i++) {
+    view.update(r, 1 / 60, flat);
+    assert.ok(cam.position.distanceTo(position) < 1e-8, 'chatter and impacts do not shake a comfort camera');
+    assert.ok(1 - Math.abs(cam.quaternion.dot(orientation)) < 1e-8, 'impacts do not roll the view');
+    close(cam.fov, fov, 'a comfort landing has no lens punch');
+  }
+  assert.equal(view.shake, 0, 'ignored impacts are not stored for later');
+  r.tucking = false; r.compression = 0;
+  view.update(r, 1 / 60, flat);
+  assert.ok(cam.position.distanceTo(position) < 1e-8, 'tuck and leg bob do not pump the comfort view');
+
+  r.state = 'air'; r.grounded = false; r.airTime = 2; r.pos.y = 20;
+  settle();
+  assert.ok(cam.fov > 69.9, 'long-flight opening still reveals the landing');
+  const flight = cam.position.clone();
+  r.yaw = Math.PI / 2; settle();
+  assert.ok(cam.position.distanceTo(flight) < 0.02, 'comfort tracks the flight rather than a spinning board');
+  assert.ok(cam.position.y >= flat.height(cam.position.x, cam.position.z) + 1.5, 'comfort preserves ground clearance');
+  assert.equal(queries, 1, 'the live preference is queried once, not allocated each frame');
+
+  r.state = 'ride'; r.grounded = true; r.airTime = 0; r.pos.y = 0; r.yaw = 0;
+  preference.matches = false; settle();
+  assert.ok(cam.fov > 70, 'normal framing returns when the OS preference changes back');
+
+  preference.matches = true;
+  const portrait = new THREE.PerspectiveCamera(65, 390 / 844, 0.1, 2000);
+  const portraitView = createChaseCamera(THREE, portrait);
+  const quiet = rider(); quiet.vel.set(0, 0, -10);
+  const trees = { ...flat, blocked: (x, z, radius) => z + radius >= 5 };
+  for (let i = 0; i < 600; i++) portraitView.update(quiet, 1 / 60, trees);
+  assert.ok(portrait.fov > 65 && portrait.fov <= 82, 'portrait collision framing can still widen the lens');
+  portrait.updateMatrixWorld();
+  const subject = quiet.pos.clone().add(new THREE.Vector3(0, 1, 0)).project(portrait);
+  assert.ok(Math.abs(subject.x) < 1 && Math.abs(subject.y) < 1, 'the obstructed portrait view keeps the rider visible');
+  assert.ok(portrait.position.y >= 1.5, 'portrait obstruction response preserves ground clearance');
+  delete window.matchMedia;
+}
 
 // Height is an outcome of the directional tangent and a modest leg impulse.
 {
@@ -626,4 +691,4 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   console.log('Jump height sweep (metres): ' + JSON.stringify({ tap, full, sweep }));
 }
 
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, and camera framing at speed.');
+console.log('Riding checks passed: charged/late/buffered pops, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');

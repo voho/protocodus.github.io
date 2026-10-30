@@ -505,6 +505,8 @@ export function createRetro(THREE, renderer) {
   let gpuQuery = null;
   let gpuPending = false;
   let gpuFrame = 0;
+  let gpuSerial = 0;
+  let gpuActive = 0;
   let gpuMs = null;
   let gpuShadowSample = false;
   let gpuFreshShadowMs = null;
@@ -521,12 +523,69 @@ export function createRetro(THREE, renderer) {
     gpuQuery = timer ? gl.createQuery() : null;
     gpuPending = false;
     gpuFrame = 0;
+    gpuActive = 0;
     gpuMs = gpuFreshShadowMs = gpuReusedShadowMs = null;
   }
   resetGpuTiming();
   // Three restores its own resources; raw WebGL queries need the same care.
   renderer.domElement?.addEventListener('webglcontextlost', resetGpuTiming);
   renderer.domElement?.addEventListener('webglcontextrestored', resetGpuTiming);
+
+  // Main owns the complete frame boundary: its rider shadow and sky probe
+  // precede the world/post render below. Boot, debug draws and a cached pause
+  // composite have different costs and must never feed the quality governor.
+  function beginGpuFrame(shadowUpdate = false) {
+    if (!gpuQuery || gpuActive) return 0;
+    // An odd cadence samples both phases of the 30 Hz shadow refresh. Keep
+    // every WebGL timing call inside it; ordinary frames only advance a counter.
+    if (++gpuFrame % 13 !== 0) return 0;
+    if (gl.isContextLost()) {
+      resetGpuTiming();
+      return 0;
+    }
+    // Disjoint invalidates even a result that is not available yet, as well
+    // as the old headroom estimate. Never wait for that result to clear it.
+    if (gl.getParameter(timer.GPU_DISJOINT_EXT)) {
+      gpuPending = false;
+      gpuMs = gpuFreshShadowMs = gpuReusedShadowMs = null;
+      return 0;
+    }
+    if (gpuPending && gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT_AVAILABLE)) {
+      const elapsed = gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT) / 1e6;
+      if (Number.isFinite(elapsed) && elapsed >= 0) {
+        gpuMs = elapsed;
+        if (gpuShadowSample) {
+          gpuFreshShadowMs = gpuFreshShadowMs === null ? elapsed : gpuFreshShadowMs * 0.75 + elapsed * 0.25;
+        } else {
+          gpuReusedShadowMs = gpuReusedShadowMs === null ? elapsed : gpuReusedShadowMs * 0.75 + elapsed * 0.25;
+        }
+      } else {
+        gpuMs = gpuFreshShadowMs = gpuReusedShadowMs = null;
+      }
+      gpuPending = false;
+    }
+    if (gpuPending || gl.getQuery(timer.TIME_ELAPSED_EXT, gl.CURRENT_QUERY)) return 0;
+    gl.beginQuery(timer.TIME_ELAPSED_EXT, gpuQuery);
+    gpuShadowSample = shadowUpdate;
+    gpuActive = ++gpuSerial;
+    return gpuActive;
+  }
+
+  function endGpuFrame(token, complete = true) {
+    // A skipped or nested scope cannot close someone else's active query.
+    // Serial numbers survive resets so an old frame cannot end a new one.
+    if (!token || token !== gpuActive) return;
+    gpuActive = 0;
+    if (gl.isContextLost()) {
+      resetGpuTiming();
+      return;
+    }
+    if (gl.getQuery(timer.TIME_ELAPSED_EXT, gl.CURRENT_QUERY) !== gpuQuery) return;
+    gl.endQuery(timer.TIME_ELAPSED_EXT);
+    const disjoint = gl.getParameter(timer.GPU_DISJOINT_EXT);
+    gpuPending = complete && !disjoint;
+    if (disjoint) gpuMs = gpuFreshShadowMs = gpuReusedShadowMs = null;
+  }
 
   const targetOpts = {
     minFilter: THREE.LinearFilter,
@@ -715,7 +774,8 @@ export function createRetro(THREE, renderer) {
   let fallHold = 0;
   let fadeTarget = 1;
 
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  // MediaQueryList.matches stays live when the OS preference changes.
+  const motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
   const DIR_H = new THREE.Vector2(1, 0);
   const DIR_V = new THREE.Vector2(0, 1);
@@ -911,33 +971,9 @@ export function createRetro(THREE, renderer) {
     return true;
   }
 
-  function render(worldScene, worldCamera, shadowUpdate = false) {
+  function render(worldScene, worldCamera) {
     compositeReady = false;
     let renderedWide = false;
-    let timeGpu = false;
-    // An odd cadence samples both phases of the 30 Hz shadow refresh.
-    if (gpuQuery && ++gpuFrame % 13 === 0) {
-      if (gpuPending && gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT_AVAILABLE)) {
-        if (!gl.getParameter(timer.GPU_DISJOINT_EXT)) {
-          gpuMs = gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT) / 1e6;
-          if (gpuShadowSample) {
-            gpuFreshShadowMs = gpuFreshShadowMs === null ? gpuMs : gpuFreshShadowMs * 0.75 + gpuMs * 0.25;
-          } else {
-            gpuReusedShadowMs = gpuReusedShadowMs === null ? gpuMs : gpuReusedShadowMs * 0.75 + gpuMs * 0.25;
-          }
-        } else {
-          gpuMs = null;
-          gpuFreshShadowMs = null;
-          gpuReusedShadowMs = null;
-        }
-        gpuPending = false;
-      }
-      if (!gpuPending && !gl.getQuery(timer.TIME_ELAPSED_EXT, gl.CURRENT_QUERY)) {
-        gl.beginQuery(timer.TIME_ELAPSED_EXT, gpuQuery);
-        gpuShadowSample = shadowUpdate;
-        timeGpu = true;
-      }
-    }
     // Every post shader covers its target completely. Clear the world once;
     // autoClear otherwise clears it twice and each fullscreen pass again.
     const autoClear = renderer.autoClear;
@@ -1013,10 +1049,6 @@ export function createRetro(THREE, renderer) {
     } finally {
       renderer.setRenderTarget(null);
       renderer.autoClear = autoClear;
-      if (timeGpu) {
-        gl.endQuery(timer.TIME_ELAPSED_EXT);
-        gpuPending = true;
-      }
     }
     compositeHasWide = renderedWide;
     compositeReady = true;
@@ -1053,7 +1085,7 @@ export function createRetro(THREE, renderer) {
      a few frames on a fast display before the exponential decay begins. */
   function crash(strength = 1) {
     const s = Math.min(1, Math.max(0, strength));
-    const motion = reducedMotion ? 0.62 : 1;
+    const motion = motionPreference?.matches ? 0.62 : 1;
     // Powder already on the glass stays where it landed: re-rolling the seed
     // while the last overlay is still fading teleported all seven marks to
     // new positions mid-fade. A fresh pattern only arrives on a clean lens.
@@ -1065,6 +1097,7 @@ export function createRetro(THREE, renderer) {
 
   function updateEffects(dt, active = true) {
     if (dt <= 0) return;
+    if (motionPreference?.matches) fallFx = Math.min(fallFx, 0.62);
     halo += ((scale > 0.75 ? 1 : 0) - halo) * (1 - Math.exp(-5 * dt));
     /* Menu dimming is part of the picture, not a state switch. It keeps
        advancing while simulation is paused; `main.js` renders those few
@@ -1153,7 +1186,7 @@ export function createRetro(THREE, renderer) {
     const over = Math.max(0, speed - GRADE.blurFrom);
     const t = over / (over + GRADE.blurSpan);
     const eased = t * t * (3 - 2 * t);
-    const motion = reducedMotion ? 0.35 : 1;
+    const motion = motionPreference?.matches ? 0 : 1;
     material.uniforms.uBlur.value = eased * eased * GRADE.blurAmount * motion;
     material.uniforms.uAberration.value = Math.pow(eased, 1.35)
       * GRADE.aberration * motion;
@@ -1163,6 +1196,8 @@ export function createRetro(THREE, renderer) {
 
   return {
     setSize,
+    beginGpuFrame,
+    endGpuFrame,
     render,
     renderComposite,
     fade,

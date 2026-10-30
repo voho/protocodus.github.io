@@ -1945,7 +1945,8 @@ function frame(now) {
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
     const surfMat = getTerrainMaterialAt(rider.pos.x, rider.pos.z);
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
-      rider.carveLoad, tumbleSlide, surfMat, rider.chatter);
+      rider.carveLoad, tumbleSlide, surfMat, rider.chatter,
+      rider.state === 'ride' ? rider.roll : 0);
     /* The icy edge's rattle, in the hands. A pulse every tenth of a second
        while it lasts rather than a rumble per frame: the pad's own motor
        smooths the train into a buzz, and a request every frame at 144 Hz
@@ -1996,10 +1997,19 @@ function frame(now) {
     // rider's own shadow as well as the world and the post stack.
     renderer.info.reset();
     if (running || !pausedWorldReady || !retro.renderComposite()) {
-      // Where the rider is drawn, which between steps is not where they are.
-      riderShadow.update(scene, model.root, camera, sky.shadowLevel);
-      sky.renderProbe(renderer);
-      retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
+      const gpuFrame = running ? retro.beginGpuFrame(!!keyLight()?.shadow.needsUpdate) : 0;
+      let complete = false;
+      try {
+        // Where the rider is drawn, which between steps is not where they are.
+        riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+        sky.renderProbe(renderer);
+        retro.render(scene, camera);
+        complete = true;
+      } finally {
+        // Failed or partial submissions are closed, but never become a
+        // falsely cheap sample that stops the resolution governor reacting.
+        retro.endGpuFrame(gpuFrame, complete);
+      }
       pausedWorldReady = !running;
     }
     pausedRendered = !running && !retro.animating;

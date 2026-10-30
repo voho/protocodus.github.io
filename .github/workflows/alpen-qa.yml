@@ -35,7 +35,7 @@ jobs:
           curl --fail --silent --show-error --retry 3 --output "$RUNNER_TEMP/alpen-terrain-before.js" "https://raw.githubusercontent.com/voho/protocodus.github.io/a3edd9d9cd0d3de13a384ea15e572df79a3dc60e/fun/alpen/js/terrain.js"
       - name: Check physics, controls, variety and rendering
         run: |
-          for test in riding-check touch-input-check flow-check side-hit-shape-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
+          for test in riding-check touch-input-check flow-check side-hit-shape-check terrain-shadow-check terrain-worker-check models-check graphics-check gpu-timing-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check audio-check; do
             node "tests/$test.mjs"
           done
       - name: Check identical trail output and measure paired CPU paths
@@ -55,6 +55,7 @@ jobs:
       ALPEN_BROWSER: chromium
       ALPEN_URL: http://127.0.0.1:8773/fun/alpen/
       ALPEN_SOFTWARE_GPU: '1'
+      ALPEN_GPU_TIMERS: ${{ matrix.profile == 'desktop' && '1' || '0' }}
       ALPEN_QA_THUMBNAILS: '1'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
