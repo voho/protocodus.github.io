@@ -29,16 +29,24 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+      - name: Fetch pinned source for paired CPU checks
+        run: |
+          curl --fail --silent --show-error --retry 3 --output "$RUNNER_TEMP/alpen-trail-before.js" "https://raw.githubusercontent.com/voho/protocodus.github.io/a3edd9d9cd0d3de13a384ea15e572df79a3dc60e/fun/alpen/js/trail.js"
+          curl --fail --silent --show-error --retry 3 --output "$RUNNER_TEMP/alpen-terrain-before.js" "https://raw.githubusercontent.com/voho/protocodus.github.io/a3edd9d9cd0d3de13a384ea15e572df79a3dc60e/fun/alpen/js/terrain.js"
       - name: Check physics, controls, variety and rendering
         run: |
-          for test in riding-check touch-input-check flow-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
+          for test in riding-check touch-input-check flow-check side-hit-shape-check terrain-shadow-check terrain-worker-check models-check graphics-check instance-lod-check mobile-render-check hud-check trail-clods-check solid-index-check render-limit-check; do
             node "tests/$test.mjs"
           done
+      - name: Check identical trail output and measure paired CPU paths
+        run: |
+          node tests/trail-normals-check.mjs "$RUNNER_TEMP/alpen-trail-before.js"
+          node tests/shadow-install-benchmark.mjs "$RUNNER_TEMP/alpen-terrain-before.js"
   browser:
     strategy:
       fail-fast: false
       matrix:
-        profile: [desktop, portrait, landscape]
+        profile: [desktop, portrait, landscape, detail]
     name: Browser ${{ matrix.profile }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -73,6 +81,14 @@ jobs:
             sleep 1
           done
           exit 1
+      - name: Fetch fixed artwork baseline
+        if: matrix.profile == 'detail'
+        run: |
+          mkdir -p "$RUNNER_TEMP/alpen-detail-before"
+          for file in config terrain backdrop; do
+            curl --fail --silent --show-error --retry 3 --output "$RUNNER_TEMP/alpen-detail-before/$file.js" "https://raw.githubusercontent.com/voho/protocodus.github.io/ebb84e902a97c7f97f7e4423544c49c1b21ed270/fun/alpen/js/$file.js"
+          done
+          echo "ALPEN_DETAIL_BASE=$RUNNER_TEMP/alpen-detail-before" >> "$GITHUB_ENV"
       - name: Check real gameplay and capture mountain scenes
         timeout-minutes: 25
         run: node tests/browser-ci-check.mjs

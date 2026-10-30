@@ -634,53 +634,23 @@ export function gateSlotsIn(zLo, zHi, out = []) {
   return out;
 }
 
-/* ==========================================================================
-   Side hits — the air the racing line was never offered.
+/* Optional side hits beside the groomed ribbon.
 
-   Measured with the physics harness before these existed: a rider steering
-   the racing line on three seeds left the ground 0.3 times per four
-   kilometres. Everything on this mountain that throws a rider — the knolls,
-   the drops — is multiplied by `beyondF` in `heightIn` and so lives outside
-   the corridor, for the good reason given there: a hidden ledge on the run
-   is an ambush. The cost was that the only air on the piste was the ollie,
-   so the lip pop, the flips and anything past a 360 were things the game
-   described and a player almost never met.
+   Each seeded gate slot can carry a rounded roller, a drift, or a wind lip.
+   Cubic faces vary the crown slope; a matching Hermite lee keeps the join
+   smooth. The face's steepest derivative sets its length, and normalization
+   bounds the true maximum height, including the crown's slight overshoot.
 
-   A side hit is the piste's own answer, and it is the thing real pistes
-   actually have: a wind lip or a groomer's leftover drift just off the
-   corduroy, which everybody who rides the run knows is there and aims for.
-   One per gate slot at most, hashed off the slot index like the gates
-   themselves, placed between one gate and the next so that taking it is a
-   line — swing out off the ribbon after a gate, hit it, land, and make the
-   next gate or do not — and never ON the ribbon: the corduroy within
-   `guide.tol` of the line is masked flat, so riding the line alone is still
-   exactly as smooth (and exactly as airless) as it was, and the flow
-   meter's "the line alone never fills the bar" rule is untouched.
+   Width, shoulder shape, lateral sweep and taper vary the footprint. These
+   are cached per feature and resolved once per terrain row, so height queries
+   need no additional noise samples. The ribbon mask remains exactly zero on
+   the racing line, while placement leaves the crest inside the corridor.
+   Takeoff still follows the actual surface tangent and incoming momentum. */
 
-   The shape is what makes it throw rather than roll. The windward face is
-   concave — a transition, its slope over the grade growing to `lip` at the
-   crest — and the crest is then rolled over on a cubic that keeps the
-   slope continuous (no crease for the normals to trip on) but curves away
-   at ten times the face's rise over the lee's length squared, far faster
-   than gravity can follow at any speed worth arriving with. So the rider
-   leaves on the face's own angle, which is a property of the hit, and how
-   far they go is a question of how fast they came: a pure function of
-   (x, z, seed) like every other term here, cached per slot because the
-   physics asks about the same one twenty-odd times a step.
-
-   Measured on the same three seeds and the same steering bot: the racing
-   line is untouched (still 0.3 launches per four kilometres, to the metre
-   of distance covered), about ten hits stand in every four kilometres, and
-   a rider who swings out to them leaves the ground 18.5 times per four
-   kilometres — nine or ten of those for more than 0.8 s, median 0.87 s,
-   longest 1.26 s, no falls. A charged pop released on the lip roughly
-   doubles the flight, which is room for a cork, and lands heavy: that is
-   the landing model's verdict on a two-second air onto the grade, and it
-   holds for every lip on the mountain, not only these.
-   ========================================================================== */
-
+const SIDE_HIT_SHAPES = ['roller', 'drift', 'windlip'];
 const SIDE_HIT_CACHE = [0, 1, 2, 3].map(() => ({
   seed: NaN, k: -1, on: false, zc: 0, x: 0, rx: 1, h: 0, face: 1, lee: 1, side: 1,
+  shape: 'drift', crownSlope: 2, normalization: 1, shoulder: 0, sweep: 0, taper: 0,
 }));
 
 function sideHitFor(k) {
@@ -729,13 +699,27 @@ function sideHitFor(k) {
   if (!side) return null;
   const h = S.rise[0] + (S.rise[1] - S.rise[0]) * hash2(k, S.seed, 106);
   const lip = S.lip[0] + (S.lip[1] - S.lip[0]) * hash2(k, S.seed, 107);
+  const kind = Math.min(2, Math.floor(hash2(k, S.seed, 108) * 3));
+  const range = S.crownSlope[kind];
+  const m = range[0] + (range[1] - range[0]) * hash2(k, S.seed, 109);
+  const leeRatio = S.lee[0] + (S.lee[1] - S.lee[0]) * hash2(k, S.seed, 110);
+  const r = m * leeRatio, t = r / (6 + 3 * r);
+  const peak = 2 * t * t * t - 3 * t * t + 1 + r * (t * t * t - 2 * t * t + t);
+  const normalization = 1 / peak;
+  const maxDerivative = m >= 1.5 ? m : (3 - m) * (3 - m) / (3 * (2 - m));
   e.zc = zc;
   e.x = x;
   e.rx = rx;
   e.h = h;
-  // A quadratic face reaching slope `lip` at the crest is 2h/lip long.
-  e.face = (2 * h) / lip;
-  e.lee = e.face * S.lee;
+  e.crownSlope = m;
+  e.normalization = normalization;
+  // Bound the steepest face and its true maximum, including the rounded crown.
+  e.face = maxDerivative * h * normalization / lip;
+  e.lee = e.face * leeRatio;
+  e.shape = SIDE_HIT_SHAPES[kind];
+  e.shoulder = S.shoulder[0] + (S.shoulder[1] - S.shoulder[0]) * hash2(k, S.seed, 111);
+  e.sweep = (hash2(k, S.seed, 112) * 2 - 1) * S.sweep;
+  e.taper = (hash2(k, S.seed, 113) * 2 - 1) * S.taper;
   e.side = side;
   e.on = true;
   return e;
@@ -747,13 +731,13 @@ function sideHitProfile(hit, s) {
   if (s <= -hit.face || s >= hit.lee) return 0;
   if (s <= 0) {
     const u = 1 + s / hit.face;
-    return u * u;
+    return u * u * ((3 - hit.crownSlope) + (hit.crownSlope - 2) * u);
   }
   /* Cubic Hermite from (crest, height 1, the face's slope) to (end of the
      lee, 0, flat): slope-continuous at both ends, so the normals never see
      a crease, and never below zero on the way down. */
   const t = s / hit.lee;
-  const r = (2 * hit.lee) / hit.face;
+  const r = hit.crownSlope * hit.lee / hit.face;
   return 2 * t * t * t - 3 * t * t + 1 + r * (t * t * t - 2 * t * t + t);
 }
 
@@ -769,6 +753,8 @@ export function sideHitsIn(zLo, zHi, out = []) {
     out.push({
       k, z: hit.zc, x: hit.x, halfWidth: hit.rx, height: hit.h,
       face: hit.face, lee: hit.lee, side: hit.side,
+      shape: hit.shape, crownSlope: hit.crownSlope, shoulder: hit.shoulder,
+      sweep: hit.sweep, taper: hit.taper,
     });
   }
   return out;
@@ -930,6 +916,7 @@ function makeContext() {
     hitX: [0, 0],
     hitR: [1, 1],
     hitP: [0, 0],        // …and their height at this row, profile applied
+    hitShoulder: [0, 0],
     // What this stretch of mountain is made of: one multiplier per octave,
     // mixed from the three characters. See `TERRAIN.character`.
     mix: [1, 1, 1, 1, 1],
@@ -1140,11 +1127,14 @@ function rowContext(z, ctx) {
     if (k < sideHits.from) continue;
     const hit = sideHitFor(k);
     if (!hit) continue;
-    const p = sideHitProfile(hit, hit.zc - z);
+    const s = hit.zc - z;
+    const p = sideHitProfile(hit, s);
     if (p <= 0) continue;
-    ctx.hitX[ctx.nHits] = hit.x;
-    ctx.hitR[ctx.nHits] = hit.rx;
-    ctx.hitP[ctx.nHits] = hit.h * p;
+    const along = s / (hit.face + hit.lee);
+    ctx.hitX[ctx.nHits] = hit.x + hit.sweep * hit.rx * along;
+    ctx.hitR[ctx.nHits] = hit.rx * (1 + hit.taper * along);
+    ctx.hitP[ctx.nHits] = hit.h * hit.normalization * p;
+    ctx.hitShoulder[ctx.nHits] = hit.shoulder;
     ctx.nHits += 1;
   }
   return ctx;
@@ -1632,10 +1622,10 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
           left ? crests.seed : crests.seed + 7);
         const e1 = CREST_ROUND[0] * cell;
         const a1 = 1 - roundedAbs(n1, e1);
-        // A ninety-five metre ridge is four samples a wavelength on the widest
-        // ring, which is too few to keep its shape from one commit to the
-        // next: the gullies leave before that, and this keeps half.
-        const far = 1 - 0.5 * smoothstep(12, 24, cell);
+        // Sharper arêtes keep their full relief on fine flank cells. Begin
+        // their fade earlier so wide rings carry broad ribs without
+        // introducing detail their triangles cannot hold.
+        const far = 1 - 0.68 * smoothstep(6, 24, cell);
         h += crestScale * far * crests.amp * (a1 * a1 - 0.35 + 0.45 * e1 * e1);
         // The second octave is a thirty-five metre ridge, nearer the runnels'
         // scale than the gullies', so it leaves with the runnels.
@@ -1655,7 +1645,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   /* Side hits, which are the exception to the rule below and are allowed to
      be one because they are not hidden: each stands beside the ribbon, on
      the skied-in snow between the corduroy and the corridor's edge, marked
-     by a waymark. The lateral falloff is the knolls' squared dome; the mask
+     by a waymark. Their rounded shoulders vary independently; the mask
      is what keeps the ribbon itself exactly as groomed as it was — zero
      within `guide.tol` of the line, released over `sideHits.mask` metres. */
   for (let i = 0; i < ctx.nHits; i++) {
@@ -1664,7 +1654,8 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     const q = 1 - dx * dx;
     const keep = smoothstep(guide.tol, guide.tol + sideHits.mask,
       Math.abs(x - ctx.guideX));
-    h += ctx.hitP[i] * q * q * keep;
+    const shoulder = q * q * (1 + ctx.hitShoulder[i] * (q - 1));
+    h += ctx.hitP[i] * shoulder * keep;
   }
 
   /* Knolls and cliffs live outside the corridor entirely — a rideable run
@@ -3437,13 +3428,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function installShadowRegion(result, publish = true) {
     const { originTileX, originTileZ, tilesX, tilesZ, width, height } = result;
+    const pageX = mod(originTileX * shadeTileSamples, shadePageSamplesX);
+    const pageZ = mod(originTileZ * shadeTileSamples, shadePageSamplesZ);
+    // World rows are contiguous except at the atlas torus seam. Split there
+    // and copy the typed ranges without per-texel modulo and channel writes.
     for (let y = 0; y < height; y++) {
-      const worldCellZ = originTileZ * shadeTileSamples + y;
-      const py = mod(worldCellZ, shadePageSamplesZ);
-      for (let x = 0; x < width; x++) {
-        const worldCellX = originTileX * shadeTileSamples + x;
-        const px = mod(worldCellX, shadePageSamplesX);
-        shadeHeightData[py * shadePageSamplesX + px] = result.ground[y * width + x];
+      const py = (pageZ + y) % shadePageSamplesZ;
+      for (let x = 0, px = pageX; x < width; px = 0) {
+        const n = Math.min(width - x, shadePageSamplesX - px);
+        const src = y * width + x;
+        shadeHeightData.set(result.ground.subarray(src, src + n), py * shadePageSamplesX + px);
+        x += n;
       }
     }
     for (let direction = 0; direction < shadeDirections; direction++) {
@@ -3451,12 +3446,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamplesZ + 1;
       const srcBase = direction * width * height * 2;
       for (let y = 0; y < height; y++) {
-        const py = mod(originTileZ * shadeTileSamples + y, shadePageSamplesZ);
-        for (let x = 0; x < width; x++) {
-          const px = mod(originTileX * shadeTileSamples + x, shadePageSamplesX);
+        const py = (pageZ + y) % shadePageSamplesZ;
+        for (let x = 0, px = pageX; x < width; px = 0) {
+          const n = Math.min(width - x, shadePageSamplesX - px);
           const src = srcBase + (y * width + x) * 2;
           const dst = ((oy + py) * shadeAtlasWidth + ox + px) * 2;
-          copyRG(result.horizon, src, shadeAtlasData, dst);
+          shadeAtlasData.set(result.horizon.subarray(src, src + n * 2), dst);
+          x += n;
         }
       }
     }
@@ -4289,14 +4285,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
               * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot))
             + sin(n64SlateW * 3.926991) * 0.7
               * (1.0 - smoothstep(0.20, 0.40, n64SlateFoot));
-          float n64SlateInk = smoothstep(0.08, 0.92, n64SlateBeds) * 0.12;
+          float n64SlateInk = smoothstep(0.08, 0.92, n64SlateBeds) * 0.18;
 
           float n64IronBeds = sin(n64IronW * 0.785398)
             * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
-          float n64IronShelf = smoothstep(-0.35, 0.72, n64IronBeds) * 0.075;
+          float n64IronShelf = smoothstep(-0.35, 0.72, n64IronBeds) * 0.11;
           float n64JointWave = abs(sin(n64JointW * 0.589049));
           float n64IronJoint = (1.0 - smoothstep(0.03, 0.24, n64JointWave))
-            * (1.0 - smoothstep(0.30, 0.67, n64JointFoot)) * 0.11;
+            * (1.0 - smoothstep(0.30, 0.67, n64JointFoot)) * 0.15;
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
           /* TRIPLANAR, because a top-down projection has no area to give a
@@ -4404,7 +4400,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         vec3 n64RockLean = mix(n64SlateDir * n64SlateLean,
           n64IronDir * n64IronLean, clamp(vRockKind, 0.0, 1.0));
         normal = normalize(normal + mat3(viewMatrix) * n64RockLean
-          * vRock * 0.12);
+          * vRock * 0.18);
         /* The plates' height, spent as light rather than geometry: its
            slope leans the smooth normal — powder sastrugi off-piste and
            machine ribs on it, at a scale the 75 cm mesh cannot carry. */

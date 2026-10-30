@@ -514,6 +514,7 @@ const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
 const pushSnow = new THREE.Vector3();
 let pausedRendered = false;
+let pausedWorldReady = false;
 
 /* Render-time interpolation of the fixed step.
 
@@ -596,6 +597,7 @@ function begin() {
   runStarted = true;
   game.mode = 'playing';
   pausedRendered = false;
+  pausedWorldReady = false;
   curtain.classList.remove('on');
   retro.fade(1);
 }
@@ -606,6 +608,7 @@ function pause() {
   curtainClickReady = false;
   game.mode = 'paused';
   pausedRendered = false;
+  pausedWorldReady = false;
   curtain.classList.add('on');
   curtain.dataset.screen = 'paused';
   retro.fade(0.42);
@@ -756,6 +759,7 @@ function restartRun() {
   trackRunStart('restart');
   game.mode = 'playing';
   pausedRendered = false;
+  pausedWorldReady = false;
   curtain.classList.remove('on');
   retro.fade(1);
 }
@@ -814,6 +818,7 @@ canvas.addEventListener('webglcontextlost', (e) => {
   contextLost = true;
   game.mode = 'paused';
   pausedRendered = true;
+  pausedWorldReady = false;
   curtain.dataset.screen = 'paused';
   curtain.classList.add('on');
   const note = curtain.querySelector('.pause-only.tagline');
@@ -824,6 +829,7 @@ canvas.addEventListener('webglcontextlost', (e) => {
 
 canvas.addEventListener('webglcontextrestored', () => {
   contextLost = false;
+  pausedWorldReady = false;
   sky.refreshProbe();
   const note = curtain.querySelector('.pause-only.tagline');
   if (note) note.textContent = 'Paused.';
@@ -1625,6 +1631,7 @@ function frame(now) {
   retro.updatePerformance(flickerProbe.freezeResolution ? 0 : frameDt, running);
   if (running) {
     pausedRendered = false;
+    pausedWorldReady = false;
     /* The demo rider is a salesman, not a survivor: if it stalls on the
        shoulder or loses the course entirely, it is quietly stood back on
        the line a couple of metres further down and the loop goes on. A
@@ -1988,10 +1995,13 @@ function frame(now) {
     // The frame's statistics start here, so they count the sky probe and the
     // rider's own shadow as well as the world and the post stack.
     renderer.info.reset();
-    // Where the rider is drawn, which between steps is not where they are
-    riderShadow.update(scene, model.root, camera, sky.shadowLevel);
-    sky.renderProbe(renderer);
-    retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
+    if (running || !pausedWorldReady || !retro.renderComposite()) {
+      // Where the rider is drawn, which between steps is not where they are.
+      riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+      sky.renderProbe(renderer);
+      retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
+      pausedWorldReady = !running;
+    }
     pausedRendered = !running && !retro.animating;
   }
   cpuFrameMs = performance.now() - cpuStart;
@@ -2041,6 +2051,7 @@ function safeInsets(ratio) {
 function resize() {
   resizeFrame = 0;
   pausedRendered = false;
+  pausedWorldReady = false;
   const viewport = window.visualViewport;
   const w = Math.max(1, Math.round(viewport?.width || window.innerWidth));
   const h = Math.max(1, Math.round(viewport?.height || window.innerHeight));
