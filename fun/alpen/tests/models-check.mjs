@@ -1385,6 +1385,29 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   }
   valid('lift glass', glass.geometry);
 
+  // Cabin glass follows the lamp continuously at dusk and in falling snow.
+  // The old 10% threshold changed every cabin from blue to cream in one tick.
+  for (const condition of ['night', 'snow']) {
+    let previous = null;
+    for (let step = 0; step <= 200; step++) {
+      const weather = { night: 0, snow: 0, [condition]: step / 200 };
+      modelled.update(0, rider, weather, true);
+      const values = [...glass.material.color.toArray(), ...glass.material.emissive.toArray()];
+      if (previous) for (let channel = 0; channel < values.length; channel++) {
+        assert.ok(values[channel] >= previous[channel] - 1e-12, 'cabin lighting rises smoothly');
+        assert.ok(values[channel] - previous[channel] < 0.02, 'no cabin color jump at a weather threshold');
+      }
+      previous = values;
+    }
+  }
+  modelled.update(0, rider, { night: 1, snow: 0 }, true);
+  assert.equal(glass.material.color.getHex(), 0xffe4b8, 'authored nighttime glass');
+  const nightLamp = new THREE.Color(0xffaa44).multiplyScalar(0.85);
+  assert.ok(glass.material.emissive.equals(nightLamp), 'authored nighttime lamp energy');
+  modelled.update(0, rider, { night: 0, snow: 0 }, true);
+  assert.equal(glass.material.color.getHex(), 0x1a3450, 'authored daytime glass');
+  assert.equal(glass.material.emissive.getHex(), 0, 'daytime lamps are dark');
+
   const shader = {
     uniforms: {},
     vertexShader: THREE.ShaderLib.lambert.vertexShader,
@@ -1483,6 +1506,54 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   }
   assert.ok(worst > 0.05, 'the tumble happened');
   assert.ok(worst < 0.35, 'getting up is a movement, not a cut: ' + worst);
+}
+
+/* A turning skier's nose and tail must follow the same slope. Measure the
+   rendered longitudinal axis against real terrain, including oblique turns:
+   neither end should dive relative to the other. Both may sit slightly above
+   or below a curved patch because this is a rigid ski, not deformable snow. */
+{
+  const { heightAt } = await import(new URL('js/terrain.js', base).href);
+  const { getWorldSeed, setWorldSeed } = await import(new URL('js/noise.js', base).href);
+  const oldSeed = getWorldSeed(), oldRandom = Math.random;
+  let randomState = 12345;
+  try {
+    setWorldSeed('alpen01');
+    Math.random = () => {
+      randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+      return randomState / 2 ** 32;
+    };
+    const scene = new THREE.Scene();
+    const riding = mountainLife.createMountainLife(namespace, scene, { apply: m => m });
+    const rider = { pos: new THREE.Vector3(0, heightAt(0, -600), -600), state: 'ride', grace: 10 };
+    riding.reset(-600);
+    const figures = [];
+    scene.traverse(node => {
+      if (node.isGroup && node.rotation.order === 'YXZ'
+        && node.children.filter(child => child.isMesh).length === 2) figures.push(node);
+    });
+    assert.equal(figures.length, 8);
+    const tip = new THREE.Vector3();
+    let oblique = 0, worst = 0;
+    for (let frame = 0; frame < 900; frame++) {
+      riding.update(1 / 60, rider, { night: 0, snow: 0 }, true);
+      if (frame < 120) continue; // Let their initial approach to the piste settle.
+      for (const figure of figures) {
+        if (Math.abs(figure.rotation.y) > 0.6) oblique++;
+        tip.set(0, 0, -0.9).applyQuaternion(figure.quaternion).add(figure.position);
+        const front = tip.y - heightAt(tip.x, tip.z);
+        tip.set(0, 0, 0.9).applyQuaternion(figure.quaternion).add(figure.position);
+        const back = tip.y - heightAt(tip.x, tip.z);
+        worst = Math.max(worst, Math.abs(front - back));
+      }
+    }
+    assert.ok(oblique > 100, 'the fixture includes many traversing turns');
+    assert.ok(worst < 0.012, `ski ends follow the same snow slope within 12 mm: ${worst}`);
+    await riding.liftReady;
+  } finally {
+    Math.random = oldRandom;
+    setWorldSeed(oldSeed);
+  }
 }
 /* Welding draws the same triangles from shared vertices: every corner keeps
    every attribute bit for bit, and a pool still waiting on its scan (no

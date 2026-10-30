@@ -120,7 +120,7 @@ kbd {
 .ride-charge[data-lip='ready'] .meter > i { background: var(--ice); }
 .ride-guide { position: absolute; right: var(--right); top: calc(var(--top) + 9.5em); font-size: var(--ui-copy); color: var(--accent); }
 .ride-hint { position: absolute; left: var(--left); bottom: calc(var(--bottom) + 2.2em); font-size: var(--ui-copy); color: var(--paper); }
-.ride-hint > span { margin: 0 9px; color: var(--muted); }
+.ride-hint > span > span { margin: 0 9px; color: var(--muted); }
 .ride-tools { position: absolute; bottom: var(--bottom); left: var(--left); display: flex; gap: 18px; font-size: var(--ui-label); color: var(--muted); }
 .ride-tools kbd { border: 0; padding: 0; }
 .ride-tools [data-hud='muted'] { color: var(--accent); }
@@ -158,7 +158,7 @@ kbd {
 .restart-run { margin-top: 12px; padding: max(11px, 0.7em) max(21px, 1.35em); border: 1px solid var(--line); background: transparent; color: var(--paper); font-size: var(--ui-label); font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .restart-run:hover, .restart-run:focus-visible { border-color: var(--accent); color: var(--accent); }
 .go-hint { margin-top: 11px; color: var(--muted); font-size: var(--ui-label); letter-spacing: 0.04em; }
-.go-tap, .touch-first { display: none; }
+.touch-first { margin-top: 24px; color: var(--muted); font-size: var(--ui-copy); line-height: 1.6; }
 .first-steps { display: flex; flex-wrap: wrap; gap: 16px 23px; margin-top: 29px; font-size: var(--ui-label); color: var(--paper); }
 .first-steps p > span { display: block; margin-top: 8px; color: var(--muted); }
 .first-steps kbd { font-size: inherit; }
@@ -174,8 +174,11 @@ kbd {
 .keys > div, .touch-guide > div { display: grid; grid-template-columns: 10em 1fr; gap: 1em; align-items: baseline; }
 .keys dt, .touch-guide dt { color: var(--paper); font-size: var(--ui-label); font-weight: 600; }
 .keys dd, .touch-guide dd { color: var(--muted); font-size: var(--ui-copy); line-height: 1.55; }
-.controller-guide { margin-top: 17px; padding-top: 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--ui-label); line-height: 1.6; }
-.touch-guide { display: none; }
+/* Help follows deliberate input, independently of touch-control availability. */
+body[data-input-device='gamepad'] [data-input-help='keyboard'],
+body[data-input-device='touch'] [data-input-help='keyboard'],
+body:not([data-input-device='gamepad']) [data-input-help='gamepad'],
+body:not([data-input-device='touch']) [data-input-help='touch'] { display: none; }
 .run-stats { display: flex; gap: 36px; margin-top: 27px; font-variant-numeric: tabular-nums; }
 .run-stats p > span { display: block; color: var(--muted); font-size: var(--ui-label); text-transform: uppercase; letter-spacing: 0.12em; }
 .run-stats strong { display: block; margin-top: 6px; font-size: calc(var(--ui-label) * 2); font-weight: 500; white-space: nowrap; }
@@ -209,10 +212,7 @@ body.touch:has(.curtain.on) .pad { visibility: hidden; }
 .pad-tool[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
 .pad-jump { color: var(--ink); background: rgba(246, 161, 109, 0.96); border-color: var(--accent); }
 .pad-left, .pad-right { font-size: 18px; }
-body.touch .first-steps, body.touch .keys, body.touch .go-key, body.touch .ride-hint, body.touch .desktop-pause { display: none; }
-body.touch .go-tap { display: inline; }
-body.touch .touch-first { display: block; margin-top: 24px; color: var(--muted); font-size: var(--ui-copy); line-height: 1.6; }
-body.touch .touch-guide { display: grid; }
+body.touch .ride-hint, body.touch .desktop-pause { display: none; }
 body.touch .restart-run, body.touch .control-guide summary, body.touch .curtain-footer .exit-link { min-height: 44px; }
 body.touch .ride-charge { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); width: 144px; }
 body.touch .ride-tools { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); }

@@ -26,6 +26,134 @@ const frames = (page, count) => page.evaluate(count => new Promise(resolve => {
   const tick = () => { if (--left <= 0) resolve(); else requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }), count);
+async function checkInputDevice(page, device) {
+  await page.waitForFunction(device => __alpen.input.state.device === device
+    && document.body.dataset.inputDevice === device, device);
+}
+async function checkMenuHelp(page, device) {
+  const shown = await page.locator('.curtain [data-input-help]').evaluateAll(nodes =>
+    nodes.filter(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden')
+      .map(node => node.dataset.inputHelp));
+  assert(shown.length > 0, device + ': menu has visible help');
+  assert.deepEqual([...new Set(shown)], [device], device + ': only matching help is displayed');
+}
+async function checkTouchControls(page) {
+  assert(await page.evaluate(() => document.body.classList.contains('touch') && __alpen.input.state.touch),
+    'touch capability survives another active input device');
+  assert.equal(await page.locator('.ride-hint').isVisible(), false, 'riding hints stay out of the touch controls');
+  const bounds = await page.locator('.pad-btn').evaluateAll(buttons => buttons.map(button => {
+    const rect = button.getBoundingClientRect();
+    return { label: button.dataset.key || button.dataset.action, x: rect.x, y: rect.y,
+      width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom,
+      visible: getComputedStyle(button).visibility !== 'hidden', viewport: [innerWidth, innerHeight] };
+  }));
+  for (const [index, button] of bounds.entries()) {
+    assert(button.visible && button.width >= 44 && button.height >= 44, button.label + ': usable touch target');
+    assert(button.x >= 0 && button.y >= 0 && button.right <= button.viewport[0] + .5
+      && button.bottom <= button.viewport[1] + .5, button.label + ': target stays in the viewport');
+    for (const other of bounds.slice(index + 1)) {
+      assert(Math.min(button.right, other.right) <= Math.max(button.x, other.x)
+        || Math.min(button.bottom, other.bottom) <= Math.max(button.y, other.y),
+      button.label + ' and ' + other.label + ': touch targets do not overlap');
+    }
+  }
+}
+async function checkTouchHelpTap(page, mode) {
+  await page.locator('.control-guide summary').tap();
+  await checkInputDevice(page, 'touch');
+  assert(await page.locator('.control-guide').evaluate(node => node.open),
+    'a help tap still opens the target when its device changes the menu layout');
+  assert.equal(await page.evaluate(() => __alpen.game.mode), mode, 'touch help does not start or resume a ride');
+  await checkMenuHelp(page, 'touch');
+  await page.locator('.control-guide summary').tap();
+  assert.equal(await page.locator('.control-guide').evaluate(node => node.open), false, 'a second touch closes help');
+}
+async function checkControllerStart(page) {
+  const fixture = await page.evaluateHandle(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'getGamepads');
+    const pad = { connected: true, index: 0, mapping: 'standard', id: 'Alpen QA controller',
+      axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    window.dispatchEvent(new Event('gamepadconnected'));
+    return { descriptor, pad };
+  });
+  try {
+    await frames(page, 2);
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = .65; });
+    await checkInputDevice(page, 'gamepad');
+    assert.equal(await page.evaluate(() => __alpen.game.mode), 'attract', 'controller help appears before the first ride');
+    await page.screenshot({ path: output + '/controller-title.png', animations: 'disabled' });
+    await page.locator('.control-guide').evaluate(guide => { guide.open = true; });
+    await checkMenuHelp(page, 'gamepad');
+    await page.locator('.control-guide-content').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: output + '/controller-help.png', animations: 'disabled' });
+    await page.locator('.control-guide').evaluate(guide => { guide.open = false; });
+    await page.locator('.control-guide summary').focus();
+    await page.keyboard.press('Tab');
+    await checkInputDevice(page, 'keyboard');
+    assert(await page.locator('.exit-link').evaluate(node => node === document.activeElement),
+      'Tab after controller use preserves menu navigation');
+    assert.equal(await page.evaluate(() => __alpen.game.mode), 'attract', 'Tab does not start a ride');
+    await checkMenuHelp(page, 'keyboard');
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; });
+    await frames(page, 2);
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = -.65; });
+    await checkInputDevice(page, 'gamepad');
+    await fixture.evaluate(({ pad }) => { pad.buttons[9].pressed = true; pad.buttons[9].value = 1; });
+    await page.waitForFunction(() => __alpen.game.mode === 'playing');
+    await checkInputDevice(page, 'gamepad');
+    assert(await page.locator('.ride-hint [data-input-help="gamepad"]').isVisible(), 'controller riding hint is visible from the start');
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; pad.buttons[9].pressed = false; pad.buttons[9].value = 0; });
+    await frames(page, 2);
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = .65; });
+    await page.waitForFunction(() => __alpen.input.state.turnIntent > 0);
+    await page.keyboard.down('KeyA');
+    await checkInputDevice(page, 'keyboard');
+    await frames(page, 3);
+    assert.equal(await page.evaluate(() => __alpen.input.state.device), 'keyboard', 'a held stick cannot reclaim keyboard prompts');
+    await page.keyboard.up('KeyA');
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; });
+    await frames(page, 2);
+    assert.equal(await page.evaluate(() => __alpen.input.state.device), 'keyboard', 'releasing the stick does not change prompts');
+    await fixture.evaluate(({ pad }) => { pad.axes[0] = -.65; });
+    await checkInputDevice(page, 'gamepad');
+  } finally {
+    await page.keyboard.up('KeyA');
+    await fixture.evaluate(({ descriptor }) => {
+      if (descriptor) Object.defineProperty(navigator, 'getGamepads', descriptor);
+      else delete navigator.getGamepads;
+      window.dispatchEvent(new Event('gamepaddisconnected'));
+    });
+    await fixture.dispose();
+  }
+}
+async function checkPausedHelp(page, touch, profile) {
+  await checkInputDevice(page, 'keyboard');
+  // The key handler changes mode immediately; the next HUD update owns focus.
+  await page.waitForFunction(() => document.activeElement === document.querySelector('.curtain'));
+  assert(await page.locator('.curtain').evaluate(node => node === document.activeElement), 'pause moves focus into its menu');
+  await page.locator('.control-guide summary').focus();
+  await page.keyboard.press('Enter');
+  assert(await page.locator('.control-guide').evaluate(node => node.open), 'keyboard opens help without resuming');
+  await checkMenuHelp(page, 'keyboard');
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'paused', 'reading help leaves the run paused');
+  if (touch) assert(await page.evaluate(() => document.body.classList.contains('touch') && __alpen.input.state.touch),
+    'hybrid menu selects keyboard help without removing touch capability');
+  if (profile === 'portrait') {
+    await page.locator('.control-guide-content').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: output + '/portrait-keyboard-help.png', animations: 'disabled' });
+  }
+  await page.keyboard.press('Escape');
+  assert(await page.locator('.control-guide summary').evaluate(node => node === document.activeElement),
+    'closing help keeps focus on its summary');
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'paused', 'closing help does not resume');
+  if (touch) await checkTouchHelpTap(page, 'paused');
+  await page.locator('.curtain').focus();
+  await page.keyboard.press('Tab');
+  assert(await page.locator('.drop-in').evaluate(node => node === document.activeElement), 'Tab reaches resume');
+  await page.keyboard.press('Tab');
+  assert(await page.locator('.restart-run').evaluate(node => node === document.activeElement), 'Tab reaches restart');
+}
 async function checkMotionPreference(page) {
   const sample = () => page.evaluate(() => {
     const a = __alpen;
@@ -326,9 +454,22 @@ try {
         console.log('Alpen paired detail captures passed: ' + name);
         continue;
       }
-      await page.locator('.drop-in').click();
+      if (profile.name === 'desktop') {
+        await checkControllerStart(page);
+      } else {
+        await checkInputDevice(page, 'touch');
+        await checkMenuHelp(page, 'touch');
+        await page.keyboard.press('Tab');
+        await checkInputDevice(page, 'keyboard');
+        await checkMenuHelp(page, 'keyboard');
+        await checkTouchHelpTap(page, 'attract');
+        await page.locator('.drop-in').tap();
+      }
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
+      if (profile.hasTouch) await checkTouchControls(page);
+      console.log('Alpen title input guidance passed: ' + profile.name);
       await page.keyboard.down('KeyD');
+      await checkInputDevice(page, 'keyboard');
       await page.waitForFunction(() => __alpen.input.state.turnIntent > 0);
       await page.keyboard.up('KeyD');
       await page.waitForFunction(() => __alpen.input.state.turnIntent === 0);
@@ -339,19 +480,26 @@ try {
         const button = await page.locator('[data-key=jump]').boundingBox();
         assert(button && button.width >= 44 && button.height >= 44, 'usable Jump target');
         await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: button.x + button.width / 2, y: button.y + button.height / 2, id: 7 }] });
+        await checkInputDevice(page, 'touch');
         await page.keyboard.up('Space'); await frames(page, 3);
         assert(await page.evaluate(() => __alpen.input.state.jump), 'touch preserves a keyboard charge');
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         await page.waitForFunction(() => !__alpen.input.state.jump);
         await session.detach();
+        await checkTouchControls(page);
       } else {
         await page.evaluate(() => window.dispatchEvent(new Event('blur')));
         assert.equal(await page.evaluate(() => __alpen.rider.charging), false, 'blur cancels stored charge');
         await page.keyboard.up('Space');
         await page.locator('.drop-in').click();
+        // Observe a playing HUD frame between blur/resume/pause. Otherwise a
+        // slow renderer can coalesce both transitions and retain button focus.
+        await page.waitForFunction(() => __alpen.game.mode === 'playing');
+        await frames(page, 1);
       }
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => __alpen.game.mode === 'paused');
+      await checkPausedHelp(page, !!profile.hasTouch, profile.name);
       if (profile.name === 'desktop') {
         const pausedFrames = await page.evaluate(async () => {
           const a = __alpen, original = a.renderer.render;
@@ -379,9 +527,17 @@ try {
           'continued paused fades draw only the final composite');
         results.push({ pausedFrames });
         console.log('Alpen paused frame submissions: ' + JSON.stringify(pausedFrames));
+        await page.evaluate(() => { __alpen.game.discoveredGrabs.add(0); });
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => __alpen.game.mode === 'playing');
+        assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 0,
+          'Enter on the focused pause restart starts a fresh run');
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => __alpen.game.mode === 'paused');
       }
       await page.locator('.drop-in').click();
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
+      if (profile.hasTouch) await checkTouchControls(page);
       if (profile.name === 'desktop') {
         const rewards = await page.evaluate(async () => {
           const a = __alpen;

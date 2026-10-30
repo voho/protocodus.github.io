@@ -28,7 +28,10 @@ exitLink.href = '/fun/';
 for (const name of ['score','distance','drop']) curtain.nodes[`[data-menu-${name}]`] = new Node();
 curtain.targets = [button, summary, exitLink];
 guide.nodes.summary = summary;
-globalThis.document = { activeElement: null, querySelector: () => curtain, createElement: () => new Node() };
+const body = { dataset: new Proxy({ inputDevice: 'keyboard' }, {
+  set(target, name, value) { target[name] = value; writes++; return true; },
+}) };
+globalThis.document = { body, activeElement: null, querySelector: () => curtain, createElement: () => new Node() };
 globalThis.window = { devicePixelRatio: 2, innerHeight: 800 };
 const hud = createHud(root), f = root.fields;
 const g = { mode: 'attract', score: 0, best: 100, bestAtStart: 100, combo: 1, flow: 0, gateRun: 0, pisteOffset: 0,
@@ -87,6 +90,29 @@ hud.resetScore(); hud.update(g, .1);
 assert.equal(f.score.textContent, '0'); assert.equal(f.event.hidden, true); assert.equal(f.combo.hidden, true); assert.equal(f.gates.hidden, true);
 for (let i=0; i<100;i++) hud.update(g,.1);
 assert.equal(f.hint.hidden, true);
+// A deliberate device handoff briefly reintroduces controls. Steady input
+// must neither rewrite the DOM nor keep the hint alive for the whole run.
+hud.setInputDevice('gamepad');
+assert.equal(body.dataset.inputDevice, 'gamepad');
+assert.equal(f.hint.hidden, false);
+for (let i = 0; i < 100; i++) { hud.setInputDevice('gamepad'); hud.update(g, .1); }
+assert.equal(f.hint.hidden, true, 'held controller activity cannot keep refreshing help');
+const beforeDevice = writes;
+for (let i = 0; i < 10; i++) hud.setInputDevice('gamepad');
+hud.setInputDevice('unknown');
+assert.equal(writes, beforeDevice, 'stable or invalid devices never write presentation state');
+g.mode = 'paused'; hud.update(g, .1);
+guide.open = true; summary.focus();
+hud.setInputDevice('touch');
+assert.equal(body.dataset.inputDevice, 'touch');
+assert.equal(guide.open, true, 'switching prompts preserves the open control guide');
+assert.equal(document.activeElement, summary, 'switching prompts preserves menu focus');
+assert.equal(g.mode, 'paused', 'device selection cannot resume gameplay');
+hud.resetScore();
+assert.equal(body.dataset.inputDevice, 'touch', 'restart retains the chosen device');
+hud.setInputDevice('keyboard');
+g.mode = 'playing'; hud.update(g, .1);
+assert.equal(f.hint.hidden, false);
 // The charge bar says when the lip is coming and when releasing is the pop.
 g.rider.charging = true; g.rider.charge = .6; g.rider.lipAhead = true; hud.update(g, .01);
 assert.equal(f['charge-label'].textContent, 'Hold it — lip ahead');
@@ -165,4 +191,4 @@ for (const key of ['Tab', 'Escape']) {
 const beforeStill = writes;
 for (let i=0; i<9;i++) hud.update(g,.09);
 assert.equal(writes, beforeStill, 'stable visible values do not touch DOM text');
-console.log('HUD checks passed: state transitions, loading compatibility, charge, flow, banner pause/reset, accessibility, safe area, controls disclosure, modal focus, and idle DOM writes.');
+console.log('HUD checks passed: state transitions, charge, flow, banners, device prompts, accessibility, safe area, controls disclosure, modal focus, and idle DOM writes.');

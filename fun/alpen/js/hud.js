@@ -58,8 +58,8 @@ export function createHud(root) {
       </div>
       <div class="ride-charge" data-hud="charge" hidden><p data-hud="charge-label">Load the legs</p><i class="meter"><i data-hud="charge-fill"></i></i></div>
       <div class="ride-guide" data-hud="guide" hidden></div>
-      <p class="ride-hint" data-hud="hint"><kbd>A</kbd> <kbd>D</kbd> carve <span>·</span> Hold <kbd>Space</kbd>, release to jump</p>
-      <p class="ride-tools"><span class="desktop-pause"><kbd>Esc</kbd> pause</span><span data-hud="muted" hidden>Sound off</span></p>
+      <p class="ride-hint" data-hud="hint"><span data-input-help="keyboard"><kbd>A</kbd> <kbd>D</kbd> carve <span>·</span> Hold <kbd>Space</kbd>, release to jump</span><span data-input-help="gamepad"><kbd>Left stick</kbd> carve <span>·</span> Hold <kbd>A</kbd>, release to jump</span></p>
+      <p class="ride-tools"><span class="desktop-pause"><span data-input-help="keyboard"><kbd>Esc</kbd> pause</span><span data-input-help="gamepad"><kbd>Start</kbd> pause</span></span><span data-hud="muted" hidden>Sound off</span></p>
     </div>`);
   const fields = Object.fromEntries([...root.querySelectorAll('[data-hud]')].map(node => [node.dataset.hud, node]));
   const readout = root.querySelector('[data-readout]');
@@ -78,6 +78,7 @@ export function createHud(root) {
   let bestPassed = false;
   let lastMode = '';
   let last = null;
+  let inputDevice = document.body.dataset.inputDevice || 'keyboard';
 
   const text = (name, value) => {
     const node = fields[name];
@@ -328,6 +329,17 @@ export function createHud(root) {
     hidden('muted', !value);
   }
 
+  function setInputDevice(device) {
+    if (device === inputDevice || !['keyboard', 'gamepad', 'touch'].includes(device)) return;
+    inputDevice = device;
+    // CSS selects retained help nodes. Switching never rebuilds a focused
+    // menu or interrupts a held control, and steady input costs no DOM work.
+    document.body.dataset.inputDevice = device;
+    hintTime = 0;
+    hidden('hint', false);
+    drawIn = 0;
+  }
+
   function resetScore() {
     shownScore = 0;
     bannerTimer = 0;
@@ -340,5 +352,5 @@ export function createHud(root) {
     if (last) draw(last);
   }
 
-  return { update, banner, clearBanner, setMuted, resetScore, setSize, canvas };
+  return { update, banner, clearBanner, setMuted, setInputDevice, resetScore, setSize, canvas };
 }

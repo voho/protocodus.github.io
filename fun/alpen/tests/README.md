@@ -5,7 +5,9 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 ```sh
 node tests/riding-check.mjs
 node tests/touch-input-check.mjs
+node tests/input-device-check.mjs
 node tests/flow-check.mjs
+node tests/side-hit-shape-check.mjs
 node tests/terrain-shadow-check.mjs
 node tests/terrain-worker-check.mjs
 node tests/models-check.mjs
@@ -59,6 +61,15 @@ twelve clean, where before none of them landed clean.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+The input-device check covers deliberate keyboard, controller and touch
+handoffs without changing command ownership. Held buttons, small stick jitter,
+release events and neutral polling cannot steal another device's prompts.
+Unplugging the final controller restores the last non-controller help. The HUD
+check verifies that device changes preserve menu focus and briefly refresh the
+riding hint, while stable input causes no additional presentation writes.
+Browser QA checks the displayed mappings and complete input-to-menu path,
+including touch-capable layouts using keyboard/controller help and a tap that
+opens help during a device handoff without accidentally starting the run.
 Snow types are pinned as well: at 20 and 28 m/s the corduroy out-carves
 powder (it used to be the other way round by a third), deep snow bogs a
 slow board down on a pitch the corduroy runs away on, and a loaded edge on
@@ -192,6 +203,10 @@ two-thirds of a second before every edge change (the lean going over, by a
 margin), the other arm at rest meanwhile, and no pole tip is ever in the
 snow; a boarder's leading arm goes into toeside turns and the trailing one
 out on heelside ones.
+Turning figures also keep their ski nose and tail aligned with the actual
+snow slope: 6,240 settled poses include oblique traverses and allow at most
+12 mm difference in end clearance. The same two terrain probes now follow a
+fixed distance along the heading instead of widening with the turn.
 The modelled lift and snow guns (`assets/models/resort/lift.glb`, from
 `tools/blender/lift.py`) are loaded through `mountainLife.js`'s own fetch:
 the cabin (with its glass) stays under 1500 triangles, the tower under 2500,
@@ -203,6 +218,8 @@ and turns the sheaves, every train lies along the rope between its
 neighbouring towers with its frame inboard, every cabin hangs from the rope
 by its grip with its door outboard, and the guns spray from their own nozzle
 rings along their barrels. Without the file the procedural line stands.
+Cabin glass color and lamp energy are checked across dusk and snowfall
+thresholds for smooth changes, with the authored day/night endpoints retained.
 The graphics check also loads the modelled range (`assets/models/backdrop`)
 through the sky: it arrives as its 24 sectors, drawn after the ground and
 before the haze cone, retires the relief shell and the far ribbons at every

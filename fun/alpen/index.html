@@ -25,7 +25,7 @@
   <script defer src="/assets/js/analytics.js"></script>
 </head>
 
-<body>
+<body data-input-device="keyboard">
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
 
@@ -89,21 +89,26 @@
       <div class="go">
         <button class="drop-in" type="button"><span class="start-only">Drop in</span><span class="pause-only">Keep riding</span><svg class="drop-in-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="restart-run pause-only" type="button">Restart from the last gate</button>
-        <p class="go-hint"><span class="go-key">Press Enter or click anywhere</span><span class="go-tap">Tap anywhere to ride</span></p>
+        <p class="go-hint"><span data-input-help="keyboard">Press Enter or click anywhere</span><span data-input-help="gamepad">Press A or Start to ride</span><span data-input-help="touch">Tap anywhere to ride</span></p>
       </div>
 
-      <div class="first-steps start-only" aria-label="The essentials">
+      <div class="first-steps start-only" data-input-help="keyboard" aria-label="The essentials">
         <p><kbd>A</kbd> <kbd>D</kbd><span>Carve</span></p>
         <p><kbd>Space</kbd><span>Hold, release, jump</span></p>
         <p><kbd>S</kbd><span>Brake</span></p>
       </div>
-      <p class="touch-first start-only">Left thumb to carve. Right thumb to hold Jump, then let go. Ride upright or sideways.</p>
+      <div class="first-steps start-only" data-input-help="gamepad" aria-label="The essentials">
+        <p><kbd>Left stick</kbd><span>Carve</span></p>
+        <p><kbd>A</kbd><span>Hold, release, jump</span></p>
+        <p><kbd>LT</kbd><span>Brake</span></p>
+      </div>
+      <p class="touch-first start-only" data-input-help="touch">Left thumb to carve. Right thumb to hold Jump, then let go. Ride upright or sideways.</p>
 
       <details class="control-guide">
         <summary>Controls &amp; tricks <span aria-hidden="true">+</span></summary>
         <div class="control-guide-content">
           <p class="guide-note">Clean riding holds a small multiplier. Tricks, butters and cocoa stops build it higher, and it fades when you stop. Falling costs most of it. The first clean landing of each grab type earns 12% extra points each run.</p>
-          <dl class="keys">
+          <dl class="keys" data-input-help="keyboard">
             <div><dt>A · D / ← · →</dt><dd>Carve on snow. Spin in the air.</dd></div>
             <div><dt>Space</dt><dd>Hold to load the legs, release to jump.</dd></div>
             <div><dt>W / ↑</dt><dd>Tuck for speed. More flow unlocks more boost.</dd></div>
@@ -113,14 +118,22 @@
             <div><dt>Q + W / S</dt><dd>Nose grab or press / method grab.</dd></div>
             <div><dt>Esc · R · N · M</dt><dd>Pause · restart · new mountain · sound.</dd></div>
           </dl>
-          <dl class="touch-guide">
+          <dl class="keys" data-input-help="gamepad">
+            <div><dt>Left stick · D-pad</dt><dd>Carve on snow. Spin in the air.</dd></div>
+            <div><dt>A</dt><dd>Hold to load the legs, release to jump.</dd></div>
+            <div><dt>RT · LT</dt><dd>Boost · brake. Squeeze harder for more.</dd></div>
+            <div><dt>X</dt><dd>Grab in the air, tail press on snow. Release before landing.</dd></div>
+            <div><dt>Y</dt><dd>Backflip. Hold LT for a frontflip.</dd></div>
+            <div><dt>X + RT / LT</dt><dd>Nose grab or press / method grab.</dd></div>
+            <div><dt>Start · Back</dt><dd>Pause or resume · restart from the last gate.</dd></div>
+          </dl>
+          <dl class="touch-guide" data-input-help="touch">
             <div><dt>◀ · ▶</dt><dd>Carve on snow. Spin in the air.</dd></div>
             <div><dt>Jump</dt><dd>Hold to load, release to jump.</dd></div>
             <div><dt>Boost · Brake</dt><dd>Tuck for speed · scrub speed.</dd></div>
             <div><dt>Grab · Flip</dt><dd>Grab or press the tail · backflip.</dd></div>
             <div><dt>+ Boost · Brake</dt><dd>Nose grab or press · method grab and frontflip.</dd></div>
           </dl>
-          <p class="controller-guide">Controller: left stick to carve · A to jump · X to grab · Y to flip · triggers to boost and brake, harder for more · Start to pause or resume · Back to restart from the last gate.</p>
         </div>
       </details>
     </div>

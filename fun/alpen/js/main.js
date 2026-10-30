@@ -443,8 +443,9 @@ const ridersReady = loadRiderModels().then((m) => {
 const hud = createHud(hudRoot);
 const touchPause = pad.querySelector('[data-action="pause"]');
 const touchMute = pad.querySelector('[data-action="mute"]');
-const curtainPointers = new Set();
+const curtainPointers = new Map();
 let curtainClickReady = false;
+let curtainClickDevice = null;
 
 /* ==========================================================================
    Game state
@@ -492,6 +493,7 @@ game.bestAtStart = game.best;
 
 const input = createInput(window, {
   key: onKey,
+  device: hud.setInputDevice,
   // An interrupted finger gesture is not a deliberate release-to-pop.
   cancelJump() {
     rider.charging = false;
@@ -502,6 +504,7 @@ const input = createInput(window, {
 if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
   document.body.classList.add('touch');
   input.bindTouch(pad);
+  if (window.matchMedia('(hover: none)').matches) input.setDevice('touch');
 }
 
 const demo = { t: 0, turn: 0, stall: 0 };
@@ -583,6 +586,7 @@ function begin() {
   if (!bootReady || contextLost) return;
   curtainPointers.clear();
   curtainClickReady = false;
+  curtainClickDevice = null;
   /* A run starts at the top of the mountain. `restart()` alone resumes from
      wherever the rider is standing, and on the title screen that is wherever
      the attract demo has carved to — so a player who read the controls for
@@ -606,6 +610,7 @@ function pause() {
   if (game.mode !== 'playing') return;
   curtainPointers.clear();
   curtainClickReady = false;
+  curtainClickDevice = null;
   game.mode = 'paused';
   pausedRendered = false;
   pausedWorldReady = false;
@@ -753,6 +758,7 @@ function restartRun() {
   if (!runStarted || !bootReady || contextLost) return;
   curtainPointers.clear();
   curtainClickReady = false;
+  curtainClickDevice = null;
   audio.start();
   showMuted(audio.muted);
   restart();
@@ -771,25 +777,44 @@ function restartRun() {
 // Releasing a finger that was holding Jump when Pause hid the pad can land
 // a click on this curtain. Only gestures begun on the menu may dismiss it.
 curtain.addEventListener('pointerdown', (e) => {
-  if (curtain.classList.contains('on')) curtainPointers.add(e.pointerId);
+  if (curtain.classList.contains('on')) {
+    curtainPointers.set(e.pointerId, e.pointerType === 'touch' ? 'touch' : 'keyboard');
+  }
 });
+// Help and Tab navigation stop propagation before the game key listener.
+// Observe those gestures without changing focus or forwarding game commands.
+curtain.addEventListener('keydown', (e) => {
+  if (!e.repeat && !e.altKey && !e.ctrlKey && !e.metaKey
+    && (['Tab', 'Enter', ' ', 'Escape'].includes(e.key) || e.key?.startsWith('Arrow'))) {
+    input.setDevice('keyboard');
+  }
+}, true);
 document.addEventListener('pointerup', (e) => {
   // Older Safari sends a MouseEvent click without a pointerId.
   curtainClickReady = curtainPointers.has(e.pointerId);
+  curtainClickDevice = curtainPointers.get(e.pointerId);
 }, true);
 document.addEventListener('pointercancel', (e) => {
   curtainPointers.delete(e.pointerId);
   curtainClickReady = false;
+  curtainClickDevice = null;
 }, true);
 curtain.addEventListener('click', (e) => {
   const startedHere = typeof e.pointerId === 'number'
     ? curtainPointers.has(e.pointerId) : curtainClickReady;
+  const device = typeof e.pointerId === 'number'
+    ? curtainPointers.get(e.pointerId) : curtainClickDevice;
   curtainPointers.delete(e.pointerId);
   curtainClickReady = false;
+  curtainClickDevice = null;
   if (e.detail !== 0 && !startedHere) {
     e.preventDefault();
     e.stopPropagation();
+    return;
   }
+  // Wait for the click target to be fixed before changing help layout:
+  // moving a menu button between pointerdown and pointerup can lose a tap.
+  if (startedHere && e.detail !== 0) input.setDevice(device);
 }, true);
 curtain.addEventListener('click', begin);
 // The pause screen's restart. It must not also reach the curtain's
@@ -800,10 +825,12 @@ curtain.querySelector('.restart-run')?.addEventListener('click', (e) => {
 });
 touchPause?.addEventListener('click', (e) => {
   e.preventDefault();
+  input.setDevice('touch');
   pause();
 });
 touchMute?.addEventListener('click', (e) => {
   e.preventDefault();
+  input.setDevice('touch');
   showMuted(audio.toggleMute());
 });
 document.addEventListener('visibilitychange', () => {
