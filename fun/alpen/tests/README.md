@@ -16,6 +16,7 @@ node tests/hud-check.mjs
 node tests/trail-clods-check.mjs
 node tests/solid-index-check.mjs
 node tests/render-limit-check.mjs
+node tests/audio-check.mjs
 ```
 
 These cover jump charge and timing, ballistic flight, trick landing assistance,
@@ -502,3 +503,39 @@ ALPEN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs ALPEN_URL=http://127.0.0
 Use `ALPEN_BROWSER=chromium` for Playwright's bundled Chromium. A GPU-less Linux runner can opt into `ALPEN_SOFTWARE_GPU=1` only with a loopback URL. `ALPEN_QA_THUMBNAILS=1` emits compact QA scene images alongside the full PNG artifacts.
 
 CI device profiles run independently. Scene captures settle visual state without redundant intermediate GPU draws, then execute a complete production frame to refresh sky and rider shadows before recording. Capture metadata omits performance timings from that setup period.
+
+## Riding sound and motion comfort
+
+The system's reduced-motion preference now applies live to the chase camera
+and postprocessing. It removes incidental shake, banking, landing zoom, body
+bob, radial blur and chromatic splitting. Flight framing, terrain clearance
+and the extra room needed by an obstructed portrait camera remain. The riding
+and graphics checks exercise preference changes in both directions, impact
+response, flight tracking and portrait visibility.
+
+When a held grab is within 0.65 seconds of its predicted landing, the existing
+airtime line says to release it. The cue uses the rider's current prediction,
+keeps the trick visible and never changes input or scoring. HUD checks cover
+release, unjudged hops, falls and unknown landing times. The menu arrow is an
+inline SVG so it does not depend on an installed symbol font.
+
+Riding audio keeps six looping voices and adds one optional stereo panner for
+the edge and displaced snow. The actual grounded lean places that sound;
+wind and body rumble stay centered. Filters keep brightening beyond 42 m/s
+within fixed limits, snow contact changes bypass the normal control throttle,
+and stationary boards no longer scrape. No audio downloads, world geometry,
+textures or render passes were added. The Node audio check covers those
+budgets, the mono fallback and mute/pause/resume behavior.
+
+The desktop browser check also renders the production audio graph through a
+native `OfflineAudioContext` in an isolated iframe. It checks left/right
+balance, centered-mix parity, airborne/idle sound, high-speed timbre and finite,
+unclipped samples without touching the player's live audio or saved settings.
+It can be run separately from the game console:
+
+```js
+await (await import('./tests/audio-browser-check.mjs')).runAudioCheck()
+```
+
+These checks establish behavior and resource bounds. Software WebGL coverage
+does not establish a physical desktop or phone frame-rate improvement.

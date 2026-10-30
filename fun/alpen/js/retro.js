@@ -712,7 +712,8 @@ export function createRetro(THREE, renderer) {
   let fallHold = 0;
   let fadeTarget = 1;
 
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  // MediaQueryList.matches stays live when the OS preference changes.
+  const motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
   const DIR_H = new THREE.Vector2(1, 0);
   const DIR_V = new THREE.Vector2(0, 1);
@@ -1024,7 +1025,7 @@ export function createRetro(THREE, renderer) {
      a few frames on a fast display before the exponential decay begins. */
   function crash(strength = 1) {
     const s = Math.min(1, Math.max(0, strength));
-    const motion = reducedMotion ? 0.62 : 1;
+    const motion = motionPreference?.matches ? 0.62 : 1;
     // Powder already on the glass stays where it landed: re-rolling the seed
     // while the last overlay is still fading teleported all seven marks to
     // new positions mid-fade. A fresh pattern only arrives on a clean lens.
@@ -1036,6 +1037,7 @@ export function createRetro(THREE, renderer) {
 
   function updateEffects(dt, active = true) {
     if (dt <= 0) return;
+    if (motionPreference?.matches) fallFx = Math.min(fallFx, 0.62);
     halo += ((scale > 0.75 ? 1 : 0) - halo) * (1 - Math.exp(-5 * dt));
     /* Menu dimming is part of the picture, not a state switch. It keeps
        advancing while simulation is paused; `main.js` renders those few
@@ -1123,7 +1125,7 @@ export function createRetro(THREE, renderer) {
     const over = Math.max(0, speed - GRADE.blurFrom);
     const t = over / (over + GRADE.blurSpan);
     const eased = t * t * (3 - 2 * t);
-    const motion = reducedMotion ? 0.35 : 1;
+    const motion = motionPreference?.matches ? 0 : 1;
     material.uniforms.uBlur.value = eased * eased * GRADE.blurAmount * motion;
     material.uniforms.uAberration.value = Math.pow(eased, 1.35)
       * GRADE.aberration * motion;

@@ -112,6 +112,25 @@ g.rider.grounded = false; g.rider.state = 'air'; g.rider.airTime = .4; g.liveTri
 hud.banner('PERFECT POP', 0, 'near'); hud.update(g, .01);
 assert.equal(f['event-name'].textContent, 'BACKSIDE 180');
 assert.equal(f['event-kicker'].textContent, 'PERFECT POP · 0.4 s airtime');
+// A held grab gets useful advice before contact, using the physics prediction.
+g.rider.grabbing = true; g.rider.airTime = .8; g.rider.touchdownIn = .6;
+hud.update(g, .1);
+assert.equal(f['event-kicker'].textContent, 'Release grab to land · 0.8 s airtime');
+assert.equal(f['event-name'].textContent, 'BACKSIDE 180', 'advice keeps the live trick visible');
+assert.equal(f.event.dataset.tone, 'warn');
+assert.equal(g.rider.grabbing, true, 'the HUD does not release the player\'s grab');
+g.rider.grabbing = false; hud.update(g, .1);
+assert.equal(f['event-kicker'].textContent, 'PERFECT POP · 0.8 s airtime', 'release clears advice');
+g.rider.grabbing = true;
+for (const prediction of [Infinity, NaN, undefined, -.1, .9]) {
+  g.rider.touchdownIn = prediction; hud.update(g, .1);
+  assert.doesNotMatch(f['event-kicker'].textContent, /Release grab/, 'no advice without a nearby future landing');
+}
+g.rider.touchdownIn = .2; g.rider.airTime = .1; hud.update(g, .1);
+assert.doesNotMatch(f['event-kicker'].textContent, /Release grab/, 'tiny unjudged hops do not prompt');
+g.rider.airTime = .8; g.rider.state = 'fall'; hud.update(g, .1);
+assert.doesNotMatch(f['event-kicker'].textContent, /Release grab/, 'a tumble cannot request a grab release');
+g.rider.grabbing = false;
 // A wipeout says why.
 g.rider.state = 'fall'; hud.banner('WIPEOUT', 0, 'bad', { kicker: 'UNDER-ROTATED' }); hud.update(g, .01);
 assert.equal(f['event-name'].textContent, 'WIPEOUT');

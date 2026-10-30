@@ -1938,7 +1938,8 @@ function frame(now) {
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
     const surfMat = getTerrainMaterialAt(rider.pos.x, rider.pos.z);
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
-      rider.carveLoad, tumbleSlide, surfMat, rider.chatter);
+      rider.carveLoad, tumbleSlide, surfMat, rider.chatter,
+      rider.state === 'ride' ? rider.roll : 0);
     /* The icy edge's rattle, in the hands. A pulse every tenth of a second
        while it lasts rather than a rumble per frame: the pad's own motor
        smooths the train into a buzz, and a request every frame at 144 Hz

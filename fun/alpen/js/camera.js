@@ -209,6 +209,10 @@ const shortenBoom = (world, rider, point, fraction) => {
 };
 
 export function createChaseCamera(THREE, camera) {
+  // Keep the query, not its initial value: OS changes apply to this camera
+  // without a reload, a per-frame allocation, or a listener to dispose.
+  const motionPreference = typeof window === 'undefined' ? null
+    : window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const at = new THREE.Vector3();
   const look = new THREE.Vector3();
   const want = new THREE.Vector3();
@@ -240,6 +244,7 @@ export function createChaseCamera(THREE, camera) {
   let sinkMem = 0;
 
   function kick(amount) {
+    if (motionPreference?.matches) return;
     shake = Math.min(2.4, shake + amount);
   }
 
@@ -248,12 +253,15 @@ export function createChaseCamera(THREE, camera) {
      has stopped being free — so the frame and the body agree about what a
      heavy landing is instead of each having a private opinion. */
   function land(impact) {
+    if (motionPreference?.matches) return;
     const w = Math.min(1, impact / (RIDER.softImpact * 1.4));
     punch = Math.min(CAMERA.landFov * 1.3, punch + CAMERA.landFov * w);
     kick(Math.min(1.8, impact * 0.09));
   }
 
   function update(rider, dt, world) {
+    const motion = motionPreference?.matches ? 0 : 1;
+    if (!motion) shake = punch = 0;
     const speed = rider.speed;
     /* HOW FAST, AS FAR AS THE FRAME IS CONCERNED — and it no longer stops at
        151 km/h.
@@ -326,12 +334,12 @@ export function createChaseCamera(THREE, camera) {
        half a metre closer* reads as an impact, because that pairing is what
        a real operator caught by surprise does. It rides the punch's own
        decay, so the ease-out needs no clock of its own. */
-    const back = CAMERA.distance + ratio * 1.6 + tuck * CAMERA.tuckPull + airT * AIR_PULL
+    const back = CAMERA.distance + ratio * 1.6 + tuck * CAMERA.tuckPull * motion + airT * AIR_PULL
       - punch * 0.075;
     const up = CAMERA.height
       + (CAMERA.airHeight - CAMERA.height) * airBlend + airT * AIR_LIFT
-      - rider.compression * 0.85
-      - tuck * CAMERA.tuckDrop;
+      - rider.compression * 0.85 * motion
+      - tuck * CAMERA.tuckDrop * motion;
 
     want.copy(rider.pos).addScaledVector(dir, -back);
     want.y = rider.pos.y + up;
@@ -470,7 +478,7 @@ export function createChaseCamera(THREE, camera) {
       : (1 - airBlend) * (Math.min(ratio, 1.2) ** 2 * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad)
         + (rider.chatter || 0) * CAMERA.iceShake);
     shake = Math.max(0, shake - dt * 4.5);
-    const amp = (chatter + shake) * 0.06;
+    const amp = (chatter + shake) * 0.06 * motion;
     seed += dt * 47;
     const sx = Math.sin(seed * 1.7) * Math.sin(seed * 0.53);
     const sy = Math.sin(seed * 2.3 + 1.3) * Math.sin(seed * 0.71);
@@ -503,9 +511,9 @@ export function createChaseCamera(THREE, camera) {
     // only written by riding and flying, so through a fall it holds the last
     // carve's lean, and the frame stayed banked for the whole wipeout.
     const carveRoll = rider.state === 'fall' || rider.state === 'rise' ? 0 : rider.roll;
-    const wantRoll = -carveRoll * CAMERA.roll
+    const wantRoll = (-carveRoll * CAMERA.roll
       - clamp(bank * BANK_SHARE, -BANK_MAX, BANK_MAX)
-      + sx * amp * 0.06;
+      + sx * amp * 0.06) * motion;
     roll += (wantRoll - roll) * (1 - Math.exp(-5 * dt));
     camera.rotateZ(roll);
 
@@ -517,10 +525,12 @@ export function createChaseCamera(THREE, camera) {
     // Squared up to the old full opening, then linear with the asymptote:
     // 72° at 42 m/s as before, about 75° at the flow ceiling.
     const lens = openRatio * openRatio + Math.max(0, ratio - 1);
+    // Comfort removes decorative zoom and banking. Flight opening and the
+    // collision compensation below still keep the landing and rider visible.
     const wantFov = RENDER.fov
-      + (RENDER.fovAtSpeed - RENDER.fov) * lens
-      + tuck * CAMERA.tuckFov
-      + airBlend * -3 + airT * AIR_FOV;
+      + ((RENDER.fovAtSpeed - RENDER.fov) * lens
+        + tuck * CAMERA.tuckFov + airBlend * -3) * motion
+      + airT * AIR_FOV;
     fov += (wantFov - fov) * (1 - Math.exp(-3.5 * dt));
     punch *= Math.exp(-CAMERA.landFovDecay * dt);
     if (punch < 0.02) punch = 0;

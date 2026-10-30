@@ -108,6 +108,7 @@ kbd {
 .event-points { margin-top: 5px; color: var(--accent); font-size: calc(var(--ui-label) * 1.8); font-weight: 600; }
 .ride-event[data-tone='bad'] .event-name { color: #ffc0a6; }
 .ride-event[data-tone='warn'] .event-name { color: #ffdaac; }
+.ride-event[data-tone='warn'] .event-kicker { color: #ffdaac; }
 .ride-event[data-tone='near'] .event-name { color: var(--ice); }
 .ride-charge { position: absolute; right: var(--right); bottom: calc(var(--bottom) + 3em); width: 11em; }
 .ride-charge p { margin-bottom: 9px; font-size: var(--ui-label); font-weight: 600; letter-spacing: 0.06em; text-align: right; }
@@ -149,7 +150,7 @@ kbd {
 .tagline { margin-top: 23px; color: rgba(247, 245, 239, 0.75); font-size: calc(var(--ui-copy) * 1.1); line-height: 1.7; text-wrap: pretty; }
 .go { margin-top: max(30px, 2em); }
 .drop-in { display: flex; align-items: center; justify-content: space-between; gap: max(60px, 4em); min-width: max(210px, 14.5em); padding: max(16px, 1em) max(21px, 1.35em); border: 1px solid var(--paper); background: var(--paper); color: var(--ink); font-size: var(--ui-control); font-weight: 600; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; }
-.drop-in > span:last-child { font-size: 1.5em; font-weight: 400; line-height: 1; }
+.drop-in-arrow { width: 1.5em; height: 1.5em; flex: 0 0 auto; }
 .drop-in:hover { background: var(--accent); border-color: var(--accent); }
 /* The pause screen's second choice, quieter than the first: an outline, so
    "keep riding" stays the obvious answer and restarting stays reachable by

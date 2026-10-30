@@ -9,7 +9,8 @@ import { createRetro } from '../js/retro.js';
 import { createSnowfall, createSpray, createStreaks } from '../js/particles.js';
 import { RENDER, GRADE, SNOW, STREAKS } from '../js/config.js';
 
-globalThis.window = { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
+const motionPreference = { matches: false };
+globalThis.window = { devicePixelRatio: 1, matchMedia: () => motionPreference };
 globalThis.document = {
   createElement: () => ({ getContext: () => ({
     createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
@@ -560,6 +561,29 @@ assert.equal(retro.animating, false, 'paused fade settles so rendering can sleep
 retro.fade(1);
 for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60);
 assert.equal(retro.animating, false, 'resume fade settles normally');
+
+// Preference changes affect an already constructed post stack. Comfort keeps
+// the image sharp at speed and still gives a brief, bounded crash indication.
+retro.setSpeed(96);
+const normalBlur = retro.blur, normalSplit = retro.aberration;
+assert.ok(normalBlur > 0 && normalSplit > 0, 'normal riding retains its speed effects');
+retro.crash(1);
+assert.equal(retro.fallEffect, 1, 'normal impacts retain their authored strength');
+motionPreference.matches = true;
+retro.setSpeed(96); retro.updateEffects(1 / 60);
+assert.equal(retro.blur, 0, 'comfort removes radial motion blur');
+assert.equal(retro.aberration, 0, 'comfort removes the moving color split');
+assert.ok(retro.fallEffect > 0 && retro.fallEffect <= 0.62, 'a live preference change restrains a pending crash');
+for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
+assert.equal(retro.fallEffect, 0, 'comfort crash indication clears even while paused');
+retro.crash(1);
+close(retro.fallEffect, 0.62, 'new comfort impacts remain legible and restrained');
+motionPreference.matches = false;
+retro.setSpeed(96);
+close(retro.blur, normalBlur, 'normal blur returns without rebuilding the post stack');
+close(retro.aberration, normalSplit, 'normal color split returns without rebuilding');
+retro.setSpeed(0);
+for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
 
 // A capped frame rate is not a slow GPU. Walking down buys nothing, so the
 // walk is undone at the floor and not retried while the cap holds.

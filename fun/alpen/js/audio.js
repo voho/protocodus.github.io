@@ -56,6 +56,7 @@ export function createAudio() {
   let edge = null;
   let wash = null;
   let scrape = null;
+  let snowPan = null;
   let voices = [];
   let muted = false;
   let started = false;
@@ -68,6 +69,7 @@ export function createAudio() {
   let parked = false;
   let parkTimer = 0;
   let ambienceAt = 0;
+  let snowContact = null;
 
   try {
     muted = localStorage.getItem('alpen.muted') === '1';
@@ -114,7 +116,19 @@ export function createAudio() {
       w[i] = n * 0.7;
     }
 
-    const loop = (buffer, type, freq, q) => {
+    // Only the cutting edge and displaced snow follow the rider's lean.
+    // Keep the wind, body rumble and impacts in the middle; the modest width
+    // communicates which edge is loaded without pulling the whole mix away.
+    // One shared panner, created once, and the original mono graph on older
+    // Web Audio implementations.
+    if (ctx.createStereoPanner) {
+      try {
+        snowPan = ctx.createStereoPanner();
+        snowPan.connect(master);
+      } catch { snowPan = null; }
+    }
+
+    const loop = (buffer, type, freq, q, output = master) => {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.loop = true;
@@ -124,7 +138,7 @@ export function createAudio() {
       filter.Q.value = q;
       const g = ctx.createGain();
       g.gain.value = 0;
-      src.connect(filter).connect(g).connect(master);
+      src.connect(filter).connect(g).connect(output);
       src.start();
       return { src, filter, gain: g };
     };
@@ -132,8 +146,8 @@ export function createAudio() {
     rush = loop(brownBuf, 'lowpass', 700, 0.7);
     whistle = loop(whiteBuf, 'bandpass', 1100, 2.6);
     rumble = loop(brownBuf, 'lowpass', 160, 1.1);
-    edge = loop(whiteBuf, 'bandpass', 2600, 3.4);
-    wash = loop(brownBuf, 'bandpass', 900, 0.8);
+    edge = loop(whiteBuf, 'bandpass', 2600, 3.4, snowPan || master);
+    wash = loop(brownBuf, 'bandpass', 900, 0.8, snowPan || master);
     // A fallen rider is clothing, board and body dragging through snow, not
     // an edged snowboard. Keeping that scrape on its own voice lets it begin
     // only when the tumble has reached the ground and stop again on a bounce.
@@ -195,7 +209,8 @@ export function createAudio() {
     started = true;
     parked = false;
     clearTimeout(parkTimer);
-    ambienceAt = 0;
+    ambienceAt = -Infinity;
+    snowContact = null;
     /* Tested against anything-but-running rather than 'suspended': iOS
        reports the non-standard 'interrupted' after a phone call or Siri,
        and matching only 'suspended' left those sessions permanently silent
@@ -220,7 +235,7 @@ export function createAudio() {
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
   function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null,
-    chatter = 0) {
+    chatter = 0, lean = 0) {
     /* Not gated on `muted`: the master gain is already zero, so the voices
        are silent either way, and the gains have to keep tracking the run —
        frozen at their pre-mute values, unmuting at a standstill replayed a
@@ -228,12 +243,36 @@ export function createAudio() {
     if (!started || !ctx || parked || ctx.state !== 'running') return;
 
     const ms = performance.now();
-    if (ms - ambienceAt < 35) return;
+    // A takeoff or touchdown must reach the ear even between the ordinary
+    // 28 Hz control updates. The ground voices otherwise hung on for an
+    // extra frame or two after the board had visibly left the snow.
+    if (ms - ambienceAt < 35 && snowContact === grounded) return;
     ambienceAt = ms;
+    snowContact = grounded;
 
     const t = now();
-    const v = Math.min(1, speed / 42);
+    const v = clamp01(speed / 42);
     const on = grounded ? 1 : 0;
+    const moving = clamp01(speed / 3);
+    const contact = on * moving;
+    const release = grounded ? 0.05 : 0.025;
+    // A mono panner uses equal-power gains (sqrt(1/2) per side at centre),
+    // whereas the old mono bus duplicated at unity. Compensate in the two
+    // existing gains so centre retains its mix and panning retains its power.
+    const snowLevel = snowPan ? Math.SQRT2 : 1;
+    // Flow extends well beyond the old 42 m/s audio ceiling. Keep the
+    // established loudness, but let the wind and edge continue to brighten
+    // with a bounded response: half the extra timbre at 84 m/s, never an
+    // unbounded gain or a filter pushed beyond the audible range.
+    const over = Math.max(0, speed - 42);
+    const fastTimbre = over / (over + 42);
+
+    if (snowPan) {
+      // Ground roll is negative on a right carve (rider.js), while Web
+      // Audio's pan is positive on the right. Air rotations carry no edge.
+      const pan = Math.max(-1, Math.min(1, -lean / RIDER.lean)) * 0.38 * contact;
+      snowPan.pan.setTargetAtTime(pan, t, 0.10);
+    }
 
     const ice = surf ? surf.ice : 0;
     const rock = surf ? surf.rock : 0;
@@ -247,38 +286,38 @@ export function createAudio() {
     // The air. It rises with the square of speed, which is roughly what the
     // real thing does, and it is the one voice a jump does not take away.
     rush.gain.gain.setTargetAtTime((0.04 + v * v * 0.40 + storm * 0.16) * gust * (grounded ? 1 : 0.82), t, 0.12);
-    rush.filter.frequency.setTargetAtTime(260 + v * v * 1500 + storm * 240, t, 0.2);
+    rush.filter.frequency.setTargetAtTime(260 + v * v * 1500 + storm * 240 + fastTimbre * 900, t, 0.2);
 
     // And above it, the whistle: nothing at all until the run is genuinely
     // quick, then a climb. This is the voice the ear reads as speed.
     const fast = Math.max(0, v - 0.45) / 0.55;
     whistle.gain.gain.setTargetAtTime(fast * fast * 0.10 * gust * (grounded ? 1 : 0.9), t, 0.15);
-    whistle.filter.frequency.setTargetAtTime(950 + fast * 1750, t, 0.25);
+    whistle.filter.frequency.setTargetAtTime(950 + fast * 1750 + fastTimbre * 1500, t, 0.25);
 
     // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock.
     // An icy edge skipping under load (`chatter`) opens it up and drives it
     // higher — the rattle through the board, heard as well as felt.
     const rattle = clamp01(chatter);
-    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150 + rattle * 260;
-    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08 + rattle * 0.07) * on, t, 0.09);
+    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150 + rattle * 260 + fastTimbre * 70;
+    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08 + rattle * 0.07) * contact, t, grounded ? 0.09 : release);
     rumble.filter.frequency.setTargetAtTime(rumbleFreq, t, 0.15);
 
     // The edge, holding. High-pitched metallic chime on ice, soft swoosh on powder
     const load = clamp01(carveLoad);
-    const edgeFreq = 2300 + load * 2400 + v * 800 + ice * 900 - powder * 400;
-    edge.gain.gain.setTargetAtTime(load * load * (0.05 + v * 0.22 + ice * 0.06) * on, t, 0.05);
+    const edgeFreq = 2300 + load * 2400 + v * 800 + ice * 900 - powder * 400 + fastTimbre * 800;
+    edge.gain.gain.setTargetAtTime(load * load * (0.05 + v * 0.22 + ice * 0.06) * contact * snowLevel, t, release);
     edge.filter.frequency.setTargetAtTime(edgeFreq, t, 0.08);
 
     // The edge, gone. Broad, low slide wash, with higher frequency on ice
     const skid = clamp01(slide / 10);
     const washFreq = 650 + Math.min(slide, 14) * 145 + ice * 350;
-    wash.gain.gain.setTargetAtTime((skid * (0.09 + v * 0.15) + rock * 0.10) * on, t, 0.05);
+    wash.gain.gain.setTargetAtTime((skid * (0.09 + v * 0.15) + rock * 0.10) * contact * snowLevel, t, release);
     wash.filter.frequency.setTargetAtTime(washFreq, t, 0.08);
 
     // The contact half of a fall or rock scrubbing
     const drag = clamp01(tumbleSlide / 24);
     const rockScrape = rock * (v * 0.15);
-    scrape.gain.gain.setTargetAtTime((drag * (0.045 + drag * 0.16) + rockScrape) * (grounded ? 1 : 0), t, 0.035);
+    scrape.gain.gain.setTargetAtTime((drag * (0.045 + drag * 0.16) + rockScrape) * contact, t, grounded ? 0.035 : release);
     scrape.filter.frequency.setTargetAtTime(720 + (drag + rock) * 1500, t, 0.07);
   }
 
