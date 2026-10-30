@@ -2,7 +2,7 @@
 // DOM stand-ins cover HUD state and input gating; appearance needs browser QA.
 import assert from 'node:assert/strict';
 import { createHud } from '../js/hud.js';
-let writes = 0;
+let writes = 0, targetQueries = 0;
 class Node {
   constructor(hud = '') { this.dataset = { hud }; this.hidden = false; this._text = ''; this.listeners = {}; this.nodes = {}; this.style = { setProperty(k,v) { this[k] = v; } }; }
   get textContent() { return this._text; }
@@ -10,20 +10,25 @@ class Node {
   setAttribute(k,v) { this[k] = v; }
   appendChild(n) { return n; }
   querySelector(s) { return this.nodes[s] || null; }
-  querySelectorAll(s) { return s === '[data-hud]' ? Object.values(this.fields) : (this.targets || []).filter(node => !node.href || s.includes('a[href]')); }
+  querySelectorAll(s) { targetQueries++; return s === '[data-hud]' ? Object.values(this.fields) : (this.targets || []).filter(node => !node.href || s.includes('a[href]')); }
   insertAdjacentHTML(where,s) { this.fields = Object.fromEntries([...s.matchAll(/data-hud="([^"]+)"/g)].map(m => [m[1],new Node(m[1])])); }
   addEventListener(k, fn) { this.listeners[k] = fn; }
   focus() { document.activeElement = this; }
   blur() { document.activeElement = null; }
   contains(n) { return this.targets?.includes(n) || n === this; }
-  getClientRects() { return [{}]; }
+  getClientRects() { return this.hidden || this.cssHidden ? [] : [{}]; }
+  getBoundingClientRect() { return this.bounds?.() || { top: 0, bottom: 0 }; }
+  scrollIntoView(options) { this.scrollOptions = options; this.onScroll?.(options); }
+  click() { this.clicks = (this.clicks || 0) + 1; this.onClick?.(); }
 }
-const root = new Node(), curtain = new Node(), guide = new Node(), button = new Node(), summary = new Node(), exitLink = new Node();
+const root = new Node(), curtain = new Node(), guide = new Node(), button = new Node(), summary = new Node(), exitLink = new Node(), menuScroller = new Node();
 root.nodes['canvas'] = new Node();
 root.nodes['[data-readout]'] = new Node();
 root.nodes['[data-callout]'] = new Node();
 curtain.nodes['.control-guide'] = guide;
 curtain.nodes['.exit-link'] = exitLink;
+curtain.nodes['.drop-in'] = button;
+curtain.nodes['.curtain-inner'] = menuScroller;
 exitLink.href = '/fun/';
 for (const name of ['score','distance','drop']) curtain.nodes[`[data-menu-${name}]`] = new Node();
 curtain.targets = [button, summary, exitLink];
@@ -34,6 +39,11 @@ const body = { dataset: new Proxy({ inputDevice: 'keyboard' }, {
 globalThis.document = { body, activeElement: null, querySelector: () => curtain, createElement: () => new Node() };
 globalThis.window = { devicePixelRatio: 2, innerHeight: 800 };
 const hud = createHud(root), f = root.fields;
+assert.equal(hud.menu('activate'), true, 'primary action works before the first HUD update');
+assert.equal(button.clicks, 1);
+assert.equal(document.activeElement, button);
+// Simulate the bootstrap clearing focus again before the initial title draw.
+document.activeElement = null;
 const g = { mode: 'attract', score: 0, best: 100, bestAtStart: 100, combo: 1, flow: 0, gateRun: 0, pisteOffset: 0,
  weather: { phase: 'Dawn', conditions: 'Clear', storm: 0 }, rider: { grounded: true, speed: 10, distance: 100, drop: 20, pos: { z: -100 }, charging: false, charge: 0, airTime: 0 } };
 hud.update(g, .1);
@@ -188,7 +198,127 @@ for (const key of ['Tab', 'Escape']) {
   exitLink.listeners.keydown({ key, stopPropagation() { stopped = true; } });
   assert.equal(stopped, false, `${key} retains the menu behavior`);
 }
+
+// Controller menus reuse the same native targets and focus as keyboard and
+// pointer navigation. Hidden ancestors, disabled buttons and loading must
+// not route activation into another control by accident.
+g.mode = 'paused'; hud.update(g, .1);
+const restart = new Node(), disabled = new Node();
+restart.cssHidden = true; disabled.disabled = true;
+curtain.targets = [button, restart, disabled, summary, exitLink];
+curtain.focus(); hud.setInputDevice('gamepad');
+assert.equal(hud.menu('next'), true);
+assert.equal(document.activeElement, button);
+assert.equal(button.dataset.controllerFocus, 'true');
+assert.equal(button.scrollOptions.block, 'nearest', 'navigation reveals its target');
+assert.equal(hud.menu('next'), true);
+assert.equal(document.activeElement, summary, 'hidden and disabled targets are skipped');
+assert.equal(button.dataset.controllerFocus, undefined, 'only one target carries controller focus');
+assert.equal(summary.dataset.controllerFocus, 'true');
+assert.equal(hud.menu('previous'), true);
+assert.equal(document.activeElement, button);
+hud.menu('previous'); assert.equal(document.activeElement, exitLink, 'previous wraps');
+hud.menu('next'); assert.equal(document.activeElement, button, 'next wraps');
+restart.cssHidden = false;
+hud.menu('next'); assert.equal(document.activeElement, restart, 'newly visible pause controls participate');
+assert.equal(hud.menu('activate'), true);
+assert.equal(restart.clicks, 1, 'activation invokes the native control once');
+summary.focus(); // Keyboard/pointer focus is authoritative, not a private index.
+hud.menu('next'); assert.equal(document.activeElement, exitLink);
+hud.menu('activate'); assert.equal(exitLink.clicks, 1, 'native link activation is preserved');
+curtain.focus(); hud.menu('activate');
+assert.equal(button.clicks, 2, 'missing focus falls back to the primary action');
+button.disabled = true; curtain.focus();
+assert.equal(hud.menu('activate'), false, 'disabled primary never activates a different target');
+button.disabled = false;
+button.cssHidden = true;
+assert.equal(hud.menu('activate'), false, 'a loading-hidden primary is not activated');
+button.cssHidden = false;
+assert.equal(hud.menu('unknown'), false);
+const populatedTargets = curtain.targets;
+curtain.targets = []; curtain.focus();
+for (const action of ['next', 'previous', 'activate']) {
+  assert.equal(hud.menu(action), false, 'an empty menu leaves no focus or activation destination');
+}
+assert.equal(document.activeElement, curtain);
+curtain.targets = populatedTargets;
+
+// An expanded guide must remain readable on short viewports. Directional
+// input scrolls its complete content, then returns to native focus traversal.
+menuScroller.clientHeight = 300; menuScroller.scrollHeight = 1000; menuScroller.scrollTop = 0;
+menuScroller.bounds = () => ({ top: 0, bottom: 300 });
+summary.bounds = () => ({ top: 200 - menuScroller.scrollTop, bottom: 240 - menuScroller.scrollTop });
+guide.bounds = () => ({ top: 200 - menuScroller.scrollTop, bottom: 1000 - menuScroller.scrollTop });
+summary.onClick = () => { guide.open = !guide.open; };
+summary.onScroll = options => {
+  if (options.block === 'start') menuScroller.scrollTop = 200;
+  else if (menuScroller.scrollTop > 200) menuScroller.scrollTop = 200;
+};
+guide.open = false; summary.focus();
+hud.menu('activate');
+assert.equal(summary.clicks, 1, 'the native summary toggles exactly once');
+assert.equal(guide.open, true);
+assert.equal(document.activeElement, summary, 'opening help keeps its native close control focused');
+assert.equal(menuScroller.scrollTop, 200, 'opening help reveals its first instructions');
+for (const expected of [425, 650, 700]) {
+  assert.equal(hud.menu('next'), true);
+  assert.equal(menuScroller.scrollTop, expected, 'help scroll advances in bounded overlapping pages');
+  assert.equal(document.activeElement, summary, 'scrolling does not abandon help');
+}
+assert.equal(menuScroller.scrollTop + menuScroller.clientHeight, 1000, 'the final mappings are reachable');
+hud.menu('next'); assert.equal(document.activeElement, exitLink, 'next at the bottom resumes focus traversal');
+summary.focus();
+for (const expected of [475, 250, 200]) {
+  hud.menu('previous'); assert.equal(menuScroller.scrollTop, expected);
+  assert.equal(document.activeElement, summary);
+}
+hud.menu('previous'); assert.equal(document.activeElement, restart, 'previous at the help start returns to earlier controls');
+summary.focus(); menuScroller.scrollTop = 700;
+assert.equal(hud.menu('back'), true);
+assert.equal(guide.open, false, 'Back closes help before returning control to the game');
+assert.equal(document.activeElement, summary);
+assert.equal(menuScroller.scrollTop, 200, 'Back reveals the collapsed control');
+assert.equal(hud.menu('back'), false, 'a second Back can resume through the caller');
+
+// Device handoffs clear only the controller styling, retaining native focus.
+hud.setInputDevice('keyboard');
+assert.equal(summary.dataset.controllerFocus, undefined);
+assert.equal(document.activeElement, summary);
+hud.menu('next');
+hud.setInputDevice('keyboard');
+assert.equal(exitLink.dataset.controllerFocus, undefined, 'same-device notification still clears a later controller mark');
+hud.menu('previous');
+curtain.listeners.pointerdown({});
+assert.equal(summary.dataset.controllerFocus, undefined, 'pointer use clears the explicit ring');
+assert.equal(document.activeElement, summary);
+hud.menu('next');
+curtain.listeners.keydown({ key: 'Tab', shiftKey: false, preventDefault() {}, stopPropagation() {} });
+assert.equal(exitLink.dataset.controllerFocus, undefined, 'Tab clears the explicit controller ring');
+assert.equal(document.activeElement, button);
+button.focus();
+curtain.listeners.keydown({ key: 'Tab', shiftKey: false, preventDefault() {}, stopPropagation() {} });
+assert.equal(document.activeElement, restart, 'keyboard focus shares the visible enabled targets');
+restart.focus();
+curtain.listeners.keydown({ key: 'Tab', shiftKey: false, preventDefault() {}, stopPropagation() {} });
+assert.equal(document.activeElement, summary, 'Tab also skips disabled controls');
+
+// A mode change and navigation can happen before the same frame's HUD draw.
+g.mode = 'playing'; hud.update(g, .1);
+assert.equal(hud.menu('activate'), false, 'menus never activate while riding');
+g.mode = 'paused';
+assert.equal(hud.menu('next'), true);
+const selected = document.activeElement;
+hud.update(g, .1);
+assert.equal(document.activeElement, selected, 'first paused update preserves same-frame navigation');
+assert.equal(selected.dataset.controllerFocus, 'true');
+const pausedQueries = targetQueries;
+for (let i = 0; i < 20; i++) hud.update(g, .1);
+assert.equal(targetQueries, pausedQueries, 'idle menus never enumerate focus targets');
+g.mode = 'playing'; hud.update(g, .1);
+assert.equal(selected.dataset.controllerFocus, undefined, 'resuming clears controller styling');
+assert.equal(document.activeElement, null, 'resuming clears native menu focus');
+curtain.targets = [button, summary, exitLink];
 const beforeStill = writes;
 for (let i=0; i<9;i++) hud.update(g,.09);
 assert.equal(writes, beforeStill, 'stable visible values do not touch DOM text');
-console.log('HUD checks passed: state transitions, charge, flow, banners, device prompts, accessibility, safe area, controls disclosure, modal focus, and idle DOM writes.');
+console.log('HUD checks passed: state transitions, charge, flow, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');

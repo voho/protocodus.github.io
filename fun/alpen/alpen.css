@@ -31,7 +31,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 button, summary { font: inherit; }
-button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+button:focus-visible, summary:focus-visible, a:focus-visible,
+[data-controller-focus='true']:focus { outline: 2px solid var(--accent); outline-offset: 5px; }
 #stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 body:not(.ready) #stage { visibility: hidden; }
 .sr-only {
@@ -160,6 +161,8 @@ kbd {
 .restart-run { margin-top: 12px; padding: max(11px, 0.7em) max(21px, 1.35em); border: 1px solid var(--line); background: transparent; color: var(--paper); font-size: var(--ui-label); font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
 .restart-run:hover, .restart-run:focus-visible { border-color: var(--accent); color: var(--accent); }
 .go-hint { margin-top: 11px; color: var(--muted); font-size: var(--ui-label); letter-spacing: 0.04em; }
+.menu-notice { margin-top: 14px; color: var(--accent); font-size: var(--ui-copy); }
+.controller-menu-hint { line-height: 1.6; }
 .touch-first { margin-top: 24px; color: var(--muted); font-size: var(--ui-copy); line-height: 1.6; }
 .first-steps { display: flex; flex-wrap: wrap; gap: 16px 23px; margin-top: 29px; font-size: var(--ui-label); color: var(--paper); }
 .first-steps p > span { display: block; margin-top: 8px; color: var(--muted); }

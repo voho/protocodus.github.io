@@ -443,6 +443,7 @@ const ridersReady = loadRiderModels().then((m) => {
 const hud = createHud(hudRoot);
 const touchPause = pad.querySelector('[data-action="pause"]');
 const touchMute = pad.querySelector('[data-action="mute"]');
+const controllerNotice = curtain.querySelector('[data-controller-disconnected]');
 const curtainPointers = new Map();
 let curtainClickReady = false;
 let curtainClickDevice = null;
@@ -494,6 +495,12 @@ game.bestAtStart = game.best;
 const input = createInput(window, {
   key: onKey,
   device: hud.setInputDevice,
+  menu: onMenuAction,
+  disconnect() {
+    if (game.mode !== 'playing') return;
+    pause();
+    controllerNotice.hidden = false;
+  },
   // An interrupted finger gesture is not a deliberate release-to-pop.
   cancelJump() {
     rider.charging = false;
@@ -587,6 +594,7 @@ function begin() {
   curtainPointers.clear();
   curtainClickReady = false;
   curtainClickDevice = null;
+  controllerNotice.hidden = true;
   /* A run starts at the top of the mountain. `restart()` alone resumes from
      wherever the rider is standing, and on the title screen that is wherever
      the attract demo has carved to — so a player who read the controls for
@@ -746,6 +754,14 @@ function onKey(e) {
   if (game.mode !== 'playing') begin();
 }
 
+function onMenuAction(action) {
+  if (game.mode === 'playing') return;
+  if (hud.menu(action)) return;
+  // B backs out of help first. Only an already-started, paused run resumes;
+  // the title, loading gate and graphics recovery keep their usual guards.
+  if (action === 'back' && game.mode === 'paused') begin();
+}
+
 /* Back to the last gate, from anywhere a run can be: R on the keyboard, the
    pad's Back/View button (see `input.js`), and the pause screen's own button
    for touch, which had no way to restart at all.
@@ -759,6 +775,7 @@ function restartRun() {
   curtainPointers.clear();
   curtainClickReady = false;
   curtainClickDevice = null;
+  controllerNotice.hidden = true;
   audio.start();
   showMuted(audio.muted);
   restart();
@@ -1639,10 +1656,10 @@ function frame(now) {
   const dt = Math.min(0.05, frameDt);
   last = now;
 
-  // Controllers have no key events: keep polling through a pause so Start
-  // and a fresh A press can resume, including after a visibility pause.
+  // Controllers have no key events: menu actions remain available while the
+  // world is paused, with ownership kept separate from riding commands.
   if (!document.hidden) {
-    input.update(dt);
+    input.update(dt, game.mode !== 'playing');
     if (input.state.anyPressed) {
       input.state.anyPressed = false;
       if (game.mode !== 'playing') begin();

@@ -6,6 +6,7 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 node tests/riding-check.mjs
 node tests/touch-input-check.mjs
 node tests/input-device-check.mjs
+node tests/controller-menu-check.mjs
 node tests/flow-check.mjs
 node tests/side-hit-shape-check.mjs
 node tests/terrain-shadow-check.mjs
@@ -70,6 +71,15 @@ riding hint, while stable input causes no additional presentation writes.
 Browser QA checks the displayed mappings and complete input-to-menu path,
 including touch-capable layouts using keyboard/controller help and a tap that
 opens help during a device handoff without accidentally starting the run.
+Controller menu checks separate menu presses from riding commands: A selects,
+B closes help or returns to a paused run, and Start/Back retain priority. Held
+menu A and D-pad presses cannot become a jump, boost or brake after resuming.
+Navigation repeat uses elapsed time, while drift and held controls across a
+pause must return to neutral before navigating. Disconnect tests cover active
+versus idle pads, reconnection, and interrupted jump ownership when another
+controller or keyboard/touch input remains held. HUD and browser checks also
+cover visible controller focus, native activation and reaching every help row
+through bounded scrolling in short menus.
 Snow types are pinned as well: at 20 and 28 m/s the corduroy out-carves
 powder (it used to be the other way round by a third), deep snow bogs a
 slow board down on a pitch the corduroy runs away on, and a loaded edge on
@@ -519,6 +529,10 @@ ALPEN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs ALPEN_URL=http://127.0.0
 ```
 
 Use `ALPEN_BROWSER=chromium` for Playwright's bundled Chromium. A GPU-less Linux runner can opt into `ALPEN_SOFTWARE_GPU=1` only with a loopback URL. `ALPEN_QA_THUMBNAILS=1` emits compact QA scene images alongside the full PNG artifacts.
+For input/menu changes, `ALPEN_QA_CONTROLS_ONLY=1` runs the real boot and
+gameplay/control assertions without repeating scene captures and GPU fixtures.
+Its report explicitly records those checks as skipped. CI leaves this flag
+unset and continues to run the complete rendering suite.
 
 CI device profiles run independently. Scene captures settle visual state without redundant intermediate GPU draws, then execute a complete production frame to refresh sky and rider shadows before recording. Capture metadata omits performance timings from that setup period.
 

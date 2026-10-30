@@ -7,6 +7,9 @@ const url = new URL(process.env.ALPEN_URL || 'http://127.0.0.1:8773/fun/alpen/')
 url.searchParams.set('seed', '1EE9566');
 const software = process.env.ALPEN_SOFTWARE_GPU === '1';
 const timerChecks = process.env.ALPEN_GPU_TIMERS === '1';
+const compare = process.env.ALPEN_QA_PROFILE === 'detail';
+const controlsOnly = process.env.ALPEN_QA_CONTROLS_ONLY === '1';
+if (compare && controlsOnly) throw new Error('Controls-only QA requires a gameplay profile, not detail.');
 if (software && !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
   throw new Error('Software WebGL QA requires a loopback ALPEN_URL.');
 }
@@ -20,7 +23,6 @@ const browser = await chromium.launch({
   ],
 });
 const results = [], errors = [];
-const compare = process.env.ALPEN_QA_PROFILE === 'detail';
 const frames = (page, count) => page.evaluate(count => new Promise(resolve => {
   let left = count;
   const tick = () => { if (--left <= 0) resolve(); else requestAnimationFrame(tick); };
@@ -68,64 +70,224 @@ async function checkTouchHelpTap(page, mode) {
   await page.locator('.control-guide summary').tap();
   assert.equal(await page.locator('.control-guide').evaluate(node => node.open), false, 'a second touch closes help');
 }
-async function checkControllerStart(page) {
-  const fixture = await page.evaluateHandle(() => {
+async function controllerFixture(page) {
+  const handle = await page.evaluateHandle(() => {
     const descriptor = Object.getOwnPropertyDescriptor(navigator, 'getGamepads');
-    const pad = { connected: true, index: 0, mapping: 'standard', id: 'Alpen QA controller',
-      axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
-    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    const makePad = index => ({ connected: true, index, mapping: 'standard', id: 'Alpen QA controller ' + index,
+      axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) });
+    const pads = [makePad(0), makePad(1)];
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => pads });
     window.dispatchEvent(new Event('gamepadconnected'));
-    return { descriptor, pad };
+    return { descriptor, pads, makePad };
+  });
+  await frames(page, 2);
+  const set = async (buttons = [], axes = [0, 0]) => {
+    await handle.evaluate(({ pads }, { buttons, axes }) => {
+      pads[0].buttons.forEach((button, index) => { button.pressed = buttons.includes(index); button.value = +button.pressed; });
+      pads[0].axes[0] = axes[0]; pads[0].axes[1] = axes[1];
+    }, { buttons, axes });
+    await frames(page, 2);
+  };
+  return {
+    handle, set,
+    async press(button) { await set([button]); await set(); },
+    async close() {
+      // The fixture is not a controller-loss scenario. Hand off before teardown.
+      await page.keyboard.press('KeyD');
+      await handle.evaluate(({ descriptor }) => {
+        if (descriptor) Object.defineProperty(navigator, 'getGamepads', descriptor);
+        else delete navigator.getGamepads;
+        window.dispatchEvent(new Event('gamepaddisconnected'));
+      });
+      await handle.dispose();
+    },
+  };
+}
+async function checkControllerFocus(page, selector) {
+  await page.waitForFunction(selector => document.activeElement === document.querySelector(selector), selector);
+  assert(await page.locator(selector).evaluate(node => node.dataset.controllerFocus === 'true'
+    && getComputedStyle(node).outlineStyle !== 'none' && parseFloat(getComputedStyle(node).outlineWidth) > 0),
+  selector + ': focused controller target has a visible ring');
+}
+async function checkControllerHelp(page, pad, mode, profile) {
+  await pad.press(13);
+  await checkControllerFocus(page, '.drop-in');
+  if (mode === 'paused') {
+    await pad.press(13);
+    await checkControllerFocus(page, '.restart-run');
+  }
+  // A fresh left-stick deflection and d-pad presses share native menu order.
+  await pad.set([], [0, .8]); await pad.set();
+  await checkControllerFocus(page, '.control-guide summary');
+  await pad.set([0]);
+  assert(await page.locator('.control-guide').evaluate(node => node.open), 'A opens native controller help');
+  await frames(page, 3);
+  assert(await page.locator('.control-guide').evaluate(node => node.open), 'holding A activates the summary only once');
+  assert.equal(await page.evaluate(() => __alpen.game.mode), mode, 'controller help does not start or resume riding');
+  await pad.set();
+  await checkMenuHelp(page, 'gamepad');
+  await page.screenshot({ path: output + '/' + profile + '-controller-help.png', animations: 'disabled' });
+  const guideState = () => page.evaluate(() => {
+    const scroller = document.querySelector('.curtain-inner'), bounds = scroller.getBoundingClientRect();
+    const last = document.querySelector('.control-guide [data-input-help="gamepad"] > div:last-child dd').getBoundingClientRect();
+    return { focused: document.activeElement === document.querySelector('.control-guide summary'),
+      scroll: scroller.scrollTop, lastVisible: last.top >= bounds.top - 1 && last.bottom <= bounds.bottom + 1 };
+  });
+  let state = await guideState(), sawLast = state.lastVisible, scrolled = false;
+  for (let press = 0; press < 16 && state.focused; press++) {
+    const before = state.scroll;
+    await pad.press(13);
+    state = await guideState();
+    sawLast ||= state.lastVisible;
+    scrolled ||= state.scroll > before + 1;
+  }
+  assert(sawLast, profile + ': controller navigation reveals the final help row');
+  if (profile === 'landscape') assert(scrolled, 'short landscape menu scrolls through controller help');
+  await checkControllerFocus(page, '.exit-link');
+  // Observe the native anchor click after its production handler, then prevent
+  // just the browser navigation so the rest of this gameplay fixture can run.
+  const exit = await page.evaluateHandle(() => {
+    const node = document.querySelector('.exit-link');
+    const result = { clicks: 0, allowed: false, href: '' };
+    const listener = event => { result.clicks++; result.allowed = !event.defaultPrevented;
+      result.href = node.getAttribute('href'); event.preventDefault(); };
+    node.addEventListener('click', listener);
+    return { node, listener, result };
   });
   try {
-    await frames(page, 2);
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = .65; });
+    await pad.press(0);
+    assert.deepEqual(await exit.evaluate(({ result }) => result), { clicks: 1, allowed: true, href: '/fun/' },
+      'A uses the native exit link and leaves its default navigation available');
+    assert.equal(await page.evaluate(() => __alpen.game.mode), mode, 'exit click never also starts the ride');
+  } finally {
+    await exit.evaluate(({ node, listener }) => node.removeEventListener('click', listener));
+    await exit.dispose();
+  }
+  await pad.press(1);
+  assert.equal(await page.locator('.control-guide').evaluate(node => node.open), false, 'B closes controller help');
+  await checkControllerFocus(page, '.control-guide summary');
+  assert.equal(await page.evaluate(() => __alpen.game.mode), mode, 'closing controller help preserves the menu');
+}
+async function checkControllerPause(page, pad, profile, extended = false) {
+  await pad.press(9);
+  await page.waitForFunction(() => __alpen.game.mode === 'paused');
+  await checkControllerHelp(page, pad, 'paused', profile);
+  await pad.press(1);
+  await page.waitForFunction(() => __alpen.game.mode === 'playing');
+  assert.equal(await page.locator('[data-controller-focus="true"]').count(), 0, 'resuming clears the controller focus ring');
+  await pad.press(9);
+  await page.waitForFunction(() => __alpen.game.mode === 'paused');
+  await pad.press(13);
+  await checkControllerFocus(page, '.drop-in');
+  await pad.set([0]);
+  await page.waitForFunction(() => __alpen.game.mode === 'playing');
+  await frames(page, 3);
+  assert(await page.evaluate(() => !__alpen.input.state.jump && !__alpen.rider.charging && __alpen.rider.charge === 0),
+    'holding A to resume never starts a jump charge');
+  await pad.set();
+  assert(await page.evaluate(() => !__alpen.input.state.jump && !__alpen.rider.charging && __alpen.rider._jumpBuffer === 0),
+    'releasing the resume button cannot leave a buffered jump');
+  if (!extended) return;
+  await pad.set([0, 9]);
+  await page.waitForFunction(() => __alpen.game.mode === 'paused');
+  await frames(page, 2);
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'paused', 'Start wins a simultaneous A press');
+  await pad.set();
+  await pad.press(13); await pad.press(13);
+  await checkControllerFocus(page, '.restart-run');
+  await page.evaluate(() => __alpen.game.discoveredGrabs.add(0));
+  await pad.set([0]);
+  await page.waitForFunction(() => __alpen.game.mode === 'playing');
+  assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 0, 'A activates the focused native restart');
+  await page.evaluate(() => __alpen.game.discoveredGrabs.add(0));
+  await frames(page, 3);
+  assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 1, 'holding A restarts only once');
+  await pad.set();
+  await pad.press(9);
+  await page.waitForFunction(() => __alpen.game.mode === 'paused');
+  await pad.press(8);
+  await page.waitForFunction(() => __alpen.game.mode === 'playing');
+  assert.equal(await page.evaluate(() => __alpen.game.discoveredGrabs.size), 0, 'Back retains its checkpoint restart shortcut');
+}
+async function checkControllerLoss(page, pad) {
+  await pad.set([0], [.65, 0]);
+  await page.waitForFunction(() => __alpen.input.state.jump && __alpen.rider.charging);
+  await checkInputDevice(page, 'gamepad');
+  await pad.handle.evaluate(({ pads }) => { pads[1] = null; window.dispatchEvent(new Event('gamepaddisconnected')); });
+  await frames(page, 2);
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'playing', 'disconnecting an idle pad does not pause the active rider');
+  assert.equal(await page.locator('[data-controller-disconnected]').isVisible(), false, 'idle controller loss has no warning');
+  await pad.handle.evaluate(({ pads, makePad }) => {
+    pads[1] = makePad(1); window.dispatchEvent(new Event('gamepadconnected'));
+  });
+  await frames(page, 2);
+  await pad.handle.evaluate(({ pads }) => { pads[0] = null; window.dispatchEvent(new Event('gamepaddisconnected')); });
+  await page.waitForFunction(() => __alpen.game.mode === 'paused');
+  assert(await page.evaluate(() => !__alpen.input.state.jump && !__alpen.rider.charging && __alpen.rider._jumpBuffer === 0),
+    'active controller loss cancels charge without buffering a jump');
+  assert(await page.locator('[data-controller-disconnected]').isVisible(), 'active controller loss explains the automatic pause');
+  await pad.handle.evaluate(({ pads, makePad }) => {
+    pads[0] = makePad(0); pads[0].buttons[0] = { pressed: true, value: 1 };
+    pads[0].buttons[9] = { pressed: true, value: 1 }; window.dispatchEvent(new Event('gamepadconnected'));
+  });
+  await frames(page, 3);
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'paused', 'held reconnect buttons cannot automatically resume');
+  assert(await page.locator('[data-controller-disconnected]').isVisible(), 'reconnection keeps the pause explanation until resume');
+  await pad.set();
+  await pad.press(9);
+  await page.waitForFunction(() => __alpen.game.mode === 'playing');
+  assert.equal(await page.locator('[data-controller-disconnected]').isVisible(), false, 'deliberate resume clears the disconnect explanation');
+  await page.keyboard.press('KeyD');
+  await checkInputDevice(page, 'keyboard');
+  await pad.handle.evaluate(({ pads }) => { pads[0] = null; window.dispatchEvent(new Event('gamepaddisconnected')); });
+  await frames(page, 2);
+  assert.equal(await page.evaluate(() => __alpen.game.mode), 'playing', 'controller loss after keyboard handoff does not interrupt riding');
+}
+async function checkControllerStart(page) {
+  const pad = await controllerFixture(page);
+  try {
+    await pad.set([], [.65, 0]);
     await checkInputDevice(page, 'gamepad');
     assert.equal(await page.evaluate(() => __alpen.game.mode), 'attract', 'controller help appears before the first ride');
+    await pad.set();
     await page.screenshot({ path: output + '/controller-title.png', animations: 'disabled' });
-    await page.locator('.control-guide').evaluate(guide => { guide.open = true; });
-    await checkMenuHelp(page, 'gamepad');
-    await page.locator('.control-guide-content').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: output + '/controller-help.png', animations: 'disabled' });
-    await page.locator('.control-guide').evaluate(guide => { guide.open = false; });
-    await page.locator('.control-guide summary').focus();
+    await checkControllerHelp(page, pad, 'attract', 'desktop');
     await page.keyboard.press('Tab');
     await checkInputDevice(page, 'keyboard');
     assert(await page.locator('.exit-link').evaluate(node => node === document.activeElement),
       'Tab after controller use preserves menu navigation');
+    assert.equal(await page.locator('[data-controller-focus="true"]').count(), 0, 'keyboard navigation removes the controller ring');
     assert.equal(await page.evaluate(() => __alpen.game.mode), 'attract', 'Tab does not start a ride');
     await checkMenuHelp(page, 'keyboard');
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; });
-    await frames(page, 2);
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = -.65; });
-    await checkInputDevice(page, 'gamepad');
-    await fixture.evaluate(({ pad }) => { pad.buttons[9].pressed = true; pad.buttons[9].value = 1; });
+    await pad.press(9);
     await page.waitForFunction(() => __alpen.game.mode === 'playing');
     await checkInputDevice(page, 'gamepad');
     assert(await page.locator('.ride-hint [data-input-help="gamepad"]').isVisible(), 'controller riding hint is visible from the start');
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; pad.buttons[9].pressed = false; pad.buttons[9].value = 0; });
-    await frames(page, 2);
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = .65; });
+    await pad.set([], [.65, 0]);
     await page.waitForFunction(() => __alpen.input.state.turnIntent > 0);
     await page.keyboard.down('KeyA');
     await checkInputDevice(page, 'keyboard');
     await frames(page, 3);
     assert.equal(await page.evaluate(() => __alpen.input.state.device), 'keyboard', 'a held stick cannot reclaim keyboard prompts');
     await page.keyboard.up('KeyA');
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = 0; });
-    await frames(page, 2);
+    await pad.set();
     assert.equal(await page.evaluate(() => __alpen.input.state.device), 'keyboard', 'releasing the stick does not change prompts');
-    await fixture.evaluate(({ pad }) => { pad.axes[0] = -.65; });
+    await pad.set([], [-.65, 0]);
     await checkInputDevice(page, 'gamepad');
+    await pad.set();
+    await checkControllerPause(page, pad, 'desktop', true);
+    await checkControllerLoss(page, pad);
   } finally {
     await page.keyboard.up('KeyA');
-    await fixture.evaluate(({ descriptor }) => {
-      if (descriptor) Object.defineProperty(navigator, 'getGamepads', descriptor);
-      else delete navigator.getGamepads;
-      window.dispatchEvent(new Event('gamepaddisconnected'));
-    });
-    await fixture.dispose();
+    await pad.close();
   }
+}
+async function checkTouchControllerMenu(page, profile) {
+  const pad = await controllerFixture(page);
+  try {
+    await checkControllerPause(page, pad, profile);
+    await checkTouchControls(page);
+  } finally { await pad.close(); }
 }
 async function checkPausedHelp(page, touch, profile) {
   await checkInputDevice(page, 'keyboard');
@@ -464,6 +626,8 @@ try {
         await checkMenuHelp(page, 'keyboard');
         await checkTouchHelpTap(page, 'attract');
         await page.locator('.drop-in').tap();
+        await page.waitForFunction(() => __alpen.game.mode === 'playing');
+        await checkTouchControllerMenu(page, profile.name);
       }
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
       if (profile.hasTouch) await checkTouchControls(page);
@@ -563,6 +727,12 @@ try {
       }
       results.push({ profile: profile.name, bootMs, engineRequests, gameplay: 'passed' });
       console.log('Alpen gameplay passed: ' + profile.name);
+      if (controlsOnly) {
+        assert.deepEqual(errors, [], 'controls-only run has no runtime, shader or resource errors');
+        results.push({ profile: profile.name, controlsOnly: true, renderedScenes: 'skipped', gpuChecks: 'skipped' });
+        console.log('Alpen controls-only profile passed: ' + profile.name);
+        continue;
+      }
       await page.addStyleTag({ content: '.hud,.curtain,.pad{visibility:hidden!important}' });
       const locations = await page.evaluate(async () => {
         const { chapterNameAt } = await import('./js/terrain.js');
@@ -609,5 +779,7 @@ try {
     } finally { await page.close(); }
   }
   await writeFile(output + '/results.json', JSON.stringify(results, null, 2));
-  console.log('Alpen browser QA passed: ' + profiles.map(profile => profile.name).join(', ') + '; boot, controls and rendered scenes' + (profiles.some(profile => profile.name === 'desktop') ? ', grab rewards, chapters, weather and GPU postprocessing.' : '.'));
+  console.log('Alpen browser QA passed: ' + profiles.map(profile => profile.name).join(', ')
+    + (controlsOnly ? '; boot and controls; scene captures and GPU suites skipped.'
+      : '; boot, controls and rendered scenes' + (profiles.some(profile => profile.name === 'desktop') ? ', grab rewards, chapters, weather and GPU postprocessing.' : '.')));
 } finally { await browser.close(); }

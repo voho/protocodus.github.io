@@ -72,6 +72,7 @@
       <p class="tagline start-only">Find your line. Leave your tracks.<br>An endless alpine ride, at your own pace.</p>
       <p class="tagline pause-only">Paused.</p>
 
+      <p class="menu-notice pause-only" data-controller-disconnected role="status" hidden>Controller disconnected</p>
       <div class="run-stats pause-only" aria-label="Current run">
         <p><span>Run score</span><strong data-menu-score>0</strong></p>
         <p><span>Distance</span><strong data-menu-distance>0.00 <small>km</small></strong></p>
@@ -89,7 +90,7 @@
       <div class="go">
         <button class="drop-in" type="button"><span class="start-only">Drop in</span><span class="pause-only">Keep riding</span><svg class="drop-in-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button class="restart-run pause-only" type="button">Restart from the last gate</button>
-        <p class="go-hint"><span data-input-help="keyboard">Press Enter or click anywhere</span><span data-input-help="gamepad">Press A or Start to ride</span><span data-input-help="touch">Tap anywhere to ride</span></p>
+        <p class="go-hint"><span data-input-help="keyboard">Press Enter or click anywhere</span><span class="controller-menu-hint" data-input-help="gamepad">Stick / D-pad move · A select · B back<br>Start to ride</span><span data-input-help="touch">Tap anywhere to ride</span></p>
       </div>
 
       <div class="first-steps start-only" data-input-help="keyboard" aria-label="The essentials">
@@ -126,6 +127,7 @@
             <div><dt>Y</dt><dd>Backflip. Hold LT for a frontflip.</dd></div>
             <div><dt>X + RT / LT</dt><dd>Nose grab or press / method grab.</dd></div>
             <div><dt>Start · Back</dt><dd>Pause or resume · restart from the last gate.</dd></div>
+            <div><dt>In menus</dt><dd>Stick or D-pad to move and scroll help. A to select, B to go back.</dd></div>
           </dl>
           <dl class="touch-guide" data-input-help="touch">
             <div><dt>◀ · ▶</dt><dd>Carve on snow. Spin in the air.</dd></div>
