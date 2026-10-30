@@ -536,6 +536,16 @@ unset and continues to run the complete rendering suite.
 
 CI device profiles run independently. Scene captures settle visual state without redundant intermediate GPU draws, then execute a complete production frame to refresh sky and rider shadows before recording. Capture metadata omits performance timings from that setup period.
 
+On software WebGL only, controller menu checks temporarily suppress raster
+draws while the production frame loop, input, physics and native DOM continue.
+Their screenshots show the real menu over the retained boot image. GPU timing
+and adaptive resolution stay suspended for that scope. A `finally` restores
+the original renderer and timing functions, refreshes probes and shadows,
+invalidates the paused cache, and verifies a complete native world draw before
+the existing gameplay, scene captures and GPU checks continue. The run reports
+the skipped draws, restoration checks and elapsed time; hardware runs use the
+normal rendering path throughout.
+
 ## Riding sound and motion comfort
 
 The system's reduced-motion preference now applies live to the chase camera

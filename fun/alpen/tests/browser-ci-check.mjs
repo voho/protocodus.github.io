@@ -70,6 +70,60 @@ async function checkTouchHelpTap(page, mode) {
   await page.locator('.control-guide summary').tap();
   assert.equal(await page.locator('.control-guide').evaluate(node => node.open), false, 'a second touch closes help');
 }
+async function checkControllerWithoutRaster(page, profile, check) {
+  if (!software) return check();
+  // Native RAF, input, physics and DOM keep running. Software rasterization
+  // of the mountain is unrelated to these controller assertions;
+  // retain the boot image while inspecting the real menu over it.
+  const started = Date.now();
+  const fixture = await page.evaluateHandle(() => {
+    const a = __alpen;
+    const saved = { render: a.renderer.render, begin: a.retro.beginGpuFrame,
+      freeze: a.flicker.freezeResolution, skipped: 0 };
+    a.flicker.freezeResolution = true;
+    a.renderer.render = () => { saved.skipped++; };
+    a.retro.beginGpuFrame = () => 0; // Skipped draws cannot report GPU headroom.
+    return saved;
+  });
+  try {
+    return await check();
+  } finally {
+    try {
+      const restored = await fixture.evaluate(async saved => {
+        const a = __alpen;
+        a.renderer.render = saved.render;
+        a.retro.beginGpuFrame = saved.begin;
+        a.flicker.freezeResolution = saved.freeze;
+        a.sky.refreshProbe();
+        // Resize invalidates the main loop's private paused-world cache even
+        // when dimensions stay unchanged. Observe a real full world draw.
+        window.dispatchEvent(new Event('resize'));
+        let worlds = 0;
+        a.renderer.render = function(scene, camera) {
+          const world = scene === a.scene && camera === a.camera;
+          // Sky updates can change the shadow cadence earlier in this RAF.
+          if (world) {
+            this.shadowMap.needsUpdate = true;
+            scene.traverse(node => { if (node.isLight && node.shadow) node.shadow.needsUpdate = true; });
+          }
+          const result = saved.render.call(this, scene, camera);
+          if (world) worlds++;
+          return result;
+        };
+        try {
+          for (let frame = 0; frame < 120 && !worlds; frame++) await new Promise(requestAnimationFrame);
+        } finally { a.renderer.render = saved.render; }
+        return { skipped: saved.skipped, worlds, renderRestored: a.renderer.render === saved.render,
+          timingRestored: a.retro.beginGpuFrame === saved.begin, freezeRestored: a.flicker.freezeResolution === saved.freeze };
+      });
+      assert(restored.worlds > 0 && restored.renderRestored && restored.timingRestored && restored.freezeRestored,
+        'controller fixture restores native rendering, timing and resolution before subsequent checks');
+      const report = { profile, ...restored, elapsedMs: Date.now() - started };
+      results.push({ controllerRasterScope: report });
+      console.log('Alpen controller raster scope: ' + JSON.stringify(report));
+    } finally { await fixture.dispose(); }
+  }
+}
 async function controllerFixture(page) {
   const handle = await page.evaluateHandle(() => {
     const descriptor = Object.getOwnPropertyDescriptor(navigator, 'getGamepads');
@@ -617,7 +671,7 @@ try {
         continue;
       }
       if (profile.name === 'desktop') {
-        await checkControllerStart(page);
+        await checkControllerWithoutRaster(page, profile.name, () => checkControllerStart(page));
       } else {
         await checkInputDevice(page, 'touch');
         await checkMenuHelp(page, 'touch');
@@ -627,7 +681,7 @@ try {
         await checkTouchHelpTap(page, 'attract');
         await page.locator('.drop-in').tap();
         await page.waitForFunction(() => __alpen.game.mode === 'playing');
-        await checkTouchControllerMenu(page, profile.name);
+        await checkControllerWithoutRaster(page, profile.name, () => checkTouchControllerMenu(page, profile.name));
       }
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
       if (profile.hasTouch) await checkTouchControls(page);
