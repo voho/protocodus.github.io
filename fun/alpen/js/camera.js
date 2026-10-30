@@ -112,6 +112,7 @@ const TREE_NEAR_RADIUS = 0.7;
 const TREE_LENS_RADIUS = 4.4;
 const TREE_PULL_RATE = 18;
 const TREE_RELEASE_RATE = 3.2;
+const RECOVERY_TURN_RATE = 2.5; // radians per second, only while rejoining controlled travel
 
 /* How much of the boom is clear along one bearing.
 
@@ -233,6 +234,7 @@ export function createChaseCamera(THREE, camera) {
   let bank = 0;
   let seed = 0;
   let treeBoom = 1;
+  let recoveryBearing = false;
   /* The air frame's own crossfade. `rider.state` flips in one physics step,
      and everything the boolean used to gate — boom, height, look sink, lag,
      lens, bank, chatter — changed target in the same frame, which read as
@@ -304,33 +306,51 @@ export function createChaseCamera(THREE, camera) {
     }
     const airT = airBlend * hangMem;
 
-    // Which way the run is actually heading: mostly the velocity, a little
-    // the board. Pure velocity swims about at low speed; pure heading hides
-    // every slide the rider makes — so trust in the velocity fades in over
-    // 1.5–3.5 m/s instead of switching at 3. The hard switch sat exactly in
-    // the band where board and travel diverge most, and crossing it during
-    // a scrubbing stop swung the whole frame one way and back in two steps.
     const stanceYaw = rider.yaw - (rider.switchStance ? Math.PI : 0);
-    flat.set(rider.vel.x, 0, rider.vel.z);
-    const travel = flat.length();
-    tmp.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
-    if (travel < 1e-4) {
-      flat.copy(tmp);
+    if (rider.state === 'fall' || rider.state === 'rise') {
+      // A collision's rebound is not a new line down the mountain. Keep the
+      // last controlled bearing through the tumble and getting up; following
+      // the reflected velocity swung the boom through the rider twice.
+      if (!started || dir.lengthSq() < 1e-6) {
+        dir.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
+      }
+      recoveryBearing = true;
     } else {
-      const trust = clamp((travel - 1.5) / 2, 0, 1);
-      flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
+      // Which way the run is actually heading: mostly the velocity, a little
+      // the board. Trust in velocity fades in over 1.5–3.5 m/s so a slow
+      // scrubbing stop does not switch abruptly between the two.
+      flat.set(rider.vel.x, 0, rider.vel.z);
+      const travel = flat.length();
+      tmp.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
+      if (travel < 1e-4) {
+        flat.copy(tmp);
+      } else {
+        const trust = clamp((travel - 1.5) / 2, 0, 1);
+        flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
+      }
+      // A spinning or sideways board says less about its landing line.
+      // This also prevents a butter's stance change from reversing the view.
+      const across = travel < 1e-4 ? 1
+        : Math.abs(tmp.x * rider.vel.x + tmp.z * rider.vel.z) / travel;
+      const velocityBias = 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
+      flat.multiplyScalar(velocityBias).addScaledVector(tmp, 1 - velocityBias).normalize();
+      if (recoveryBearing && started) {
+        // Rejoin along an angular arc, never a chord through the subject.
+        // The recovered course can differ greatly from the entry bearing.
+        const angle = Math.atan2(dir.x * flat.z - dir.z * flat.x, dir.dot(flat));
+        const turn = RECOVERY_TURN_RATE * dt;
+        if (Math.abs(angle) <= turn) {
+          dir.copy(flat);
+          recoveryBearing = false;
+        } else {
+          const step = Math.sign(angle) * turn;
+          const c = Math.cos(step), s = Math.sin(step);
+          dir.set(dir.x * c - dir.z * s, 0, dir.x * s + dir.z * c);
+        }
+      } else {
+        dir.copy(flat);
+      }
     }
-    // In flight the board may spin several times while its landing line
-    // stays fixed. Remove its steering influence as the air frame opens —
-    // and as the board turns across its travel, where the stance-adjusted
-    // facing is least meaningful: a butter flips the stance at ninety
-    // degrees, which flipped that facing by half a turn and swung the whole
-    // chase position round behind the rider in a few frames.
-    const across = travel < 1e-4 ? 1
-      : Math.abs(tmp.x * rider.vel.x + tmp.z * rider.vel.z) / travel;
-    const velocityBias = 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
-    dir.copy(flat).multiplyScalar(velocityBias)
-      .addScaledVector(tmp, 1 - velocityBias).normalize();
 
     /* The punch also pulls the boom in a fraction. Widening the lens alone
        reads as a lens event; a lens that widens *while the camera lunges
@@ -566,6 +586,7 @@ export function createChaseCamera(THREE, camera) {
     roll = 0;
     bank = 0;
     treeBoom = 1;
+    recoveryBearing = false;
     airBlend = 0;
     hangMem = 0;
     sinkMem = 0;

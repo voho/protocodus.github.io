@@ -6,7 +6,7 @@ import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createChaseCamera } from '../js/camera.js';
 import { createSolidIndex } from '../js/solid-index.js';
 import { Rider } from '../js/rider.js';
-import { HARD, JUMPABLE } from '../js/config.js';
+import { HARD, JUMPABLE, RIDER, SOFT, PROPS } from '../js/config.js';
 
 const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
 const start = source.indexOf('const blockedSpan = []');
@@ -14,6 +14,11 @@ const end = source.indexOf('\n// Hoisted out of the frame loop', start);
 assert(start > 0 && end > start, 'locate the production camera obstacle queries');
 const makeWorld = new Function('HARD', 'props', 'huts', 'heightAt', 'getTerrainMaterialAt',
   'nearestCenter', 'corridorHalfAt', 'beyondLipAt', source.slice(start, end) + ';return { world, blockedIn };');
+const collisionStart = source.indexOf('const sweepHit = ');
+const collisionEnd = source.indexOf('\n/* ==========================================================================', collisionStart);
+assert(collisionStart > 0 && collisionEnd > collisionStart, 'locate production collision response');
+const makeCollide = new Function('RIDER', 'SOFT', 'PROPS', 'props', 'huts', 'rider', 'prev',
+  'game', 'spray', 'audio', 'chase', 'input', source.slice(collisionStart, collisionEnd) + ';return collide;');
 const flat = { height: () => 0, canStall: () => false };
 const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
 const rock = { x: 0, z: 6.5, r: 1.4, kind: HARD, top: 2.2, cameraPad: .55, volume: true };
@@ -35,7 +40,7 @@ function fixture(solids = [], huts = [], height = flat.height) {
     if (!result && blocked(x, z, r)) stats.filtered++;
     return result;
   };
-  return { world, blockedIn, stats, rebuild: () => index.rebuild() };
+  return { world, blockedIn, stats, querySolids: index.query, rebuild: () => index.rebuild() };
 }
 function view(aspect = 390 / 844) {
   const camera = new THREE.PerspectiveCamera(65, aspect, .1, 2000);
@@ -186,4 +191,140 @@ for (const solid of [rock, tree, hut]) {
   assert(bounded.stats.filtered > 10, 'the fixed obstacle actually crosses the moving sightline');
   assert.equal(bounded.stats.heights, clear.stats.heights, 'airborne rejection adds no terrain sampling');
 }
-console.log('Camera occlusion checks passed: bounded heights, indexed parity, first/live lens, solid clearance and real flight.');
+// A head-on collision really reflects a small rebound against the board's
+// facing. As it slows through 2.5 m/s, normalizing opposite direction vectors
+// used to reverse the camera, passing it over the rider and flipping the view.
+// Run the actual sweep, strike and volume response rather than authoring that
+// unusual velocity by hand; the same trunk also participates in camera queries.
+{
+  const oldWindow = globalThis.window;
+  const collisionStep = (f, r) => {
+    const prev = new THREE.Vector3();
+    const collide = makeCollide(RIDER, SOFT, PROPS, f, { solids: [] }, r, prev,
+      { mode: 'playing' }, { burst() {} }, { thud() {} }, { kick() {} }, { rumble() {} });
+    return (control = neutral) => {
+      prev.copy(r.pos); r.step(1 / 120, control); collide();
+    };
+  };
+  const crash = (switched = false) => {
+    const solid = { ...tree, z: -(.5 + RIDER.radius), r: .5 };
+    const f = fixture([solid]);
+    const r = new Rider(THREE, f.world);
+    r.pos.z = 6; r.vel.set(0, 0, -40); r.grace = 0;
+    r.switchStance = switched; r.yaw = switched ? Math.PI : 0;
+    return { ...f, r, step: collisionStep(f, r) };
+  };
+  try {
+    for (const reduced of [false, true]) {
+      globalThis.window = { matchMedia: () => ({ matches: reduced }) };
+      for (const fps of [30, 60, 120]) {
+        const f = crash(), a = view(), previous = new THREE.Quaternion();
+        a.chase.update(f.r, 1 / fps, f.world);
+        let fell = false, rose = false, recovered = false, aboveThreshold = false, crossed = false;
+        let maxRotation = 0, fallFrames = 0;
+        for (let frame = 0; frame < fps * 8; frame++) {
+          for (let step = 0; step < 120 / fps; step++) f.step();
+          previous.copy(a.camera.quaternion);
+          a.chase.update(f.r, 1 / fps, f.world);
+          if (f.r.state === 'fall' || f.r.state === 'rise') {
+            fell = true; rose ||= f.r.state === 'rise'; fallFrames++;
+            if (f.r.vel.z > 2.5) aboveThreshold = true;
+            if (aboveThreshold && f.r.vel.z > 0 && f.r.vel.z < 2.5) crossed = true;
+            maxRotation = Math.max(maxRotation, previous.angleTo(a.camera.quaternion));
+            assert(a.camera.position.z > f.r.pos.z + 1,
+              'a backwards crash rebound cannot carry the camera across the rider');
+            visible(a.camera, f.r.pos.clone().add(new THREE.Vector3(0, .9, 0)),
+              'fall and recovery keep the subject in frame');
+            const drawn = a.camera.clone();
+            a.chase.update(f.r, 0, f.world);
+            sameView(a.camera, drawn, 'a zero-time recovery redraw preserves the view');
+          } else if (fell && f.r.state === 'ride') {
+            recovered = true; break;
+          }
+        }
+        assert(fell && rose && recovered && crossed && fallFrames > fps,
+          'the real trace crosses the rebound threshold and completes recovery');
+        assert(maxRotation < Math.PI / 3, 'the view never performs the former half-turn snap');
+        for (let frame = 0; frame < fps * 2; frame++) {
+          for (let step = 0; step < 120 / fps; step++) f.step({ ...neutral, turn: .5 });
+          a.chase.update(f.r, 1 / fps, f.world);
+        }
+        assert.equal(f.r.state, 'ride');
+        assert(f.r.yaw > .3 && a.camera.position.x < f.r.pos.x - 1,
+          'the next controlled turn moves the chase bearing again');
+      }
+
+      // Spinning into a trunk can recover onto a different traverse. This
+      // flight starts to the left, spins right under normal air controls and
+      // resumes to the right; a held crash bearing must rejoin that course
+      // without postponing the original boom crossing until recovery ends.
+      for (const fps of [30, 60, 120]) {
+        const heading = -1.2, c = Math.cos(heading), s = Math.sin(heading);
+        const solid = { ...tree, x: .8 * c + (.5 + RIDER.radius) * s,
+          z: .8 * s - (.5 + RIDER.radius) * c, r: .5 };
+        const f = fixture([solid]), r = new Rider(THREE, f.world);
+        r.pos.set(-20 * s, 0, 20 * c); r.yaw = heading; r.grace = 0;
+        r.normal.set(-.6 * s, .8, .6 * c); r.vel.set(32 * s, 24, -32 * c);
+        r.takeOff(0, r.normal);
+        const step = collisionStep(f, r), a = view(), previous = new THREE.Quaternion();
+        a.chase.update(r, 1 / fps, f.world);
+        let fell = false, rose = false, recovered = false, maxRotation = 0, clearance = Infinity;
+        for (let frame = 0; frame < fps * 7; frame++) {
+          for (let tick = 0; tick < 120 / fps; tick++) {
+            step(r.state === 'air' ? { ...neutral, turn: 1 } : neutral);
+          }
+          previous.copy(a.camera.quaternion);
+          a.chase.update(r, 1 / fps, f.world);
+          if (r.state === 'fall') fell = true;
+          if (fell) {
+            rose ||= r.state === 'rise';
+            recovered ||= r.state === 'ride';
+            maxRotation = Math.max(maxRotation, previous.angleTo(a.camera.quaternion));
+            clearance = Math.min(clearance,
+              Math.hypot(a.camera.position.x - r.pos.x, a.camera.position.z - r.pos.z));
+            visible(a.camera, r.pos.clone().add(new THREE.Vector3(0, .9, 0)),
+              'the spinning crash and changed recovery course keep the subject in frame');
+          }
+        }
+        assert(fell && rose && recovered && r.yaw - heading > 2,
+          'real air controls and collision produce a substantially different recovered course');
+        assert(clearance > 4, 'the recovery arc keeps the boom clear of the subject');
+        assert(maxRotation * fps < Math.PI * 3,
+          'rejoining a different course cannot defer the view snap until recovery');
+        assert(a.camera.position.x < r.pos.x - 1,
+          'the camera eventually follows the recovered rightward course');
+      }
+
+      for (const switched of [false, true]) {
+        const f = crash(switched);
+        for (let tick = 0; f.r.state !== 'fall' && tick < 120; tick++) f.step();
+        assert.equal(f.r.state, 'fall'); assert(f.r.vel.z > 2.5);
+        for (const state of ['fall', 'rise']) {
+          for (let tick = 0; f.r.state !== state && tick < 120 * 8; tick++) f.step();
+          assert.equal(f.r.state, state);
+          for (const dt of [0, 1 / 60]) {
+            const fresh = view(), reset = view();
+            const other = new Rider(THREE, flat);
+            other.yaw = .7; other.vel.set(15, 0, -15);
+            // Seed an unrelated view without advancing decorative chatter,
+            // so reset/fresh poses can be compared exactly in both modes.
+            reset.chase.update(other, 0, flat);
+            reset.chase.reset();
+            fresh.chase.update(f.r, dt, f.world); reset.chase.update(f.r, dt, f.world);
+            const yaw = f.r.yaw - (f.r.switchStance ? Math.PI : 0);
+            const behind = (fresh.camera.position.x - f.r.pos.x) * Math.sin(yaw)
+              - (fresh.camera.position.z - f.r.pos.z) * Math.cos(yaw);
+            assert(behind < -1,
+              'first draw during a fall or rise uses the stance-adjusted heading');
+            sameView(reset.camera, fresh.camera,
+              `reset forgets an unrelated pre-crash bearing (${state}, switch=${switched}, dt=${dt})`);
+          }
+        }
+      }
+    }
+  } finally {
+    if (oldWindow === undefined) delete globalThis.window;
+    else globalThis.window = oldWindow;
+  }
+}
+console.log('Camera occlusion checks passed: bounded heights, indexed parity, first/live lens, solid clearance, real flight and crash recovery continuity.');

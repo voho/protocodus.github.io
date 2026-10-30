@@ -83,6 +83,10 @@ The production crash handler immediately replaces queued celebrations and
 airborne flashes without losing their banked score or best. Hare near-miss
 rewards require controlled riding or flight; falls and getting up cannot
 produce points, a whoosh or a reward pulse.
+Record feedback uses the production award callback: the first positive score
+sets a personal best, tying a saved record does not, and an active award or
+crash announcement keeps priority. Restart restores the target; idle records
+do not repeatedly announce themselves or write to the DOM.
 Qualified grounded butters show their live name and release advice before
 the scored award takes over. Pauses, falls and an ended press clear that
 guidance; stable feedback causes no text, visibility, style or dataset writes.
@@ -122,6 +126,10 @@ Camera obstruction checks use the height of the boom above bounded rocks and
 hut roofs. A clear flight keeps its framing, while a lower camera still
 catching up during ascent retains clearance. Tree checks stay conservative
 because their collision height is not a measured canopy bound.
+Real collision sweeps also exercise a backward rebound through the camera's
+low-speed blend. The view keeps its pre-impact bearing through fall/recovery,
+then rejoins controlled travel along a bounded arc. Checks cover subject
+framing, reduced motion, reset during a fall and the next controlled turn.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone
