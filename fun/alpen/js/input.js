@@ -109,6 +109,48 @@ const triggerAmount = (button) => {
 
 export function createInput(target, hooks = {}) {
   const down = new Set();
+  // A native Space click arrives after keyup, when its command modifier may
+  // already have been released. Remember only activation-key provenance;
+  // this never owns a riding command or cancels a browser key default.
+  const shortcutActivations = new Map();
+  let shortcutClickTarget = null;
+  let shortcutClickTimer = 0;
+  function clearShortcutClick() {
+    if (shortcutClickTimer) window.clearTimeout(shortcutClickTimer);
+    shortcutClickTimer = 0;
+    shortcutClickTarget = null;
+  }
+  function clearShortcutActivations() {
+    shortcutActivations.clear();
+    clearShortcutClick();
+  }
+  function trackActivation(e) {
+    if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    clearShortcutClick();
+    if (e.type === 'keydown') {
+      // A repeat after releasing Ctrl/Alt/Meta still belongs to the original
+      // shortcut. Only a fresh press can give the key back to the game.
+      if (!e.repeat) {
+        if (e.altKey || e.ctrlKey || e.metaKey) shortcutActivations.set(e.code, e.target);
+        else shortcutActivations.delete(e.code);
+      }
+      shortcutClickTarget = shortcutActivations.get(e.code) || null;
+    } else {
+      shortcutClickTarget = shortcutActivations.get(e.code) || null;
+      shortcutActivations.delete(e.code);
+      // Native activation follows the keyup dispatch in this task. A task
+      // boundary also clears shortcuts that produced no click at all.
+      if (shortcutClickTarget) shortcutClickTimer = window.setTimeout(clearShortcutClick, 0);
+    }
+  }
+  function isShortcutClick(e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return true;
+    // Controller .click() and accessibility activations have no rejected
+    // native key gesture. Do not consume them while a shortcut key is held.
+    if (e.detail !== 0 || !e.isTrusted || e.target !== shortcutClickTarget) return false;
+    clearShortcutClick();
+    return true;
+  }
   let jumpStepSeen = false;
   const touchButtons = [];
   const touchListeners = [];
@@ -169,6 +211,12 @@ export function createInput(target, hooks = {}) {
   const CODES = new Set(Object.values(BINDINGS).flat());
 
   function onKey(e, isDown) {
+    // Browser/OS chords never acquire game controls or consume their default
+    // action. Shift is still available while riding. A key we already own
+    // must release even if a command modifier was pressed in the meantime.
+    if (isDown && (e.altKey || e.ctrlKey || e.metaKey
+      || (e.repeat && shortcutActivations.has(e.code)))) return;
+    if (!isDown && !down.has(e.code)) return;
     const bound = CODES.has(e.code);
     const jumpKey = BINDINGS.jump.includes(e.code);
     const wasJumpHeld = jumpKey && jumpHeld();
@@ -184,8 +232,7 @@ export function createInput(target, hooks = {}) {
     if (isDown && e.repeat) return;
 
     const actionable = bound || MENU_CODES.has(e.code) || e.key?.length === 1;
-    if (isDown && actionable && !e.altKey && !e.ctrlKey && !e.metaKey
-      && (!bound || !down.has(e.code))) setDevice('keyboard');
+    if (isDown && actionable && (!bound || !down.has(e.code))) setDevice('keyboard');
 
     if (bound) {
       if (isDown) {
@@ -206,6 +253,9 @@ export function createInput(target, hooks = {}) {
   const blur = () => clear();
   const rotate = () => calm();
 
+  target.addEventListener('keydown', trackActivation, true);
+  target.addEventListener('keyup', trackActivation, true);
+  target.addEventListener('pointerdown', clearShortcutActivations, true);
   target.addEventListener('keydown', keydown);
   target.addEventListener('keyup', keyup);
   window.addEventListener('blur', blur);
@@ -559,7 +609,7 @@ export function createInput(target, hooks = {}) {
       // click without a pointer sequence. Give those activations a short,
       // fixed pulse so every native button remains a working game control.
       listen('click', (e) => {
-        if (e.detail !== 0) return;
+        if (e.detail !== 0 || isShortcutClick(e)) return;
         setDevice('touch');
         button.keyboardHeld = true;
         sync(e);
@@ -577,6 +627,9 @@ export function createInput(target, hooks = {}) {
     clear();
     for (const remove of touchListeners) remove();
     touchListeners.length = touchButtons.length = 0;
+    target.removeEventListener('keydown', trackActivation, true);
+    target.removeEventListener('keyup', trackActivation, true);
+    target.removeEventListener('pointerdown', clearShortcutActivations, true);
     target.removeEventListener('keydown', keydown);
     target.removeEventListener('keyup', keyup);
     window.removeEventListener('blur', blur);
@@ -617,6 +670,7 @@ export function createInput(target, hooks = {}) {
      trusted: losing focus is exactly the case where the keyup goes to somebody
      else and never arrives here. */
   function clear() {
+    clearShortcutActivations();
     // Clear every physical source before issuing one cancellation, including
     // a release that arrived between physics steps.
     clearTouch(false);
@@ -693,5 +747,5 @@ export function createInput(target, hooks = {}) {
     try { nav.vibrate(ms); } catch { /* blocked by policy or an embedding frame */ }
   }
 
-  return { state, update, stepped, bindTouch, dispose, clear, calm, rumble, setDevice };
+  return { state, update, stepped, bindTouch, dispose, clear, calm, rumble, setDevice, isShortcutClick };
 }

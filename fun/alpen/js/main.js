@@ -724,6 +724,8 @@ function toggleFullscreen() {
 }
 
 function onKey(e) {
+  // Browser/OS shortcuts must not trigger even the game's own shortcuts.
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.code === 'Escape') {
     if (game.mode === 'playing') pause();
     else begin();
@@ -754,10 +756,8 @@ function onKey(e) {
     restartRun();
     return;
   }
-  /* Only a key that reads as "go" starts or resumes the run. A modifier, a
-     shortcut or a system key — Alt+Tab, Cmd+L, F12, a volume key — used to
-     resume a paused run on its way to somewhere else. */
-  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  /* Only a key that reads as "go" starts or resumes the run. Unmodified
+     system keys such as F12 or a volume key leave the current mode alone. */
   const key = e.key || '';
   if (key.length !== 1 && key !== 'Enter' && !key.startsWith('Arrow')) return;
   if (game.mode !== 'playing') begin();
@@ -833,6 +833,12 @@ curtain.addEventListener('click', (e) => {
   curtainPointers.delete(e.pointerId);
   curtainClickReady = false;
   curtainClickDevice = null;
+  // Ignore shortcut activations without cancelling a link's native default.
+  // Immediate propagation also covers a click targeted at the curtain itself.
+  if (input.isShortcutClick(e)) {
+    e.stopImmediatePropagation();
+    return;
+  }
   if (e.detail !== 0 && !startedHere) {
     e.preventDefault();
     e.stopPropagation();
@@ -850,11 +856,13 @@ curtain.querySelector('.restart-run')?.addEventListener('click', (e) => {
   restartRun();
 });
 touchPause?.addEventListener('click', (e) => {
+  if (input.isShortcutClick(e)) return;
   e.preventDefault();
   input.setDevice('touch');
   pause();
 });
 touchMute?.addEventListener('click', (e) => {
+  if (input.isShortcutClick(e)) return;
   e.preventDefault();
   input.setDevice('touch');
   showMuted(audio.toggleMute());

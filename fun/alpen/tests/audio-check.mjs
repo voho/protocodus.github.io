@@ -17,26 +17,63 @@ globalThis.localStorage = {
   getItem: key => saved.get(key) ?? null,
   setItem: (key, value) => saved.set(key, value),
 };
-globalThis.setTimeout = callback => { timers.set(++nextTimer, callback); return nextTimer; };
+globalThis.setTimeout = (callback, delay) => {
+  callback.delay = delay; timers.set(++nextTimer, callback); return nextTimer;
+};
 globalThis.clearTimeout = id => timers.delete(id);
 globalThis.requestAnimationFrame = () => {};
 
 class Param {
   value = 0;
   events = [];
+  automation = [];
   setTargetAtTime(value, time, response) {
     assert.ok(Number.isFinite(value) && Number.isFinite(time) && response > 0);
     this.value = value;
     this.events.push({ value, time, response });
   }
-  setValueAtTime(value) { this.value = value; }
-  exponentialRampToValueAtTime(value) { this.value = value; }
-  linearRampToValueAtTime(value) { this.value = value; }
+  record(kind, value, time) {
+    this.value = value;
+    this.events.push({ kind, value, time }); this.automation.push({ kind, value, time });
+  }
+  setValueAtTime(value, time) { this.record('set', value, time); }
+  exponentialRampToValueAtTime(value, time) { this.record('exponential', value, time); }
+  linearRampToValueAtTime(value, time) { this.record('linear', value, time); }
+  at(time) {
+    let previous = { time: 0, value: 0 };
+    for (const event of this.automation) {
+      if (time < event.time) {
+        const t = (time - previous.time) / (event.time - previous.time);
+        if (event.kind === 'linear') return previous.value + (event.value - previous.value) * t;
+        if (event.kind === 'exponential') return previous.value * (event.value / previous.value) ** t;
+        return previous.value;
+      }
+      previous = event;
+    }
+    return previous.value;
+  }
+  cancelScheduledValues(time) {
+    this.events.push({ kind: 'cancel', time });
+    this.automation = this.automation.filter(event => event.time < time);
+  }
+  cancelAndHoldAtTime(time) {
+    const value = this.at(time);
+    this.cancelScheduledValues(time); this.record('hold', value, time);
+  }
 }
 
 class Node {
   connections = [];
   connect(node) { this.connections.push(node); return node; }
+  disconnect() { this.connections.length = 0; }
+}
+class Source extends Node {
+  starts = [];
+  stops = [];
+  ended = false;
+  start(time = 0) { this.starts.push(time); }
+  stop(time = 0) { this.stops.push(time); }
+  finish() { this.ended = true; this.onended?.(); }
 }
 
 class TestContext {
@@ -63,7 +100,7 @@ class TestContext {
     return { getChannelData: channel => data[channel] };
   }
   createBufferSource() {
-    const node = Object.assign(new Node(), { playbackRate: new Param(), start() {}, stop() {} });
+    const node = Object.assign(new Source(), { playbackRate: new Param() });
     this.sources.push(node); return node;
   }
   createBiquadFilter() {
@@ -75,7 +112,7 @@ class TestContext {
     this.panners.push(node); return node;
   }
   createOscillator() {
-    const node = Object.assign(new Node(), { frequency: new Param(), start() {}, stop() {} });
+    const node = Object.assign(new Source(), { frequency: new Param() });
     this.oscillators.push(node); return node;
   }
   async suspend() { this.state = 'suspended'; }
@@ -258,4 +295,122 @@ for (const panner of [undefined, () => { throw new Error('unsupported'); }]) {
   assert.equal(context.sources.length, 6, 'mono body contact adds no extra voice');
 }
 
-console.log('Audio checks passed: directional grounded edges, bounded flow timbre, real fall/bounce/slide/recovery, immediate board/body contact transitions, stationary silence, six-voice budget, mono fallback, mute and pause/resume.');
+const shots = ctx => [...ctx.oscillators, ...ctx.sources.slice(6)];
+const envelope = source => {
+  let node = source.connections[0];
+  while (!node.gain) node = node.connections[0];
+  return node;
+};
+const fresh = (fallback = false) => {
+  timers.clear();
+  window.AudioContext = class extends TestContext {
+    createGain() {
+      const node = super.createGain();
+      if (fallback) node.gain.cancelAndHoldAtTime = undefined;
+      return node;
+    }
+  };
+  const audio = createAudio(); audio.start();
+  return { audio, ctx: context };
+};
+
+// Observe production source schedules and independent AudioParam timelines,
+// including attack, decay, delayed tones and both burst routing branches.
+for (const fallback of [false, true]) for (const pauseAt of [.005, .05]) {
+  const { audio, ctx } = fresh(fallback);
+  audio.cocoa(); audio.speedClub(); audio.whoosh(.5);
+  const old = shots(ctx).map(source => ({ source, gain: envelope(source),
+    level: envelope(source).gain.at(pauseAt), stop: source.stops.at(-1) }));
+  ctx.currentTime = pauseAt; audio.quiet();
+  let active = 0, delayed = 0;
+  for (const { source, gain, level, stop } of old) {
+    const retiredAt = source.stops.at(-1);
+    assert(retiredAt < stop, 'pause brings an already scheduled one-shot stop forward');
+    if (source.starts[0] > pauseAt) {
+      delayed++;
+      assert.equal(retiredAt, pauseAt, 'future notes stop before they can start');
+      assert.equal(gain.gain.at(pauseAt), 0, 'future envelope automation is silenced');
+    } else {
+      active++;
+      assert(retiredAt > pauseAt && retiredAt <= pauseAt + .03, 'active cues get a short bounded fade');
+      assert(Math.abs(gain.gain.at(pauseAt) - level) < 1e-12, 'retirement holds the real attack/decay level');
+      assert(gain.gain.at((pauseAt + retiredAt) / 2) > 0, 'an active cue fades instead of cutting abruptly');
+      assert.equal(gain.gain.at(retiredAt), 0, 'the envelope reaches silence at source retirement');
+    }
+  }
+  assert(active > 0 && delayed > 0);
+  assert(ctx.sources.slice(0, 6).every(source => source.stops.length === 0), 'the six continuous loops survive pause');
+  assert.equal(ctx.sources.length, 8, 'only the two requested noise bursts were allocated');
+  assert.equal(timers.size, 1); assert.equal([...timers.values()][0].delay, 350, 'parking still waits for the loop fade');
+  // The old cue must retire before the 350 ms park, independently of how
+  // long wall time then passes while the native audio clock stays frozen.
+  ctx.currentTime = pauseAt + .35;
+  for (const { source, gain } of old) {
+    assert(source.stops.at(-1) <= ctx.currentTime);
+    source.finish();
+    assert.equal(source.connections.length, 0); assert.equal(gain.connections.length, 0);
+    assert.equal(source.onended, null, 'ended sources release their cleanup closure');
+  }
+  for (const callback of timers.values()) callback();
+  await Promise.resolve(); assert.equal(ctx.state, 'suspended');
+  const frozen = ctx.currentTime; clock += 10000;
+  audio.start(); assert.equal(ctx.state, 'running'); assert.equal(ctx.currentTime, frozen);
+  const stopCounts = old.map(({ source }) => source.stops.length);
+  audio.quiet();
+  assert.deepEqual(old.map(({ source }) => source.stops.length), stopCounts, 'ended shots are absent from later retirement');
+}
+
+// Resume during the old fade: no old envelope can be resurrected, while a
+// newly requested cue retains its ordinary lifetime and can end naturally.
+{
+  const { audio, ctx } = fresh(); audio.cocoa();
+  ctx.currentTime = .05; audio.quiet();
+  const old = shots(ctx).map(source => ({ source, stop: source.stops.at(-1), writes: envelope(source).gain.events.length }));
+  ctx.currentTime = .055; audio.start(); audio.perfectPop();
+  assert.equal(timers.size, 0, 'rapid resume cancels the pending park');
+  for (const { source, stop, writes } of old) {
+    assert.equal(source.stops.at(-1), stop); assert.equal(envelope(source).gain.events.length, writes);
+  }
+  const current = shots(ctx).slice(old.length);
+  assert.equal(current.length, 2);
+  assert(current.every(source => source.stops.length === 1 && source.stops[0] > .15), 'fresh cues receive their full new envelopes');
+  ctx.currentTime = .4;
+  for (const source of current) source.finish();
+  audio.quiet();
+  assert(current.every(source => source.stops.length === 1), 'natural onended cleanup removes shots from pause tracking');
+  assert(old.every(({ source }) => source.stops.length === 2), 'another pause cannot extend already retired fades');
+}
+
+// A suspended/interrupted clock cannot play a fade now. Saving one for the
+// next resume would retain precisely the stale tail that pause must discard.
+for (const state of ['suspended', 'interrupted']) {
+  const { audio, ctx } = fresh(); audio.cocoa(); audio.whoosh(-.5);
+  ctx.currentTime = .05; ctx.state = state;
+  const old = shots(ctx).map(source => ({ source, gain: envelope(source) }));
+  audio.quiet(); audio.start();
+  for (const { source, gain } of old) {
+    assert.equal(source.stops.at(-1), .05, state + ': no old source survives into resume');
+    assert.equal(gain.gain.at(.05), 0, state + ': the frozen envelope has no saved fade');
+  }
+  assert(ctx.sources.slice(0, 6).every(source => source.stops.length === 0));
+}
+
+// A browser interruption can freeze an already retiring source mid-fade.
+// A second quiet must still find it and discard that remaining fragment.
+for (const quietAgain of [false, true]) {
+  const { audio, ctx } = fresh(); audio.chime(1);
+  ctx.currentTime = .1; audio.quiet();
+  const old = shots(ctx).map(source => ({ source, gain: envelope(source) }));
+  assert(old.every(({ source }) => source.stops.at(-1) > .11), 'the first fade is still in progress');
+  ctx.currentTime = .105; audio.quiet();
+  assert(old.every(({ source }) => source.stops.at(-1) <= .125), 'repeated running quiet never extends a fade');
+  ctx.currentTime = .11; ctx.state = 'interrupted';
+  if (quietAgain) audio.quiet();
+  audio.start();
+  for (const { source, gain } of old) {
+    assert.equal(source.stops.at(-1), .11, 'a frozen retiring source stops before resume');
+    assert.equal(gain.gain.at(.11), 0, 'no remainder of the first fade survives');
+  }
+}
+
+console.log('Audio checks passed: riding mix, body contact, six-voice budget, mute, pause/resume and active/delayed one-shot retirement.');
