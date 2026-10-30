@@ -363,15 +363,19 @@ const world = {
     blockedSpanActive = true;
   },
   endBlockedSpan: () => { blockedSpanActive = false; },
-  blocked: (x, z, r) => (blockedSpanActive
-    ? blockedIn(blockedSpan, x, z, r)
-    : blockedIn(props.solids, x, z, r) || blockedIn(huts.solids, x, z, r)),
+  blocked: (x, z, r, bottomY) => (blockedSpanActive
+    ? blockedIn(blockedSpan, x, z, r, bottomY)
+    : blockedIn(props.solids, x, z, r, bottomY) || blockedIn(huts.solids, x, z, r, bottomY)),
 };
 
-function blockedIn(solids, x, z, r) {
+function blockedIn(solids, x, z, r, bottomY) {
   for (let i = 0; i < solids.length; i++) {
     const s = solids[i];
     if (s.kind !== HARD) continue;
+    // Bounded rocks and huts can sit below the entire view. Trees have no
+    // cameraPad and their top: 99 is a collision sentinel, not a canopy height.
+    if (s.cameraPad !== undefined && Number.isFinite(bottomY)
+      && Number.isFinite(s.top) && bottomY > s.top) continue;
     const dz = s.z - z;
     // The caller's large radius describes a tree crown. A boulder's own
     // camera pad is much smaller, otherwise a two-metre rock yanks the boom
