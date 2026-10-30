@@ -1,10 +1,10 @@
 // Run from fun/alpen with ALPEN_PLAYWRIGHT, ALPEN_URL and optional ALPEN_SOFTWARE_GPU=1.
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const { chromium } = await import(process.env.ALPEN_PLAYWRIGHT || 'playwright');
 const url = new URL(process.env.ALPEN_URL || 'http://127.0.0.1:8773/fun/alpen/');
-url.searchParams.set('seed', 'alpen01');
+url.searchParams.set('seed', '1EE9566');
 const software = process.env.ALPEN_SOFTWARE_GPU === '1';
 if (software && !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
   throw new Error('Software WebGL QA requires a loopback ALPEN_URL.');
@@ -16,6 +16,7 @@ const browser = await chromium.launch({
   args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [],
 });
 const results = [], errors = [];
+const compare = process.env.ALPEN_QA_PROFILE === 'detail';
 const frames = (page, count) => page.evaluate(count => new Promise(resolve => {
   let left = count;
   const tick = () => { if (--left <= 0) resolve(); else requestAnimationFrame(tick); };
@@ -96,90 +97,153 @@ async function fixedWeather(page) {
     patch('    const s = state.storm;', '    state.storm = testStorm ?? state.storm;\n    const s = state.storm;');
     patch('    return state;', '    if (testStorm !== undefined) state.flash = 0;\n    return state;');
     patch('return { state, update, pin, release, triggerStorm };',
-      'return { state, update, pin, release, triggerStorm, check(tod, storm) { testStorm = storm; frozen = tod; pinnedTod = tod; fogSettled = false; return update(0); } };');
+      'return { state, update, pin, release, triggerStorm, check(tod, storm) { weatherClock = 0; stormCalled = -1; state.cloudX = state.cloudZ = state.cirrusX = state.cirrusZ = 0; testStorm = storm; frozen = tod; pinnedTod = tod; fogSettled = false; return update(0); } };');
     await route.fulfill({ response, body });
   });
 }
-async function capture(page, label, z, tod, storm) {
-  await page.evaluate(async ({ z, tod, storm }) => {
-    const a = __alpen;
-    const { guideAt } = await import('./js/terrain.js');
-    a.game.mode = 'paused';
-    a.rider.step = () => {}; // Capture only: actual production visual updates keep running.
-    const x = guideAt(z);
-    a.rider.reset(z, x); a.chase.reset(); a.trail.clear(); a.spray.clear();
-    a.wildlife.reset(); a.huts.reset(); a.mountainLife.reset(z);
-    a.model.reset(); a.shading.reset(); a.props.reset(z, 1);
-    const w = a.weather.check(tod, storm);
-    a.sky.update(a.rider.pos, w, 0);
-    a.terrain.setSun(a.sky.sunDir.x, a.sky.sunDir.y, a.sky.sunDir.z, a.sky.shadowLevel);
-    a.terrain.reset(x, z); a.terrain.snapSnowReady(); a.sky.snapBackdrop();
-    a.retro.fade(1); a.flicker.freezeResolution = true; a.game.mode = 'attract';
-  }, { z, tod, storm });
-  // Settle the production visual update order without repeatedly rasterizing
-  // an unchanged scene on a software GPU. One real frame below repairs every
-  // cached GPU layer, including the rider's private depth shadow.
-  await page.evaluate(() => {
-    window.__alpenQARender = __alpen.renderer.render;
-    __alpen.renderer.render = () => {};
-  });
+async function capture(page, label, z, tod, storm, hit = null, view = null) {
   try {
-    await frames(page, 45);
-  } finally {
+    await page.evaluate(async ({ z, tod, storm, hit, view }) => {
+      const a = __alpen;
+      const { guideAt, heightAt } = await import('./js/terrain.js');
+      a.game.mode = 'paused';
+      a.rider.step = () => {}; // Capture only: actual production visual updates keep running.
+      const x = hit?.x ?? guideAt(z);
+      a.rider.reset(z, x); a.chase.reset(); a.trail.clear(); a.spray.clear();
+      a.wildlife.reset(); a.huts.reset(); a.mountainLife.reset(z);
+      a.model.reset(); a.shading.reset(); a.props.reset(z, 1);
+      const w = a.weather.check(tod, storm);
+      a.sky.update(a.rider.pos, w, 0);
+      a.terrain.setSun(a.sky.sunDir.x, a.sky.sunDir.y, a.sky.sunDir.z, a.sky.shadowLevel);
+      a.terrain.reset(x, z); a.terrain.snapSnowReady(); a.sky.snapBackdrop();
+      a.retro.fade(1); a.flicker.freezeResolution = true; a.game.mode = 'attract';
+      if (hit) {
+        window.__alpenQAChase = a.chase.update;
+        const y = heightAt(hit.x, hit.z);
+        a.chase.update = () => {
+          a.camera.position.set(hit.x - hit.side * (1.6 * hit.halfWidth + 5),
+            y + Math.max(7, hit.face * .5), hit.z + Math.max(10, hit.face * .8));
+          a.camera.up.set(0, 1, 0);
+          a.camera.lookAt(hit.x, y - .3, hit.z - hit.lee * .25);
+          a.camera.updateMatrixWorld();
+        };
+      }
+      if (view) {
+        window.__alpenQAChase = a.chase.update;
+        window.__alpenQAFov = a.camera.fov;
+        a.camera.fov = view.fov; a.camera.updateProjectionMatrix();
+        a.chase.update = () => {
+          a.camera.position.fromArray(view.eye); a.camera.up.set(0, 1, 0);
+          a.camera.lookAt(...view.target); a.camera.updateMatrixWorld();
+        };
+      }
+    }, { z, tod, storm, hit, view });
+    // Settle the production visual update order without repeatedly rasterizing
+    // an unchanged scene on a software GPU. One real frame below repairs every
+    // cached GPU layer, including the rider's private depth shadow.
     await page.evaluate(() => {
-      __alpen.renderer.render = window.__alpenQARender;
-      delete window.__alpenQARender;
-      __alpen.sky.refreshProbe();
-      __alpen.flicker.shadowEveryFrame = true;
-      __alpen.renderer.shadowMap.needsUpdate = true;
+      window.__alpenQARender = __alpen.renderer.render;
+      __alpen.renderer.render = () => {};
     });
-  }
-  await frames(page, 1);
-  await page.evaluate(() => { __alpen.game.mode = 'paused'; });
-  await frames(page, 2);
-  const visual = await page.evaluate(async () => {
-    const a = __alpen;
-    const { chapterNameAt } = await import('./js/terrain.js');
-    const finite = [...a.rider.pos.toArray(), ...a.rider.normal.toArray(),
-      ...a.camera.position.toArray(), ...a.camera.quaternion.toArray(), a.camera.fov,
-      ...a.sky.sunDir.toArray(), a.weather.state.tod, a.weather.state.storm].every(Number.isFinite);
-    a.sky.refreshProbe(); a.sky.renderProbe(a.renderer);
-    a.retro.render(a.scene, a.camera, true);
-    const small = document.createElement('canvas');
-    const factor = Math.min(512 / innerWidth, 320 / innerHeight);
-    small.width = Math.round(innerWidth * factor); small.height = Math.round(innerHeight * factor);
-    const context = small.getContext('2d');
-    context.drawImage(a.renderer.domElement, 0, 0, small.width, small.height);
-    const pixels = context.getImageData(0, 0, small.width, small.height).data;
-    let low = 255, high = 0;
-    for (let i = 0; i < pixels.length; i += 4) {
-      const luma = pixels[i] * .2126 + pixels[i + 1] * .7152 + pixels[i + 2] * .0722;
-      low = Math.min(low, luma); high = Math.max(high, luma);
+    try {
+      await frames(page, 45);
+    } finally {
+      await page.evaluate(() => {
+        __alpen.renderer.render = window.__alpenQARender;
+        delete window.__alpenQARender;
+        __alpen.sky.refreshProbe();
+        __alpen.flicker.shadowEveryFrame = true;
+        __alpen.renderer.shadowMap.needsUpdate = true;
+      });
     }
-    const debug = a.debug();
-    delete debug.performance; // Capture-only settling is not a timing benchmark.
-    return { finite, contrast: high - low, glError: a.renderer.getContext().getError(),
-      chapter: chapterNameAt(a.rider.pos.z), weather: a.weather.state.conditions,
-      phase: a.weather.state.phase, debug,
-      data_url: small.toDataURL('image/jpeg', .6) };
-  });
-  assert(visual.finite, label + ': scene values remain finite');
-  assert.equal(visual.glError, 0, label + ': no WebGL error');
-  assert(visual.contrast > 15, label + ': rendered image has real scene contrast');
-  await page.locator('#stage').screenshot({ path: output + '/' + label + '.png' });
-  if (process.env.ALPEN_QA_THUMBNAILS === '1') console.log('ALPEN_VISUAL ' + JSON.stringify({ label, chapter: visual.chapter, phase: visual.phase, data_url: visual.data_url }));
-  delete visual.data_url;
-  results.push({ label, ...visual });
+    await frames(page, 1);
+    await page.evaluate(() => { __alpen.game.mode = 'paused'; });
+    await frames(page, 2);
+    const visual = await page.evaluate(async (view) => {
+      const a = __alpen;
+      const { chapterNameAt } = await import('./js/terrain.js');
+      const finite = [...a.rider.pos.toArray(), ...a.rider.normal.toArray(),
+        ...a.camera.position.toArray(), ...a.camera.quaternion.toArray(), a.camera.fov,
+        ...a.sky.sunDir.toArray(), a.weather.state.tod, a.weather.state.storm].every(Number.isFinite);
+      a.renderer.info.reset();
+      a.sky.refreshProbe(); a.sky.renderProbe(a.renderer);
+      a.retro.render(a.scene, a.camera, true);
+      const small = document.createElement('canvas');
+      const factor = Math.min(512 / innerWidth, 320 / innerHeight);
+      small.width = Math.round(innerWidth * factor); small.height = Math.round(innerHeight * factor);
+      const context = small.getContext('2d');
+      context.drawImage(a.renderer.domElement, 0, 0, small.width, small.height);
+      const pixels = context.getImageData(0, 0, small.width, small.height).data;
+      let low = 255, high = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const luma = pixels[i] * .2126 + pixels[i + 1] * .7152 + pixels[i + 2] * .0722;
+        low = Math.min(low, luma); high = Math.max(high, luma);
+      }
+      const crops = [];
+      for (const rect of view?.crops || []) {
+        const crop = document.createElement('canvas');
+        crop.width = rect.width; crop.height = rect.height;
+        const ctx = crop.getContext('2d');
+        ctx.drawImage(a.renderer.domElement, rect.x * a.renderer.domElement.width / innerWidth,
+          rect.y * a.renderer.domElement.height / innerHeight,
+          rect.width * a.renderer.domElement.width / innerWidth,
+          rect.height * a.renderer.domElement.height / innerHeight, 0, 0, crop.width, crop.height);
+        crops.push({ name: rect.name, data_url: crop.toDataURL('image/jpeg', .85),
+          png: crop.toDataURL('image/png').split(',')[1] });
+      }
+      const model = a.sky.group.getObjectByName('backdrop');
+      let sectors = 0, fallback = 0, mapsReady = false;
+      a.sky.group.traverse(o => {
+        if (o.name === 'backdrop-range' && o.visible) {
+          sectors++; mapsReady = !!o.material.uniforms.uShape.value?.image && !!o.material.uniforms.uCover.value?.image;
+        }
+        if ((o.name === 'mid-distance massifs' || o.name === 'far-range') && o.visible) fallback++;
+      });
+      const backdrop = { sectors, fallback, mapsReady, visible: model?.visible };
+      const camera = { position: a.camera.position.toArray(), matrix: a.camera.matrixWorld.toArray(), fov: a.camera.fov };
+      const debug = a.debug();
+      delete debug.performance; // Capture-only settling is not a timing benchmark.
+      return { finite, contrast: high - low, glError: a.renderer.getContext().getError(),
+        chapter: chapterNameAt(a.rider.pos.z), weather: a.weather.state.conditions,
+        phase: a.weather.state.phase, backdrop, camera, crops, debug,
+        renderBudget: { calls: a.renderer.info.render.calls, triangles: a.renderer.info.render.triangles, geometries: a.renderer.info.memory.geometries, textures: a.renderer.info.memory.textures },
+        data_url: small.toDataURL('image/jpeg', .6) };
+    }, view);
+    assert(visual.finite, label + ': scene values remain finite');
+    assert.equal(visual.glError, 0, label + ': no WebGL error');
+    assert.equal(visual.backdrop.sectors, 24, label + ': real mountain sectors loaded');
+    assert(visual.backdrop.mapsReady && visual.backdrop.visible, label + ': real mountain maps visible');
+    assert.equal(visual.backdrop.fallback, 0, label + ': fallback ranges hidden');
+    assert(visual.contrast > 15, label + ': rendered image has real scene contrast');
+    await page.locator('#stage').screenshot({ path: output + '/' + label + '.png' });
+    if (process.env.ALPEN_QA_THUMBNAILS === '1') console.log('ALPEN_VISUAL ' + JSON.stringify({ label, chapter: visual.chapter, phase: visual.phase, data_url: visual.data_url }));
+    for (const crop of visual.crops) {
+      await writeFile(output + '/' + label + '-' + crop.name + '.png', Buffer.from(crop.png, 'base64'));
+      if (process.env.ALPEN_QA_THUMBNAILS === '1') console.log('ALPEN_VISUAL ' + JSON.stringify({ label: label + '-' + crop.name, chapter: visual.chapter, phase: visual.phase, data_url: crop.data_url }));
+    }
+    delete visual.crops;
+    delete visual.data_url;
+    results.push({ label, ...(hit ? { sideHit: hit } : {}), ...visual });
+  } finally {
+    if (hit || view) await page.evaluate(() => {
+      if (window.__alpenQAChase) __alpen.chase.update = window.__alpenQAChase;
+      delete window.__alpenQAChase;
+      if (window.__alpenQAFov !== undefined) { __alpen.camera.fov = window.__alpenQAFov; __alpen.camera.updateProjectionMatrix(); delete window.__alpenQAFov; }
+    }).catch(() => {});
+  }
 }
 try {
-  const profiles = [
+  const profiles = compare ? [
+    { name: 'before', baseline: true, viewport: { width: 1100, height: 700 }, deviceScaleFactor: 1 },
+    { name: 'after', baseline: false, viewport: { width: 1100, height: 700 }, deviceScaleFactor: 1 },
+  ] : [
     { name: 'desktop', viewport: { width: 1100, height: 700 }, deviceScaleFactor: 1 },
     { name: 'portrait', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
     { name: 'landscape', viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   ].filter(profile => !process.env.ALPEN_QA_PROFILE || profile.name === process.env.ALPEN_QA_PROFILE);
   assert(profiles.length, 'valid ALPEN_QA_PROFILE');
   for (const profile of profiles) {
-    const { name, ...options } = profile;
+    const { name, baseline, ...options } = profile;
     const page = await browser.newPage(options);
     page.setDefaultTimeout(180000);
     let engineRequests = 0;
@@ -189,10 +253,35 @@ try {
     try {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await fixedWeather(page);
+      if (compare) {
+        await page.route(/\/fun\/alpen\/js\/(config|terrain|backdrop)\.js$/, async route => {
+          const file = new URL(route.request().url()).pathname.split('/').pop();
+          let body = baseline ? await readFile(process.env.ALPEN_DETAIL_BASE + '/' + file, 'utf8') : await (await route.fetch()).text();
+          if (file === 'config.js') {
+            assert.equal(body.split('minScale: 0.55').length, 2, 'fixed art quality anchor');
+            body = body.replace('minScale: 0.55', 'minScale: 1.0');
+          }
+          await route.fulfill({ status: 200, contentType: 'text/javascript', body });
+        });
+        await page.route('**/fun/alpen/js/sky.js', async route => {
+          const response = await route.fetch(); let body = await response.text();
+          assert.equal(body.split('    time += dt;').length, 2, 'sky clock anchor');
+          body = body.replace('    time += dt;', '    time = 0;');
+          for (const axis of ['x', 'y']) {
+            const from = axis === 'x'
+              ? '    mistDrift.x = (mistDrift.x - w.windX * MIST.drift * mistCell.x * dt) % 1;'
+              : '    mistDrift.y = (mistDrift.y - w.windZ * MIST.drift * mistCell.y * dt) % 1;';
+            assert.equal(body.split(from).length, 2, 'mist clock anchor ' + axis);
+            body = body.replace(from, '    mistDrift.' + axis + ' = 0;');
+          }
+          await route.fulfill({ response, body });
+        });
+      }
       const started = Date.now();
       await page.goto(url.href);
       await page.waitForFunction(() => window.__alpen && document.body.classList.contains('ready'));
-      await page.evaluate(async () => { await Promise.all([__alpen.terrain.surfacesReady, __alpen.sky.backdropReady]); });
+      const backdropReady = await page.evaluate(async () => { await __alpen.terrain.surfacesReady; return await __alpen.sky.backdropReady; });
+      assert.equal(backdropReady, true, 'the real backdrop asset and maps load');
       const bootMs = Date.now() - started;
       assert.equal(await page.locator('link[rel="modulepreload"][href="/assets/vendor/three/three.module.min.js"]').count(), 1, 'the engine preload hint is present');
       assert.equal(engineRequests, 1, 'the engine preload is reused by the module graph');
@@ -205,6 +294,34 @@ try {
       assert(arrowSize && arrowSize.width > 0 && arrowSize.height > 0, 'the title arrow has visible geometry');
       await checkMotionPreference(page);
       await checkGrabAdvice(page);
+      if (compare) {
+        await page.addStyleTag({ content: '.hud,.curtain,.pad{visibility:hidden!important}' });
+        const views = [
+          { name: 'left-hill', z: -4000, eye: [52.07279175266581, -1311.6511189713717, -3988],
+            target: [-273.44932540594704, -1226.8189892047455, -4140], fov: 50,
+            crops: [{ name: 'face', x: 300, y: 130, width: 500, height: 320 }] },
+          { name: 'right-hill', z: -4000, eye: [52.07279175266581, -1311.6511189713717, -3988],
+            target: [246.55067459405296, -1270.6815900709014, -4140], fov: 50,
+            crops: [{ name: 'face', x: 300, y: 130, width: 500, height: 320 }] },
+          { name: 'far-range', z: -600, eye: [-47.435249363342265, -207.46813160112265, -588],
+            target: [57.2366631225454, -137.6265926176272, -2585.2590695091477], fov: 35,
+            crops: [{ name: 'horn', x: 0, y: 120, width: 400, height: 320 },
+              { name: 'massif', x: 700, y: 120, width: 400, height: 320 }] },
+        ];
+        for (const view of views) await capture(page, name + '-' + view.name, view.z, .48, 0, null, view);
+        if (!baseline) {
+          const view = views.find(v => v.name === 'far-range');
+          const modelDetail = await page.evaluate(async view =>
+            (await import('./tests/backdrop-crags-browser-check.mjs')).inspectBackdropModel(__alpen, view), view);
+          results.push({ modelDetail });
+          console.log('ALPEN_MODEL_DETAIL ' + JSON.stringify(modelDetail));
+          assert(modelDetail.every(r => r.pixels > 1000 && r.changedFraction > .1 && r.largest >= 3),
+            'actual horn and massif faces show final-color detail');
+        }
+        assert.deepEqual(errors, [], 'paired art captures remain error-free');
+        console.log('Alpen paired detail captures passed: ' + name);
+        continue;
+      }
       await page.locator('.drop-in').click();
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
       await page.keyboard.down('KeyD');
@@ -231,6 +348,34 @@ try {
       }
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => __alpen.game.mode === 'paused');
+      if (profile.name === 'desktop') {
+        const pausedFrames = await page.evaluate(async () => {
+          const a = __alpen, original = a.renderer.render;
+          let submissions = 0, worlds = 0;
+          a.renderer.render = function(scene, camera) {
+            submissions++; if (scene === a.scene) worlds++;
+            return original.call(this, scene, camera);
+          };
+          a.retro.crash(.6);
+          const samples = [];
+          try {
+            for (let frame = 0; frame < 5; frame++) {
+              submissions = 0; worlds = 0;
+              await new Promise(resolve => requestAnimationFrame(resolve));
+              samples.push({ submissions, worlds });
+            }
+          } finally {
+            a.renderer.render = original;
+            a.retro.updateEffects(5, false);
+            a.retro.updateEffects(5, false);
+          }
+          return samples;
+        });
+        assert(pausedFrames.slice(1).every(frame => frame.submissions === 1 && frame.worlds === 0),
+          'continued paused fades draw only the final composite');
+        results.push({ pausedFrames });
+        console.log('Alpen paused frame submissions: ' + JSON.stringify(pausedFrames));
+      }
       await page.locator('.drop-in').click();
       await page.waitForFunction(() => __alpen.game.mode === 'playing');
       if (profile.name === 'desktop') {
@@ -272,12 +417,24 @@ try {
       await capture(page, profile.name + '-clear', locations[0].z, .48, 0);
       if (profile.name === 'desktop') {
         for (let index = 1; index < locations.length; index++) await capture(page, 'chapter-' + index, locations[index].z, .48, 0);
+        const bulges = await page.evaluate(async () => {
+          const { sideHitsIn } = await import('./js/terrain.js');
+          const hits = sideHitsIn(-8000, -100);
+          return ['roller', 'drift', 'windlip'].map(shape => hits.find(hit => hit.shape === shape)).filter(Boolean);
+        });
+        assert.equal(bulges.length, 3, 'the preview seed exposes three distinct bulge shapes');
+        for (const hit of bulges) await capture(page, 'bulge-' + hit.shape,
+          hit.z + hit.face + 3, .48, 0, hit);
         await capture(page, 'dusk', locations[0].z, .79, 0);
         await capture(page, 'blizzard', locations[0].z, .48, 1);
         const checks = await page.evaluate(async () => ({
           depth: await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck(),
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
           audio: await (await import('./tests/audio-browser-check.mjs')).runAudioCheck(),
+          paused: await (await import('./tests/paused-composite-browser-check.mjs')).runPausedCompositeCheck(),
+          crags: await (await import('./tests/backdrop-crags-browser-check.mjs')).runBackdropCragCheck(),
+          backdropDetail: await (await import('./tests/backdrop-detail-browser-check.mjs')).runBackdropDetailCheck(),
+          backdropFiltering: await (await import('./tests/backdrop-performance-browser-check.mjs')).runBackdropPerformanceCheck(),
         }));
         results.push({ gpuChecks: checks });
         console.log('Alpen GPU checks: ' + JSON.stringify(checks));

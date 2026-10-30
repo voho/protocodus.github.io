@@ -310,12 +310,47 @@ const BACKDROP_FRAG = `
     }
     float grain = dot(strata, vec3(0.2126, 0.7152, 0.0722));
 
+    /* Broad ribs and snow-filled gullies outlive the granite grain.
+       Ribs span about 225 m across and 1.1 km vertically; pixel filtering
+       fades them before they become unresolved shimmer. */
+    vec2 faceScale = vec2(1800.0, 9000.0);
+    vec2 faceXY = vReal.xy / faceScale;
+    vec2 faceZY = vReal.zy / faceScale + vec2(0.37, 0.61);
+    vec2 faceXYdx = dFdx(faceXY), faceXYdy = dFdy(faceXY);
+    vec2 faceZYdx = dFdx(faceZY), faceZYdy = dFdy(faceZY);
+    vec2 faceSeen = vec2(
+      smoothstep(2.0, 7.0, 0.125 / max(max(length(faceXYdx), length(faceXYdy)), 1e-6)),
+      smoothstep(2.0, 7.0, 0.125 / max(max(length(faceZYdx), length(faceZYdy)), 1e-6)));
+    vec2 faceWeight = abs(n.zx);
+    faceWeight /= max(faceWeight.x + faceWeight.y, 1e-5);
+    float faceMask = smoothstep(0.001, 0.03, 1.0 - n.y)
+      * (1.0 - smoothstep(0.12, 0.58, cover.g))
+      * (1.0 - smoothstep(30000.0, 45000.0, vDist))
+      * (1.0 - clamp(uWhiteout, 0.0, 1.0));
+    float snowPocket = 0.0;
+    float gullyShade = 0.0;
+    if (faceMask * dot(faceSeen, faceWeight) > 0.0) {
+      vec3 faceA = textureGrad(uNoise, faceXY, faceXYdx, faceXYdy).rgb;
+      vec3 faceB = textureGrad(uNoise, faceZY, faceZYdx, faceZYdy).rgb;
+      vec3 face = vec3(0.5)
+        + (faceA - 0.5) * faceWeight.x * faceSeen.x
+        + (faceB - 0.5) * faceWeight.y * faceSeen.y;
+      vec2 across = vec2(n.z, -n.x) / max(length(n.xz), 1e-5);
+      vec2 outward = n.xz / max(length(n.xz), 1e-5);
+      n.xz += (across * (face.g - 0.5) * 0.80
+        + outward * (face.b - 0.5) * 0.75) * faceMask;
+      snowPocket = (smoothstep(0.32, 0.68, face.b) - 0.5) * 0.26 * faceMask;
+      cavity *= 1.0 + (face.b - 0.5) * 0.24 * faceMask;
+      gullyShade = 0.35 * faceMask * (1.0 - smoothstep(0.34, 0.48, face.g));
+    }
+
+
     /* The cover's edges are cut by those fields at their own scale, not by
        the map's texels: magnified on the near ground a texel of the map is
        ten metres, and a hard threshold on it drew the snow line as a
        staircase. */
     float wob = (fast.r - 0.5) * 0.32 + (fine - 0.5) * 0.36;
-    float snow = smoothstep(0.18, 0.82, cover.r + wob);
+    float snow = smoothstep(0.18, 0.82, cover.r + wob + snowPocket);
     float forest = smoothstep(0.18, 0.82, cover.g - wob);
     float ice = smoothstep(0.25, 0.75, cover.b + wob * 0.5);
     float total = snow + forest + ice;
@@ -361,6 +396,7 @@ const BACKDROP_FRAG = `
     float open = clamp(vAO * (0.55 + 0.9 * cavity), 0.0, 1.0);
     vec3 fill = mix(uGroundFill * 0.55, uSkyFill, 0.5 + 0.5 * n.y) * (0.52 + 0.4 * open)
       * vec3(0.78, 0.90, 1.14);
+    fill *= 1.0 - gullyShade;
     vec3 c = albedo * (fill + uKeyLight * direct * 1.1) * 0.3183099;
     // the alpenglow is light arriving on snow, and it is added
     c += uAlpenglow * direct * (snow + ice);

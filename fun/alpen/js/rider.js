@@ -1660,11 +1660,10 @@ export class Rider {
 
        The clearance above is read *before* the pop is resolved, which is
        what makes the timing bonus possible: it says how close the ground
-       already is to letting go. A pop released while the hill is on the edge
-       of launching — the lip of a kicker, the crest of a roller, the top of
-       a wall — is worth half again as much as the same pop released halfway
-       up the ramp. It is the one piece of timing the sport actually asks of
-       you, and the old jump had no opinion about it at all. */
+       already is to letting go. A release timed to the lip adds a small
+       premium to the legs' impulse. The underlying tangent velocity stays
+       intact: steeper takeoff angles and greater approach speed supply the
+       height, with a modest extra push from the rider. */
     let pop = 0;
     this.lipPop = false;
     if (!input.jump && (this.charging || this._jumpBuffer > 0)) {

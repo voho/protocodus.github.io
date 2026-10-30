@@ -132,7 +132,6 @@ function ride(seed, seconds, tricks) {
   const control = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
   let turn = 0;
   let clock = 0;
-  let spin = 0;
   const prevZ = { z: 0, x: 0 };
   for (let t = 0; t < seconds; t += dt) {
     // Steer for the racing line a little way ahead, as the attract rider does.
@@ -145,12 +144,13 @@ function ride(seed, seconds, tricks) {
     if (tricks) {
       clock += dt;
       if (rider.grounded) {
-        // Load for the full charge every four seconds, then let go.
-        if (clock > 4) control.jump = clock < 4 + RIDER.chargeTime;
-        if (clock > 4 + RIDER.chargeTime) { clock = 0; spin = 0.5; }
+        // Shorter ollies allow a slightly quicker cadence.
+        if (clock > 3.5) control.jump = clock < 3.5 + RIDER.chargeTime;
+        if (clock > 3.5 + RIDER.chargeTime) clock = 0;
       } else if (rider.airTime > 0.05) {
-        control.turn = spin > 0 && rider.airTime < 0.55 ? 1 : 0;
-        control.trickGrab = rider.airTime > 0.12 && rider.airTime < 0.6;
+        // Reserve rotation for enough airtime and release the grab to land.
+        control.turn = rider.airTime + rider.touchdownIn > 0.75 && rider.airTime < 0.55 ? 1 : 0;
+        control.trickGrab = rider.airTime > 0.08 && rider.touchdownIn > 0.17;
       }
     }
     prevZ.z = rider.pos.z;
@@ -233,7 +233,13 @@ for (const seed of seeds) {
       const line = guideAt(z);
       for (let d = -TERRAIN.guide.tol; d <= TERRAIN.guide.tol; d += 2) rows.push(heightAt(line + d, z));
     }
-    return { crest: heightAt(h.x, h.z), foot: heightAt(h.x, h.z + h.face + 0.5), rows };
+    const crown = [];
+    for (let step = 0; step <= 80; step++) {
+      const past = h.lee * step / 80;
+      const x = h.x + h.sweep * h.halfWidth * past / (h.face + h.lee);
+      crown.push(heightAt(x, h.z - past));
+    }
+    return { crown, foot: heightAt(h.x, h.z + h.face + 0.5), rows };
   });
   const withHits = sample();
   const chance = TERRAIN.sideHits.chance;
@@ -245,8 +251,9 @@ for (const seed of seeds) {
   hits.forEach((h, i) => {
     assert.deepEqual(withHits[i].rows, without[i].rows,
       `${seed}: the corduroy within guide.tol of the line carries none of a hit`);
-    assert.ok(withHits[i].crest - without[i].crest > h.height * 0.95,
-      `${seed}: the crest stands its full height proud of the hill`);
+    const peak = Math.max(...withHits[i].crown.map((y, j) => y - without[i].crown[j]));
+    assert.ok(peak >= h.height * 0.99 && peak <= h.height * 1.001,
+      `${seed}: the rounded crown reaches its bounded height (${peak} / ${h.height})`);
     assert.equal(withHits[i].foot, without[i].foot, `${seed}: and the face starts from the snow`);
   });
 
@@ -262,12 +269,11 @@ for (const seed of seeds) {
   assert.ok(cruise.maxCombo <= 5, `${seed}: riding the line alone stays a low multiplier (×${cruise.maxCombo})`);
   const trick = ride(seed, 60, true);
   assert.ok(trick.landed >= 8, `${seed}: the trick bot lands tricks (${trick.landed})`);
-  // A modest spin-and-grab every four seconds, and the race gates missed
-  // whenever a landing puts the bot off the line: within a minute. Where in
-  // the minute swings by a trick's interval with any change to the flight
-  // (41–59 s across seeds and tunings), so the minute is the claim.
+  // Regular grabs every 3.5 seconds, with spins reserved for longer flights
+  // and a release before touchdown, still earn full flow within a minute.
   assert.ok(trick.fullAt !== null && trick.fullAt < 60,
     `${seed}: steady tricks reach a full bar (${trick.fullAt})`);
+  console.log('Flow economy: ' + JSON.stringify({ seed, cruise, tricks: trick }));
 }
 
 console.log('Flow checks passed: multiplier steps, hold and fade, tuck spend, cruise ceiling, trick-built max, and side hits (placement, untouched corduroy, flights, airless line) on three seeds.');

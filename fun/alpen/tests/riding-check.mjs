@@ -261,12 +261,12 @@ for (const tuck of [false, true]) {
   assert.deepEqual(touchdown({ spin: 4.3 }), { verdict: SKETCHY, reason: 'OVER-ROTATED' });
   assert.deepEqual(touchdown({ grab: true }), { verdict: SKETCHY, reason: 'GRAB HELD' });
   assert.deepEqual(touchdown({}), { verdict: CLEAN, reason: '' });
-  /* Braced for the air they popped: the same 22 m/s into the snow is heavy
+  /* Braced for the air they popped: the same 20 m/s into the snow is heavy
      off a roll-over and clean after a full pop, the raised line stops short
      of the bail so a too-fast popped air is still heavy, and past the bail
      line no pop saves it. */
-  assert.deepEqual(touchdown({ vy: -22 }), { verdict: SKETCHY, reason: 'HEAVY LANDING' });
-  assert.deepEqual(touchdown({ vy: -22, pop: RIDER.popMax }), { verdict: CLEAN, reason: '' });
+  assert.deepEqual(touchdown({ vy: -20 }), { verdict: SKETCHY, reason: 'HEAVY LANDING' });
+  assert.deepEqual(touchdown({ vy: -20, pop: RIDER.popMax }), { verdict: CLEAN, reason: '' });
   const topPop = RIDER.popMax * RIDER.lipBonus;
   assert.deepEqual(touchdown({ vy: -(RIDER.hardImpact - RIDER.bracedMargin + 1.5), pop: topPop }),
     { verdict: SKETCHY, reason: 'HEAVY LANDING' });
@@ -637,4 +637,58 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   assert.ok(portrait.position.y >= 1.5, 'portrait obstruction response preserves ground clearance');
   delete window.matchMedia;
 }
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');
+
+// Height is an outcome of the directional tangent and a modest leg impulse.
+{
+  const release = (speed, degrees, pop = 0, across = false) => {
+    const angle = degrees * Math.PI / 180;
+    const n = new THREE.Vector3(0, Math.cos(angle), Math.sin(angle));
+    const r = rider({ height: () => -1000, canStall: () => false });
+    r.pos.set(0, 0, 0); r.normal.copy(n);
+    if (across) r.vel.set(speed, 0, 0);
+    else r.vel.set(0, speed * Math.sin(angle), -speed * Math.cos(angle));
+    r.takeOff(pop, n);
+    const vy = r.vel.y, initialSpeed = r.vel.length();
+    let apex = 0;
+    const steps = Math.ceil((Math.max(0, vy) / RIDER.gravity + .1) / dt);
+    for (let i = 0; i < steps; i++) { r.step(dt, neutral); apex = Math.max(apex, r.pos.y); }
+    return { apex, vy, initialSpeed };
+  };
+  const sweep = [];
+  for (const speed of [12, 24, 36]) for (const angle of [0, 12, 24]) {
+    const natural = release(speed, angle);
+    close(natural.initialSpeed, speed, 'the ramp adds no kinetic energy');
+    close(natural.vy, speed * Math.sin(angle * Math.PI / 180), 'actual takeoff angle determines vertical velocity');
+    const expected = Math.max(0, natural.vy) ** 2 / (2 * RIDER.gravity);
+    assert.ok(Math.abs(natural.apex - expected) < .001, 'measured apex follows the constant-gravity arc');
+    const charged = release(speed, angle, RIDER.popMax);
+    sweep.push({ speed, angle, natural: +natural.apex.toFixed(3), charged: +charged.apex.toFixed(3) });
+  }
+  close(release(24, 24, 0, true).vy, 0, 'crossing a slope is not riding up its lip');
+  for (const speed of [12, 24, 36]) {
+    const heights = sweep.filter(row => row.speed === speed);
+    assert.ok(heights[0].charged < heights[1].charged && heights[1].charged < heights[2].charged,
+      'steeper directional takeoff angles make higher jumps');
+  }
+  for (const angle of [12, 24]) {
+    const heights = sweep.filter(row => row.angle === angle);
+    assert.ok(heights[0].charged < heights[1].charged && heights[1].charged < heights[2].charged,
+      'greater speed makes a higher jump at the same takeoff angle');
+  }
+  const ollie = ticks => {
+    const r = rider(); r.vel.set(0, 0, -24);
+    for (let i = 0; i < ticks; i++) r.step(dt, { ...neutral, jump: true });
+    r.step(dt, neutral);
+    let apex = r.pos.y;
+    for (let i = 0; i < 240 && !r.grounded; i++) { r.step(dt, neutral); apex = Math.max(apex, r.pos.y); }
+    return apex;
+  };
+  const tap = ollie(1), full = ollie(Math.ceil(RIDER.chargeTime / dt));
+  assert.ok(full >= .5 && full <= 1.5, 'full flat ollie stays modest and readable (' + full + 'm)');
+  assert.ok(tap >= .12 && tap < full * .5, 'a tap stays visibly smaller (' + tap + 'm)');
+  assert.ok(release(24, 0, RIDER.popMax * RIDER.lipBonus).apex <= 1.5,
+    'lip timing cannot turn the legs alone into a giant launch');
+  console.log('Jump height sweep (metres): ' + JSON.stringify({ tap, full, sweep }));
+}
+
+console.log('Riding checks passed: charged/late/buffered pops, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');

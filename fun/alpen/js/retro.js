@@ -509,8 +509,11 @@ export function createRetro(THREE, renderer) {
   let gpuShadowSample = false;
   let gpuFreshShadowMs = null;
   let gpuReusedShadowMs = null;
+  let compositeReady = false;
+  let compositeHasWide = false;
 
   function resetGpuTiming() {
+    compositeReady = false;
     if (gpuQuery && !gl.isContextLost()) gl.deleteQuery(gpuQuery);
     timer = isWebGL2 && !gl.isContextLost()
       && renderer.extensions.has('EXT_disjoint_timer_query_webgl2')
@@ -729,6 +732,7 @@ export function createRetro(THREE, renderer) {
      A hard 4K pixel budget
      prevents a high-DPI desktop from accidentally asking for an 8K frame. */
   function resizeTargets(touchCanvas) {
+    compositeReady = false;
     const worldScale = Math.min(1, RENDER.worldMaxPixelRatio / dpr,
       Math.sqrt(RENDER.worldMaxPixels / (displayWidth * displayHeight)));
     width = Math.max(2, Math.round(displayWidth * worldScale * scale));
@@ -909,6 +913,8 @@ export function createRetro(THREE, renderer) {
   }
 
   function render(worldScene, worldCamera, shadowUpdate = false) {
+    compositeReady = false;
+    let renderedWide = false;
     let timeGpu = false;
     // An odd cadence samples both phases of the 30 Hz shadow refresh.
     if (gpuQuery && ++gpuFrame % 13 === 0) {
@@ -966,6 +972,7 @@ export function createRetro(THREE, renderer) {
       // Fade out the wide halo under sustained GPU pressure, saving three
       // passes while preserving the tight bloom and avoiding a visible switch.
       const wideBloom = halo > 0.002;
+      renderedWide = wideBloom;
       material.uniforms.uBloomWide.value = GRADE.bloomWide * halo;
       if (wideBloom) {
         /* The halo octave: a real filtered downsample, then the two blurs. */
@@ -1012,6 +1019,28 @@ export function createRetro(THREE, renderer) {
         gpuPending = true;
       }
     }
+    compositeHasWide = renderedWide;
+    compositeReady = true;
+  }
+
+  // A paused world is unchanged while the menu and lens overlay fade. Reuse
+  // its HDR/light targets and redraw only the final composite.
+  function renderComposite() {
+    if (!compositeReady || (halo > 0.002 && !compositeHasWide)) return false;
+    compositeReady = false;
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    try {
+      material.uniforms.uBloomWide.value = GRADE.bloomWide * halo;
+      quad.material = material;
+      renderer.setRenderTarget(null);
+      renderer.render(post, flat);
+    } finally {
+      renderer.setRenderTarget(null);
+      renderer.autoClear = autoClear;
+    }
+    compositeReady = true;
+    return true;
   }
 
   /* Used to dip the whole picture behind a menu, so the game reads as
@@ -1068,6 +1097,7 @@ export function createRetro(THREE, renderer) {
      `sky.js` owns that answer because it owns the sun; this only marches
      towards whatever it is told. Strength of zero skips the pass entirely. */
   function setSun(x, y, strength, color) {
+    compositeReady = false;
     rayMat.uniforms.uSun.value.set(x, y);
     rayMat.uniforms.uStrength.value = strength;
     // The sun's own stop, straight from the weather — so the shafts follow
@@ -1136,6 +1166,7 @@ export function createRetro(THREE, renderer) {
   return {
     setSize,
     render,
+    renderComposite,
     fade,
     crash,
     updateEffects,

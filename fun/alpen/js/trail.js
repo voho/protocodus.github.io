@@ -411,7 +411,6 @@ export function createTrail(THREE, shading) {
   const motionLat = new THREE.Vector3();
   const baseNormal = new THREE.Vector3(0, 1, 0);
   const sectionLat = new THREE.Vector3(1, 0, 0);
-  const laneNormal = new THREE.Vector3();
   const clodDummy = new THREE.Object3D();
   const clodUp = new THREE.Vector3(0, 1, 0);
   const clodNormal = new THREE.Vector3(0, 1, 0);
@@ -437,11 +436,9 @@ export function createTrail(THREE, shading) {
   }
 
   // Reused cross-section scratch: no allocations while the board is moving.
-  const laneD = new Float64Array(L);
   const laneX = new Float64Array(L);
   const laneY = new Float64Array(L);
   const laneZ = new Float64Array(L);
-  const laneSurfaceRelief = new Float64Array(L);
   const laneVariation = new Float64Array(L);
 
   const STATE_KEYS = [
@@ -712,11 +709,9 @@ export function createTrail(THREE, shading) {
         state.bias, state.load, state.chatter, organic);
       const lift = TRAIL.lift + relief;
 
-      laneD[lane] = d;
       laneX[lane] = px + baseNormal.x * lift;
       laneY[lane] = surfaceY + baseNormal.y * lift;
       laneZ[lane] = pz + baseNormal.z * lift;
-      laneSurfaceRelief[lane] = Math.max(0, groundY - planeY) + relief;
       laneVariation[lane] = organic;
     }
 
@@ -727,18 +722,7 @@ export function createTrail(THREE, shading) {
       position[p + 1] = laneY[lane] - anchorY;
       position[p + 2] = laneZ[lane] - anchorZ;
 
-      const lo = Math.max(0, lane - 1);
-      const hi = Math.min(L - 1, lane + 1);
-      const run = laneD[hi] - laneD[lo] || 1;
-      const reliefSlope = (laneSurfaceRelief[hi] - laneSurfaceRelief[lo]) / run;
-      // For a tangent t = lateral + normal*slope, n - lateral*slope is the
-      // corresponding section normal. The direct analytic form is stable on
-      // the almost-flat packed bed and independent of inactive ring slots.
-      laneNormal.copy(baseNormal)
-        .addScaledVector(sectionLat, -reliefSlope).normalize();
-      normal[p] = laneNormal.x;
-      normal[p + 1] = laneNormal.y;
-      normal[p + 2] = laneNormal.z;
+      // update() rebuilds final normals from both tangents after all sections move.
       groundNormal[p] = baseNormal.x;
       groundNormal[p + 1] = baseNormal.y;
       groundNormal[p + 2] = baseNormal.z;

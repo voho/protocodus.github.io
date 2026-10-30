@@ -192,6 +192,24 @@ assert.ok(downhillSamples / apronSamples > 0.99, 'The easy guide line must keep 
   }
 }
 
+{
+  setWorldSeed('1EE9566');
+  const protectedPoints = [];
+  for (const z of [-250.3, -850.3, -1725.7, -2410.7, -3250.1]) {
+    const half = corridorHalfAt(z);
+    for (const c of centersAt(z)) for (const d of [-half - 20, -half, -half * .5, 0, half * .5, half, half + 20]) {
+      protectedPoints.push([c + d, z, heightAt(c + d, z)]);
+    }
+  }
+  const { amp, fine } = TERRAIN.crests;
+  const depth = TERRAIN.wall.bulk.depth;
+  try {
+    TERRAIN.crests.amp = 0; TERRAIN.crests.fine = 0; TERRAIN.wall.bulk.depth = 0;
+    for (const [x, z, h] of protectedPoints) assert.equal(heightAt(x, z), h,
+      'mountain sculpting leaves the corridor and powder apron unchanged');
+  } finally { TERRAIN.crests.amp = amp; TERRAIN.crests.fine = fine; TERRAIN.wall.bulk.depth = depth; }
+}
+
 setWorldSeed('alpen-check');
 const original = heightAt(12.7, -719.2);
 setWorldSeed('fresh-powder');
@@ -208,6 +226,15 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
   .replaceAll('import.meta.url', JSON.stringify(terrainURL.href))
   .replace('    initializeShadowCache(x, z);\n    snapSnowReady();', '    snapSnowReady();')
   .replace('    mesh,\n    setSun,', `    mesh,
+    checkInstallShade: result => installShadowRegion(result, false),
+    checkShadeState: () => ({
+      atlas: shadeAtlasData, ground: shadeHeightData, slotsX: slotTileX, slotsZ: slotTileZ,
+      n: shadeTileSamples, pageX: shadePageSamplesX, pageZ: shadePageSamplesZ,
+      gridX: shadeTileGridX, gridZ: shadeTileGridZ,
+      layerX: shadeLayerSamplesX, layerZ: shadeLayerSamplesZ,
+      atlasWidth: shadeAtlasWidth, cols: shadeDirectionCols, directions: shadeDirections,
+      atlasVersion: shadeTexture.version, groundVersion: shadeHeightTexture.version,
+    }),
     checkCold(x, z) {
       lattice.fill(x, z, heightAt(x, z), true);
     },
@@ -470,4 +497,58 @@ for (const stage of [0, 1]) {
     compareTerrain(0, -408);
   }
 }
+
+/* Exercise the real torus writer against an independent world-texel oracle. */
+{
+  const cases = [[-2, -3, 5, 6], [-9, -10, 5, 6], [0, 0, 1, 1],
+    [-1, -1, 1, 1], [4, 5, 1, 1], [3, 4, 3, 3], [7, -8, 2, 4], [-21, 14, 8, 9]];
+  const wrap = (v, n) => v - Math.floor(v / n) * n;
+  let compared = 0;
+  for (const [originTileX, originTileZ, tilesX, tilesZ] of cases) {
+    const state = streamed.checkShadeState();
+    const { n, pageX, pageZ, gridX, gridZ, layerX, layerZ,
+      atlasWidth, cols, directions } = state;
+    const width = tilesX * n, height = tilesZ * n;
+    const ground = Uint16Array.from({ length: width * height }, (_, i) => (i * 7 + 37) & 65535);
+    const horizon = Uint16Array.from({ length: directions * width * height * 2 }, (_, i) => (i * 13 + 17) & 65535);
+    const expectedAtlas = new Uint16Array(state.atlas.length).fill(0xa55a);
+    const expectedGround = new Uint16Array(state.ground.length).fill(0xa55a);
+    const expectedX = new Int32Array(state.slotsX.length).fill(-2147483648);
+    const expectedZ = new Int32Array(state.slotsZ.length).fill(-2147483648);
+    state.atlas.fill(0xa55a); state.ground.fill(0xa55a);
+    state.slotsX.fill(-2147483648); state.slotsZ.fill(-2147483648);
+    for (let y = 0; y < height; y++) {
+      const py = wrap(originTileZ * n + y, pageZ);
+      for (let x = 0; x < width; x++) {
+        const px = wrap(originTileX * n + x, pageX);
+        expectedGround[py * pageX + px] = ground[y * width + x];
+        for (let d = 0; d < directions; d++) {
+          const ax = d % cols * layerX + 1 + px;
+          const az = Math.floor(d / cols) * layerZ + 1 + py;
+          const src = (d * width * height + y * width + x) * 2;
+          const dst = (az * atlasWidth + ax) * 2;
+          expectedAtlas[dst] = horizon[src]; expectedAtlas[dst + 1] = horizon[src + 1];
+        }
+      }
+    }
+    for (let z = originTileZ; z < originTileZ + tilesZ; z++) {
+      for (let x = originTileX; x < originTileX + tilesX; x++) {
+        const slot = wrap(z, gridZ) * gridX + wrap(x, gridX);
+        expectedX[slot] = x; expectedZ[slot] = z;
+      }
+    }
+    streamed.checkInstallShade({ originTileX, originTileZ, tilesX, tilesZ, width, height, horizon, ground });
+    const label = 'shadow region ' + originTileX + ',' + originTileZ + ' ' + tilesX + 'x' + tilesZ;
+    assert.deepEqual(state.atlas, expectedAtlas, label + ' atlas and untouched gutters');
+    assert.deepEqual(state.ground, expectedGround, label + ' ground');
+    assert.deepEqual(state.slotsX, expectedX, label + ' X residency');
+    assert.deepEqual(state.slotsZ, expectedZ, label + ' Z residency');
+    const after = streamed.checkShadeState();
+    assert.equal(after.atlasVersion, state.atlasVersion, label + ' deferred atlas upload');
+    assert.equal(after.groundVersion, state.groundVersion, label + ' deferred ground upload');
+    compared += state.atlas.length + state.ground.length + state.slotsX.length + state.slotsZ.length;
+  }
+  console.log('Shadow installation: ' + cases.length + ' wrapped regions; ' + compared + ' exact payload/residency entries');
+}
+
 console.log(`Terrain/shadow checks passed; ${streamChecks} exact streaming/reset cases; shared tile halos use ${batchSamples}/${individualSamples} height samples; max shoulder slope jump ${maxShoulderSlopeJump.toFixed(5)}.`);

@@ -539,3 +539,33 @@ await (await import('./tests/audio-browser-check.mjs')).runAudioCheck()
 
 These checks establish behavior and resource bounds. Software WebGL coverage
 does not establish a physical desktop or phone frame-rate improvement.
+
+## Natural jumps and varied side hits
+
+A charged ollie adds a modest leg impulse while the terrain tangent preserves approach speed and takeoff angle. Riding checks measure actual apex heights, speed and angle response, charge timing, and clean trick landings rather than only comparing velocity with configuration values.
+
+Marked side hits vary their longitudinal profile and footprint. Rollers, drifts and wind lips have different crowns, shoulders and runouts; seeded placement remains deterministic and the central ribbon remains clear. Terrain checks sample the actual height field with and without the features to compare normalized silhouettes.
+
+Browser QA uses the shared seed `1EE9566` and captures a consistent three-quarter view of each side-hit family, alongside the existing terrain, weather and device checks. Camera overrides are confined to capture setup, run through the production visual update order, and are restored afterwards.
+
+## Frame overhead and paused composition
+
+The trail writer leaves normal generation to the final longitudinal/transverse pass, eliminating an intermediate result that was overwritten before upload. `trail-normals-check.mjs` takes the actual baseline trail module path, compares all buffers and state through 1,600 frames, then reports alternating fixed-ground writer timings.
+
+Shadow atlas installation copies contiguous typed-array rows, splitting only at torus seams. The terrain check verifies actual installation against an independent world-texel oracle, including negative coordinates, multi-page wraps, resident slots and untouched gutters. `shadow-install-benchmark.mjs` takes the baseline terrain module path and reports paired installation CPU times for a tile, five individual incoming tiles and an opening region.
+
+Paused menu and lens fades reuse the completed HDR/light targets and redraw the final composite. The first paused frame, resizing, restored contexts, changed sun rays and a newly needed wide halo require a full render. Active riding always executes the full scene pipeline. Graphics checks cover invalidation and renderer error cleanup; `paused-composite-browser-check.mjs` compares actual cached/full pixels. The desktop gameplay check also counts continued paused-frame submissions.
+
+CI fetches the two baseline source files pinned to commit `a3edd9d9cd0d3de13a384ea15e572df79a3dc60e`. Paired CPU measurements are diagnostic and have no timing pass threshold; software WebGL checks establish rendering correctness rather than physical-device frame rate.
+
+## Mountain sidewalls and distant rock faces
+
+Sidewall arêtes and bulk gullies have stronger relief, with an earlier coarse-cell fade so wide rings keep the existing geomorph bound. Existing filtered rock bedding, joints and normal relief have greater contrast. The corridor and its twenty-metre powder apron remain unchanged; no terrain vertices, height octaves or texture samples are added by the sidewall pass.
+
+The loaded distant model gains broad, vertically coherent crags, snow channels and bounded indirect-light occlusion in gullies. Two conditional samples of the existing noise map supply structure at resolvable scales, with pixel-footprint, forest, slope, whiteout and distance fades. The model, skyline, textures and draw counts stay unchanged.
+
+The browser detail profile compares baseline `ebb84e90` with current code at identical seed, time, camera and full art render scale. It captures both sidewalls and the far horn/massif, including native-resolution crops. Capture setup freezes test-only weather/cloud clocks and asserts all 24 model sectors/maps are loaded and fallback ranges hidden. The ordinary mobile/desktop profiles keep adaptive rendering enabled.
+
+The actual-shader crag check verifies normal and final-color responses on fully snowy and bare mineral faces and exact bypass for forests, flat ground, unresolved patterns, whiteout and distant cutoff. Existing forest-pattern and shader-filtering checks run too. Paired artwork captures are visual evidence, not device frame-rate measurements.
+
+The paired capture also renders the actual horn/massif material in isolation to report eligibility, pixel visibility, snow/forest coverage and final RGB differences. This catches a procedural effect that changes an encoded normal but remains imperceptible on the real mountain under the current light.
