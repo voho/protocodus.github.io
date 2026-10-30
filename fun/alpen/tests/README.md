@@ -4,6 +4,7 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 
 ```sh
 node tests/riding-check.mjs
+node tests/pause-charge-check.mjs
 node tests/touch-input-check.mjs
 node tests/input-device-check.mjs
 node tests/controller-menu-check.mjs
@@ -27,6 +28,11 @@ node tests/audio-check.mjs
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+The pause-charge check runs the production pause and graphics-context recovery
+handlers with real input and physics. Releasing Jump during an interruption
+cannot spend an old charge or queued landing jump; a key held through resume
+starts charging from zero. The desktop browser also checks the physical
+Space → Escape → release → Escape sequence.
 The clod check compares packed snow-chunk instance matrices with the original
 quaternion path through trail recycling, anchor moves, fading and clear/reuse.
 It also reports a local CPU microbenchmark for packing one fixed frame; the
@@ -589,13 +595,17 @@ Riding audio keeps six looping voices and adds one optional stereo panner for
 the edge and displaced snow. The actual grounded lean places that sound;
 wind and body rumble stay centered. Filters keep brightening beyond 42 m/s
 within fixed limits, snow contact changes bypass the normal control throttle,
-and stationary boards no longer scrape. No audio downloads, world geometry,
+and stationary boards no longer scrape. Moving body contact during a fall uses
+the existing scrape voice independently of board contact; airborne tumbles and
+stopped bodies stay quiet. Real fall, bounce, slide and recovery traces check
+both contact transitions and the voice budget. No audio downloads, world geometry,
 textures or render passes were added. The Node audio check covers those
 budgets, the mono fallback and mute/pause/resume behavior.
 
 The desktop browser check also renders the production audio graph through a
 native `OfflineAudioContext` in an isolated iframe. It checks left/right
-balance, centered-mix parity, airborne/idle sound, high-speed timbre and finite,
+balance, centered-mix parity, airborne/idle sound, body-slide onset and release,
+high-speed timbre and finite,
 unclipped samples without touching the player's live audio or saved settings.
 It can be run separately from the game console:
 

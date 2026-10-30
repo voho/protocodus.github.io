@@ -70,6 +70,7 @@ export function createAudio() {
   let parkTimer = 0;
   let ambienceAt = 0;
   let snowContact = null;
+  let bodyContact = null;
 
   try {
     muted = localStorage.getItem('alpen.muted') === '1';
@@ -211,6 +212,7 @@ export function createAudio() {
     clearTimeout(parkTimer);
     ambienceAt = -Infinity;
     snowContact = null;
+    bodyContact = null;
     /* Tested against anything-but-running rather than 'suspended': iOS
        reports the non-standard 'interrupted' after a phone call or Siri,
        and matching only 'suspended' left those sessions permanently silent
@@ -243,12 +245,14 @@ export function createAudio() {
     if (!started || !ctx || parked || ctx.state !== 'running') return;
 
     const ms = performance.now();
-    // A takeoff or touchdown must reach the ear even between the ordinary
-    // 28 Hz control updates. The ground voices otherwise hung on for an
-    // extra frame or two after the board had visibly left the snow.
-    if (ms - ambienceAt < 35 && snowContact === grounded) return;
+    const bodyOn = tumbleSlide > 0;
+    // Board and body contacts must reach the ear even between the ordinary
+    // 28 Hz control updates. A tumble can leave or reach the snow while the
+    // board remains ungrounded, so each contact has its own history.
+    if (ms - ambienceAt < 35 && snowContact === grounded && bodyContact === bodyOn) return;
     ambienceAt = ms;
     snowContact = grounded;
+    bodyContact = bodyOn;
 
     const t = now();
     const v = clamp01(speed / 42);
@@ -314,10 +318,13 @@ export function createAudio() {
     wash.gain.gain.setTargetAtTime((skid * (0.09 + v * 0.15) + rock * 0.10) * contact * snowLevel, t, release);
     wash.filter.frequency.setTargetAtTime(washFreq, t, 0.08);
 
-    // The contact half of a fall or rock scrubbing
+    // A sliding body is touching snow while the board is still ungrounded.
+    // Give its drag the same low-speed fade without waking the board voices;
+    // rock scrubbing still requires board contact.
     const drag = clamp01(tumbleSlide / 24);
-    const rockScrape = rock * (v * 0.15);
-    scrape.gain.gain.setTargetAtTime((drag * (0.045 + drag * 0.16) + rockScrape) * contact, t, grounded ? 0.035 : release);
+    const bodyScrape = drag * (0.045 + drag * 0.16) * clamp01(tumbleSlide / 3);
+    const rockScrape = rock * (v * 0.15) * contact;
+    scrape.gain.gain.setTargetAtTime(bodyScrape + rockScrape, t, grounded || bodyOn ? 0.035 : release);
     scrape.filter.frequency.setTargetAtTime(720 + (drag + rock) * 1500, t, 0.07);
   }
 
@@ -596,6 +603,9 @@ export function createAudio() {
       if (!started || !ctx) return;
       const t = now();
       for (let i = 0; i < voices.length; i++) voices[i].gain.gain.setTargetAtTime(0, t, 0.06);
+      ambienceAt = -Infinity;
+      snowContact = null;
+      bodyContact = null;
       /* Then stop the whole machine. A paused game used to keep six sources
          looping into gains of zero — the audio thread doing full-time work to
          produce silence — for as long as the curtain was up or the tab was in

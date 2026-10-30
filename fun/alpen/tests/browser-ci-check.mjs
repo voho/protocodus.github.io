@@ -343,6 +343,40 @@ async function checkTouchControllerMenu(page, profile) {
     await checkTouchControls(page);
   } finally { await pad.close(); }
 }
+async function checkPausedKeyboardCharge(page) {
+  await page.keyboard.press('KeyR');
+  const observer = await page.evaluateHandle(() => {
+    const rider = __alpen.rider, result = { launches: 0 };
+    const listener = () => result.launches++;
+    rider.on('launch', listener);
+    return { rider, listener, result };
+  });
+  try {
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => __alpen.rider.charging && __alpen.rider.charge > .6);
+    assert.equal(await page.evaluate(() => __alpen.rider.state), 'ride', 'pause interrupts a grounded charge');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => __alpen.game.mode === 'paused');
+    await page.keyboard.up('Space');
+    await frames(page, 2);
+    assert(await page.evaluate(() => !__alpen.input.state.jump && !__alpen.rider.charging
+      && __alpen.rider.charge === 0 && __alpen.rider._jumpBuffer === 0),
+    'releasing the physical Jump key while paused cancels the stored charge');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => __alpen.game.mode === 'playing');
+    await frames(page, 6);
+    assert.equal(await observer.evaluate(({ result }) => result.launches), 0,
+      'physical pause/release/resume never launches the rider');
+    console.log('Alpen paused keyboard charge passed');
+  } finally {
+    await page.keyboard.up('Space');
+    await observer.evaluate(({ rider, listener }) => {
+      const index = rider.events.launch.indexOf(listener);
+      if (index >= 0) rider.events.launch.splice(index, 1);
+    });
+    await observer.dispose();
+  }
+}
 async function checkPausedHelp(page, touch, profile) {
   await checkInputDevice(page, 'keyboard');
   // The key handler changes mode immediately; the next HUD update owns focus.
@@ -671,7 +705,10 @@ try {
         continue;
       }
       if (profile.name === 'desktop') {
-        await checkControllerWithoutRaster(page, profile.name, () => checkControllerStart(page));
+        await checkControllerWithoutRaster(page, profile.name, async () => {
+          await checkControllerStart(page);
+          await checkPausedKeyboardCharge(page);
+        });
       } else {
         await checkInputDevice(page, 'touch');
         await checkMenuHelp(page, 'touch');
