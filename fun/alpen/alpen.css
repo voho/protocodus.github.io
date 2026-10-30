@@ -140,7 +140,9 @@ kbd {
   transition: opacity 0.28s var(--ease), visibility 0.28s;
   cursor: pointer;
 }
-.curtain.on { opacity: 1; visibility: visible; }
+/* Opening must be focusable immediately, including before the first fade
+   frame. Only closing defers visibility until its opacity transition ends. */
+.curtain.on { opacity: 1; visibility: visible; transition: opacity 0.28s var(--ease); }
 .curtain:focus { outline: none; }
 .curtain-inner { width: min(100%, 34.5em); max-height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; touch-action: pan-y; padding: 6px; margin: -6px; }
 .eyebrow { display: flex; align-items: center; gap: 13px; color: var(--accent); font-size: var(--ui-label); font-weight: 600; line-height: 1.5; letter-spacing: 0.22em; text-transform: uppercase; }
