@@ -413,4 +413,150 @@ for (const quietAgain of [false, true]) {
   }
 }
 
-console.log('Audio checks passed: riding mix, body contact, six-voice budget, mute, pause/resume and active/delayed one-shot retirement.');
+// Browser resume/suspend promises can settle after another UI action. Use
+// real event dispatch and execute the RAF/timer callbacks production queued,
+// while controlling when native resume/suspend promises settle.
+const flushAudioPromises = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+class BrowserEvents extends EventTarget {
+  listeners = new Map();
+  get activeListeners() { return [...this.listeners.values()].reduce((sum, list) => sum + list.size, 0); }
+  listenerKey(type, options) { return type + ':' + !!(typeof options === 'boolean' ? options : options?.capture); }
+  addEventListener(type, listener, options) {
+    super.addEventListener(type, listener, options);
+    const key = this.listenerKey(type, options);
+    if (!this.listeners.has(key)) this.listeners.set(key, new Set());
+    this.listeners.get(key).add(listener);
+  }
+  // Node's EventTarget does not remove a capture listener with boolean true.
+  // Normalize that browser-supported overload while retaining native dispatch.
+  removeEventListener(type, listener, options) {
+    super.removeEventListener(type, listener, typeof options === 'boolean' ? { capture: options } : options);
+    this.listeners.get(this.listenerKey(type, options))?.delete(listener);
+  }
+}
+function lifecycle() {
+  timers.clear();
+  const events = new BrowserEvents(), frames = [];
+  globalThis.window = events;
+  globalThis.requestAnimationFrame = callback => frames.push(callback);
+  events.AudioContext = class extends TestContext {
+    state = 'suspended';
+    resumeMode = 'reject';
+    suspendMode = 'resolve';
+    resumes = [];
+    suspends = [];
+    operation(list, state, mode) {
+      let resolve, reject;
+      const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+      const call = { settled: false, finish: (allowed = true) => {
+        assert.equal(call.settled, false, 'each native operation settles once');
+        call.settled = true;
+        if (allowed) { this.state = state; resolve(); }
+        else reject(new Error('browser refused audio operation'));
+      } };
+      list.push(call);
+      if (mode !== 'pending') call.finish(mode === 'resolve');
+      return promise;
+    }
+    resume() { return this.operation(this.resumes, 'running', this.resumeMode); }
+    suspend() { return this.operation(this.suspends, 'suspended', this.suspendMode); }
+  };
+  const audio = createAudio();
+  return {
+    audio, events, get ctx() { return audio.context; },
+    async frame() { for (const callback of frames.splice(0)) callback(); await flushAudioPromises(); },
+    async park() {
+      assert.equal(timers.size, 1, 'one pending parking deadline');
+      const [id, callback] = [...timers][0];
+      assert.equal(callback.delay, 350, 'parking retains the authored fade deadline');
+      timers.delete(id); clock += 350; callback(); await flushAudioPromises();
+    },
+    async gesture(type) { events.dispatchEvent(new Event(type)); await flushAudioPromises(); },
+  };
+}
+const oldWindow = window, oldRAF = requestAnimationFrame;
+await flushAudioPromises();
+try {
+  for (const armBeforePause of [false, true]) {
+    const f = lifecycle(); f.audio.start(); await flushAudioPromises();
+    assert.equal(f.ctx.state, 'suspended'); assert.equal(f.ctx.resumes.length, 1);
+    if (armBeforePause) { await f.frame(); assert(f.events.activeListeners > 0, 'a refused active start arms gesture recovery'); }
+    f.audio.quiet();
+    assert.equal(f.events.activeListeners, 0, 'pause immediately removes existing gesture retries');
+    // This also runs a start's previously queued arming callback after pause.
+    await f.frame(); assert.equal(f.events.activeListeners, 0, 'a deferred RAF cannot arm retries after pause');
+    await f.park();
+    f.ctx.resumeMode = 'resolve';
+    for (const type of ['pointerdown', 'touchstart', 'keydown', 'click']) await f.gesture(type);
+    f.audio.toggleMute();
+    assert.equal(f.ctx.resumes.length, 1, 'paused menu gestures cannot wake a parked context');
+    assert.equal(f.ctx.state, 'suspended'); assert.equal(timers.size, 0);
+    assert.equal(f.ctx.sources.length, 6, 'parking reuses the six-loop graph');
+    // A later real start can still need browser activation. A refused first
+    // gesture must leave the retry available for the subsequent valid click.
+    f.ctx.resumeMode = 'reject'; f.audio.start(); await flushAudioPromises(); await f.frame();
+    await f.gesture('pointerdown');
+    assert.equal(f.ctx.resumes.length, 3); assert.equal(f.ctx.state, 'suspended');
+    assert(f.events.activeListeners > 0, 'a refused gesture keeps recovery armed');
+    f.ctx.resumeMode = 'resolve'; await f.gesture('click');
+    assert.equal(f.ctx.resumes.length, 4); assert.equal(f.ctx.state, 'running');
+    assert.equal(f.events.activeListeners, 0, 'successful recovery releases its gesture listeners');
+    f.audio.ambience(30, 0, true, 0);
+    assert(f.ctx.gains[3].gain.value > 0, 'genuine later playback restores the riding mix');
+    assert.equal(f.ctx.sources.length, 6);
+  }
+
+  // A successful resume before the fade deadline must not park early.
+  {
+    const f = lifecycle(); f.audio.start(); await flushAudioPromises(); await f.frame();
+    f.ctx.resumeMode = 'pending'; await f.gesture('click');
+    f.audio.quiet(); const deadline = [...timers.keys()][0];
+    f.ctx.resumes.at(-1).finish(); await flushAudioPromises();
+    assert.equal(f.ctx.state, 'running'); assert.equal(f.ctx.suspends.length, 0,
+      'a pre-deadline settlement lets the existing fade finish');
+    assert(timers.has(deadline), 'the late settlement preserves the original parking deadline');
+    await f.park(); assert.equal(f.ctx.state, 'suspended'); assert.equal(f.ctx.suspends.length, 1);
+  }
+
+  // A refused initial start and a retry can both remain pending past the
+  // completed parking deadline. Their late fulfilments must coalesce into
+  // one suspension, with no unowned running loops left behind.
+  {
+    const f = lifecycle();
+    f.events.AudioContext = class extends f.events.AudioContext { resumeMode = 'pending'; };
+    f.audio.start(); await f.frame(); await f.gesture('click');
+    assert.equal(f.ctx.resumes.length, 2);
+    f.audio.quiet(); await f.park(); assert.equal(f.ctx.state, 'suspended');
+    f.ctx.suspendMode = 'pending';
+    for (const call of f.ctx.resumes) call.finish();
+    await flushAudioPromises();
+    assert.equal(f.ctx.suspends.length, 1, 'late resume settlements share one re-parking request');
+    await f.gesture('click'); assert.equal(f.ctx.resumes.length, 2, 'paused clicks cannot add another late retry');
+    f.ctx.suspends[0].finish(); await flushAudioPromises();
+    assert.equal(f.ctx.state, 'suspended'); assert.equal(timers.size, 0);
+    assert(f.ctx.gains.slice(1, 7).every(node => node.gain.value === 0), 'late settlements cannot repopulate the parked mix');
+    assert.equal(f.ctx.sources.length, 6);
+  }
+
+  // An intentional start can race the context's asynchronous suspension.
+  // Its completion must respect the latest intent, including a second pause.
+  for (const pauseAgain of [false, true]) {
+    const f = lifecycle();
+    f.events.AudioContext = class extends f.events.AudioContext { resumeMode = 'resolve'; };
+    f.audio.start(); await flushAudioPromises();
+    f.ctx.suspendMode = 'pending'; f.audio.quiet(); await f.park();
+    assert.equal(f.ctx.suspends.length, 1); assert.equal(f.ctx.state, 'running');
+    f.audio.start();
+    if (pauseAgain) f.audio.quiet();
+    f.ctx.suspends[0].finish(); await flushAudioPromises();
+    assert.equal(f.ctx.state, pauseAgain ? 'suspended' : 'running', 'suspension settlement follows the newest play/pause intent');
+    assert.equal(f.ctx.resumes.length, pauseAgain ? 1 : 2);
+    if (pauseAgain) await f.park();
+    assert.equal(timers.size, 0); assert.equal(f.ctx.sources.length, 6);
+  }
+} finally {
+  globalThis.window = oldWindow; globalThis.requestAnimationFrame = oldRAF;
+  timers.clear();
+}
+
+console.log('Audio checks passed: riding mix, body contact, six-voice budget, one-shot retirement and gesture/parking promise races.');
