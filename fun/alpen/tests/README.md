@@ -10,6 +10,7 @@ node tests/terrain-shadow-check.mjs
 node tests/terrain-worker-check.mjs
 node tests/models-check.mjs
 node tests/graphics-check.mjs
+node tests/gpu-timing-check.mjs
 node tests/instance-lod-check.mjs
 node tests/mobile-render-check.mjs
 node tests/hud-check.mjs
@@ -539,6 +540,26 @@ await (await import('./tests/audio-browser-check.mjs')).runAudioCheck()
 
 These checks establish behavior and resource bounds. Software WebGL coverage
 does not establish a physical desktop or phone frame-rate improvement.
+
+GPU timing now spans the rider shadow, sky refresh, world and postprocessing.
+Only complete running frames feed adaptive resolution; boot/debug draws and
+paused composites do not. Sampling still uses one reusable asynchronous query
+every thirteen frames, without blocking for a result. The GPU timing check
+executes the production submission block and verifies pass coverage, the
+governor's response, query ownership, failures, disjoint results and context
+restoration. It also checks that an unavailable timing extension never gates
+rendering. Sampled milliseconds represent the complete frame, so they should
+not be compared directly with older world/post-only diagnostics.
+
+The desktop browser job enables Chromium's timer extension for native query
+coverage, including a deliberate loss and restoration of a separate WebGL
+context. Use `ALPEN_GPU_TIMERS=1` for the same local coverage; without the
+extension the browser fixture reports a skip while rendering still works.
+This flag enables test coverage, not a hardware performance benchmark.
+
+```js
+await (await import('./tests/gpu-timing-browser-check.mjs')).runGpuTimingCheck()
+```
 
 ## Natural jumps and varied side hits
 

@@ -611,67 +611,7 @@ for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
   assert.ok(resizes < 40, `near the budget the scale settles (${resizes} resizes in ten minutes)`);
 }
 
-// Timer results are optional and read only after the driver reports ready.
-let available = false, disjoint = false, timerActive = false, queries = 0;
-let contextLost = false, generation = 0;
-const timer = { TIME_ELAPSED_EXT: 1, GPU_DISJOINT_EXT: 2 };
-renderer.capabilities.isWebGL2 = true;
-renderer.extensions = { has: name => name === 'EXT_disjoint_timer_query_webgl2', get: () => timer };
-renderer.domElement = new EventTarget();
-renderer.getContext = () => ({
-  QUERY_RESULT_AVAILABLE: 3, QUERY_RESULT: 4,
-  getInternalformatParameter: () => [4, 2],
-  isContextLost: () => contextLost,
-  createQuery: () => ({ generation }),
-  deleteQuery() {},
-  getQuery: () => timerActive,
-  beginQuery(type, query) {
-    assert.equal(query.generation, generation, 'query belongs to current context');
-    assert.equal(timerActive, false); timerActive = true; queries++;
-  },
-  endQuery() { assert.equal(timerActive, true); timerActive = false; },
-  getParameter: () => disjoint,
-  getQueryParameter(query, field) {
-    assert.equal(query.generation, generation, 'never query a lost context resource');
-    if (field === 3) return available;
-    assert.equal(available, true, 'never block waiting for GPU timing');
-    return 11000000;
-  },
-});
-const timed = createRetro(THREE, renderer);
-for (let i = 0; i < 26; i++) timed.render(scene, camera);
-assert.equal(queries, 1, 'one pending sample bounds query work');
-assert.equal(timed.gpuMs, null);
-available = true;
-for (let i = 0; i < 13; i++) timed.render(scene, camera, true);
-assert.equal(timed.gpuMs, 11);
-assert.equal(timed.gpuReusedShadowMs, 11);
-disjoint = true;
-for (let i = 0; i < 13; i++) timed.render(scene, camera, true);
-assert.equal(timed.gpuMs, null, 'discard invalid GPU samples');
-assert.equal(timed.gpuReusedShadowMs, null);
-disjoint = false;
-for (let i = 0; i < 13; i++) timed.render(scene, camera);
-assert.equal(timed.gpuFreshShadowMs, 11, 'shadow refresh timing follows the sampled frame');
-// Eleven milliseconds of GPU work in a 30 fps frame: the frame is long for
-// some other reason, and a lower resolution would not shorten it.
-for (let i = 0; i < 30 * 10; i++) timed.updatePerformance(1 / 30);
-assert.equal(timed.scale, RENDER.maxScale, 'an idle GPU vetoes the walk down');
-contextLost = true;
-renderer.domElement.dispatchEvent(new Event('webglcontextlost'));
-assert.equal(timed.gpuMs, null, 'context loss clears stale GPU diagnostics');
-contextLost = false;
-generation++;
-renderer.domElement.dispatchEvent(new Event('webglcontextrestored'));
-for (let i = 0; i < 25; i++) timed.render(scene, camera);
-const submit = renderer.render;
-renderer.render = () => { throw new Error('test submission failure'); };
-assert.throws(() => timed.render(scene, camera), /test submission failure/);
-assert.equal(renderer.autoClear, true, 'submission failure restores clearing policy');
-assert.equal(target, null, 'submission failure restores the visible render target');
-assert.equal(timerActive, false, 'submission failure closes the active timer query');
-renderer.render = submit;
-timed.render(scene, camera);
+// Complete-frame timer ownership and recovery: gpu-timing-check.mjs.
 
 // Pool capacity must not become submitted work when only a few grains live.
 const wind = new THREE.Vector3();

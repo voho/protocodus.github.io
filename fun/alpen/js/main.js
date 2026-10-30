@@ -1997,10 +1997,19 @@ function frame(now) {
     // rider's own shadow as well as the world and the post stack.
     renderer.info.reset();
     if (running || !pausedWorldReady || !retro.renderComposite()) {
-      // Where the rider is drawn, which between steps is not where they are.
-      riderShadow.update(scene, model.root, camera, sky.shadowLevel);
-      sky.renderProbe(renderer);
-      retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
+      const gpuFrame = running ? retro.beginGpuFrame(!!keyLight()?.shadow.needsUpdate) : 0;
+      let complete = false;
+      try {
+        // Where the rider is drawn, which between steps is not where they are.
+        riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+        sky.renderProbe(renderer);
+        retro.render(scene, camera);
+        complete = true;
+      } finally {
+        // Failed or partial submissions are closed, but never become a
+        // falsely cheap sample that stops the resolution governor reacting.
+        retro.endGpuFrame(gpuFrame, complete);
+      }
       pausedWorldReady = !running;
     }
     pausedRendered = !running && !retro.animating;

@@ -6,6 +6,7 @@ const { chromium } = await import(process.env.ALPEN_PLAYWRIGHT || 'playwright');
 const url = new URL(process.env.ALPEN_URL || 'http://127.0.0.1:8773/fun/alpen/');
 url.searchParams.set('seed', '1EE9566');
 const software = process.env.ALPEN_SOFTWARE_GPU === '1';
+const timerChecks = process.env.ALPEN_GPU_TIMERS === '1';
 if (software && !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
   throw new Error('Software WebGL QA requires a loopback ALPEN_URL.');
 }
@@ -13,7 +14,10 @@ const output = process.env.ALPEN_QA_OUTPUT || '/tmp/alpen-qa';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   channel: process.env.ALPEN_BROWSER || 'chrome', headless: true,
-  args: software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [],
+  args: [
+    ...(software ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : []),
+    ...(timerChecks ? ['--enable-webgl-developer-extensions'] : []),
+  ],
 });
 const results = [], errors = [];
 const compare = process.env.ALPEN_QA_PROFILE === 'detail';
@@ -431,11 +435,13 @@ try {
           depth: await (await import('./tests/post-depth-browser-check.mjs')).runPostDepthCheck(),
           hdr: await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck(),
           audio: await (await import('./tests/audio-browser-check.mjs')).runAudioCheck(),
+          timing: await (await import('./tests/gpu-timing-browser-check.mjs')).runGpuTimingCheck(),
           paused: await (await import('./tests/paused-composite-browser-check.mjs')).runPausedCompositeCheck(),
           crags: await (await import('./tests/backdrop-crags-browser-check.mjs')).runBackdropCragCheck(),
           backdropDetail: await (await import('./tests/backdrop-detail-browser-check.mjs')).runBackdropDetailCheck(),
           backdropFiltering: await (await import('./tests/backdrop-performance-browser-check.mjs')).runBackdropPerformanceCheck(),
         }));
+        if (timerChecks) assert.equal(checks.timing.skipped, false, 'requested native GPU timing coverage is available');
         results.push({ gpuChecks: checks });
         console.log('Alpen GPU checks: ' + JSON.stringify(checks));
       }
