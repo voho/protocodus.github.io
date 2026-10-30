@@ -227,16 +227,19 @@ export function createHud(root) {
     const slope = Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI);
     text('weather', `${g.weather.phase} · ${g.weather.conditions} · ${slope}°`);
     const inAir = !rider.grounded && rider.airTime > 0.25;
+    // main.js already publishes a name only after a press has carried a
+    // qualifying rotation. Reuse that result; the HUD never judges it again.
+    const inButter = g.mode === 'playing' && rider.state === 'ride'
+      && rider.grounded && !!g.liveTrick;
     const showingBanner = bannerTimer > 0;
     const flashing = flashTimer > 0;
-    hidden('event', !showingBanner && !inAir && !flashing);
-    if (showingBanner || inAir || flashing) {
-      /* Three read-outs share one band, in this order: a banner (what the
+    hidden('event', !showingBanner && !inAir && !inButter && !flashing);
+    if (showingBanner || inAir || inButter || flashing) {
+      /* The read-outs share one band, in this order: a banner (what the
          last thing was worth, and — in the kicker — why: the multiplier and
          the factors that paid it, or what went wrong); the flight (air clock
          and live trick name, with any mid-air callout riding the kicker);
-         and a lone callout with the snow under it. */
-      const air = `${rider.airTime.toFixed(1)} s airtime`;
+         a live butter; and a lone callout with the snow under it. */
       let kicker;
       let name;
       let tone;
@@ -245,6 +248,7 @@ export function createHud(root) {
         name = bannerName;
         tone = bannerTone;
       } else if (inAir) {
+        const air = `${rider.airTime.toFixed(1)} s airtime`;
         // Use the rider's existing ballistic prediction: this is advice,
         // never an extra terrain query or an automatic release. A brief
         // roller is not a judged trick, and falls are not flights.
@@ -255,6 +259,10 @@ export function createHud(root) {
           : flashing ? `${flashText} · ${air}` : air;
         name = g.liveTrick || 'Find your landing';
         tone = releaseGrab ? 'warn' : flashing && flashTone ? flashTone : 'air';
+      } else if (inButter) {
+        kicker = 'Release grab to finish';
+        name = g.liveTrick;
+        tone = '';
       } else {
         kicker = 'Freeride';
         name = flashText;
