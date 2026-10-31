@@ -183,6 +183,11 @@ run, and the two maps are WebPs of the sizes the shader assumes.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+Gate flutter advances a bounded phase at the current wind speed, so changing
+gusts cannot accelerate the cloth with session age or jump its pose when the
+shared tree clock wraps. The prop checks cover changing and constant wind,
+clock wraps, zero-time updates and phase continuity across scenery resets. The cloth's
+amplitude and second wave keep their existing wind response and timing.
 It reads their modelled replacements too: the gate panel, piste marker and
 snow bridge of `assets/models/piste/piste-furniture.glb` (from
 `tools/blender/piste.py`) — the gate in the stand-in's frame, only its fabric
