@@ -308,8 +308,8 @@ a half-squeezed brake is half a speed check; the pad's Back button restarts
 once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 The input-device check also records haptic API calls through the production
-pause and graphics-loss handlers. Those interruptions stop only live effects
-started by this input instance. Completed or expired effects stay untouched,
+pause, restart and graphics-loss handlers. Those interruptions stop only live
+effects started by this input instance. Completed or expired effects stay untouched,
 and stale playback/reset promises cannot forget or cancel a newer cue after
 resume or controller replacement. Phone cancellation requires an accepted,
 unexpired buzz; optional controller reset APIs have a guarded silent-effect
@@ -667,6 +667,11 @@ Pausing also fades and retires active one-shot effects, including delayed
 notes, so an old reward chime cannot return after resume. Rapid resume can
 play a new cue while the old one finishes its brief fade; an already
 suspended context retires old effects immediately.
+Checkpoint restarts use the same retirement before immediately restarting
+audio: old crash and reward tails fade out, fresh cues remain available, and
+the six continuous voices stay reused without leaving a new parking timer. The
+restart also clears crash snow from the lens while preserving the menu fade,
+weather and rendering quality. Ordinary pause/resume keeps its natural lens decay.
 Gesture-unlock retries also respect pause: menu gestures cannot wake a parked
 context, and a resume promise that settles after parking is suspended again.
 Lifecycle checks dispatch real events and control promise settlement to cover

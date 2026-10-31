@@ -694,6 +694,97 @@ close(retro.aberration, normalSplit, 'normal color split returns without rebuild
 retro.setSpeed(0);
 for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
 
+// The shared restart path must clear a real impact along with its rider.
+// Execute the shipped handler and restart with the actual physics/post stack;
+// unrelated streamed world systems only need their reset hooks here.
+{
+  const { default: vm } = await import('node:vm');
+  const { Rider } = await import('../js/rider.js');
+  const { RIDER, SCORE } = await import('../js/config.js');
+  const mainSource = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const section = (from, to) => {
+    const start = mainSource.indexOf(from), end = mainSource.indexOf(to, start);
+    assert.ok(start >= 0 && end > start, `production restart fixture contains ${from}`);
+    return mainSource.slice(start, end);
+  };
+  const handlers = new vm.Script(section('function restart(fullReset', '\nfunction newMountain(')
+    + section("rider.on('fall',", "\nrider.on('impact',"));
+  const fixture = post => {
+    const noop = () => {};
+    const resettable = { reset: noop, clear: noop };
+    const world = { height: () => 0, canStall: () => false };
+    const rider = new Rider(THREE, world);
+    const game = { mode: 'playing', score: 900, best: 900, combo: 6, flow: 0.5,
+      flowHold: 3, recentTricks: [], discoveredGrabs: new Set() };
+    const context = vm.createContext({ rider, game, world, retro: post, RIDER, SCORE,
+      lastPassedGate: { x: 4, z: -153 }, hadStep: true, rearmProps: false, chapterCheck: 0,
+      guideAt: () => 0, nearestCenter: () => 0, corridorHalfAt: () => 24, chapterNameAt: () => 'Piste',
+      chase: { ...resettable, kick: noop }, spray: { ...resettable, burst: noop },
+      trail: resettable, wildlife: resettable, huts: resettable, mountainLife: resettable,
+      model: resettable, shading: resettable, terrain: resettable,
+      props: { ...resettable, reopenGatesBelow: noop },
+      hud: { resetScore: noop, clearBanner: noop, banner: noop },
+      audio: { crash: noop }, input: { rumble: noop }, syncCombo: noop,
+    });
+    handlers.runInContext(context);
+    return { rider, game, restart: () => context.restart() };
+  };
+  const previousBuffer = { ...RENDER.buffer };
+  const quality = post => [post.width, post.height, post.scale, post.samples, post.frameMs];
+  try {
+    for (const reduced of [false, true]) for (const elapsed of [0, 0.15]) {
+      motionPreference.matches = reduced;
+      const post = createRetro(THREE, renderer);
+      post.setSize(640, 360);
+      for (let i = 0; i < 120; i++) post.updatePerformance(1 / 50);
+      assert.ok(post.scale < RENDER.maxScale, 'restart preserves an already adapted quality level');
+      post.fade(0.42); post.updateEffects(0.02, false);
+      const run = fixture(post);
+      run.rider.pos.set(17, 0, -300); run.rider.vel.set(0, 0, -40); run.rider.grace = 0;
+      assert.equal(run.rider.strike(0, 1, 1), 'fall', 'a real heavy contact creates the pre-restart crash');
+      for (let i = 0; i < elapsed * 60; i++) post.updateEffects(1 / 60, false);
+      assert.ok(post.fallEffect > 0.5, 'the checkpoint is requested while its old crash is still conspicuous');
+      post.render(scene, camera);
+      const fadeBefore = lastComposite.uFade.value, qualityBefore = quality(post), sizesBefore = canvasSizes;
+      run.restart();
+      assert.equal(run.rider.state, 'ride', 'the actual restart stands the rider back up');
+      assert.deepEqual(run.rider.pos.toArray(), [4, 0, -153], 'the fresh rider returns to its checkpoint');
+      assert.equal(run.game.score, 0, 'the same call starts the fresh attempt');
+      assert.equal(post.fallEffect, 0, 'the first fresh-spawn frame has no old crash overlay, even at zero dt');
+      post.render(scene, camera);
+      assert.equal(lastComposite.uFall.value, 0, 'the drawn composite sees the clear lens immediately');
+      assert.equal(lastComposite.uFade.value, fadeBefore, 'restart does not reset the in-flight pause fade');
+      assert.deepEqual(quality(post), qualityBefore, 'restart preserves resolution, samples and governor history');
+      assert.equal(canvasSizes, sizesBefore, 'clearing the impact does not resize the output');
+      run.restart();
+      assert.equal(post.fallEffect, 0, 'an immediate repeated restart stays clear');
+
+      // A softer subsequent fall must match a pristine post stack, including
+      // its shorter hold; a forgotten old hold would delay this new decay.
+      const freshPost = createRetro(THREE, renderer), fresh = fixture(freshPost);
+      run.rider.fall('land', RIDER.softImpact);
+      fresh.rider.fall('land', RIDER.softImpact);
+      for (const dt of [0, 0.08, 0.01]) {
+        post.updateEffects(dt, false); freshPost.updateEffects(dt, false);
+        assert.ok(post.fallEffect > 0, 'a new fall still produces feedback after restarting');
+        assert.equal(post.fallEffect, freshPost.fallEffect, 'the next crash has no inherited strength or hold');
+      }
+      run.restart();
+      for (let i = 0; i < 120; i++) post.updateEffects(1 / 60, false);
+      post.render(scene, camera);
+      assert.equal(lastComposite.uFade.value, 0.42, 'the original pause fade still reaches its target');
+      assert.equal(post.fallEffect, 0, 'old crash feedback never returns on later frames');
+      assert.equal(post.animating, false, 'the cleared, settled pause can sleep');
+      post.fade(1); post.updateEffects(0.1); post.render(scene, camera);
+      assert.ok(lastComposite.uFade.value > 0.42 && lastComposite.uFade.value < 1,
+        'the normal resume fade still advances after restarting');
+    }
+  } finally {
+    motionPreference.matches = false;
+    Object.assign(RENDER.buffer, previousBuffer);
+  }
+}
+
 // A capped frame rate is not a slow GPU. Walking down buys nothing, so the
 // walk is undone at the floor and not retried while the cap holds.
 {

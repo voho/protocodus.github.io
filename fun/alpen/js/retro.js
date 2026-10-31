@@ -1095,6 +1095,14 @@ export function createRetro(THREE, renderer) {
     material.uniforms.uFall.value = fallFx;
   }
 
+  function clearCrash() {
+    // A restart cuts to a fresh rider; pause/resume still lets the existing
+    // lens snow decay naturally through updateEffects.
+    fallFx = 0;
+    fallHold = 0;
+    material.uniforms.uFall.value = 0;
+  }
+
   function updateEffects(dt, active = true) {
     if (dt <= 0) return;
     if (motionPreference?.matches) fallFx = Math.min(fallFx, 0.62);
@@ -1202,6 +1210,7 @@ export function createRetro(THREE, renderer) {
     renderComposite,
     fade,
     crash,
+    clearCrash,
     updateEffects,
     setSun,
     setGrade,

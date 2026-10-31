@@ -262,13 +262,14 @@ try {
   const handlers = new vm.Script([
     section('function cancelJump() {', '\nconst input = createInput'),
     section('function pause() {', '\nlet lastPassedGate'),
+    section('function restartRun() {', '\n/* Any key starts'),
     section('function onKey(e) {', '\nfunction onMenuAction('),
     section("touchPause?.addEventListener('click'", "touchMute?.addEventListener('click'"),
     section("canvas.addEventListener('webglcontextlost'", "\ncanvas.addEventListener('webglcontextrestored'"),
     section("rider.on('fall',", "\nrider.on('impact',"),
   ].join('\n'));
   for (const [phone, cause] of [[false, 'Escape'], [false, 'Start'], [true, 'touch'],
-    [false, 'context loss'], [true, 'context loss']]) await haptics(phone, async f => {
+    [false, 'context loss'], [true, 'context loss'], [false, 'KeyR'], [true, 'KeyR'], [false, 'Back']]) await haptics(phone, async f => {
     const rider = new Rider(THREE, { height: () => 0, canStall: () => false });
     rider.vel.set(0, 0, -20);
     const game = { mode: 'playing', flow: .5, flowHold: 0, combo: 1 };
@@ -277,8 +278,10 @@ try {
     const context = vm.createContext({ rider, game, canvas, touchPause, input: f.input, RIDER, SCORE,
       curtainPointers: new Map(), curtainClickReady: false, curtainClickDevice: null,
       pausedRendered: false, pausedWorldReady: false, contextLost: false, rearmProps: false,
-      curtain: { dataset: {}, classList: { add() {} }, querySelector: () => null },
-      audio: { crash() {}, quiet() { quiets++; } }, retro: { crash() {}, fade() {} }, chase: { kick() {} },
+      runStarted: true, bootReady: true, controllerNotice: { hidden: true },
+      restart() { rider.reset(-1000, 0); }, showMuted() {}, trackRunStart() {},
+      curtain: { dataset: {}, classList: { add() {}, remove() {} }, querySelector: () => null },
+      audio: { crash() {}, quiet() { quiets++; }, start() {} }, retro: { crash() {}, fade() {} }, chase: { kick() {} },
       spray: { burst() {} }, hud: { clearBanner() {}, banner() {} }, persistBest() {}, syncCombo() {},
     });
     handlers.runInContext(context); f.onKey = context.onKey; f.cancelJump = context.cancelJump;
@@ -288,13 +291,23 @@ try {
     hapticTime = 20;
     if (cause === 'Escape') send(f.browser, 'keydown', { code: 'Escape', key: 'Escape' });
     else if (cause === 'Start') { f.pad.buttons[9].pressed = true; f.input.update(1 / 60); }
+    else if (cause === 'KeyR') send(f.browser, 'keydown', { code: 'KeyR', key: 'r' });
+    else if (cause === 'Back') { f.pad.buttons[8].pressed = true; f.input.update(1 / 60); }
     else if (cause === 'touch') send(touchPause, 'click', { detail: 1 });
     else send(canvas, 'webglcontextlost');
-    assert.equal(game.mode, 'paused'); assert.equal(quiets, 1);
-    if (phone) assert.deepEqual(f.buzzes, [187, 0], 'pause cancels the owned phone cue');
-    else assert.equal(f.resets.length, 1, 'pause resets the owned controller cue');
-    f.input.update(1 / 60, true);
+    const restarted = cause === 'KeyR' || cause === 'Back';
+    assert.equal(game.mode, restarted ? 'playing' : 'paused');
+    assert.equal(quiets, 1, cause + ': interruption retires old audio');
+    if (phone) assert.deepEqual(f.buzzes, [187, 0], 'interruption cancels the owned phone cue');
+    else assert.equal(f.resets.length, 1, 'interruption resets the owned controller cue');
+    f.input.update(1 / 60, !restarted);
     assert.equal(f.input.state.tuck, true, 'stopping feedback preserves a physically held key');
+    if (restarted) {
+      assert.equal(rider.state, 'ride'); assert.equal(rider.pos.z, -1000);
+      f.rumble(70);
+      if (phone) assert.deepEqual(f.buzzes, [187, 0, 70], 'the fresh run can buzz immediately');
+      else assert.equal(f.plays.length, 2, 'the fresh run can rumble immediately');
+    }
   });
 
   for (const method of ['calm', 'clear', 'dispose', 'orientationchange']) {
