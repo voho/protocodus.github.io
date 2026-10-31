@@ -580,6 +580,95 @@ function send(target, type, values = {}) {
   Object.assign(event, values);
   target.dispatchEvent(event);
 }
+
+// A shallow real compression used to consume the charge even when its pump
+// was too small to apply. Replay ordinary keys on seeded snow: no injected
+// bend, velocity, charge or airborne state can create the boundary for us.
+{
+  const savedSeed = getWorldSeed();
+  const hill = { height: heightAt, surfaceAt: getTerrainMaterialAt,
+    canStall: (x, z) => Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z),
+    beyond: beyondLipAt, grip: 1, surfaceDrag: 1 };
+  function releaseOnRoller(release, duration) {
+    const r = rider(hill); r.reset(-600, guideAt(-600));
+    const target = new Target(), controls = createInput(target), held = new Set();
+    const launches = [], pumps = [], lands = [];
+    r.on('launch', () => launches.push({ pop: r.airPop, lip: r.lipPop }));
+    r.on('pump', drive => pumps.push(drive));
+    r.on('land', summary => lands.push(summary));
+    let steering = 0, peak = 0, before, after;
+    const snapshot = () => ({ state: r.state, charge: r.charge, charging: r.charging,
+      buffer: r._jumpBuffer, bend: r.bend, lip: r.lipPop, velocity: r.vel.toArray() });
+    try {
+      for (let frame = 0; frame < release + 90; frame++) {
+        const error = Math.atan2(guideAt(r.pos.z - 25) - r.pos.x, 25)
+          - Math.atan2(r.vel.x, -r.vel.z);
+        const zone = steering === 0 ? .055 : .02;
+        steering = r.state === 'ride' && Math.abs(error) > zone ? Math.sign(error) : 0;
+        const wanted = new Set([
+          ...(frame >= release - duration && frame < release ? ['Space'] : []),
+          ...(steering < 0 ? ['KeyA'] : steering > 0 ? ['KeyD'] : []),
+        ]);
+        for (const code of new Set([...held, ...wanted])) {
+          if (held.has(code) === wanted.has(code)) continue;
+          send(target, wanted.has(code) ? 'keydown' : 'keyup', { code });
+          if (wanted.has(code)) held.add(code); else held.delete(code);
+        }
+        controls.update(1 / 60);
+        for (let step = 0; step < 2; step++) {
+          if (frame === release && step === 0) before = snapshot();
+          r.step(dt, controls.state); controls.stepped();
+          if (frame === release && step === 0) after = snapshot();
+        }
+        if (frame >= release) peak = Math.max(peak, r.pos.y - heightAt(r.pos.x, r.pos.z));
+        assert.notEqual(r.state, 'fall', 'the ordinary roller route stays controlled');
+      }
+    } finally { controls.dispose(); }
+    return { before, after, launches, pumps, lands, peak };
+  }
+  try {
+    setWorldSeed('ALPEN01');
+    for (const duration of [6, 30]) { // a 100 ms tap and a full half-second hold
+      const weak = releaseOnRoller(873, duration);
+      assert(weak.after.bend > RIDER.pumpFrom && weak.after.bend < RIDER.pumpFrom + .01,
+        'real snow puts the release just inside the compression branch');
+      assert.equal(weak.after.state, 'air', 'an unapplied pump must honor the released jump');
+      assert.equal(weak.launches.length, 1, 'the release launches once');
+      assert.deepEqual(weak.pumps, [], 'a weak pump cannot also pay speed');
+      close(weak.launches[0].pop, RIDER.popMin + (RIDER.popMax - RIDER.popMin) * weak.before.charge,
+        'the fallback keeps the actual held charge');
+      assert.equal(weak.launches[0].lip, false, 'ordinary compression does not earn a lip bonus');
+      assert.equal(weak.after.charge, 0); assert.equal(weak.after.charging, false);
+      assert.equal(weak.after.buffer, 0, 'the spent release cannot queue another launch');
+      assert(weak.peak > (duration === 6 ? .3 : .9), 'the requested tap/full jump clears the snow');
+      assert.equal(weak.lands.length, 1); assert.equal(weak.lands[0].verdict, CLEAN);
+
+      const normal = releaseOnRoller(874, duration);
+      assert(normal.after.bend < RIDER.pumpFrom, 'one frame later is outside the pump branch');
+      assert.deepEqual(normal.launches, weak.launches, 'the neighboring release keeps the same pop');
+      assert.deepEqual(normal.pumps, []);
+      assert(Math.abs(normal.peak - weak.peak) < .02, 'the narrow load boundary does not swallow jump height');
+    }
+    const untouched = releaseOnRoller(770, 0);
+    for (const duration of [6, 30]) {
+      const pumped = releaseOnRoller(770, duration);
+      assert(pumped.after.bend > RIDER.pumpFrom + .2, 'the stronger compression is also real terrain');
+      assert.deepEqual(pumped.launches, [], 'an accepted pump spends the release on speed');
+      assert.equal(pumped.pumps.length, 1); assert(pumped.pumps[0] > .1);
+      assert.equal(pumped.after.charge, 0); assert.equal(pumped.after.charging, false);
+      assert.equal(pumped.after.buffer, 0); assert.equal(pumped.after.lip, false);
+      const v = pumped.after.velocity, ordinary = untouched.after.velocity;
+      close(Math.hypot(v[0] - ordinary[0], v[2] - ordinary[2]), pumped.pumps[0],
+        'the reported pump is the speed actually added along the snow');
+      close(v[1], ordinary[1], 'the pump does not add a vertical pop');
+      assert.equal(pumped.peak, 0, 'the pump stays on the snow');
+    }
+    const unpressed = releaseOnRoller(873, 0);
+    assert.deepEqual(unpressed.launches, []); assert.deepEqual(unpressed.pumps, []);
+    assert.equal(unpressed.peak, 0, 'crossing the weak compression alone does not invent a jump');
+  } finally { setWorldSeed(savedSeed); }
+}
+
 for (const touch of [false, true]) {
   const target = new Target();
   const input = createInput(target);

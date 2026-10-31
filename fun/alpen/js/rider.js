@@ -1695,12 +1695,14 @@ export class Rider {
         );
         const drive = RIDER.pumpSpeed * held * load;
         const flat = Math.hypot(vel.x, vel.z);
+        // Spend the pop only when the compression actually drives the board.
+        // A rejected pump still owes the player their requested hop.
         if (flat > 1e-3 && drive > 0.05) {
           vel.x += (vel.x / flat) * drive;
           vel.z += (vel.z / flat) * drive;
           this.emit('pump', drive);
+          pop = 0;
         }
-        pop = 0;
       }
       this.charging = false;
       this.charge = 0;
