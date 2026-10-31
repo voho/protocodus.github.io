@@ -631,7 +631,7 @@ const hutBox = hutModel.boundingBox;
 }
 const rider = await load('riderModel.js',
   ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH',
-    'ARMS', 'TRUNK', 'WRIST']);
+    'ARMS', 'TRUNK', 'WRIST', 'FLEX_SPAN']);
 const lampModule = await load('headlamp.js');
 const riderGeo = rider.buildGeometries(THREE);
 let riderTriangles = 0;
@@ -1933,7 +1933,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     // Restart and attract-loop relocation must forget the previous landing's
     // tilt correction. Compare the shipped rig with a genuinely fresh one,
     // including a zero-dt capture before that old correction could decay.
-    const { Rider, CLEAN } = await import('../js/rider.js');
+    const { Rider, CLEAN, GRAB_METHOD } = await import('../js/rider.js');
     const makeFreshRig = (adopted = true) => {
       const savedDocument = globalThis.document;
       globalThis.document = { createElement: () => ({
@@ -2257,6 +2257,139 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
             kind + ': reset removes the previous body lean at zero dt');
           deck.matrixWorld.elements.forEach((value, i) => assert(Math.abs(value - freshDeck.matrixWorld.elements[i]) < 1e-9,
             kind + ': reset removes the previous board edge at zero dt'));
+        } finally { controls.dispose(); }
+      }
+      // A held method must reach the deck without sending the forearm
+      // through the leg. Use drawn, morphed triangles rather than palm
+      // targets or overlapping bounds; the board's boots are not its edge.
+      const posedTriangles = (mesh, geometry = mesh.geometry, bend = 0) => {
+        const points = Array.from({ length: geometry.attributes.position.count }, (_, i) => {
+          const point = geometry === mesh.geometry ? mesh.getVertexPosition(i, new V())
+            : new V().fromBufferAttribute(geometry.attributes.position, i);
+          if (bend) point.y += bend * (1 - Math.min(1, Math.abs(point.z / rider.FLEX_SPAN)) ** 2);
+          return point.applyMatrix4(mesh.matrixWorld);
+        });
+        const triangles = [], index = geometry.index;
+        for (let i = 0; i < (index?.count ?? points.length); i += 3) {
+          const vertices = [0, 1, 2].map(j => points[index ? index.getX(i + j) : i + j]);
+          triangles.push({ vertices, shape: new THREE.Triangle(...vertices), box: new THREE.Box3().setFromPoints(vertices) });
+        }
+        return triangles;
+      };
+      const surfacesWithin = (a, b, gap) => {
+        const point = new V(), ray = new THREE.Ray(), clamp = n => Math.max(0, Math.min(1, n));
+        const limit = gap * gap;
+        for (const x of a) for (const y of b) {
+          let boxGap = 0;
+          for (const axis of ['x', 'y', 'z']) {
+            boxGap += Math.max(0, x.box.min[axis] - y.box.max[axis], y.box.min[axis] - x.box.max[axis]) ** 2;
+          }
+          if (boxGap > limit) continue;
+          for (const p of x.vertices) if (y.shape.closestPointToPoint(p, point).distanceToSquared(p) <= limit) return true;
+          for (const p of y.vertices) if (x.shape.closestPointToPoint(p, point).distanceToSquared(p) <= limit) return true;
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+            const p = x.vertices[i], q = y.vertices[j];
+            const d = x.vertices[(i + 1) % 3].clone().sub(p), e = y.vertices[(j + 1) % 3].clone().sub(q);
+            const r = p.clone().sub(q), aa = d.lengthSq(), ee = e.lengthSq(), f = e.dot(r);
+            let s, t;
+            if (aa < 1e-18) { s = 0; t = ee < 1e-18 ? 0 : clamp(f / ee); }
+            else {
+              const c = d.dot(r);
+              if (ee < 1e-18) { t = 0; s = clamp(-c / aa); }
+              else {
+                const de = d.dot(e), denominator = aa * ee - de * de;
+                s = denominator ? clamp((de * f - c * ee) / denominator) : 0;
+                t = (de * s + f) / ee;
+                if (t < 0) { t = 0; s = clamp(-c / aa); }
+                else if (t > 1) { t = 1; s = clamp((de - c) / aa); }
+              }
+            }
+            if (p.clone().addScaledVector(d, s).distanceToSquared(q.clone().addScaledVector(e, t)) <= limit) return true;
+          }
+          // Crossing faces can intersect even when every vertex and pair of
+          // edges are separated. Check finite edges against the other face.
+          for (const [from, to] of [[x, y], [y, x]]) for (let i = 0; i < 3; i++) {
+            const p = from.vertices[i], q = from.vertices[(i + 1) % 3];
+            ray.set(p, q.clone().sub(p).normalize());
+            if (ray.intersectTriangle(...to.vertices, false, point)
+              && p.distanceToSquared(point) <= p.distanceToSquared(q) + 1e-12) return true;
+          }
+        }
+        return false;
+      };
+      for (const adopted of [false, true]) for (const switched of [false, true]) {
+        const label = `${adopted ? 'modelled' : 'fallback'} / ${switched ? 'switch' : 'regular'} method`;
+        const physical = new Rider(THREE, { height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false });
+        physical.reset(-250, guideAt(-250));
+        const rig = makeFreshRig(adopted), deck = rig.root.getObjectByName('rider-board');
+        const side = switched ? 'lead' : 'rear';
+        const glove = rig.root.getObjectByName('rider-hand-' + side);
+        const forearm = rig.root.getObjectByName('rider-forearm-' + side);
+        const torso = rig.root.getObjectByName('rider-torso').parent;
+        const legs = torso.parent.children.filter(child => child.isGroup && child !== torso);
+        assert.equal(legs.length, 2, label + ': both physical legs are present');
+        const trailingShin = legs[switched ? 0 : 1].children.find(child => child.isGroup).children.find(child => child.isMesh);
+        const shader = { uniforms: {}, vertexShader: '', fragmentShader: '' };
+        deck.material.onBeforeCompile(shader);
+        const target = new EventTarget(), controls = createInput(target), held = new Set();
+        const previous = new V(), actual = new V(), landings = [];
+        let checked = 0;
+        physical.on('land', result => landings.push(result));
+        const draw = (keys = [], checkContact = false) => {
+          for (const code of ['Space', 'KeyD', 'KeyS', 'KeyQ']) {
+            const down = keys.includes(code);
+            if (down === held.has(code)) continue;
+            const event = new Event(down ? 'keydown' : 'keyup', { cancelable: true });
+            Object.assign(event, { code }); target.dispatchEvent(event);
+            if (down) held.add(code); else held.delete(code);
+          }
+          controls.update(poseDt);
+          let previousYaw;
+          for (let i = 0; i < 2; i++) {
+            previous.copy(physical.pos); previousYaw = physical.yaw + physical.yawGlide;
+            physical.step(1 / 120, controls.state); controls.stepped();
+          }
+          assert.notEqual(physical.state, 'fall', label + ': the keyed route remains controlled');
+          const trueYaw = physical.yaw;
+          actual.copy(physical.pos); physical.pos.copy(previous);
+          interpolateYaw(physical, trueYaw, previousYaw, 0, 2 * Math.PI);
+          rig.update(physical, poseDt); rig.root.updateMatrixWorld(true);
+          if (checkContact && physical.grabTime >= .5 - 1e-8) {
+            assert.equal(physical.state, 'air', label + ': contact is checked during the real flight');
+            assert.equal(physical.grabKind, GRAB_METHOD, label + ': modifier-first keys select a method');
+            assert.equal(physical.switchStance, switched, label + ': the expected binding leads');
+            assert(rig.debug().arms.grab > .98, label + ': the held reach has settled');
+            assert(surfacesWithin(posedTriangles(glove), posedTriangles(deck, kit.deck, shader.uniforms.uBend.value), .02),
+              label + ': the held glove reaches the snowboard deck');
+            assert(!surfacesWithin(posedTriangles(forearm), posedTriangles(trailingShin), .02),
+              label + ': reaching the deck leaves the forearm clear of the trailing shin');
+            checked++;
+          }
+          physical.pos.copy(actual); physical.yaw = trueYaw;
+        };
+        try {
+          for (let i = 0; i < 120; i++) draw();
+          if (switched) {
+            for (let i = 0; i < 30; i++) draw(['Space']);
+            draw();
+            for (let i = 0; i < 240 && physical.state === 'air'; i++) draw(physical.airTime < .55 ? ['KeyD'] : []);
+            assert.equal(landings.length, 1, label + ': the first hop lands');
+            assert.equal(landings[0].verdict, CLEAN, label + ': the actual 180 lands cleanly');
+            assert.equal(physical.switchStance, true, label + ': the keyed 180 earns switch');
+            for (let i = 0; i < 48; i++) draw();
+          }
+          for (let i = 0; i < 30; i++) draw(['Space']);
+          draw(); draw(['KeyS']);
+          for (let i = 0; i < 31; i++) draw(['KeyS', 'KeyQ'], true);
+          assert.equal(checked, 2, label + ': two mature held frames exercise the surfaces');
+          for (let i = 0; i < 30; i++) draw();
+          assert.equal(landings.length, switched ? 2 : 1, label + ': the method lands once');
+          const landed = landings.at(-1);
+          assert.equal(landed.verdict, CLEAN, label + ': releasing the grab permits a clean landing');
+          assert.equal(landed.grabKind, GRAB_METHOD);
+          assert(landed.grabTime > .5, label + ': the flight really held the grab');
+          assert.equal(physical.switchStance, switched);
+          assert(rig.debug().arms.grab < .001, label + ': release clears the reaching pose');
         } finally { controls.dispose(); }
       }
     } finally {

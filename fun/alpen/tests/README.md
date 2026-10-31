@@ -271,6 +271,10 @@ matrix stays finite, both ankles stay in their bindings, the indy hand still
 lands on the toe edge, the head leads each turn by less than the cap, a hard
 stop pitches the chest forwards and settles, and breathing never scales or
 shears the head.
+Actual keyboard flights also check the method grab in regular and switch
+stance on both rider models. The morphed glove reaches the snowboard deck,
+the forearm clears the legs, and releasing the grab still allows a clean
+landing as the pose fades back into riding.
 Real landings also exercise reset and teleport while a tilt correction is
 active. The first root and shipped-board transforms match a fresh rig on
 flat and sloped snow, including zero-time redraws; the next ordinary landing
