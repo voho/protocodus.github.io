@@ -480,6 +480,7 @@ const game = {
   flowMaxAnnounced: false,
   maxDistanceAnnounced: 0,
   maxSpeedAnnounced: 0,
+  pendingMilestones: [], // earned during a tumble; celebrate once back in control
   manualWeather: 0,
   pisteOffset: 0,
   recentTricks: [],      // the previous landings' names — see `repeatShare`
@@ -690,6 +691,7 @@ function restart(fullReset = false) {
   game.maxDistanceAnnounced = resumeDist >= 5000 ? 5000
     : resumeDist >= 1000 ? 1000 : 0;
   game.maxSpeedAnnounced = 0;
+  game.pendingMilestones.length = 0;
   game.recentTricks.length = 0;
   game.discoveredGrabs.clear();
   // Where the run resumes is not news; only crossing into the next one is.
@@ -948,6 +950,30 @@ function award(points, name, tone, opts = null) {
     persistBest();
   }
   if (name) hud.banner(name, points, tone, opts);
+}
+
+function showMilestone(kind, points) {
+  if (kind === 'speed') {
+    hud.banner('100 KM/H CLUB!', points, 'near');
+    audio.speedClub();
+    input.rumble(0.5, 0.2, 220);
+  } else if (kind === 'descent1000') {
+    hud.banner('1,000M DESCENT!', points, 'near');
+    audio.descentMilestone(1000);
+    input.rumble(0.45, 0.25, 250);
+  } else {
+    hud.banner('5,000M ALPINE LEGEND!', points, 'near');
+    audio.descentMilestone(5000);
+    input.rumble(0.7, 0.5, 350);
+  }
+}
+
+function earnMilestone(kind, points) {
+  // Bank the crossing's multiplier now. Waiting to pay until recovery would
+  // reduce an earned bonus as flow fades while the rider gets up.
+  award(points);
+  if (rider.state === 'ride' || rider.state === 'air') showMilestone(kind, points);
+  else game.pendingMilestones.push({ kind, points });
 }
 
 function scoreLanding(s) {
@@ -1883,12 +1909,20 @@ function frame(now) {
     wildlife.update(dt, rider, onWildlifeNear);
     
     if (game.mode === 'playing') {
+      // A tumble can cross a milestone before its crash pulse even finishes.
+      // Keep that feedback intact; these at-most-three notices belong to the
+      // return to controlled riding. Their points have already been banked.
+      if ((rider.state === 'ride' || rider.state === 'air') && game.pendingMilestones.length) {
+        for (let i = 0; i < game.pendingMilestones.length; i++) {
+          const milestone = game.pendingMilestones[i];
+          showMilestone(milestone.kind, milestone.points);
+        }
+        game.pendingMilestones.length = 0;
+      }
       const kmh = Math.round(rider.speed * 3.6);
       if (kmh >= 100 && game.maxSpeedAnnounced < 100) {
         game.maxSpeedAnnounced = 100;
-        award(SCORE.comboStep * 200 * game.combo, '100 KM/H CLUB!', 'near');
-        audio.speedClub();
-        input.rumble(0.5, 0.2, 220);
+        earnMilestone('speed', SCORE.comboStep * 200 * game.combo);
       }
       
       /* THE CHAPTER, announced. The range changes character every couple
@@ -1911,14 +1945,10 @@ function frame(now) {
       const dist = Math.floor(-rider.pos.z);
       if (dist >= 1000 && game.maxDistanceAnnounced < 1000) {
         game.maxDistanceAnnounced = 1000;
-        award(SCORE.comboStep * 250 * game.combo, '1,000M DESCENT!', 'near');
-        audio.descentMilestone(1000);
-        input.rumble(0.45, 0.25, 250);
+        earnMilestone('descent1000', SCORE.comboStep * 250 * game.combo);
       } else if (dist >= 5000 && game.maxDistanceAnnounced < 5000) {
         game.maxDistanceAnnounced = 5000;
-        award(SCORE.comboStep * 500 * game.combo, '5,000M ALPINE LEGEND!', 'near');
-        audio.descentMilestone(5000);
-        input.rumble(0.7, 0.5, 350);
+        earnMilestone('descent5000', SCORE.comboStep * 500 * game.combo);
       }
     }
 

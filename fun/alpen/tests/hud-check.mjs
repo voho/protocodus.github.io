@@ -5,12 +5,14 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createHud } from '../js/hud.js';
-import { RIDER, SCORE } from '../js/config.js';
+import { RIDER, SCORE, PROPS, SOFT } from '../js/config.js';
 import { butterName, Rider, trickName, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
-import { comboFor, scoreTrick, repeatShare, firstGrabShare, flowFromPoints, feedFlow, GRAB_DISCOVERY_BONUS } from '../js/flow.js';
+import { comboFor, scoreTrick, repeatShare, firstGrabShare, flowFromPoints, feedFlow, stepFlowMeter, GRAB_DISCOVERY_BONUS } from '../js/flow.js';
 import { createChaseCamera } from '../js/camera.js';
-import { heightAt, guideAt, getTerrainMaterialAt } from '../js/terrain.js';
+import { heightAt, guideAt, getTerrainMaterialAt, nearestCenter, corridorHalfAt,
+  beyondLipAt, chapterNameAt, gateSlotsIn } from '../js/terrain.js';
 import { getWorldSeed, setWorldSeed } from '../js/noise.js';
+import { createWeather } from '../js/weather.js';
 let writes = 0, targetQueries = 0;
 const tracked = value => new Proxy(value, {
   set(target, key, next) { target[key] = next; writes++; return true; },
@@ -495,7 +497,7 @@ function feedbackFixture(record = 0) {
   rider.pos.z = -100; rider.vel.set(0, 0, -20);
   const game = { ...g, rider, mode: 'playing', score: 0, best: record, bestAtStart: record,
     liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0,
-    recentTricks: [], discoveredGrabs: new Set() };
+    recentTricks: [], discoveredGrabs: new Set(), pendingMilestones: [] };
   const sounds = [], pulses = [];
   const camera = new THREE.PerspectiveCamera(70, 16 / 9, .1, 2000);
   const context = vm.createContext({ rider, camera, game, RIDER, SCORE, comboFor, hud,
@@ -508,7 +510,7 @@ function feedbackFixture(record = 0) {
   });
   feedbackHandlers.runInContext(context);
   hud.resetScore(); hud.update(game, .1);
-  return { rider, camera, game, sounds, pulses, award: context.award, near: context.onNear,
+  return { rider, camera, game, sounds, pulses, context, award: context.award, near: context.onNear,
     update(dt) { game.liveTrick = context.liveTrickName(); hud.update(game, dt); } };
 }
 // Short, incomplete attempts still need their landing reason even when they
@@ -587,6 +589,189 @@ function feedbackFixture(record = 0) {
     assert.equal(sounds.filter(s => s.name === 'land').length, 1);
   } finally { setWorldSeed(seed); }
 }
+
+// A real failed flip near 1,000 m earns distance while the body tumbles.
+// Keep its crossing-time points, but let the crash explain itself before the
+// celebration. These are actual main handlers and the real HUD; this CPU
+// route includes seeded terrain/weather/gates, not streamed obstacle meshes.
+const milestoneFrame = new vm.Script(mainSection(
+  '    wildlife.update(dt, rider, onWildlifeNear);', '\n    huts.update',
+).replace('    wildlife.update(dt, rider, onWildlifeNear);', ''));
+const milestoneHandlers = new vm.Script([
+  mainSection("rider.on('launch',", "\nrider.on('fall',"),
+  mainSection('function stepFlow()', '\n/* Near miss encounters'),
+  mainSection('function checkGates()', '\n/* ==========================================================================\n   Collisions'),
+  mainSection('function cancelJump() {', '\nconst input = createInput'),
+  mainSection('function begin()', '\nlet lastPassedGate'),
+  mainSection('function restart(fullReset', '\nfunction newMountain('),
+].join('\n'));
+function milestoneFixture() {
+  const fixture = feedbackFixture(), { rider, game, context } = fixture;
+  Object.assign(game, { flow: 0, flowHold: 0, combo: 1, maxSpeedAnnounced: 0,
+    maxDistanceAnnounced: 0, chapter: chapterNameAt(rider.pos.z) });
+  const noop = () => {}, resettable = { reset: noop, clear: noop };
+  Object.assign(context, { world: rider.world, STEP: 1 / 120, stepFlowMeter,
+    prev: rider.pos.clone(), dt: 1 / 60, chapterCheck: 0, lastPassedGate: null,
+    guideAt, nearestCenter, corridorHalfAt, chapterNameAt, readBest: () => game.best,
+    curtainPointers: new Map(), curtain: { dataset: {}, classList: { add: noop, remove: noop } },
+    curtainClickReady: false, curtainClickDevice: null, pausedRendered: false, pausedWorldReady: false,
+    bootReady: true, contextLost: false, runStarted: true, controllerNotice: { hidden: true },
+    showMuted: noop, trackRunStart: noop, hadStep: false,
+    props: { ...resettable, gates: [], reopenGatesBelow: noop }, terrain: resettable,
+    trail: resettable, wildlife: resettable, huts: resettable, mountainLife: resettable,
+    model: resettable, shading: resettable,
+  });
+  context.input.calm = noop; context.chase.reset = noop; context.spray.clear = noop;
+  context.retro.fade = context.retro.clearCrash = noop;
+  milestoneHandlers.runInContext(context);
+  fixture.frame = (dt = 1 / 60) => {
+    context.dt = dt; milestoneFrame.runInContext(context); fixture.update(dt);
+  };
+  return fixture;
+}
+function rideToTumblingMilestone() {
+  setWorldSeed('ALPEN01');
+  const fixture = milestoneFixture(), { rider, game, context } = fixture;
+  const world = { height: heightAt, surfaceAt: getTerrainMaterialAt,
+    canStall: (x, z) => Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z),
+    beyond: beyondLipAt, grip: 1, surfaceDrag: 1 };
+  rider.world = context.world = world; rider.reset(0, guideAt(0));
+  const weather = createWeather(THREE); game.weather = weather.state;
+  game.chapter = chapterNameAt(0);
+  context.props.gates = gateSlotsIn(-1500, 0).map(gate => ({ ...gate, half: PROPS.gateHalf, taken: false }));
+  let frame = 0, turn = 0, chargeAt = -1, fallAt = -1, crossingPoints = 0;
+  rider.on('fall', () => { fallAt = frame / 60; });
+  const step = () => {
+    if (chargeAt < 0 && rider.pos.z < -970 && rider.grounded) chargeAt = frame;
+    const error = guideAt(rider.pos.z - 26) - rider.pos.x;
+    const want = Math.atan2(error, 30) - Math.atan2(rider.vel.x, -rider.vel.z);
+    turn += (Math.max(-1, Math.min(1, want * 2.4)) - turn) / 12;
+    const control = { ...neutral, turn: rider.state === 'ride' ? turn : 0, turnIntent: turn,
+      jump: chargeAt >= 0 && frame - chargeAt < 24,
+      trickFlip: chargeAt >= 0 && frame - chargeAt >= 24 };
+    for (let i = 0; i < 2; i++) {
+      context.prev.copy(rider.pos); rider.step(1 / 120, control);
+      context.checkGates(); context.stepFlow();
+    }
+    const w = weather.update(1 / 60);
+    world.grip = 1 - w.storm * (1 - RIDER.stormGrip);
+    world.surfaceDrag = 1 + w.storm * (RIDER.stormFriction - 1);
+    world.windX = w.windX; world.windZ = w.windZ;
+    const before = game.score, flag = game.maxDistanceAnnounced;
+    fixture.frame();
+    if (!flag && game.maxDistanceAnnounced) crossingPoints = game.score - before;
+    frame++;
+  };
+  for (let i = 0; i < 3600 && !game.maxDistanceAnnounced; i++) step();
+  assert.equal(rider.state, 'fall'); assert.equal(rider.fallReason, 'UPSIDE DOWN');
+  assert(rider.pos.z < -1000 && frame / 60 - fallAt < .3);
+  assert.equal(crossingPoints, 500, 'crossing pays the actual ×2 multiplier immediately');
+  return { ...fixture, step, age: () => frame / 60 - fallAt };
+}
+{
+  const seed = getWorldSeed();
+  try {
+    const run = rideToTumblingMilestone(), { game, rider, sounds, pulses, context } = run;
+    const celebrations = () => sounds.filter(s => s.name === 'descentMilestone');
+    assert.equal(celebrations().length, 0, 'the tumble banks distance without playing its celebration');
+    assert.equal(pulses.filter(p => p[2] === 250).length, 0, 'the milestone cannot preempt the crash pulse');
+    assert.equal(f.event.hidden, false);
+    assert.equal(f['event-name'].textContent, 'WIPEOUT');
+    assert.equal(f['event-kicker'].textContent, 'UPSIDE DOWN');
+    assert.equal(game.pendingMilestones.length, 1);
+    const banked = game.score, record = game.best;
+    context.pause(); run.frame(2);
+    assert.equal(game.pendingMilestones.length, 1, 'pause retains the earned notice');
+    assert.equal(celebrations().length, 0);
+    context.begin(); run.frame(0);
+    let sawRise = false;
+    for (let i = 0; i < 720 && rider.state !== 'ride'; i++) {
+      run.step(); sawRise ||= rider.state === 'rise';
+      if (run.age() < 2.1) {
+        assert.equal(f.event.hidden, false, 'the crash hold remains visible');
+        assert.equal(f['event-name'].textContent, 'WIPEOUT', 'the normal crash hold is retained');
+      }
+      if (rider.state !== 'ride') {
+        assert.equal(celebrations().length, 0, 'both tumble and getting up remain free of milestone cues');
+        assert.equal(pulses.filter(p => p[2] === 250).length, 0);
+      }
+    }
+    assert(sawRise); assert.equal(rider.state, 'ride'); assert.equal(game.combo, 1);
+    assert.deepEqual(celebrations().map(s => s.args), [[1000]]);
+    assert.equal(f['event-name'].textContent, '1,000M DESCENT!');
+    assert.equal(f['event-points'].textContent, '+500', 'recovery displays the captured points, not the current ×1 payout');
+    assert.equal(game.score, banked); assert.equal(game.best, record);
+    assert.equal(game.pendingMilestones.length, 0);
+    for (let i = 0; i < 30; i++) run.frame(1 / 60);
+    assert.equal(celebrations().length, 1); assert.equal(game.score, banked, 'presentation cannot pay again');
+    assert.equal(sounds.filter(s => s.name === 'speedClub').length, 1, 'the earlier ordinary speed award remains immediate');
+
+    const restarted = rideToTumblingMilestone();
+    restarted.context.restart(); restarted.frame();
+    assert.equal(restarted.rider.state, 'ride'); assert(restarted.rider.pos.z > -1000);
+    assert.equal(restarted.game.score, 0); assert.equal(restarted.game.maxDistanceAnnounced, 0);
+    assert.equal(restarted.game.pendingMilestones.length, 0, 'checkpoint restart discards the old run\'s queued notice');
+    assert.equal(restarted.sounds.filter(s => s.name === 'descentMilestone').length, 0);
+    // A checkpoint already below both thresholds seeds them as old news.
+    restarted.context.lastPassedGate = { x: 0, z: -5003 };
+    restarted.context.restart(); restarted.frame();
+    assert.equal(restarted.game.maxDistanceAnnounced, 5000);
+    assert.equal(restarted.game.score, 0);
+    assert.equal(restarted.sounds.filter(s => s.name === 'descentMilestone').length, 0);
+  } finally { setWorldSeed(seed); }
+}
+for (const [level, airborne] of [[1000, false], [5000, true]]) {
+  const run = milestoneFixture(), { rider, game, sounds, pulses } = run;
+  rider.reset(-level + 2, 0); rider.vel.set(0, 0, -20);
+  game.maxDistanceAnnounced = level === 5000 ? 1000 : 0;
+  if (airborne) {
+    for (let i = 0; i < 2; i++) rider.step(1 / 120, { ...neutral, jump: true });
+    rider.step(1 / 120, neutral);
+  }
+  for (let i = 0; i < 60 && !sounds.some(s => s.name === 'descentMilestone'); i++) {
+    rider.step(1 / 120, neutral); run.frame(1 / 120);
+  }
+  assert.equal(rider.state, airborne ? 'air' : 'ride');
+  assert.deepEqual(sounds.filter(s => s.name === 'descentMilestone').map(s => s.args), [[level]]);
+  assert.equal(pulses.filter(p => p[2] === (level === 1000 ? 250 : 350)).length, 1);
+  assert.equal(game.score, level === 1000 ? 250 : 500);
+  assert.equal(game.pendingMilestones.length, 0, 'ordinary controlled crossings celebrate immediately');
+}
+{
+  // Controlled mature approach on flat ground. The real swept hard-circle
+  // collision and body physics carry the rider back above 1,000 m before
+  // recovery; no state/position/velocity is assigned after the initial setup.
+  const run = milestoneFixture(), { rider, game, context, sounds } = run;
+  rider.reset(-999.8, 0); rider.vel.set(0, 0, -50); rider.grace = 0;
+  const solid = { x: 0, z: -1001.8, r: .7, top: 99, volume: true, kind: 0 };
+  Object.assign(context, { PROPS, SOFT });
+  context.props.querySolids = (lo, hi, out) => { out.length = 0; out.push(solid); };
+  context.huts = { solids: [] };
+  new vm.Script(mainSection('const sweepHit =', '\nconst demoControl =')).runInContext(context);
+  let crossed = false, banked = 0, recovered = false;
+  for (let tick = 0; tick < 600; tick++) {
+    context.prev.copy(rider.pos); rider.step(1 / 120, neutral); context.collide();
+    if (tick % 2 === 0) continue;
+    run.frame();
+    if (!crossed && game.maxDistanceAnnounced) {
+      crossed = true; banked = game.score;
+      assert.equal(rider.state, 'fall'); assert(rider.pos.z < -1000);
+      assert.equal(sounds.filter(s => s.name === 'descentMilestone').length, 0);
+    }
+    if (crossed && rider.state === 'ride') {
+      recovered = true; assert(rider.pos.z > -1000, 'the actual rebound recovered uphill of the crossing');
+      assert.deepEqual(sounds.filter(s => s.name === 'descentMilestone').map(s => s.args), [[1000]],
+        'an earned notice stays eligible even after rebounding above its threshold');
+      assert.equal(game.score, banked); break;
+    }
+  }
+  assert(crossed && recovered);
+  assert.equal(game.pendingMilestones.length, 0);
+  for (let i = 0; i < 240 && rider.pos.z > -1000; i++) { rider.step(1 / 120, neutral); run.frame(1 / 120); }
+  assert(rider.pos.z <= -1000);
+  assert.equal(sounds.filter(s => s.name === 'descentMilestone').length, 1);
+  assert.equal(game.score, banked, 'recrossing after a rebound cannot pay twice');
+}
 // The actual award callback updates the record before the HUD sees it.
 // The visible target changes only on a strict improvement, including the
 // first score of a first-ever run, without replacing the award announcement.
@@ -656,7 +841,7 @@ function recordFixture(storage, options = {}) {
   const world = { height: () => 0, canStall: () => false };
   const rider = new Rider(THREE, world);
   const game = { ...g, rider, mode: 'playing', score: 0, best: 0, bestAtStart: 0,
-    recentTricks: [], discoveredGrabs: new Set() };
+    recentTricks: [], discoveredGrabs: new Set(), pendingMilestones: [] };
   const io = { reads: 0, writes: 0 }, events = new Map();
   const faults = { read: !!options.readFailure, write: !!options.writeFailure };
   let now = options.now ?? 10000;

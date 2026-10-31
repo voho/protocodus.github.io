@@ -96,6 +96,11 @@ rewards require controlled riding or flight; falls and getting up cannot
 produce points, a whoosh or a reward pulse. A real terrain carve and chase
 camera verify that the whoosh follows the hare's displayed side, including
 opposite world-X positions, a centered pass and a rider turning in flight.
+Milestones crossed while tumbling still bank their points immediately, at the
+crossing's multiplier. Their banner, sound and vibration wait until the rider
+regains control, so they cannot interrupt the wipeout explanation. Seeded
+physics and production handlers check that recovery celebrates once without
+paying twice, while pause retains the notice and restart discards it.
 Record feedback uses the production award callback: the first positive score
 sets a personal best, tying a saved record does not, and an active award or
 crash announcement keeps priority. Restart restores the target; idle records
