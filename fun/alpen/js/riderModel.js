@@ -2339,9 +2339,9 @@ export function createRiderModel(THREE, shading) {
      shoulder at `side`·SHOULDER_Z (board frame: −1 is the nose-side one).
      The shoulder: not more than a third of a metre behind its own plane and
      not more than a decimetre across the chest, both loosened through a
-     grab, which reaches. The trunk and the head: see `TRUNK`. Every one of
-     these is a continuous function of the target, so a hand sliding along
-     the jacket slides — it never jumps.
+     grab, which reaches. The trunk and the head: see `TRUNK`. The constrained
+     position feeds back into the spring below, keeping the next step on
+     the reachable side of the body.
 
      The body and the reach are applied by turns, because they argue: a hand
      pushed out of a knee can end up past the arm's reach, and pulled back
@@ -2655,8 +2655,12 @@ export function createRiderModel(THREE, shading) {
        edge is the real one weighted by the load, and the board only lies over
        when it has something to lie over against. */
     s.load = approach(s.load, rider.carveLoad || 0, 9, sdt);
+    // Edge and lean describe the turn relative to travel. The bindings face
+    // the other way in switch, so their local roll needs the stance sign.
+    // Use the pose's existing blend to keep landings and butters continuous.
+    const boardEdge = (rider.edge || 0) * sw;
     const edgeWant = clamp(
-      (rider.edge || 0) * (0.35 + 0.65 * s.load), -POSE.edgeShow, POSE.edgeShow,
+      boardEdge * (0.35 + 0.65 * s.load), -POSE.edgeShow, POSE.edgeShow,
     ) * (1 - s.air * 0.7) * (1 - s.down);
     s.edge = approach(s.edge, edgeWant, 12, sdt);
 
@@ -2687,7 +2691,7 @@ export function createRiderModel(THREE, shading) {
        the rider is no longer being carried round by the sidecut, he is
        kicking the tail out with the back leg, which is the most visible
        version of this whole action there is. */
-    const kick = clamp((rider.slide || 0) / 7, 0, 1) * Math.sign(s.edge || rider.edge || 0);
+    const kick = clamp((rider.slide || 0) / 7, 0, 1) * Math.sign(s.edge || boardEdge || 0);
     s.steer = approach(s.steer, clamp(
       Math.sin(s.edge) * (0.35 + 0.65 * s.load) + kick * 0.4, -1.1, 1.1,
     ), 9, sdt);
@@ -2761,7 +2765,7 @@ export function createRiderModel(THREE, shading) {
     // The body's own inclination, positive towards the toe edge. The physics
     // signs it the other way round because it is describing a turn direction
     // rather than a body, and this is the one place that is reconciled.
-    s.lean = approach(s.lean, -rider.roll, 8, sdt);
+    s.lean = approach(s.lean, -rider.roll * sw, 8, sdt);
     if (fallen <= 0) s.tumbleLag = rider.tumble;
 
     /* --- anticipation and follow-through --------------------------------- */
@@ -3745,6 +3749,10 @@ export function createRiderModel(THREE, shading) {
     tRear.copy(springRear.p);
     limitArm(tLead, -1, grab);
     limitArm(tRear, 1, grab);
+    // Continue from the reachable hands. Restarting each spring inside a
+    // knee lets the capsule projection jump to its other side on a butter.
+    springLead.p.copy(tLead);
+    springRear.p.copy(tRear);
 
     solve(armLead, UPPER, FORE, tLead, springLead.pole);
     solve(armRear, UPPER, FORE, tRear, springRear.pole);

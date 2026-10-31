@@ -5,8 +5,10 @@ import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { TRAIL } from '../js/config.js';
-import { heightAt, normalFrom } from '../js/terrain.js';
-import { setWorldSeed } from '../js/noise.js';
+import { heightAt, normalFrom, guideAt, getTerrainMaterialAt } from '../js/terrain.js';
+import { setWorldSeed, getWorldSeed } from '../js/noise.js';
+import { Rider, CLEAN } from '../js/rider.js';
+import { createSpray } from '../js/particles.js';
 
 // Keep the diagnostic state out of the shipped module's API. Capture the old
 // Float32 normals at the same point they were previously stored, independently
@@ -157,4 +159,143 @@ try {
     + `${oldMs.toFixed(4)} → ${newMs.toFixed(4)} ms (local CPU microbenchmark).`);
 } finally {
   Math.random = oldRandom;
+}
+
+// A real 180 changes the board frame, not the direction a turn loads the snow.
+// Follow the committed trail sections and the public particle positions, so
+// the visual consequence is checked independently of the sign conversions.
+{
+  const previousSeed = getWorldSeed(), savedWindow = globalThis.window;
+  globalThis.window = { devicePixelRatio: 1 };
+  const neutral = { turn: 0, turnIntent: 0, tuck: false, brake: false,
+    jump: false, trickGrab: false, trickFlip: false };
+  const main = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const start = main.indexOf('      const yawStep = trueYaw + rider.yawGlide - stepFromYaw;');
+  const end = main.indexOf('      const flipStep', start);
+  assert(start >= 0 && end > start, 'use the actual displayed yaw interpolation');
+  const interpolate = new Function('rider', 'trueYaw', 'stepFromYaw', 'stepAlpha', 'TAU', main.slice(start, end));
+  const camera = new THREE.PerspectiveCamera(65, 16 / 9, .1, 1000), wind = new THREE.Vector3();
+  const plume = createSpray(THREE), geometry = plume.points.geometry;
+  const plumeSide = (state, rider, right) => {
+    plume.clear();
+    // Repeated normal sections reduce the emitter's random fan variance;
+    // the actual real section supplies every shape, pressure and direction.
+    for (let i = 0; i < 40; i++) plume.edgeSample(rider.pos.x, rider.pos.y, rider.pos.z, state, rider);
+    const before = geometry.attributes.position.array.slice(), anchor = plume.points.position.clone();
+    camera.position.copy(rider.pos).add(new THREE.Vector3(0, 3, 6));
+    plume.update(1 / 120, camera, wind);
+    let total = 0;
+    for (let j = 0; j < geometry.drawRange.count; j++) {
+      const i = geometry.index.array[j] * 3;
+      const delta = new THREE.Vector3(
+        geometry.attributes.position.array[i] + plume.points.position.x - before[i] - anchor.x,
+        geometry.attributes.position.array[i + 1] + plume.points.position.y - before[i + 1] - anchor.y,
+        geometry.attributes.position.array[i + 2] + plume.points.position.z - before[i + 2] - anchor.z,
+      );
+      total += delta.dot(right) * 120;
+    }
+    assert(geometry.drawRange.count > 30, 'sample a live plume, not an empty pool');
+    return total / geometry.drawRange.count;
+  };
+  try {
+    setWorldSeed('ALPEN01');
+    for (const switchRide of [false, true]) {
+      randomState = 0x5148;
+      Math.random = () => {
+        randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+        return randomState / 0x100000000;
+      };
+      const world = { height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false };
+      const r = new Rider(THREE, world); r.reset(-250, guideAt(-250));
+      const tracks = createTrail(THREE, { apply: m => m });
+      const stepFrom = r.pos.clone(), truePos = r.pos.clone();
+      let landing, desiredSide = 0, settled = false, checked = 0, lastSection;
+      r.on('land', value => { landing = value; });
+      const frame = control => {
+        let fromYaw;
+        for (let k = 0; k < 2; k++) {
+          stepFrom.copy(r.pos); fromYaw = r.yaw + r.yawGlide;
+          r.step(1 / 120, control);
+        }
+        const trueYaw = r.yaw; truePos.copy(r.pos);
+        r.pos.copy(stepFrom); interpolate(r, trueYaw, fromYaw, 0, Math.PI * 2);
+        tracks.update(r, 1 / 60, (x, y, z, state) => {
+          if (!settled) return;
+          const right = new THREE.Vector3(state.travelX, state.travelY, state.travelZ)
+            .normalize().cross(new THREE.Vector3(state.normalX, state.normalY, state.normalZ)).normalize();
+          const axis = new THREE.Vector3(state.latX, state.latY, state.latZ).dot(right);
+          assert(state.bite > .1, 'the checked carve really loads an edge');
+          assert(state.bias * axis * desiredSide > 0,
+            `the dominant groove follows the actual turn: switch=${switchRide}, turn=${desiredSide}, bias=${state.bias}, axis=${axis}`);
+          assert(state.contactShift * axis * desiredSide < -.05, 'the carrier offsets behind its loaded groove');
+          lastSection = { state: { ...state }, right }; checked++;
+        });
+        r.pos.copy(truePos); r.yaw = trueYaw;
+      };
+      for (let i = 0; i < 120; i++) frame(neutral);
+      for (let i = 0; i < 30; i++) frame({ ...neutral, jump: true });
+      frame(neutral);
+      for (let i = 0; i < 240 && r.state === 'air'; i++) {
+        const turn = switchRide && r.airTime < .55 ? 1 : 0;
+        frame({ ...neutral, turn, turnIntent: turn });
+      }
+      assert.equal(landing?.verdict, CLEAN); assert.equal(landing.halfTurns, switchRide ? 1 : 0);
+      assert.equal(r.switchStance, switchRide);
+      for (let i = 0; i < 48; i++) frame(neutral);
+      for (const side of [1, -1]) {
+        desiredSide = side; checked = 0;
+        for (let i = 0; i < (side > 0 ? 45 : 60); i++) {
+          settled = i >= 30;
+          frame({ ...neutral, turn: side, turnIntent: side });
+        }
+        assert(checked > 15, 'verify a sustained carve across spatial trail commits');
+        assert(plumeSide(lastSection.state, r, lastSection.right) * side > .5,
+          'the emitted plume travels towards the same loaded side');
+      }
+    }
+
+    // If a stroke retains its old lateral axis while the board turns round,
+    // the loaded-edge fallback is still converted exactly once. Zero brake
+    // side deliberately reaches that fallback; real lateral slip wins first.
+    for (const lateral of [0, -3]) {
+      const tracks = createTrail(THREE, { apply: m => m });
+      const r = { pos: new THREE.Vector3(), vel: new THREE.Vector3(lateral, 0, -20),
+        normal: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(-1, 0, 0),
+        state: 'ride', grounded: true, speed: 20, boardForward: 20,
+        switchStance: true, slide: 6, brake: .5, brakeSide: 0,
+        edge: .3, carveLoad: 1, balance: 1, gLoad: 1.5 };
+      tracks.update(r, 1 / 60);
+      r.right.x = 1; r.switchStance = false;
+      let state;
+      for (let i = 0; i < 5; i++) {
+        r.pos.z -= .7;
+        tracks.update(r, 1 / 60, (x, y, z, value) => { state = { ...value }; });
+      }
+      assert(state.latX < -.8, 'the stroke retains its original axis');
+      assert(state.bias * state.latX * (lateral ? -1 : 1) > .1,
+        'true board slip wins, otherwise the loaded edge is converted once');
+    }
+
+    // A retained trail axis can point either way after a landing. When an
+    // interpolated bias is zero, edge/brake are travel-signed but real slip
+    // is board-signed; reversing the carrier must not reverse the plume.
+    for (const switched of [false, true]) for (const axis of [-1, 1]) {
+      const boardRight = switched ? -1 : 1;
+      const r = { pos: new THREE.Vector3(), heading: new THREE.Vector3(0, 0, switched ? 1 : -1),
+        right: new THREE.Vector3(boardRight, 0, 0), switchStance: switched, boardForward: 20 };
+      const state = { latX: axis, latY: 0, latZ: 0, normalX: 0, normalY: 1, normalZ: 0,
+        travelX: 0, travelY: 0, travelZ: -20, bite: .6, wash: .2, brake: .2,
+        load: 1, chatter: 0, half: .155, contactShift: 0, bias: 0 };
+      for (const [edge, lateral, brakeSide, expected] of [
+        [.3, 0, 0, 1], [0, 2, -1, boardRight], [0, 0, -1, -1],
+      ]) {
+        Object.assign(r, { edge, lateral, brakeSide });
+        assert(plumeSide(state, r, new THREE.Vector3(1, 0, 0)) * expected > .5,
+          'zero-bias fallback preserves the frame of its chosen signal');
+      }
+    }
+    console.log('Trail/spray direction: real clean 180, regular/switch carves both ways, contact offsets and zero-bias edge/slip/brake fallbacks passed.');
+  } finally {
+    Math.random = oldRandom; globalThis.window = savedWindow; setWorldSeed(previousSeed);
+  }
 }

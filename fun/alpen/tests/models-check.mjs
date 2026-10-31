@@ -2000,6 +2000,142 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       assert(new V(0, 1, 0).applyQuaternion(model.root.quaternion).angleTo(physical.normal) < .02,
         'the new landing correction finishes settling');
     }
+
+    // A real keyed 180 reverses which binding leads, not which way a carve
+    // banks. Measure the shipped torso and board against actual travel on
+    // the mountain, including main's drawn yaw through the clean landing.
+    const { createInput } = await import('../js/input.js');
+    const { heightAt, guideAt, getTerrainMaterialAt } = await import('../js/terrain.js');
+    const { getWorldSeed, setWorldSeed } = await import('../js/noise.js');
+    const savedSeed = getWorldSeed();
+    const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const savedNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    const mainSource = await readFile(new URL('js/main.js', base), 'utf8');
+    const yawStart = mainSource.indexOf('      const yawStep = trueYaw + rider.yawGlide - stepFromYaw;');
+    const yawEnd = mainSource.indexOf('      const flipStep', yawStart);
+    assert(yawStart >= 0 && yawEnd > yawStart, 'the fixture uses production yaw interpolation');
+    const interpolateYaw = new Function('rider', 'trueYaw', 'stepFromYaw', 'stepAlpha', 'TAU',
+      mainSource.slice(yawStart, yawEnd));
+    Object.defineProperty(globalThis, 'window', { value: new EventTarget(), configurable: true });
+    Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => [] }, configurable: true });
+    setWorldSeed('ALPEN01');
+    try {
+      for (const kind of ['regular', 'switch', 'butter']) {
+        const physical = new Rider(THREE, {
+          height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false,
+        });
+        physical.reset(-250, guideAt(-250));
+        const rig = makeFreshRig();
+        const deck = rig.root.getObjectByName('rider-board');
+        const chest = rig.root.getObjectByName('rider-torso');
+        const hands = ['rider-hand-lead', 'rider-hand-rear'].map(name => rig.root.getObjectByName(name));
+        const target = new EventTarget();
+        const controls = createInput(target);
+        const held = new Set();
+        const stepFrom = new V(), actual = new V();
+        const landings = [];
+        let frame = 0, landedFrame = -Infinity, switches = 0;
+        let previousHands = null, previousRoot = null, landingTurn = 0, butterStep = 0;
+        physical.on('land', result => { landings.push(result); landedFrame = frame + 1; });
+        const draw = (keys = [], carveSide = 0) => {
+          for (const code of ['Space', 'KeyA', 'KeyD', 'KeyQ']) {
+            const down = keys.includes(code);
+            if (down === held.has(code)) continue;
+            const event = new Event(down ? 'keydown' : 'keyup', { cancelable: true });
+            Object.assign(event, { code });
+            target.dispatchEvent(event);
+            if (down) held.add(code); else held.delete(code);
+          }
+          controls.update(poseDt);
+          let stepFromYaw;
+          const wasSwitch = physical.switchStance;
+          const priorVelocity = physical.vel.clone();
+          for (let i = 0; i < 2; i++) {
+            stepFrom.copy(physical.pos);
+            stepFromYaw = physical.yaw + physical.yawGlide;
+            physical.step(1 / 120, controls.state);
+            controls.stepped();
+          }
+          switches += Number(wasSwitch !== physical.switchStance);
+          assert.notEqual(physical.state, 'fall', kind + ': the input sequence remains controlled');
+          const trueYaw = physical.yaw;
+          actual.copy(physical.pos);
+          physical.pos.copy(stepFrom);
+          interpolateYaw(physical, trueYaw, stepFromYaw, 0, 2 * Math.PI);
+          rig.update(physical, poseDt);
+          rig.root.updateMatrixWorld(true);
+          const handAt = hands.map(hand => hand.getWorldPosition(new V()).sub(physical.pos));
+          if (previousHands && kind === 'butter') {
+            for (let i = 0; i < 2; i++) butterStep = Math.max(butterStep, handAt[i].distanceTo(previousHands[i]));
+          }
+          if (previousRoot && frame + 1 >= landedFrame && frame + 1 < landedFrame + 20) {
+            landingTurn = Math.max(landingTurn, previousRoot.angleTo(rig.root.quaternion));
+          }
+          previousHands = handAt;
+          previousRoot = rig.root.quaternion.clone();
+          if (carveSide) {
+            const right = physical.vel.clone().projectOnPlane(physical.normal).normalize().cross(physical.normal).normalize();
+            assert(physical.vel.clone().sub(priorVelocity).dot(right) * carveSide > 0,
+              kind + ': the rider actually turns in the requested direction');
+            assert(new V(0, 1, 0).transformDirection(rig.root.matrixWorld).dot(right) * carveSide > .2,
+              kind + ': the body banks into the actual turn');
+            assert(new V(0, 1, 0).transformDirection(deck.matrixWorld).dot(right) * carveSide > .1,
+              kind + ': the drawn board loads the inside edge');
+            assert(chest.getWorldPosition(new V()).sub(physical.pos).dot(right) * carveSide > .2,
+              kind + ': the shipped jacket leans into the actual turn');
+          }
+          if (kind === 'butter' && frame + 1 === 210) {
+            for (let repeat = 0; repeat < 3; repeat++) {
+              rig.update(physical, 0);
+              rig.root.updateMatrixWorld(true);
+              hands.forEach((hand, i) => assert(hand.getWorldPosition(new V()).sub(physical.pos).distanceTo(handAt[i]) < 1e-9,
+                'zero-dt redraws preserve the constrained butter hands'));
+            }
+          }
+          physical.pos.copy(actual);
+          physical.yaw = trueYaw;
+          frame++;
+        };
+        try {
+          for (let i = 0; i < 120; i++) draw();
+          if (kind === 'butter') {
+            for (let i = 0; i < 150; i++) draw(['KeyQ', 'KeyD']);
+            for (let i = 0; i < 60; i++) draw();
+            assert(switches >= 3, 'the grounded butter genuinely changes stance three times');
+            assert(butterStep < .12, 'the butter hands slide around the knees without a 28 cm side jump: ' + butterStep);
+          } else {
+            for (let i = 0; i < 30; i++) draw(['Space']);
+            draw();
+            assert.equal(physical.state, 'air', 'releasing the charged key actually jumps');
+            for (let i = 0; i < 240 && physical.state === 'air'; i++) {
+              draw(kind === 'switch' && physical.airTime < .55 ? ['KeyD'] : []);
+            }
+            assert.equal(landings.length, 1, 'one actual hop lands');
+            assert.equal(landings[0].verdict, CLEAN, 'the turn fixture lands cleanly');
+            assert.equal(physical.switchStance, kind === 'switch', 'only the keyed 180 lands switch');
+            for (let i = 0; i < 48; i++) draw();
+            assert(landingTurn < .17, 'the actual 180 touchdown keeps a continuous body frame');
+            for (let i = 0; i < 45; i++) draw(['KeyD'], i === 30 || i === 44 ? 1 : 0);
+            for (let i = 0; i < 60; i++) draw(['KeyA'], i === 45 || i === 59 ? -1 : 0);
+          }
+          // A fresh checkpoint must not inherit the previous switch lean.
+          physical.reset(-250, guideAt(-250));
+          rig.reset();
+          const fresh = makeFreshRig();
+          rig.update(physical, 0); fresh.update(physical, 0);
+          rig.root.updateMatrixWorld(true); fresh.root.updateMatrixWorld(true);
+          const freshDeck = fresh.root.getObjectByName('rider-board');
+          assert(rig.root.quaternion.angleTo(fresh.root.quaternion) < 1e-7,
+            kind + ': reset removes the previous body lean at zero dt');
+          deck.matrixWorld.elements.forEach((value, i) => assert(Math.abs(value - freshDeck.matrixWorld.elements[i]) < 1e-9,
+            kind + ': reset removes the previous board edge at zero dt'));
+        } finally { controls.dispose(); }
+      }
+    } finally {
+      setWorldSeed(savedSeed);
+      if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow); else delete globalThis.window;
+      if (savedNavigator) Object.defineProperty(globalThis, 'navigator', savedNavigator); else delete globalThis.navigator;
+    }
   }
 
   // The eight figures: baked from the file in their own colours, two
