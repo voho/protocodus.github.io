@@ -63,6 +63,9 @@ twelve clean, where before none of them landed clean.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+Qualified grounded butters show their live name and release advice before
+the scored award takes over. Pauses, falls and an ended press clear that
+guidance; stable feedback causes no text, visibility, style or dataset writes.
 The input-device check covers deliberate keyboard, controller and touch
 handoffs without changing command ownership. Held buttons, small stick jitter,
 release events and neutral polling cannot steal another device's prompts.

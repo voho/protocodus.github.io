@@ -2,9 +2,17 @@
 // DOM stand-ins cover HUD state and input gating; appearance needs browser QA.
 import assert from 'node:assert/strict';
 import { createHud } from '../js/hud.js';
+import { RIDER, SCORE } from '../js/config.js';
+import { butterName } from '../js/rider.js';
 let writes = 0, targetQueries = 0;
+const tracked = value => new Proxy(value, {
+  set(target, key, next) { target[key] = next; writes++; return true; },
+  deleteProperty(target, key) { if (key in target) writes++; return Reflect.deleteProperty(target, key); },
+});
 class Node {
-  constructor(hud = '') { this.dataset = { hud }; this.hidden = false; this._text = ''; this.listeners = {}; this.nodes = {}; this.style = { setProperty(k,v) { this[k] = v; } }; }
+  constructor(hud = '') { this.dataset = tracked({ hud }); this._hidden = false; this._text = ''; this.listeners = {}; this.nodes = {}; this.style = tracked({ setProperty(k,v) { this[k] = v; } }); }
+  get hidden() { return this._hidden; }
+  set hidden(value) { this._hidden = value; writes++; }
   get textContent() { return this._text; }
   set textContent(s) { this._text = s; writes++; }
   setAttribute(k,v) { this[k] = v; }
@@ -175,6 +183,75 @@ assert.match(root.nodes['[data-callout]'].textContent, /WIPEOUT, UNDER-ROTATED/)
 g.rider.grounded = true; g.rider.state = 'ride'; g.rider.airTime = 0; g.liveTrick = '';
 for (let i = 0; i < 30; i++) hud.update(g, .1);
 assert.equal(f.event.hidden, true, 'every callout clears itself');
+// main.liveTrickName owns qualification: a grounded press above .35 and
+// abs(spin) >= RIDER.pressMinSpin publishes the real butter name. The HUD
+// consumes that result; it must not turn a small press into an achievement.
+hud.clearBanner();
+g.rider.state = 'ride'; g.rider.grounded = true; g.rider.airTime = 0;
+for (const [press, spin] of [[.35, Math.PI], [.8, RIDER.pressMinSpin - .01]]) {
+  g.rider.press = press; g.rider.pressSpin = spin; g.liveTrick = '';
+  hud.update(g, .1);
+  assert.equal(f.event.hidden, true, 'an unqualified grounded press stays quiet');
+}
+g.rider.press = .8; g.rider.pressSpin = RIDER.pressMinSpin;
+g.rider.pressTime = RIDER.pressMinTime + .2;
+g.liveTrick = butterName(Math.abs(g.rider.pressSpin));
+hud.update(g, .1);
+assert.equal(f.event.hidden, false, 'a qualified grounded butter gets live feedback');
+assert.equal(f['event-name'].textContent, 'BUTTER 180');
+assert.equal(f['event-kicker'].textContent, 'Release grab to finish');
+assert.equal(f['event-points'].hidden, true, 'an unfinished butter does not claim points');
+assert.equal(g.rider.press, .8, 'feedback does not release the player press');
+g.rider.pressSpin = 2 * Math.PI; g.liveTrick = butterName(g.rider.pressSpin);
+hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'BUTTER 360', 'continued ground rotation updates the live name');
+// Let unrelated hint/readout clocks settle before measuring unchanged values.
+for (let i = 0; i < 100; i++) hud.update(g, .1);
+const beforeHeldButter = writes;
+for (let i = 0; i < 20; i++) hud.update(g, .1);
+assert.equal(writes, beforeHeldButter, 'a held butter with unchanged feedback causes no DOM writes');
+hud.banner('GATE ×3', 360, 'near'); hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'GATE ×3', 'a scored banner has priority over the live butter');
+assert.equal(f['event-points'].textContent, '+360');
+for (let i = 0; i < 30; i++) hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'BUTTER 360', 'the live butter returns after the award');
+assert.equal(f['event-kicker'].textContent, 'Release grab to finish');
+assert.equal(f['event-points'].hidden, true, 'expired award points do not leak into live feedback');
+
+// Releasing a qualified full turn gives main's normal butter award. The
+// existing banner takes over with the earned points and no release advice.
+const finishedButter = butterName(g.rider.pressSpin);
+g.rider.press = 0; g.rider.pressSpin = 0; g.liveTrick = '';
+hud.banner(finishedButter, SCORE.butterPerTurn); hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'BUTTER 360');
+assert.equal(f['event-kicker'].textContent, 'Run score');
+assert.equal(f['event-points'].textContent, '+' + SCORE.butterPerTurn);
+assert.equal(f['event-points'].hidden, false);
+for (let i = 0; i < 30; i++) hud.update(g, .1);
+assert.equal(f.event.hidden, true, 'the finished butter clears when its award expires');
+
+// A previously published name must not keep advising a paused or fallen
+// player. Resuming a still-qualified press can display its current name.
+g.rider.press = .8; g.rider.pressSpin = Math.PI; g.liveTrick = butterName(Math.PI);
+hud.update(g, .1);
+g.mode = 'paused'; hud.update(g, .1);
+assert.equal(f.ride.hidden, true);
+assert.equal(f.event.hidden, true, 'pause hides live grounded guidance');
+g.mode = 'playing'; hud.update(g, .1);
+assert.equal(f.event.hidden, false, 'resume can show a still-qualified current butter');
+for (const state of ['fall', 'rise']) {
+  g.rider.state = state; hud.update(g, .1);
+  assert.equal(f.event.hidden, true, state + ' clears stale grounded butter guidance');
+}
+g.rider.state = 'fall';
+hud.banner('WIPEOUT', 0, 'bad', { kicker: 'COLLISION' }); hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a failure report keeps priority over a stale butter name');
+assert.equal(f['event-kicker'].textContent, 'COLLISION');
+hud.clearBanner(); g.rider.state = 'ride'; g.liveTrick = '';
+g.rider.press = 0; g.rider.pressSpin = 0; g.rider.pressTime = 0;
+hud.update(g, .1);
+assert.equal(f.event.hidden, true, 'no current trick leaves no live guidance behind');
+
 let stopped = false, prevented = false;
 guide.listeners.click({ stopPropagation() { stopped = true; } });
 assert.equal(stopped, true, 'help click cannot start the ride');
@@ -320,5 +397,5 @@ assert.equal(document.activeElement, null, 'resuming clears native menu focus');
 curtain.targets = [button, summary, exitLink];
 const beforeStill = writes;
 for (let i=0; i<9;i++) hud.update(g,.09);
-assert.equal(writes, beforeStill, 'stable visible values do not touch DOM text');
-console.log('HUD checks passed: state transitions, charge, flow, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
+assert.equal(writes, beforeStill, 'stable visible values do not write text, visibility, styling or datasets');
+console.log('HUD checks passed: state transitions, charge, flow, live butters, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
