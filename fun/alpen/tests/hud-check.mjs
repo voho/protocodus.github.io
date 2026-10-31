@@ -6,10 +6,10 @@ import vm from 'node:vm';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createHud } from '../js/hud.js';
 import { RIDER, SCORE } from '../js/config.js';
-import { butterName, Rider } from '../js/rider.js';
-import { comboFor } from '../js/flow.js';
+import { butterName, Rider, trickName, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
+import { comboFor, scoreTrick, repeatShare, firstGrabShare, flowFromPoints, feedFlow, GRAB_DISCOVERY_BONUS } from '../js/flow.js';
 import { createChaseCamera } from '../js/camera.js';
-import { heightAt, guideAt } from '../js/terrain.js';
+import { heightAt, guideAt, getTerrainMaterialAt } from '../js/terrain.js';
 import { getWorldSeed, setWorldSeed } from '../js/noise.js';
 let writes = 0, targetQueries = 0;
 const tracked = value => new Proxy(value, {
@@ -481,11 +481,12 @@ function mainSection(from, to) {
   return mainSource.slice(start, end);
 }
 const feedbackHandlers = new vm.Script(
-  mainSection('function award(', '\nfunction scoreLanding(')
+  mainSection('function award(', "\nrider.on('launch',")
   + mainSection('function syncCombo()', '\nfunction stepFlow(')
   + mainSection("rider.on('fall',", "\nrider.on('impact',")
   + mainSection('function nearMiss(', '\n/* Threading a gate.')
   + mainSection('const onWildlifeNear =', '\nconst onCocoa =')
+  + mainSection('const liveTrickQuery =', '\n/* The per-frame callbacks,')
   + '\nglobalThis.onNear = onWildlifeNear;',
 );
 const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
@@ -493,18 +494,98 @@ function feedbackFixture(record = 0) {
   const rider = new Rider(THREE, { height: () => 0, canStall: () => false });
   rider.pos.z = -100; rider.vel.set(0, 0, -20);
   const game = { ...g, rider, mode: 'playing', score: 0, best: record, bestAtStart: record,
-    liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0 };
+    liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0,
+    recentTricks: [], discoveredGrabs: new Set() };
   const sounds = [], pulses = [];
   const camera = new THREE.PerspectiveCamera(70, 16 / 9, .1, 2000);
   const context = vm.createContext({ rider, camera, game, RIDER, SCORE, comboFor, hud,
+    CLEAN, SKETCHY, BAIL, trickName, butterName, TAU: Math.PI * 2,
+    scoreTrick, repeatShare, firstGrabShare, flowFromPoints, feedFlow, GRAB_DISCOVERY_BONUS,
     rearmProps: false, bestDirty: false, persistBest() {},
     audio: new Proxy({}, { get: (_, name) => (...args) => sounds.push({ name, args }) }),
     input: { rumble: (...args) => pulses.push(args) },
-    chase: { kick() {} }, retro: { crash() {} }, spray: { burst() {} },
+    chase: { kick() {}, land() {} }, retro: { crash() {} }, spray: { burst() {}, radialBurst() {} },
   });
   feedbackHandlers.runInContext(context);
   hud.resetScore(); hud.update(game, .1);
-  return { rider, camera, game, sounds, pulses, award: context.award, near: context.onNear };
+  return { rider, camera, game, sounds, pulses, award: context.award, near: context.onNear,
+    update(dt) { game.liveTrick = context.liveTrickName(); hud.update(game, dt); } };
+}
+// Short, incomplete attempts still need their landing reason even when they
+// earn no trick payout. Drive the actual jump and landing rather than handing
+// a fabricated summary to the score callback.
+{
+  const seed = getWorldSeed(), dt = 1 / 120;
+  const ledger = game => ({ score: game.score, best: game.best, flow: game.flow,
+    hold: game.flowHold, combo: game.combo, recent: [...game.recentTricks],
+    grabs: [...game.discoveredGrabs] });
+  const hop = (ticks, control, terrain = false) => {
+    const fixture = feedbackFixture(1000), { rider, game, update } = fixture;
+    if (terrain) {
+      rider.world = { height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false };
+      const z = ticks ? -250 : 0;
+      rider.reset(z, guideAt(z));
+    }
+    rider.vel.set(0, 0, -1).projectOnPlane(rider.normal).setLength(ticks ? 20 : 8);
+    game.score = 125; game.recentTricks.push('BACKFLIP'); game.discoveredGrabs.add(2);
+    const before = ledger(game);
+    let landing;
+    rider.on('land', value => { landing = value; });
+    const step = input => { rider.step(dt, input); update(dt); };
+    if (ticks) {
+      for (let i = 0; i < ticks; i++) step({ ...neutral, jump: true });
+      step(neutral);
+    } else {
+      for (let i = 0; i < 1200 && rider.grounded; i++) step(neutral);
+    }
+    assert.equal(rider.state, 'air', 'the ordinary charge or terrain roller leaves the snow');
+    for (let i = 0; i < 240 && !landing; i++) step({ ...neutral, ...control });
+    assert(landing, 'the real flight reaches touchdown');
+    update(.1); // Include the next ordinary 12 Hz HUD draw.
+    return { ...fixture, landing, before };
+  };
+  try {
+    setWorldSeed('alpen-check');
+    for (const [ticks, control, terrain, reason, named] of [
+      [12, { turn: 1 }, true, 'OVER-ROTATED', false],
+      [8, { trickGrab: true }, false, 'GRAB HELD', true],
+    ]) {
+      const { game, landing, sounds, before } = hop(ticks, control, terrain);
+      assert.equal(landing.judged, true); assert.equal(landing.verdict, SKETCHY);
+      assert.equal(landing.reason, reason);
+      assert.equal(!!trickName(landing, SKETCHY), named);
+      assert(scoreTrick(landing).points < SCORE.minTrickScore);
+      assert.equal(f.event.hidden, false, 'an unpaid sketchy landing still explains its penalty');
+      assert.equal(f['event-name'].textContent, 'SKETCHY LANDING');
+      assert.equal(f['event-kicker'].textContent, reason);
+      assert.equal(f.event.dataset.tone, 'warn');
+      assert.equal(f['event-points'].hidden, true);
+      assert.equal(root.nodes['[data-callout]'].textContent, `SKETCHY LANDING, ${reason}`);
+      assert.deepEqual(sounds.map(s => s.name), ['thud', 'land'], 'one warning supplements the ordinary impact');
+      assert.deepEqual(ledger(game), before, 'feedback does not bank points, feed flow, or record a trick');
+    }
+    for (const [ticks, control, terrain, judged] of [
+      [12, {}, true, true], [0, {}, true, false], [1, { trickGrab: true }, false, false],
+    ]) {
+      const { game, landing, sounds, before } = hop(ticks, control, terrain);
+      assert.equal(landing.judged, judged); assert.equal(landing.verdict, CLEAN);
+      assert.equal(f.event.hidden, true, 'clean hops and unjudged rollers keep the band quiet');
+      assert.equal(root.nodes['[data-callout]'].textContent, '');
+      assert.deepEqual(sounds.map(s => s.name), ['land']);
+      assert.deepEqual(ledger(game), before);
+    }
+    const { game, landing, sounds, before } = hop(12, { trickGrab: true });
+    const earned = scoreTrick(landing).points;
+    assert(earned >= SCORE.minTrickScore);
+    assert.equal(game.score, before.score + earned * before.combo);
+    assert(game.flow > before.flow, 'the paid named trick still feeds flow');
+    assert.deepEqual(game.recentTricks, ['BACKFLIP', 'INDY']);
+    assert.equal(f['event-name'].textContent, 'INDY (SKETCHY)');
+    assert.match(f['event-kicker'].textContent, /^GRAB HELD/);
+    assert.equal(f['event-points'].hidden, false);
+    assert.equal(sounds.filter(s => s.name === 'thud').length, 1, 'a paid sketchy trick gets no duplicate warning');
+    assert.equal(sounds.filter(s => s.name === 'land').length, 1);
+  } finally { setWorldSeed(seed); }
 }
 // The actual award callback updates the record before the HUD sees it.
 // The visible target changes only on a strict improvement, including the
