@@ -403,7 +403,9 @@ const POSE = {
     // METHOD — the weight goes the other way and the board comes up much
     // further to meet a hand that is now reaching behind him, onto the edge
     // the other two never touch. The tweak reverses with it.
-    { point: [-0.140, 0.090 + DECK_DROP, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
+    // Heelward hips make the edge reachable without a deeper fold; keeping
+    // the forward chest hinge lets the forearm clear the folded shin.
+    { point: [-0.140, 0.090 + DECK_DROP, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: 0, hipSide: -0.25, lead: false },
   ],
 
   /* THE PRESS.
@@ -3129,6 +3131,7 @@ export function createRiderModel(THREE, shading) {
     // quite still — the slow sway is the difference between a rider waiting
     // and a rider parked.
     hips.position.x = s.lean * POSE.hipShift - s.wash * 0.05 + pivotX
+      + (G.hipSide || 0) * grab
       - skate * POSE.pushHipSide
       + (Math.sin(s.clock * 0.9) + Math.sin(s.clock * 0.37 + 1.7)) * 0.014 * idle;
     /* Fore and aft. All of it is travel-relative, so it mirrors when he lands
