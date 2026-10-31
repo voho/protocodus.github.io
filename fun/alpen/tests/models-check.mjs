@@ -896,6 +896,29 @@ for (const [key, geo] of Object.entries(riderGeo)) {
         && lamp.uniforms.uLamp.value.w === 0, 'no lamp at night ' + value);
     }
   }
+  // Feed a real mid-flip obstacle wipeout through the existing drawn rig.
+  // Scalar recovery bookkeeping is only useful if the board ends right-side up.
+  {
+    const { Rider } = await import('../js/rider.js');
+    const recoveryDt = 1 / 120;
+    const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
+    const physical = new Rider(THREE, { height: () => 0, canStall: () => false });
+    physical.pos.set(0, 3, 0); physical.vel.set(0, -2, -20);
+    physical.state = 'air'; physical.grounded = false; physical.airTime = .8;
+    physical.flip = Math.PI; physical.flipVel = 4; physical.flipAccum = Math.PI;
+    model.reset(); model.update(physical, recoveryDt); model.root.updateMatrixWorld(true);
+    const boardUp = () => new V(0, 1, 0).transformDirection(board.matrixWorld).dot(physical.normal);
+    assert(boardUp() < -.9, 'the real rendered fixture begins inverted');
+    assert.equal(physical.strike(0, 1, 1), 'fall');
+    for (let i = 0; physical.state !== 'ride' && i < 1200; i++) {
+      physical.step(recoveryDt, neutral); model.update(physical, recoveryDt);
+    }
+    assert.equal(physical.state, 'ride', 'the physical obstacle tumble recovers');
+    for (let i = 0; i < 120; i++) { physical.step(recoveryDt, neutral); model.update(physical, recoveryDt); }
+    model.root.updateMatrixWorld(true);
+    assert(boardUp() > .995, 'the recovered rendered board faces up along the snow normal');
+  }
+
 }
 
 const { growCardSpruce, SPRUCE_LAYOUT, rootRing } = await load('spruce.js');

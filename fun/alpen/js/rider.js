@@ -471,9 +471,9 @@ export class Rider {
     this.landing = null;
     this._jumpBuffer = Math.max(0, this._jumpBuffer - dt);
     this.grace = Math.max(0, this.grace - dt);
-    /* The rendered pose's share of the last landing snap, draining. Purely
-       visual — see where it is written in `land` and read in main's view
-       swap — so nothing in this step may consult it. */
+    /* The rendered pose's share of a landing or recovery correction,
+       draining. Purely visual — read in main's view swap — so nothing in
+       this step may consult it. */
     this.yawGlide *= Math.exp(-RIDER.glideRate * dt);
     if (Math.abs(this.yawGlide) < 0.002) this.yawGlide = 0;
     this.flipGlide *= Math.exp(-RIDER.glideRate * dt);
@@ -2676,6 +2676,14 @@ export class Rider {
         this.grounded = true;
         this.airborne = false;
         this.fallTimer = RIDER.riseTime;
+        // A midair collision can leave the board partway through a flip.
+        // Keep that pose through the tumble, then hand its nearest equivalent
+        // angle to the existing visual glide as the rider stands up. Clearing
+        // only the trick ledger left ordinary riding permanently inverted;
+        // clearing the visible angle outright would snap the recovery pose.
+        this.flipGlide = wrapPi(this.flip + this.flipGlide);
+        this.flip = 0;
+        this.flipVel = 0;
         pos.y = this.world.height(pos.x, pos.z);
         /* Always reconcile the board and its travel before the model stands
            up. `fallMax` can expire while a fast body is still sliding, so a

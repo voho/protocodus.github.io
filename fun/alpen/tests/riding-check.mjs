@@ -274,6 +274,84 @@ for (const tuck of [false, true]) {
     { verdict: BAIL, reason: 'HARD LANDING' });
 }
 
+// A tree can interrupt a flip before normal landing bookkeeping clears it.
+// Recovery must preserve that visible attitude at rise entry, then finish
+// upright instead of carrying live flip pitch into ordinary riding forever.
+{
+  const samePitch = (a, b, label) => {
+    close(Math.sin(a), Math.sin(b), label + ' (sine)');
+    close(Math.cos(a), Math.cos(b), label + ' (cosine)');
+  };
+  const crashed = (angle, height = 3) => {
+    const r = rider();
+    r.pos.set(0, height, 0); r.vel.set(0, -2, -20);
+    r.state = 'air'; r.grounded = false; r.airTime = .8;
+    r.flip = angle; r.flipVel = 4; r.flipAccum = angle;
+    assert.equal(r.strike(0, 1, 1), 'fall', 'the fixture is a real airborne obstacle wipeout');
+    samePitch(r.flip + r.flipGlide, angle, 'the impact keeps the interrupted visible flip');
+    return r;
+  };
+  const recover = (r, timeout) => {
+    let rises = 0;
+    r.on('rise', () => rises++);
+    for (let i = 0; r.state === 'fall' && i < Math.ceil((RIDER.fallMax + 1) / dt); i++) {
+      const before = r.flip + r.flipGlide;
+      r.step(dt, neutral);
+      if (r.state === 'rise') samePitch(r.flip + r.flipGlide, before, 'rise preserves orientation modulo full turns');
+    }
+    assert.equal(r.state, 'rise', 'the physical tumble reaches recovery');
+    assert.equal(rises, 1, 'recovery emits its transition once');
+    assert.equal(r.fallElapsed > RIDER.fallMax, timeout, 'the intended natural or timeout path recovered');
+    assert.equal(r.flip, 0, 'recovery retires the interrupted live flip');
+    assert.equal(r.flipVel, 0, 'recovery retires the interrupted flip velocity');
+    assert(Math.abs(r.flipGlide) <= Math.PI, 'only the nearest visual rotation remains');
+    for (let i = 0; r.state === 'rise' && i < Math.ceil((RIDER.riseTime + 1) / dt); i++) r.step(dt, neutral);
+    assert.equal(r.state, 'ride', 'getting up finishes normally');
+    assert.equal(r.grounded, true);
+    for (let i = 0; i < 120; i++) r.step(dt, neutral);
+    assert.equal(r.flip + r.flipGlide, 0, 'ordinary riding settles fully upright');
+    assert.equal(r.flipVel, 0, 'ordinary riding has no leftover flip velocity');
+    return r;
+  };
+  let nextJump;
+  for (const angle of [Math.PI, 0, Math.PI / 2, -Math.PI / 2, -Math.PI,
+    3 * TAU + Math.PI / 2, -3 * TAU - Math.PI / 2, 4 * TAU + .3, -4 * TAU - .3]) {
+    const r = recover(crashed(angle), false);
+    if (angle === Math.PI) nextJump = r;
+  }
+  // The body stays airborne beyond the maximum tumble duration, so this
+  // reaches the real timeout branch without changing its timer or velocity.
+  recover(crashed(-3 * TAU - Math.PI, 1000), true);
+
+  // Keep a nonzero visual residual at the handoff itself. fallStep is the
+  // production recovery integrator; calling it directly isolates the transfer
+  // from step's ordinary visual drain, which the runs above already exercise.
+  for (const [angle, glide] of [[Math.PI / 2, .4], [-Math.PI / 2, -.4], [4 * TAU + 2.9, .6]]) {
+    const r = crashed(angle);
+    r.fallElapsed = RIDER.fallMax;
+    r.flipGlide = glide;
+    const before = r.flip + r.flipGlide;
+    r.fallStep(dt);
+    assert.equal(r.state, 'rise');
+    samePitch(r.flip + r.flipGlide, before, 'rise keeps an existing visual glide in the same orientation');
+    assert.equal(r.flip, 0);
+    assert.equal(r.flipVel, 0);
+    assert(Math.abs(r.flipGlide) <= Math.PI, 'existing glide also takes the short path upright');
+  }
+
+  // A later ordinary jump must start with a clean trick ledger and respond
+  // only to new flip input, rather than resurrecting the interrupted one.
+  for (let i = 0; i < 60; i++) nextJump.step(dt, { ...neutral, jump: true });
+  nextJump.step(dt, neutral);
+  assert.equal(nextJump.state, 'air', 'the recovered rider can jump again');
+  for (let i = 0; i < 12; i++) nextJump.step(dt, neutral);
+  assert.equal(nextJump.flip, 0, 'a neutral later flight does not rotate');
+  assert.equal(nextJump.flipVel, 0);
+  assert.equal(nextJump.flipAccum, 0, 'the new trick ledger contains no old rotation');
+  for (let i = 0; i < 6; i++) nextJump.step(dt, { ...neutral, trickFlip: true });
+  assert(nextJump.flip < 0 && nextJump.flipVel < 0, 'fresh backflip input still controls the later jump');
+}
+
 // The snow types. The corduroy is the grippiest carving snow on the hill —
 // powder used to out-turn it by a third — deep snow bogs a slow board down
 // rather than holding it, and a loaded edge on ice chatters.
@@ -691,4 +769,4 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   console.log('Jump height sweep (metres): ' + JSON.stringify({ tap, full, sweep }));
 }
 
-console.log('Riding checks passed: charged/late/buffered pops, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');
+console.log('Riding checks passed: charged/late/buffered pops, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, upright wipeout recovery, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');
