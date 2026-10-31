@@ -1176,6 +1176,7 @@ export function createHuts(THREE, shading) {
   });
   const smoke = new THREE.Points(smokeGeo, smokeMat);
   smoke.frustumCulled = false;
+  smoke.visible = false;
   group.add(smoke);
   let head = 0;
   // How many puffs are currently alive. The ring buffer never shrinks, so
@@ -1306,9 +1307,9 @@ export function createHuts(THREE, shading) {
   function stepSmoke(dt, windX, windZ) {
     /* The whole system sleeps once the last puff has died. Emission happens
        before this in `update`, so a hut coming into range wakes it on the same
-       frame its first puff exists — and the frame the last one dies is the
-       frame that uploads its zeroed alpha, so nothing stale is left showing
-       when this early-out starts firing. */
+       frame its first puff exists. The final expiration hides the empty
+       draw as well as uploading its zeroed alpha, so the renderer sleeps
+       alongside this loop until the next emission. */
     if (live === 0) return;
     const k = 1 - Math.exp(-S.drag * dt);
     for (let i = 0; i < S.count; i++) {
@@ -1338,6 +1339,7 @@ export function createHuts(THREE, shading) {
       const fade = (1 - u) * (1 - u);
       sAlpha[i] = S.alpha * Math.min(1, u * 6) * fade;
     }
+    smoke.visible = live > 0;
     smokeGeo.attributes.position.needsUpdate = true;
     smokeGeo.attributes.aSize.needsUpdate = true;
     smokeGeo.attributes.aAlpha.needsUpdate = true;
@@ -1461,6 +1463,7 @@ export function createHuts(THREE, shading) {
     spoiled.clear();
     block = NaN;
     live = 0;
+    smoke.visible = false;
     for (let i = 0; i < S.count; i++) {
       sLife[i] = 0;
       sAlpha[i] = 0;

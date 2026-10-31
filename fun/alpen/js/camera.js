@@ -125,36 +125,39 @@ const TREE_RELEASE_RATE = 3.2;
    `aboveSlope` follows and for the same reason: the walk below asks this up
    to fourteen times a frame, and a fresh closure per frame is exactly the
    steady GC churn the rest of the file is written to avoid. */
-const treeBlockedAt = (world, rider, dx, dz, t) => {
+const treeBlockedAt = (world, rider, dx, dz, dy, t) => {
   const cx = rider.pos.x + dx * t;
   const cz = rider.pos.z + dz * t;
   const near = clamp((t - TREE_SUBJECT_START) / (1 - TREE_SUBJECT_START), 0, 1);
   const shaped = near * near * (3 - 2 * near);
   const foliage = TREE_NEAR_RADIUS
     + shaped * (TREE_LENS_RADIUS - TREE_NEAR_RADIUS);
-  return world.blocked(cx, cz, foliage);
+  return world.blocked(cx, cz, foliage,
+    rider.pos.y + dy * t - TREE_NEAR_RADIUS);
 };
 
 // Whether the lens itself, at fraction `t` of the boom, would be in a trunk.
-const lensBlockedAt = (world, rider, dx, dz, t) => world.blocked(
-  rider.pos.x + dx * t, rider.pos.z + dz * t, TREE_NEAR_RADIUS);
+const lensBlockedAt = (world, rider, dx, dz, dy, t) => world.blocked(
+  rider.pos.x + dx * t, rider.pos.z + dz * t, TREE_NEAR_RADIUS,
+  rider.pos.y + dy * t - TREE_NEAR_RADIUS);
 
-const treeClearFraction = (world, rider, point) => {
+const treeClearFraction = (world, rider, point, lensY) => {
   if (!world.blocked) return 1;
 
   const dx = point.x - rider.pos.x;
   const dz = point.z - rider.pos.z;
+  const dy = lensY - rider.pos.y;
   if (dx * dx + dz * dz < 0.01) return 1;
 
   let previous = TREE_SUBJECT_START;
-  let wasBlocked = treeBlockedAt(world, rider, dx, dz, previous);
+  let wasBlocked = treeBlockedAt(world, rider, dx, dz, dy, previous);
 
   /* A crown already touching the rider cannot be fixed by moving the camera.
      Ignore that innermost overlap, but start again soon enough to catch a
      second tree or the same crown surrounding the lens. */
   if (wasBlocked) {
     previous = TREE_SUBJECT_RESCAN;
-    wasBlocked = treeBlockedAt(world, rider, dx, dz, previous);
+    wasBlocked = treeBlockedAt(world, rider, dx, dz, dy, previous);
     if (wasBlocked) {
       /* Crown all round: settle for a short boom, but never one whose lens
          is inside a trunk. The fixed fallback landed exactly on a tree
@@ -162,19 +165,19 @@ const treeClearFraction = (world, rider, point) => {
          rider, and the frame was bark. Look for the last clear point in
          front of the trunk, and failing that the first one past it. */
       const fallback = Math.max(TREE_MIN_BOOM, previous - 0.10);
-      if (!lensBlockedAt(world, rider, dx, dz, fallback)) return fallback;
-      if (!lensBlockedAt(world, rider, dx, dz, TREE_MIN_BOOM)) {
+      if (!lensBlockedAt(world, rider, dx, dz, dy, fallback)) return fallback;
+      if (!lensBlockedAt(world, rider, dx, dz, dy, TREE_MIN_BOOM)) {
         let lo = TREE_MIN_BOOM;
         let hi = fallback;
         for (let j = 0; j < 5; j++) {
           const mid = (lo + hi) * 0.5;
-          if (lensBlockedAt(world, rider, dx, dz, mid)) hi = mid;
+          if (lensBlockedAt(world, rider, dx, dz, dy, mid)) hi = mid;
           else lo = mid;
         }
         return Math.max(TREE_MIN_BOOM, lo - TREE_GUARD);
       }
       for (let t = fallback + TREE_SAMPLE_STEP; t < 1; t += TREE_SAMPLE_STEP) {
-        if (!lensBlockedAt(world, rider, dx, dz, t)) return t;
+        if (!lensBlockedAt(world, rider, dx, dz, dy, t)) return t;
       }
       return 1;
     }
@@ -184,7 +187,7 @@ const treeClearFraction = (world, rider, point) => {
   let lastClear = previous;
   for (let i = 1; i <= count; i++) {
     const t = Math.min(1, previous + i * TREE_SAMPLE_STEP);
-    if (!treeBlockedAt(world, rider, dx, dz, t)) {
+    if (!treeBlockedAt(world, rider, dx, dz, dy, t)) {
       lastClear = t;
       continue;
     }
@@ -193,7 +196,7 @@ const treeClearFraction = (world, rider, point) => {
     let hi = t;
     for (let j = 0; j < 5; j++) {
       const mid = (lo + hi) * 0.5;
-      if (treeBlockedAt(world, rider, dx, dz, mid)) hi = mid;
+      if (treeBlockedAt(world, rider, dx, dz, dy, mid)) hi = mid;
       else lo = mid;
     }
     return Math.max(TREE_MIN_BOOM, lo - TREE_GUARD);
@@ -398,7 +401,10 @@ export function createChaseCamera(THREE, camera) {
       world.beginBlockedSpan(rider.pos.x, rider.pos.z, want.x, want.z,
         TREE_LENS_RADIUS);
     }
-    const treeLimit = treeClearFraction(world, rider, want);
+    // Use the lower of the desired and live lens until an ascent has caught
+    // up, so a rock cannot stop protecting a camera still below its top.
+    const treeLensY = started ? Math.min(want.y, at.y) : want.y;
+    const treeLimit = treeClearFraction(world, rider, want, treeLensY);
     if (world.endBlockedSpan) world.endBlockedSpan();
     if (!started) {
       treeBoom = treeLimit;

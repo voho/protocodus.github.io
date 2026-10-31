@@ -5,6 +5,7 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 ```sh
 node tests/riding-check.mjs
 node tests/pause-charge-check.mjs
+node tests/camera-occlusion-check.mjs
 node tests/touch-input-check.mjs
 node tests/input-device-check.mjs
 node tests/controller-menu-check.mjs
@@ -103,6 +104,10 @@ while the corduroy does not.
 The camera check also holds the chase frame's speed curve: exactly the old
 framing at 20 m/s, and the lens and boom still opening between 42, 60 and
 96 m/s (they used to stop at 42) without the lens passing 76°.
+Camera obstruction checks use the height of the boom above bounded rocks and
+hut roofs. A clear flight keeps its framing, while a lower camera still
+catching up during ascent retains clearance. Tree checks stay conservative
+because their collision height is not a measured canopy bound.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone
@@ -189,6 +194,9 @@ Smoke checks cover framebuffer resizing, capped device pixels and sprite-size
 limits. A native GPU fixture compares the production smoke vertex shader with
 an equally sized mesh at 65/72/75/82° fields of view on two buffers. Both keep
 the same projected size, while smoke retains its one-pixel floor and size cap.
+The real smoke emitter also checks empty, first-emission, final-expiration and
+reset states. Empty pools skip their draw; active puffs keep their full fade
+and wake on the first emission, including after a zero-time capture or reset.
 And it checks `weld`, which the prop pools, the forest cards and the animals
 draw through: every corner keeps every attribute bit for bit through the
 index, shared corners really are merged, and a pool still waiting on its

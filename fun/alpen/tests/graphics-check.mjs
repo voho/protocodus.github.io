@@ -656,8 +656,9 @@ assert.equal(streaks.lines.visible, true);
 // framebuffer height. The render camera supplies the remaining projection
 // factor in the actual vertex shader (covered by the native browser check).
 {
-  const { createHuts } = await import('../js/huts.js');
+  const { createHuts, HUTS } = await import('../js/huts.js');
   const { createShading } = await import('../js/shading.js');
+  const { getWorldSeed, setWorldSeed } = await import('../js/noise.js');
   const { allTracked } = await import('../js/loading.js');
   await allTracked();
   const hutURL = new URL('../assets/models/huts/mountain-hut.glb', import.meta.url);
@@ -665,6 +666,7 @@ assert.equal(streaks.lines.visible, true);
   const previousFetch = globalThis.fetch, previousDpr = window.devicePixelRatio;
   const previousBuffer = { ...RENDER.buffer }, previousCap = getPointSizeCap();
   const previousFov = RENDER.fov;
+  const previousSeed = getWorldSeed();
   const smokePost = createRetro(THREE, renderer);
   try {
     globalThis.fetch = async url => url === hutURL.href ? {
@@ -674,10 +676,12 @@ assert.equal(streaks.lines.visible, true);
     } : previousFetch(url);
     window.devicePixelRatio = 1;
     smokePost.setSize(640, 360);
+    setWorldSeed('1EE9566');
     const huts = createHuts(TestTHREE, createShading(THREE));
     await allTracked();
     const uniforms = huts.smoke.material.uniforms;
     assert.ok(huts.smoke.isPoints && huts.group.children.includes(huts.smoke));
+    assert.equal(huts.smoke.visible, false, 'an empty smoke pool starts without a draw');
     close(uniforms.uScale.value, 180, 'smoke starts with half its actual target height');
     const rider = { pos: new THREE.Vector3(0, 0, -600), state: 'ride', speed: 12, grounded: true };
     const update = () => huts.update(0, rider, w);
@@ -707,12 +711,58 @@ assert.equal(streaks.lines.visible, true);
     RENDER.fov = 43;
     update();
     close(uniforms.uScale.value, 80, 'CPU smoke scale does not bake in the configured chase lens');
+
+    // Exercise the real emitter and lifetime census beside a generated hut.
+    // Empty pools sleep through captures; a live plume keeps its final fade.
+    assert.equal(huts.smoke.visible, false, 'zero-time updates do not wake empty smoke');
+    for (let z = 0; z > -5000 && !huts.huts.length; z -= HUTS.step) {
+      rider.pos.z = z;
+      update();
+    }
+    assert.ok(huts.huts.length, 'the seeded mountain contains an actual hut');
+    const hut = huts.huts[0];
+    const chimney = new THREE.Vector3(hut.x, hut.y, hut.z);
+    rider.pos.copy(chimney);
+    update();
+    const alpha = huts.smoke.geometry.attributes.aAlpha.array;
+    const positions = huts.smoke.geometry.attributes.position.array;
+    const emit = () => {
+      for (let frame = 0; frame < 4 && !alpha.some(value => value > 0); frame++) {
+        huts.update(0.05, rider, w);
+      }
+      assert.ok(alpha.some(value => value > 0), 'the real chimney emits visible puffs');
+      assert.equal(huts.smoke.visible, true, 'the first emission draws on its own frame');
+    };
+    emit();
+    const heldPosition = positions.slice(), heldAlpha = alpha.slice();
+    update();
+    assert.equal(huts.smoke.visible, true, 'a zero-time capture keeps live smoke visible');
+    assert.deepEqual(positions, heldPosition, 'a capture does not move the plume');
+    assert.deepEqual(alpha, heldAlpha, 'a capture does not advance its fade');
+    rider.pos.x += HUTS.smoke.range * 4;
+    for (let frame = 0; frame < Math.ceil(HUTS.smoke.life * 1.3 / 0.05) + 1; frame++) {
+      huts.update(0.05, rider, w);
+      assert.equal(huts.smoke.visible, alpha.some(value => value > 0),
+        'smoke draws through its fade and hides on the final expiration frame');
+      if (!huts.smoke.visible) break;
+    }
+    assert.equal(huts.smoke.visible, false, 'the expired plume stops submitting');
+    update();
+    assert.equal(huts.smoke.visible, false, 'an idle capture leaves expired smoke asleep');
+    rider.pos.copy(chimney);
+    emit();
+    huts.reset();
+    assert.equal(huts.smoke.visible, false, 'reset hides a live plume immediately');
+    assert.ok(alpha.every(value => value === 0), 'reset clears every old puff');
+    update();
+    emit();
   } finally {
     await allTracked();
     globalThis.fetch = previousFetch;
     window.devicePixelRatio = previousDpr;
     Object.assign(RENDER.buffer, previousBuffer);
     RENDER.fov = previousFov;
+    setWorldSeed(previousSeed);
     setPointSizeCap(previousCap);
   }
 }
