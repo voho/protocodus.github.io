@@ -150,9 +150,9 @@ for (const key of wildlifeNames) {
       vz: i ? 0 : Math.cos(yaw) * speed, flee: i ? 0 : flee, hop: 0, alive: true, seen: true, born: 0,
     }));
   };
-  const update = dt => {
+  const update = (dt, onNear = () => assert.fail('a distant hare cannot award a near miss')) => {
     for (const key of queries) calls[key] = 0;
-    life.update(dt, player, () => assert.fail('a distant hare cannot award a near miss'),
+    life.update(dt, player, onNear,
       () => assert.fail('a distant hare cannot hit the rider'));
     assert.equal(calls.heightAt, WILDLIFE.rabbits, 'coasting needs only the existing one ground sample per hare');
     for (const key of queries.slice(1)) assert.equal(calls[key], 0, 'no extra placement queries while moving');
@@ -208,6 +208,80 @@ for (const key of wildlifeNames) {
   near(target.hop, WILDLIFE.rabbitHop / 60, 'notice starts a bound on the snow');
   near(target.vx, Math.sin(away) * WILDLIFE.rabbitSpeed, 'notice keeps the authored flee speed');
   near(target.vz, Math.cos(away) * WILDLIFE.rabbitSpeed, 'notice keeps the authored flee speed');
+
+  // Proximity belongs to the hare actually drawn, including its ground
+  // height and hop. A side-hit flight can pass eight metres above the same
+  // XZ location; that is neither a dodge nor a reason to consume `seen`.
+  const { heightAt } = await import('../js/terrain.js');
+  const hareMatrix = new THREE.Matrix4(), drawn = new THREE.Vector3();
+  const drawnHare = () => {
+    pools[0].getMatrixAt(0, hareMatrix);
+    return drawn.setFromMatrixPosition(hareMatrix);
+  };
+  const setupPass = (lift = 0, x = 101.25, z = -1100, hop = 0) => {
+    reset();
+    player.pos.set(100, heightAt(100, -1100) + lift, -1100);
+    player.state = lift > 0 ? 'air' : 'ride';
+    player.grounded = lift === 0;
+    Object.assign(target, { x, z, seen: false, flee: 1, yaw: Math.PI / 2, hop });
+  };
+  let awards = 0;
+  const awarded = (x, z, kind) => {
+    awards++;
+    assert.equal(kind, 'rabbit');
+    assert.equal(x, target.x, 'feedback uses the updated hare position');
+    assert.equal(z, target.z);
+  };
+  for (const lift of [0, 1.2]) {
+    setupPass(lift); awards = 0;
+    update(1 / 60, awarded);
+    assert(player.pos.distanceTo(drawnHare()) < 2.6, 'a ground or low-air pass is spatially close');
+    assert.equal(awards, 1, 'genuine ground and low-air encounters still award');
+    assert.equal(target.seen, true);
+    update(1 / 60, awarded); update(0, awarded);
+    assert.equal(awards, 1, 'one encounter awards once, including redraws');
+  }
+  setupPass(8); awards = 0;
+  update(1 / 60, awarded); update(0, awarded);
+  assert(player.pos.distanceTo(drawnHare()) > 7, 'the flight passes well above the rendered hare');
+  assert.equal(awards, 0, 'flying over a hare does not award a near miss');
+  assert.equal(target.seen, false, 'a high flight leaves the encounter available');
+  player.pos.y = heightAt(player.pos.x, player.pos.z) + 1.2;
+  update(1 / 60, awarded);
+  assert.equal(awards, 1, 'the same hare can award a later genuinely close pass');
+
+  setupPass(0, 99, -1101.8); awards = 0;
+  update(0, awarded);
+  assert(Math.hypot(target.x - player.pos.x, target.z - player.pos.z) < 2.6);
+  assert(player.pos.distanceTo(drawnHare()) > 2.6, 'sloping ground separates this XZ-close pair');
+  assert.equal(awards, 0, 'ground elevation counts toward proximity');
+  assert.equal(target.seen, false);
+  for (const hop of [0, Math.PI / 2]) {
+    setupPass(0, 101.25, -1100, hop); awards = 0;
+    player.pos.y = heightAt(target.x, target.z) + 2.4;
+    player.state = 'air'; player.grounded = false;
+    update(0, awarded);
+    assert.equal(awards, hop ? 1 : 0, 'the crest of the drawn hop brings a low flight within reach');
+    assert.equal(target.seen, hop !== 0);
+  }
+  setupPass(0, 100, -1097.9); awards = 0;
+  player.pos.y = heightAt(target.x, target.z);
+  player.state = 'air'; player.grounded = false;
+  update(0, awarded);
+  assert(player.pos.distanceTo(drawnHare()) < 2.6);
+  assert.equal(awards, 0, 'a spatially close hare still needs the authored longitudinal pass');
+  assert.equal(target.seen, false);
+  // A moving hare can cross the boundary within a frame in either direction.
+  for (const approaching of [false, true]) {
+    setupPass(); awards = 0;
+    player.pos.set(100, heightAt(100, -600), -600);
+    Object.assign(target, { x: 100 + (approaching ? 2.8 : 2.55), z: -600,
+      yaw: approaching ? -Math.PI / 2 : Math.PI / 2, flee: 2.6 });
+    update(.05, awarded);
+    assert.equal(player.pos.distanceTo(drawnHare()) < 2.6, approaching);
+    assert.equal(awards, approaching ? 1 : 0, 'proximity uses the rendered endpoint of the frame');
+    assert.equal(target.seen, approaching);
+  }
 }
 
 /* The modelled animals (`tools/blender/wildlife.py` → alpine-wildlife.glb).

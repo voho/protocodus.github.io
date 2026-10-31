@@ -386,7 +386,11 @@ placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
 passes read the same value, so its shadow arrives with it. Hare coasting
 matches the original 60 Hz path at 20/30/60/120/240 Hz and mixed frame times;
 zero-time redraws preserve velocity and position. Fleeing, mesh pools and
-the one existing terrain sample per hare remain checked. The modelled
+the one existing terrain sample per hare remain checked. Near-miss rewards
+use the hare's rendered position in three dimensions: ground and low-air
+passes still count, high flights do not consume the encounter, and slope,
+hop height and movement within the frame agree with the visible proximity.
+The modelled
 animals (`alpine-wildlife.glb`, from `tools/blender/wildlife.py`) are
 checked too: each pool's node is inside its budget (hare 4500, deer body
 2000, hind head 1200, stag head 1400 for its twelve points, wolf 3200), on
