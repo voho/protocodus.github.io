@@ -68,7 +68,7 @@ import {
 } from './terrain.js';
 import { hash2, stream, getWorldSeed } from './noise.js';
 import { getPointSizeCap } from './particles.js';
-import { RENDER, SKY, HUT_LIGHT, HARD, JUMPABLE } from './config.js';
+import { RENDER, HUT_LIGHT, HARD, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { FOG_CURVE_GLSL } from './shading.js';
 
@@ -1155,9 +1155,9 @@ export function createHuts(THREE, shading) {
   const smokeMat = new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color('#cfd2d6') },
-      uFog: { value: new THREE.Color(SKY.haze) },
-      // The shared shading's own records, not copies: the view-space sun and
-      // the sky glow arrive here already moved by its one write per frame.
+      // Shared records carry the final atmosphere for this frame, including
+      // lightning in the haze, even when shading updates after the huts.
+      uFog: shading.uniforms.uSkyHaze,
       uSunV: shading.uniforms.uSunView,
       uSunLevel: shading.uniforms.uSunLevel,
       uGlow: shading.uniforms.uSkyGlow,
@@ -1381,7 +1381,6 @@ export function createHuts(THREE, shading) {
     lampWarm.copy(lampColour).multiplyScalar(lit);
 
     smokeMat.uniforms.uColor.value.copy(smokeDay).lerp(smokeNight, lit);
-    smokeMat.uniforms.uFog.value.copy(w.haze);
     smokeMat.uniforms.uNear.value = w.fogNear;
     smokeMat.uniforms.uFar.value = w.fogFar;
     /* The vertex shader applies the render camera's vertical projection to

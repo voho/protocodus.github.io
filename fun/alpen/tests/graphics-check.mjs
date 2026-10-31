@@ -27,6 +27,82 @@ const w = weather.state;
 w.elevation = 0.6; w.storm = 0;
 const close = (a, b, why) => assert.ok(Math.abs(a - b) < 1e-8, `${why}: ${a} / ${b}`);
 
+// Live OS comfort changes affect an existing storm, including a strike that
+// is already lit. These are real ambient weather and seeded flash updates;
+// no storm, clock or flash state is overridden to manufacture the event.
+{
+  const { getWorldSeed, setWorldSeed } = await import('../js/noise.js');
+  const previousSeed = getWorldSeed(), previousMatchMedia = window.matchMedia;
+  const normalPreference = { matches: false };
+  const livePreference = { matches: false };
+  const initialCalmPreference = { matches: true };
+  let queries = 0;
+  const create = preference => {
+    window.matchMedia = query => {
+      assert.equal(query, '(prefers-reduced-motion: reduce)');
+      queries++;
+      return preference;
+    };
+    return createWeather(THREE);
+  };
+  const nonFlash = state => Object.fromEntries(Object.entries(state)
+    .filter(([key]) => key !== 'flash')
+    .map(([key, value]) => [key, value?.isColor ? value.toArray() : value]));
+  try {
+    setWorldSeed(3);
+    const normal = create(normalPreference);
+    const live = create(livePreference);
+    const initialCalm = create(initialCalmPreference);
+    window.matchMedia = () => { assert.fail('weather updates reuse their retained media query'); };
+    const dt = 1 / 60;
+    let strikeTime = 0;
+    for (let frame = 0; frame < 600 * 60; frame++) {
+      normal.update(dt); live.update(dt); initialCalm.update(dt);
+      if (normal.state.flash > 0.5) { strikeTime = (frame + 1) * dt; break; }
+    }
+    assert.ok(strikeTime > 0, 'the bounded ambient schedule supplies a visible natural strike');
+    assert.equal(live.state.flash, normal.state.flash, 'ordinary weather keeps the seeded flash');
+    livePreference.matches = true;
+    live.update(0);
+    assert.equal(live.state.flash, 0, 'enabling reduced motion clears an active strike at zero dt');
+    assert.deepEqual(nonFlash(live.state), nonFlash(normal.state),
+      'comfort changes leave the palette, fog, wind and cloud clocks untouched');
+    assert.equal(initialCalm.state.flash, 0, 'an initially reduced-motion storm stays quiet');
+    initialCalmPreference.matches = false;
+    initialCalm.update(0);
+    assert.equal(initialCalm.state.flash, normal.state.flash,
+      'disabling reduced motion immediately rejoins the same seeded strike');
+    livePreference.matches = false;
+    live.update(0);
+    assert.equal(live.state.flash, normal.state.flash, 'a round trip preserves the exact strike clock');
+    livePreference.matches = true;
+    let naturalFlashFrames = 0;
+    for (let frame = 0; frame < 30 * 60; frame++) {
+      normal.update(dt); live.update(dt); initialCalm.update(dt);
+      if (normal.state.flash > 0) naturalFlashFrames++;
+      assert.equal(live.state.flash, 0, 'reduced motion keeps later natural strikes quiet');
+      assert.equal(initialCalm.state.flash, normal.state.flash, 'restored motion keeps the original flash schedule');
+      assert.deepEqual(nonFlash(live.state), nonFlash(normal.state), 'comfort preserves evolving weather');
+      assert.deepEqual(nonFlash(initialCalm.state), nonFlash(normal.state), 'restoring motion preserves evolving weather');
+    }
+    assert.ok(naturalFlashFrames > 0, 'the follow-up window exercises actual lightning');
+    assert.equal(queries, 3, 'each weather retains one query without creating more during updates');
+
+    // Older hosts without the preference API retain ordinary weather.
+    delete window.matchMedia;
+    const fallback = createWeather(THREE);
+    window.matchMedia = () => normalPreference;
+    const reference = createWeather(THREE);
+    fallback.update(strikeTime); reference.update(strikeTime);
+    assert.ok(reference.state.flash > 0.5, 'fallback comparison lands on a natural strike');
+    assert.equal(fallback.state.flash, reference.state.flash, 'missing matchMedia preserves lightning');
+    assert.deepEqual(nonFlash(fallback.state), nonFlash(reference.state), 'missing matchMedia preserves weather');
+  } finally {
+    window.matchMedia = previousMatchMedia;
+    setWorldSeed(previousSeed);
+  }
+}
+
 let sky = createSky(TestTHREE);
 const geometries = new Set();
 sky.group.traverse(object => {
@@ -677,7 +753,8 @@ assert.equal(streaks.lines.visible, true);
     window.devicePixelRatio = 1;
     smokePost.setSize(640, 360);
     setWorldSeed('1EE9566');
-    const huts = createHuts(TestTHREE, createShading(THREE));
+    const hutShading = createShading(THREE);
+    const huts = createHuts(TestTHREE, hutShading);
     await allTracked();
     const uniforms = huts.smoke.material.uniforms;
     assert.ok(huts.smoke.isPoints && huts.group.children.includes(huts.smoke));
@@ -734,6 +811,48 @@ assert.equal(streaks.lines.visible, true);
       assert.equal(huts.smoke.visible, true, 'the first emission draws on its own frame');
     };
     emit();
+    // Follow main's actual order: huts update first, shading resolves the
+    // current sky afterward, and only then is smoke drawn. A private haze
+    // copy stayed dark for the whole strike despite the surrounding fog.
+    const smokeWeather = createWeather(THREE);
+    const smokeCamera = new THREE.PerspectiveCamera(72, 16 / 9, 0.1, 1500);
+    const sourceSnapshot = state => Object.fromEntries(Object.entries(state)
+      .map(([key, value]) => [key, value?.isColor ? value.toArray() : value]));
+    const smokeGeometry = huts.smoke.geometry;
+    const smokeMaterial = huts.smoke.material;
+    const smokeCounts = Object.fromEntries(Object.entries(smokeGeometry.attributes)
+      .map(([key, value]) => [key, value.count]));
+    for (const tod of [0.45, 0.79, 0.02]) {
+      smokeWeather.pin(tod);
+      smokeWeather.update(12);
+      const palette = smokeWeather.state;
+      for (const flash of [0, 0.85, 0]) {
+        palette.flash = flash;
+        const before = sourceSnapshot(palette);
+        const previousHaze = hutShading.uniforms.uSkyHaze.value.clone();
+        huts.update(0, rider, palette);
+        assert.ok(hutShading.uniforms.uSkyHaze.value.equals(previousHaze),
+          'hut updates leave the shared atmosphere for shading to resolve');
+        hutShading.update(palette, smokeCamera, 0);
+        const drawnHaze = uniforms.uFog.value;
+        assert.ok(drawnHaze.equals(hutShading.uniforms.uSkyHaze.value),
+          'smoke follows the final atmosphere on the same draw frame');
+        if (flash) {
+          assert.ok(luma(drawnHaze) > luma(palette.haze) + 0.05,
+            'a live strike lights smoke fog alongside the surrounding world');
+        } else {
+          assert.ok(drawnHaze.equals(palette.haze),
+            'no-flash frames, including the frame after a strike, restore the source haze');
+        }
+        assert.deepEqual(sourceSnapshot(palette), before, 'smoke and shading never whiten source weather');
+        assert.equal(huts.smoke.visible, true, 'palette updates keep the emitted plume visible');
+        assert.equal(huts.smoke.geometry, smokeGeometry, 'palette changes reuse smoke geometry');
+        assert.equal(huts.smoke.material, smokeMaterial, 'palette changes reuse the existing smoke pass');
+        assert.deepEqual(Object.fromEntries(Object.entries(smokeGeometry.attributes)
+          .map(([key, value]) => [key, value.count])), smokeCounts, 'the smoke pool budget is unchanged');
+      }
+    }
+    assert.equal(uniforms.uFog, hutShading.uniforms.uSkyHaze, 'smoke reuses the shared resolved haze uniform');
     const heldPosition = positions.slice(), heldAlpha = alpha.slice();
     update();
     assert.equal(huts.smoke.visible, true, 'a zero-time capture keeps live smoke visible');
