@@ -444,10 +444,10 @@ const feedbackHandlers = new vm.Script(
   + '\nglobalThis.onNear = onWildlifeNear;',
 );
 const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
-function feedbackFixture() {
+function feedbackFixture(record = 0) {
   const rider = new Rider(THREE, { height: () => 0, canStall: () => false });
   rider.pos.z = -100; rider.vel.set(0, 0, -20);
-  const game = { ...g, rider, mode: 'playing', score: 0, best: 0, bestAtStart: 0,
+  const game = { ...g, rider, mode: 'playing', score: 0, best: record, bestAtStart: record,
     liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0 };
   const sounds = [], pulses = [];
   const context = vm.createContext({ rider, game, RIDER, SCORE, comboFor, hud,
@@ -459,6 +459,58 @@ function feedbackFixture() {
   feedbackHandlers.runInContext(context);
   hud.resetScore(); hud.update(game, .1);
   return { rider, game, sounds, pulses, award: context.award, near: context.onNear };
+}
+// The actual award callback updates the record before the HUD sees it.
+// The visible target changes only on a strict improvement, including the
+// first score of a first-ever run, without replacing the award announcement.
+for (const [record, points, expected] of [
+  [0, 0, 'Best 0'], [0, 120, 'Personal best · 120'],
+  [120, 120, 'Best 120'], [120, 121, 'Personal best · 121'],
+]) {
+  const { game, award } = feedbackFixture(record);
+  if (points) award(points, 'GATE', 'near');
+  hud.update(game, .1);
+  assert.equal(game.best, Math.max(record, points));
+  assert.equal(f.best.textContent, expected, 'record feedback distinguishes first score, tie and improvement');
+  assert.equal(f.best.dataset.passed, String(points > record));
+  assert.equal(root.nodes['[data-callout]'].textContent, points ? `GATE, plus ${points}` : '',
+    'record feedback preserves the active scoring callout');
+}
+{
+  const { rider, game, award } = feedbackFixture(120);
+  rider.takeOff(4, rider.UP); rider.airTime = .5; hud.update(game, .1);
+  award(121, 'GATE', 'near'); hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Personal best · 121');
+  assert.match(f['event-kicker'].textContent, /GATE \+121/);
+  assert.equal(root.nodes['[data-callout]'].textContent, 'GATE, plus 121',
+    'a record cannot replace an airborne flash announcement');
+}
+{
+  const { game, award } = feedbackFixture(120);
+  award(121); // No active event: the record itself can be announced.
+  hud.update(game, .1);
+  assert.equal(root.nodes['[data-callout]'].textContent, 'New personal best.');
+  // Settle the ordinary score interpolation and hint timeout, then verify
+  // that a steady record neither re-announces nor writes to the DOM.
+  for (let i = 0; i < 100; i++) hud.update(game, .1);
+  const recordWrites = writes;
+  for (let i = 0; i < 20; i++) hud.update(game, .1);
+  assert.equal(writes, recordWrites, 'an idle personal best is announced once and causes no repeated DOM work');
+  award(1); hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Personal best · 122', 'the new record remains current as the run continues');
+  // The same reset used by restart restores the saved target and clears the
+  // previous run's announcement; matching it again is still not a new best.
+  game.bestAtStart = game.best; game.score = 0;
+  hud.resetScore(); hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Best 122');
+  assert.equal(f.best.dataset.passed, 'false');
+  assert.equal(root.nodes['[data-callout]'].textContent, '');
+  award(122); hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Best 122');
+  assert.equal(root.nodes['[data-callout]'].textContent, '');
+  award(1); hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Personal best · 123');
+  assert.equal(root.nodes['[data-callout]'].textContent, 'New personal best.');
 }
 {
   const { rider, game, award } = feedbackFixture();
@@ -472,7 +524,10 @@ function feedbackFixture() {
   assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a queued celebration cannot delay the crash reason');
   assert.equal(f['event-kicker'].textContent, 'CAUGHT AN OBSTACLE');
   assert.equal(f['event-points'].hidden, true);
-  assert.match(root.nodes['[data-callout]'].textContent, /WIPEOUT, CAUGHT AN OBSTACLE/);
+  assert.equal(root.nodes['[data-callout]'].textContent, 'WIPEOUT, CAUGHT AN OBSTACLE',
+    'a same-frame first record cannot replace the urgent crash reason');
+  hud.update(game, .1);
+  assert.equal(f.best.textContent, 'Personal best · 7,260');
   assert.equal(game.score, banked, 'retiring stale banners preserves already earned points');
   assert.equal(game.best, record);
   assert.equal(game.flow, .5 * (1 - SCORE.flowBail), 'the existing crash flow penalty is unchanged');
@@ -515,4 +570,4 @@ function feedbackFixture() {
   game.mode = 'attract'; encounter(false);
   game.mode = 'paused'; encounter(false);
 }
-console.log('HUD checks passed: state transitions, charge, flow, live butters, immediate crash feedback, controlled encounter rewards, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
+console.log('HUD checks passed: state transitions, charge, flow, live butters, truthful personal records, immediate crash feedback, controlled encounter rewards, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');

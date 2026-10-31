@@ -329,9 +329,13 @@ export function createHud(root) {
         if (flashTimer === 0) drawIn = 0;
       }
     }
-    if (!bestPassed && playing && g.bestAtStart > 0 && g.score >= g.bestAtStart) {
+    if (!bestPassed && playing && g.score > (g.bestAtStart || 0)) {
       bestPassed = true;
-      if (callout) callout.textContent = 'New personal best.';
+      // First scores count; ties do not. Keep the event that earned the
+      // record (or an immediate crash reason) in the live announcement.
+      if (callout && bannerTimer <= 0 && flashTimer <= 0) {
+        callout.textContent = 'New personal best.';
+      }
     }
     // A transform avoids layout while the player loads the jump. Neither a
     // full-charge bar nor a maximum-flow bar flashes.
