@@ -68,7 +68,8 @@ assert.equal(perfectPops, 1);
         perfectPop() { perfect++; calls.push('perfect'); },
       },
       input: { rumble(...args) { pulses.push(args); calls.push('pulse'); } },
-      hud: { clearBanner() { calls.push('clear'); }, banner(name) { calls.push(name); } },
+      hud: { clearBanner() { calls.push('clear'); }, beginFlight() { calls.push('flight'); },
+        banner(name) { calls.push(name); } },
     });
     r.on('launch', vy => launches.push({ vy, pop: r.airPop, lip: r.lipPop }));
     return { calls, jumps, pulses, launches, get perfect() { return perfect; } };
@@ -85,7 +86,7 @@ assert.equal(perfectPops, 1);
     assert.equal(f.jumps.length, 1, 'a deliberate departure produces one pop sound');
     assert.deepEqual(f.pulses, [[0.18, 0, 70]], 'and one takeoff pulse');
     assert(f.launches[0].pop > 0, 'the impulse is available inside the launch listener');
-    assert.deepEqual(f.calls, ['jump', 'pulse', 'clear'], 'takeoff retires the old banner after feedback');
+    assert.deepEqual(f.calls, ['jump', 'pulse', 'flight'], 'takeoff hands unread results to the flight after feedback');
     return { r, f };
   };
   const seed = getWorldSeed();
@@ -167,7 +168,7 @@ assert.equal(perfectPops, 1);
   assert.equal(delayed.f.launches.length, 1, 'late pop does not emit another launch');
   assert.equal(delayed.f.jumps.length, 0, 'late release does not duplicate takeoff sound');
   assert.equal(delayed.f.perfect, 1);
-  assert.deepEqual(delayed.f.calls, ['clear', 'PERFECT POP', 'perfect', 'pulse']);
+  assert.deepEqual(delayed.f.calls, ['flight', 'PERFECT POP', 'perfect', 'pulse']);
 
   const timely = lip();
   for (let i = 0; i < ticks - 1; i++) timely.r.step(dt, { ...neutral, jump: true });
@@ -176,8 +177,8 @@ assert.equal(perfectPops, 1);
   assert(timely.f.launches[0].lip && timely.f.launches[0].pop > RIDER.popMax,
     'a release on the departure step carries the lip impulse into launch');
   assert.equal(timely.f.jumps.length, 1); assert.equal(timely.f.perfect, 1);
-  assert.deepEqual(timely.f.calls, ['jump', 'pulse', 'clear', 'PERFECT POP', 'perfect', 'pulse'],
-    'on-lip confirmation follows the takeoff banner clear and each cue fires once');
+  assert.deepEqual(timely.f.calls, ['jump', 'pulse', 'flight', 'PERFECT POP', 'perfect', 'pulse'],
+    'on-lip confirmation follows the flight handoff and each cue fires once');
 }
 
 // Tucking preserves more momentum but cannot accelerate a rider in midair;

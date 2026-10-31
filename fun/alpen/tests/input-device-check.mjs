@@ -341,7 +341,7 @@ try {
       game: { mode: 'playing', flow: 0 }, prev: rider.pos.clone(), chatterBuzz: 0, dt: 1 / 60,
       audio: { jump() { sounds.push('jump'); }, crash() { sounds.push('crash'); }, thud() {} },
       chase: { kick() {} }, retro: { crash() {} }, spray: { burst() {} },
-      hud: { clearBanner() {}, banner() {} }, syncCombo() {}, rearmProps: false,
+      hud: { clearBanner() {}, beginFlight() {}, banner() {} }, syncCombo() {}, rearmProps: false,
     });
     contactHandlers.runInContext(context);
     const control = { turn: .65, turnIntent: .65, tuck: false, brake: false,
