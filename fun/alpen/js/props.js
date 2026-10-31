@@ -437,12 +437,13 @@ const OWN_MIX = `#include <color_vertex>
 
 /* Wind, as the vertex shader sees it.
 
-   The forest and the race-gate panels share these two uniform records, and
+   The forest and the race-gate panels share these uniform records, and
    `setAir` writes them once per frame — the same one-write-moves-everything
    arrangement the shared shading uses for the sky. The time wraps at 200π
-   rather than growing forever because a float's precision does not: every
-   frequency used below is a multiple of 0.01 Hz-ish, so `f * 200π` is a whole
-   number of turns and the wrap is invisible.
+   rather than growing forever because a float's precision does not: the fixed
+   frequencies reading it are multiples of 0.01 Hz-ish, so `f * 200π` is a whole
+   number of turns and the wrap is invisible. The flag's wind-varying wave
+   accumulates its own bounded phase.
 
    The sway itself runs in the tree's OWN space, before the instance matrix,
    because that is where `transformed` lives and moving it later would mean
@@ -2400,12 +2401,13 @@ export function createProps(THREE, shading) {
   // helper that used to sit here went with its last caller: the gate mast was
   // the only surface left on the hill wearing a colour of its own rather than
   // one carried on the instance.)
-  /* The wind's two uniforms, shared by every material that listens to it.
+  /* The wind uniforms, shared by every material that listens to them.
      `setAir` below is the one writer; the integrator calls it once a frame
      with the weather's own wind, and a frame that forgets simply leaves the
      forest becalmed rather than broken. */
   const air = {
     uAirTime: { value: 0 },
+    uFlagPhase: { value: 0 },
     uAirWind: { value: new THREE.Vector2() },
     // how far the wind has carried the gust field, wrapped per axis at its
     // wavelength — see the note beside `SWAY`
@@ -2716,6 +2718,7 @@ export function createProps(THREE, shading) {
         .replace('#include <common>', `#include <common>${OWN_DECL}
         attribute float aFlutter;
         uniform float uAirTime;
+        uniform float uFlagPhase;
         uniform vec2 uAirWind;`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -2725,7 +2728,7 @@ export function createProps(THREE, shading) {
             n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.0713, 0.0417))) * 6.2832;
           #endif
           float n64Wind = min(length(uAirWind), 18.0);
-          float n64Ripple = sin(uAirTime * (4.6 + n64Wind * 0.35) - transformed.x * 7.5 + n64Ph) * 0.65
+          float n64Ripple = sin(uFlagPhase - transformed.x * 7.5 + n64Ph) * 0.65
             + sin(uAirTime * 9.7 - transformed.x * 15.0 + n64Ph * 1.7) * 0.35;
           transformed.z += aFlutter * n64Ripple * (0.022 + n64Wind * 0.0045);
         }`);
@@ -5117,11 +5120,15 @@ export function createProps(THREE, shading) {
 
   /* The frame's wind, handed over once by the caller. The time wraps at 200π
      — see the note beside `SWAY` — and everything reading these uniforms
-     shares the same two records, so this is the whole cost of animating the
+     shares the same records, so this is the whole cost of animating the
      forest and every flag on it. */
   function setAir(dt, windX, windZ) {
     air.uAirTime.value = (air.uAirTime.value + dt) % 628.3185307;
     air.uAirWind.value.set(windX, windZ);
+    // Wind changes the flag's rate from here onward, never the phase of its
+    // entire elapsed history. A whole-turn wrap keeps long runs continuous.
+    air.uFlagPhase.value = (air.uFlagPhase.value
+      + dt * (4.6 + 0.35 * Math.min(air.uAirWind.value.length(), 18))) % TAU;
     // The gust cells ride the wind at its own speed. Each axis wraps at the
     // wavelength its wave is sampled with, so the wrap is a whole cycle.
     const d = air.uAirDrift.value;
