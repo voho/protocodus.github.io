@@ -8,6 +8,9 @@ import { createHud } from '../js/hud.js';
 import { RIDER, SCORE } from '../js/config.js';
 import { butterName, Rider } from '../js/rider.js';
 import { comboFor } from '../js/flow.js';
+import { createChaseCamera } from '../js/camera.js';
+import { heightAt, guideAt } from '../js/terrain.js';
+import { getWorldSeed, setWorldSeed } from '../js/noise.js';
 let writes = 0, targetQueries = 0;
 const tracked = value => new Proxy(value, {
   set(target, key, next) { target[key] = next; writes++; return true; },
@@ -450,7 +453,8 @@ function feedbackFixture(record = 0) {
   const game = { ...g, rider, mode: 'playing', score: 0, best: record, bestAtStart: record,
     liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0 };
   const sounds = [], pulses = [];
-  const context = vm.createContext({ rider, game, RIDER, SCORE, comboFor, hud,
+  const camera = new THREE.PerspectiveCamera(70, 16 / 9, .1, 2000);
+  const context = vm.createContext({ rider, camera, game, RIDER, SCORE, comboFor, hud,
     rearmProps: false, bestDirty: false, persistBest() {},
     audio: new Proxy({}, { get: (_, name) => (...args) => sounds.push({ name, args }) }),
     input: { rumble: (...args) => pulses.push(args) },
@@ -458,7 +462,7 @@ function feedbackFixture(record = 0) {
   });
   feedbackHandlers.runInContext(context);
   hud.resetScore(); hud.update(game, .1);
-  return { rider, game, sounds, pulses, award: context.award, near: context.onNear };
+  return { rider, camera, game, sounds, pulses, award: context.award, near: context.onNear };
 }
 // The actual award callback updates the record before the HUD sees it.
 // The visible target changes only on a strict improvement, including the
@@ -570,4 +574,51 @@ for (const [record, points, expected] of [
   game.mode = 'attract'; encounter(false);
   game.mode = 'paused'; encounter(false);
 }
-console.log('HUD checks passed: state transitions, charge, flow, live butters, truthful personal records, immediate crash feedback, controlled encounter rewards, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
+// A normal carve can put a world-right hare on the left of the displayed
+// rider. Use real terrain, physics and the last drawn chase view, then check
+// the callback against projected positions rather than repeating its pan math.
+{
+  const seed = getWorldSeed();
+  try {
+    setWorldSeed('alpen-side-audit');
+    const { rider, camera, game, near, sounds, pulses } = feedbackFixture();
+    const world = { height: heightAt, canStall: () => false };
+    rider.world = world; rider.reset(-1000, guideAt(-1000));
+    rider.vel.copy(rider.heading).multiplyScalar(20);
+    const chase = createChaseCamera(THREE, camera), turn = { ...neutral, turn: 1, turnIntent: 1 };
+    chase.update(rider, 1 / 60, world); camera.updateMatrixWorld();
+    let bearing = 0;
+    for (let frame = 0; frame < 180; frame++) {
+      rider.step(1 / 120, turn); rider.step(1 / 120, turn);
+      const view = camera.matrixWorld.elements;
+      bearing = Math.atan2(-view[8], view[10]) * 180 / Math.PI;
+      if (rider.grounded && rider.state === 'ride' && bearing >= 55) break;
+      chase.update(rider, 1 / 60, world); camera.updateMatrixWorld();
+    }
+    assert.equal(rider.state, 'ride'); assert.equal(rider.grounded, true);
+    assert(bearing >= 55 && bearing < 70, 'the real carve produces a diagonal chase view');
+    const encounter = (dx, dz, expected) => {
+      const hare = new THREE.Vector3(rider.pos.x + dx, 0, rider.pos.z + dz);
+      hare.y = heightAt(hare.x, hare.z);
+      assert(hare.distanceTo(rider.pos) < 2.6 && Math.abs(dz) < 2,
+        'the encounter fits the existing three-dimensional near-miss bounds');
+      if (dx || dz) {
+        const screenSide = hare.clone().project(camera).x - rider.pos.clone().project(camera).x;
+        assert.equal(Math.sign(screenSide), Math.sign(expected), 'the expected cue follows the visible side');
+      }
+      const before = { score: game.score, sounds: sounds.length, pulses: pulses.length };
+      near(hare.x, hare.z, 'rabbit');
+      assert.equal(sounds.length - before.sounds, 1); assert.equal(sounds.at(-1).name, 'whoosh');
+      assert.equal(sounds.at(-1).args[0], expected, 'the whoosh matches the last drawn view');
+      assert.equal(game.score - before.score, SCORE.nearMiss * game.combo);
+      assert.equal(pulses.length - before.pulses, 1);
+    };
+    encounter(.3, -1.8, -.7);
+    encounter(-.3, 1.8, .7);
+    encounter(0, 0, 0);
+    rider.takeOff(4, rider.UP); assert.equal(rider.state, 'air');
+    rider.yaw += Math.PI; rider.heading.negate();
+    encounter(.3, -1.8, -.7); // Board facing changes independently of the drawn view.
+  } finally { setWorldSeed(seed); }
+}
+console.log('HUD checks passed: state transitions, charge, flow, live butters, truthful personal records, immediate crash feedback, controlled encounter rewards and view-relative sound, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');

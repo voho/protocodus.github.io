@@ -1644,7 +1644,11 @@ function liveTrickName() {
    the steady GC churn behind the occasional minor-collection hitch. */
 const onWildlifeNear = (x, z, kind) => {
   if (game.mode === 'playing' && (rider.state === 'ride' || rider.state === 'air')) {
-    nearMiss(kind, x > rider.pos.x ? 0.7 : -0.7);
+    // Use the last drawn view: world X reverses the cue on a traverse, and
+    // the rider's facing can spin independently of the chase camera.
+    const view = camera.matrixWorld.elements;
+    const side = (x - rider.pos.x) * view[0] + (z - rider.pos.z) * view[2];
+    nearMiss(kind, Math.sign(side) * 0.7);
   }
 };
 const onCocoa = () => {
