@@ -2,6 +2,8 @@
 // Exercise the production audio graph and scheduling; the browser companion
 // renders that graph through OfflineAudioContext to check the actual waveform.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
 import { createAudio } from '../js/audio.js';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { Rider } from '../js/rider.js';
@@ -314,6 +316,107 @@ const fresh = (fallback = false) => {
   return { audio, ctx: context };
 };
 
+// Thunder borrows the existing brown noise and schedules one quiet, rounded
+// arrival. Repeated or adjacent strikes cannot pile up pending/active voices.
+{
+  const { audio, ctx } = fresh();
+  audio.thunder();
+  assert.equal(shots(ctx).length, 1);
+  const source = shots(ctx)[0], gain = envelope(source), start = source.starts[0], end = source.stops[0];
+  const attack = gain.gain.automation.find(event => event.kind === 'linear');
+  assert(start > 0 && start < .5, 'a distant rumble follows the flash after a short delay');
+  assert(attack.time - start >= .15 && attack.time - start <= .3);
+  assert.equal(gain.gain.at(start), 0);
+  assert(Math.abs(gain.gain.at((start + attack.time) / 2) - attack.value / 2) < 1e-12,
+    'thunder grows from silence instead of starting with an impact');
+  assert(attack.value > 0 && attack.value < .16, 'thunder stays below the existing impact burst gain');
+  assert.equal(source.buffer, ctx.sources[0].buffer, 'thunder reuses the existing brown buffer');
+  assert.equal(gain.connections[0], ctx.gains[0], 'thunder shares the mute gain and limiter');
+  assert.equal(ctx.oscillators.length, 0); assert.equal(ctx.panners.length, 1);
+  assert(ctx.sources.slice(0, 6).every(loop => loop.stops.length === 0));
+  assert.equal(timers.size, 0, 'the delayed cue creates no wall-clock timer');
+  for (const time of [0, start / 2, start, attack.time, 1, end - .001]) {
+    ctx.currentTime = time; audio.thunder();
+  }
+  assert.equal(shots(ctx).length, 1, 'one authored-end bound covers pending, attacking and decaying thunder');
+  ctx.currentTime = end; source.finish(); audio.thunder(.5);
+  assert.equal(shots(ctx).length, 2, 'a later strike can sound after the old source has stopped');
+  const nextAttack = envelope(shots(ctx)[1]).gain.automation.find(event => event.kind === 'linear');
+  assert.equal(nextAttack.value, attack.value / 2, 'weaker lightning gives a quieter rumble');
+  audio.toggleMute(); assert.equal(ctx.gains[0].gain.value, 0, 'muting also silences a scheduled rumble');
+  audio.toggleMute();
+}
+{
+  const unstarted = createAudio(); unstarted.thunder();
+  assert.equal(unstarted.context, null, 'weather never creates audio before a user starts it');
+}
+for (const unavailable of ['suspended', 'interrupted', 'muted', 'parked']) {
+  const { audio, ctx } = fresh();
+  if (unavailable === 'muted') audio.toggleMute();
+  else if (unavailable === 'parked') audio.quiet();
+  else ctx.state = unavailable;
+  audio.thunder(); assert.equal(shots(ctx).length, 0, unavailable + ': no stale thunder is scheduled');
+  if (unavailable === 'muted') audio.toggleMute();
+  else { ctx.state = 'running'; audio.start(); }
+  audio.thunder(0); audio.thunder(-1); audio.thunder(NaN);
+  audio.thunder(10);
+  assert.equal(shots(ctx).length, 1, 'rejected calls reserve no cooldown');
+  assert.equal(envelope(shots(ctx)[0]).gain.automation.find(event => event.kind === 'linear').value, .09,
+    'out-of-range strength cannot exceed the authored gain');
+}
+// The shared retirement path must understand the new soft burst attack,
+// including the older AudioParam fallback and cancellation before onset.
+for (const fallback of [false, true]) for (const pauseAt of [.1, .4, 1]) {
+  const { audio, ctx } = fresh(fallback); audio.thunder();
+  const source = shots(ctx)[0], gain = envelope(source), authoredEnd = source.stops[0];
+  const level = gain.gain.at(pauseAt);
+  ctx.currentTime = pauseAt; audio.quiet();
+  const stop = source.stops.at(-1);
+  if (pauseAt < source.starts[0]) {
+    assert.equal(stop, pauseAt); assert.equal(gain.gain.at(pauseAt), 0, 'pause cancels the delayed arrival');
+  } else {
+    assert(Math.abs(gain.gain.at(pauseAt) - level) < 1e-12, 'pause holds the true thunder attack/decay level');
+    assert(stop > pauseAt && stop <= pauseAt + .03); assert.equal(gain.gain.at(stop), 0);
+  }
+  audio.start(); audio.thunder();
+  assert.equal(shots(ctx).length, 1, 'rapid resume neither revives the old cue nor overlaps its retirement');
+  assert.equal(source.stops.at(-1), stop);
+  ctx.currentTime = authoredEnd; source.finish(); audio.thunder();
+  assert.equal(shots(ctx).length, 2, 'quiet does not permanently block future thunder');
+}
+
+// Execute main's actual event bridge: cell identity, not the visible flash
+// envelope, owns a cue. Dropped events are consumed rather than replayed.
+{
+  const main = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const start = main.indexOf('let lastLightningCell = -1;'), end = main.indexOf('\nconst onWildlifeNear =', start);
+  assert(start >= 0 && end > start, 'locate the production weather-audio bridge');
+  const game = { mode: 'attract' }, attempts = [], played = [];
+  let available = true;
+  const bridge = vm.createContext({ game, audio: { thunder(strength) {
+    attempts.push(strength); if (available) played.push(strength);
+  } } });
+  new vm.Script(main.slice(start, end)).runInContext(bridge);
+  const w = { lightningCell: 20, lightningStrength: .6, flash: 1 };
+  const update = () => bridge.updateWeatherAudio(w);
+  update(); game.mode = 'playing'; update(); assert.equal(attempts.length, 0, 'starting skips the demo strike');
+  w.lightningCell++; update();
+  w.flash = 0; update(); w.flash = .8; update();
+  assert.equal(attempts.length, 1, 'decay, zero-dt redraws and motion preference changes cannot retrigger a cell');
+  w.lightningCell = -1; update(); w.lightningCell = 21; update();
+  assert.equal(attempts.length, 1, 'a temporary non-strike cannot rearm the same cell');
+  w.lightningCell++; update(); assert.equal(attempts.length, 2, 'adjacent cells remain distinct events');
+  available = false; w.lightningCell++; update();
+  available = true; update(); assert.equal(attempts.length, 3); assert.equal(played.length, 2,
+    'audio unlock or unmute cannot replay a consumed strike');
+  game.mode = 'paused'; update(); game.mode = 'playing'; game.score = 0; update();
+  assert.equal(attempts.length, 3, 'pause/resume and checkpoint restart retain the current strike identity');
+  w.lightningCell = -1; w.lightningStrength = 0; update();
+  w.lightningCell = 24; update(); assert.equal(attempts.length, 3, 'non-strikes and zero strength stay silent');
+  w.lightningCell++; w.lightningStrength = .8; update();
+  assert.equal(played.at(-1), .8, 'a later storm event still sounds normally');
+}
+
 // Observe production source schedules and independent AudioParam timelines,
 // including attack, decay, delayed tones and both burst routing branches.
 for (const fallback of [false, true]) for (const pauseAt of [.005, .05]) {
@@ -559,4 +662,4 @@ try {
   timers.clear();
 }
 
-console.log('Audio checks passed: riding mix, body contact, six-voice budget, one-shot retirement and gesture/parking promise races.');
+console.log('Audio checks passed: riding mix, body contact, six-voice budget, bounded storm cues, one-shot retirement and gesture/parking promise races.');

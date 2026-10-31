@@ -1642,6 +1642,17 @@ function liveTrickName() {
 /* The per-frame callbacks, built once. Arrow literals in the loop body are
    a fresh closure allocation every frame — individually nothing, together
    the steady GC churn behind the occasional minor-collection hitch. */
+let lastLightningCell = -1;
+function updateWeatherAudio(w) {
+  if (w.lightningCell < 0 || w.lightningCell === lastLightningCell) return;
+  // Consume the event even in the demo or before audio unlock. The storm
+  // continues across checkpoint restarts; missed strikes never queue up.
+  lastLightningCell = w.lightningCell;
+  if (game.mode === 'playing' && w.lightningStrength > 0) {
+    audio.thunder(w.lightningStrength);
+  }
+}
+
 const onWildlifeNear = (x, z, kind) => {
   if (game.mode === 'playing' && (rider.state === 'ride' || rider.state === 'air')) {
     // Use the last drawn view: world X reverses the cue on a traverse, and
@@ -1791,6 +1802,7 @@ function frame(now) {
       }
     }
     const w = weather.update(dt);
+    updateWeatherAudio(w);
     retro.setGrade(w, dt);
     // Falling snow is fresh snow: progressively softer, slower and easier to
     // wash out on. The endpoints stay arcade-readable rather than punitive.

@@ -53,6 +53,8 @@ const close = (a, b, why) => assert.ok(Math.abs(a - b) < 1e-8, `${why}: ${a} / $
     const normal = create(normalPreference);
     const live = create(livePreference);
     const initialCalm = create(initialCalmPreference);
+    assert.equal(normal.state.lightningCell, -1, 'weather starts without a stale strike identity');
+    assert.equal(normal.state.lightningStrength, 0, 'no strike has zero thunder strength');
     window.matchMedia = () => { assert.fail('weather updates reuse their retained media query'); };
     const dt = 1 / 60;
     let strikeTime = 0;
@@ -62,6 +64,17 @@ const close = (a, b, why) => assert.ok(Math.abs(a - b) < 1e-8, `${why}: ${a} / $
     }
     assert.ok(strikeTime > 0, 'the bounded ambient schedule supplies a visible natural strike');
     assert.equal(live.state.flash, normal.state.flash, 'ordinary weather keeps the seeded flash');
+    const strikeCell = normal.state.lightningCell;
+    assert.ok(Number.isInteger(strikeCell) && strikeCell >= 0, 'a natural strike exposes its seeded cell');
+    assert.ok(normal.state.lightningStrength >= normal.state.flash
+      && normal.state.lightningStrength <= 1, 'thunder strength is bounded and independent of flash decay');
+    assert.equal(initialCalm.state.lightningCell, strikeCell, 'reduced motion retains the natural strike identity');
+    assert.equal(initialCalm.state.lightningStrength, normal.state.lightningStrength,
+      'reduced motion retains the undecayed storm strength');
+    const heldStrike = nonFlash(normal.state), heldFlash = normal.state.flash;
+    normal.update(0);
+    assert.deepEqual(nonFlash(normal.state), heldStrike, 'zero-time updates preserve the cell and strength');
+    assert.equal(normal.state.flash, heldFlash, 'publishing a strike does not change its visual envelope');
     livePreference.matches = true;
     live.update(0);
     assert.equal(live.state.flash, 0, 'enabling reduced motion clears an active strike at zero dt');
@@ -77,15 +90,35 @@ const close = (a, b, why) => assert.ok(Math.abs(a - b) < 1e-8, `${why}: ${a} / $
     assert.equal(live.state.flash, normal.state.flash, 'a round trip preserves the exact strike clock');
     livePreference.matches = true;
     let naturalFlashFrames = 0;
+    let firstCellFrames = 0, laterCells = 0, inactiveFrames = 0;
+    let lastStrikeCell = strikeCell;
     for (let frame = 0; frame < 30 * 60; frame++) {
       normal.update(dt); live.update(dt); initialCalm.update(dt);
       if (normal.state.flash > 0) naturalFlashFrames++;
+      if (normal.state.lightningCell === strikeCell) {
+        firstCellFrames++;
+        assert.ok(normal.state.lightningStrength > normal.state.flash,
+          'the cell strength does not follow the visual decay envelope');
+      }
+      assert.equal(normal.state.lightningCell >= 0, normal.state.flash > 0,
+        'ordinary visuals and strike metadata identify the same active cells');
+      if (normal.state.lightningCell < 0) {
+        inactiveFrames++;
+        assert.equal(normal.state.lightningCell, -1, 'inactive cells have no retained strike identity');
+        assert.equal(normal.state.lightningStrength, 0, 'inactive cells retire thunder strength');
+      } else if (normal.state.lightningCell !== lastStrikeCell) {
+        assert.ok(normal.state.lightningCell > lastStrikeCell, 'later strikes receive distinct increasing cell identities');
+        lastStrikeCell = normal.state.lightningCell;
+        laterCells++;
+      }
       assert.equal(live.state.flash, 0, 'reduced motion keeps later natural strikes quiet');
       assert.equal(initialCalm.state.flash, normal.state.flash, 'restored motion keeps the original flash schedule');
       assert.deepEqual(nonFlash(live.state), nonFlash(normal.state), 'comfort preserves evolving weather');
       assert.deepEqual(nonFlash(initialCalm.state), nonFlash(normal.state), 'restoring motion preserves evolving weather');
     }
     assert.ok(naturalFlashFrames > 0, 'the follow-up window exercises actual lightning');
+    assert.ok(firstCellFrames > 1, 'a strike retains its identity over multiple visual decay frames');
+    assert.ok(inactiveFrames > 0 && laterCells > 0, 'the schedule retires a cell before a later natural strike');
     assert.equal(queries, 3, 'each weather retains one query without creating more during updates');
 
     // Older hosts without the preference API retain ordinary weather.

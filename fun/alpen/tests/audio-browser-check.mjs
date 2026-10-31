@@ -97,16 +97,22 @@ export async function runAudioCheck() {
     // suspensions let us issue production pause/resume at precise times,
     // without waiting 350 ms or playing any sound through speakers.
     async function renderCue({ pause = true, rapid = false, fresh = false,
-      fallback = false, interruptFade = false } = {}) {
+      fallback = false, interruptFade = false, cue = 'cocoa', duration = 1,
+      pauseAt = .05, repeat = false, muted = false } = {}) {
       const originalSetTimeout = scope.setTimeout, originalClearTimeout = scope.clearTimeout;
       const timers = new Map();
       let nextTimer = 0, context, lifecycle = 'running';
+      let seed = 104729;
+      scope.Math.random = () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
       scope.setTimeout = (callback, delay) => {
         timers.set(++nextTimer, { callback, delay }); return nextTimer;
       };
       scope.clearTimeout = id => timers.delete(id);
       scope.AudioContext = function () {
-        context = new scope.OfflineAudioContext(2, 48000, 48000);
+        context = new scope.OfflineAudioContext(2, Math.round(duration * 48000), 48000);
         activeContext = context;
         if (fallback) {
           const gain = context.createGain.bind(context);
@@ -125,9 +131,15 @@ export async function runAudioCheck() {
         });
       };
       try {
-        const audio = createAudio(); audio.start(); audio.cocoa();
-        const quieting = pause ? context.suspend(.05) : null;
-        const resuming = pause ? context.suspend(rapid || interruptFade ? .06 : .4) : null;
+        const audio = createAudio(); audio.start();
+        if (muted) audio.toggleMute();
+        audio[cue]();
+        if (repeat) audio[cue](); // A second trigger while the first is pending.
+        const quieting = pause ? context.suspend(pauseAt) : null;
+        const resuming = pause ? context.suspend(pauseAt + (rapid || interruptFade ? .01 : .35)) : null;
+        // Repeat during playback, or unmute after the scheduled onset: neither
+        // may reveal an overlapping or previously muted weather cue.
+        const later = repeat || muted ? context.suspend(repeat ? .6 : .4) : null;
         const rendering = context.startRendering();
         let quietAt = null, resumeAt = null;
         if (pause) {
@@ -149,12 +161,20 @@ export async function runAudioCheck() {
           if (fresh) audio.perfectPop();
           await context.resume();
         }
+        if (later) {
+          await later;
+          if (repeat) audio[cue]();
+          else audio.toggleMute();
+          await context.resume();
+        }
         const buffer = await rendering;
         const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
+        let peak = 0;
         for (const data of channels) for (const sample of data) {
           assert(Number.isFinite(sample) && Math.abs(sample) < 1, 'one-shot rendering remains finite and unclipped');
+          peak = Math.max(peak, Math.abs(sample));
         }
-        return { channels, quietAt, resumeAt };
+        return { channels, quietAt, resumeAt, peak };
       } finally {
         scope.setTimeout = originalSetTimeout; scope.clearTimeout = originalClearTimeout;
       }
@@ -255,6 +275,57 @@ export async function runAudioCheck() {
     const directResumeTail = cueRms(directResumeCue, .07, .085);
     assert(directResumeTail < 1e-7, `resuming a frozen fade directly cannot replay its remainder: ${directResumeTail}`);
 
+    // Delayed thunder uses a soft attack on the native noise/filter graph.
+    // Identical seeded noise makes repeat suppression and cancellation
+    // observable in the waveform, beyond checking scheduled AudioParam calls.
+    const weatherCue = { cue: 'thunder', duration: 2.8, pause: false };
+    const thunder = await renderCue(weatherCue);
+    const onset = cueRms(thunder, .31, .34), bodyRms = cueRms(thunder, .48, .8);
+    const lateRms = cueRms(thunder, 1.7, 2.1), tail = cueRms(thunder, 2.45, 2.8);
+    assert(cueRms(thunder, 0, .29) < 1e-7, 'thunder leaves a quiet delay after lightning');
+    assert(bodyRms > 1e-4 && onset < bodyRms * .5,
+      `thunder rises gently into an audible rumble: ${onset} / ${bodyRms}`);
+    assert(lateRms < bodyRms * .1 && tail < 1e-7,
+      `thunder decays and leaves no sustained tail: ${lateRms} / ${tail}`);
+    let stereoError = 0;
+    for (let i = 0; i < thunder.channels[0].length; i++) {
+      stereoError = Math.max(stereoError, Math.abs(thunder.channels[0][i] - thunder.channels[1][i]));
+    }
+    assert(stereoError < 1e-7, `weather remains centred: ${stereoError}`);
+    const repeatedThunder = await renderCue({ ...weatherCue, repeat: true });
+    let repeatError = 0;
+    for (let channel = 0; channel < 2; channel++) for (let i = 0; i < thunder.channels[channel].length; i++) {
+      repeatError = Math.max(repeatError, Math.abs(thunder.channels[channel][i] - repeatedThunder.channels[channel][i]));
+    }
+    // Resuming the native offline graph can introduce tiny DSP differences;
+    // this tolerance remains far below the audible single-cue waveform.
+    assert(repeatError < 1e-5, `pending and active thunder cannot overlap: ${repeatError}`);
+    const mutedThunder = await renderCue({ ...weatherCue, muted: true });
+    assert(mutedThunder.peak < 1e-7, 'unmuting does not release a discarded thunder cue');
+    const pendingThunder = await renderCue({ ...weatherCue, pause: true, pauseAt: .1 });
+    assert(pendingThunder.peak < 1e-7, 'pausing before onset cancels delayed thunder through resume');
+    const attackThunder = await renderCue({ ...weatherCue, pause: true, pauseAt: .38 });
+    const attackFade = cueRms(attackThunder, attackThunder.quietAt + .012, attackThunder.quietAt + .020);
+    assert(attackFade > 1e-5, `pausing an active thunder attack fades its audible signal: ${attackFade}`);
+    const attackTail = cueRms(attackThunder, .45, 2.8);
+    assert(attackTail < 1e-7, `resuming does not restore the old thunder attack or tail: ${attackTail}`);
+    const fallbackThunder = await renderCue({ ...weatherCue, pause: true, pauseAt: .38, fallback: true });
+    let thunderFallbackError = 0;
+    for (let channel = 0; channel < 2; channel++) for (let i = 0; i < thunder.channels[channel].length; i++) {
+      if (i < attackThunder.quietAt * 48000) {
+        assert(attackThunder.channels[channel][i] === thunder.channels[channel][i],
+          'retiring thunder preserves its already rendered attack');
+      }
+      thunderFallbackError = Math.max(thunderFallbackError,
+        Math.abs(attackThunder.channels[channel][i] - fallbackThunder.channels[channel][i]));
+    }
+    assert(thunderFallbackError < 1e-6,
+      `fallback cancellation holds the same linear thunder attack: ${thunderFallbackError}`);
+    const crash = await renderCue({ cue: 'crash', pause: false });
+    const crashRms = cueRms(crash, 0, .4), thunderRms = cueRms(thunder, .3, .7);
+    assert(thunder.peak < crash.peak,
+      `weather peaks below the representative soft-impact crash cue: ${thunder.peak} / ${crash.peak}`);
+
     const compact = result => Object.fromEntries(
       ['leftRms', 'rightRms', 'brightness', 'peak'].map(key => [key, +result[key].toFixed(6)]));
     return {
@@ -268,6 +339,10 @@ export async function runAudioCheck() {
       at42: compact(fast), at84: compact(flow),
       oneShots: { continuingTail, resumedTail, fadingSignal, delayedSignal,
         rapidTail, freshSignal, fallbackError, interruptedTail, directResumeTail },
+      thunder: { peak: thunder.peak, rms: thunderRms, onset, bodyRms, lateRms, tail,
+        stereoError, repeatError, mutedPeak: mutedThunder.peak, pendingPeak: pendingThunder.peak,
+        attackFade, attackTail, fallbackError: thunderFallbackError,
+        crashPeak: crash.peak, crashRms },
     };
   } finally {
     frame.remove();

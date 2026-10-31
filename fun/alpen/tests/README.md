@@ -647,6 +647,13 @@ stopped bodies stay quiet. Real fall, bounce, slide and recovery traces check
 both contact transitions and the voice budget. No audio downloads, world geometry,
 textures or render passes were added. The Node audio check covers those
 budgets, the mono fallback and mute/pause/resume behavior.
+Storms add one quiet, centered thunder cue per seeded strike, using the
+existing noise buffer. The source has a delayed, rounded onset and a bounded
+tail; closely spaced strikes cannot overlap rumbles. Strike identity remains
+independent of reduced-motion flash suppression, and events missed in the
+demo, while muted or before audio unlock are never replayed. Weather checks
+pin the raw event across visual preference changes; audio checks cover the
+production event dispatcher, voice limit and delayed/active cancellation.
 Pausing also fades and retires active one-shot effects, including delayed
 notes, so an old reward chime cannot return after resume. Rapid resume can
 play a new cue while the old one finishes its brief fade; an already
@@ -663,6 +670,8 @@ balance, centered-mix parity, airborne/idle sound, body-slide onset and release,
 high-speed timbre and finite, unclipped samples without touching the player's
 live audio or saved settings. One-shot comparisons cover the audible pause
 fade, silence after resume, fresh cues and native/fallback envelope agreement.
+Thunder checks also cover its onset and tail, centered output, overlap limit,
+muted requests and pause during the delay or soft attack.
 It can be run separately from the game console:
 
 ```js

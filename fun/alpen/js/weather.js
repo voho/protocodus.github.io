@@ -484,6 +484,10 @@ export function createWeather(THREE) {
     aurora: 0,
     mist: 0,
     flash: 0,
+    // A seeded strike's identity and storm strength, independent of the
+    // visual flash envelope and the motion preference (used by thunder).
+    lightningCell: -1,
+    lightningStrength: 0,
     // The deck overhead, and where the wind has pushed it. See `CLOUD` and the
     // long note on `n64Deck` in shading.js.
     cloud: 0,
@@ -767,16 +771,22 @@ export function createWeather(THREE) {
        the trigger, so where a strike lands is decided by the clock alone. */
     const strike = ramp(s, 0.80, 0.88);
     state.flash = 0;
-    // Gate both sky and fill-light consumers without changing the seeded
-    // schedule, so restoring motion rejoins the same storm on its own clock.
-    if (strike > 0 && !motionPreference?.matches) {
+    state.lightningCell = -1;
+    state.lightningStrength = 0;
+    if (strike > 0) {
       const cell = Math.floor(weatherClock * FLASH.rate);
       if (hash2(cell, 977, 431) < FLASH.chance) {
+        state.lightningCell = cell;
+        state.lightningStrength = strike;
         // Rescaled to reach zero exactly at the cell's end: cut there at
         // e^(−1/(rate·decay)) ≈ 0.036, every strike ended with the fill
         // light and the whole sky stepping back from white in one frame.
-        state.flash = (Math.exp(-(weatherClock - cell / FLASH.rate) / FLASH.decay)
-          - FLASH_TAIL) / (1 - FLASH_TAIL) * strike;
+        // Only the visual consumers follow motion comfort; a strike keeps
+        // its identity and strength throughout the cell for quiet thunder.
+        if (!motionPreference?.matches) {
+          state.flash = (Math.exp(-(weatherClock - cell / FLASH.rate) / FLASH.decay)
+            - FLASH_TAIL) / (1 - FLASH_TAIL) * strike;
+        }
       }
     }
 
