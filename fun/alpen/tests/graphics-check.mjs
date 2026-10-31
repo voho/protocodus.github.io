@@ -837,14 +837,76 @@ spray.update(1 / 60, camera, wind);
 assert.equal(sprayGeo.drawRange.count, 3, 'empty pool wakes on emission');
 spray.clear();
 assert.equal(sprayGeo.drawRange.count, 0, 'restart clears submissions immediately');
-const snowfall = createSnowfall(THREE);
-snowfall.setIntensity(0);
-snowfall.update(1 / 60, camera, wind);
-assert.ok(snowfall.points.geometry.drawRange.count < SNOW.count / 2, 'flurries skip unused storm capacity');
-snowfall.setIntensity(1);
-snowfall.update(1 / 60, camera, wind);
-assert.equal(snowfall.points.geometry.drawRange.count, snowfall.points.geometry.attributes.position.count,
-  'full weather retains every authored flake and drift grain');
+{
+  const { getWorldSeed, setWorldSeed } = await import('../js/noise.js');
+  const previousSeed = getWorldSeed();
+  try {
+    setWorldSeed('ALPEN01');
+    const clearWeather = createWeather(THREE);
+    const snowfall = createSnowfall(THREE), snowCamera = camera.clone();
+    const geo = snowfall.points.geometry, attrs = geo.attributes;
+    const snowWind = new THREE.Vector3();
+    const apply = (intensity, dt = 1 / 60) => {
+      snowfall.setIntensity(intensity);
+      snowfall.update(dt, snowCamera, snowWind);
+    };
+    const clear = () => {
+      assert.equal(geo.drawRange.count, 0, 'clear air submits no snow or spindrift');
+      assert.equal(snowfall.points.visible, false, 'clear air skips the particle draw');
+      assert.ok(attrs.aAlpha.array.every(value => value === 0), 'clear air retires every old grain');
+    };
+    const versions = () => Object.values(attrs).map(attr => attr.version);
+    assert.equal(clearWeather.state.snow, 0, 'the actual seeded mountain starts without snowfall');
+    apply(clearWeather.state.snow);
+    clear();
+    const settledVersions = versions();
+    for (let frame = 0; frame < 60; frame++) {
+      const natural = clearWeather.update(1 / 60);
+      assert.equal(natural.snow, 0);
+      snowWind.set(natural.windX, 0, natural.windZ);
+      apply(natural.snow);
+    }
+    assert.deepEqual(versions(), settledVersions, 'stable clear air rewrites no particle attributes');
+    apply(0.003);
+    clear();
+    assert.deepEqual(versions(), settledVersions, 'sub-step weather noise does not wake a clear sky');
+
+    apply(0.007);
+    assert.ok(geo.drawRange.count > 0 && geo.drawRange.count < SNOW.count / 20,
+      'the first arriving flurry introduces only a few grains');
+    assert.equal(snowfall.points.visible, true);
+    const firstAlpha = Math.max(...attrs.aAlpha.array);
+    assert.ok(firstAlpha > 0 && firstAlpha < 0.02, 'the first grains fade in without an opaque pop');
+    apply(0.0005); // Accepted from 0.007, but less than one rebuild step from zero.
+    assert.ok(geo.drawRange.count > 0 && attrs.aAlpha.array.some(value => value > 0));
+    apply(0, 0);
+    clear();
+
+    apply(1);
+    assert.equal(geo.drawRange.count, attrs.position.count,
+      'full weather retains every authored flake and drift grain');
+    apply(0, 0);
+    clear();
+    // Travel while hidden, then wake without advancing time: the old storm
+    // must not leak its alpha table or leave the flakes at the old camera.
+    snowCamera.position.set(1250, -2000, -10500);
+    snowfall.update(0, snowCamera, snowWind);
+    apply(0.1, 0);
+    assert.equal(snowfall.points.visible, true, 'a cleared pool wakes on fresh snowfall');
+    assert.ok(geo.drawRange.count > 0 && geo.drawRange.count < SNOW.count / 2,
+      'a real flurry skips unused storm capacity');
+    assert.ok(attrs.aAlpha.array.some(value => value > 0));
+    assert.ok(attrs.aAlpha.array.subarray(geo.drawRange.count).every(value => value === 0),
+      'returning flurries retain no storm or spindrift alpha');
+    for (let i = 0; i < geo.drawRange.count; i++) for (let axis = 0; axis < 3; axis++) {
+      const world = attrs.position.array[i * 3 + axis] + snowfall.points.position.getComponent(axis);
+      assert.ok(Math.abs(world - snowCamera.position.getComponent(axis)) <= SNOW.box / 2,
+        'returning snow surrounds the current camera after a hidden rebase');
+    }
+  } finally {
+    setWorldSeed(previousSeed);
+  }
+}
 const streaks = createStreaks(THREE);
 streaks.update(1 / 60, camera, wind, 0, wind);
 assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed ribbons');

@@ -160,10 +160,8 @@ export const WEATHER = {
 
      The pool is larger than the count and that is not a request for more
      work: the update loop now runs over the flakes that are *in the air*
-     rather than over the whole array, and in clear weather that is fifty of
-     them. What this buys is a top end — a whiteout gets half again as many
-     flakes as the old field ever had, and clear air costs a twentieth of
-     what it used to. */
+     rather than over the whole array. A light fall uses a small slice and
+     settled clear air uses none; the larger pool is for the whiteout. */
   pool: 2.0,
   drift: 0.30,          // and the spindrift's share, at the far end of it
 
@@ -172,9 +170,14 @@ export const WEATHER = {
      the fastest, against a pass over two thousand flakes. */
   step: 0.006,
 
+  // Fade both population and opacity into the first flurry. Above this dial
+  // the authored weather curve is unchanged, including an unsettled sky's
+  // lightest snowfall; at zero there are no flakes to update or draw.
+  clearFade: 0.06,
+
   // Share of the pool aloft, and the curve on to it. Nine per cent is the
-  // permanent fine-snow layer: enough flakes to avoid empty clear-weather
-  // frames, but still less than a tenth of a whiteout. The exponent is what
+  // fine-snow base once a flurry arrives, less than a tenth of a whiteout.
+  // The clear-weather fade below takes this base to zero. The exponent is what
   // keeps light snow light: a dial at a half should be a snowfall, not most
   // of a blizzard.
   density: [0.09, 1.0],
@@ -879,11 +882,13 @@ export function createSnowfall(THREE, shading) {
      size, alpha, fall rate, flutter, smear — can be a function of the
      weather rather than of nothing. */
   function rebuild(s) {
-    const density = lerp(WEATHER.density[0], WEATHER.density[1],
+    const arriving = clamp01(s / WEATHER.clearFade);
+    const presence = arriving * arriving * (3 - 2 * arriving);
+    const density = presence * lerp(WEATHER.density[0], WEATHER.density[1],
       Math.pow(s, WEATHER.densityCurve));
     const mean = SNOW.size * lerp(WEATHER.size[0], WEATHER.size[1], s);
     const spread = lerp(WEATHER.spread[0], WEATHER.spread[1], s);
-    const base = lerp(WEATHER.alpha[0], WEATHER.alpha[1], s);
+    const base = presence * lerp(WEATHER.alpha[0], WEATHER.alpha[1], s);
     const calm = lerp(1, WEATHER.flutterInWind, s);
     // The fade band cannot be wider than the field it is fading: at the
     // clear end the whole population is inside a tenth of the pool, and a
@@ -927,7 +932,9 @@ export function createSnowfall(THREE, shading) {
     }
     // Falling flakes occupy the first slice, drift the last. At low wind
     // there is no reason to run the point shader for the unused pool behind it.
-    geo.setDrawRange(0, driftActive > 0 ? fallCount + driftActive : active);
+    const drawn = driftActive > 0 ? fallCount + driftActive : active;
+    geo.setDrawRange(0, drawn);
+    cloud.points.visible = drawn > 0;
     geo.attributes.aSize.needsUpdate = true;
     geo.attributes.aStreak.needsUpdate = true;
     // The alpha upload is deferred to `update`, which knows whether this
@@ -940,7 +947,9 @@ export function createSnowfall(THREE, shading) {
      future floor can be reintroduced in one place. */
   function setIntensity(t) {
     const s = clamp01((t - WEATHER.clearFloor) / (1 - WEATHER.clearFloor));
-    if (Math.abs(s - dial) < WEATHER.step) return;
+    // A final sub-step must still clear the last flakes. Stable clear air
+    // and tiny changes elsewhere keep the existing rebuild budget.
+    if (s === dial || (s !== 0 && Math.abs(s - dial) < WEATHER.step)) return;
     dial = s;
     rebuild(s);
   }
