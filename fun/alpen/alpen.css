@@ -78,7 +78,7 @@ kbd {
 .ride-eyebrow { font-size: var(--ui-label); font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em; }
 .ride-eyebrow span { margin-left: 5px; font-weight: 500; color: var(--muted); letter-spacing: 0.13em; }
 .score-line { display: flex; align-items: baseline; gap: 12px; margin-top: 5px; }
-.score-line strong { min-width: 1ch; font-size: calc(var(--ui-label) * 2.8); font-weight: 600; line-height: 1.1; letter-spacing: -0.035em; }
+.score-line strong { min-width: 1ch; flex-shrink: 0; font-size: calc(var(--ui-label) * 2.8); font-weight: 600; line-height: 1.1; letter-spacing: -0.035em; }
 .combo { color: var(--accent); font-size: calc(var(--ui-label) * 1.5); font-weight: 600; }
 .flow-line { display: flex; align-items: center; gap: 7px; margin-top: 11px; font-size: var(--ui-label); color: var(--muted); }
 .flow-line > span:first-child { text-transform: uppercase; letter-spacing: 0.15em; }
