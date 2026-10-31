@@ -63,6 +63,8 @@ release test itself, releasing while it is lit is the lip pop, and
 it. Real downhill tap and full-charge flights receive their sound and pad
 pulse even when world-space velocity points down. Natural departures retain
 their existing threshold, and a late lip release keeps its single timing cue.
+Launch sound and controller pulses require an active run; the title demo
+still clears the prior flight banner without producing player feedback.
 Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
 UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
 Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
@@ -305,6 +307,13 @@ triggers pass their analogue travel through (`brakeAmount`/`tuckAmount`) and
 a half-squeezed brake is half a speed check; the pad's Back button restarts
 once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
+The input-device check also records haptic API calls through the production
+pause and graphics-loss handlers. Those interruptions stop only live effects
+started by this input instance. Completed or expired effects stay untouched,
+and stale playback/reset promises cannot forget or cancel a newer cue after
+resume or controller replacement. Phone cancellation requires an accepted,
+unexpired buzz; optional controller reset APIs have a guarded silent-effect
+fallback.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 `await (await import('./tests/shade-radius-browser-check.mjs')).runShadeRadiusCheck()`

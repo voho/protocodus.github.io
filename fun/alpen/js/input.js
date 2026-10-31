@@ -109,6 +109,8 @@ const triggerAmount = (button) => {
 
 export function createInput(target, hooks = {}) {
   const down = new Set();
+  const hapticEffects = new Map();
+  let buzzUntil = 0;
   // A native Space click arrives after keyup, when its command modifier may
   // already have been released. Remember only activation-key provenance;
   // this never owns a riding command or cancels a browser key default.
@@ -651,6 +653,7 @@ export function createInput(target, hooks = {}) {
      dropped a few lines above — so resuming gave the player a dead key until
      they released and pressed it a second time. */
   function calm() {
+    stopHaptics();
     // Unlike a physical key, a captured pointer can outlive the button: the
     // pause curtain hides it and receives the next touch. Retire those
     // gestures (and accessibility pulses) before the pad can reappear.
@@ -706,6 +709,77 @@ export function createInput(target, hooks = {}) {
 
   /* Gamepad dual-rumble haptic feedback.
      Safely triggers vibration actuators on connected gamepads. */
+  function liveEffect(effect, time) {
+    while (effect?.done) effect = effect.previous;
+    // A shorter replacement can finish before the old request's deadline.
+    // Its expiry must not resurrect an effect it already preempted.
+    if (!effect || effect.until <= time) return null;
+    // Hosts returning no completion promise still shed old history as the
+    // authored deadlines pass; chatter cannot retain a whole run of effects.
+    for (let prior = effect; prior.previous;) {
+      let previous = prior.previous;
+      while (previous?.done) previous = previous.previous;
+      prior.previous = previous && previous.until > time ? previous : null;
+      if (!prior.previous) break;
+      prior = prior.previous;
+    }
+    return effect;
+  }
+
+  function finishHapticStop(actuator, stop) {
+    stop.pending = false;
+    for (let effect = stop.effect; effect; effect = effect.previous) {
+      if (effect.stop === stop) effect.done = true;
+    }
+    if (hapticEffects.get(actuator)?.stop === stop) hapticEffects.delete(actuator);
+  }
+
+  function fallbackHapticStop(actuator, stop) {
+    // A reset can reject after the player resumes. Only the still-owned
+    // interrupted gesture may be replaced with a zero-strength effect.
+    const current = liveEffect(hapticEffects.get(actuator), performance.now());
+    if (stop.pending || current?.stop !== stop) return;
+    stop.pending = true;
+    try {
+      const result = actuator.playEffect('dual-rumble', {
+        startDelay: 0, duration: 0, weakMagnitude: 0, strongMagnitude: 0,
+      });
+      if (typeof result?.then === 'function') {
+        result.then(() => finishHapticStop(actuator, stop), () => { stop.pending = false; });
+      } else finishHapticStop(actuator, stop);
+    } catch { stop.pending = false; }
+  }
+
+  function stopHaptics() {
+    const time = performance.now();
+    for (const [actuator, issued] of hapticEffects) {
+      const effect = liveEffect(issued, time);
+      if (!effect) { hapticEffects.delete(actuator); continue; }
+      hapticEffects.set(actuator, effect);
+      if (effect.stop) {
+        if (effect.stop.failed) fallbackHapticStop(actuator, effect.stop);
+        continue;
+      }
+      const stop = { effect, pending: true, failed: false };
+      for (let prior = effect; prior; prior = prior.previous) {
+        if (!prior.done && prior.until > time) prior.stop = stop;
+      }
+      const failed = () => {
+        stop.pending = false; stop.failed = true;
+        fallbackHapticStop(actuator, stop);
+      };
+      try {
+        if (typeof actuator.reset !== 'function') { failed(); continue; }
+        const result = actuator.reset();
+        if (typeof result?.then === 'function') result.then(() => finishHapticStop(actuator, stop), failed);
+        else finishHapticStop(actuator, stop);
+      } catch { failed(); }
+    }
+    if (buzzUntil > time) {
+      try { if (navigator.vibrate?.(0)) buzzUntil = 0; } catch { /* optional or blocked */ }
+    } else buzzUntil = 0;
+  }
+
   function rumble(weakMagnitude = 0.3, strongMagnitude = 0.3, durationMs = 150) {
     if (!hasGamepads || !navigator.getGamepads) {
       buzz(Math.max(weakMagnitude, strongMagnitude), durationMs);
@@ -717,12 +791,37 @@ export function createInput(target, hooks = {}) {
         const gp = gamepads[i];
         if (!gp) continue;
         if (gp.vibrationActuator && typeof gp.vibrationActuator.playEffect === 'function') {
-          gp.vibrationActuator.playEffect('dual-rumble', {
+          const actuator = gp.vibrationActuator, time = performance.now();
+          // Browsers may replace the actuator wrapper on reconnect while
+          // its methods still address the same pad slot. An old reset's
+          // rejected promise must not fall back against the replacement.
+          for (const [owned, effect] of hapticEffects) {
+            if (owned !== actuator && effect.slot === i) hapticEffects.delete(owned);
+          }
+          const duration = Math.max(10, Math.min(1000, durationMs));
+          const result = actuator.playEffect('dual-rumble', {
             startDelay: 0,
-            duration: Math.max(10, Math.min(1000, durationMs)),
+            duration,
             weakMagnitude: Math.max(0, Math.min(1, weakMagnitude)),
             strongMagnitude: Math.max(0, Math.min(1, strongMagnitude)),
-          }).catch(() => { /* gamepad disconnected or backgrounded */ });
+          });
+          const effect = { slot: i, until: time + duration, done: false,
+            previous: liveEffect(hapticEffects.get(actuator), time), stop: null };
+          hapticEffects.set(actuator, effect);
+          if (typeof result?.then === 'function') result.then(() => {
+            effect.done = true;
+            effect.previous = null; // A completed/preempted effect replaced its predecessors.
+            if (hapticEffects.get(actuator) === effect) hapticEffects.delete(actuator);
+          }, () => {
+            effect.done = true;
+            if (hapticEffects.get(actuator) !== effect) return;
+            const previous = liveEffect(effect.previous, performance.now());
+            if (!previous) hapticEffects.delete(actuator);
+            else {
+              hapticEffects.set(actuator, previous);
+              if (previous.stop?.failed) fallbackHapticStop(actuator, previous.stop);
+            }
+          });
         }
       }
     } catch { /* platform or security restriction */ }
@@ -744,7 +843,9 @@ export function createInput(target, hooks = {}) {
     if (!nav || typeof nav.vibrate !== 'function') return;
     if (nav.userActivation && !nav.userActivation.hasBeenActive) return;
     const ms = Math.round(Math.min(durationMs, 20 + 180 * Math.min(1, magnitude)));
-    try { nav.vibrate(ms); } catch { /* blocked by policy or an embedding frame */ }
+    try {
+      if (nav.vibrate(ms)) buzzUntil = performance.now() + ms;
+    } catch { /* blocked by policy or an embedding frame */ }
   }
 
   return { state, update, stepped, bindTouch, dispose, clear, calm, rumble, setDevice, isShortcutClick };

@@ -58,11 +58,11 @@ assert.equal(perfectPops, 1);
     section("rider.on('launch',", '\n/* The lip pop,'),
     section("rider.on('perfectPop',", "\nrider.on('fall',"),
   ].join('\n'));
-  const feedback = (r) => {
+  const feedback = (r, mode = 'playing') => {
     const calls = [], jumps = [], pulses = [], launches = [];
     let perfect = 0;
     listeners.runInNewContext({
-      rider: r, game: { mode: 'playing' },
+      rider: r, game: { mode },
       audio: {
         jump(power) { jumps.push(power); calls.push('jump'); },
         perfectPop() { perfect++; calls.push('perfect'); },
@@ -128,6 +128,24 @@ assert.equal(perfectPops, 1);
     assert.equal(f.jumps.length, vy > 3.5 ? 1 : 0, 'passive rollers retain the natural-hop threshold');
     assert.equal(f.pulses.length, f.jumps.length);
     if (f.jumps.length) close(f.jumps[0], Math.min(1, vy / 12), 'strong natural departures retain their capped strength');
+  }
+
+  // Demo terrain can launch naturally, but the title/help never owns the
+  // player's takeoff cues. Banner cleanup still belongs to every departure.
+  for (const mode of ['attract', 'paused']) for (const natural of [true, false]) {
+    const r = rider(natural ? { height: (x, z) => -z * .4, canStall: () => false } : flat);
+    const f = feedback(r, mode);
+    if (natural) { r.vel.set(0, 8, -20); r.takeOff(0, r.normal); }
+    else {
+      for (let i = 0; i < 54; i++) r.step(dt, { ...neutral, jump: true });
+      r.step(dt, neutral);
+    }
+    assert.equal(r.state, 'air'); assert.equal(f.launches.length, 1);
+    assert(natural ? f.launches[0].vy > 3.5 : f.launches[0].pop > 0,
+      'the real departure would qualify for playing-mode feedback');
+    assert.deepEqual(f.jumps, [], mode + ': departures produce no player sound');
+    assert.deepEqual(f.pulses, [], mode + ': departures produce no player vibration');
+    assert.deepEqual(f.calls, ['clear'], mode + ': departure still retires the previous banner');
   }
 
   const lip = () => {
