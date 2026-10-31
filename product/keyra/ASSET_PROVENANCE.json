@@ -1,0 +1,21 @@
+{
+  "product": "Keyra",
+  "reviewed": "2026-10-31",
+  "availability": "coming_soon",
+  "source_version": "0.4.1d20",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "assets": [
+    {
+      "file": "Keyra_Thumbnail_800.png",
+      "sha256": "b0cf274c614d5a735bd586172753253f95dd91a0fb604555f940326ed4bb4f66"
+    },
+    {
+      "file": "keyra-rack-front.webp",
+      "sha256": "b09efa1753ae387bd7544d7871b5554d72d36cb70e4bfa444de7e967bbc8556d"
+    },
+    {
+      "file": "keyra-rack-rear.webp",
+      "sha256": "6641c808b23c5f15ee74d29aa37518f54e942c3a8b879cd2138014de59f1a617"
+    }
+  ]
+}
