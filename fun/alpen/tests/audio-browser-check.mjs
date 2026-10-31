@@ -19,9 +19,14 @@ export async function runAudioCheck() {
     Object.defineProperty(scope, 'localStorage', {
       value: { getItem: () => null, setItem() {} },
     });
-    Object.defineProperty(scope, 'performance', { value: { now: () => 100 } });
+    let activeContext;
+    Object.defineProperty(scope, 'performance', {
+      value: { now: () => 100 + (activeContext?.currentTime || 0) * 1000 },
+    });
+    const start = 24000, end = 45600;
 
-    async function render({ speed = 30, grounded = true, lean = 0, rock = 0, mono = false } = {}) {
+    async function render({ speed = 30, grounded = true, lean = 0, rock = 0, mono = false,
+      tumbleSlide = 0, stopAt = null } = {}) {
       let context;
       let seed = 104729;
       scope.Math.random = () => {
@@ -30,6 +35,7 @@ export async function runAudioCheck() {
       };
       scope.AudioContext = function () {
         context = new scope.OfflineAudioContext(2, 48000, 48000);
+        activeContext = context;
         if (mono) context.createStereoPanner = undefined;
         // Only the lifecycle gate is adapted. Every source, filter, panner,
         // automation curve, compressor and rendered sample is native WebAudio.
@@ -43,13 +49,19 @@ export async function runAudioCheck() {
       };
       const audio = createAudio();
       audio.start();
-      audio.ambience(speed, 7, grounded, 0, 0.9, 0,
+      const ambience = (speed, bodySpeed) => audio.ambience(speed, 7, grounded, 0, 0.9, bodySpeed,
         { rock, ice: 0, powder: 0 }, 0, lean);
-      const buffer = await context.startRendering();
+      ambience(speed, tumbleSlide);
+      const suspended = stopAt === null ? null : context.suspend(stopAt);
+      const rendering = context.startRendering();
+      if (suspended) {
+        await suspended;
+        try { ambience(0, 0); } finally { await context.resume(); }
+      }
+      const buffer = await rendering;
       const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
       const energy = [0, 0];
       let derivative = 0, peak = 0;
-      const start = 24000, end = 45600;
       for (let channel = 0; channel < 2; channel++) {
         const data = channels[channel];
         for (let i = 0; i < data.length; i++) {
@@ -72,6 +84,14 @@ export async function runAudioCheck() {
       };
     }
 
+    const differenceRms = (a, b) => {
+      let energy = 0;
+      for (let channel = 0; channel < 2; channel++) {
+        for (let i = start; i < end; i++) energy += (a.channels[channel][i] - b.channels[channel][i]) ** 2;
+      }
+      return Math.sqrt(energy / (2 * (end - start)));
+    };
+
     const centre = await render();
     const mono = await render({ mono: true });
     let centreError = 0;
@@ -93,6 +113,31 @@ export async function runAudioCheck() {
     assert(Math.abs(air.leftRms - air.rightRms) < 1e-7, 'flight has centred wind and no edge');
     assert(air.leftRms + air.rightRms < centre.leftRms + centre.rightRms,
       'leaving the snow quietens the mix');
+
+    // A fallen body can drag over snow while the board remains airborne.
+    // Deterministic noise makes the added voice observable in actual samples,
+    // separately from the unchanged wind at the same riding speed.
+    const body = await render({ grounded: false, lean: RIDER.lean, tumbleSlide: 24 });
+    const bodySignal = differenceRms(body, air);
+    assert(body.leftRms > air.leftRms * 1.05,
+      `body contact is audible above the same-speed flight mix: ${body.leftRms} / ${air.leftRms}`);
+    assert(bodySignal > 1e-4, `body contact adds a rendered scraping waveform: ${bodySignal}`);
+    for (let i = start; i < end; i++) {
+      assert(Math.abs(body.channels[0][i] - body.channels[1][i]) < 1e-7,
+        'body scraping stays centred even with a held carve lean');
+    }
+    const slowBody = await render({ grounded: false, lean: RIDER.lean, tumbleSlide: 1 });
+    const slowBodySignal = differenceRms(slowBody, air);
+    assert(slowBodySignal > 0 && slowBodySignal < bodySignal * 0.1,
+      `slow body contact fades the rendered scrape: ${slowBodySignal} / ${bodySignal}`);
+    // Exercise the release on the native audio clock; two initially identical
+    // wind mixes stop at the same time, with body drag present in only one.
+    const bodyStopped = await render({ grounded: false, tumbleSlide: 24, stopAt: 0.125 });
+    const airStopped = await render({ grounded: false, stopAt: 0.125 });
+    const stoppedBodySignal = differenceRms(bodyStopped, airStopped);
+    assert(stoppedBodySignal < bodySignal * 0.002,
+      `a stationary body adds no sustained scraping after release: ${stoppedBodySignal}`);
+
     const stopped = await render({ speed: 0, rock: 1, lean: RIDER.lean });
     const idle = await render({ speed: 0 });
     assert(Math.abs(stopped.leftRms - idle.leftRms) < 1e-7,
@@ -110,6 +155,8 @@ export async function runAudioCheck() {
       centreError,
       centre: compact(centre), left: compact(left), right: compact(right),
       air: compact(air), stopped: compact(stopped),
+      body: compact(body), slowBody: compact(slowBody), bodyStopped: compact(bodyStopped),
+      bodySignal, slowBodySignal, stoppedBodySignal,
       at42: compact(fast), at84: compact(flow),
     };
   } finally {

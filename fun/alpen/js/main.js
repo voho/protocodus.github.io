@@ -492,6 +492,13 @@ try {
 // frame the page ever draws would otherwise format an undefined.
 game.bestAtStart = game.best;
 
+// An interrupted charge is not a deliberate release-to-pop.
+function cancelJump() {
+  rider.charging = false;
+  rider.charge = rider._jumpBuffer = rider._bufferCharge = 0;
+  rider.lipReady = rider.lipAhead = false;
+}
+
 const input = createInput(window, {
   key: onKey,
   device: hud.setInputDevice,
@@ -501,12 +508,7 @@ const input = createInput(window, {
     pause();
     controllerNotice.hidden = false;
   },
-  // An interrupted finger gesture is not a deliberate release-to-pop.
-  cancelJump() {
-    rider.charging = false;
-    rider.charge = rider._jumpBuffer = rider._bufferCharge = 0;
-    rider.lipReady = rider.lipAhead = false;
-  },
+  cancelJump,
 });
 if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
   document.body.classList.add('touch');
@@ -630,6 +632,9 @@ function pause() {
   // physically still holding stay, because they will still be held when the
   // run resumes and nothing will ever announce them again. See `input.calm`.
   input.calm();
+  // A release while physics is paused must not spend a stale charge on resume.
+  // A key still held then begins charging again through the normal riding step.
+  cancelJump();
   persistBest(true);
 }
 
@@ -869,6 +874,7 @@ canvas.addEventListener('webglcontextlost', (e) => {
   if (note) note.textContent = 'Graphics paused while the browser restores WebGL.';
   audio.quiet();
   input.calm();
+  cancelJump();
 });
 
 canvas.addEventListener('webglcontextrestored', () => {
