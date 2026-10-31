@@ -63,6 +63,7 @@ export function createAudio() {
   let muted = false;
   let started = false;
   let lastBodyImpact = -Infinity;
+  let thunderUntil = -Infinity;
   /* `parked` is our own record of having deliberately put the context to
      sleep, kept separately from `ctx.state` because suspend and resume are
      both asynchronous — the state lags the intent by however long the
@@ -439,7 +440,7 @@ export function createAudio() {
     trackShot(o, g, t, dur, gain, 0.012);
   }
 
-  function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null, pan = 0) {
+  function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null, pan = 0, attack = 0) {
     if (!started || !ctx || parked || ctx.state !== 'running') return;
     const t = now() + delay;
     const src = ctx.createBufferSource();
@@ -453,7 +454,8 @@ export function createAudio() {
     f.frequency.setValueAtTime(freq, t);
     if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
+    g.gain.setValueAtTime(attack > 0 ? 0 : gain, t);
+    if (attack > 0) g.gain.linearRampToValueAtTime(gain, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
     if (pan !== 0 && ctx.createStereoPanner) {
@@ -463,14 +465,14 @@ export function createAudio() {
         src.connect(f).connect(g).connect(panner).connect(master);
         src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
         src.stop(t + dur + 0.05);
-        trackShot(src, g, t, dur, gain);
+        trackShot(src, g, t, dur, gain, attack);
         return;
       } catch { /* fallback to standard routing */ }
     }
     src.connect(f).connect(g).connect(master);
     src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
     src.stop(t + dur + 0.05);
-    trackShot(src, g, t, dur, gain);
+    trackShot(src, g, t, dur, gain, attack);
   }
 
   return {
@@ -481,6 +483,19 @@ export function createAudio() {
     // For the debug hatch, and for checking that a suspended context has
     // actually been brought back rather than assumed to be running
     get context() { return ctx; },
+
+    // Distant weather has a rounded arrival, never an impact crack. The
+    // authored end bounds both the delay and the tail to one rumble, even
+    // when adjacent lightning cells strike. Pause retires it with all other
+    // one-shots; keeping this deadline cannot queue or replay an old cue.
+    thunder(strength = 1) {
+      if (!started || !ctx || parked || muted || ctx.state !== 'running') return;
+      const t = now(), k = clamp01(strength);
+      if (!(k > 0) || t < thunderUntil) return;
+      const delay = 0.3, duration = 2;
+      burst(duration, 190, k * 0.09, 'lowpass', 60, delay, null, 0, 0.2);
+      thunderUntil = t + delay + duration + 0.05;
+    },
 
     toggleMute() {
       muted = !muted;
