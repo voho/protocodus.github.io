@@ -724,7 +724,7 @@ for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
       model: resettable, shading: resettable, terrain: resettable,
       props: { ...resettable, reopenGatesBelow: noop },
       hud: { resetScore: noop, clearBanner: noop, banner: noop },
-      audio: { crash: noop }, input: { rumble: noop }, syncCombo: noop,
+      audio: { crash: noop }, input: { rumble: noop }, syncCombo: noop, readBest: () => 0,
     });
     handlers.runInContext(context);
     return { rider, game, restart: () => context.restart() };

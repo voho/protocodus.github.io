@@ -488,9 +488,13 @@ const game = {
 };
 bootGameRef = game;
 
-try {
-  game.best = Number(localStorage.getItem(BEST_KEY)) || 0;
-} catch { /* private mode; the run just will not be remembered */ }
+function readBest() {
+  try {
+    const best = Number(localStorage.getItem(BEST_KEY));
+    return Number.isFinite(best) && best >= 0 ? best : 0;
+  } catch { return null; } // Unavailable storage must not look like an empty record.
+}
+game.best = readBest() ?? 0;
 // Set here as well as in `restart`, because the HUD draws through attract mode
 // and `restart` is only reached from `begin` or the R key — so the very first
 // frame the page ever draws would otherwise format an undefined.
@@ -669,6 +673,9 @@ function restart(fullReset = false) {
   game.combo = 1;
   game.gateRun = 0;
   game.liveTrick = '';
+  // Another tab may have finished a better run. Keep this attempt's target
+  // fixed while riding, then pick up the saved record at the next drop-in.
+  game.best = Math.max(game.best, readBest() ?? 0);
   game.bestAtStart = game.best;
   game.flow = 0;
   game.flowHold = 0;
@@ -922,8 +929,13 @@ function persistBest(force = false) {
   const now = performance.now();
   if (!force && now - bestWrittenAt < 4000) return;
   bestWrittenAt = now;
-  bestDirty = false;
-  try { localStorage.setItem(BEST_KEY, String(Math.round(game.best))); } catch { /* ignore */ }
+  const saved = readBest();
+  if (saved === null) return;
+  try {
+    // An older tab must not overwrite a higher record saved since it opened.
+    localStorage.setItem(BEST_KEY, String(Math.max(Math.round(game.best), saved)));
+    bestDirty = false;
+  } catch { /* Keep the pending record for a later pause or save attempt. */ }
 }
 
 window.addEventListener('pagehide', () => persistBest(true));
