@@ -65,6 +65,11 @@ pulse even when world-space velocity points down. Natural departures retain
 their existing threshold, and a late lip release keeps its single timing cue.
 Launch sound and controller pulses require an active run; the title demo
 still clears the prior flight banner without producing player feedback.
+Actual keyboard replays on a seeded roller cover full and tapped jump releases
+when compression is too weak to apply a pump. They must still launch once and
+land cleanly; neighboring ordinary pops, stronger speed-paying pumps and an
+unpressed crossing remain controls. The fixture uses real terrain and input,
+without assigning bend, charge or velocity to manufacture the boundary.
 Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
 UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
 Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
