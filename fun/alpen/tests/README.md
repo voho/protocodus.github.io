@@ -620,6 +620,11 @@ Pausing also fades and retires active one-shot effects, including delayed
 notes, so an old reward chime cannot return after resume. Rapid resume can
 play a new cue while the old one finishes its brief fade; an already
 suspended context retires old effects immediately.
+Gesture-unlock retries also respect pause: menu gestures cannot wake a parked
+context, and a resume promise that settles after parking is suspended again.
+Lifecycle checks dispatch real events and control promise settlement to cover
+the fade deadline, delayed retry arming and newer play/pause intent without
+adding wall-clock waits or allocating another audio graph.
 
 The desktop browser check also renders the production audio graph through a
 native `OfflineAudioContext` in an isolated iframe. It checks left/right

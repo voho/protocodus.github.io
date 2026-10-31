@@ -70,6 +70,8 @@ export function createAudio() {
      wants to know. */
   let parked = false;
   let parkTimer = 0;
+  let parkReady = false;
+  let suspendPending = false;
   let ambienceAt = 0;
   let snowContact = null;
   let bodyContact = null;
@@ -179,26 +181,48 @@ export function createAudio() {
   let gestureRetryArmed = false;
   const RETRY_GESTURES = ['pointerdown', 'touchstart', 'keydown', 'click'];
 
-  function armGestureResume() {
-    if (gestureRetryArmed) return;
-    gestureRetryArmed = true;
-    const disarm = () => {
-      gestureRetryArmed = false;
-      for (const type of RETRY_GESTURES) {
-        window.removeEventListener(type, retry, true);
-      }
-    };
-    function retry() {
-      if (!ctx || !started || ctx.state === 'running') {
-        disarm();
-        return;
-      }
-      // Disarm only on fulfilment. A rejection means this gesture carried
-      // no activation; the listeners stay for one that does.
-      ctx.resume().then(disarm, () => {});
-    }
+  function disarmGestureResume() {
+    if (!gestureRetryArmed) return;
+    gestureRetryArmed = false;
     for (const type of RETRY_GESTURES) {
-      window.addEventListener(type, retry, true);
+      window.removeEventListener(type, retryGestureResume, true);
+    }
+  }
+
+  function suspendParked() {
+    if (!ctx || !parked || !parkReady || suspendPending
+      || ctx.state === 'suspended' || ctx.state === 'closed') return;
+    suspendPending = true;
+    ctx.suspend().then(() => {
+      suspendPending = false;
+      // A start can arrive while suspension is in flight and still see a
+      // running context. Honor its newer intent once the suspension lands.
+      if (!parked) start();
+    }, () => { suspendPending = false; });
+  }
+
+  function resumeContext() {
+    // Keep the request inside the genuine gesture; deferring it can lose
+    // browser activation. Its result may arrive after a subsequent pause.
+    ctx.resume().then(() => {
+      if (parked) suspendParked();
+      else if (ctx.state === 'running') disarmGestureResume();
+    }, () => { /* a later genuine gesture can still unlock the context */ });
+  }
+
+  function retryGestureResume() {
+    if (!ctx || !started || parked || ctx.state === 'running') {
+      disarmGestureResume();
+      return;
+    }
+    resumeContext();
+  }
+
+  function armGestureResume() {
+    if (gestureRetryArmed || !ctx || !started || parked || ctx.state === 'running') return;
+    gestureRetryArmed = true;
+    for (const type of RETRY_GESTURES) {
+      window.addEventListener(type, retryGestureResume, true);
     }
   }
 
@@ -211,6 +235,7 @@ export function createAudio() {
     if (!ctx && !build()) return;
     started = true;
     parked = false;
+    parkReady = false;
     clearTimeout(parkTimer);
     ambienceAt = -Infinity;
     snowContact = null;
@@ -227,9 +252,9 @@ export function createAudio() {
       // The browser can freeze a pause fade before its scheduled stop.
       // Retire that silent remainder before the clock starts moving again.
       retireShots(ctx.currentTime);
-      ctx.resume().catch(() => {});
+      resumeContext();
       requestAnimationFrame(() => {
-        if (ctx && started && ctx.state !== 'running') armGestureResume();
+        if (ctx && started && !parked && ctx.state !== 'running') armGestureResume();
       });
     }
   }
@@ -681,18 +706,15 @@ export function createAudio() {
          resume inside those few hundred milliseconds has already made the
          suspension wrong. */
       parked = true;
+      parkReady = false;
+      disarmGestureResume();
       clearTimeout(parkTimer);
       parkTimer = setTimeout(() => {
-        // Anything that is not already asleep gets put to sleep — a platform
-        // can report 'interrupted' rather than 'running', and a refusal is
-        // fine: the gains are at zero either way.
-        if (parked && ctx.state !== 'suspended' && ctx.state !== 'closed') {
-          ctx.suspend().then(() => {
-            // A `start` that landed while this was in flight found the
-            // context still running and asked for nothing; ask for it now.
-            if (!parked) start();
-          }, () => { /* muted is silent enough */ });
-        }
+        if (!parked) return;
+        // A late resume fulfillment must also park, but only once the
+        // existing loop fade has had its full window to finish.
+        parkReady = true;
+        suspendParked();
       }, 350);
     },
   };
