@@ -261,6 +261,12 @@ Real landings also exercise reset and teleport while a tilt correction is
 active. The first root and shipped-board transforms match a fresh rig on
 flat and sloped snow, including zero-time redraws; the next ordinary landing
 still blends smoothly into the surface.
+Real keyboard replays also land a 180 and carve in both directions. The
+shipped torso and board lean into the measured turn in regular and switch
+stance, while the loaded trail edge and continuous spray agree with that
+turn. Stance changes reuse the existing pose blend; the physics and controls
+remain the same. Repeated butters also check hand continuity when the arm's
+reach limits divert it around a knee.
 The arms (`ARMS` in `riderModel.js`) are driven through the states they
 answer, and in every frame of it each glove stays out of the jacket and
 twelve centimetres from every leg bone (but in a grab), and each elbow keeps

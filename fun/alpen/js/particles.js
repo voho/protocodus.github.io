@@ -1521,8 +1521,8 @@ export function createSpray(THREE, shading) {
     tx /= len; ty /= len; tz /= len;
 
     /* Point the board axis towards its actually-leading end. `boardForward`
-       changes sign for switch travel; the final dot check also covers a brief
-       skid where the board and velocity disagree around an edge transition. */
+       is stance-adjusted; the final travel dot handles switch as well as a
+       brief skid where the board and velocity disagree. */
     let bx = rider?.heading?.x ?? tx;
     let by = rider?.heading?.y ?? ty;
     let bz = rider?.heading?.z ?? tz;
@@ -1543,7 +1543,14 @@ export function createSpray(THREE, shading) {
     }
 
     let side = Math.sign(state.bias || 0);
-    if (!side && rider) side = Math.sign(rider.edge || rider.lateral || rider.brakeSide || 0);
+    if (!side && rider) {
+      const boardStance = rider.switchStance ? -1 : 1;
+      const boardSide = Math.sign((rider.edge || 0) * boardStance
+        || rider.lateral || (rider.brakeSide || 0) * boardStance);
+      const axisSign = rider.right
+        && lx * rider.right.x + ly * rider.right.y + lz * rider.right.z < 0 ? -1 : 1;
+      side = boardSide * axisSign;
+    }
     if (!side) side = edgeWander < 0 ? -1 : 1;
 
     /* In the trail section, `contactShift` moves the carrier so its buried

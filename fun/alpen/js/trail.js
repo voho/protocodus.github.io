@@ -1102,15 +1102,20 @@ export function createTrail(THREE, shading) {
     }
 
     const latToRight = down || lat.dot(rider.right) >= 0 ? 1 : -1;
-    const loadedSide = down ? 0 : (Math.sign(rider.edge) || 0) * latToRight;
+    // Edge and braking follow travel; lateral slip already follows the board.
+    // Choose a board side first, then convert once into the retained trail axis.
+    const stance = rider.switchStance ? -1 : 1;
+    const boardEdge = rider.edge * stance;
+    const boardBrake = rider.brakeSide * stance;
+    const loadedSide = down ? 0 : (Math.sign(boardEdge) || 0) * latToRight;
     const pushRaw = down ? 0
-      : Math.abs(lateralNow) > 0.2 ? Math.sign(lateralNow) : rider.brakeSide;
-    const pushSide = (pushRaw || loadedSide || 1) * latToRight;
+      : Math.abs(lateralNow) > 0.2 ? Math.sign(lateralNow) : boardBrake;
+    const pushSide = (pushRaw || Math.sign(boardEdge) || 1) * latToRight;
     const bias = down ? 0 : clamp(
       loadedSide * edgeBite * (1 - scuff)
         + pushSide * (scuff * 0.72 + rider.brake * 0.28), -1, 1,
     );
-    const contact = down ? 0 : clamp(rider.edge / EDGE_PIVOT, -1, 1)
+    const contact = down ? 0 : clamp(boardEdge / EDGE_PIVOT, -1, 1)
       * latToRight * smoothstep(0.02, 0.22, edgeBite);
     // `TRENCH.groove` is where the buried cut really lies inside the carrier.
     // Shift by that exact live offset, not by a nominal board measurement, so
