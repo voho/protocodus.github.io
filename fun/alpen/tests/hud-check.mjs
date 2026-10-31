@@ -639,6 +639,193 @@ for (const [record, points, expected] of [
   assert.equal(f.best.textContent, 'Personal best · 123');
   assert.equal(root.nodes['[data-callout]'].textContent, 'New personal best.');
 }
+
+// Two pages share storage, but each attempt keeps the record it started with.
+// Execute the actual load, save, pause and checkpoint paths: a copied storage
+// helper would miss both the stale-tab overwrite and a restart that forgot to
+// import the newly saved target. The stable boot boundary also runs pre-fix
+// main.js, so the old-source proof fails on the lost record, not a missing API.
+const recordHandlers = new vm.Script([
+  mainSection('bootGameRef = game;', '\n// An interrupted charge'),
+  mainSection('function cancelJump() {', '\nconst input = createInput'),
+  mainSection('function pause() {', '\nlet lastPassedGate'),
+  mainSection('function restart(fullReset', '\nfunction newMountain('),
+  mainSection('let bestDirty = false;', '\nfunction scoreLanding('),
+].join('\n'));
+function recordFixture(storage, options = {}) {
+  const world = { height: () => 0, canStall: () => false };
+  const rider = new Rider(THREE, world);
+  const game = { ...g, rider, mode: 'playing', score: 0, best: 0, bestAtStart: 0,
+    recentTricks: [], discoveredGrabs: new Set() };
+  const io = { reads: 0, writes: 0 }, events = new Map();
+  const faults = { read: !!options.readFailure, write: !!options.writeFailure };
+  let now = options.now ?? 10000;
+  const noop = () => {}, resettable = { reset: noop, clear: noop };
+  const context = vm.createContext({
+    game, rider, world, hud, bootGameRef: null, BEST_KEY: 'alpen.best',
+    performance: { now: () => now },
+    localStorage: {
+      getItem(key) {
+        io.reads++;
+        if (faults.read) throw new Error('storage unavailable');
+        return storage.get(key) ?? null;
+      },
+      setItem(key, value) {
+        io.writes++;
+        if (faults.write) throw new Error('storage full');
+        storage.set(key, value);
+      },
+    },
+    window: { addEventListener: (name, callback) => events.set(name, callback) },
+    curtainPointers: new Set(), curtainClickReady: false, curtainClickDevice: null,
+    pausedRendered: false, pausedWorldReady: false,
+    curtain: { classList: { add: noop }, dataset: {} },
+    retro: { fade: noop, clearCrash: noop }, audio: { quiet: noop }, input: { calm: noop },
+    lastPassedGate: { x: 4, z: -153 }, hadStep: true, rearmProps: false, chapterCheck: 0,
+    guideAt: () => 0, nearestCenter: () => 0, corridorHalfAt: () => 24, chapterNameAt: () => 'Piste',
+    chase: resettable, spray: resettable, trail: resettable, wildlife: resettable,
+    huts: resettable, mountainLife: resettable, model: resettable, shading: resettable,
+    props: { ...resettable, reopenGatesBelow: noop }, terrain: resettable,
+  });
+  recordHandlers.runInContext(context);
+  hud.resetScore(); hud.update(game, .1);
+  return {
+    game, rider, io, faults,
+    time(value) { now = value; },
+    award: context.award,
+    persist: context.persistBest,
+    pause: context.pause,
+    pagehide() { events.get('pagehide')(); },
+    restart(full = false) { context.restart(full); hud.update(game, .1); },
+    draw() { hud.update(game, .1); },
+  };
+}
+{
+  const storage = new Map([['alpen.best', '100']]);
+  const first = recordFixture(storage), stale = recordFixture(storage);
+  first.award(1000); first.pause();
+  assert.equal(storage.get('alpen.best'), '1000');
+  // These writes are sequential. This deliberately makes no claim that a
+  // read/max/write can be atomic across truly simultaneous browser processes.
+  stale.award(300); stale.draw();
+  assert.equal(storage.get('alpen.best'), '1000', 'a stale tab cannot replace an already saved higher record');
+  assert.deepEqual([stale.game.score, stale.game.best, stale.game.bestAtStart], [300, 300, 100],
+    'saving another tab\'s larger record does not import it into the active attempt');
+  assert.equal(f.best.textContent, 'Personal best · 300', 'the HUD credits only this attempt\'s actual score');
+  stale.restart();
+  assert.equal(stale.rider.pos.z, -153, 'the real checkpoint restart still returns to the last gate');
+  assert.deepEqual([stale.game.score, stale.game.best, stale.game.bestAtStart], [0, 1000, 1000]);
+  assert.equal(f.best.textContent, 'Best 1,000', 'the next attempt imports the newer target');
+  assert.equal(f.best.dataset.passed, 'false');
+  stale.award(1000); stale.draw();
+  assert.equal(f.best.textContent, 'Best 1,000', 'matching the imported record is still a tie');
+  stale.award(1); stale.draw();
+  assert.equal(f.best.textContent, 'Personal best · 1,001');
+  stale.pause();
+  assert.equal(storage.get('alpen.best'), '1001', 'a later genuine improvement can still replace the saved record');
+  const reopened = recordFixture(storage);
+  assert.deepEqual([reopened.game.best, reopened.game.bestAtStart], [1001, 1001], 'a new page reads the retained record');
+}
+{
+  const storage = new Map([['alpen.best', '100']]);
+  const run = recordFixture(storage);
+  run.award(300);
+  storage.set('alpen.best', '1000');
+  run.restart(true);
+  assert.equal(run.rider.pos.z, 0, 'the first full drop-in remains at the summit');
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [1000, 1000], 'full drop-in also imports the latest saved record');
+  storage.set('alpen.best', '200');
+  run.restart();
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [1000, 1000], 'a lower external record cannot lower the local target');
+}
+{
+  const storage = new Map([['alpen.best', '100']]);
+  const run = recordFixture(storage, { now: 1000 });
+  assert.deepEqual(run.io, { reads: 1, writes: 0 });
+  run.award(200);
+  for (let i = 1; i <= 240; i++) {
+    run.time(1000 + i * 10); run.award(1); run.draw();
+  }
+  assert.deepEqual(run.io, { reads: 1, writes: 0 }, 'frequent awards inside the save interval add no synchronous storage I/O');
+  run.time(3999); run.award(1);
+  assert.deepEqual(run.io, { reads: 1, writes: 0 });
+  run.time(4000); run.award(1);
+  assert.equal(storage.get('alpen.best'), '442', 'the next eligible award saves the latest score');
+  assert.deepEqual(run.io, { reads: 2, writes: 1 }, 'merging adds only one read to an eligible write');
+  for (let i = 0; i < 600; i++) { run.draw(); run.persist(); }
+  assert.deepEqual(run.io, { reads: 2, writes: 1 }, 'idle frames and clean save attempts perform no storage I/O');
+}
+for (const flush of ['pause', 'pagehide']) {
+  const storage = new Map([['alpen.best', '100']]);
+  const run = recordFixture(storage, { now: 1000 });
+  run.award(300);
+  storage.set('alpen.best', '1000');
+  run[flush]();
+  assert.equal(storage.get('alpen.best'), '1000', flush + ' flush merges the higher saved record before the ordinary deadline');
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [300, 100], flush + ' preserves the active attempt\'s record');
+  assert.deepEqual(run.io, { reads: 2, writes: 1 });
+  run.persist(true); run.pagehide();
+  assert.deepEqual(run.io, { reads: 2, writes: 1 }, 'a completed flush is not written again');
+}
+for (const saved of [null, '', 'not a score', 'NaN', 'Infinity', '-Infinity', '-25']) {
+  const storage = new Map(saved === null ? [] : [['alpen.best', saved]]);
+  const run = recordFixture(storage);
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [0, 0], 'missing or invalid saved values cannot poison the first target: ' + saved);
+  run.award(120);
+  assert.equal(storage.get('alpen.best'), '120', 'valid local progress can replace an invalid stored value');
+  if (saved === null) storage.delete('alpen.best');
+  else storage.set('alpen.best', saved);
+  run.restart();
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [120, 120], 'an invalid external value cannot replace a local record at restart');
+}
+{
+  const run = recordFixture(new Map([['alpen.best', '250.5']]));
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [250.5, 250.5], 'finite nonnegative records retain their existing numeric precision');
+}
+{
+  const storage = new Map([['alpen.best', '100']]);
+  const stale = recordFixture(storage);
+  storage.set('alpen.best', '250.4');
+  stale.award(200.6);
+  assert.equal(storage.get('alpen.best'), '250.4', 'merging a stale tab must not round down a higher valid saved record');
+  assert.deepEqual([stale.game.best, stale.game.bestAtStart], [200.6, 100], 'the saved fractional record stays separate from the active attempt');
+}
+{
+  const storage = new Map([['alpen.best', '1000']]);
+  const run = recordFixture(storage, { readFailure: true });
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [0, 0], 'restricted storage still allows an initial run');
+  run.award(300); run.draw();
+  assert.deepEqual([run.game.score, run.game.best], [300, 300], 'a failed read cannot interrupt local scoring');
+  assert.equal(f.best.textContent, 'Personal best · 300');
+  assert.deepEqual(run.io, { reads: 2, writes: 0 }, 'unknown saved progress must not be overwritten after a failed read');
+  run.faults.read = false;
+  run.time(10001); run.award(1); run.persist();
+  assert.deepEqual(run.io, { reads: 2, writes: 0 }, 'failed saves retain the existing retry interval');
+  run.pagehide();
+  assert.equal(storage.get('alpen.best'), '1000', 'a later forced flush retries the pending record and preserves the previously unread best');
+  assert.deepEqual(run.io, { reads: 3, writes: 1 });
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [301, 0]);
+  run.faults.read = true; run.restart();
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [301, 301], 'a failed restart read retains the local record');
+  run.faults.read = false; run.restart();
+  assert.deepEqual([run.game.best, run.game.bestAtStart], [1000, 1000], 'a later restart can import the recovered saved target');
+}
+{
+  const storage = new Map([['alpen.best', '100']]);
+  const run = recordFixture(storage, { writeFailure: true });
+  run.award(300); run.draw();
+  assert.equal(storage.get('alpen.best'), '100');
+  assert.equal(f.best.textContent, 'Personal best · 300', 'a failed disk write leaves local record feedback usable');
+  assert.deepEqual(run.io, { reads: 2, writes: 1 });
+  run.faults.write = false;
+  run.time(10001); run.persist();
+  assert.deepEqual(run.io, { reads: 2, writes: 1 }, 'a failed write does not create an unthrottled retry loop');
+  run.pause();
+  assert.equal(storage.get('alpen.best'), '300', 'pause retries a failed pending write without requiring another award');
+  assert.deepEqual(run.io, { reads: 3, writes: 2 });
+  run.pagehide();
+  assert.deepEqual(run.io, { reads: 3, writes: 2 }, 'a successful retry clears the pending write');
+}
 {
   const { rider, game, award } = feedbackFixture();
   award(900, 'BACKSIDE 360', '', { kicker: '×3 · Lip' });
@@ -744,4 +931,4 @@ for (const [record, points, expected] of [
     encounter(.3, -1.8, -.7); // Board facing changes independently of the drawn view.
   } finally { setWorldSeed(seed); }
 }
-console.log('HUD checks passed: state transitions, charge, flow, live butters, truthful personal records, immediate crash feedback, controlled encounter rewards and view-relative sound, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
+console.log('HUD checks passed: state transitions, charge, flow, live butters, truthful personal records, cross-tab record persistence and storage recovery, immediate crash feedback, controlled encounter rewards and view-relative sound, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');

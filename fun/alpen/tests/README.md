@@ -100,6 +100,10 @@ Record feedback uses the production award callback: the first positive score
 sets a personal best, tying a saved record does not, and an active award or
 crash announcement keeps priority. Restart restores the target; idle records
 do not repeatedly announce themselves or write to the DOM.
+Saved records also survive a lower score from an older tab. The active run
+keeps its original target, while the next drop-in adopts a higher saved best.
+Storage checks cover the existing write debounce, pause/pagehide flushes,
+invalid values and retrying failed reads or writes without blocking play.
 Qualified grounded butters show their live name and release advice before
 the scored award takes over. Pauses, falls and an ended press clear that
 guidance; stable feedback causes no text, visibility, style or dataset writes.
