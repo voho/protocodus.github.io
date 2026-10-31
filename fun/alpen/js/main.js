@@ -999,8 +999,9 @@ rider.on('land', (s) => {
 
 rider.on('launch', (vy) => {
   // A deliberate pop still lifts the board off a steep downhill surface
-  // when its world-space velocity points down. Passive rollers stay quiet.
-  if (rider.airPop > 0 || vy > 3.5) {
+  // when its world-space velocity points down. The title's demo never owns
+  // player feedback; passive rollers in a run keep their existing threshold.
+  if (game.mode === 'playing' && (rider.airPop > 0 || vy > 3.5)) {
     audio.jump(Math.min(1, Math.max(rider.airPop || 0, vy) / 12));
     input.rumble(0.18, 0.0, 70);
   }
