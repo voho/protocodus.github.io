@@ -1934,7 +1934,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     // tilt correction. Compare the shipped rig with a genuinely fresh one,
     // including a zero-dt capture before that old correction could decay.
     const { Rider, CLEAN } = await import('../js/rider.js');
-    const makeFreshRig = () => {
+    const makeFreshRig = (adopted = true) => {
       const savedDocument = globalThis.document;
       globalThis.document = { createElement: () => ({
         getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
@@ -1944,7 +1944,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
           apply: material => material,
           uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
         });
-        fresh.adopt(riderNodes);
+        if (adopted) fresh.adopt(riderNodes);
         return fresh;
       } finally { globalThis.document = savedDocument; }
     };
@@ -1999,6 +1999,134 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       for (let i = 0; i < 60; i++) model.update(physical, poseDt);
       assert(new V(0, 1, 0).applyQuaternion(model.root.quaternion).angleTo(physical.normal) < .02,
         'the new landing correction finishes settling');
+    }
+
+    // The board's contact point is not a body's pivot. Real collision and
+    // recovery poses must keep the head/jacket visible above the snow, for
+    // both the loaded asset and the fallback. Scan actual morphed vertices
+    // against a known plane, independently of the model's support bounds.
+    const neutralContact = { turn: 0, tuck: false, brake: false, jump: false,
+      trickGrab: false, trickFlip: false };
+    const vertex = new V();
+    const visibleMesh = mesh => {
+      for (let part = mesh; part; part = part.parent) if (!part.visible) return false;
+      return mesh.isMesh && !mesh.name.startsWith('rider-headlamp');
+    };
+    const clearance = (meshes, gx, gz) => {
+      let min = Infinity, max = -Infinity, visible = 0, count = 0;
+      for (const mesh of meshes) if (visibleMesh(mesh)) {
+        for (let i = 0; i < mesh.geometry.attributes.position.count; i++) {
+          mesh.getVertexPosition(i, vertex).applyMatrix4(mesh.matrixWorld);
+          const gap = vertex.y - gx * vertex.x - gz * vertex.z;
+          min = Math.min(min, gap); max = Math.max(max, gap);
+          visible += Number(gap >= -.04); count++;
+        }
+      }
+      return { min, max, visible: visible / count };
+    };
+    for (const [adopted, speed, gx, gz] of [
+      [false, 18, 0, 0], [true, 18, 0, 0],
+      [false, 60, .12, .3], [true, 60, .12, .3],
+    ]) {
+      let queries = 0;
+      const physical = new Rider(THREE, { height: (x, z) => {
+        queries++; return gx * x + gz * z;
+      }, canStall: () => false });
+      physical.vel.set(0, 0, -1).projectOnPlane(physical.normal).setLength(speed);
+      const rig = makeFreshRig(adopted), meshes = [];
+      rig.root.traverse(mesh => { if (visibleMesh(mesh)) meshes.push(mesh); });
+      const chest = rig.root.getObjectByName('rider-torso');
+      const head = chest.parent.children.find(part => part.isGroup).children.find(part => part.isMesh);
+      const label = `${adopted ? 'adopted' : 'fallback'} / ${speed} m/s`;
+      const physics = () => [physical.state, physical.grounded, physical.airborne,
+        ...physical.pos.toArray(), ...physical.vel.toArray(), physical.yaw, physical.flip,
+        physical.flipGlide, physical.tumble, physical.fallElapsed, physical.fallTimer, physical.grace];
+      const draw = dt => {
+        const before = physics(); queries = 0;
+        rig.update(physical, dt);
+        assert.equal(queries, physical.grounded ? 1 : 5, label + ': support adds no terrain queries');
+        assert.deepEqual(physics(), before, label + ': posing never changes physics');
+        rig.root.updateMatrixWorld(true);
+      };
+      draw(0);
+      assert.equal(physical.strike(0, 1, 1), 'fall', label + ': an actual strike initiates the tumble');
+      let fell = 0, rose = 0, riding = 0, buriedHead = 0, checkedContact = 0;
+      let previousLift = 0, largestLiftStep = 0;
+      for (let frame = 0; frame < 420; frame++) {
+        for (let step = 0; step < 2; step++) physical.step(1 / 120, neutralContact);
+        draw(poseDt);
+        const lift = rig.root.position.y - physical.pos.y;
+        largestLiftStep = Math.max(largestLiftStep, Math.abs(lift - previousLift));
+        previousLift = lift;
+        if (physical.state === 'fall') {
+          fell++;
+          const headGap = clearance([head], gx, gz);
+          buriedHead += Number(headGap.max < -.02);
+          if (physical.fallElapsed > .3) {
+            assert(headGap.visible > .4, label + ': the head stays visible after the initial crash fade');
+            assert(clearance([chest], gx, gz).visible > .4,
+              label + ': the jacket cannot disappear into the snow');
+            if (!physical.airborne && frame % 6 === 0) {
+              checkedContact++;
+              assert(clearance(meshes, gx, gz).min < .22,
+                label + ': contact support cannot leave the whole body hovering far above the snow');
+            }
+          }
+        } else if (physical.state === 'rise') {
+          rose++;
+          assert(clearance([head, chest], gx, gz).visible > .4, label + ': recovery keeps the body visible');
+        } else {
+          riding++;
+          if (riding > 60) break;
+        }
+        if (frame % 30 === 0) {
+          const rootAt = rig.root.matrixWorld.elements.slice();
+          draw(0); draw(0);
+          rootAt.forEach((value, i) => assert(Math.abs(value - rig.root.matrixWorld.elements[i]) < 1e-9,
+            label + ': repeated zero-dt draws cannot accumulate support lift'));
+        }
+      }
+      assert(fell && rose && riding && checkedContact, label + ': trace covers body contact and full recovery');
+      assert(buriedHead <= 1, label + ': only the initial crash fade may briefly hide the head');
+      assert(largestLiftStep < (speed < 30 ? .1 : .45),
+        label + ': support follows the rotating body without a metre-scale entry/exit jump');
+
+      // A fresh checkpoint or a long relocation must discard the old pose's
+      // lift even on a redraw with no simulation time to ease it away.
+      physical.reset(physical.pos.z - 120, 4);
+      if (adopted) rig.reset();
+      const fresh = makeFreshRig(adopted);
+      draw(0); fresh.update(physical, 0); fresh.root.updateMatrixWorld(true);
+      const deck = rig.root.getObjectByName('rider-board'), freshDeck = fresh.root.getObjectByName('rider-board');
+      deck.matrixWorld.elements.forEach((value, i) => assert(Math.abs(value - freshDeck.matrixWorld.elements[i]) < 1e-9,
+        label + ': reset/teleport has the same board contact as a fresh rig'));
+    }
+    {
+      // Loading the asset during a tumble must refresh the support geometry.
+      // Identical physics and pose clocks give an independent already-loaded
+      // reference; no cached bounds or private support helper are inspected.
+      const physical = new Rider(THREE, { height: () => 0, canStall: () => false });
+      physical.vel.set(0, 0, -45);
+      const swapping = makeFreshRig(false), loaded = makeFreshRig(true);
+      swapping.update(physical, 0); loaded.update(physical, 0);
+      assert.equal(physical.strike(0, 1, 1), 'fall');
+      for (let frame = 0; frame < 120; frame++) {
+        for (let step = 0; step < 2; step++) physical.step(1 / 120, neutralContact);
+        swapping.update(physical, poseDt); loaded.update(physical, poseDt);
+        if (frame === 30) {
+          assert.equal(physical.state, 'fall');
+          swapping.adopt(riderNodes);
+          swapping.update(physical, 0); loaded.update(physical, 0);
+          assert.equal(swapping.modelled, true);
+        }
+        if (frame >= 30) {
+          swapping.root.updateMatrixWorld(true); loaded.root.updateMatrixWorld(true);
+          const deck = swapping.root.getObjectByName('rider-board');
+          const reference = loaded.root.getObjectByName('rider-board');
+          deck.matrixWorld.elements.forEach((value, i) => assert(Math.abs(value - reference.matrixWorld.elements[i]) < 1e-9,
+            'adopting during a fall uses the same support as the already-loaded geometry'));
+        }
+      }
     }
 
     // A real keyed 180 reverses which binding leads, not which way a carve

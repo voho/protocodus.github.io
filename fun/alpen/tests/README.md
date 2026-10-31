@@ -78,6 +78,11 @@ and the fall timeout. The remaining pitch enters the existing visual glide,
 preserving orientation at recovery and avoiding a permanent inverted stance.
 Checks cover signed and multiple rotations, an existing glide, the rendered
 board orientation after recovery, and the next jump.
+Tumbling poses also use cached bounds of the physical mesh parts against the
+shadow's existing ground plane, so the body stays readable above the snow.
+The existing fall blend carries that visual correction through recovery,
+with a small snow allowance. Vertex checks cover adopted and fallback rigs,
+ordinary ride/air poses, reset, zero-delta redraws and the terrain-query budget.
 Slow airborne spins favor the travel direction over the board's heading.
 Vertical hops retain their airborne camera bearing, and the existing angular
 transition carries flight and touchdown framing around the rider. Real input

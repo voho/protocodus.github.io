@@ -149,6 +149,8 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // any further down reads as passing through the drift rather than riding in
 // it. Planing takes most of it back.
 const POWDER_SINK = 0.07;
+// A tumbling body can press into the snow without disappearing under it.
+const FALL_SINK = 0.04;
 const approach = (v, target, rate, dt) => v + (target - v) * (1 - Math.exp(-rate * dt));
 const smooth01 = (v) => {
   const t = clamp(v, 0, 1);
@@ -2091,6 +2093,34 @@ export function createRiderModel(THREE, shading) {
   const legLead = limb(hips, 0, -HIP_Z, geo.thigh, geo.shin, THIGH);
   const legRear = limb(hips, 0, HIP_Z, geo.thigh, geo.shin, THIGH);
 
+  /* The fall still uses the physics contact point, but the whole body can
+     rotate below that point. Keep a small, fixed set of posed bounds for
+     lifting it back to the snow. Only geometry creation/adoption scans
+     vertices; an update projects fifteen cached boxes. The explicit list
+     excludes the headlamp beam and any other decorative children. */
+  const fallBounds = [
+    board, rearBoot, pelvisMesh, torsoMesh, headMesh,
+    armLead.upperMesh, armLead.foreMesh, armLead.handMesh,
+    armRear.upperMesh, armRear.foreMesh, armRear.handMesh,
+    legLead.upperMesh, legLead.foreMesh, legRear.upperMesh, legRear.foreMesh,
+  ].map(mesh => ({ mesh, cx: 0, cy: 0, cz: 0, hx: 0, hy: 0, hz: 0, valid: false }));
+  function cacheFallBounds() {
+    for (let i = 0; i < fallBounds.length; i++) {
+      const b = fallBounds[i];
+      b.mesh.geometry.computeBoundingBox();
+      const box = b.mesh.geometry.boundingBox;
+      b.valid = !box.isEmpty();
+      if (!b.valid) continue;
+      b.cx = (box.min.x + box.max.x) * 0.5;
+      b.cy = (box.min.y + box.max.y) * 0.5;
+      b.cz = (box.min.z + box.max.z) * 0.5;
+      b.hx = (box.max.x - box.min.x) * 0.5;
+      b.hy = (box.max.y - box.min.y) * 0.5;
+      b.hz = (box.max.z - box.min.z) * 0.5;
+    }
+  }
+  cacheFallBounds();
+
   // --- shadow --------------------------------------------------------------
   // The blob every game of this vintage used, and still the cheapest way to
   // say exactly where in the air something is. It gets the rider's snap and
@@ -3797,6 +3827,34 @@ export function createRiderModel(THREE, shading) {
         - rider.world.height(rider.pos.x, rider.pos.z - eps)) / (2 * eps);
       shadowUp.set(-hx, 1, -hz).normalize();
     }
+    /* Use the shadow's existing ground plane: no additional terrain queries.
+       The pose is complete now, so each box follows its actual limb rather
+       than a fixed hip-height pivot. Blend with the same fall signal through
+       its recovery tail; a full correction on the first inverted landing
+       frame would raise the rig by a metre in one write. */
+    if (s.down > 0.001 && shadowUp.y > 1e-6) {
+      root.updateMatrixWorld(true);
+      const nx = shadowUp.x, ny = shadowUp.y, nz = shadowUp.z;
+      let lowest = Infinity;
+      for (let i = 0; i < fallBounds.length; i++) {
+        const b = fallBounds[i];
+        if (!b.valid || b.mesh.material.visible === false) continue;
+        let visible = true;
+        for (let node = b.mesh; node; node = node.parent) {
+          if (!node.visible) { visible = false; break; }
+        }
+        if (!visible) continue;
+        const m = b.mesh.matrixWorld.elements;
+        const cx = m[0] * b.cx + m[4] * b.cy + m[8] * b.cz + m[12] - rider.pos.x;
+        const cy = m[1] * b.cx + m[5] * b.cy + m[9] * b.cz + m[13] - gy;
+        const cz = m[2] * b.cx + m[6] * b.cy + m[10] * b.cz + m[14] - rider.pos.z;
+        const radius = Math.abs(nx * m[0] + ny * m[1] + nz * m[2]) * b.hx
+          + Math.abs(nx * m[4] + ny * m[5] + nz * m[6]) * b.hy
+          + Math.abs(nx * m[8] + ny * m[9] + nz * m[10]) * b.hz;
+        lowest = Math.min(lowest, nx * cx + ny * cy + nz * cz - radius);
+      }
+      root.position.y += Math.max(0, -lowest / ny - FALL_SINK) * s.down;
+    }
     shadowTilt.setFromUnitVectors(UP, shadowUp);
     shadowSpin.setFromAxisAngle(UP, -rider.yaw);
     shadow.quaternion.copy(shadowTilt).multiply(shadowSpin).multiply(shadowFlat);
@@ -3856,6 +3914,7 @@ export function createRiderModel(THREE, shading) {
     swap(legRear.upperMesh, g.thighRear);
     swap(legLead.foreMesh, g.shin);
     swap(legRear.foreMesh, g.shin);
+    cacheFallBounds();
     for (const old of retired) old.dispose();
     geo.kit.deck.dispose();
     modelled = true;
