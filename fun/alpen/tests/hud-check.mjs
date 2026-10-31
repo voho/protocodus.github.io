@@ -83,7 +83,7 @@ assert.equal(f.charge.hidden, false);
 assert.equal(f['charge-fill'].style.transform, 'scaleX(0.53)');
 g.rider.charge = 1;
 hud.update(g, .1);
-assert.equal(f['charge-label'].textContent, 'Release to fly');
+assert.equal(f['charge-label'].textContent, 'Release to fly', 'absent pump readiness keeps ordinary flight guidance');
 hud.banner('FRONTSIDE 360', 250);
 hud.update(g, .1);
 assert.equal(f['event-name'].textContent, 'FRONTSIDE 360');
@@ -141,15 +141,21 @@ assert.equal(body.dataset.inputDevice, 'touch', 'restart retains the chosen devi
 hud.setInputDevice('keyboard');
 g.mode = 'playing'; hud.update(g, .1);
 assert.equal(f.hint.hidden, false);
-// The charge bar says when the lip is coming and when releasing is the pop.
-g.rider.charging = true; g.rider.charge = .6; g.rider.lipAhead = true; hud.update(g, .01);
+// Pump guidance changes a ready charge; the lip timing cues keep priority.
+g.rider.charging = true; g.rider.charge = 1; g.rider.pumpReady = true; hud.update(g, .01);
+assert.equal(f['charge-label'].textContent, 'Release for speed');
+g.rider.charge = .6; hud.update(g, .01);
+assert.equal(f['charge-label'].textContent, 'Load the legs', 'useful compression does not disguise an unfinished charge');
+g.rider.charge = 1; g.rider.lipAhead = true; hud.update(g, .01);
 assert.equal(f['charge-label'].textContent, 'Hold it — lip ahead');
 assert.equal(f.charge.dataset.lip, 'ahead');
-g.rider.lipAhead = false; g.rider.lipReady = true; hud.update(g, .01);
+g.rider.lipReady = true; hud.update(g, .01);
 assert.equal(f['charge-label'].textContent, 'Pop now — on the lip');
 assert.equal(f.charge.dataset.lip, 'ready');
-g.rider.lipReady = false; hud.update(g, .01);
+g.rider.lipAhead = false; g.rider.lipReady = false; g.rider.pumpReady = false; hud.update(g, .01);
 assert.equal(f.charge.dataset.lip, 'none');
+assert.equal(f['charge-label'].textContent, 'Release to fly', 'a rejected pump keeps the requested jump cue');
+g.rider.charge = .6; hud.update(g, .01);
 assert.equal(f['charge-label'].textContent, 'Load the legs');
 g.rider.charging = false;
 // Awards in one step queue rather than overwrite; the kicker carries why.

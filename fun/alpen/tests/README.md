@@ -70,6 +70,13 @@ when compression is too weak to apply a pump. They must still launch once and
 land cleanly; neighboring ordinary pops, stronger speed-paying pumps and an
 unpressed crossing remain controls. The fixture uses real terrain and input,
 without assigning bend, charge or velocity to manufacture the boundary.
+The rider's computed pump readiness shares the accepted release rule, so a
+full charge on useful compression can say “Release for speed”; weak compression
+and ordinary hops keep their flight cue, with current/upcoming lip cues first.
+The same replay checks readiness before release and its removal afterward.
+Readiness describes the completed step: crossing a roller's threshold before
+the next release step still produces the newly appropriate hop, without
+latching the earlier pump or changing the physics.
 Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
 UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
 Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
