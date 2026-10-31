@@ -385,6 +385,10 @@ seconds. Counted passes start from `info.reset()`, which main.js now calls
 once per frame before the probe and rider-shadow passes.
 It exercises all six snowfall bands across nine times of day, cloud extinction,
 night-storm visibility, the modelled skyline's occlusion and its fallback.
+Snowfall checks also use a naturally snow-free seeded sky: zero intensity
+submits no flakes, even when the final change falls below the normal rebuild
+threshold. Stable clear air avoids repeated particle uploads, and returning
+snow arrives faintly before recovering the existing flurry and storm budgets.
 It also pins the sun's depth-map box half a box ahead of the rider along the
 camera heading (and dropped onto the slope it covers), and the glint grid's
 camera origin wrapped into its 64 m period on the CPU, so no shader forms a
