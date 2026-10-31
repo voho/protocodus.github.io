@@ -904,8 +904,12 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
     let falls = 0, charge = false, released = false, lastStep = 0, drawnYaw = r.yaw;
     let peak = 0, minBack = Infinity, heldBearing = null, zeroFrames = 0, yawFrom = null;
     let lastAirYaw = 0, resetChecked = false;
-    r.on('launch', () => launches.push({ horizontal: Math.hypot(r.vel.x, r.vel.z),
-      vertical: r.vel.y, yaw: r.yaw }));
+    r.on('launch', () => {
+      const horizontal = Math.hypot(r.vel.x, r.vel.z);
+      const stance = r.yaw - (r.switchStance ? Math.PI : 0);
+      launches.push({ horizontal, vertical: r.vel.y, yaw: r.yaw,
+        headingDot: horizontal > 0 ? (Math.sin(stance) * r.vel.x - Math.cos(stance) * r.vel.z) / horizontal : 0 });
+    });
     r.on('land', s => { landings.push(s); view.land(s.impact); });
     r.on('fall', () => falls++);
     if (!moving) key('keydown', 'KeyS');
@@ -1015,6 +1019,7 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
         const outward = hop({ reduced, shoulder: true, spin });
         assert(outward.launch.horizontal < 1.5 && outward.launch.yaw < -1.5,
           'the shoulder departure retains its slow, outward-facing setup');
+        assert(outward.launch.headingDot < -.99, 'the real pop is nearly opposite the stance heading');
         assert(outward.peak < 6, 'nearly opposite board/travel cannot collapse the camera bearing');
         assert(outward.minBack > 5.5, 'an outward pop never sends the boom through the rider');
       }
