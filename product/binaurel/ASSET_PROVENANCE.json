@@ -1,0 +1,21 @@
+{
+  "product": "Binaurel",
+  "reviewed": "2026-10-31",
+  "availability": "coming_soon",
+  "source_version": "0.1.0d26",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "assets": [
+    {
+      "file": "Binaurel_Thumbnail_800.png",
+      "sha256": "9665b50c5c657800c5b8c15daa92474ef7207a8b53acb57394983a0afe821c71"
+    },
+    {
+      "file": "binaurel-rack-front.webp",
+      "sha256": "a50962dc1320c8862ed8b662cf7f4827e12b6057b7d23b20e54c8040d3cb869a"
+    },
+    {
+      "file": "binaurel-rack-rear.webp",
+      "sha256": "80997308c5806f6ea0cee343dcc575aff243674cc29eeebc5787985750f18b86"
+    }
+  ]
+}

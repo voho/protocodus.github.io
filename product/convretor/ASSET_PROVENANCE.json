@@ -1,0 +1,21 @@
+{
+  "product": "Convretor",
+  "reviewed": "2026-10-31",
+  "availability": "coming_soon",
+  "source_version": "0.1.0d9",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "assets": [
+    {
+      "file": "Convretor_Thumbnail_800.png",
+      "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901"
+    },
+    {
+      "file": "convretor-rack-front.webp",
+      "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358"
+    },
+    {
+      "file": "convretor-rack-rear.webp",
+      "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
+    }
+  ]
+}

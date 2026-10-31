@@ -1,0 +1,21 @@
+{
+  "product": "Remix",
+  "reviewed": "2026-10-31",
+  "availability": "coming_soon",
+  "source_version": "0.1.0d14",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "assets": [
+    {
+      "file": "Remix_Thumbnail_800.png",
+      "sha256": "1d8a186e7d526969e115ec8682773833043c39161c4467f22e3cd3f2700d4411"
+    },
+    {
+      "file": "remix-rack-front.webp",
+      "sha256": "1db7c20c6e25ad6abc89f39575e4b93c038434be87334f8ce7040e9ceef63765"
+    },
+    {
+      "file": "remix-rack-rear.webp",
+      "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533"
+    }
+  ]
+}

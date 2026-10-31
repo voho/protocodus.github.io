@@ -1,0 +1,21 @@
+{
+  "product": "Acukoto",
+  "reviewed": "2026-10-31",
+  "availability": "coming_soon",
+  "source_version": "0.11.1d1",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "assets": [
+    {
+      "file": "Acukoto_Thumbnail_800.png",
+      "sha256": "919dc3db8e006ca1d5dadf3675228b66facdf7bd05fbf04eb2050d27e938badb"
+    },
+    {
+      "file": "acukoto-rack-front.webp",
+      "sha256": "412e0e6bbf15fe12f0ded20e050d986cb0c95495f71fd367d9855a9cd16ae661"
+    },
+    {
+      "file": "acukoto-rack-rear.webp",
+      "sha256": "6c89180366479828e847952d6370d549c7a86dee0c865b164efd044fb1f2a4ee"
+    }
+  ]
+}
