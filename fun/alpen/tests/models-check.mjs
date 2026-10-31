@@ -1855,6 +1855,77 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       assert.ok(elbow.dot(toe) < 0, 'the point of the elbow is behind him: ' + elbow.dot(toe));
     }
     model.root.traverse((o) => assert.ok(o.matrixWorld.elements.every(Number.isFinite), 'finite modelled rig'));
+
+    // Restart and attract-loop relocation must forget the previous landing's
+    // tilt correction. Compare the shipped rig with a genuinely fresh one,
+    // including a zero-dt capture before that old correction could decay.
+    const { Rider, CLEAN } = await import('../js/rider.js');
+    const makeFreshRig = () => {
+      const savedDocument = globalThis.document;
+      globalThis.document = { createElement: () => ({
+        getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
+      }) };
+      try {
+        const fresh = rider.createRiderModel(headless, {
+          apply: material => material,
+          uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
+        });
+        fresh.adopt(riderNodes);
+        return fresh;
+      } finally { globalThis.document = savedDocument; }
+    };
+    const poseDt = 1 / 60;
+    const axis = new V(1, 0, 0);
+    for (const [explicit, firstDt, slope] of [
+      [true, poseDt, false], [true, 0, true], [false, 0, false], [false, poseDt, true],
+    ]) {
+      let gx = 0, gz = 0;
+      const physical = new Rider(THREE, { height: (x, z) => gx * x + gz * z, canStall: () => false });
+      const fly = () => {
+        physical.state = 'air'; physical.grounded = false; physical.airTime = .5;
+        physical.pos.y = physical.world.height(physical.pos.x, physical.pos.z) + .05;
+        physical.vel.set(0, -8, -15);
+        physical.airUp.copy(physical.normal).applyAxisAngle(axis, Math.PI / 6);
+      };
+      const land = () => {
+        physical.pos.y = physical.world.height(physical.pos.x, physical.pos.z);
+        physical.land();
+        assert.equal(physical.lastLanding.verdict, CLEAN, 'the tilt fixture has a real clean landing');
+      };
+      model.reset(); fly(); model.update(physical, poseDt);
+      land(); model.update(physical, poseDt);
+      const previousTilt = new V(0, 1, 0).applyQuaternion(model.root.quaternion).angleTo(physical.normal);
+      assert(previousTilt > .3, 'the old landing correction is still active before reset');
+
+      gx = slope ? .18 : 0; gz = slope ? .30 : 0;
+      physical.reset(explicit ? 0 : -120, slope ? 5 : 0);
+      if (explicit) model.reset();
+      const fresh = makeFreshRig();
+      model.update(physical, firstDt); fresh.update(physical, firstDt);
+      model.root.updateMatrixWorld(true); fresh.root.updateMatrixWorld(true);
+      assert(Math.abs(model.root.quaternion.dot(fresh.root.quaternion)) > 1 - 1e-12,
+        `${explicit ? 'reset' : 'teleport'} at dt=${firstDt}: first root pose matches a fresh rig`);
+      const freshBoard = fresh.root.getObjectByName('rider-board');
+      for (let i = 0; i < 16; i++) {
+        assert(Math.abs(board.matrixWorld.elements[i] - freshBoard.matrixWorld.elements[i]) < 1e-9,
+          'the reset shipped board occupies the same snow contact as a fresh board');
+      }
+
+      // Reset must not disable the *next* landing's correction. The drawn
+      // frame should begin between flight and snow, then settle smoothly.
+      fly(); model.update(physical, poseDt); fresh.update(physical, poseDt);
+      const flightUp = physical.airUp.clone();
+      land(); model.update(physical, poseDt); fresh.update(physical, poseDt);
+      const landedUp = new V(0, 1, 0).applyQuaternion(model.root.quaternion);
+      assert(landedUp.angleTo(physical.normal) > .1
+        && landedUp.angleTo(flightUp) < flightUp.angleTo(physical.normal),
+      'ordinary touchdown still eases from flight towards the landing surface');
+      assert(Math.abs(model.root.quaternion.dot(fresh.root.quaternion)) > 1 - 1e-12,
+        'the next landing matches the independent fresh rig');
+      for (let i = 0; i < 60; i++) model.update(physical, poseDt);
+      assert(new V(0, 1, 0).applyQuaternion(model.root.quaternion).angleTo(physical.normal) < .02,
+        'the new landing correction finishes settling');
+    }
   }
 
   // The eight figures: baked from the file in their own colours, two

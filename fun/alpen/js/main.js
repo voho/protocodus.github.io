@@ -998,8 +998,10 @@ rider.on('land', (s) => {
 });
 
 rider.on('launch', (vy) => {
-  if (vy > 3.5) {
-    audio.jump(Math.min(1, vy / 12));
+  // A deliberate pop still lifts the board off a steep downhill surface
+  // when its world-space velocity points down. Passive rollers stay quiet.
+  if (rider.airPop > 0 || vy > 3.5) {
+    audio.jump(Math.min(1, Math.max(rider.airPop || 0, vy) / 12));
     input.rumble(0.18, 0.0, 70);
   }
   // Leaving the ground retires the last jump's verdict, so the air clock for
@@ -1061,6 +1063,9 @@ rider.on('fall', (cause, into = 0, reason = '') => {
     Math.round(34 + severity * 58), plume);
   // …and why, on the kicker: HARD LANDING, UNDER-ROTATED, UPSIDE DOWN, a
   // stall or a tree. "WIPEOUT" alone told the player what, never what to fix.
+  // Retire earlier celebrations so the reason arrives with the crash, not
+  // after recovery. Their points have already been banked.
+  hud.clearBanner();
   hud.banner('WIPEOUT', 0, 'bad', reason ? { kicker: reason } : null);
 });
 
@@ -1638,7 +1643,9 @@ function liveTrickName() {
    a fresh closure allocation every frame — individually nothing, together
    the steady GC churn behind the occasional minor-collection hitch. */
 const onWildlifeNear = (x, z, kind) => {
-  if (game.mode === 'playing') nearMiss(kind, x > rider.pos.x ? 0.7 : -0.7);
+  if (game.mode === 'playing' && (rider.state === 'ride' || rider.state === 'air')) {
+    nearMiss(kind, x > rider.pos.x ? 0.7 : -0.7);
+  }
 };
 const onCocoa = () => {
   if (game.mode !== 'playing') return;

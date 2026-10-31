@@ -1,10 +1,14 @@
 // Run with: node tests/riding-check.mjs
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { Rider, trickName, speedCeiling, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
+import { heightAt, guideAt, getTerrainMaterialAt } from '../js/terrain.js';
+import { getWorldSeed, setWorldSeed } from '../js/noise.js';
 
 const dt = 1 / 120;
 const TAU = Math.PI * 2;
@@ -39,6 +43,124 @@ const beforeRepeat = late.vel.y;
 late.step(dt, neutral);
 close(late.vel.y, beforeRepeat - RIDER.gravity * dt, 'no double jump');
 assert.equal(perfectPops, 1);
+
+// The production takeoff feedback follows the deliberate pop, even while
+// travelling downwards in world space. Keep the real listeners coupled to
+// real launches so a sound-only mock cannot hide missing physics metadata.
+{
+  const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const section = (from, to) => {
+    const start = source.indexOf(from), end = source.indexOf(to, start);
+    assert(start >= 0 && end > start, 'locate production takeoff listener');
+    return source.slice(start, end);
+  };
+  const listeners = new vm.Script([
+    section("rider.on('launch',", '\n/* The lip pop,'),
+    section("rider.on('perfectPop',", "\nrider.on('fall',"),
+  ].join('\n'));
+  const feedback = (r) => {
+    const calls = [], jumps = [], pulses = [], launches = [];
+    let perfect = 0;
+    listeners.runInNewContext({
+      rider: r, game: { mode: 'playing' },
+      audio: {
+        jump(power) { jumps.push(power); calls.push('jump'); },
+        perfectPop() { perfect++; calls.push('perfect'); },
+      },
+      input: { rumble(...args) { pulses.push(args); calls.push('pulse'); } },
+      hud: { clearBanner() { calls.push('clear'); }, banner(name) { calls.push(name); } },
+    });
+    r.on('launch', vy => launches.push({ vy, pop: r.airPop, lip: r.lipPop }));
+    return { calls, jumps, pulses, launches, get perfect() { return perfect; } };
+  };
+  const charged = (world, ticks, z = 0, x = 0) => {
+    const r = rider(world); r.reset(z, x);
+    r.vel.set(0, 0, -1).projectOnPlane(r.normal).setLength(22);
+    const f = feedback(r);
+    for (let i = 0; i < ticks; i++) r.step(dt, { ...neutral, jump: true });
+    assert.equal(r.state, 'ride', 'the charge finishes before leaving the snow');
+    r.step(dt, neutral);
+    assert.equal(r.state, 'air');
+    assert.equal(f.launches.length, 1, 'one release produces one launch');
+    assert.equal(f.jumps.length, 1, 'a deliberate departure produces one pop sound');
+    assert.deepEqual(f.pulses, [[0.18, 0, 70]], 'and one takeoff pulse');
+    assert(f.launches[0].pop > 0, 'the impulse is available inside the launch listener');
+    assert.deepEqual(f.calls, ['jump', 'pulse', 'clear'], 'takeoff retires the old banner after feedback');
+    return { r, f };
+  };
+  const seed = getWorldSeed();
+  try {
+    setWorldSeed('alpen-check');
+    const world = { height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false };
+    for (const z of [-250, -450, -800]) {
+      const powers = [];
+      for (const ticks of [1, 54]) {
+        const { r, f } = charged(world, ticks, z, guideAt(z));
+        assert(f.launches[0].vy < 0, 'the real downhill jump is descending in world space');
+        close(f.jumps[0], f.launches[0].pop / 12, 'downhill takeoff strength follows the legs');
+        powers.push(f.jumps[0]);
+        let clearance = 0;
+        for (let i = 0; i < 240 && r.state === 'air'; i++) {
+          clearance = Math.max(clearance, r.pos.y - heightAt(r.pos.x, r.pos.z));
+          r.step(dt, neutral);
+        }
+        assert(clearance > (ticks === 1 ? .2 : .9), 'tap and full charge genuinely clear the snow');
+        assert.equal(r.state, 'ride', 'the flight returns to ordinary riding');
+        assert.equal(f.jumps.length, 1, 'flight and touchdown do not replay takeoff');
+      }
+      assert(powers[1] > powers[0] * 1.8, 'a full pop keeps stronger feedback than a tap');
+    }
+  } finally { setWorldSeed(seed); }
+
+  for (const grade of [0, -.3]) {
+    const { f } = charged({ height: (x, z) => z * grade, canStall: () => false }, 54);
+    close(f.jumps[0], Math.min(1, f.launches[0].vy / 12),
+      'flat and uphill full pops keep their established feedback strength');
+  }
+  // Real tangent departures on either side of the old natural-hop threshold.
+  for (const vy of [-4, .5, 3.49, 3.51, 8, 18]) {
+    const r = rider({ height: (x, z) => -z * vy / 20, canStall: () => false });
+    r.vel.set(0, vy, -20);
+    const f = feedback(r);
+    r.takeOff(0, r.normal);
+    close(f.launches[0].vy, vy, 'natural takeoff preserves its tangent');
+    assert.equal(f.launches[0].pop, 0);
+    assert.equal(f.jumps.length, vy > 3.5 ? 1 : 0, 'passive rollers retain the natural-hop threshold');
+    assert.equal(f.pulses.length, f.jumps.length);
+    if (f.jumps.length) close(f.jumps[0], Math.min(1, vy / 12), 'strong natural departures retain their capped strength');
+  }
+
+  const lip = () => {
+    const height = (x, z) => z > -8 ? z * .27 : -8 * .27 + (z + 8) * .7;
+    const r = rider({ height, canStall: () => false });
+    r.vel.set(0, -18 * .26, -18 * .965);
+    return { r, f: feedback(r) };
+  };
+  const delayed = lip();
+  let ticks = 0;
+  while (delayed.r.grounded && ticks < 240) {
+    delayed.r.step(dt, { ...neutral, jump: true }); ticks++;
+  }
+  assert.equal(delayed.r.state, 'air');
+  assert.equal(delayed.f.launches[0].pop, 0, 'the held charge leaves a natural lip unspent');
+  assert.equal(delayed.f.jumps.length, 0, 'a quiet natural departure remains quiet');
+  delayed.r.step(dt, neutral);
+  assert(delayed.r.airPop > RIDER.popMax, 'late release receives the real lip impulse');
+  assert.equal(delayed.f.launches.length, 1, 'late pop does not emit another launch');
+  assert.equal(delayed.f.jumps.length, 0, 'late release does not duplicate takeoff sound');
+  assert.equal(delayed.f.perfect, 1);
+  assert.deepEqual(delayed.f.calls, ['clear', 'PERFECT POP', 'perfect', 'pulse']);
+
+  const timely = lip();
+  for (let i = 0; i < ticks - 1; i++) timely.r.step(dt, { ...neutral, jump: true });
+  assert.equal(timely.r.state, 'ride');
+  timely.r.step(dt, neutral);
+  assert(timely.f.launches[0].lip && timely.f.launches[0].pop > RIDER.popMax,
+    'a release on the departure step carries the lip impulse into launch');
+  assert.equal(timely.f.jumps.length, 1); assert.equal(timely.f.perfect, 1);
+  assert.deepEqual(timely.f.calls, ['jump', 'pulse', 'clear', 'PERFECT POP', 'perfect', 'pulse'],
+    'on-lip confirmation follows the takeoff banner clear and each cue fires once');
+}
 
 // Tucking preserves more momentum but cannot accelerate a rider in midair;
 // vertical position remains the exact constant-gravity trajectory.
@@ -769,4 +891,4 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   console.log('Jump height sweep (metres): ' + JSON.stringify({ tap, full, sweep }));
 }
 
-console.log('Riding checks passed: charged/late/buffered pops, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, upright wipeout recovery, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');
+console.log('Riding checks passed: charged/late/buffered pops, production takeoff feedback, directional jump height, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, upright wipeout recovery, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, camera framing at speed, and live motion comfort.');

@@ -1,9 +1,13 @@
 // Run with: node tests/hud-check.mjs
 // DOM stand-ins cover HUD state and input gating; appearance needs browser QA.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createHud } from '../js/hud.js';
 import { RIDER, SCORE } from '../js/config.js';
-import { butterName } from '../js/rider.js';
+import { butterName, Rider } from '../js/rider.js';
+import { comboFor } from '../js/flow.js';
 let writes = 0, targetQueries = 0;
 const tracked = value => new Proxy(value, {
   set(target, key, next) { target[key] = next; writes++; return true; },
@@ -422,4 +426,93 @@ curtain.targets = [button, summary, exitLink];
 const beforeStill = writes;
 for (let i=0; i<9;i++) hud.update(g,.09);
 assert.equal(writes, beforeStill, 'stable visible values do not write text, visibility, styling or datasets');
-console.log('HUD checks passed: state transitions, charge, flow, live butters, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
+// Exercise main's real award/fall/encounter callbacks with physics and this
+// HUD. A crash must explain itself now, even when a landing/gate/flow payout
+// filled the ordinary award queue one step earlier.
+const mainSource = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+function mainSection(from, to) {
+  const start = mainSource.indexOf(from), end = mainSource.indexOf(to, start);
+  assert(start >= 0 && end > start, 'locate production feedback handler: ' + from);
+  return mainSource.slice(start, end);
+}
+const feedbackHandlers = new vm.Script(
+  mainSection('function award(', '\nfunction scoreLanding(')
+  + mainSection('function syncCombo()', '\nfunction stepFlow(')
+  + mainSection("rider.on('fall',", "\nrider.on('impact',")
+  + mainSection('function nearMiss(', '\n/* Threading a gate.')
+  + mainSection('const onWildlifeNear =', '\nconst onCocoa =')
+  + '\nglobalThis.onNear = onWildlifeNear;',
+);
+const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
+function feedbackFixture() {
+  const rider = new Rider(THREE, { height: () => 0, canStall: () => false });
+  rider.pos.z = -100; rider.vel.set(0, 0, -20);
+  const game = { ...g, rider, mode: 'playing', score: 0, best: 0, bestAtStart: 0,
+    liveTrick: '', flow: .5, flowHold: 3, combo: comboFor(.5), gateRun: 0 };
+  const sounds = [], pulses = [];
+  const context = vm.createContext({ rider, game, RIDER, SCORE, comboFor, hud,
+    rearmProps: false, bestDirty: false, persistBest() {},
+    audio: new Proxy({}, { get: (_, name) => (...args) => sounds.push({ name, args }) }),
+    input: { rumble: (...args) => pulses.push(args) },
+    chase: { kick() {} }, retro: { crash() {} }, spray: { burst() {} },
+  });
+  feedbackHandlers.runInContext(context);
+  hud.resetScore(); hud.update(game, .1);
+  return { rider, game, sounds, pulses, award: context.award, near: context.onNear };
+}
+{
+  const { rider, game, award } = feedbackFixture();
+  award(900, 'BACKSIDE 360', '', { kicker: '×3 · Lip' });
+  award(360, 'GATE ×3', 'near');
+  award(6000, 'MAX FLOW', 'near');
+  const banked = game.score, record = game.best;
+  assert.equal(record, banked, 'the queued awards have already established a new record');
+  assert.equal(rider.strike(0, 1, 1), 'fall');
+  hud.update(game, 1 / 120);
+  assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a queued celebration cannot delay the crash reason');
+  assert.equal(f['event-kicker'].textContent, 'CAUGHT AN OBSTACLE');
+  assert.equal(f['event-points'].hidden, true);
+  assert.match(root.nodes['[data-callout]'].textContent, /WIPEOUT, CAUGHT AN OBSTACLE/);
+  assert.equal(game.score, banked, 'retiring stale banners preserves already earned points');
+  assert.equal(game.best, record);
+  assert.equal(game.flow, .5 * (1 - SCORE.flowBail), 'the existing crash flow penalty is unchanged');
+  assert.equal(game.combo, comboFor(game.flow)); assert.equal(game.flowHold, 0);
+  for (let i = 0; i < 720; i++) {
+    rider.step(1 / 120, neutral); hud.update(game, 1 / 120);
+    if (!f.event.hidden) assert.equal(f['event-name'].textContent, 'WIPEOUT', 'stale awards never replay through recovery');
+  }
+  assert.equal(rider.state, 'ride'); assert.equal(f.event.hidden, true);
+  assert.equal(game.score, banked);
+  award(40, 'HARE DODGED', 'near'); hud.update(game, .1);
+  assert.equal(f['event-name'].textContent, 'HARE DODGED', 'new earned feedback still works after recovery');
+}
+{
+  const { rider, game } = feedbackFixture();
+  rider.takeOff(4, rider.UP); hud.update(game, .1);
+  hud.banner('PERFECT POP', 0, 'near');
+  rider.strike(0, 1, 1); hud.update(game, 1 / 120);
+  assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a crash also supersedes an airborne callout');
+  assert.equal(f['event-kicker'].textContent, 'CAUGHT AN OBSTACLE');
+}
+{
+  const { rider, game, near, sounds, pulses } = feedbackFixture();
+  const encounter = allowed => {
+    const before = { score: game.score, sounds: sounds.length, pulses: pulses.length };
+    near(rider.pos.x + 1.5, rider.pos.z, 'rabbit');
+    assert.equal(game.score - before.score, allowed ? SCORE.nearMiss * game.combo : 0,
+      'hare reward follows controlled ride/air state: ' + rider.state + '/' + game.mode);
+    assert.equal(sounds.length - before.sounds, allowed ? 1 : 0, 'rejected encounters stay silent');
+    assert.equal(pulses.length - before.pulses, allowed ? 1 : 0, 'rejected encounters do not rumble');
+    if (allowed) assert.equal(sounds.at(-1).name, 'whoosh');
+  };
+  encounter(true);
+  rider.takeOff(4, rider.UP); assert.equal(rider.state, 'air'); encounter(true);
+  assert.equal(rider.strike(0, 1, 1), 'fall'); encounter(false);
+  for (let i = 0; rider.state === 'fall' && i < 1200; i++) rider.step(1 / 120, neutral);
+  assert.equal(rider.state, 'rise'); encounter(false);
+  for (let i = 0; rider.state === 'rise' && i < 240; i++) rider.step(1 / 120, neutral);
+  assert.equal(rider.state, 'ride'); encounter(true);
+  game.mode = 'attract'; encounter(false);
+  game.mode = 'paused'; encounter(false);
+}
+console.log('HUD checks passed: state transitions, charge, flow, live butters, immediate crash feedback, controlled encounter rewards, banners, device prompts, accessibility, safe area, controls disclosure, keyboard/controller focus, bounded help scrolling, and idle DOM writes.');
