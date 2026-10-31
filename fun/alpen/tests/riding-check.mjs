@@ -7,7 +7,7 @@ import { Rider, trickName, speedCeiling, CLEAN, SKETCHY, BAIL } from '../js/ride
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
-import { heightAt, guideAt, getTerrainMaterialAt } from '../js/terrain.js';
+import { heightAt, guideAt, getTerrainMaterialAt, nearestCenter, corridorHalfAt, beyondLipAt } from '../js/terrain.js';
 import { getWorldSeed, setWorldSeed } from '../js/noise.js';
 
 const dt = 1 / 120;
@@ -854,6 +854,185 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   assert.ok(Math.abs(subject.x) < 1 && Math.abs(subject.y) < 1, 'the obstructed portrait view keeps the rider visible');
   assert.ok(portrait.position.y >= 1.5, 'portrait obstruction response preserves ground clearance');
   delete window.matchMedia;
+}
+
+// A slow hop still has a landing line. Real key presses used to make the
+// camera orbit the spinning board, then pass over the rider on touchdown.
+// Include the production drawn-yaw interpolation: a switch landing rewrites
+// physics yaw and stance while its visible yaw is still settling.
+{
+  const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const from = source.indexOf('      const yawStep = trueYaw + rider.yawGlide - stepFromYaw;');
+  const to = source.indexOf('      const flipStep', from);
+  assert(from >= 0 && to > from, 'locate production camera yaw interpolation');
+  const interpolateYaw = new Function('rider', 'trueYaw', 'stepFromYaw', 'stepAlpha', 'TAU',
+    source.slice(from, to));
+  const seed = getWorldSeed(), previousQuery = window.matchMedia, previousPads = pads;
+  const preference = { matches: false };
+  window.matchMedia = () => preference;
+  pads = [];
+  setWorldSeed('ALPEN01');
+  const hill = {
+    height: heightAt, surfaceAt: getTerrainMaterialAt,
+    canStall: (x, z) => Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z),
+    beyond: beyondLipAt,
+  };
+
+  function hop({ hz = 60, reduced = false, shoulder = false, vertical = false,
+    moving = false, spin = true }) {
+    preference.matches = reduced;
+    const world = vertical ? flat : {
+      ...hill,
+      // A natural ALPEN01 wind sample; the outward shoulder pop, not an
+      // injected reverse velocity, creates the nearly opposite departure.
+      windX: shoulder ? .7746942382622937 : 0,
+      windZ: shoulder ? .3916399061551735 : 0,
+    };
+    const r = rider(world), z = shoulder ? -800 : -100;
+    if (!vertical) r.reset(z, guideAt(z) - (shoulder ? 67.5 : 0));
+    const target = new Target(), controls = createInput(target);
+    const key = (type, code) => send(target, type, { code });
+    const cam = new THREE.PerspectiveCamera(65, 16 / 9, .1, 2000);
+    const view = createChaseCamera(THREE, cam);
+    view.update(r, 0, world);
+    const oldLens = vertical ? new THREE.PerspectiveCamera(65, 16 / 9, .1, 2000) : null;
+    const oldView = oldLens ? createChaseCamera(THREE, oldLens) : null;
+    if (oldView) oldView.update(r, 0, world);
+    const priorQ = cam.quaternion.clone(), beforeStep = r.pos.clone();
+    const truePos = new THREE.Vector3(), subject = new THREE.Vector3();
+    const launches = [], landings = [], reseeded = [];
+    let falls = 0, charge = false, released = false, lastStep = 0, drawnYaw = r.yaw;
+    let peak = 0, minBack = Infinity, heldBearing = null, zeroFrames = 0, yawFrom = null;
+    let lastAirYaw = 0, resetChecked = false;
+    r.on('launch', () => {
+      const horizontal = Math.hypot(r.vel.x, r.vel.z);
+      const stance = r.yaw - (r.switchStance ? Math.PI : 0);
+      launches.push({ horizontal, vertical: r.vel.y, yaw: r.yaw,
+        headingDot: horizontal > 0 ? (Math.sin(stance) * r.vel.x - Math.cos(stance) * r.vel.z) / horizontal : 0 });
+    });
+    r.on('land', s => { landings.push(s); view.land(s.impact); });
+    r.on('fall', () => falls++);
+    if (!moving) key('keydown', 'KeyS');
+    if (shoulder) key('keydown', 'KeyA');
+    try {
+      for (let frame = 0; frame < hz * 5; frame++) {
+        const time = frame / hz;
+        if (time + 1e-9 >= 2 && !charge) { key('keydown', 'Space'); charge = true; }
+        if (time + 1e-9 >= 2.45 && !released) {
+          key('keyup', 'Space');
+          // Keeping S held through the vertical landing makes its zero-speed
+          // tail meaningful: a deferred turn cannot hide behind a skate push.
+          if (!vertical) key('keyup', 'KeyS');
+          if (shoulder) key('keyup', 'KeyA');
+          if (spin) key('keydown', 'KeyD');
+          released = true;
+        }
+        controls.update(1 / hz);
+        lastStep += 1 / hz;
+        while (lastStep >= dt) {
+          beforeStep.copy(r.pos);
+          drawnYaw = r.yaw + r.yawGlide;
+          r.step(dt, controls.state);
+          controls.stepped();
+          lastStep -= dt;
+        }
+        const trueYaw = r.yaw, alpha = Math.min(1, lastStep / dt);
+        truePos.copy(r.pos);
+        r.pos.copy(beforeStep).lerp(truePos, alpha);
+        interpolateYaw(r, trueYaw, drawnYaw, alpha, TAU);
+
+        if (vertical && r.state === 'air' && time >= 2.75 && !resetChecked) {
+          resetChecked = true;
+          for (const reset of [false, true]) {
+            const lens = reset ? oldLens : new THREE.PerspectiveCamera(65, 16 / 9, .1, 2000);
+            const chase = reset ? oldView : createChaseCamera(THREE, lens);
+            if (reset) {
+              assert(Math.abs(r.yaw) > 1, 'the reset replaces a different, pre-braking bearing');
+              chase.reset();
+            }
+            chase.update(r, 0, world);
+            const bearing = Math.atan2(r.pos.x - lens.position.x, lens.position.z - r.pos.z);
+            close(bearing, r.yaw - (r.switchStance ? Math.PI : 0),
+              'first/reset zero-dt airborne frame uses its own stance');
+            reseeded.push({ lens, chase, bearing });
+          }
+        }
+        view.update(r, 1 / hz, world);
+        const rotation = priorQ.angleTo(cam.quaternion) * 180 / Math.PI;
+        priorQ.copy(cam.quaternion);
+        if (released) {
+          peak = Math.max(peak, rotation);
+          minBack = Math.min(minBack, Math.hypot(cam.position.x - r.pos.x, cam.position.z - r.pos.z));
+        }
+        assert(cam.position.y >= world.height(cam.position.x, cam.position.z) + 1.5 - 1e-8,
+          'flight and landing keep the live lens above terrain');
+        cam.updateMatrixWorld();
+        subject.copy(r.pos); subject.y += 1;
+        subject.project(cam);
+        assert(Math.abs(subject.x) < 1 && Math.abs(subject.y) < 1, 'the rider stays in frame');
+        for (const entry of reseeded) {
+          entry.chase.update(r, 1 / hz, world);
+          if (r.state === 'air') assert(Math.abs(
+            Math.atan2(r.pos.x - entry.lens.position.x, entry.lens.position.z - r.pos.z)
+              - entry.bearing) < (reduced ? 1e-8 : .001),
+          'zero-speed flight holds a first/reset camera bearing apart from normal chatter');
+        }
+        if (vertical && r.state === 'air') {
+          assert.equal(Math.hypot(r.vel.x, r.vel.z), 0, 'the real stopped hop is vertical');
+          if (yawFrom === null) yawFrom = r.yaw;
+          lastAirYaw = r.yaw;
+          // Comfort removes chatter, so a fixed horizontal bearing can be
+          // compared independently of jump pitch and the changing lens.
+          if (reduced) {
+            const bearing = Math.atan2(r.pos.x - cam.position.x, cam.position.z - r.pos.z);
+            if (heldBearing === null) heldBearing = bearing;
+            close(bearing, heldBearing, 'vertical flight does not follow landing-assist yaw');
+          }
+          zeroFrames++;
+        }
+        r.pos.copy(truePos); r.yaw = trueYaw;
+      }
+    } finally { controls.dispose(); }
+    assert(launches.length > 0 && landings.length > 0 && falls === 0, 'the keys produce a landed hop, not a crash');
+    if (vertical) {
+      assert(resetChecked && zeroFrames > hz * .4, 'first/reset checks run inside a sustained vertical hop');
+      assert(Math.abs(lastAirYaw - yawFrom) > .6, 'real landing assist changes yaw during the held camera bearing');
+      assert.equal(r.speed, 0, 'held braking preserves the stationary landing tail');
+    }
+    return { peak, minBack, launch: launches[0], landings };
+  }
+  try {
+    for (const hz of [60, 144]) for (const reduced of [false, true]) {
+      const slow = hop({ hz, reduced });
+      assert(slow.launch.horizontal < 1.5, 'braking, not a velocity override, produces the slow departure');
+      assert(slow.peak < 360 / hz, `slow hop and landing remain continuous at ${hz}Hz (${slow.peak}°)`);
+      assert(slow.minBack > 5.5, 'slow-hop framing never cuts through the rider');
+      assert(slow.landings[0].landedSwitch, 'the regression includes the switch landing');
+      const stopped = hop({ hz, reduced, vertical: true, spin: false });
+      assert(stopped.peak < 360 / hz, 'zero-speed touchdown rejoins before its air blend expires');
+      assert(stopped.minBack > 5.5, 'the vertical landing retains its boom');
+    }
+    for (const reduced of [false, true]) {
+      // A controlled shoulder start exercises real terrain/pop opposition;
+      // it is not an artificially reversed airborne velocity.
+      for (const spin of [false, true]) {
+        const outward = hop({ reduced, shoulder: true, spin });
+        assert(outward.launch.horizontal < 1.5 && outward.launch.yaw < -1.5,
+          'the shoulder departure retains its slow, outward-facing setup');
+        assert(outward.launch.headingDot < -.99, 'the real pop is nearly opposite the stance heading');
+        assert(outward.peak < 6, 'nearly opposite board/travel cannot collapse the camera bearing');
+        assert(outward.minBack > 5.5, 'an outward pop never sends the boom through the rider');
+      }
+      const moving = hop({ reduced, moving: true });
+      assert(moving.launch.horizontal > 20, 'omitting the brake preserves ordinary downhill speed');
+      assert(moving.peak < 2 && moving.minBack > 7,
+        `moving turns and hops keep their ordinary framing (${moving.peak}°, ${moving.minBack}m)`);
+    }
+  } finally {
+    setWorldSeed(seed); pads = previousPads;
+    if (previousQuery) window.matchMedia = previousQuery;
+    else delete window.matchMedia;
+  }
 }
 
 // Height is an outcome of the directional tangent and a modest leg impulse.

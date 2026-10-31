@@ -945,7 +945,15 @@ function scoreLanding(s) {
   // The sum itself, and the factors that shaped it, are `scoreTrick`'s.
   const trick = scoreTrick(s);
   const name = trickName(s, s.verdict);
-  if (!name || trick.points < SCORE.minTrickScore) return;
+  if (!name || trick.points < SCORE.minTrickScore) {
+    // A short attempt can cost speed without earning a named payout. Keep
+    // its correction visible without awarding points or feeding flow.
+    if (s.verdict === SKETCHY) {
+      hud.banner('SKETCHY LANDING', 0, 'warn', { kicker: s.reason });
+      audio.thud();
+    }
+    return;
+  }
 
   const earned = trick.points;   // before the multiplier: the meter pays for the trick
   // The same move a third time in five pays less (see `repeatShare`). Its

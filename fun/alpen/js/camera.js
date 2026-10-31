@@ -112,7 +112,7 @@ const TREE_NEAR_RADIUS = 0.7;
 const TREE_LENS_RADIUS = 4.4;
 const TREE_PULL_RATE = 18;
 const TREE_RELEASE_RATE = 3.2;
-const RECOVERY_TURN_RATE = 2.5; // radians per second, only while rejoining controlled travel
+const RECOVERY_TURN_RATE = 2.5; // radians per second through flight, touchdown and recovery
 
 /* How much of the boom is clear along one bearing.
 
@@ -322,21 +322,29 @@ export function createChaseCamera(THREE, camera) {
       flat.set(rider.vel.x, 0, rider.vel.z);
       const travel = flat.length();
       tmp.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
+      // A vertical hop has no new travel bearing. Hold through the flight,
+      // then let the landing blend rejoin the grounded stance below.
+      const holdAirBearing = air && started && travel < 1e-4;
       if (travel < 1e-4) {
-        flat.copy(tmp);
+        flat.copy(holdAirBearing ? dir : tmp);
       } else {
-        const trust = clamp((travel - 1.5) / 2, 0, 1);
+        const groundTrust = clamp((travel - 1.5) / 2, 0, 1);
+        // Even a slow flight follows its landing line, not the spinning
+        // board. Reusing the air blend also eases back into a grounded stop.
+        const trust = airBlend + (1 - airBlend) * groundTrust;
         flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
       }
       // A spinning or sideways board says less about its landing line.
       // This also prevents a butter's stance change from reversing the view.
       const across = travel < 1e-4 ? 1
         : Math.abs(tmp.x * rider.vel.x + tmp.z * rider.vel.z) / travel;
-      const velocityBias = 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
+      const velocityBias = holdAirBearing ? 1
+        : 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
       flat.multiplyScalar(velocityBias).addScaledVector(tmp, 1 - velocityBias).normalize();
-      if (recoveryBearing && started) {
+      if ((recoveryBearing || airBlend > 0) && started) {
         // Rejoin along an angular arc, never a chord through the subject.
-        // The recovered course can differ greatly from the entry bearing.
+        // Recovery, a slow outward pop and a switch landing can all put
+        // travel opposite the old bearing. Ordinary ground steering is free.
         const angle = Math.atan2(dir.x * flat.z - dir.z * flat.x, dir.dot(flat));
         const turn = RECOVERY_TURN_RATE * dt;
         if (Math.abs(angle) <= turn) {

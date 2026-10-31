@@ -78,9 +78,18 @@ and the fall timeout. The remaining pitch enters the existing visual glide,
 preserving orientation at recovery and avoiding a permanent inverted stance.
 Checks cover signed and multiple rotations, an existing glide, the rendered
 board orientation after recovery, and the next jump.
+Slow airborne spins favor the travel direction over the board's heading.
+Vertical hops retain their airborne camera bearing, and the existing angular
+transition carries flight and touchdown framing around the rider. Real input
+replays cover braked hops, opposing travel on a shoulder and a vertical hop
+held at rest through landing, including reduced motion and reset boundaries.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+Judged sketchy hops that earn no payout still show their landing reason and
+play the existing thud. Actual incomplete-spin and held-grab trajectories
+check that warning while preserving score, flow and discovery state; clean
+hops and unjudged rollers stay quiet.
 The production crash handler immediately replaces queued celebrations and
 airborne flashes without losing their banked score or best. Hare near-miss
 rewards require controlled riding or flight; falls and getting up cannot
