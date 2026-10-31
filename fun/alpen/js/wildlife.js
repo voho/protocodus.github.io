@@ -1087,11 +1087,6 @@ export function createWildlife(THREE, shading) {
         r.hop += dt * 0.9;
       }
 
-      if (!r.seen && dist < 2.6 && Math.abs(dz) < 2.0) {
-        r.seen = true;
-        onNear(r.x, r.z, 'rabbit');
-      }
-
       /* A bound is a bounce, a squash and — now — a pitch, all on the one
          phase. The period is the trap here. `|sin|` makes a single bound a
          *half* cycle of `hop`, so anything driving the pitch has to have that
@@ -1112,6 +1107,16 @@ export function createWildlife(THREE, shading) {
       const squash = 1 + Math.cos(r.hop * 2) * 0.12 * land + idle * (1 - land);
       const pitch = Math.sin(r.hop * 2) * 0.30 * land + Math.sin(r.hop * 0.9) * 0.05 * (1 - land);
       v.set(r.x, heightAt(r.x, r.z) + bounce * 0.55, r.z);
+      // A near miss belongs to the animal's drawn position, including its
+      // bound. Flying high above it is not an encounter. Reuse the ground
+      // sample above so this spatial check needs no extra terrain query.
+      if (!r.seen) {
+        const nx = r.x - rx, ny = v.y - rider.pos.y, nz = r.z - rz;
+        if (Math.abs(nz) < 2.0 && nx * nx + ny * ny + nz * nz < 2.6 * 2.6) {
+          r.seen = true;
+          onNear(r.x, r.z, 'rabbit');
+        }
+      }
       // YXZ, not the default XYZ: the pitch has to happen about the hare's
       // own lateral axis, and under XYZ it would be about the world's — so a
       // hare running along +X would rock sideways instead of bounding.
