@@ -371,6 +371,7 @@ for (const tuck of [false, true]) {
   assert.ok(aheadAt !== null && aheadAt > -7.5,
     `the lip is announced before it arrives (${aheadAt})`);
   assert.ok(r.lipReady, 'and lit when it does');
+  assert(!r.pumpReady, 'a live lip release cannot also promise a grounded pump');
   r.step(dt, neutral);
   assert.equal(r.state, 'air');
   assert.equal(r.lipPop, true, 'releasing while lit is the lip pop');
@@ -598,7 +599,8 @@ function send(target, type, values = {}) {
     r.on('land', summary => lands.push(summary));
     let steering = 0, peak = 0, before, after;
     const snapshot = () => ({ state: r.state, charge: r.charge, charging: r.charging,
-      buffer: r._jumpBuffer, bend: r.bend, lip: r.lipPop, velocity: r.vel.toArray() });
+      buffer: r._jumpBuffer, bend: r.bend, lip: r.lipPop, lipReady: r.lipReady,
+      lipAhead: r.lipAhead, pumpReady: r.pumpReady, velocity: r.vel.toArray() });
     try {
       for (let frame = 0; frame < release + 90; frame++) {
         const error = Math.atan2(guideAt(r.pos.z - 25) - r.pos.x, 25)
@@ -632,6 +634,8 @@ function send(target, type, values = {}) {
       const weak = releaseOnRoller(873, duration);
       assert(weak.after.bend > RIDER.pumpFrom && weak.after.bend < RIDER.pumpFrom + .01,
         'real snow puts the release just inside the compression branch');
+      assert(!weak.before.pumpReady,
+        'compression that cannot apply meaningful speed does not promise a pump');
       assert.equal(weak.after.state, 'air', 'an unapplied pump must honor the released jump');
       assert.equal(weak.launches.length, 1, 'the release launches once');
       assert.deepEqual(weak.pumps, [], 'a weak pump cannot also pay speed');
@@ -639,23 +643,29 @@ function send(target, type, values = {}) {
         'the fallback keeps the actual held charge');
       assert.equal(weak.launches[0].lip, false, 'ordinary compression does not earn a lip bonus');
       assert.equal(weak.after.charge, 0); assert.equal(weak.after.charging, false);
+      assert(!weak.after.pumpReady, 'the airborne release clears pump guidance');
       assert.equal(weak.after.buffer, 0, 'the spent release cannot queue another launch');
       assert(weak.peak > (duration === 6 ? .3 : .9), 'the requested tap/full jump clears the snow');
       assert.equal(weak.lands.length, 1); assert.equal(weak.lands[0].verdict, CLEAN);
 
       const normal = releaseOnRoller(874, duration);
+      assert(!normal.before.pumpReady, 'ordinary charged hops retain flight guidance');
       assert(normal.after.bend < RIDER.pumpFrom, 'one frame later is outside the pump branch');
       assert.deepEqual(normal.launches, weak.launches, 'the neighboring release keeps the same pop');
       assert.deepEqual(normal.pumps, []);
       assert(Math.abs(normal.peak - weak.peak) < .02, 'the narrow load boundary does not swallow jump height');
     }
     const untouched = releaseOnRoller(770, 0);
+    assert(!untouched.before.pumpReady, 'compression alone cannot offer an uncharged pump');
     for (const duration of [6, 30]) {
       const pumped = releaseOnRoller(770, duration);
+      assert.equal(pumped.before.pumpReady, true, 'the held charge exposes its accepted speed release');
+      assert.equal(pumped.before.lipReady, false); assert.equal(pumped.before.lipAhead, false);
       assert(pumped.after.bend > RIDER.pumpFrom + .2, 'the stronger compression is also real terrain');
       assert.deepEqual(pumped.launches, [], 'an accepted pump spends the release on speed');
       assert.equal(pumped.pumps.length, 1); assert(pumped.pumps[0] > .1);
       assert.equal(pumped.after.charge, 0); assert.equal(pumped.after.charging, false);
+      assert(!pumped.after.pumpReady, 'spending the charge retires pump guidance');
       assert.equal(pumped.after.buffer, 0); assert.equal(pumped.after.lip, false);
       const v = pumped.after.velocity, ordinary = untouched.after.velocity;
       close(Math.hypot(v[0] - ordinary[0], v[2] - ordinary[2]), pumped.pumps[0],
@@ -663,6 +673,15 @@ function send(target, type, values = {}) {
       close(v[1], ordinary[1], 'the pump does not add a vertical pop');
       assert.equal(pumped.peak, 0, 'the pump stays on the snow');
     }
+    // Readiness reports the completed step, as the lip cue does. The next
+    // release still reads its own terrain, even when a roller ends between frames.
+    const leaving = releaseOnRoller(772, 30);
+    assert.equal(leaving.before.pumpReady, true, 'the last held step still has useful compression');
+    assert(!leaving.after.pumpReady);
+    assert.equal(leaving.after.state, 'air', 'crossing the threshold cannot latch the prior pump');
+    assert.deepEqual(leaving.pumps, []);
+    assert.equal(leaving.launches.length, 1);
+    close(leaving.launches[0].pop, RIDER.popMax, 'the next step honors the full-charge hop');
     const unpressed = releaseOnRoller(873, 0);
     assert.deepEqual(unpressed.launches, []); assert.deepEqual(unpressed.pumps, []);
     assert.equal(unpressed.peak, 0, 'crossing the weak compression alone does not invent a jump');

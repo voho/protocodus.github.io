@@ -194,6 +194,16 @@ export const GRAB_METHOD = 2;
 // Hoisted so the hot path never carries an object literal.
 const GROOMED_FALLBACK = { rock: 0, groomed: 1, ice: 0, powder: 0 };
 
+// The forward impulse a compression can pay, shared by release and guidance.
+function pumpDrive(charge, bend, flatSpeed) {
+  const load = clamp(
+    (bend - RIDER.pumpFrom) / Math.max(1e-3, RIDER.bendMax - RIDER.pumpFrom),
+    0, 1,
+  );
+  const drive = RIDER.pumpSpeed * charge * load;
+  return flatSpeed > 1e-3 && drive > 0.05 ? drive : 0;
+}
+
 /* The top speed a surface will carry, in m/s, at a given share of flow.
 
    Flow opens the ceiling continuously from `baseMaxSpeed` to `maxSpeed`, and
@@ -410,6 +420,12 @@ export class Rider {
     const len = Math.hypot(tx, ty, tz) || 1;
     const signed = (this.vel.x * tx + this.vel.y * ty + this.vel.z * tz) / len;
     return signed * (this.switchStance ? -1 : 1);
+  }
+
+  // Like lipReady, this reports the current snow, not a future terrain sample.
+  get pumpReady() {
+    return this.charging && this.grounded && this.state === 'ride' && !this.lipReady
+      && pumpDrive(this.charge, this.bend, Math.hypot(this.vel.x, this.vel.z)) > 0;
   }
 
   /* The course is endless rather than circular: -Z is always towards the next
@@ -1689,15 +1705,11 @@ export class Rider {
            The pop is spent rather than added to, so a player cannot have both.
            Timing the release to the ground is the skill, and the read-out for
            whether they got it right is the speed itself. */
-        const load = clamp(
-          (this.bend - RIDER.pumpFrom) / Math.max(1e-3, RIDER.bendMax - RIDER.pumpFrom),
-          0, 1,
-        );
-        const drive = RIDER.pumpSpeed * held * load;
         const flat = Math.hypot(vel.x, vel.z);
+        const drive = pumpDrive(held, this.bend, flat);
         // Spend the pop only when the compression actually drives the board.
         // A rejected pump still owes the player their requested hop.
-        if (flat > 1e-3 && drive > 0.05) {
+        if (drive > 0) {
           vel.x += (vel.x / flat) * drive;
           vel.z += (vel.z / flat) * drive;
           this.emit('pump', drive);

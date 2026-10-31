@@ -367,7 +367,9 @@ export function createHud(root) {
       const lip = g.rider.lipReady ? 'ready' : g.rider.lipAhead ? 'ahead' : 'none';
       text('charge-label', lip === 'ready' ? 'Pop now — on the lip'
         : lip === 'ahead' ? 'Hold it — lip ahead'
-          : g.rider.charge > 0.995 ? 'Release to fly' : 'Load the legs');
+          : g.rider.charge > 0.995
+            ? g.rider.pumpReady ? 'Release for speed' : 'Release to fly'
+            : 'Load the legs');
       if (fields.charge.dataset.lip !== lip) fields.charge.dataset.lip = lip;
     }
     drawIn -= dt;
