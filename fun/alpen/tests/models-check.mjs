@@ -11,13 +11,13 @@ const upgraderStub = 'data:text/javascript;base64,' + Buffer.from(
   'export function createModelUpgrader() { const none = () => {}; '
   + 'return { upgrade: none, upgradeTextured: none, upgradeTexturedSet: none }; }',
 ).toString('base64');
-async function load(file, exports = []) {
+async function load(file, exports = [], imports = {}) {
   const url = new URL('js/' + file, base);
   let source = await readFile(url, 'utf8');
   source = source.replace(/^import \{ GLTFLoader \}.*$/m, '')
     .replace(/from\s+(['"])\.\/importedModels\.js\1/g, `from '${upgraderStub}'`)
     .replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
-      (_, quote, path) => `from ${quote}${new URL(path, url).href}${quote}`)
+      (_, quote, path) => `from ${quote}${imports[path] || new URL(path, url).href}${quote}`)
     .replaceAll('import.meta.url', JSON.stringify(url.href));
   if (exports.length) source += '\nexport { ' + exports.join(', ') + ' };';
   return import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
@@ -113,6 +113,101 @@ for (const key of wildlifeNames) {
   assert.ok(rabbits.count > 0 && reveal.array[0] < 0.1, 'a hare placed this frame has not yet arrived');
   for (let i = 0; i < 80; i++) life.update(1 / 60, rider, () => {}, () => {});
   assert.equal(reveal.array[0], 1, 'a hare is fully there after its arrival time');
+}
+
+/* A hare's coast after fleeing follows the same path on fast and slow
+   displays. The reference is the shipped 60 Hz damp-then-move trajectory,
+   not a copy of the new continuous integration formula. */
+{
+  const { WILDLIFE } = await import('../js/config.js');
+  const terrainUrl = new URL('js/terrain.js', base).href;
+  const queries = ['heightAt', 'centersAt', 'nearestCenter', 'corridorHalfAt'];
+  const countedTerrain = 'data:text/javascript;base64,' + Buffer.from(
+    `import * as terrain from ${JSON.stringify(terrainUrl)};\n`
+    + 'export const calls = {};\n'
+    + queries.map(name => `export function ${name}(...args) { calls.${name} = (calls.${name} || 0) + 1; return terrain.${name}(...args); }`).join('\n'),
+  ).toString('base64');
+  const { calls } = await import(countedTerrain);
+  const measured = await load('wildlife.js', [], { './terrain.js': countedTerrain });
+  const StubTHREE = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+  const realFetch = globalThis.fetch, warn = console.warn;
+  let life;
+  try {
+    globalThis.fetch = async () => ({ ok: false, status: 404 });
+    console.warn = () => {};
+    life = measured.createWildlife(StubTHREE, { apply: material => material, uniforms: {} });
+    await life.modelled;
+  } finally { globalThis.fetch = realFetch; console.warn = warn; }
+  const player = { pos: new THREE.Vector3(100, 0, -1000), distance: 0, speed: 0, vel: new THREE.Vector3() };
+  const target = life.hares[0], yaw = Math.PI * .3, speed = WILDLIFE.rabbitSpeed * .25;
+  const pools = life.group.children.slice();
+  const buffers = pools.map(mesh => mesh.instanceMatrix?.array);
+  const near = (actual, expected, label) => assert(Math.abs(actual - expected) < 1e-9,
+    `${label}: ${actual} / ${expected}`);
+  const reset = (flee = 0) => {
+    life.hares.forEach((hare, i) => Object.assign(hare, {
+      x: i * 8, z: -1100 - i * 5, yaw, vx: i ? 0 : Math.sin(yaw) * speed,
+      vz: i ? 0 : Math.cos(yaw) * speed, flee: i ? 0 : flee, hop: 0, alive: true, seen: true, born: 0,
+    }));
+  };
+  const update = dt => {
+    for (const key of queries) calls[key] = 0;
+    life.update(dt, player, () => assert.fail('a distant hare cannot award a near miss'),
+      () => assert.fail('a distant hare cannot hit the rider'));
+    assert.equal(calls.heightAt, WILDLIFE.rabbits, 'coasting needs only the existing one ground sample per hare');
+    for (const key of queries.slice(1)) assert.equal(calls[key], 0, 'no extra placement queries while moving');
+    assert.deepEqual(life.group.children, pools, 'movement keeps the existing mesh pools');
+    pools.forEach((mesh, i) => assert.equal(mesh.instanceMatrix?.array, buffers[i], 'movement reuses instance buffers'));
+  };
+  const sample = () => ({ x: target.x, z: target.z, vx: target.vx, vz: target.vz, hop: target.hop });
+  const legacy = [], expected = { x: 0, z: -1100, vx: Math.sin(yaw) * speed, vz: Math.cos(yaw) * speed };
+  for (let i = 0; i < 60; i++) {
+    expected.vx *= .9; expected.vz *= .9;
+    expected.x += expected.vx / 60; expected.z += expected.vz / 60;
+    legacy.push({ ...expected });
+  }
+  const sameMotion = (actual, expected, label) => {
+    for (const key of ['x', 'z', 'vx', 'vz']) near(actual[key], expected[key], label + ': ' + key);
+  };
+  for (const fps of [20, 30, 60, 120, 240]) {
+    reset();
+    for (let i = 0; i < fps; i++) {
+      update(1 / fps);
+      if (fps === 60) sameMotion(sample(), legacy[i], 'every old 60 Hz step is preserved');
+    }
+    sameMotion(sample(), legacy.at(-1), fps + ' Hz covers the same one-second coast');
+  }
+  reset();
+  const mixed = [1 / 20, 1 / 120, 1 / 30, 0, 1 / 240, 1 / 240]; // 0.1 s, including a redraw
+  for (let i = 0; i < 10; i++) for (const dt of mixed) update(dt);
+  sameMotion(sample(), legacy.at(-1), 'mixed frame times compose the same coast');
+  reset();
+  const frozen = sample();
+  for (let i = 0; i < 10; i++) update(0);
+  assert.deepEqual(sample(), frozen, 'zero-time redraws change neither velocity, position nor hop phase');
+
+  // Already-fleeing motion retains its authored speed/timer and bound rhythm.
+  reset(1.2);
+  let flee = 1.2, x = 0, z = -1100, hop = 0;
+  for (let i = 0; i < 45; i++) {
+    flee -= 1 / 60;
+    const pace = WILDLIFE.rabbitSpeed * Math.max(.25, Math.min(1, flee / 2));
+    x += Math.sin(yaw) * pace / 60; z += Math.cos(yaw) * pace / 60;
+    hop += WILDLIFE.rabbitHop / 60;
+    update(1 / 60);
+    sameMotion(sample(), { x, z, vx: Math.sin(yaw) * pace, vz: Math.cos(yaw) * pace }, 'active fleeing stays unchanged');
+    near(target.flee, flee, 'flee timer'); near(target.hop, hop, 'flee bound phase');
+  }
+  // A rider entering the existing notice radius still starts a fresh bound
+  // away from the rider; midpoint randomness removes only the authored jitter.
+  reset(); target.x = player.pos.x + 10; target.z = player.pos.z - 2; target.hop = 2;
+  const away = Math.atan2(10, -2), random = Math.random;
+  try { Math.random = () => .5; update(1 / 60); } finally { Math.random = random; }
+  near(target.yaw, away, 'notice still chooses the away direction');
+  near(target.flee, 2.6 - 1 / 60, 'notice starts the existing flee timer');
+  near(target.hop, WILDLIFE.rabbitHop / 60, 'notice starts a bound on the snow');
+  near(target.vx, Math.sin(away) * WILDLIFE.rabbitSpeed, 'notice keeps the authored flee speed');
+  near(target.vz, Math.cos(away) * WILDLIFE.rabbitSpeed, 'notice keeps the authored flee speed');
 }
 
 /* The modelled animals (`tools/blender/wildlife.py` → alpine-wildlife.glb).

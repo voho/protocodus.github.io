@@ -613,7 +613,8 @@ const SMOKE_VERT = `
     // Our own ceiling rather than the hardware's: the GL point-size clamp
     // varies by driver and a puff drifting past the lens used to grow smoothly
     // and then snap flat against it. Capped by uniform, it just stops growing.
-    gl_PointSize = min(uMaxSize, max(1.0, aSize * uScale / max(0.001, vDepth)));
+    gl_PointSize = min(uMaxSize, max(1.0,
+      aSize * uScale * projectionMatrix[1][1] / max(0.001, vDepth)));
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -1165,7 +1166,7 @@ export function createHuts(THREE, shading) {
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
       uSnowFresh: shading.uniforms.uSnowFresh,
-      uScale: { value: 300 },
+      uScale: { value: RENDER.buffer.height * 0.5 },
       uMaxSize: { value: 120 },
     },
     vertexShader: SMOKE_VERT,
@@ -1381,14 +1382,10 @@ export function createHuts(THREE, shading) {
     smokeMat.uniforms.uFog.value.copy(w.haze);
     smokeMat.uniforms.uNear.value = w.fogNear;
     smokeMat.uniforms.uFar.value = w.fogFar;
-    /* Point size is in metres and has to become pixels, which needs the
-       camera's field of view — and this module is handed the rider and the
-       weather and nothing else. So it is computed from the nominal FOV and
-       the live framebuffer. The error is real and bounded: at full speed the
-       frame opens to 86° and the puffs are drawn about half again too large,
-       which is the one moment in the run nobody is looking at a chimney. */
-    smokeMat.uniforms.uScale.value = RENDER.buffer.height
-      / (2 * Math.tan((RENDER.fov * Math.PI) / 360));
+    /* The vertex shader applies the render camera's vertical projection to
+       this half-height. Smoke then keeps its size relative to the chimney
+       as the chase lens opens, including camera changes after this update. */
+    smokeMat.uniforms.uScale.value = RENDER.buffer.height * 0.5;
     // A third of the frame is as big as a puff is ever allowed to draw — see
     // the note beside gl_PointSize in the vertex shader. The share must
     // still lose to the driver's own point-size limit: on a tall buffer a
