@@ -2063,7 +2063,10 @@ function frame(now) {
        smooths the train into a buzz, and a request every frame at 144 Hz
        is a request the actuator mostly drops. */
     chatterBuzz -= dt;
-    if (game.mode === 'playing' && rider.chatter > 0.25 && chatterBuzz <= 0) {
+    // A takeoff or impact can end the last physics step before chatter is
+    // cleared. The old edge buzz must not replace that event's pad pulse.
+    if (game.mode === 'playing' && rider.state === 'ride' && rider.grounded
+      && rider.chatter > 0.25 && chatterBuzz <= 0) {
       chatterBuzz = 0.1;
       input.rumble(0.12 + rider.chatter * 0.28, 0.04, 90);
     }
