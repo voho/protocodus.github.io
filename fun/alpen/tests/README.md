@@ -305,6 +305,13 @@ triggers pass their analogue travel through (`brakeAmount`/`tuckAmount`) and
 a half-squeezed brake is half a speed check; the pad's Back button restarts
 once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
+The input-device check also records haptic API calls through the production
+pause and graphics-loss handlers. Those interruptions stop only live effects
+started by this input instance. Completed or expired effects stay untouched,
+and stale playback/reset promises cannot forget or cancel a newer cue after
+resume or controller replacement. Phone cancellation requires an accepted,
+unexpired buzz; optional controller reset APIs have a guarded silent-effect
+fallback.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 `await (await import('./tests/shade-radius-browser-check.mjs')).runShadeRadiusCheck()`

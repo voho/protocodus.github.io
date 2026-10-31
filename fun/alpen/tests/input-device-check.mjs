@@ -1,7 +1,12 @@
 // Run with: node tests/input-device-check.mjs
 // Device hints observe intent without becoming an input-ownership switch.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createInput } from '../js/input.js';
+import { Rider } from '../js/rider.js';
+import { RIDER, SCORE } from '../js/config.js';
 
 class Button extends EventTarget {
   constructor(key) { super(); this.dataset = { key }; }
@@ -196,4 +201,186 @@ input.dispose();
 send(jump, 'pointerdown', { pointerId: 2, button: 0 });
 key('Enter');
 assert.equal(changes.length, beforeDispose, 'disposed event handlers cannot update prompts');
-console.log('Input-device checks passed: fresh activity, held-input stability, controller drift and release, mixed jump ownership, menu provenance, focus suppression, touch capability and disposal.');
+// Recording APIs exercise ownership and native promise ordering; they make
+// no claim about a physical controller or phone motor.
+const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
+const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
+const oldPerformance = globalThis.performance;
+let hapticTime = 0;
+globalThis.performance = { now: () => hapticTime };
+function hapticFixture(phone = false) {
+  hapticTime = 0;
+  const f = { browser: new EventTarget(), plays: [], resets: [], buzzes: [], queries: 0,
+    playMode: 'pending', resetMode: 'pending', buzzAccepted: true };
+  const result = (mode, calls, fields) => {
+    const request = { ...deferred(), ...fields }; calls.push(request);
+    if (mode === 'throw') throw new Error('unsupported');
+    if (mode === 'reject') request.reject(new Error('denied'));
+    return mode === 'void' ? undefined : request.promise;
+  };
+  f.actuator = {
+    playEffect: (kind, effect) => result(f.playMode, f.plays, { kind, ...effect }),
+    reset: () => result(f.resetMode, f.resets, {}),
+  };
+  f.pad = { ...makePad('haptic pad'), vibrationActuator: f.actuator };
+  f.pads = phone ? [] : [f.pad];
+  globalThis.window = f.browser;
+  f.browser.setTimeout = () => assert.fail('haptic ownership needs no wall timer');
+  f.browser.clearTimeout = () => {};
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    getGamepads: () => { f.queries++; return f.pads; },
+    userActivation: { hasBeenActive: true },
+    vibrate: duration => {
+      f.buzzes.push(duration);
+      if (f.buzzAccepted === 'throw') throw new Error('blocked');
+      return f.buzzAccepted;
+    },
+  } });
+  f.input = createInput(f.browser, { key: event => f.onKey?.(event), cancelJump: () => f.cancelJump?.() });
+  if (phone) f.input.bindTouch({ querySelectorAll: () => [] });
+  f.rumble = (duration = 380) => f.input.rumble(1, 1, duration);
+  f.zeroes = () => f.plays.filter(p => p.weakMagnitude === 0 && p.strongMagnitude === 0);
+  return f;
+}
+async function haptics(phone, run) {
+  const f = hapticFixture(phone);
+  try { await run(f); } finally { f.input.dispose(); await flush(); }
+}
+
+try {
+  // Use the real crash and interruption handlers, not a substitute pause.
+  const source = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+  const section = (from, to) => {
+    const start = source.indexOf(from), end = source.indexOf(to, start);
+    assert(start >= 0 && end > start, 'locate production interruption handler');
+    return source.slice(start, end);
+  };
+  const handlers = new vm.Script([
+    section('function cancelJump() {', '\nconst input = createInput'),
+    section('function pause() {', '\nlet lastPassedGate'),
+    section('function onKey(e) {', '\nfunction onMenuAction('),
+    section("touchPause?.addEventListener('click'", "touchMute?.addEventListener('click'"),
+    section("canvas.addEventListener('webglcontextlost'", "\ncanvas.addEventListener('webglcontextrestored'"),
+    section("rider.on('fall',", "\nrider.on('impact',"),
+  ].join('\n'));
+  for (const [phone, cause] of [[false, 'Escape'], [false, 'Start'], [true, 'touch'],
+    [false, 'context loss'], [true, 'context loss']]) await haptics(phone, async f => {
+    const rider = new Rider(THREE, { height: () => 0, canStall: () => false });
+    rider.vel.set(0, 0, -20);
+    const game = { mode: 'playing', flow: .5, flowHold: 0, combo: 1 };
+    const canvas = new EventTarget(), touchPause = new EventTarget();
+    let quiets = 0;
+    const context = vm.createContext({ rider, game, canvas, touchPause, input: f.input, RIDER, SCORE,
+      curtainPointers: new Map(), curtainClickReady: false, curtainClickDevice: null,
+      pausedRendered: false, pausedWorldReady: false, contextLost: false, rearmProps: false,
+      curtain: { dataset: {}, classList: { add() {} }, querySelector: () => null },
+      audio: { crash() {}, quiet() { quiets++; } }, retro: { crash() {}, fade() {} }, chase: { kick() {} },
+      spray: { burst() {} }, hud: { clearBanner() {}, banner() {} }, persistBest() {}, syncCombo() {},
+    });
+    handlers.runInContext(context); f.onKey = context.onKey; f.cancelJump = context.cancelJump;
+    send(f.browser, 'keydown', { code: 'KeyW', key: 'w' }); f.input.update(1 / 60);
+    assert.equal(rider.strike(0, 1, 1), 'fall');
+    if (phone) assert.deepEqual(f.buzzes, [187]); else assert.equal(f.plays[0].duration, 380);
+    hapticTime = 20;
+    if (cause === 'Escape') send(f.browser, 'keydown', { code: 'Escape', key: 'Escape' });
+    else if (cause === 'Start') { f.pad.buttons[9].pressed = true; f.input.update(1 / 60); }
+    else if (cause === 'touch') send(touchPause, 'click', { detail: 1 });
+    else send(canvas, 'webglcontextlost');
+    assert.equal(game.mode, 'paused'); assert.equal(quiets, 1);
+    if (phone) assert.deepEqual(f.buzzes, [187, 0], 'pause cancels the owned phone cue');
+    else assert.equal(f.resets.length, 1, 'pause resets the owned controller cue');
+    f.input.update(1 / 60, true);
+    assert.equal(f.input.state.tuck, true, 'stopping feedback preserves a physically held key');
+  });
+
+  for (const method of ['calm', 'clear', 'dispose', 'orientationchange']) {
+    for (const phone of [false, true]) await haptics(phone, async f => {
+      f.rumble(); const queries = f.queries;
+      if (method === 'orientationchange') send(f.browser, method); else f.input[method]();
+      assert.equal(f.queries, queries, 'cleanup never polls or resets unrelated controllers');
+      if (phone) assert.deepEqual(f.buzzes, [200, 0]); else assert.equal(f.resets.length, 1);
+    });
+  }
+  await haptics(false, async f => {
+    f.input.calm(); assert.equal(f.resets.length, 0, 'idle cleanup never stops an external effect');
+    f.rumble(300); const older = f.plays[0];
+    hapticTime = 10; f.rumble(300); older.resolve('preempted'); await flush();
+    f.input.calm(); f.input.calm();
+    assert.equal(f.resets.length, 1, 'old completion cannot forget a newer effect or duplicate a pending reset');
+    hapticTime = 20; f.rumble(300);
+    f.resets[0].reject(new Error('reset denied')); await flush();
+    assert.equal(f.zeroes().length, 0, 'late reset rejection cannot cancel a new resumed cue');
+    f.input.calm(); assert.equal(f.resets.length, 2, 'the new cue retains independent cancellation ownership');
+  });
+  for (const mode of ['absent', 'throw', 'reject']) await haptics(false, async f => {
+    if (mode === 'absent') delete f.actuator.reset; else f.resetMode = mode;
+    f.rumble(); f.input.calm(); await flush();
+    assert.equal(f.zeroes().length, 1, mode + ': reset falls back to one zero-strength effect');
+    f.zeroes()[0].resolve('complete'); await flush(); f.input.calm();
+    assert.equal(f.zeroes().length, 1, 'a completed stop releases ownership');
+  });
+  for (const failure of ['throw', 'reject']) await haptics(false, async f => {
+    f.rumble(); f.playMode = failure; hapticTime = 10; f.rumble(); await flush();
+    f.input.calm(); assert.equal(f.resets.length, 1, 'a rejected replacement preserves the old live effect');
+  });
+  await haptics(false, async f => {
+    f.rumble(); f.input.calm();
+    hapticTime = 10; f.rumble();
+    f.resets[0].reject(new Error('reset denied')); await flush();
+    assert.equal(f.zeroes().length, 0);
+    f.plays[1].reject(new Error('replacement denied')); await flush();
+    assert.equal(f.zeroes().length, 1, 'if the replacement also fails, cancellation still reaches the old cue');
+  });
+  for (const pendingReset of [false, true]) await haptics(false, async f => {
+    f.rumble();
+    if (pendingReset) { hapticTime = 20; f.input.calm(); }
+    // Chromium can create a new actuator wrapper for a reused pad slot,
+    // while calls through the old wrapper still address that same slot.
+    const replacement = { ...f.actuator };
+    f.pads = [{ ...makePad('replacement in slot zero'), vibrationActuator: replacement }];
+    hapticTime = 30; f.rumble(300);
+    if (pendingReset) {
+      hapticTime = 40; f.resets[0].reject(new Error('old controller disconnected')); await flush();
+      assert.equal(f.zeroes().length, 0, 'old actuator fallback cannot zero the replacement controller');
+    }
+    f.input.calm();
+    assert.equal(f.resets.length, pendingReset ? 2 : 1,
+      'cleanup owns only the newly used actuator in the reused slot');
+  });
+  for (const ended of ['complete', 'expired', 'shorter replacement', 'failed first']) await haptics(false, async f => {
+    f.rumble(300);
+    if (ended === 'complete') f.plays[0].resolve('complete');
+    else if (ended === 'failed first') f.plays[0].reject(new Error('denied'));
+    else if (ended === 'shorter replacement') { hapticTime = 10; f.rumble(20); hapticTime = 31; }
+    else hapticTime = 301;
+    await flush(); f.input.calm();
+    assert.equal(f.resets.length, 0, ended + ': cleanup cannot stop an unowned effect');
+  });
+  await haptics(false, async f => {
+    f.rumble(30); f.input.calm(); hapticTime = 31;
+    f.resets[0].reject(new Error('late reset failure')); await flush();
+    assert.equal(f.zeroes().length, 0, 'expired cancellation cannot replace an external effect');
+  });
+  await haptics(false, async f => {
+    f.playMode = 'void'; f.rumble(100); hapticTime = 20; f.input.calm();
+    assert.equal(f.resets.length, 1, 'hosts without completion promises retain ownership until the deadline');
+  });
+  for (const failure of [false, 'throw']) await haptics(true, async f => {
+    f.rumble(); f.buzzAccepted = failure; hapticTime = 20; f.rumble(30);
+    f.buzzAccepted = true; f.input.calm(); f.input.calm();
+    assert.deepEqual(f.buzzes, [200, 30, 0], 'failed phone requests preserve the prior accepted buzz, stopped once');
+  });
+  for (const state of ['idle', 'expired', 'denied']) await haptics(true, async f => {
+    if (state !== 'idle') { f.buzzAccepted = state !== 'denied'; f.rumble(); }
+    if (state === 'expired') hapticTime = 201;
+    f.input.calm(); assert(!f.buzzes.includes(0), state + ': cleanup leaves unrelated phone vibration alone');
+  });
+} finally {
+  globalThis.performance = oldPerformance;
+  globalThis.window = browser;
+}
+console.log('Input-device checks passed: fresh activity, mixed ownership, menu provenance, touch capability, and owned haptic cancellation across interruptions and promise races.');
