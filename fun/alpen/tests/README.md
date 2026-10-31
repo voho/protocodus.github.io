@@ -8,6 +8,7 @@ node tests/pause-charge-check.mjs
 node tests/camera-occlusion-check.mjs
 node tests/touch-input-check.mjs
 node tests/input-device-check.mjs
+node tests/shortcut-input-check.mjs
 node tests/controller-menu-check.mjs
 node tests/npc-collision-check.mjs
 node tests/flow-check.mjs
@@ -84,6 +85,12 @@ release events and neutral polling cannot steal another device's prompts.
 Unplugging the final controller restores the last non-controller help. The HUD
 check verifies that device changes preserve menu focus and briefly refresh the
 riding hint, while stable input causes no additional presentation writes.
+Shortcut checks send Alt/Ctrl/Meta chords through real input, the main key
+handler and the frame's resume latch. Delivered browser shortcuts cannot
+resume a run or claim riding controls; Shift remains usable, and releasing a
+previously held key still works without disturbing touch or controller holds.
+Menu focus and native button activation also preserve shortcut ownership,
+including Space released after its modifier, without cancelling key defaults.
 Browser QA checks the displayed mappings and complete input-to-menu path,
 including touch-capable layouts using keyboard/controller help and a tap that
 opens help during a device handoff without accidentally starting the run.
@@ -609,12 +616,17 @@ stopped bodies stay quiet. Real fall, bounce, slide and recovery traces check
 both contact transitions and the voice budget. No audio downloads, world geometry,
 textures or render passes were added. The Node audio check covers those
 budgets, the mono fallback and mute/pause/resume behavior.
+Pausing also fades and retires active one-shot effects, including delayed
+notes, so an old reward chime cannot return after resume. Rapid resume can
+play a new cue while the old one finishes its brief fade; an already
+suspended context retires old effects immediately.
 
 The desktop browser check also renders the production audio graph through a
 native `OfflineAudioContext` in an isolated iframe. It checks left/right
 balance, centered-mix parity, airborne/idle sound, body-slide onset and release,
-high-speed timbre and finite,
-unclipped samples without touching the player's live audio or saved settings.
+high-speed timbre and finite, unclipped samples without touching the player's
+live audio or saved settings. One-shot comparisons cover the audible pause
+fade, silence after resume, fresh cues and native/fallback envelope agreement.
 It can be run separately from the game console:
 
 ```js

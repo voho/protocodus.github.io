@@ -92,6 +92,80 @@ export async function runAudioCheck() {
       return Math.sqrt(energy / (2 * (end - start)));
     };
 
+    // OfflineAudioContext supplies the native source clocks and waveform.
+    // Only the wall timer and context lifecycle are controlled: rendering
+    // suspensions let us issue production pause/resume at precise times,
+    // without waiting 350 ms or playing any sound through speakers.
+    async function renderCue({ pause = true, rapid = false, fresh = false,
+      fallback = false, interruptFade = false } = {}) {
+      const originalSetTimeout = scope.setTimeout, originalClearTimeout = scope.clearTimeout;
+      const timers = new Map();
+      let nextTimer = 0, context, lifecycle = 'running';
+      scope.setTimeout = (callback, delay) => {
+        timers.set(++nextTimer, { callback, delay }); return nextTimer;
+      };
+      scope.clearTimeout = id => timers.delete(id);
+      scope.AudioContext = function () {
+        context = new scope.OfflineAudioContext(2, 48000, 48000);
+        activeContext = context;
+        if (fallback) {
+          const gain = context.createGain.bind(context);
+          context.createGain = () => {
+            const node = gain(); node.gain.cancelAndHoldAtTime = undefined; return node;
+          };
+        }
+        return new Proxy(context, {
+          get(target, key) {
+            if (key === 'state') return lifecycle;
+            if (key === 'suspend') return async () => { lifecycle = 'suspended'; };
+            if (key === 'resume') return async () => { lifecycle = 'running'; };
+            const value = Reflect.get(target, key, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        });
+      };
+      try {
+        const audio = createAudio(); audio.start(); audio.cocoa();
+        const quieting = pause ? context.suspend(.05) : null;
+        const resuming = pause ? context.suspend(rapid || interruptFade ? .06 : .4) : null;
+        const rendering = context.startRendering();
+        let quietAt = null, resumeAt = null;
+        if (pause) {
+          await quieting;
+          quietAt = context.currentTime; audio.quiet();
+          assert(timers.size === 1 && [...timers.values()][0].delay === 350, 'production park keeps its 350 ms delay');
+          await context.resume(); await resuming;
+          resumeAt = context.currentTime;
+          if (interruptFade) {
+            lifecycle = 'interrupted';
+            if (interruptFade === 'quiet') audio.quiet();
+          } else if (!rapid) {
+            [...timers.values()][0].callback(); await Promise.resolve();
+            assert(lifecycle === 'suspended', 'the real parking callback suspends the lifecycle');
+            // Wall time can now pass indefinitely; no audio-clock time passes.
+          }
+          audio.start();
+          assert(lifecycle === 'running' && timers.size === 0, 'resume wakes the context and cancels parking');
+          if (fresh) audio.perfectPop();
+          await context.resume();
+        }
+        const buffer = await rendering;
+        const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
+        for (const data of channels) for (const sample of data) {
+          assert(Number.isFinite(sample) && Math.abs(sample) < 1, 'one-shot rendering remains finite and unclipped');
+        }
+        return { channels, quietAt, resumeAt };
+      } finally {
+        scope.setTimeout = originalSetTimeout; scope.clearTimeout = originalClearTimeout;
+      }
+    }
+    const cueRms = (cue, from, to) => {
+      const first = Math.ceil(from * 48000), last = Math.floor(to * 48000);
+      let energy = 0;
+      for (const data of cue.channels) for (let i = first; i < last; i++) energy += data[i] ** 2;
+      return Math.sqrt(energy / ((last - first) * 2));
+    };
+
     const centre = await render();
     const mono = await render({ mono: true });
     let centreError = 0;
@@ -147,6 +221,40 @@ export async function runAudioCheck() {
     assert(flow.brightness > fast.brightness * 1.01,
       'flow speed audibly brightens beyond the old ceiling');
 
+    const continuingCue = await renderCue({ pause: false });
+    const retiredCue = await renderCue();
+    const continuingTail = cueRms(continuingCue, .42, .72);
+    const resumedTail = cueRms(retiredCue, .42, .72);
+    assert(continuingTail > 1e-4, `the uninterrupted cue really has a long audible tail: ${continuingTail}`);
+    assert(resumedTail < 1e-7, `parking then resuming cannot replay a stale one-shot tail: ${resumedTail}`);
+    const fadingSignal = cueRms(retiredCue, retiredCue.quietAt + .012, retiredCue.quietAt + .020);
+    const delayedSignal = cueRms(retiredCue, .11, .25);
+    assert(fadingSignal > 1e-5, `an active cue receives a short audible fade: ${fadingSignal}`);
+    assert(delayedSignal < 1e-7, `the fade ends and delayed notes never sound: ${delayedSignal}`);
+    for (let channel = 0; channel < 2; channel++) for (let i = 0; i < retiredCue.quietAt * 48000; i++) {
+      assert(retiredCue.channels[channel][i] === continuingCue.channels[channel][i], 'retirement preserves the already rendered cue');
+    }
+    const rapidCue = await renderCue({ rapid: true });
+    const rapidTail = cueRms(rapidCue, .11, .3);
+    assert(rapidTail < 1e-7, `rapid resume does not revive the old fade: ${rapidTail}`);
+    const freshCue = await renderCue({ rapid: true, fresh: true });
+    const freshSignal = cueRms(freshCue, .1, .18);
+    assert(freshSignal > 1e-4, `rapid resume still plays a fresh cue: ${freshSignal}`);
+    const fallbackCue = await renderCue({ fallback: true });
+    let fallbackError = 0;
+    for (let channel = 0; channel < 2; channel++) for (let i = 0; i < 48000; i++) {
+      fallbackError = Math.max(fallbackError, Math.abs(fallbackCue.channels[channel][i] - retiredCue.channels[channel][i]));
+    }
+    assert(fallbackError < 1e-6, `fallback cancellation preserves the native held envelope: ${fallbackError}`);
+    const interruptedCue = await renderCue({ interruptFade: 'quiet' });
+    // The limiter has a short look-ahead delay; allow that already rendered
+    // audio to leave, then no fragment of the interrupted fade may follow.
+    const interruptedTail = cueRms(interruptedCue, .07, .085);
+    assert(interruptedTail < 1e-7, `a frozen fade cannot survive the second quiet: ${interruptedTail}`);
+    const directResumeCue = await renderCue({ interruptFade: 'resume' });
+    const directResumeTail = cueRms(directResumeCue, .07, .085);
+    assert(directResumeTail < 1e-7, `resuming a frozen fade directly cannot replay its remainder: ${directResumeTail}`);
+
     const compact = result => Object.fromEntries(
       ['leftRms', 'rightRms', 'brightness', 'peak'].map(key => [key, +result[key].toFixed(6)]));
     return {
@@ -158,6 +266,8 @@ export async function runAudioCheck() {
       body: compact(body), slowBody: compact(slowBody), bodyStopped: compact(bodyStopped),
       bodySignal, slowBodySignal, stoppedBodySignal,
       at42: compact(fast), at84: compact(flow),
+      oneShots: { continuingTail, resumedTail, fadingSignal, delayedSignal,
+        rapidTail, freshSignal, fallbackError, interruptedTail, directResumeTail },
     };
   } finally {
     frame.remove();

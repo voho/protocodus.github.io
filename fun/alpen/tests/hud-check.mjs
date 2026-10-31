@@ -288,6 +288,30 @@ assert.equal(hud.menu('next'), true);
 assert.equal(document.activeElement, button);
 assert.equal(button.dataset.controllerFocus, 'true');
 assert.equal(button.scrollOptions.block, 'nearest', 'navigation reveals its target');
+// Menu-local listeners run before the window input handler. Browser chords
+// must preserve focus, help and controller styling here too, including when
+// Shift accompanies the command modifier; ordinary Shift+Tab is checked above.
+guide.open = true;
+for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) {
+  for (const shiftKey of [false, true]) {
+    for (const node of [curtain, guide, exitLink]) {
+      for (const key of ['Tab', 'Escape', 'Enter']) {
+        let prevented = false, stopped = false;
+        const before = writes, queries = targetQueries;
+        node.listeners.keydown({ key, [modifier]: true, shiftKey,
+          preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+        assert.equal(prevented, false, 'modified menu keys retain browser defaults');
+        assert.equal(stopped, false, 'modified menu keys can reach browser handling');
+        assert.equal(document.activeElement, button, 'a browser chord does not move menu focus');
+        assert.equal(guide.open, true, 'modified Escape does not close help');
+        assert.equal(button.dataset.controllerFocus, 'true', 'a browser chord preserves controller styling');
+        assert.equal(writes, before, 'a browser chord does not rewrite the HUD');
+        assert.equal(targetQueries, queries, 'a browser chord never enumerates menu targets');
+      }
+    }
+  }
+}
+guide.open = false;
 assert.equal(hud.menu('next'), true);
 assert.equal(document.activeElement, summary, 'hidden and disabled targets are skipped');
 assert.equal(button.dataset.controllerFocus, undefined, 'only one target carries controller focus');

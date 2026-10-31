@@ -42,6 +42,7 @@
 import { RIDER } from './config.js';
 
 const NOISE_SECONDS = 2;
+const ONE_SHOT_FADE = 0.025;
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -58,6 +59,7 @@ export function createAudio() {
   let scrape = null;
   let snowPan = null;
   let voices = [];
+  const oneShots = new Set();
   let muted = false;
   let started = false;
   let lastBodyImpact = -Infinity;
@@ -222,6 +224,9 @@ export function createAudio() {
        activation behind it — so if the context has not come up by the next
        frame, the retry below waits on the next genuine gesture. */
     if (ctx.state !== 'running') {
+      // The browser can freeze a pause fade before its scheduled stop.
+      // Retire that silent remainder before the clock starts moving again.
+      retireShots(ctx.currentTime);
       ctx.resume().catch(() => {});
       requestAnimationFrame(() => {
         if (ctx && started && ctx.state !== 'running') armGestureResume();
@@ -330,6 +335,61 @@ export function createAudio() {
 
   /* --- one-shots ------------------------------------------------------- */
 
+  function trackShot(source, gain, start, duration, peak, attack = 0) {
+    const shot = {
+      source, gain, start, peak,
+      retiring: false,
+      attackEnd: start + attack,
+      end: start + duration,
+      stop: start + duration + 0.05,
+    };
+    oneShots.add(shot);
+    source.onended = () => {
+      oneShots.delete(shot);
+      source.disconnect();
+      gain.disconnect();
+      source.onended = null;
+    };
+  }
+
+  function retireShots(t) {
+    for (const shot of oneShots) {
+      // A quick resume must not restore this envelope, and another pause
+      // must not extend its fade. Keep it tracked until it ends, though: a
+      // browser interruption during the fade needs to retire it immediately.
+      if (shot.retiring && ctx.state === 'running') continue;
+      shot.retiring = true;
+      const gain = shot.gain.gain;
+      if (ctx.state !== 'running' || t <= shot.start || t >= shot.stop) {
+        // Delayed notes have not sounded yet. An interrupted context is
+        // already silent; fading against its frozen clock would save a
+        // fragment of the old cue to play on the next resume.
+        gain.cancelScheduledValues(t);
+        gain.setValueAtTime(0, t);
+        shot.source.stop(t);
+        continue;
+      }
+      if (typeof gain.cancelAndHoldAtTime === 'function') {
+        gain.cancelAndHoldAtTime(t);
+      } else {
+        // Older contexts can cancel automation but cannot hold its current
+        // value. These two authored envelopes are simple enough to recover
+        // that value exactly, including a pause during a tone's attack.
+        const level = t < shot.attackEnd
+          ? shot.peak * (t - shot.start) / (shot.attackEnd - shot.start)
+          : t < shot.end
+            ? shot.peak * Math.pow(0.0001 / shot.peak,
+              (t - shot.attackEnd) / (shot.end - shot.attackEnd))
+            : 0.0001;
+        gain.cancelScheduledValues(t);
+        gain.setValueAtTime(level, t);
+      }
+      const stop = Math.min(t + ONE_SHOT_FADE, shot.stop);
+      gain.linearRampToValueAtTime(0, stop);
+      shot.source.stop(stop);
+    }
+  }
+
   /* Both one-shot builders refuse to schedule into a context that is not
      running. A sound scheduled against a suspended clock would sit in the
      queue and all play at once, stale, on the next resume, which is worse
@@ -351,6 +411,7 @@ export function createAudio() {
     o.connect(g).connect(master);
     o.start(t);
     o.stop(t + dur + 0.05);
+    trackShot(o, g, t, dur, gain, 0.012);
   }
 
   function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null, pan = 0) {
@@ -377,12 +438,14 @@ export function createAudio() {
         src.connect(f).connect(g).connect(panner).connect(master);
         src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
         src.stop(t + dur + 0.05);
+        trackShot(src, g, t, dur, gain);
         return;
       } catch { /* fallback to standard routing */ }
     }
     src.connect(f).connect(g).connect(master);
     src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
     src.stop(t + dur + 0.05);
+    trackShot(src, g, t, dur, gain);
   }
 
   return {
@@ -603,6 +666,9 @@ export function createAudio() {
       if (!started || !ctx) return;
       const t = now();
       for (let i = 0; i < voices.length; i++) voices[i].gain.gain.setTargetAtTime(0, t, 0.06);
+      // Long chimes and crash tails must finish before the context parks,
+      // rather than freezing mid-note and returning after the menu closes.
+      retireShots(t);
       ambienceAt = -Infinity;
       snowContact = null;
       bodyContact = null;

@@ -165,13 +165,16 @@ export function createHud(root) {
   }
 
   // Help and navigation must not trigger the curtain's click-anywhere start.
+  // Browser chords pass through before any menu state or focus is changed.
   exitLink?.addEventListener('click', event => event.stopPropagation());
   exitLink?.addEventListener('keydown', event => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     clearControllerFocus();
     if (event.key !== 'Tab' && event.key !== 'Escape') event.stopPropagation();
   });
   guide?.addEventListener('click', event => event.stopPropagation());
   guide?.addEventListener('keydown', event => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     clearControllerFocus();
     if (event.key === 'Tab' || (event.key === 'Escape' && !guide.open)) return;
     event.stopPropagation();
@@ -181,6 +184,7 @@ export function createHud(root) {
     }
   });
   curtain?.addEventListener('keydown', event => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     clearControllerFocus();
     if (event.key !== 'Tab') return;
     event.preventDefault();
