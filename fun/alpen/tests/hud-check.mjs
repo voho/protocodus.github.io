@@ -629,7 +629,7 @@ function milestoneFixture() {
   };
   return fixture;
 }
-function rideToTumblingMilestone() {
+function guidedCrashFixture(chargeBelow, gateEnd) {
   setWorldSeed('ALPEN01');
   const fixture = milestoneFixture(), { rider, game, context } = fixture;
   const world = { height: heightAt, surfaceAt: getTerrainMaterialAt,
@@ -638,11 +638,11 @@ function rideToTumblingMilestone() {
   rider.world = context.world = world; rider.reset(0, guideAt(0));
   const weather = createWeather(THREE); game.weather = weather.state;
   game.chapter = chapterNameAt(0);
-  context.props.gates = gateSlotsIn(-1500, 0).map(gate => ({ ...gate, half: PROPS.gateHalf, taken: false }));
+  context.props.gates = gateSlotsIn(gateEnd, 0).map(gate => ({ ...gate, half: PROPS.gateHalf, taken: false }));
   let frame = 0, turn = 0, chargeAt = -1, fallAt = -1, crossingPoints = 0;
   rider.on('fall', () => { fallAt = frame / 60; });
   const step = () => {
-    if (chargeAt < 0 && rider.pos.z < -970 && rider.grounded) chargeAt = frame;
+    if (chargeAt < 0 && rider.pos.z < chargeBelow && rider.grounded) chargeAt = frame;
     const error = guideAt(rider.pos.z - 26) - rider.pos.x;
     const want = Math.atan2(error, 30) - Math.atan2(rider.vel.x, -rider.vel.z);
     turn += (Math.max(-1, Math.min(1, want * 2.4)) - turn) / 12;
@@ -662,11 +662,15 @@ function rideToTumblingMilestone() {
     if (!flag && game.maxDistanceAnnounced) crossingPoints = game.score - before;
     frame++;
   };
+  return { ...fixture, step, age: () => frame / 60 - fallAt, crossingPoints: () => crossingPoints };
+}
+function rideToTumblingMilestone() {
+  const fixture = guidedCrashFixture(-970, -1500), { rider, game, step } = fixture;
   for (let i = 0; i < 3600 && !game.maxDistanceAnnounced; i++) step();
   assert.equal(rider.state, 'fall'); assert.equal(rider.fallReason, 'UPSIDE DOWN');
-  assert(rider.pos.z < -1000 && frame / 60 - fallAt < .3);
-  assert.equal(crossingPoints, 500, 'crossing pays the actual ×2 multiplier immediately');
-  return { ...fixture, step, age: () => frame / 60 - fallAt };
+  assert(rider.pos.z < -1000 && fixture.age() < .3);
+  assert.equal(fixture.crossingPoints(), 500, 'crossing pays the actual ×2 multiplier immediately');
+  return fixture;
 }
 {
   const seed = getWorldSeed();
@@ -771,6 +775,129 @@ for (const [level, airborne] of [[1000, false], [5000, true]]) {
   assert(rider.pos.z <= -1000);
   assert.equal(sounds.filter(s => s.name === 'descentMilestone').length, 1);
   assert.equal(game.score, banked, 'recrossing after a rebound cannot pay twice');
+}
+// A later failed flip crosses a real terrain chapter while tumbling. The
+// location is still news after recovery, but cannot shorten the crash reason
+// or spend its own hold while the player has no control.
+{
+  const seed = getWorldSeed();
+  const observeChapters = run => {
+    const notices = [];
+    run.context.hud = { ...hud, banner(...args) {
+      if (args[3]?.kicker === 'Entering') notices.push({ name: args[0], state: run.rider.state });
+      hud.banner(...args);
+    } };
+    return notices;
+  };
+  const crossWhileFalling = () => {
+    const run = guidedCrashFixture(-1550, -2200), notices = observeChapters(run);
+    const previousChapter = run.game.chapter;
+    for (let i = 0; i < 4800 && run.rider.pos.z > -1590; i++) run.step();
+    assert.equal(run.rider.state, 'fall'); assert.equal(run.rider.fallReason, 'UPSIDE DOWN');
+    assert(run.age() > .3 && run.age() < 1, 'the real chapter crossing occurs during the crash hold');
+    assert.notEqual(chapterNameAt(run.rider.pos.z), previousChapter);
+    return { ...run, notices, previousChapter };
+  };
+  try {
+    const run = crossWhileFalling(), { rider, game, context, notices, previousChapter } = run;
+    const banked = game.score, record = game.best;
+    assert.equal(f.event.hidden, false); assert.equal(f['event-name'].textContent, 'WIPEOUT');
+    context.pause(); run.frame(2);
+    assert.equal(notices.length, 0, 'pause cannot announce the chapter crossed during the fall');
+    assert.equal(game.chapter, previousChapter);
+    context.begin(); run.frame(0);
+    let sawRise = false, lastWipeoutAge = 0, announcedDuringRecovery = false, changedDuringRecovery = false;
+    for (let i = 0; i < 720 && rider.state !== 'ride'; i++) {
+      run.step(); sawRise ||= rider.state === 'rise';
+      if (!f.event.hidden && f['event-name'].textContent === 'WIPEOUT') lastWipeoutAge = run.age();
+      if (run.age() < 2.18) {
+        assert.equal(f.event.hidden, false, 'the chapter cannot hide the crash reason before its full hold');
+        assert.equal(f['event-name'].textContent, 'WIPEOUT', 'the chapter cannot replace the crash reason early');
+        assert.equal(f['event-kicker'].textContent, 'UPSIDE DOWN');
+      }
+      if (rider.state !== 'ride') {
+        announcedDuringRecovery ||= notices.length > 0;
+        changedDuringRecovery ||= game.chapter !== previousChapter;
+      }
+    }
+    assert(sawRise); assert.equal(rider.state, 'ride');
+    assert.equal(announcedDuringRecovery, false, 'fall and rise do not consume an entering notice');
+    assert.equal(changedDuringRecovery, false, 'the last announced chapter stays unchanged during recovery');
+    assert(lastWipeoutAge >= 2.18, 'WIPEOUT retains its authored 2.2-second hold');
+    const current = chapterNameAt(rider.pos.z);
+    assert.deepEqual(notices, [{ name: current.toUpperCase(), state: 'ride' }]);
+    assert.equal(game.chapter, current, 'recovery announces the rider\'s current chapter');
+    assert.equal(f.event.hidden, false); assert.equal(f['event-name'].textContent, current.toUpperCase());
+    assert.equal(f['event-kicker'].textContent, 'Entering'); assert.equal(f['event-points'].hidden, true);
+    assert.equal(game.score, banked); assert.equal(game.best, record, 'chapter timing does not change banked rewards');
+    for (let i = 0; i < 138; i++) run.frame();
+    assert.equal(f.event.hidden, false, 'the chapter retains its own 2.4-second hold after recovery');
+    for (let i = 0; i < 12; i++) run.frame();
+    assert.equal(f.event.hidden, true); assert.equal(notices.length, 1, 'ordinary repeated checks do not replay the notice');
+
+    const restarted = crossWhileFalling();
+    restarted.context.restart(); restarted.frame();
+    assert.equal(restarted.rider.state, 'ride'); assert(restarted.rider.pos.z > -1590);
+    assert.equal(restarted.game.chapter, chapterNameAt(restarted.rider.pos.z));
+    assert.equal(restarted.notices.length, 0, 'checkpoint restart discards the interrupted chapter crossing');
+    restarted.context.lastPassedGate = { x: guideAt(-1605), z: -1605 };
+    restarted.context.restart(); restarted.frame();
+    assert.equal(restarted.game.chapter, chapterNameAt(-1605));
+    assert.equal(restarted.notices.length, 0, 'a checkpoint inside the next chapter seeds it without a stale notice');
+    assert.equal(f.event.hidden, true);
+
+    // Unlike earned distance, entering an area is no longer news if the
+    // actual collision carries the rider back out before control returns.
+    const rebound = milestoneFixture();
+    rebound.rider.reset(-1589.8, 0); rebound.rider.vel.set(0, 0, -50); rebound.rider.grace = 0;
+    rebound.game.chapter = chapterNameAt(rebound.rider.pos.z);
+    rebound.game.maxDistanceAnnounced = 1000; rebound.game.maxSpeedAnnounced = 100;
+    const reboundNotices = observeChapters(rebound), initialChapter = rebound.game.chapter;
+    const solid = { x: 0, z: -1591.8, r: .7, top: 99, volume: true, kind: 0 };
+    Object.assign(rebound.context, { PROPS, SOFT });
+    rebound.context.props.querySolids = (lo, hi, out) => { out.length = 0; out.push(solid); };
+    rebound.context.huts = { solids: [] };
+    new vm.Script(mainSection('const sweepHit =', '\nconst demoControl =')).runInContext(rebound.context);
+    let crossed = false, recovered = false;
+    for (let tick = 0; tick < 600; tick++) {
+      rebound.context.prev.copy(rebound.rider.pos);
+      rebound.rider.step(1 / 120, neutral); rebound.context.collide();
+      if (tick % 2 === 0) continue;
+      rebound.frame();
+      if (chapterNameAt(rebound.rider.pos.z) !== initialChapter) {
+        crossed = true; assert.equal(rebound.rider.state, 'fall');
+      }
+      if (crossed && rebound.rider.state === 'ride') { recovered = true; break; }
+    }
+    assert(crossed && recovered, 'the real swept collision crosses the chapter and recovers');
+    assert(rebound.rider.pos.z > -1590, 'the real rebound returns to the earlier chapter');
+    assert.equal(rebound.game.chapter, initialChapter);
+    assert.equal(reboundNotices.length, 0, 'recovery does not replay an area already left behind');
+
+    for (const airborne of [false, true]) {
+      const controlled = milestoneFixture(), { rider, game, context } = controlled;
+      rider.world = context.world = { height: heightAt, surfaceAt: getTerrainMaterialAt, canStall: () => false };
+      const start = airborne ? -1580 : -1589;
+      rider.reset(start, guideAt(start)); rider.vel.set(0, 0, -20).projectOnPlane(rider.normal).setLength(20);
+      game.chapter = chapterNameAt(start); game.maxDistanceAnnounced = 1000;
+      const entries = observeChapters(controlled);
+      if (airborne) {
+        for (let i = 0; i < 48; i++) rider.step(1 / 120, { ...neutral, jump: true });
+        rider.step(1 / 120, neutral);
+        assert.equal(rider.state, 'air', 'the controlled chapter case uses a real charged jump');
+      }
+      let checks = 0;
+      context.chapterNameAt = z => { checks++; return chapterNameAt(z); };
+      for (let i = 0; i < 120 && !entries.length; i++) {
+        rider.step(1 / 120, neutral); controlled.frame(1 / 120);
+      }
+      assert.equal(rider.state, airborne ? 'air' : 'ride');
+      assert.equal(checks, 2, 'controlled chapter checks retain their half-second cadence');
+      assert.deepEqual(entries, [{ name: chapterNameAt(rider.pos.z).toUpperCase(), state: rider.state }],
+        'controlled ride and air announce their crossing immediately when the check is due');
+      assert.equal(game.score, 0);
+    }
+  } finally { setWorldSeed(seed); }
 }
 // The actual award callback updates the record before the HUD sees it.
 // The visible target changes only on a strict improvement, including the
