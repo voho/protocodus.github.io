@@ -1903,6 +1903,8 @@ const S_FRAG = `
 `;
 
 export function createStreaks(THREE) {
+  const motionPreference = typeof window === 'undefined' ? null
+    : window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const n = STREAKS.count;
   const geo = new THREE.BufferGeometry();
   const position = new Float32Array(n * 12);   // four corners a streak
@@ -2004,6 +2006,24 @@ export function createStreaks(THREE) {
   };
 
   function update(dt, camera, velocity, speed, wind) {
+    // These ribbons are decorative motion, like the post stack's blur. Keep
+    // the preference live, and retire an existing field even on a zero-time
+    // redraw. Hidden frames need no particle work or buffer uploads.
+    if (motionPreference?.matches) {
+      if (!idle) {
+        for (let i = 0; i < n; i++) blank(i);
+        geo.setDrawRange(0, 0);
+        lines.visible = false;
+        geo.attributes.aAlpha.needsUpdate = true;
+        idle = true;
+      }
+      shownT = 0;
+      // Returning to normal motion starts the usual fade around the current
+      // camera, rather than reviving ribbons left behind while hidden.
+      placed = false;
+      return;
+    }
+
     // The anchor step — see `snapAnchor`.
     const oax = anchor.x;
     const oay = anchor.y;
