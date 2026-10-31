@@ -82,7 +82,9 @@ hiding the air clock or live trick, and a wipeout showing its reason.
 The production crash handler immediately replaces queued celebrations and
 airborne flashes without losing their banked score or best. Hare near-miss
 rewards require controlled riding or flight; falls and getting up cannot
-produce points, a whoosh or a reward pulse.
+produce points, a whoosh or a reward pulse. A real terrain carve and chase
+camera verify that the whoosh follows the hare's displayed side, including
+opposite world-X positions, a centered pass and a rider turning in flight.
 Record feedback uses the production award callback: the first positive score
 sets a personal best, tying a saved record does not, and an active award or
 crash announcement keeps priority. Restart restores the target; idle records
