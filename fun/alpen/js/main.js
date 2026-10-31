@@ -689,6 +689,7 @@ function restart(fullReset = false) {
   game.chapter = chapterNameAt(rider.pos.z);
   chapterCheck = 0;
   chase.reset();
+  retro.clearCrash();
   spray.clear();
   trail.clear();
   wildlife.reset();
@@ -785,6 +786,10 @@ function restartRun() {
   curtainClickReady = false;
   curtainClickDevice = null;
   controllerNotice.hidden = true;
+  // The checkpoint is a fresh attempt: retire the old crash or reward with
+  // the pose and HUD. Starting immediately keeps audio ready without parking.
+  input.calm();
+  audio.quiet();
   audio.start();
   showMuted(audio.muted);
   restart();

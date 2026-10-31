@@ -415,6 +415,53 @@ for (const fallback of [false, true]) for (const pauseAt of [.1, .4, 1]) {
   w.lightningCell = 24; update(); assert.equal(attempts.length, 3, 'non-strikes and zero strength stay silent');
   w.lightningCell++; w.lightningStrength = .8; update();
   assert.equal(played.at(-1), .8, 'a later storm event still sounds normally');
+
+  // Restart uses the same proven retirement path without parking the graph.
+  // Run the production guard/ordering with real active and delayed cues.
+  const restartAt = main.indexOf('function restartRun() {');
+  const restartEnd = main.indexOf('\n/* Any key starts', restartAt);
+  assert(restartAt >= 0 && restartEnd > restartAt);
+  const restartHandler = new vm.Script(main.slice(restartAt, restartEnd));
+  for (const fallback of [false, true]) {
+    const { audio, ctx } = fresh(fallback);
+    audio.crash(RIDER.hardImpact, 'hit'); audio.cocoa(); audio.thunder();
+    const old = shots(ctx), stops = old.map(source => source.stops.at(-1));
+    const loops = ctx.sources.slice(0, 6);
+    let calms = 0, resets = 0, suspends = 0;
+    ctx.suspend = async () => { suspends++; ctx.state = 'suspended'; };
+    const run = vm.createContext({ audio, runStarted: true, bootReady: true, contextLost: false,
+      game: { mode: 'playing' }, input: { calm() { calms++; } }, restart() { resets++; },
+      curtainPointers: new Map(), curtainClickReady: false, curtainClickDevice: null,
+      controllerNotice: { hidden: false }, pausedRendered: true, pausedWorldReady: true,
+      curtain: { classList: { remove() {} } }, retro: { fade() {} }, showMuted() {}, trackRunStart() {},
+    });
+    restartHandler.runInContext(run);
+    for (const [flag, blocked] of [['runStarted', false], ['bootReady', false], ['contextLost', true]]) {
+      const previous = run[flag]; run[flag] = blocked; run.restartRun(); run[flag] = previous;
+    }
+    assert.equal(calms, 0); assert.equal(resets, 0);
+    assert.deepEqual(old.map(source => source.stops.at(-1)), stops, 'rejected restarts leave current feedback alone');
+    ctx.currentTime = .15; run.restartRun();
+    assert.equal(resets, 1); assert.equal(run.game.mode, 'playing');
+    for (const source of old) {
+      assert(source.stops.at(-1) <= .175, 'restart retires every old cue within the existing 25 ms fade');
+      assert.equal(envelope(source).gain.at(.25), 0, 'no old cue survives into the fresh run');
+      if (source.starts[0] > .15) assert.equal(source.stops.at(-1), .15, 'pending arrivals are cancelled before onset');
+    }
+    assert.equal(calms, 1, 'accepted restart calms prior input feedback');
+    const retired = old.map(source => source.stops.at(-1));
+    ctx.currentTime = .155; run.game.mode = 'paused'; audio.quiet(); run.restartRun();
+    assert.deepEqual(old.map(source => source.stops.at(-1)), retired, 'a second restart cannot extend old fades');
+    assert.equal(timers.size, 0); assert.equal(suspends, 0); assert.equal(ctx.state, 'running');
+    assert.equal(audio.context, ctx); assert.deepEqual(ctx.sources.slice(0, 6), loops);
+    assert(loops.every(source => source.stops.length === 0), 'restart reuses all six continuous voices');
+    audio.ambience(20, 0, true, 0);
+    assert(ctx.gains[1].gain.value > 0, 'the new ride immediately restores its current ambience');
+    audio.jump(.7);
+    const current = shots(ctx).filter(source => !old.includes(source));
+    assert.equal(current.length, 2);
+    assert(current.every(source => source.stops[0] > ctx.currentTime + .1), 'new feedback keeps its full envelope');
+  }
 }
 
 // Observe production source schedules and independent AudioParam timelines,
