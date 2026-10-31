@@ -715,7 +715,7 @@ for (let i = 0; i < 240; i++) retro.updateEffects(1 / 60, false);
     const world = { height: () => 0, canStall: () => false };
     const rider = new Rider(THREE, world);
     const game = { mode: 'playing', score: 900, best: 900, combo: 6, flow: 0.5,
-      flowHold: 3, recentTricks: [], discoveredGrabs: new Set() };
+      flowHold: 3, recentTricks: [], discoveredGrabs: new Set(), pendingMilestones: [] };
     const context = vm.createContext({ rider, game, world, retro: post, RIDER, SCORE,
       lastPassedGate: { x: 4, z: -153 }, hadStep: true, rearmProps: false, chapterCheck: 0,
       guideAt: () => 0, nearestCenter: () => 0, corridorHalfAt: () => 24, chapterNameAt: () => 'Piste',
