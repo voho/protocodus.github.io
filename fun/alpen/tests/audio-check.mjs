@@ -627,6 +627,48 @@ function lifecycle() {
 const oldWindow = window, oldRAF = requestAnimationFrame;
 await flushAudioPromises();
 try {
+  // The hint reports an existing recoverable wait; observing it must never
+  // initiate playback, alter gesture ownership, or promise to fix other states.
+  {
+    const previousMute = saved.get('alpen.muted');
+    saved.set('alpen.muted', '0');
+    const f = lifecycle();
+    assert.equal(f.audio.needsGesture, false, 'an untouched title needs no audio gesture');
+    f.audio.start(); await flushAudioPromises();
+    assert.equal(f.audio.needsGesture, false, 'a resume in flight is not yet an armed retry');
+    await f.frame();
+    assert.equal(f.audio.needsGesture, true, 'a refused suspended start exposes its existing retry');
+    const listeners = f.events.activeListeners, resumes = f.ctx.resumes.length;
+    for (let i = 0; i < 100; i++) assert.equal(f.audio.needsGesture, true);
+    assert.equal(f.events.activeListeners, listeners);
+    assert.equal(f.ctx.resumes.length, resumes, 'reading presentation status cannot resume audio');
+    assert.equal(timers.size, 0, 'reading status schedules no work');
+    assert.equal(f.ctx.sources.length, 6);
+    for (const state of ['interrupted', 'closed', 'running']) {
+      f.ctx.state = state;
+      assert.equal(f.audio.needsGesture, false, state + ' is not a suspended gesture wait');
+    }
+    f.ctx.state = 'suspended';
+    f.audio.toggleMute(); assert.equal(f.audio.needsGesture, false, 'muting retires the invitation');
+    f.audio.toggleMute(); assert.equal(f.audio.needsGesture, true, 'unmuting can expose the same pending retry');
+    await f.gesture('pointerdown');
+    assert.equal(f.audio.needsGesture, true, 'a refused gesture keeps the explanation available');
+    f.audio.quiet();
+    assert.equal(f.audio.needsGesture, false, 'parking immediately retires the invitation');
+    await f.park();
+    f.audio.start(); await flushAudioPromises(); await f.frame();
+    f.ctx.resumeMode = 'resolve'; await f.gesture('click');
+    assert.equal(f.audio.needsGesture, false, 'successful recovery clears the invitation');
+    assert.equal(f.ctx.state, 'running');
+    if (previousMute === undefined) saved.delete('alpen.muted');
+    else saved.set('alpen.muted', previousMute);
+
+    const unavailable = lifecycle();
+    delete unavailable.events.AudioContext;
+    unavailable.audio.start(); await unavailable.frame();
+    assert.equal(unavailable.audio.context, null);
+    assert.equal(unavailable.audio.needsGesture, false, 'missing Web Audio cannot be repaired by a gesture');
+  }
   for (const armBeforePause of [false, true]) {
     const f = lifecycle(); f.audio.start(); await flushAudioPromises();
     assert.equal(f.ctx.state, 'suspended'); assert.equal(f.ctx.resumes.length, 1);

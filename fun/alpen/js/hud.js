@@ -27,6 +27,7 @@ const QUEUE_MAX = 4;
    rides the kicker line above them for this long instead of replacing them. */
 const FLASH_HOLD = 1.3;
 const HINT_SECONDS = 7;
+const AUDIO_UNLOCK_DELAY = 0.75;
 const GRAB_RELEASE_LEAD = 0.65;
 const fmt = new Intl.NumberFormat('en-US');
 
@@ -59,7 +60,7 @@ export function createHud(root) {
       <div class="ride-charge" data-hud="charge" hidden><p data-hud="charge-label">Load the legs</p><i class="meter"><i data-hud="charge-fill"></i></i></div>
       <div class="ride-guide" data-hud="guide" hidden></div>
       <p class="ride-hint" data-hud="hint"><span data-input-help="keyboard"><kbd>A</kbd> <kbd>D</kbd> carve <span>·</span> Hold <kbd>Space</kbd>, release to jump</span><span data-input-help="gamepad"><kbd>Left stick</kbd> carve <span>·</span> Hold <kbd>A</kbd>, release to jump</span></p>
-      <p class="ride-tools"><span class="desktop-pause"><span data-input-help="keyboard"><kbd>Esc</kbd> pause</span><span data-input-help="gamepad"><kbd>Start</kbd> pause</span></span><span data-hud="muted" hidden>Sound off</span></p>
+      <p class="ride-tools"><span class="desktop-pause"><span data-input-help="keyboard"><kbd>Esc</kbd> pause</span><span data-input-help="gamepad"><kbd>Start</kbd> pause</span></span><span data-hud="muted" hidden>Sound off</span><span data-hud="audio-unlock" hidden>Tap or press a key for sound</span></p>
     </div>`);
   const fields = Object.fromEntries([...root.querySelectorAll('[data-hud]')].map(node => [node.dataset.hud, node]));
   const readout = root.querySelector('[data-readout]');
@@ -76,6 +77,7 @@ export function createHud(root) {
   let shownScore = 0;
   let bannerName = '', bannerPoints = '', bannerTone = '', bannerKicker = '';
   let bannerTimer = 0, bannerShown = 0, hintTime = 0, drawIn = 0, sayIn = 0;
+  let audioWait = 0;
   const queue = [];
   let flashText = '', flashTone = '', flashTimer = 0;
   let bestPassed = false;
@@ -290,9 +292,13 @@ export function createHud(root) {
     }
   }
 
-  function update(g, dt) {
+  function update(g, dt, needsGesture = false) {
     last = g;
     const playing = g.mode === 'playing';
+    // Ordinary starts settle before this grace period. A real refusal gets
+    // one quiet explanation, retired as soon as recovery is no longer pending.
+    audioWait = playing && needsGesture ? Math.min(AUDIO_UNLOCK_DELAY, audioWait + dt) : 0;
+    hidden('audio-unlock', audioWait < AUDIO_UNLOCK_DELAY);
     const modeChanged = g.mode !== lastMode;
     if (modeChanged) {
       lastMode = g.mode;

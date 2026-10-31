@@ -2080,7 +2080,7 @@ function frame(now) {
      never show the one word ("PAUSED") that explains why nothing is moving,
      and the resume prompt froze mid-blink. Its own signature check keeps a
      still menu costing nothing. */
-  hud.update(game, dt);
+  hud.update(game, dt, audio.needsGesture);
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
