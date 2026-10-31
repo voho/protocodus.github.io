@@ -907,12 +907,93 @@ assert.equal(sprayGeo.drawRange.count, 0, 'restart clears submissions immediatel
     setWorldSeed(previousSeed);
   }
 }
-const streaks = createStreaks(THREE);
-streaks.update(1 / 60, camera, wind, 0, wind);
-assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed ribbons');
-streaks.update(1 / 60, camera, new THREE.Vector3(0, 0, -STREAKS.full), STREAKS.full, wind);
-assert.equal(streaks.lines.geometry.drawRange.count, STREAKS.count * 6);
-assert.equal(streaks.lines.visible, true);
+{
+  const previousMatchMedia = window.matchMedia, previousRandom = Math.random;
+  const preference = { matches: false };
+  let queries = 0, randomCalls = 0;
+  try {
+    window.matchMedia = query => {
+      assert.equal(query, '(prefers-reduced-motion: reduce)');
+      queries++;
+      return preference;
+    };
+    Math.random = () => { randomCalls++; return previousRandom(); };
+    const streaks = createStreaks(THREE), view = camera.clone();
+    const geo = streaks.lines.geometry, attrs = geo.attributes;
+    const velocity = new THREE.Vector3(0, 0, -STREAKS.full);
+    const update = (dt, speed = STREAKS.full) => streaks.update(dt, view, velocity, speed, wind);
+    const clear = field => {
+      assert.equal(field.lines.geometry.drawRange.count, 0, 'reduced motion submits no speed ribbons');
+      assert.equal(field.lines.visible, false);
+      assert.ok(field.lines.geometry.attributes.aAlpha.array.every(value => value === 0),
+        'reduced motion clears every old ribbon');
+    };
+    const versions = () => Object.values(attrs).map(attr => attr.version);
+    update(1 / 60, 0);
+    assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed ribbons');
+    for (let frame = 0; frame < 10; frame++) update(1 / 60);
+    assert.equal(geo.drawRange.count, STREAKS.count * 6);
+    assert.equal(streaks.lines.visible, true);
+    assert.ok(attrs.aAlpha.array.some(value => value > 0.1), 'normal motion reaches visible riding speed');
+
+    preference.matches = true;
+    update(0);
+    clear(streaks);
+    assert.equal(queries, 1, 'the field acquires one live preference at construction');
+    const hiddenVersions = versions(), hiddenRandomCalls = randomCalls;
+    for (let frame = 0; frame < 60; frame++) {
+      view.position.set(1250 + frame * 257, -2000, -10500 - frame * 281);
+      view.rotation.y = frame * 0.01;
+      view.updateMatrixWorld();
+      update(1 / 60);
+    }
+    assert.deepEqual(versions(), hiddenVersions, 'hidden travel does not rewrite or rebase ribbon buffers');
+    assert.equal(randomCalls, hiddenRandomCalls, 'hidden travel does not respawn decorative ribbons');
+
+    preference.matches = false;
+    update(0);
+    clear(streaks);
+    update(1 / 60);
+    assert.equal(streaks.lines.visible, true, 'normal motion resumes on the existing field');
+    assert.equal(geo.drawRange.count, STREAKS.count * 6);
+    const firstAlpha = Math.max(...attrs.aAlpha.array);
+    const forward = view.getWorldDirection(new THREE.Vector3()), offset = new THREE.Vector3();
+    for (let i = 0; i < STREAKS.count; i++) {
+      offset.fromBufferAttribute(attrs.position, i * 4).add(streaks.lines.position).sub(view.position);
+      assert.ok(offset.dot(forward) > 0 && offset.length() < STREAKS.ahead + STREAKS.radius + 10,
+        'restored ribbons are homed ahead of the current camera');
+    }
+    for (let frame = 0; frame < 10; frame++) update(1 / 60);
+    const settledAlpha = Math.max(...attrs.aAlpha.array);
+    assert.ok(firstAlpha > 0 && firstAlpha < settledAlpha / 4,
+      'restored ribbons use their normal gradual fade instead of stale full alpha');
+    assert.equal(queries, 1, 'live preference toggles and updates make no new media queries');
+
+    preference.matches = true;
+    const initiallyCalm = createStreaks(THREE);
+    initiallyCalm.update(0, view, velocity, STREAKS.full, wind);
+    clear(initiallyCalm);
+    preference.matches = false;
+    initiallyCalm.update(1 / 60, view, wind, 0, wind);
+    clear(initiallyCalm);
+    const idleAttrs = Object.values(initiallyCalm.lines.geometry.attributes);
+    const idleVersions = idleAttrs.map(attr => attr.version);
+    preference.matches = true;
+    initiallyCalm.update(0, view, velocity, STREAKS.full, wind);
+    assert.deepEqual(idleAttrs.map(attr => attr.version), idleVersions,
+      'an already idle field needs no upload when reduced motion activates');
+    assert.equal(queries, 2, 'each field retains exactly its construction-time media query');
+    delete window.matchMedia;
+    const fallback = createStreaks(THREE);
+    fallback.update(1 / 60, view, velocity, STREAKS.full, wind);
+    assert.equal(fallback.lines.geometry.drawRange.count, STREAKS.count * 6,
+      'missing matchMedia preserves ordinary speed feedback');
+    assert.equal(fallback.lines.visible, true);
+  } finally {
+    window.matchMedia = previousMatchMedia;
+    Math.random = previousRandom;
+  }
+}
 
 // Smoke owns a world-space size, so its CPU scale is half the live world
 // framebuffer height. The render camera supplies the remaining projection

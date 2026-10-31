@@ -631,12 +631,17 @@ normal rendering path throughout.
 
 ## Riding sound and motion comfort
 
-The system's reduced-motion preference now applies live to the chase camera
-and postprocessing. It removes incidental shake, banking, landing zoom, body
-bob, radial blur and chromatic splitting. Flight framing, terrain clearance
-and the extra room needed by an obstructed portrait camera remain. The riding
+The system's reduced-motion preference now applies live to the chase camera,
+postprocessing and decorative speed streaks. It removes incidental shake,
+banking, landing zoom, body bob, radial blur and chromatic splitting. Flight
+framing, terrain clearance and the extra room needed by an obstructed portrait
+camera remain. The riding
 and graphics checks exercise preference changes in both directions, impact
 response, flight tracking and portrait visibility.
+Speed streaks retire even on a zero-time update, stay idle while hidden, and
+return through their normal fade around the current camera. Checks cover
+live toggles, initial reduced motion, hidden camera travel and absent media
+queries.
 Lightning follows the live preference too. An ambient seeded storm checks
 that enabling reduced motion retires an active flash even on a zero-time
 update, and disabling it rejoins the unchanged storm clock. Other weather
