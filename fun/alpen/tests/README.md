@@ -686,6 +686,13 @@ context, and a resume promise that settles after parking is suspended again.
 Lifecycle checks dispatch real events and control promise settlement to cover
 the fade deadline, delayed retry arming and newer play/pause intent without
 adding wall-clock waits or allocating another audio graph.
+If a controller start leaves audio suspended under browser autoplay rules,
+the existing sound status offers “Tap or press a key for sound” after 0.75
+seconds. It appears only during play while an unmuted context is waiting for
+the existing gesture retry, and clears on unlock, mute or pause. Audio and HUD
+checks cover the waiting state, brief resume delays, idle DOM writes and
+suppression for unavailable, closed or interrupted contexts. The hint adds no
+playback requests or timers.
 
 The desktop browser check also renders the production audio graph through a
 native `OfflineAudioContext` in an isolated iframe. It checks left/right

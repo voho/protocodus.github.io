@@ -480,6 +480,10 @@ export function createAudio() {
     ambience,
     get muted() { return muted; },
     get running() { return started; },
+    // Presentation only: the existing gesture retry still owns recovery.
+    get needsGesture() {
+      return started && !parked && !muted && gestureRetryArmed && ctx?.state === 'suspended';
+    },
     // For the debug hatch, and for checking that a suspended context has
     // actually been brought back rather than assumed to be running
     get context() { return ctx; },

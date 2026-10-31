@@ -124,7 +124,7 @@ kbd {
 .ride-hint > span > span { margin: 0 9px; color: var(--muted); }
 .ride-tools { position: absolute; bottom: var(--bottom); left: var(--left); display: flex; gap: 18px; font-size: var(--ui-label); color: var(--muted); }
 .ride-tools kbd { border: 0; padding: 0; }
-.ride-tools [data-hud='muted'] { color: var(--accent); }
+.ride-tools [data-hud='muted'], .ride-tools [data-hud='audio-unlock'] { color: var(--accent); }
 @keyframes event-in { from { opacity: 0; translate: 0 7px; } to { opacity: 1; translate: 0 0; } }
 
 /* The mountain is the title-screen artwork. Help is a native disclosure. */
@@ -221,6 +221,8 @@ body.touch .ride-hint, body.touch .desktop-pause { display: none; }
 body.touch .restart-run, body.touch .control-guide summary, body.touch .curtain-footer .exit-link { min-height: 44px; }
 body.touch .ride-charge { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); width: 144px; }
 body.touch .ride-tools { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 140px); }
+/* The sound hint shares this row with the 144px charge meter. */
+body.touch .ride-tools [data-hud='audio-unlock'] { max-width: min(160px, calc(100vw - var(--left) - var(--right) - 156px)); }
 
 @media (max-width: 620px) {
   :root { --gutter: 20px; --ui-label: 10px; --ui-copy: 11px; --ui-control: 13px; }

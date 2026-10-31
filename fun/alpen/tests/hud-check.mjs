@@ -433,6 +433,48 @@ assert.equal(writes, beforeStill, 'stable visible values do not write text, visi
 // HUD. A crash must explain itself now, even when a landing/gate/flow payout
 // filled the ordinary award queue one step earlier.
 const mainSource = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
+// Execute the real frame's HUD invocation, so the delayed explanation also
+// proves that main forwards audio status without adding playback operations.
+{
+  const invocation = mainSource.match(/^\s*hud\.update\(game, dt[^\n]*$/m)?.[0];
+  assert.ok(invocation, 'locate the production HUD update');
+  const frame = new vm.Script(invocation);
+  let pending = false;
+  const context = vm.createContext({ hud, game: g, dt: 0,
+    audio: { get needsGesture() { return pending; } },
+  });
+  const update = dt => { context.dt = dt; frame.runInContext(context); };
+  update(0);
+  assert.equal(f['audio-unlock'].hidden, true);
+  pending = true;
+  update(0.7);
+  assert.equal(f['audio-unlock'].hidden, true, 'ordinary resume latency gets a grace period');
+  update(0.05);
+  assert.equal(f['audio-unlock'].hidden, false, 'an unresolved wait gets a quiet actionable hint');
+  const waitingWrites = writes;
+  for (let i = 0; i < 20; i++) update(0.05);
+  assert.equal(writes, waitingWrites, 'a steady unlock hint rewrites no DOM');
+  pending = false; update(0);
+  assert.equal(f['audio-unlock'].hidden, true, 'mute or successful unlock clears without waiting for a draw');
+  pending = true; update(0.7);
+  assert.equal(f['audio-unlock'].hidden, true, 'a new wait starts a fresh grace period');
+  update(0.05);
+  assert.equal(f['audio-unlock'].hidden, false);
+  g.mode = 'paused'; update(0);
+  assert.equal(f['audio-unlock'].hidden, true, 'pause immediately clears the hint');
+  update(2);
+  g.mode = 'attract'; update(2);
+  assert.equal(f['audio-unlock'].hidden, true, 'menus never accumulate an unlock invitation');
+  g.mode = 'playing'; update(0.7);
+  assert.equal(f['audio-unlock'].hidden, true, 'resuming starts the grace from zero');
+  update(0.05);
+  assert.equal(f['audio-unlock'].hidden, false);
+  hud.update(g, 0);
+  assert.equal(f['audio-unlock'].hidden, true, 'callers without optional audio status remain quiet');
+  const clearedWrites = writes;
+  for (let i = 0; i < 10; i++) hud.update(g, 0);
+  assert.equal(writes, clearedWrites, 'a cleared hint is also idle');
+}
 function mainSection(from, to) {
   const start = mainSource.indexOf(from), end = mainSource.indexOf(to, start);
   assert(start >= 0 && end > start, 'locate production feedback handler: ' + from);
