@@ -59,7 +59,7 @@ booking the plough as `scrub` inside `slide` so spray and sound answer it.
 Timing feedback is pinned too: holding a charge towards a pitch break lights
 `lipAhead` a few tenths early and never on the open pitch, `lipReady` is the
 release test itself, releasing while it is lit is the lip pop, and
-`perfectPop` fires after `launch` so the launch's banner clear cannot erase
+`perfectPop` fires after `launch` so the launch's flight handoff cannot erase
 it. Real downhill tap and full-charge flights receive their sound and pad
 pulse even when world-space velocity points down. Natural departures retain
 their existing threshold, and a late lip release keeps its single timing cue.
@@ -95,6 +95,14 @@ refresh rates, with ordinary riding and jump/brake handoffs as controls.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+Buffered hops carry unread landing results onto the next flight's kicker,
+using the existing bounded award queue. Actual Space/Q replays cover seeded
+terrain at 60 and 144 Hz and a landing/launch within one rendered frame on
+flat ground; matched unbuffered flights retain their normal result hold.
+Gate, landing and MAX FLOW results remain ordered behind perfect-pop and
+grab-release guidance, which cannot consume their reading time. Pause keeps
+the handoff; an already readable verdict retires on launch, while restart
+and a crash discard the carried result and waiting queue.
 Judged sketchy hops that earn no payout still show their landing reason and
 play the existing thud. Actual incomplete-spin and held-grab trajectories
 check that warning while preserving score, flow and discovery state; clean

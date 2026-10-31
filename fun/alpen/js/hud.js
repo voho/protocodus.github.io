@@ -30,6 +30,9 @@ const HINT_SECONDS = 7;
 const AUDIO_UNLOCK_DELAY = 0.75;
 const GRAB_RELEASE_LEAD = 0.65;
 const fmt = new Intl.NumberFormat('en-US');
+const needsGrabRelease = rider => rider.state === 'air' && rider.grabbing
+  && rider.airTime >= RIDER.minJudgedAir
+  && rider.touchdownIn >= 0 && rider.touchdownIn <= GRAB_RELEASE_LEAD;
 
 export function createHud(root) {
   // Retained for callers that know the original API. A 1-pixel hidden canvas
@@ -232,12 +235,13 @@ export function createHud(root) {
     text('descent', `${(rider.distance / 1000).toFixed(2)} km  /  ${Math.round(rider.drop)} m ↓`);
     const slope = Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI);
     text('weather', `${g.weather.phase} · ${g.weather.conditions} · ${slope}°`);
-    const inAir = !rider.grounded && rider.airTime > 0.25;
+    const carryingBanner = bannerTimer > 0 && rider.state === 'air';
+    const inAir = !rider.grounded && (rider.airTime > 0.25 || carryingBanner);
     // main.js already publishes a name only after a press has carried a
     // qualifying rotation. Reuse that result; the HUD never judges it again.
     const inButter = g.mode === 'playing' && rider.state === 'ride'
       && rider.grounded && !!g.liveTrick;
-    const showingBanner = bannerTimer > 0;
+    const showingBanner = bannerTimer > 0 && !carryingBanner;
     const flashing = flashTimer > 0;
     hidden('event', !showingBanner && !inAir && !inButter && !flashing);
     if (showingBanner || inAir || inButter || flashing) {
@@ -258,13 +262,14 @@ export function createHud(root) {
         // Use the rider's existing ballistic prediction: this is advice,
         // never an extra terrain query or an automatic release. A brief
         // roller is not a judged trick, and falls are not flights.
-        const releaseGrab = rider.state === 'air' && rider.grabbing
-          && rider.airTime >= RIDER.minJudgedAir
-          && rider.touchdownIn >= 0 && rider.touchdownIn <= GRAB_RELEASE_LEAD;
+        const releaseGrab = needsGrabRelease(rider);
+        const result = bannerPoints ? `${bannerName} ${bannerPoints}` : bannerName;
         kicker = releaseGrab ? `Release grab to land · ${air}`
-          : flashing ? `${flashText} · ${air}` : air;
+          : flashing ? `${flashText} · ${air}`
+            : carryingBanner ? `${result} · ${air}` : air;
         name = g.liveTrick || 'Find your landing';
-        tone = releaseGrab ? 'warn' : flashing && flashTone ? flashTone : 'air';
+        tone = releaseGrab ? 'warn' : flashing ? flashTone || 'air'
+          : carryingBanner ? bannerTone || 'air' : 'air';
       } else if (inButter) {
         kicker = 'Release grab to finish';
         name = g.liveTrick;
@@ -321,7 +326,11 @@ export function createHud(root) {
       if (Math.abs(g.score - shownScore) < 1) shownScore = g.score;
     }
     if (g.mode !== 'paused') {
-      if (bannerTimer > 0) {
+      // A new pop or imminent grab release owns the flight's kicker first.
+      // Time hidden behind that advice must not consume an unread result.
+      const bannerCovered = g.rider.state === 'air'
+        && (flashTimer > 0 || needsGrabRelease(g.rider));
+      if (bannerTimer > 0 && !bannerCovered) {
         bannerTimer = Math.max(0, bannerTimer - dt);
         bannerShown += dt;
       }
@@ -428,6 +437,15 @@ export function createHud(root) {
     drawIn = 0;
   }
 
+  function beginFlight() {
+    // A buffered pop can follow a landing in the same rendered frame. Keep
+    // unread results in the existing queue; in flight they use the kicker.
+    // A verdict already given its reading time can retire as before.
+    if (bannerShown >= BANNER_MIN) bannerTimer = 0;
+    flashTimer = 0;
+    drawIn = 0;
+  }
+
   function setMuted(value) {
     hidden('muted', !value);
   }
@@ -457,5 +475,5 @@ export function createHud(root) {
     if (last) draw(last);
   }
 
-  return { update, banner, clearBanner, setMuted, setInputDevice, menu, resetScore, setSize, canvas };
+  return { update, banner, clearBanner, beginFlight, setMuted, setInputDevice, menu, resetScore, setSize, canvas };
 }

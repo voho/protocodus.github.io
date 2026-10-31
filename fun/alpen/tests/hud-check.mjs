@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createHud } from '../js/hud.js';
+import { createInput } from '../js/input.js';
 import { RIDER, SCORE, PROPS, SOFT } from '../js/config.js';
 import { butterName, Rider, trickName, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
 import { comboFor, scoreTrick, repeatShare, firstGrabShare, flowFromPoints, feedFlow, stepFlowMeter, GRAB_DISCOVERY_BONUS } from '../js/flow.js';
@@ -512,6 +513,137 @@ function feedbackFixture(record = 0) {
   hud.resetScore(); hud.update(game, .1);
   return { rider, camera, game, sounds, pulses, context, award: context.award, near: context.onNear,
     update(dt) { game.liveTrick = context.liveTrickName(); hud.update(game, dt); } };
+}
+// A released charge shortly before contact buffers the next pop. The land
+// and launch can share a rendered frame: exercise actual keys, fixed steps,
+// main's scoring/launch handlers and this retained HUD, not a fabricated award.
+{
+  const seed = getWorldSeed(), savedWindow = globalThis.window;
+  const savedNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const flightHandlers = new vm.Script(
+    mainSection("rider.on('launch',", "\nrider.on('fall',")
+    + mainSection('function stepFlow()', '\n/* Near miss encounters'),
+  );
+  function hop(hz, terrain, buffered) {
+    const run = feedbackFixture(1000), { rider, game, context } = run;
+    Object.assign(game, { flow: 0, flowHold: 0, combo: 1 });
+    Object.assign(context, { STEP: 1 / 120, stepFlowMeter });
+    flightHandlers.runInContext(context);
+    if (terrain) rider.world = { height: heightAt, surfaceAt: getTerrainMaterialAt,
+      canStall: (x, z) => Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z),
+      beyond: beyondLipAt };
+    rider.reset(terrain ? -250 : 0, terrain ? guideAt(-250) : 0);
+    rider.vel.set(0, 0, -1).projectOnPlane(rider.normal).setLength(20);
+    globalThis.window = new EventTarget();
+    const target = new EventTarget(), input = createInput(target), held = new Set();
+    const launches = [], landings = [], frames = [];
+    let frame = 0, tick = 0, bank = 0, secondCharge = false, released = false;
+    rider.on('launch', () => launches.push({ frame, tick }));
+    rider.on('land', summary => landings.push({ frame, tick, summary, score: game.score }));
+    rider.on('fall', () => assert.fail('the ordinary buffered Indy route must stay controlled'));
+    run.update(0);
+    try {
+      for (frame = 1; frame <= hz * 3; frame++) {
+        let jump = (frame - 1) / hz < .45;
+        if (buffered && launches.length === 1 && rider.state === 'air') {
+          if (rider.airTime > .08) secondCharge = true;
+          if (secondCharge && rider.touchdownIn >= 0 && rider.touchdownIn < .09) released = true;
+          jump = secondCharge && !released;
+        }
+        const grab = launches.length === 1 && rider.state === 'air' && rider.airTime < .30;
+        for (const [code, down] of [['Space', jump], ['KeyQ', grab]]) {
+          if (held.has(code) === down) continue;
+          const event = new Event(down ? 'keydown' : 'keyup', { cancelable: true });
+          Object.assign(event, { code }); target.dispatchEvent(event);
+          if (down) held.add(code); else held.delete(code);
+        }
+        input.update(1 / hz); bank += 1 / hz;
+        while (bank >= 1 / 120 - 1e-12) {
+          tick++; rider.step(1 / 120, input.state); input.stepped();
+          context.stepFlow(); bank -= 1 / 120;
+        }
+        run.update(1 / hz);
+        const paid = !f.event.hidden && (f['event-kicker'].textContent.includes('INDY +')
+          || (f['event-name'].textContent === 'INDY' && !f['event-points'].hidden));
+        if (paid && rider.state === 'air') {
+          assert.equal(f['event-name'].textContent, game.liveTrick || 'Find your landing');
+          assert.equal(f['event-points'].hidden, true, 'the new flight keeps its own main readout');
+          assert.match(f['event-kicker'].textContent, /s airtime$/);
+        }
+        frames.push({ frame, paid, airborne: rider.state === 'air' });
+      }
+    } finally { input.dispose(); }
+    assert(landings[0]?.summary.judged);
+    assert.equal(landings[0].summary.verdict, CLEAN);
+    assert.equal(trickName(landings[0].summary, CLEAN), 'INDY');
+    assert(landings[0].summary.airTime > .5 && landings[0].score > 100);
+    return { launches, landings, frames };
+  }
+  try {
+    setWorldSeed('ALPEN01');
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { getGamepads: () => [] } });
+    for (const [hz, terrain] of [[60, true], [144, true], [60, false]]) {
+      const ordinary = hop(hz, terrain, false), buffered = hop(hz, terrain, true);
+      const landing = buffered.landings[0], next = buffered.launches[1];
+      assert.deepEqual(landing.summary, ordinary.landings[0].summary, 'buffering preserves the earned landing');
+      assert.equal(landing.score, ordinary.landings[0].score);
+      assert.equal(next.tick, landing.tick + 1, 'the real jump buffer launches on the next physics step');
+      if (!terrain) assert.equal(next.frame, landing.frame, 'flat control lands and launches in one render batch');
+      const visible = buffered.frames.filter(frame => frame.paid).length / hz;
+      assert(visible > .75, `the fresh payout must be readable, not a single frame: ${hz} Hz / ${terrain} / ${visible}s`);
+      assert(buffered.frames.filter(frame => frame.paid && frame.airborne).length / hz > .25,
+        'the unread result accompanies the next flight without waiting for its landing');
+      assert(ordinary.frames.filter(frame => frame.paid).length / hz > 1.5,
+        'the ordinary unbuffered landing retains its normal hold');
+    }
+  } finally {
+    setWorldSeed(seed); globalThis.window = savedWindow;
+    if (savedNavigator) Object.defineProperty(globalThis, 'navigator', savedNavigator);
+    else delete globalThis.navigator;
+  }
+}
+// The handoff reuses the bounded FIFO. A landing behind a gate, followed by
+// MAX FLOW, must all remain readable; immediate pop/advice can cover them,
+// but cannot spend their reading time. These are HUD scheduling boundaries.
+{
+  const { rider, game, update } = feedbackFixture(10000);
+  hud.banner('GATE ×3', 360, 'near'); hud.banner('INDY', 145); hud.banner('MAX FLOW', 6000, 'near');
+  rider.takeOff(4, rider.UP); game.liveTrick = 'BACKSIDE 180';
+  hud.beginFlight(); hud.banner('PERFECT POP', 0, 'near');
+  hud.update(game, 0);
+  assert.equal(f['event-name'].textContent, 'BACKSIDE 180');
+  assert.equal(f['event-kicker'].textContent, 'PERFECT POP · 0.0 s airtime', 'a same-step pop keeps immediate priority');
+  game.mode = 'paused'; hud.update(game, 20);
+  game.mode = 'playing'; hud.update(game, 0);
+  assert.match(f['event-kicker'].textContent, /^PERFECT POP/);
+  rider.airTime = .8; rider.grabbing = true; rider.touchdownIn = .2;
+  for (let i = 0; i < 40; i++) hud.update(game, .05);
+  assert.match(f['event-kicker'].textContent, /^Release grab to land/);
+  rider.grabbing = false; hud.update(game, .1);
+  assert.match(f['event-kicker'].textContent, /^GATE ×3 \+360/, 'covered time did not consume the unread gate');
+  const shown = new Map();
+  for (let i = 0; i < 90; i++) {
+    hud.update(game, .05);
+    assert.equal(f['event-name'].textContent, 'BACKSIDE 180');
+    assert.equal(f['event-points'].hidden, true);
+    for (const name of ['GATE ×3 +360', 'INDY +145', 'MAX FLOW +6,000']) {
+      if (f['event-kicker'].textContent.startsWith(name)) shown.set(name, (shown.get(name) || 0) + .05);
+    }
+  }
+  assert.deepEqual([...shown.keys()], ['GATE ×3 +360', 'INDY +145', 'MAX FLOW +6,000']);
+  for (const [name, seconds] of shown) assert(seconds >= .6, name + ' gets readable time');
+
+  rider.reset(0, 0); update(0); hud.clearBanner();
+  hud.banner('ALREADY READ', 100); hud.update(game, 1);
+  hud.banner('FRESH IN QUEUE', 200);
+  rider.takeOff(4, rider.UP); hud.beginFlight(); hud.update(game, 0);
+  assert.match(f['event-kicker'].textContent, /^FRESH IN QUEUE \+200/);
+  assert.doesNotMatch(f['event-kicker'].textContent, /ALREADY READ/);
+  hud.resetScore(); hud.update(game, 0);
+  assert.equal(f.event.hidden, true, 'restart clears the carried result and queue');
+  rider.reset(0, 0); update(0); hud.banner('ALREADY READ', 100); hud.update(game, 1);
+  rider.takeOff(4, rider.UP); hud.beginFlight(); hud.update(game, 0);
+  assert.equal(f.event.hidden, true, 'ordinary later launches retire a readable old verdict');
 }
 // Short, incomplete attempts still need their landing reason even when they
 // earn no trick payout. Drive the actual jump and landing rather than handing
@@ -1169,11 +1301,15 @@ for (const saved of [null, '', 'not a score', 'NaN', 'Infinity', '-Infinity', '-
 }
 {
   const { rider, game } = feedbackFixture();
-  rider.takeOff(4, rider.UP); hud.update(game, .1);
+  hud.banner('INDY', 145); hud.banner('MAX FLOW', 6000, 'near');
+  rider.takeOff(4, rider.UP); hud.beginFlight(); hud.update(game, 0);
+  assert.match(f['event-kicker'].textContent, /^INDY \+145/);
   hud.banner('PERFECT POP', 0, 'near');
   rider.strike(0, 1, 1); hud.update(game, 1 / 120);
-  assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a crash also supersedes an airborne callout');
+  assert.equal(f['event-name'].textContent, 'WIPEOUT', 'a crash supersedes carried results and airborne callouts');
   assert.equal(f['event-kicker'].textContent, 'CAUGHT AN OBSTACLE');
+  for (let i = 0; i < 40; i++) hud.update(game, .1);
+  assert.equal(f.event.hidden, true, 'the cleared carry and queue never return after the crash hold');
 }
 {
   const { rider, game, near, sounds, pulses } = feedbackFixture();

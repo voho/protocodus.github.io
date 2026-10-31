@@ -1056,9 +1056,10 @@ rider.on('launch', (vy) => {
     audio.jump(Math.min(1, Math.max(rider.airPop || 0, vy) / 12));
     input.rumble(0.18, 0.0, 70);
   }
-  // Leaving the ground retires the last jump's verdict, so the air clock for
-  // this one has the band to itself — see the note beside it in hud.js.
-  hud.clearBanner();
+  // The new flight owns the band. A buffered pop can arrive before the last
+  // landing was readable, so carry unread results on its kicker instead.
+  if (game.mode === 'playing') hud.beginFlight();
+  else hud.clearBanner();
 });
 
 /* The lip pop, told as it happens rather than a second later.
@@ -1069,7 +1070,7 @@ rider.on('launch', (vy) => {
    confirmed only by a prefix on the landing banner, after the fact and only
    if the landing was clean. Now it is a callout, a sound and a pulse at the
    moment of release. It is emitted AFTER `launch` in the same step, so the
-   banner clear above cannot take it back, and in the air the HUD puts it on
+   flight handoff above cannot take it back, and in the air the HUD puts it on
    the kicker line over the air clock instead of hiding the flight's own
    read-out (see `FLASH_HOLD` in hud.js). */
 rider.on('perfectPop', () => {
