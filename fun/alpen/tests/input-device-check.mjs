@@ -6,7 +6,10 @@ import vm from 'node:vm';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createInput } from '../js/input.js';
 import { Rider } from '../js/rider.js';
-import { RIDER, SCORE } from '../js/config.js';
+import { RIDER, SCORE, SOFT, PROPS } from '../js/config.js';
+import { setWorldSeed } from '../js/noise.js';
+import { heightAt, guideAt, getTerrainMaterialAt, nearestCenter, corridorHalfAt,
+  beyondLipAt } from '../js/terrain.js';
 
 class Button extends EventTarget {
   constructor(key) { super(); this.dataset = { key }; }
@@ -223,7 +226,7 @@ function hapticFixture(phone = false) {
     return mode === 'void' ? undefined : request.promise;
   };
   f.actuator = {
-    playEffect: (kind, effect) => result(f.playMode, f.plays, { kind, ...effect }),
+    playEffect: (kind, effect) => result(f.playMode, f.plays, { at: hapticTime, kind, ...effect }),
     reset: () => result(f.resetMode, f.resets, {}),
   };
   f.pad = { ...makePad('haptic pad'), vibrationActuator: f.actuator };
@@ -308,6 +311,85 @@ try {
       if (phone) assert.deepEqual(f.buzzes, [187, 0, 70], 'the fresh run can buzz immediately');
       else assert.equal(f.plays.length, 2, 'the fresh run can rumble immediately');
     }
+  });
+
+  // A controlled shoulder start, not a replay from the opening piste: the
+  // real seeded snow and boundary rules build chatter under an ordinary
+  // analogue carve. At the final substep, release a charged jump or meet a
+  // representative hard obstacle using main's real sweep and fall handler.
+  // A newer playEffect preempts the older cue, even if the stale chatter
+  // scalar is cleared by the very next physics step.
+  const contactHandlers = new vm.Script([
+    section("rider.on('launch',", "\nrider.on('perfectPop',"),
+    section("rider.on('fall',", "\nrider.on('impact',"),
+    section('const sweepHit =', '\nconst demoControl ='),
+  ].join('\n'));
+  const chatterFrame = new vm.Script(section('    chatterBuzz -= dt;', '    retro.setSpeed('));
+  const hitObstacle = new vm.Script('collideWith(solids, -Infinity, Infinity)');
+  let ordinaryPulses;
+  for (const action of ['ride', 'launch', 'crash']) await haptics(false, async f => {
+    setWorldSeed('ALPEN01');
+    const rider = new Rider(THREE, {
+      height: heightAt, surfaceAt: getTerrainMaterialAt,
+      canStall: (x, z) => Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z),
+      beyond: beyondLipAt, grip: 1, surfaceDrag: 1,
+    });
+    rider.reset(-500, guideAt(-500) - 200);
+    rider.vel.set(0, 0, -1).projectOnPlane(rider.normal).setLength(25);
+    const sounds = [];
+    const context = vm.createContext({ rider, RIDER, SCORE, SOFT, PROPS, input: f.input,
+      game: { mode: 'playing', flow: 0 }, prev: rider.pos.clone(), chatterBuzz: 0, dt: 1 / 60,
+      audio: { jump() { sounds.push('jump'); }, crash() { sounds.push('crash'); }, thud() {} },
+      chase: { kick() {} }, retro: { crash() {} }, spray: { burst() {} },
+      hud: { clearBanner() {}, banner() {} }, syncCombo() {}, rearmProps: false,
+    });
+    contactHandlers.runInContext(context);
+    const control = { turn: .65, turnIntent: .65, tuck: false, brake: false,
+      jump: false, trickGrab: false, trickFlip: false };
+    for (let tick = 0; tick < 180; tick++) {
+      hapticTime = Math.floor(tick / 2) * 1000 / 60;
+      context.prev.copy(rider.pos);
+      control.jump = action === 'launch' && tick >= 36 && tick < 179;
+      rider.step(1 / 120, control);
+      if (tick === 179 && action === 'crash') {
+        assert.equal(rider.grace, 0, 'the real grace period has expired');
+        const direction = rider.pos.clone().sub(context.prev).setY(0).normalize();
+        context.solids = [{ x: context.prev.x + direction.x * (.5 + RIDER.radius + .03),
+          z: context.prev.z + direction.z * (.5 + RIDER.radius + .03),
+          r: .5, top: 999, kind: 0, volume: true }];
+        assert.equal(hitObstacle.runInContext(context), true, 'the swept collision causes a real fall');
+      }
+      if (tick < 179) assert.equal(rider.state, 'ride', 'the setup remains a controlled carve');
+      if (tick % 2 === 1) chatterFrame.runInContext(context);
+    }
+    assert(rider.chatter > .25, 'the transition really leaves an eligible stale chatter value');
+    assert(getTerrainMaterialAt(rider.pos.x, rider.pos.z).ice > .6, 'the ice is from real seeded terrain');
+    const pulses = f.plays.map(({ at, duration, weakMagnitude, strongMagnitude }) =>
+      ({ at, duration, weakMagnitude, strongMagnitude }));
+    if (action === 'ride') {
+      ordinaryPulses = pulses;
+      assert(pulses.length >= 4, 'the grounded positive control produces a sustained pulse train');
+      assert.equal(rider.state, 'ride'); assert.equal(rider.grounded, true);
+      for (let i = 0; i < pulses.length; i++) {
+        assert.equal(pulses[i].duration, 90); assert.equal(pulses[i].strongMagnitude, .04);
+        assert(pulses[i].weakMagnitude > .19);
+        if (i) assert(pulses[i].at - pulses[i - 1].at >= 100
+          && pulses[i].at - pulses[i - 1].at < 120, 'ordinary chatter keeps its authored cadence');
+      }
+      return;
+    }
+    assert.deepEqual(sounds, [action === 'launch' ? 'jump' : 'crash']);
+    assert.equal(rider.state, action === 'launch' ? 'air' : 'fall');
+    assert.equal(rider.grounded, false);
+    assert.deepEqual(pulses.filter(p => p.at === hapticTime).map(p => p.duration),
+      [action === 'launch' ? 70 : 380], 'the event pulse is not immediately replaced by stale edge chatter');
+    assert.deepEqual(pulses.slice(0, -1), ordinaryPulses.slice(0, -1),
+      'grounded chatter before the boundary is unchanged');
+    const count = f.plays.length;
+    for (let i = 0; i < 2; i++) rider.step(1 / 120, { ...control, jump: false });
+    hapticTime += 1000 / 60; chatterFrame.runInContext(context);
+    assert.equal(rider.chatter, 0);
+    assert.equal(f.plays.length, count, 'the next airborne/tumbling frame leaves that cue alone');
   });
 
   for (const method of ['calm', 'clear', 'dispose', 'orientationchange']) {

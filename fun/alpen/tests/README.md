@@ -338,6 +338,10 @@ and stale playback/reset promises cannot forget or cancel a newer cue after
 resume or controller replacement. Phone cancellation requires an accepted,
 unexpired buzz; optional controller reset APIs have a guarded silent-effect
 fallback.
+Ice-chatter pulses require grounded riding, so a final-step takeoff or crash
+cannot replace its own cue with a stale edge buzz. A controlled seeded-terrain
+carve checks a charged release and a representative swept obstacle against
+recorded actuator calls, while ordinary snow-contact pulses stay unchanged.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 `await (await import('./tests/shade-radius-browser-check.mjs')).runShadeRadiusCheck()`
