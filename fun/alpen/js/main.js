@@ -1933,7 +1933,10 @@ function frame(now) {
          flips, says what kind of mountain the next stretch is. Looked up
          twice a second: it changes once in a couple of minutes. */
       chapterCheck -= dt;
-      if (chapterCheck <= 0) {
+      // Let the crash explain itself, then announce the area the rider has
+      // recovered into. Keeping the elapsed check due also avoids losing the
+      // notice to the tumble, without a queue of places already passed.
+      if (chapterCheck <= 0 && (rider.state === 'ride' || rider.state === 'air')) {
         chapterCheck = 0.5;
         const chapter = chapterNameAt(rider.pos.z);
         if (chapter !== game.chapter) {

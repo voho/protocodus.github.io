@@ -99,6 +99,10 @@ Judged sketchy hops that earn no payout still show their landing reason and
 play the existing thud. Actual incomplete-spin and held-grab trajectories
 check that warning while preserving score, flow and discovery state; clean
 hops and unjudged rollers stay quiet.
+Chapter entry notices wait through a tumble and recovery, keeping them from
+replacing the crash reason while the rider is down. The existing chapter
+memory announces the current area once control returns; checkpoint resets
+discard an old crossing. Riding and airborne entries keep the usual cadence.
 The production crash handler immediately replaces queued celebrations and
 airborne flashes without losing their banked score or best. Hare near-miss
 rewards require controlled riding or flight; falls and getting up cannot
