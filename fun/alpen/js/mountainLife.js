@@ -44,6 +44,7 @@ import { riderGeometry } from './riderAssets.js';
 import { parseGlb } from './glb.js';
 import { track } from './loading.js';
 import { onHutGround } from './huts.js';
+import { sweptRiderContact } from './rider-contact.js';
 
 // Seconds a figure spends in the snow after a collision, and then takes to
 // come back round to its riding pose.
@@ -1494,10 +1495,38 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     npc.mesh.position.set(npc.x - _a.x * k, npc.y + (hip + 0.15 - _a.y) * k, npc.z - _a.z * k);
   }
 
+  let contactRider = null;
+  let contactX = 0;
+  let contactY = 0;
+  let contactZ = 0;
+  let contactGrace = 0;
+
   return {
     update(dt, rider, w = null, spareRider = false) {
-      if (!rider) return;
+      if (!rider) {
+        contactRider = null;
+        return;
+      }
+      const rx = rider.pos.x;
+      const ry = rider.pos.y;
       const rz = rider.pos.z;
+      const previousX = contactX;
+      const previousY = contactY;
+      const previousZ = contactZ;
+      const travelX = rx - previousX;
+      const travelY = ry - previousY;
+      const travelZ = rz - previousZ;
+      const grace = Number.isFinite(rider.grace) ? rider.grace : 0;
+      // Captures and resets seed a fresh endpoint. The 20 m discontinuity
+      // guard matches render poses and exceeds any normal 50 ms ride step;
+      // increased grace also catches short reset/recovery jumps.
+      const sweepRider = contactRider === rider && dt > 0 && grace <= contactGrace
+        && travelX * travelX + travelY * travelY + travelZ * travelZ <= 400;
+      contactRider = rider;
+      contactX = rx;
+      contactY = ry;
+      contactZ = rz;
+      contactGrace = grace;
 
       if (w) {
         const nightFactor = Math.max(0, Math.min(1, (w.night - 0.2) / 0.5));
@@ -1708,6 +1737,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       /* --- the other people, and running into them ---------------------- */
       for (let i = 0; i < NUM_NPCS; i++) {
         const npc = npcs[i];
+        const previousNpcX = npc.x;
+        const previousNpcY = npc.y;
+        const previousNpcZ = npc.z;
+        let sweep = sweepRider;
 
         /* Fallen far behind (uphill of the rider): return well ahead — and
            out of sight. They used to come back 180 to 260 metres down the
@@ -1719,6 +1752,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
            they come back close, which keeps the piste peopled in exactly the
            weather where it most needs to be. */
         if (npc.z > rz + 60) {
+          // Recycling is a teleport, not travel through everyone between.
+          sweep = false;
           const fogFar = w && Number.isFinite(w.fogFar) ? w.fogFar : RENDER.fogFar;
           npc.z = rz - Math.max(180, fogFar + 30) - Math.random() * 80;
           npc.x = nearestCenter(rider.pos.x, npc.z)
@@ -1875,10 +1910,16 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           spray.burst(npc.mesh.position, -npc.vx * 0.2, -npc.vz * 0.2, 3, 0.5);
         }
 
-        const dx = rider.pos.x - npc.x;
-        const dy = rider.pos.y - npc.y;
-        const dz = rider.pos.z - npc.z;
-        if (dx * dx + dz * dz < 2.5 && Math.abs(dy) < 2.2) {
+        const dx = rx - npc.x;
+        const dy = ry - npc.y;
+        const dz = rz - npc.z;
+        const contact = sweptRiderContact(
+          sweep ? previousX - previousNpcX : dx,
+          sweep ? previousY - previousNpcY : dy,
+          sweep ? previousZ - previousNpcZ : dz,
+          dx, dy, dz,
+        );
+        if (contact >= 0) {
           // Both go down — bar the attract loop's demo rider, whom the props
           // spare as well.
           if (!spareRider && rider.state !== 'fall' && rider.grace <= 0) {
@@ -1889,10 +1930,20 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           npc.vx = (Math.random() - 0.5) * 14.0;
           npc.vz *= 0.2;
           if (spray) {
+            // Keep the impact at the crossing, even when this frame has
+            // already carried the rider past the other figure.
+            let hitX = (rx + npc.x) * 0.5;
+            let hitY = (ry + npc.y) * 0.5;
+            let hitZ = (rz + npc.z) * 0.5;
+            if (sweep) {
+              hitX = (previousX + previousNpcX) * 0.5 * (1 - contact) + hitX * contact;
+              hitY = (previousY + previousNpcY) * 0.5 * (1 - contact) + hitY * contact;
+              hitZ = (previousZ + previousNpcZ) * 0.5 * (1 - contact) + hitZ * contact;
+            }
             spray.burst({
-              x: (rider.pos.x + npc.x) * 0.5,
-              y: (rider.pos.y + npc.y) * 0.5 + 0.3,
-              z: (rider.pos.z + npc.z) * 0.5,
+              x: hitX,
+              y: hitY + 0.3,
+              z: hitZ,
             }, (Math.random() - 0.5) * 8.0, (Math.random() - 0.5) * 8.0, 24, 1.4);
           }
         }
@@ -1921,6 +1972,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     liftReady,
     adoptLift,
     reset(riderZ = 0) {
+      contactRider = null;
       // A checkpoint restart teleports the datum; take the fresh one rather
       // than treating the jump as a slide to compensate.
       lastBackZ = null;

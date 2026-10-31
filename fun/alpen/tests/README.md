@@ -7,6 +7,7 @@ node tests/riding-check.mjs
 node tests/touch-input-check.mjs
 node tests/input-device-check.mjs
 node tests/controller-menu-check.mjs
+node tests/npc-collision-check.mjs
 node tests/flow-check.mjs
 node tests/side-hit-shape-check.mjs
 node tests/terrain-shadow-check.mjs
@@ -217,6 +218,14 @@ Turning figures also keep their ski nose and tail aligned with the actual
 snow slope: 6,240 settled poses include oblique traverses and allow at most
 12 mm difference in end clearance. The same two terrain probes now follow a
 fixed distance along the heading instead of widening with the turn.
+The NPC collision check runs the real mountain-life update at 20/30/60/120/240
+Hz. Centered and grazing crossings below the riding speed limit must produce
+one impact; those same 20 and 30 Hz cases fail with endpoint-only contact.
+It also covers moving NPCs, parallel near misses, airborne clearance and
+overlap of the horizontal and vertical contact intervals. Resets, recycled
+figures, zero-time captures, renewed grace and teleports rebase motion history
+without sweeping across the discarded path. Existing fall/grace/attract
+behavior, repeat-hit suppression and finite impact spray remain checked.
 The modelled lift and snow guns (`assets/models/resort/lift.glb`, from
 `tools/blender/lift.py`) are loaded through `mountainLife.js`'s own fetch:
 the cabin (with its glass) stays under 1500 triangles, the tower under 2500,
