@@ -423,12 +423,6 @@ const FLASH = {
 // What is left of a strike when its cell ends — see where it is subtracted.
 const FLASH_TAIL = Math.exp(-1 / (FLASH.rate * FLASH.decay));
 
-/* A near-full-screen white strobe is exactly the class of motion the
-   preference exists for. Gated at the trigger so both consumers — the dome
-   colours and the hemisphere pulse — go quiet together; the seeded clock
-   hash is untouched, so everyone else's storms still replay identically. */
-const CALM = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => t * t * (3 - 2 * t);
 // A step towards a target, bounded in magnitude. See `FOG_RATE`.
@@ -445,6 +439,10 @@ const wrapCirrus = (v) => v - Math.floor(v / 2000) * 2000;
 const ramp = (v, a, b) => smooth(Math.min(1, Math.max(0, (v - a) / (b - a))));
 
 export function createWeather(THREE) {
+  // Retain the live preference, as the chase camera and post effects do.
+  // Reading it at the flash gate also retires an active strike immediately.
+  const motionPreference = typeof window === 'undefined' ? null
+    : window.matchMedia?.('(prefers-reduced-motion: reduce)');
   // Colour objects are allocated once and mutated; this runs every frame
   const keys = PHASES.map((p) => ({
     ...p,
@@ -769,7 +767,9 @@ export function createWeather(THREE) {
        the trigger, so where a strike lands is decided by the clock alone. */
     const strike = ramp(s, 0.80, 0.88);
     state.flash = 0;
-    if (strike > 0 && !CALM) {
+    // Gate both sky and fill-light consumers without changing the seeded
+    // schedule, so restoring motion rejoins the same storm on its own clock.
+    if (strike > 0 && !motionPreference?.matches) {
       const cell = Math.floor(weatherClock * FLASH.rate);
       if (hash2(cell, 977, 431) < FLASH.chance) {
         // Rescaled to reach zero exactly at the cell's end: cut there at

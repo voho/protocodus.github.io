@@ -622,6 +622,12 @@ bob, radial blur and chromatic splitting. Flight framing, terrain clearance
 and the extra room needed by an obstructed portrait camera remain. The riding
 and graphics checks exercise preference changes in both directions, impact
 response, flight tracking and portrait visibility.
+Lightning follows the live preference too. An ambient seeded storm checks
+that enabling reduced motion retires an active flash even on a zero-time
+update, and disabling it rejoins the unchanged storm clock. Other weather
+fields remain identical. Smoke reads the shared atmosphere's final haze in
+the production update order, including lightning; native plume comparisons
+keep ordinary-weather pixels, geometry and draw counts unchanged.
 
 When a held grab is within 0.65 seconds of its predicted landing, the existing
 airtime line says to release it. The cue uses the rider's current prediction,
