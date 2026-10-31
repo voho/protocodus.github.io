@@ -234,6 +234,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   }), { sheen: 0.2 });
   const cabinWarmColor = new THREE.Color(0xffaa44);
   const cabinColdColor = new THREE.Color(0x000000);
+  const cabinDayGlass = new THREE.Color(0x1a3450);
+  const cabinNightGlass = new THREE.Color(0xffe4b8);
 
   const NUM_GONDOLAS = 6;
   const cabinMesh = instanced(cabinGeo, hardwareMat, NUM_GONDOLAS);
@@ -1502,7 +1504,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const stormFactor = Math.max(0, Math.min(1, (w.snow - 0.4) / 0.5)) * 0.4;
         const glow = Math.max(nightFactor, stormFactor);
         cabinGlassMat.emissive.copy(cabinColdColor).lerp(cabinWarmColor, glow * 0.85);
-        cabinGlassMat.color.setHex(glow > 0.1 ? 0xffe4b8 : 0x1a3450);
+        // The glass follows its lamp into dusk and heavy snow. A hard color
+        // switch here made every cabin flash cream while its light eased in.
+        cabinGlassMat.color.copy(cabinDayGlass).lerp(cabinNightGlass,
+          glow * glow * (3 - 2 * glow));
       }
 
       /* Towers on a fixed grid so they never swim: the window simply slides
@@ -1800,16 +1805,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         // Direction of travel (yaw) where 0 = straight downhill (-Z)
         const yaw = Math.atan2(npc.vx, -npc.vz);
 
-        /* Slope pitch along heading. Ahead is −z, so the point 0.9 m ahead
-           sits at x + hRatio·0.9 — the old negated offsets sampled the
-           heights mirrored across the fall line, feeding the lateral
-           gradient into the pitch with the wrong sign exactly at the apex
-           of the S-turns, where vx is largest. */
-        const zAhead = npc.z - 0.9;
-        const zBehind = npc.z + 0.9;
-        const hRatio = npc.vx / Math.max(1, Math.abs(npc.vz));
-        const yAhead = heightAt(npc.x + hRatio * 0.9, zAhead);
-        const yBehind = heightAt(npc.x - hRatio * 0.9, zBehind);
+        /* Sample 0.9 m along the actual heading on each side of the boots.
+           Holding the z span fixed widened that baseline in a traverse but
+           still divided its rise by 1.8 m, pitching the skis into the hill.
+           Riding and recovery always have a nonzero downhill velocity. */
+        const probeStep = 0.9 / Math.hypot(npc.vx, npc.vz);
+        const aheadX = npc.vx * probeStep;
+        const aheadZ = npc.vz * probeStep;
+        const yAhead = heightAt(npc.x + aheadX, npc.z + aheadZ);
+        const yBehind = heightAt(npc.x - aheadX, npc.z - aheadZ);
         const pitch = Math.atan2(yAhead - yBehind, 1.8);
 
         /* Bank angle: the lean into the carve, which is the turn's sideways

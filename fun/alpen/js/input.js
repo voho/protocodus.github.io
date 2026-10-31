@@ -60,6 +60,37 @@ const PULSE_RELEASE = 2;
    what leaves it is rescaled to start from zero rather than stepping
    straight to the zone's edge. */
 const GP_DEADZONE = 0.18;
+// Prompts need firmer evidence than the physics dead zone. A resting stick
+// near that boundary must not steal the keyboard's hints; nor should an
+// already held stick do so on every poll. These govern presentation only.
+const GP_HINT_START = 0.28;
+const GP_HINT_DELTA = 0.18;
+const GP_HINT_BUTTONS = [0, 2, 3, 8, 9, 12, 13, 14, 15];
+const MENU_OWNED = (1 << 0) | (1 << 12) | (1 << 13);
+const MENU_NAV_START = 0.55;
+const MENU_NAV_RELEASE = 0.25;
+const MENU_REPEAT_DELAY = 0.4;
+const MENU_REPEAT_INTERVAL = 0.13;
+const MENU_CODES = new Set(['Enter', 'NumpadEnter', 'Escape', 'KeyM', 'KeyN', 'KeyR', 'KeyT']);
+
+function analogHint(record, key, value) {
+  const previous = record[key];
+  const magnitude = Math.abs(value);
+  const before = Math.abs(previous);
+  const active = magnitude >= GP_HINT_START;
+  const fresh = active && (before < GP_HINT_START || value * previous < 0
+    || magnitude - before >= GP_HINT_DELTA);
+  // Keep an anchor through small changes, so a slow deliberate squeeze is
+  // recognized eventually. A released active control keeps its anchor at
+  // least at START until it genuinely reaches neutral (or crosses through
+  // it). That hysteresis also covers a large release into threshold jitter.
+  if (fresh || magnitude <= GP_DEADZONE) record[key] = value;
+  else if (!active && value * previous < 0) record[key] = 0;
+  else if (before - magnitude >= GP_HINT_DELTA) {
+    record[key] = Math.sign(value) * Math.max(GP_HINT_START, magnitude);
+  }
+  return fresh;
+}
 
 /* And where a trigger starts being a press. Triggers are analogue — the
    Gamepad API reports each as a 0..1 `value` beside its boolean `pressed`,
@@ -88,14 +119,36 @@ export function createInput(target, hooks = {}) {
   let gpJumpHeld = false;
   let gpMenuHeld = false;
   let gpBackHeld = false;
+  let activePad = -1;
+  let cancelledPadJump = false;
+  let pendingDisconnect = false;
+  let recoveringPad = false;
+  let physicalNav = 0;
+  let menuNav = 0;
+  let navArmed = true;
+  let navRepeat = 0;
+  let nonPadDevice = 'keyboard';
+  const padHints = [];
+  const returnedPads = [];
   const state = {
     turn: 0, turnIntent: 0, tuck: false, brake: false, jump: false,
     // How hard, 0..1, while `tuck`/`brake` are true: 1 from a key or a
     // button, the trigger's travel from a pad. See `triggerAmount`.
     tuckAmount: 0, brakeAmount: 0,
     trickGrab: false, trickFlip: false,
-    anyPressed: false, touch: false,
+    anyPressed: false, touch: false, device: 'keyboard',
   };
+
+  // Device is just the last deliberate way the player acted. `touch` still
+  // means the virtual controls are available, and every input source keeps
+  // contributing to the same commands regardless of which hints are shown.
+  function setDevice(device) {
+    if (device !== 'keyboard' && device !== 'touch' && device !== 'gamepad') return;
+    if (device !== 'gamepad') nonPadDevice = device;
+    if (state.device === device) return;
+    state.device = device;
+    hooks.device?.(device);
+  }
 
   // Touch overrides live alongside the keys rather than replacing them, so
   // a laptop with a touchscreen can use either without a mode switch
@@ -130,6 +183,10 @@ export function createInput(target, hooks = {}) {
     // state depended on exactly when you let go.
     if (isDown && e.repeat) return;
 
+    const actionable = bound || MENU_CODES.has(e.code) || e.key?.length === 1;
+    if (isDown && actionable && !e.altKey && !e.ctrlKey && !e.metaKey
+      && (!bound || !down.has(e.code))) setDevice('keyboard');
+
     if (bound) {
       if (isDown) {
         if (!down.has(e.code)) {
@@ -156,13 +213,38 @@ export function createInput(target, hooks = {}) {
   // A controller may already be connected when a resumed page creates input.
   let hasGamepads = (navigator.getGamepads?.() || []).some(Boolean);
   const connected = () => { hasGamepads = true; };
-  const disconnected = () => {
-    hasGamepads = (navigator.getGamepads?.() || []).some(Boolean);
-  };
+  function reconcilePads(gamepads) {
+    for (let i = 0; i < padHints.length; i++) {
+      const previous = padHints[i];
+      if (!previous || (gamepads[i] && gamepads[i].id === previous.id)) continue;
+      if (previous.jump) cancelledPadJump = true;
+      returnedPads[i] = { id: previous.id };
+      padHints[i] = null;
+      if (activePad === i) {
+        activePad = -1;
+        if (state.device === 'gamepad') {
+          pendingDisconnect = true;
+          recoveringPad = true;
+        }
+      }
+    }
+    hasGamepads = gamepads.some(Boolean);
+    if (!hasGamepads) {
+      padHints.length = 0;
+      // Last-used controller prompts are no help after its final pad leaves.
+      // Return to the previous available input vocabulary, preserving touch
+      // capability and the combined command's normal disconnect handling.
+      if (state.device === 'gamepad') setDevice(nonPadDevice);
+    }
+  }
+  // Defer action callbacks to the end of update, after ownership is settled.
+  // A pause callback may clear pending taps; nothing may resurrect one later
+  // in that same poll. Reconciliation also runs in update for missed events.
+  const disconnected = () => reconcilePads(navigator.getGamepads?.() || []);
   window.addEventListener('gamepadconnected', connected);
   window.addEventListener('gamepaddisconnected', disconnected);
 
-  function update(dt) {
+  function update(dt, menu = false) {
     /* The pad, folded in beside the keys rather than over them.
 
        Reading it is necessarily a poll — the Gamepad API has no stick
@@ -175,14 +257,74 @@ export function createInput(target, hooks = {}) {
        and keys is asking harder. */
     let gpTurn = 0, gpTuck = false, gpBrake = false, gpJump = false, gpGrab = false, gpFlip = false;
     let gpMenu = false, gpBack = false;
+    let acceptPressed = false, cancelPressed = false;
+    let menuConsumedJump = false;
+    let navAxis = 0, navUp = false, navDown = false;
+    let verticalActive = false, cancelHeld = false, rawJumpHeld = false;
     let gpTuckAmount = 0, gpBrakeAmount = 0;
+    let padActivity = false;
     if (hasGamepads) {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      reconcilePads(gamepads);
+      padHints.length = gamepads.length;
       for (let i = 0; i < gamepads.length; i++) {
         const gp = gamepads[i];
-        if (!gp) continue;
+        if (!gp) { padHints[i] = null; continue; }
+        let hints = padHints[i];
+        if (!hints || hints.id !== gp.id) {
+          // A known returning pad can reconnect with buttons already held,
+          // even after the player switched to keyboard. A genuinely new pad
+          // may first appear because of its A press (browser privacy), so
+          // keep that initial discovery usable without an extra release.
+          const returning = returnedPads[i]?.id === gp.id && !!returnedPads[i];
+          hints = padHints[i] = {
+            id: gp.id, buttons: 0, turn: 0, tuck: 0, brake: 0, vertical: 0,
+            owned: 0, jump: false, suppressed: recoveringPad || returning,
+          };
+          returnedPads[i] = null;
+        }
         const raw = gp.axes[0] || 0;   // left stick X
         const mag = Math.abs(raw);
+        const vertical = gp.axes[1] || 0;
+        const rawJump = !!gp.buttons[0]?.pressed;
+        rawJumpHeld ||= rawJump;
+        const rawCancel = !!gp.buttons[1]?.pressed;
+        const rawUp = !!gp.buttons[12]?.pressed;
+        const rawDown = !!gp.buttons[13]?.pressed;
+        let buttons = rawCancel ? 1 << 1 : 0;
+        for (const index of GP_HINT_BUTTONS) if (gp.buttons[index]?.pressed) buttons |= 1 << index;
+        const pressed = buttons & ~hints.buttons;
+        hints.buttons = buttons;
+        hints.owned &= buttons;
+        if (menu) hints.owned |= buttons & MENU_OWNED;
+        if (hints.jump && (hints.owned & 1)) menuConsumedJump = true;
+
+        const tuckAmount = triggerAmount(gp.buttons[7]);
+        const brakeAmount = triggerAmount(gp.buttons[6]);
+        const controlsNeutral = buttons === 0 && mag <= GP_DEADZONE
+          && Math.abs(vertical) <= GP_DEADZONE && tuckAmount === 0 && brakeAmount === 0;
+        if (hints.suppressed && controlsNeutral) hints.suppressed = false;
+        let activity = !!(pressed & (menu ? -1 : ~(1 << 1)));
+        if (analogHint(hints, 'turn', mag > GP_DEADZONE ? raw : 0)) activity = true;
+        if (analogHint(hints, 'tuck', tuckAmount)) activity = true;
+        if (analogHint(hints, 'brake', brakeAmount)) activity = true;
+        const verticalHint = analogHint(hints, 'vertical', vertical);
+        if (menu && verticalHint) activity = true;
+        if (hints.suppressed) { hints.jump = false; continue; }
+        if (!gamepadSuppressed && activity) {
+          activePad = i;
+          if (!pendingDisconnect) recoveringPad = false;
+          padActivity = true;
+        }
+        if (menu) {
+          acceptPressed ||= !!(pressed & 1);
+          cancelPressed ||= !!(pressed & (1 << 1));
+        }
+        verticalActive ||= Math.abs(vertical) > GP_DEADZONE;
+        cancelHeld ||= rawCancel;
+        if (Math.abs(vertical) > Math.abs(navAxis)) navAxis = vertical;
+        navUp ||= rawUp;
+        navDown ||= rawDown;
         if (mag > GP_DEADZONE) {
           const linear = Math.min(1, (mag - GP_DEADZONE) / (1 - GP_DEADZONE));
           const scaled = Math.sign(raw) * linear * (0.7 + 0.3 * linear * linear);
@@ -194,11 +336,12 @@ export function createInput(target, hooks = {}) {
         if (Math.abs(dpad) > Math.abs(gpTurn)) gpTurn = dpad;
         // RT · d-up, and LT · d-down: the triggers by how far they travel,
         // the d-pad (a button) as a full press.
-        gpTuckAmount = Math.max(gpTuckAmount, triggerAmount(gp.buttons[7]),
-          gp.buttons[12]?.pressed ? 1 : 0);
-        gpBrakeAmount = Math.max(gpBrakeAmount, triggerAmount(gp.buttons[6]),
-          gp.buttons[13]?.pressed ? 1 : 0);
-        gpJump = gpJump || !!gp.buttons[0]?.pressed;   // A
+        gpTuckAmount = Math.max(gpTuckAmount, tuckAmount,
+          rawUp && !(hints.owned & (1 << 12)) ? 1 : 0);
+        gpBrakeAmount = Math.max(gpBrakeAmount, brakeAmount,
+          rawDown && !(hints.owned & (1 << 13)) ? 1 : 0);
+        hints.jump = rawJump && !(hints.owned & 1);
+        gpJump = gpJump || hints.jump;   // A, unless the menu owns this press
         gpGrab = gpGrab || !!gp.buttons[2]?.pressed;   // X
         gpFlip = gpFlip || !!gp.buttons[3]?.pressed;   // Y
         gpMenu = gpMenu || !!gp.buttons[9]?.pressed;   // Start / Menu
@@ -213,14 +356,19 @@ export function createInput(target, hooks = {}) {
          cleared pad is ignored until every one of its controls has passed
          through neutral once. */
       if (gamepadSuppressed) {
+        padActivity = false;
+        acceptPressed = cancelPressed = false;
         if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip
-          && !gpMenu && !gpBack) {
+          && !gpMenu && !gpBack && !verticalActive && !cancelHeld && !navUp && !navDown
+          && !rawJumpHeld) {
           gamepadSuppressed = false;
         } else {
           gpTurn = 0;
           gpTuck = gpBrake = gpJump = gpGrab = gpFlip = gpMenu = gpBack = false;
           gpTuckAmount = gpBrakeAmount = 0;
         }
+        navAxis = 0;
+        navUp = navDown = false;
       }
 
       /* A pad tap has no key events to latch, so its edges are found here at
@@ -231,10 +379,14 @@ export function createInput(target, hooks = {}) {
          counting: `stepped()` reports the actual read, so a press the rider
          already charged from is never replayed as extra charge on top. */
     }
+    // Before A/Start/Back reaches its hook, so the first visible riding or
+    // pause frame already uses the controller's vocabulary.
+    if (padActivity) setDevice('gamepad');
     const wasJumpHeld = jumpHeld();
     if (gpJump && !gpJumpHeld) state.anyPressed = true;
     gpJumpHeld = gpJump;
-    jumpChanged(wasJumpHeld, !hasGamepads);
+    jumpChanged(wasJumpHeld, cancelledPadJump || menuConsumedJump || !hasGamepads);
+    cancelledPadJump = false;
 
     const keyTurn = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
     const want = Math.abs(gpTurn) > Math.abs(keyTurn) ? gpTurn : keyTurn;
@@ -267,20 +419,61 @@ export function createInput(target, hooks = {}) {
     state.trickFlip = held('flip') || gpFlip;
     const menuPressed = gpMenu && !gpMenuHeld;
     gpMenuHeld = gpMenu;
+    const backPressed = gpBack && !gpBackHeld;
+    gpBackHeld = gpBack;
+
+    // Navigation owns only the vertical stick and D-pad. The held direction
+    // must pass neutral before a pause can turn a riding input into a menu
+    // repeat, and repeat timing follows seconds rather than display frames.
+    const direction = navUp || navDown ? Number(navDown) - Number(navUp)
+      : Math.abs(navAxis) >= MENU_NAV_START ? Math.sign(navAxis)
+      : Math.abs(navAxis) <= MENU_NAV_RELEASE || navAxis * physicalNav <= 0 ? 0 : physicalNav;
+    let navigation = null;
+    if (!menu || direction === 0) {
+      navArmed = direction === 0;
+      menuNav = 0;
+      navRepeat = 0;
+    } else if (navArmed && state.device === 'gamepad') {
+      if (direction !== menuNav) {
+        menuNav = direction;
+        navRepeat = MENU_REPEAT_DELAY;
+        navigation = direction > 0 ? 'next' : 'previous';
+      } else {
+        navRepeat -= dt;
+        if (navRepeat <= 1e-8) {
+          navRepeat += MENU_REPEAT_INTERVAL;
+          navigation = direction > 0 ? 'next' : 'previous';
+        }
+      }
+    }
+    physicalNav = direction;
+
+    // A callback can pause, resume, restart or clear input. All edge/state
+    // writes are complete before dispatch, and exactly one action wins.
+    if (pendingDisconnect) {
+      pendingDisconnect = false;
+      state.anyPressed = false;
+      hooks.disconnect?.();
+      return;
+    }
     if (menuPressed) {
       // One menu edge wins over a simultaneous A press. Otherwise pausing
       // here would be immediately undone by the main loop's resume edge.
       state.anyPressed = false;
       hooks.key?.({ code: 'Escape' });
+      return;
     }
     /* Back / View is the pad's R: restart from the last gate. An edge, like
        Start, so holding it restarts once; and it is not "any key" — a
        restart must never also count as the press that resumes a pause. */
-    const backPressed = gpBack && !gpBackHeld;
-    gpBackHeld = gpBack;
-    if (backPressed && !menuPressed) {
+    if (backPressed) {
       state.anyPressed = false;
       hooks.key?.({ code: 'KeyR' });
+      return;
+    }
+    if (menu && (cancelPressed || acceptPressed || navigation)) {
+      state.anyPressed = false;
+      hooks.menu?.(cancelPressed ? 'back' : acceptPressed ? 'activate' : navigation);
     }
   }
 
@@ -327,6 +520,7 @@ export function createInput(target, hooks = {}) {
       button.sync = sync;
       listen('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
+        setDevice('touch');
         pointers.add(e.pointerId);
         el.setPointerCapture?.(e.pointerId);
         sync(e);
@@ -338,6 +532,7 @@ export function createInput(target, hooks = {}) {
         const next = touchButtons.find((b) => ['left', 'right'].includes(b.name)
           && (b.el === hit || b.el.contains?.(hit)));
         if (!next || next === current) return;
+        setDevice('touch');
         // The original button retains capture; the held action follows the
         // thumb between arrows, so changing edges needs no second tap.
         current.pointers.delete(e.pointerId);
@@ -365,6 +560,7 @@ export function createInput(target, hooks = {}) {
       // fixed pulse so every native button remains a working game control.
       listen('click', (e) => {
         if (e.detail !== 0) return;
+        setDevice('touch');
         button.keyboardHeld = true;
         sync(e);
         if (button.timer) window.clearTimeout(button.timer);
@@ -497,5 +693,5 @@ export function createInput(target, hooks = {}) {
     try { nav.vibrate(ms); } catch { /* blocked by policy or an embedding frame */ }
   }
 
-  return { state, update, stepped, bindTouch, dispose, clear, calm, rumble };
+  return { state, update, stepped, bindTouch, dispose, clear, calm, rumble, setDevice };
 }

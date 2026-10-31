@@ -58,14 +58,17 @@ export function createHud(root) {
       </div>
       <div class="ride-charge" data-hud="charge" hidden><p data-hud="charge-label">Load the legs</p><i class="meter"><i data-hud="charge-fill"></i></i></div>
       <div class="ride-guide" data-hud="guide" hidden></div>
-      <p class="ride-hint" data-hud="hint"><kbd>A</kbd> <kbd>D</kbd> carve <span>·</span> Hold <kbd>Space</kbd>, release to jump</p>
-      <p class="ride-tools"><span class="desktop-pause"><kbd>Esc</kbd> pause</span><span data-hud="muted" hidden>Sound off</span></p>
+      <p class="ride-hint" data-hud="hint"><span data-input-help="keyboard"><kbd>A</kbd> <kbd>D</kbd> carve <span>·</span> Hold <kbd>Space</kbd>, release to jump</span><span data-input-help="gamepad"><kbd>Left stick</kbd> carve <span>·</span> Hold <kbd>A</kbd>, release to jump</span></p>
+      <p class="ride-tools"><span class="desktop-pause"><span data-input-help="keyboard"><kbd>Esc</kbd> pause</span><span data-input-help="gamepad"><kbd>Start</kbd> pause</span></span><span data-hud="muted" hidden>Sound off</span></p>
     </div>`);
   const fields = Object.fromEntries([...root.querySelectorAll('[data-hud]')].map(node => [node.dataset.hud, node]));
   const readout = root.querySelector('[data-readout]');
   const callout = root.querySelector('[data-callout]');
   const curtain = document.querySelector('.curtain');
   const guide = curtain?.querySelector('.control-guide');
+  const guideSummary = guide?.querySelector('summary');
+  const menuScroller = curtain?.querySelector('.curtain-inner');
+  const primaryButton = curtain?.querySelector('.drop-in');
   const exitLink = curtain?.querySelector('.exit-link');
   const menuScore = curtain?.querySelector('[data-menu-score]');
   const menuDistance = curtain?.querySelector('[data-menu-distance]');
@@ -78,6 +81,8 @@ export function createHud(root) {
   let bestPassed = false;
   let lastMode = '';
   let last = null;
+  let inputDevice = document.body.dataset.inputDevice || 'keyboard';
+  let controllerFocus = null;
 
   const text = (name, value) => {
     const node = fields[name];
@@ -91,13 +96,83 @@ export function createHud(root) {
     if (fields[name].style.transform !== scale) fields[name].style.transform = scale;
   };
 
+  const menuTargets = () => curtain
+    ? [...curtain.querySelectorAll('button, summary, a[href]')]
+      .filter(node => !node.disabled && node.getClientRects().length)
+    : [];
+  function clearControllerFocus() {
+    if (controllerFocus) delete controllerFocus.dataset.controllerFocus;
+    controllerFocus = null;
+  }
+  function markControllerFocus(target) {
+    if (controllerFocus === target) return;
+    clearControllerFocus();
+    controllerFocus = target;
+    target.dataset.controllerFocus = 'true';
+  }
+  function focusMenu(target, block = 'nearest') {
+    markControllerFocus(target);
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block, inline: 'nearest', behavior: 'instant' });
+  }
+
+  // Help can be taller than a landscape menu. While its summary owns focus,
+  // directional presses page through the text before moving to another
+  // control. All layout reads are input-driven; idle menus never query it.
+  function scrollGuide(direction) {
+    if (!guide?.open || document.activeElement !== guideSummary || !menuScroller?.clientHeight) return false;
+    const top = menuScroller.getBoundingClientRect().top + (menuScroller.clientTop || 0);
+    const current = menuScroller.scrollTop;
+    const limit = Math.max(0, menuScroller.scrollHeight - menuScroller.clientHeight);
+    const start = Math.min(limit, Math.max(0, current + guideSummary.getBoundingClientRect().top - top));
+    const end = Math.max(start, Math.min(limit,
+      current + guide.getBoundingClientRect().bottom - top - menuScroller.clientHeight));
+    if (direction > 0 ? current >= end - 1 : current <= start + 1) return false;
+    const step = Math.max(40, menuScroller.clientHeight * 0.75);
+    menuScroller.scrollTop = direction > 0
+      ? Math.min(end, Math.max(start, current + step)) : Math.max(start, current - step);
+    markControllerFocus(guideSummary);
+    return true;
+  }
+
+  function menu(action) {
+    if (!curtain || last?.mode === 'playing') return false;
+    if (action === 'back') {
+      if (!guide?.open) return false;
+      guide.open = false;
+      if (guideSummary) focusMenu(guideSummary);
+      return true;
+    }
+    if (!['next', 'previous', 'activate'].includes(action)) return false;
+    const targets = menuTargets();
+    const at = targets.indexOf(document.activeElement);
+    if (action === 'activate') {
+      const target = at >= 0 ? targets[at] : targets.includes(primaryButton) ? primaryButton : null;
+      if (!target) return false;
+      focusMenu(target);
+      target.click();
+      // Native summary activation opens exactly once; align the newly
+      // revealed text without moving focus away from its close control.
+      if (target === guideSummary && guide.open) focusMenu(target, 'start');
+      return true;
+    }
+    if (!targets.length) return false;
+    const direction = action === 'next' ? 1 : -1;
+    if (at >= 0 && scrollGuide(direction)) return true;
+    const next = direction < 0 ? (at <= 0 ? targets.length - 1 : at - 1) : (at + 1) % targets.length;
+    focusMenu(targets[next]);
+    return true;
+  }
+
   // Help and navigation must not trigger the curtain's click-anywhere start.
   exitLink?.addEventListener('click', event => event.stopPropagation());
   exitLink?.addEventListener('keydown', event => {
+    clearControllerFocus();
     if (event.key !== 'Tab' && event.key !== 'Escape') event.stopPropagation();
   });
   guide?.addEventListener('click', event => event.stopPropagation());
   guide?.addEventListener('keydown', event => {
+    clearControllerFocus();
     if (event.key === 'Tab' || (event.key === 'Escape' && !guide.open)) return;
     event.stopPropagation();
     if (event.key === 'Escape') {
@@ -106,15 +181,17 @@ export function createHud(root) {
     }
   });
   curtain?.addEventListener('keydown', event => {
+    clearControllerFocus();
     if (event.key !== 'Tab') return;
     event.preventDefault();
     event.stopPropagation(); // Tab must never become the game's "any key".
-    const targets = [...curtain.querySelectorAll('button, summary, a[href]')].filter(node => node.getClientRects().length);
+    const targets = menuTargets();
     if (!targets.length) return;
     const at = targets.indexOf(document.activeElement);
     const next = event.shiftKey ? (at <= 0 ? targets.length - 1 : at - 1) : (at + 1) % targets.length;
     targets[next].focus();
   });
+  curtain?.addEventListener('pointerdown', clearControllerFocus, true);
 
   function setSize(width, height, pixel = 0, offsetX = 0, offsetY = 0, insets = null) {
     if (insets) {
@@ -209,10 +286,15 @@ export function createHud(root) {
       lastMode = g.mode;
       hidden('ride', !playing);
       if (playing) {
+        clearControllerFocus();
         if (guide) guide.open = false;
         // A focused drop-in button must not intercept Space during riding.
         if (curtain?.contains(document.activeElement)) document.activeElement.blur();
-      } else curtain?.focus({ preventScroll: true });
+      } else if (!menuTargets().includes(document.activeElement)) {
+        // Input may navigate during the same frame that first pauses the
+        // game. Keep valid native focus rather than taking it back here.
+        curtain?.focus({ preventScroll: true });
+      }
       drawIn = 0;
     }
     if (playing) {
@@ -328,6 +410,19 @@ export function createHud(root) {
     hidden('muted', !value);
   }
 
+  function setInputDevice(device) {
+    if (!['keyboard', 'gamepad', 'touch'].includes(device)) return;
+    if (device !== 'gamepad') clearControllerFocus();
+    if (device === inputDevice) return;
+    inputDevice = device;
+    // CSS selects retained help nodes. Switching never rebuilds a focused
+    // menu or interrupts a held control, and steady input costs no DOM work.
+    document.body.dataset.inputDevice = device;
+    hintTime = 0;
+    hidden('hint', false);
+    drawIn = 0;
+  }
+
   function resetScore() {
     shownScore = 0;
     bannerTimer = 0;
@@ -340,5 +435,5 @@ export function createHud(root) {
     if (last) draw(last);
   }
 
-  return { update, banner, clearBanner, setMuted, resetScore, setSize, canvas };
+  return { update, banner, clearBanner, setMuted, setInputDevice, menu, resetScore, setSize, canvas };
 }
