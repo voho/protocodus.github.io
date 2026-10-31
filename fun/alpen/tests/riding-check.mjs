@@ -1001,6 +1001,99 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
     }
     return { peak, minBack, launch: launches[0], landings };
   }
+
+  // A butter changes stance without changing course. At walking pace the
+  // old board/velocity blend turned that stance change into a 69° camera
+  // target jump; releasing Q while D remained held made the view turn 17°
+  // in one frame. Reuse real input, terrain and drawn yaw from the hop check.
+  function butter({ hz = 60, reduced = false, held = false, handoff = '', reset = false, aspect = 16 / 9 } = {}) {
+    preference.matches = reduced;
+    const r = rider(hill);
+    r.reset(0, guideAt(0));
+    const target = new Target(), controls = createInput(target);
+    const key = (type, code) => send(target, type, { code });
+    const cam = new THREE.PerspectiveCamera(65, aspect, .1, 2000);
+    const view = createChaseCamera(THREE, cam);
+    view.update(r, 0, hill);
+    const priorQ = cam.quaternion.clone(), beforeStep = r.pos.clone(), truePos = r.pos.clone();
+    const subject = new THREE.Vector3();
+    let drawnYaw = r.yaw, lastStep = 0, peak = 0, minBack = Infinity;
+    let slowFlips = 0, maxPress = 0, launches = 0, lands = 0, falls = 0, awards = 0;
+    let decayFrames = 0, freshCam = null, freshView = null, resetFrames = 0;
+    r.on('launch', () => launches++);
+    r.on('land', s => { lands++; view.land(s.impact); });
+    r.on('fall', () => falls++);
+    r.on('butter', () => awards++);
+    key('keydown', 'KeyQ'); key('keydown', 'KeyD');
+    try {
+      for (let frame = 0; frame < hz * 8; frame++) {
+        if (frame === Math.round(4.2 * hz) && !held) {
+          key('keyup', 'KeyQ');
+          if (handoff) key('keydown', handoff === 'brake' ? 'KeyS' : 'Space');
+          if (reset) {
+            assert(r.press > .99, 'the reset interrupts a fully established press');
+            key('keyup', 'KeyD'); controls.calm();
+            r.reset(0, guideAt(0)); view.reset();
+            beforeStep.copy(r.pos); drawnYaw = r.yaw;
+            freshCam = new THREE.PerspectiveCamera(65, aspect, .1, 2000);
+            freshView = createChaseCamera(THREE, freshCam);
+            view.update(r, 0, hill); freshView.update(r, 0, hill);
+            assert(cam.position.equals(freshCam.position) && cam.quaternion.equals(freshCam.quaternion),
+              'reset during a butter immediately matches a fresh camera at zero dt');
+            priorQ.copy(cam.quaternion);
+          }
+        }
+        if (handoff === 'jump' && frame === Math.round(4.25 * hz)) key('keyup', 'Space');
+        if (reset && frame === Math.round(5.2 * hz)) key('keydown', 'KeyD');
+        if (reset && frame === Math.round(6.2 * hz)) {
+          key('keyup', 'KeyD'); key('keydown', 'KeyA');
+        }
+        controls.update(1 / hz);
+        const wasSwitch = r.switchStance;
+        lastStep += 1 / hz;
+        while (lastStep >= dt) {
+          beforeStep.copy(r.pos); drawnYaw = r.yaw + r.yawGlide;
+          r.step(dt, controls.state); controls.stepped(); lastStep -= dt;
+        }
+        maxPress = Math.max(maxPress, r.press);
+        if (r.switchStance !== wasSwitch && r.press > .5 && Math.hypot(r.vel.x, r.vel.z) < 3.5) slowFlips++;
+        if (frame / hz > 4.9 && r.press < .002) decayFrames++;
+        const trueYaw = r.yaw;
+        truePos.copy(r.pos);
+        r.pos.copy(beforeStep).lerp(truePos, Math.min(1, lastStep / dt));
+        interpolateYaw(r, trueYaw, drawnYaw, Math.min(1, lastStep / dt), TAU);
+        view.update(r, 1 / hz, hill);
+        peak = Math.max(peak, priorQ.angleTo(cam.quaternion) * 180 / Math.PI);
+        priorQ.copy(cam.quaternion);
+        minBack = Math.min(minBack, Math.hypot(cam.position.x - r.pos.x, cam.position.z - r.pos.z));
+        assert(cam.position.y >= hill.height(cam.position.x, cam.position.z) + 1.5 - 1e-8,
+          'the butter view retains live terrain clearance');
+        cam.updateMatrixWorld();
+        subject.copy(r.pos); subject.y += 1; subject.project(cam);
+        assert(Math.abs(subject.x) < 1 && Math.abs(subject.y) < 1,
+          'the butter view keeps the rider in its landscape or portrait frame');
+        if (freshView) {
+          freshView.update(r, 1 / hz, hill); resetFrames++;
+          assert(cam.position.equals(freshCam.position) && cam.quaternion.equals(freshCam.quaternion)
+            && cam.fov === freshCam.fov, 'the old press cannot affect subsequent ordinary ground steering');
+        }
+        r.pos.copy(truePos); r.yaw = trueYaw;
+      }
+    } finally { controls.dispose(); }
+    assert(maxPress > .99 && slowFlips >= 2, 'real Q+D input changes stance repeatedly below 3.5 m/s');
+    assert.equal(falls, 0, 'the camera regression stays controlled');
+    if (handoff === 'jump') {
+      assert.equal(launches, 1, 'the tap really hands the butter into a jump');
+      assert.equal(lands, 1, 'the handoff includes the subsequent landing');
+    } else {
+      assert.equal(launches + lands, 0, 'the butter and brake traces remain grounded');
+    }
+    if (!held) assert(decayFrames > hz * 2, 'the trace covers the full press fade and ordinary steering after it');
+    if (!held && !reset) assert.equal(awards, 1, 'releasing the real press finishes exactly one butter');
+    if (reset) assert(resetFrames > hz * 3, 'the reset comparison covers subsequent neutral and both turn inputs');
+    assert(peak < 180 / hz, `butter ${held ? 'hold' : handoff || 'release'} remains continuous at ${hz}Hz (${peak}°)`);
+    assert(minBack > 6, `the butter camera retains room behind its subject (${minBack}m)`);
+  }
   try {
     for (const hz of [60, 144]) for (const reduced of [false, true]) {
       const slow = hop({ hz, reduced });
@@ -1028,6 +1121,14 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
       assert(moving.peak < 2 && moving.minBack > 7,
         `moving turns and hops keep their ordinary framing (${moving.peak}°, ${moving.minBack}m)`);
     }
+    for (const hz of [60, 144]) for (const reduced of [false, true]) {
+      butter({ hz, reduced, held: true });
+      butter({ hz, reduced });
+    }
+    butter({ hz: 144, handoff: 'brake' }); // Comes to rest as the press fade expires.
+    butter({ handoff: 'jump' });          // Takeoff clears press before air framing has opened.
+    butter({ reduced: true, reset: true }); // No decorative shake phase in the fresh-camera comparison.
+    butter({ aspect: 9 / 16 });          // The release also fits a phone's narrower frame.
   } finally {
     setWorldSeed(seed); pads = previousPads;
     if (previousQuery) window.matchMedia = previousQuery;

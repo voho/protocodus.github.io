@@ -316,6 +316,9 @@ export function createChaseCamera(THREE, camera) {
       }
       recoveryBearing = true;
     } else {
+      // A pressed board rotates independently of travel, just like an air.
+      // Its existing pressure fade brings stopped framing back on release.
+      const bearingBlend = Math.max(airBlend, rider.press || 0);
       // Which way the run is actually heading: mostly the velocity, a little
       // the board. Trust in velocity fades in over 1.5–3.5 m/s so a slow
       // scrubbing stop does not switch abruptly between the two.
@@ -329,9 +332,9 @@ export function createChaseCamera(THREE, camera) {
         flat.copy(holdAirBearing ? dir : tmp);
       } else {
         const groundTrust = clamp((travel - 1.5) / 2, 0, 1);
-        // Even a slow flight follows its landing line, not the spinning
-        // board. Reusing the air blend also eases back into a grounded stop.
-        const trust = airBlend + (1 - airBlend) * groundTrust;
+        // Slow flights and butters still follow their travel line. Blending
+        // both here matters: the later board bias cannot undo this mixture.
+        const trust = bearingBlend + (1 - bearingBlend) * groundTrust;
         flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
       }
       // A spinning or sideways board says less about its landing line.
@@ -339,12 +342,13 @@ export function createChaseCamera(THREE, camera) {
       const across = travel < 1e-4 ? 1
         : Math.abs(tmp.x * rider.vel.x + tmp.z * rider.vel.z) / travel;
       const velocityBias = holdAirBearing ? 1
-        : 1 - (1 - CAMERA.velocityBias) * (1 - airBlend) * across;
+        : 1 - (1 - CAMERA.velocityBias) * (1 - bearingBlend) * across;
       flat.multiplyScalar(velocityBias).addScaledVector(tmp, 1 - velocityBias).normalize();
-      if ((recoveryBearing || airBlend > 0) && started) {
+      if ((recoveryBearing || airBlend > 0 || rider.press > 0.002) && started) {
         // Rejoin along an angular arc, never a chord through the subject.
-        // Recovery, a slow outward pop and a switch landing can all put
-        // travel opposite the old bearing. Ordinary ground steering is free.
+        // Recovery, flight and a released butter can put travel opposite the
+        // old bearing. The tiny press cutoff leaves ordinary steering free
+        // once its exponential fade has settled, as the air blend does.
         const angle = Math.atan2(dir.x * flat.z - dir.z * flat.x, dir.dot(flat));
         const turn = RECOVERY_TURN_RATE * dt;
         if (Math.abs(angle) <= turn) {

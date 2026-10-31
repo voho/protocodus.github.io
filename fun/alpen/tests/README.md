@@ -83,6 +83,10 @@ Vertical hops retain their airborne camera bearing, and the existing angular
 transition carries flight and touchdown framing around the rider. Real input
 replays cover braked hops, opposing travel on a shoulder and a vertical hop
 held at rest through landing, including reduced motion and reset boundaries.
+Grounded butters also keep the camera following travel while the board spins.
+Their pressure fade and the existing turn limit carry the view back to normal
+framing on release. Real key replays check held and released presses across
+refresh rates, with ordinary riding and jump/brake handoffs as controls.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
