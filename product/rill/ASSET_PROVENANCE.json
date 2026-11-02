@@ -1,0 +1,82 @@
+{
+  "reviewed_on": "2026-11-02",
+  "source_repository": "https://github.com/protocodus/rill-daw",
+  "source_commit": "af690ef838f72d9b670971fab9eaaa9baf1eb37e",
+  "description": "Real running-app screenshots from the project README; original 32-bar demo project.",
+  "assets": [
+    {
+      "file": "rill-arrangement.webp",
+      "source_url": "https://raw.githubusercontent.com/protocodus/rill-daw/af690ef838f72d9b670971fab9eaaa9baf1eb37e/artifacts/readme-arrangement.png",
+      "source_sha256": "7a33bb772821549a7a815c8fcf6239d0fce65e420aeade3f462db349871c76ad",
+      "sha256": "7380dd0f6fcbc75f1074734a6b0255e728c8c3765600597c11235bc4d2d92531",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "conversion": "WebP quality 90, method 6; complete capture, no cropping"
+    },
+    {
+      "file": "rill-piano-roll.webp",
+      "source_url": "https://raw.githubusercontent.com/protocodus/rill-daw/af690ef838f72d9b670971fab9eaaa9baf1eb37e/artifacts/readme-piano-roll.png",
+      "source_sha256": "201d9b84d5748d26f22df4b55ada98019e72cfbcd2bd0ee66de7a77682d08012",
+      "sha256": "fa18925aaa48389ec92340c015c148149a7ef1466158f567ad74f514ae07125b",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "conversion": "WebP quality 90, method 6; complete capture, no cropping"
+    },
+    {
+      "file": "rill-audio-editor.webp",
+      "source_url": "https://raw.githubusercontent.com/protocodus/rill-daw/af690ef838f72d9b670971fab9eaaa9baf1eb37e/artifacts/readme-audio-editor.png",
+      "source_sha256": "87e828c3242212277d4137c74e5c7ff564a62efd80dda5d837ad562bcc83dc7c",
+      "sha256": "7aaf4f4c140406453273c786a3824da9cc6d55daf6d5a04e56c0b7badab4504b",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "conversion": "WebP quality 90, method 6; complete capture, no cropping"
+    },
+    {
+      "file": "rill-mixer.webp",
+      "source_url": "https://raw.githubusercontent.com/protocodus/rill-daw/af690ef838f72d9b670971fab9eaaa9baf1eb37e/artifacts/readme-mixer.png",
+      "source_sha256": "3273d0d95ba6ce4111f4e6fe0b7dbcd2acff932bdc214db95ec17e0ae5764996",
+      "sha256": "d40ca5ed10495d23dd87b0ad9e5c04305863f69b16a262ceb8c18ea4ac09fba3",
+      "dimensions": [
+        2400,
+        1000
+      ],
+      "conversion": "WebP quality 90, method 6; complete capture, no cropping"
+    },
+    {
+      "file": "rill-ai-assistant.webp",
+      "source_url": "https://raw.githubusercontent.com/protocodus/rill-daw/af690ef838f72d9b670971fab9eaaa9baf1eb37e/artifacts/readme-ai-assistant.png",
+      "source_sha256": "90f3d07853d7a5a2430df7aed9d742607b340137bbf4f96cce408d2913a6697d",
+      "sha256": "b8ec5ab1679137451ecd5219ba04db5acbd51f2a2637e85cb07530deb0a83ec8",
+      "dimensions": [
+        1600,
+        1000
+      ],
+      "conversion": "WebP quality 90, method 6; complete capture, no cropping"
+    }
+  ],
+  "downloads": {
+    "kind": "Latest successful main ALPHA build via nightly.link",
+    "workflow": "ci.yml",
+    "verified_on": "2026-11-02",
+    "verification": "All five anonymous GET Range requests returned HTTP 206; HEAD is not supported.",
+    "successful_run": "https://github.com/protocodus/rill-daw/actions/runs/41307959135",
+    "distribution_commit": "f68ac917227c0b64d63c2239f0430585b01a99c4",
+    "platforms": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu"
+    ]
+  },
+  "claim_sources": [
+    "https://github.com/protocodus/rill-daw/blob/af690ef838f72d9b670971fab9eaaa9baf1eb37e/README.md",
+    "https://github.com/protocodus/rill-daw/blob/af690ef838f72d9b670971fab9eaaa9baf1eb37e/docs/RELEASING.md"
+  ]
+}

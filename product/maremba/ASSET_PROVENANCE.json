@@ -175,7 +175,7 @@
         ]
       }
     },
-    "derivatives": "Complete front and rear panels converted to RGB WebP at original 1600 × 1171, quality 90, method 6. The front card is proportionally resized with Lanczos to 880 × 644 at quality 90, method 6. No crop, axis stretch or panel compositing. The PDF is unchanged.",
+    "derivatives": "Complete front and rear panels converted to RGB WebP at original 1600 \u00d7 1171, quality 90, method 6. The front card is proportionally resized with Lanczos to 880 \u00d7 644 at quality 90, method 6. No crop, axis stretch or panel compositing. The PDF is unchanged.",
     "files": {
       "Maremba_Front.png": {
         "sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a",
@@ -249,5 +249,41 @@
         "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/10133a7fa125/Maremba_User_Guide.pdf"
       }
     ]
+  },
+  "public_shop_verification_2026_11_02": {
+    "checked_on": "2026-11-02",
+    "method": "Direct current HTTPS fetch of Shop listing and exact gallery, thumbnail and document URLs; SHA-256 comparison to website files.",
+    "listing_version": "1.5.7",
+    "assets": [
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png",
+        "sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12",
+        "matching_site_files": [
+          "Maremba_Back.png"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png",
+        "sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a",
+        "matching_site_files": [
+          "Maremba_Front.png"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/10133a7fa125/Maremba_User_Guide.pdf",
+        "sha256": "9add504e2838394617c7fae17da113c62537593cb182daaccfb669d2cb733b4a",
+        "matching_site_files": [
+          "Maremba_User_Guide.pdf"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
+        "sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f",
+        "matching_site_files": [
+          "Maremba_Thumbnail_800.png"
+        ]
+      }
+    ],
+    "result": "Every current Shop panel, guide and thumbnail used on this website is byte-identical to its retained file."
   }
 }

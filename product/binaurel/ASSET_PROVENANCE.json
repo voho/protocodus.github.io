@@ -1,21 +1,81 @@
 {
   "product": "Binaurel",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
   "source_version": "0.1.0d26",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Binaurel/README.md",
+    "Examples/Binaurel/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Binaurel_Thumbnail_800.png",
-      "sha256": "9665b50c5c657800c5b8c15daa92474ef7207a8b53acb57394983a0afe821c71"
-    },
-    {
       "file": "binaurel-rack-front.webp",
-      "sha256": "a50962dc1320c8862ed8b662cf7f4827e12b6057b7d23b20e54c8040d3cb869a"
+      "sha256": "880dcd69ff6ae910c617127825132d3c1c0d13b774742aba4f658f8afc04f92a",
+      "bytes": 33020,
+      "dimensions": [
+        1508,
+        552
+      ],
+      "source": "Examples/Binaurel/Design/previews/front_preview.png",
+      "source_sha256": "4e8f43c7448e7cb78b7ea9a1570a6c108dccaa717e05dbdb5fc65dce86a4354b",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
     },
     {
       "file": "binaurel-rack-rear.webp",
-      "sha256": "80997308c5806f6ea0cee343dcc575aff243674cc29eeebc5787985750f18b86"
+      "sha256": "80997308c5806f6ea0cee343dcc575aff243674cc29eeebc5787985750f18b86",
+      "bytes": 30918,
+      "dimensions": [
+        1508,
+        552
+      ],
+      "source": "Examples/Binaurel/Design/previews/back_preview.png",
+      "source_sha256": "3c345f208a52c64ae3c54681f91461541d770be86428b16eb684f68998c2b6a5",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": false
+    },
+    {
+      "file": "Binaurel_Thumbnail_800.png",
+      "sha256": "dfad522f023b65a1326e218cc7d5f64a9d3381132721777dce7cdb63acf1609b",
+      "bytes": 150046,
+      "dimensions": [
+        800,
+        800
+      ],
+      "source": "Examples/Binaurel/Design/previews/Binaurel_Thumbnail_800.png",
+      "source_sha256": "dfad522f023b65a1326e218cc7d5f64a9d3381132721777dce7cdb63acf1609b",
+      "change": "Exact current source cover."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Binaurel",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.1.0d26",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Binaurel_Thumbnail_800.png",
+          "sha256": "9665b50c5c657800c5b8c15daa92474ef7207a8b53acb57394983a0afe821c71"
+        },
+        {
+          "file": "binaurel-rack-front.webp",
+          "sha256": "a50962dc1320c8862ed8b662cf7f4827e12b6057b7d23b20e54c8040d3cb869a"
+        },
+        {
+          "file": "binaurel-rack-rear.webp",
+          "sha256": "80997308c5806f6ea0cee343dcc575aff243674cc29eeebc5787985750f18b86"
+        }
+      ]
     }
   ]
 }

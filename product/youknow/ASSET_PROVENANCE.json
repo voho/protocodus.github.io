@@ -626,5 +626,41 @@
         ]
       }
     ]
+  },
+  "public_shop_verification_2026_11_02": {
+    "checked_on": "2026-11-02",
+    "method": "Direct current HTTPS fetch of Shop listing and its exact gallery, thumbnail and document URLs; SHA-256 comparison to website files.",
+    "listing_version": "1.3.5",
+    "assets": [
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png",
+        "sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3",
+        "matching_site_files": [
+          "YouKnow_Back.png"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png",
+        "sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac",
+        "matching_site_files": [
+          "YouKnow_Front.png"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/6e4821620655/YouKnow_User_Manual.pdf",
+        "sha256": "ea8d333f1d2b4229dcaa568b0a7585b6afdeccffceaae5ef9eac177f1f0c5208",
+        "matching_site_files": [
+          "YouKnow_User_Manual.pdf"
+        ]
+      },
+      {
+        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
+        "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+        "matching_site_files": [
+          "YouKnow_Thumbnail_800.png"
+        ]
+      }
+    ],
+    "result": "Every checked current Shop asset is byte-identical to the retained website file."
   }
 }

@@ -1,21 +1,82 @@
 {
   "product": "Keyra",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
-  "source_version": "0.4.1d20",
+  "source_version": "0.4.7d1",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Keyra/README.md",
+    "Examples/Keyra/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Keyra_Thumbnail_800.png",
-      "sha256": "b0cf274c614d5a735bd586172753253f95dd91a0fb604555f940326ed4bb4f66"
-    },
-    {
       "file": "keyra-rack-front.webp",
-      "sha256": "b09efa1753ae387bd7544d7871b5554d72d36cb70e4bfa444de7e967bbc8556d"
+      "sha256": "9f9cf5443508c2502b1400f034d0d18b9416bf4785a5eaa5a0cf25e038339457",
+      "bytes": 158090,
+      "dimensions": [
+        1508,
+        552
+      ],
+      "source": "Examples/Keyra/Docs/screenshots/front-2x.png",
+      "source_sha256": "0df13206497ff0a68bcac8279dd02b6624100d2d0791c3c926ac65663ecaf5eb",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
     },
     {
       "file": "keyra-rack-rear.webp",
-      "sha256": "6641c808b23c5f15ee74d29aa37518f54e942c3a8b879cd2138014de59f1a617"
+      "sha256": "c7ba779431a98bf14bf016ca569080e640713e5ca91c29e20e2cf9c0e093e0c7",
+      "bytes": 219364,
+      "dimensions": [
+        1508,
+        552
+      ],
+      "source": "Examples/Keyra/Docs/screenshots/back-2x.png",
+      "source_sha256": "b171792d8eb434ccba14c746f7ed14d63f340b89d8efbdb1618c4f32e76e566f",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
+    },
+    {
+      "file": "Keyra_Thumbnail_800.png",
+      "sha256": "b70ddc5e06f9806e2288ffe3fb340456b5bf7208e26dd8759edb476af72c2baf",
+      "bytes": 1487249,
+      "dimensions": [
+        800,
+        800
+      ],
+      "source": "/Users/vojta/Dev/reason-rack-extension/deliverables/acoustic-refresh-20261101/Keyra-Thumbnail-800.png",
+      "source_sha256": "b70ddc5e06f9806e2288ffe3fb340456b5bf7208e26dd8759edb476af72c2baf",
+      "change": "Exact copy of the approved 1 November 2026 acoustic cover; promotional physical-instrument vignette, not a device screenshot.",
+      "source_manifest": "/Users/vojta/Dev/reason-rack-extension/deliverables/acoustic-refresh-20261101/delivery-manifest.json"
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Keyra",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.4.1d20",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Keyra_Thumbnail_800.png",
+          "sha256": "b0cf274c614d5a735bd586172753253f95dd91a0fb604555f940326ed4bb4f66"
+        },
+        {
+          "file": "keyra-rack-front.webp",
+          "sha256": "b09efa1753ae387bd7544d7871b5554d72d36cb70e4bfa444de7e967bbc8556d"
+        },
+        {
+          "file": "keyra-rack-rear.webp",
+          "sha256": "6641c808b23c5f15ee74d29aa37518f54e942c3a8b879cd2138014de59f1a617"
+        }
+      ]
     }
   ]
 }
