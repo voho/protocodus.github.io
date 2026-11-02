@@ -1,21 +1,79 @@
 {
   "product": "Convretor",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
   "source_version": "0.1.0d9",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Convretor/README.md",
+    "Examples/Convretor/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Convretor_Thumbnail_800.png",
-      "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901"
-    },
-    {
       "file": "convretor-rack-front.webp",
-      "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358"
+      "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358",
+      "bytes": 30742,
+      "dimensions": [
+        1508,
+        414
+      ],
+      "source": "Examples/Convretor/Docs/screenshots/Convretor_Front.png",
+      "source_sha256": "efa1b9a71947d67ef17f72345f89b7c47d15765e31f4eb224dbf6c74bed9222f",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": false
     },
     {
       "file": "convretor-rack-rear.webp",
-      "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
+      "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c",
+      "bytes": 16462,
+      "dimensions": [
+        1508,
+        414
+      ],
+      "source": "Examples/Convretor/Docs/screenshots/Convretor_Back.png",
+      "source_sha256": "06d6b410504b6b93f40c734fc0b5d0378f3fdb2e09859e2c6a4280958682d78d",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": false
+    },
+    {
+      "file": "Convretor_Thumbnail_800.png",
+      "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901",
+      "bytes": 146602,
+      "dimensions": [
+        800,
+        800
+      ],
+      "change": "Retained existing cover; device media refreshed independently."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Convretor",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.1.0d9",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Convretor_Thumbnail_800.png",
+          "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901"
+        },
+        {
+          "file": "convretor-rack-front.webp",
+          "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358"
+        },
+        {
+          "file": "convretor-rack-rear.webp",
+          "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
+        }
+      ]
     }
   ]
 }

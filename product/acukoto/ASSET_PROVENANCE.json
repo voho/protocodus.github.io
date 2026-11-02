@@ -1,21 +1,87 @@
 {
   "product": "Acukoto",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
-  "source_version": "0.11.1d1",
+  "source_version": "0.15.1d1",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Acukoto/README.md",
+    "Examples/Acukoto/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Acukoto_Thumbnail_800.png",
-      "sha256": "919dc3db8e006ca1d5dadf3675228b66facdf7bd05fbf04eb2050d27e938badb"
-    },
-    {
       "file": "acukoto-rack-front.webp",
-      "sha256": "412e0e6bbf15fe12f0ded20e050d986cb0c95495f71fd367d9855a9cd16ae661"
+      "sha256": "c370f218d0c4e3126685fefb9750eab4cd96efb0adda16bae2ac8dd6176ac3e0",
+      "bytes": 142390,
+      "dimensions": [
+        1508,
+        828
+      ],
+      "source": "Examples/Acukoto/Design/Rendered/front-2x.png",
+      "source_sha256": "ce591b97c9e965e9ace877950053d926d1c6d9cf989235d8d2b6114a28aafaa7",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
     },
     {
       "file": "acukoto-rack-rear.webp",
-      "sha256": "6c89180366479828e847952d6370d549c7a86dee0c865b164efd044fb1f2a4ee"
+      "sha256": "63b9e2a8664556ee71357ab951f4201116a3c323063e8f4f810cb8a2a7e752c3",
+      "bytes": 130160,
+      "dimensions": [
+        1508,
+        828
+      ],
+      "source": "Examples/Acukoto/Design/Rendered/back-2x.png",
+      "source_sha256": "16d6badb39b8614f9a8c36e3533454516cce59c1a4df810fc76de60b76cc3619",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
+    },
+    {
+      "file": "Acukoto_Thumbnail_800.png",
+      "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+      "bytes": 1450155,
+      "dimensions": [
+        800,
+        800
+      ],
+      "source": "/Users/vojta/Dev/reason-rack-extension/deliverables/acoustic-refresh-20261101/Acukoto-Thumbnail-800.png",
+      "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+      "change": "Exact copy of the approved 1 November 2026 acoustic cover; promotional physical-instrument vignette, not a device screenshot.",
+      "source_manifest": "/Users/vojta/Dev/reason-rack-extension/deliverables/acoustic-refresh-20261101/delivery-manifest.json"
     }
-  ]
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Acukoto",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.11.1d1",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Acukoto_Thumbnail_800.png",
+          "sha256": "919dc3db8e006ca1d5dadf3675228b66facdf7bd05fbf04eb2050d27e938badb"
+        },
+        {
+          "file": "acukoto-rack-front.webp",
+          "sha256": "412e0e6bbf15fe12f0ded20e050d986cb0c95495f71fd367d9855a9cd16ae661"
+        },
+        {
+          "file": "acukoto-rack-rear.webp",
+          "sha256": "6c89180366479828e847952d6370d549c7a86dee0c865b164efd044fb1f2a4ee"
+        }
+      ]
+    }
+  ],
+  "render_verification": {
+    "command": "python3 Examples/Acukoto/Design/render_panels.py",
+    "result": "pass",
+    "scope": "Native renderer layout validation; no SDK build or live host test run during this website update."
+  }
 }

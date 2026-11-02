@@ -1,5 +1,79 @@
 # Product media and claim sources
 
+## Current review — 2 November 2026
+
+The published Rack Extensions follow the current public Reason Shop listing
+and gallery. Upcoming Rack Extensions follow merged `main` revision
+[`0566ef5d03139dd055425b1b9c0ea09900dad3d8`](https://github.com/protocodus/reason-rack-extensions/commit/0566ef5d03139dd055425b1b9c0ea09900dad3d8).
+Source-rendered complete device panels include their controls and display
+states; they are not live Reason screenshots or evidence of Shop publication.
+The dated notes below this section retain the scope of their earlier reviews.
+
+RILL joins the catalog as a separate **ALPHA** digital audio workstation.
+Its screenshot, platform distributions and source records are maintained in
+[`rill/ASSET_PROVENANCE.json`](rill/ASSET_PROVENANCE.json). Podcare remains a
+separate podcast production tool. Instruments without a Rack device, such as
+Septum, have no Rack product page.
+
+### Published products
+
+Direct HTTPS reads of the four Shop listings on 2 November 2026 confirm
+YouKnow **1.3.5**, Maremba **1.5.7**, Acustra **1.9.0** and Lamer Degrader
+**1.0.0**. The current gallery panels and available player guides are
+byte-identical to the website files; exact source URLs and SHA-256 comparisons
+are recorded under `public_shop_verification_2026_11_02` in each product's
+`ASSET_PROVENANCE.json`. Newer local candidate versions do not replace these
+published versions or public gallery images. Shop dates remain first-release
+dates, rather than dates inferred for later updates.
+
+### Upcoming Rack Extensions
+
+| Product | Current Rack source | Front/rear web media |
+| --- | --- | --- |
+| Electry | 1.2.9d1 | 754 × 621; complete committed panel composites |
+| Ceres | 1.1.3f3 | 1508 × 1104; current 8U front and rear, including the Note/Gate CV inputs; PNG links and WebPs show the same views |
+| Press78 | 1.0.3f1 | 754 × 552; front unchanged, updated rear build |
+| Aculele | 0.4.37d2 | 754 × 552; current panel renderer output |
+| Respira | 0.1.8d1 | 1508 × 552; Auto/Wheel, Life and current rear controls |
+| Aculyre | 0.7.6d1 | 1508 × 828; renderer verified, panels already byte-identical |
+| Acukoto | 0.15.1d1 | 1508 × 828; current renderer output |
+| Keyra | 0.4.7d1 | 1508 × 552; current six-piano Build deck and Random Piano control |
+| Binaurel | 0.1.0d26 | 1508 × 552; current source front and rear |
+| Clareq | 0.1.0b18 | 1508 × 966; current source front and rear |
+| Remix | 0.1.0d14 | 1508 × 690; panels already byte-identical |
+| Convretor | 0.1.0d9 | 1508 × 414; panels already byte-identical |
+
+Each product's current `ASSET_PROVENANCE.json` records source identity,
+input/output hashes, actual dimensions and retained earlier receipts. WebPs
+use Pillow 11.0.0, quality 90 and method 6, preserving the complete source
+panel at its original dimensions. Ceres's full-size PNG aliases are exact
+copies of the current source composites. Its retained PDF is explicitly an
+earlier **1.0.3** candidate guide, not documentation of every 1.1.3 control.
+
+The approved 1 November 2026 acoustic covers replace the older thumbnails for
+Aculele, Aculyre, Acukoto, Respira and Keyra. These are exact 800 × 800 copies
+from `deliverables/acoustic-refresh-20261101/`, with hashes recorded against
+its delivery manifest. The physical-instrument vignettes are promotional
+artwork. They do not depict Rack interfaces. The published Shop thumbnails already used by YouKnow, Maremba and Lamer
+are retained; Acustra uses its complete front panel as its social image.
+
+Current feature boundaries include six measured Keyra pianos (five grands and
+an upright), fourteen Rack patches and its part-by-part Build deck; Aculyre's
+27-string steel/nylon harps and 16-string gut lyre; Respira's default Auto
+air supply, Life and manual Wheel mode; Ceres's Note/Gate CV and 0.3-cent
+factory drift; Press78's Init plus 150 original sounds in ten folders; and
+Acukoto's Oshide On/Off/Legato, last-string hand gestures and A0–C8 keyboard
+range. Older counts and no-CV claims in the history below are superseded.
+No native CPU figure is presented as a Reason CPU measurement.
+
+Aculele, Aculyre and Acukoto's own panel renderers passed their layout
+validation during this website update. No SDK build, live host test, portal
+upload or Shop publication was performed as part of the website work. Those
+stages have their own device-specific evidence and do not determine the
+public website's Coming soon badge.
+
+## Historical media and claim reviews
+
 Product images reviewed 28 October 2026 against the current public Reason Shop
 galleries. The product catalog and instrument details describe
 Reason Rack Extensions. Podcare remains a separate podcast production tool.

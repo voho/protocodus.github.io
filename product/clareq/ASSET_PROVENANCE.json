@@ -1,21 +1,79 @@
 {
   "product": "Clareq",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
   "source_version": "0.1.0b18",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Clareq/README.md",
+    "Examples/Clareq/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Clareq_Thumbnail_800.png",
-      "sha256": "a22a0177047213a90e584b28660df2c3ee2eca59b693451a23d6315c18a2e289"
-    },
-    {
       "file": "clareq-rack-front.webp",
-      "sha256": "245a41e44b9273906e50da87a5de9ac20ace2b46caf64b956ca2096a4b78872d"
+      "sha256": "f640f69959f17cb82c25843294e7c06d06d6f558c09095239f94050329c7d8e2",
+      "bytes": 79272,
+      "dimensions": [
+        1508,
+        966
+      ],
+      "source": "Examples/Clareq/Docs/screenshots/clareq.png",
+      "source_sha256": "9367becf999c142ffebf32bb487857fc9ccb6fb9d4987ebf1054469984601e41",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
     },
     {
       "file": "clareq-rack-rear.webp",
-      "sha256": "a06b9905bb186ad8f09c0b939fbb4ddf171baaece1dbbe6ebc7a190be43bec9f"
+      "sha256": "1e7b12b82c3f6ee581e799526c248bf0bcf9d2b68958c861a961e6bc371b91fb",
+      "bytes": 44710,
+      "dimensions": [
+        1508,
+        966
+      ],
+      "source": "Examples/Clareq/Design/previews/back_preview.png",
+      "source_sha256": "401d42844589d2d2e24a47c06197ace629ccd52fcb4b1f153a1c7673bb3287ce",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": true
+    },
+    {
+      "file": "Clareq_Thumbnail_800.png",
+      "sha256": "a22a0177047213a90e584b28660df2c3ee2eca59b693451a23d6315c18a2e289",
+      "bytes": 375557,
+      "dimensions": [
+        800,
+        800
+      ],
+      "change": "Retained existing cover; device media refreshed independently."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Clareq",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.1.0b18",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Clareq_Thumbnail_800.png",
+          "sha256": "a22a0177047213a90e584b28660df2c3ee2eca59b693451a23d6315c18a2e289"
+        },
+        {
+          "file": "clareq-rack-front.webp",
+          "sha256": "245a41e44b9273906e50da87a5de9ac20ace2b46caf64b956ca2096a4b78872d"
+        },
+        {
+          "file": "clareq-rack-rear.webp",
+          "sha256": "a06b9905bb186ad8f09c0b939fbb4ddf171baaece1dbbe6ebc7a190be43bec9f"
+        }
+      ]
     }
   ]
 }

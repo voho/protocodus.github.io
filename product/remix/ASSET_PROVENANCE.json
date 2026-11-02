@@ -1,21 +1,79 @@
 {
   "product": "Remix",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-02",
   "availability": "coming_soon",
   "source_version": "0.1.0d14",
   "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "0566ef5d03139dd055425b1b9c0ea09900dad3d8",
+  "source_format": "Current complete device panel composites, including controls and authored display state. These are source-rendered views, not live Reason screenshots or evidence of Shop publication.",
+  "feature_sources": [
+    "Examples/Remix/README.md",
+    "Examples/Remix/info.lua"
+  ],
+  "export_method": {
+    "webp": "Pillow 11.0.0, quality 90, method 6; preserve complete panel, aspect ratio and original pixel dimensions.",
+    "png": "Exact source copies."
+  },
   "assets": [
     {
-      "file": "Remix_Thumbnail_800.png",
-      "sha256": "1d8a186e7d526969e115ec8682773833043c39161c4467f22e3cd3f2700d4411"
-    },
-    {
       "file": "remix-rack-front.webp",
-      "sha256": "1db7c20c6e25ad6abc89f39575e4b93c038434be87334f8ce7040e9ceef63765"
+      "sha256": "1db7c20c6e25ad6abc89f39575e4b93c038434be87334f8ce7040e9ceef63765",
+      "bytes": 40764,
+      "dimensions": [
+        1508,
+        690
+      ],
+      "source": "Examples/Remix/Docs/screenshots/Remix_Front.png",
+      "source_sha256": "903a47aab3d8507a02a4223ac3547e0b4d1a08ce24796b8de75215886bb0cf1e",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": false
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533"
+      "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533",
+      "bytes": 22006,
+      "dimensions": [
+        1508,
+        690
+      ],
+      "source": "Examples/Remix/Docs/screenshots/Remix_Back.png",
+      "source_sha256": "0b8339d1d986572f0b8086399f73fafe1b6440736376cbaaf92649ec75284079",
+      "change": "Complete device composite converted with Pillow 11.0.0, WebP quality 90, method 6; no resizing or retouching.",
+      "changed": false
+    },
+    {
+      "file": "Remix_Thumbnail_800.png",
+      "sha256": "1d8a186e7d526969e115ec8682773833043c39161c4467f22e3cd3f2700d4411",
+      "bytes": 155302,
+      "dimensions": [
+        800,
+        800
+      ],
+      "change": "Retained existing cover; device media refreshed independently."
+    }
+  ],
+  "earlier_reviews": [
+    {
+      "product": "Remix",
+      "reviewed": "2026-10-31",
+      "availability": "coming_soon",
+      "source_version": "0.1.0d14",
+      "source_repository": "protocodus/reason-rack-extensions",
+      "assets": [
+        {
+          "file": "Remix_Thumbnail_800.png",
+          "sha256": "1d8a186e7d526969e115ec8682773833043c39161c4467f22e3cd3f2700d4411"
+        },
+        {
+          "file": "remix-rack-front.webp",
+          "sha256": "1db7c20c6e25ad6abc89f39575e4b93c038434be87334f8ce7040e9ceef63765"
+        },
+        {
+          "file": "remix-rack-rear.webp",
+          "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533"
+        }
+      ]
     }
   ]
 }
