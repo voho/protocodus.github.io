@@ -639,5 +639,22 @@
     ],
     "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
     "source_branch": "release/dsp-20261103-evening"
+  },
+  "development_gallery": {
+    "date": "2026-11-03",
+    "source_version": "1.4.5f1",
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "images": {
+      "front": {
+        "file": "1.4.5f1/YouKnow_Front.png",
+        "source": "dist/YouKnow_Front.png",
+        "sha256": "45466eeccbe37d95bd17c280a867526b12b90ee1dec05719dfa16d528e8f6001"
+      },
+      "back": {
+        "file": "1.4.5f1/YouKnow_Back.png",
+        "source": "dist/YouKnow_Back.png",
+        "sha256": "ecf71ff2dcbe28c968bc1a136e5f40c50817045b8ce8111cf34660326a8729a7"
+      }
+    }
   }
 }
