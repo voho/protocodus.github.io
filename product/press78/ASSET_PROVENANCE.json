@@ -78,12 +78,13 @@
     "assets": {
       "Press78_Thumbnail_800.png": {
         "source": "dist/Press78_Thumbnail_800.png",
-        "sha256": "c0c0821f847f275a182fcfcc1888aaa37e0df4bffee28bbef720be97a603522d",
-        "source_sha256": "c0c0821f847f275a182fcfcc1888aaa37e0df4bffee28bbef720be97a603522d",
+        "sha256": "887a2fba3583f42d49ce6e65c586c0e40472063df75490682b1dfb7542143bad",
+        "source_sha256": "887a2fba3583f42d49ce6e65c586c0e40472063df75490682b1dfb7542143bad",
         "pixels": [
           800,
           800
-        ]
+        ],
+        "source_commit": "297dacd16c1e22b07f7839d38d03414be2e494b8"
       },
       "Press78_Front.png": {
         "source": "dist/Press78_Front.png",
