@@ -631,13 +631,13 @@
     "date": "2026-11-03",
     "file": "YouKnow_Thumbnail_800.png",
     "source": "dist/YouKnow_Thumbnail_800.png",
-    "source_sha256": "37215dab394bcf94b9ea077b2cb3d641a9c5a7ae756b530e91a5e6c0229f8f86",
-    "sha256": "37215dab394bcf94b9ea077b2cb3d641a9c5a7ae756b530e91a5e6c0229f8f86",
+    "source_sha256": "ca85e44b1460946f7b29bd3c392627b237ed4e3a99e1839c2c40ba637dcf93c2",
+    "sha256": "ca85e44b1460946f7b29bd3c392627b237ed4e3a99e1839c2c40ba637dcf93c2",
     "pixels": [
       800,
       800
     ],
-    "source_commit": "4ebcac7eed6cf757bc93279def780e85723b0a15",
+    "source_commit": "a4c2a93dfb7d564ee055a8f20a3867951cc4f1a9",
     "source_branch": "release/dsp-20261103-evening"
   },
   "development_gallery": {
