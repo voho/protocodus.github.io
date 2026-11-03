@@ -512,6 +512,8 @@ const FRAG_SHEEN = `
       float n64Fwd = clamp(-dot(uSunView, n64V), 0.0, 1.0);
       n64Add += n64Sun * (RECIPROCAL_PI * ${asFloat(SHEEN.wrapGain)}
         * n64Back * n64Fwd * n64Fwd * n64Fwd);
+      float n64Velvet = pow(1.0 - n64NoV, 3.0) * n64NoL * n64Open * (1.0 - n64Smooth * 0.65);
+      n64Add += n64Sun * diffuseColor.rgb * (RECIPROCAL_PI * 0.14 * n64Velvet);
 
       /* THE LIGHT THAT GOES INTO THE SNOW AND COMES BACK OUT BLUE.
 
@@ -544,11 +546,11 @@ const FRAG_SHEEN = `
          weighted towards blue, so they stay in whatever palette the hour has
          put the snow in. */
       {
-        float n64SssWrap = clamp((n64NL + 0.45) / 1.45, 0.0, 1.0);
+        float n64SssWrap = clamp((n64NL + 0.48) / 1.48, 0.0, 1.0);
         float n64Sss = max(n64SssWrap * n64SssWrap - n64Lit, 0.0);
         float n64Pen = 4.0 * n64Open * (1.0 - n64Open)
           * smoothstep(0.05, 0.30, n64Lit);
-        float n64SssAmt = 0.45 * n64Sss + 0.10 * n64Pen * n64Lit;
+        float n64SssAmt = 0.50 * n64Sss + 0.12 * n64Pen * n64Lit;
         if (n64SssAmt > 0.002) {
           float n64SssVis = 1.0;
           #ifdef N64_SUN_VIS
@@ -564,9 +566,9 @@ const FRAG_SHEEN = `
                 vDirectionalShadowCoord[ 0 ] );
             }
           #endif
-          n64Add += n64Sun * diffuseColor.rgb * vec3(0.50, 0.78, 1.0)
-            * (RECIPROCAL_PI * (0.45 * n64Sss * n64SssVis
-              + 0.10 * n64Pen * n64Lit));
+          n64Add += n64Sun * diffuseColor.rgb * vec3(0.48, 0.78, 1.0)
+            * (RECIPROCAL_PI * (0.50 * n64Sss * n64SssVis
+              + 0.12 * n64Pen * n64Lit));
         }
       }
 

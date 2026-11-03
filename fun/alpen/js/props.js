@@ -2551,6 +2551,7 @@ export function createProps(THREE, shading) {
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
         #ifdef USE_INSTANCING
+          ${fadeFar ? `if (distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz) >= ${(fadeFar[1] + 2.5).toFixed(1)}) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);` : ''}
           vFloraWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
           vFloraNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #else
@@ -2632,6 +2633,7 @@ export function createProps(THREE, shading) {
           vec3 n64WN = inverseTransformDirection(transformedNormal, viewMatrix);
           float snowExposure = 1.0;
           #ifdef USE_INSTANCING
+            ${fadeFar ? `if (distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz) >= ${(fadeFar[1] + 2.5).toFixed(1)}) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);` : ''}
             snowExposure = 0.68 + 0.58 * fract(sin(dot(instanceMatrix[3].xz,
               vec2(0.1271, 0.3117))) * 437.585);
           #endif
@@ -3466,6 +3468,7 @@ export function createProps(THREE, shading) {
     Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
   ));
   const scrubPools = shrubPools.concat(plantPools);
+  for (const p of scrubPools) bindDistancePrefix(p.mesh, TREE_LOD[1] + 2.5);
 
   /* The trackside flora draws nothing until its file lands — an empty
      geometry is an InstancedMesh with nothing to submit — and is written by
@@ -3478,6 +3481,7 @@ export function createProps(THREE, shading) {
     (i < COVER_FIRST ? BIOMES.decorCandidates * DECOR_CLUMP_MAX
       : BIOMES.coverCandidates * COVER_CLUMP_MAX) * bands + 16,
   ));
+  for (const p of decorPools) bindDistancePrefix(p.mesh, DECOR_FADE[1] + 2.5);
 
   /* The first two are the hazard families and stay first: the verge
      boulder picks between them by index. The three after them are granite,

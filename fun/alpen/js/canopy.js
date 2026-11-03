@@ -97,14 +97,18 @@ export function createCanopy(THREE, shading) {
     const x1 = Math.min(SIZE - 1, Math.ceil(cx + rt));
     const z0 = Math.max(0, Math.floor(cz - rt));
     const z1 = Math.min(SIZE - 1, Math.ceil(cz + rt));
+    const edge2 = edge * edge;
+    const reach2 = reach * reach;
+    const invSpan = 1 / span;
     for (let z = z0; z <= z1; z++) {
       const dz = (z + 0.5 - cz) * TEXEL;
+      const dz2 = dz * dz;
       const row = z * SIZE;
       for (let x = x0; x <= x1; x++) {
         const dx = (x + 0.5 - cx) * TEXEL;
-        const t = (Math.hypot(dx, dz) - edge) / span;
-        if (t >= 1) continue;
-        const q = t <= 0 ? 1 : 1 - t;
+        const r2 = dx * dx + dz2;
+        if (r2 >= reach2) continue;
+        const q = r2 <= edge2 ? 1 : 1 - (Math.sqrt(r2) - edge) * invSpan;
         field[row + x] *= 1 - CONTACT * q * q;
       }
     }

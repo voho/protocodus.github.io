@@ -374,19 +374,24 @@ const BACKDROP_FRAG = `
     float stand = slow.b * 0.55 + texture2D(uNoise,
       mat2(0.6, -0.8, 0.8, 0.6) * vReal.xz / 1370.0 + vec2(0.29, 0.83)).b * 0.45;
     float standOpen = smoothstep(0.30, 0.80, stand);
-    vec3 forestColor = mix(uForest, uSnow * 0.8,
-      (0.06 + 0.12 * (1.0 - crowns)) * mix(0.45, 1.65, standOpen));
+    float treeCover = forest * snow * (2.05 - 0.95 * standOpen);
+    snow = max(0.0, snow - treeCover);
+    forest += treeCover;
+    vec3 needleTint = mix(uForest, uForest * vec3(0.88, 1.18, 0.92), crowns);
+    vec3 forestColor = mix(needleTint, uSnow * 0.82,
+      (0.04 + 0.10 * (1.0 - crowns)) * mix(0.40, 1.45, standOpen));
     vec3 albedo = uSnow * snow + forestColor * forest + uIce * ice + rockColor * rock;
 
     // and the strata tilt the light on the rock
     n = normalize(n + vec3(strata.r - 0.5, 0.0, strata.g - 0.5) * 0.25 * rock);
+    vec3 litN = normalize(n + vec3(fast.g - 0.5, 0.0, fast.b - 0.5) * (0.22 * forest));
 
     /* The key, and whether the land round this point hides it: the sun's
        elevation against the horizon on its bearing, softened by a degree
        either side for the sun's own size and the table's coarseness. */
     float sunElev = asin(clamp(uSunDir.y, -1.0, 1.0));
     float lit = smoothstep(vSunHorizon - 0.012, vSunHorizon + 0.022, sunElev);
-    float direct = max(0.0, dot(n, uSunDir)) * lit;
+    float direct = max(0.0, dot(litN, uSunDir)) * lit;
     /* The fill is the sky's, blue, with only a little of the snow's bounce:
        a face in shadow a few kilometres off is lit by the sky over it, and
        that is what turns shaded snow blue against sunlit snow. */

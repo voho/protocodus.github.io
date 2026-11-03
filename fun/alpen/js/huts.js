@@ -1184,6 +1184,13 @@ export function createHuts(THREE, shading) {
   // every run for ever, including the runs that never came within three
   // hundred metres of a chimney.
   let live = 0;
+  let shapeDirty = false;
+  let shapeFirst = S.count;
+  let shapeLast = -1;
+  let lastLit = NaN;
+  let lastHazeR = NaN;
+  let lastHazeG = NaN;
+  let lastHazeB = NaN;
 
   // --- scratch -------------------------------------------------------------
   const m = new THREE.Matrix4();
@@ -1302,6 +1309,9 @@ export function createHuts(THREE, shading) {
     sTurn[i] = Math.random() * Math.PI * 2;
     sSpin[i] = (Math.random() - 0.5) * S.spin;
     sShape[i] = Math.floor(Math.random() * 4);
+    shapeDirty = true;
+    if (i < shapeFirst) shapeFirst = i;
+    if (i > shapeLast) shapeLast = i;
   }
 
   function stepSmoke(dt, windX, windZ) {
@@ -1311,10 +1321,22 @@ export function createHuts(THREE, shading) {
        draw as well as uploading its zeroed alpha, so the renderer sleeps
        alongside this loop until the next emission. */
     if (live === 0) return;
+    if (dt === 0 && !shapeDirty) {
+      smoke.visible = true;
+      return;
+    }
     const k = 1 - Math.exp(-S.drag * dt);
+    let firstMod = S.count;
+    let lastMod = -1;
+    let alphaFirst = S.count;
+    let alphaLast = -1;
     for (let i = 0; i < S.count; i++) {
       if (sLife[i] <= 0) {
-        if (sAlpha[i] !== 0) sAlpha[i] = 0;
+        if (sAlpha[i] !== 0) {
+          sAlpha[i] = 0;
+          if (i < alphaFirst) alphaFirst = i;
+          if (i > alphaLast) alphaLast = i;
+        }
         continue;
       }
       const j = i * 3;
@@ -1322,8 +1344,14 @@ export function createHuts(THREE, shading) {
       if (sLife[i] <= 0) {
         sAlpha[i] = 0;
         live -= 1;
+        if (i < alphaFirst) alphaFirst = i;
+        if (i > alphaLast) alphaLast = i;
         continue;
       }
+      if (i < firstMod) firstMod = i;
+      if (i > lastMod) lastMod = i;
+      if (i < alphaFirst) alphaFirst = i;
+      if (i > alphaLast) alphaLast = i;
       const u = clamp(1 - sLife[i] / sMax[i], 0, 1);
       // Buoyant while it is still hot, and the wind's after that
       sVel[j] += (windX * S.coupling - sVel[j]) * k;
@@ -1340,11 +1368,36 @@ export function createHuts(THREE, shading) {
       sAlpha[i] = S.alpha * Math.min(1, u * 6) * fade;
     }
     smoke.visible = live > 0;
-    smokeGeo.attributes.position.needsUpdate = true;
-    smokeGeo.attributes.aSize.needsUpdate = true;
-    smokeGeo.attributes.aAlpha.needsUpdate = true;
-    smokeGeo.attributes.aTurn.needsUpdate = true;
-    smokeGeo.attributes.aShape.needsUpdate = true;
+    if (firstMod <= lastMod) {
+      const span = lastMod - firstMod + 1;
+      const posAttr = smokeGeo.attributes.position;
+      const sizeAttr = smokeGeo.attributes.aSize;
+      const turnAttr = smokeGeo.attributes.aTurn;
+      posAttr.clearUpdateRanges();
+      posAttr.addUpdateRange(firstMod * 3, span * 3);
+      posAttr.needsUpdate = true;
+      sizeAttr.clearUpdateRanges();
+      sizeAttr.addUpdateRange(firstMod, span);
+      sizeAttr.needsUpdate = true;
+      turnAttr.clearUpdateRanges();
+      turnAttr.addUpdateRange(firstMod, span);
+      turnAttr.needsUpdate = true;
+    }
+    if (alphaFirst <= alphaLast) {
+      const alphaAttr = smokeGeo.attributes.aAlpha;
+      alphaAttr.clearUpdateRanges();
+      alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      alphaAttr.needsUpdate = true;
+    }
+    if (shapeDirty) {
+      const shapeAttr = smokeGeo.attributes.aShape;
+      shapeAttr.clearUpdateRanges();
+      shapeAttr.addUpdateRange(shapeFirst, shapeLast - shapeFirst + 1);
+      shapeAttr.needsUpdate = true;
+      shapeDirty = false;
+      shapeFirst = S.count;
+      shapeLast = -1;
+    }
   }
 
   /* ==========================================================================
@@ -1374,13 +1427,18 @@ export function createHuts(THREE, shading) {
 
     // Glass takes the sky's colour by day — it is a mirror until there is
     // something behind it — and the fire's by night
-    tint.copy(w.haze).lerp(warm, lit);
-    paneMat.color.copy(tint);
-    paneMat.opacity = HUTS.glow.floor + (1 - HUTS.glow.floor) * lit;
-    // The lamps come on with the glass they shine through
-    lampWarm.copy(lampColour).multiplyScalar(lit);
-
-    smokeMat.uniforms.uColor.value.copy(smokeDay).lerp(smokeNight, lit);
+    if (lit !== lastLit || w.haze.r !== lastHazeR || w.haze.g !== lastHazeG || w.haze.b !== lastHazeB) {
+      tint.copy(w.haze).lerp(warm, lit);
+      paneMat.color.copy(tint);
+      paneMat.opacity = HUTS.glow.floor + (1 - HUTS.glow.floor) * lit;
+      // The lamps come on with the glass they shine through
+      lampWarm.copy(lampColour).multiplyScalar(lit);
+      smokeMat.uniforms.uColor.value.copy(smokeDay).lerp(smokeNight, lit);
+      lastLit = lit;
+      lastHazeR = w.haze.r;
+      lastHazeG = w.haze.g;
+      lastHazeB = w.haze.b;
+    }
     smokeMat.uniforms.uNear.value = w.fogNear;
     smokeMat.uniforms.uFar.value = w.fogFar;
     /* The vertex shader applies the render camera's vertical projection to
@@ -1462,11 +1520,15 @@ export function createHuts(THREE, shading) {
     spoiled.clear();
     block = NaN;
     live = 0;
+    shapeDirty = false;
+    shapeFirst = S.count;
+    shapeLast = -1;
     smoke.visible = false;
     for (let i = 0; i < S.count; i++) {
       sLife[i] = 0;
       sAlpha[i] = 0;
     }
+    smokeGeo.attributes.aAlpha.clearUpdateRanges();
     smokeGeo.attributes.aAlpha.needsUpdate = true;
   }
 

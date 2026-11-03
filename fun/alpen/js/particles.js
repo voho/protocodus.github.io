@@ -490,7 +490,7 @@ const VERT = `
       min(1.0, (uLong * 1.4) / max(reach, 0.01)));
     // Small sprites need every pixel they have and want a nearly flat top;
     // a big one is a puff of air and must not have an edge anywhere on it.
-    vSoft = mix(0.75, 2.4, smoothstep(3.0, 24.0, l));
+    vSoft = mix(0.95, 2.8, smoothstep(2.5, 18.0, l));
     vAxis = normalize(vec2(d.x, -d.y) + vec2(1e-5, 0.0));
 
     /* Ice glitter, spray only. A hard grain of thrown crust is a crystal, and
@@ -561,7 +561,9 @@ const FRAG = `
     // One smooth peak rather than a disc with a rim. The rim is what read as
     // a bubble; a falling exponent is what reads as powder.
     float k = max(1.0 - r * 4.0, 0.0001);
-    float a = vAlpha * pow(k, vSoft);
+    float hex = 1.0 + 0.12 * cos(atan(q.y, q.x) * 6.0)
+      * smoothstep(0.02, 0.16, r) * (1.0 - smoothstep(1.3, 2.2, vStretch));
+    float a = vAlpha * pow(k, vSoft) * hex;
     // A field of identical flakes reads as a pattern; each one leaning its
     // own fixed step towards the haze reads as depth the field does not have.
     // Below zero the tint runs towards the max-flow crystals instead — the
@@ -1249,6 +1251,15 @@ export function createSpray(THREE, shading) {
   const phase = new Float32Array(n);
   let head = 0;
   let streakDirty = false;
+  let streakFirst = n;
+  let streakLast = -1;
+  let sleeping = true;
+  const markSlot = (i) => {
+    streakDirty = true;
+    sleeping = false;
+    if (i < streakFirst) streakFirst = i;
+    if (i > streakLast) streakLast = i;
+  };
 
   /* `edgeSample` arrives at fixed-distance sections, never render frames. A
      Poisson count at each section preserves that spatial density without the
@@ -1286,7 +1297,7 @@ export function createSpray(THREE, shading) {
       streak[i] = SPRAY.streak;
       seed[i] = Math.random();
       tint[i] = 0;
-      streakDirty = true;
+      markSlot(i);
       position[j] = pos.x - anchor.x + (Math.random() - 0.5) * 0.7;
       position[j + 1] = pos.y - anchor.y + 0.1 + Math.random() * 0.25;
       position[j + 2] = pos.z - anchor.z + (Math.random() - 0.5) * 0.7;
@@ -1469,7 +1480,7 @@ export function createSpray(THREE, shading) {
     }
     seed[i] = Math.random();
     tint[i] = 0;             // reclaim the slot from any earlier ember
-    streakDirty = true;
+    markSlot(i);
     life[i] = maxLife[i];
     tumble[i] = (kind === 2 ? 1.1 : kind === 3 ? 0.9 : 0.45)
       + r2 * (kind === 2 ? 1.8 : kind === 3 ? 1.4 : 1.0) + chatter * 0.8;
@@ -1648,74 +1659,118 @@ export function createSpray(THREE, shading) {
     // corpses to the GPU every frame.
     let live = 0;
     let snuffed = false;
-    for (let i = 0; i < n; i++) {
-      if (life[i] <= 0) {
-        if (alpha[i] !== 0) { alpha[i] = 0; snuffed = true; }
-        continue;
+    let firstMod = n;
+    let lastMod = -1;
+    let alphaFirst = n;
+    let alphaLast = -1;
+    if (!sleeping) {
+      for (let i = 0; i < n; i++) {
+        if (life[i] <= 0) {
+          if (alpha[i] !== 0) {
+            alpha[i] = 0;
+            snuffed = true;
+            if (i < alphaFirst) alphaFirst = i;
+            if (i > alphaLast) alphaLast = i;
+          }
+          continue;
+        }
+        liveIndices[live++] = i;
+        if (i < firstMod) firstMod = i;
+        if (i > lastMod) lastMod = i;
+        if (i < alphaFirst) alphaFirst = i;
+        if (i > alphaLast) alphaLast = i;
+        const j = i * 3;
+        life[i] -= dt;
+        const f = fine[i];
+        const age = maxLife[i] - life[i];
+
+        // Weight. Dust is mostly air and barely falls; a chunk of crust falls
+        // at very nearly the rate the rider does.
+        vel[j + 1] -= (3.4 + (1 - f) * 9.6) * dt;
+
+        // Lateral tumble: a slow swing that turns as the particle ages, so a
+        // rooster tail frays outwards instead of staying a clean cone
+        const a = phase[i] + age * spin[i];
+        vel[j] += Math.cos(a) * tumble[i] * dt;
+        vel[j + 2] += Math.sin(a) * tumble[i] * dt;
+
+        /* Drag, and the one line that changed the whole look of this.
+
+           Powder is mostly air: it slows fast, which is what makes it read as
+           snow rather than as gravel. It used to slow towards *nothing*, which
+           quietly claimed the air was still — so a plume hung exactly where it
+           was thrown, in a game with a wind vector that is already blowing the
+           snowfall sideways. Now the horizontal velocity decays towards the
+           wind instead, and the plume drifts off down the mountain with
+           everything else in the sky. */
+        const k = Math.exp(-(1.7 + f * 2.3) * dt);
+        vel[j] = wx + (vel[j] - wx) * k;
+        vel[j + 1] *= k;
+        vel[j + 2] = wz + (vel[j + 2] - wz) * k;
+
+        position[j] += vel[j] * dt;
+        position[j + 1] += vel[j + 1] * dt;
+        position[j + 2] += vel[j + 2] * dt;
+
+        // A puff disperses: it swells as it fades, which is the whole reason
+        // half a dozen particles read as a cloud rather than as half a dozen
+        // particles
+        const t = Math.max(0, life[i]) / maxLife[i];
+        size[i] = born[i] * (1 + grow[i] * (1 - t));
+        // Fading in over the first breath of its life stops a burst arriving
+        // as a wall of hard dots on the frame it was fired
+        const rise = Math.min(1, age * 14);
+        alpha[i] = rise * t * t * peak[i];
       }
-      liveIndices[live++] = i;
-      const j = i * 3;
-      life[i] -= dt;
-      const f = fine[i];
-      const age = maxLife[i] - life[i];
-
-      // Weight. Dust is mostly air and barely falls; a chunk of crust falls
-      // at very nearly the rate the rider does.
-      vel[j + 1] -= (3.4 + (1 - f) * 9.6) * dt;
-
-      // Lateral tumble: a slow swing that turns as the particle ages, so a
-      // rooster tail frays outwards instead of staying a clean cone
-      const a = phase[i] + age * spin[i];
-      vel[j] += Math.cos(a) * tumble[i] * dt;
-      vel[j + 2] += Math.sin(a) * tumble[i] * dt;
-
-      /* Drag, and the one line that changed the whole look of this.
-
-         Powder is mostly air: it slows fast, which is what makes it read as
-         snow rather than as gravel. It used to slow towards *nothing*, which
-         quietly claimed the air was still — so a plume hung exactly where it
-         was thrown, in a game with a wind vector that is already blowing the
-         snowfall sideways. Now the horizontal velocity decays towards the
-         wind instead, and the plume drifts off down the mountain with
-         everything else in the sky. */
-      const k = Math.exp(-(1.7 + f * 2.3) * dt);
-      vel[j] = wx + (vel[j] - wx) * k;
-      vel[j + 1] *= k;
-      vel[j + 2] = wz + (vel[j + 2] - wz) * k;
-
-      position[j] += vel[j] * dt;
-      position[j + 1] += vel[j + 1] * dt;
-      position[j + 2] += vel[j + 2] * dt;
-
-      // A puff disperses: it swells as it fades, which is the whole reason
-      // half a dozen particles read as a cloud rather than as half a dozen
-      // particles
-      const t = Math.max(0, life[i]) / maxLife[i];
-      size[i] = born[i] * (1 + grow[i] * (1 - t));
-      // Fading in over the first breath of its life stops a burst arriving
-      // as a wall of hard dots on the frame it was fired
-      const rise = Math.min(1, age * 14);
-      alpha[i] = rise * t * t * peak[i];
+      if (live === 0 && !snuffed) sleeping = true;
     }
     if (live > 0) {
+      const span = lastMod - firstMod + 1;
       geo.index.clearUpdateRanges();
       geo.index.addUpdateRange(0, live);
       geo.index.needsUpdate = true;
-      geo.attributes.position.needsUpdate = true;
-      geo.attributes.aSize.needsUpdate = true;
+      const posAttr = geo.attributes.position;
+      if (!posAttr.needsUpdate) {
+        posAttr.clearUpdateRanges();
+        posAttr.addUpdateRange(firstMod * 3, span * 3);
+        posAttr.needsUpdate = true;
+      } else {
+        posAttr.clearUpdateRanges();
+      }
+      const sizeAttr = geo.attributes.aSize;
+      sizeAttr.clearUpdateRanges();
+      sizeAttr.addUpdateRange(firstMod, span);
+      sizeAttr.needsUpdate = true;
     }
     // A particle's dying frame writes one last zero into the alpha table
     // after its life has gone, so the alpha travels once more than the rest.
-    if (live > 0 || snuffed) geo.attributes.aAlpha.needsUpdate = true;
+    if (live > 0 || snuffed) {
+      const alphaAttr = geo.attributes.aAlpha;
+      alphaAttr.clearUpdateRanges();
+      alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      alphaAttr.needsUpdate = true;
+    }
     geo.setDrawRange(0, live);
     cloud.points.visible = live > 0;
     if (streakDirty) {
-      geo.attributes.aStreak.needsUpdate = true;
-      geo.attributes.aSeed.needsUpdate = true;
+      const span = streakLast - streakFirst + 1;
+      const streakAttr = geo.attributes.aStreak;
+      const seedAttr = geo.attributes.aSeed;
+      const tintAttr = geo.attributes.aTint;
+      streakAttr.clearUpdateRanges();
+      streakAttr.addUpdateRange(streakFirst, span);
+      streakAttr.needsUpdate = true;
+      seedAttr.clearUpdateRanges();
+      seedAttr.addUpdateRange(streakFirst, span);
+      seedAttr.needsUpdate = true;
       // The tint changes exactly when a slot is recycled, which is exactly
       // when the streak does — one dirty flag serves all three.
-      geo.attributes.aTint.needsUpdate = true;
+      tintAttr.clearUpdateRanges();
+      tintAttr.addUpdateRange(streakFirst, span);
+      tintAttr.needsUpdate = true;
       streakDirty = false;
+      streakFirst = n;
+      streakLast = -1;
     }
 
     sprayTime = (sprayTime + dt) % 512;
@@ -1736,8 +1791,13 @@ export function createSpray(THREE, shading) {
   function clear() {
     for (let i = 0; i < n; i++) { life[i] = 0; alpha[i] = 0; }
     edgeWander = 0;
+    sleeping = true;
+    streakDirty = false;
+    streakFirst = n;
+    streakLast = -1;
     geo.setDrawRange(0, 0);
     cloud.points.visible = false;
+    geo.attributes.aAlpha.clearUpdateRanges();
     geo.attributes.aAlpha.needsUpdate = true;
   }
 
@@ -1760,7 +1820,7 @@ export function createSpray(THREE, shading) {
       streak[i] = SPRAY.streak;
       seed[i] = Math.random();
       tint[i] = 0;
-      streakDirty = true;
+      markSlot(i);
 
       const angle = Math.random() * Math.PI * 2;
       const r = 0.5 + Math.random() * 1.5;
@@ -1813,7 +1873,7 @@ export function createSpray(THREE, shading) {
       streak[i] = 0.15;
       seed[i] = Math.random();
       tint[i] = -1.0;
-      streakDirty = true;
+      markSlot(i);
 
       const angle = Math.random() * Math.PI * 2;
       const drift = 0.5 + Math.random() * 0.9;

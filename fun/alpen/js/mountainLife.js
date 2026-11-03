@@ -1369,7 +1369,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     return Math.abs(d1) < Math.abs(d2) ? d1 : d2;
   }
   function liftTips(npc) {
-    npc.mesh.updateMatrixWorld(true);
+    npc.mesh.updateMatrix();
+    npc.mesh.matrixWorld.copy(npc.mesh.matrix);
+    npc.body.updateMatrixWorld(true);
     for (const a of npc.arms) {
       if (!a.tip) continue;
       _gp.setFromMatrixPosition(a.grip.matrixWorld);
@@ -1500,6 +1502,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   let contactY = 0;
   let contactZ = 0;
   let contactGrace = 0;
+  let lastCabinGlow = -1;
+  let cabinsPlaced = false;
 
   return {
     update(dt, rider, w = null, spareRider = false) {
@@ -1532,11 +1536,14 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const nightFactor = Math.max(0, Math.min(1, (w.night - 0.2) / 0.5));
         const stormFactor = Math.max(0, Math.min(1, (w.snow - 0.4) / 0.5)) * 0.4;
         const glow = Math.max(nightFactor, stormFactor);
-        cabinGlassMat.emissive.copy(cabinColdColor).lerp(cabinWarmColor, glow * 0.85);
-        // The glass follows its lamp into dusk and heavy snow. A hard color
-        // switch here made every cabin flash cream while its light eased in.
-        cabinGlassMat.color.copy(cabinDayGlass).lerp(cabinNightGlass,
-          glow * glow * (3 - 2 * glow));
+        if (glow !== lastCabinGlow) {
+          lastCabinGlow = glow;
+          cabinGlassMat.emissive.copy(cabinColdColor).lerp(cabinWarmColor, glow * 0.85);
+          // The glass follows its lamp into dusk and heavy snow. A hard color
+          // switch here made every cabin flash cream while its light eased in.
+          cabinGlassMat.color.copy(cabinDayGlass).lerp(cabinNightGlass,
+            glow * glow * (3 - 2 * glow));
+        }
       }
 
       /* Towers on a fixed grid so they never swim: the window simply slides
@@ -1621,7 +1628,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         }
       }
       if (lineMoved) pylonMesh.instanceMatrix.needsUpdate = true;
-      if (lineMoved || !liftModelled) wheelMesh.instanceMatrix.needsUpdate = true;
+      if (lineMoved || (!liftModelled && dt !== 0)) wheelMesh.instanceMatrix.needsUpdate = true;
 
       // The ropes, tower-top to tower-top, sagging as the cabins on them do.
       for (let i = 0; lineMoved && i < NUM_PYLONS - 1; i++) {
@@ -1645,35 +1652,38 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       /* Cabins ride the rope between towers: position interpolated along
          the span they are on, dropped by a touch of parabolic sag, hung by
          the grip. `at` is metres behind the backmost tower. */
-      for (let i = 0; i < NUM_GONDOLAS; i++) {
-        const g = gondolas[i];
-        g.at += g.dir * CABIN_SPEED * dt;
-        if (g.at < 0) g.at += SPAN;
-        if (g.at >= SPAN) g.at -= SPAN;
-        const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
-        ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
-        // Phased by where the cabin is, never by `at`: the slide above moves
-        // `at` a whole slot, and every cabin's swing used to jump with it.
-        const sway = Math.sin(_p.z * 0.06) * 0.05;
-        if (liftModelled) {
-          /* The modelled cabin has a door side, and it faces outboard: the
-             cabins coming back on the −x rope have been round the bull wheel
-             and are turned end for end. They swing from the grip, which is
-             where a cabin's pivot is — the hanger's, on the rope. */
-          _eLine.set(0, g.side > 0 ? 0 : Math.PI, sway);
-          _q.setFromEuler(_eLine);
-          _p.add(_a.set(0, -CABIN_HANG, 0).applyQuaternion(_q));
-        } else {
-          _e.set(0, 0, sway);
-          _q.setFromEuler(_e);
-          _p.y -= CABIN_HANG;
+      if (lineMoved || dt !== 0 || !cabinsPlaced) {
+        cabinsPlaced = true;
+        for (let i = 0; i < NUM_GONDOLAS; i++) {
+          const g = gondolas[i];
+          g.at += g.dir * CABIN_SPEED * dt;
+          if (g.at < 0) g.at += SPAN;
+          if (g.at >= SPAN) g.at -= SPAN;
+          const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
+          ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
+          // Phased by where the cabin is, never by `at`: the slide above moves
+          // `at` a whole slot, and every cabin's swing used to jump with it.
+          const sway = Math.sin(_p.z * 0.06) * 0.05;
+          if (liftModelled) {
+            /* The modelled cabin has a door side, and it faces outboard: the
+               cabins coming back on the −x rope have been round the bull wheel
+               and are turned end for end. They swing from the grip, which is
+               where a cabin's pivot is — the hanger's, on the rope. */
+            _eLine.set(0, g.side > 0 ? 0 : Math.PI, sway);
+            _q.setFromEuler(_eLine);
+            _p.add(_a.set(0, -CABIN_HANG, 0).applyQuaternion(_q));
+          } else {
+            _e.set(0, 0, sway);
+            _q.setFromEuler(_e);
+            _p.y -= CABIN_HANG;
+          }
+          _m.compose(_p, _q, _one);
+          cabinMesh.setMatrixAt(i, _m);
+          glassMesh.setMatrixAt(i, _m);
         }
-        _m.compose(_p, _q, _one);
-        cabinMesh.setMatrixAt(i, _m);
-        glassMesh.setMatrixAt(i, _m);
+        cabinMesh.instanceMatrix.needsUpdate = true;
+        glassMesh.instanceMatrix.needsUpdate = true;
       }
-      cabinMesh.instanceMatrix.needsUpdate = true;
-      glassMesh.instanceMatrix.needsUpdate = true;
 
       /* --- snow cannons streaming and snowmaking spray --- */
       for (let i = 0; i < NUM_CANNONS; i++) {
