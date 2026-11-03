@@ -32,7 +32,7 @@ function paint(value){
 }
 const area=points=>{let sum=0,n=points.length;for(let i=0,j=n-2;i<n;j=i,i+=2)sum+=points[j]*points[i+1]-points[i]*points[j+1];return sum*.5;};
 function point(points,x,y,m){points.push(m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]);}
-function data(ctx){return ctx._geometry ||= {paths:[],pool:[],current:null,vertices:[],local:[],indices:[],outline:[],left:[],right:[],run:[],rect:[],contours:[[],[],[],[]],xs:[0,0,0,0],ys:[0,0,0,0],xc:[0,0,0,0],yc:[0,0,0,0]};}
+function data(ctx){return ctx._geometry ||= {paths:[],pool:[],current:null,vertices:[],local:[],indices:[],outline:[],left:[],right:[],transformed:[],sideA:[],sideB:[],coverages:[],cleanStroke:[],cleanFill:[],run:[],rect:[],contours:[[],[],[],[]],xs:[0,0,0,0],ys:[0,0,0,0],xc:[0,0,0,0],yc:[0,0,0,0]};}
 function newPath(ctx,x,y){const g=data(ctx),path=g.pool.pop()||{points:[],closed:false};path.points.length=0;path.closed=false;path.ellipse=null;path.points.push(x,y);g.paths.push(path);g.current=path;return path;}
 function append(ctx,x,y){const g=data(ctx);if(!g.current)return newPath(ctx,x,y);materialize(g.current);const p=g.current.points,n=p.length;if(n<2||Math.abs(p[n-2]-x)>EPS||Math.abs(p[n-1]-y)>EPS)p.push(x,y);return g.current;}
 const ellipseUnits=new Map();
@@ -45,7 +45,7 @@ function materialize(path){
 }
 function triangle(v,ax,ay,ac,bx,by,bc,cx,cy,cc){v.push(ax,ay,ac,bx,by,bc,cx,cy,cc);}
 function quad(v,a,b,c,d,inner=1,outer=1){triangle(v,a[0],a[1],inner,b[0],b[1],inner,c[0],c[1],outer);triangle(v,c[0],c[1],outer,b[0],b[1],inner,d[0],d[1],outer);}
-function clean(points){const n=points.length;return n>3&&Math.abs(points[0]-points[n-2])<EPS&&Math.abs(points[1]-points[n-1])<EPS?points.slice(0,-2):points;}
+function clean(points,scratch){const n=points.length;if(!(n>3&&Math.abs(points[0]-points[n-2])<EPS&&Math.abs(points[1]-points[n-1])<EPS))return points;if(!scratch)return points.slice(0,-2);scratch.length=n-2;for(let i=0;i<n-2;i++)scratch[i]=points[i];return scratch;}
 function convex(points,sign){const n=points.length;for(let i=0;i<n;i+=2){const j=(i+2)%n,k=(i+4)%n;if(((points[j]-points[i])*(points[k+1]-points[j+1])-(points[j+1]-points[i+1])*(points[k]-points[j]))*sign<-EPS)return false;}return true;}
 function fillTriangles(v,p,coverage=1){
   const n=p.length/2;if(n<3)return;const sign=Math.sign(area(p));if(!sign)return;
@@ -87,7 +87,7 @@ function contourBand(v,inner,outer,ic=1,oc=0){for(let i=0,n=inner.length;i<n;i+=
 function coverageArea(v){let mass=0;for(let i=0;i<v.length;i+=9)mass+=Math.abs((v[i+3]-v[i])*(v[i+7]-v[i+1])-(v[i+4]-v[i+1])*(v[i+6]-v[i]))*(v[i+2]+v[i+5]+v[i+8])/6;return mass;}
 function normalizeCoverage(v,target){const mass=coverageArea(v);if(mass>EPS){const scale=target/mass;for(let i=2;i<v.length;i+=3)v[i]=Math.min(1,v[i]*scale);}}
 function emitFilled(ctx,points,style,thinWidth=null){
-  const p=clean(points);if(p.length<6)return;const g=data(ctx),v=g.vertices;v.length=0;
+  const g=data(ctx),p=clean(points,g.cleanFill);if(p.length<6)return;const v=g.vertices;v.length=0;
   // For subpixel strokes the two edge fringes overlap. Their middle plateau
   // carries width coverage instead of crossing into an inverted opaque core.
   const thin=thinWidth>0&&thinWidth<1,coverage=thin?thinWidth:1;
@@ -137,14 +137,14 @@ function emitShadow(ctx,points,source){
 function toLocal(points,m,out){out.length=0;const det=m[0]*m[3]-m[1]*m[2];if(Math.abs(det)<EPS)return out;
   for(let i=0;i<points.length;i+=2){const x=points[i]-m[4],y=points[i+1]-m[5];out.push((m[3]*x-m[2]*y)/det,(-m[1]*x+m[0]*y)/det);}return out;
 }
-function transformPoints(points,m){const out=[];for(let i=0;i<points.length;i+=2)point(out,points[i],points[i+1],m);return out;}
+function transformPoints(points,m,out=[]){out.length=0;for(let i=0;i<points.length;i+=2)point(out,points[i],points[i+1],m);return out;}
 function minimumScale(m){const trace=m[0]*m[0]+m[1]*m[1]+m[2]*m[2]+m[3]*m[3],det=m[0]*m[3]-m[1]*m[2];return Math.sqrt(Math.max(0,(trace-Math.sqrt(Math.max(0,trace*trace-4*det*det)))*.5));}
 function arcPoints(out,x,y,r,start,delta,scale,includeFirst=true){
   const count=Math.max(2,Math.min(128,Math.ceil(Math.abs(delta)*Math.sqrt(Math.max(1,r*scale)/.6))));
   for(let i=includeFirst?0:1;i<=count;i++){const a=start+delta*i/count;out.push(x+Math.cos(a)*r,y+Math.sin(a)*r);}
 }
-function strokeSides(p,closed,width,s,scale){
-  const n=p.length/2,left=[],right=[],half=width/2;
+function strokeSides(p,closed,width,s,scale,left=[],right=[]){
+  const n=p.length/2,half=width/2;left.length=0;right.length=0;
   for(let i=0;i<n;i++){
     const j=i===0?(closed?n-1:0):i-1,k=i===n-1?(closed?0:n-1):i+1,x=p[i*2],y=p[i*2+1];
     let px=x-p[j*2],py=y-p[j*2+1],nx=p[k*2]-x,ny=p[k*2+1]-y;
@@ -158,10 +158,10 @@ function strokeSides(p,closed,width,s,scale){
       if(outer&&(join==='bevel'||Math.hypot(mx,my)>(s.miterLimit||10))){out.push(x-py*side*half,y+px*side*half,x-ny*side*half,y+nx*side*half);}
       else out.push(x+mx*half,y+my*half);
     }
-  }return {left,right};
+  }
 }
 function emitStroke(ctx,points,closed,style){
-  const s=ctx._state,m=s.matrix,g=data(ctx),p=clean(points);if(p.length<4||!(s.lineWidth>0))return;
+  const s=ctx._state,m=s.matrix,g=data(ctx),p=clean(points,g.cleanStroke);if(p.length<4||!(s.lineWidth>0))return;
   if(p.length===4&&!closed&&s.lineCap!=='round'){
     // A single segment (weather streaks, dashes, beams) is one rectangle. This
     // produces exactly the corners of the general path without its per-side
@@ -176,10 +176,10 @@ function emitStroke(ctx,points,closed,style){
     emitFilled(ctx,q,style,physicalLength>EPS?s.lineWidth*Math.abs(m[0]*m[3]-m[1]*m[2])*length/physicalLength:null);
     return;
   }
-  const scale=Math.max(Math.hypot(m[0],m[1]),Math.hypot(m[2],m[3]));
-  const {left,right}=strokeSides(p,closed,s.lineWidth,s,scale),half=s.lineWidth/2,n=p.length;
+  const scale=Math.max(Math.hypot(m[0],m[1]),Math.hypot(m[2],m[3])),left=g.left,right=g.right;
+  strokeSides(p,closed,s.lineWidth,s,scale,left,right);const half=s.lineWidth/2,n=p.length;
   if(closed&&left.length===right.length){
-    const a=transformPoints(left,m),b=transformPoints(right,m),v=g.vertices;v.length=0;
+    const a=transformPoints(left,m,g.sideA),b=transformPoints(right,m,g.sideB),v=g.vertices;v.length=0;
     const orientation=Math.sign(area(p))||1,leftDirection=-orientation,rightDirection=orientation;
     const [ai,ao,bi,bo]=g.contours;
     offsetPair(a,-.5*leftDirection,.5*leftDirection,ai,ao);
@@ -188,7 +188,7 @@ function emitStroke(ctx,points,closed,style){
       for(let i=0;i<a.length;i+=2){const j=(i+2)%a.length;triangle(v,ai[i],ai[i+1],1,bi[i],bi[i+1],1,ai[j],ai[j+1],1);triangle(v,ai[j],ai[j+1],1,bi[i],bi[i+1],1,bi[j],bi[j+1],1);}
       contourBand(v,ai,ao);contourBand(v,bi,bo);ctx._emitTriangles(v,style);return;
     }
-    const coverages=[];let thin=false;
+    const coverages=g.coverages;coverages.length=0;let thin=false;
     for(let i=0;i<a.length;i+=2){
       const j=(i+2)%a.length,k=(i+a.length-2)%a.length,tx=(a[j]+b[j]-a[k]-b[k])*.5,ty=(a[j+1]+b[j+1]-a[k+1]-b[k+1])*.5;
       const length=Math.hypot(tx,ty),width=length>EPS?Math.abs((b[i]-a[i])*ty-(b[i+1]-a[i+1])*tx)/length:Math.hypot(b[i]-a[i],b[i+1]-a[i+1]);
@@ -205,11 +205,11 @@ function emitStroke(ctx,points,closed,style){
     const dx=p[2]-p[0],dy=p[3]-p[1],len=Math.hypot(dx,dy)||1,ex=p[n-2]-p[n-4],ey=p[n-1]-p[n-3],elen=Math.hypot(ex,ey)||1;
     for(const side of [left,right]){side[0]-=dx/len*half;side[1]-=dy/len*half;side[side.length-2]+=ex/elen*half;side[side.length-1]+=ey/elen*half;}
   }
-  const outline=[...left];
+  const outline=g.outline;outline.length=0;for(let i=0;i<left.length;i++)outline.push(left[i]);
   if(s.lineCap==='round'){const dx=p[n-2]-p[n-4],dy=p[n-1]-p[n-3];arcPoints(outline,p[n-2],p[n-1],half,Math.atan2(dx,-dy),-Math.PI,scale,false);}
   for(let i=right.length-2;i>=0;i-=2)outline.push(right[i],right[i+1]);
   if(s.lineCap==='round'){const dx=p[2]-p[0],dy=p[3]-p[1];arcPoints(outline,p[0],p[1],half,Math.atan2(-dx,dy),-Math.PI,scale,false);}
-  const transformed=transformPoints(outline,m);emitShadow(ctx,transformed,style);
+  const transformed=transformPoints(outline,m,g.transformed);emitShadow(ctx,transformed,style);
   let thinWidth=null;
   if(p.length===4){const dx=p[2]-p[0],dy=p[3]-p[1],physicalLength=Math.hypot(m[0]*dx+m[2]*dy,m[1]*dx+m[3]*dy);if(physicalLength>EPS)thinWidth=s.lineWidth*Math.abs(m[0]*m[3]-m[1]*m[2])*Math.hypot(dx,dy)/physicalLength;}
   else thinWidth=s.lineWidth*minimumScale(m);

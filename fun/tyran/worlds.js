@@ -972,7 +972,9 @@ export class WorldRenderer {
       this.damageSpriteKeys.add(key);
       if(this.damageSpriteKeys.size>MAX_DAMAGE_SPRITES){
         const oldest=this.damageSpriteKeys.values().next().value;
+        const evicted=this.sprites.get(oldest);
         this.damageSpriteKeys.delete(oldest);this.sprites.delete(oldest);
+        if(evicted)this.gpu?.release(evicted);
       }
     }
     return sprite;

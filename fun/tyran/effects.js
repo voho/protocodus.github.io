@@ -198,7 +198,12 @@ export class Effects {
     } else if (event.type === 'pickup') {
       const timed = event.bonus === 'rapid' || event.bonus === 'invulnerable';
       const color = BONUS_PALETTE.rim;
-      if (timed) this.rings.push({ x, y, age: 0, life: .45, radius: 65, color });
+      this.rings.push({ x, y, age: 0, life: timed ? .45 : .32, radius: timed ? 65 : 44, color });
+      this.reserveParticles(6);
+      for (let i = 0; i < 6; i++) {
+        const angle = i * TAU / 6 + random(-.18, .18), speed = random(45, 115);
+        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.16, .3), random(1.2, 2.2), '#ddffed');
+      }
     } else if (event.type === 'combo') {
       const color = event.combo >= 5 ? '#ffe36d' : '#b8ffe2';
       this.rings.push({ x, y, age: 0, life: .55, radius: 42 + event.combo * 5, color });
@@ -271,6 +276,14 @@ export class Effects {
     } else if (event.type === 'graze') {
       this.reserveParticles(2);
       for (let i = 0; i < 2; i++) this.particle(x, y, random(-70, 70), random(-70, 70), random(.08, .16), random(.9, 1.6), '#ddffed');
+      this.rings.push({ x, y, age: 0, life: .18, radius: 18, color: '#91ffee' });
+    } else if (event.type === 'shield-online') {
+      this.rings.push({ x, y, age: 0, life: .35, radius: 56, color: '#91ffee' }, { x, y, age: 0, life: .48, radius: 38, color: '#e7fff8' });
+    } else if (event.type === 'boss-open') {
+      this.rings.push({ x, y, age: 0, life: .45, radius: 135, color: '#ffe36d' });
+      this.lights.push({ x, y, age: 0, life: .35, radius: 160, color: '#ffe8b0', fire: false });
+    } else if (event.type === 'boss-close') {
+      this.rings.push({ x, y, age: 0, life: .3, radius: 95, color: '#ff8b78' });
     } else if (event.type === 'formation-broken') {
       this.rings.push({ x, y, age: 0, life: .6, radius: 130, color: '#ffe36d' });
     } else if (event.type === 'ace-down') {
@@ -416,13 +429,13 @@ export class Effects {
       }
     }
     ctx.restore();
-    if (this.flash > .01 && !this.reduced) { ctx.fillStyle = `rgba(255,236,210,${this.flash * .5})`; ctx.fillRect(0, 0, W, H); }
+    if (this.flash > .01 && !this.reduced) { const prevAlpha = ctx.globalAlpha; ctx.globalAlpha = prevAlpha * this.flash * .5; ctx.fillStyle = '#ffecd2'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = prevAlpha; }
   }
 }
 
 export function warmGpuEffectTextures(gpu) {
   gpuCache = gpu;
-  gpu.prewarm([...textures.values()]);
+  gpu.prewarm(textures.values());
   for (const levels of sparkTextures.values()) gpu.prewarm(levels);
   for (let i = 0; i < 16; i++) { const sprite = spriteCell('effects', i); if (sprite) gpu.prewarm(sprite); }
 }

@@ -34,8 +34,12 @@
 #flight-layout .resource-value,#flight-layout .resource-line>.energy-status{grid-column:1/-1;grid-row:2;width:auto;min-height:0;margin:0;font:600 18px/22px var(--display);text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--hud-ink)}
 #flight-layout .resource-value::before{content:none}
 #flight-layout .energy-line[data-depleted=true] .energy-status{color:#f3ce9c}
+#flight-layout .hull-line[data-critical=true] .hud-icon,#flight-layout .hull-line[data-critical=true] .resource-value{color:#ff8b78}
+#flight-layout .hull-line[data-critical=true] .hull-meter i{background:#ff7a68}
 #flight-layout .shield-line[data-recharge=rest] .hud-icon{color:#c0e5b5;filter:drop-shadow(0 1px 2px #000)}
+#flight-layout .shield-line[data-recharge=rest] .shield-meter i{background:#9effdc}
 #flight-layout .shield-line[data-recharge=firing] .hud-icon{color:#e9c98d}
+#flight-layout .shield-line[data-collapsed=true] .resource-value{color:#e9b39d}
 #flight-layout .loadout-line{grid-column:1;grid-row:2;justify-self:start;display:flex;align-items:center;justify-content:flex-start;gap:16px;width:100%;height:22px}
 #flight-layout .loadout-item{flex:none;display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;padding:0;border:0;background:none}
 #flight-layout .loadout-item .hud-icon{width:14px;height:14px;color:#c0d9cb}
@@ -43,6 +47,7 @@
 #flight-layout .power-pips{height:18px;min-width:27px;max-width:30px;flex:1;gap:2px}
 #flight-layout .power-pips i{height:6px;border-radius:1px;background:#0006}
 #flight-layout .power-pips i.on{background:#e4c48c;box-shadow:0 1px 2px #0009}
+#flight-layout .power-pips i.max{background:#ffe38a}
 #flight-layout .pilot-bonuses{grid-column:1;grid-row:3;justify-self:start;display:flex;flex-wrap:nowrap;align-items:center;gap:14px;width:auto;height:18px}
 #flight-layout .pilot-bonus{display:flex;align-items:center;gap:4px;padding:0;min-width:0;border:0;background:none;color:#d5edcd;white-space:nowrap}
 #flight-layout .pilot-bonus svg{width:12px;height:12px;flex:none;color:#c5e7c4;filter:drop-shadow(0 1px 2px #000)}
@@ -70,12 +75,15 @@
 #flight-layout #boss-status{display:block;flex:none;margin-left:auto;font:500 12px/16px var(--display);letter-spacing:0;white-space:nowrap;color:#e8cfb9}
 #flight-layout .boss-meter{height:3px;background:#0007;box-shadow:0 1px 3px #0008}
 #flight-layout .boss-meter i{background:#eab17f;box-shadow:none}
+#flight-layout #boss-hud.exposed #boss-status,#flight-layout #boss-hud.exposed .status-icon{color:#ffe277}
+#flight-layout #boss-hud.exposed .boss-meter i{background:#ffe277}
 #flight-layout #challenge-hud{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;color:#e0f0d9}
 #flight-layout .challenge-caption{display:flex;align-items:center;gap:5px;min-width:0;font:500 12px/18px var(--body);color:#c4e0c7}
 #flight-layout #challenge-count{font:600 16px/20px var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
 #flight-layout .combat-feedback{grid-column:1;grid-row:2;display:flex;align-items:center;gap:5px;width:100%;height:18px;min-width:0;padding:0;border:0;background:none;text-align:left;contain:layout}
 #flight-layout .combat-feedback>.status-icon{width:11px;height:11px;color:#d0dfb3}
 #flight-layout .combat-feedback-chain{height:auto;min-width:0;font:500 11px/18px var(--body);color:#c5ddc6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#flight-layout .combat-feedback[data-rampage=true] .combat-feedback-chain,#flight-layout .combat-feedback[data-rampage=true]>.status-icon{color:#ffe38a}
 #flight-layout .combat-feedback-totals{display:flex;flex-direction:row;justify-content:flex-end;align-items:baseline;gap:8px;margin-left:auto;min-height:0;min-width:0;white-space:nowrap}
 #flight-layout .combat-feedback-totals strong,#flight-layout #combat-feedback-credits{font:500 12px/18px var(--display);color:#e0ecd2}
 #flight-layout .combat-feedback-totals small,#flight-layout .combat-feedback-detail{display:none}

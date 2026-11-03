@@ -458,7 +458,7 @@ export class GPUCanvas2D {
  translate(x,y){this.transform(1,0,0,1,x,y);}
  scale(x,y){this.transform(x,0,0,y,0,0);}
  rotate(angle){this.transform(Math.cos(angle),Math.sin(angle),-Math.sin(angle),Math.cos(angle),0,0);}
- setLineDash(values){const dash=Array.from(values);if(dash.some(n=>!Number.isFinite(n)||n<0))return;const target=this._state.dash;target.length=dash.length*(dash.length%2?2:1);for(let i=0;i<target.length;i++)target[i]=dash[i%dash.length];}
+ setLineDash(values){if(!values||typeof values.length!=='number')return;if(!values.length){this._state.dash.length=0;return;}const dash=Array.from(values);if(dash.some(n=>!Number.isFinite(n)||n<0))return;const target=this._state.dash;target.length=dash.length*(dash.length%2?2:1);for(let i=0;i<target.length;i++)target[i]=dash[i%dash.length];}
  getLineDash(){return this._state.dash.slice();}
  getContextAttributes(){return {alpha:false,desynchronized:false,colorSpace:'srgb',willReadFrequently:false};}
  fillRect(x,y,w,h){if(!finite(x,y,w,h)||!w||!h)return;const points=[this._point(x,y),this._point(x+w,y),this._point(x+w,y+h),this._point(x,y+h)];const vertices=[];for(const i of[0,1,2,0,2,3])vertices.push(...points[i],1);const style=this._state.fillStyle;this._emitTriangles(vertices,style?.gradient?style:{color:parseColor(style)});}

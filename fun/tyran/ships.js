@@ -827,6 +827,6 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
 // Preflight uploads only artwork drawn directly in flight.
 export function warmGpuShipSprites(gpu) {
   gpuCache = gpu;
-  for (const cache of [hulls, flames, glows, lights]) gpu.prewarm([...cache.values()]);
+  for (const cache of [hulls, flames, glows, lights]) gpu.prewarm(cache.values());
   for (const sprites of silhouettes.values()) gpu.prewarm([sprites.shadow, sprites.flash]);
 }

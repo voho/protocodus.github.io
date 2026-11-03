@@ -347,7 +347,7 @@ function resize() {
       for (const offset of formation.offsets) { offset.x *= W / oldW; offset.y *= H / oldH; }
     }
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
-    for (const p of state.pickups) p.x *= W / oldW;
+    for (const p of state.pickups) { p.x *= W / oldW; const prev = pickupPrev.get(p); if (prev) { prev.x = p.x; prev.y = p.y; } }
     for (const list of [fx.particles, fx.rings, fx.lights, fx.flares]) for (const effect of list) if (!effect.ground) effect.x *= W / oldW;
   }
   if (scene === 'playing') world.prepareFlight(W, H, state.scroll);
@@ -529,6 +529,7 @@ function refreshHUD() {
     setFill($(prefix + '-hull'), p.hull / p.maxHull); setFill($(prefix + '-shield'), p.shield / p.maxShield);
     setText($(prefix + '-hull-value'), `${Math.ceil(p.hull / p.maxHull * 100)}%`);
     setText($(prefix + '-shield-value'), `${Math.ceil(p.shield / p.maxShield * 100)}%`);
+    setAttribute($(prefix + '-hull-value')?.parentElement, 'data-critical', String(p.alive && p.hull < p.maxHull * .3));
     setAttribute($(prefix + '-hull').parentElement, 'aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
     const shieldMode = p.shield >= p.maxShield ? 'full' : !p.alive || state.time - p.lastHit <= stats.delay ? 'wait' : (p.shieldFireDelay || 0) > 0 ? 'firing' : 'rest';
     const shieldRate = stats.recharge * (shieldMode === 'firing' ? SHIELD_FIRING_RECHARGE : SHIELD_REST_RECHARGE);
@@ -540,6 +541,7 @@ function refreshHUD() {
       setText(shieldLabel, shieldMode === 'firing' ? 'Shield ↓' : shieldMode === 'rest' ? 'Shield ↑' : 'Shield');
       setAttribute(shieldLabel, 'data-recharge', shieldMode); setAttribute(shieldLabel, 'title', shieldStatus);
       setAttribute(shieldLabel.parentElement, 'data-recharge', shieldMode); setAttribute(shieldLabel.parentElement, 'title', shieldStatus);
+      setAttribute(shieldLabel.parentElement, 'data-collapsed', String(p.alive && p.shield <= 0));
     }
     setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}. ${shieldStatus}`);
     const rapid = p.alive ? p.rapidFireTime || 0 : 0, invulnerable = p.alive ? p.invulnerableTime || 0 : 0;
@@ -800,7 +802,8 @@ function processEvents() {
     if (e.type === 'checkpoint') checkpoint = e;
     fx.emit(e);
     const sound = e.type === 'pickup' && (e.bonus === 'power' || e.bonus === 'drone') ? e.bonus : e.type;
-    audio.effect(sound, e.size ?? e.wave, soundVariant(e), soundPan(e));
+    const soundSize = e.type === 'shot' ? (state.players[e.player || 0]?.power || 0) : (e.size ?? e.wave);
+    audio.effect(sound, soundSize, soundVariant(e), soundPan(e));
     if (e.type === 'explosion' && !e.ground) {
       const blast = e.blast || 1;
       for (const prop of environmentHit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
@@ -828,10 +831,9 @@ function processEvents() {
     if (e.type === 'objective') announce('Objective complete', e.title, `+${number(e.credits)} credits · +${number(e.score)} score`, 1.8, true);
     if (e.type === 'formation-broken') announce('Leader down', `${e.label} broken`, `+${number(e.bonus)} · survivors dive or scatter`, 1.4, true);
     if (e.type === 'ace-down') announce('Ace down', `${ACE_NAMES[e.aceName] || 'Ace'} destroyed`, 'Its wreck released prizes.', 2, true);
-    if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
+    if (e.type === 'extra-life' && state.time > .05) announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
     if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} reserve ship${e.lives === 1 ? '' : 's'} left`, 'Two power levels and one drone lost.', 1.6, true);
-    if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
-    if (['pickup', 'extra-life', 'respawn', 'nova', 'captured', 'rescue', 'power-lost', 'ace-down'].includes(e.type)) refreshHUD();
+    if (e.type === 'weapon') renderWeapons();
     if (e.type === 'hangar') {
       if (state.challenge?.done) beginBonusOutro(e.bonus);
       else showHangar(e.bonus);
@@ -843,11 +845,14 @@ function processEvents() {
   }
   // The checkpoint wave also announces itself; share the strip with its briefing.
   if (checkpoint) {
-    if (!$('announcement').hidden && clock < announcementUntil) $('announcement-kicker').textContent += ' · Checkpoint';
-    else announce('Checkpoint', `Wave ${String(checkpoint.wave).padStart(2, '0')} reached`, 'If your last ship falls, retry from here.', 1.6, true);
+    if (!$('announcement').hidden && clock < announcementUntil) {
+      $('announcement-kicker').textContent += ' · Checkpoint';
+      if (!$('announcement-title').textContent.includes('Checkpoint')) $('announcement-title').textContent += ' · Checkpoint';
+    } else announce('Checkpoint', `Wave ${String(checkpoint.wave).padStart(2, '0')} reached`, 'If your last ship falls, retry from here.', 1.6, true);
   }
   feedback.collect(state, events);
-  renderCombatFeedback();
+  if (events.length) { refreshHUD(); hudClock = 0; }
+  else renderCombatFeedback();
   // Save at a bounded cadence, after combat and reward events have settled.
   if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) queueAutosave();
 }
@@ -890,26 +895,28 @@ function drawPilotBonuses(p, x, y) {
 
 // Squadrons about to sweep in from a screen edge are announced by a chevron,
 // so a low side entry never arrives unseen.
+const warningLanes = new Map();
 function drawEntryWarnings() {
-  const lanes = new Map();
+  warningLanes.clear();
   for (const e of state.enemies) {
     if (!isDormant(e) || e.dead) continue;
     const eta = -e.pathD / e.pathSpeed;
     if (eta > 1.1) continue;
     const side = e.x < 0 ? -1 : e.x > W ? 1 : 0;
     if (!side) continue;
-    const key = `${side}:${Math.round(e.y / 40)}`;
-    if (!lanes.has(key) || lanes.get(key).eta > eta) lanes.set(key, { side, y: e.y, eta });
+    const key = side * 1000 + Math.round(e.y / 40), prev = warningLanes.get(key);
+    if (!prev || prev.eta > eta) warningLanes.set(key, { side, y: e.y, eta });
   }
-  if (!lanes.size) return;
-  ctx.save(); ctx.fillStyle = '#ff9a7a'; ctx.shadowColor = '#ff5d3a'; ctx.shadowBlur = 12;
-  for (const { side, y, eta } of lanes.values()) {
+  if (!warningLanes.size) return;
+  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const { side, y, eta } of warningLanes.values()) {
     const x = side < 0 ? 22 : W - 22, pulse = fx.reduced ? 1 : .7 + .3 * Math.sin(clock * 16);
-    ctx.globalAlpha = Math.min(1, .35 + (1.1 - eta) * 1.6) * pulse;
+    const baseAlpha = Math.min(1, .35 + (1.1 - eta) * 1.6) * pulse;
     for (let i = 0; i < 3; i++) {
-      const cx = x - side * i * 15;
-      ctx.beginPath(); ctx.moveTo(cx + side * 11, y - 16); ctx.lineTo(cx - side * 6, y); ctx.lineTo(cx + side * 11, y + 16);
-      ctx.lineTo(cx + side * 4, y); ctx.closePath(); ctx.fill();
+      const cx = x - side * i * 15, decay = 1 - i * .22;
+      ctx.beginPath(); ctx.moveTo(cx + side * 10, y - 14); ctx.lineTo(cx - side * 5, y); ctx.lineTo(cx + side * 10, y + 14);
+      ctx.strokeStyle = '#ff5d3a'; ctx.lineWidth = 7; ctx.globalAlpha = baseAlpha * decay * .28; ctx.stroke();
+      ctx.strokeStyle = i === 0 ? '#ffd2b8' : '#ff9a7a'; ctx.lineWidth = 2.6; ctx.globalAlpha = baseAlpha * decay; ctx.stroke();
     }
   }
   ctx.restore();
@@ -919,12 +926,15 @@ function drawEntryWarnings() {
 function drawTractor(e) {
   const x = lerp(e.px, e.x), y = lerp(e.py, e.y), apexY = y + e.radius * .55, depth = H - apexY;
   if (depth <= 0) return;
-  const charge = e.capState === 1, half = 26 + depth * .3;
+  const charge = e.capState === 1;
   ctx.save(); ctx.globalCompositeOperation = 'screen';
-  const gradient = ctx.createLinearGradient(0, apexY, 0, H);
-  gradient.addColorStop(0, charge ? '#ff9ad066' : '#a8dcffaa'); gradient.addColorStop(1, '#a8dcff00');
-  ctx.globalAlpha = charge ? (fx.reduced ? .4 : .25 + .25 * Math.sin(clock * 34)) : .7;
-  ctx.fillStyle = gradient; ctx.beginPath(); ctx.moveTo(x - 26, apexY); ctx.lineTo(x + 26, apexY); ctx.lineTo(x + half, H); ctx.lineTo(x - half, H); ctx.closePath(); ctx.fill();
+  const baseAlpha = charge ? (fx.reduced ? .4 : .25 + .25 * Math.sin(clock * 34)) : .7;
+  ctx.fillStyle = charge ? '#ff9ad0' : '#a8dcff';
+  for (let band = 0; band < 3; band++) {
+    const reach = (band + 1) / 3, bandY = apexY + depth * reach, bandHalf = 26 + (bandY - apexY) * .3;
+    ctx.globalAlpha = baseAlpha * (charge ? .13 : .16) * (1 - band * .25);
+    ctx.beginPath(); ctx.moveTo(x - 26, apexY); ctx.lineTo(x + 26, apexY); ctx.lineTo(x + bandHalf, bandY); ctx.lineTo(x - bandHalf, bandY); ctx.closePath(); ctx.fill();
+  }
   if (!charge) {
     ctx.strokeStyle = '#e6f6ff'; ctx.lineWidth = 2;
     for (let i = 0; i < 9; i++) {
@@ -990,9 +1000,17 @@ function drawMeteor(e, x, y) {
 // Any hull may carry a barrier (shielded gunships, aces, veteran elites and
 // cruisers). Its ring brightens on impact and thins as it drains.
 function drawBarrier(e, x, y) {
-  const fresh = state.time - (e.shieldHit ?? -10) < .15, level = e.shieldHp / (e.shieldMax || 1), r = e.radius * (e.role === 'midboss' ? 1.25 : 1.45);
-  ctx.save(); ctx.globalAlpha = fresh ? .95 : .3 + .4 * level; ctx.strokeStyle = fresh ? '#ffffff' : '#8ad7ff'; ctx.lineWidth = fresh ? 3 : 1.2 + level;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  const fresh = state.time - (e.shieldHit ?? -10) < .15, level = clamp(e.shieldHp / (e.shieldMax || 1), 0, 1), r = e.radius * (e.role === 'midboss' ? 1.25 : 1.45);
+  ctx.save();
+  ctx.globalAlpha = fresh ? .22 : .06 + .08 * level; ctx.fillStyle = '#8ad7ff';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = fresh ? .95 : .28 + .42 * level; ctx.strokeStyle = fresh ? '#ffffff' : '#8ad7ff'; ctx.lineWidth = fresh ? 3 : 1.2 + level;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  if (level < .99) {
+    ctx.globalAlpha = fresh ? 1 : .75; ctx.strokeStyle = '#d6f7ff'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(x, y, r + 2.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * level); ctx.stroke();
+  }
+  ctx.restore();
 }
 function drawRoleMarker(e, x, y, palette) {
   const role = e.role, r = e.radius, top = y - r * 1.6 - 12;
@@ -1049,11 +1067,23 @@ function drawDiveStreak(e, x, y, palette) {
   const speed = Math.hypot(e.vx, e.vy);
   if (speed < 120) return;
   const length = Math.min(90, speed * .09), ux = e.vx / speed, uy = e.vy / speed;
-  const gradient = ctx.createLinearGradient(x, y, x - ux * length, y - uy * length);
-  gradient.addColorStop(0, `${palette?.glow || '#ff7866'}99`); gradient.addColorStop(1, `${palette?.glow || '#ff7866'}00`);
-  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.strokeStyle = gradient; ctx.lineCap = 'round';
-  ctx.lineWidth = e.radius * 1.1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - ux * length, y - uy * length); ctx.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round';
+  ctx.strokeStyle = palette?.glow || '#ff7866';
+  for (let i = 0; i < 3; i++) {
+    const reach = (i + 1) / 3;
+    ctx.globalAlpha = .24 - i * .06;
+    ctx.lineWidth = e.radius * (1.15 - i * .28);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - ux * length * reach, y - uy * length * reach); ctx.stroke();
+  }
+  ctx.strokeStyle = '#fff2df'; ctx.globalAlpha = .42; ctx.lineWidth = Math.max(2, e.radius * .34);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - ux * length * .42, y - uy * length * .42); ctx.stroke();
   ctx.restore();
+}
+
+const BEAM_DASH = Object.freeze([12, 9]), FORMATION_DASH = Object.freeze([4, 9]), EMPTY_DASH = Object.freeze([]);
+function findLiveEnemy(id) {
+  for (const enemy of state.enemies) if (enemy.id === id && !enemy.dead) return enemy;
+  return null;
 }
 
 // Lancer beams: a pulsing dashed line while aiming, then a short heavy beam.
@@ -1061,38 +1091,61 @@ function drawBeams() {
   if (!state.beams?.length) return;
   ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.lineCap = 'round';
   for (const beam of state.beams) {
-    const owner = state.enemies.find(enemy => enemy.id === beam.owner && !enemy.dead);
+    const owner = findLiveEnemy(beam.owner);
     if (!owner) continue;
     const x = lerp(owner.px, owner.x) + beam.dx, y = lerp(owner.py, owner.y) + beam.dy;
     const ex = x + Math.cos(beam.angle) * 2200, ey = y + Math.sin(beam.angle) * 2200;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
     if (beam.t < beam.warn) {
-      const k = beam.t / beam.warn;
-      ctx.setLineDash([12, 9]); ctx.lineDashOffset = fx.reduced ? 0 : -clock * 90;
+      const k = beam.t / beam.warn, pulse = fx.reduced ? 1 : .65 + .35 * Math.sin(clock * 38);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+      ctx.setLineDash(BEAM_DASH); ctx.lineDashOffset = fx.reduced ? 0 : -clock * 90;
       ctx.strokeStyle = '#ff6b9a'; ctx.lineWidth = 1.5 + k * 2.5;
-      ctx.globalAlpha = .3 + .55 * k * (fx.reduced ? 1 : .65 + .35 * Math.sin(clock * 38)); ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.globalAlpha = .3 + .55 * k * pulse; ctx.stroke();
+      ctx.setLineDash(EMPTY_DASH);
+      ctx.fillStyle = '#ff9ab8'; ctx.globalAlpha = .35 + .5 * k;
+      ctx.beginPath(); ctx.arc(x, y, 4 + k * 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff0f5'; ctx.lineWidth = 1.5; ctx.globalAlpha = .45 + .45 * k;
+      ctx.beginPath(); ctx.arc(x, y, 16 - k * 10, 0, Math.PI * 2); ctx.stroke();
     } else {
       const k = clamp(1 - (beam.t - beam.warn) / .42, 0, 1);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
       ctx.strokeStyle = '#ff4d86'; ctx.lineWidth = 40 * k; ctx.globalAlpha = .3 * k; ctx.stroke();
       ctx.strokeStyle = '#ffc2d6'; ctx.lineWidth = 16 * k; ctx.globalAlpha = .85 * k; ctx.stroke();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5 * k; ctx.globalAlpha = k; ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = .9 * k;
+      ctx.beginPath(); ctx.arc(x, y, 14 * k, 0, Math.PI * 2); ctx.fill();
     }
   }
   ctx.restore();
 }
 
-function drawBossWeakPoints(enemy, clock) {
-  if (!enemy.boss || !enemy.vulnerable) return;
+function drawBossWeakPoints(enemy, clock, x = enemy.x, y = enemy.y) {
+  if (!enemy.boss) return;
   ctx.save(); ctx.globalCompositeOperation = 'screen';
+  if (!enemy.vulnerable) {
+    const cy = y + enemy.radius * .12, progress = clamp(1 - (enemy.windowClock || 0) / 1.3, 0, 1);
+    ctx.globalAlpha = .28; ctx.strokeStyle = '#ff9a7a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, cy, 16, 0, Math.PI * 2); ctx.stroke();
+    if (progress > .02) {
+      ctx.globalAlpha = .62; ctx.strokeStyle = '#ffe38a'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, cy, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress); ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+  const ox = x - enemy.x, oy = y - enemy.y;
   for (const point of enemy.weakPoints || []) {
     if (!point.alive) continue;
     const position = bossWeakPointPosition(enemy, point), pulse = .82 + Math.sin(clock * 8 + point.index) * .18;
-    ctx.save(); ctx.translate(position.x, position.y); ctx.rotate(clock * .8 + point.index);
-    ctx.globalAlpha = .22 * pulse; ctx.fillStyle = '#ffd66e'; ctx.beginPath(); ctx.arc(0, 0, point.radius * 2.4, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = .92; ctx.strokeStyle = '#fff1a6'; ctx.lineWidth = 2;
+    const hpRatio = clamp(point.hp / (point.maxHp || 1), 0, 1);
+    ctx.save(); ctx.translate(position.x + ox, position.y + oy); ctx.rotate(clock * .8 + point.index);
+    ctx.globalAlpha = .24 * pulse; ctx.fillStyle = '#ffd66e'; ctx.beginPath(); ctx.arc(0, 0, point.radius * 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .75 * pulse; ctx.fillStyle = '#fff6cf'; ctx.beginPath(); ctx.arc(0, 0, point.radius * .42, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .35; ctx.strokeStyle = '#ff9a7a'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, point.radius, 0, Math.PI * 2); ctx.stroke();
-    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-point.radius * 1.5, 0); ctx.lineTo(point.radius * 1.5, 0); ctx.moveTo(0, -point.radius * 1.5); ctx.lineTo(0, point.radius * 1.5); ctx.stroke();
+    ctx.globalAlpha = .95; ctx.strokeStyle = '#fff1a6'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(0, 0, point.radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpRatio); ctx.stroke();
+    ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-point.radius * 1.55, 0); ctx.lineTo(point.radius * 1.55, 0); ctx.moveTo(0, -point.radius * 1.55); ctx.lineTo(0, point.radius * 1.55); ctx.stroke();
     ctx.restore();
   }
   ctx.restore();
@@ -1134,7 +1187,7 @@ function drawFrame() {
   ctx.beginPath();
   if (state) {
     if (state.formations?.length) {
-      ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
+      ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash(FORMATION_DASH);
       for (const formation of state.formations) {
         let members = 0; ctx.beginPath();
         for (const enemy of state.enemies) if (enemy.formation === formation && !enemy.dead) {
@@ -1149,22 +1202,36 @@ function drawFrame() {
     for (const e of state.enemies) if (e.ai === 'captor' && (e.capState === 1 || e.capState === 2) && !e.dead) drawTractor(e);
     drawBeams();
     ctx.beginPath();
+    const palette = SHIP_PALETTES[index];
     for (const e of state.enemies) {
       if (isDormant(e)) continue;
       const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
       if (y < -e.radius * 2 || y > H + e.radius * 2 || x < -e.radius * 2 || x > W + e.radius * 2) continue;
-      const palette = SHIP_PALETTES[index];
       if (e.captive) drawCaptive(e, x, y);
       if (e.ai === 'dive' && !fx.reduced) drawDiveStreak(e, x, y, palette);
+    }
+    ctx.beginPath();
+    for (const e of state.enemies) {
+      if (isDormant(e)) continue;
+      const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
+      if (y < -e.radius * 2 || y > H + e.radius * 2 || x < -e.radius * 2 || x > W + e.radius * 2) continue;
       if (e.role === 'meteor') { drawMeteor(e, x, y); continue; }
       if (e.role === 'mine') { drawMine(e, x, y); continue; }
       drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced, opacity: e.cloaked ? cloakOpacity(e) : 1 });
+    }
+    ctx.beginPath();
+    for (const e of state.enemies) {
+      if (isDormant(e) || e.role === 'meteor' || e.role === 'mine') continue;
+      const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
+      if (y < -e.radius * 2 || y > H + e.radius * 2 || x < -e.radius * 2 || x > W + e.radius * 2) continue;
       if (e.role && !e.dead) drawRoleMarker(e, x, y, palette);
-      drawBossWeakPoints(e, clock);
+      drawBossWeakPoints(e, clock, x, y);
       // Damaged heavy craft retain their local health readout; bosses use the HUD.
       if (!e.boss && !e.dead && e.hp > 0 && e.hp < e.maxHp && e.radius >= 24) {
+        const ratio = Math.max(0, e.hp / e.maxHp);
         ctx.fillStyle = '#09171aca'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2, 3);
-        ctx.fillStyle = '#fb9f7c'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2 * Math.max(0, e.hp / e.maxHp), 3);
+        ctx.fillStyle = ratio < .35 ? '#ff6c5e' : ratio < .68 ? '#ffb36b' : '#fb9f7c';
+        ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2 * ratio, 3);
       }
     }
     for (const pickup of state.pickups) {
@@ -1172,9 +1239,17 @@ function drawFrame() {
       const size = 76 + pulse * 2;
       // Pickups about to expire blink so a pilot knows to hurry.
       if (pickup.age > 11.5 && !fx.reduced && Math.floor(clock * 10) % 2) continue;
+      const prev = pickupPrev.get(pickup), px = prev ? lerp(prev.x, pickup.x) : pickup.x, py = prev ? lerp(prev.y, pickup.y) : pickup.y;
       ctx.globalAlpha = pickup.lock > 0 ? .55 : 1;
-      ctx.drawImage(pickupTexture(pickup.kind), pickup.x - size / 2, pickup.y - size / 2, size, size);
+      ctx.drawImage(pickupTexture(pickup.kind), px - size / 2, py - size / 2, size, size);
       ctx.globalAlpha = 1;
+    }
+    for (const pickup of state.pickups) if (pickup.lock > 0) {
+      const prev = pickupPrev.get(pickup), px = prev ? lerp(prev.x, pickup.x) : pickup.x, py = prev ? lerp(prev.y, pickup.y) : pickup.y;
+      const k = clamp(pickup.lock / .45, 0, 1);
+      ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.strokeStyle = '#ffb36b'; ctx.lineWidth = 2; ctx.globalAlpha = .75;
+      ctx.beginPath(); ctx.arc(px, py, 24 + k * 18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - k)); ctx.stroke();
+      ctx.restore();
     }
     ctx.beginPath();
     drawProjectiles(ctx, state.bullets, renderAlpha, W, H);
@@ -1190,9 +1265,17 @@ function drawFrame() {
         ctx.restore();
       }
       if (p.shield > 1) {
-        ctx.save(); ctx.translate(x, y); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = .08 + p.shield / p.maxShield * .13 + (p.hurt > 0 ? .45 : 0);
+        const ratio = p.shield / p.maxShield, resting = ratio < 1 && state.time - p.lastHit > shipStats(state.upgrades).delay && (p.shieldFireDelay || 0) <= 0;
+        ctx.save(); ctx.translate(x, y); ctx.strokeStyle = resting ? '#baffdb' : color; ctx.lineWidth = resting ? 1.6 : 1;
+        ctx.globalAlpha = .08 + ratio * .13 + (p.hurt > 0 ? .45 : resting ? .12 : 0);
         ctx.beginPath(); ctx.ellipse(0, 0, 37, 46, 0, 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha *= .36; ctx.fillStyle = color; ctx.fill(); ctx.restore();
+        ctx.globalAlpha *= .36; ctx.fillStyle = color; ctx.fill();
+        if (resting && !fx.reduced) {
+          const sweep = (clock * 3.2) % (Math.PI * 2);
+          ctx.globalAlpha = .45; ctx.strokeStyle = '#e7fff8'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(0, 0, 37, 46, 0, sweep, sweep + 1.1); ctx.stroke();
+        }
+        ctx.restore();
       }
       drawPilotBonuses(p, x, y);
     }
@@ -1211,9 +1294,19 @@ function drawFrame() {
     ? Math.max(fx.damagePulse * 1.65, fx.impact * 2.4, fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0) : 0;
   const blurTenths = Math.round(blur * 10);
   const saturation = quality === 'high' && !fx.reduced && impactMotion ? Math.round((1 - fx.impact * .78) * 100) : 100;
-  const filter = [blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '', saturation < 100 ? `saturate(${saturation}%)` : ''].filter(Boolean).join(' ');
+  const filter = !blurTenths && saturation >= 100 ? ''
+    : [blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '', saturation < 100 ? `saturate(${saturation}%)` : ''].filter(Boolean).join(' ');
   if (canvas.style.filter !== filter) canvas.style.filter = filter;
   syncGpuDisplay();
+}
+
+const pickupPrev = new WeakMap();
+function rememberPickups(pickups) {
+  for (const pickup of pickups) {
+    const prev = pickupPrev.get(pickup);
+    if (prev) { prev.x = pickup.x; prev.y = pickup.y; }
+    else pickupPrev.set(pickup, { x: pickup.x, y: pickup.y });
+  }
 }
 
 // Below 30% hull the mix warns the pilot, in four steps so audio automation
@@ -1241,6 +1334,7 @@ function frame(time) {
     accumulator = Math.min(.1, accumulator + dt);
     while (accumulator + 1e-9 >= STEP && scene === 'playing') {
       previousScroll = state.scroll;
+      rememberPickups(state.pickups);
       update(state, STEP, input(), environmentHit);
       accumulator -= STEP; perf.steps++;
       processEvents();

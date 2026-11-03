@@ -129,22 +129,31 @@ export class AudioEngine {
   // Returns false only when the group has no decoded file, so callers can fall
   // back to the synthesizer; a cue dropped by a voice limit still counts.
   sample(group, volume, rate = 1, maxDuration = 2, pan = 0, reverb = 0, when = null, loop = false) {
-    const available = SAMPLES[group]?.filter(key => this.samples.has(key)) || [];
-    if (!available.length) return false;
+    const list = SAMPLES[group];
+    if (!list) return false;
+    const last = this.lastSample.get(group);
+    let total = 0, choices = 0;
+    for (let i = 0; i < list.length; i++) if (this.samples.has(list[i])) { total++; if (list[i] !== last) choices++; }
+    if (!total) return false;
     const combat = COMBAT.has(group);
     let busy = 0, same = 0;
     for (const voice of this.sampleVoices) { if (voice.combat) busy++; if (voice.group === group) same++; }
     if ((combat && busy >= COMBAT_VOICES) || same >= (GROUP_VOICES[group] || 3)) return true;
-    const choices = available.filter(key => key !== this.lastSample.get(group));
-    const pool = choices.length ? choices : available, key = pool[Math.floor(Math.random() * pool.length)];
+    let pick = Math.floor(Math.random() * (choices || total)), key = list[0];
+    for (let i = 0; i < list.length; i++) {
+      const candidate = list[i];
+      if (!this.samples.has(candidate) || (choices && candidate === last)) continue;
+      if (pick-- === 0) { key = candidate; break; }
+    }
     this.lastSample.set(group, key);
     const source = this.context.createBufferSource(), gain = this.context.createGain(), t = when ?? this.context.currentTime;
     // Combat sounds vary a little in pitch; melodic cues stay in tune.
     source.buffer = this.samples.get(key); source.playbackRate.value = rate * (combat ? .96 + Math.random() * .08 : .995 + Math.random() * .01);
     source.loop = loop;
     const duration = loop ? maxDuration : Math.min(maxDuration, source.buffer.duration / source.playbackRate.value);
-    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(volume, t + .004);
-    gain.gain.setValueAtTime(volume, t + Math.max(.004, duration - .04)); gain.gain.linearRampToValueAtTime(0, t + duration);
+    const attack = Math.min(.004, duration * .25), hold = Math.max(attack + .001, duration - Math.min(.04, duration * .35));
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(volume, t + attack);
+    gain.gain.setValueAtTime(volume, t + hold); gain.gain.linearRampToValueAtTime(0, t + duration);
     const nodes = [gain];
     source.connect(gain); this.route(gain, nodes, pan, reverb);
     const voice = { source, group, combat }; this.sampleVoices.add(voice);
@@ -266,9 +275,26 @@ export class AudioEngine {
       this.lastShot = t;
       const group = variant === 'lance' || variant === 'plasma' ? 'laser-heavy' : variant === 'scatter' || variant === 'arc' ? 'laser-retro' : 'laser-small';
       const rate = { pulse: 1.12, scatter: .85, lance: 1.22, seeker: 1.32, plasma: .74, arc: 1.4 }[variant] || 1;
-      if (this.sample(group, group === 'laser-heavy' ? .2 : group === 'laser-retro' ? .2 : .1, rate, group === 'laser-heavy' ? .45 : .24, pan)) return;
+      const boost = 1 + Math.min(4, Math.max(0, size)) * .035;
+      const baseVol = (group === 'laser-heavy' ? .2 : group === 'laser-retro' ? .19 : .1) * boost;
+      if (this.sample(group, baseVol, rate, group === 'laser-heavy' ? .45 : .24, pan, variant === 'lance' ? .08 : 0)) {
+        if (variant === 'plasma') this.sample('boom', .11, 1.45, .22, pan);
+        return;
+      }
       const pitch = { pulse: 1150, scatter: 760, lance: 410, seeker: 930, plasma: 260, arc: 1380 }[variant] || 1150;
       this.tone(pitch, Math.max(80, pitch * .2), variant === 'lance' ? .17 : .085, variant === 'plasma' ? .1 : .065, variant === 'arc' ? 'square' : 'triangle', null, pan);
+    }
+    if (type === 'spark') {
+      if (t - (this.lastSpark || 0) < .065) return;
+      this.lastSpark = t;
+      if (!this.sample('impact', .05, 1.45, .12, pan)) this.burst(.035, .022, 3600, null, pan);
+    }
+    if (type === 'blast') {
+      if (t - (this.lastBlast || 0) < .045) return;
+      this.lastBlast = t;
+      const played = this.sample('explosion', Math.min(.42, .16 + size / 240), Math.max(.85, 1.25 - size / 220), .65, pan, .1);
+      if (!played) { this.burst(.16 + size / 300, Math.min(.22, .06 + size / 350), 1600, null, pan, .1); this.tone(95, 30, .2, .12, 'sine', null, pan); }
+      else if (size >= 36) this.sample('boom', Math.min(.32, .1 + size / 300), 1.15, .5, pan * .5);
     }
     if (type === 'volley') {
       // Hostile fire is a quiet, throttled cue beneath the pilot's own guns;
@@ -340,7 +366,19 @@ export class AudioEngine {
       if (!this.sample('combo', .3, notes.length === 4 ? 1.335 : notes.length === 3 ? 1.19 : 1, .4, pan * .5)) notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055, pan * .5));
     }
     if (type === 'boss-open' && !this.sample('boss-open', .32, 1, .6)) this.tone(880, 1320, .28, .12, 'sine');
-    if (type === 'boss-close') this.sample('boss-close', .22, 1, .6);
+    if (type === 'boss-close' && !this.sample('boss-close', .22, 1, .6, pan)) this.tone(660, 330, .22, .09, 'triangle', null, pan);
+    if (type === 'weak-hit') {
+      if (t - (this.lastWeakHit || 0) < .05) return;
+      this.lastWeakHit = t;
+      if (this.sample('impact', .24, 1.35, .22, pan, .08)) { this.sample('deflect', .14, 1.65, .18, pan); return; }
+      this.tone(1320, 1760, .09, .08, 'triangle', null, pan); this.burst(.06, .07, 4800, null, pan);
+    }
+    if (type === 'phase') {
+      if (!this.sample('explosion-large', .55, .88, 1.2, 0, .35)) this.burst(.8, .28, 2200, null, 0, .35);
+      if (!this.sample('alert', .34, 1.08, .9)) [220, 294, 392].forEach((f, i) => this.tone(f, f * 1.15, .24, .12, 'sawtooth', t + i * .12));
+      this.duck(.35, .65);
+    }
+    if (type === 'captive-lost' && !this.sample('power-down', .28, .72, .65, pan)) [440, 370, 294].forEach((f, i) => this.tone(f, f * .92, .2, .09, 'triangle', t + i * .12, pan));
     if (type === 'weak-break') {
       if (!this.sample('weak-break', .5, 1, .6, pan, .2)) { this.burst(.16, .12, 4200, null, pan); this.tone(260, 920, .3, .16, 'sawtooth', null, pan); }
       this.sample('explosion', .3, 1.2, .8, pan, .2);
