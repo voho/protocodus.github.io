@@ -2,14 +2,14 @@
   "product": "Keyra",
   "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.4.13d1",
+  "source_version": "0.4.14d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
       "file": "keyra-rack-front.webp",
-      "sha256": "6b11dc12494686350f1a8f7ba0a58c61d2cd40a730d5a1b7c022d14d8b977aae",
-      "source": "Examples/Keyra/Docs/screenshots/front-2x.png",
-      "source_sha256": "9a854044deb6304ce9e3883a8700100277e07b2c8612b42bdf720fd922b51224",
+      "sha256": "acf348688b72982b1899ce1fea57ecb992e6dbedf760bcb8abc6736c96c90ffb",
+      "source": "dist/Keyra_Front.png",
+      "source_sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
       "pixels": [
         1508,
         552
@@ -18,8 +18,8 @@
     {
       "file": "Keyra_Front.png",
       "sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
-      "source": "Examples/Keyra/Docs/screenshots/front-2x.png",
-      "source_sha256": "9a854044deb6304ce9e3883a8700100277e07b2c8612b42bdf720fd922b51224",
+      "source": "dist/Keyra_Front.png",
+      "source_sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
       "pixels": [
         1508,
         552
@@ -27,9 +27,9 @@
     },
     {
       "file": "keyra-rack-rear.webp",
-      "sha256": "b5c197182e17d7580075826a0522d7e3b0ceb1b34de6b9fa079a078696cc7172",
-      "source": "Examples/Keyra/Docs/screenshots/back-2x.png",
-      "source_sha256": "60d6f8e08e25ac52f1be6ede39625bfc55b3b0c5f55a380c8e19a3dc5c953ca2",
+      "sha256": "e8b3c9157567965da51904e7dba7b7b07b4236ef10c7acd14b4cd34f91f1db0a",
+      "source": "dist/Keyra_Back.png",
+      "source_sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
       "pixels": [
         1508,
         552
@@ -37,9 +37,9 @@
     },
     {
       "file": "Keyra_Back.png",
-      "sha256": "bd2707a03fcd5df5a61fc640f909ecbc99af811425a410ff35b8ee1b076cb1d9",
-      "source": "Examples/Keyra/Docs/screenshots/back-2x.png",
-      "source_sha256": "60d6f8e08e25ac52f1be6ede39625bfc55b3b0c5f55a380c8e19a3dc5c953ca2",
+      "sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
+      "source": "dist/Keyra_Back.png",
+      "source_sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
       "pixels": [
         1508,
         552
@@ -48,62 +48,70 @@
     {
       "file": "Keyra_Thumbnail_800.png",
       "sha256": "93ef4fcb2a3c9f10a6a56dcdee492eb40cc6f66a1cd202b9652cb17ac86b7955",
-      "source": "Examples/Keyra/Docs/screenshots/Keyra_Thumbnail_800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork."
+      "source": "dist/Keyra_Thumbnail_800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork.",
+      "source_sha256": "93ef4fcb2a3c9f10a6a56dcdee492eb40cc6f66a1cd202b9652cb17ac86b7955",
+      "pixels": [
+        800,
+        800
+      ]
     }
   ],
   "development_refresh": {
-    "reviewed": "2026-11-03",
-    "source_version": "0.4.13d1",
-    "source_revision": "3079594a41c3c17643cc498bd07fa1a48594e955",
-    "assets": [
-      {
-        "file": "keyra-rack-front.webp",
-        "sha256": "6b11dc12494686350f1a8f7ba0a58c61d2cd40a730d5a1b7c022d14d8b977aae",
-        "source": "Examples/Keyra/Docs/screenshots/front-2x.png",
-        "source_sha256": "9a854044deb6304ce9e3883a8700100277e07b2c8612b42bdf720fd922b51224",
-        "pixels": [
-          1508,
-          552
-        ]
-      },
-      {
-        "file": "Keyra_Front.png",
-        "sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
-        "source": "Examples/Keyra/Docs/screenshots/front-2x.png",
-        "source_sha256": "9a854044deb6304ce9e3883a8700100277e07b2c8612b42bdf720fd922b51224",
-        "pixels": [
-          1508,
-          552
-        ]
-      },
-      {
-        "file": "keyra-rack-rear.webp",
-        "sha256": "b5c197182e17d7580075826a0522d7e3b0ceb1b34de6b9fa079a078696cc7172",
-        "source": "Examples/Keyra/Docs/screenshots/back-2x.png",
-        "source_sha256": "60d6f8e08e25ac52f1be6ede39625bfc55b3b0c5f55a380c8e19a3dc5c953ca2",
-        "pixels": [
-          1508,
-          552
-        ]
-      },
-      {
-        "file": "Keyra_Back.png",
-        "sha256": "bd2707a03fcd5df5a61fc640f909ecbc99af811425a410ff35b8ee1b076cb1d9",
-        "source": "Examples/Keyra/Docs/screenshots/back-2x.png",
-        "source_sha256": "60d6f8e08e25ac52f1be6ede39625bfc55b3b0c5f55a380c8e19a3dc5c953ca2",
-        "pixels": [
-          1508,
-          552
-        ]
-      },
-      {
-        "file": "Keyra_Thumbnail_800.png",
+    "date": "2026-11-03",
+    "source_version": "0.4.14d1",
+    "upstream_revision": "b805a65155a7f4015c7bc3a29903e05d58369918",
+    "assets": {
+      "Keyra_Thumbnail_800.png": {
+        "source": "dist/Keyra_Thumbnail_800.png",
         "sha256": "93ef4fcb2a3c9f10a6a56dcdee492eb40cc6f66a1cd202b9652cb17ac86b7955",
-        "source": "Examples/Keyra/Docs/screenshots/Keyra_Thumbnail_800.png",
-        "note": "Existing approved luxury cover; unchanged source artwork."
+        "source_sha256": "93ef4fcb2a3c9f10a6a56dcdee492eb40cc6f66a1cd202b9652cb17ac86b7955",
+        "pixels": [
+          800,
+          800
+        ]
+      },
+      "Keyra_Front.png": {
+        "source": "dist/Keyra_Front.png",
+        "sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
+        "source_sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      "keyra-rack-front.webp": {
+        "source": "dist/Keyra_Front.png",
+        "sha256": "acf348688b72982b1899ce1fea57ecb992e6dbedf760bcb8abc6736c96c90ffb",
+        "source_sha256": "2228c7607071e6994cd65c7d6a6c8db1f235cf3b474fd564efccee38cd6d6992",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      "Keyra_Back.png": {
+        "source": "dist/Keyra_Back.png",
+        "sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
+        "source_sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      "keyra-rack-rear.webp": {
+        "source": "dist/Keyra_Back.png",
+        "sha256": "e8b3c9157567965da51904e7dba7b7b07b4236ef10c7acd14b4cd34f91f1db0a",
+        "source_sha256": "ed59baa01f73b6f372600cabf9a676093e082fb75aac5a28ef441eb9c3d2f0a4",
+        "pixels": [
+          1508,
+          552
+        ]
       }
-    ],
-    "availability": "Development build; existing Shop release status preserved."
-  }
+    },
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
+  },
+  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
+  "source_branch": "release/dsp-20261103-evening",
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d"
 }

@@ -24,9 +24,9 @@
   "assets": [
     {
       "file": "acustra-rack-front.webp",
-      "sha256": "baa88fb6dbf94758376690bc8582e60a85d994bcd5ec49196e4e79e1c6cdb60a",
-      "source": "Examples/Acustra/Design/Rendered/front.png",
-      "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+      "sha256": "7eb34e1a3a30fa11757d281d2d185e310b436963d3cd6286aa76cbd38ad4296f",
+      "source": "dist/Acustra_Front.png",
+      "source_sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
       "pixels": [
         1457,
         1200
@@ -34,9 +34,9 @@
     },
     {
       "file": "Acustra_Front.png",
-      "sha256": "f4b6bbc3ceee053879b249a9d4dae6b29ae6c93b2d20b40d1139fa0fa01921b3",
-      "source": "Examples/Acustra/Design/Rendered/front.png",
-      "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+      "sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
+      "source": "dist/Acustra_Front.png",
+      "source_sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
       "pixels": [
         1457,
         1200
@@ -44,9 +44,9 @@
     },
     {
       "file": "acustra-rack-rear.webp",
-      "sha256": "f1598ed0d7b345b5a61fc351c6751cc206eac2b578a8223a3c5bb04577a18147",
-      "source": "Examples/Acustra/Design/Rendered/back.png",
-      "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+      "sha256": "74ab05b41a1df507718ef7ce7fc09bdc11f2b933cbf312ce55d6ea16c6d6b940",
+      "source": "dist/Acustra_Back.png",
+      "source_sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
       "pixels": [
         1457,
         1200
@@ -54,9 +54,9 @@
     },
     {
       "file": "Acustra_Back.png",
-      "sha256": "53ea47ab96561d3e35ee0f76a63b3a35139630fcaf49f77a672a1db4b3868e3d",
-      "source": "Examples/Acustra/Design/Rendered/back.png",
-      "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+      "sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
+      "source": "dist/Acustra_Back.png",
+      "source_sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
       "pixels": [
         1457,
         1200
@@ -65,8 +65,13 @@
     {
       "file": "Acustra_Thumbnail_800.png",
       "sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
-      "source": "approved-artwork/Acustra-Thumbnail-800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork."
+      "source": "dist/Acustra_Thumbnail_800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork.",
+      "source_sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
+      "pixels": [
+        800,
+        800
+      ]
     }
   ],
   "homepage_card": {
@@ -211,58 +216,62 @@
     "note": "Byte-for-byte copy of the 1.9.0 Quick Start the Shop page offers; it replaces the retained 1.3.3f2 guide."
   },
   "development_refresh": {
-    "reviewed": "2026-11-03",
-    "source_version": "1.9.15d3",
-    "source_revision": "131d06dbc6e0b898568a9d616c96237d124cbc6e",
-    "assets": [
-      {
-        "file": "acustra-rack-front.webp",
-        "sha256": "baa88fb6dbf94758376690bc8582e60a85d994bcd5ec49196e4e79e1c6cdb60a",
-        "source": "Examples/Acustra/Design/Rendered/front.png",
-        "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
-        "pixels": [
-          1457,
-          1200
-        ]
-      },
-      {
-        "file": "Acustra_Front.png",
-        "sha256": "f4b6bbc3ceee053879b249a9d4dae6b29ae6c93b2d20b40d1139fa0fa01921b3",
-        "source": "Examples/Acustra/Design/Rendered/front.png",
-        "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
-        "pixels": [
-          1457,
-          1200
-        ]
-      },
-      {
-        "file": "acustra-rack-rear.webp",
-        "sha256": "f1598ed0d7b345b5a61fc351c6751cc206eac2b578a8223a3c5bb04577a18147",
-        "source": "Examples/Acustra/Design/Rendered/back.png",
-        "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
-        "pixels": [
-          1457,
-          1200
-        ]
-      },
-      {
-        "file": "Acustra_Back.png",
-        "sha256": "53ea47ab96561d3e35ee0f76a63b3a35139630fcaf49f77a672a1db4b3868e3d",
-        "source": "Examples/Acustra/Design/Rendered/back.png",
-        "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
-        "pixels": [
-          1457,
-          1200
-        ]
-      },
-      {
-        "file": "Acustra_Thumbnail_800.png",
+    "date": "2026-11-03",
+    "source_version": "1.9.19d1",
+    "upstream_revision": "c2ef48541bea6e9dd9dfcce00ce5214323b506c0",
+    "assets": {
+      "Acustra_Thumbnail_800.png": {
+        "source": "dist/Acustra_Thumbnail_800.png",
         "sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
-        "source": "approved-artwork/Acustra-Thumbnail-800.png",
-        "note": "Existing approved luxury cover; unchanged source artwork."
+        "source_sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
+        "pixels": [
+          800,
+          800
+        ]
+      },
+      "Acustra_Front.png": {
+        "source": "dist/Acustra_Front.png",
+        "sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
+        "source_sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      "acustra-rack-front.webp": {
+        "source": "dist/Acustra_Front.png",
+        "sha256": "7eb34e1a3a30fa11757d281d2d185e310b436963d3cd6286aa76cbd38ad4296f",
+        "source_sha256": "31f72a0114f401a682994a15ab59c033d8a5bb40882658e1bbc21959dea35cb1",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      "Acustra_Back.png": {
+        "source": "dist/Acustra_Back.png",
+        "sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
+        "source_sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      "acustra-rack-rear.webp": {
+        "source": "dist/Acustra_Back.png",
+        "sha256": "74ab05b41a1df507718ef7ce7fc09bdc11f2b933cbf312ce55d6ea16c6d6b940",
+        "source_sha256": "ac5f7b37d3cef2cc3aedb60e326bd4f2e444e04cbe14af4a3c900d1711b6c5ac",
+        "pixels": [
+          1457,
+          1200
+        ]
       }
-    ],
-    "availability": "Development build; existing Shop release status preserved."
+    },
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
   },
-  "reviewed": "2026-11-03"
+  "reviewed": "2026-11-03",
+  "source_version": "1.9.19d1",
+  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
+  "source_branch": "release/dsp-20261103-evening",
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d"
 }

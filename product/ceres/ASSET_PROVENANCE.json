@@ -1,12 +1,12 @@
 {
   "product": "Ceres",
   "reviewed": "2026-10-28",
-  "availability": "coming_soon",
-  "source_version": "1.0.3f1",
-  "source_format": "First public-release Rack Extension candidate, built as the 1.0.3f1 SDK5 release. Reason Shop acceptance and publication pending.",
+  "availability": "published",
+  "source_version": "1.1.4f1",
+  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "main",
-  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
+  "source_branch": "release/dsp-20261103-evening",
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
   "source_engine_commit": "820fb631338626aecc11af28d42840d62ebb3240",
   "default_panel_state": {
     "patch": "Init",
@@ -27,36 +27,48 @@
   "assets": [
     {
       "file": "Ceres_Front.png",
-      "sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
+      "sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
       "bytes": 457228,
       "source": "dist/Ceres_Front.png",
-      "source_sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
+      "source_sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
       "change": "Exact copy of the 1.0.3f1 release material.",
       "dimensions": [
         754,
         414
+      ],
+      "pixels": [
+        754,
+        552
       ]
     },
     {
       "file": "Ceres_Back.png",
-      "sha256": "5efdea07f38c7f76f8a62b5f8527dc22b591d41bf1c743fdc0e2101ca10d763c",
+      "sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
       "bytes": 273025,
       "source": "dist/Ceres_Back.png",
-      "source_sha256": "5efdea07f38c7f76f8a62b5f8527dc22b591d41bf1c743fdc0e2101ca10d763c",
+      "source_sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
       "change": "Exact copy of the 1.0.3f1 release material.",
       "dimensions": [
         754,
         414
+      ],
+      "pixels": [
+        754,
+        552
       ]
     },
     {
       "file": "Ceres_Thumbnail_800.png",
-      "sha256": "299dca08001bfb8b162894a2b19543bee66889f5b363424ae46b85e792b570e1",
+      "sha256": "eca4bccf0d1292e27f5abebed4c075459e27e5a7a941cc34deef61ebd77b5541",
       "bytes": 438497,
       "source": "dist/Ceres_Thumbnail_800.png",
-      "source_sha256": "299dca08001bfb8b162894a2b19543bee66889f5b363424ae46b85e792b570e1",
+      "source_sha256": "eca4bccf0d1292e27f5abebed4c075459e27e5a7a941cc34deef61ebd77b5541",
       "change": "Exact copy of the 1.0.3f1 release material.",
       "dimensions": [
+        800,
+        800
+      ],
+      "pixels": [
         800,
         800
       ]
@@ -71,27 +83,35 @@
     },
     {
       "file": "ceres-rack-front.webp",
-      "sha256": "6674d8bbc13b775a70a040918a3be0306e3c25c71a6081469fe7e954d0757b26",
+      "sha256": "0ba594522e39707ac10e68224ed21714d674ba5104b7792bb5a266423ad78615",
       "bytes": 55752,
       "dimensions": [
         754,
         414
       ],
       "source": "dist/Ceres_Front.png",
-      "source_sha256": "c8269ea6b55d8463b1f5194280663363ce6f99c8f8d54cabb42b53599b470f91",
-      "change": "WebP quality90, method6; full uncropped panel at original754x414 dimensions (unchanged from the 1.0.0f1 review; the front panel is identical)."
+      "source_sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
+      "change": "WebP quality90, method6; full uncropped panel at original754x414 dimensions (unchanged from the 1.0.0f1 review; the front panel is identical).",
+      "pixels": [
+        754,
+        552
+      ]
     },
     {
       "file": "ceres-rack-rear.webp",
-      "sha256": "8c1b6a93219248c47fe0d911e9dfb4c7e7c040547de335232b8eeb024205b194",
+      "sha256": "313ebadf05b29e6b42304e3b2c11cb77b0840ad6898f74ce9c2c38aa5379f8ba",
       "bytes": 43950,
       "dimensions": [
         754,
         414
       ],
       "source": "dist/Ceres_Back.png",
-      "source_sha256": "5efdea07f38c7f76f8a62b5f8527dc22b591d41bf1c743fdc0e2101ca10d763c",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full uncropped panel at original 754x414 dimensions."
+      "source_sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
+      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; full uncropped panel at original 754x414 dimensions.",
+      "pixels": [
+        754,
+        552
+      ]
     }
   ],
   "earlier_reviews": [
@@ -127,5 +147,64 @@
         }
       ]
     }
-  ]
+  ],
+  "public_release": {
+    "version": "1.0.3",
+    "released": "2026-11-02",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/ceres-circuit-modelled-synth/"
+  },
+  "development_refresh": {
+    "date": "2026-11-03",
+    "source_version": "1.1.4f1",
+    "upstream_revision": "9c021cdb7e0d81fb9324bae8fb4e2b2cc91cf65e",
+    "assets": {
+      "Ceres_Thumbnail_800.png": {
+        "source": "dist/Ceres_Thumbnail_800.png",
+        "sha256": "eca4bccf0d1292e27f5abebed4c075459e27e5a7a941cc34deef61ebd77b5541",
+        "source_sha256": "eca4bccf0d1292e27f5abebed4c075459e27e5a7a941cc34deef61ebd77b5541",
+        "pixels": [
+          800,
+          800
+        ]
+      },
+      "Ceres_Front.png": {
+        "source": "dist/Ceres_Front.png",
+        "sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
+        "source_sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      "ceres-rack-front.webp": {
+        "source": "dist/Ceres_Front.png",
+        "sha256": "0ba594522e39707ac10e68224ed21714d674ba5104b7792bb5a266423ad78615",
+        "source_sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      "Ceres_Back.png": {
+        "source": "dist/Ceres_Back.png",
+        "sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
+        "source_sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      "ceres-rack-rear.webp": {
+        "source": "dist/Ceres_Back.png",
+        "sha256": "313ebadf05b29e6b42304e3b2c11cb77b0840ad6898f74ce9c2c38aa5379f8ba",
+        "source_sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196",
+        "pixels": [
+          754,
+          552
+        ]
+      }
+    },
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
+  }
 }

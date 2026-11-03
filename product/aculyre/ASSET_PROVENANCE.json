@@ -2,11 +2,11 @@
   "product": "Aculyre",
   "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.7.7d1",
-  "source_format": "Rack Extension panel previews rendered by the device's python3 Design/render_panels.py into Design/Rendered/ (not a Shop release; no SDK build).",
+  "source_version": "0.7.9d1",
+  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "main",
-  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
+  "source_branch": "release/dsp-20261103-evening",
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
   "instrument_repository": "protocodus/virtual-instrument-aculyre",
   "instrument_commit": "b633e9a7d81fd2b4776ec8d52a3ec1eeaa195f88",
   "feature_sources": [
@@ -17,9 +17,9 @@
   "assets": [
     {
       "file": "aculyre-rack-front.webp",
-      "sha256": "7b2ba36aa46e4ab68def566c6ac5472fdd7e1f4466aa2cdf8f6d5b2af111e443",
-      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+      "sha256": "40b7e1d8fac6c05e5a081b78da0b9518041d4c64225e0b7571964b59e4ade6ba",
+      "source": "dist/Aculyre_Front.png",
+      "source_sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
       "pixels": [
         1508,
         828
@@ -28,8 +28,8 @@
     {
       "file": "Aculyre_Front.png",
       "sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
-      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+      "source": "dist/Aculyre_Front.png",
+      "source_sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
       "pixels": [
         1508,
         828
@@ -37,9 +37,9 @@
     },
     {
       "file": "aculyre-rack-rear.webp",
-      "sha256": "a79a873c40962e8526aa1a2cd6952ccaffac15bfb144d41313eb350254eaf4c8",
-      "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-      "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "sha256": "1ff41f983aa8102034a701404b1af520ec6bd7a257a2d7e36f5ecb54969d58a4",
+      "source": "dist/Aculyre_Back.png",
+      "source_sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
       "pixels": [
         1508,
         828
@@ -47,9 +47,9 @@
     },
     {
       "file": "Aculyre_Back.png",
-      "sha256": "a5bd60325445f177b3faf95633c7e13c2156fa624b662f9c1d006a4782f91a5d",
-      "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-      "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
+      "source": "dist/Aculyre_Back.png",
+      "source_sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
       "pixels": [
         1508,
         828
@@ -57,9 +57,14 @@
     },
     {
       "file": "Aculyre_Thumbnail_800.png",
-      "sha256": "bc7fed1821e1505a2931447405b184ee35ff5681accbbf6da0df2eeef0b33ea3",
-      "source": "approved-artwork/Aculyre-Thumbnail-800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork."
+      "sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa",
+      "source": "dist/Aculyre_Thumbnail_800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork.",
+      "source_sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa",
+      "pixels": [
+        800,
+        800
+      ]
     }
   ],
   "earlier_reviews": [
@@ -85,57 +90,57 @@
     }
   ],
   "development_refresh": {
-    "reviewed": "2026-11-03",
-    "source_version": "0.7.7d1",
-    "source_revision": "7af956633c63eb0c291272f3018360b042336d06",
-    "assets": [
-      {
-        "file": "aculyre-rack-front.webp",
-        "sha256": "7b2ba36aa46e4ab68def566c6ac5472fdd7e1f4466aa2cdf8f6d5b2af111e443",
-        "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-        "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+    "date": "2026-11-03",
+    "source_version": "0.7.9d1",
+    "upstream_revision": "56f30fcdc50935fba039aa379b3fd530b69dbc93",
+    "assets": {
+      "Aculyre_Thumbnail_800.png": {
+        "source": "dist/Aculyre_Thumbnail_800.png",
+        "sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa",
+        "source_sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa",
         "pixels": [
-          1508,
-          828
+          800,
+          800
         ]
       },
-      {
-        "file": "Aculyre_Front.png",
+      "Aculyre_Front.png": {
+        "source": "dist/Aculyre_Front.png",
         "sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
-        "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-        "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+        "source_sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
         "pixels": [
           1508,
           828
         ]
       },
-      {
-        "file": "aculyre-rack-rear.webp",
-        "sha256": "a79a873c40962e8526aa1a2cd6952ccaffac15bfb144d41313eb350254eaf4c8",
-        "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-        "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "aculyre-rack-front.webp": {
+        "source": "dist/Aculyre_Front.png",
+        "sha256": "40b7e1d8fac6c05e5a081b78da0b9518041d4c64225e0b7571964b59e4ade6ba",
+        "source_sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
         "pixels": [
           1508,
           828
         ]
       },
-      {
-        "file": "Aculyre_Back.png",
-        "sha256": "a5bd60325445f177b3faf95633c7e13c2156fa624b662f9c1d006a4782f91a5d",
-        "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-        "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "Aculyre_Back.png": {
+        "source": "dist/Aculyre_Back.png",
+        "sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
+        "source_sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
         "pixels": [
           1508,
           828
         ]
       },
-      {
-        "file": "Aculyre_Thumbnail_800.png",
-        "sha256": "bc7fed1821e1505a2931447405b184ee35ff5681accbbf6da0df2eeef0b33ea3",
-        "source": "approved-artwork/Aculyre-Thumbnail-800.png",
-        "note": "Existing approved luxury cover; unchanged source artwork."
+      "aculyre-rack-rear.webp": {
+        "source": "dist/Aculyre_Back.png",
+        "sha256": "1ff41f983aa8102034a701404b1af520ec6bd7a257a2d7e36f5ecb54969d58a4",
+        "source_sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5",
+        "pixels": [
+          1508,
+          828
+        ]
       }
-    ],
-    "availability": "Development build; existing Shop release status preserved."
+    },
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
   }
 }

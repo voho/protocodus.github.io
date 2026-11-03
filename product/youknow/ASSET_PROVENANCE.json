@@ -626,5 +626,18 @@
         ]
       }
     ]
+  },
+  "shop_cover_refresh": {
+    "date": "2026-11-03",
+    "file": "YouKnow_Thumbnail_800.png",
+    "source": "dist/YouKnow_Thumbnail_800.png",
+    "source_sha256": "362ae1af25db59e8b6db1c1e5a38ddf9f3e10b433134b9aa50a37b697196fc42",
+    "sha256": "362ae1af25db59e8b6db1c1e5a38ddf9f3e10b433134b9aa50a37b697196fc42",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
   }
 }

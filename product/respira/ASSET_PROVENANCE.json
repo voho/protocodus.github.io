@@ -2,11 +2,11 @@
   "product": "Respira",
   "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.1.10d1",
-  "source_format": "Rack Extension panel previews, the red panel the owner chose, committed by the device's Design/render_panels.py in Docs/screenshots/ (not a Shop release; no SDK build).",
+  "source_version": "0.1.12d1",
+  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "main",
-  "source_commit": "88c0d09e88722ae0ef282ee202ebb1fe7b9eeaa8",
+  "source_branch": "release/dsp-20261103-evening",
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
   "instrument_repository": "protocodus/virtual-instrument-respira",
   "instrument_commit": "1b680b22abfcb72d4311cdee425079617746a57e",
   "feature_sources": [
@@ -17,9 +17,9 @@
   "assets": [
     {
       "file": "respira-rack-front.webp",
-      "sha256": "6ff31c4e0a1f096aa08ebed4bbbb81eab595c90b9359b01236256f564aa2704f",
-      "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+      "sha256": "8713011531f37d3ac43cf39238b54caf6271c1a570db6631bda55a107720c6b4",
+      "source": "dist/Respira_Front.png",
+      "source_sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
       "pixels": [
         1508,
         552
@@ -27,9 +27,9 @@
     },
     {
       "file": "Respira_Front.png",
-      "sha256": "3c1962cf56864a4a24f6128c9057fe9dcf295530ce84f0e3ac1b73755e7bad7f",
-      "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+      "sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
+      "source": "dist/Respira_Front.png",
+      "source_sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
       "pixels": [
         1508,
         552
@@ -37,9 +37,9 @@
     },
     {
       "file": "respira-rack-rear.webp",
-      "sha256": "4a96be00f2c5078a46391756911774cd3d3b881d20e9d026a5b6c87adce0334d",
-      "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-      "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "sha256": "79d76d3689b43c3dcb5697cbaee3f0f42703f43c368e12e8192215fd441bc007",
+      "source": "dist/Respira_Back.png",
+      "source_sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
       "pixels": [
         1508,
         552
@@ -47,9 +47,9 @@
     },
     {
       "file": "Respira_Back.png",
-      "sha256": "78226de51fd450c03732305cdc87f441aeba39cb831284d2f1dae56b1d9f97be",
-      "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-      "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
+      "source": "dist/Respira_Back.png",
+      "source_sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
       "pixels": [
         1508,
         552
@@ -57,9 +57,14 @@
     },
     {
       "file": "Respira_Thumbnail_800.png",
-      "sha256": "e53ce602a120da7c5164f45416bf66d44f2541124ad5c9779640cacaef244832",
-      "source": "approved-artwork/Respira-Thumbnail-800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork."
+      "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+      "source": "dist/Respira_Thumbnail_800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork.",
+      "source_sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+      "pixels": [
+        800,
+        800
+      ]
     }
   ],
   "earlier_reviews": [
@@ -85,57 +90,57 @@
     }
   ],
   "development_refresh": {
-    "reviewed": "2026-11-03",
-    "source_version": "0.1.10d1",
-    "source_revision": "0023d2ed859d3290c2cde7ad17330ba7f590b9f6",
-    "assets": [
-      {
-        "file": "respira-rack-front.webp",
-        "sha256": "6ff31c4e0a1f096aa08ebed4bbbb81eab595c90b9359b01236256f564aa2704f",
-        "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-        "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+    "date": "2026-11-03",
+    "source_version": "0.1.12d1",
+    "upstream_revision": "a99474e1353fd0807cab18f4c03007f5bd479f0e",
+    "assets": {
+      "Respira_Thumbnail_800.png": {
+        "source": "dist/Respira_Thumbnail_800.png",
+        "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+        "source_sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+        "pixels": [
+          800,
+          800
+        ]
+      },
+      "Respira_Front.png": {
+        "source": "dist/Respira_Front.png",
+        "sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
+        "source_sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
         "pixels": [
           1508,
           552
         ]
       },
-      {
-        "file": "Respira_Front.png",
-        "sha256": "3c1962cf56864a4a24f6128c9057fe9dcf295530ce84f0e3ac1b73755e7bad7f",
-        "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-        "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+      "respira-rack-front.webp": {
+        "source": "dist/Respira_Front.png",
+        "sha256": "8713011531f37d3ac43cf39238b54caf6271c1a570db6631bda55a107720c6b4",
+        "source_sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca",
         "pixels": [
           1508,
           552
         ]
       },
-      {
-        "file": "respira-rack-rear.webp",
-        "sha256": "4a96be00f2c5078a46391756911774cd3d3b881d20e9d026a5b6c87adce0334d",
-        "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-        "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "Respira_Back.png": {
+        "source": "dist/Respira_Back.png",
+        "sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
+        "source_sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
         "pixels": [
           1508,
           552
         ]
       },
-      {
-        "file": "Respira_Back.png",
-        "sha256": "78226de51fd450c03732305cdc87f441aeba39cb831284d2f1dae56b1d9f97be",
-        "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-        "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "respira-rack-rear.webp": {
+        "source": "dist/Respira_Back.png",
+        "sha256": "79d76d3689b43c3dcb5697cbaee3f0f42703f43c368e12e8192215fd441bc007",
+        "source_sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964",
         "pixels": [
           1508,
           552
         ]
-      },
-      {
-        "file": "Respira_Thumbnail_800.png",
-        "sha256": "e53ce602a120da7c5164f45416bf66d44f2541124ad5c9779640cacaef244832",
-        "source": "approved-artwork/Respira-Thumbnail-800.png",
-        "note": "Existing approved luxury cover; unchanged source artwork."
       }
-    ],
-    "availability": "Development build; existing Shop release status preserved."
+    },
+    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+    "source_branch": "release/dsp-20261103-evening"
   }
 }
