@@ -70,7 +70,7 @@ try {
     for (let tick = 0; tick < 2000 && !(hauler.unloadDepotId && hauler.unload >= .25); tick++) updateGame(flow, .05);
     const unloadingQuiet = hauler.unloadDepotId === refinery.id && refinery.processingAmount === 0 && !machinery().some(Boolean);
     for (let tick = 0; tick < 40 && !refinery.processingAmount; tick++) updateGame(flow, .05);
-    const processing = machinery(), processingAmount = refinery.processingAmount;
+    machinery(); const processing = machinery(), processingAmount = refinery.processingAmount;
     const processingFrozen = difference(processing, machinery()) === 0;
     updateGame(flow, .5); const processorMoving = difference(processing, machinery()) > 0;
     for (let tick = 0; tick < 150 && refinery.processingAmount > 0; tick++) updateGame(flow, .05);

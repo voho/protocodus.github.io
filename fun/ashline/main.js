@@ -882,7 +882,11 @@ function updateHUD() {
   }
   $('selected-count').textContent = first ? `${selection.length}`.padStart(2, '0') : '07';
   $('selection-health').hidden = selection.length !== 1;
-  if (first) $('selection-health').firstElementChild.style.width = `${Math.max(0, first.hp / first.maxHp * 100)}%`;
+  if (first) {
+    const hpRatio = Math.max(0, first.hp / first.maxHp);
+    $('selection-health').dataset.state = hpRatio > 0.65 ? 'healthy' : hpRatio > 0.32 ? 'worn' : 'critical';
+    $('selection-health').firstElementChild.style.width = `${hpRatio * 100}%`;
+  }
   const portraitKey = first ? `${first.id}:${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${first.processingType}:${first.cargoType}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}:${Math.round(power.ratio * 20)}:${power.status}:${Math.round((first.research?.progress || 0) * 10)}:${Math.round((first.reserve || 0) / 100)}:${Math.round((first.upgrade?.progress || 0) * 10)}` : 'core';
   if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || raceBuilding(game, 0, 'core'), 0, { ...first, powerRatio: power.ratio, powerStatus: power.status }); lastPortrait = portraitKey; }
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }

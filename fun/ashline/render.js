@@ -190,14 +190,19 @@ const ASH_LAYERS = [
 function explosion(ctx, x, y, size, age, alpha, seedX, seedY) {
   const s = Math.sqrt(size), r = (5 + age * 28) * s, flash = Math.max(0, 1 - age * 2.6);
   if (flash > 0) {
-    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = flash * .3;
-    stamp(ctx, glowSprite('#ffb66eff'), x, y + 4, 46 * s, 30 * s);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = flash * .34;
+    stamp(ctx, glowSprite('#ffb66eff'), x, y + 4, 48 * s, 32 * s);
     ctx.globalCompositeOperation = 'source-over';
   }
   const wave = Math.min(1, age * 1.9);
   if (wave < 1) {
-    ctx.globalAlpha = (1 - wave) ** 1.6 * .55; ctx.strokeStyle = '#f2dcbc'; ctx.lineWidth = .5 + (1 - wave) * 1.8;
+    ctx.globalAlpha = (1 - wave) ** 1.6 * .58; ctx.strokeStyle = '#f2dcbc'; ctx.lineWidth = .5 + (1 - wave) * 1.8;
     ctx.beginPath(); ctx.ellipse(x, y + 5, (8 + wave * 44) * s, (5 + wave * 27) * s, 0, 0, Math.PI * 2); ctx.stroke();
+    if (wave < .75) {
+      const inner = wave / .75;
+      ctx.globalAlpha = (1 - inner) * .42; ctx.strokeStyle = '#ffae62'; ctx.lineWidth = .8 + (1 - inner) * 1.1;
+      ctx.beginPath(); ctx.ellipse(x, y + 4, (5 + inner * 28) * s, (3 + inner * 17) * s, 0, 0, Math.PI * 2); ctx.stroke();
+    }
   }
   ctx.globalAlpha = Math.max(0, alpha - .12);
   const soot = radialSprite(SOOT), fire = radialSprite(FIRE);
@@ -218,9 +223,16 @@ function explosion(ctx, x, y, size, age, alpha, seedX, seedY) {
   for (let j = 0; j < 10; j++) {
     const a = j * 2.4 + seedX, reach = r * (1 + noise(j, seedY) * .8), lift = Math.sin(age * Math.PI) * (5 + j % 3 * 6) * s;
     const dx = x + Math.cos(a) * reach, dy = y + Math.sin(a) * reach * .6 - lift;
-    ctx.moveTo(dx, dy); ctx.lineTo(dx - Math.cos(a) * (2 + alpha * 5), dy - Math.sin(a) * 3);
+    ctx.moveTo(dx, dy); ctx.lineTo(dx - Math.cos(a) * (2.4 + alpha * 5.5), dy - Math.sin(a) * 3.2);
   }
-  ctx.strokeStyle = '#f0cd92c8'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = '#f0cd92c8'; ctx.lineWidth = 1.05; ctx.stroke();
+  if (alpha > .25) {
+    ctx.globalAlpha = alpha * .9; ctx.fillStyle = '#fff5dc';
+    for (let j = 0; j < 6; j++) {
+      const a = j * 2.4 + seedX, reach = r * (1 + noise(j, seedY) * .8), lift = Math.sin(age * Math.PI) * (5 + j % 3 * 6) * s;
+      ctx.fillRect(x + Math.cos(a) * reach - .7, y + Math.sin(a) * reach * .6 - lift - .7, 1.4, 1.4);
+    }
+  }
   ctx.globalAlpha = 1;
 }
 function rock(ctx, x, y, size, variant) {
@@ -1547,6 +1559,10 @@ export class Renderer {
         const k = clock * .45 % 1;
         ctx.globalAlpha = (1 - k) * .55; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(p.x, p.y, r * k, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = .72;
+        for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+          line(ctx, p.x + Math.cos(a) * (r - 3.5), p.y + Math.sin(a) * (r - 3.5), p.x + Math.cos(a) * (r + 3.5), p.y + Math.sin(a) * (r + 3.5), color, 1.2);
+        }
         ctx.globalAlpha = .9;
         stamp(ctx, radialSprite(BEACON), p.x, p.y - 19, 4.5, 22);
         ellipse(ctx, p.x, p.y, 5, 3, '#14202799', '#e2b67e');
@@ -1596,6 +1612,9 @@ export class Renderer {
       const beat = .5 + Math.sin(clock * 9) * .5;
       ctx.globalAlpha = .55 + beat * .3; ctx.strokeStyle = '#e8a46f'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = .35 + beat * .2; ctx.lineWidth = .9;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * .42, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = .65 + beat * .25;
       for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) line(ctx, p.x + Math.cos(a) * (r - 4), p.y + Math.sin(a) * (r - 4), p.x + Math.cos(a) * (r + 5), p.y + Math.sin(a) * (r + 5), '#e8a46f', 1.3);
       for (let i = 0; i < b.shots; i++) rect(ctx, p.x - b.shots * 3 + i * 6 + 1, p.y + r + 6, 4, 2.5, '#f3c48d');
     }
@@ -1982,27 +2001,29 @@ export class Renderer {
       const unity = state.teams[fx.team]?.race === 'aiUnity';
       if (fx.type === 'shot') {
         const dx = (fx.tx - launchX) * TILE, dy = (fx.ty - launchY) * TILE + launchHeight - 3;
-        const head = Math.min(1, age * 2.2), tail = Math.max(0, head - .18);
+        const head = Math.min(1, age * 2.2), tail = Math.max(0, head - .2);
         ctx.globalAlpha = alpha;
         if (seenAt(launchX + (fx.tx - launchX) * tail, launchY + (fx.ty - launchY) * tail) && seenAt(launchX + (fx.tx - launchX) * head, launchY + (fx.ty - launchY) * head)) {
-          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#afcbd38c' : '#f3d8a98c', 2.6);
-          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#e3f2f4' : '#fff5d8', .8);
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#7fd3e396' : '#f3d8a996', 2.8);
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#e8fbff' : '#fff6de', 1);
         }
         if (age < .55) {
           if (seenAt(launchX, launchY)) {
-            glow(ctx, x, y, 12 * alpha, unity ? '#bad9e08f' : '#ffc0708f');
-            ellipse(ctx, x, y, 3.5 * alpha, 2.5 * alpha, '#fff5dd');
+            glow(ctx, x, y, 13 * alpha, unity ? '#8fe0ee99' : '#ffc07099');
+            ellipse(ctx, x, y, 3.8 * alpha, 2.7 * alpha, unity ? '#e8fbff' : '#fff5dd');
           }
         } else if (seenAt(fx.tx, fx.ty)) {
-          const impact = (age - .55) / .45;
-          glow(ctx, fx.tx * TILE, fx.ty * TILE - 3, 7, '#ffab4a64');
-          ctx.beginPath();
-          for (let j = 0; j < 4; j++) {
-            const a = j * 2.4 + fx.tx;
-            ctx.moveTo(fx.tx * TILE + Math.cos(a) * impact * 4, fx.ty * TILE - 3 + Math.sin(a) * impact * 4);
-            ctx.lineTo(fx.tx * TILE + Math.cos(a) * impact * 10, fx.ty * TILE - 3 + Math.sin(a) * impact * 10);
+          const impact = (age - .55) / .45, ix = fx.tx * TILE, iy = fx.ty * TILE - 3;
+          glow(ctx, ix, iy, 8, unity ? '#7fd3e370' : '#ffab4a70');
+          ctx.globalAlpha = (1 - impact) * .55; ctx.strokeStyle = unity ? '#b7eef7' : '#ffe4b6'; ctx.lineWidth = .75;
+          ctx.beginPath(); ctx.ellipse(ix, iy + 1, 2.5 + impact * 6.5, 1.5 + impact * 4, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = alpha; ctx.beginPath();
+          for (let j = 0; j < 5; j++) {
+            const a = j * 1.9 + fx.tx;
+            ctx.moveTo(ix + Math.cos(a) * impact * 3.5, iy + Math.sin(a) * impact * 3.5);
+            ctx.lineTo(ix + Math.cos(a) * impact * 10.5, iy + Math.sin(a) * impact * 10.5);
           }
-          ctx.strokeStyle = '#ffe4b6'; ctx.lineWidth = .7; ctx.stroke();
+          ctx.strokeStyle = unity ? '#dff9fd' : '#ffe4b6'; ctx.lineWidth = .75; ctx.stroke();
         }
       } else if (rocket) {
         const dx = (fx.tx - launchX) * TILE, dy = (fx.ty - launchY) * TILE;
@@ -2015,16 +2036,16 @@ export class Renderer {
           if (p < 0) continue;
           const tx = launchX + (fx.tx - launchX) * p, ty = launchY + (fx.ty - launchY) * p;
           if (visible && !visible[Math.floor(ty) * W + Math.floor(tx)]) continue;
-          ctx.globalAlpha = (1 - j / 8) * .3;
+          ctx.globalAlpha = (1 - j / 8) * .32;
           stamp(ctx, puff, tx * TILE, ty * TILE - launchHeight * (1 - p) - 3 * p - Math.sin(p * Math.PI) * lift, 2.2 + j * .45, 1.5 + j * .4);
         }
         ctx.globalAlpha = 1;
         const angle = Math.atan2(dy + launchHeight - 3 - Math.cos(age * Math.PI) * Math.PI * lift, dx), cos = Math.cos(angle) * a, sin = Math.sin(angle) * a;
         ctx.setTransform(cos, sin, -sin, cos, ox + a * sx, oy + a * sy);
-        polygon(ctx, [[-3, -1.6], [4, -1.6], [7, 0], [4, 1.6], [-3, 1.6]], '#ece5ce', '#667271');
-        polygon(ctx, [[-2, -1], [-8 - Math.sin(age * 80) * 2, 0], [-2, 1]], '#f7b76a');
-        line(ctx, -3, 0, -6, 0, '#fff4da', 1.3);
-        glow(ctx, -4, 0, 5, '#ffa64e70');
+        polygon(ctx, [[-3, -1.6], [4, -1.6], [7.4, 0], [4, 1.6], [-3, 1.6]], '#ece5ce', '#667271');
+        polygon(ctx, [[-2, -1.1], [-8.5 - Math.sin(age * 80) * 2.2, 0], [-2, 1.1]], '#f7b76a');
+        line(ctx, -2.5, 0, -6.5, 0, '#fff7e2', 1.4);
+        glow(ctx, -4, 0, 5.5, '#ffa64e80');
         world();
       } else if (fx.type === 'shell') {
         const sx = (fx.x + (fx.tx - fx.x) * age) * TILE;
@@ -2032,9 +2053,13 @@ export class Renderer {
         const lift = Math.sin(age * Math.PI) * 48;
         if (seenAt(fx.tx, fx.ty)) {
           // Incoming: a tightening ring and growing shadow where the shell will land.
-          ctx.globalAlpha = .2 + age * .45; ctx.strokeStyle = '#e8a46f'; ctx.lineWidth = .9;
-          ctx.beginPath(); ctx.ellipse(fx.tx * TILE, fx.ty * TILE, 10 - age * 6, (10 - age * 6) * .62, 0, 0, Math.PI * 2); ctx.stroke();
-          ctx.globalAlpha = age * .35; ellipse(ctx, fx.tx * TILE + 1, fx.ty * TILE + 1, 1 + age * 3, .6 + age * 1.8, '#0b0e10');
+          const tx = fx.tx * TILE, ty = fx.ty * TILE, rx = 10 - age * 6, ry = rx * .62;
+          ctx.globalAlpha = .22 + age * .48; ctx.strokeStyle = '#e8a46f'; ctx.lineWidth = .95;
+          ctx.beginPath(); ctx.ellipse(tx, ty, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+          for (const [cx, cy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            line(ctx, tx + cx * (rx + 1.5), ty + cy * (ry + 1), tx + cx * (rx + 4), ty + cy * (ry + 2.5), '#e8a46f', .85);
+          }
+          ctx.globalAlpha = age * .35; ellipse(ctx, tx + 1, ty + 1, 1 + age * 3, .6 + age * 1.8, '#0b0e10');
           ctx.globalAlpha = 1;
         }
         if (seenAt(px, py)) {

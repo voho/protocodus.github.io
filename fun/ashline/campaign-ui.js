@@ -200,7 +200,14 @@ export function createCampaign({ launch, focus, transmit }) {
   function renderDetail() {
     const id = isUnlocked(progress, progress.selected) ? progress.selected : CAMPAIGN[0], def = MISSIONS[id], record = progress.missions[id];
     const index = CAMPAIGN.indexOf(id), rival = rivalLabel(def.races);
+    const noBuild = Boolean(def.allow && !Object.values(def.allow).some(list => list.length));
+    const posture = noBuild ? 'Strike team · No base'
+      : def.objectives.some(o => o.type === 'surviveUntil') ? 'Defensive hold'
+      : def.objectives.some(o => o.type === 'protectTagged' && !o.secondary) ? 'Escort & defense'
+      : !def.aiTeams?.includes(1) ? 'Recon & establish'
+      : def.aiStep ? 'High-threat assault' : 'Sector offensive';
     setText('campaign-eyebrow', `Operation ${String(index + 1).padStart(2, '0')} · ${def.location}`);
+    if ($('campaign-posture')) setText('campaign-posture', posture);
     setText('campaign-name', def.name);
     setText('campaign-summary', def.summary);
     $('campaign-story').replaceChildren(...def.story.map(text => { const p = document.createElement('p'); p.textContent = text; return p; }));
@@ -212,7 +219,7 @@ export function createCampaign({ launch, focus, transmit }) {
       li.textContent = `${o.secondary ? 'Secondary · ' : ''}${o.label}`; return li;
     }), ...(hidden ? [Object.assign(document.createElement('li'), { textContent: `${hidden} more objective${hidden > 1 ? 's' : ''} revealed in the field`, className: 'note' })] : []));
     const cleared = newlyCleared(id);
-    setText('campaign-unlocks', def.allow && !Object.values(def.allow).some(list => list.length) ? 'No construction or recruitment: the strike team is all you have.' : cleared.length ? cleared.join(' · ') : 'No new equipment for this operation.');
+    setText('campaign-unlocks', noBuild ? 'No construction or recruitment: the strike team is all you have.' : cleared.length ? cleared.join(' · ') : 'No new equipment for this operation.');
     setText('campaign-sector', `${def.width} × ${def.height} · ${MAP_PROFILES[def.profile].name}`);
     setText('campaign-opposition', `${rival}${def.aiTeams?.includes(1) ? def.aiStep ? ' commander · one level above your setting' : ' commander' : ' garrison · no commander'}`);
     setText('campaign-par', clock(def.par));
@@ -308,7 +315,11 @@ export function createCampaign({ launch, focus, transmit }) {
     const points = document.createElement('b'); points.textContent = report.survival !== undefined ? `Survival score ${fmt(report.survival)}` : `Score ${fmt(report.score)}`;
     const detail = document.createElement('small');
     detail.textContent = report.survival !== undefined ? `${clock(report.time)} survived · ${fmt(report.kills)} kills · ${report.survival > previousBest ? 'new best' : `best ${fmt(progress.lastLight.best)}`}` : `Rating ${report.rating} / 100 · ${clock(report.time)} in field`;
-    score.append(points, detail);
+    const meter = document.createElement('span'), fill = document.createElement('i');
+    meter.className = 'debrief-meter'; meter.setAttribute('aria-hidden', 'true');
+    const pct = report.survival !== undefined ? Math.min(100, Math.max(8, Math.round((report.survival / Math.max(1, progress.lastLight.best || report.survival)) * 100))) : Math.min(100, Math.max(4, report.rating));
+    fill.style.width = `${pct}%`; meter.append(fill);
+    score.append(points, detail, meter);
     head.append(grade, score);
     if (def && CAMPAIGN.includes(def.id)) head.append(medalBadge(report.medal));
     const rows = report.you ? [
@@ -327,7 +338,13 @@ export function createCampaign({ launch, focus, transmit }) {
       const body = table.createTBody();
       for (const [label, you, rival] of rows) {
         const row = body.insertRow(), th = document.createElement('th'); th.scope = 'row'; th.textContent = label; row.append(th);
-        row.insertCell().textContent = fmt(you); row.insertCell().textContent = rival === undefined ? '' : fmt(rival);
+        const youCell = row.insertCell(), rivalCell = row.insertCell();
+        youCell.textContent = fmt(you); rivalCell.textContent = rival === undefined ? '' : fmt(rival);
+        const total = (you || 0) + (rival || 0);
+        if (total > 0 && rival !== undefined) {
+          youCell.style.setProperty('--bar', `${Math.round(((you || 0) / total) * 100)}%`);
+          rivalCell.style.setProperty('--bar', `${Math.round(((rival || 0) / total) * 100)}%`);
+        }
       }
       parts.push(table);
     } else {

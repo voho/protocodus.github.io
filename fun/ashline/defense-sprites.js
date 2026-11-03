@@ -89,9 +89,9 @@ function weapon(ctx, e, p, angle, recoil) {
   } else {
     // The long single rail and large cast (Organics) or segmented (Unity) housing
     // remain identifiable even at the smallest battlefield zoom.
-    block(round(3 - recoil, -2.3, 21, 4.6, .9), '#73848b', '#263a47', 1.8, '#d7dfd5');
-    block(round(17 - recoil, -3, 7, 6, 1), '#536b79', '#20323f', 1.4, '#acb7b3');
-    stroke(22.5 - recoil, -1.4, 22.5 - recoil, 1.4, '#172630', 1.1);
+    block(round(3 - recoil, -2.3, 20.4, 4.6, .9), '#73848b', '#263a47', 1.8, '#d7dfd5');
+    block(round(16.4 - recoil, -3, 7, 6, 1), '#536b79', '#20323f', 1.4, '#acb7b3');
+    stroke(21.9 - recoil, -1.4, 21.9 - recoil, 1.4, '#172630', 1.1);
     block(ai ? [[-9, -5], [-4, -8], [6, -6], [10, 0], [6, 6], [-4, 8], [-9, 5]]
       : round(-10, -8, 22, 16, 7), p.roof, p.side, 3, p.edge);
     block(round(-7, -5, 9, 10, ai ? 1.5 : 3.5), p.paint, p.side, .7, p.trim);

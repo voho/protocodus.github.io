@@ -80,6 +80,7 @@ try {
     s.time += .02; render(); s.time += .05; render(); result.shakeCap = Math.max(Math.abs(renderer.shakeX), Math.abs(renderer.shakeY));
     s.effects = []; s.time += 2; renderer.particles.length = 0; renderer.shakes.length = 0;
     // A hidden explosion leaves no particles, shake or decal.
+    renderer.decals.getContext('2d').getImageData(0, 0, 1, 1);
     const decalsBefore = renderer.decals.getContext('2d').getImageData(0, 0, renderer.decals.width, renderer.decals.height).data;
     for (let x = 34; x < 38; x++) for (let y = 34; y < 38; y++) s.visible[0][y * s.width + x] = 0;
     s.effects = [{ type: 'explosion', x: 35.5, y: 35.5, life: .55, maxLife: .6, team: 1, size: 3 }];

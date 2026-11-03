@@ -141,7 +141,8 @@ export function createMusicStream(element, { onError = () => {} } = {}) {
       const range = response.headers.get('content-range')?.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
       if (response.status !== 206 || !range || Number(range[1]) !== start || Number(range[2]) !== end
         || Number(range[3]) !== track.metadata.bytes) {
-        await response.body?.cancel();
+        request.abort();
+        await response.body?.cancel().catch(() => {});
         throw new Error('Soundtrack streaming requires byte-range support from the server.');
       }
       if (!response.body) throw new Error('This browser cannot read the soundtrack stream.');

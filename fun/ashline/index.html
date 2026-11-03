@@ -90,9 +90,42 @@
   <dialog id="briefing" aria-labelledby="briefing-title" open>
     <div class="briefing-art">
       <a class="briefing-home" href="/fun/">← Games</a>
-      <div class="frontier-orbit" aria-hidden="true"><span></span><i></i></div>
+      <div class="frontier-orbit" aria-hidden="true">
+        <svg class="orbit-svg" viewBox="0 0 430 430" fill="none">
+          <defs>
+            <radialGradient id="tephra-globe" cx="34%" cy="26%" r="68%">
+              <stop offset="0%" stop-color="#536d60"/>
+              <stop offset="32%" stop-color="#28433d"/>
+              <stop offset="64%" stop-color="#132629"/>
+              <stop offset="100%" stop-color="#0b1519"/>
+            </radialGradient>
+            <linearGradient id="ash-rift" x1="0%" y1="0%" x2="100%" y2="40%">
+              <stop offset="0%" stop-color="#e29677" stop-opacity="0"/>
+              <stop offset="28%" stop-color="#d9a764" stop-opacity=".65"/>
+              <stop offset="55%" stop-color="#e29677" stop-opacity=".85"/>
+              <stop offset="82%" stop-color="#8dccca" stop-opacity=".45"/>
+              <stop offset="100%" stop-color="#8dccca" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <circle cx="215" cy="215" r="204" stroke="#92b9ac" stroke-opacity=".14" stroke-dasharray="2 8"/>
+          <circle cx="215" cy="215" r="176" stroke="#92b9ac" stroke-opacity=".12"/>
+          <ellipse cx="215" cy="215" rx="198" ry="86" transform="rotate(-24 215 215)" stroke="#8dccca" stroke-opacity=".18" stroke-dasharray="5 5"/>
+          <circle cx="215" cy="215" r="142" fill="url(#tephra-globe)" stroke="#acc3a5" stroke-opacity=".22"/>
+          <path d="M92 245 C138 212, 186 226, 228 204 C268 183, 308 192, 346 168" stroke="url(#ash-rift)" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M114 262 C162 238, 205 244, 254 220 C286 204, 315 206, 338 190" stroke="url(#ash-rift)" stroke-width="1.2" stroke-dasharray="3 4" opacity=".75"/>
+          <path d="M135 98 A142 142 0 0 1 312 318" stroke="#081115" stroke-opacity=".55" stroke-width="28" fill="none"/>
+          <g stroke="#8dccca" stroke-opacity=".55" stroke-width="1.2">
+            <circle cx="236" cy="198" r="9" fill="#8dccca" fill-opacity=".08"/>
+            <path d="M236 183 V187 M236 209 V213 M221 198 H225 M247 198 H251"/>
+            <path d="M229 191 L194 156 H108" stroke-opacity=".4"/>
+          </g>
+          <circle cx="236" cy="198" r="2.5" fill="#d9a764"/>
+          <text x="108" y="150" fill="#8dccca" fill-opacity=".82" font-family="ui-monospace,monospace" font-size="9" letter-spacing="1">SECTOR 07 · LANDFALL</text>
+        </svg>
+        <span></span><i></i>
+      </div>
       <div class="briefing-heading"><p class="eyebrow">A Protocodus strategy game</p><h1 id="briefing-title">Ashline</h1><p class="briefing-tagline">The forests burned. <br>The shards remain.</p><p class="briefing-copy">On Tephra a sector belongs to whoever keeps a nexus running.<br>Lead Expedition 07 across the Ashline.</p></div>
-      <p class="frontier-caption"><span>Tephra · the ash frontier</span></p>
+      <p class="frontier-caption"><span>Tephra · the ash frontier</span><span>41.8° N · Sector 07</span></p>
     </div>
     <div class="briefing-content">
       <div class="briefing-tabs" role="tablist" aria-label="Operation type"><button type="button" id="campaign-tab" role="tab" aria-selected="false" aria-controls="campaign-panel" tabindex="-1">Campaign <span id="campaign-progress">0 / 10</span></button><button type="button" id="skirmish-tab" role="tab" aria-selected="true" aria-controls="skirmish-panel">Skirmish</button></div>
@@ -103,7 +136,7 @@
         <h2>Operation Ashline</h2><p class="setup-intro">Ten operations with Expedition 07, from landfall on Tephra to the last Unity mainframe east of the Ashline. Each victory clears the next.</p>
         <ol id="campaign-list" class="campaign-list" aria-label="Operations"></ol>
         <article id="campaign-detail" class="campaign-detail" aria-labelledby="campaign-name">
-          <p class="eyebrow" id="campaign-eyebrow"></p><h3 id="campaign-name"></h3><p id="campaign-summary" class="campaign-summary"></p>
+          <div class="campaign-detail-head"><p class="eyebrow" id="campaign-eyebrow"></p><span id="campaign-posture" class="campaign-posture"></span></div><h3 id="campaign-name"></h3><p id="campaign-summary" class="campaign-summary"></p>
           <div id="campaign-story" class="campaign-story"></div>
           <h4>Objectives</h4><ul id="campaign-objectives" class="campaign-objectives"></ul>
           <h4>Cleared for this operation</h4><p id="campaign-unlocks" class="campaign-unlocks"></p><p id="campaign-veterans" class="campaign-veterans" hidden></p>

@@ -160,7 +160,7 @@ try {
   await page.close();
 
   // A server that ignores Range must not quietly trigger a full-track download.
-  ignoreRanges = true;
+  ignoreRanges = true; audioBodyDelay = 40;
   const rejectionStart = requests.length, rejected = await setupPage();
   await rejected.locator('#enable').click();
   await rejected.evaluate(() => sound.setMusicEnabled(true));
@@ -172,7 +172,7 @@ try {
   assert(rejections[0].cancelled && rejections[0].bytes < 65536, 'An ignored Range response is cancelled before its body can load');
   assert.equal(await rejected.evaluate(() => sound.status.musicStream.bytesFetched), 0);
   assert.equal(await rejected.evaluate(() => sound.status.musicStream.mode), 'mse', 'Network errors never downgrade into unrestricted native downloads');
-  ignoreRanges = false;
+  ignoreRanges = false; audioBodyDelay = 0;
   const recoveryStart = requests.length;
   await rejected.evaluate(() => { sound.setMusicEnabled(false); sound.setMusicEnabled(true); });
   await rejected.waitForFunction(() => sound.status.musicPlaying && sound.status.musicPosition > .1 && !sound.status.musicError, null, {timeout: 15000});

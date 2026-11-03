@@ -149,6 +149,20 @@ export function createObjectivesHud({ focus, transmit } = {}) {
       const node = nodes[i];
       node.zone = item.zone;
       if (node.progress && node.progress.textContent !== item.progress) node.progress.textContent = item.progress;
+      let pct = 0;
+      if (item.state === 'active' && item.progress) {
+        const countMatch = /^([\d,]+)\s*\/\s*([\d,]+)$/.exec(item.progress);
+        const timeMatch = !countMatch && /^(\d+):(\d+)\s*\/\s*(\d+):(\d+)$/.exec(item.progress);
+        if (countMatch) {
+          const num = Number(countMatch[1].replaceAll(',', '')), den = Number(countMatch[2].replaceAll(',', ''));
+          if (den > 0) pct = Math.min(100, Math.max(0, Math.round((num / den) * 100)));
+        } else if (timeMatch) {
+          const num = Number(timeMatch[1]) * 60 + Number(timeMatch[2]), den = Number(timeMatch[3]) * 60 + Number(timeMatch[4]);
+          if (den > 0) pct = Math.min(100, Math.max(0, Math.round((num / den) * 100)));
+        }
+      }
+      if (pct > 0) node.li.style.setProperty('--progress', `${pct}%`);
+      else node.li.style.removeProperty('--progress');
       node.li.classList.toggle('fresh', Boolean(item.fresh));
       node.li.setAttribute('aria-label', `${item.kind === 'secondary' ? 'Secondary: ' : ''}${item.label}${item.progress ? `, ${item.progress}` : ''}${item.state === 'done' ? ', complete' : item.state === 'failed' ? ', failed' : ''}`);
     });
