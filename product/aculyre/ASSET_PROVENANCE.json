@@ -1,8 +1,8 @@
 {
   "product": "Aculyre",
-  "reviewed": "2026-10-28",
+  "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.5.0d1",
+  "source_version": "0.7.7d1",
   "source_format": "Rack Extension panel previews rendered by the device's python3 Design/render_panels.py into Design/Rendered/ (not a Shop release; no SDK build).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
@@ -17,39 +17,49 @@
   "assets": [
     {
       "file": "aculyre-rack-front.webp",
-      "sha256": "d1a073eef8655fd23acd3f44a8c706d5d072ea42c4985bfbdfb9d4c531030c89",
-      "bytes": 146606,
-      "dimensions": [
+      "sha256": "7b2ba36aa46e4ab68def566c6ac5472fdd7e1f4466aa2cdf8f6d5b2af111e443",
+      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
+      "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+      "pixels": [
         1508,
         828
-      ],
+      ]
+    },
+    {
+      "file": "Aculyre_Front.png",
+      "sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
       "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "a2350a3c76691d7a665b2d3311f8fe1609d3e0a3ed8a971882986da53ecdeb50",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+      "pixels": [
+        1508,
+        828
+      ]
     },
     {
       "file": "aculyre-rack-rear.webp",
-      "sha256": "7c8222ba6cd7334b44d2d12a56e8f582723ba10ad171b63b0a256dfa9d79c252",
-      "bytes": 129450,
-      "dimensions": [
+      "sha256": "a79a873c40962e8526aa1a2cd6952ccaffac15bfb144d41313eb350254eaf4c8",
+      "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
+      "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "pixels": [
         1508,
         828
-      ],
+      ]
+    },
+    {
+      "file": "Aculyre_Back.png",
+      "sha256": "a5bd60325445f177b3faf95633c7e13c2156fa624b662f9c1d006a4782f91a5d",
       "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
-      "source_sha256": "c7f162cc0d9e45fd1ce7bee8951c32faad0e2b03ce4956bfe80c7f0c2d7f4be5",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+      "pixels": [
+        1508,
+        828
+      ]
     },
     {
       "file": "Aculyre_Thumbnail_800.png",
-      "sha256": "a0f82102c43862556d3f0c91565bf5534046793f5c8dc96b79cc951cbf0db265",
-      "bytes": 405624,
-      "dimensions": [
-        800,
-        800
-      ],
-      "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
-      "source_sha256": "a2350a3c76691d7a665b2d3311f8fe1609d3e0a3ed8a971882986da53ecdeb50",
-      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name in the panel's own lettering with its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+      "sha256": "bc7fed1821e1505a2931447405b184ee35ff5681accbbf6da0df2eeef0b33ea3",
+      "source": "approved-artwork/Aculyre-Thumbnail-800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork."
     }
   ],
   "earlier_reviews": [
@@ -73,5 +83,59 @@
         }
       ]
     }
-  ]
+  ],
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "0.7.7d1",
+    "source_revision": "7af956633c63eb0c291272f3018360b042336d06",
+    "assets": [
+      {
+        "file": "aculyre-rack-front.webp",
+        "sha256": "7b2ba36aa46e4ab68def566c6ac5472fdd7e1f4466aa2cdf8f6d5b2af111e443",
+        "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
+        "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Aculyre_Front.png",
+        "sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838",
+        "source": "Examples/Aculyre/Design/Rendered/front-2x.png",
+        "source_sha256": "3522cc6f9e4304d387327a6d467cc6439a140fef9f70d2dcf309afb6a3bae54a",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "aculyre-rack-rear.webp",
+        "sha256": "a79a873c40962e8526aa1a2cd6952ccaffac15bfb144d41313eb350254eaf4c8",
+        "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
+        "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Aculyre_Back.png",
+        "sha256": "a5bd60325445f177b3faf95633c7e13c2156fa624b662f9c1d006a4782f91a5d",
+        "source": "Examples/Aculyre/Design/Rendered/back-2x.png",
+        "source_sha256": "cefddd219def070b99fa410ef60f4ea6a7ca4d471f523780de49f03737539b82",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Aculyre_Thumbnail_800.png",
+        "sha256": "bc7fed1821e1505a2931447405b184ee35ff5681accbbf6da0df2eeef0b33ea3",
+        "source": "approved-artwork/Aculyre-Thumbnail-800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  }
 }

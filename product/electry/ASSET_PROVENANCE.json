@@ -1,8 +1,8 @@
 {
   "product": "Electry",
-  "reviewed": "2026-10-28",
+  "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "1.2.8d2",
+  "source_version": "1.2.9d1",
   "source_format": "Rack Extension panel renders committed in Examples/Electry/Design/Rendered/ (not a Shop release).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
@@ -17,27 +17,43 @@
   "assets": [
     {
       "file": "electry-rack-front.webp",
-      "sha256": "d0ddf5c7fd0920fb0499e9652bd1a14b6a038308dbcb0eef01420edcd4b9b9bd",
-      "bytes": 99110,
-      "dimensions": [
-        754,
-        621
-      ],
+      "sha256": "04315ad96f0a323e0e7e336fdcf6b9040c7915131c1118a98a32ac4e99c9f086",
       "source": "Examples/Electry/Design/Rendered/front.png",
       "source_sha256": "cf23ff9be749a0473733685d4d6e48a646b64a489df8013e7d696b6655731fde",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
+      "pixels": [
+        754,
+        621
+      ]
+    },
+    {
+      "file": "Electry_Front.png",
+      "sha256": "017d91b967dfb02391ddf02d20351f4012cdbee62d4f97604c5eb31635984648",
+      "source": "Examples/Electry/Design/Rendered/front.png",
+      "source_sha256": "cf23ff9be749a0473733685d4d6e48a646b64a489df8013e7d696b6655731fde",
+      "pixels": [
+        754,
+        621
+      ]
     },
     {
       "file": "electry-rack-rear.webp",
-      "sha256": "83d2cb9cd6a5b9d06ac98130e9d9d0b79b93ba8c2fd15d5ea83fe4272ced93a6",
-      "bytes": 90144,
-      "dimensions": [
+      "sha256": "5f3cd4c225d2f0af4ba0eb5242cd2edff22a323162f8243130c7e698d1618d9f",
+      "source": "Examples/Electry/Design/Rendered/back.png",
+      "source_sha256": "4d1c23747f5dff94b90fe15c0fd7f1355cba9ed104cdab3954e1e09dcf17aba4",
+      "pixels": [
         754,
         621
-      ],
+      ]
+    },
+    {
+      "file": "Electry_Back.png",
+      "sha256": "2952b34738d99afd3c5d5a95f4980605624e5f52f7c5a73d383aaeff310a178d",
       "source": "Examples/Electry/Design/Rendered/back.png",
-      "source_sha256": "960ff664380b69b7ca7fcfcca245751cde076dc34b3c3363d72c2d84ce687ad0",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete panel, original size."
+      "source_sha256": "4d1c23747f5dff94b90fe15c0fd7f1355cba9ed104cdab3954e1e09dcf17aba4",
+      "pixels": [
+        754,
+        621
+      ]
     }
   ],
   "earlier_reviews": [
@@ -96,5 +112,53 @@
         }
       ]
     }
-  ]
+  ],
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "1.2.9d1",
+    "source_revision": "a29b3b4a5f8a8866ffade13099efa5ef0067628e",
+    "assets": [
+      {
+        "file": "electry-rack-front.webp",
+        "sha256": "04315ad96f0a323e0e7e336fdcf6b9040c7915131c1118a98a32ac4e99c9f086",
+        "source": "Examples/Electry/Design/Rendered/front.png",
+        "source_sha256": "cf23ff9be749a0473733685d4d6e48a646b64a489df8013e7d696b6655731fde",
+        "pixels": [
+          754,
+          621
+        ]
+      },
+      {
+        "file": "Electry_Front.png",
+        "sha256": "017d91b967dfb02391ddf02d20351f4012cdbee62d4f97604c5eb31635984648",
+        "source": "Examples/Electry/Design/Rendered/front.png",
+        "source_sha256": "cf23ff9be749a0473733685d4d6e48a646b64a489df8013e7d696b6655731fde",
+        "pixels": [
+          754,
+          621
+        ]
+      },
+      {
+        "file": "electry-rack-rear.webp",
+        "sha256": "5f3cd4c225d2f0af4ba0eb5242cd2edff22a323162f8243130c7e698d1618d9f",
+        "source": "Examples/Electry/Design/Rendered/back.png",
+        "source_sha256": "4d1c23747f5dff94b90fe15c0fd7f1355cba9ed104cdab3954e1e09dcf17aba4",
+        "pixels": [
+          754,
+          621
+        ]
+      },
+      {
+        "file": "Electry_Back.png",
+        "sha256": "2952b34738d99afd3c5d5a95f4980605624e5f52f7c5a73d383aaeff310a178d",
+        "source": "Examples/Electry/Design/Rendered/back.png",
+        "source_sha256": "4d1c23747f5dff94b90fe15c0fd7f1355cba9ed104cdab3954e1e09dcf17aba4",
+        "pixels": [
+          754,
+          621
+        ]
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  }
 }

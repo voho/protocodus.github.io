@@ -1,8 +1,8 @@
 {
   "product": "Aculele",
-  "reviewed": "2026-10-28",
+  "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.4.13d1",
+  "source_version": "0.4.38d1",
   "source_format": "Rack Extension panel previews rendered by the device's python3 Design/render_panels.py --review DIR (not a Shop release; no SDK build).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
@@ -17,39 +17,49 @@
   "assets": [
     {
       "file": "aculele-rack-front.webp",
-      "sha256": "5b33cae03bca97724ae670fad2385c7a278fce8e0b73a87753e79959e0fb4e80",
-      "bytes": 207356,
-      "dimensions": [
-        1508,
-        1104
-      ],
-      "source": "Examples/Aculele/Design/render_panels.py --review DIR: front-2x.png",
-      "source_sha256": "8cc88dbdf07a8b3cf65cf80f18cb6c724bba06f15cd5b524f2b4e621363ea6eb",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "sha256": "56ac05bd76d7aae34638ca645b7119b9cbd8fe317bb6253dda73922f1bef801f",
+      "source": "Examples/Aculele/Design/Rendered/front.png",
+      "source_sha256": "fcbf2c84f2f2a3b20f9bbe10bbb42b82669a00067a5408a0b78d27c6329e22aa",
+      "pixels": [
+        754,
+        552
+      ]
+    },
+    {
+      "file": "Aculele_Front.png",
+      "sha256": "cf4714c1ac854dc067affdf8b063ef4eb3b1f73df9dc0f38d72bb28ad684e5f3",
+      "source": "Examples/Aculele/Design/Rendered/front.png",
+      "source_sha256": "fcbf2c84f2f2a3b20f9bbe10bbb42b82669a00067a5408a0b78d27c6329e22aa",
+      "pixels": [
+        754,
+        552
+      ]
     },
     {
       "file": "aculele-rack-rear.webp",
-      "sha256": "854a33caca3fc1fa17db1f121c49c6bfdf1f62c8e010023bc466450fdba515ef",
-      "bytes": 160818,
-      "dimensions": [
-        1508,
-        1104
-      ],
-      "source": "Examples/Aculele/Design/render_panels.py --review DIR: back-2x.png",
-      "source_sha256": "5c0d60bdf0604f468af73e93574f46dccb9ab7feee07f1bc6d32f3bba0c5bae1",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "sha256": "1820dcbefcd4a97394a9e1b7eb121be22efcb07d0967ad5f53fd759c8ac569e5",
+      "source": "Examples/Aculele/Design/Rendered/back.png",
+      "source_sha256": "8c217932d49ae9422f2aa38bde103d3d07c732677778daa7af4d4dc019daf7fc",
+      "pixels": [
+        754,
+        552
+      ]
+    },
+    {
+      "file": "Aculele_Back.png",
+      "sha256": "655215f88328519c6c8141fdbede818eec3e09dab1c556a85da9ec287855dbd8",
+      "source": "Examples/Aculele/Design/Rendered/back.png",
+      "source_sha256": "8c217932d49ae9422f2aa38bde103d3d07c732677778daa7af4d4dc019daf7fc",
+      "pixels": [
+        754,
+        552
+      ]
     },
     {
       "file": "Aculele_Thumbnail_800.png",
-      "sha256": "a2b4dd2690c9ac29a2b9640ef76a56792a5b0eb5ec56ee84e26e171ec1458e08",
-      "bytes": 427536,
-      "dimensions": [
-        800,
-        800
-      ],
-      "source": "Examples/Aculele/Design/render_panels.py --review DIR: front-2x.png",
-      "source_sha256": "8cc88dbdf07a8b3cf65cf80f18cb6c724bba06f15cd5b524f2b4e621363ea6eb",
-      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name in the panel's own lettering with its RE pair at half opacity, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+      "sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0",
+      "source": "approved-artwork/Aculele-Thumbnail-800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork."
     }
   ],
   "earlier_reviews": [
@@ -73,5 +83,59 @@
         }
       ]
     }
-  ]
+  ],
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "0.4.38d1",
+    "source_revision": "e257081054d665e5363066f6403601503f5716ed",
+    "assets": [
+      {
+        "file": "aculele-rack-front.webp",
+        "sha256": "56ac05bd76d7aae34638ca645b7119b9cbd8fe317bb6253dda73922f1bef801f",
+        "source": "Examples/Aculele/Design/Rendered/front.png",
+        "source_sha256": "fcbf2c84f2f2a3b20f9bbe10bbb42b82669a00067a5408a0b78d27c6329e22aa",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      {
+        "file": "Aculele_Front.png",
+        "sha256": "cf4714c1ac854dc067affdf8b063ef4eb3b1f73df9dc0f38d72bb28ad684e5f3",
+        "source": "Examples/Aculele/Design/Rendered/front.png",
+        "source_sha256": "fcbf2c84f2f2a3b20f9bbe10bbb42b82669a00067a5408a0b78d27c6329e22aa",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      {
+        "file": "aculele-rack-rear.webp",
+        "sha256": "1820dcbefcd4a97394a9e1b7eb121be22efcb07d0967ad5f53fd759c8ac569e5",
+        "source": "Examples/Aculele/Design/Rendered/back.png",
+        "source_sha256": "8c217932d49ae9422f2aa38bde103d3d07c732677778daa7af4d4dc019daf7fc",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      {
+        "file": "Aculele_Back.png",
+        "sha256": "655215f88328519c6c8141fdbede818eec3e09dab1c556a85da9ec287855dbd8",
+        "source": "Examples/Aculele/Design/Rendered/back.png",
+        "source_sha256": "8c217932d49ae9422f2aa38bde103d3d07c732677778daa7af4d4dc019daf7fc",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      {
+        "file": "Aculele_Thumbnail_800.png",
+        "sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0",
+        "source": "approved-artwork/Aculele-Thumbnail-800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  }
 }

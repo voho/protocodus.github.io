@@ -23,70 +23,50 @@
   },
   "assets": [
     {
-      "file": "Acustra_Front.png",
-      "sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557",
-      "dimensions": [
+      "file": "acustra-rack-front.webp",
+      "sha256": "baa88fb6dbf94758376690bc8582e60a85d994bcd5ec49196e4e79e1c6cdb60a",
+      "source": "Examples/Acustra/Design/Rendered/front.png",
+      "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+      "pixels": [
         1457,
         1200
-      ],
-      "bytes": 1551821,
-      "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
-      "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557",
-      "source_last_modified_utc": "2026-10-27T05:07:09Z",
-      "byte_exact_source_copy": true,
-      "webp_aliases": [
-        {
-          "file": "acustra-rack-front.webp",
-          "sha256": "00276993de0a745d32a11aa8a45fc91bb6764bd35e914ff80b354750c8b1839a",
-          "dimensions": [
-            1457,
-            1200
-          ],
-          "bytes": 228340
-        },
-        {
-          "file": "acustra-panel.webp",
-          "sha256": "00276993de0a745d32a11aa8a45fc91bb6764bd35e914ff80b354750c8b1839a",
-          "dimensions": [
-            1457,
-            1200
-          ],
-          "bytes": 228340
-        }
+      ]
+    },
+    {
+      "file": "Acustra_Front.png",
+      "sha256": "f4b6bbc3ceee053879b249a9d4dae6b29ae6c93b2d20b40d1139fa0fa01921b3",
+      "source": "Examples/Acustra/Design/Rendered/front.png",
+      "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+      "pixels": [
+        1457,
+        1200
+      ]
+    },
+    {
+      "file": "acustra-rack-rear.webp",
+      "sha256": "f1598ed0d7b345b5a61fc351c6751cc206eac2b578a8223a3c5bb04577a18147",
+      "source": "Examples/Acustra/Design/Rendered/back.png",
+      "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+      "pixels": [
+        1457,
+        1200
       ]
     },
     {
       "file": "Acustra_Back.png",
-      "sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a",
-      "dimensions": [
+      "sha256": "53ea47ab96561d3e35ee0f76a63b3a35139630fcaf49f77a672a1db4b3868e3d",
+      "source": "Examples/Acustra/Design/Rendered/back.png",
+      "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+      "pixels": [
         1457,
         1200
-      ],
-      "bytes": 1542103,
-      "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Back.png",
-      "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a",
-      "source_last_modified_utc": "2026-10-27T05:07:09Z",
-      "byte_exact_source_copy": true,
-      "webp_aliases": [
-        {
-          "file": "acustra-rack-rear.webp",
-          "sha256": "55a871d89c5d40d24c011e52fd01aaaf3150ba9fa97e70ed46d97b5db8013894",
-          "dimensions": [
-            1457,
-            1200
-          ],
-          "bytes": 192108
-        },
-        {
-          "file": "acustra-rear.webp",
-          "sha256": "55a871d89c5d40d24c011e52fd01aaaf3150ba9fa97e70ed46d97b5db8013894",
-          "dimensions": [
-            1457,
-            1200
-          ],
-          "bytes": 192108
-        }
       ]
+    },
+    {
+      "file": "Acustra_Thumbnail_800.png",
+      "sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
+      "source": "approved-artwork/Acustra-Thumbnail-800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork."
     }
   ],
   "homepage_card": {
@@ -229,5 +209,60 @@
     "bytes": 870472,
     "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/48e71b162547/Acustra_QuickStart_1.9.0.pdf",
     "note": "Byte-for-byte copy of the 1.9.0 Quick Start the Shop page offers; it replaces the retained 1.3.3f2 guide."
-  }
+  },
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "1.9.15d3",
+    "source_revision": "131d06dbc6e0b898568a9d616c96237d124cbc6e",
+    "assets": [
+      {
+        "file": "acustra-rack-front.webp",
+        "sha256": "baa88fb6dbf94758376690bc8582e60a85d994bcd5ec49196e4e79e1c6cdb60a",
+        "source": "Examples/Acustra/Design/Rendered/front.png",
+        "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      {
+        "file": "Acustra_Front.png",
+        "sha256": "f4b6bbc3ceee053879b249a9d4dae6b29ae6c93b2d20b40d1139fa0fa01921b3",
+        "source": "Examples/Acustra/Design/Rendered/front.png",
+        "source_sha256": "b4e6a2828094fbdcadf26faeb958c2c88cc1ef71073376c98f336fb993614193",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      {
+        "file": "acustra-rack-rear.webp",
+        "sha256": "f1598ed0d7b345b5a61fc351c6751cc206eac2b578a8223a3c5bb04577a18147",
+        "source": "Examples/Acustra/Design/Rendered/back.png",
+        "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      {
+        "file": "Acustra_Back.png",
+        "sha256": "53ea47ab96561d3e35ee0f76a63b3a35139630fcaf49f77a672a1db4b3868e3d",
+        "source": "Examples/Acustra/Design/Rendered/back.png",
+        "source_sha256": "87706473e0532222b643a867ae51f4b6067c58f7177264b80576f0693bddcf7f",
+        "pixels": [
+          1457,
+          1200
+        ]
+      },
+      {
+        "file": "Acustra_Thumbnail_800.png",
+        "sha256": "32299ee5ed0af65682a3b12e3e8bab546f57a83568b0fa9b4a0ad1d21a937ad1",
+        "source": "approved-artwork/Acustra-Thumbnail-800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  },
+  "reviewed": "2026-11-03"
 }

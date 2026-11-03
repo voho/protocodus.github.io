@@ -175,7 +175,7 @@
         ]
       }
     },
-    "derivatives": "Complete front and rear panels converted to RGB WebP at original 1600 × 1171, quality 90, method 6. The front card is proportionally resized with Lanczos to 880 × 644 at quality 90, method 6. No crop, axis stretch or panel compositing. The PDF is unchanged.",
+    "derivatives": "Complete front and rear panels converted to RGB WebP at original 1600 \u00d7 1171, quality 90, method 6. The front card is proportionally resized with Lanczos to 880 \u00d7 644 at quality 90, method 6. No crop, axis stretch or panel compositing. The PDF is unchanged.",
     "files": {
       "Maremba_Front.png": {
         "sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a",
@@ -249,5 +249,63 @@
         "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_documents/10133a7fa125/Maremba_User_Guide.pdf"
       }
     ]
-  }
+  },
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "1.6.0d2",
+    "source_revision": "918d00b64b893d7f39546306a4a67ad82e8b1d94",
+    "assets": [
+      {
+        "file": "maremba-panel.webp",
+        "sha256": "faa41ed85fb9a65f8befb158e16675c7ea99cc0c799be60b049492eeaf63851e",
+        "source": "Examples/Maremba/Docs/screenshots/front-hd.png",
+        "source_sha256": "4f2a6e1d5178cddcb7cc7809a69f0271732948060ff1d40e94df711920575252",
+        "pixels": [
+          1600,
+          1171
+        ]
+      },
+      {
+        "file": "Maremba_Front.png",
+        "sha256": "acdc307efd4df75dfd132f774a36d288370cb1b62b7864b17af57fd9132d7459",
+        "source": "Examples/Maremba/Docs/screenshots/front-hd.png",
+        "source_sha256": "4f2a6e1d5178cddcb7cc7809a69f0271732948060ff1d40e94df711920575252",
+        "pixels": [
+          1600,
+          1171
+        ]
+      },
+      {
+        "file": "maremba-card.webp",
+        "sha256": "01aa7fa990a840a5415a0b55f71014ff50269ee0d9cdd4bc7ba85875d9b5f2e0",
+        "source": "Examples/Maremba/Docs/screenshots/front-hd.png",
+        "pixels": [
+          880,
+          644
+        ]
+      },
+      {
+        "file": "maremba-rear.webp",
+        "sha256": "40225bb875c2bda0ab174b192db796ae2b6dcfe0cdb82c74f1d7a007a59bc507",
+        "source": "Examples/Maremba/Docs/screenshots/rear-hd.png",
+        "source_sha256": "46f991fb495016f220834e3f0dce61f7d632da12357e5820325a19a5d5ee4fc0",
+        "pixels": [
+          1600,
+          1171
+        ]
+      },
+      {
+        "file": "Maremba_Back.png",
+        "sha256": "f3d00bb790c4fed3b7cc3cf847256d0d7579e020bbfaacc507bd0b43f51098de",
+        "source": "Examples/Maremba/Docs/screenshots/rear-hd.png",
+        "source_sha256": "46f991fb495016f220834e3f0dce61f7d632da12357e5820325a19a5d5ee4fc0",
+        "pixels": [
+          1600,
+          1171
+        ]
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  },
+  "reviewed": "2026-11-03"
 }

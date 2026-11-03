@@ -1,21 +1,109 @@
 {
   "product": "Acukoto",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.11.1d1",
+  "source_version": "0.15.2d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
-      "file": "Acukoto_Thumbnail_800.png",
-      "sha256": "919dc3db8e006ca1d5dadf3675228b66facdf7bd05fbf04eb2050d27e938badb"
+      "file": "acukoto-rack-front.webp",
+      "sha256": "feece060ac0c1a02b9aff8cb8d0659c63245200a30b3e033553af0f5dabe1cce",
+      "source": "Examples/Acukoto/Design/Rendered/front-2x.png",
+      "source_sha256": "ce591b97c9e965e9ace877950053d926d1c6d9cf989235d8d2b6114a28aafaa7",
+      "pixels": [
+        1508,
+        828
+      ]
     },
     {
-      "file": "acukoto-rack-front.webp",
-      "sha256": "412e0e6bbf15fe12f0ded20e050d986cb0c95495f71fd367d9855a9cd16ae661"
+      "file": "Acukoto_Front.png",
+      "sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
+      "source": "Examples/Acukoto/Design/Rendered/front-2x.png",
+      "source_sha256": "ce591b97c9e965e9ace877950053d926d1c6d9cf989235d8d2b6114a28aafaa7",
+      "pixels": [
+        1508,
+        828
+      ]
     },
     {
       "file": "acukoto-rack-rear.webp",
-      "sha256": "6c89180366479828e847952d6370d549c7a86dee0c865b164efd044fb1f2a4ee"
+      "sha256": "6a3a92d5de2431d90ad753ab0c8bd6154c91c9bdf8e0bce47215722dc71fd7af",
+      "source": "Examples/Acukoto/Design/Rendered/back-2x.png",
+      "source_sha256": "43af2bdbe3c3f47f3a6474f9b842698f420bcb6ec6fa57b03c343c62142e470a",
+      "pixels": [
+        1508,
+        828
+      ]
+    },
+    {
+      "file": "Acukoto_Back.png",
+      "sha256": "33453e1b5aa992b5b7bdea037c9fa326c6a5138c9c5ec6c36f6b087071dca094",
+      "source": "Examples/Acukoto/Design/Rendered/back-2x.png",
+      "source_sha256": "43af2bdbe3c3f47f3a6474f9b842698f420bcb6ec6fa57b03c343c62142e470a",
+      "pixels": [
+        1508,
+        828
+      ]
+    },
+    {
+      "file": "Acukoto_Thumbnail_800.png",
+      "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+      "source": "approved-artwork/Acukoto-Thumbnail-800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork."
     }
-  ]
+  ],
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "0.15.2d1",
+    "source_revision": "eb15eb92471187c8569ae635136bc923746cf846",
+    "assets": [
+      {
+        "file": "acukoto-rack-front.webp",
+        "sha256": "feece060ac0c1a02b9aff8cb8d0659c63245200a30b3e033553af0f5dabe1cce",
+        "source": "Examples/Acukoto/Design/Rendered/front-2x.png",
+        "source_sha256": "ce591b97c9e965e9ace877950053d926d1c6d9cf989235d8d2b6114a28aafaa7",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Acukoto_Front.png",
+        "sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
+        "source": "Examples/Acukoto/Design/Rendered/front-2x.png",
+        "source_sha256": "ce591b97c9e965e9ace877950053d926d1c6d9cf989235d8d2b6114a28aafaa7",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "acukoto-rack-rear.webp",
+        "sha256": "6a3a92d5de2431d90ad753ab0c8bd6154c91c9bdf8e0bce47215722dc71fd7af",
+        "source": "Examples/Acukoto/Design/Rendered/back-2x.png",
+        "source_sha256": "43af2bdbe3c3f47f3a6474f9b842698f420bcb6ec6fa57b03c343c62142e470a",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Acukoto_Back.png",
+        "sha256": "33453e1b5aa992b5b7bdea037c9fa326c6a5138c9c5ec6c36f6b087071dca094",
+        "source": "Examples/Acukoto/Design/Rendered/back-2x.png",
+        "source_sha256": "43af2bdbe3c3f47f3a6474f9b842698f420bcb6ec6fa57b03c343c62142e470a",
+        "pixels": [
+          1508,
+          828
+        ]
+      },
+      {
+        "file": "Acukoto_Thumbnail_800.png",
+        "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+        "source": "approved-artwork/Acukoto-Thumbnail-800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  }
 }

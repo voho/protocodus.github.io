@@ -1,8 +1,8 @@
 {
   "product": "Respira",
-  "reviewed": "2026-10-28",
+  "reviewed": "2026-11-03",
   "availability": "coming_soon",
-  "source_version": "0.1.0d7",
+  "source_version": "0.1.10d1",
   "source_format": "Rack Extension panel previews, the red panel the owner chose, committed by the device's Design/render_panels.py in Docs/screenshots/ (not a Shop release; no SDK build).",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
@@ -17,39 +17,49 @@
   "assets": [
     {
       "file": "respira-rack-front.webp",
-      "sha256": "4a8b79ae8acb24f5eb01e6971b187a42aa9a5331db5e56eb2fe2f9bdb324cd5b",
-      "bytes": 165248,
-      "dimensions": [
+      "sha256": "6ff31c4e0a1f096aa08ebed4bbbb81eab595c90b9359b01236256f564aa2704f",
+      "source": "Examples/Respira/Docs/screenshots/front-2x.png",
+      "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+      "pixels": [
         1508,
         552
-      ],
+      ]
+    },
+    {
+      "file": "Respira_Front.png",
+      "sha256": "3c1962cf56864a4a24f6128c9057fe9dcf295530ce84f0e3ac1b73755e7bad7f",
       "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "8e93b72fbbd42d1d75693e5f1cef922db88bb57b7d78eaf70612b89a1efbd977",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+      "pixels": [
+        1508,
+        552
+      ]
     },
     {
       "file": "respira-rack-rear.webp",
-      "sha256": "66b8ea62160508a84fba2b8fcf60e8fce4af1348e230e38b00ea422fca0a8cd9",
-      "bytes": 215476,
-      "dimensions": [
+      "sha256": "4a96be00f2c5078a46391756911774cd3d3b881d20e9d026a5b6c87adce0334d",
+      "source": "Examples/Respira/Docs/screenshots/back-2x.png",
+      "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "pixels": [
         1508,
         552
-      ],
+      ]
+    },
+    {
+      "file": "Respira_Back.png",
+      "sha256": "78226de51fd450c03732305cdc87f441aeba39cb831284d2f1dae56b1d9f97be",
       "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-      "source_sha256": "040ddf1e22beb51cda355479553a819c3855db891e71148bc5bea195cef03e88",
-      "change": "Converted with Pillow 12.3.0, WebP quality 90, method 6; complete 2x panel preview, original size."
+      "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+      "pixels": [
+        1508,
+        552
+      ]
     },
     {
       "file": "Respira_Thumbnail_800.png",
-      "sha256": "664b640070909df0b2d2411be68664109fa0d4a86a1db41c2e6797951ba84a87",
-      "bytes": 387900,
-      "dimensions": [
-        800,
-        800
-      ],
-      "source": "Examples/Respira/Docs/screenshots/front-2x.png",
-      "source_sha256": "8e93b72fbbd42d1d75693e5f1cef922db88bb57b7d78eaf70612b89a1efbd977",
-      "change": "Composed by make_web_media.py (project files, website/coming-soon-2026-10-27/) with Pillow 12.3.0: the front preview fitted within 720 px wide on the Protocodus background, the name drawn by the device renderer's own script wordmark(), solid white as on the panel, a one-line description and the Protocodus logo from the device's Design/Brand/Protocodus-logo.png."
+      "sha256": "e53ce602a120da7c5164f45416bf66d44f2541124ad5c9779640cacaef244832",
+      "source": "approved-artwork/Respira-Thumbnail-800.png",
+      "note": "Existing approved luxury cover; unchanged source artwork."
     }
   ],
   "earlier_reviews": [
@@ -73,5 +83,59 @@
         }
       ]
     }
-  ]
+  ],
+  "development_refresh": {
+    "reviewed": "2026-11-03",
+    "source_version": "0.1.10d1",
+    "source_revision": "0023d2ed859d3290c2cde7ad17330ba7f590b9f6",
+    "assets": [
+      {
+        "file": "respira-rack-front.webp",
+        "sha256": "6ff31c4e0a1f096aa08ebed4bbbb81eab595c90b9359b01236256f564aa2704f",
+        "source": "Examples/Respira/Docs/screenshots/front-2x.png",
+        "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      {
+        "file": "Respira_Front.png",
+        "sha256": "3c1962cf56864a4a24f6128c9057fe9dcf295530ce84f0e3ac1b73755e7bad7f",
+        "source": "Examples/Respira/Docs/screenshots/front-2x.png",
+        "source_sha256": "4c5651a988f36d27bcbc939a6a63fc560199ee648bd3bb26d093186b1f1c360d",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      {
+        "file": "respira-rack-rear.webp",
+        "sha256": "4a96be00f2c5078a46391756911774cd3d3b881d20e9d026a5b6c87adce0334d",
+        "source": "Examples/Respira/Docs/screenshots/back-2x.png",
+        "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      {
+        "file": "Respira_Back.png",
+        "sha256": "78226de51fd450c03732305cdc87f441aeba39cb831284d2f1dae56b1d9f97be",
+        "source": "Examples/Respira/Docs/screenshots/back-2x.png",
+        "source_sha256": "953aeb1b1ce067cff3d2fb7e8736935d2b538ee8cb79ef7397df3c6efd2f2ba8",
+        "pixels": [
+          1508,
+          552
+        ]
+      },
+      {
+        "file": "Respira_Thumbnail_800.png",
+        "sha256": "e53ce602a120da7c5164f45416bf66d44f2541124ad5c9779640cacaef244832",
+        "source": "approved-artwork/Respira-Thumbnail-800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
+      }
+    ],
+    "availability": "Development build; existing Shop release status preserved."
+  }
 }
