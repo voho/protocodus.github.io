@@ -303,6 +303,12 @@
           1600,
           1171
         ]
+      },
+      {
+        "file": "Maremba_Thumbnail_800.png",
+        "sha256": "53e16da40c82e677a36007250a90f4337304ff0ea1ea429cba7fbea12a7adefd",
+        "source": "dist/Maremba_Thumbnail_800.png",
+        "note": "Existing approved luxury cover; unchanged source artwork."
       }
     ],
     "availability": "Development build; existing Shop release status preserved."
