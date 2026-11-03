@@ -59,7 +59,7 @@
       "file": "Electry_Thumbnail_800.png",
       "sha256": "f5a30d401574779caccb1be82aa58bff3f7ba31eea5bee033a864587ca1e4f8a",
       "source": "dist/Electry_Thumbnail_800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork."
+      "note": "Existing product cover retained from its source composition."
     }
   ],
   "earlier_reviews": [
@@ -168,7 +168,7 @@
         "file": "Electry_Thumbnail_800.png",
         "sha256": "f5a30d401574779caccb1be82aa58bff3f7ba31eea5bee033a864587ca1e4f8a",
         "source": "dist/Electry_Thumbnail_800.png",
-        "note": "Existing approved luxury cover; unchanged source artwork."
+        "note": "Existing product cover retained from its source composition."
       }
     ],
     "availability": "Development build; existing Shop release status preserved."
