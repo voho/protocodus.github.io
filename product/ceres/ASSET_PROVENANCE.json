@@ -59,10 +59,10 @@
     },
     {
       "file": "Ceres_Thumbnail_800.png",
-      "sha256": "b9198bb5332be879836f8de00d0d9dad7520fb2fd047d84c38eb25f1dac299bb",
-      "bytes": 683978,
+      "sha256": "fbd35da2eb5ce866986fc4088c3d72931ecbc231ed44f7a9920522c39978930b",
+      "bytes": 448293,
       "source": "dist/Ceres_Thumbnail_800.png",
-      "source_sha256": "b9198bb5332be879836f8de00d0d9dad7520fb2fd047d84c38eb25f1dac299bb",
+      "source_sha256": "fbd35da2eb5ce866986fc4088c3d72931ecbc231ed44f7a9920522c39978930b",
       "change": "Copied the 800 px artwork from the Rack release.",
       "dimensions": [
         800,
@@ -72,7 +72,7 @@
         800,
         800
       ],
-      "source_commit": "297dacd16c1e22b07f7839d38d03414be2e494b8"
+      "source_commit": "d4e4ae6cfc6284aafd37fd6c492371fd8350359a"
     },
     {
       "file": "Ceres_User_Guide.pdf",
@@ -161,13 +161,13 @@
     "assets": {
       "Ceres_Thumbnail_800.png": {
         "source": "dist/Ceres_Thumbnail_800.png",
-        "sha256": "b9198bb5332be879836f8de00d0d9dad7520fb2fd047d84c38eb25f1dac299bb",
-        "source_sha256": "b9198bb5332be879836f8de00d0d9dad7520fb2fd047d84c38eb25f1dac299bb",
+        "sha256": "fbd35da2eb5ce866986fc4088c3d72931ecbc231ed44f7a9920522c39978930b",
+        "source_sha256": "fbd35da2eb5ce866986fc4088c3d72931ecbc231ed44f7a9920522c39978930b",
         "pixels": [
           800,
           800
         ],
-        "source_commit": "297dacd16c1e22b07f7839d38d03414be2e494b8"
+        "source_commit": "d4e4ae6cfc6284aafd37fd6c492371fd8350359a"
       },
       "Ceres_Front.png": {
         "source": "dist/Ceres_Front.png",
