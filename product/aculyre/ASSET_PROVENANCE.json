@@ -142,5 +142,20 @@
     },
     "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
     "source_branch": "release/dsp-20261103-evening"
+  },
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Aculyre_Thumbnail_800.png",
+    "source": "Examples/Aculyre/Design/Shop/cover.png",
+    "source_sha256": "02e7765533647af39581e789fe3c4175729624f63af95e162932cc6c38ae9322",
+    "sha256": "02e7765533647af39581e789fe3c4175729624f63af95e162932cc6c38ae9322",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
+    "source_branch": "claude/project-thread-dfaj34",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   }
 }

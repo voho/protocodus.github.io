@@ -17,5 +17,20 @@
       "file": "convretor-rack-rear.webp",
       "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
     }
-  ]
+  ],
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Convretor_Thumbnail_800.png",
+    "source": "Examples/Convretor/Design/Shop/cover.png",
+    "source_sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
+    "sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
+    "source_branch": "claude/project-thread-dfaj34",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  }
 }

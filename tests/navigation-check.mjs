@@ -21,7 +21,7 @@ function element(attributes = {}) {
   });
 }
 
-const ids = ['top', 'products', 'fun', 'company', 'contact'];
+const ids = ['top', 'products', 'software', 'fun', 'company', 'contact'];
 const sections = new Map(ids.map((id) => [id, element()]));
 const desktopLinks = ids.map((id) => element({ href: `#${id}` }));
 const mobileLinks = [...ids.map((id) => element({ href: `#${id}` })), element({ href: 'mailto:studio@example.com' })];
@@ -121,7 +121,7 @@ observers.at(-1).callback([...sections.values()].map((target) => ({
   target, isIntersecting: target === sections.get('products'),
 })));
 for (const links of [desktopLinks, mobileLinks.slice(0, -1)]) {
-  assert.deepEqual(links.map((link) => link.classList.contains('current')), [false, true, false, false, false]);
+  assert.deepEqual(links.map((link) => link.classList.contains('current')), [false, true, false, false, false, false]);
   assert.equal(links[1].getAttribute('aria-current'), 'location');
 }
 

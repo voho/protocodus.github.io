@@ -273,5 +273,20 @@
   "source_version": "1.9.19d1",
   "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_branch": "release/dsp-20261103-evening",
-  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d"
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Acustra_Thumbnail_800.png",
+    "source": "Examples/Acustra/Design/Shop/cover.png",
+    "source_sha256": "18c9e470a188ad07500b63a7ea0171e29c6dfa80702a22f234f71f47a79ee66f",
+    "sha256": "18c9e470a188ad07500b63a7ea0171e29c6dfa80702a22f234f71f47a79ee66f",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
+    "source_branch": "claude/project-thread-dfaj34",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  }
 }

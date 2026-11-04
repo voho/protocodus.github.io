@@ -250,5 +250,20 @@
         "webp_decoded_pixels_match": true
       }
     ]
+  },
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Lamer_Degrader_Thumbnail_800.png",
+    "source": "Examples/Lamer/Design/Shop/cover.png",
+    "source_sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
+    "sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
+    "source_branch": "claude/project-thread-dfaj34",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   }
 }

@@ -113,5 +113,20 @@
   },
   "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_branch": "release/dsp-20261103-evening",
-  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d"
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Acukoto_Thumbnail_800.png",
+    "source": "Examples/Acukoto/Design/Shop/cover.png",
+    "source_sha256": "b634a9966e80e394e58c46d56351b9ec8849c637ff1cd2ab78424d80c615a001",
+    "sha256": "b634a9966e80e394e58c46d56351b9ec8849c637ff1cd2ab78424d80c615a001",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
+    "source_branch": "claude/project-thread-dfaj34",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  }
 }
