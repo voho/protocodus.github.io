@@ -18,7 +18,8 @@
       "rill-x86_64-pc-windows-msvc",
       "rill-x86_64-unknown-linux-gnu",
       "rill-aarch64-unknown-linux-gnu"
-    ]
+    ],
+    "label": "Alpha (owner, 2026-11-04): no tag or GitHub Release; the page links the latest successful main build."
   },
   "assets": {
     "rill-arrangement.webp": {
