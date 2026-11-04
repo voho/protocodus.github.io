@@ -183,8 +183,8 @@
       800,
       800
     ],
-    "source_commit": "ea7853c97e6a39fd4cd25d135a898bf1c43494a8",
-    "source_branch": "claude/project-thread-dfaj34",
+    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+    "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   }
