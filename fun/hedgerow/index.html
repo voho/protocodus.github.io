@@ -59,6 +59,7 @@
     <div class="notice" data-notice></div>
     <div class="prompt" data-prompt hidden></div>
     <div class="grenade-warn" data-grenade-warn hidden><span>Grenade!</span></div>
+    <div class="grenade-dirs" data-grenade-dirs aria-hidden="true"></div>
     <div class="detect" data-detect></div>
 
     <div class="status">
@@ -77,13 +78,15 @@
   </div>
 
   <div class="fade on" data-fade aria-hidden="true"></div>
+  <!-- the mission's picture while its battlefield is not there to be seen -->
+  <div class="loading-art on" data-loading-art aria-hidden="true"></div>
 
   <!-- Title, loading and menu -->
   <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="hedgerow-title">
     <div class="panel title-panel">
-      <p class="eyebrow">Normandy · July 1944</p>
+      <p class="eyebrow" data-title-eyebrow>Normandy · July 1944</p>
       <h1 class="wordmark" id="hedgerow-title">HEDGEROW</h1>
-      <p class="subtitle">Saint-Clair, at dusk</p>
+      <p class="subtitle" data-title-subtitle>Saint-Clair, at dusk</p>
       <div class="loading" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="hedgerow-loading-label" aria-valuemin="0"
           aria-valuemax="100" aria-valuenow="0" data-loading-bar>
@@ -99,17 +102,31 @@
       </div>
       <nav class="menu" data-menu hidden>
         <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Play mission</button>
+        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Choose mission</button>
         <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
         <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
         <a class="menu-item" href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">Back to games</a>
       </nav>
       <p class="best" data-best hidden></p>
     </div>
+    <aside class="panel controls-card" data-loading-controls aria-label="Controls">
+      <h2>Controls</h2>
+      <dl class="keys" data-controls></dl>
+    </aside>
+  </section>
+
+  <section class="screen" data-screen="missions" role="dialog" aria-modal="true" aria-labelledby="missions-title">
+    <div class="panel missions-panel">
+      <h2 id="missions-title">Missions</h2>
+      <p class="hint">Three missions inspired by real actions in Normandy, 1944. Another mission loads its own battlefield.</p>
+      <ol class="mission-list" data-mission-list></ol>
+      <button type="button" class="menu-item" data-action="back" data-analytics-cta="missions_back" data-analytics-action="navigate_back">Back</button>
+    </div>
   </section>
 
   <section class="screen" data-screen="briefing" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
     <div class="panel briefing">
-      <p class="eyebrow">Mission 1</p>
+      <p class="eyebrow" data-briefing-eyebrow>Mission 1</p>
       <h2 id="briefing-title" data-briefing-title>Saint-Clair</h2>
       <p class="when" data-briefing-when></p>
       <div class="briefing-text" data-briefing-text></div>
@@ -119,29 +136,15 @@
         <button type="button" class="menu-item primary" data-action="start" data-analytics-cta="briefing_start_mission" data-analytics-action="start" disabled>Loading 0%</button>
         <button type="button" class="menu-item" data-action="back" data-analytics-cta="briefing_back" data-analytics-action="navigate_back">Back</button>
       </div>
-      <p class="hint">Click to capture the mouse. Esc pauses.</p>
+      <p class="briefing-inspired" data-briefing-inspired></p>
+      <p class="hint">Click to capture the mouse. Esc pauses and shows the controls.</p>
     </div>
   </section>
 
   <section class="screen" data-screen="controls" role="dialog" aria-modal="true" aria-labelledby="controls-title">
     <div class="panel">
       <h2 id="controls-title">Controls</h2>
-      <dl class="keys">
-        <dt>Mouse</dt><dd>Look and aim</dd>
-        <dt>W A S D</dt><dd>Move</dd>
-        <dt>Shift</dt><dd>Sprint</dd>
-        <dt>C / Ctrl</dt><dd>Crouch (toggle)</dd>
-        <dt>Space</dt><dd>Vault over low cover / jump</dd>
-        <dt>Left button</dt><dd>Fire</dd>
-        <dt>Right button</dt><dd>Aim down the sights</dd>
-        <dt>R</dt><dd>Reload</dd>
-        <dt>1 / 2 / wheel</dt><dd>Rifle / submachine gun</dd>
-        <dt>G</dt><dd>Throw grenade (hold to cook)</dd>
-        <dt>E</dt><dd>Use: place charges, pick up</dd>
-        <dt>I</dt><dd>Toggle invincibility</dd>
-        <dt>O</dt><dd>Switch night / day</dd>
-        <dt>Esc</dt><dd>Pause</dd>
-      </dl>
+      <dl class="keys" data-controls></dl>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="controls_back" data-analytics-action="navigate_back">Back</button>
     </div>
   </section>
@@ -172,17 +175,23 @@
   </section>
 
   <section class="screen" data-screen="pause" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-    <div class="panel">
-      <h2 id="pause-title">Paused</h2>
-      <p class="objective-recap" data-pause-objective></p>
-      <nav class="menu">
-        <button type="button" class="menu-item primary" data-action="resume" data-analytics-cta="pause_resume" data-analytics-action="resume">Resume</button>
-        <button type="button" class="menu-item" data-action="checkpoint" data-analytics-cta="pause_checkpoint" data-analytics-action="checkpoint">Restart from checkpoint</button>
-        <button type="button" class="menu-item" data-action="restart" data-analytics-cta="pause_restart" data-analytics-action="restart">Restart mission</button>
-        <button type="button" class="menu-item" data-action="controls" data-analytics-cta="pause_controls" data-analytics-action="open_controls">Controls</button>
-        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="pause_settings" data-analytics-action="open_settings">Settings</button>
-        <button type="button" class="menu-item" data-action="quit" data-analytics-cta="pause_quit" data-analytics-action="quit">Quit to title</button>
-      </nav>
+    <div class="panel pause-panel">
+      <div class="pause-main">
+        <p class="eyebrow" data-pause-mission></p>
+        <h2 id="pause-title">Paused</h2>
+        <ol class="pause-objectives" data-pause-objectives aria-label="Objectives"></ol>
+        <nav class="menu">
+          <button type="button" class="menu-item primary" data-action="resume" data-analytics-cta="pause_resume" data-analytics-action="resume">Resume</button>
+          <button type="button" class="menu-item" data-action="checkpoint" data-analytics-cta="pause_checkpoint" data-analytics-action="checkpoint">Restart from checkpoint</button>
+          <button type="button" class="menu-item" data-action="restart" data-analytics-cta="pause_restart" data-analytics-action="restart">Restart mission</button>
+          <button type="button" class="menu-item" data-action="settings" data-analytics-cta="pause_settings" data-analytics-action="open_settings">Settings</button>
+          <button type="button" class="menu-item" data-action="quit" data-analytics-cta="pause_quit" data-analytics-action="quit">Quit to title</button>
+        </nav>
+      </div>
+      <div class="pause-controls">
+        <h3>Controls</h3>
+        <dl class="keys" data-controls></dl>
+      </div>
     </div>
   </section>
 
@@ -202,10 +211,12 @@
   <section class="screen" data-screen="complete" role="dialog" aria-modal="true" aria-labelledby="complete-title">
     <div class="panel">
       <p class="eyebrow">Mission complete</p>
-      <h2 id="complete-title">Saint-Clair is clear</h2>
+      <h2 id="complete-title" data-complete-title>Saint-Clair is clear</h2>
       <dl class="stats" data-stats></dl>
       <nav class="menu">
-        <button type="button" class="menu-item primary" data-action="restart" data-analytics-cta="complete_restart" data-analytics-action="restart">Play again</button>
+        <button type="button" class="menu-item primary" data-action="next" data-analytics-cta="complete_next" data-analytics-action="next_mission" hidden>Next mission</button>
+        <button type="button" class="menu-item" data-action="restart" data-analytics-cta="complete_restart" data-analytics-action="restart">Play again</button>
+        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="complete_missions" data-analytics-action="open_missions">Choose mission</button>
         <button type="button" class="menu-item" data-action="quit" data-analytics-cta="complete_quit" data-analytics-action="quit">Quit to title</button>
       </nav>
     </div>

@@ -385,6 +385,9 @@ export function createEnemies(G, defs) {
       if (od < 0.7 && od > 1e-4) { tmp.x += (ox / od) * (0.7 - od) * 0.5; tmp.z += (oz / od) * (0.7 - od) * 0.5; }
     }
     if (G.world.tooDeep(tmp.x, tmp.z, 1.0, e.pos.y)) { e.vel.set(0, 0, 0); return true; }
+    // his velocity is what he actually made good: pressed against a wall he stops there instead of
+    // walking on the spot into it (the gait follows e.vel)
+    if (dt > 0) { e.vel.x = (tmp.x - e.pos.x) / dt; e.vel.z = (tmp.z - e.pos.z) / dt; }
     e.pos.x = tmp.x; e.pos.z = tmp.z;
     e.pos.y = G.world.groundAt(e.pos.x, e.pos.z, e.pos.y, 0.5);
     return d < 0.5;
@@ -627,11 +630,17 @@ export function createEnemies(G, defs) {
           const near = e.leash > 0 && Math.hypot(e.pos.x - e.home.x, e.pos.z - e.home.z) < e.leash + 6;
           const h = near ? e.home : e.pos;
           if (Math.hypot(e.target.x - h.x, e.target.z - h.z) > Math.max(4, e.leash)) e.target = { x: h.x, z: h.z };
+          // a step aside he can take: not into a wall, a hedge or a trench side
+          if (!reachable(e, e.target.x, e.target.z)) e.target = { x: e.pos.x, z: e.pos.z };
           e.phaseTimer = 2.5 + R() * 2;
           if (R() < 0.4) { e.phase = 'move'; e.cover = null; return; }
         }
         if (e.sees) e.vel.set(0, 0, 0);
-        else moveTowards(e, e.target.x, e.target.z, ENEMY.walk, dt);
+        else {
+          moveTowards(e, e.target.x, e.target.z, ENEMY.walk, dt);
+          // blocked after all: stand and fire from here rather than lean on it
+          if (Math.hypot(e.vel.x, e.vel.z) < ENEMY.walk * 0.2) { e.target = { x: e.pos.x, z: e.pos.z }; e.vel.set(0, 0, 0); }
+        }
       } else e.vel.set(0, 0, 0);
       if (e.suppressed > 0.5 && e.cover) { e.phase = 'hide'; e.phaseTimer = e.suppressed + 0.5; return; }
       if (e.reloadT > 0) {
@@ -700,7 +709,14 @@ export function createEnemies(G, defs) {
      `lookAt`. True on arrival — or when the way is blocked for good. */
   function goTo(e, tx, tz, speed, dt, { lookAt = null, faceRate = 6 } = {}) {
     if (!e.path || e.pathGoalX !== tx || e.pathGoalZ !== tz) {
-      e.path = nav.findPath(e.pos.x, e.pos.z, tx, tz) || [{ x: tx, z: tz }];
+      const path = nav.findPath(e.pos.x, e.pos.z, tx, tz);
+      // no way round on the walk grid: straight there only if nothing stands in the way, else
+      // give up on it now (walking at a wall until the stuck timer notices looked broken)
+      if (!path && !reachable(e, tx, tz)) {
+        e.path = null; e.pathFails++; e.vel.set(0, 0, 0);
+        return true;
+      }
+      e.path = path || [{ x: tx, z: tz }];
       e.pathIdx = 0; e.pathGoalX = tx; e.pathGoalZ = tz; e.stuck = 0;
     }
     const wp = e.path[Math.min(e.pathIdx, e.path.length - 1)];
@@ -717,6 +733,14 @@ export function createEnemies(G, defs) {
       if (++e.pathFails > 2) { e.pathFails = 0; return true; }
     }
     return last && (there || d < 0.6);
+  }
+
+  /* Can he walk straight from where he stands to (x, z)? Nothing solid across the line at his
+     knees or his chest, and footing at the far end. */
+  function reachable(e, x, z) {
+    if (!nav.walkable(x, z)) return false;
+    const y = e.pos.y;
+    return G.world.clear(e.pos.x, y + 0.5, e.pos.z, x, y + 0.5, z, MOVE) && G.world.clear(e.pos.x, y + 1.3, e.pos.z, x, y + 1.3, z, MOVE);
   }
 
   /* Looking round from where he stands: sweeping either side of `base`. */
@@ -979,8 +1003,10 @@ export function createEnemies(G, defs) {
     if (a.peek < -1.4) a.peek = 2.5 + R() * 2.5;
     const looking = a.peek <= 0;
     const at = looking && a.peekSpot ? a.peekSpot : e.cover;
-    if (Math.hypot(at.x - e.pos.x, at.z - e.pos.z) > 0.15) moveTowards(e, at.x, at.z, ENEMY.walk, dt);
-    else e.vel.set(0, 0, 0);
+    if (Math.hypot(at.x - e.pos.x, at.z - e.pos.z) > 0.15) {
+      moveTowards(e, at.x, at.z, ENEMY.walk, dt);
+      if (Math.hypot(e.vel.x, e.vel.z) < ENEMY.walk * 0.2) e.vel.set(0, 0, 0);
+    } else e.vel.set(0, 0, 0);
     e.stance = looking || !e.cover.low ? (a.peekSpot && !looking ? 'crouch' : 'stand') : 'crouch';
     face(e, a.x, a.z, 4, dt);
     if (a.timer <= 0) endAmbush(e);
@@ -1161,5 +1187,15 @@ export function createEnemies(G, defs) {
     intel.clear();
   }
 
-  return { list: enemies, update, resetLiving, alive: () => enemies.filter(e => !e.dead), nav, intel };
+  /* A group sent to (x, z) (a counter-attack, mission.js): each living man goes to look there,
+     into combat as soon as he sees the player. */
+  function send(group, x, z) {
+    for (const e of enemies) {
+      if (e.dead || e.group !== group || e.state === 'combat' || e.type === 'mg') continue;
+      e.leash = Math.max(e.leash, 60);
+      startSearch(e, x + (R() - 0.5) * 8, z + (R() - 0.5) * 8, { reason: 'search', sweeps: 2 });
+    }
+  }
+
+  return { list: enemies, update, resetLiving, send, alive: () => enemies.filter(e => !e.dead), nav, intel };
 }

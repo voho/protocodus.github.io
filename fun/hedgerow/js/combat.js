@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { GRENADE } from './config.js';
 import { SHOT, MOVE } from './world.js';
-import { clamp } from './util.js';
+import { clamp, wrapAngle } from './util.js';
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
 
@@ -177,9 +177,10 @@ export function createExplosives(G) {
     e.onBoom?.(e);
   }
 
+  const warnings = [];
   function update(dt) {
     const p = G.player;
-    let warn = false;
+    warnings.length = 0;
     for (let i = list.length - 1; i >= 0; i--) {
       const e = list[i];
       e.fuse -= dt;
@@ -189,7 +190,11 @@ export function createExplosives(G) {
         list.splice(i, 1);
         continue;
       }
-      if (e.kind === 'enemy' && p.alive && e.pos.distanceTo(p.pos) < GRENADE.radius + 2) warn = true;
+      // a live grenade within reach of its blast: which way, how far (his own too, once it is out of his hand)
+      if (e.kind !== 'charge' && p.alive) {
+        const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+        if (d < GRENADE.radius + 2) warnings.push({ angle: wrapAngle(Math.atan2(e.pos.x - p.pos.x, e.pos.z - p.pos.z) - G.rig.yaw), dist: d });
+      }
       if (e.rest) continue;
       // integrate with a few sub-steps, bouncing off the world
       const steps = 3;
@@ -217,7 +222,8 @@ export function createExplosives(G) {
       e.mesh.rotation.x += e.spin.x * dt;
       e.mesh.rotation.y += e.spin.y * dt;
     }
-    G.hud.grenadeWarning(warn);
+    warnings.sort((a, b) => a.dist - b.dist);
+    G.hud.grenadeWarning(warnings);
   }
 
   function clear() {

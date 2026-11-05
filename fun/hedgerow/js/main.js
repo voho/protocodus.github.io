@@ -2,7 +2,7 @@
 
    URL switches for testing: ?debug (stats overlay), ?god (no damage),
    ?fly (free camera, no soldiers), ?at=x,z (start somewhere else),
-   ?go (skip the menus straight to the briefing). */
+   ?go (skip the menus straight to the briefing), ?mission=<id> (which mission, missions.js). */
 
 import * as THREE from 'three';
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
@@ -62,12 +62,32 @@ import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
-import LEVEL from './levels/saint-clair.js';
+import { MISSIONS, pickMission, bestKey } from './missions.js';
+import { proceduralModels } from './procedural.js';
+import { CONTROLS } from './controls.js';
 
 // the point lights shade only the pixels they reach (lightloop.js), patched before any material compiles
 cullPointLights();
 
 const params = new URLSearchParams(location.search);
+// the mission: asked for in the URL, else the last one chosen (one battlefield is built per page)
+const MISSION = pickMission(params.get('mission'), (() => { try { return localStorage.getItem('hedgerow.mission'); } catch { return null; } })());
+try { localStorage.setItem('hedgerow.mission', MISSION.id); } catch { /* private mode */ }
+// its picture until the battlefield can be seen, the title saying which it is
+const loadingArt = document.querySelector('[data-loading-art]');
+loadingArt.style.backgroundImage = `url("${MISSION.image}")`;
+document.querySelector('[data-title-eyebrow]').textContent = MISSION.place;
+document.querySelector('[data-title-subtitle]').textContent = MISSION.subtitle;
+// the controls, the same list on the title, the controls screen and the pause
+for (const dl of document.querySelectorAll('[data-controls]')) {
+  for (const [k, v] of CONTROLS) {
+    const dt = document.createElement('dt'); dt.textContent = k;
+    const dd = document.createElement('dd'); dd.textContent = v;
+    dl.append(dt, dd);
+  }
+}
+const LEVEL = (await MISSION.load()).default;
+const missionUrl = (id, go = false) => `?mission=${encodeURIComponent(id)}${go ? '&go' : ''}`;
 const DEBUG = params.has('debug');
 const FLY = params.has('fly');
 const GOD = params.has('god');
@@ -228,6 +248,7 @@ async function boot() {
   hud = createHud($('[data-hud]'));
   audio = createAudio();
   audio.setVolume(settings.volume);
+  audio.setAmbience(LEVEL.ambience);
   const events = createEvents();
 
   // the sound, opened before the menu is there to be clicked (the browser's first audio context holds
@@ -249,6 +270,8 @@ async function boot() {
   loading.update('models', 0, 'Loading village, military, nature, weapons and soldiers');
   const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f, info) => loading.update('models', f,
     `Loading models · ${info.completed} of ${info.total} sets ready`));
+  // and the ones modelled in three.js (procedural.js): the glider, the canal bridge, the supply canisters
+  for (const [name, m] of proceduralModels()) lib.models.set(name, m);
   loading.update('models', 1);
   // each step of the layout: the bar moves on, the browser gets its turn, the step is marked
   let laid = 0;
@@ -371,7 +394,7 @@ async function boot() {
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
-    count: quality.rain, terrain: G.terrain, water: LEVEL.water, world: G.world,
+    count: rainCount(), terrain: G.terrain, water: LEVEL.water, world: G.world,
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
@@ -441,8 +464,12 @@ async function boot() {
   ready = true;
   loading.update('shaders', 1);
   $('[data-loading]').hidden = true;
+  $('[data-loading-controls]').hidden = true;
   state = 'menu';
+  // the mission's own light (a morning, a night) from the first look at it
+  if (LEVEL.daylight) setDaylight(true);
   fade.classList.remove('on');
+  loadingArt.classList.remove('on');
   if (FLY) startFly();
   // ?test=<glb path>&at=x,z: drop a model in front of the free camera (pipeline checks)
   if (params.get('test')) {
@@ -512,13 +539,16 @@ function applyGraphics() {
     chain = [KEEP_DEPTH, ...(quality.volumetric ? [G.effects.pass] : []), ...(ao ? [ssao] : []), ...(refl ? [ssr] : []), ...(shaft ? [shafts] : []), ...(quality.volumetric ? [volumetric, taa, blur, G.effects.late, distort, dof] : []), ...(quality.bloom ? [bloom] : []), adapt, grade, CLEAR_DEPTH];
     renderer.setEffects(chain);
   }
-  G?.weather?.setCount(quality.rain);
+  G?.weather?.setCount(rainCount());
   G?.grass?.setCount(quality.blades ?? 0);
   G?.clutter?.setOn(quality.clutter ?? 0);
   shared.relief.value = quality.relief ?? 1;
   if (G?.rig) { G.rig.baseFov = settings.fov; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
 }
+
+/* the rain as the quality draws it, as hard as the mission's weather */
+function rainCount() { return Math.round(quality.rain * (LEVEL.weather?.rain ?? 1)); }
 
 /* ---------- mission flow ---------- */
 
@@ -538,6 +568,8 @@ function setDaylight(on) {
 }
 
 function openBriefing() {
+  $('[data-briefing-eyebrow]').textContent = `Mission ${MISSIONS.indexOf(MISSION) + 1} · ${MISSION.place}`;
+  $('[data-briefing-inspired]').textContent = MISSION.inspired;
   $('[data-briefing-title]').textContent = LEVEL.title;
   $('[data-briefing-when]').textContent = LEVEL.when;
   const t = $('[data-briefing-text]');
@@ -547,6 +579,44 @@ function openBriefing() {
   ul.innerHTML = '';
   for (const o of LEVEL.objectives) { const li = document.createElement('li'); li.textContent = o.text; ul.append(li); }
   show('briefing');
+}
+
+/* the missions: the one loaded goes straight to its briefing, another reloads the page for it */
+function openMissions() {
+  const list = $('[data-mission-list]');
+  list.innerHTML = '';
+  MISSIONS.forEach((m, i) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mission-card';
+    b.dataset.mission = m.id;
+    b.dataset.analyticsCta = `mission_${m.id.replace(/-/g, '_')}`;
+    b.dataset.analyticsAction = 'choose_mission';
+    if (m === MISSION) b.setAttribute('aria-current', 'true');
+    const img = document.createElement('img');
+    img.src = m.image; img.alt = ''; img.loading = 'lazy';
+    const body = document.createElement('span');
+    body.className = 'mc-body';
+    const best = (() => { try { return Number(localStorage.getItem(bestKey(m.id)) || 0); } catch { return 0; } })();
+    for (const [cls, text] of [['mc-n', `Mission ${i + 1}${m === MISSION ? ' · loaded' : ''}`], ['mc-title', m.title], ['mc-when', `${m.place} · ${m.time}`], ['mc-sum', m.summary], ['mc-best', best > 0 ? `Best score ${best}` : '']]) {
+      if (!text) continue;
+      const span = document.createElement('span');
+      span.className = cls; span.textContent = text;
+      body.append(span);
+    }
+    b.append(img, body);
+    li.append(b);
+    list.append(li);
+  });
+  show('missions');
+}
+function chooseMission(id) {
+  if (id === MISSION.id && state !== 'complete') { openBriefing(); return; }
+  try { localStorage.setItem('hedgerow.mission', id); } catch { /* private mode */ }
+  loadingArt.style.backgroundImage = `url("${MISSIONS.find((m) => m.id === id)?.image}")`;
+  loadingArt.classList.add('on');
+  location.search = missionUrl(id, true);
 }
 
 /* The soldiers (his own body and the enemy) and the mission, made while loading, behind the menu:
@@ -568,6 +638,7 @@ async function prepareMission() {
   mark('enemies');
   enemies = createEnemies(G, built.enemyDefs);
   G.enemies = enemies.list;
+  G.enemyCtl = enemies;
   for (const e of enemies.list) { e.char.root.visible = false; e.char.shadow.visible = false; }
   await breathe();
   mark('mission');
@@ -765,7 +836,15 @@ function pause() {
   state = 'paused';
   input.enable(false);
   document.body.classList.remove('playing');
-  $('[data-pause-objective]').textContent = mission?.done ? '' : (LEVEL.objectives[mission?.index ?? 0]?.text || '');
+  $('[data-pause-mission]').textContent = `${LEVEL.title} · ${formatTime(missionTime)}`;
+  const ol = $('[data-pause-objectives]');
+  ol.innerHTML = '';
+  LEVEL.objectives.forEach((o, i) => {
+    const li = document.createElement('li');
+    li.textContent = o.text;
+    li.dataset.state = mission?.done || i < (mission?.index ?? 0) ? 'done' : i === (mission?.index ?? 0) ? 'current' : 'todo';
+    ol.append(li);
+  });
   show('pause');
 }
 
@@ -821,7 +900,7 @@ function onComplete() {
     const score = s.kills * 100 + s.headshots * 60 + s.objectives * 400 + Math.round(acc * 1500) + timeBonus - s.deaths * 300;
     trackAttemptEnd('win', score);
     let best = 0;
-    try { best = Number(localStorage.getItem('hedgerow.best') || 0); if (score > best) localStorage.setItem('hedgerow.best', String(score)); } catch { /* */ }
+    try { best = Number(localStorage.getItem(bestKey(MISSION.id)) || 0); if (score > best) localStorage.setItem(bestKey(MISSION.id), String(score)); } catch { /* */ }
     const rows = [
       ['Time', formatTime(missionTime)], ['Enemies killed', `${s.kills} / ${G.enemies.length}`], ['Headshots', s.headshots],
       ['Accuracy', `${Math.round(acc * 100)} %`], ['Grenades thrown', s.grenades], ['Times down', s.deaths],
@@ -835,13 +914,15 @@ function onComplete() {
       if (k === 'Score') dd.className = 'score';
       dl.append(dt, dd);
     }
+    $('[data-complete-title]').textContent = LEVEL.completeTitle || `${LEVEL.title}: mission complete`;
+    $('[data-action="next"]').hidden = !MISSIONS[MISSIONS.indexOf(MISSION) + 1];
     show('complete');
   }, 2500);
 }
 
 function showBest() {
   try {
-    const b = Number(localStorage.getItem('hedgerow.best') || 0);
+    const b = Number(localStorage.getItem(bestKey(MISSION.id)) || 0);
     if (b > 0) { const el = $('[data-best]'); el.hidden = false; el.textContent = `Best score: ${b}`; }
   } catch { /* */ }
 }
@@ -876,6 +957,9 @@ window.hedgerow = {
   get G() { return G; },
   get input() { return input; },
   get fx() { return { volumetric, bloom, grade, adapt, ssao, dof, ssr, shafts, taa, distort, blur }; },
+  // scripted checks drive the frames themselves (a software GPU draws a frame in seconds)
+  step: () => step(),
+  get state() { return state; },
   flyTo(x, y, z, yaw = 0, pitch = -0.1) { if (!fly) startFly(); fly.pos.set(x, y, z); fly.yaw = yaw; fly.pitch = pitch; },
 };
 
@@ -1072,6 +1156,7 @@ function step() {
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
+  audio.tick();
   // and what he hears goes dull behind a ringing in the ears (clear again in the menus)
   audio.daze(live && player ? player.daze : 0);
   input.endFrame();
@@ -1098,15 +1183,25 @@ function step() {
   }
 }
 
+/* the title's slow drift over the battlefield: round the level's `menuView` ({from, to}: points
+   [x, y, z]), by default down Saint-Clair's street */
 let menuT = 0;
 function menuCamera(dt) {
   menuT += dt * 0.03;
-  const x = Math.sin(menuT) * 6, z = 108 + Math.cos(menuT) * 5;
-  camera.position.set(x, 3.4, z - 18);
-  camera.lookAt(0, 3.5, z + 10);
+  const v = LEVEL.menuView || { from: [0, 3.4, 90], to: [0, 3.5, 118] };
+  const sx = Math.sin(menuT) * 6, sz = Math.cos(menuT) * 5;
+  camera.position.set(v.from[0] + sx, v.from[1], v.from[2] + sz);
+  camera.lookAt(v.to[0], v.to[1], v.to[2] + sz);
 }
 
 /* ---------- wiring ---------- */
+
+// Esc in a sub-screen (the controls, the settings, the missions, the briefing) goes back a step
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || state === 'playing') return;
+  const top = screenStack.at(-1);
+  if (top && top !== 'pause' && top !== 'start' && top !== 'dead' && top !== 'complete') back();
+});
 
 document.addEventListener('pointerlockchange', () => {
   if (!document.pointerLockElement && state === 'playing') pause();
@@ -1114,6 +1209,8 @@ document.addEventListener('pointerlockchange', () => {
 
 document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-action]');
+  const card = e.target.closest('[data-mission]');
+  if (card) { audio?.init(); chooseMission(card.dataset.mission); return; }
   if (!a) return;
   const act = a.dataset.action;
   audio?.init();
@@ -1124,8 +1221,10 @@ document.addEventListener('click', (e) => {
   else if (act === 'settings') { syncSettingsForm(); show('settings'); }
   else if (act === 'resume') resume();
   else if (act === 'checkpoint') retryCheckpoint();
-  else if (act === 'restart') { location.search = '?go'; }
-  else if (act === 'quit') { location.search = ''; }
+  else if (act === 'missions') openMissions();
+  else if (act === 'next') chooseMission(MISSIONS[MISSIONS.indexOf(MISSION) + 1]?.id ?? MISSION.id);
+  else if (act === 'restart') { location.search = missionUrl(MISSION.id, true); }
+  else if (act === 'quit') { location.search = missionUrl(MISSION.id); }
   else if (act === 'retry') location.reload();
 });
 

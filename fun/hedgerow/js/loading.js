@@ -3,7 +3,7 @@
 export const LOADING_STAGES = [
   { id: 'textures', label: 'Textures', weight: 15 },
   { id: 'models', label: 'Models', weight: 45 },
-  { id: 'world', label: 'Saint-Clair battlefield', weight: 29 },
+  { id: 'world', label: 'Battlefield', weight: 29 },
   { id: 'soldiers', label: 'Soldiers and mission', weight: 6 },
   { id: 'shaders', label: 'Graphics preparation', weight: 5 },
 ];

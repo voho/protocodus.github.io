@@ -303,6 +303,97 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     if (m) muzzleLocal.set(m[0], m[1], m[2]);
     const o = model.anchors.offhand;
     offhandLocal.set(o ? o[0] : 0, o ? o[1] : 0, o ? o[2] : 0.3);
+    forendBottom = o ? underside(weapon, o[2]) : null;
+  }
+  /* The left hand under the rifle's forend. The clips hold it where one rifle's forend is: on
+     another it went into the wood. So the hand is sampled once (points of its skin in the hand
+     bone's space) and each frame the arm is bent to bring its top to the forend's underside. */
+  let forendBottom = null;
+  const handPts = [];
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    if (!o.isSkinnedMesh || !bones.hand_l || handPts.length) return;
+    const hb = o.skeleton.bones.indexOf(bones.hand_l);
+    if (hb < 0) return;
+    const pos = o.geometry.attributes.position, si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight;
+    const toBone = new THREE.Matrix4().multiplyMatrices(o.skeleton.boneInverses[hb], o.bindMatrix);
+    for (let k = 0; k < pos.count; k++) {
+      let w = 0;
+      for (let c = 0; c < 4; c++) if (si.getComponent(k, c) === hb) w += sw.getComponent(k, c);
+      if (w > 0.9 && k % 8 === 0) handPts.push(new THREE.Vector3().fromBufferAttribute(pos, k).applyMatrix4(toBone));
+    }
+  });
+  /* The underside of the gun's forend about `z` (gun space), or null: down the line through its
+     middle, the bottom of its solid part (the sling hangs below a gap). */
+  function underside(gun, z0) {
+    gun.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(gun.matrixWorld).invert(), m = new THREE.Matrix4();
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    let low = Infinity;
+    for (const z of [z0 - 0.025, z0, z0 + 0.025]) {
+      const hits = [];
+      gun.traverse((o) => {
+        if (!o.isMesh) return;
+        m.multiplyMatrices(inv, o.matrixWorld);
+        const pos = o.geometry.attributes.position, idx = o.geometry.index;
+        const n = idx ? idx.count : pos.count;
+        for (let k = 0; k < n; k += 3) {
+          const at = (v, q) => v.fromBufferAttribute(pos, idx ? idx.getX(k + q) : k + q).applyMatrix4(m);
+          at(a, 0); at(b, 1); at(c, 2);
+          // where the vertical line x = 0, z crosses the triangle (seen from above), and its height there
+          const d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+          if (Math.abs(d) < 1e-12) continue;
+          const u = ((b.z - c.z) * (0 - c.x) + (c.x - b.x) * (z - c.z)) / d;
+          const v = ((c.z - a.z) * (0 - c.x) + (a.x - c.x) * (z - c.z)) / d;
+          if (u < 0 || v < 0 || u + v > 1) continue;
+          hits.push({ y: a.y * u + b.y * v + c.y * (1 - u - v), down: d > 0 });
+        }
+      });
+      // from the top down, in and out of the parts' solids: where it comes out of the last one
+      // before a gap (below it, the sling)
+      hits.sort((p, q) => q.y - p.y);
+      let under = null, depth = 0;
+      for (let i = 0; i < hits.length; i++) {
+        if (depth === 0 && under !== null && under - hits[i].y > 0.03) break;
+        depth = Math.max(0, depth + (hits[i].down ? -1 : 1));
+        if (depth === 0) under = hits[i].y;
+      }
+      if (under !== null) low = Math.min(low, under);
+    }
+    return low < Infinity ? low : null;
+  }
+  const ikA = new THREE.Vector3(), ikB = new THREE.Vector3(), ikC = new THREE.Vector3(), ikT = new THREE.Vector3();
+  const ikU = new THREE.Vector3(), ikV = new THREE.Vector3(), ikQ = new THREE.Quaternion(), ikH = new THREE.Quaternion();
+  const ikM = new THREE.Matrix4(), ikP = new THREE.Vector3(), ikW = new THREE.Quaternion();
+  /* a bone's world rotation set to `q` (its parent's matrices current) */
+  function setWorldQ(b, q) { b.quaternion.copy(b.parent.getWorldQuaternion(ikQ).invert().multiply(q)); b.updateMatrixWorld(true); }
+  function gripForend() {
+    const up = bones.upperarm_l, fore = bones.forearm_l, hand = bones.hand_l;
+    // the hand's top, in the gun's space
+    ikM.copy(weapon.matrixWorld).invert().multiply(hand.matrixWorld);
+    let top = -Infinity;
+    for (const p of handPts) top = Math.max(top, ikP.copy(p).applyMatrix4(ikM).y);
+    // fingertips a little into the wood, out of sight above them
+    const dy = forendBottom + 0.008 - top;
+    if (Math.abs(dy) < 0.002 || Math.abs(dy) > 0.15) return;
+    hand.getWorldPosition(ikC);
+    weapon.worldToLocal(ikT.copy(ikC)).y += dy;
+    weapon.localToWorld(ikT);
+    // two bones: the elbow kept in the plane it bends in now
+    up.getWorldPosition(ikA); fore.getWorldPosition(ikB);
+    hand.getWorldQuaternion(ikH);
+    const a = ikA.distanceTo(ikB), b = ikB.distanceTo(ikC);
+    const d = Math.min(a + b - 1e-4, Math.max(Math.abs(a - b) + 1e-4, ikA.distanceTo(ikT)));
+    ikU.subVectors(ikT, ikA).normalize();
+    ikV.subVectors(ikB, ikA); ikV.addScaledVector(ikU, -ikV.dot(ikU)).normalize();
+    const x = (a * a - b * b + d * d) / (2 * d), h = Math.sqrt(Math.max(0, a * a - x * x));
+    const elbow = ikP.copy(ikA).addScaledVector(ikU, x).addScaledVector(ikV, h);
+    ikQ.setFromUnitVectors(ikV.subVectors(ikB, ikA).normalize(), ikU.subVectors(elbow, ikA).normalize());
+    setWorldQ(up, up.getWorldQuaternion(ikW).premultiply(ikQ));
+    fore.getWorldPosition(ikB); hand.getWorldPosition(ikC);
+    ikQ.setFromUnitVectors(ikV.subVectors(ikC, ikB).normalize(), ikU.subVectors(ikT, ikB).normalize());
+    setWorldQ(fore, fore.getWorldQuaternion(ikW).premultiply(ikQ));
+    setWorldQ(hand, ikH);
   }
   setWeapon(weaponModel);
   // a grenade appears in the right hand while throwing; the rifle goes to the left
@@ -342,6 +433,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   let spineBase = null;       // the spine as the clips left it, before the aim pitch
   let spinePosBase = null;
   let clavBase = null;        // the collarbones as the clips left them, before the arms' lift
+  let armBase = null;         // the left arm as the clips left it, before the grip on the forend
   let ragdoll = null;
   let headHidden = false, headStandIn = null;
   // first person: the pelvis (root and hips bones together) the upper body
@@ -556,6 +648,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (spineBase) bones.spine.quaternion.copy(spineBase);
       if (spinePosBase) bones.spine.position.copy(spinePosBase);
       if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
+      if (armBase) armBase.forEach(([b, q]) => b.quaternion.copy(q));
       mountedPose?.restore();
       mixer.update(dt);
       if (oneShot && mixer.time >= oneShotEnd) {
@@ -573,6 +666,11 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         clavBase ||= [bones.clavicle_l, bones.clavicle_r].map((b) => [b, new THREE.Quaternion(), new THREE.Vector3()]);
         clavBase.forEach(([b, q, p]) => { q.copy(b.quaternion); p.copy(b.position); });
       }
+      const grip = !dead && !oneShot && !(mountedPose && state.mountedGrip) && forendBottom !== null && handPts.length && weapon?.parent === socket;
+      if (grip) {
+        armBase ||= [bones.upperarm_l, bones.forearm_l, bones.hand_l].map((b) => [b, new THREE.Quaternion()]);
+        armBase.forEach(([b, q]) => q.copy(b.quaternion));
+      }
       if (state.steady && !dead && bones.hips && bones.spine) {
         steadyUpper(dt);
         bones.spine.updateMatrixWorld(true);
@@ -587,6 +685,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         bones.head.updateMatrixWorld(true);
       }
       if (!dead && (Math.abs(state.armsPitch) + Math.abs(state.armsYaw) + Math.abs(state.armsRoll)) > 1e-4) liftArms(state.armsPitch, state.armsYaw, state.armsRoll);
+      if (grip) gripForend();
       if (!dead && state.mountedGrip) mountedPose?.update();
       if (ground != null) {
         shadow.position.set(root.position.x, ground + 0.03, root.position.z);
