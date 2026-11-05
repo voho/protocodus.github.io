@@ -120,6 +120,21 @@ assert.equal(local.scripts.length, 0, 'Local QA must not pollute production GA')
 assert.equal(local.gaEvents().length, 0);
 const debugLocal = browser('http://localhost:8000/', { debug: true });
 assert.equal(debugLocal.gaEvents('page_view').length, 1, 'Explicit debug mode enables local diagnostics');
+for (const url of [
+  'https://626ee9dc-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
+  'https://codex-premium-rill-store-20261105-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
+  'https://preview.protocodus.cz/',
+  'https://protocodus.cz.example.test/',
+  'http://127.0.0.1:8776/',
+]) {
+  const preview = browser(url);
+  preview.window.protocodusAnalytics.setEnabled(true);
+  assert.equal(preview.scripts.length, 0, `${url}: preview/consent toggles cannot load production analytics`);
+  assert.equal(preview.gaEvents().length, 0, `${url}: preview does not send production events`);
+  assert.equal(preview.window.protocodusAnalytics.status().enabled, false);
+}
+assert.equal(browser('https://www.protocodus.cz/').gaEvents('page_view').length, 1, 'The production www alias remains tracked');
+assert.equal(browser('https://example.workers.dev/', { debug: true }).gaEvents('page_view').length, 1, 'Explicit debug mode permits deliberate hosted-preview diagnostics');
 
 // The collector must observe intent without intercepting the site's controls.
 const links = browser();

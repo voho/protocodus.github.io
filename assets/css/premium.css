@@ -1,18 +1,13 @@
 /* Shared product presentation; preserve native panel proportions. */
 .studio-hero { padding-block: clamp(3.5rem, 7vw, 7rem); }
-.studio-hero-layout { display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; gap: 4rem; }
-.studio-hero .hero-title { font-size: clamp(2.8rem, 5.1vw, 4.8rem); letter-spacing: -.06em; line-height: 1.12; }
+.studio-hero-layout { display: block; }
+.studio-hero .statement { max-width: 1000px; }
+.studio-hero .hero-title { font-size: clamp(2.8rem, 6.5vw, 5.75rem); letter-spacing: -.06em; line-height: 1.12; }
 .studio-hero .hero-title em { font-family: Georgia, serif; font-weight: 400; color: var(--accent); }
-.studio-hero .hero-sub { font-size: 1.05rem; max-width: 46ch; }
+.studio-hero .hero-sub { font-size: 1.05rem; max-width: 50ch; }
 .studio-hero .tag { font-size: .72rem; }
 .studio-hero-note { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin-top: 3rem; border-top: 1px solid var(--line); padding-top: 1.2rem; font-size: .75rem; color: var(--fg-faint); }
 .studio-hero-note a { color: var(--accent); }
-.studio-art { position: relative; padding: 0 0 4rem 3rem; }
-.studio-art a { display: block; }
-.studio-art img { width: 100%; height: auto; border-radius: 16px; box-shadow: 0 18px 60px #0007; border: 1px solid #ffffff20; }
-.studio-art-main { max-width: 420px; margin-left: auto; transform: rotate(3deg); }
-.studio-art-small { position: absolute; left: 0; bottom: 1.5rem; width: 47%; transform: rotate(-7deg); }
-.studio-art-caption { position: absolute; bottom: -.8rem; right: 0; color: var(--fg-faint); font-size: .65rem; }
 .studio-page .showcase { border-top: 1px solid var(--line); }
 .studio-page #products > .wrap > .head { max-width: 800px; }
 .studio-page .rill-feature { margin-block: 3rem 4.5rem; }
@@ -61,12 +56,10 @@
 .product-page:not(.p-rill) .instrument-hero { padding-bottom: 5rem; }
 @media (max-width: 1000px) {
   .studio-page #products .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .studio-hero-layout { gap: 2rem; }
   .rill-spotlight { gap: 1.8rem; }
 }
 @media (max-width: 760px) {
-  .studio-hero-layout, .rill-spotlight { grid-template-columns: 1fr; }
-  .studio-art { width: min(90%, 390px); margin: 2rem auto 0; }
+  .rill-spotlight { grid-template-columns: 1fr; }
   .studio-hero .hero-title { font-size: clamp(2.5rem, 7.5vw, 4.2rem); }
   .rill-spotlight .product-body { grid-row: 1; }
   .catalog-heading, .media-heading { display: block; }

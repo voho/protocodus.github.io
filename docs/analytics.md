@@ -160,7 +160,9 @@ URLs remain unchanged; the collector records their product and platform CTA.
   `window.protocodusAnalytics.setEnabled(true/false)` when consent changes.
   Disabling also sets Google's `ga-disable-G-0TEFG3XSN5` flag. Any future GTM tags
   must independently honor the site's consent requirements.
-- Localhost/file previews do not send analytics by default. Before loading the
+- Only `protocodus.cz` and `www.protocodus.cz` send production analytics.
+  Localhost, file previews and Cloudflare branch/commit previews stay disabled,
+  including after a consent controller calls `setEnabled(true)`. Before loading the
   scripts, set `window.protocodusAnalyticsConfig = {debug: true}` to opt into a
   deliberate debug session. Debug events include GA4 `debug_mode`.
 - The scripts fail independently of navigation, media playback and games.
