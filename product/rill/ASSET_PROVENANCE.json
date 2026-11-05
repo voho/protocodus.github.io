@@ -1,11 +1,11 @@
 {
-  "checked_on": "2026-11-04",
+  "checked_on": "2026-11-05",
   "product": "Rill desktop music workstation",
   "source_repository": "https://github.com/protocodus/rill-daw",
-  "source_commit": "6ea0375dbc75d6275c9bf4d2ff38c8f97a0f492a",
+  "source_commit": "a5a9ce4b360ad9f303661d4e01039bcf3b7cda02",
   "source_version": "0.1.0",
   "licence": "MIT",
-  "basis": "Screenshots are the README captures of the running desktop app at the source commit. Copy follows the README at that commit.",
+  "basis": "README screenshots are unchanged at the reviewed main commit. Product copy follows the current README and USER_GUIDE. The download remains a rolling alpha, not a tagged release.",
   "derivatives": "Pillow 12.3.0: WebP quality 90, method 6, at source size; the og:image JPEG at quality 86.",
   "downloads": {
     "service": "nightly.link",
@@ -80,6 +80,15 @@
       "dimensions": [
         1600,
         1000
+      ]
+    },
+    "rill-logo.svg": {
+      "source": "crates/daw-ui/assets/brand/rill-logo-dark.svg",
+      "sha256": "e233558ab7476de53423727cad656e20d4f043cb166691094a00ba962f8bb671",
+      "bytes": 76716,
+      "dimensions": [
+        669.924,
+        208
       ]
     }
   }

@@ -93,6 +93,10 @@ const soundCloudPage = browser('https://protocodus.cz/product/youknow/', undefin
   setup({ document, Element }) { document.body.appendChild(new Element('iframe', { class: 'soundcloud-player' })); },
 });
 assert.equal(soundCloudPage.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'SoundCloud widgets also enable the shared media helper');
+const youtubePage = browser('https://protocodus.cz/product/acustra/', undefined, {
+  setup({ document, Element }) { document.body.appendChild(new Element('iframe', { class: 'youtube-player' })); },
+});
+assert.equal(youtubePage.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'YouTube-only pages load the shared media helper');
 
 const unsafe = browser('https://protocodus.cz/product/maremba/?email=private%40example.com&token=secret&utm_source=newsletter&utm_medium=email#private-board', undefined, {
   referrer: 'https://search.example/results?q=private%40example.com&utm_campaign=launch#private-fragment',

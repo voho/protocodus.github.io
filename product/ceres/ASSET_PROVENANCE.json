@@ -208,5 +208,57 @@
     },
     "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
     "source_branch": "release/dsp-20261103-evening"
+  },
+  "current_shop_gallery": {
+    "checked_on": "2026-11-05",
+    "version": "1.0.3",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/ceres-circuit-modelled-synth/",
+    "assets": [
+      {
+        "file": "product/ceres/shop-front.webp",
+        "role": "front",
+        "sha256": "8f5fb11024198fbebb345d1560d75ae4ca97eae26da274d4ed3c842da438d739",
+        "dimensions": [
+          1508,
+          1104
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres.png",
+        "source_sha256": "03c97f850a857f2596b169ebc8c72ac60be07d014ae43b9995ad5c7d23195329"
+      },
+      {
+        "file": "product/ceres/shop-rear.webp",
+        "role": "rear",
+        "sha256": "149858048ae5a13fae6a8e03d28912512376e54dc478d95e9a1acfdea53a819f",
+        "dimensions": [
+          1508,
+          1104
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres-rear.png",
+        "source_sha256": "a6f22a575d04901c589b3fd12c1443a3911d46d00a296a62b547f9208d23ff10"
+      },
+      {
+        "file": "product/ceres/shop-cover.webp",
+        "role": "cover",
+        "sha256": "49abfebadc5e85da0f353ede45dcd2b5cd1b4ab6c6f44fc77b3511a97b8fde53",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
+        "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+      },
+      {
+        "file": "product/ceres/shop-cover.png",
+        "role": "social",
+        "sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
+        "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+      }
+    ],
+    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
   }
 }

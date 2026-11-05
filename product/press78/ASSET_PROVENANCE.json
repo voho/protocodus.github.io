@@ -125,5 +125,57 @@
     },
     "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
     "source_branch": "release/dsp-20261103-evening"
+  },
+  "current_shop_gallery": {
+    "checked_on": "2026-11-05",
+    "version": "0.1.13",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/",
+    "assets": [
+      {
+        "file": "product/press78/shop-front.webp",
+        "role": "front",
+        "sha256": "c8e6530626b5cab86deedb65768b92f49312cdad75ff0d75fb3c51722ffe0ba3",
+        "dimensions": [
+          1508,
+          1104
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png",
+        "source_sha256": "1cf68c975d6eda1f8ac3f47e8b6f8f895a1fbff89fdc37b49f41af807e435886"
+      },
+      {
+        "file": "product/press78/shop-rear.webp",
+        "role": "rear",
+        "sha256": "4d709b8626b5e8f3f17c02d2e859464fd9399025e44faa0cc18084d5841caabc",
+        "dimensions": [
+          1508,
+          1104
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png",
+        "source_sha256": "a0cd61bdf48ffba0a10f5a6a4135bb0603bcbd963e77849ae8bccdaeee0358c4"
+      },
+      {
+        "file": "product/press78/shop-cover.webp",
+        "role": "cover",
+        "sha256": "c94c461f84746b4539a00712c8639c184431d20d9b5a6f969167df29d50cd823",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
+        "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+      },
+      {
+        "file": "product/press78/shop-cover.png",
+        "role": "social",
+        "sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
+        "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+      }
+    ],
+    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
   }
 }

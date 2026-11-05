@@ -11,11 +11,33 @@ function node(properties = {}) {
     emit(type, event = {}) { for (const callback of listeners.get(type) || []) callback(event); },
   }, properties);
 }
-function harness({ frames = [], active = true, soundCloud = false, asyncDuration = false } = {}) {
+function harness({ frames = [], youtubeFrames = [], active = true, soundCloud = false, asyncDuration = false, youtube = false, previousReady } = {}) {
   let clock = 0, trackIndex = 0;
   const events = [], scripts = [], widgetHandlers = new Map(), pendingDurations = [];
+  const timers = new Map(), players = [];
+  let timerId = 0;
   const video = node({ tagName: 'VIDEO', id: 'private@email.test', currentSrc: 'https://cdn.test/demo?token=secret', duration: 100, currentTime: 0, playbackRate: 1, paused: true, ended: false, seeking: false });
   const window = node({ protocodusAnalytics: { isEnabled: () => active, track: (name, params) => events.push({ name, params }) } });
+  window.setInterval = (callback) => { timers.set(++timerId, callback); return timerId; };
+  window.clearInterval = (id) => timers.delete(id);
+  if (previousReady) window.onYouTubeIframeAPIReady = previousReady;
+  const installYouTube = () => {
+    window.YT = { Player: function (frame, { events: handlers }) {
+      const player = {
+        frame, handlers, position: 0, duration: 100, rate: 1, state: -1,
+        getCurrentTime() { return this.position; },
+        getDuration() { return this.duration; },
+        getPlaybackRate() { return this.rate; },
+        getPlayerState() { return this.state; },
+        ready() { handlers.onReady({ target: this }); },
+        change(state) { this.state = state; handlers.onStateChange({ data: state, target: this }); },
+        error(code) { handlers.onError({ data: code, target: this }); },
+      };
+      players.push(player);
+      return player;
+    } };
+  };
+  if (youtube) installYouTube();
   if (soundCloud) {
     const widget = {
       bind(type, callback) { widgetHandlers.set(type, callback); },
@@ -27,14 +49,17 @@ function harness({ frames = [], active = true, soundCloud = false, asyncDuration
     window.SC = { Widget };
   }
   const document = {
-    querySelectorAll(selector) { return selector === 'video, audio' ? [video] : frames; },
-    createElement() { return node(); },
+    querySelectorAll(selector) {
+      return selector === 'video, audio' ? [video] : selector === 'iframe.soundcloud-player' ? frames
+        : selector === 'iframe.youtube-player' ? youtubeFrames : selector === 'script[src]' ? scripts : [];
+    },
+    createElement() { return node({ remove() { scripts.splice(scripts.indexOf(this), 1); } }); },
     head: { appendChild(script) { scripts.push(script); } },
   };
   const context = { window, document, location: { pathname: '/product/lamer/' }, performance: { now: () => clock }, URL, Set, Number };
   runInNewContext(source, context);
   return {
-    window, video, events, scripts, context,
+    window, video, events, scripts, context, players, timers,
     tick(position, seconds = 1) { clock += seconds * 1000; video.currentTime = position; video.emit('timeupdate'); },
     advance(position, seconds = 1) { clock += seconds * 1000; video.currentTime = position; },
     enable() { active = true; window.emit('protocodus:analytics-enabled'); },
@@ -43,6 +68,13 @@ function harness({ frames = [], active = true, soundCloud = false, asyncDuration
     soundTick(position, seconds = 1) { clock += seconds * 1000; widgetHandlers.get('PLAY_PROGRESS')?.({ currentPosition: position * 1000, title: 'never collect this', user: 'private@email.test' }); },
     trackIndex(index) { trackIndex = index; },
     flushDurations() { for (const callback of pendingDurations.splice(0)) callback(100000); },
+    youtubeReady() { installYouTube(); window.onYouTubeIframeAPIReady?.(); },
+    youtubeTick(position, seconds = 1, index = 0) {
+      clock += seconds * 1000; players[index].position = position;
+      for (const callback of [...timers.values()]) callback();
+    },
+    hide() { window.emit('pagehide'); },
+    show() { window.emit('pageshow'); },
   };
 }
 
@@ -155,4 +187,112 @@ soundConsent.disable(); soundConsent.soundTick(6); soundConsent.soundTick(7); so
 soundConsent.soundTick(8); soundConsent.soundTick(9); soundConsent.widget('PAUSE');
 assert.equal(soundConsent.events.at(-1).params.watched_seconds, 6, 'SoundCloud also excludes disabled intervals while retaining already watched coverage');
 
-console.log('Media analytics checks passed: real playback coverage, seek/replay deduplication, native errors, SoundCloud lifecycle, disabled mode and failure isolation.');
+const authoredSound = harness({ frames: [{ ...frame, dataset: { mediaId: 'youknow-sound-demos-v1' } }], soundCloud: true });
+authoredSound.widget('PLAY');
+assert.equal(authoredSound.events[0].params.media_id, 'youknow-sound-demos-v1-0', 'Authored playlist identity survives page reordering');
+const invalidSoundId = harness({ frames: [{ ...frame, dataset: { mediaId: 'private@email.test' } }], soundCloud: true });
+invalidSoundId.widget('PLAY');
+assert.equal(invalidSoundId.events[0].params.media_id, 'lamer-soundcloud-1-0', 'Invalid authored IDs cannot leak metadata');
+
+const youtubeFrame = { src: 'https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?enablejsapi=1&origin=https%3A%2F%2Fprotocodus.cz', dataset: { mediaId: 'acustra-overview' } };
+for (const src of [
+  'https://www.youtube-nocookie.com.evil.test/embed/M7lc1UVf-VE?enablejsapi=1',
+  'https://www.youtube.com/embed/short?enablejsapi=1',
+  'https://www.youtube.com/embed/M7lc1UVf-VE',
+]) assert.equal(harness({ youtubeFrames: [{ src }] }).scripts.length, 0, 'Only supported API-enabled YouTube embeds are observed');
+
+let previousReadyCalls = 0;
+const pendingYoutube = harness({ youtubeFrames: [youtubeFrame], previousReady() { previousReadyCalls++; throw new Error('another API consumer failed'); } });
+assert.equal(pendingYoutube.scripts.length, 1);
+assert.equal(pendingYoutube.scripts[0].src, 'https://www.youtube.com/iframe_api');
+pendingYoutube.enable();
+assert.equal(pendingYoutube.scripts.length, 1, 'Repeated enable events do not duplicate the API request');
+pendingYoutube.disable(); pendingYoutube.youtubeReady();
+assert.equal(previousReadyCalls, 1, 'An existing API-ready callback is preserved');
+assert.equal(pendingYoutube.players.length, 0, 'API readiness while disabled does not bind a player');
+pendingYoutube.enable();
+assert.equal(pendingYoutube.players.length, 1, 'Enable after API readiness binds once');
+pendingYoutube.disable(); pendingYoutube.players[0].state = 1; pendingYoutube.players[0].ready();
+assert.equal(pendingYoutube.timers.size, 0, 'A late player-ready callback cannot start disabled polling');
+assert.equal(pendingYoutube.events.length, 0);
+pendingYoutube.enable(); pendingYoutube.enable();
+assert.equal(pendingYoutube.players.length, 1, 'Player binding is idempotent');
+assert.equal(pendingYoutube.timers.size, 1, 'An already playing video resumes observation with one timer');
+assert.equal(pendingYoutube.events.filter(event => event.name === 'video_start').length, 1);
+runInNewContext(source, pendingYoutube.context);
+assert.equal(pendingYoutube.players.length, 1, 'Duplicate script execution cannot bind a second observer');
+
+const yt = harness({ youtubeFrames: [youtubeFrame], youtube: true });
+const player = yt.players[0];
+player.ready();
+assert.equal(yt.events.length, 0, 'Displaying or cueing a video is not a view');
+assert.equal(yt.timers.size, 0, 'Idle players do not poll');
+player.change(1); player.change(1);
+for (let second = 1; second <= 25; second++) yt.youtubeTick(second);
+assert.equal(yt.events.filter(event => event.name === 'video_start').length, 1, 'Duplicate PLAYING states retain one start');
+assert.deepEqual(yt.events.filter(event => event.name === 'video_progress').map(event => event.params.percent), [25]);
+assert.equal(yt.events[0].params.media_id, 'acustra-overview');
+assert.equal(yt.events[0].params.media_provider, 'youtube');
+player.change(3);
+assert.equal(yt.timers.size, 0, 'Buffering stops polling without reporting a user pause');
+assert.equal(yt.events.filter(event => event.name === 'video_pause').length, 0);
+player.change(1); player.rate = 2; yt.youtubeTick(26, 0.5);
+assert.equal(yt.events.filter(event => event.name === 'video_seek').length, 0, 'Faster playback is not mistaken for seeking');
+yt.youtubeTick(90);
+assert.equal(yt.events.at(-1).name, 'video_seek');
+assert.equal(yt.events.at(-1).params.watched_seconds, 26, 'Skipped footage does not contribute coverage');
+assert.deepEqual(yt.events.filter(event => event.name === 'video_progress').map(event => event.params.percent), [25]);
+player.change(2); player.change(2);
+assert.equal(yt.events.filter(event => event.name === 'video_pause').length, 1, 'Pause callbacks are deduplicated');
+assert.equal(yt.timers.size, 0);
+player.position = 0; player.change(1); player.rate = 1;
+for (let second = 1; second <= 25; second++) yt.youtubeTick(second);
+assert.deepEqual(yt.events.filter(event => event.name === 'video_progress').map(event => event.params.percent), [25], 'Rewatching the same range cannot earn another milestone');
+player.position = 100; player.change(0); player.change(0);
+assert.equal(yt.events.filter(event => event.name === 'video_complete').length, 1);
+assert.equal(yt.timers.size, 0, 'Ended players do not poll');
+player.position = 0; player.change(1);
+assert.equal(yt.events.filter(event => event.name === 'video_start').length, 2, 'A completed video can start a new replay');
+assert.equal(yt.events.filter(event => event.name === 'video_start').at(-1).params.watched_seconds, 0);
+yt.youtubeTick(1); player.error(153);
+assert.equal(yt.events.at(-1).name, 'video_error');
+assert.equal(yt.events.at(-1).params.error_code, 153);
+assert.equal(yt.events.at(-1).params.watched_seconds, 1);
+assert.equal(yt.timers.size, 0, 'Errored players do not keep polling');
+
+const ytConsent = harness({ youtubeFrames: [youtubeFrame], youtube: true });
+const consentPlayer = ytConsent.players[0]; consentPlayer.ready(); consentPlayer.change(1);
+for (let second = 1; second <= 5; second++) ytConsent.youtubeTick(second);
+ytConsent.disable();
+assert.equal(ytConsent.timers.size, 0, 'Disabling analytics stops YouTube polling');
+ytConsent.youtubeTick(15, 10); ytConsent.enable(); ytConsent.youtubeTick(16);
+consentPlayer.change(2);
+assert.equal(ytConsent.events.at(-1).params.watched_seconds, 6, 'Re-enabling preserves watched coverage and excludes the disabled interval');
+consentPlayer.change(1); ytConsent.hide();
+const beforeHidden = ytConsent.events.length;
+ytConsent.youtubeTick(20, 4); consentPlayer.error(100); ytConsent.enable();
+assert.equal(ytConsent.events.length, beforeHidden, 'Pagehide suppresses late callbacks even when the core remains enabled');
+assert.equal(ytConsent.timers.size, 0, 'Enable while in the back-forward cache cannot restart polling');
+ytConsent.show(); ytConsent.youtubeTick(21); consentPlayer.change(2);
+assert.equal(ytConsent.events.at(-1).params.watched_seconds, 7, 'Page restore excludes time away and resumes observation');
+consentPlayer.change(1); consentPlayer.getCurrentTime = () => { throw new Error('player unavailable'); };
+assert.doesNotThrow(() => ytConsent.youtubeTick(22));
+assert.equal(ytConsent.timers.size, 0, 'API read failures stop the observer without interrupting playback');
+ytConsent.window.protocodusAnalytics.track = () => { throw new Error('collector failed'); };
+assert.doesNotThrow(() => consentPlayer.error(5));
+
+const unobservedEnd = harness({ youtubeFrames: [youtubeFrame], youtube: true });
+const endedPlayer = unobservedEnd.players[0]; endedPlayer.ready(); endedPlayer.change(1); unobservedEnd.youtubeTick(1);
+unobservedEnd.disable(); endedPlayer.position = 100; endedPlayer.change(0); unobservedEnd.enable();
+assert.equal(unobservedEnd.events.filter(event => event.name === 'video_complete').length, 0, 'A completion while disabled is never sent on re-enable');
+endedPlayer.position = 0; endedPlayer.change(1); unobservedEnd.hide(); endedPlayer.position = 100; endedPlayer.state = 0; unobservedEnd.show();
+assert.equal(unobservedEnd.events.filter(event => event.name === 'video_complete').length, 0, 'A completion missed while in the back-forward cache is not invented on restore');
+
+const retryYoutube = harness({ youtubeFrames: [youtubeFrame] });
+retryYoutube.scripts[0].emit('error'); retryYoutube.enable();
+assert.equal(retryYoutube.scripts.length, 1, 'A failed API request can be retried without duplicate script nodes');
+retryYoutube.youtubeReady();
+assert.equal(retryYoutube.players.length, 1);
+assert.doesNotMatch(JSON.stringify(yt.events), /title|user|private|https:/, 'YouTube analytics sends stable IDs rather than titles or external metadata');
+
+console.log('Media analytics checks passed: native, SoundCloud and YouTube playback coverage, seek/replay deduplication, stable IDs, API/consent races, page restore, idle cleanup and failure isolation.');

@@ -1,0 +1,177 @@
+{
+  "verified_at": "2026-11-05",
+  "youtube_channel": "https://www.youtube.com/@protocodus",
+  "soundcloud_profile": "https://soundcloud.com/protocodus",
+  "videos": [
+    {
+      "id": "gt2cQCEUpkE",
+      "title": "Sakura Sakura on a physically modelled koto | Acukoto for Reason",
+      "product": "acukoto",
+      "url": "https://www.youtube.com/watch?v=gt2cQCEUpkE",
+      "kind": "video"
+    },
+    {
+      "id": "pwtF7NCkE8E",
+      "title": "short demo of Protocodus Press78 (modelled Yamaha PSS-780)",
+      "product": "press78",
+      "url": "https://www.youtube.com/watch?v=pwtF7NCkE8E",
+      "kind": "video"
+    },
+    {
+      "id": "zyRjbzP4e38",
+      "title": "short demo of Protocodus Ceres (modelled Yamaha CS-50)",
+      "product": "ceres",
+      "url": "https://www.youtube.com/watch?v=zyRjbzP4e38",
+      "kind": "video"
+    },
+    {
+      "id": "CccBIIxu_0o",
+      "title": "UPCOMING PLUGIN DEMO: Chopin Fantasie played on Protocodus Keyra prototype (physical model)",
+      "product": "keyra",
+      "url": "https://www.youtube.com/watch?v=CccBIIxu_0o",
+      "kind": "video"
+    },
+    {
+      "id": "OrO0kAaeIBw",
+      "title": "UPCOMING PLUGIN DEMO: Chopin prelude played on Protocodus Keyra prototype (physical model)",
+      "product": "keyra",
+      "url": "https://www.youtube.com/watch?v=OrO0kAaeIBw",
+      "kind": "video"
+    },
+    {
+      "id": "d9RcuxkWaRU",
+      "title": "UPCOMING PLUGIN DEMO: Chopin played on Protocodus Keyra prototype (physical model)",
+      "product": "keyra",
+      "url": "https://www.youtube.com/watch?v=d9RcuxkWaRU",
+      "kind": "video"
+    },
+    {
+      "id": "HKPNdCl9J4o",
+      "title": "🎧 Headphones ON: This Sound Moves Around Your Head | Protocodus Binaurel",
+      "product": "binaurel",
+      "url": "https://www.youtube.com/watch?v=HKPNdCl9J4o",
+      "kind": "video"
+    },
+    {
+      "id": "V4ql65WKI84",
+      "title": "Physical Anatomy of a Single Piano Note (C3) in Protocodus Keyra",
+      "product": "keyra",
+      "url": "https://www.youtube.com/watch?v=V4ql65WKI84",
+      "kind": "video"
+    },
+    {
+      "id": "fq-FiUwN-_g",
+      "title": "How to strum chords in Protocodus Acustra 1.9",
+      "product": "acustra",
+      "url": "https://www.youtube.com/watch?v=fq-FiUwN-_g",
+      "kind": "video"
+    },
+    {
+      "id": "5osSgrRHz5s",
+      "title": "Tarantella Napoletana - demo by Protocodus Respira | modelled accordeon | reason rack extension",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=5osSgrRHz5s",
+      "kind": "video"
+    },
+    {
+      "id": "0piPE0OI8p4",
+      "title": "Csárdás - demo by Protocodus Respira | modelled accordeon | reason rack extension",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=0piPE0OI8p4",
+      "kind": "video"
+    },
+    {
+      "id": "g-DRsow9518",
+      "title": "La Paloma - demo by Protocodus Respira | modelled accordeon | reason rack extension",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=g-DRsow9518",
+      "kind": "video"
+    },
+    {
+      "id": "TrR020lDM3o",
+      "title": "We Circuit-Modelled the CS-50 — Here's How It Sounds (Protocodus Ceres)",
+      "product": "ceres",
+      "url": "https://www.youtube.com/watch?v=TrR020lDM3o",
+      "kind": "video"
+    },
+    {
+      "id": "69vX3dx5RSY",
+      "title": "The Raw 2-Operator FM Beast You Didn't Know Existed (Protocodus Press78)",
+      "product": "press78",
+      "url": "https://www.youtube.com/watch?v=69vX3dx5RSY",
+      "kind": "video"
+    },
+    {
+      "id": "FbT5oEklkW4",
+      "title": "MP3 vs OGG: One Pass, Then Double Trouble | Lamer Degrader for Reason Rack",
+      "product": "lamer",
+      "url": "https://www.youtube.com/watch?v=FbT5oEklkW4",
+      "kind": "video"
+    },
+    {
+      "id": "u8HYUkeGLho",
+      "title": "Acustra is a great sounding modelled acoustic guitar for Reason - NO SAMPLES!",
+      "product": "acustra",
+      "url": "https://www.youtube.com/watch?v=u8HYUkeGLho",
+      "kind": "video"
+    },
+    {
+      "id": "qj9JLWgd1Ww",
+      "title": "A Marimba, Balafon & Kalimba With Zero Samples | Maremba for Reason",
+      "product": "maremba",
+      "url": "https://www.youtube.com/watch?v=qj9JLWgd1Ww",
+      "kind": "video"
+    },
+    {
+      "id": "IahFLFOksb4",
+      "title": "csárdás #rackextension #reasonstudios #accordion #physicalmodeling",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=IahFLFOksb4",
+      "kind": "short"
+    }
+  ],
+  "playlists": [
+    {
+      "id": 2324647203,
+      "title": "Ceres sound demos - v1",
+      "product": "ceres",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/ceres-sound-demos-v1",
+      "track_count": 1
+    },
+    {
+      "id": 2324646870,
+      "title": "Press78 sound demos - v1",
+      "product": "press78",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/press78-sound-demos-v1",
+      "track_count": 1
+    },
+    {
+      "id": 2322979656,
+      "title": "Binaurel Sound Demos (binaural panning for Reason)",
+      "product": "binaurel",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/binaurel-sound-demos",
+      "track_count": 2
+    },
+    {
+      "id": 2308692153,
+      "title": "Maremba sound demos - v1",
+      "product": "maremba",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/maremba-sound-demos-v1",
+      "track_count": 5
+    },
+    {
+      "id": 2307313401,
+      "title": "Acustra sound demos - v1",
+      "product": "acustra",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/acustra-sound-demos-v1",
+      "track_count": 1
+    },
+    {
+      "id": 2299308180,
+      "title": "YouKnow sound demos - v1",
+      "product": "youknow",
+      "permalink_url": "https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1",
+      "track_count": 7
+    }
+  ]
+}

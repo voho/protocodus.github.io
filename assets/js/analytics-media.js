@@ -4,14 +4,16 @@
   if (window.__protocodusMediaAnalytics) return;
   window.__protocodusMediaAnalytics = true;
 
+  let pageActive = true;
   const enabled = () => {
-    try { return window.protocodusAnalytics?.isEnabled() === true; } catch { return false; }
+    try { return pageActive && window.protocodusAnalytics?.isEnabled() === true; } catch { return false; }
   };
   const send = (name, params) => {
     try { if (enabled()) window.protocodusAnalytics.track(name, params); } catch { /* Playback remains independent. */ }
   };
   const number = (value) => Number.isFinite(value) && value >= 0 ? Math.round(value * 100) / 100 : 0;
   const product = location.pathname.match(/^\/product\/([a-z0-9-]+)\//)?.[1] || 'demo';
+  const mediaId = (element, fallback) => /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(element.dataset?.mediaId || '') ? element.dataset.mediaId : fallback;
   const sessions = [];
   // Count unique, continuously played ranges, so scrubbing or replaying a chapter
   // cannot report unwatched material as a progress milestone.
@@ -70,8 +72,8 @@
         }
       },
       pause(position, duration) { if (started && !completed) send(`${kind}_pause`, this.params(position, duration)); },
-      finish(position, duration) {
-        if (started && !completed) { completed = true; send(`${kind}_complete`, this.params(position, duration)); }
+      finish(position, duration, report = true) {
+        if (started && !completed) { completed = true; if (report) send(`${kind}_complete`, this.params(position, duration)); }
       },
     };
   }
@@ -81,11 +83,19 @@
   window.addEventListener('protocodus:analytics-enabled', () => {
     sessions.forEach((watched) => watched.suspend());
   });
+  window.addEventListener('pagehide', () => {
+    pageActive = false;
+    sessions.forEach((watched) => watched.suspend());
+  });
+  window.addEventListener('pageshow', () => {
+    pageActive = true;
+    sessions.forEach((watched) => watched.suspend());
+  });
 
   document.querySelectorAll('video, audio').forEach((media, index) => {
     const kind = media.tagName.toLowerCase() === 'video' ? 'video' : 'audio';
     // IDs are authored in source, never track titles, full media URLs or metadata.
-    const id = `${product}-${kind}-${index + 1}`;
+    const id = mediaId(media, `${product}-${kind}-${index + 1}`);
     const state = session(kind, 'html5', () => id);
     let playing = false;
     const progress = () => state.progress(media.currentTime, media.duration, playing && !media.seeking, media.playbackRate);
@@ -119,7 +129,8 @@
         try {
           const widget = window.SC.Widget(frame), events = window.SC.Widget.Events;
           let trackIndex = null, duration = 0, position = 0, playing = false, playRequest = 0;
-          const state = session('audio', 'soundcloud', () => `${product}-soundcloud-${index + 1}-${trackIndex ?? 0}`);
+          const id = mediaId(frame, `${product}-soundcloud-${index + 1}`);
+          const state = session('audio', 'soundcloud', () => `${id}-${trackIndex ?? 0}`);
           const updateDuration = () => widget.getDuration((milliseconds) => { duration = number(milliseconds / 1000); });
           widget.bind(events.READY, updateDuration);
           widget.bind(events.PLAY, () => {
@@ -160,4 +171,127 @@
   }
   bindSoundCloud();
   window.addEventListener('protocodus:analytics-enabled', bindSoundCloud);
+  window.addEventListener('pageshow', bindSoundCloud);
+
+  // Observe the official player API without controlling playback. Its state
+  // events have no seek event, so timeline jumps are detected while sampling.
+  const youtubePlayers = new Map();
+  let youtubeLoading = false, youtubeReadyHooked = false;
+  function youtubeVideoId(frame) {
+    try {
+      const url = new URL(frame.src);
+      if (!['https://www.youtube.com', 'https://www.youtube-nocookie.com'].includes(url.origin)) return '';
+      if (url.searchParams.get('enablejsapi') !== '1') return '';
+      return /^\/embed\/([a-z0-9_-]{11})$/i.exec(url.pathname)?.[1] || '';
+    } catch { return ''; }
+  }
+  function bindYouTube() {
+    if (!enabled()) return;
+    const frames = [...document.querySelectorAll('iframe.youtube-player')].filter(frame => youtubeVideoId(frame) && !youtubePlayers.has(frame));
+    if (!frames.length) return;
+    if (!window.YT?.Player) {
+      if (youtubeLoading) return;
+      youtubeLoading = true;
+      if (!youtubeReadyHooked) {
+        youtubeReadyHooked = true;
+        const previous = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function (...args) {
+          try { previous?.apply(this, args); } catch { /* Preserve other API users. */ }
+          youtubeLoading = false;
+          bindYouTube();
+        };
+      }
+      const existing = [...document.querySelectorAll('script[src]')].some(script => script.src === 'https://www.youtube.com/iframe_api');
+      if (!existing) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        script.addEventListener('error', () => { youtubeLoading = false; script.remove(); }, { once: true });
+        document.head.appendChild(script);
+      }
+      return;
+    }
+    frames.forEach(frame => {
+      const state = session('video', 'youtube', () => mediaId(frame, `${product}-youtube-${youtubeVideoId(frame)}`));
+      let player, ready = false, timer = null, lastState = -1, previous = null, sampledAt = 0;
+      let position = 0, duration = 0;
+      const stop = () => {
+        if (timer !== null) window.clearInterval(timer);
+        timer = null;
+      };
+      const suspend = () => { stop(); previous = null; state.watched.suspend(); };
+      const read = () => {
+        position = number(player.getCurrentTime());
+        duration = number(player.getDuration());
+        const rate = player.getPlaybackRate();
+        return Number.isFinite(rate) && rate > 0 ? rate : 1;
+      };
+      const sample = (playing) => {
+        if (!enabled()) { suspend(); return; }
+        const rate = read(), now = performance.now();
+        const delta = previous === null ? 0 : position - previous;
+        const maximum = playing ? Math.min(5, (now - sampledAt) / 1000 * rate * 2 + 0.5) : 0.5;
+        if (previous !== null && (delta < -0.5 || delta > maximum)) {
+          state.watched.jump(position);
+          send('video_seek', state.params(position, duration));
+        } else state.progress(position, duration, playing, rate);
+        previous = position; sampledAt = now;
+      };
+      const change = (next) => {
+        if (!ready || !enabled()) {
+          if (next === 0) state.finish(position, duration, false);
+          lastState = next; suspend(); return;
+        }
+        try {
+          if (next === 1) {
+            if (lastState !== 1 || timer === null) {
+              sample(false);
+              state.start(position, duration);
+            }
+            if (timer === null) timer = window.setInterval(() => {
+              try { sample(true); } catch { suspend(); }
+            }, 500);
+          } else {
+            sample(lastState === 1);
+            stop(); state.watched.suspend();
+            if (next === 2 && lastState !== 2) state.pause(position, duration);
+            if (next === 0) state.finish(position, duration);
+          }
+          lastState = next;
+        } catch { suspend(); }
+      };
+      const resume = () => {
+        if (!ready || !enabled()) { suspend(); return; }
+        try {
+          const next = player.getPlayerState();
+          if (next === 1) change(next);
+          else {
+            // Synchronizing after API readiness, disabled collection or BFCache
+            // must not invent a pause/completion that happened while unobserved.
+            read(); lastState = next; suspend();
+            if (next === 0) state.finish(position, duration, false);
+          }
+        } catch { suspend(); }
+      };
+      youtubePlayers.set(frame, { suspend, resume });
+      try {
+        player = new window.YT.Player(frame, { events: {
+          onReady(event) { player = event.target; ready = true; resume(); },
+          onStateChange(event) { change(event.data); },
+          onError(event) {
+            suspend();
+            send('video_error', { ...state.params(position, duration), error_code: number(event.data) });
+          },
+        } });
+      } catch { youtubePlayers.delete(frame); }
+    });
+  }
+  function resumeYouTube() {
+    bindYouTube();
+    youtubePlayers.forEach(controller => controller.resume());
+  }
+  bindYouTube();
+  window.addEventListener('protocodus:analytics-enabled', resumeYouTube);
+  window.addEventListener('pagehide', () => { youtubePlayers.forEach(controller => controller.suspend()); });
+  window.addEventListener('pageshow', resumeYouTube);
 })();

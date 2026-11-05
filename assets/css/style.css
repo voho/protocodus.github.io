@@ -141,7 +141,7 @@ p { text-wrap: pretty; }
 .showcase { border-top: 0; }
 
 /* Complete instrument previews: never crop controls to fit a card. */
-.p-electry, .p-acustra, .p-youknow, .p-maremba { --signal: var(--brand-cabbage); }
+.p-acustra, .p-youknow, .p-maremba { --signal: var(--brand-cabbage); }
 .p-podcare { --signal: var(--brand-primrose); }
 .p-lamer { --signal: #b4cc88; }
 .p-ceres, .p-press78 { --signal: var(--brand-cabbage); }

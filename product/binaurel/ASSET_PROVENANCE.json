@@ -32,5 +32,68 @@
     "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  },
+  "current_shop_gallery": {
+    "checked_on": "2026-11-05",
+    "version": "0.1.0",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/binaurel-advanced-panner/",
+    "assets": [
+      {
+        "file": "product/binaurel/shop-front.webp",
+        "role": "front",
+        "sha256": "9ccb82c5f362ea4accd83b1950ee7f199fd85d095bfbc56a3964a2fd4f6ba9dd",
+        "dimensions": [
+          1508,
+          552
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Front.png",
+        "source_sha256": "708544816584c886b9408db555e8dd13e995b9e15cb627817e65bf602443e5a5"
+      },
+      {
+        "file": "product/binaurel/shop-rear.webp",
+        "role": "rear",
+        "sha256": "972c2899ba5f9a37521f49ac1e2c4e09c13ec6b2dda3d68c8b334cf4bf612cb8",
+        "dimensions": [
+          1508,
+          552
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Back.png",
+        "source_sha256": "3aa40c0140485b5b637c38c902b8173eeff13b2923f961a6ef515eb2a8147e54"
+      },
+      {
+        "file": "product/binaurel/shop-banner.webp",
+        "role": "banner",
+        "sha256": "98aa9a501fd09f6d6b8d2e1482c0d042d8a6adc26ff58a4436709424791bf7f9",
+        "dimensions": [
+          1650,
+          600
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Orbit_Banner_1650x600.png",
+        "source_sha256": "b31e255e1cf4d0c96350b9aece0aa954c73404ac5a117a3f3d82e8dc48b17a1d"
+      },
+      {
+        "file": "product/binaurel/shop-cover.webp",
+        "role": "cover",
+        "sha256": "9ed4b2916ade1d1440240ae93fd995db344e01bc2d8b59b50d2317e03761af63",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png",
+        "source_sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720"
+      },
+      {
+        "file": "product/binaurel/shop-cover.png",
+        "role": "social",
+        "sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png",
+        "source_sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720"
+      }
+    ],
+    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
   }
 }

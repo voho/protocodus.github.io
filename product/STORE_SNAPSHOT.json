@@ -1,0 +1,433 @@
+{
+  "verified_at": "2026-11-05",
+  "developer_url": "https://www.reasonstudios.com/shop/browse/?developer=Protocodus",
+  "products": [
+    {
+      "product": "acustra",
+      "title": "Acustra Acoustic Guitar",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+      "version": "1.9.0",
+      "release_date": "2026-10-20",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/acustra/shop-front.webp",
+          "role": "front",
+          "sha256": "3ef4dec73389c0c78ccaa844ebbc148d7831c66122fde19795ec64a95a3812d4",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png",
+          "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557"
+        },
+        {
+          "file": "product/acustra/shop-rear.webp",
+          "role": "rear",
+          "sha256": "42de40f81950883fa2248f08adc0ae4aeab36d95c9ad131db404d58abd3da806",
+          "dimensions": [
+            1457,
+            1200
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png",
+          "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a"
+        },
+        {
+          "file": "product/acustra/shop-cover.webp",
+          "role": "cover",
+          "sha256": "763d14480b1ac877e82b9257f85306b148fa06a32af0255fe7670d92b25bc5f5",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
+          "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+        },
+        {
+          "file": "product/acustra/shop-cover.png",
+          "role": "social",
+          "sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
+          "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+        }
+      ]
+    },
+    {
+      "product": "binaurel",
+      "title": "Binaurel Advanced Panner",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/binaurel-advanced-panner/",
+      "version": "0.1.0",
+      "release_date": "2026-11-04",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Back.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Orbit_Banner_1650x600.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/binaurel/shop-front.webp",
+          "role": "front",
+          "sha256": "9ccb82c5f362ea4accd83b1950ee7f199fd85d095bfbc56a3964a2fd4f6ba9dd",
+          "dimensions": [
+            1508,
+            552
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Front.png",
+          "source_sha256": "708544816584c886b9408db555e8dd13e995b9e15cb627817e65bf602443e5a5"
+        },
+        {
+          "file": "product/binaurel/shop-rear.webp",
+          "role": "rear",
+          "sha256": "972c2899ba5f9a37521f49ac1e2c4e09c13ec6b2dda3d68c8b334cf4bf612cb8",
+          "dimensions": [
+            1508,
+            552
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Back.png",
+          "source_sha256": "3aa40c0140485b5b637c38c902b8173eeff13b2923f961a6ef515eb2a8147e54"
+        },
+        {
+          "file": "product/binaurel/shop-banner.webp",
+          "role": "banner",
+          "sha256": "98aa9a501fd09f6d6b8d2e1482c0d042d8a6adc26ff58a4436709424791bf7f9",
+          "dimensions": [
+            1650,
+            600
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Binaurel/pictures/Binaurel_Orbit_Banner_1650x600.png",
+          "source_sha256": "b31e255e1cf4d0c96350b9aece0aa954c73404ac5a117a3f3d82e8dc48b17a1d"
+        },
+        {
+          "file": "product/binaurel/shop-cover.webp",
+          "role": "cover",
+          "sha256": "9ed4b2916ade1d1440240ae93fd995db344e01bc2d8b59b50d2317e03761af63",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png",
+          "source_sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720"
+        },
+        {
+          "file": "product/binaurel/shop-cover.png",
+          "role": "social",
+          "sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png",
+          "source_sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720"
+        }
+      ]
+    },
+    {
+      "product": "ceres",
+      "title": "Ceres Circuit-Modelled Synth",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/ceres-circuit-modelled-synth/",
+      "version": "1.0.3",
+      "release_date": "2026-11-02",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres-rear.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/ceres/shop-front.webp",
+          "role": "front",
+          "sha256": "8f5fb11024198fbebb345d1560d75ae4ca97eae26da274d4ed3c842da438d739",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres.png",
+          "source_sha256": "03c97f850a857f2596b169ebc8c72ac60be07d014ae43b9995ad5c7d23195329"
+        },
+        {
+          "file": "product/ceres/shop-rear.webp",
+          "role": "rear",
+          "sha256": "149858048ae5a13fae6a8e03d28912512376e54dc478d95e9a1acfdea53a819f",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres-rear.png",
+          "source_sha256": "a6f22a575d04901c589b3fd12c1443a3911d46d00a296a62b547f9208d23ff10"
+        },
+        {
+          "file": "product/ceres/shop-cover.webp",
+          "role": "cover",
+          "sha256": "49abfebadc5e85da0f353ede45dcd2b5cd1b4ab6c6f44fc77b3511a97b8fde53",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
+          "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+        },
+        {
+          "file": "product/ceres/shop-cover.png",
+          "role": "social",
+          "sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
+          "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+        }
+      ]
+    },
+    {
+      "product": "lamer",
+      "title": "Lamer Degrader",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
+      "version": "1.0.0",
+      "release_date": "2026-10-21",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/lamer/shop-front.webp",
+          "role": "front",
+          "sha256": "0bd1f476b70bddf7697e5facffb21aeac58e6a916d8a63ea8492009d2228156a",
+          "dimensions": [
+            1600,
+            293
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png",
+          "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198"
+        },
+        {
+          "file": "product/lamer/shop-rear.webp",
+          "role": "rear",
+          "sha256": "2c578aba4de987e007ec3d21e0c3b0ccb2e8623a22180bd6c5d399d41dd6c0d7",
+          "dimensions": [
+            1600,
+            293
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png",
+          "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1"
+        },
+        {
+          "file": "product/lamer/shop-cover.webp",
+          "role": "cover",
+          "sha256": "e520f1911413528323c24e9341221cba0e604e37d6bf816e13fe0b7dc22a1d7f",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
+          "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
+        },
+        {
+          "file": "product/lamer/shop-cover.png",
+          "role": "social",
+          "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
+          "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
+        }
+      ]
+    },
+    {
+      "product": "maremba",
+      "title": "Maremba",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
+      "version": "1.5.7",
+      "release_date": "2026-10-13",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/maremba/shop-front.webp",
+          "role": "front",
+          "sha256": "364893059fcf9444eeb00c8de12f3744452a66dd8496ab66f348b1e9d8693ee1",
+          "dimensions": [
+            1600,
+            1171
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png",
+          "source_sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a"
+        },
+        {
+          "file": "product/maremba/shop-rear.webp",
+          "role": "rear",
+          "sha256": "3225190bc39f0bca4e17c991cc1effbb11f97f48a9aa7339483cad49a09155a1",
+          "dimensions": [
+            1600,
+            1171
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png",
+          "source_sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12"
+        },
+        {
+          "file": "product/maremba/shop-cover.webp",
+          "role": "cover",
+          "sha256": "e3d29ebf481c3ff8bd457bff01a24710e667c89d3b80f4ef19373c889ff48c48",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
+          "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+        },
+        {
+          "file": "product/maremba/shop-cover.png",
+          "role": "social",
+          "sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
+          "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+        }
+      ]
+    },
+    {
+      "product": "press78",
+      "title": "Press78 FM Synth",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/",
+      "version": "0.1.13",
+      "release_date": "2026-11-02",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/press78/shop-front.webp",
+          "role": "front",
+          "sha256": "c8e6530626b5cab86deedb65768b92f49312cdad75ff0d75fb3c51722ffe0ba3",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png",
+          "source_sha256": "1cf68c975d6eda1f8ac3f47e8b6f8f895a1fbff89fdc37b49f41af807e435886"
+        },
+        {
+          "file": "product/press78/shop-rear.webp",
+          "role": "rear",
+          "sha256": "4d709b8626b5e8f3f17c02d2e859464fd9399025e44faa0cc18084d5841caabc",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png",
+          "source_sha256": "a0cd61bdf48ffba0a10f5a6a4135bb0603bcbd963e77849ae8bccdaeee0358c4"
+        },
+        {
+          "file": "product/press78/shop-cover.webp",
+          "role": "cover",
+          "sha256": "c94c461f84746b4539a00712c8639c184431d20d9b5a6f969167df29d50cd823",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
+          "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+        },
+        {
+          "file": "product/press78/shop-cover.png",
+          "role": "social",
+          "sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
+          "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+        }
+      ]
+    },
+    {
+      "product": "youknow",
+      "title": "YouKnow Circuit-Modelled Synth",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+      "version": "1.3.5",
+      "release_date": "2026-10-05",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/youknow/shop-front.webp",
+          "role": "front",
+          "sha256": "1cd0681d92da59375d5030dac28aa08d75effdaefd24e4229908c7f15f5c5177",
+          "dimensions": [
+            1600,
+            1171
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png",
+          "source_sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac"
+        },
+        {
+          "file": "product/youknow/shop-rear.webp",
+          "role": "rear",
+          "sha256": "ecab6f0c8fb1d673e8d0ae9060b90fa1cd4e145684b87adb9d03321a27208fdb",
+          "dimensions": [
+            1600,
+            1171
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png",
+          "source_sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3"
+        },
+        {
+          "file": "product/youknow/shop-cover.webp",
+          "role": "cover",
+          "sha256": "8f0651ac9a6f9636fd2931c1230c2ba6f0cc6efbcdd93a73a04ad62c653f75c4",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
+          "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+        },
+        {
+          "file": "product/youknow/shop-cover.png",
+          "role": "social",
+          "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
+          "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+        }
+      ]
+    }
+  ],
+  "unpublished": [
+    {
+      "product": "respira",
+      "status": "awaiting_publication",
+      "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
+      "http_status": 404,
+      "submitted_version": "0.1.14d1"
+    }
+  ]
+}

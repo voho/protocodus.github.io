@@ -1,46 +1,59 @@
 # Product media and claim sources
 
-Product images reviewed 28 October 2026 against the current public Reason Shop
-galleries. The product catalog and instrument details describe
-Reason Rack Extensions. Podcare remains a separate podcast production tool.
-Product pages cover Rack Extensions and Podcare only; instruments without a
-Rack device, such as Septum, have no page.
+## Current verification — 5 November 2026
 
-## Current media
+The public Reason Shop is authoritative for availability, published versions and
+the artwork presented on released product pages. Local Rack candidates remain
+separately labelled. The complete URLs, dimensions and SHA-256 hashes are in
+[`STORE_SNAPSHOT.json`](STORE_SNAPSHOT.json) and each product’s
+`ASSET_PROVENANCE.json` under `current_shop_gallery`.
 
-| Product | Source | Web media |
+| Product | Published version | Current panel dimensions |
 | --- | --- | --- |
-| YouKnow | Public Shop listing 1.3.5; current gallery rear prints 1.3.5f5. Exact URLs and SHA-256 records are in `youknow/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack WebPs, 1600 × 1171; 800 × 800 public Shop thumbnail; proportional panel/rear/card aliases; the Shop's 1.3.5f5 user guide. |
-| Maremba | Public Shop listing 1.5.7; current gallery rear prints 1.5.7f5. Exact URLs and SHA-256 records are in `maremba/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 1171; card 880 × 644; exact 800 × 800 public Shop thumbnail; the Shop's 1.5.7f5 player guide. |
-| Acustra | Public Shop listing 1.9.0; current gallery rear prints 1.9.0d2. Exact URLs and SHA-256 records are in `acustra/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and rack/panel/rear WebP aliases, 1457 × 1200; card 880 × 725; the Shop's 1.9.0 Quick Start. |
-| Electry | Rack 1.2.8d2 panel renders committed in `Examples/Electry/Design/Rendered/`, main revision `88c0d09e`; the front adds the pitch and mod wheels, Bend Range and Sustain. Records in [`electry/ASSET_PROVENANCE.json`](electry/ASSET_PROVENANCE.json). | `electry-rack-front.webp` and `electry-rack-rear.webp`, 754 × 621 |
-| Ceres | Rack 1.0.3f1 first-public-release candidate built 23 October 2026, from the release materials in the Rack repository's `dist/` at main `88c0d09e` (the front and thumbnail are unchanged from 1.0.0f1); exact release sources, default panel state and SHA-256 records in [`ceres/ASSET_PROVENANCE.json`](ceres/ASSET_PROVENANCE.json). | Complete front/back PNGs and matching WebPs, 754 × 414; 800 × 800 thumbnail; four-page candidate player guide |
-| Press78 | Rack 0.1.13b9 panel previews committed in `Examples/Press78/Docs/screenshots/`, main revision `88c0d09e`. Records in [`press78/ASSET_PROVENANCE.json`](press78/ASSET_PROVENANCE.json). | `press78-rack-front.webp` and `press78-rack-rear.webp`, 754 × 552 |
-| Aculele | Rack 0.4.13d1 panel previews from `Examples/Aculele/Design/render_panels.py --review`, main revision `88c0d09e`; no SDK build. Records in [`aculele/ASSET_PROVENANCE.json`](aculele/ASSET_PROVENANCE.json). | `aculele-rack-front.webp` and `aculele-rack-rear.webp`, 1508 × 1104; 800 × 800 thumbnail |
-| Respira | Rack 0.1.14d1 release images (`dist/Respira_Front.png`, `dist/Respira_Back.png`) from reason-rack-extensions main `c7325aaa`, the version uploaded to the Reason Shop on 4 November 2026; the approved cover thumbnail is unchanged. Records in [`respira/ASSET_PROVENANCE.json`](respira/ASSET_PROVENANCE.json). | `respira-rack-front.webp` and `respira-rack-rear.webp`, 1508 × 552; 800 × 800 thumbnail |
-| Aculyre | Rack 0.5.0d1 panel previews from `Examples/Aculyre/Design/render_panels.py`, main revision `88c0d09e`; no SDK build. Records in [`aculyre/ASSET_PROVENANCE.json`](aculyre/ASSET_PROVENANCE.json). | `aculyre-rack-front.webp` and `aculyre-rack-rear.webp`, 1508 × 828; 800 × 800 thumbnail |
-| Lamer Degrader | Public Shop listing 1.0.0; existing full front/rear PNGs and thumbnail verified byte-for-byte against current public Shop originals. Exact URLs and hashes are in `lamer/ASSET_PROVENANCE.json`. | Complete front/rear PNGs and WebPs, 1600 × 293; 800 × 800 thumbnail. Existing mascots, poster and demonstration video retained. |
-| Podcare | Existing repository illustration | Existing card retained |
+| Acustra Acoustic Guitar | 1.9.0 | 1457 × 1200 |
+| Binaurel Advanced Panner | 0.1.0 | 1508 × 552 |
+| Ceres Circuit-Modelled Synth | 1.0.3 | 1508 × 1104 |
+| Lamer Degrader | 1.0.0 | 1600 × 293 |
+| Maremba | 1.5.7 | 1600 × 1171 |
+| Press78 FM Synth | 0.1.13 | 1508 × 1104 |
+| YouKnow Circuit-Modelled Synth | 1.3.5 | 1600 × 1171 |
 
-Released-product panel PNGs and the Shop thumbnails used on this site are exact
-copies of the current public Shop originals. Updated WebP conversions preserve
-the complete panel and its aspect ratio, using quality 90 and method 6;
-proportional size changes use Lanczos resizing. Complete Rack panels include
-controls; bare panel backgrounds are not used as interface screenshots.
+The `shop-front.webp` and `shop-rear.webp` images retain full original dimensions
+and aspect ratio (WebP quality 92). Their full-size links point to the same
+verified images. Every released product has the current 800 × 800 Shop cover
+in WebP and an unchanged PNG for social sharing. Binaurel’s official banner is
+also retained. Older files and receipts remain for historical provenance.
 
-On 28 October 2026 the public listings read Acustra 1.9.0, Maremba 1.5.7,
-YouKnow 1.3.5 and Lamer 1.0.0. Each version on this site is the one its Shop
-listing states; no release version is inferred from an image caption or local
-source metadata. The Shop keeps a product's first release date when its version
-changes, so the dates shown are first-release dates.
+Respira has been submitted, but its public listing returned HTTP 404 and it
+was absent from the developer catalog on the verification date. Its page
+therefore describes an instrument awaiting publication. Unreleased Electry and
+Clareq are excluded from the public catalog and sitemap. Other development
+previews retain their explicitly identified source revisions.
 
-The guides offered are the Shop's own current PDFs. Earlier source receipts
-remain in each product's provenance record. Upcoming Ceres, Electry and Press78
-panels follow their current Rack builds; none of them is presented as a Shop
-release. Detailed model research and earlier
-validation below retain their original revision scope.
+RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
+against `protocodus/rill-daw` main `a5a9ce4b360ad9f303661d4e01039bcf3b7cda02`.
+The page uses the official logo and five real application captures; imagery
+and feature sources are recorded in [`rill/ASSET_PROVENANCE.json`](rill/ASSET_PROVENANCE.json).
+The five platform downloads follow the latest successful main build; this is
+not a stable release. Podcare retains its existing illustration.
 
-## Claim boundaries
+## Video and audio inventory
+
+[`MEDIA.json`](MEDIA.json) records all 18 public Protocodus YouTube uploads and
+six SoundCloud playlists, containing 17 demos, verified on 5 November 2026.
+The pages embed playlists only, never standalone SoundCloud tracks. Prototype
+videos and older YouKnow V1 recordings are labelled. Run
+`node scripts/render-media.mjs` to regenerate the crawlable HTML.
+
+`scripts/catalog-live-check.mjs` checks public availability, published versions,
+gallery changes, new YouTube uploads, playlist embeds and RILL download links.
+It runs weekly and on demand, reports confirmed drift separately from network
+failures, and never updates content automatically.
+
+The older notes below document their original revisions; they do not override
+the current verified publication state above.
+
+## Historical claim research (revision-specific)
 
 The following notes retain the earlier model research and candidate claim
 boundaries; candidate-only features are not evidence of Shop publication.
@@ -58,12 +71,6 @@ features. The relevant source is under `Examples/<Product>` in the
   piezo electronics, with 1.9.0's per-contact pitch variation and player contact
   on the body. Four body choices, two active woods, four tunings and eight
   Rack patches follow the exposed edition. Desktop-only features are omitted.
-- Electry: eight-string physical model, seven articulations and direct pickup
-  output. The Rack edition bypasses the desktop amp/effect chain. CC1 controls
-  palm muting; CC2 controls body resonance. 23 front controls, pitch and mod
-  wheels, a 0–24 semitone Bend Range (2 by default) and a Sustain switch that
-  damps or rings released notes, from the Rack README and changelog at
-  1.2.8d2. No MPE claim is made.
 - Maremba: bar/tine modes, nonlinear contact, resonators, sympathetic coupling,
   membranes, Close/Room/Piezo paths, seven audio outputs and 20 Rack patches.
   Drive affects Main; direct captures retain their independent calibration.
@@ -134,7 +141,7 @@ lists four published products: [YouKnow](https://www.reasonstudios.com/shop/rack
 [Maremba](https://www.reasonstudios.com/shop/rack-extension/maremba/),
 [Acustra](https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/)
 and [Lamer Degrader](https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/).
-Ceres, Electry and Press78 retain their upcoming-product status; Aculele, Respira
+Ceres and Press78 retain their upcoming-product status; Aculele, Respira
 and Aculyre join them as coming soon.
 
 The following [SoundCloud sets page](https://soundcloud.com/protocodus/sets)
@@ -167,9 +174,9 @@ Jukebox SDK.
 The other coming-soon pages follow the same revision. Ceres moves from the
 1.0.0f1 candidate to the built 1.0.3f1 first-release candidate: its rear panel
 and player guide are the Rack repository's `dist/` copies, and the front and
-thumbnail are byte-identical. Press78 (0.1.13b9) and Electry (1.2.8d2) show
+thumbnail are byte-identical. Press78 (0.1.13b9) shows
 their current panels, whose fronts add pitch and modulation wheels, Double on
-Press78 and Bend Range and Sustain on Electry; their pages describe those.
+Press78; its page describes those.
 Newer Ceres source (1.0.5f1, CPU work) was built for Recon on 27 October but
 has no release materials, so the page stays on 1.0.3f1.
 
