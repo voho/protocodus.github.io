@@ -41,7 +41,6 @@
 .rill-feature-list { margin-top: 2rem; border-top: 1px solid var(--line); }
 .rill-feature-list li { border-bottom: 1px solid var(--line); padding-block: .75rem; font-size: .8rem; color: var(--fg-muted); }
 .rill-feature-list li::before { content: '↗'; color: var(--accent); margin-right: .8rem; }
-.rill-side-note { margin-top: 2rem; padding-left: 1rem; border-left: 2px solid var(--accent); color: var(--fg-muted); font-size: .85rem; }
 .rill-ai { background: #dce9dd; color: #172b21; --fg: #172b21; --fg-muted: #40594a; --fg-faint: #48614e; --line: #172b2120; --signal: #234b35; --accent: #234b35; }
 .rill-ai .tag { color: #42694e; }
 .rill-ai blockquote { font-size: 1.25rem; font-weight: 500; line-height: 1.5; letter-spacing: -.025em; margin-top: 1.5rem; padding-left: 1rem; border-left: 2px solid #42694e; }

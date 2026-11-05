@@ -37,14 +37,14 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const directories = await readdir(resolve(root, 'product'), { withFileTypes: true });
 const productRoutes = [];
 for (const entry of directories) {
-  if (!entry.isDirectory() || entry.name === 'releases') continue;
+  if (!entry.isDirectory()) continue;
   if (await stat(resolve(root, 'product', entry.name, 'index.html')).catch(() => null)) productRoutes.push(`/product/${entry.name}/`);
 }
 assert.ok(productRoutes.includes('/product/rill/'), 'RILL must be a published product route');
-const allRoutes = ['/', ...productRoutes.sort(), '/product/releases/'];
+const allRoutes = ['/', ...productRoutes.sort()];
 const cases = [
   ...[390, 1440].flatMap(width => allRoutes.map(route => ({ width, route }))),
-  ...[320, 768].flatMap(width => ['/', '/product/rill/', '/product/acustra/', '/product/releases/'].map(route => ({ width, route }))),
+  ...[320, 768].flatMap(width => ['/', '/product/rill/', '/product/acustra/'].map(route => ({ width, route }))),
 ];
 const issues = [], reports = [], externalRequests = new Set();
 let browser, page, current = 'startup';

@@ -12,11 +12,11 @@ for (const product of new Set([...media.videos, ...media.playlists].map(item => 
   const note = product === 'youknow' ? 'These V1 recordings demonstrate an earlier version of YouKnow.'
     : ['keyra', 'acukoto', 'respira'].includes(product) ? 'Performances and walkthroughs from the instrument in development. The interface and sound may evolve before release.'
     : product === 'binaurel' ? 'Put on headphones to hear the movement, height and distance.'
-    : 'Hear the character. Watch the controls. Find a starting point for your next track.';
+    : '';
   const content = `    <!-- product-media:start -->
     <section class="band product-media" id="listen">
       <div class="wrap">
-        <div class="media-heading"><div><span class="tag">Watch &amp; listen</span><h2 class="title">${escape(name)} in action.</h2></div><p class="lede">${note}</p></div>
+        <div class="media-heading"><div><span class="tag">Watch &amp; listen</span><h2 class="title">${escape(name)} in action.</h2></div>${note ? `<p class="lede">${note}</p>` : ''}</div>
         ${videos.length ? `<div class="video-grid">${videos.map(video => `
           <figure class="demo-video${video.kind === 'short' ? ' demo-video-short' : ''}">
             <iframe class="youtube-player" data-media-id="${product}-${video.id}" width="560" height="315" loading="lazy" title="${escape(video.title)}" src="https://www.youtube-nocookie.com/embed/${video.id}?enablejsapi=1&amp;origin=https%3A%2F%2Fprotocodus.cz&amp;playsinline=1&amp;rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>

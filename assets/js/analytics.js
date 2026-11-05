@@ -28,7 +28,7 @@
   const game = /^\/fun\/([^/]+)\//.exec(path)?.[1];
   const context = {
     page_type: products.has(product) ? 'product' : games.has(game) ? 'game'
-      : path.startsWith('/product/releases/') ? 'releases' : path.startsWith('/fun/') ? 'games' : 'studio',
+      : path.startsWith('/fun/') ? 'games' : 'studio',
     page_path: path,
     ...(products.has(product) ? { product_id: product } : {}),
     ...(games.has(game) ? { game_name: game } : {}),

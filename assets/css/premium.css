@@ -6,8 +6,6 @@
 .studio-hero .hero-title em { font-family: Georgia, serif; font-weight: 400; color: var(--accent); }
 .studio-hero .hero-sub { font-size: 1.05rem; max-width: 50ch; }
 .studio-hero .tag { font-size: .72rem; }
-.studio-hero-note { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin-top: 3rem; border-top: 1px solid var(--line); padding-top: 1.2rem; font-size: .75rem; color: var(--fg-faint); }
-.studio-hero-note a { color: var(--accent); }
 .studio-page .showcase { border-top: 1px solid var(--line); }
 .studio-page #products > .wrap > .head { max-width: 800px; }
 .studio-page .rill-feature { margin-block: 3rem 4.5rem; }
@@ -70,5 +68,4 @@
 @media (max-width: 540px) {
   .studio-page #products .product-grid { grid-template-columns: 1fr; gap: 2.5rem; }
   .studio-page #products .product-grid .p-podcare { grid-template-columns: 1fr; gap: 1rem; }
-  .studio-hero-note { margin-top: 2rem; }
 }

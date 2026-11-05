@@ -34,7 +34,7 @@ function parseBody(html, { document, Element }) {
 }
 
 let covered = 0, chapters = 0, coveredButtons = 0, ignoredControls = 0;
-for (const relative of [...products.map(product => `product/${product}/index.html`), 'product/releases/index.html', 'product/releases/archive-2026-10-12.html', 'index.html', 'fun/index.html']) {
+for (const relative of [...products.map(product => `product/${product}/index.html`), 'index.html', 'fun/index.html']) {
   const html = readFileSync(new URL(relative, root), 'utf8');
   const href = 'https://protocodus.cz/' + relative.replace(/index\.html$/, '');
   const page = browser(href, undefined, { setup: dom => parseBody(html, dom) });
@@ -171,12 +171,12 @@ assert.equal(homepage.gaEvents('select_item').length, 1, 'Marked product cards p
 assert.equal(homepage.gaEvents('select_item')[0][2].cta_location, 'product_card', 'Cards without an enclosing section have a fixed placement');
 for (const [tag, attrs, expected] of [['header', {}, 'header'], ['footer', {}, 'footer'], ['div', {}, 'content']]) {
   const parent = add(tag, attrs);
-  const anchor = markedLink('/product/releases/', `location_${expected}`, 'view_details', parent);
+  const anchor = markedLink('/#products', `location_${expected}`, 'view_details', parent);
   page.click(anchor);
   assert.equal(page.gaEvents().at(-1)[2].cta_location, expected, 'Unsectioned controls use fixed source placements');
 }
 
-const unmarked = add('a', { href: '/product/releases/' }, hero);
+const unmarked = add('a', { href: '/#products' }, hero);
 page.click(unmarked);
 assert.equal(page.gaEvents().at(-1)[2].cta_id, undefined, 'Ordinary links remain trackable without invented CTA ids');
 

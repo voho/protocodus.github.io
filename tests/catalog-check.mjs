@@ -7,8 +7,7 @@ const read = path => readFileSync(new URL(path, root), 'utf8');
 const catalog = JSON.parse(read('product/STORE_SNAPSHOT.json'));
 const media = JSON.parse(read('product/MEDIA.json'));
 const home = read('index.html');
-const releases = read('product/releases/index.html');
-const pages = ['index.html', 'product/releases/index.html', 'product/releases/archive-2026-10-12.html', ...readdirSync(new URL('product/', root), { withFileTypes: true }).filter(e => e.isDirectory() && e.name !== 'releases' && existsSync(new URL(`product/${e.name}/index.html`, root))).map(e => `product/${e.name}/index.html`)];
+const pages = ['index.html', ...readdirSync(new URL('product/', root), { withFileTypes: true }).filter(e => e.isDirectory() && existsSync(new URL(`product/${e.name}/index.html`, root))).map(e => `product/${e.name}/index.html`)];
 const decode = text => text.replaceAll('&amp;', '&');
 for (const removed of ['clareq', 'electry']) {
   assert.ok(!existsSync(new URL(`product/${removed}/index.html`, root)), `${removed}: removed public product page`);
@@ -23,11 +22,15 @@ assert.ok(home.indexOf('id="fun"') > home.indexOf('p-podcare'), 'Games follow Po
 assert.equal((home.match(/id="software"/g) || []).length, 1, 'Software navigation retains a single destination');
 for (const product of catalog.products) {
   const html = read(`product/${product.product}/index.html`);
-  for (const [label, source] of [['page', html], ['catalog', home.match(new RegExp(`<article[^>]*class="product-card p-${product.product}">[\\s\\S]*?</article>`))?.[0]], ['availability', releases.match(new RegExp(`<tr id="${product.product}"[\\s\\S]*?</tr>`))?.[0]]]) {
+  const card = home.match(new RegExp(`<article[^>]*class="product-card p-${product.product}">[\\s\\S]*?</article>`))?.[0];
+  for (const [label, source] of [['page', html], ['catalog', card]]) {
     assert.ok(source, `${product.product}: present in ${label}`);
     assert.ok(source.includes(`data-shop-version="${product.version}"`), `${product.product}: ${label} agrees with verified Shop version`);
     assert.ok(source.includes(product.url), `${product.product}: ${label} links to its live Shop listing`);
   }
+  const facts = card.match(/<p class="product-facts">([\s\S]*?)<\/p>/)?.[1];
+  assert.ok(facts?.includes(product.version), `${product.product}: visible catalog facts include the published version`);
+  assert.doesNotMatch(facts, /in development|coming soon|awaiting/i, `${product.product}: published products are not labelled unreleased`);
   const schemas = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap(m => JSON.parse(m[1]));
   const application = schemas.find(s => s['@type'] === 'SoftwareApplication');
   assert.ok(application, `${product.product}: software structured data exists`);
@@ -46,6 +49,8 @@ for (const product of catalog.products) {
 }
 for (const pending of catalog.unpublished) {
   for (const file of pages) assert.ok(!read(file).includes(`href="${pending.checked_url}`), `${file}: no dead purchase link for ${pending.product}`);
+  const card = home.match(new RegExp(`<article[^>]*class="product-card p-${pending.product}">[\\s\\S]*?</article>`))?.[0];
+  assert.match(card, /Awaiting Shop publication/, `${pending.product}: visible catalog status remains unpublished`);
 }
 const expectedVideos = new Set(media.videos.map(v => v.id));
 const expectedPlaylists = new Set(media.playlists.map(v => String(v.id)));

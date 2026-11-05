@@ -273,4 +273,5 @@ The catalog, seven instrument details and availability page were checked at
 1440, 768 and 390 pixels wide. Local links/fragments, unique IDs, image paths
 and declared image ratios were checked. Existing navigation/background checks
 and `git diff --check` pass. The historical development manifest remains at
-`releases/2026-10-06.json`; the public releases route now shows Rack availability.
+`../docs/history/development-2026-10-06.json`. The separate public releases page
+and its archive were removed on 5 November 2026; product pages retain their own version notes.
