@@ -58,9 +58,13 @@ interest, shop/contact/download clicks, demos, games and Web Vitals. See
 - See the [game guide](fun/meteora/README.md) for the controls, the campaign, the armoury, the model pipeline and the checks.
 - Tactical choices change the fight: a silenced relay cancels reinforcements, an early cargo scan seals an infiltrator's launch doors, and a protected repair crew restores the carrier's engines. Wingmen acknowledge orders, split threats, regroup and disengage when badly hurt; designated wing kills earn command assists. Personal debrief notes remember the people and ships you brought home.
 
+## Puzzle Box
+
+[Play Puzzle Box](fun/puzzles/index.html) holds the two logic puzzles below in one game for young players. Two big picture tabs at the top switch between Zipper and Patcher (`?game=zipper` or `?game=patcher`; the last pick is remembered), stars pick the board size, and the main actions are large icon buttons with short labels. New players start on easy boards. The old `/fun/zipper/` and `/fun/patcher/` addresses redirect here through `_redirects`. Each puzzle keeps its own code, best times and analytics name under `fun/zipper/` and `fun/patcher/`.
+
 ## Zipper
 
-[Play Zipper](fun/zipper/index.html) is a 3D logic puzzle: draw one unbroken line through every cell of the board, passing the numbers in order and never crossing a glowing wall. Easy, medium and hard boards (5×5, 6×6 and 7×7) are generated on request or after a solve, and every board has exactly one solution.
+Zipper is a 3D logic puzzle: draw one unbroken line through every cell of the board, passing the numbers in order and never crossing a glowing wall. Easy, medium and hard boards (5×5, 6×6 and 7×7) are generated on request or after a solve, and every board has exactly one solution.
 
 - Each board starts as a random path through every cell; the numbers and walls are drawn from that path, and the solver adds a number or a wall wherever a second path still fits, so the puzzle is both solvable and unique by construction. A seed in the address (`#medium-k7x2ab`) reopens the same board.
 - Draw by dragging, tapping neighbouring cells or using the arrow keys. Fast swipes fill skipped cells, retracing erases, and Undo or Backspace takes one step back. Rings mark the head and the next number; a coverage meter shows progress. Hints highlight a wrong turn or the route to the next number without making the move for you.
@@ -70,7 +74,7 @@ interest, shop/contact/download clicks, demos, games and Web Vitals. See
 
 ## Patcher
 
-[Play Patcher](fun/patcher/index.html) is a 3D logic puzzle in the Shikaku family: cut the whole board into rectangular patches, one clue in each. The icon is the patch's shape (a square, a wide bar or a tall bar) and a number, when there is one, its cell count. Easy, medium and hard boards (5×5, 7×7 and 9×9), generated on request or after a solve, each with exactly one solution.
+Patcher is a 3D logic puzzle in the Shikaku family: cut the whole board into rectangular patches, one clue in each. The icon is the patch's shape (a square, a wide bar or a tall bar) and a number, when there is one, its cell count. Easy, medium and hard boards (5×5, 7×7 and 9×9), generated on request or after a solve, each with exactly one solution.
 
 - A board starts as a random tiling, each patch given a clue; while a second cutting fits, a differing clue is strengthened (a number added or the clue moved) until only the intended one remains. A cell index speeds up that search while preserving seeded boards and solution order. A deduction pass grades each board so that easy ones always have a forced patch and hard ones need a look ahead.
 - Padded satin keys sit in a wider tray. Tall clues put the number beside the icon; wide and square clues put it below. Measured glyph bounds keep digits centred and clear of the icons, including two-digit clues and fallback fonts; placed icons use the same dark ink as the numbers. Gentle landings and restrained highlights give the patches shallow relief. Patcher's backdrop uses slow, theme-specific light flows with a quiet centre and sparse drifting weather, all in the existing shader passes and static GPU buffers.

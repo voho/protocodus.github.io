@@ -107,10 +107,10 @@ try {
   assert.deepEqual(chapters.map(row => row.analytics.chapter_seconds), [0, 24, 48, 72, 24]);
   assert.ok(chapters.every(row => row.analytics.product_id === 'lamer' && row.analytics.cta_location === 'demo'));
 
-  await page.goto(origin + '/fun/zipper/#medium-analytics-private-seed');
+  await page.goto(origin + '/fun/puzzles/?game=zipper#medium-analytics-private-seed');
   await page.waitForFunction(() => window.protocodusAnalytics?.isEnabled());
   rows = await events();
-  assert.equal(rows.find(row => row.event === 'protocodus.page_view').analytics.game_name, 'zipper');
+  assert.equal(rows.find(row => row.event === 'protocodus.page_view').analytics.game_name, 'puzzles');
   assert.ok(!JSON.stringify(rows).includes('analytics-private-seed'));
   assert.equal(rows.filter(row => row.event === 'protocodus.game_start').length, 0, 'Opening the game is not an attempt');
 
