@@ -1,0 +1,30 @@
+name: Public catalog freshness
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-monitor
+  cancel-in-progress: false
+
+jobs:
+  live-sources:
+    name: Store releases, demo media and RILL downloads
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Check monitor parsing and bounded network behavior
+        run: node scripts/catalog-live-check.mjs --self-test
+      - name: Compare public sources with reviewed snapshots
+        run: node scripts/catalog-live-check.mjs

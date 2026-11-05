@@ -93,6 +93,10 @@ const soundCloudPage = browser('https://protocodus.cz/product/youknow/', undefin
   setup({ document, Element }) { document.body.appendChild(new Element('iframe', { class: 'soundcloud-player' })); },
 });
 assert.equal(soundCloudPage.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'SoundCloud widgets also enable the shared media helper');
+const youtubePage = browser('https://protocodus.cz/product/acustra/', undefined, {
+  setup({ document, Element }) { document.body.appendChild(new Element('iframe', { class: 'youtube-player' })); },
+});
+assert.equal(youtubePage.scripts.filter((script) => new URL(script.src).pathname.endsWith('/analytics-media.js')).length, 1, 'YouTube-only pages load the shared media helper');
 
 const unsafe = browser('https://protocodus.cz/product/maremba/?email=private%40example.com&token=secret&utm_source=newsletter&utm_medium=email#private-board', undefined, {
   referrer: 'https://search.example/results?q=private%40example.com&utm_campaign=launch#private-fragment',
@@ -116,6 +120,21 @@ assert.equal(local.scripts.length, 0, 'Local QA must not pollute production GA')
 assert.equal(local.gaEvents().length, 0);
 const debugLocal = browser('http://localhost:8000/', { debug: true });
 assert.equal(debugLocal.gaEvents('page_view').length, 1, 'Explicit debug mode enables local diagnostics');
+for (const url of [
+  'https://626ee9dc-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
+  'https://codex-premium-rill-store-20261105-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
+  'https://preview.protocodus.cz/',
+  'https://protocodus.cz.example.test/',
+  'http://127.0.0.1:8776/',
+]) {
+  const preview = browser(url);
+  preview.window.protocodusAnalytics.setEnabled(true);
+  assert.equal(preview.scripts.length, 0, `${url}: preview/consent toggles cannot load production analytics`);
+  assert.equal(preview.gaEvents().length, 0, `${url}: preview does not send production events`);
+  assert.equal(preview.window.protocodusAnalytics.status().enabled, false);
+}
+assert.equal(browser('https://www.protocodus.cz/').gaEvents('page_view').length, 1, 'The production www alias remains tracked');
+assert.equal(browser('https://example.workers.dev/', { debug: true }).gaEvents('page_view').length, 1, 'Explicit debug mode permits deliberate hosted-preview diagnostics');
 
 // The collector must observe intent without intercepting the site's controls.
 const links = browser();
@@ -165,20 +184,20 @@ for (const [slug, expectedProduct] of [
   })));
   assert.equal(homepage.gaEvents('shop_click').at(-1)[2].product_id, expectedProduct, `Reason Shop slug ${slug} maps to ${expectedProduct}`);
 }
-const archivePage = browser('https://protocodus.cz/product/releases/archive-2026-10-12.html');
-const archiveRow = archivePage.document.body.appendChild(new archivePage.Element('tr'));
-archiveRow.appendChild(new archivePage.Element('th')).appendChild(new archivePage.Element('a', { href: '/product/youknow/' }));
-const archiveSourceLink = archiveRow.appendChild(new archivePage.Element('td')).appendChild(new archivePage.Element('a', {
+const catalogPage = browser('https://protocodus.cz/');
+const catalogRow = catalogPage.document.body.appendChild(new catalogPage.Element('tr'));
+catalogRow.appendChild(new catalogPage.Element('th')).appendChild(new catalogPage.Element('a', { href: '/product/youknow/' }));
+const catalogSourceLink = catalogRow.appendChild(new catalogPage.Element('td')).appendChild(new catalogPage.Element('a', {
   href: 'https://github.com/protocodus/virtual-instrument-youknow',
 }));
-archivePage.click(archiveSourceLink);
-assert.equal(archivePage.gaEvents('outbound_click').at(-1)[2].product_id, 'youknow', 'Archive table rows attribute outbound source clicks to their row product');
-const archiveListItem = archivePage.document.body.appendChild(new archivePage.Element('li', { id: 'acustra' }));
-const archiveNotesLink = archiveListItem.appendChild(new archivePage.Element('a', {
+catalogPage.click(catalogSourceLink);
+assert.equal(catalogPage.gaEvents('outbound_click').at(-1)[2].product_id, 'youknow', 'Product table rows attribute outbound source clicks to their row product');
+const catalogListItem = catalogPage.document.body.appendChild(new catalogPage.Element('li', { id: 'acustra' }));
+const catalogNotesLink = catalogListItem.appendChild(new catalogPage.Element('a', {
   href: 'https://github.com/protocodus/virtual-instrument-acustra/blob/main/README.md#release-history',
 }));
-archivePage.click(archiveNotesLink);
-assert.equal(archivePage.gaEvents('outbound_click').at(-1)[2].product_id, 'acustra', 'Product list items attribute outbound release-note clicks to their product');
+catalogPage.click(catalogNotesLink);
+assert.equal(catalogPage.gaEvents('outbound_click').at(-1)[2].product_id, 'acustra', 'Product list items attribute outbound release-note clicks to their product');
 links.click(link('https://another.example/product/maremba/'));
 assert.equal(links.gaEvents('outbound_click').length, 1, 'External routes resembling product pages remain outbound clicks');
 

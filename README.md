@@ -4,6 +4,29 @@
 
 [protocodus.cz](https://protocodus.cz/)
 
+## Website checks and catalog updates
+
+The homepage leads with RILL, followed by Reason instruments and effects,
+Podcare, and games. Released versions and current Shop artwork are recorded in
+[`product/STORE_SNAPSHOT.json`](product/STORE_SNAPSHOT.json); development
+candidates are identified separately. All channel videos and SoundCloud
+**playlists only** are recorded in [`product/MEDIA.json`](product/MEDIA.json).
+Run `node scripts/render-media.mjs` after updating that inventory.
+
+```sh
+npm ci
+npx playwright install chromium
+npm test
+```
+
+The static checks need only Node.js. Browser checks use bundled Chromium,
+stub third-party traffic, and save responsive screenshots to
+`test-results/site-qa/`. Set `CHROMIUM_PATH` only to override that browser.
+`Website QA` runs on pull requests and main. The weekly/manual `Public catalog freshness`
+workflow checks public store versions and imagery, new YouTube uploads,
+playlist embeds, and all five rolling RILL downloads. Run it locally with
+`node scripts/catalog-live-check.mjs`; it reports drift without editing content.
+
 ## Analytics
 
 Shared GA4 and Google Tag Manager tracking covers every public page, product

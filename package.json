@@ -1,0 +1,13 @@
+{
+  "name": "protocodus-website",
+  "private": true,
+  "description": "Development checks for the static Protocodus website",
+  "scripts": {
+    "test": "npm run test:static && npm run test:browser",
+    "test:static": "node tests/site-content-check.mjs && node tests/catalog-check.mjs && node scripts/render-media.mjs --check && node tests/product-cta-check.mjs && node tests/analytics-check.mjs && node tests/analytics-media-check.mjs && node tests/analytics-performance-check.mjs && node tests/game-analytics-check.mjs && node tests/navigation-check.mjs && node tests/background-check.mjs",
+    "test:browser": "node tests/analytics-browser-check.mjs && node tests/site-browser-check.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

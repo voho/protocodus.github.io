@@ -14,7 +14,7 @@ Each page needs only this stable, deferred JavaScript include:
 
 The entry point owns configuration, GA/GTM loading, page context, interactions,
 diagnostics and helper versions. It loads Web Vitals tracking once, and demo
-tracking only on pages containing native video/audio or a SoundCloud player.
+tracking only on pages containing native video/audio, a YouTube player or a SoundCloud player.
 Do not include `analytics-media.js` or `analytics-performance.js` in page HTML.
 Changing analytics behavior or helper versions requires editing shared files,
 without changing the include on every page.
@@ -39,10 +39,11 @@ tracking already sends the events. GTM is available for additional tags. **Do no
 add another GA4 configuration or forward these events to the same GA4 property
 while direct delivery is enabled.** That would double-count events.
 
-Publish the initial container version in Google Tag Manager to make its loader
-available. A newly created, unpublished container may return 404; this does not
-prevent the site's direct GA4 delivery. Container publishing requires GTM account
-access and is separate from deploying this repository.
+On 5 November 2026, the live GTM container was verified as published and empty
+(resource version 2, no tags). Its loader returns HTTP 200. GA4 property
+544343507, web stream 15207658854, uses the measurement ID above and reports
+recent traffic. Keep GA4: it is the reporting destination, while GTM is a tag
+manager. Only one of direct GA4 or GTM should deliver the same events.
 
 To move ownership to GTM later:
 
@@ -57,13 +58,13 @@ To move ownership to GTM later:
    corresponding analytics parameters. Publish the container and verify in
    Preview/DebugView before switching production ownership.
 
-When using this site's explicit tracking, disable overlapping Enhanced
-Measurement for outbound clicks, downloads, scrolls and video in the GA4 web
-stream. Disable form interactions and history-based page views too: the site has
-no lead form, and game hashes are board state rather than new pages. GA4's normal
-session/user engagement collection remains enabled. These stream settings and
-key-event/custom-dimension configuration require GA account access; they cannot
-be changed by the static website.
+On 5 November 2026, Enhanced Measurement was switched off in the GA4 web stream
+and the saved state was verified after reloading. This prevents overlapping
+outbound clicks, downloads, scroll, video, form interactions and history-based
+page views. The site sends explicit events; game hashes are board state rather
+than new pages. GA4's normal session/user engagement collection remains enabled.
+Google Signals and user-provided-data collection were verified as not enabled
+in the property. Account settings are separate from this repository.
 
 ## Event coverage
 
@@ -78,7 +79,7 @@ be changed by the static website.
 | `section_view`, `scroll_depth` | Once-per-page section/card visibility and 25/50/75/90/100% scroll milestones |
 | `engagement_time` | 10/30/60/180/600 seconds of visible-page time; background tabs excluded |
 | `disclosure_toggle`, `ui_action` | Details panels, menu and selected puzzle HUD actions |
-| `video_*`, `audio_*` | Native video/audio and SoundCloud start, pause, progress, completion, seek and errors |
+| `video_*`, `audio_*` | Native video/audio, YouTube and SoundCloud start, pause, progress, completion, seek and errors |
 | `game_start`, `game_end` | Actual starts and decided outcomes in all seven games; mode, difficulty, score and active duration where available |
 | `web_vital` | CLS, LCP, INP, FCP, TTFB from locally vendored official `web-vitals`; value and rating |
 | `exception` | Up to five same-origin runtime/resource errors and unhandled promise-rejection categories per page; no raw messages/stacks |
@@ -87,8 +88,9 @@ Media progress uses unique played ranges at 25/50/75%, so jumping to a chapter
 does not imply watching the skipped video. Completion means reaching the end;
 progress indicates how much was watched. Pause, completion, seek and error events
 retain the actual watched total; disabled collection intervals are excluded.
-SoundCloud uses its official Widget
-API; blocked widgets cannot report listening. The SoundCloud track identifier is
+YouTube uses its official IFrame Player API and privacy-enhanced embeds with
+stable authored media IDs. SoundCloud uses its official Widget API and only
+playlist embeds; blocked widgets cannot report listening. The SoundCloud track identifier is
 only its numeric playlist index, never its title or creator metadata.
 
 Game starts come from the game state, rather than a Play-link click. Pausing does
@@ -138,6 +140,11 @@ Keep CTA IDs unique within a page and reuse action names for equivalent intent.
 `node tests/product-cta-check.mjs` verifies authored CTA coverage and event
 routing/privacy without contacting Google.
 
+Reason Shop links also carry `utm_source=protocodus.cz`, `utm_medium=website`,
+`utm_campaign=rack_extensions` and the fixed CTA ID as `utm_content`. Internal
+links never carry UTMs, so they do not overwrite acquisition. RILL artifact
+URLs remain unchanged; the collector records their product and platform CTA.
+
 ## Data boundaries and controls
 
 - No input/form values, email addresses, game seeds, saves, raw exception text,
@@ -153,7 +160,9 @@ routing/privacy without contacting Google.
   `window.protocodusAnalytics.setEnabled(true/false)` when consent changes.
   Disabling also sets Google's `ga-disable-G-0TEFG3XSN5` flag. Any future GTM tags
   must independently honor the site's consent requirements.
-- Localhost/file previews do not send analytics by default. Before loading the
+- Only `protocodus.cz` and `www.protocodus.cz` send production analytics.
+  Localhost, file previews and Cloudflare branch/commit previews stay disabled,
+  including after a consent controller calls `setEnabled(true)`. Before loading the
   scripts, set `window.protocodusAnalyticsConfig = {debug: true}` to opt into a
   deliberate debug session. Debug events include GA4 `debug_mode`.
 - The scripts fail independently of navigation, media playback and games.
@@ -174,11 +183,13 @@ node tests/background-check.mjs
 node fun/shared/tests/shell-check.mjs
 ```
 
-`node tests/analytics-browser-check.mjs` additionally verifies real page loading,
-the shared loader on every public page, Web Vitals and native video playback
-with Playwright and Chromium installed.
-Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`. All third-party
-requests in that test are stubbed, so QA does not send events to Google.
+`npm ci && npx playwright install chromium && npm test` runs the complete suite.
+The analytics browser check verifies the shared loader on every public page,
+Web Vitals and native video playback. The responsive browser check verifies
+product images, mobile layout, keyboard menus, media size, RILL navigation and
+all five download CTAs. Playwright uses its bundled Chromium by default;
+`CHROMIUM_PATH` is an optional override. Third-party requests are stubbed, so QA
+does not send events to Google. CI retains responsive screenshots and reports.
 
 For a visitor-side diagnosis, open the browser console and run:
 
@@ -199,9 +210,11 @@ and seek, SoundCloud play, and a game start/outcome. `dataLayer` should contain
 one namespaced event and one direct GA command per explicit event. Do not expect
 INP without a user interaction or a final LCP/CLS until a visibility transition.
 
-Recommended GA4 event-scoped custom dimensions: `page_type`, `product_id`,
-`game_name`, `game_mode`, `difficulty`, `section_id`, `action`, `result`,
-`cta_id`, `cta_location`, `media_provider`, `media_id`, `metric_name`, `metric_rating`. Numeric metrics:
+Registered in GA4 on 5 November 2026: event-scoped dimensions `page_type`,
+`product_id`, `section_id`, `action`, `cta_id`, `cta_location`, `media_provider`
+and `media_id`. Optional additional dimensions for game/performance reporting:
+`game_name`, `game_mode`, `difficulty`, `result`, `metric_name`, `metric_rating`.
+Optional numeric metrics:
 `duration_seconds`, `hints_used`, `watched_seconds`, `metric_value` (split by
 `metric_name`; CLS has no unit, other vitals are milliseconds). GA4's standard
 ecommerce reports use the supplied `items` arrays. Consider `shop_click` and
@@ -211,8 +224,20 @@ ecommerce reports use the supplied `items` arrays. Consider `shop_click` and
 
 `robots.txt` and `sitemap.xml` are published at the site root for Google Search
 Console and search crawlers. Every public HTML page declares one canonical URL,
-matching Open Graph metadata (`og:url`, `og:image`, `og:image:width`,
-`og:image:height`, `og:image:alt`), and validated JSON-LD structured data on the
+matching Open Graph and Twitter card metadata, and validated JSON-LD structured data on the
 homepage (`Organization`, `WebSite`) and released Reason Shop product pages
-(`SoftwareApplication`). `node tests/site-content-check.mjs` verifies that
+(`SoftwareApplication`). Product pages also have breadcrumb structured data;
+RILL describes its free, MIT-licensed alpha. `node tests/site-content-check.mjs` verifies that
 `sitemap.xml` stays in exact sync with all discovered public HTML pages.
+
+The domain property `sc-domain:protocodus.cz` was verified in Search Console on
+5 November 2026, with the existing DNS TXT verification record. The canonical
+`https://protocodus.cz/sitemap.xml` was submitted and returned **Success** on the
+same date. The 27 discovered pages at submission reflect the then-deployed
+site; the updated sitemap contains 24 public pages after removing Electry and the releases pages.
+No invented verification token or duplicate HTML verification tag is needed.
+
+The verified `protocodus.cz` domain property was also linked to the matching
+GA4 web stream on 5 November 2026. The Analytics integration returned
+**Link created**. Search data becomes available through that integration
+subject to Google's normal reporting delay.

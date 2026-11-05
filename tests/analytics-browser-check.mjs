@@ -28,9 +28,10 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+let browser;
 try {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), headless: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
   await context.addInitScript(() => { window.protocodusAnalyticsConfig = { debug: true }; });
   const requests = [];
   await context.route('**/*', async route => {
@@ -133,7 +134,7 @@ try {
     assert.equal(status.events.page_view, 1, `${file}: exactly one page view`);
     assert.equal(status.measurementId, 'G-0TEFG3XSN5', file);
     assert.equal(status.tagManagerId, 'GTM-TZZVDH4B', file);
-    const demos = await page.locator('video, audio, iframe.soundcloud-player').count();
+    const demos = await page.locator('video, audio, iframe.soundcloud-player, iframe.youtube-player').count();
     if (demos) {
       await page.waitForFunction(() => window.protocodusAnalytics.status().scripts.media === 'loaded');
     } else assert.equal(status.scripts.media, undefined, `${file}: no unnecessary media module`);
@@ -142,4 +143,4 @@ try {
   }
   assert.deepEqual(failures, []);
   console.log(`Browser analytics passed: all ${pages.length} public pages, centralized/conditional loaders, diagnostics, Web Vitals, product/shop/navigation events, native playback/seek/coverage and game-page privacy.`);
-} finally { await browser.close(); await new Promise(done => server.close(done)); }
+} finally { await browser?.close(); await new Promise(done => server.close(done)); }

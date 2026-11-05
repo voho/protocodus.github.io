@@ -288,5 +288,57 @@
     "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  },
+  "current_shop_gallery": {
+    "checked_on": "2026-11-05",
+    "version": "1.9.0",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+    "assets": [
+      {
+        "file": "product/acustra/shop-front.webp",
+        "role": "front",
+        "sha256": "3ef4dec73389c0c78ccaa844ebbc148d7831c66122fde19795ec64a95a3812d4",
+        "dimensions": [
+          1457,
+          1200
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png",
+        "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557"
+      },
+      {
+        "file": "product/acustra/shop-rear.webp",
+        "role": "rear",
+        "sha256": "42de40f81950883fa2248f08adc0ae4aeab36d95c9ad131db404d58abd3da806",
+        "dimensions": [
+          1457,
+          1200
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png",
+        "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a"
+      },
+      {
+        "file": "product/acustra/shop-cover.webp",
+        "role": "cover",
+        "sha256": "763d14480b1ac877e82b9257f85306b148fa06a32af0255fe7670d92b25bc5f5",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
+        "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+      },
+      {
+        "file": "product/acustra/shop-cover.png",
+        "role": "social",
+        "sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
+        "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+      }
+    ],
+    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
   }
 }

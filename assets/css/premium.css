@@ -1,0 +1,71 @@
+/* Shared product presentation; preserve native panel proportions. */
+.studio-hero { padding-block: clamp(3.5rem, 7vw, 7rem); }
+.studio-hero-layout { display: block; }
+.studio-hero .statement { max-width: 1000px; }
+.studio-hero .hero-title { font-size: clamp(2.8rem, 6.5vw, 5.75rem); letter-spacing: -.06em; line-height: 1.12; }
+.studio-hero .hero-title em { font-family: Georgia, serif; font-weight: 400; color: var(--accent); }
+.studio-hero .hero-sub { font-size: 1.05rem; max-width: 50ch; }
+.studio-hero .tag { font-size: .72rem; }
+.studio-page .showcase { border-top: 1px solid var(--line); }
+.studio-page #products > .wrap > .head { max-width: 800px; }
+.studio-page .rill-feature { margin-block: 3rem 4.5rem; }
+.rill-spotlight { scroll-margin-top: 6rem; grid-template-columns: 1.35fr 1fr; gap: 3rem; padding: clamp(1.5rem, 4vw, 3rem); background: #17251f; border: 1px solid #87d7be30; border-radius: 16px; }
+.rill-spotlight .product-body h3 { font-size: 1.5rem; letter-spacing: .08em; margin-bottom: .3rem; }
+.rill-spotlight .product-body .spotlight-deck { font-size: clamp(2rem, 3.5vw, 3.2rem); color: var(--fg); line-height: 1.15; letter-spacing: -.06em; margin-bottom: 1.2rem; }
+.rill-spotlight .product-shot img { box-shadow: 0 18px 45px #0005; border: 1px solid #a9c7b930; }
+.catalog-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
+.catalog-heading h3 { font-size: 1.35rem; font-weight: 500; letter-spacing: -.025em; }
+.catalog-heading p { font-size: .8rem; color: var(--fg-faint); }
+.studio-page #products .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem 1.5rem; }
+.studio-page #products .product-grid .product-card { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.studio-page #products .product-grid .product-shot { aspect-ratio: 1; background: #15181b; border-radius: 12px; overflow: hidden; }
+.studio-page #products .product-grid .product-shot img { width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+.studio-page #products .product-body { padding-block: 1.4rem 0; flex: 1; display: flex; flex-direction: column; }
+.studio-page #products .product-body h3 { font-size: 2rem; margin-block: .8rem; }
+.studio-page #products .product-body > p:not(.spotlight-deck) { font-size: .88rem; line-height: 1.65; }
+.studio-page #products .product-body .product-facts { margin-top: .9rem; padding-top: 1rem; font-size: .75rem; color: var(--fg-faint); }
+.studio-page #products .product-tags > span { font-size: .65rem; padding: .2rem .4rem; }
+.studio-page #products .rack-extension-mark { display: none; }
+.studio-page #products .product-actions { margin-top: auto; padding-top: 1.2rem; gap: .8rem; border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
+.studio-page #products .shop-badge--compact img { height: 31px; }
+.studio-page #products .product-more { font-size: .8rem; margin-top: 0; }
+.studio-page #products .product-status { font-size: .68rem; }
+.studio-page #products .rill-spotlight .product-body { display: block; padding: 0; }
+.studio-page #products .rill-spotlight .product-actions { border: 0; padding-bottom: 0; margin-top: 1.5rem; }
+.studio-page #products .rill-spotlight .product-body h3 { font-size: 1.5rem; }
+.studio-page #products .product-grid .p-podcare { grid-column: 1 / -1; display: grid; grid-template-columns: .7fr 1.3fr; align-items: center; gap: 3rem; border-top: 1px solid var(--line); padding-top: 3rem; margin-top: 1rem; }
+.studio-page #products .product-grid .p-podcare .product-shot { aspect-ratio: auto; background: transparent; }
+.media-heading { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 2rem; margin-bottom: 2.5rem; }
+.media-heading .lede { max-width: 45ch; margin-top: 0; font-size: 1rem; }
+.media-heading .title { font-size: clamp(2rem, 3.5vw, 3.5rem); }
+.video-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+.demo-video { min-width: 0; margin: 0; background: #ffffff03; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.demo-video:only-child { grid-column: 1 / -1; max-width: 940px; width: 100%; }
+.youtube-player { display: block; width: 100%; height: auto; min-height: 200px; aspect-ratio: 16 / 9; border: 0; background: #060909; }
+.demo-video-short .youtube-player { aspect-ratio: 16 / 9; }
+.demo-video figcaption { padding: 1.15rem 1.3rem; display: grid; gap: .8rem; }
+.demo-video figcaption span { font-size: .9rem; line-height: 1.55; }
+.demo-video figcaption a { font-size: .76rem; color: var(--accent); }
+.demo-playlist { margin-top: 2.5rem; border: 1px solid var(--line); border-radius: 12px; padding: 1.4rem; background: #ffffff03; }
+.playlist-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; margin-bottom: 1rem; }
+.playlist-heading h3 { font-size: 1rem; font-weight: 500; }
+.playlist-heading a { font-size: .8rem; color: var(--accent); }
+.demo-playlist .soundcloud-player { display: block; width: 100%; border: 0; border-radius: 6px; }
+.product-page:not(.p-rill) .instrument-hero { padding-bottom: 5rem; }
+@media (max-width: 1000px) {
+  .studio-page #products .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rill-spotlight { gap: 1.8rem; }
+}
+@media (max-width: 760px) {
+  .rill-spotlight { grid-template-columns: 1fr; }
+  .studio-hero .hero-title { font-size: clamp(2.5rem, 7.5vw, 4.2rem); }
+  .rill-spotlight .product-body { grid-row: 1; }
+  .catalog-heading, .media-heading { display: block; }
+  .catalog-heading p, .media-heading .lede { margin-top: 1rem; }
+  .video-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .demo-playlist { padding: 1rem; }
+}
+@media (max-width: 540px) {
+  .studio-page #products .product-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .studio-page #products .product-grid .p-podcare { grid-template-columns: 1fr; gap: 1rem; }
+}

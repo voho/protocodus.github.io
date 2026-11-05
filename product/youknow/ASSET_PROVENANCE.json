@@ -656,5 +656,57 @@
         "sha256": "ecf71ff2dcbe28c968bc1a136e5f40c50817045b8ce8111cf34660326a8729a7"
       }
     }
+  },
+  "current_shop_gallery": {
+    "checked_on": "2026-11-05",
+    "version": "1.3.5",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+    "assets": [
+      {
+        "file": "product/youknow/shop-front.webp",
+        "role": "front",
+        "sha256": "1cd0681d92da59375d5030dac28aa08d75effdaefd24e4229908c7f15f5c5177",
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png",
+        "source_sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac"
+      },
+      {
+        "file": "product/youknow/shop-rear.webp",
+        "role": "rear",
+        "sha256": "ecab6f0c8fb1d673e8d0ae9060b90fa1cd4e145684b87adb9d03321a27208fdb",
+        "dimensions": [
+          1600,
+          1171
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png",
+        "source_sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3"
+      },
+      {
+        "file": "product/youknow/shop-cover.webp",
+        "role": "cover",
+        "sha256": "8f0651ac9a6f9636fd2931c1230c2ba6f0cc6efbcdd93a73a04ad62c653f75c4",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
+        "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+      },
+      {
+        "file": "product/youknow/shop-cover.png",
+        "role": "social",
+        "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+        "dimensions": [
+          800,
+          800
+        ],
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
+        "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+      }
+    ],
+    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
   }
 }

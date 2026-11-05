@@ -90,7 +90,8 @@ for (const page of pages.values()) {
   const openGraphDescription = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:description');
   assert.equal(openGraphTitle.length, 1, `${label}: declare one Open Graph title`);
   assert.equal(openGraphTitle[0].attrs.content, title, `${label}: Open Graph title must match the page <title>`);
-  if (twitterTitle.length > 0) assert.equal(twitterTitle[0].attrs.content, title, `${label}: Twitter title must match the page <title>`);
+  assert.equal(twitterTitle.length, 1, `${label}: declare one Twitter/X title`);
+  assert.equal(twitterTitle[0].attrs.content, title, `${label}: Twitter title must match the page <title>`);
   assert.equal(description.length, 1, `${label}: declare one meta description`);
   assert.ok(description[0].attrs.content.trim().length >= 50, `${label}: meta description must be descriptive`);
   assert.equal(openGraphDescription.length, 1, `${label}: declare one Open Graph description`);
@@ -112,6 +113,11 @@ for (const page of pages.values()) {
   assert.match(openGraphWidth[0].attrs.content, /^[1-9]\d*$/, `${label}: Open Graph image width must be a positive integer`);
   assert.match(openGraphHeight[0].attrs.content, /^[1-9]\d*$/, `${label}: Open Graph image height must be a positive integer`);
   assert.ok(openGraphAlt[0].attrs.content.trim().length >= 10, `${label}: Open Graph image alt must be descriptive`);
+  const twitter = Object.fromEntries(page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.name?.startsWith('twitter:')).map(({ attrs }) => [attrs.name, attrs.content]));
+  assert.equal(twitter['twitter:card'], 'summary_large_image', `${label}: use a large social preview`);
+  assert.equal(twitter['twitter:description'], openGraphDescription[0].attrs.content, `${label}: social descriptions agree`);
+  assert.equal(twitter['twitter:image'], openGraphImage[0].attrs.content, `${label}: social images agree`);
+  assert.equal(twitter['twitter:image:alt'], openGraphAlt[0].attrs.content, `${label}: social image descriptions agree`);
   for (const { name, attrs } of page.tags) {
     for (const key of ['href', 'src', 'poster']) if (attrs[key]) checkReference(page, attrs[key], `${name} ${key}`);
     if (name === 'meta' && ['og:image', 'twitter:image'].includes(attrs.property || attrs.name)) checkReference(page, attrs.content, 'social image');

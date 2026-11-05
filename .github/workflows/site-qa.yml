@@ -1,0 +1,55 @@
+name: Website QA
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  content:
+    name: Catalog, metadata and analytics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Check authored content and tracking without external requests
+        run: npm run test:static
+
+  browser:
+    name: Responsive presentation and browser analytics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned browser tooling
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium and its system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the site with third-party requests stubbed
+        run: npm run test:browser
+      - name: Save responsive screenshots and reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: website-qa
+          path: test-results/site-qa/
+          retention-days: 7
