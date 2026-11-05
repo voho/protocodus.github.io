@@ -2,6 +2,17 @@
    a child can pick a game and play by tapping pictures. */
 :root[data-game="zipper"] { --accent: #5fd8ff; }
 :root[data-game="patcher"] { --accent: #c9f04d; }
+/* One soft, layered lift for every floating control, and a faint lit top
+   edge so the glass panels read as raised rather than flat. */
+:root {
+  --lift: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 28px -6px rgba(0, 0, 0, 0.45);
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glow: 0 8px 26px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.icon-btn, .back, .segmented, .toolbar, .game-switch a { box-shadow: var(--lift), var(--edge); }
+.icon-btn, .back { transition: border-color 180ms ease, transform 180ms var(--ease), color 180ms ease; }
+.icon-btn:hover, .back:hover { transform: translateY(-1px); }
+.icon-btn:active, .back:active { transform: scale(0.94); }
 
 .icon-btn, .back { width: 56px; height: 56px; min-width: 56px; min-height: 56px; padding: 0; justify-content: center; color: var(--paper); font-size: 1.6rem; font-weight: 700; }
 .icon-btn svg { width: 28px; height: 28px; }
@@ -31,12 +42,13 @@
 }
 .game-switch a:hover { border-color: var(--line-lift); }
 .game-switch a:active { transform: scale(0.96); }
-.game-switch a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--ink); cursor: default; }
+.game-switch a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--ink); cursor: default; box-shadow: var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .game-switch svg { width: 36px; height: 36px; flex: none; }
 .world-chip { margin-top: 8px; font-size: 0.8125rem; }
 
 .stars span { gap: 1px; min-height: 48px; padding: 0 12px; }
 .stars svg { width: 20px; height: 20px; fill: currentColor; }
+.stars input:checked + span { box-shadow: var(--glow); }
 
 .toolbar { gap: 6px; padding: 6px; border-radius: 26px; }
 .toolbar .tool {
@@ -52,14 +64,12 @@
   line-height: 1.1;
 }
 .toolbar .tool svg { width: 32px; height: 32px; flex: none; }
+.toolbar .btn-primary { box-shadow: var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.progress-caption { font-size: 0.8125rem; }
+.play-feedback { font-size: 0.78rem; }
 .toolbar .tool .badge { position: absolute; top: 4px; right: 6px; background: var(--accent); color: var(--ink); }
 
-.rules li { grid-template-columns: 52px 1fr; font-size: 1rem; }
-.glyph { width: 52px; height: 52px; border-radius: 14px; font-size: 1.5rem; }
-.glyph svg { width: 30px; height: 30px; }
 .card-actions .btn { min-height: 56px; padding: 0 22px; font-size: 1.05rem; font-weight: 600; }
-.theme { padding: 16px 8px 12px; font-size: 1rem; }
-.swatch { width: 60px; height: 40px; }
 
 .hud-brand { align-items: flex-start; }
 /* The big switcher and tools no longer fit one row on a tablet. */
@@ -100,6 +110,19 @@
   .toolbar .tool { width: 54px; min-height: 48px; padding: 4px; }
   .toolbar .tool span { display: none; }
 }
+/* Large screens: the controls grow with the room around them. */
+@media (min-width: 1500px) and (min-height: 860px) {
+  .icon-btn, .back { width: 64px; height: 64px; min-width: 64px; min-height: 64px; }
+  .icon-btn svg { width: 32px; height: 32px; }
+  .game-switch a { min-height: 66px; padding: 0 22px 0 14px; font-size: 1.25rem; border-radius: 22px; }
+  .game-switch svg { width: 40px; height: 40px; }
+  .stars span { min-height: 54px; padding: 0 14px; }
+  .stars svg { width: 22px; height: 22px; }
+  .toolbar .tool { width: 88px; min-height: 80px; font-size: 0.9rem; border-radius: 22px; }
+  .toolbar .tool svg { width: 36px; height: 36px; }
+  .timer { font-size: 2.4rem; }
+  .progress-area { width: 320px; }
+}
 @media (pointer: coarse) {
   .game-switch a { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--glass-strong); }
   .game-switch a[aria-current="page"] { background: var(--accent); }
@@ -125,7 +148,7 @@
 .g-patch.c { fill: #8fe36b; }
 .g-select { fill: color-mix(in srgb, var(--accent) 25%, transparent); stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
 .g-drag { fill: none; stroke: var(--paper); stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; opacity: 0.8; }
-.g-hand { fill: rgba(255, 255, 255, 0.85); stroke: var(--ink); stroke-width: 1.5; }
+.g-hand { fill: rgba(255, 255, 255, 0.92); stroke: rgba(255, 255, 255, 0.28); stroke-width: 5; paint-order: stroke; }
 details.keys summary { cursor: pointer; color: var(--muted); }
 details.keys[open] summary { margin-bottom: 6px; }
 
