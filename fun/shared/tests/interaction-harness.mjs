@@ -35,7 +35,7 @@ export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } =
     showHint: (cells, options) => state.highlights.push({ cells: structuredClone(cells), ...options }),
     show: (patch, options) => state.highlights.push({ patch: structuredClone(patch), ...options }),
     preview: (rect, valid) => state.previews.push({ rect: rect ? structuredClone(rect) : null, valid }),
-    hover() {}, bump() {}, flare() {}, celebrate() {}, dispose() {}, centre() {}, clearHint() {},
+    hover() {}, bump() {}, flare() {}, reject() {}, celebrate() {}, dispose() {}, centre() {}, clearHint() {},
   };
   const context = vm.createContext({
     ...logic,

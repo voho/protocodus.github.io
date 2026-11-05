@@ -104,3 +104,33 @@
   .game-switch a { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--glass-strong); }
   .game-switch a[aria-current="page"] { background: var(--accent); }
 }
+
+/* ---------- picture guide ---------- */
+.guide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+.guide figure { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255, 255, 255, 0.04); }
+.guide svg { width: 100%; max-width: 132px; aspect-ratio: 1; overflow: visible; }
+.guide figcaption { color: var(--paper); font-size: 1rem; font-weight: 600; line-height: 1.2; text-align: center; }
+.g-cell { fill: rgba(255, 255, 255, 0.1); }
+.g-cell.lit { fill: color-mix(in srgb, var(--accent) 22%, transparent); }
+.g-line { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.g-dot { fill: var(--paper); }
+.g-num, .g-ink { font: 700 8px var(--font); text-anchor: middle; dominant-baseline: central; }
+.g-num { fill: var(--ink); }
+.g-ink { fill: var(--ink); font-size: 11px; }
+.g-ink.small { font-size: 8px; opacity: 0.75; }
+.g-wall { stroke: #ffcf4a; stroke-width: 3.5; stroke-linecap: round; }
+.g-no { stroke: #ff6b6b; stroke-width: 3; stroke-linecap: round; fill: none; }
+.g-patch.a { fill: #ffd23f; }
+.g-patch.b { fill: #7fc8ff; }
+.g-patch.c { fill: #8fe36b; }
+.g-select { fill: color-mix(in srgb, var(--accent) 25%, transparent); stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
+.g-drag { fill: none; stroke: var(--paper); stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; opacity: 0.8; }
+.g-hand { fill: rgba(255, 255, 255, 0.85); stroke: var(--ink); stroke-width: 1.5; }
+details.keys summary { cursor: pointer; color: var(--muted); }
+details.keys[open] summary { margin-bottom: 6px; }
+
+/* Dialog buttons: a big picture with a short word beside it. */
+.card-actions .btn { white-space: nowrap; }
+.card-actions .btn svg { width: 28px; height: 28px; flex: none; }
+.card-actions .tool { flex: 1 1 0; flex-direction: column; gap: 4px; min-height: 92px; padding: 10px 8px; border-radius: 20px; }
+.card-actions .tool svg { width: 38px; height: 38px; }

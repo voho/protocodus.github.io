@@ -61,7 +61,8 @@ void main() {
 }`;
 
 /* A vertical gradient with a soft pool of light behind the board, two
-   slow drifting pools of colour that never stop (an aurora, at a crawl),
+   slow drifting pools of colour that never stop, folding veils of colour
+   and swaying shafts of light (an aurora, at a crawl),
    a pulse of light where the last move landed, faint scenery by the
    theme's motif, and darker corners. It is drawn over the whole screen,
    whatever the camera does. */
@@ -77,6 +78,17 @@ void main() {
   vec2 b = vec2(cos(uTime * 0.07) * 0.6, sin(uTime * 0.09) * 0.3 - 0.08);
   colour += uBlobA * exp(-dot(p - a, p - a) * 2.6);
   colour += uBlobB * exp(-dot(p - b, p - b) * 2.2);
+  // Layered veils of the theme's two colours, folding over each other.
+  float t = uTime * 0.06;
+  vec2 w = p + vec2(sin(p.y * 1.7 + t) * 0.12, sin(p.x * 1.3 - t * 0.8) * 0.1);
+  float foldA = sin(w.x * 2.6 + w.y * 1.4 + sin(w.y * 2.9 - t * 1.3) * 0.9 + t);
+  float foldB = sin(-w.x * 1.8 + w.y * 3.1 + sin(w.x * 2.2 + t * 0.9) * 0.7 - t * 0.6);
+  float veil = smoothstep(0.1, 1.0, foldA) * 0.6 + smoothstep(0.3, 1.0, foldB) * 0.4;
+  colour += mix(uBlobA, uBlobB, 0.5 + 0.5 * foldB) * veil * 3.2;
+  // Slow shafts of light fan down from above the table and sway.
+  float rays = pow(0.5 + 0.5 * sin(atan(p.x, 1.3 - p.y) * 13.0 + sin(uTime * 0.05) * 1.6), 5.0)
+    * (0.5 + 0.5 * sin(atan(p.x, 1.3 - p.y) * 5.0 - uTime * 0.04));
+  colour += uGlow * rays * smoothstep(0.1, 1.0, vUv.y) * 0.9;
   vec2 d = p - vec2(0.0, 0.06);
   colour += uGlow * exp(-dot(d, d) * 4.0);
   vec2 q = p - (uPulseAt - 0.5) * vec2(uAspect, 1.0);
@@ -119,7 +131,11 @@ void main() {
   vec3 colour = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y));
   float flow = sin(q.x * 3.4 + q.y * 2.1 + sin(q.y * 3.8 - t) * 0.65 + t * 0.35);
   float veil = smoothstep(-0.8, 0.85, flow);
-  colour += mix(uBlobA, uBlobB, veil) * (0.22 + 0.65 * veil);
+  colour += mix(uBlobA, uBlobB, veil) * (0.3 + 0.9 * veil);
+  // Slow shafts of light fan down from above the table and sway.
+  float rays = pow(0.5 + 0.5 * sin(atan(p.x, 1.3 - p.y) * 13.0 + sin(uTime * 0.05) * 1.6), 5.0)
+    * (0.5 + 0.5 * sin(atan(p.x, 1.3 - p.y) * 5.0 - uTime * 0.04));
+  colour += uGlow * rays * smoothstep(0.1, 1.0, vUv.y) * 0.5;
   vec2 pool = q - vec2(-0.22, 0.12);
   colour += uGlow * exp(-dot(pool, pool) * 1.8) * 0.45;
 
