@@ -17,5 +17,20 @@
       "file": "remix-rack-rear.webp",
       "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533"
     }
-  ]
+  ],
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Remix_Thumbnail_800.png",
+    "source": "Examples/Remix/Design/Shop/cover.png",
+    "source_sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
+    "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+    "source_branch": "main",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  }
 }

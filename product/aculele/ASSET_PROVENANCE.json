@@ -142,5 +142,20 @@
     },
     "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
     "source_branch": "release/dsp-20261103-evening"
+  },
+  "shop_cover_refresh": {
+    "date": "2026-11-04",
+    "file": "Aculele_Thumbnail_800.png",
+    "source": "Examples/Aculele/Design/Shop/cover.png",
+    "source_sha256": "03e72f8b8d1f4566cca5244add6a799e6416fc5e79d0d6041e866c1bd3a7a171",
+    "sha256": "03e72f8b8d1f4566cca5244add6a799e6416fc5e79d0d6041e866c1bd3a7a171",
+    "pixels": [
+      800,
+      800
+    ],
+    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+    "source_branch": "main",
+    "generator": "Tools/shop_covers/build_shop_covers.py",
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   }
 }
