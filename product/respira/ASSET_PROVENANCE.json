@@ -124,18 +124,19 @@
     }
   ],
   "shop_cover_refresh": {
-    "date": "2026-11-04",
+    "date": "2026-11-05",
     "file": "Respira_Thumbnail_800.png",
     "source": "Examples/Respira/Design/Shop/cover.png",
-    "source_sha256": "2d50947579dc02c5e6df5aea407640056997a08063c73f9f80c25563536f6461",
-    "sha256": "2d50947579dc02c5e6df5aea407640056997a08063c73f9f80c25563536f6461",
+    "source_sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
+    "sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
     "pixels": [
       800,
       800
     ],
-    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+    "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
     "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
+    "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
   }
 }

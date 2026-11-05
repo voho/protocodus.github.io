@@ -115,18 +115,19 @@
   "source_branch": "release/dsp-20261103-evening",
   "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
   "shop_cover_refresh": {
-    "date": "2026-11-04",
+    "date": "2026-11-05",
     "file": "Acukoto_Thumbnail_800.png",
     "source": "Examples/Acukoto/Design/Shop/cover.png",
-    "source_sha256": "b634a9966e80e394e58c46d56351b9ec8849c637ff1cd2ab78424d80c615a001",
-    "sha256": "b634a9966e80e394e58c46d56351b9ec8849c637ff1cd2ab78424d80c615a001",
+    "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
+    "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
     "pixels": [
       800,
       800
     ],
-    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+    "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
     "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+    "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
+    "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acukoto/Design/Shop/realistic/layers.json"
   }
 }
