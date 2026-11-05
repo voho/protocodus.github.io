@@ -31,7 +31,7 @@ export function createAudio() {
   // the level's weather and wildlife (setAmbience), and when the next of each comes (tick)
   const amb0 = { rain: 1, wind: 1, birds: false, aircraft: false, frogs: null };
   const next = { gust: 0, swell: 0, bird: 4, plane: 25, frog: 2 };
-  let lastLoud = -99;
+  let lastLoud = -99, outdoors = false;
   let dull = null, ring = null, dazed = 0;
 
   /* on a click (the browser lets sound start only on one): the sound made if it is not yet, and
@@ -64,7 +64,7 @@ export function createAudio() {
     tone.connect(ring).connect(comp);
     tone.start(); waver.start();
     sfx = ctx.createGain(); sfx.connect(master);
-    amb = ctx.createGain(); amb.connect(master);
+    amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);   // silent until the mission (setOutdoors)
     // outdoor slap-back: two short delays, filtered
     verb = ctx.createGain(); verb.gain.value = 0.32;
     const d1 = ctx.createDelay(1), d2 = ctx.createDelay(1);
@@ -624,7 +624,7 @@ export function createAudio() {
   /* each frame: the wind gusting, the rain easing and coming on, and the wildlife, which falls quiet
      for a while after shooting close by */
   function tick() {
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx || ctx.state !== 'running' || !outdoors) return;
     const t = ctx.currentTime;
     if (t > next.gust) {
       const gust = amb0.wind * (0.45 + R() * R() * 1.4), ease = 0.8 + R() * 2.5;
@@ -668,6 +668,12 @@ export function createAudio() {
       if (rainGain) rainLevels();
     },
     tick,
+    /* the weather and wildlife heard (in the mission) or faded out (the menus) */
+    setOutdoors(on) {
+      if (on === outdoors || !amb) return;
+      outdoors = on;
+      amb.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.4);
+    },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
     gunshot, garandPing, dryFire, reload, switchWeapon, whizz, impact, explosion, thunder, distant,

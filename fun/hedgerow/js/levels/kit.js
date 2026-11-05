@@ -39,21 +39,21 @@ export function along(line, step, offset, fn, from = -Infinity, to = Infinity) {
   }
 }
 
-/* a hedgerow on its earth bank: straight runs [x0, z0, x1, z1] (a gap is where no run is) */
+/* hedgerows on their earth banks. Each run is a line of points [[x, z], ...] (it may bend; a gap is
+   where no run is) or a straight [x0, z0, x1, z1]. */
 export function hedgeBanks(runs, { height = 0.85, half = 2.4 } = {}) {
-  const boxes = runs.map(([x0, z0, x1, z1]) => ({ x0: Math.min(x0, x1) - half - 1, x1: Math.max(x0, x1) + half + 1, z0: Math.min(z0, z1) - half - 1, z1: Math.max(z0, z1) + half + 1 }));
+  const lines = runs.map((r) => (typeof r[0] === 'number' ? [[r[0], r[1]], [r[2], r[3]]] : r));
+  const boxes = lines.map((l) => bbox(l, half + 1));
+  const lens = lines.map((l) => l.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0), 0));
   /* the distance to the nearest run (Infinity beyond reach) */
   const dist = (x, z) => {
     let best = Infinity;
-    for (let i = 0; i < runs.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       if (!inBox(boxes[i], x, z)) continue;
-      const [ax, az, bx, bz] = runs[i];
-      const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9;
-      let t = ((x - ax) * dx + (z - az) * dz) / L2;
-      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      polylineDistance(lines[i], x, z, tmp);
       // the bank's ends round off over the last metre and a half
-      const along = Math.sqrt(L2), cut = Math.min(t * along, (1 - t) * along);
-      const d = Math.hypot(x - ax - dx * t, z - az - dz * t) + Math.max(0, 1.5 - cut) * 0.8;
+      const cut = Math.min(tmp.t, 1 - tmp.t) * lens[i];
+      const d = tmp.d + Math.max(0, 1.5 - cut) * 0.8;
       if (d < best) best = d;
     }
     return best;
@@ -62,18 +62,45 @@ export function hedgeBanks(runs, { height = 0.85, half = 2.4 } = {}) {
     dist,
     /* the bank's rise at (x, z) */
     rise: (x, z) => { const d = dist(x, z); return d < half ? height * smoothstep(half, half * 0.35, d) : 0; },
-    /* hedges along the runs, every `step` metres, at their height: P(model, x, z, yaw, opts) */
+    /* hedges along the runs, evenly about every `step` metres, at their height: P(model, x, z, yaw, opts) */
     plant(P, y, step = 4) {
-      for (const [x0, z0, x1, z1] of runs) {
-        const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / step));
-        const yaw = Math.atan2(-(z1 - z0), x1 - x0) * 180 / Math.PI;
+      lines.forEach((l, i) => {
+        const n = Math.max(1, Math.round(lens[i] / step));
+        let seg = 0, at = 0;
         for (let k = 0; k < n; k++) {
-          const t = (k + 0.5) / n;
-          P('hedge', x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, yaw + (k % 2 ? 180 : 0), { veg: true, y });
+          const s = ((k + 0.5) / n) * lens[i];
+          for (;;) {
+            const L = Math.hypot(l[seg + 1][0] - l[seg][0], l[seg + 1][1] - l[seg][1]);
+            if (s <= at + L || seg === l.length - 2) {
+              const f = L > 0 ? (s - at) / L : 0, dx = l[seg + 1][0] - l[seg][0], dz = l[seg + 1][1] - l[seg][1];
+              P('hedge', l[seg][0] + dx * f, l[seg][1] + dz * f, Math.atan2(-dz, dx) * 180 / Math.PI + (k % 2 ? 180 : 0), { veg: true, y });
+              break;
+            }
+            at += L; seg++;
+          }
         }
-      }
+      });
     },
   };
+}
+
+/* a line split where `keep(x, z)` fails, into the runs either side (hedges cut for gates and roads) */
+export function gaps(line, keep) {
+  const out = [];
+  let run = [];
+  for (const p of line) {
+    if (keep(p[0], p[1])) run.push(p);
+    else { if (run.length > 1) out.push(run); run = []; }
+  }
+  if (run.length > 1) out.push(run);
+  return out;
+}
+
+/* a line drawn by z = f(x) from x0 to x1 (either way), a point every `step` metres of x */
+export function curve(f, x0, x1, step = 2) {
+  const n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), out = [];
+  for (let k = 0; k <= n; k++) { const x = x0 + ((x1 - x0) * k) / n; out.push([x, f(x)]); }
+  return out;
 }
 
 /* mounds, clods and shell craters, looked up on a grid (`allowed(x, z)`: 1 where the ground may be
@@ -128,4 +155,24 @@ export function cutTrench(line, box, lip, depth, h, x, z) {
   const lerpT = smoothstep(1.15, 0.8, tmp.d);
   const up = Math.max(h, top + 0.15 * smoothstep(2.2, 1.3, tmp.d));
   return up + (floor - up) * lerpT;
+}
+
+/* `line` moved `d` metres to its side (+ the left, +x when heading +z), point by point */
+export function offset(line, d) {
+  return line.map(([x, z], i) => {
+    const [ax, az] = line[Math.max(0, i - 1)], [bx, bz] = line[Math.min(line.length - 1, i + 1)];
+    const L = Math.hypot(bx - ax, bz - az) || 1;
+    return [x + ((bz - az) / L) * d, z - ((bx - ax) / L) * d];
+  });
+}
+
+/* where a line running along z crosses `z` (x, and its heading [tx, tz]); its ends beyond them */
+export function atZ(line, z) {
+  for (let i = 0; i < line.length - 1; i++) {
+    const [ax, az] = line[i], [bx, bz] = line[i + 1];
+    if ((z - az) * (z - bz) > 0 && i < line.length - 2) continue;
+    const f = bz !== az ? Math.min(1, Math.max(0, (z - az) / (bz - az))) : 0, L = Math.hypot(bx - ax, bz - az) || 1;
+    return { x: ax + (bx - ax) * f, tx: (bx - ax) / L, tz: (bz - az) / L };
+  }
+  return { x: line[0][0], tx: 0, tz: 1 };
 }

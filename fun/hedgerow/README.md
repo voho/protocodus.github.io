@@ -5,8 +5,8 @@ arcade to play. You are one soldier pushing through hand-built missions,
 three of them, each an original scenario inspired by a real situation of
 the Normandy campaign. **Choose mission** on the title screen picks one; the
 page builds one battlefield at a time, so choosing another reloads the page
-with `?mission=<id>` (`js/missions.js`), showing that mission's picture
-while it loads.
+with `?mission=<id>` (`js/missions.js`), showing a shot from that mission,
+out of focus, behind the menus while it loads.
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
@@ -24,19 +24,28 @@ three river crossings, the ends of the trench, the flanks of the bunker.
 1944, drizzle; inspired by the paratroopers' assaults on the gun batteries
 behind the beaches. Scattered in the night, a handful of you find a battery
 of three guns dug in along a hedgerow, shelling the causeway the seaborne
-troops must come up. Across a meadow of shell craters (the sunken lane on
-the left, the orchard track on the right, both under machine guns), into
-the trench along the guns, a charge on each gun, then the shells stacked in
-the farmyard, and on to the road north.
+troops must come up. Up a long meadow of shell craters from the valley
+bottom to the guns on the crest, ten metres up (the sunken lane winding up
+a fold on the left, the orchard track round a spur on the right, both under
+machine guns, or from crater to crater past the knoll between them), into
+the trench below the guns, a charge on each gun, then down to the shells
+stacked in the farmyard, and on to the road north.
 
 **Mission 3 — The bridge at Pont-Tournant.** Normandy, twenty past midnight
 on 6 June 1944, wind and rain; inspired by the glider-borne coups de main
 on the canal and river bridges. Your glider has come down short of a swing
-bridge wired for demolition. Through the gaps in the wire, silence the
-pillbox and the guards, rush the bridge, clear the café and the houses on
-the far bank, then hold the north end for ninety seconds while they come
-down the road. The gliders and the bridge are modelled in three.js
+bridge wired for demolition. The road curves in over the marsh on a low
+causeway; through the gaps in the wire, past the pond in the angle of the
+road and the canal, silence the pillbox and the guards, rush the bridge,
+clear the café and the houses climbing the far bank and the side street,
+then hold the north end for ninety seconds while they come down the street
+from where it bends at the top. The gliders and the bridge are modelled in three.js
 (`js/procedural.js`).
+
+Both are laid out after the old maps of the real places (OpenStreetMap of
+the Bénouville canal bridge and the Merville battery): ground that rises and
+folds, roads and hedges that wind, ponds and side streets, rather than a
+flat field.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -535,7 +544,8 @@ by the blast that killed them, and drop their rifles.
     coming on, wind that gusts and whistles in the hedges at the strongest
     gusts; per mission, birds in the morning, frogs along the canal and
     bombers droning over at night, the wildlife falling silent for a while
-    after shooting nearby)
+    after shooting nearby; all of it heard out on the battlefield only,
+    faded out over the menus)
   * the effects chain (`renderer.setEffects`, in order): the particles of
     `effects.js` drawn into the scene's buffer with its depth · `ssao.js` ambient
     occlusion at half resolution · `ssr.js` reflections in the wet ground,

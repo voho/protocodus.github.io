@@ -1156,6 +1156,8 @@ function step() {
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
+  // the weather and wildlife out on the battlefield (and watching from it, dead), not over the menus
+  audio.setOutdoors(playing || state === 'dead');
   audio.tick();
   // and what he hears goes dull behind a ringing in the ears (clear again in the menus)
   audio.daze(live && player ? player.daze : 0);

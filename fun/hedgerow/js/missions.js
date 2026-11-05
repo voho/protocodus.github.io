@@ -6,7 +6,7 @@
 export const MISSIONS = [
   {
     id: 'saint-clair', title: 'Saint-Clair', place: 'Normandy · July 1944', time: 'Dusk, rain',
-    subtitle: 'Saint-Clair, at dusk', image: 'hedgerow-card.webp',
+    subtitle: 'Saint-Clair, at dusk', image: 'assets/missions/saint-clair.webp',
     summary: 'Push alone through a hedgerow village, over the river and through a fortified wood to a flak gun.',
     inspired: 'Inspired by the hedgerow fighting round Saint-Lô, July 1944.',
     load: () => import('./levels/saint-clair.js'),

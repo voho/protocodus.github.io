@@ -297,6 +297,8 @@ h2 { margin: 0 0 14px; font-family: var(--stamp); font-size: 30px; font-weight: 
   position: fixed; inset: 0; z-index: 35; pointer-events: none;
   background: var(--night) center / cover no-repeat;
   opacity: 0; transition: opacity 1.2s ease;
+  /* a shot from the mission, out of focus behind the menus; grown so the blur keeps dark edges off */
+  filter: blur(10px); transform: scale(1.06);
 }
 .loading-art::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(5, 6, 7, 0.15), rgba(5, 6, 7, 0.75)); }
 .loading-art.on { opacity: 1; }
