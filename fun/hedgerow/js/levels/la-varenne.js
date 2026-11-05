@@ -347,7 +347,7 @@ export default {
   daylight: true,
   weather: { rain: 0.45 },
   start: [20, -12, 0],
-  menuView: { from: [30, 4.2, 104], to: [2, 3.2, 146] },
+  menuView: { from: [30, 5.5, 110], to: [0, 2.0, 148] },
   bounds: { minX: -110, maxX: 110, minZ: -50, maxZ: 300 },
   playBounds: { minX: -52, maxX: 52, minZ: -22, maxZ: 262 },
   fine: [[-44, 126, 40, 156]],

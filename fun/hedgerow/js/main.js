@@ -595,7 +595,7 @@ function openMissions() {
     b.dataset.analyticsAction = 'choose_mission';
     if (m === MISSION) b.setAttribute('aria-current', 'true');
     const img = document.createElement('img');
-    img.src = m.image; img.alt = ''; img.loading = 'lazy';
+    img.src = m.image; img.alt = '';
     const body = document.createElement('span');
     body.className = 'mc-body';
     const best = (() => { try { return Number(localStorage.getItem(bestKey(m.id)) || 0); } catch { return 0; } })();
