@@ -152,6 +152,33 @@ const homepage = browser('https://protocodus.cz/');
 const productLink = homepage.document.body.appendChild(new homepage.Element('a', { href: '/product/maremba/' }));
 homepage.click(productLink);
 assert.equal(homepage.gaEvents('select_item').length, 1, 'Navigating from the homepage to a product records product selection');
+for (const [slug, expectedProduct] of [
+  ['acustra-acoustic-guitar', 'acustra'],
+  ['ceres-circuit-modelled-synth', 'ceres'],
+  ['lamer-degrader', 'lamer'],
+  ['maremba', 'maremba'],
+  ['press78-fm-synth', 'press78'],
+  ['youknow-circuit-modelled-synth', 'youknow'],
+]) {
+  homepage.click(homepage.document.body.appendChild(new homepage.Element('a', {
+    href: `https://www.reasonstudios.com/shop/rack-extension/${slug}/`,
+  })));
+  assert.equal(homepage.gaEvents('shop_click').at(-1)[2].product_id, expectedProduct, `Reason Shop slug ${slug} maps to ${expectedProduct}`);
+}
+const archivePage = browser('https://protocodus.cz/product/releases/archive-2026-10-12.html');
+const archiveRow = archivePage.document.body.appendChild(new archivePage.Element('tr'));
+archiveRow.appendChild(new archivePage.Element('th')).appendChild(new archivePage.Element('a', { href: '/product/youknow/' }));
+const archiveSourceLink = archiveRow.appendChild(new archivePage.Element('td')).appendChild(new archivePage.Element('a', {
+  href: 'https://github.com/protocodus/virtual-instrument-youknow',
+}));
+archivePage.click(archiveSourceLink);
+assert.equal(archivePage.gaEvents('outbound_click').at(-1)[2].product_id, 'youknow', 'Archive table rows attribute outbound source clicks to their row product');
+const archiveListItem = archivePage.document.body.appendChild(new archivePage.Element('li', { id: 'acustra' }));
+const archiveNotesLink = archiveListItem.appendChild(new archivePage.Element('a', {
+  href: 'https://github.com/protocodus/virtual-instrument-acustra/blob/main/README.md#release-history',
+}));
+archivePage.click(archiveNotesLink);
+assert.equal(archivePage.gaEvents('outbound_click').at(-1)[2].product_id, 'acustra', 'Product list items attribute outbound release-note clicks to their product');
 links.click(link('https://another.example/product/maremba/'));
 assert.equal(links.gaEvents('outbound_click').length, 1, 'External routes resembling product pages remain outbound clicks');
 

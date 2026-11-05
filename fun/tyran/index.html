@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Tyran — Beyond the last horizon</title>
+  <title>Tyran — Arcade Space Shooter Browser Game | Protocodus</title>
   <meta name="description" content="An arcade shooter across ten worlds. Break enemy formations, defeat guardians and upgrade your ship in an endless campaign.">
   <meta name="theme-color" content="#08110f">
-  <meta property="og:title" content="Tyran — Beyond the last horizon">
+  <meta property="og:title" content="Tyran — Arcade Space Shooter Browser Game | Protocodus">
   <meta property="og:description" content="Ten worlds. Endless flight. An arcade shooter by Protocodus.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/tyran/">
   <meta property="og:image" content="https://protocodus.cz/fun/tyran/assets/hero.jpg">
+  <meta property="og:image:width" content="1672">
+  <meta property="og:image:height" content="941">
+  <meta property="og:image:alt" content="Tyran: a fighter over a terrain world under enemy fire">
   <link rel="canonical" href="https://protocodus.cz/fun/tyran/">
   <!-- Inline the shared favicon so browser-delayed icon loading needs no request. -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2263%2026%201128%201128%22%3E%0A%20%20%3Ctitle%3EProtocodus%3C%2Ftitle%3E%0A%20%20%3C%21--%20Original%20logo%20silhouettes%2C%20simplified%20to%20the%20two%20brand%20colors%20for%20small%20sizes.%20--%3E%0A%20%20%3Cpath%20fill%3D%22%23F6D155%22%20d%3D%22M%20626.7%20149%20C%20636.26%20176.45%20631.32%20444.92%20905%20467.5%20C%20635.6%20501.9%20640.3%20711.47%20626.1%20783%20C%20615.5%20671.83%20585.61%20490.51%20344%20467.5%20C%20480.23%20455.15%20607.11%20388.8%20626.7%20149%20Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%2387D7BE%22%20d%3D%22M%2095.5%20567%20C%20159.57%20658.16%20110%20702.12%20160%20799%20C%20221.43%20911.17%20333.1%20913.16%20418%20912%20C%20477.45%20916.07%20567.23%20898.89%20625.5%201031%20L%20626.5%20882%20C%20573.9%20754.24%20406.29%20762.02%20345%20746.5%20C%20277.26%20730.91%20248.7%20700.54%20222%20653%20C%20218.18%20651.01%20179.36%20562.61%2095.5%20567%20Z%22%2F%3E%0A%20%20%3Cpath%20fill%3D%22%2387D7BE%22%20d%3D%22M%201158%20567%20C%201093.34%20664.78%201145.22%20703.22%201093%20801%20C%201027.67%20920.23%20901.36%20910.83%20835%20913%20C%20667.45%20902.91%20649.37%20995.52%20625.5%201031%20L%20626.5%20882%20C%20681.5%20753.97%20845.86%20762.65%20905%20747%20C%20976.22%20734.05%201008.06%20696.39%201031%20655%20C%201040.45%20641.92%201080.06%20562.79%201158%20567%20Z%22%2F%3E%0A%3C%2Fsvg%3E%0A">
@@ -74,21 +77,21 @@
         <div class="score-instrument" title="Score"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg><span class="hud-secondary">Score</span><strong id="score-value">000000</strong></div>
         <div class="credits-instrument" title="Credits"><span class="hud-secondary">Credits</span><strong><span class="credit-symbol">$</span> <span id="credits-value">0</span></strong></div>
       </div>
-      <button type="button" class="pause-button hud-island" id="pause-button" aria-label="Pause flight" title="Pause · Escape"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="3"/></svg></button>
+      <button type="button" class="pause-button hud-island" id="pause-button" data-analytics-cta="hud_pause" data-analytics-action="pause" aria-label="Pause flight" title="Pause · Escape"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="3"/></svg></button>
       <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
     </header>
   </section>
-  <div class="touch-controls" id="touch-controls"><div id="touch-stick" class="touch-stick" role="region" aria-label="Drag to steer"><span></span></div><div class="touch-weapons"><button id="touch-fire" class="touch-fire" type="button" aria-label="Hold for primary gun fire"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2v7m0 14v7M2 16h7m14 0h7" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg><span>Primary</span></button><button id="touch-secondary" class="touch-fire touch-secondary" type="button" aria-label="Hold for secondary plasma fire; uses energy"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="10" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="currentColor"/></svg><span>Plasma</span></button><button id="touch-bomb" class="touch-fire touch-bomb" type="button" aria-label="Detonate a nova charge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 3 9 9-3-6 7 6 7-9-3-3 9-3-9-9 3 6-7-6-7 9 3 3-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Nova <b id="touch-bomb-count">3</b></span></button></div></div>
+  <div class="touch-controls" id="touch-controls" data-analytics-ignore><div id="touch-stick" class="touch-stick" role="region" aria-label="Drag to steer"><span></span></div><div class="touch-weapons"><button id="touch-fire" class="touch-fire" type="button" aria-label="Hold for primary gun fire"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2v7m0 14v7M2 16h7m14 0h7" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg><span>Primary</span></button><button id="touch-secondary" class="touch-fire touch-secondary" type="button" aria-label="Hold for secondary plasma fire; uses energy"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="10" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="currentColor"/></svg><span>Plasma</span></button><button id="touch-bomb" class="touch-fire touch-bomb" type="button" aria-label="Detonate a nova charge"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 3 3 9 9-3-6 7 6 7-9-3-3 9-3-9-9 3 6-7-6-7 9 3 3-9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Nova <b id="touch-bomb-count">3</b></span></button></div></div>
   </div>
 
   <main id="menu-screen" class="menu-screen" aria-label="Flight command" inert>
     <div class="hero-art" aria-hidden="true"></div>
     <div class="hero-shade" aria-hidden="true"></div>
     <header class="menu-corner menu-corner-top">
-      <a class="back-link" href="/fun/"><span aria-hidden="true">←</span> All games</a>
+      <a class="back-link" href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game"><span aria-hidden="true">←</span> All games</a>
       <div class="menu-utilities">
-        <button class="utility-button" id="sound-toggle" type="button" aria-label="Toggle sound" aria-pressed="true" title="Toggle sound"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="sound-label">Sound on</span></button>
-        <button class="utility-button icon-only" id="fullscreen-toggle" type="button" aria-label="Toggle fullscreen" title="Toggle fullscreen"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="utility-button" id="sound-toggle" type="button" data-analytics-cta="menu_sound_toggle" data-analytics-action="sound" aria-label="Toggle sound" aria-pressed="true" title="Toggle sound"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="sound-label">Sound on</span></button>
+        <button class="utility-button icon-only" id="fullscreen-toggle" type="button" data-analytics-cta="menu_fullscreen_toggle" data-analytics-action="fullscreen" aria-label="Toggle fullscreen" title="Toggle fullscreen"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </header>
     <section class="menu-body" aria-labelledby="game-title">
@@ -98,9 +101,9 @@
           <p class="hero-tagline">Beyond the last horizon.</p>
         </div>
         <nav class="menu-list" id="menu-list" aria-label="Main menu">
-          <button type="button" class="menu-row menu-primary active" id="launch-button" data-row="launch"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">New campaign</span><small id="launch-route">Sector 01 · Easy</small></button>
-          <button type="button" class="menu-row" id="continue-button" data-row="continue" disabled><span class="menu-marker" aria-hidden="true"></span><span class="menu-label" id="continue-label">Resume campaign</span><small id="continue-route">No saved campaign</small></button>
-          <div class="menu-row menu-value" data-row="sector" tabindex="-1" role="group" aria-label="Sector to preview and practice"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Sector</span><span class="menu-choice"><button type="button" class="menu-step" id="sector-prev" aria-label="Previous sector">‹</button><span class="menu-choice-value"><b id="selected-world-number">01</b> <span id="selected-world-name">Emerald Frontier</span></span><button type="button" class="menu-step" id="sector-next" aria-label="Next sector">›</button></span><small id="selected-world-description">The living canopy.</small></div>
+          <button type="button" class="menu-row menu-primary active" id="launch-button" data-row="launch" data-analytics-cta="menu_new_campaign" data-analytics-action="new_campaign"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">New campaign</span><small id="launch-route">Sector 01 · Easy</small></button>
+          <button type="button" class="menu-row" id="continue-button" data-row="continue" data-analytics-cta="menu_resume_campaign" data-analytics-action="resume_campaign" disabled><span class="menu-marker" aria-hidden="true"></span><span class="menu-label" id="continue-label">Resume campaign</span><small id="continue-route">No saved campaign</small></button>
+          <div class="menu-row menu-value" data-row="sector" tabindex="-1" role="group" aria-label="Sector to preview and practice"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Sector</span><span class="menu-choice"><button type="button" class="menu-step" id="sector-prev" data-analytics-cta="menu_sector_prev" data-analytics-action="sector_prev" aria-label="Previous sector">‹</button><span class="menu-choice-value"><b id="selected-world-number">01</b> <span id="selected-world-name">Emerald Frontier</span></span><button type="button" class="menu-step" id="sector-next" data-analytics-cta="menu_sector_next" data-analytics-action="sector_next" aria-label="Next sector">›</button></span><small id="selected-world-description">The living canopy.</small></div>
           <fieldset class="menu-row menu-value difficulty-picker" id="difficulty-picker" data-row="difficulty" aria-describedby="difficulty-description difficulty-scope">
             <legend class="menu-legend-hidden">New flights difficulty</legend>
             <span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Difficulty</span>
@@ -113,9 +116,9 @@
             <small id="difficulty-description">Room to learn.</small>
             <small id="difficulty-scope" class="menu-scope">Applies to new flights. Saves keep their difficulty.</small>
           </fieldset>
-          <button type="button" class="menu-row" id="sector-flight-button" data-row="practice"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label" id="practice-label">Practice sector 01</span><small id="practice-route">Separate from your campaign.</small></button>
-          <button type="button" class="menu-row" id="help-button" data-row="manual"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Flight manual</span></button>
-          <div class="touch-assist-setting"><button id="touch-assist-toggle" class="touch-assist-toggle" type="button" aria-pressed="false" aria-describedby="touch-assist-note">Steer &amp; fire off</button><small id="touch-assist-note">Fire your primary while holding the stick.</small></div>
+          <button type="button" class="menu-row" id="sector-flight-button" data-row="practice" data-analytics-cta="menu_practice_sector" data-analytics-action="practice_sector"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label" id="practice-label">Practice sector 01</span><small id="practice-route">Separate from your campaign.</small></button>
+          <button type="button" class="menu-row" id="help-button" data-row="manual" data-analytics-cta="menu_flight_manual" data-analytics-action="help"><span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Flight manual</span></button>
+          <div class="touch-assist-setting"><button id="touch-assist-toggle" class="touch-assist-toggle" type="button" data-analytics-cta="menu_touch_assist" data-analytics-action="toggle_touch_assist" aria-pressed="false" aria-describedby="touch-assist-note">Steer &amp; fire off</button><small id="touch-assist-note">Fire your primary while holding the stick.</small></div>
         </nav>
       </div>
     </section>
@@ -126,7 +129,7 @@
     <footer class="menu-corner menu-corner-bottom">
       <p class="menu-keys keyboard-hint" aria-label="Menu keys"><span><kbd>arrows</kbd> / <kbd>wasd</kbd> Navigate</span><span><kbd>enter</kbd> / <kbd>space</kbd> Select</span></p>
       <p class="save-summary" id="save-summary" role="status">Autosaved in this browser.</p>
-      <a href="/" class="studio-credit">By Protocodus</a>
+      <a href="/" class="studio-credit" data-analytics-cta="menu_studio_home" data-analytics-action="navigate_home">By Protocodus</a>
     </footer>
   </main>
 
@@ -135,12 +138,12 @@
       <h2 id="pause-title">Paused</h2>
       <ul id="pause-objectives" class="objective-list" aria-label="Sector objectives"></ul>
       <div class="modal-actions">
-        <button type="button" class="primary-button" id="resume-button">Resume <span aria-hidden="true">→</span></button>
+        <button type="button" class="primary-button" id="resume-button" data-analytics-cta="pause_resume" data-analytics-action="resume">Resume <span aria-hidden="true">→</span></button>
         <p class="save-status" id="pause-save-status" role="status">Autosaved in this browser.</p>
-        <button type="button" class="secondary-button" id="restart-button">Restart sector</button>
-        <button type="button" class="secondary-button menu-return-button" id="menu-button">Main menu <span aria-hidden="true">←</span></button>
+        <button type="button" class="secondary-button" id="restart-button" data-analytics-cta="pause_restart" data-analytics-action="restart">Restart sector</button>
+        <button type="button" class="secondary-button menu-return-button" id="menu-button" data-analytics-cta="pause_main_menu" data-analytics-action="open_menu">Main menu <span aria-hidden="true">←</span></button>
       </div>
-      <div class="pause-settings"><button id="pause-sound-toggle" class="secondary-button" type="button" aria-pressed="true">Sound on</button><button id="pause-touch-assist-toggle" class="secondary-button touch-assist-toggle" type="button" aria-pressed="false" title="Fire your primary while holding the steering stick.">Steer &amp; fire off</button></div>
+      <div class="pause-settings"><button id="pause-sound-toggle" class="secondary-button" type="button" data-analytics-cta="pause_sound_toggle" data-analytics-action="sound" aria-pressed="true">Sound on</button><button id="pause-touch-assist-toggle" class="secondary-button touch-assist-toggle" type="button" data-analytics-cta="pause_touch_assist" data-analytics-action="toggle_touch_assist" aria-pressed="false" title="Fire your primary while holding the steering stick.">Steer &amp; fire off</button></div>
       <p class="modal-footnote"><kbd>Esc</kbd> Resume</p>
     </div>
   </section>
@@ -163,21 +166,21 @@
       <div id="supply-list" class="upgrade-list supply-list" aria-label="Support equipment"></div>
       <div class="hangar-rule"><span>Upgrades</span><span>Permanent this campaign</span></div>
       <div id="upgrade-list" class="upgrade-list"></div>
-      <div class="hangar-bottom"><p>Hull, shield and energy refill at launch. Equipment carries over.</p><button type="button" class="primary-button" id="next-button">Next sector <span aria-hidden="true">→</span></button></div>
+      <div class="hangar-bottom"><p>Hull, shield and energy refill at launch. Equipment carries over.</p><button type="button" class="primary-button" id="next-button" data-analytics-cta="hangar_next_sector" data-analytics-action="next_sector">Next sector <span aria-hidden="true">→</span></button></div>
       <div class="hangar-save-bar">
         <p class="save-status" id="hangar-save-status" role="status">Purchases autosaved.</p>
-        <button type="button" class="secondary-button menu-return-button" id="hangar-menu-button">Main menu <span aria-hidden="true">←</span></button>
+        <button type="button" class="secondary-button menu-return-button" id="hangar-menu-button" data-analytics-cta="hangar_main_menu" data-analytics-action="open_menu">Main menu <span aria-hidden="true">←</span></button>
       </div>
     </div>
   </section>
 
   <section class="modal-screen" id="end-screen" aria-labelledby="end-title" hidden>
-    <div class="modal-panel end-panel"><h2 id="end-title">Signal lost</h2><p id="end-description">Retry this sector with your current equipment.</p><div class="end-score"><span>Final score</span><strong id="end-score">000000</strong><small class="end-best" id="end-best" hidden>Best score</small></div><div class="modal-actions"><button type="button" class="primary-button" id="checkpoint-button" hidden>Retry checkpoint <span aria-hidden="true">→</span></button><button type="button" class="primary-button" id="retry-button">Retry sector <span aria-hidden="true">→</span></button><button type="button" class="secondary-button menu-return-button" id="end-menu-button">Main menu <span aria-hidden="true">←</span></button></div></div>
+    <div class="modal-panel end-panel"><h2 id="end-title">Signal lost</h2><p id="end-description">Retry this sector with your current equipment.</p><div class="end-score"><span>Final score</span><strong id="end-score">000000</strong><small class="end-best" id="end-best" hidden>Best score</small></div><div class="modal-actions"><button type="button" class="primary-button" id="checkpoint-button" data-analytics-cta="end_retry_checkpoint" data-analytics-action="checkpoint" hidden>Retry checkpoint <span aria-hidden="true">→</span></button><button type="button" class="primary-button" id="retry-button" data-analytics-cta="end_retry_sector" data-analytics-action="restart">Retry sector <span aria-hidden="true">→</span></button><button type="button" class="secondary-button menu-return-button" id="end-menu-button" data-analytics-cta="end_main_menu" data-analytics-action="open_menu">Main menu <span aria-hidden="true">←</span></button></div></div>
   </section>
 
   <section class="modal-screen manual-page" id="help-screen" aria-labelledby="help-title" tabindex="-1" hidden>
     <header class="manual-bar">
-      <button type="button" class="manual-back" id="help-close"><span aria-hidden="true">←</span> Back</button>
+      <button type="button" class="manual-back" id="help-close" data-analytics-cta="manual_back" data-analytics-action="navigate_back"><span aria-hidden="true">←</span> Back</button>
       <p class="manual-bar-title">Tyran<span class="title-period">.</span> Flight manual</p>
     </header>
     <article class="manual-article">

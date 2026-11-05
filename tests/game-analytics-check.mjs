@@ -102,10 +102,11 @@ assert.equal(hedgerow.analyticsAttemptContext().checkpoint, 0, 'Out-of-range che
 const alpine = collector();
 const alpen = await functions('fun/alpen/js/main.js', ['trackRunStart', 'begin', 'restartRun'], {
   ...alpine, chapterNameAt, rider: { pos: { z: -200 } }, game: { mode: 'attract' },
-  audio: { start: noop, muted: false }, showMuted: noop,
+  input: { calm: noop }, audio: { start: noop, quiet: noop, muted: false }, showMuted: noop,
   bootReady: false, contextLost: false, runStarted: false,
-  curtainPointers: new Set(), curtainClickReady: false,
-  curtain: { classList: { remove: noop } }, retro: { fade: noop }, pausedRendered: false,
+  curtainPointers: new Set(), curtainClickReady: false, curtainClickDevice: null,
+  controllerNotice: { hidden: false },
+  curtain: { classList: { remove: noop } }, retro: { fade: noop }, pausedRendered: false, pausedWorldReady: false,
 });
 alpen.restart = fullReset => { alpen.rider.pos.z = fullReset ? 0 : -4000; };
 alpen.begin();
@@ -115,6 +116,7 @@ alpen.begin();
 assert.deepEqual(alpine.events[0], {
   event: 'game_start', game_name: 'alpen', game_mode: 'freeride', level: chapterNameAt(0), action: 'drop_in',
 });
+assert.equal(alpen.controllerNotice.hidden, true, 'Starting Alpen hides the controller disconnect notice');
 alpen.game.mode = 'paused';
 alpen.begin();
 assert.equal(alpine.events.length, 1, 'Resuming Alpen does not create another drop-in');
@@ -123,8 +125,31 @@ assert.equal(alpine.events[1].action, 'restart');
 assert.equal(alpine.events[1].level, chapterNameAt(-4000));
 assert.equal('seed' in alpine.events[1], false);
 
-for (const context of [ashline, hedgerow, alpen]) delete context.window.protocodusAnalytics;
+// Tyran tracks one start/end pair per sector attempt; pausing or reopening
+// saved reports must not duplicate flights or victories.
+const tyr = collector();
+const tyran = await functions('fun/tyran/game.js', ['trackFlightStart', 'trackFlightEnd'], {
+  ...tyr, activeCampaign: true, analyticsFlight: null,
+  state: { level: 2, time: 10, difficulty: 'hard', score: 1250.9 },
+});
+tyran.trackFlightStart();
+tyran.trackFlightStart();
+assert.equal(tyr.events.length, 1, 'Same sector attempt in Tyran does not emit duplicate starts');
+assert.deepEqual(tyr.events[0], {
+  event: 'game_start', game_name: 'tyran', game_mode: 'campaign', level: 3, difficulty: 'hard',
+});
+tyran.state.time = 42;
+tyran.trackFlightEnd('win');
+tyran.trackFlightEnd('win');
+assert.equal(tyr.events.length, 2, 'Same sector attempt in Tyran does not emit duplicate outcomes');
+assert.deepEqual(tyr.events[1], {
+  event: 'game_end', game_name: 'tyran', game_mode: 'campaign', level: 3, difficulty: 'hard',
+  result: 'win', score: 1250, duration_seconds: 32,
+});
+
+for (const context of [ashline, hedgerow, alpen, tyran]) delete context.window.protocodusAnalytics;
 assert.doesNotThrow(() => { ashline.analyticsStarted = false; ashline.game.status = 'playing'; ashline.trackOperationStart(); });
 assert.doesNotThrow(() => { hedgerow.trackAttemptStart(); hedgerow.trackAttemptEnd('win'); });
 assert.doesNotThrow(() => alpen.trackRunStart('restart'));
+assert.doesNotThrow(() => { tyran.analyticsFlight = null; tyran.trackFlightStart(); tyran.trackFlightEnd('loss'); });
 console.log('Game analytics checks passed: authored modes/levels, normalized difficulty/checkpoints, displayed score, deduplicated outcomes, retries and optional tracking.');

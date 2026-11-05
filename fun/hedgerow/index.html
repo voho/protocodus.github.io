@@ -4,14 +4,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Hedgerow — Saint-Clair at dusk</title>
+  <title>Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus</title>
   <meta name="description"
     content="A first-person Second World War shooter in the browser. Fight your way through a Norman village and the forest beyond it at dusk, in the rain.">
   <meta name="theme-color" content="#0b0d10">
-  <meta property="og:title" content="Hedgerow — Saint-Clair at dusk">
+  <meta property="og:title" content="Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus">
   <meta property="og:description" content="First-person WW2 shooter in the browser: a village, a river and a forest at dusk, in the rain.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/hedgerow/">
+  <meta property="og:image" content="https://protocodus.cz/fun/hedgerow/hedgerow-card.webp?v=20261023-fun">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Hedgerow: the title over a rainy Norman village at dusk, a lamp lit on the lane">
   <link rel="canonical" href="https://protocodus.cz/fun/hedgerow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="./assets/fonts/courier-prime-latin-400.woff2" as="font" type="font/woff2" crossorigin>
@@ -85,13 +89,13 @@
       </div>
       <div class="error" data-error hidden>
         <p data-error-text></p>
-        <button type="button" class="ghost" data-action="retry">Retry</button>
+        <button type="button" class="ghost" data-action="retry" data-analytics-cta="error_retry" data-analytics-action="retry">Retry</button>
       </div>
       <nav class="menu" data-menu hidden>
-        <button type="button" class="menu-item primary" data-action="briefing">Play mission</button>
-        <button type="button" class="menu-item" data-action="controls">Controls</button>
-        <button type="button" class="menu-item" data-action="settings">Settings</button>
-        <a class="menu-item" href="/fun/">Back to games</a>
+        <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Play mission</button>
+        <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
+        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
+        <a class="menu-item" href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">Back to games</a>
       </nav>
       <p class="best" data-best hidden></p>
     </div>
@@ -106,8 +110,8 @@
       <ul class="briefing-goals" data-briefing-goals></ul>
       <p class="loading-briefing" data-loading-briefing>Preparing graphics and sound. 0 of 5 steps done · 5 left.</p>
       <div class="row">
-        <button type="button" class="menu-item primary" data-action="start" disabled>Loading 0%</button>
-        <button type="button" class="menu-item" data-action="back">Back</button>
+        <button type="button" class="menu-item primary" data-action="start" data-analytics-cta="briefing_start_mission" data-analytics-action="start" disabled>Loading 0%</button>
+        <button type="button" class="menu-item" data-action="back" data-analytics-cta="briefing_back" data-analytics-action="navigate_back">Back</button>
       </div>
       <p class="hint">Click to capture the mouse. Esc pauses.</p>
     </div>
@@ -132,7 +136,7 @@
         <dt>O</dt><dd>Switch night / day</dd>
         <dt>Esc</dt><dd>Pause</dd>
       </dl>
-      <button type="button" class="menu-item" data-action="back">Back</button>
+      <button type="button" class="menu-item" data-action="back" data-analytics-cta="controls_back" data-analytics-action="navigate_back">Back</button>
     </div>
   </section>
 
@@ -157,7 +161,7 @@
           <option value="low">Low</option>
         </select>
       </label>
-      <button type="button" class="menu-item" data-action="back">Back</button>
+      <button type="button" class="menu-item" data-action="back" data-analytics-cta="settings_back" data-analytics-action="navigate_back">Back</button>
     </div>
   </section>
 
@@ -166,12 +170,12 @@
       <h2 id="pause-title">Paused</h2>
       <p class="objective-recap" data-pause-objective></p>
       <nav class="menu">
-        <button type="button" class="menu-item primary" data-action="resume">Resume</button>
-        <button type="button" class="menu-item" data-action="checkpoint">Restart from checkpoint</button>
-        <button type="button" class="menu-item" data-action="restart">Restart mission</button>
-        <button type="button" class="menu-item" data-action="controls">Controls</button>
-        <button type="button" class="menu-item" data-action="settings">Settings</button>
-        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+        <button type="button" class="menu-item primary" data-action="resume" data-analytics-cta="pause_resume" data-analytics-action="resume">Resume</button>
+        <button type="button" class="menu-item" data-action="checkpoint" data-analytics-cta="pause_checkpoint" data-analytics-action="checkpoint">Restart from checkpoint</button>
+        <button type="button" class="menu-item" data-action="restart" data-analytics-cta="pause_restart" data-analytics-action="restart">Restart mission</button>
+        <button type="button" class="menu-item" data-action="controls" data-analytics-cta="pause_controls" data-analytics-action="open_controls">Controls</button>
+        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="pause_settings" data-analytics-action="open_settings">Settings</button>
+        <button type="button" class="menu-item" data-action="quit" data-analytics-cta="pause_quit" data-analytics-action="quit">Quit to title</button>
       </nav>
     </div>
   </section>
@@ -182,9 +186,9 @@
       <h2 id="dead-title">You are down</h2>
       <p data-dead-text>The squad pulls you back to the last position you held.</p>
       <nav class="menu">
-        <button type="button" class="menu-item primary" data-action="checkpoint">Retry from checkpoint</button>
-        <button type="button" class="menu-item" data-action="restart">Restart mission</button>
-        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+        <button type="button" class="menu-item primary" data-action="checkpoint" data-analytics-cta="dead_checkpoint" data-analytics-action="checkpoint">Retry from checkpoint</button>
+        <button type="button" class="menu-item" data-action="restart" data-analytics-cta="dead_restart" data-analytics-action="restart">Restart mission</button>
+        <button type="button" class="menu-item" data-action="quit" data-analytics-cta="dead_quit" data-analytics-action="quit">Quit to title</button>
       </nav>
     </div>
   </section>
@@ -195,8 +199,8 @@
       <h2 id="complete-title">Saint-Clair is clear</h2>
       <dl class="stats" data-stats></dl>
       <nav class="menu">
-        <button type="button" class="menu-item primary" data-action="restart">Play again</button>
-        <button type="button" class="menu-item" data-action="quit">Quit to title</button>
+        <button type="button" class="menu-item primary" data-action="restart" data-analytics-cta="complete_restart" data-analytics-action="restart">Play again</button>
+        <button type="button" class="menu-item" data-action="quit" data-analytics-cta="complete_quit" data-analytics-action="quit">Quit to title</button>
       </nav>
     </div>
   </section>

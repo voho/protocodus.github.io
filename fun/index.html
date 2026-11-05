@@ -4,14 +4,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fun — Protocodus</title>
+  <title>Browser Games — Arcade, Strategy, 3D Action &amp; Puzzles | Protocodus</title>
   <meta name="description"
     content="Play Tyran, Ashline, Alpen, Meteora, Hedgerow, Zipper and Patcher: browser arcade shooting, strategy, snowboarding, space combat, a WW2 shooter and two 3D logic puzzles. No installation or account needed.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="Fun — Protocodus">
+  <meta property="og:title" content="Browser Games — Arcade, Strategy, 3D Action &amp; Puzzles | Protocodus">
   <meta property="og:description" content="Play Tyran, Ashline, Alpen, Meteora, Hedgerow, Zipper and Patcher: arcade shooting, strategy, snowboarding, space combat, a WW2 shooter and two 3D logic puzzles.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/">
+  <meta property="og:image" content="https://protocodus.cz/fun/tyran/tyran-card.webp?v=20261023-fun">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Tyran: a fighter over a terrain world under enemy fire">
   <link rel="canonical" href="https://protocodus.cz/fun/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -23,25 +27,25 @@
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
 
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main" data-analytics-cta="skip_to_content" data-analytics-action="skip_navigation">Skip to content</a>
 
   <header class="site-header">
     <div class="wrap header-inner">
-      <a href="/" class="brand" aria-label="Protocodus home">
+      <a href="/" class="brand" aria-label="Protocodus home" data-analytics-cta="header_brand" data-analytics-action="navigate_home">
         <img src="/assets/images/logo.svg?v=20260911" alt="" class="brand-mark">
         <span class="brand-name">Protocodus</span>
       </a>
 
       <nav class="nav" aria-label="Main navigation">
-        <a href="/#top" class="nav-link">Studio</a>
-        <a href="/#products" class="nav-link">Products</a>
-        <a href="/#fun" class="nav-link current" aria-current="location">Games</a>
-        <a href="/#company" class="nav-link">Company</a>
-        <a href="/#contact" class="nav-link">Contact</a>
+        <a href="/#top" class="nav-link" data-analytics-cta="nav_studio" data-analytics-action="navigate_section">Studio</a>
+        <a href="/#products" class="nav-link" data-analytics-cta="nav_products" data-analytics-action="navigate_section">Products</a>
+        <a href="/#fun" class="nav-link current" aria-current="location" data-analytics-cta="nav_games" data-analytics-action="navigate_section">Games</a>
+        <a href="/#company" class="nav-link" data-analytics-cta="nav_company" data-analytics-action="navigate_section">Company</a>
+        <a href="/#contact" class="nav-link" data-analytics-cta="nav_contact" data-analytics-action="navigate_section">Contact</a>
       </nav>
 
       <div class="header-actions">
-        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" data-analytics-cta="mobile_menu_toggle" data-analytics-action="menu_toggle">
           <span></span><span></span>
         </button>
       </div>
@@ -50,14 +54,14 @@
 
   <div class="mobile-menu" id="mobile-menu" hidden>
     <nav class="mobile-nav" aria-label="Mobile navigation">
-      <a href="/#top" class="mobile-link">Studio</a>
-      <a href="/#products" class="mobile-link">Products</a>
-      <a href="/#fun" class="mobile-link current" aria-current="location">Games</a>
-      <a href="/#company" class="mobile-link">Company</a>
-      <a href="/#contact" class="mobile-link">Contact</a>
+      <a href="/#top" class="mobile-link" data-analytics-cta="mobile_nav_studio" data-analytics-action="navigate_section">Studio</a>
+      <a href="/#products" class="mobile-link" data-analytics-cta="mobile_nav_products" data-analytics-action="navigate_section">Products</a>
+      <a href="/#fun" class="mobile-link current" aria-current="location" data-analytics-cta="mobile_nav_games" data-analytics-action="navigate_section">Games</a>
+      <a href="/#company" class="mobile-link" data-analytics-cta="mobile_nav_company" data-analytics-action="navigate_section">Company</a>
+      <a href="/#contact" class="mobile-link" data-analytics-cta="mobile_nav_contact" data-analytics-action="navigate_section">Contact</a>
     </nav>
     <div class="mobile-foot">
-      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+      <a href="mailto:protocodus@proton.me" class="mobile-mail" data-analytics-cta="mobile_support" data-analytics-action="contact_support">protocodus@proton.me</a>
     </div>
   </div>
 
@@ -70,7 +74,7 @@
       </div>
 
       <div class="games">
-        <a class="game" href="/fun/tyran/">
+        <a class="game" href="/fun/tyran/" data-analytics-cta="game_tyran" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/tyran/tyran-card.webp?v=20261023-fun" width="880" height="495" loading="lazy" decoding="async" alt="Tyran: a fighter over a terrain world under enemy fire">
           <h2>Tyran</h2>
           <p>Break swarming squadrons across ten extraordinary worlds, power up in flight, rescue your wing drones and upgrade your ship.</p>
@@ -79,7 +83,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/ashline/">
+        <a class="game" href="/fun/ashline/" data-analytics-cta="game_ashline" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/ashline/ashline-card.webp?v=20261023-fun" width="880" height="495" loading="lazy" decoding="async" alt="Ashline: a base, haulers and an army on a mineral field">
           <h2>Ashline</h2>
           <p>Scout mineral fields, protect your haulers and build an army through ten campaign operations and skirmish modes.</p>
@@ -88,7 +92,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/alpen/">
+        <a class="game" href="/fun/alpen/" data-analytics-cta="game_alpen" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/alpen/alpen-card.webp?v=20261023-fun" width="880" height="495" loading="lazy" decoding="async" alt="Alpen: a snowboarder carving down a mountain">
           <h2>Alpen</h2>
           <p>Carve through changing weather, land tricks and build your score. A fall costs you flow, but the run continues.</p>
@@ -97,7 +101,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/meteora/">
+        <a class="game" href="/fun/meteora/" data-analytics-cta="game_meteora" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/meteora/meteora-card.webp?v=20261023-fun" width="880" height="495" loading="lazy" decoding="async" alt="Meteora: a fighter in an asteroid belt around a red dwarf">
           <h2>Meteora</h2>
           <p>A ten-mission space-combat campaign in a dense asteroid belt. Escort convoys, scout a sleeping enemy, crack a capital ship's reactor and get forty thousand people out alive.</p>
@@ -106,7 +110,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/hedgerow/">
+        <a class="game" href="/fun/hedgerow/" data-analytics-cta="game_hedgerow" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/hedgerow/hedgerow-card.webp?v=20261023-fun" width="880" height="495" loading="lazy" decoding="async" alt="Hedgerow: the title over a rainy Norman village at dusk, a lamp lit on the lane">
           <h2>Hedgerow</h2>
           <p>Normandy, July 1944. Fight through a village at dusk in the rain, cross the river and push through the forest to silence a flak gun. There is always another way round.</p>
@@ -115,7 +119,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/zipper/">
+        <a class="game" href="/fun/zipper/" data-analytics-cta="game_zipper" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/zipper/zipper-card.webp?v=20261025-top" width="880" height="495" loading="lazy" decoding="async" alt="Zipper: a glowing line threading numbered tiles on a dark 3D board">
           <h2>Zipper</h2>
           <p>Draw one unbroken line through every cell, passing the numbers in order and never crossing a wall. Endless boards in three sizes, each with exactly one solution.</p>
@@ -124,7 +128,7 @@
             <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/patcher/">
+        <a class="game" href="/fun/patcher/" data-analytics-cta="game_patcher" data-analytics-action="select_game">
           <img class="game-shot" src="/fun/patcher/patcher-card.webp?v=20261025-top" width="880" height="495" loading="lazy" decoding="async" alt="Patcher: pastel rectangular patches dropped onto a dark 3D board of clues">
           <h2>Patcher</h2>
           <p>Cut the whole board into patches, one clue in each, matching the clue's size and shape. Endless boards in three sizes, each with exactly one solution.</p>
@@ -140,14 +144,14 @@
   <footer class="footer">
     <div class="wrap">
       <div class="footer-top">
-        <a href="/" class="brand" aria-label="Protocodus home">
+        <a href="/" class="brand" aria-label="Protocodus home" data-analytics-cta="footer_brand" data-analytics-action="navigate_home">
           <img src="/assets/images/logo.svg?v=20260911" alt="" class="brand-mark">
           <span class="brand-name">Protocodus</span>
         </a>
       </div>
       <div class="footer-bottom">
         <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o.</p>
-        <p class="footer-meta"><a href="/#company">Company details</a></p>
+        <p class="footer-meta"><a href="/#company" data-analytics-cta="footer_company" data-analytics-action="navigate_section">Company details</a></p>
       </div>
     </div>
   </footer>

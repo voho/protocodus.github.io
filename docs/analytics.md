@@ -206,3 +206,13 @@ Recommended GA4 event-scoped custom dimensions: `page_type`, `product_id`,
 `metric_name`; CLS has no unit, other vitals are milliseconds). GA4's standard
 ecommerce reports use the supplied `items` arrays. Consider `shop_click` and
 `contact_click` as key events only if those intent signals match business goals.
+
+## Search Console and indexing
+
+`robots.txt` and `sitemap.xml` are published at the site root for Google Search
+Console and search crawlers. Every public HTML page declares one canonical URL,
+matching Open Graph metadata (`og:url`, `og:image`, `og:image:width`,
+`og:image:height`, `og:image:alt`), and validated JSON-LD structured data on the
+homepage (`Organization`, `WebSite`) and released Reason Shop product pages
+(`SoftwareApplication`). `node tests/site-content-check.mjs` verifies that
+`sitemap.xml` stays in exact sync with all discovered public HTML pages.

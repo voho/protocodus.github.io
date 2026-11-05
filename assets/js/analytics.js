@@ -5,7 +5,7 @@
   if (window.protocodusAnalytics) return;
 
   // Pages need only this stable script URL; sibling versions are managed here.
-  const version = '20261026.3';
+  const version = '20261105.1';
   const scriptUrl = document.currentScript?.src || new URL('/assets/js/analytics.js', location.href).href;
   const scriptStates = {};
   const eventCounts = {};
@@ -166,10 +166,19 @@
     };
   }
   function productOf(element, url) {
+    const rowLink = element.closest('tr')?.querySelector('th')?.querySelector('a[href]')?.getAttribute('href');
     const candidate = /^\/product\/([^/]+)\//.exec(url.pathname)?.[1]
       || element.closest('.product-card')?.className.match(/\bp-([\w]+)\b/)?.[1]
-      || element.closest('tr[id]')?.id
-      || ({ 'youknow-circuit-modelled-synth': 'youknow', maremba: 'maremba', 'acustra-acoustic-guitar': 'acustra' })[url.pathname.split('/').filter(Boolean).at(-1)];
+      || element.closest('tr[id], li[id]')?.id
+      || (rowLink && /^\/product\/([^/]+)\//.exec(rowLink)?.[1])
+      || ({
+        'acustra-acoustic-guitar': 'acustra',
+        'ceres-circuit-modelled-synth': 'ceres',
+        'lamer-degrader': 'lamer',
+        maremba: 'maremba',
+        'press78-fm-synth': 'press78',
+        'youknow-circuit-modelled-synth': 'youknow'
+      })[url.pathname.split('/').filter(Boolean).at(-1)];
     return products.has(candidate) ? candidate : product;
   }
   function click(event) {

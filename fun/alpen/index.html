@@ -4,15 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Alpen — Endless Snowboarding</title>
+  <title>Alpen — Endless Snowboarding Browser Game | Protocodus</title>
   <meta name="description"
     content="An endless snowboarding game. Carve through changing weather, land tricks and build your score.">
   <meta name="theme-color" content="#0d1420">
-  <meta property="og:title" content="Alpen — Endless Snowboarding">
+  <meta property="og:title" content="Alpen — Endless Snowboarding Browser Game | Protocodus">
   <meta property="og:description"
     content="An endless snowboarding game. Carve through changing weather, land tricks and build your score.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/alpen/">
+  <meta property="og:image" content="https://protocodus.cz/fun/alpen/alpen-card.webp?v=20261023-fun">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Alpen: a snowboarder carving down a mountain">
   <link rel="canonical" href="https://protocodus.cz/fun/alpen/">
   <!-- Without an icon declared, every load ends in a 404 for /favicon.ico —
        the one guaranteed console error on an otherwise clean boot. -->
@@ -41,11 +45,11 @@
   <!-- ================= TOUCH PAD ================= -->
   <div class="pad" role="group" aria-label="Touch controls">
     <div class="pad-tools">
-      <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3h3v14H5zm7 0h3v14h-3z" fill="currentColor"/></svg></button>
+      <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause" data-analytics-cta="hud_pause" data-analytics-action="pause"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3h3v14H5zm7 0h3v14h-3z" fill="currentColor"/></svg></button>
       <button type="button" class="pad-btn pad-tool" data-action="mute"
-        aria-label="Mute sound" aria-pressed="false">♪</button>
+        aria-label="Mute sound" aria-pressed="false" data-analytics-cta="hud_mute" data-analytics-action="sound">♪</button>
     </div>
-    <div class="pad-movement">
+    <div class="pad-movement" data-analytics-ignore>
       <div class="pad-row pad-drive">
         <button type="button" class="pad-btn" data-key="tuck">BOOST</button>
         <button type="button" class="pad-btn" data-key="brake">BRAKE</button>
@@ -55,7 +59,7 @@
         <button type="button" class="pad-btn pad-right" data-key="right" aria-label="Carve right"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 10 7-10 7z" fill="currentColor"/></svg></button>
       </div>
     </div>
-    <div class="pad-stack pad-tricks">
+    <div class="pad-stack pad-tricks" data-analytics-ignore>
       <div class="pad-row">
         <button type="button" class="pad-btn" data-key="grab" aria-label="Grab">GRAB</button>
         <button type="button" class="pad-btn" data-key="flip" aria-label="Flip">FLIP</button>
@@ -88,8 +92,8 @@
       </div>
 
       <div class="go">
-        <button class="drop-in" type="button"><span class="start-only">Drop in</span><span class="pause-only">Keep riding</span><svg class="drop-in-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="restart-run pause-only" type="button">Restart from the last gate</button>
+        <button class="drop-in" type="button" data-analytics-cta="curtain_drop_in" data-analytics-action="start"><span class="start-only">Drop in</span><span class="pause-only">Keep riding</span><svg class="drop-in-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="restart-run pause-only" type="button" data-analytics-cta="curtain_restart_run" data-analytics-action="restart">Restart from the last gate</button>
         <p class="go-hint"><span data-input-help="keyboard">Press Enter or click anywhere</span><span class="controller-menu-hint" data-input-help="gamepad">Stick / D-pad move · A select · B back<br>Start to ride</span><span data-input-help="touch">Tap anywhere to ride</span></p>
       </div>
 
@@ -139,7 +143,7 @@
         </div>
       </details>
     </div>
-    <div class="curtain-footer"><a class="exit-link" href="/fun/"><span aria-hidden="true">←</span> Back to Fun</a><span>Mountain <b data-seed>—</b></span></div>
+    <div class="curtain-footer"><a class="exit-link" href="/fun/" data-analytics-cta="curtain_exit_games" data-analytics-action="exit_game"><span aria-hidden="true">←</span> Back to Fun</a><span>Mountain <b data-seed>—</b></span></div>
   </div>
 
   <noscript>

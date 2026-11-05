@@ -4,15 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Meteora — The Harrow</title>
+  <title>Meteora — Space Combat Browser Game | Protocodus</title>
   <meta name="description"
     content="A story-driven space combat game in the browser. Ten missions in an asteroid belt: escort convoys, scout the dark, break capital ships and save forty thousand people from the machines that came home.">
   <meta name="theme-color" content="#04060b">
-  <meta property="og:title" content="Meteora — The Harrow">
+  <meta property="og:title" content="Meteora — Space Combat Browser Game | Protocodus">
   <meta property="og:description"
     content="Ten missions of space combat in an asteroid belt: convoys, recon, capital ships and a colony ship that has to jump before the Harrow arrive.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/meteora/">
+  <meta property="og:image" content="https://protocodus.cz/fun/meteora/meteora-card.webp?v=20261023-fun">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Meteora: a fighter in an asteroid belt around a red dwarf">
   <link rel="canonical" href="https://protocodus.cz/fun/meteora/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -49,16 +53,16 @@
       </div>
       <div class="error" data-error hidden>
         <p data-error-text></p>
-        <button type="button" class="ghost" data-action="retry">Retry</button>
+        <button type="button" class="ghost" data-action="retry" data-analytics-cta="error_retry" data-analytics-action="retry">Retry</button>
       </div>
       <nav class="menu-list" data-main-menu hidden>
-        <button type="button" class="menu-item primary" data-action="continue" data-continue>Continue campaign <span data-continue-label></span></button>
-        <button type="button" class="menu-item" data-action="newCampaign">New campaign</button>
-        <button type="button" class="menu-item" data-action="training">Flight training</button>
-        <button type="button" class="menu-item" data-action="missions">Missions</button>
-        <button type="button" class="menu-item" data-action="survival">Survival</button>
-        <button type="button" class="menu-item" data-action="codex">Codex</button>
-        <button type="button" class="menu-item" data-action="settings">Settings</button>
+        <button type="button" class="menu-item primary" data-action="continue" data-continue data-analytics-cta="menu_continue_campaign" data-analytics-action="continue_campaign">Continue campaign <span data-continue-label></span></button>
+        <button type="button" class="menu-item" data-action="newCampaign" data-analytics-cta="menu_new_campaign" data-analytics-action="new_campaign">New campaign</button>
+        <button type="button" class="menu-item" data-action="training" data-analytics-cta="menu_flight_training" data-analytics-action="start_training">Flight training</button>
+        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Missions</button>
+        <button type="button" class="menu-item" data-action="survival" data-analytics-cta="menu_survival" data-analytics-action="start_survival">Survival</button>
+        <button type="button" class="menu-item" data-action="codex" data-analytics-cta="menu_codex" data-analytics-action="open_codex">Codex</button>
+        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
       </nav>
       <div class="rank" data-rank hidden></div>
     </div>
@@ -71,7 +75,7 @@
       <p class="lede">You can change it before any mission.</p>
       <p class="warn" data-reset-warning hidden></p>
       <div class="cards four" data-difficulties></div>
-      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+      <div class="go"><button type="button" class="ghost" data-action="back" data-analytics-cta="difficulty_back" data-analytics-action="navigate_back">Back</button></div>
     </div>
   </section>
 
@@ -81,8 +85,8 @@
       <h2 class="title" id="meteora-prologue" data-prologue-title></h2>
       <p class="story-text" data-prologue-text></p>
       <div class="go">
-        <button type="button" class="launch" data-action="prologueNext">Next <span aria-hidden="true">→</span></button>
-        <button type="button" class="ghost" data-action="prologueSkip">Skip</button>
+        <button type="button" class="launch" data-action="prologueNext" data-analytics-cta="prologue_next" data-analytics-action="prologue_next">Next <span aria-hidden="true">→</span></button>
+        <button type="button" class="ghost" data-action="prologueSkip" data-analytics-cta="prologue_skip" data-analytics-action="prologue_skip">Skip</button>
       </div>
     </div>
   </section>
@@ -92,7 +96,7 @@
       <p class="eyebrow">Belt Watch · Lantern Wing</p>
       <h2 class="title" id="meteora-campaign">Missions</h2>
       <div class="sheet-body missions" data-mission-list></div>
-      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+      <div class="go"><button type="button" class="ghost" data-action="back" data-analytics-cta="campaign_back" data-analytics-action="navigate_back">Back</button></div>
     </div>
   </section>
 
@@ -107,9 +111,9 @@
           <p class="stage-who" data-brief-who>Cmdr. Doukas · Perpetua</p>
           <p class="stage-text" data-brief-stage aria-live="polite"></p>
           <div class="stage-nav">
-            <button type="button" class="ghost small" data-action="stagePrev" aria-label="Previous">←</button>
+            <button type="button" class="ghost small" data-action="stagePrev" data-analytics-cta="briefing_stage_prev" data-analytics-action="stage_prev" aria-label="Previous">←</button>
             <span data-brief-step></span>
-            <button type="button" class="ghost small" data-action="stageNext" aria-label="Next">→</button>
+            <button type="button" class="ghost small" data-action="stageNext" data-analytics-cta="briefing_stage_next" data-analytics-action="stage_next" aria-label="Next">→</button>
           </div>
         </div>
         <h3 class="section">Objectives</h3>
@@ -126,9 +130,9 @@
       <div class="seg" role="radiogroup" aria-label="Difficulty" data-brief-difficulty></div>
       <span class="best" data-brief-best></span>
       <div class="go">
-        <button type="button" class="ghost" data-action="back">Back</button>
-        <button type="button" class="ghost" data-action="hangar">Hangar</button>
-        <button type="button" class="launch" data-action="launchMission">Launch <span aria-hidden="true">↗</span></button>
+        <button type="button" class="ghost" data-action="back" data-analytics-cta="briefing_back" data-analytics-action="navigate_back">Back</button>
+        <button type="button" class="ghost" data-action="hangar" data-analytics-cta="briefing_hangar" data-analytics-action="open_hangar">Hangar</button>
+        <button type="button" class="launch" data-action="launchMission" data-analytics-cta="briefing_launch" data-analytics-action="launch_mission">Launch <span aria-hidden="true">↗</span></button>
       </div>
     </div>
   </section>
@@ -156,9 +160,9 @@
     <div class="hangar-bar">
       <span class="hint" data-hangar-hint><span class="legend-dot" aria-hidden="true"></span> Recommended · drag to look round, scroll to zoom</span>
       <div class="go">
-        <button type="button" class="ghost" data-action="back">Back</button>
-        <button type="button" class="ghost" data-action="useRecommended" data-hangar-recommend>Use recommended</button>
-        <button type="button" class="launch" data-action="launchMission">Launch <span aria-hidden="true">↗</span></button>
+        <button type="button" class="ghost" data-action="back" data-analytics-cta="hangar_back" data-analytics-action="navigate_back">Back</button>
+        <button type="button" class="ghost" data-action="useRecommended" data-hangar-recommend data-analytics-cta="hangar_use_recommended" data-analytics-action="use_recommended">Use recommended</button>
+        <button type="button" class="launch" data-action="launchMission" data-analytics-cta="hangar_launch" data-analytics-action="launch_mission">Launch <span aria-hidden="true">↗</span></button>
       </div>
     </div>
   </section>
@@ -168,9 +172,9 @@
       <p class="eyebrow" data-pause-eyebrow>Holding position</p>
       <h2 class="title" id="meteora-pause">Paused</h2>
       <div class="tabs" role="tablist" data-pause-tabs>
-        <button type="button" class="tab" role="tab" aria-selected="true" data-pane="mission">Mission</button>
-        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="controls">Controls</button>
-        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="settings">Settings</button>
+        <button type="button" class="tab" role="tab" aria-selected="true" data-pane="mission" data-analytics-cta="pause_tab_mission" data-analytics-action="select_tab">Mission</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="controls" data-analytics-cta="pause_tab_controls" data-analytics-action="select_tab">Controls</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-pane="settings" data-analytics-cta="pause_tab_settings" data-analytics-action="select_tab">Settings</button>
       </div>
       <div class="sheet-body">
         <div data-pane-body="mission"><ul class="objectives" data-pause-objectives></ul></div>
@@ -178,9 +182,9 @@
         <div data-pane-body="settings" hidden><div class="settings" data-settings-form></div></div>
       </div>
       <div class="go">
-        <button class="launch" type="button" data-action="resume">Resume <span aria-hidden="true">↗</span></button>
-        <button class="ghost" type="button" data-action="restart">Restart</button>
-        <button class="ghost" type="button" data-action="abort">Abort</button>
+        <button class="launch" type="button" data-action="resume" data-analytics-cta="pause_resume" data-analytics-action="resume">Resume <span aria-hidden="true">↗</span></button>
+        <button class="ghost" type="button" data-action="restart" data-analytics-cta="pause_restart" data-analytics-action="restart">Restart</button>
+        <button class="ghost" type="button" data-action="abort" data-analytics-cta="pause_abort" data-analytics-action="abort">Abort</button>
         <span class="hint"><kbd>Esc</kbd> resumes</span>
       </div>
     </div>
@@ -209,10 +213,10 @@
         <div class="rank-bar" data-debrief-rank></div>
       </div>
       <div class="go">
-        <button class="launch" type="button" data-action="debriefNext" data-debrief-next>Continue <span aria-hidden="true">→</span></button>
-        <button class="ghost" type="button" data-action="replay">Replay</button>
-        <button class="ghost" type="button" data-action="debriefHangar">Change loadout</button>
-        <button class="ghost" type="button" data-action="menu">Menu</button>
+        <button class="launch" type="button" data-action="debriefNext" data-debrief-next data-analytics-cta="debrief_next" data-analytics-action="debrief_next">Continue <span aria-hidden="true">→</span></button>
+        <button class="ghost" type="button" data-action="replay" data-analytics-cta="debrief_replay" data-analytics-action="replay">Replay</button>
+        <button class="ghost" type="button" data-action="debriefHangar" data-analytics-cta="debrief_hangar" data-analytics-action="open_hangar">Change loadout</button>
+        <button class="ghost" type="button" data-action="menu" data-analytics-cta="debrief_menu" data-analytics-action="open_menu">Menu</button>
       </div>
     </div>
   </section>
@@ -223,7 +227,7 @@
       <h2 class="title" id="meteora-codex">Codex</h2>
       <div class="tabs" role="tablist" data-codex-tabs></div>
       <div class="sheet-body codex-body" data-codex-body></div>
-      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+      <div class="go"><button type="button" class="ghost" data-action="back" data-analytics-cta="codex_back" data-analytics-action="navigate_back">Back</button></div>
     </div>
   </section>
 
@@ -232,7 +236,7 @@
       <p class="eyebrow">Flight computer</p>
       <h2 class="title" id="meteora-settings">Settings</h2>
       <div class="sheet-body"><div class="settings" data-settings-form></div></div>
-      <div class="go"><button type="button" class="ghost" data-action="back">Back</button></div>
+      <div class="go"><button type="button" class="ghost" data-action="back" data-analytics-cta="settings_back" data-analytics-action="navigate_back">Back</button></div>
     </div>
   </section>
 

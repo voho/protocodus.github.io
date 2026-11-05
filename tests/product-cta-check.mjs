@@ -6,6 +6,7 @@ import { browser } from './helpers/analytics-harness.mjs';
 
 const root = new URL('../', import.meta.url);
 const products = ['youknow', 'maremba', 'acustra', 'electry', 'ceres', 'press78', 'aculele', 'respira', 'aculyre', 'lamer', 'acukoto', 'binaurel', 'clareq', 'remix', 'convretor', 'keyra'];
+const games = ['alpen', 'ashline', 'hedgerow', 'meteora', 'patcher', 'tyran', 'zipper'];
 const fixedId = /^[a-z][a-z0-9_]*$/;
 const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
@@ -32,17 +33,15 @@ function parseBody(html, { document, Element }) {
   }
 }
 
-let covered = 0, chapters = 0;
-for (const relative of [...products.map(product => `product/${product}/index.html`), 'product/releases/index.html', 'product/releases/archive-2026-10-12.html', 'index.html']) {
+let covered = 0, chapters = 0, coveredButtons = 0, ignoredControls = 0;
+for (const relative of [...products.map(product => `product/${product}/index.html`), 'product/releases/index.html', 'product/releases/archive-2026-10-12.html', 'index.html', 'fun/index.html']) {
   const html = readFileSync(new URL(relative, root), 'utf8');
   const href = 'https://protocodus.cz/' + relative.replace(/index\.html$/, '');
   const page = browser(href, undefined, { setup: dom => parseBody(html, dom) });
   const main = page.document.querySelector('main');
   assert.ok(main, `${relative}: the public page has main content`);
-  const anchors = relative === 'index.html'
-    ? page.document.querySelectorAll('.product-card').flatMap(card => card.querySelectorAll('a[href]'))
-    : main.querySelectorAll('a[href]').filter(anchor => anchor.href !== 'https://soundcloud.com/protocodus');
-  assert.ok(anchors.length > 0, `${relative}: discover important product links`);
+  const anchors = page.document.querySelectorAll('a[href]');
+  assert.ok(anchors.length > 0, `${relative}: discover page links`);
   const ids = new Set();
   for (const anchor of anchors) {
     const id = anchor.dataset.analyticsCta;
@@ -62,6 +61,14 @@ for (const relative of [...products.map(product => `product/${product}/index.htm
     assert.equal(event.defaultPrevented, false, `${relative}: ${id} preserves native navigation`);
     covered++;
   }
+  for (const button of page.document.querySelectorAll('button')) {
+    const id = button.dataset.analyticsCta;
+    assert.match(id || '', fixedId, `${relative}: button needs a fixed CTA id`);
+    assert.match(button.dataset.analyticsAction || '', fixedId, `${relative}: ${id} needs a fixed semantic action`);
+    assert.ok(!ids.has(id), `${relative}: ${id} must distinguish this placement`);
+    ids.add(id);
+    coveredButtons++;
+  }
   for (const button of main.querySelectorAll('button[data-start]')) {
     assert.match(button.dataset.analyticsCta || '', fixedId, `${relative}: chapter buttons need fixed ids`);
     assert.equal(button.dataset.analyticsAction, 'play_chapter');
@@ -75,22 +82,42 @@ for (const relative of [...products.map(product => `product/${product}/index.htm
     assert.equal(event.defaultPrevented, false);
     chapters++;
   }
-  if (products.some(product => relative === `product/${product}/index.html`)) {
-    const mobileContact = page.document.querySelector('.mobile-menu')?.querySelector('a.mobile-mail');
-    assert.ok(mobileContact, `${relative}: mobile support link exists`);
-    assert.equal(mobileContact.dataset.analyticsCta, 'mobile_support');
-    assert.equal(mobileContact.dataset.analyticsAction, 'contact_support');
-    const before = page.gaEvents().length;
-    page.click(mobileContact);
-    assert.equal(page.gaEvents().length, before + 1);
-    const command = page.gaEvents().at(-1);
-    assert.equal(command[1], 'contact_click');
-    assert.equal(command[2].cta_location, 'mobile_menu', 'Mobile support retains its source rather than a page section');
-    assert.equal(command[2].link_url, undefined, 'Mobile support does not send an email URL');
-    covered++;
+  const mobileContact = page.document.querySelector('.mobile-menu')?.querySelector('a.mobile-mail');
+  assert.ok(mobileContact, `${relative}: mobile support link exists`);
+  assert.equal(mobileContact.dataset.analyticsCta, 'mobile_support');
+  assert.equal(mobileContact.dataset.analyticsAction, 'contact_support');
+  const before = page.gaEvents().length;
+  page.click(mobileContact);
+  assert.equal(page.gaEvents().length, before + 1);
+  const command = page.gaEvents().at(-1);
+  assert.equal(command[1], 'contact_click');
+  assert.equal(command[2].cta_location, 'mobile_menu', 'Mobile support retains its source rather than a page section');
+  assert.equal(command[2].link_url, undefined, 'Mobile support does not send an email URL');
+  covered++;
+}
+for (const game of games) {
+  const relative = `fun/${game}/index.html`;
+  const html = readFileSync(new URL(relative, root), 'utf8');
+  const href = 'https://protocodus.cz/' + relative.replace(/index\.html$/, '');
+  const page = browser(href, undefined, { setup: dom => parseBody(html, dom) });
+  const ids = new Set();
+  for (const control of page.document.querySelectorAll('a[href], button')) {
+    if (control.closest('[data-analytics-ignore]')) {
+      ignoredControls++;
+      continue;
+    }
+    const id = control.dataset.analyticsCta;
+    assert.match(id || '', fixedId, `${relative}: ${control.tagName} needs a fixed CTA id or data-analytics-ignore`);
+    assert.match(control.dataset.analyticsAction || '', fixedId, `${relative}: ${id} needs a fixed semantic action`);
+    assert.ok(!ids.has(id), `${relative}: ${id} must distinguish this placement`);
+    ids.add(id);
+    if (control.tagName === 'A') covered++;
+    else coveredButtons++;
   }
 }
 assert.ok(covered >= 90, 'Cover the existing product calls to action across the site');
+assert.ok(coveredButtons >= 140, 'Cover all authored navigation, dialog and HUD buttons across the site');
+assert.ok(ignoredControls >= 30, 'Explicitly mark high-frequency tactical and gameplay controls with data-analytics-ignore');
 assert.equal(chapters, 4, 'Cover all four authored Lamer demo chapters');
 
 const page = browser('https://protocodus.cz/product/maremba/');

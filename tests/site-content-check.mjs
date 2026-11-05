@@ -49,10 +49,12 @@ function parse(path) {
     ids.add(attrs.id);
   }
   const route = '/' + relative(root, path).split('\\').join('/').replace(/index\.html$/, '');
-  return { path, html, markup, tags, ids, schemas, url: origin + route };
+  const titleMatches = [...markup.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/gi)].map(([, content]) => decodeEntities(content.replace(/\s+/g, ' ').trim()));
+  return { path, html, markup, tags, ids, schemas, titles: titleMatches, url: origin + route };
 }
 const pages = new Map(publicHtml().map((path) => [path, parse(path)]));
 assert.ok(pages.size >= 18, 'Discover every existing public page and any newly added pages');
+const seenTitles = new Set();
 let checkedReferences = 0, checkedMailLinks = 0;
 function checkReference(page, value, description) {
   let url;
@@ -76,12 +78,40 @@ function checkReference(page, value, description) {
 }
 for (const page of pages.values()) {
   const label = relative(root, page.path);
+  assert.equal(page.titles.length, 1, `${label}: declare one <title> element`);
+  const [title] = page.titles;
+  assert.ok(title.length >= 35 && title.length <= 68, `${label}: page title length (${title.length}) must be between 35 and 68 characters`);
+  assert.match(title, /Protocodus/, `${label}: page title must include Protocodus brand attribution`);
+  assert.ok(!seenTitles.has(title), `${label}: duplicate page title "${title}"`);
+  seenTitles.add(title);
+  const openGraphTitle = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:title');
+  const twitterTitle = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.name === 'twitter:title');
+  const description = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.name === 'description');
+  const openGraphDescription = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:description');
+  assert.equal(openGraphTitle.length, 1, `${label}: declare one Open Graph title`);
+  assert.equal(openGraphTitle[0].attrs.content, title, `${label}: Open Graph title must match the page <title>`);
+  if (twitterTitle.length > 0) assert.equal(twitterTitle[0].attrs.content, title, `${label}: Twitter title must match the page <title>`);
+  assert.equal(description.length, 1, `${label}: declare one meta description`);
+  assert.ok(description[0].attrs.content.trim().length >= 50, `${label}: meta description must be descriptive`);
+  assert.equal(openGraphDescription.length, 1, `${label}: declare one Open Graph description`);
+  assert.ok(openGraphDescription[0].attrs.content.trim().length >= 50, `${label}: Open Graph description must be descriptive`);
   const canonical = page.tags.filter(({ name, attrs }) => name === 'link' && attrs.rel?.split(/\s+/).includes('canonical'));
   const openGraphUrl = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:url');
+  const openGraphImage = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:image');
+  const openGraphWidth = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:image:width');
+  const openGraphHeight = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:image:height');
+  const openGraphAlt = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:image:alt');
   assert.equal(canonical.length, 1, `${label}: declare one canonical page URL`);
   assert.equal(canonical[0].attrs.href, page.url, `${label}: canonical URL must identify this page`);
   assert.equal(openGraphUrl.length, 1, `${label}: declare one Open Graph page URL`);
   assert.equal(openGraphUrl[0].attrs.content, page.url, `${label}: Open Graph URL must match the canonical route`);
+  assert.equal(openGraphImage.length, 1, `${label}: declare one Open Graph image`);
+  assert.equal(openGraphWidth.length, 1, `${label}: declare one Open Graph image width`);
+  assert.equal(openGraphHeight.length, 1, `${label}: declare one Open Graph image height`);
+  assert.equal(openGraphAlt.length, 1, `${label}: declare one Open Graph image alt description`);
+  assert.match(openGraphWidth[0].attrs.content, /^[1-9]\d*$/, `${label}: Open Graph image width must be a positive integer`);
+  assert.match(openGraphHeight[0].attrs.content, /^[1-9]\d*$/, `${label}: Open Graph image height must be a positive integer`);
+  assert.ok(openGraphAlt[0].attrs.content.trim().length >= 10, `${label}: Open Graph image alt must be descriptive`);
   for (const { name, attrs } of page.tags) {
     for (const key of ['href', 'src', 'poster']) if (attrs[key]) checkReference(page, attrs[key], `${name} ${key}`);
     if (name === 'meta' && ['og:image', 'twitter:image'].includes(attrs.property || attrs.name)) checkReference(page, attrs.content, 'social image');
@@ -105,13 +135,30 @@ for (const page of pages.values()) {
   function checkSchema(value, primary = false) {
     if (Array.isArray(value)) return value.forEach((child) => checkSchema(child, primary));
     if (!value || typeof value !== 'object') return;
-    if (primary && ['SoftwareApplication', 'WebPage', 'Product'].includes(value['@type']) && typeof value.url === 'string' && new URL(value.url, page.url).origin === origin) {
+    if (primary && ['SoftwareApplication', 'WebPage', 'Product', 'Organization', 'WebSite'].includes(value['@type']) && typeof value.url === 'string' && new URL(value.url, page.url).origin === origin) {
       assert.equal(value.url, page.url, `${label}: structured page/product URL must match its canonical route`);
     }
     if (typeof value.image === 'string') checkReference(page, value.image, 'structured image');
+    if (typeof value.logo === 'string') checkReference(page, value.logo, 'structured logo');
+    if (typeof value.email === 'string') assert.equal(value.email.toLowerCase(), contactEmail, `${label}: structured email must match shared support address`);
     Object.values(value).forEach((child) => { if (child && typeof child === 'object') checkSchema(child); });
   }
   page.schemas.forEach((schema) => checkSchema(schema, true));
 }
 assert.ok(checkedMailLinks > 0, 'Validate actual website contact links');
-console.log(`Site content checks passed: ${pages.size} pages, ${checkedReferences} internal references, shared support address, anchors, IDs, canonical/social URLs, and structured data.`);
+
+const robotsPath = join(root, 'robots.txt');
+assert.ok(existsSync(robotsPath), 'Publish robots.txt at the root');
+const robots = readFileSync(robotsPath, 'utf8');
+assert.match(robots, /^User-agent:\s*\*\s*$/m, 'robots.txt allows standard search crawlers');
+assert.match(robots, /^Allow:\s*\/\s*$/m, 'robots.txt allows indexing public routes');
+assert.match(robots, /^Sitemap:\s*https:\/\/protocodus\.cz\/sitemap\.xml\s*$/m, 'robots.txt points to the canonical sitemap');
+
+const sitemapPath = join(root, 'sitemap.xml');
+assert.ok(existsSync(sitemapPath), 'Publish sitemap.xml at the root');
+const sitemap = readFileSync(sitemapPath, 'utf8');
+const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => decodeEntities(loc.trim()));
+const canonicalUrls = [...pages.values()].map((page) => page.url).sort();
+assert.deepEqual([...sitemapUrls].sort(), canonicalUrls, 'sitemap.xml must list the exact set of canonical public page URLs');
+
+console.log(`Site content checks passed: ${pages.size} pages, ${checkedReferences} internal references, shared support address, anchors, IDs, canonical/social URLs, structured data, robots.txt and sitemap.xml.`);
