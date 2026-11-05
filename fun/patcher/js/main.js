@@ -6,13 +6,13 @@ import { createShell } from '../../shared/shell.js';
 import { waitForFont } from '../../shared/slab.js';
 import { randomSeed } from '../../shared/rng.js';
 import { createThemeSwitch } from '../../shared/themes.js';
-import { generate, cluesInside, rejectReason, isSolved, hint } from './puzzle.js';
+import { generate, cluesInside, rejectReason, isSolved, hint, overlaps } from './puzzle.js';
 import { createBoard } from './board.js';
 
 const REASONS = {
   'no-clue': 'A patch needs a clue inside it.',
   'two-clues': 'Only one clue per patch.',
-  overlap: 'That overlaps another patch.',
+  single: 'A patch needs at least two cells.',
   number: 'Wrong size for that number.',
   shape: 'Wrong shape for that clue.',
 };
@@ -135,6 +135,13 @@ async function boot() {
     if (isSolved(puzzle, patches)) finish();
   }
 
+  function placeOver(patch) {
+    const replaced = patches.filter((p) => overlaps(p, patch));
+    for (const old of replaced) lift(old, false);
+    undo.push({ type: 'place', patch, replaced });
+    place(patch, false);
+  }
+
   function lift(patch, record = true) {
     patches = patches.filter((p) => p !== patch);
     if (record) undo.push({ type: 'lift', patch });
@@ -157,8 +164,10 @@ async function boot() {
     if (pointerId !== undefined && canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
   }
 
+  // A new patch may be drawn over placed ones; it replaces them on landing.
+  const reasonFor = (rect) => rejectReason(puzzle, [], rect);
   function preview(rect) {
-    const reason = rejectReason(puzzle, patches, rect);
+    const reason = reasonFor(rect);
     board.preview(rect, reason === null);
     const dimensions = `${rect.w} × ${rect.h} · ${rect.w * rect.h} cells`;
     shell?.setFeedback?.(`${dimensions} · ${reason ? REASONS[reason] : 'Ready to place'}`);
@@ -187,11 +196,13 @@ async function boot() {
     if (!board) return;
     if (drag) {
       if (event.pointerId !== drag.pointerId) return;
+      const cell = cellFromEvent(event, true);
       if (drag.covering) {
         if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 8) drag.moved = true;
-        return;
+        // Leaving the first cell turns a press on a placed patch into a new rectangle.
+        if (cell < 0 || cell === drag.cell) return;
+        drag.covering = null;
       }
-      const cell = cellFromEvent(event, true);
       if (cell >= 0 && cell !== drag.cell) {
         drag.cell = cell;
         drag.moved = true;
@@ -211,8 +222,8 @@ async function boot() {
     board.preview(null);
     shell?.clearFeedback?.();
     if (solved) return;
-    const reason = rejectReason(puzzle, patches, rect);
-    if (!reason) { place({ clue: cluesInside(puzzle, rect)[0], ...rect }); return; }
+    const reason = reasonFor(rect);
+    if (!reason) { placeOver({ clue: cluesInside(puzzle, rect)[0], ...rect }); return; }
     const isClue = puzzle.clues.some((clue) => clue.cell === anchor);
     if (!moved && !isClue) shell.toast('Drag between opposite corners, or tap both corners.');
     else if (!moved && (reason === 'number' || reason === 'shape')) shell.toast('Choose the opposite corner to make a bigger patch.');
@@ -234,7 +245,7 @@ async function boot() {
       current.rect = rectBetween(current.anchor, cell);
       current.moved = true;
     }
-    if (!current.moved && rejectReason(puzzle, patches, current.rect)) {
+    if (!current.moved && reasonFor(current.rect)) {
       tapAnchor = current.anchor;
       preview(current.rect);
       shell?.setFeedback?.('Corner selected · tap the opposite corner, or tap here to cancel');
@@ -312,8 +323,10 @@ async function boot() {
       cancelSelection();
       const last = undo.pop();
       if (!last) return;
-      if (last.type === 'place') lift(last.patch, false);
-      else place(last.patch, false);
+      if (last.type === 'place') {
+        lift(last.patch, false);
+        for (const old of last.replaced || []) place(old, false);
+      } else place(last.patch, false);
     },
     onHint() {
       if (!board || solved) return;

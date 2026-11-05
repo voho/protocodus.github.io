@@ -24,7 +24,7 @@ function element() {
 
 const nodes = new Map();
 const $ = (selector) => { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); };
-const markup = await readFile(new URL('../../zipper/index.html', import.meta.url), 'utf8');
+const markup = await readFile(new URL('../../puzzles/index.html', import.meta.url), 'utf8');
 const selectors = new Set([...markup.matchAll(/\b(data-[\w-]+)(?:="([^"]*)")?/g)].flatMap(([, name, value]) =>
   value === undefined ? [`[${name}]`] : [`[${name}]`, `[${name}="${value}"]`]));
 selectors.add('#stage');

@@ -19,21 +19,23 @@ import { createRng } from '../../shared/rng.js';
    cell can be covered one way only, 3 that it takes looking ahead. */
 export const DIFFICULTIES = {
   easy: { size: 5, maxArea: 6, singles: 0, kinds: { full: 0.8, shape: 0.2 }, level: [1, 1] },
-  medium: { size: 7, maxArea: 8, singles: 1, kinds: { full: 0.55, shape: 0.45 }, level: [1, 2] },
-  hard: { size: 9, maxArea: 10, singles: 1, kinds: { full: 0.35, shape: 0.65 }, level: [2, 3] },
+  medium: { size: 7, maxArea: 8, singles: 0, kinds: { full: 0.55, shape: 0.45 }, level: [1, 2] },
+  hard: { size: 9, maxArea: 10, singles: 0, kinds: { full: 0.35, shape: 0.65 }, level: [2, 3] },
 };
 
 export const shapeOf = (w, h) => (w === h ? 'square' : w > h ? 'wide' : 'tall');
 
-/* Whether a w×h patch of this clue's shape and number is allowed. */
+/* Whether a w×h patch of this clue's shape and number is allowed. A single
+   cell is never a patch: it would be a free move. */
 export function fitsClue(clue, w, h) {
+  if (w * h === 1) return false;
   if (clue.number && clue.number !== w * h) return false;
   return clue.shape === shapeOf(w, h);
 }
 
 /* A random cutting of the grid into rectangles: the first free cell (in
    reading order) gets a patch whose size is drawn from what fits there.
-   Single cells are nearly never chosen, only forced. */
+   A single cell only appears when forced, and such a cutting is dropped. */
 function tiling(n, maxArea, rng) {
   const grid = new Int16Array(n * n).fill(-1);
   const rects = [];
@@ -274,15 +276,16 @@ export function cluesInside(puzzle, rect) {
   return list;
 }
 
+export const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
 /* Why a drawn rectangle cannot go down, or null when it can. `patches`
    are the ones already on the board. */
 export function rejectReason(puzzle, patches, rect) {
   const inside = cluesInside(puzzle, rect);
   if (inside.length === 0) return 'no-clue';
   if (inside.length > 1) return 'two-clues';
-  for (const patch of patches) {
-    if (rect.x < patch.x + patch.w && patch.x < rect.x + rect.w && rect.y < patch.y + patch.h && patch.y < rect.y + rect.h) return 'overlap';
-  }
+  for (const patch of patches) if (overlaps(patch, rect)) return 'overlap';
+  if (rect.w * rect.h === 1) return 'single';
   const clue = puzzle.clues[inside[0]];
   if (clue.number && clue.number !== rect.w * rect.h) return 'number';
   if (clue.shape !== shapeOf(rect.w, rect.h)) return 'shape';

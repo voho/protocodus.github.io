@@ -172,6 +172,6 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
   if (!read('seen')) { store('seen', '1'); help.showModal(); }
   const wanted = fromHash();
   const stored = read('difficulty');
-  load(wanted?.difficulty || (DIFFICULTIES.includes(stored) ? stored : 'medium'), wanted?.seed || randomSeed());
+  load(wanted?.difficulty || (DIFFICULTIES.includes(stored) ? stored : 'easy'), wanted?.seed || randomSeed());
   return shell;
 }

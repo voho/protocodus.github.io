@@ -2,6 +2,20 @@
    relief vary independently without one physical material per cell. */
 import * as THREE from 'three';
 
+/* Glass on the tile tops: a soft crown of light near one corner, a bright
+   rim just inside the edge, and a broad band of light that drifts across
+   the whole board every half a minute or so. It is all emissive, so the
+   tile colours and the board underneath stay as they are. */
+const GLASS = `
+float glassTop = smoothstep(0.55, 0.95, vTileTop);
+vec2 crownAt = vTileSurface - vec2(-0.15, -0.17);
+float crown = exp(-dot(crownAt, crownAt) * 26.0);
+float rimLight = smoothstep(0.3, 0.42, max(abs(vTileSurface.x), abs(vTileSurface.y)));
+float sweep = sin(dot(vTileWorld, vec2(0.42, 0.28)) - uSheenTime * 0.22);
+float sheen = pow(max(0.0, sweep), 10.0);
+totalEmissiveRadiance += glassTop * (crown * 0.045 + rimLight * 0.03 + sheen * (0.09 + crown * 0.1)) * vec3(0.92, 0.97, 1.0);
+`;
+
 export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin', ...options }) {
   // The slab cache belongs to every board; instance attributes belong only
   // to this board and must never be attached to the cached geometry.
@@ -10,22 +24,26 @@ export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin'
   emission.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('tileEmission', emission);
   const material = stage.material({ ...options, color: '#ffffff', emissive: '#000000' });
+  // Scenery time for the glass sheen; held still under reduced motion.
+  const sheenTime = { value: 0 };
+  const stopSheen = stage.onFrame((dt, time) => { sheenTime.value = stage.reduced ? 0 : time; });
   const compile = material.onBeforeCompile;
   material.onBeforeCompile = function (shader, renderer) {
     compile.call(this, shader, renderer);
+    shader.uniforms.uSheenTime = sheenTime;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 tileEmission;\nvarying vec3 vTileEmission;\nvarying vec2 vTileSurface;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTileEmission = tileEmission;\nvTileSurface = position.xz;');
+      .replace('#include <common>', '#include <common>\nattribute vec3 tileEmission;\nvarying vec3 vTileEmission;\nvarying vec2 vTileSurface;\nvarying vec2 vTileWorld;\nvarying float vTileTop;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTileEmission = tileEmission;\nvTileSurface = position.xz;\nvTileWorld = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xz;\nvTileTop = normal.y;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vTileEmission;\nvarying vec2 vTileSurface;')
+      .replace('#include <common>', '#include <common>\nuniform float uSheenTime;\nvarying vec3 vTileEmission;\nvarying vec2 vTileSurface;\nvarying vec2 vTileWorld;\nvarying float vTileTop;')
       // A restrained satin finish gives the tile tops relief without a
       // texture fetch, animated shader or another rendering pass.
       .replace('#include <color_fragment>', '#include <color_fragment>\n' + (finish === 'inset'
         ? 'float keyEdge = smoothstep(0.31, 0.435, max(abs(vTileSurface.x), abs(vTileSurface.y)));\ndiffuseColor.rgb *= 1.035 - keyEdge * 0.12;'
         : 'diffuseColor.rgb *= 0.985 + 0.025 * clamp(vTileSurface.x - vTileSurface.y, -1.0, 1.0);'))
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTileEmission;');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTileEmission;\n' + GLASS);
   };
-  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v2-${finish}`;
+  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v3-${finish}`;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'tiles';
   mesh.castShadow = mesh.receiveShadow = true;
@@ -68,5 +86,5 @@ export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin'
     if (lit) emission.needsUpdate = true;
     if (first) { mesh.instanceColor.setUsage(THREE.DynamicDrawUsage); first = false; }
   }
-  return { mesh, tiles, flush, dispose() { mesh.dispose(); geometry.dispose(); material.dispose(); } };
+  return { mesh, tiles, flush, dispose() { stopSheen(); mesh.dispose(); geometry.dispose(); material.dispose(); } };
 }

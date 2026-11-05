@@ -130,7 +130,7 @@ for (const name of engines) {
         page.on('pageerror', onError); page.on('console', onConsole);
         try {
           const started = performance.now();
-          await page.goto(`${base}/fun/${game}/#easy-alpha`, { waitUntil: 'networkidle' });
+          await page.goto(`${base}/fun/puzzles/?game=${game}#easy-alpha`, { waitUntil: 'networkidle' });
           await page.waitForFunction(() => document.body.classList.contains('ready'));
           const help = page.locator('[data-dialog="help"]');
           if (await help.evaluate((node) => node.open)) await help.locator('button[type="submit"]').click();

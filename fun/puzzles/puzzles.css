@@ -1,0 +1,136 @@
+/* Puzzle Box — big, icon-first controls over the shared puzzle chrome, so
+   a child can pick a game and play by tapping pictures. */
+:root[data-game="zipper"] { --accent: #5fd8ff; }
+:root[data-game="patcher"] { --accent: #c9f04d; }
+
+.icon-btn, .back { width: 56px; height: 56px; min-width: 56px; min-height: 56px; padding: 0; justify-content: center; color: var(--paper); font-size: 1.6rem; font-weight: 700; }
+.icon-btn svg { width: 28px; height: 28px; }
+.icon-btn[aria-pressed="true"][data-action="daily"] { color: var(--accent); border-color: var(--accent); }
+.icon-btn .mute { display: none; }
+.icon-btn.off { text-decoration: none; }
+.icon-btn.off .waves { display: none; }
+.icon-btn.off .mute { display: inline; }
+
+.game-switch { display: flex; gap: 8px; }
+.game-switch a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 0 18px 0 12px;
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--paper);
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 180ms ease, color 180ms ease, transform 180ms var(--ease);
+}
+.game-switch a:hover { border-color: var(--line-lift); }
+.game-switch a:active { transform: scale(0.96); }
+.game-switch a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--ink); cursor: default; }
+.game-switch svg { width: 36px; height: 36px; flex: none; }
+.world-chip { margin-top: 8px; font-size: 0.8125rem; }
+
+.stars span { gap: 1px; min-height: 48px; padding: 0 12px; }
+.stars svg { width: 20px; height: 20px; fill: currentColor; }
+
+.toolbar { gap: 6px; padding: 6px; border-radius: 26px; }
+.toolbar .tool {
+  position: relative;
+  flex-direction: column;
+  gap: 2px;
+  width: 76px;
+  min-height: 70px;
+  padding: 6px 4px 5px;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.toolbar .tool svg { width: 32px; height: 32px; flex: none; }
+.toolbar .tool .badge { position: absolute; top: 4px; right: 6px; background: var(--accent); color: var(--ink); }
+
+.rules li { grid-template-columns: 52px 1fr; font-size: 1rem; }
+.glyph { width: 52px; height: 52px; border-radius: 14px; font-size: 1.5rem; }
+.glyph svg { width: 30px; height: 30px; }
+.card-actions .btn { min-height: 56px; padding: 0 22px; font-size: 1.05rem; font-weight: 600; }
+.theme { padding: 16px 8px 12px; font-size: 1rem; }
+.swatch { width: 60px; height: 40px; }
+
+.hud-brand { align-items: flex-start; }
+/* The big switcher and tools no longer fit one row on a tablet. */
+@media (max-width: 920px) and (min-height: 521px) {
+  .hud-top { display: grid; grid-template-columns: 1fr auto; }
+  .hud-tools { grid-column: 1 / -1; justify-content: flex-start; }
+  .hud-tools .segmented { margin-right: auto; }
+}
+@media (max-width: 720px) {
+  .icon-btn, .back { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
+  .icon-btn svg { width: 26px; height: 26px; }
+  .hud-tools { gap: 6px; }
+  .game-switch { gap: 6px; }
+  .game-switch a { min-height: 52px; gap: 8px; padding: 0 14px 0 9px; border-radius: 17px; font-size: 1rem; }
+  .game-switch svg { width: 30px; height: 30px; }
+  .world-chip { margin-top: 6px; }
+  .stars span { min-height: 42px; padding: 0 9px; }
+  .stars svg { width: 17px; height: 17px; }
+  .toolbar { gap: 4px; padding: 4px; border-radius: 22px; }
+  .toolbar .tool { width: 62px; min-width: 0; min-height: 60px; padding: 5px 2px 4px; border-radius: 18px; font-size: 0.75rem; }
+  .toolbar .tool svg { width: 28px; height: 28px; }
+  .toast { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 132px); }
+}
+@media (max-width: 380px) {
+  .icon-btn, .back { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .game-switch a { padding: 0 11px 0 8px; font-size: 0.95rem; }
+  .game-switch svg { width: 26px; height: 26px; }
+  .stars span { padding: 0 6px; }
+  .stars svg { width: 15px; height: 15px; }
+  .toolbar .tool { width: 56px; }
+}
+/* A phone held sideways keeps the pictures but drops the words. */
+@media (max-height: 520px) and (min-width: 540px) {
+  .icon-btn, .back { width: 46px; height: 46px; min-width: 46px; min-height: 46px; }
+  .game-switch a { min-height: 46px; padding: 0 12px 0 8px; font-size: 0.95rem; border-radius: 15px; }
+  .game-switch svg { width: 28px; height: 28px; }
+  .stars span { min-height: 38px; }
+  .toolbar .tool { width: 54px; min-height: 48px; padding: 4px; }
+  .toolbar .tool span { display: none; }
+}
+@media (pointer: coarse) {
+  .game-switch a { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--glass-strong); }
+  .game-switch a[aria-current="page"] { background: var(--accent); }
+}
+
+/* ---------- picture guide ---------- */
+.guide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+.guide figure { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255, 255, 255, 0.04); }
+.guide svg { width: 100%; max-width: 132px; aspect-ratio: 1; overflow: visible; }
+.guide figcaption { color: var(--paper); font-size: 1rem; font-weight: 600; line-height: 1.2; text-align: center; }
+.g-cell { fill: rgba(255, 255, 255, 0.1); }
+.g-cell.lit { fill: color-mix(in srgb, var(--accent) 22%, transparent); }
+.g-line { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.g-dot { fill: var(--paper); }
+.g-num, .g-ink { font: 700 8px var(--font); text-anchor: middle; dominant-baseline: central; }
+.g-num { fill: var(--ink); }
+.g-ink { fill: var(--ink); font-size: 11px; }
+.g-ink.small { font-size: 8px; opacity: 0.75; }
+.g-wall { stroke: #ffcf4a; stroke-width: 3.5; stroke-linecap: round; }
+.g-no { stroke: #ff6b6b; stroke-width: 3; stroke-linecap: round; fill: none; }
+.g-patch.a { fill: #ffd23f; }
+.g-patch.b { fill: #7fc8ff; }
+.g-patch.c { fill: #8fe36b; }
+.g-select { fill: color-mix(in srgb, var(--accent) 25%, transparent); stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
+.g-drag { fill: none; stroke: var(--paper); stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; opacity: 0.8; }
+.g-hand { fill: rgba(255, 255, 255, 0.85); stroke: var(--ink); stroke-width: 1.5; }
+details.keys summary { cursor: pointer; color: var(--muted); }
+details.keys[open] summary { margin-bottom: 6px; }
+
+/* Dialog buttons: a big picture with a short word beside it. */
+.card-actions .btn { white-space: nowrap; }
+.card-actions .btn svg { width: 28px; height: 28px; flex: none; }
+.card-actions .tool { flex: 1 1 0; flex-direction: column; gap: 4px; min-height: 92px; padding: 10px 8px; border-radius: 20px; }
+.card-actions .tool svg { width: 38px; height: 38px; }

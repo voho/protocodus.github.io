@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Puzzle Box — 3D Logic Puzzles for Kids | Protocodus</title>
+  <meta name="description"
+    content="Two 3D logic puzzles in one browser game with big, friendly buttons: draw one line through every cell in Zipper, or cut the board into patches in Patcher. Endless boards in three sizes.">
+  <meta name="theme-color" content="#061018">
+  <meta property="og:title" content="Puzzle Box — 3D Logic Puzzles for Kids | Protocodus">
+  <meta property="og:description" content="Zipper and Patcher in one game: draw a line through every cell or cut the board into patches. Big buttons, endless 3D puzzles.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/puzzles/">
+  <meta property="og:image" content="https://protocodus.cz/fun/puzzles/puzzles-card.webp">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Puzzle Box: the Zipper and Patcher boards side by side">
+  <link rel="canonical" href="https://protocodus.cz/fun/puzzles/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../shared/puzzle.css">
+  <link rel="stylesheet" href="./puzzles.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+  <script defer src="/assets/js/analytics.js"></script>
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Puzzle Box — 3D Logic Puzzles for Kids | Protocodus">
+  <meta name="twitter:description" content="Zipper and Patcher in one game: draw a line through every cell or cut the board into patches. Big buttons, endless 3D puzzles.">
+  <meta name="twitter:image" content="https://protocodus.cz/fun/puzzles/puzzles-card.webp">
+  <meta name="twitter:image:alt" content="Puzzle Box: the Zipper and Patcher boards side by side">
+</head>
+
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+
+  <canvas id="stage" tabindex="0" aria-label="Puzzle board"></canvas>
+  <p class="sr-only" data-status aria-live="polite"></p>
+
+  <div class="hud">
+    <header class="hud-top">
+      <div class="hud-brand">
+        <a class="back icon-btn" href="/fun/" aria-label="All games" data-analytics-cta="hud_back_games" data-analytics-action="exit_game"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11.5L12 4l8.5 7.5"/><path d="M6 9.8V20h4.5v-5.5h3V20H18V9.8" fill="currentColor" fill-opacity="0.25"/></svg></a>
+        <div class="wordmark">
+          <h1 class="sr-only">Puzzle Box</h1>
+          <nav class="game-switch" aria-label="Choose a puzzle">
+            <a href="?game=zipper" data-game-link="zipper" data-analytics-cta="hud_switch_zipper" data-analytics-action="switch_game">
+              <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 9h17.5a5.5 5.5 0 0 1 0 11h-13a5.5 5.5 0 0 0 0 11H31" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="9" cy="9" r="4" fill="var(--ink, #0d0e12)" stroke="currentColor" stroke-width="2.6"/><circle cx="31" cy="31" r="4.4" fill="currentColor"/></svg>
+              <span>Zipper</span>
+            </a>
+            <a href="?game=patcher" data-game-link="patcher" data-analytics-cta="hud_switch_patcher" data-analytics-action="switch_game">
+              <svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><rect x="4.5" y="4.5" width="18" height="12" rx="3.5" fill-opacity="0.95"/><rect x="25.5" y="4.5" width="10" height="31" rx="3.5" fill-opacity="0.55"/><rect x="4.5" y="19.5" width="18" height="16" rx="3.5" fill-opacity="0.3"/></svg>
+              <span>Patcher</span>
+            </a>
+          </nav>
+          <p class="world-chip"><i aria-hidden="true"></i><span data-world-name>Loading scenery</span><span class="board-size" data-board-size></span></p>
+        </div>
+      </div>
+      <div class="hud-tools">
+        <fieldset class="segmented stars" aria-label="Difficulty">
+          <label title="Easy"><input type="radio" name="difficulty" value="easy" checked><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><b class="sr-only">Easy</b></span></label>
+          <label title="Medium"><input type="radio" name="difficulty" value="medium"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><b class="sr-only">Medium</b></span></label>
+          <label title="Hard"><input type="radio" name="difficulty" value="hard"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg><b class="sr-only">Hard</b></span></label>
+        </fieldset>
+        <button type="button" class="icon-btn" data-action="daily" aria-pressed="false" aria-label="Daily puzzle" title="Daily puzzle" data-analytics-cta="hud_daily" data-analytics-action="daily"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke-linecap="round"/><circle cx="12" cy="15.2" r="2" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" class="icon-btn" data-action="sound" aria-pressed="true" aria-label="Sound on" data-analytics-cta="hud_sound" data-analytics-action="sound"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" fill-opacity="0.25"/><path class="waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="mute" d="M15.5 9.5l5 5m0-5l-5 5"/></svg></button>
+        <button type="button" class="icon-btn" data-action="help" aria-label="How to play" data-analytics-cta="hud_help" data-analytics-action="help"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10 5 7 4.5 3.5 5v13.5c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z" fill="currentColor" fill-opacity="0.2"/><path d="M12 6.5V20"/></svg></button>
+      </div>
+    </header>
+    <footer class="hud-bottom">
+      <div class="status">
+        <output class="timer" data-timer aria-label="Time">0:00</output>
+        <button type="button" class="seed share-seed" data-action="share" title="Copy a link to this board" aria-label="Copy puzzle link" data-analytics-cta="hud_share_board" data-analytics-action="share">Board <b data-seed>—</b> <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="toolbar" role="group" aria-label="Puzzle actions">
+        <button type="button" class="btn tool" data-action="undo" aria-label="Undo" disabled data-analytics-ignore><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Undo</span></button>
+        <button type="button" class="btn tool" data-action="hint" aria-label="Hint" data-analytics-cta="hud_hint" data-analytics-action="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 8.5a3.5 3.5 0 1 1 5 3.2c-1 .5-1.5 1.3-1.5 2.3v.8"/><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"/></svg><span>Hint</span><b class="badge" data-hints></b></button>
+        <button type="button" class="btn tool" data-action="reset" aria-label="Start again" data-analytics-cta="hud_reset" data-analytics-action="reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4.5a7.5 7.5 0 1 1-8 7.5"/><path d="M14.5 1.5l-3 3 3 3"/></svg><span>Again</span></button>
+        <button type="button" class="btn btn-primary tool" data-action="new" aria-label="New puzzle" data-analytics-cta="hud_new_puzzle" data-analytics-action="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg><span>New</span></button>
+      </div>
+      <div class="progress-area">
+        <div class="progress-caption"><span data-progress-detail data-only="zipper">Follow the numbers</span><span data-progress-detail data-only="patcher">Find a rectangle</span><span data-progress-count>0 / 0</span></div>
+        <progress data-progress value="0" max="1" aria-label="Board coverage"></progress>
+        <p class="play-feedback" data-feedback data-only="zipper">Drag the line or tap a neighbouring cell.</p>
+        <p class="play-feedback" data-feedback data-only="patcher">Drag opposite corners, or tap one then the other.</p>
+      </div>
+    </footer>
+  </div>
+  <p class="toast" data-toast role="status"></p>
+
+  <dialog data-dialog="help" aria-labelledby="help-title">
+    <form method="dialog" class="card">
+      <p class="eyebrow">How to play</p>
+      <h2 id="help-title" data-only="zipper">One line, every cell.</h2>
+      <h2 id="help-title-patcher" data-only="patcher">Every clue gets one patch.</h2>
+      <div class="guide" data-only="zipper">
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell lit" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><path class="g-line" d="M12 12H52"/><circle class="g-dot" cx="12" cy="12" r="6"/><text class="g-num" x="12" y="12">1</text><circle class="g-dot" cx="52" cy="12" r="6"/><text class="g-num" x="52" y="12">2</text><circle class="g-dot" cx="52" cy="52" r="6"/><text class="g-num" x="52" y="52">3</text></svg><figcaption>1, 2, 3 in order</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell lit" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="44" y="44" width="16" height="16" rx="3.5"/><path class="g-line" d="M12 12H52V32H12V52H52"/><circle class="g-dot" cx="12" cy="12" r="6"/><text class="g-num" x="12" y="12">1</text><circle class="g-dot" cx="52" cy="52" r="6"/><text class="g-num" x="52" y="52">2</text></svg><figcaption>Fill every square</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell lit" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><path class="g-wall" d="M22 4v16"/><path class="g-line" d="M12 12H18"/><circle class="g-dot" cx="12" cy="12" r="6"/><text class="g-num" x="12" y="12">1</text><path class="g-no" d="M28 8l8 8m0-8l-8 8"/></svg><figcaption>Walls stop the line</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell lit" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell lit" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><path class="g-line" d="M12 12H32"/><path class="g-drag" d="M32 12H48"/><circle class="g-hand" cx="50" cy="14" r="7"/><circle class="g-dot" cx="12" cy="12" r="6"/><text class="g-num" x="12" y="12">1</text></svg><figcaption>Drag your finger</figcaption></figure>
+      </div>
+      <div class="guide" data-only="patcher">
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-patch a" x="4" y="4" width="56" height="16" rx="3.5"/><rect class="g-patch b" x="4" y="24" width="16" height="36" rx="3.5"/><rect class="g-patch c" x="24" y="24" width="36" height="36" rx="3.5"/><text class="g-ink" x="32" y="12">3</text><text class="g-ink" x="12" y="42">2</text><text class="g-ink" x="42" y="42">4</text></svg><figcaption>One number in each</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><rect class="g-patch c" x="4" y="4" width="36" height="36" rx="3.5"/><text class="g-ink small" x="12" y="12">1</text><text class="g-ink small" x="32" y="12">2</text><text class="g-ink small" x="12" y="32">3</text><text class="g-ink small" x="32" y="32">4</text></svg><figcaption>The number counts squares</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><rect class="g-patch a" x="4" y="4" width="36" height="16" rx="3.5"/><rect class="g-ink" x="15" y="10" width="14" height="4" rx="1"/><rect class="g-patch b" x="44" y="24" width="16" height="36" rx="3.5"/><rect class="g-ink" x="50" y="35" width="4" height="14" rx="1"/></svg><figcaption>The picture is the shape</figcaption></figure>
+        <figure><svg viewBox="0 0 64 64" aria-hidden="true"><rect class="g-cell" x="4" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="4" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="24" width="16" height="16" rx="3.5"/><rect class="g-cell" x="4" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="24" y="44" width="16" height="16" rx="3.5"/><rect class="g-cell" x="44" y="44" width="16" height="16" rx="3.5"/><rect class="g-select" x="4" y="4" width="36" height="36" rx="3.5"/><circle class="g-hand" cx="12" cy="12" r="5"/><path class="g-drag" d="M14 14L30 30"/><circle class="g-hand" cx="32" cy="32" r="7"/></svg><figcaption>Drag corner to corner</figcaption></figure>
+      </div>
+      <details class="keys" data-only="zipper"><summary>For grown-ups</summary>Drag from the head of the line, or tap neighbouring cells. Retrace the line to erase, or use Undo. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> draw and <kbd>⌫</kbd> steps back. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> start again · <kbd>H</kbd> hint · <kbd>M</kbd> sound · <kbd>T</kbd> next world. The world changes by itself every couple of minutes. The stars pick the board size. Every board has exactly one solution. Hints highlight a route or a wrong turn; you draw or retrace the line yourself.</details>
+      <details class="keys" data-only="patcher"><summary>For grown-ups</summary>Drag between opposite corners, or tap one corner then the other. The preview shows its size and whether it fits. Tap a placed patch to lift it again; Escape cancels a selection. On a keyboard, <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> move, <kbd>Enter</kbd> starts and places a patch and <kbd>X</kbd> lifts one. <kbd>U</kbd> undo · <kbd>N</kbd> new puzzle · <kbd>R</kbd> start again · <kbd>H</kbd> hint · <kbd>M</kbd> sound · <kbd>T</kbd> next world. The world changes by itself every couple of minutes. The stars pick the board size. Every board has exactly one solution. Hints highlight a patch to draw or reconsider; you place or lift it yourself.</details>
+      <div class="card-actions">
+        <button type="submit" class="btn btn-primary" autofocus data-analytics-cta="help_close" data-analytics-action="close_help"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Let's play</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog data-dialog="win" aria-labelledby="win-title">
+    <div class="card">
+      <p class="eyebrow">Solved</p>
+      <h2 id="win-title" data-only="zipper">One line, no loose ends!</h2>
+      <h2 id="win-title-patcher" data-only="patcher">Not a cell to spare!</h2>
+      <p class="win-time" data-win-time>0:00</p>
+      <p data-win-note></p>
+      <div class="card-actions">
+        <button type="button" class="btn btn-primary tool" data-action="next" data-analytics-cta="win_next_puzzle" data-analytics-action="next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 5.5l6.5 6.5-6.5 6.5"/></svg><span>Next puzzle</span></button>
+        <button type="button" class="btn btn-ghost tool" data-action="harder" data-analytics-cta="win_harder_puzzle" data-analytics-action="harder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l1.9 3.9 4.3.6-3.1 3 .7 4.2L9 16.2l-3.8 2 .7-4.2-3.1-3 4.3-.6z" fill="currentColor"/><path d="M18.5 3.5v8M15 7l3.5-3.5L22 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Go harder</span></button>
+        <button type="button" class="btn btn-ghost tool" data-action="stay" data-analytics-cta="win_keep_looking" data-analytics-action="stay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span>Keep looking</span></button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <div class="loading" data-loading><p><i></i><span data-loading-text>Laying out the board</span></p></div>
+  <noscript>
+    <div class="loading failed"><p>Puzzle Box needs JavaScript and WebGL 2 to run.</p></div>
+  </noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>

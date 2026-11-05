@@ -6,7 +6,7 @@ import { browser } from './helpers/analytics-harness.mjs';
 
 const root = new URL('../', import.meta.url);
 const products = ['youknow', 'maremba', 'acustra', 'ceres', 'press78', 'aculele', 'respira', 'aculyre', 'lamer', 'acukoto', 'binaurel', 'remix', 'convretor', 'keyra', 'rill'];
-const games = ['alpen', 'ashline', 'hedgerow', 'meteora', 'patcher', 'tyran', 'zipper'];
+const games = ['alpen', 'ashline', 'hedgerow', 'meteora', 'puzzles', 'tyran'];
 const fixedId = /^[a-z][a-z0-9_]*$/;
 const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
@@ -116,7 +116,7 @@ for (const game of games) {
   }
 }
 assert.ok(covered >= 90, 'Cover the existing product calls to action across the site');
-assert.ok(coveredButtons >= 140, 'Cover all authored navigation, dialog and HUD buttons across the site');
+assert.ok(coveredButtons >= 135, 'Cover all authored navigation, dialog and HUD buttons across the site');
 assert.ok(ignoredControls >= 30, 'Explicitly mark high-frequency tactical and gameplay controls with data-analytics-ignore');
 assert.equal(chapters, 4, 'Cover all four authored Lamer demo chapters');
 

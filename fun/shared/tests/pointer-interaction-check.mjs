@@ -64,12 +64,19 @@ assert.equal(patch.mutations.length, 0, 'Patcher: a second finger cannot place o
 patch.pointer('pointerup', 2);
 assert.deepEqual(patch.mutations.at(-1), ['place', patchPuzzle.solution[0]], 'Patcher: the owner finger can still place');
 
-// A tap lifts a placed patch; dragging across it must not erase it.
+// A tap lifts a placed patch; an invalid drag across it must not erase it.
 const before = patch.mutations.length;
 patch.pointer('pointerdown', 0);
 patch.pointer('pointermove', 1);
 patch.pointer('pointerup', 1);
 assert.equal(patch.mutations.length, before, 'Patcher: brushing a placed patch does not lift it');
+// A valid rectangle drawn over a placed patch replaces it, and Undo restores it.
+patch.pointer('pointerdown', 0);
+patch.pointer('pointermove', 3);
+patch.pointer('pointerup', 3);
+assert.deepEqual(patch.mutations.slice(before), [['lift', 0], ['place', { clue: 1, x: 0, y: 0, w: 1, h: 2 }]], 'Patcher: a valid patch replaces the ones it covers');
+patch.actions.onUndo();
+assert.deepEqual(patch.mutations.slice(-2), [['lift', 1], ['place', patchPuzzle.solution[0]]], 'Patcher: Undo brings the replaced patch back');
 patch.pointer('pointerdown', 1);
 patch.pointer('pointerup', 1);
 assert.deepEqual(patch.mutations.at(-1), ['lift', 0], 'Patcher: deliberate tap lifts a patch');
