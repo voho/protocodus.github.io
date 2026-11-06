@@ -46,8 +46,12 @@ Unreleased Electry and Clareq remain excluded from the public catalog and
 sitemap. Other development previews retain their identified source revisions.
 
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
-against `protocodus/rill-daw` main `a5a9ce4b360ad9f303661d4e01039bcf3b7cda02`.
-The page uses the official logo and five real application captures; imagery
+against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.
+On 6 November, all five screenshots were recaptured from that source with the
+native app screenshot command and an original 32-bar session. The capture-only
+[harness](../scripts/rill-capture/capture-harness.patch) configures framing and
+demo state without changing UI rendering; the [generator](../scripts/rill-capture/make_demo.py)
+creates the original demo audio and project. The page uses the official logo; imagery
 and feature sources are recorded in [`rill/ASSET_PROVENANCE.json`](rill/ASSET_PROVENANCE.json).
 The five platform downloads follow the latest successful main build; this is
 not a stable release. Podcare retains its existing illustration.

@@ -1,0 +1,70 @@
+diff --git a/crates/daw-app/src/app.rs b/crates/daw-app/src/app.rs
+index b4f1fbd..4d87f3e 100644
+--- a/crates/daw-app/src/app.rs
++++ b/crates/daw-app/src/app.rs
+@@ -3598,7 +3598,12 @@ impl DawApp {
+     /// Open the workspace or popup named by the `--view` command-line option.
+     pub fn open_screenshot_view(&mut self, view: &str) {
+         match view {
+-            "assistant" => self.open_global_assistant(),
++            "assistant" => {
++                self.open_global_assistant();
++                if self.screenshot.is_some() {
++                    self.assistant.prompt = "Create a four-bar D-minor arpeggio using one of my installed VST3 instruments.".into();
++                }
++            },
+             "setup" => self.open_popup(PopupKind::Setup),
+             "mixer" => self.view = WorkspaceView::Mixer,
+             "channel" => {
+diff --git a/crates/daw-app/src/arrangement.rs b/crates/daw-app/src/arrangement.rs
+index d3001ce..851147f 100644
+--- a/crates/daw-app/src/arrangement.rs
++++ b/crates/daw-app/src/arrangement.rs
+@@ -236,7 +236,7 @@ impl DawApp {
+             self.tool = daw_ui::EditorTool::Select;
+         }
+         daw_ui::editor_tool_shortcuts(ui, &mut self.tool, &supported);
+-        let mut fit = false;
++        let mut fit = self.screenshot.is_some() && self.frame_count <= 6;
+         let mut nudge = 0;
+         let mut add_pattern = false;
+         let amplitude_id = egui::Id::new("arrangement_waveform_amplitude");
+diff --git a/crates/daw-app/src/main.rs b/crates/daw-app/src/main.rs
+index 24b6f7c..72e066d 100644
+--- a/crates/daw-app/src/main.rs
++++ b/crates/daw-app/src/main.rs
+@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
+         viewport: eframe::egui::ViewportBuilder::default()
+             .with_app_id(daw_ui::APP_ID)
+             .with_icon(daw_ui::app_icon())
+-            .with_inner_size([1480.0, 960.0])
++            .with_inner_size(if screenshot.is_some() { if view.as_deref() == Some("mixer") { [1920.0, 1000.0] } else { [1600.0, 1000.0] } } else { [1480.0, 960.0] })
+             .with_min_inner_size([1100.0, 720.0]),
+         vsync: true,
+         ..Default::default()
+@@ -151,6 +151,12 @@ fn main() -> anyhow::Result<()> {
+         options,
+         Box::new(move |cc| {
+             let mut app = app::DawApp::new(cc, project, screenshot);
++            if app.screenshot.is_some() {
++                app.plugin_scan_roots = Some(Vec::new());
++                app.automatic_plugin_previews = false;
++                app.audio_device_enabled = false;
++                app.root = 2;
++            }
+             app.refresh_plugins();
+             if mcp {
+                 app.assistant.start_mcp_stdio(mcp_profile);
+diff --git a/crates/daw-app/src/midi_editor.rs b/crates/daw-app/src/midi_editor.rs
+index 00b1ae0..9530abe 100644
+--- a/crates/daw-app/src/midi_editor.rs
++++ b/crates/daw-app/src/midi_editor.rs
+@@ -566,7 +566,7 @@ impl DawApp {
+             state.transform = None;
+         }
+         let mut actions = Vec::new();
+-        let mut fit = false;
++        let mut fit = self.screenshot.is_some() && self.frame_count <= 6;
+         let mut open_generate = false;
+         let mut open_ai = false;
+         let mut open_transform = None;

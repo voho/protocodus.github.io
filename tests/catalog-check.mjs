@@ -148,6 +148,34 @@ assert.deepEqual(actualVideos, expectedVideos, 'All verified YouTube uploads are
 assert.deepEqual(actualPlaylists, expectedPlaylists, 'All verified SoundCloud playlists are embedded');
 assert.ok(commerceLinks >= catalog.products.length * 3, 'Shop CTAs carry campaign and placement tags');
 const rill = read('product/rill/index.html');
+const rillProvenance = JSON.parse(read('product/rill/ASSET_PROVENANCE.json'));
+const rillApplication = JSON.parse(rill.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+const rillScreenshots = [];
+for (const [name, asset] of Object.entries(rillProvenance.assets)) {
+  const bytes = readFileSync(new URL(`product/rill/${name}`, root));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256, `RILL ${name}: image matches its provenance`);
+  assert.equal(bytes.length, asset.bytes, `RILL ${name}: recorded file size matches`);
+  if (!/\.(webp|jpg)$/.test(name)) continue;
+  const versioned = `${name}?v=${asset.sha256.slice(0, 12)}`;
+  const references = [...`${rill}\n${home}`.matchAll(new RegExp(name.replaceAll('.', '\\.') + '(?:\\?v=[a-f0-9]+)?', 'g'))];
+  assert.ok(references.length, `RILL ${name}: image is used`);
+  for (const reference of references) assert.equal(reference[0], versioned, `RILL ${name}: every reference uses the current image`);
+  const url = `https://protocodus.cz/product/rill/${versioned}`;
+  if (name.endsWith('.webp')) {
+    rillScreenshots.push(url);
+    const image = rill.match(new RegExp(`<img[^>]+src="${versioned.replace(/[.?]/g, '\\$&')}"[^>]*>`))?.[0];
+    assert.ok(image?.includes(`width="${asset.dimensions[0]}" height="${asset.dimensions[1]}"`), `RILL ${name}: intrinsic dimensions match provenance`);
+  } else {
+    assert.equal(rillApplication.image, url, 'RILL structured data uses the current social cover');
+    for (const html of [rill, home]) {
+      assert.ok(html.includes(`<meta property="og:image" content="${url}">`), 'RILL and homepage Open Graph cover agree');
+      assert.ok(html.includes(`<meta name="twitter:image" content="${url}">`), 'RILL and homepage Twitter cover agree');
+      assert.ok(html.includes(`<meta property="og:image:width" content="${asset.dimensions[0]}">`));
+      assert.ok(html.includes(`<meta property="og:image:height" content="${asset.dimensions[1]}">`));
+    }
+  }
+}
+assert.deepEqual(rillApplication.screenshot, rillScreenshots, 'RILL structured data lists the current screenshots');
 const downloads = [...rill.matchAll(/href="(https:\/\/nightly\.link\/protocodus\/rill-daw\/workflows\/ci\/main\/[^"?]+\.zip)"/g)];
 assert.equal(downloads.length, 5, 'RILL provides all five rolling platform artifacts');
 assert.equal(new Set(downloads.map(m => m[1])).size, 5);
