@@ -480,6 +480,14 @@ export function createAudio() {
     } else if (kind === 'jump') {
       burst(sfx, t, { dur: 0.15, peak: 0.07, type: 'bandpass', freq: 1100, q: 0.7 });
       kit(sfx, t + 0.03, 0.2);
+    } else if (kind === 'lean') {
+      burst(sfx, t, { dur: 0.16, peak: 0.05, type: 'bandpass', freq: 1300, sweepTo: 800, q: 0.7 });
+      kit(sfx, t + 0.04, 0.12);
+    } else if (kind === 'inhale' || kind === 'exhale' || kind === 'gasp') {
+      // a breath through the nose held, let out, or let out hard and drawn again when held too long
+      const out = kind !== 'inhale';
+      burst(sfx, t, { dur: out ? 0.55 : 0.35, peak: kind === 'gasp' ? 0.07 : 0.035, type: 'bandpass', freq: out ? 700 : 1100, sweepTo: out ? 450 : 1500, q: 0.9, attack: out ? 0.02 : 0.08 });
+      if (kind === 'gasp') burst(sfx, t + 0.6, { dur: 0.4, peak: 0.05, type: 'bandpass', freq: 1000, sweepTo: 1500, q: 0.9, attack: 0.06 });
     } else if (kind === 'land') {
       footstep(0, 0, 0, surface, 1.5, true);
       kit(sfx, t + 0.01, 0.3);

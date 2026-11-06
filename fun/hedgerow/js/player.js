@@ -14,7 +14,15 @@
    share one capsule against the world. Two weapons (Garand, Thompson),
    grenades that can be cooked, health that comes back when out of fire. A
    blast close by leaves him dazed for a few seconds (daze.js): slower on
-   his feet and slower to turn, the view swimming. */
+   his feet and slower to turn, the view swimming.
+
+   Down the sights the aim is never quite still: it wanders in a slow loop
+   with his breath and pulse, more on the move, winded or dazed, less
+   crouched. Shift while aiming holds the breath and the sights settle for
+   up to four seconds; held longer, he lets it out hard and the sights
+   shake until he has his breath back. Q and E lean him out to the left or
+   right round cover (his whole body rolls over his feet, so his eyes and
+   the rifle go out together, as far as the wall beside him lets them). */
 
 import * as THREE from 'three';
 import { PLAYER, WEAPONS, GRENADE, GAIT, CAMERA } from './config.js';
@@ -33,6 +41,11 @@ const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vec
    low at a sprint; down and aside at a wall, a low ready that draws the muzzle back out of the
    picture (swung up, the right hand on the grip came to the eye and filled the view); down out of
    sight while changing weapons. None brings an arm within a hand's breadth of the eye (fp-check). */
+/* Holding the breath down the sights (seconds), the sway it steadies (radians), the lean. */
+export const BREATH = { hold: 4, winded: 2.5, refill: 0.8 };
+const SWAY = 0.0032;
+const LEAN = 0.2;          // the body's roll fully out: the eyes some 0.33 m to the side
+
 export const ARMS = {
   sprint: { pitch: -0.15, yaw: -0.1, roll: -0.45 },
   wall: { pitch: -0.5, yaw: 0.55, roll: -0.3 },
@@ -54,6 +67,8 @@ export function createPlayer(G) {
     stats: null,
     yawFix: 0, pitchFix: 0, blocked: false, arms: { pitch: 0, yaw: 0, roll: 0 },
     daze: 0, dazeT: 99,
+    lean: 0, leanX: 0, leanZ: 0,            // -1..1 (to his left), and how far the head is out in x, z
+    breath: BREATH.hold, winded: 0, holding: false,
   };
   const FP = !!CAMERA.firstPerson;
   // the eyes from the head bone: up and forward of it, in metres; and, not
@@ -106,6 +121,9 @@ export function createPlayer(G) {
     P.char.root.rotation.y = P.yaw;
     P.char.hideHead(FP);
     P.char.steady = FP;
+    P.lean = 0; P.leanX = P.leanZ = 0; G.rig.lean = 0; P.char.root.rotation.z = 0;
+    P.breath = BREATH.hold; P.winded = 0; P.holding = false;
+    G.rig.swayYaw = G.rig.swayPitch = 0;
     P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 }; P.pendingWeapon = null;
     motion.reset(); vm = { yaw: 0, pitch: 0, drop: 0 };
     dazed.reset(); P.daze = 0; P.dazeT = 99;
@@ -140,6 +158,8 @@ export function createPlayer(G) {
         const k = kind === 'bullet' ? 3.0 : 7;
         impulses.push({ part: kind === 'bullet' ? 'body' : 'all', vel: dir.multiplyScalar(k).add(new THREE.Vector3(0, kind === 'bullet' ? 0.4 : 3.5, 0)) });
       }
+      P.lean = 0; P.leanX = P.leanZ = 0; G.rig.lean = 0; G.rig.swayYaw = G.rig.swayPitch = 0;
+      P.char.root.rotation.z = 0;
       if (!FP) P.char.hideHead(false);      // first person: the eyes go down with him; the head shows once the camera has left it
       P.headBack = !FP;
       P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
@@ -365,6 +385,48 @@ export function createPlayer(G) {
     G.rig.updateFirstPerson(dt, eyeW, P.blocked ? null : sight, aiming, { moveSpeed: hSpeed, strafe, sprint: P.sprint, steps: P.steps + P.stepAcc });
   }
 
+  /* The breath held or not, the sights' sway, the lean (first person). */
+  function steady(dt, input, aiming, hSpeed) {
+    // the breath: Shift down the sights holds it, until it runs out
+    const wantHold = aiming && G.rig.aimT > 0.5 && input.held('Shift') && P.winded <= 0;
+    if (wantHold && !P.holding && P.breath > 0.5) { P.holding = true; G.audio.gear('inhale'); }
+    else if (P.holding && !wantHold) { P.holding = false; G.audio.gear('exhale'); }
+    if (P.holding) {
+      P.breath -= dt;
+      if (P.breath <= 0) { P.breath = 0; P.holding = false; P.winded = BREATH.winded; G.audio.gear('gasp'); }
+    } else {
+      P.winded = Math.max(0, P.winded - dt);
+      P.breath = Math.min(BREATH.hold, P.breath + BREATH.refill * dt);
+    }
+    // the sway: a slow figure of eight, a quicker tremor over it, down the sights only
+    const t = G.time;
+    const amp = SWAY * G.rig.aimT
+      * (P.crouch ? 0.6 : 1) * (1 + Math.min(1, hSpeed / 2.5) * 1.5) * (1 + 3 * P.daze)
+      * (P.holding ? 0.12 : P.winded > 0 ? 1 + 1.6 * P.winded / BREATH.winded : 1);
+    const k = 1 - Math.exp(-6 * dt);       // eased, so holding the breath settles rather than snaps
+    G.rig.swayYaw += (amp * (Math.sin(t * 0.9) + 0.35 * Math.sin(t * 2.7 + 1.3)) - G.rig.swayYaw) * k;
+    G.rig.swayPitch += (amp * (0.55 * Math.sin(t * 1.8 + 0.4) + 0.3 * Math.sin(t * 3.4)) - G.rig.swayPitch) * k;
+
+    // the lean: Q out to the left, E to the right, not at a sprint or in the air; only as far
+    // as the wall on that side lets the head go
+    let want = (input.held('KeyQ') ? 1 : 0) - (input.held('KeyE') ? 1 : 0);
+    if (P.sprint || P.vault || !P.grounded) want = 0;
+    if (want) {
+      const lx = Math.cos(G.rig.yaw) * want, lz = -Math.sin(G.rig.yaw) * want;
+      const eyeY = P.pos.y + lerp(PLAYER.eye, PLAYER.crouchEye, P.crouchT);
+      const reach = 0.33 + 0.2;
+      const hit = G.world.raycast(P.pos.x, eyeY, P.pos.z, lx, 0, lz, reach, SHOT, { noWater: true });
+      if (hit) want *= clamp((hit.t - 0.2) / 0.33, 0, 1);
+    }
+    if (Math.abs(want) > 0.5 && Math.abs(P.lean) < 0.2 && Math.sign(want) !== Math.sign(P.leanSaid || 0)) G.audio.gear('lean');
+    P.leanSaid = Math.abs(want) > 0.5 ? Math.sign(want) : 0;
+    P.lean = damp(P.lean, want, 9, dt);
+    G.rig.lean = P.lean * LEAN;
+    // where the head is, for the enemy's eyes (the roll swings it out about the feet)
+    const out = Math.sin(P.lean * LEAN) * lerp(PLAYER.eye, PLAYER.crouchEye, P.crouchT);
+    P.leanX = Math.cos(G.rig.yaw) * out; P.leanZ = -Math.sin(G.rig.yaw) * out;
+  }
+
   /* ---------- per frame ---------- */
 
   const killerHead = new THREE.Vector3();
@@ -507,6 +569,8 @@ export function createPlayer(G) {
     else if (aiming || firingRecently || hSpeed > 0.4 || P.cooking >= 0) P.yaw = dampAngle(P.yaw, cy, aiming ? 30 : 12, dt);
     else if (Math.abs(wrapAngle(cy - P.yaw)) > 1.2) P.yaw = dampAngle(P.yaw, cy, 4, dt);
 
+    if (FP) steady(dt, input, aiming, hSpeed);
+
     // timers
     P.cooldown -= dt;
     P.switching -= dt;
@@ -586,6 +650,9 @@ export function createPlayer(G) {
     ch.root.position.copy(P.pos);
     if (P.wading > 0.2) ch.root.position.y -= 0.0;
     ch.root.rotation.y = P.yaw;
+    // leaning out: the body rolls over his feet about its own forward axis (rotation order XYZ:
+    // the roll is in the body's frame, before its yaw); negative z is to his left
+    ch.root.rotation.z = -P.lean * LEAN;
     ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.2));
 
     // footsteps

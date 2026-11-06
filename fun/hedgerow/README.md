@@ -133,7 +133,9 @@ and no film grain so shadow detail stays clear.
 | R | reload |
 | 1 / 2 / wheel | M1 Garand / Thompson |
 | G | grenade (hold to cook) |
-| E | use (set the charge) |
+| Q / E | lean left / right |
+| Shift (aiming) | hold breath |
+| F | use (set the charge) |
 | I | toggle invincibility |
 | O | switch night / day |
 | Esc | pause: the objectives so far and the controls |
@@ -141,6 +143,14 @@ and no film grain so shadow detail stays clear.
 The controls are listed on the title screen while the mission loads, on the
 controls screen and on the pause screen (`js/controls.js`, one list for all
 three); the pause screen also ticks off the mission's objectives.
+
+Down the sights the aim is never quite still: it wanders in a slow loop
+with your breath, more on the move, winded or dazed, less crouched. Shift
+while aiming holds your breath and the sights settle for up to four
+seconds; hold it longer and you let it out hard, the sights shaking until
+you have your breath back. Q and E lean you out round a corner or over a
+wall's end, as far as the wall beside you lets you; the enemy sees your
+head where it is.
 
 Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms

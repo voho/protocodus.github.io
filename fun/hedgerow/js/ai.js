@@ -333,7 +333,7 @@ export function createEnemies(G, defs) {
     e.exposure = 0;
     if (!p.alive) return;
     const eye = eyePos(e, tmp);
-    const head = tmp2.set(p.pos.x, p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z);
+    const head = tmp2.set(p.pos.x + (p.leanX || 0), p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z + (p.leanZ || 0));
     const chest = tmp3.set(p.pos.x, p.pos.y + (p.crouch ? 0.8 : 1.2), p.pos.z);
     const dx = chest.x - eye.x, dz = chest.z - eye.z;
     const dist = Math.hypot(dx, dz);

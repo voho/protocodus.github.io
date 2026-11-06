@@ -152,8 +152,8 @@ export function createMission(G, L, built) {
       else if (o.kind === 'destroy' && !M.charge) {
         const d = Math.hypot(px - o.x, pz - o.z);
         if (d < 3.2) {
-          prompt = 'Press <b>E</b> to set a demolition charge';
-          if (input.pressed('KeyE')) placeCharge(o);
+          prompt = 'Press <b>F</b> to set a demolition charge';
+          if (input.pressed('KeyF')) placeCharge(o);
         }
       } else if (o.kind === 'clear') {
         const left = living(o.groups).length;
