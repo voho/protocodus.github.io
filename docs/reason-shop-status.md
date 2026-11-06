@@ -31,7 +31,7 @@ Acustra 1.9.19d1 is still testing; it does not supersede the public 1.9.0 releas
 | Product | Device status | Shop page | Next step |
 | --- | --- | --- | --- |
 | Acukoto | 0.18.0d1 accepted; 0.18.0 release row exists | 0.18.0 waiting for approval | Await Reason's page review; publish on approval is enabled |
-| Aculele | 0.4.39d1 accepted; 0.4.39 release row exists | 0.4.39 submitted for page approval on 6 November | Await Reason's page review; publish on approval is enabled |
+| Aculele | 0.4.39d1 accepted; 0.4.39 release row exists | Submission hold requested: a demo must be added first | Draft 34606 is preserved with automatic publication off; queued page 34535 still needs removal |
 | Aculyre | 0.7.9d1 accepted; latest release row is 0.7.4 | Draft's Article selector only offers 0.7.4 | Reason must make the accepted 0.7.9 article available; then select it and submit the draft |
 | Respira | 0.1.16d1 submitted for device acceptance | No Shop page yet | Await device acceptance before Shop submission |
 
@@ -39,6 +39,12 @@ Aculyre's draft copy describes 0.7.9. It was left unsubmitted to avoid publishin
 that copy against 0.7.4. Aculele's existing copy, artwork and price were retained
 when submitting its page. All four checked public URLs returned HTTP 404 and
 none appeared in the public developer catalog.
+
+The owner subsequently instructed us to hold Aculele until a demo is added.
+Do not submit or resubmit Aculele before that requirement is met. Reopening the
+queued page created draft 34606; it did not withdraw page 34535. The draft was
+saved with publish on approval off. The original remains queued with automatic
+publication enabled until its removal is confirmed.
 
 Keyra 0.4.14d1, Convretor 0.1.0d9 and Electry 1.2.8d1 are testing, with no
 accepted device versions. Legacy REPAN and YouKnow106 entries are also testing.

@@ -449,7 +449,13 @@
       "accepted_version": "0.4.39d1",
       "shop_page_version": "0.4.39",
       "shop_page_status": "waiting_for_approval",
-      "publish_on_approval": true
+      "publish_on_approval": true,
+      "submission_hold": {
+        "reason": "demo_required",
+        "requested_on": "2026-11-06"
+      },
+      "draft_page_id": 34606,
+      "draft_publish_on_approval": false
     },
     {
       "product": "aculyre",
