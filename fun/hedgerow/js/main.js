@@ -566,6 +566,7 @@ function installGraphicsRecovery(environmentMaps) {
     }
     // Release listeners tied to the old renderer generation while its
     // context is lost, rather than deleting stale handles after recovery.
+    player?.releaseGraphicsResources?.();
     environmentMaps.clear(); G.environments = null; scene.environment = null;
     taa?.dispose();
     renderer.setRenderTarget(null);

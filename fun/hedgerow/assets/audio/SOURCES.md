@@ -102,6 +102,16 @@ at 20 Hz, up to 32 buses per update in round-robin order. This adds no geometry
 probes: the source's cached transmission remains the event snapshot. A distant
 shot therefore arrives from the right world bearing even if the listener turns.
 
+The existing eight listener echo rays also retain their hit materials. Stone
+facades keep a bright return, while wooden fences, earth banks and hedges reduce
+the return level, high frequencies and later reflection. Material weights are
+sound-design estimates. They add no rays or audio nodes and preserve geometric
+enclosure for weather shelter; a grass-covered terrain bank retains its earth
+profile. `setSpace` keeps its previous response when the optional material value
+is omitted. `tests/audio-reflections-check.mjs` combines actual collider rooms
+with isolated PCM impulse responses, normal dry gunshots, default/clamp controls,
+exact mute and node/trace cleanup checks.
+
 Reloads combine quiet recorded latch detail with synthesized slides and low
 mechanical knocks for the Garand, Thompson, Kar98k, MP 40 and MG 42. Player reload/bolt sequences cancel when the weapon
 switches. Player mechanical cues advance on the animation's simulation clock,

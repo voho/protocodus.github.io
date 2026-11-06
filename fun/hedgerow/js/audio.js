@@ -70,7 +70,7 @@ export function createAudio() {
   const amb0 = { rain: 1, wind: 1, birds: false, aircraft: false, frogs: null, frogsHeight: .2 };
   const next = { gust: 0, swell: 0, bird: 4, plane: 25, frog: 2 };
   let lastLoud = -99, outdoors = false, ambienceTarget = 0;
-  let sheltered = 0, enclosure = 0, rainSwell = 1;
+  let sheltered = 0, enclosure = 0, spaceReflectivity = 1, rainSwell = 1;
   let dull = null, ring = null, ringVolume = null, dazed = 0;
   let echoA = null, echoB = null, echoFb = null, echoLP = null;   // the slap-back (setSpace)
   const samples = new Map(), sampleLast = new Map(), sampleVoices = new Set();
@@ -1265,7 +1265,7 @@ export function createAudio() {
     get voiceStatus() { return { limit: MAX_SAMPLE_VOICES, stolen: sampleStolen, culled: sampleCulled, player: [...sampleVoices].filter(voice => voice.priority >= 3).length }; },
     get sampleLoadDetails() { return { retries: sampleRetries, failures: sampleErrors.map(error => ({ ...error })) }; },
     get acousticStatus() { return occlusion.status; },
-    get environmentStatus() { return { shelter: sheltered, enclosure }; },
+    get environmentStatus() { return { shelter: sheltered, enclosure, reflectivity: spaceReflectivity }; },
     get actionStatus() { return playerActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 4, maxCues: 32 }; },
     get actorActionStatus() { return actorActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 12, maxCues: 32 }; },
     get nodeStatus() { return { oneShotBuses: activeBuses.size }; },
@@ -1339,20 +1339,23 @@ export function createAudio() {
     },
     /* Where the listener stands, for the echoes (main.js): `closed`, how much of the horizon round
        him is walls, banks or trees within 30 m (0..1), and `dist`, how far off they are on average.
-       A street between houses rings with quick, bright, repeated echoes; out in a field a shot
-       comes back once, late and dull, off the far hedges. */
-    setSpace(closed, dist) {
+       `reflectivity` is the material-weighted fraction from those same rays (0..1).
+       A street between houses rings with quick, bright echoes; hedges and earth banks
+       soften the returns. Omitting the material value preserves the previous response. */
+    setSpace(closed, dist, reflectivity = 1) {
       const previous = enclosure;
       enclosure = Math.max(0, Math.min(1, closed));
+      spaceReflectivity = Math.max(0, Math.min(1, Number.isFinite(reflectivity) ? reflectivity : 1));
       if (sheltered && weatherExposure && Math.abs(enclosure - previous) > .01) weatherExposure.gain.setTargetAtTime(1 - .65 * sheltered * (.25 + .75 * enclosure), ctx.currentTime, .25);
       if (!echoA) return;
       const t = ctx.currentTime, k = 0.6;
       const first = Math.min(0.2, Math.max(0.03, (2 * dist) / 343));
       echoA.delayTime.setTargetAtTime(first, t, k);
       echoB.delayTime.setTargetAtTime(Math.min(0.45, first * 2.2 + 0.08 * (1 - closed)), t, k);
-      echoFb.gain.setTargetAtTime(0.12 + 0.38 * closed, t, k);
-      echoLP.frequency.setTargetAtTime(1500 + 2500 * closed, t, k);
-      verb.gain.setTargetAtTime(0.22 + 0.25 * closed, t, k);
+      // These are restrained sound-design estimates, not a diffraction solve.
+      echoFb.gain.setTargetAtTime((.12 + .38 * closed) * (.25 + .75 * spaceReflectivity), t, k);
+      echoLP.frequency.setTargetAtTime(900 + (600 + 2500 * closed) * (.35 + .65 * spaceReflectivity), t, k);
+      verb.gain.setTargetAtTime((.22 + .25 * closed) * (.3 + .7 * spaceReflectivity), t, k);
     },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },

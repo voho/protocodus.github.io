@@ -103,6 +103,7 @@ export function createPlayer(G) {
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
   identityKit = attachResistanceIdentity(P.char, G.matlib, G.level?.playerIdentity);
   G.scene.add(P.char.root);
+  P.releaseGraphicsResources = () => identityKit?.releaseGraphicsResources();
 
   P.reset = (spawn, keepInventory = null) => {
     grenadeRelease = null;

@@ -16,6 +16,7 @@ function fixture(daylight = true) {
     canvas: { addEventListener: (name, callback) => listeners.set(name, callback) },
     $: () => status, document: { querySelectorAll: () => buttons },
     G: { daylight, environments: {} }, scene: { environment: 'old', traverse: callback => callback({ isLight: true, shadow }) }, camera: {},
+    player: { releaseGraphicsResources: () => calls.push('owned-player-resources') },
     input: { enable: on => calls.push(`input-${on}`), exitLock: () => calls.push('unlock') }, audio: { suspend: () => calls.push('suspend') },
     renderer: { shadowMap: {}, setRenderTarget: value => { assert.equal(value, null); calls.push('target-default'); }, setSize: (width, height, css) => { assert.equal(width, 1); assert.equal(height, 1); assert.equal(css, false); calls.push('retire-buffers'); }, render: () => { assert.ok(buttons[0].disabled, 'first valid frame precedes enabled controls'); calls.push('render'); } },
     adapt: { reset: () => calls.push('adapt') }, taa: { dispose: () => calls.push('retire-history'), reset: () => calls.push('taa'), jitter() {}, restore: () => calls.push('projection-restored') }, blur: null,
@@ -41,6 +42,7 @@ for (const daylight of [false, true]) {
   assert.deepEqual(f.buttons.map(b => b.disabled), [false, true], 'previous disabled states are retained');
   assert.equal(f.status.hidden, true);
   assert.ok(f.calls.indexOf('clear') < f.calls.indexOf('bake'));
+  assert.ok(f.calls.indexOf('owned-player-resources') < f.calls.indexOf('bake'));
   assert.ok(f.calls.indexOf('retire-history') < f.calls.indexOf('bake'));
   assert.ok(f.calls.indexOf('retire-buffers') < f.calls.indexOf('bake'));
   assert.ok(f.calls.indexOf('adapt') < f.calls.indexOf('render'));

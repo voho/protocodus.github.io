@@ -15,6 +15,10 @@ const PROFILES = {
   foliage: Object.freeze({ gain: 0.86, cutoff: 3600, blocked: true, surface: 'foliage' }),
 };
 
+// Estimated audible reflection, separate from transmission through a wall.
+// The existing listener rays provide these materials without another trace.
+const REFLECTION = Object.freeze({ masonry: 1, metal: .9, wood: .65, earth: .25, foliage: .12 });
+
 export function acousticProfile(hit) {
   if (!hit) return OPEN;
   const surface = hit.surface;
@@ -26,6 +30,10 @@ export function acousticProfile(hit) {
   if (['wood', 'planks'].includes(surface)) return PROFILES.wood;
   if (['metal', 'iron'].includes(surface)) return PROFILES.metal;
   return PROFILES.masonry;
+}
+
+export function acousticReflection(hit) {
+  return hit ? REFLECTION[acousticProfile(hit).surface] : 0;
 }
 
 export function createAcousticOcclusion({ maxQueries = 4, windowSeconds = 0.1, maxEntries = 128, ttl = 0.32 } = {}) {

@@ -34,12 +34,21 @@ export function attachResistanceIdentity(character, matlib, identity) {
   flag.name = 'czechoslovak_flag_patch'; flag.receiveShadow = true;
   group.add(band, flag); arm.add(group);
   let disposed = false;
+  // Retire this kit's renderer-generation listeners while the context is
+  // lost. Geometry attributes, the flag canvas and the mounted group stay
+  // available for reupload; the shared cloth material belongs to matlib.
+  function releaseGraphicsResources() {
+    if (disposed) return;
+    band.geometry.dispose(); flag.geometry.dispose();
+    flag.material.dispose(); map.dispose();
+  }
   return { group,
+    releaseGraphicsResources,
     dispose() {
       if (disposed) return;
+      releaseGraphicsResources();
       disposed = true;
-      group.removeFromParent(); band.geometry.dispose(); flag.geometry.dispose();
-      flag.material.dispose(); map.dispose();
+      group.removeFromParent();
     },
   };
 }
