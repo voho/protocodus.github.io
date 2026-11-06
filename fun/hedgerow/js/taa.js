@@ -24,7 +24,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
 const RESOLVE = /* glsl */ `
 uniform sampler2D tSrc, tHistory, tDepth;
-uniform mat4 uProjInv, uViewInv, uPrevViewProj;
+uniform mat4 uProjInv, uViewInv, uPrevViewProj, uPrevProj;
 uniform vec2 uTexel;
 uniform float uReset, uNear, uBlend;
 varying vec2 vUv;
@@ -48,17 +48,29 @@ void main() {
   float d = texture2D(tDepth, vUv).x;
   vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   v.xyz /= v.w;
-  vec2 prev = vUv;
-  if (d >= 1.0 || length(v.xyz) > uNear) {
-    vec4 p = uPrevViewProj * (uViewInv * vec4(v.xyz, 1.0));
-    prev = p.xy / p.w * 0.5 + 0.5;
-  }
-  float off = any(lessThan(prev, vec2(0.0))) || any(greaterThan(prev, vec2(1.0))) ? 1.0 : 0.0;
-  vec3 hist = rgb(clamp(ycocg(texture2D(tHistory, prev).rgb), bl, bh));
-  float a = max(max(uReset, off), uBlend);
+  // History was drawn with the previous *jittered* projection. Reusing an
+  // unjittered matrix blurs every edge, even when the camera stands still.
+  // The first-person rig stays in eye space, but its projection still jitters.
+  vec4 p = length(v.xyz) <= uNear && d < 1.0
+    ? uPrevProj * vec4(v.xyz, 1.0)
+    : uPrevViewProj * (uViewInv * vec4(v.xyz, 1.0));
+  vec2 prev = p.xy / max(p.w, 1e-5) * 0.5 + 0.5;
+  float off = p.w <= 0.0 || any(lessThan(prev, vec2(0.0))) || any(greaterThan(prev, vec2(1.0))) ? 1.0 : 0.0;
+  vec4 history = texture2D(tHistory, prev);
+  // Linear eye depth occupies the history's otherwise unused alpha channel:
+  // no extra render target or pass. Reject a newly exposed surface even when
+  // it shares the old foreground's colour (brown stock against a brown wall).
+  float tolerance = max(0.035, p.w * 0.012) + min(fwidth(p.w) * 1.5, p.w * 0.03);
+  float disoccluded = step(tolerance, abs(history.a - p.w));
+  vec3 hist = max(rgb(clamp(ycocg(history.rgb), bl, bh)), 0.0);
+  // Less persistence while turning or when a soldier/flash changes a pixel.
+  // Subpixel jitter alone stays below the motion threshold.
+  float motion = smoothstep(1.0, 20.0, length((prev - vUv) / uTexel));
+  float reactive = clamp(abs(luma(cur) - luma(history.rgb)) / max(max(luma(cur), luma(history.rgb)), 0.08), 0.0, 1.0);
+  float a = max(max(max(uReset, off), disoccluded), max(uBlend, 0.32 * motion + 0.18 * reactive));
   // weighed by light, so a lone bright glint does not flicker the pixel
   float wc = a / (1.0 + luma(cur)), wh = (1.0 - a) / (1.0 + luma(hist));
-  gl_FragColor = vec4((cur * wc + hist * wh) / max(wc + wh, 1e-5), 1.0);
+  gl_FragColor = vec4((cur * wc + hist * wh) / max(wc + wh, 1e-5), min(-v.z, 65000.0));
 }`;
 
 const COPY = /* glsl */ `
@@ -78,7 +90,7 @@ export function createTAA(camera, depth) {
     vertexShader: VERT, fragmentShader: RESOLVE,
     uniforms: {
       tSrc: { value: null }, tHistory: { value: null }, tDepth: { value: null },
-      uProjInv: { value: new THREE.Matrix4() }, uViewInv: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() },
+      uProjInv: { value: new THREE.Matrix4() }, uViewInv: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() }, uPrevProj: { value: new THREE.Matrix4() },
       uTexel: { value: new THREE.Vector2(1, 1) }, uReset: { value: 1 }, uNear: { value: 1.2 }, uBlend: { value: 0.1 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
@@ -94,12 +106,15 @@ export function createTAA(camera, depth) {
   let cur = 0, frame = 0, reset = true;
   let w = 4, h = 4;
   const base = new THREE.Matrix4(), baseInv = new THREE.Matrix4();
-  const prevViewProj = new THREE.Matrix4(), lastPos = new THREE.Vector3(), pos = new THREE.Vector3();
+  const prevViewProj = new THREE.Matrix4(), prevProj = new THREE.Matrix4();
+  const lastPos = new THREE.Vector3(), pos = new THREE.Vector3();
+  const lastRotation = new THREE.Quaternion(), rotation = new THREE.Quaternion();
+  let lastFov = camera.fov;
 
   return {
     enabled: true, needsSwap: true, uniforms: u,
     /* start again (a cut: a teleport, the death camera) */
-    reset() { reset = true; },
+    reset() { reset = true; frame = 0; },
     /* before the render: shift the projection by this frame's sub-pixel step */
     jitter() {
       if (!this.enabled) return;
@@ -112,15 +127,19 @@ export function createTAA(camera, depth) {
       // a jump of the camera is a cut
       camera.updateMatrixWorld();
       camera.getWorldPosition(pos);
-      if (pos.distanceToSquared(lastPos) > 4) reset = true;
+      camera.getWorldQuaternion(rotation);
+      if (pos.distanceToSquared(lastPos) > 4 || rotation.angleTo(lastRotation) > 0.35 || Math.abs(camera.fov - lastFov) > 8) reset = true;
       lastPos.copy(pos);
+      lastRotation.copy(rotation);
+      lastFov = camera.fov;
     },
     /* after the render: the projection as it was; this frame's camera is next frame's last */
     restore() {
       if (!this.enabled) return;
+      prevProj.copy(camera.projectionMatrix);
+      prevViewProj.multiplyMatrices(prevProj, camera.matrixWorldInverse);
       camera.projectionMatrix.copy(base);
       camera.projectionMatrixInverse.copy(baseInv);
-      prevViewProj.multiplyMatrices(base, camera.matrixWorldInverse);
     },
     setSize(width, height) {
       w = width; h = height;
@@ -137,6 +156,7 @@ export function createTAA(camera, depth) {
       u.uProjInv.value.copy(camera.projectionMatrixInverse);
       u.uViewInv.value.copy(camera.matrixWorld);
       u.uPrevViewProj.value.copy(prevViewProj);
+      u.uPrevProj.value.copy(prevProj);
       u.uReset.value = reset || !dt ? 1 : 0;
       reset = false;
       // resolve into the next history, then hand it on
@@ -148,6 +168,10 @@ export function createTAA(camera, depth) {
       quad.material = copy;
       renderer.setRenderTarget(writeBuffer);
       renderer.render(quad, ortho);
+    },
+    dispose() {
+      for (const target of hist) target.dispose();
+      resolve.dispose(); copy.dispose(); geometry.dispose();
     },
   };
 }

@@ -5,7 +5,8 @@
    ?go (skip the menus straight to the briefing), ?mission=<id> (which mission, missions.js). */
 
 import * as THREE from 'three';
-import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
+import { DIFFICULTY, QUALITY, CAMERA } from './config.js';
+import { normalizeSettings } from './settings.js';
 import { SHOT } from './world.js';
 import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
 import { loadModels } from './assets.js';
@@ -105,7 +106,7 @@ const fade = $('[data-fade]');
 const settings = (() => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem('hedgerow.settings') || '{}'); } catch { s = {}; }
-  return { ...DEFAULT_SETTINGS, ...s };
+  return normalizeSettings(s);
 })();
 const saveSettings = () => { try { localStorage.setItem('hedgerow.settings', JSON.stringify(settings)); } catch { /* private mode */ } };
 
@@ -246,9 +247,11 @@ async function boot() {
   camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, CAMERA.near ?? 0.1, 1700);
 
   input = createInput(canvas);
+  input.on('unlock', () => pause());
   hud = createHud($('[data-hud]'));
   audio = createAudio();
   audio.setVolume(settings.volume);
+  audio.setMix?.({ effects: settings.effectsVolume, ambience: settings.ambienceVolume });
   audio.setAmbience(LEVEL.ambience);
   const events = createEvents();
 
@@ -312,6 +315,7 @@ async function boot() {
 
   await next('level');
   built = await buildLevel(G, LEVEL, quality);
+  audio.setOcclusion?.((from, to) => G.world.clear(from.x, from.y, from.z, to.x, to.y, to.z, SHOT) ? 0 : 1);
   G.cover = built.cover;
   await next('walls');
   dressWalls(G, built.props, LEVEL.lines);
@@ -439,8 +443,8 @@ async function boot() {
     distort = createDistortion(camera, () => volumetric.uniforms.tDepth.value);
     blur = createMotionBlur(camera, () => volumetric.uniforms.tDepth.value);
     dof = createDOF(camera);
-    applyGraphics();
   }
+  applyGraphics();
 
   // the soldiers and the mission, made now behind the menu so Move out starts at once
   loading.update('world', 1);
@@ -524,7 +528,7 @@ function applyGraphics() {
     // way); what would smear through it (rain, sparks, flashes) is drawn after it
     const aa = !!quality.volumetric;
     taa.enabled = aa;
-    blur.setOn(aa && !!quality.blur);
+    blur.setOn(aa && !!quality.blur && settings.motionBlur);
     G.effects.useLate(aa, () => volumetric.uniforms.tDepth.value);
     G.weather.drawLate(aa ? G.effects.late.scene : null, G.effects.depthUniforms);
     G.flames.drawLate(aa ? G.effects.late.scene : null, scene, G.effects.depthUniforms);
@@ -544,7 +548,7 @@ function applyGraphics() {
   G?.grass?.setCount(quality.blades ?? 0);
   G?.clutter?.setOn(quality.clutter ?? 0);
   shared.relief.value = quality.relief ?? 1;
-  if (G?.rig) { G.rig.baseFov = settings.fov; }
+  if (G?.rig) { G.rig.baseFov = settings.fov; G.rig.cameraMotion = settings.cameraShake ? 1 : 0; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
 }
 
@@ -821,6 +825,7 @@ function startMission() {
 }
 
 function resume() {
+  if (player && !player.alive && deathScreenReady) { showDeathScreen(); return; }
   hud.hideCrosshair(false);
   state = 'playing';
   show(null);
@@ -836,6 +841,8 @@ function pause() {
   if (state !== 'playing') return;
   state = 'paused';
   input.enable(false);
+  input.exitLock();
+  audio.setOutdoors(false);
   document.body.classList.remove('playing');
   $('[data-pause-mission]').textContent = `${LEVEL.title} · ${formatTime(missionTime)}`;
   const ol = $('[data-pause-objectives]');
@@ -850,8 +857,18 @@ function pause() {
 }
 
 const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', officer: 'an officer' };
+let deathScreenReady = false;
+
+function showDeathScreen() {
+  state = 'dead';
+  input.enable(false);
+  input.exitLock();
+  document.body.classList.remove('playing');
+  show('dead');
+}
 
 function onDeath() {
+  deathScreenReady = false;
   G.stats.deaths++;
   if (!mission.done) trackAttemptEnd('loss');
   // who did it: the camera turns to him (camera.js) while the line says so
@@ -863,16 +880,14 @@ function onDeath() {
   hud.hideCrosshair(true);
   setTimeout(() => hud.calm(true), 900);
   setTimeout(() => {
-    if (state !== 'playing') return;
-    state = 'dead';
-    input.enable(false);
-    input.exitLock();
-    document.body.classList.remove('playing');
-    show('dead');
+    if (player.alive) return;
+    deathScreenReady = true;
+    if (state === 'playing') showDeathScreen();
   }, k ? 5200 : 2600);
 }
 
 function retryCheckpoint() {
+  deathScreenReady = false;
   const { spawn, inventory } = mission.restoreCheckpoint();
   fade.classList.add('on');
   setTimeout(() => {
@@ -1232,6 +1247,10 @@ document.addEventListener('pointerlockchange', () => {
   if (!document.pointerLockElement && state === 'playing') pause();
 });
 
+// Changing tabs must never leave a soldier moving or firing in the background.
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+window.addEventListener('blur', pause);
+
 document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-action]');
   const card = e.target.closest('[data-mission]');
@@ -1266,7 +1285,8 @@ document.addEventListener('input', (e) => {
   const k = el.dataset.setting;
   settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value;
   saveSettings();
-  if (k === 'volume') audio.setVolume(settings.volume);
+  if (k === 'volume') audio?.setVolume(settings.volume);
+  if (k === 'effectsVolume' || k === 'ambienceVolume') audio?.setMix?.({ effects: settings.effectsVolume, ambience: settings.ambienceVolume });
   if (ready) applyGraphics();
 });
 

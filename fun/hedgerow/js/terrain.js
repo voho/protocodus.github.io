@@ -236,7 +236,8 @@ export function createTerrainMaterial(textures, shared) {
         varying vec4 vSplat;
         varying vec3 vWPos;
         varying vec3 vWNormal;
-        vec3 tNormal; float tRough; float tPuddle; float tRim; float tShore; float tSwardK;
+        vec3 tNormal; vec3 tRockNormal; float tRockWeight;
+        float tRough; float tPuddle; float tRim; float tShore; float tSwardK;
         vec2 pxz; float cavity;
         ${GLSL_HELPERS}
         ${RUTS_GLSL}
@@ -287,10 +288,11 @@ export function createTerrainMaterial(textures, shared) {
             float reach = length(dir) * maxD;
             if (reach > 0.3) dir *= 0.3 / reach;
             // the water's surface caps the march
-            float holdR = (wr.x + wr.w + wr.z * 0.35) / max(dot(wr, vec4(1.0)), 1e-4) * uWet;
+            float drainR = 1.0 - smoothstep(0.005, 0.06, 1.0 - N.y);
+            float holdR = (wr.x + wr.w + wr.z * 0.35) / max(dot(wr, vec4(1.0)), 1e-4) * uWet * drainR;
             float waterD = holdR > 0.3 && levelR > 0.0 ? (1.0 - min(levelR, 1.0)) * dot(wr, sc) / max(dot(wr, vec4(1.0)), 1e-4) : 1e3;
             // the water standing in a rut, a little below the lane
-            if (lane > 0.0 && uWet > 0.0 && rutsAt(vWPos.xz, 1.0).y > 0.02) waterD = min(waterD, sc.x * 0.55);
+            if (lane > 0.0 && uWet * drainR > 0.3 && rutsAt(vWPos.xz, 1.0).y > 0.02) waterD = min(waterD, sc.x * 0.55);
             const int STEPS = 12;
             float layer = maxD / float(STEPS);
             float d = 0.0, srf = min(reliefDepth(pxz, wr, gx, gy, sc), waterD);
@@ -332,18 +334,36 @@ export function createTerrainMaterial(textures, shared) {
         float drift = texture2D(tForest, pxz / 13.0 + 0.31).a * 0.6 + texture2D(tGrass, pxz / 29.0 + 0.53).a * 0.4;
         alb = mix(alb, alb * vec3(0.62, 0.95, 0.42) + vec3(0.004, 0.012, 0.002), b.z * smoothstep(0.56, 0.72, drift) * 0.7);
         alb = mix(alb, alb * vec3(1.25, 1.0, 0.72), b.z * smoothstep(0.42, 0.3, drift) * 0.6);
-        // rock on steep ground
-        float slope = 1.0 - vWNormal.y;
+        // Rock on steep banks is projected from three axes. A top-down UV
+        // alone stretched its grain into vertical streaks down trench walls.
+        vec3 groundNormal = normalize(vWNormal);
+        float slope = 1.0 - groundNormal.y;
         float rockW = smoothstep(0.42, 0.62, slope + (hts.x - 0.5) * 0.15);
-        vec4 rk = texture2D(tRock, pxz / 3.0 + vWPos.y * 0.21);
-        alb = mix(alb, uRockColor * (0.55 + 0.9 * rk.a), rockW);
-        tNormal = normalize(mix(tNormal, rk.xyz * 2.0 - 1.0, rockW));
+        tRockNormal = groundNormal; tRockWeight = rockW;
+        vec3 rockDx = dFdx(vWPos) / 3.0, rockDy = dFdy(vWPos) / 3.0;
+        if (rockW > 0.001) {
+          vec3 tri = pow(abs(groundNormal), vec3(4.0));
+          tri /= max(dot(tri, vec3(1.0)), 1e-4);
+          vec3 rockUV = vec3(pxz.x, vWPos.y, pxz.y) / 3.0;
+          vec4 rx = textureGrad(tRock, rockUV.zy, rockDx.zy, rockDy.zy);
+          vec4 ry = textureGrad(tRock, rockUV.xz, rockDx.xz, rockDy.xz);
+          vec4 rz = textureGrad(tRock, rockUV.xy, rockDx.xy, rockDy.xy);
+          float relief = dot(vec3(rx.a, ry.a, rz.a), tri);
+          alb = mix(alb, uRockColor * (0.55 + 0.9 * relief), rockW);
+          vec2 nx = rx.xy * 2.0 - 1.0, ny = ry.xy * 2.0 - 1.0, nz = rz.xy * 2.0 - 1.0;
+          vec3 bump = vec3(0.0, nx.y, nx.x) * tri.x + vec3(ny.x, 0.0, ny.y) * tri.y + vec3(nz.x, nz.y, 0.0) * tri.z;
+          bump -= groundNormal * dot(bump, groundNormal);
+          tRockNormal = normalize(groundNormal + bump * 0.7);
+        }
         tRough = mix(tRough, 0.85, rockW);
         // standing water: a slow noise says where it gathers, and there it
         // fills the ground up to a level — the joints between the cobbles and
         // the hollows of the mud first, then (deeper) over the stones too; the
         // road's joints hold a little everywhere. Not on grass or rock.
-        float hold = (b.x + b.w + b.z * 0.35) * (1.0 - rockW);
+        // Rain drains off a slope. Keep its wet sheen, but only let water
+        // stand on nearly level ground; hillside puddles must not tilt.
+        float drainage = 1.0 - smoothstep(0.005, 0.06, slope);
+        float hold = (b.x + b.w + b.z * 0.35) * (1.0 - rockW) * drainage;
         float gather = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
         float level = smoothstep(0.45, 0.75, gather) * 1.2;
         float depthW = level - dot(b, hts);
@@ -365,7 +385,7 @@ export function createTerrainMaterial(textures, shared) {
         // the wheel ruts of the lanes: dark wet mud, water standing in them in stretches, a
         // grassy crown between them
         vec3 ruts = rutsAt(pxz, b.x * (1.0 - rockW));
-        tPuddle = max(tPuddle, ruts.y * uWet);
+        tPuddle = max(tPuddle, ruts.y * uWet * drainage);
         alb = mix(alb, cG.rgb * vec3(0.75, 0.8, 0.65), ruts.z * 0.5);
         alb *= 1.0 - 0.3 * ruts.x;
         // darken wet ground (the road's stones most: they soak, and shine);
@@ -393,6 +413,7 @@ export function createTerrainMaterial(textures, shared) {
           if (tPuddle > 0.01) nts.xy += rainRipples(pxz * 1.7, uTime, rippleFade(length(vViewPosition))) * uRain * tPuddle * 0.9;
           mat3 tbn = cotangentFrame(normal, -vViewPosition, vWPos.xz);
           normal = normalize(tbn * normalize(nts));
+          normal = normalize(mix(normal, normalize(mat3(viewMatrix) * tRockNormal), tRockWeight));
         }
         // specular anti-aliasing: where the shading normal turns within a pixel (the cobbles' relief
         // some way off), a sharp highlight would flicker from pixel to pixel and frame to frame;

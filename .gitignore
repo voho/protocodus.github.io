@@ -11,6 +11,8 @@
 # Local browser QA artifacts
 .playwright-mcp/
 test-results/
+# Local game-development scratch and browser evidence
+/work/
 node_modules
 node_modules/
 **/node_modules

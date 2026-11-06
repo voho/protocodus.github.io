@@ -9,7 +9,14 @@ export function createInput(canvas) {
   let mouseL = false, mouseR = false, mouseLPressed = false;
   let locked = false;
   let enabled = false;
+  let legacyLockRequest = false;
   const listeners = { lock: [], unlock: [] };
+
+  function clear() {
+    down.clear(); pressed.clear(); released.clear();
+    mouseL = mouseR = mouseLPressed = false;
+    dx = dy = wheel = 0;
+  }
 
   const keyName = (e) => {
     if (e.code === 'ControlLeft' || e.code === 'ControlRight') return 'Control';
@@ -29,7 +36,7 @@ export function createInput(canvas) {
     down.delete(k);
     released.add(k);
   });
-  window.addEventListener('blur', () => { down.clear(); mouseL = mouseR = false; });
+  window.addEventListener('blur', clear);
 
   canvas.addEventListener('mousedown', (e) => {
     if (!enabled) return;
@@ -52,24 +59,49 @@ export function createInput(canvas) {
 
   document.addEventListener('pointerlockchange', () => {
     const now = document.pointerLockElement === canvas;
+    // A permission/lock request may finish after focus was lost and play paused.
+    if (now && !enabled) { document.exitPointerLock(); return; }
     if (now === locked) return;
+    legacyLockRequest = false;
     locked = now;
-    if (!locked) { mouseL = mouseR = false; down.clear(); }
+    if (!locked) clear();
     for (const f of listeners[locked ? 'lock' : 'unlock']) f();
   });
 
-  function requestLock() {
+  document.addEventListener('pointerlockerror', () => {
+    // Promise-returning browsers report the same failure through rejection.
+    // Older implementations return void and only dispatch this event.
+    if (!legacyLockRequest || !enabled) return;
+    legacyLockRequest = false;
+    clear();
+    for (const f of listeners.unlock) f();
+  });
+
+  async function requestLock() {
+    if (!enabled) return;
+    legacyLockRequest = false;
     try {
-      const p = canvas.requestPointerLock({ unadjustedMovement: true });
-      if (p && p.catch) p.catch(() => canvas.requestPointerLock());
-    } catch { canvas.requestPointerLock(); }
+      const request = canvas.requestPointerLock({ unadjustedMovement: true });
+      legacyLockRequest = !request?.then;
+      await request;
+    } catch {
+      // Browsers may reject raw input, or pointer lock altogether. A second
+      // rejection must not become an unhandled promise or leave play running.
+      if (!enabled) return;
+      try {
+        const request = canvas.requestPointerLock();
+        legacyLockRequest = !request?.then;
+        await request;
+      }
+      catch { clear(); for (const f of listeners.unlock) f(); }
+    }
   }
 
   return {
     get locked() { return locked; },
     get mouseL() { return mouseL; },
     get mouseR() { return mouseR; },
-    enable(on) { enabled = on; if (!on) { down.clear(); mouseL = mouseR = false; } },
+    enable(on) { enabled = on; if (!on) { legacyLockRequest = false; clear(); } },
     requestLock,
     exitLock() { if (document.pointerLockElement) document.exitPointerLock(); },
     on(ev, f) { listeners[ev].push(f); },

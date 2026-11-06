@@ -18,8 +18,7 @@
   <meta property="og:image:alt" content="Hedgerow: the title over a rainy Norman village at dusk, a lamp lit on the lane">
   <link rel="canonical" href="https://protocodus.cz/fun/hedgerow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
-  <link rel="preload" href="./assets/fonts/courier-prime-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="./assets/fonts/special-elite-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./hedgerow.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
@@ -51,19 +50,20 @@
       <div class="compass-mark" data-compass-mark><span data-compass-dist></span></div>
     </div>
 
-    <div class="objective" data-objective>
+    <div class="objective" data-objective role="status" aria-live="polite">
       <p class="objective-label">Objective</p>
       <p class="objective-text" data-objective-text></p>
     </div>
 
-    <div class="notice" data-notice></div>
+    <div class="notice" data-notice role="status" aria-live="polite"></div>
     <div class="prompt" data-prompt hidden></div>
     <div class="grenade-warn" data-grenade-warn hidden><span>Grenade!</span></div>
     <div class="grenade-dirs" data-grenade-dirs aria-hidden="true"></div>
     <div class="detect" data-detect></div>
 
     <div class="status">
-      <div class="health"><div class="health-fill" data-health></div></div>
+      <span class="status-label">Condition</span>
+      <div class="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div class="health-fill" data-health></div></div>
       <p class="stance" data-stance>Standing</p>
     </div>
 
@@ -83,10 +83,20 @@
 
   <!-- Title, loading and menu -->
   <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="hedgerow-title">
+    <div class="start-topline"><span>A Normandy campaign</span><span>France · 1944</span></div>
     <div class="panel title-panel">
       <p class="eyebrow" data-title-eyebrow>Normandy · July 1944</p>
       <h1 class="wordmark" id="hedgerow-title">HEDGEROW</h1>
       <p class="subtitle" data-title-subtitle>Saint-Clair, at dusk</p>
+      <p class="title-description">Through the lanes, fields and villages<br>of occupied Normandy.</p>
+      <nav class="menu" data-menu hidden aria-label="Main menu">
+        <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Play mission <svg class="menu-arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13m-5-5 5 5-5 5"/></svg></button>
+        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Choose mission <span aria-hidden="true">01—03</span></button>
+        <div class="menu-pair">
+          <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
+          <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
+        </div>
+      </nav>
       <div class="loading" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="hedgerow-loading-label" aria-valuemin="0"
           aria-valuemax="100" aria-valuenow="0" data-loading-bar>
@@ -94,31 +104,28 @@
         </div>
         <p class="loading-label" id="hedgerow-loading-label" data-loading-label>Preparing graphics and sound</p>
         <p class="loading-summary" role="status" data-loading-summary>0 of 5 steps done · 5 left</p>
-        <ol class="loading-steps" data-loading-steps aria-label="Loading steps"></ol>
+        <details class="loading-detail"><summary>Preparation details</summary><ol class="loading-steps" data-loading-steps aria-label="Loading steps"></ol></details>
       </div>
       <div class="error" data-error hidden>
         <p data-error-text></p>
         <button type="button" class="ghost" data-action="retry" data-analytics-cta="error_retry" data-analytics-action="retry">Retry</button>
       </div>
-      <nav class="menu" data-menu hidden>
-        <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Play mission</button>
-        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Choose mission</button>
-        <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
-        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
-        <a class="menu-item" href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">Back to games</a>
-      </nav>
+      <p class="loading-controls" data-loading-controls><kbd>W A S D</kbd> Move <span>·</span> <kbd>Mouse</kbd> Look <span>·</span> <kbd>Esc</kbd> Pause</p>
       <p class="best" data-best hidden></p>
     </div>
-    <aside class="panel controls-card" data-loading-controls aria-label="Controls">
-      <h2>Controls</h2>
-      <dl class="keys" data-controls></dl>
-    </aside>
+    <figure class="archive-panel" data-archive hidden>
+      <div class="archive-heading"><span>Normandy archive</span><span data-archive-date>1944</span></div>
+      <div class="archive-image-wrap"><img data-archive-image alt="" decoding="async"><span class="archive-number" aria-hidden="true">NORMANDY / 1944</span></div>
+      <figcaption><p data-archive-caption></p><a data-archive-credit target="_blank" rel="noopener noreferrer"></a></figcaption>
+    </figure>
+    <div class="start-footer"><a href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">← Back to games</a><span>Keyboard &amp; mouse required</span></div>
   </section>
 
   <section class="screen" data-screen="missions" role="dialog" aria-modal="true" aria-labelledby="missions-title">
     <div class="panel missions-panel">
-      <h2 id="missions-title">Missions</h2>
-      <p class="hint">Three missions inspired by real actions in Normandy, 1944. Another mission loads its own battlefield.</p>
+      <p class="eyebrow">Operations / Normandy 1944</p>
+      <h2 id="missions-title">Select a mission</h2>
+      <p class="panel-intro">Three original missions inspired by the Normandy campaign. Choose your next operation.</p>
       <ol class="mission-list" data-mission-list></ol>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="missions_back" data-analytics-action="navigate_back">Back</button>
     </div>
@@ -137,39 +144,51 @@
         <button type="button" class="menu-item" data-action="back" data-analytics-cta="briefing_back" data-analytics-action="navigate_back">Back</button>
       </div>
       <p class="briefing-inspired" data-briefing-inspired></p>
-      <p class="hint">Click to capture the mouse. Esc pauses and shows the controls.</p>
+      <p class="hint">Move out captures the mouse. Press <kbd>Esc</kbd> to pause.</p>
     </div>
   </section>
 
   <section class="screen" data-screen="controls" role="dialog" aria-modal="true" aria-labelledby="controls-title">
     <div class="panel">
+      <p class="eyebrow">Field guide</p>
       <h2 id="controls-title">Controls</h2>
+      <p class="panel-intro">Move deliberately. Use cover, lean to check corners and steady your sights before firing.</p>
       <dl class="keys" data-controls></dl>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="controls_back" data-analytics-action="navigate_back">Back</button>
     </div>
   </section>
 
   <section class="screen" data-screen="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-    <div class="panel">
+    <div class="panel settings-panel">
+      <p class="eyebrow">Preferences</p>
       <h2 id="settings-title">Settings</h2>
-      <label class="setting">Mouse sensitivity <input type="range" min="0.2" max="3" step="0.05" data-setting="sensitivity"></label>
-      <label class="setting">Invert mouse Y <input type="checkbox" data-setting="invertY"></label>
-      <label class="setting">Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
-      <label class="setting">Field of view <input type="range" min="55" max="90" step="1" data-setting="fov"></label>
+      <p class="panel-intro">Changes apply immediately and are saved on this device.</p>
+      <h3 class="setting-group">Input &amp; sound</h3>
+      <label class="setting" for="sensitivity">Mouse sensitivity <span class="setting-control"><input id="sensitivity" type="range" min="0.2" max="3" step="0.05" data-setting="sensitivity"><output for="sensitivity" data-setting-value="sensitivity"></output></span></label>
+      <label class="setting" for="invertY">Invert vertical look <input id="invertY" type="checkbox" data-setting="invertY"></label>
+      <label class="setting" for="volume">Master volume <span class="setting-control"><input id="volume" type="range" min="0" max="1" step="0.05" data-setting="volume"><output for="volume" data-setting-value="volume"></output></span></label>
+      <label class="setting" for="effectsVolume">Effects <span class="setting-control"><input id="effectsVolume" type="range" min="0" max="1" step="0.05" data-setting="effectsVolume"><output for="effectsVolume" data-setting-value="effectsVolume"></output></span></label>
+      <label class="setting" for="ambienceVolume">Ambience <span class="setting-control"><input id="ambienceVolume" type="range" min="0" max="1" step="0.05" data-setting="ambienceVolume"><output for="ambienceVolume" data-setting-value="ambienceVolume"></output></span></label>
+      <h3 class="setting-group">Display &amp; gameplay</h3>
+      <label class="setting" for="fov">Field of view <span class="setting-control"><input id="fov" type="range" min="55" max="90" step="1" data-setting="fov"><output for="fov" data-setting-value="fov"></output></span></label>
+      <label class="setting" for="motionBlur">Motion blur <input id="motionBlur" type="checkbox" data-setting="motionBlur"></label>
+      <label class="setting" for="cameraShake">Camera shake <input id="cameraShake" type="checkbox" data-setting="cameraShake"></label>
       <label class="setting">Difficulty
-        <select data-setting="difficulty">
+        <select data-setting="difficulty" aria-describedby="difficulty-note">
           <option value="recruit">Recruit</option>
           <option value="regular">Regular</option>
           <option value="veteran">Veteran</option>
         </select>
       </label>
+      <p class="setting-note" id="difficulty-note" data-difficulty-note></p>
       <label class="setting">Graphics
-        <select data-setting="quality">
+        <select data-setting="quality" aria-describedby="graphics-note">
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
       </label>
+      <p class="setting-note" id="graphics-note">Lower quality reduces shadows and effects to improve frame rate.</p>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="settings_back" data-analytics-action="navigate_back">Back</button>
     </div>
   </section>
@@ -223,6 +242,7 @@
   </section>
 
   <script type="module" src="./js/main.js"></script>
+  <script type="module" src="./js/menu-shell.js"></script>
 </body>
 
 </html>

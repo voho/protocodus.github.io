@@ -1,8 +1,8 @@
-/* Hedgerow — procedural sound (Web Audio).
+/* Hedgerow — recorded CC0 effects and procedural weather (Web Audio).
 
-   Nothing is downloaded: the rain bed, wind, thunder, gunfire, bullets
-   cracking past, impacts, footsteps, reloads and explosions are built from
-   filtered noise and short oscillator sweeps. World sounds are panned and
+   Locally bundled recordings add natural attacks to weapons, footsteps,
+   impacts and equipment. The original synthesis remains a fallback while
+   samples load, and supplies weather, tails and wet foley. World sounds are panned and
    attenuated by distance from the listener and lose their highs with
    distance; gunfire carries a short slap-back echo from the houses and the
    tree line.
@@ -20,11 +20,16 @@
    wears off, behind a high, slightly wavering ringing in the ears. */
 
 import { rng } from './util.js';
+import { createSampleBank, spatialProfile } from './audio-samples.js';
 
 export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, verb = null;
   let noiseBuf = null, brownBuf = null;
   let volume = 0.8;
+  const mix = { effects: 1, ambience: 1 };
+  let sampleBank = null, ambienceMix = null, ambienceDuck = null, duckUntil = 0;
+  let occlusionTest = null;
+  const occlusionCache = new Map();
   const R = rng(77);
   const listener = { x: 0, y: 0, z: 0, yaw: 0 };
   let rainGain = null, windGain = null, windLP = null, whistle = null, whistleBP = null, helmetGain = null, patterGain = null, dripGain = null;
@@ -64,8 +69,11 @@ export function createAudio() {
     waver.connect(waverDepth).connect(tone.frequency);
     tone.connect(ring).connect(comp);
     tone.start(); waver.start();
-    sfx = ctx.createGain(); sfx.connect(master);
-    amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);   // silent until the mission (setOutdoors)
+    sfx = ctx.createGain(); sfx.gain.value = mix.effects; sfx.connect(master);
+    ambienceMix = ctx.createGain(); ambienceMix.gain.value = mix.ambience;
+    ambienceDuck = ctx.createGain();
+    amb = ctx.createGain(); amb.gain.value = 0;
+    amb.connect(ambienceDuck).connect(ambienceMix).connect(master);   // silent until the mission (setOutdoors)
     // outdoor slap-back: two short delays, filtered, set to the place (setSpace)
     verb = ctx.createGain(); verb.gain.value = 0.32;
     const d1 = ctx.createDelay(1), d2 = ctx.createDelay(1);
@@ -73,7 +81,7 @@ export function createAudio() {
     const f1 = ctx.createBiquadFilter(); f1.type = 'lowpass'; f1.frequency.value = 2200;
     const fb = ctx.createGain(); fb.gain.value = 0.3;
     verb.connect(f1); f1.connect(d1); f1.connect(d2);
-    d1.connect(master); d2.connect(fb); fb.connect(d1); d2.connect(master);
+    d1.connect(sfx); d2.connect(fb); fb.connect(d1); d2.connect(sfx);
     echoA = d1; echoB = d2; echoFb = fb; echoLP = f1;
 
     const n = ctx.sampleRate * 2;
@@ -85,6 +93,29 @@ export function createAudio() {
     let last = 0;
     for (let i = 0; i < n; i++) { last = (last + 0.02 * (R() * 2 - 1)) / 1.02; bc[i] = last * 3.5; }
     startAmbience();
+    sampleBank = createSampleBank(ctx, { random: R });
+    sampleBank.preload();
+  }
+
+  function sample(group, out, t, gain = 1, rate = 1, priority = false) {
+    return sampleBank?.play(group, out, t, { gain, rate, priority }) || false;
+  }
+
+  function duck(power = 1) {
+    if (!ambienceDuck || !outdoors) return;
+    duckUntil = Math.max(duckUntil, ctx.currentTime + 0.16 + 0.12 * power);
+    ambienceDuck.gain.setTargetAtTime(Math.max(0.48, 1 - power * 0.36), ctx.currentTime, 0.015);
+  }
+
+  function obstruction(x, y, z) {
+    if (!occlusionTest || Math.hypot(x - listener.x, y - listener.y, z - listener.z) < 3) return 0;
+    const key = [x, y, z, listener.x, listener.y, listener.z].map(v => Math.floor(v / 2)).join(',');
+    const cached = occlusionCache.get(key), now = ctx.currentTime;
+    if (cached && now - cached.time < 0.3) return cached.value;
+    const value = occlusionTest({ x: listener.x, y: listener.y, z: listener.z }, { x, y, z });
+    if (occlusionCache.size >= 64) occlusionCache.delete(occlusionCache.keys().next().value);
+    occlusionCache.set(key, { time: now, value });
+    return value;
   }
 
   function noise(brown = false) {
@@ -174,23 +205,19 @@ export function createAudio() {
 
   /* Spatial chain for a sound at a world position. Returns the input node
      or null when it is too far to hear. */
-  function spatial(x, y, z, { ref = 6, max = 400, echo = 0, lowpassFar = true } = {}) {
-    const dx = x - listener.x, dy = y - listener.y, dz = z - listener.z;
-    const d = Math.hypot(dx, dy, dz);
-    if (d > max) return null;
+  function spatial(x, y, z, { ref = 6, max = 400, echo = 0, lowpassFar = true, bus = sfx } = {}) {
+    if (Math.hypot(x - listener.x, y - listener.y, z - listener.z) >= max) return null;
+    const profile = spatialProfile(listener, { x, y, z }, { ref, max, lowpassFar, occlusion: obstruction(x, y, z) });
+    const d = profile.distance;
     const g = ctx.createGain();
-    g.gain.value = Math.min(1.5, ref / Math.max(ref, d) ** 1.0) * (1 - d / max);
+    g.gain.value = profile.gain;
     const pan = ctx.createStereoPanner();
-    // angle relative to the listener's facing
-    const ang = Math.atan2(dx, dz) - listener.yaw;
-    pan.pan.value = Math.max(-1, Math.min(1, -Math.sin(ang) * Math.min(1, d / 3)));
+    pan.pan.value = profile.pan;
     let head = g;
-    if (lowpassFar) {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
-      lp.frequency.value = Math.max(700, 16000 / (1 + d / 18));
-      g.connect(lp); lp.connect(pan);
-    } else g.connect(pan);
-    pan.connect(sfx);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.value = profile.cutoff;
+    g.connect(lp); lp.connect(pan);
+    pan.connect(bus);
     if (echo > 0) {
       const e = ctx.createGain(); e.gain.value = echo * Math.min(1, 0.4 + d / 60);
       pan.connect(e); e.connect(verb);
@@ -240,8 +267,10 @@ export function createAudio() {
   function gunshot(kind, x, y, z, { player = false } = {}) {
     if (!ctx) return;
     const p = GUN[kind] || GUN.kar98k;
-    const t = ctx.currentTime + 0.001;
+    const distance = Math.hypot(x - listener.x, y - listener.y, z - listener.z);
+    const t = ctx.currentTime + 0.001 + (player ? 0 : Math.min(0.7, distance / 343));
     lastLoud = t;
+    if (player || distance < 24) duck(player ? 1 : 0.6);
     const out = player ? sfx : spatial(x, y, z, { ref: 8, max: 600, echo: p.echo });
     if (!out) return;
     let o = out;
@@ -250,9 +279,12 @@ export function createAudio() {
       const e = ctx.createGain(); e.gain.value = p.echo * 0.6; g.connect(e); e.connect(verb);
       o = g;
     }
-    burst(o, t, { dur: p.dur * 0.35, peak: p.crack, type: 'highpass', freq: p.freq, q: 0.5 });
-    burst(o, t, { dur: p.dur, peak: p.body * 0.9, type: 'lowpass', freq: 1800, sweepTo: 300, q: 0.8 });
-    tone(o, t, { f0: p.low * 1.6, f1: p.low * 0.4, dur: p.dur * 0.9, peak: p.body * 0.9 });
+    const family = { garand: 'rifle', kar98k: 'bolt', thompson: 'automatic45', mp40: 'automatic9', mg42: 'bolt' }[kind] || 'bolt';
+    const recorded = sample(family, o, t, kind === 'mg42' ? 0.72 : 1.05, (kind === 'mg42' ? 1.18 : 1) * (0.975 + R() * 0.05), player);
+    const blend = recorded ? 0.22 : 1;
+    burst(o, t, { dur: p.dur * 0.35, peak: p.crack * blend, type: 'highpass', freq: p.freq, q: 0.5 });
+    burst(o, t, { dur: p.dur, peak: p.body * 0.9 * blend, type: 'lowpass', freq: 1800, sweepTo: 300, q: 0.8 });
+    tone(o, t, { f0: p.low * 1.6, f1: p.low * 0.4, dur: p.dur * 0.9, peak: p.body * (recorded ? 0.18 : 0.9) });
   }
 
   function garandPing() {
@@ -267,6 +299,7 @@ export function createAudio() {
 
   function dryFire() {
     if (!ctx) return;
+    if (sample('click', sfx, ctx.currentTime, 0.3, 1.15, true)) return;
     burst(sfx, ctx.currentTime, { dur: 0.03, peak: 0.25, type: 'bandpass', freq: 3500, q: 2 });
   }
 
@@ -280,6 +313,9 @@ export function createAudio() {
     const out = at ? spatial(at.x, at.y + 1.2, at.z, { ref: 2, max: 30 }) : sfx;
     if (!out) return;
     const t = ctx.currentTime;
+    sample('cloth', out, t + 0.1, 0.16, 0.98 + R() * 0.04);
+    sample('click', out, t + (kind === 'garand' ? 0.24 : 0.25), 0.19, 1.03);
+    sample('latch', out, t + (kind === 'garand' ? 1.85 : kind === 'thompson' ? 2.05 : 1.6), 0.3, kind === 'garand' ? 0.9 : 1.05);
     const click = (tt, f, peak, d = 0.04, q = 3) => burst(out, tt, { dur: d, peak, type: 'bandpass', freq: f * (0.95 + R() * 0.1), q });
     const slide = (tt, f0, f1, peak, d = 0.09) => burst(out, tt, { dur: d, peak, type: 'bandpass', freq: f0, sweepTo: f1, q: 2 });
     if (kind === 'garand') {
@@ -304,6 +340,7 @@ export function createAudio() {
   function switchWeapon() {
     if (!ctx) return;
     const t = ctx.currentTime;
+    sample('belt', sfx, t, 0.17, 1.04, true);
     burst(sfx, t, { dur: 0.08, peak: 0.15, type: 'bandpass', freq: 900, q: 1.5 });
     burst(sfx, t + 0.12, { dur: 0.04, peak: 0.2, type: 'bandpass', freq: 2600, q: 3 });
   }
@@ -323,6 +360,13 @@ export function createAudio() {
     const out = spatial(x, y, z, { ref: 3, max: 80 });
     if (!out) return;
     const t = ctx.currentTime;
+    const recorded = surface === 'metal' ? 'metalImpact' : surface === 'wood' ? 'woodImpact'
+      : ['stone', 'cobble', 'concrete', 'brick'].includes(surface) ? 'stoneImpact' : null;
+    if (recorded && sample(recorded, out, t, 0.58, 0.9 + R() * 0.2)) {
+      if (surface === 'metal' && R() < 0.4) ricochet(out, t);
+      else if (recorded === 'stoneImpact' && R() < 0.22) ricochet(out, t);
+      return;
+    }
     if (surface === 'metal') {
       tone(out, t, { f0: 1800 + R() * 900, f1: 1400, dur: 0.18, peak: 0.25, type: 'triangle' });
       burst(out, t, { dur: 0.04, peak: 0.3, type: 'highpass', freq: 3000 });
@@ -357,6 +401,7 @@ export function createAudio() {
     if (!out) return;
     const t = ctx.currentTime;
     lastLoud = t;
+    if (Math.hypot(x - listener.x, y - listener.y, z - listener.z) < 60) duck(1.4);
     burst(out, t, { dur: 0.25, peak: 1.4 * scale, type: 'lowpass', freq: 5000, sweepTo: 800 });
     burst(out, t, { dur: 1.8, peak: 1.2 * scale, type: 'lowpass', freq: 600, sweepTo: 80, brown: true });
     tone(out, t, { f0: 70, f1: 25, dur: 1.2, peak: 1.4 * scale });
@@ -408,9 +453,17 @@ export function createAudio() {
     const out = player ? sfx : spatial(x, y, z, { ref: 2, max: 40 });
     if (!out) return;
     const t = ctx.currentTime;
-    const g = (player ? 0.22 : 0.3) * loud;
+    let g = (player ? 0.22 : 0.3) * loud;
     const v = 0.9 + R() * 0.2;
     const toe = t + 0.05 + R() * 0.03;
+    const kind = STEP[surface] || 'hard';
+    const recorded = ['hard', 'grass', 'wood'].includes(kind) && sample(kind, out, t, (player ? 0.5 : 0.62) * loud, 0.94 + R() * 0.12, player);
+    if (recorded) {
+      // Preserve the wet layer and running equipment above the natural boot sound.
+      if (wet > 0) burst(out, t + 0.008, { dur: 0.11, peak: g * 0.45 * wet, type: 'bandpass', freq: 1800, sweepTo: 800, q: 1.1 });
+      if (run) kit(out, t + 0.02, g * 0.7);
+      return;
+    }
     switch (STEP[surface] || 'hard') {
       case 'hard':
         burst(out, t, { dur: 0.05, peak: g, type: 'bandpass', freq: 1100 * v, q: 1.4 });
@@ -462,6 +515,7 @@ export function createAudio() {
   /* The kit on a moving soldier: canteen, scabbard, pouches, the rifle on its
      sling, webbing and wool. */
   function kit(out, t, peak) {
+    sample('belt', out, t, peak * 0.45, 0.93 + R() * 0.14);
     burst(out, t, { dur: 0.05, peak: peak * 0.35, type: 'bandpass', freq: 2900 + R() * 900, q: 5 });
     if (R() < 0.5) tone(out, t + 0.01, { f0: 1700 + R() * 600, f1: 1500, dur: 0.07, peak: peak * 0.06, type: 'triangle' });
     burst(out, t, { dur: 0.12, peak: peak * 0.18, type: 'bandpass', freq: 1200, q: 0.8 });
@@ -473,6 +527,7 @@ export function createAudio() {
     if (!ctx) return;
     const t = ctx.currentTime;
     if (kind === 'crouch' || kind === 'stand') {
+      sample('cloth', sfx, t, 0.13, kind === 'crouch' ? 0.93 : 1.07, true);
       const down = kind === 'crouch';
       burst(sfx, t, { dur: 0.22, peak: 0.08, type: 'bandpass', freq: down ? 900 : 1200, sweepTo: down ? 500 : 1800, q: 0.7 });
       kit(sfx, t + 0.05, 0.18);
@@ -527,6 +582,7 @@ export function createAudio() {
     if (!out) return;
     const t = ctx.currentTime + delay;
     const kind = STEP[surface] || 'mud';
+    sample('body', out, t, 0.75, 0.75 + R() * 0.1, player);
     burst(out, t, { dur: 0.22, peak: 0.55, type: 'lowpass', freq: kind === 'hard' ? 500 : 320, q: 0.9, brown: true });
     tone(out, t, { f0: 85, f1: 45, dur: 0.18, peak: 0.35 });
     if (kind === 'mud' || kind === 'water') burst(out, t + 0.03, { dur: 0.25, peak: 0.25, type: 'bandpass', freq: 800, sweepTo: 300, q: 1.5 });
@@ -554,7 +610,9 @@ export function createAudio() {
   function ui(kind = 'click') {
     if (!ctx) return;
     const t = ctx.currentTime;
-    if (kind === 'objective') {
+    if (kind === 'click') {
+      sample('paper', sfx, t, 0.14, 1.1, true);
+    } else if (kind === 'objective') {
       tone(sfx, t, { f0: 440, f1: 440, dur: 0.25, peak: 0.12, type: 'triangle' });
       tone(sfx, t + 0.18, { f0: 660, f1: 660, dur: 0.4, peak: 0.12, type: 'triangle' });
     } else if (kind === 'checkpoint') {
@@ -580,7 +638,7 @@ export function createAudio() {
      for the frogs on the water) */
   function around(d0, d1, max, z = null) {
     const a = R() * Math.PI * 2, d = d0 + R() * (d1 - d0);
-    return spatial(listener.x + Math.sin(a) * d, listener.y + 2, z ?? listener.z + Math.cos(a) * d, { ref: 6, max });
+    return spatial(listener.x + Math.sin(a) * d, listener.y + 2, z ?? listener.z + Math.cos(a) * d, { ref: 6, max, bus: amb });
   }
 
   /* a small bird: a few quick chirps, or now and then a crow */
@@ -640,6 +698,10 @@ export function createAudio() {
   function tick() {
     if (!ctx || ctx.state !== 'running' || !outdoors) return;
     const t = ctx.currentTime;
+    if (duckUntil && t > duckUntil) {
+      ambienceDuck.gain.setTargetAtTime(1, t, 0.32);
+      duckUntil = 0;
+    }
     if (t > next.gust) {
       const gust = amb0.wind * (0.45 + R() * R() * 1.4), ease = 0.8 + R() * 2.5;
       windGain.gain.setTargetAtTime(0.16 * gust, t, ease);
@@ -667,13 +729,31 @@ export function createAudio() {
     dazed = level;
     const t = ctx.currentTime;
     dull.frequency.setTargetAtTime(20000 * Math.pow(0.0125, level), t, 0.05);
-    ring.gain.setTargetAtTime(0.035 * volume * level * level, t, 0.1);
+    ring.gain.setTargetAtTime(0.035 * volume * mix.effects * level * level, t, 0.1);
   }
 
   return {
     init, prepare,
     get ready() { return !!ctx; },
-    setVolume(v) { volume = v; if (master) master.gain.value = v; },
+    get sampleStatus() { return sampleBank?.status || { loaded: 0, failed: 0, total: 0, voices: 0 }; },
+    preloadSamples() { return sampleBank?.preload() || Promise.resolve({ loaded: 0, failed: 0, total: 0 }); },
+    setVolume(v) {
+      volume = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : volume;
+      if (master) {
+        master.gain.setTargetAtTime(volume, ctx.currentTime, 0.025);
+        ring.gain.setTargetAtTime(0.035 * volume * mix.effects * dazed * dazed, ctx.currentTime, 0.025);
+      }
+    },
+    setMix({ effects = mix.effects, ambience = mix.ambience } = {}) {
+      if (Number.isFinite(effects)) mix.effects = Math.max(0, Math.min(1, effects));
+      if (Number.isFinite(ambience)) mix.ambience = Math.max(0, Math.min(1, ambience));
+      if (sfx) {
+        sfx.gain.setTargetAtTime(mix.effects, ctx.currentTime, 0.025);
+        ambienceMix.gain.setTargetAtTime(mix.ambience, ctx.currentTime, 0.025);
+        ring.gain.setTargetAtTime(0.035 * volume * mix.effects * dazed * dazed, ctx.currentTime, 0.025);
+      }
+    },
+    setOcclusion(test) { occlusionTest = typeof test === 'function' ? test : null; occlusionCache.clear(); },
     setListener(x, y, z, yaw) { listener.x = x; listener.y = y; listener.z = z; listener.yaw = yaw; },
     /* the level's ambience: rain (0..1), wind ([x, z], its strength), birds, aircraft, and frogs
        (the z of the water they call from) */
@@ -687,6 +767,7 @@ export function createAudio() {
       if (on === outdoors || !amb) return;
       outdoors = on;
       amb.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.4);
+      if (!on) { ambienceDuck.gain.setTargetAtTime(1, ctx.currentTime, 0.1); duckUntil = 0; }
     },
     /* Where the listener stands, for the echoes (main.js): `closed`, how much of the horizon round
        him is walls, banks or trees within 30 m (0..1), and `dist`, how far off they are on average.

@@ -1,5 +1,4 @@
-/* Hedgerow — the controls, one list for the title (while loading), the controls screen and the
-   pause (Esc). */
+/* Hedgerow — one controls list for the field guide and pause screen. */
 export const CONTROLS = [
   ['Mouse', 'Look and aim'],
   ['W A S D', 'Move'],
@@ -13,7 +12,7 @@ export const CONTROLS = [
   ['G', 'Throw grenade (hold to cook)'],
   ['Q / E', 'Lean left / right'],
   ['Shift (aiming)', 'Hold breath to steady the sights'],
-  ['F', 'Use: set charges'],
+  ['F (hold)', 'Use equipment / set charge'],
   ['I', 'Toggle invincibility'],
   ['O', 'Switch night / day'],
   ['Esc', 'Pause, controls and objectives'],

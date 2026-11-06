@@ -6,15 +6,16 @@ three of them, each an original scenario inspired by a real situation of
 the Normandy campaign. **Choose mission** on the title screen picks one; the
 page builds one battlefield at a time, so choosing another reloads the page
 with `?mission=<id>` (`js/missions.js`), showing a shot from that mission,
-out of focus, behind the menus while it loads.
+out of focus, behind the menus while it loads. A captioned public-domain WWII
+photograph accompanies each operation; the scenarios remain fictional.
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
 up the main street to the church square, over the
 river (bridge under a machine gun, a ford downstream, a fallen tree
 upstream), through the forest's foxholes and trench line, past a concrete
-bunker, to the flak gun in the clearing — blow it up — and on to the rally
-point.
+bunker, to the flak gun in the clearing — blow it up — then use the field
+radio to signal the cleared route before reaching the rally point.
 
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
@@ -37,10 +38,13 @@ on the canal and river bridges. Your glider has come down short of a swing
 bridge wired for demolition. The road curves in over the marsh on a low
 causeway; through the gaps in the wire, past the pond in the angle of the
 road and the canal, silence the pillbox and the guards, rush the bridge,
-clear the café and the houses climbing the far bank and the side street,
+disconnect the demolition cable at the bridge cabin, clear the café and the houses climbing the far bank and the side street,
 then hold the north end for ninety seconds while they come down the street
 from where it bends at the top. The gliders and the bridge are modelled in three.js
-(`js/procedural.js`).
+(`js/procedural.js`), along with field harrows, orchard ladders, canal
+mooring bollards and the demolition switch. Saint-Clair and La Varenne
+have cultivated fields with shallow furrows, grass margins and worn
+turning strips; the ground texture and collision use the same surface.
 
 Both are laid out after the old maps of the real places (OpenStreetMap of
 the Bénouville canal bridge and the Merville battery): ground that rises and
@@ -135,7 +139,7 @@ and no film grain so shadow detail stays clear.
 | G | grenade (hold to cook) |
 | Q / E | lean left / right |
 | Shift (aiming) | hold breath |
-| F | use (set the charge) |
+| F | use (set a charge); hold to operate mission equipment |
 | I | toggle invincibility |
 | O | switch night / day |
 | Esc | pause: the objectives so far and the controls |
@@ -561,7 +565,10 @@ by the blast that killed them, and drop their rifles.
     the rain standing in it; only in the mud; pinned 'boot' decals of
     atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
     turned along the way each man went),
-    `audio.js` (procedural, nothing downloaded; foley: steps by what is
+    `audio.js` and `audio-samples.js` (32 locally bundled CC0 recordings with
+    procedural fallback; source licenses, transformations and checksums in
+    `assets/audio/`; weapon recordings are sound-design ingredients, not
+    asserted exact recordings of every depicted firearm; foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
     landing, reloads in their parts, empty cases ringing on stone, bodies
@@ -597,8 +604,8 @@ by the blast that killed them, and drop their rifles.
     the depth and held to its neighbourhood; the rifle in your hands is not
     reprojected) · `motionblur.js` camera motion blur as the view turns
     or moves (each pixel smeared along its own motion since the last frame
-    over a 180-degree shutter; the rifle and hands stay sharp; high and
-    medium) · the late particles of `effects.js` and the rain, drawn
+    over a 180-degree shutter; the rifle and hands stay sharp; optional on high and
+    medium, off by default) · the late particles of `effects.js` and the rain, drawn
     after it so they stay crisp · `distort.js` heat haze shimmering in a
     column over each of the four nearest fires and a blast's shockwave
     ring racing out for half a second, each found along the view ray
@@ -744,8 +751,73 @@ the briefing), `?test=<glb>` (drop a model in front of the free camera).
 The debug FPS uses uncapped wall time; the simulation's 50 ms step limit does
 not hide frames slower than 20 FPS. The overlay refreshes twice a second.
 
-Type: everything is set on the typewriter — Courier Prime (OFL) for the
-interface and Special Elite (Apache 2.0) for the wordmark and headings,
-self-hosted in `assets/fonts/` with their licences.
+Interface: self-hosted Inter for controls and status, with a system
+Baskerville/Palatino/Georgia serif stack for headings. Olive and warm paper
+colors, quiet borders and compact HUD elements keep the battlefield visible.
+Menus support keyboard focus trapping, inactive-dialog isolation, reduced
+motion and narrow screens. Archive photographs have captions, source links
+and public-domain provenance in `assets/archive/`.
 
 Design notes: `docs/2026-10-19-hedgerow-design.md`.
+
+
+## November 2026 update and validation
+
+Enemy squads now support one flanking soldier with covering fire, reserve
+separate cover positions, hold fire for crossing comrades, react to visible
+grenades after a short delay, and check grenade arcs and nearby comrades
+before throwing. They share last-known positions and elevation, rather than
+tracking an unseen player's movement. Grenade releases use simulation time
+and cancel on interrupted throws or checkpoint resets.
+
+Temporal anti-aliasing rejects obsolete history at newly revealed surfaces,
+handles projection jitter and camera cuts, and reduces wet-surface shimmer.
+Texture filtering preserves imported PBR detail. Steep banks use triplanar
+rock texture projection; wet sheen drains away from slopes instead of forming
+tilted puddles. The final grade has a lighter vignette and reserves chromatic
+distortion for injury effects.
+
+Sound has independent master, effects and ambience controls, directional
+falloff, travel delay, wall occlusion and brief ambience ducking during nearby
+combat. Sample voices are bounded and repeat variants alternate. Camera shake
+and motion blur are optional; removing cosmetic motion preserves recoil and
+aim. Saved preferences are validated and old saves remain compatible.
+Switching tabs pauses the game and clears held input. Failed or delayed
+pointer-lock requests return safely to the menu.
+
+The radio and demolition circuit require uninterrupted use. Releasing F,
+leaving reach, losing sight or taking damage interrupts the action. Retrying
+a checkpoint clears unfinished interactions and permits a canceled demolition
+charge to be replanted.
+
+Run all simulation, geometry, mission, AI and asset checks:
+
+```sh
+npm run test:hedgerow
+```
+
+Run the isolated Chromium graphics, audio and responsive-menu regressions:
+
+```sh
+npm ci
+npm run test:hedgerow:browser
+```
+
+Set `CHROMIUM_PATH` if Chromium is installed somewhere other than the
+Playwright default or `/usr/bin/chromium`; `HEDGEROW_QA_OUTPUT` can select an
+evidence directory. Browser tests cover actual WebGL disocclusion, material
+compilation, decoding all sound recordings, rendered audio/mutes and menu
+accessibility. They do not substitute for full mission playthroughs or GPU
+performance testing on player hardware.
+
+For a slower full-world boot, screenshot and gameplay smoke check, run:
+
+```sh
+npm run test:hedgerow:runtime -- saint-clair high
+npm run test:hedgerow:runtime -- la-varenne medium
+npm run test:hedgerow:runtime -- pont-tournant low
+```
+
+This starts a local server, captures the actual scene and checks firing,
+aiming, pause/settings, death during pause and checkpoint recovery. Software
+GPU captures can take several minutes; these runs are not FPS benchmarks.

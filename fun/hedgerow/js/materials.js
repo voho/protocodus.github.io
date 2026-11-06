@@ -275,6 +275,14 @@ export function createMaterialLibrary(textures, shared) {
     if (src.map || src.emissiveMap) {
       if (baked.has(src.uuid)) return baked.get(src.uuid);
       const m = src;
+      // The GLB atlases use the loader's default single-axis filtering. At
+      // grazing angles that smears wall courses, roof tiles and the rifle's
+      // grain even though the separate terrain textures stay sharp. Keep the
+      // baked colour, relief and packed surface maps at the same footprint.
+      for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+        const texture = m[slot];
+        if (texture && texture.anisotropy < 8) { texture.anisotropy = 8; texture.needsUpdate = true; }
+      }
       // COLOR_0 carries occlusion on foliage cards (white elsewhere)
       m.vertexColors = true;
       const cards = m.alphaTest > 0 || m.transparent;
@@ -874,6 +882,18 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           if (dot(nb, nb) > 1e-24) normal = normalize(nb);
         }`);
     }
+    // Filter normal-map sparkle before the lighting integration. Three's
+    // geometric roughness only sees the mesh normals; a finely grained wet
+    // surface can still become a shower of white pixels when it recedes.
+    // Broaden just the unresolved specular lobe, preserving resolved texture
+    // and sharp close-up reflections. Derivatives stay outside branches.
+    shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>', `
+        {
+          vec3 detailDx = dFdx(normal), detailDy = dFdy(normal);
+          float variance = max(dot(detailDx, detailDx), dot(detailDy, detailDy));
+          roughnessFactor = sqrt(min(1.0, roughnessFactor * roughnessFactor + min(0.12, variance * 0.18)));
+        }
+        #include <lights_physical_fragment>`);
     if (gun || skin) addViewFill(shader);
     addFireBounce(shader, 'vWPosM', 'normalize(vWNormalM)');
     if (!glints) dimFillSpecular(shader);

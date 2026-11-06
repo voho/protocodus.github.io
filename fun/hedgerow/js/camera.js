@@ -34,7 +34,7 @@ export function createCameraRig(camera, world) {
     swayPitch: 0, swayYaw: 0,
     // first person: how far he leans out (radians of the body's roll; positive to his left)
     lean: 0,
-    shake: 0, shakeT: 0,
+    shake: 0, shakeT: 0, cameraMotion: 1,
     dist: CAMERA.distance,
     fov: CAMERA.fov, baseFov: CAMERA.fov,
     pivot: new THREE.Vector3(),
@@ -174,7 +174,7 @@ export function createCameraRig(camera, world) {
   }
   function shakeAt(p) {
     if (rig.shake <= 0.001) return;
-    const s = rig.shake * 0.12;
+    const s = rig.shake * 0.12 * rig.cameraMotion;
     p.x += noise2(rig.shakeT * 23, 1.3) * s;
     p.y += noise2(rig.shakeT * 21, 7.1) * s;
     p.z += noise2(rig.shakeT * 25, 3.7) * s;
@@ -192,7 +192,7 @@ export function createCameraRig(camera, world) {
     desired.copy(eye);
     if (sight) desired.lerp(sight, smoothstep(0, 1, rig.aimT));
     // a slight bob of the head with his steps (the body is steadied; less still down the sights)
-    const amp = 0.0018 * Math.min(moveSpeed, 5.5) * (1 - 0.75 * rig.aimT);
+    const amp = 0.0018 * Math.min(moveSpeed, 5.5) * (1 - 0.75 * rig.aimT) * rig.cameraMotion;
     const down = steps != null ? -Math.cos(2 * Math.PI * steps) : Math.sin(rig.bob * 2);
     const side = steps != null ? Math.sin(Math.PI * steps) : Math.sin(rig.bob);
     desired.y += down * amp;
@@ -205,10 +205,10 @@ export function createCameraRig(camera, world) {
     rig.roll = damp(rig.roll, clamp(strafe, -4, 4) * 0.008 * (1 - rig.aimT), 6, dt);
     settleFlinch(dt);
     // leaning, the head goes over with the body, so the sights stay upright in the view
-    camera.rotateZ(rig.roll + rig.flinchRoll + rig.lean);
-    camera.rotateX(rig.flinchPitch);
+    camera.rotateZ((rig.roll + rig.flinchRoll) * rig.cameraMotion + rig.lean);
+    camera.rotateX(rig.flinchPitch * rig.cameraMotion);
     swim = rig.daze > swim ? damp(swim, rig.daze, 2.5, dt) : rig.daze;
-    if (swim > 0.001) {
+    if (swim > 0.001 && rig.cameraMotion > 0) {
       // dazed: the head lolls, the view wandering slowly a few degrees round the aim
       const t = rig.shakeT;
       camera.rotateZ(noise2(t * 0.45, 11.3) * 0.07 * swim);
@@ -217,7 +217,7 @@ export function createCameraRig(camera, world) {
     }
     // the over-the-shoulder orbit (death camera) starts from here, not 3 m back
     rig.dist = 0.3;
-    const fov = lerp(rig.baseFov + CAMERA.sprintFov * rig.sprintT, CAMERA.fpAimFov * rig.baseFov / CAMERA.fov, rig.aimT);
+    const fov = lerp(rig.baseFov + CAMERA.sprintFov * rig.sprintT * rig.cameraMotion, CAMERA.fpAimFov * rig.baseFov / CAMERA.fov, rig.aimT);
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   };
 
@@ -228,7 +228,7 @@ export function createCameraRig(camera, world) {
     const dist = lerp(CAMERA.distance, CAMERA.aimDistance, rig.aimT);
     const shoulder = lerp(CAMERA.shoulder, CAMERA.aimShoulder, rig.aimT) * rig.shoulderT;
     rig.pivot.set(target.x, target.y + eye + CAMERA.height * (1 - rig.aimT * 0.4), target.z);
-    rig.pivot.y += Math.sin(rig.bob * 2) * 0.025 * Math.min(1, moveSpeed / 4) * (1 - rig.aimT);
+    rig.pivot.y += Math.sin(rig.bob * 2) * 0.025 * Math.min(1, moveSpeed / 4) * (1 - rig.aimT) * rig.cameraMotion;
 
     rig.forward(rig.dir);
     rightV.set(-Math.cos(rig.yaw), 0, Math.sin(rig.yaw));     // camera right when looking along dir

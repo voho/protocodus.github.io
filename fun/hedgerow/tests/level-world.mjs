@@ -77,6 +77,7 @@ export const height = (x, z) => {
 };
 export const terrain = { height, normal: () => [0, 1, 0], surfaceAt: () => 'mud', raycast: () => Infinity };
 export const world = createWorld({ ...L.bounds, cell: 8, terrain, water: L.water });
+export const placed = new Map();
 
 for (const p of L.props) {
   const m = models.get(p.m);
@@ -94,6 +95,7 @@ for (const p of L.props) {
     for (const [lx, lz] of [[sx, sz], [-sx, sz], [sx, -sz], [-sx, -sz]]) y = Math.min(y, height(p.x + lx * c + lz * s, p.z - lx * s + lz * c));
     y -= 0.04;
   }
+  if (p.id) placed.set(p.id, { model: m, x: p.x, y, z: p.z, yaw, scale: p.scale || 1 });
   for (const col of worldColliders(m, p.x, y, p.z, yaw, p.scale || 1)) world.add(col);
 }
 for (const s0 of L.scatter) {

@@ -28,6 +28,12 @@
    the player disappears for long, they go and look. Machine gunners swing
    their gun within its arc and hose the last known position.
 
+   A squad keeps one man moving at a time: when a comrade has contact,
+   another can shift to a reachable flank behind cover. Soldiers hold
+   their fire while a comrade crosses their sights, and run away from a
+   grenade they can actually see. Throws use the simulation clock and
+   are checked for an unobstructed arc and comrades near the landing.
+
    Enemy fire is resolved as a roll against the player's exposure (head /
    chest visible), distance, stance and movement; misses still land
    around the player, crack past and kick up dirt. */
@@ -139,6 +145,7 @@ export function createEnemies(G, defs) {
       mag: wdef.mag || 30, reloadT: 0, reloadTotal: 1, reloadStage: 0,
       path: null, pathIdx: 0, pathFails: 0, srch: null, amb: null, alertCover: false,
       patience: 10, waryUntil: -1, scanPhase: R() * 6,
+      tacticTimer: 4 + R() * 4, flankUntil: -1, evasion: null, grenadeNotice: null, pendingThrow: null,
     };
     // where it stands
     let x = d.at[0], z = d.at[1], y = null, yaw = e.home.yaw;
@@ -181,7 +188,7 @@ export function createEnemies(G, defs) {
     for (const o of enemies) {
       if (o === e || o.dead || o.group !== e.group || o.state === 'combat') continue;
       if (o.alertAt < 0) o.alertAt = G.time + 0.35 + R() * 1.1;
-      if (!o.lastKnown) o.lastKnown = e.lastKnown ? { ...e.lastKnown } : { x: G.player.pos.x, z: G.player.pos.z };
+      if (!o.lastKnown && e.lastKnown) o.lastKnown = { ...e.lastKnown };
     }
   }
 
@@ -205,7 +212,7 @@ export function createEnemies(G, defs) {
   function damage(e, amount, from, part, byPlayer) {
     if (e.dead) return false;
     e.health -= amount;
-    if (byPlayer) { e.lastKnown = { x: G.player.pos.x, z: G.player.pos.z }; e.lastSeen = G.time; }
+    if (byPlayer && from) { e.lastKnown = { x: from.x, y: from.y ?? G.player.pos.y, z: from.z }; e.lastSeen = G.time; }
     if (e.health <= 0) {
       die(e, from, part);
       return true;
@@ -219,6 +226,7 @@ export function createEnemies(G, defs) {
   function die(e, from, part) {
     e.dead = true;
     e.state = 'dead';
+    e.pendingThrow = null; e.evasion = null;
     if (e.cover) { e.cover.taken = null; e.cover = null; }
     let kind = 'death_fwd';
     if (from) {
@@ -353,9 +361,9 @@ export function createEnemies(G, defs) {
     if (!seeHead && !seeChest) return;
     e.sees = true;
     e.exposure = seeChest ? 1 : 0.45;
-    e.lastKnown = { x: p.pos.x, z: p.pos.z };
+    e.lastKnown = { x: p.pos.x, y: p.pos.y, z: p.pos.z };
     e.lastSeen = G.time;
-    intel.set(e.group, { x: p.pos.x, z: p.pos.z, vx: p.vel ? p.vel.x : 0, vz: p.vel ? p.vel.z : 0, t: G.time });
+    intel.set(e.group, { x: p.pos.x, y: p.pos.y, z: p.pos.z, vx: p.vel ? p.vel.x : 0, vz: p.vel ? p.vel.z : 0, t: G.time });
     if (!combat) {
       // waiting for him in ambush: he walked into the sights
       if (e.state === 'ambush') { enterCombat(e); return; }
@@ -403,7 +411,7 @@ export function createEnemies(G, defs) {
      player's last known position but lets him fire standing. */
   function findCover(e) {
     const lk = e.lastKnown || { x: G.player.pos.x, z: G.player.pos.z };
-    const py = G.player.pos.y + 1.2;
+    const py = knownHeight(lk) + 1.2;
     // near the post, or near where he is now when the fight found him elsewhere
     const atPost = e.leash > 0 && Math.hypot(e.pos.x - e.home.x, e.pos.z - e.home.z) < e.leash + 6;
     const centre = atPost ? e.home : e.pos;
@@ -429,6 +437,115 @@ export function createEnemies(G, defs) {
       if (score > bestScore) { bestScore = score; best = c; }
     }
     return best;
+  }
+
+  // An unseen opponent stays at the last reported elevation. Moving up a
+  // staircase behind a wall must not move every enemy's rifle with him.
+  function knownHeight(lk) {
+    return lk.y ?? nav.height(lk.x, lk.z) ?? G.world.groundAt(lk.x, lk.z, 1e4, 0.5);
+  }
+
+  /* One short cover-to-cover move, supported by a squadmate with contact.
+     Both the destination and the way there are checked; the decision is
+     throttled and only the best three candidates need path searches. */
+  function tryFlank(e) {
+    if (!canLeave(e) || e.reloadT > 0 || e.suppressed > 0.2 || e.pendingThrow || !e.lastKnown) return false;
+    const gi = intel.get(e.group);
+    if (!gi || G.time - gi.t > 3) return false;
+    let support = false;
+    for (const o of enemies) {
+      if (o === e || o.dead || o.group !== e.group) continue;
+      if (o.flankUntil > G.time && o.phase === 'move') return false;
+      if (o.state === 'combat' && o.sees && o.suppressed < 0.4 && o.reloadT <= 0 &&
+          (o.phase === 'peek' || o.phase === 'open' || o.type === 'mg') &&
+          Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 32) support = true;
+    }
+    if (!support) return false;
+    const dx = gi.x - e.pos.x, dz = gi.z - e.pos.z, distance = Math.hypot(dx, dz);
+    if (distance < 12 || distance > 65) return false;
+    const py = knownHeight(gi) + 1.2;
+    const choices = [];
+    for (const c of coverNear(e.pos.x, e.pos.z, 19)) {
+      if (c === e.cover || c.taken || !c.low || !nav.walkable(c.x, c.z)) continue;
+      const mx = c.x - e.pos.x, mz = c.z - e.pos.z, travel = Math.hypot(mx, mz);
+      const lateral = Math.abs(mx * dz - mz * dx) / distance;
+      const toPlayer = Math.hypot(gi.x - c.x, gi.z - c.z);
+      if (travel < 5 || lateral < 5 || toPlayer < 10 || toPlayer > distance + 5) continue;
+      if (Math.hypot(c.x - e.home.x, c.z - e.home.z) > e.leash + 8) continue;
+      const facing = ((gi.x - c.x) * -c.nx + (gi.z - c.z) * -c.nz) / toPlayer;
+      if (facing < 0.3) continue;
+      choices.push({ c, score: lateral * 0.8 - travel * 0.3 - Math.abs(toPlayer - (e.type === 'smg' ? 18 : 28)) * 0.12 });
+    }
+    choices.sort((a, b) => b.score - a.score);
+    for (const { c } of choices.slice(0, 3)) {
+      if (G.world.clear(c.x, c.y + 0.95, c.z, gi.x, py, gi.z, SHOT) ||
+          !G.world.clear(c.x, c.y + 1.55, c.z, gi.x, py + 0.3, gi.z, SIGHT)) continue;
+      const path = nav.findPath(e.pos.x, e.pos.z, c.x, c.z, 1600);
+      if (!path || Math.hypot(path.at(-1).x - c.x, path.at(-1).z - c.z) > 1.5) continue;
+      if (e.cover) e.cover.taken = null;
+      e.cover = c; c.taken = e;
+      e.phase = 'move'; e.phaseTimer = 0; e.flankUntil = G.time + 10;
+      e.path = path; e.pathIdx = 0; e.pathGoalX = c.x; e.pathGoalZ = c.z; e.stuck = 0; e.pathFails = 0;
+      e.lastKnown = { x: gi.x, y: gi.y, z: gi.z };
+      return true;
+    }
+    return false;
+  }
+
+  /* A nearby visible grenade is a physical threat, not knowledge of the
+     player's inventory. Notice it after a human reaction delay, choose a
+     reachable escape on the walk grid, and never flee through a wall. */
+  function updateGrenadeEvasion(e, dt) {
+    const live = G.explosives.list;
+    if (e.evasion) {
+      const { grenade: g, target } = e.evasion;
+      if (!live.includes(g) || g.fuse <= 0) {
+        e.evasion = null; e.path = null; e.grenadeNotice = null;
+        if (e.state === 'combat') { e.phase = 'move'; e.phaseTimer = 0; }
+        return false;
+      }
+      if (Math.hypot(e.pos.x - g.pos.x, e.pos.z - g.pos.z) > GRENADE.radius + 3) {
+        e.stance = 'crouch'; e.vel.set(0, 0, 0); return true;
+      }
+      e.stance = 'stand';
+      if (goTo(e, target.x, target.z, ENEMY.run * 1.08, dt)) { e.stance = 'crouch'; e.vel.set(0, 0, 0); }
+      return true;
+    }
+    let threat = null, closest = GRENADE.radius + 2;
+    for (const g of live) {
+      if (!g.pos || g.fuse <= 0 || g.fuse > 4 || g.kind === 'charge') continue;
+      const d = e.pos.distanceTo(g.pos);
+      if (d >= closest || !G.world.clear(e.pos.x, e.pos.y + 1.35, e.pos.z, g.pos.x, g.pos.y + 0.12, g.pos.z, SIGHT)) continue;
+      threat = g; closest = d;
+    }
+    if (!threat) { e.grenadeNotice = null; return false; }
+    if (e.grenadeNotice?.grenade !== threat) {
+      e.grenadeNotice = { grenade: threat, at: G.time + 0.3 + R() * 0.25 };
+      return false;
+    }
+    if (G.time < e.grenadeNotice.at) return false;
+    e.pendingThrow = null;
+    if (!canLeave(e)) { e.stance = 'crouch'; e.suppressed = Math.max(e.suppressed, 0.8); e.vel.set(0, 0, 0); return true; }
+    const away = Math.atan2(e.pos.x - threat.pos.x, e.pos.z - threat.pos.z);
+    let best = null, score = -Infinity;
+    for (const offset of [0, -0.6, 0.6, -1.2, 1.2, Math.PI]) {
+      const a = away + offset, x = e.pos.x + Math.sin(a) * 8, z = e.pos.z + Math.cos(a) * 8;
+      if (!nav.walkable(x, z)) continue;
+      const path = nav.findPath(e.pos.x, e.pos.z, x, z, 800);
+      if (!path || Math.hypot(path.at(-1).x - x, path.at(-1).z - z) > 1.5) continue;
+      const end = path.at(-1), distance = Math.hypot(end.x - threat.pos.x, end.z - threat.pos.z);
+      if (distance < closest + 2) continue;
+      let px = e.pos.x, pz = e.pos.z, length = 0;
+      for (const q of path) { length += Math.hypot(q.x - px, q.z - pz); px = q.x; pz = q.z; }
+      if (length > 14) continue;
+      const s = distance - length * 0.4;
+      if (s > score) { score = s; best = { x: end.x, z: end.z }; }
+    }
+    if (!best) { e.grenadeNotice.at = G.time + 0.5; return false; }
+    if (e.state === 'ambush') endAmbush(e);
+    else if (e.cover) { e.cover.taken = null; e.cover = null; }
+    e.pendingThrow = null; e.path = null; e.evasion = { grenade: threat, target: best };
+    return true;
   }
 
   /* ---------- shooting ---------- */
@@ -466,15 +583,44 @@ export function createEnemies(G, defs) {
   function shoot(e) {
     const p = G.player;
     const w = e.wdef;
-    if (e.reloadT > 0) return;
-    if (--e.mag <= 0) startReload(e);
+    if (e.reloadT > 0 || e.pendingThrow) return;
     const muzzle = muzzleOf(e, new THREE.Vector3());
-    const target = new THREE.Vector3(p.pos.x, p.pos.y + (p.crouch ? 0.85 : 1.25), p.pos.z);
+    const lk = e.lastKnown;
+    if (!e.sees && !lk) return;
+    const headOnly = e.exposure < 0.75;
+    const target = e.sees
+      ? (headOnly
+        ? new THREE.Vector3(p.pos.x + (p.leanX || 0), p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z + (p.leanZ || 0))
+        : new THREE.Vector3(p.pos.x, p.pos.y + (p.crouch ? 0.85 : 1.25), p.pos.z))
+      : new THREE.Vector3(lk.x, knownHeight(lk) + 1.2, lk.z);
+    let shotExposure = e.exposure;
+    let clearShot = e.sees && G.world.clear(muzzle.x, muzzle.y, muzzle.z, target.x, target.y, target.z, SHOT);
+    // The muzzle can be lower than the eyes, or cover can enter the sight
+    // picture between perception ticks. A visible head still offers a shot.
+    if (e.sees && !clearShot && !headOnly) {
+      target.set(p.pos.x + (p.leanX || 0), p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z + (p.leanZ || 0));
+      clearShot = G.world.clear(muzzle.x, muzzle.y, muzzle.z, target.x, target.y, target.z, SHOT);
+      shotExposure = Math.min(shotExposure, 0.45);
+    }
+    // A comrade crossing the sight picture gets a clear lane, even when
+    // he belongs to a different squad. Check before spending ammunition.
+    const line = target.clone().sub(muzzle), length2 = line.lengthSq();
+    for (const o of enemies) {
+      if (o === e || o.dead) continue;
+      const centre = tmp.set(o.pos.x, o.pos.y + (o.stance === 'crouch' ? 0.65 : 0.95), o.pos.z);
+      const along = tmp2.subVectors(centre, muzzle).dot(line) / (length2 || 1);
+      if (along <= 0 || along >= 1) continue;
+      const near = tmp3.copy(muzzle).addScaledVector(line, along);
+      if (Math.hypot(centre.x - near.x, centre.z - near.z) < 0.65 && Math.abs(centre.y - near.y) < 1.05) return;
+    }
+    if (--e.mag <= 0) startReload(e);
     let hit = false;
-    if (e.sees && p.alive) {
+    // Perception runs at 8 Hz; a wall crossed since its last sample must
+    // still stop this shot. A low wall can also hide the weapon muzzle.
+    if (e.sees && p.alive && clearShot) {
       const d = muzzle.distanceTo(target);
       const fall = clamp(1 - (d - 6) / (w.range * 1.1), 0.12, 1);
-      let pHit = BASE_ACC[e.type] * fall * e.exposure * G.diff.accuracy;
+      let pHit = BASE_ACC[e.type] * fall * shotExposure * G.diff.accuracy;
       if (p.crouch) pHit *= 0.7;
       if (p.movingSpeed > 3) pHit *= 0.7;
       if (p.vault) pHit *= 0.5;
@@ -492,8 +638,7 @@ export function createEnemies(G, defs) {
       end = target;
     } else {
       // a miss lands around the player (or around where he was)
-      const base = e.sees ? target : new THREE.Vector3(e.lastKnown?.x ?? p.pos.x, p.pos.y + 1, e.lastKnown?.z ?? p.pos.z);
-      end = base.clone().add(new THREE.Vector3((R() - 0.5) * 3.2, (R() - 0.6) * 1.8, (R() - 0.5) * 3.2));
+      end = target.clone().add(new THREE.Vector3((R() - 0.5) * 3.2, (R() - 0.6) * 1.8, (R() - 0.5) * 3.2));
     }
     dir.subVectors(end, muzzle);
     const len = dir.length();
@@ -540,31 +685,57 @@ export function createEnemies(G, defs) {
   }
 
   function tryGrenade(e) {
-    const p = G.player;
-    if (!e.lastKnown || e.grenades <= 0) return false;
+    if (!e.lastKnown || e.grenades <= 0 || e.pendingThrow || e.reloadT > 0 || e.suppressed > 0.2) return false;
     const d = Math.hypot(e.lastKnown.x - e.pos.x, e.lastKnown.z - e.pos.z);
     if (d < 8 || d > 26) return false;
     if (G.time - e.lastSeen < 3.5 || G.time - e.lastSeen > 25) return false;
     if (G.explosives.list.some(g => g.kind === 'enemy')) return false;
     if (R() > 0.45) return false;
-    e.grenades--;
-    e.char.oneShot('throw', 1.1);
     const tx = e.lastKnown.x + (R() - 0.5) * 3, tz = e.lastKnown.z + (R() - 0.5) * 3;
-    setTimeout(() => {
-      if (e.dead) return;
-      const start = e.char.boneWorld('hand_r', new THREE.Vector3());
-      // ballistic launch at ~40°
-      const dx = tx - start.x, dz = tz - start.z;
-      const horiz = Math.hypot(dx, dz);
-      const ty = G.world.groundAt(tx, tz, 1e4, 0.5);
-      const ang = 0.7;
-      const dy = ty - start.y;
-      const v2 = (9.8 * horiz * horiz) / (2 * Math.cos(ang) ** 2 * (horiz * Math.tan(ang) - dy));
-      const v = Math.sqrt(Math.max(4, Math.min(400, v2)));
-      const vel = new THREE.Vector3((dx / horiz) * v * Math.cos(ang), v * Math.sin(ang), (dz / horiz) * v * Math.cos(ang));
-      G.explosives.throwGrenade('enemy', start, vel, 0.4 + R() * 0.6, e);
-    }, 420);
+    if (!safeGrenadeTarget(e, tx, tz)) return false;
+    const start = new THREE.Vector3(e.pos.x, e.pos.y + 1.4, e.pos.z);
+    if (!grenadeArc(start, tx, tz)) return false;
+    e.char.oneShot('throw', 1.1);
+    e.pendingThrow = { x: tx, z: tz, delay: 0.42 };
     return true;
+  }
+
+  function safeGrenadeTarget(e, x, z) {
+    return enemies.every(o => o === e || o.dead || Math.hypot(o.pos.x - x, o.pos.z - z) > GRENADE.radius + 1.5);
+  }
+
+  function grenadeArc(start, tx, tz) {
+    const dx = tx - start.x, dz = tz - start.z, horiz = Math.hypot(dx, dz);
+    if (horiz < 1) return null;
+    const ty = G.world.groundAt(tx, tz, 1e4, 0.5), angle = 0.7;
+    const denominator = 2 * Math.cos(angle) ** 2 * (horiz * Math.tan(angle) - (ty - start.y));
+    if (denominator <= 0) return null;
+    const v2 = 9.8 * horiz * horiz / denominator;
+    if (v2 > 400) return null;
+    const v = Math.sqrt(v2), vx = dx / horiz * v * Math.cos(angle), vz = dz / horiz * v * Math.cos(angle), vy = v * Math.sin(angle);
+    const flight = horiz / (v * Math.cos(angle));
+    let px = start.x, py = start.y, pz = start.z;
+    for (let i = 1; i <= 10; i++) {
+      const t = flight * i / 10, x = start.x + vx * t, y = start.y + vy * t - 4.9 * t * t, z = start.z + vz * t;
+      // Lift the endpoint slightly: the intended ground impact is allowed.
+      if (!G.world.clear(px, py + 0.12, pz, x, y + 0.12, z, SHOT)) return null;
+      px = x; py = y; pz = z;
+    }
+    return new THREE.Vector3(vx, vy, vz);
+  }
+
+  function updateThrow(e, dt) {
+    const pending = e.pendingThrow;
+    if (!pending) return;
+    pending.delay -= dt;
+    if (pending.delay > 0) return;
+    e.pendingThrow = null;
+    if (e.dead || e.suppressed > 0.5 || !safeGrenadeTarget(e, pending.x, pending.z)) return;
+    const start = e.char.boneWorld('hand_r', new THREE.Vector3());
+    const vel = grenadeArc(start, pending.x, pending.z);
+    if (!vel) return;
+    e.grenades--;
+    G.explosives.throwGrenade('enemy', start, vel, 0.4 + R() * 0.6, e);
   }
 
   /* ---------- per type behaviour ---------- */
@@ -575,6 +746,11 @@ export function createEnemies(G, defs) {
     e.phaseTimer -= dt;
     e.suppressed = Math.max(0, e.suppressed - dt);
     e.grenadeCheck -= dt;
+    e.tacticTimer -= dt;
+    if (e.tacticTimer <= 0 && e.phase !== 'move') {
+      e.tacticTimer = 6 + R() * 4;
+      if (tryFlank(e)) return;
+    }
 
     // dug in (trench, foxhole): no running about, just duck and pop up
     if (e.def.hold && (e.phase === 'move' || e.phase === 'open')) { e.phase = 'hide'; e.phaseTimer = 0.3 + R() * 0.9; }
@@ -1091,8 +1267,7 @@ export function createEnemies(G, defs) {
     }
     ch.animate(move, upper, gait);
     if (firing && e.lastKnown && !e.mg) {
-      const p = G.player;
-      const dy = (p.pos.y + 1.2) - (e.pos.y + 1.4);
+      const dy = (knownHeight(e.lastKnown) + 1.2) - (e.pos.y + 1.4);
       const dh = Math.hypot(e.lastKnown.x - e.pos.x, e.lastKnown.z - e.pos.z);
       ch.aimPitch = clamp(Math.atan2(dy, dh), -0.8, 0.8);
     } else ch.aimPitch = 0;
@@ -1150,7 +1325,15 @@ export function createEnemies(G, defs) {
         perceive(e, step - e.perceiveTimer);
         e.perceiveTimer = step;
       }
-      if (e.state === 'combat') {
+      // Share a fresh report, never the player's unseen current position.
+      const report = intel.get(e.group);
+      if (!e.sees && e.state === 'combat' && report && report.t > Math.max(e.lastSeen, e.reportAt ?? -99) && G.time - report.t < 3) {
+        e.lastKnown = { x: report.x, y: report.y, z: report.z }; e.reportAt = report.t;
+      }
+      const evading = updateGrenadeEvasion(e, dt);
+      if (!evading) updateThrow(e, dt);
+      if (evading) { /* the grenade takes priority over a combat or patrol order */ }
+      else if (e.state === 'combat') {
         if (e.type === 'mg') updateMG(e, dt);
         else updateCombatRifle(e, dt);
       } else if (e.state === 'search') updateSearch(e, dt);
@@ -1185,6 +1368,7 @@ export function createEnemies(G, defs) {
       e.phase = 'hide'; e.suppressed = 0; e.vel.set(0, 0, 0); e.health = ENEMY.health * (e.def.tough || 1);
       e.mag = e.wdef.mag || 30; e.reloadT = 0; e.reloadRun?.end(); e.reloadRun = null; e.char.holdLeft(null);
       e.srch = null; e.amb = null; e.path = null; e.alertCover = false; e.waryUntil = -1; e.patrolIdx = 0; e.patrolWait = 0;
+      e.evasion = null; e.grenadeNotice = null; e.pendingThrow = null; e.flankUntil = -1; e.reportAt = -99; e.tacticTimer = 4 + R() * 4;
       if (e.mg) e.mg.mesh.rotation.y = e.mg.baseYaw;
     }
     intel.clear();

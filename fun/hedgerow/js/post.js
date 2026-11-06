@@ -93,10 +93,14 @@ void main() {
   vec3 mn = min(c0, min(min(cn, cs), min(ce, cw))), mx = max(c0, max(max(cn, cs), max(ce, cw)));
   vec3 sharp = clamp(c0 + (4.0 * c0 - cn - cs - ce - cw) * 0.25 * uSharp, mn, mx);
   // chromatic split grows when hurt (and towards the corners)
-  float ca = 0.0015 + uHurt * 0.006;
+  // A clean view at rest. Chromatic separation belongs to an injury, not
+  // every frame: permanent fringing blurs branches, iron sights and masonry.
+  float ca = uHurt * 0.006;
   vec3 col = sharp;
-  col.r += texture2D(tSrc, vUv + c * ca).r - c0.r;
-  col.b += texture2D(tSrc, vUv - c * ca).b - c0.b;
+  if (ca > 0.00001) {
+    col.r += texture2D(tSrc, vUv + c * ca).r - c0.r;
+    col.b += texture2D(tSrc, vUv - c * ca).b - c0.b;
+  }
   col = max(col, 0.0);
   // dazed: the view doubled (a ghost of it drifting slowly round) and smeared towards the edges
   if (uDaze > 0.003) {
@@ -129,14 +133,14 @@ void main() {
   col = 0.18 * pow(col / 0.18, vec3(uContrast));
   float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
   // grade: cool shadows, warm highlights, a touch of desaturation
-  vec3 cool = vec3(0.92, 0.98, 1.08), warm = vec3(1.08, 1.0, 0.9);
+  vec3 cool = vec3(0.96, 0.99, 1.04), warm = vec3(1.04, 1.0, 0.95);
   float hl = smoothstep(0.05, 0.9, l);
   col *= mix(cool, warm, hl);
   col = mix(vec3(l), col, uSat * (1.0 - uHurt * 0.6) * (1.0 - uDaze * 0.55) * (1.0 - uSuppress * 0.45));
   // pinned down: the edges of the view closing in, dark
   col *= 1.0 - smoothstep(0.1, 0.65, r2) * 0.45 * uSuppress;
   // vignette (dazed: closing in, and the dark coming and going)
-  col *= 1.0 - smoothstep(0.18 - 0.12 * uDaze, 0.75 - 0.25 * uDaze, r2) * (0.3 + 0.55 * uDaze);
+  col *= 1.0 - smoothstep(0.18 - 0.12 * uDaze, 0.75 - 0.25 * uDaze, r2) * (0.18 + 0.65 * uDaze);
   col *= 1.0 - uDaze * 0.15 * (0.5 + 0.5 * sin(uDazeT * 2.4));
   // hurt: red at the edges
   col = mix(col, vec3(0.35, 0.02, 0.01) * (0.6 + l), uHurt * smoothstep(0.1, 0.6, r2) * 0.75);
@@ -157,7 +161,7 @@ export function createGrade() {
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: {
       tSrc: { value: null }, tAdapt: { value: open }, uHurt: { value: 0 }, uFlash: { value: 0 },
-      uSat: { value: 0.82 }, uAspect: { value: 1.6 },
+      uSat: { value: 0.9 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.02 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
       uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 }, uAim: { value: 0 }, uSuppress: { value: 0 },
     },

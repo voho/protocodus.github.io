@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-11-06",
+  "licenseScope": "Public domain in the United States; U.S. federal government works under 17 U.S.C. 105.",
+  "transform": "Proportional resize to 1600 px wide; RGB WebP, quality 86, method 6; no new scene content.",
+  "images": [
+    {
+      "id": "moving-inland",
+      "file": "moving-inland.webp",
+      "title": "2nd Infantry Division, E-1 draw, Easy Red sector, Omaha Beach, D+1, June 7, 1944",
+      "creator": "U.S. Army Signal Corps",
+      "date": "1944-06-07",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:2nd_Infantry_Division,_E-1_draw,_Easy_Red_sector,_Omaha_Beach,_D%2B1,_June_7,_1944.jpg",
+      "rightsUrl": "https://commons.wikimedia.org/wiki/File:2nd_Infantry_Division,_E-1_draw,_Easy_Red_sector,_Omaha_Beach,_D%2B1,_June_7,_1944.jpg",
+      "downloadUrl": "https://raw.githubusercontent.com/prigo929/A-Love-Letter-to-The-United-States-of-America/048fc532c980d2110adad0c7d8e7e7ca07382f0a/web/IMAGES/History/WWII/2nd-infantry-division-troops-and-equipment-going-up-the-bluff-from-omaha-beach-to-saint-laurent-sur-mer-on-d-1-7-june-1944.jpg",
+      "rightsBasis": "PD-USGov-Military-Army: official U.S. Army photograph, public domain in the United States.",
+      "sourceRestoration": "Commons July 2021 restoration by Bammesk: cleanup of spots and scratches.",
+      "sourceSha256": "82b7ce259da71b275789b83df327b93a3222f75e589ac910e25228d82e97b11e",
+      "sha256": "edbe67cf0a4061a8b452a83491229f7bcb3da41b2170e1e28845499a7eca9c47",
+      "width": 1600,
+      "height": 1105,
+      "bytes": 338464
+    },
+    {
+      "id": "eve-of-d-day",
+      "file": "eve-of-d-day.webp",
+      "title": "General Dwight D. Eisenhower with paratroopers before D-Day",
+      "creator": "Unknown U.S. Army photographer",
+      "date": "1944-06-05",
+      "archiveIdentifier": "SC 194399; LC-USZ62-25600; cph.3a26521",
+      "sourceUrl": "https://www.loc.gov/item/96522674/",
+      "rightsUrl": "https://commons.wikimedia.org/wiki/File:Eisenhower_d-day.jpg",
+      "downloadUrl": "https://raw.githubusercontent.com/prigo929/A-Love-Letter-to-The-United-States-of-America/048fc532c980d2110adad0c7d8e7e7ca07382f0a/web/IMAGES/History/WWII/general-eisenhower-speaks-with-members-of-the-101st-airborne-division-on-the-evening-of-5-june-1944.jpg",
+      "rightsBasis": "PD-USGov-Military-Army: official U.S. Army photograph, public domain in the United States. Library of Congress rights advisory: No known restrictions on publication.",
+      "sourceRestoration": "Commons 2021 version; file history identifies an upscale. Downsampled here to 1600 pixels; no further reconstruction.",
+      "sourceSha256": "d266302e6915cb5819c0eed23995bf8a05f160869b5a141081be2de2cf0377c5",
+      "sha256": "7df6f4c116709c86320438e9f39cc9db8471d4f9a2f9e5fbeb87dca834a26917",
+      "width": 1600,
+      "height": 1244,
+      "bytes": 384540
+    },
+    {
+      "id": "omaha-landing",
+      "file": "omaha-landing.webp",
+      "title": "Into the Jaws of Death",
+      "creator": "Chief Photographer's Mate Robert F. Sargent, U.S. Coast Guard",
+      "date": "1944-06-06",
+      "archiveIdentifier": "NARA 195515; 26-G-2343",
+      "sourceUrl": "https://www.archives.gov/research/still-pictures/highlights/into-the-jaws-of-death",
+      "rightsUrl": "https://commons.wikimedia.org/wiki/File:Into_the_Jaws_of_Death_23-0455M_edit.jpg",
+      "downloadUrl": "https://raw.githubusercontent.com/SkanixDev/history-creative-design/fc6346d941855adcfc67c5640434f7e783f8ca7a/src/assets/images/Into_the_Jaws_of_Death.jpg",
+      "rightsBasis": "PD-USGov-Military-Coast Guard and PD-scan: official U.S. Coast Guard photograph, public domain in the United States; mechanical scan/restoration.",
+      "sourceRestoration": "Commons 2011 restoration by Christoph Braun: sharpness, dust removal, levels, and crop. Full supplied restored frame retained.",
+      "sourceSha256": "decf39caf552f966722628b6cda1ef065ddb58fb6328f5ae36f4ee069ae33f47",
+      "sha256": "ba8ac897acdd3c844bba04fbce74a8cc0ccb1f159007b2f240c1ecffdf780d9a",
+      "width": 1600,
+      "height": 1288,
+      "bytes": 248474
+    }
+  ]
+}

@@ -15,6 +15,10 @@
      operator's cabin at the north end.
    * `supply_canister`: an airborne supply container with its chute
      crumpled beside it, burst open.
+   * `field_harrow`, `orchard_ladder`: civilian fieldwork left among the
+     cultivated strips and orchard rows.
+   * `mooring_bollard`, `demolition_switch`: the canal's mooring hardware
+     and the exposed demolition firing point beside the bridge cabin.
 
    UVs are in metres (box projected), vertex colours carry a little
    occlusion towards the ground, as the baked models' do. */
@@ -214,8 +218,78 @@ function supplyCanister() {
   return b.done(0);
 }
 
+/* ---------- civilian fieldwork and the canal's demolition circuit ---------- */
+
+function fieldHarrow() {
+  const b = builder('field_harrow');
+  // A horse-drawn, three-section spike harrow left at a field's headland.
+  // Narrow iron teeth sit in the earth; the drawbar and chain are still attached.
+  for (let section = -1; section <= 1; section++) {
+    const x = section * 0.78;
+    for (const dx of [-0.32, 0.32]) b.add('rust', new THREE.BoxGeometry(0.065, 0.07, 1.25), [x + dx, 0.19, 0]);
+    for (let row = 0; row < 4; row++) {
+      const z = -0.5 + row * 0.34;
+      b.add('iron', new THREE.BoxGeometry(0.72, 0.06, 0.06), [x, 0.2, z]);
+      for (const dx of [-0.25, 0, 0.25]) b.add('rust', new THREE.BoxGeometry(0.035, 0.24, 0.035), [x + dx, 0.105, z], [-15, 0, 0]);
+    }
+    b.add('iron', new THREE.TorusGeometry(0.09, 0.015, 5, 10), [x, 0.19, 0.77], [90, 0, 0]);
+  }
+  b.add('wood_old', new THREE.BoxGeometry(2.5, 0.1, 0.12), [0, 0.22, 0.96]);
+  // Align each rod along z before yawing it inwards; Euler XYZ yaw on an
+  // untouched y-axis cylinder would leave two parallel, disconnected rods.
+  for (const side of [-1, 1]) b.add('iron', new THREE.CylinderGeometry(0.025, 0.025, 1.2, 6).rotateX(Math.PI / 2), [side * 0.36, 0.18, 1.4], [0, side * -35, 0]);
+  b.add('iron', new THREE.TorusGeometry(0.1, 0.018, 5, 10), [0, 0.18, 1.97], [90, 0, 0]);
+  b.box([0, 0.16, 0], [1.13, 0.16, 0.65], 0, null, 'metal');
+  return b.done(0);
+}
+
+function orchardLadder() {
+  const b = builder('orchard_ladder');
+  // The splayed third leg makes this read as an orchard ladder rather than
+  // a modern stepladder. All timber keeps the existing metre-scaled grain.
+  for (const side of [-1, 1]) b.add('wood_old', new THREE.BoxGeometry(0.075, 2.5, 0.085), [side * 0.32, 1.2, 0], [12, 0, side * 4]);
+  for (let i = 0; i < 7; i++) b.add('wood', new THREE.BoxGeometry(0.74 - i * 0.025, 0.065, 0.11), [0, 0.27 + i * 0.31, -0.2 + i * 0.065]);
+  b.add('wood_dark', new THREE.CylinderGeometry(0.035, 0.055, 2.7, 6), [0, 1.17, 0.76], [-26, 0, 0]);
+  b.box([0, 1.1, 0.22], [0.4, 1.1, 0.35], 0, null, 'wood');
+  return b.done(0);
+}
+
+function mooringBollard() {
+  const b = builder('mooring_bollard');
+  b.add('stone_dark', new THREE.BoxGeometry(0.85, 0.18, 0.7), [0, 0.06, 0]);
+  b.add('iron', new THREE.CylinderGeometry(0.19, 0.23, 0.65, 12), [0, 0.4, 0]);
+  b.add('metal_dark', new THREE.SphereGeometry(0.23, 12, 6), [0, 0.71, 0], [0, 0, 0], [1, 0.35, 1]);
+  b.add('iron', new THREE.CylinderGeometry(0.075, 0.075, 0.7, 8), [0, 0.52, 0], [0, 0, 90]);
+  for (const x of [-0.28, 0.28]) for (const z of [-0.22, 0.22]) b.add('rust', new THREE.CylinderGeometry(0.045, 0.045, 0.06, 6), [x, 0.18, z]);
+  // A few links hang from the cross-piece, one small batched mesh.
+  for (let k = 0; k < 6; k++) b.add('rust', new THREE.TorusGeometry(0.06, 0.015, 5, 9), [0.24 + k * 0.028, 0.48 - k * 0.055, 0.08], [0, k % 2 ? 90 : 0, -25]);
+  b.box([0, 0.4, 0], [0.28, 0.4, 0.25], 0, null, 'metal');
+  return b.done(0);
+}
+
+function demolitionSwitch() {
+  const b = builder('demolition_switch');
+  // A period wooden exploder box on a low trestle with an insulated cable
+  // leading towards the girder. The interaction is at its exposed front.
+  for (const x of [-0.3, 0.3]) for (const z of [-0.22, 0.22]) b.add('wood_dark', new THREE.BoxGeometry(0.07, 0.45, 0.07), [x, 0.2, z]);
+  b.add('wood_old', new THREE.BoxGeometry(0.78, 0.07, 0.62), [0, 0.45, 0]);
+  b.add('wood', new THREE.BoxGeometry(0.56, 0.36, 0.4), [0, 0.66, 0]);
+  for (const x of [-0.245, 0.245]) b.add('iron', new THREE.BoxGeometry(0.045, 0.37, 0.42), [x, 0.66, 0]);
+  b.add('metal_dark', new THREE.CylinderGeometry(0.035, 0.035, 0.31, 8), [0, 0.99, 0]);
+  b.add('wood_dark', new THREE.CylinderGeometry(0.035, 0.035, 0.32, 8), [0, 1.14, 0], [0, 0, 90]);
+  b.add('metal_gray', new THREE.BoxGeometry(0.2, 0.09, 0.012), [0, 0.7, 0.207]);
+  for (const x of [-0.12, 0.12]) {
+    b.add('iron', new THREE.CylinderGeometry(0.02, 0.02, 0.08, 8), [x, 0.84, -0.12]);
+    const points = [[x, 0.87, -0.12], [x + 0.1, 0.4, -0.35], [x + 0.5, 0.03, -0.6], [x + 0.55, 0.025, 0.7], [x + 0.45, 0.025, 1.8]].map((p) => new THREE.Vector3(...p));
+    b.add('rubber', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 16, 0.012, 4, false));
+  }
+  b.box([0, 0.45, 0], [0.39, 0.45, 0.31], 0, null, 'wood');
+  b.model.anchors = { interact: [0, 0.88, 0.5] };
+  return b.done(0);
+}
+
 export function proceduralModels() {
   const out = new Map();
-  for (const m of [glider(), canalBridge(), supplyCanister()]) out.set(m.name, m);
+  for (const m of [glider(), canalBridge(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch()]) out.set(m.name, m);
   return out;
 }

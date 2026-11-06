@@ -174,6 +174,11 @@ for (let x = -48; x <= 48; x += 4) {
   P('wall_low', x, CANAL_Z + 12.9, 0, { y: lipHeight(x, CANAL_Z + 12.9) - 0.05 });
 }
 P('cable_reel', 4.6, CANAL_Z + 15.5, 30); P('crate', -4.5, CANAL_Z + 15, 0);
+// The firing point sits outside the cabin, reachable from the north quay.
+P('demolition_switch', 4.2, CANAL_Z + HALF + 3.4, 180, { id: 'demolition', separate: true });
+for (const x of [-36, -20, 20, 36]) for (const side of [-1, 1]) {
+  P('mooring_bollard', x, CANAL_Z + side * 14.4, side * 12, { y: lipHeight(x, CANAL_Z + side * 14.4) - 0.04 });
+}
 
 // --- the village on the north bank: the café at the bridge, houses up the street, a side street ---
 const FRONT = 6.4;
@@ -328,6 +333,7 @@ const objectives = [
   { id: 'wire', text: 'Get through the wire belt', kind: 'cross', z: 77, marker: [0, 74] },
   { id: 'pillbox', text: 'Silence the pillbox and the bridge guards', kind: 'clear', groups: ['pillbox'] },
   { id: 'bridge', text: 'Rush the bridge before it can be blown', kind: 'cross', z: CANAL_Z + HALF + 2, marker: [0, CANAL_Z + HALF] },
+  { id: 'demolition', text: 'Disconnect the bridge demolition circuit', kind: 'interact', target: 'demolition', x: 4.2, z: CANAL_Z + HALF + 2.8, r: 2.5, duration: 4, action: 'disconnect the demolition cable' },
   { id: 'cafe', text: 'Clear the café and the houses on the far bank', kind: 'clear', groups: ['farbank'] },
   { id: 'hold', text: 'Hold the north end of the bridge', kind: 'hold', x: 0, z: 150, r: 24, time: 90, counter: ['counter'], warning: 'They are coming down the road — hold the bridge' },
 ];
@@ -336,7 +342,7 @@ const hints = [
   { x: 4, z: 8, r: 6, text: 'The bridge is wired for demolition', sub: 'Get across before they can fire the charges' },
   { x: -12, z: 62, r: 8, text: 'The wire has gaps', sub: 'Out in the field on the left; the road itself is barred' },
   { x: -3, z: 88, r: 7, text: 'Their pillbox looks down the road', sub: 'Work round it through the trenches, grenades through the slit' },
-  { x: 0, z: 140, r: 6, text: 'The café is their command post', sub: 'Clear the street, then hold here' },
+  { x: 0, z: 140, r: 6, text: 'The demolition switch is beside the bridge cabin', sub: 'Hold F at the wooden box to disconnect the cable; then clear the café' },
 ];
 
 export default {
@@ -346,7 +352,7 @@ export default {
   when: 'Normandy, 6 June 1944 — 00:20, wind and rain',
   briefing: [
     'Your glider cast off over the coast and came down in the marsh south of the canal, short of the bridge at Pont-Tournant. The landing broke it open; the others are coming out of the wrecks behind you.',
-    'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, rush the bridge and clear the café and the houses on the far bank before they can fire the charges.',
+    'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, rush the bridge and disconnect the firing cable at the wooden switch beside its north cabin. Then clear the café and the houses on the far bank.',
     'Then hold the north end. They will counter-attack down the road from the village. The paratroopers are on their way.',
   ],
   daylight: false,

@@ -14,6 +14,7 @@
    it into meshes, colliders, vegetation, enemies and triggers. */
 
 import { fbm2, polylineDistance, smoothstep, smoothPolyline, rng, clamp, lerp } from '../util.js';
+import { fieldwork } from './fieldwork.js';
 
 /* ---------- lines on the ground ---------- */
 
@@ -31,6 +32,7 @@ const trenchWallY = (x, z) => trackHeight(x, z) - TRENCH_DEPTH - 0.42;
 const SQUARE = { x0: -14, x1: 14, z0: 148, z1: 182 };
 const CLEARING = { x: 0, z: 508, r: 24 };
 const BUNKER = { x: 9, z: 446 };
+const FIELDS = fieldwork([{ x: -28, z: 8, width: 23, length: 38, yaw: 4, soil: 1.7 }]);
 
 const tmpD = {};
 
@@ -147,7 +149,7 @@ function baseHeight(x, z) {
 
   // small bulges and irregularities (kept off roads, paths and trenches)
   const rg = rough(x, z);
-  h += rg;
+  h += rg + FIELDS.height(x, z);
 
   // village plateau: flat, a slight fall towards the river
   const village = smoothstep(80, 92, z) * smoothstep(262, 252, z) * smoothstep(52, 40, ax);
@@ -224,7 +226,7 @@ function trackHeight(x, z) {
 
 function splat(x, z, h, slope) {
   // [mud, grass, forest floor, cobble]
-  let mud = 0, grass = 1, forest = 0, cobble = 0;
+  let mud = FIELDS.mud(x, z), grass = 1, forest = 0, cobble = 0;
   const fz = smoothstep(276, 290, z);
   forest = fz; grass = 1 - fz;
   const n = fbm2(x / 9, z / 9, 2);
@@ -290,6 +292,8 @@ along(LANE, 4, -6.2, (x, z, yaw) => { if (Math.abs(z - 52) > 4 && z < 80) P('hed
 P('jeep_wreck', -1.5, 12, 160);
 P('crate', 2.2, 14, 25);
 P('signpost', 3.4, 70, -20);
+P('field_harrow', -35, -12, 14);
+P('orchard_ladder', 25, 51, -18); P('crate', 26.2, 51.5, 20);
 P('pole', -4.6, 46, 0);
 P('pole', -4.6, 76, 0);
 // the orchard (left) and the field with the ditch (right)
@@ -611,6 +615,7 @@ for (let i = 0; i < 42000; i++) {
   else m = q < 0.15 ? 'nettles' : q < 0.3 ? 'weeds' : q < 0.4 ? 'grass_tall' : 'grass_tuft';
   cover.push({ m, x, z, yaw: R() * 360, scale: 0.7 + R() * 0.6 });
 }
+for (let i = cover.length - 1; i >= 0; i--) if (FIELDS.mask(cover[i].x, cover[i].z) > 0.3) cover.splice(i, 1);
 
 /* ---------- enemies ---------- */
 
@@ -703,6 +708,7 @@ const objectives = [
   { id: 'trench', text: 'Break through the trench line', kind: 'cross', z: 400, marker: [2, 398] },
   { id: 'bunker', text: 'Get past the bunker covering the track', kind: 'cross', z: 462, marker: [-4, 462] },
   { id: 'flak', text: 'Destroy the flak gun in the clearing', kind: 'destroy', target: 'flak', x: 4, z: 511 },
+  { id: 'radio', text: 'Signal the cleared route from the field radio', kind: 'interact', target: 'radio', anchor: 'operator', anchorHeight: 1.2, x: -9, z: 509, r: 2.3, duration: 3, action: 'signal the cleared route' },
   { id: 'rally', text: 'Reach the rally point on the forest road', kind: 'reach', x: 0, z: 549, r: 7 },
 ];
 
@@ -713,6 +719,7 @@ const hints = [
   { x: 18, z: 76, r: 7, text: 'Space vaults over low walls' },
   { x: 0, z: 104, r: 7, text: 'G throws a grenade', sub: 'Hold G to cook it first' },
   { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies downstream (left), a fallen tree upstream (right)' },
+  { x: -7, z: 505, r: 7, text: 'The field radio links this position to the road', sub: 'After destroying the gun, hold F at the radio to signal the cleared route' },
 ];
 
 export default {
@@ -721,15 +728,16 @@ export default {
   when: 'Normandy, 11 July 1944 — dusk, rain',
   briefing: [
     'Second platoon is pinned south of the village. The road north runs through Saint-Clair, over the river and up through the Bois de Clair, where the enemy has dug in to cover the withdrawal of a flak battery.',
-    'You go ahead alone along the sunken lane. Get into the village, clear a way to the bridge and push through the forest. Their 20 mm flak gun in the clearing is shooting up our spotter planes — put a charge on it.',
+    'You go ahead alone along the sunken lane. Get into the village, clear a way to the bridge and push through the forest. Their 20 mm flak gun in the clearing is shooting up our spotter planes — put a charge on it, then use the field radio to signal the cleared route.',
     'The light is going and the rain will cover you. Stay low, use the hedges and the walls. There is always another way round.',
   ],
   start: [0.5, -6, 0],
   bounds: { minX: -100, maxX: 100, minZ: -45, maxZ: 610 },
   playBounds: { minX: -46, maxX: 46, minZ: -24, maxZ: 556 },
-  fine: [[-46, 376, 46, 410], [-20, 336, 20, 366]],
+  fine: [[-46, 376, 46, 410], [-20, 336, 20, 366], ...FIELDS.fine],
   water: { level: 0, contains: (x, z) => Math.abs(z - RIVER_Z(x)) < 13, riverZ: RIVER_Z, x0: -100, x1: 100 },
   baseHeight, splat, trackHeight,
+  fields: FIELDS.definitions,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
   fog: { color: '#383e45', density: 0.0048 },
   // farms burning beyond the hedges: flames low, smoke high

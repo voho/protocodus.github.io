@@ -2,7 +2,8 @@
    control hints, the charges on the guns, the score.
 
    Objective kinds: 'reach' (within r of x, z), 'cross' (north of z),
-   'destroy' (a charge on the placed prop `target`), 'clear' (every enemy of
+   'destroy' (a charge on the placed prop `target`), 'interact' (hold use at
+   a visible prop without being interrupted), 'clear' (every enemy of
    the `groups` dead), 'hold' (stay within r of x, z for `time` seconds while
    the `counter` groups come for him). */
 
@@ -15,6 +16,7 @@ export function createMission(G, L, built) {
   const M = {
     index: 0, done: false, checkpoint: 0, inventory: null,
     pickups: [], hintsShown: new Set(), flakDestroyed: false, charge: null, wrecked: new Set(), held: 0, sentAt: -99,
+    interaction: 0, interactionHealth: null, interactionBlocked: false,
   };
   const objectives = L.objectives;
 
@@ -37,7 +39,8 @@ export function createMission(G, L, built) {
     M.index = i;
     const o = current();
     if (!o) return;
-    M.held = 0; M.sentAt = -99; M.charge = null;
+    M.held = 0; M.sentAt = -99; M.charge = null; M.warned = false;
+    M.interaction = 0; M.interactionHealth = G.player.health; M.interactionBlocked = false;
     G.hud.objective(o.text, announce);
     if (announce) G.audio.ui('objective');
   }
@@ -115,8 +118,11 @@ export function createMission(G, L, built) {
 
   M.update = (dt, input) => {
     const p = G.player;
-    if (!p.alive || M.done) return;
+    if (!p.alive || M.done) { M.interaction = 0; return; }
     const px = p.pos.x, pz = p.pos.z;
+    // Read damage before collecting a nearby dressing: healing in this
+    // update must not hide a hit that interrupted work on the equipment.
+    const interactionHurt = M.interactionHealth !== null && p.health < M.interactionHealth;
 
     // checkpoints
     L.checkpoints.forEach((c, i) => {
@@ -155,6 +161,32 @@ export function createMission(G, L, built) {
           prompt = 'Press <b>F</b> to set a demolition charge';
           if (input.pressed('KeyF')) placeCharge(o);
         }
+      } else if (o.kind === 'interact') {
+        const target = built.placed.get(o.target);
+        const a = target?.model.anchors[o.anchor || 'interact'];
+        const scale = target?.scale || 1;
+        const c = Math.cos(target?.yaw || 0), s = Math.sin(target?.yaw || 0);
+        const tx = target ? target.x + ((a?.[0] || 0) * c + (a?.[2] || 0) * s) * scale : o.x;
+        const tz = target ? target.z + (-(a?.[0] || 0) * s + (a?.[2] || 0) * c) * scale : o.z;
+        const ty = target ? target.y + ((a?.[1] ?? 1) + (o.anchorHeight || 0)) * scale : 0;
+        const near = !!target && Math.hypot(px - tx, pz - tz) < (o.r || 2.5) && Math.abs(p.pos.y + 1.2 - ty) < 2;
+        const eye = G.camera?.position || { x: px, y: p.pos.y + 1.5, z: pz };
+        const visible = near && G.world.clear(eye.x, eye.y, eye.z, tx, ty, tz);
+        const held = input.held('KeyF');
+        const hurt = interactionHurt;
+        M.interactionHealth = p.health;
+        // Damage cancels the attempt until use is released. Taking a hit on the
+        // final frame cannot complete the action, and holding F cannot auto-retry.
+        if (hurt && held) M.interactionBlocked = true;
+        if (!held) M.interactionBlocked = false;
+        if (!visible || !held || hurt || M.interactionBlocked) M.interaction = 0;
+        else M.interaction += Math.max(0, dt);
+        if (near) {
+          if (!visible) prompt = 'Move into view of the equipment';
+          else if (M.interactionBlocked) prompt = 'Interrupted — release <b>F</b> to try again';
+          else prompt = `Hold <b>F</b> to ${o.action || 'operate'}${M.interaction > 0 ? ` · ${Math.max(0, (o.duration || 3) - M.interaction).toFixed(1)} s` : ''}`;
+        }
+        if (M.interaction >= (o.duration || 3)) { advance(); prompt = null; }
       } else if (o.kind === 'clear') {
         const left = living(o.groups).length;
         if (!left) advance();
@@ -192,6 +224,10 @@ export function createMission(G, L, built) {
 
   M.restoreCheckpoint = () => {
     const c = L.checkpoints[M.checkpoint];
+    // retryCheckpoint clears live explosives. Drop their pending handle too,
+    // otherwise dying during the fuse leaves this objective unable to re-arm.
+    M.charge = null;
+    M.interaction = 0; M.interactionHealth = null; M.interactionBlocked = false;
     // objectives completed after the checkpoint are kept (the ground taken stays taken)
     return { spawn: c.spawn, inventory: M.inventory };
   };

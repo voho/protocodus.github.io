@@ -50,7 +50,7 @@ export function createHud(root) {
     gmarks.push({ el: d, icon, text: '' });
   }
 
-  let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false;
+  let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false, lastHealthPercent = 100;
   let objectiveAngle = null, objectiveDist = 0;
   let lastHeading = null, lastBearing = null, lastDistance = null, markerShown = null;
   // Let CSS centre and clamp the compass against its current width. Reading
@@ -87,16 +87,21 @@ export function createHud(root) {
       if (frac > 0) calm = false;
       el.health.style.width = `${(clamp(frac, 0, 1) * 100).toFixed(1)}%`;
       el.health.classList.toggle('low', frac < 0.35);
+      const percent = Math.round(clamp(frac, 0, 1) * 100);
+      if (percent !== lastHealthPercent) {
+        el.health.parentElement.setAttribute?.('aria-valuenow', percent);
+        lastHealthPercent = percent;
+      }
       lastHealth = frac;
     },
 
     stance(text) { if (el.stance.textContent !== text) el.stance.textContent = text; },
 
     weapon(name, ammo, grenades) {
-      el.wname.textContent = name;
-      el.mag.textContent = ammo.mag;
-      el.reserve.textContent = ammo.reserve;
-      el.grenades.textContent = grenades;
+      if (el.wname.textContent !== name) el.wname.textContent = name;
+      if (el.mag.textContent !== String(ammo.mag)) el.mag.textContent = ammo.mag;
+      if (el.reserve.textContent !== String(ammo.reserve)) el.reserve.textContent = ammo.reserve;
+      if (el.grenades.textContent !== String(grenades)) el.grenades.textContent = grenades;
       ammoBox.classList.toggle('low', ammo.mag <= 2);
     },
 

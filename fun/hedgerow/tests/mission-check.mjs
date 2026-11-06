@@ -19,7 +19,7 @@ if (!process.env.HEDGEROW_LEVEL) {
   process.exit(0);
 }
 
-const { L, missing, world } = await import('./level-world.mjs');
+const { L, missing, world, placed } = await import('./level-world.mjs');
 const { createNav } = await import('../js/nav.js');
 const nav = createNav(world, L.playBounds);
 const problems = [];
@@ -51,6 +51,26 @@ for (const e of L.enemies) {
 }
 for (const p of L.pickups) spot(`${p.type} pickup`, p.x, p.z);
 for (const c of L.checkpoints) spot('checkpoint spawn', c.spawn[0], c.spawn[1]);
+
+// A marker can be navigable while the actual equipment sits behind a wall.
+// Check an interaction's real transformed anchor can be reached and seen
+// from at least one walkable spot inside its operating radius.
+for (const o of L.objectives.filter((o) => o.kind === 'interact')) {
+  const p = placed.get(o.target), a = p?.model.anchors[o.anchor || 'interact'];
+  if (!p || !a) { problems.push(`interaction ${o.id}: target or anchor missing`); continue; }
+  const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
+  const x = p.x + (a[0] * c + a[2] * s) * p.scale, z = p.z + (-a[0] * s + a[2] * c) * p.scale;
+  const y = p.y + (a[1] + (o.anchorHeight || 0)) * p.scale;
+  let accessible = false;
+  for (const r of [0.65, 1.2, 1.9]) for (let i = 0; i < 20; i++) {
+    if (r >= (o.r || 2.5)) continue;
+    const px = x + Math.sin(i * Math.PI / 10) * r, pz = z + Math.cos(i * Math.PI / 10) * r;
+    if (!nav.walkable(px, pz)) continue;
+    const py = world.groundAt(px, pz, 1e4, 0.4);
+    if (Math.abs(py + 1.2 - y) < 2 && world.clear(px, py + 1.5, pz, x, y, z)) accessible = true;
+  }
+  if (!accessible) problems.push(`interaction ${o.id}: equipment cannot be operated from walkable ground`);
+}
 
 for (const p of problems) console.log('  ' + p);
 console.log(`${problems.length ? 'FAIL' : 'ok  '}  ${L.id}: ${L.objectives.length} objectives, ${L.enemies.length} enemies, ${L.pickups.length} pickups`);

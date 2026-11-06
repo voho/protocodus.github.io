@@ -24,6 +24,7 @@
 
 import { fbm2, smoothstep, smoothPolyline, rng, lerp, polylineDistance } from '../util.js';
 import { bbox, near, along, hedgeBanks, gaps, curve, offset, atZ, roughGround, cutTrench } from './kit.js';
+import { fieldwork } from './fieldwork.js';
 
 /* ---------- lines on the ground ---------- */
 
@@ -43,6 +44,10 @@ const TRENCH_A = smoothPolyline(curve((x) => trenchZ(x) + 1.4 * Math.sin(x / 5),
 const TRENCH_DEPTH = 1.25;
 const YARD = { x0: -18, x1: 18, z0: 198, z1: 224 };
 const GUNS = [24, -2, -28].map((x) => [x, crestZ(x) + 5.5]);
+const FIELDS = fieldwork([
+  { x: -9, z: 21, width: 25, length: 39, yaw: -9, soil: 2.1 },
+  { x: -7, z: 177, width: 32, length: 18, yaw: 5, soil: 1.2, relief: 0.045 },
+]);
 
 const BOX = { LANE: bbox(LANE, 10), TRACK: bbox(TRACK, 10), ROAD: bbox(ROAD, 10), TA: bbox(TRENCH_A, 6) };
 
@@ -101,7 +106,7 @@ const ROUGH = roughGround(rng(1944060), {
 /* ---------- the ground ---------- */
 
 function baseHeight(x, z) {
-  let h = lipHeight(x, z) + fbm2(x / 19, z / 19, 2) * 0.25;
+  let h = lipHeight(x, z) + fbm2(x / 19, z / 19, 2) * 0.25 + FIELDS.height(x, z);
   const k = roughAllowed(x, z);
   if (k > 0) h += k * (0.16 * fbm2(x / 5.3 + 11.7, z / 5.3 - 3.1, 3) + ROUGH.height(x, z));
   // the farm stands on a level patch
@@ -138,7 +143,7 @@ function baseHeight(x, z) {
 /* ---------- ground textures: [mud, grass, forest floor, cobble] ---------- */
 
 function splat(x, z) {
-  let mud = 0, grass = 1, forest = 0, cobble = 0;
+  let mud = FIELDS.mud(x, z), grass = 1, forest = 0, cobble = 0;
   const n = fbm2(x / 9, z / 9, 2);
   mud += smoothstep(0.2, 0.65, n) * 0.5;
   const dl = near(LANE, BOX.LANE, x, z), dt = near(TRACK, BOX.TRACK, x, z), dr = near(ROAD, BOX.ROAD, x, z);
@@ -178,6 +183,9 @@ P('kubelwagen', -6, 82, 150, { fire: true, fireSize: 0.7, debris: 2 });
 P('haystack', 20, 96, 0); P('haystack', -20, 108, 0); P('cart', 12, 118, 70); P('haystack', 26, 72, 0);
 P('water_trough', -14, 70, 20);
 P('supply_canister', -24, 92, 140);
+P('field_harrow', -21, 4, -12);
+P('orchard_ladder', -46, 85, 25); P('crate', -44.5, 84, -12);
+P('field_harrow', -21, 184, 90);
 
 // --- the battery: three guns in pits cut through the hedge, the infantry's trench behind ---
 GUNS.forEach(([gx, gz], i) => {
@@ -286,6 +294,10 @@ for (let i = 0; i < 30000; i++) {
     : q < 0.45 ? 'grass_tall' : q < 0.55 ? 'weeds' : 'grass_tuft';
   cover.push({ m, x, z, yaw: R() * 360, scale: 0.7 + R() * 0.6 });
 }
+// The open cultivated strips have no knee-high wild meadow vegetation.
+// Filter after sampling so all unrelated deterministic vegetation stays put.
+for (let i = cover.length - 1; i >= 0; i--) if (FIELDS.mask(cover[i].x, cover[i].z) > 0.3) cover.splice(i, 1);
+for (let i = scatter.length - 1; i >= 0; i--) if (FIELDS.mask(scatter[i].x, scatter[i].z) > 0.3) scatter.splice(i, 1);
 
 /* ---------- enemies ---------- */
 
@@ -367,7 +379,7 @@ export default {
   menuView: { from: [30, lipHeight(30, 110) + 4, 110], to: [0, lipHeight(0, 148) + 1.5, 148] },
   bounds: { minX: -110, maxX: 110, minZ: -50, maxZ: 300 },
   playBounds: { minX: -52, maxX: 52, minZ: -22, maxZ: 262 },
-  fine: [[-44, 126, 40, 158]],
+  fine: [[-44, 126, 40, 158], ...FIELDS.fine],
   water: null,
   baseHeight, splat, trackHeight: lipHeight,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
@@ -385,4 +397,5 @@ export default {
   ambience: { rain: 0.45, wind: [1.3, 0.6], birds: true },
   lines: { LANE, TRACK, ROAD, TRENCH_A },
   craters: ROUGH.craters,
+  fields: FIELDS.definitions,
 };
