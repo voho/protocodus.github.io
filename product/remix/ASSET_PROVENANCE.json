@@ -1,21 +1,21 @@
 {
   "product": "Remix",
-  "reviewed": "2026-10-31",
+  "reviewed": "2026-11-06",
   "availability": "coming_soon",
-  "source_version": "0.1.0d14",
+  "source_version": "1.0.0d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
       "file": "Remix_Thumbnail_800.png",
-      "sha256": "1d8a186e7d526969e115ec8682773833043c39161c4467f22e3cd3f2700d4411"
+      "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d"
     },
     {
       "file": "remix-rack-front.webp",
-      "sha256": "1db7c20c6e25ad6abc89f39575e4b93c038434be87334f8ce7040e9ceef63765"
+      "sha256": "55d5ea455fae3ce3b945a6cdca5f1e0e919a0059adeff82d79ca51521d1f91c7"
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "9ae1b07f4278e48de1ca8e275f829855bfd8363099ddeeb8c1c535527e5fd533"
+      "sha256": "3bb8045168711a93bdb58023c94782d9a3c1c060f948261da74d9653b367d948"
     }
   ],
   "shop_cover_refresh": {
@@ -32,5 +32,11 @@
     "source_branch": "main",
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+  },
+  "rack_images": {
+    "date": "2026-11-06",
+    "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
+    "source_commit": "3854d5a",
+    "note": "4U 1.0.0d1 panels, converted to WebP quality 92"
   }
 }
