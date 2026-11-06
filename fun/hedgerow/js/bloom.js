@@ -76,12 +76,55 @@ void main() {
 const MIX = /* glsl */ `
 uniform sampler2D tScene;
 uniform sampler2D tBloom;
-uniform float uStrength;
+uniform sampler2D tWide;   // the smallest level: the light of the whole frame's bright things, spread wide
+uniform sampler2D tDirt;
+uniform float uStrength, uDirt, uAspect;
 varying vec2 vUv;
 void main() {
   vec4 scene = texture2D(tScene, vUv);
-  gl_FragColor = vec4(scene.rgb + texture2D(tBloom, vUv).rgb * uStrength, scene.a);
+  // the dirt on the lens shows only where a bright light's glow falls across it; its texture is
+  // square, laid over the middle of the frame and repeated out to the sides
+  vec2 du = vec2((vUv.x - 0.5) * uAspect + 0.5, vUv.y);
+  vec3 dirt = texture2D(tWide, vUv).rgb * texture2D(tDirt, du).r * uDirt;
+  gl_FragColor = vec4(scene.rgb + texture2D(tBloom, vUv).rgb * uStrength + dirt, scene.a);
 }`;
+
+/* The lens's dirt: soft smudges, drops dried to rings, a few fine streaks, in one channel, made
+   once (a seeded random, so it is the same every time). Black where the lens is clean. */
+function lensDirt(size = 256) {
+  let seed = 9;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const px = new Float32Array(size * size);
+  const spot = (cx, cy, r, amp, ring) => {
+    const x0 = Math.max(0, Math.floor(cx - r)), x1 = Math.min(size - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(size - 1, Math.ceil(cy + r));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const d = Math.hypot(x - cx, y - cy) / r;
+      if (d >= 1) continue;
+      // a dried drop: faint inside, its edge where the grime gathered
+      const body = 1 - d * d;
+      px[y * size + x] += amp * (ring ? 0.35 * body + 0.65 * Math.exp(-((d - 0.85) ** 2) / 0.006) : body * body);
+    }
+  };
+  for (let i = 0; i < 26; i++) spot(rnd() * size, rnd() * size, 18 + rnd() * 50, 0.08 + rnd() * 0.14, false);
+  for (let i = 0; i < 70; i++) spot(rnd() * size, rnd() * size, 2 + rnd() * 9, 0.25 + rnd() * 0.5, rnd() < 0.6);
+  for (let i = 0; i < 9; i++) {
+    // a wiped streak: a line of tiny specks
+    let x = rnd() * size, y = rnd() * size;
+    const a = rnd() * Math.PI, n = 20 + rnd() * 40, amp = 0.15 + rnd() * 0.2;
+    for (let k = 0; k < n; k++, x += Math.cos(a) * 1.5, y += Math.sin(a) * 1.5) spot(x, y, 1.6, amp, false);
+  }
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    const v = Math.round(Math.min(1, px[i]) * 255);
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v; data[i * 4 + 3] = 255;
+  }
+  const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
 
 const material = (fragmentShader, uniforms) => new THREE.ShaderMaterial({
   vertexShader: VERTEX, fragmentShader, uniforms,
@@ -94,7 +137,8 @@ const material = (fragmentShader, uniforms) => new THREE.ShaderMaterial({
    it starts, `knee` how softly, `spread` how far each level reaches. */
 // Five levels reach about a tenth of the screen; a sixth, a few pixels
 // across, cost more GPU time than all the others on the GPUs we measured.
-export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread = 1, levels = 5 } = {}) {
+// `dirt`: how much the dirt on the lens catches the wide glow of bright lights (0: a clean lens).
+export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread = 1, levels = 5, dirt = 0 } = {}) {
   const LEVELS = levels;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
@@ -108,7 +152,10 @@ export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread
     uCurve: { value: new THREE.Vector3() }, uThreshold: { value: 0 },
   });
   const up = material(UP, { tSrc: { value: null }, tBase: { value: null }, uTexel: { value: new THREE.Vector2() }, uSpread: { value: 1 } });
-  const mix = material(MIX, { tScene: { value: null }, tBloom: { value: null }, uStrength: { value: strength } });
+  const mix = material(MIX, {
+    tScene: { value: null }, tBloom: { value: null }, tWide: { value: null }, tDirt: { value: lensDirt() },
+    uStrength: { value: strength }, uDirt: { value: dirt }, uAspect: { value: 1 },
+  });
 
   const target = () => new THREE.WebGLRenderTarget(1, 1, {
     type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false,
@@ -132,6 +179,7 @@ export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread
         downs[i].setSize(w, h);
         if (i < LEVELS - 1) ups[i].setSize(w, h);
       }
+      mix.uniforms.uAspect.value = width / Math.max(1, height);
     },
     render(renderer, writeBuffer, readBuffer) {
       const k = Math.max(1e-4, pass.knee);
@@ -157,11 +205,14 @@ export function createBloom({ strength = 0.25, threshold = 1, knee = 0.7, spread
       }
       mix.uniforms.tScene.value = readBuffer.texture;
       mix.uniforms.tBloom.value = ups[0].texture;
+      mix.uniforms.tWide.value = downs[LEVELS - 1].texture;
       mix.uniforms.uStrength.value = pass.strength;
+      mix.uniforms.uDirt.value = pass.dirt;
       draw(renderer, mix, writeBuffer);
     },
-    strength, threshold, knee, spread,
+    strength, threshold, knee, spread, dirt,
     dispose() {
+      mix.uniforms.tDirt.value.dispose();
       for (const t of [...downs, ...ups]) t.dispose();
       for (const m of [down, up, mix]) m.dispose();
       geometry.dispose();

@@ -48,6 +48,9 @@ export const WEAPONS = {
     mag: 8, reserve: 72, reload: 2.2, prop: 'garand_clip', propSize: [0.055, 0.05, 0.02], ejects: true,
     spreadHip: 0.035, spreadAim: 0.004, spreadMove: 0.03, bloom: 0.02, bloomDecay: 3.5,
     recoil: 0.034, recoilYaw: 0.01, range: 260, sound: 'garand', tracer: false,
+    // full damage out to falloff[0] m, easing to falloff[2] of it at falloff[1]; through planks,
+    // crates and canvas up to `pierce` m thick, with `pierceKeep` of its damage left
+    falloff: [120, 260, 0.75], pierce: 0.25, pierceKeep: 0.6,
     // the sight line in the model (rear aperture, front post) and the eye behind it
     sight: { rear: [0, 0.089, 0.01], front: [0, 0.083, 0.76], relief: 0.16 }, reach: 0.95,
     kick: 0.075,       // first person: how hard each shot throws the muzzle up (viewmotion.js)
@@ -58,6 +61,7 @@ export const WEAPONS = {
     mag: 30, reserve: 180, reload: 2.5, prop: 'thompson_mag', propSize: [0.035, 0.26, 0.075], drops: true, seated: 'thompson_mag_seated',
     spreadHip: 0.05, spreadAim: 0.018, spreadMove: 0.03, bloom: 0.008, bloomDecay: 5,
     recoil: 0.012, recoilYaw: 0.008, range: 120, sound: 'thompson', tracer: false,
+    falloff: [25, 80, 0.55], pierce: 0.1, pierceKeep: 0.45,
     sight: { rear: [0, 0.121, 0.06], front: [0, 0.104, 0.44], relief: 0.12 }, reach: 0.7, kick: 0.03,
     // where the magazine model sits in the gun (weapons.glb, thompson_mag_seated)
     seatedAt: { p: [0, -0.13, 0.104], q: [-0.62089, -0.066765, 0.166366, 0.763129] },

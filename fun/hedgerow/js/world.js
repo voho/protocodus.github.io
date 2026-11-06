@@ -117,6 +117,27 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
     return tmin;
   }
 
+  /* How far a ray starting on or inside a collider goes before it is out of it (metres; Infinity
+     if it never leaves, as through the ground under a box). For a bullet through planks. */
+  function depthThrough(col, x, y, z, dx, dy, dz) {
+    let t = Infinity;
+    if (col.type === 'box') {
+      const rx = x - col.x, rz = z - col.z;
+      const lo = [rx * col.c - rz * col.s, y - col.y, rx * col.s + rz * col.c];
+      const ld = [dx * col.c - dz * col.s, dy, dx * col.s + dz * col.c];
+      const h = [col.hx, col.hy, col.hz];
+      for (let i = 0; i < 3; i++) if (Math.abs(ld[i]) > 1e-9) t = Math.min(t, ((ld[i] > 0 ? h[i] : -h[i]) - lo[i]) / ld[i]);
+    } else {
+      const px = x - col.x, pz = z - col.z, a = dx * dx + dz * dz;
+      if (a > 1e-9) {
+        const b = px * dx + pz * dz, disc = b * b - a * (px * px + pz * pz - col.r * col.r);
+        t = disc > 0 ? (-b + Math.sqrt(disc)) / a : 0;
+      }
+      if (Math.abs(dy) > 1e-9) t = Math.min(t, ((dy > 0 ? col.top : col.bottom) - y) / dy);
+    }
+    return Math.max(0, t);
+  }
+
   function rayCyl(col, ox, oy, oz, dx, dy, dz, maxT, n) {
     const px = ox - col.x, pz = oz - col.z;
     const a = dx * dx + dz * dz;
@@ -355,7 +376,7 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
   }
 
   return {
-    add, remove, query, raycast, clear, groundAt, pushOut, obstacleAhead, tooDeep, waterDepth, surfaceUnder,
+    add, remove, query, raycast, depthThrough, clear, groundAt, pushOut, obstacleAhead, tooDeep, waterDepth, surfaceUnder,
     colliders, terrain, water, bounds: { minX, maxX, minZ, maxZ },
   };
 }

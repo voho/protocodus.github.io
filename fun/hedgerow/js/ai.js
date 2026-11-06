@@ -333,7 +333,7 @@ export function createEnemies(G, defs) {
     e.exposure = 0;
     if (!p.alive) return;
     const eye = eyePos(e, tmp);
-    const head = tmp2.set(p.pos.x, p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z);
+    const head = tmp2.set(p.pos.x + (p.leanX || 0), p.pos.y + (p.crouch ? 1.15 : 1.65), p.pos.z + (p.leanZ || 0));
     const chest = tmp3.set(p.pos.x, p.pos.y + (p.crouch ? 0.8 : 1.2), p.pos.z);
     const dx = chest.x - eye.x, dz = chest.z - eye.z;
     const dist = Math.hypot(dx, dz);
@@ -530,8 +530,11 @@ export function createEnemies(G, defs) {
       if (along > 0 && (!wh || along < wh.t + 2)) {
         const closest = tmp2.copy(muzzle).addScaledVector(dir, along);
         const miss = closest.distanceTo(cam);
-        if (miss < 4) G.audio.whizz(closest.x, closest.y, closest.z, 1 - miss / 4);
+        if (miss < 4) { G.audio.whizz(closest.x, closest.y, closest.z, 1 - miss / 4); p.suppress?.(1 - miss / 4); }
         if (miss < 1.5) G.rig.addShake(0.08);
+      } else if (wh && Math.hypot(wh.x - cam.x, wh.y - cam.y, wh.z - cam.z) < 2.5) {
+        // or it struck the wall or the ground beside him
+        p.suppress?.(0.5);
       }
     }
   }

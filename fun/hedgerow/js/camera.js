@@ -4,7 +4,9 @@
    rides on his head as his body moves (so it bobs with his steps and dips
    as he crouches), and when he aims it goes down the rifle's sight line, a
    hand's breadth behind the rear sight; the view narrows to the sights and
-   widens a little at a sprint, and leans a touch into a strafe. Dazed by a
+   widens a little at a sprint, and leans a touch into a strafe (and over
+   with him when he leans out round cover). Down the sights the aim wanders
+   a little with his breath (rig.sway*, set by player.js). Dazed by a
    blast, the head lolls: the view swims slowly round the aim.
 
    Over the shoulder (the death camera, and the old third-person view):
@@ -28,6 +30,10 @@ export function createCameraRig(camera, world) {
     yaw: 0, pitch: -0.05,
     aimT: 0, shoulder: 1, shoulderT: 1,
     kickPitch: 0, kickYaw: 0,
+    // the sights wandering with his breath and pulse (player.js): part of the aim, so shots follow it
+    swayPitch: 0, swayYaw: 0,
+    // first person: how far he leans out (radians of the body's roll; positive to his left)
+    lean: 0,
     shake: 0, shakeT: 0,
     dist: CAMERA.distance,
     fov: CAMERA.fov, baseFov: CAMERA.fov,
@@ -48,7 +54,7 @@ export function createCameraRig(camera, world) {
   const look = new THREE.Vector3();
 
   rig.forward = (out = new THREE.Vector3()) => {
-    const p = rig.pitch + rig.kickPitch, y = rig.yaw + rig.kickYaw;
+    const p = rig.pitch + rig.kickPitch + rig.swayPitch, y = rig.yaw + rig.kickYaw + rig.swayYaw;
     return out.set(Math.sin(y) * Math.cos(p), Math.sin(p), Math.cos(y) * Math.cos(p));
   };
 
@@ -198,7 +204,8 @@ export function createCameraRig(camera, world) {
     camera.lookAt(look);
     rig.roll = damp(rig.roll, clamp(strafe, -4, 4) * 0.008 * (1 - rig.aimT), 6, dt);
     settleFlinch(dt);
-    camera.rotateZ(rig.roll + rig.flinchRoll);
+    // leaning, the head goes over with the body, so the sights stay upright in the view
+    camera.rotateZ(rig.roll + rig.flinchRoll + rig.lean);
     camera.rotateX(rig.flinchPitch);
     swim = rig.daze > swim ? damp(swim, rig.daze, 2.5, dt) : rig.daze;
     if (swim > 0.001) {

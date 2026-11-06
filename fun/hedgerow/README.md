@@ -113,7 +113,10 @@ Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
 gentle contrast and sharpening — going soft behind whatever you
-aim at.
+aim at, and down the sights soft and a shade darker towards the edges of
+the view too, so the sight picture stands out. The lens is not quite
+clean: a flare, a fire or your own muzzle flash brings up faint smudges
+and dried drops across that side of the view.
 The ambient light keeps the lane and forest readable, with a light vignette
 and no film grain so shadow detail stays clear.
 
@@ -130,7 +133,9 @@ and no film grain so shadow detail stays clear.
 | R | reload |
 | 1 / 2 / wheel | M1 Garand / Thompson |
 | G | grenade (hold to cook) |
-| E | use (set the charge) |
+| Q / E | lean left / right |
+| Shift (aiming) | hold breath |
+| F | use (set the charge) |
 | I | toggle invincibility |
 | O | switch night / day |
 | Esc | pause: the objectives so far and the controls |
@@ -138,6 +143,27 @@ and no film grain so shadow detail stays clear.
 The controls are listed on the title screen while the mission loads, on the
 controls screen and on the pause screen (`js/controls.js`, one list for all
 three); the pause screen also ticks off the mission's objectives.
+
+Down the sights the aim is never quite still: it wanders in a slow loop
+with your breath, more on the move, winded or dazed, less crouched. Shift
+while aiming holds your breath and the sights settle for up to four
+seconds; hold it longer and you let it out hard, the sights shaking until
+you have your breath back. Q and E lean you out round a corner or over a
+wall's end, as far as the wall beside you lets you; the enemy sees your
+head where it is.
+
+Fire cracking close past you or striking the wall beside you pins you
+down: the edges of the view go soft and dark and the colour drains, your
+heart pounds, the sights shake and your shots go wide, until a second and
+a half after the last round, when it ebbs.
+
+A rifle round goes through a fence board, a crate's side or a tent's
+canvas (up to a quarter of a metre of wood for the Garand, a tenth for the
+Thompson) and on into whoever hides behind it, with splinters where it
+went in and came out and less of its punch left; the Thompson's rounds
+lose force past 25 m, the Garand's past 120 m. Shots echo off what is
+round you: quick, bright and ringing between the houses of a street, once,
+late and dull off the far hedges out in a field.
 
 Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
@@ -194,7 +220,9 @@ by the blast that killed them, and drop their rifles.
     helpers the later two share: hedgebanks, trenches, rough ground) ·
     `procedural.js` the glider, the canal bridge and the supply canisters
     modelled in three.js · `controls.js` the controls list
-  * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
+  * `terrain.js` heightfield + splat material (each 32 m chunk drawn at half
+    its resolution past 140 m, which halves the ground's triangles in the
+    long views) · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
     set has one, the `_lod` impostor beyond the quality's near range (those
@@ -607,7 +635,8 @@ by the blast that killed them, and drop their rifles.
   foot across and smaller ones squeezed up between them, its normals from
   that relief and its gloss from where the water lies in the hollows, so a
   flare or a fire ahead breaks up on it in glints instead of glazing it).
-* `tests/world-check.mjs` — collision world unit checks;
+* `tests/world-check.mjs` — collision world unit checks (and how far a round
+  goes through what it struck);
   `tests/character-check.mjs` — the aim pitch stays put under held poses
   (three's mixer skips unchanged bones), reload clip timing and the hand prop,
   per-soldier face blends (each enemy mixes the rig's `face_broad`,
@@ -704,6 +733,8 @@ reduce the shipped static model library's geometry storage by 33%; the clutter
 check submits about 67% fewer pieces in its forward view. Aiming computes its
 three focus samples at the fullscreen triangle's vertices, and volumetric
 lighting samples shadow visibility only where that light can contribute.
+The halos round the lamps and fires are one instanced draw rather than a
+sprite each (some 60 fewer draw calls on Saint-Clair).
 Resting ragdolls keep their final bone pose, and the compass lets CSS handle
 responsive positioning without forcing a layout calculation each frame.
 

@@ -348,7 +348,7 @@ const hints = [
   { x: 20, z: -6, r: 6, text: 'The guns are firing on the causeway', sub: 'Follow the compass marker; hold the right button to aim' },
   { x: 5, z: 50, r: 7, text: 'The meadow is open ground', sub: 'The sunken lane (left) and the orchard track (right) are covered by machine guns' },
   { x: 0, z: 118, r: 8, text: 'The trench runs the length of the hedge', sub: 'Get into it at either end, or bomb it with grenades (G)' },
-  { x: GUNS[0][0], z: GUNS[0][1] - 5, r: 6, text: 'Press E at a gun to set a charge', sub: 'Six seconds: get clear' },
+  { x: GUNS[0][0], z: GUNS[0][1] - 5, r: 6, text: 'Press F at a gun to set a charge', sub: 'Six seconds: get clear' },
 ];
 
 export default {
