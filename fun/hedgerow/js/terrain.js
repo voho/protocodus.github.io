@@ -146,20 +146,47 @@ export async function createTerrain(def, textures, shared) {
         idx.push(a, d, b, b, d, e);
       }
     }
-    // skirts
-    const edge = (list) => {
+    // Skirts cover the gap between this edge and either resolution of its
+    // neighbour. A fixed 1.5 m curtain can end above a narrow trench floor
+    // when the neighbouring coarse edge bridges across it. Both edge curves
+    // are piecewise linear, so their largest separation is at a vertex of
+    // the finer cadence. Compute the required depth once while building.
+    const edge = (list, ni0, nj0, ni1, nj1) => {
+      let drop = 1.5;
+      if (ni0 >= 0 && nj0 >= 0 && ni1 < nx && nj1 < nz && ni1 > ni0 && nj1 > nj0) {
+        const neighbourStep = isFine(minX + ni0 * RES, minZ + nj0 * RES,
+          minX + ni1 * RES, minZ + nj1 * RES) ? 1 : 2;
+        const neighbourSteps = [neighbourStep];
+        if ((ni1 - ni0) % (2 * neighbourStep) === 0 && (nj1 - nj0) % (2 * neighbourStep) === 0) neighbourSteps.push(2 * neighbourStep);
+        const alongX = list[0][1] === list[list.length - 1][1];
+        const start = alongX ? i0 : j0, end = alongX ? i1 : j1;
+        const fixed = alongX ? j0 + list[0][1] * step : i0 + list[0][0] * step;
+        const sample = (q) => alongX ? H[fixed * nx + q] : H[q * nx + fixed];
+        const chord = (q, cadence) => {
+          const a = start + Math.floor((q - start) / cadence) * cadence;
+          const b = Math.min(a + cadence, end);
+          return a === b ? sample(a) : sample(a) + (sample(b) - sample(a)) * ((q - a) / (b - a));
+        };
+        for (const otherStep of neighbourSteps) {
+          if (otherStep === step) continue;
+          for (let q = start; q <= end; q += Math.min(step, otherStep)) {
+            drop = Math.max(drop, Math.abs(chord(q, step) - chord(q, otherStep)) + 0.15);
+          }
+        }
+      }
       const base = v;
-      for (const [c, r] of list) put(i0 + c * step, j0 + r * step, 1.5);
+      for (const [c, r] of list) put(i0 + c * step, j0 + r * step, drop);
       for (let k = 0; k < list.length - 1; k++) {
         const ta = list[k][1] * cols + list[k][0], tb = list[k + 1][1] * cols + list[k + 1][0];
         const ba = base + k, bb = base + k + 1;
         idx.push(ta, ba, tb, tb, ba, bb, ta, tb, ba, tb, bb, ba);
       }
     };
-    edge(Array.from({ length: cols }, (_, c) => [c, 0]));
-    edge(Array.from({ length: cols }, (_, c) => [c, rows - 1]));
-    edge(Array.from({ length: rows }, (_, r) => [0, r]));
-    edge(Array.from({ length: rows }, (_, r) => [cols - 1, r]));
+    const chunkCells = CHUNK / RES;
+    edge(Array.from({ length: cols }, (_, c) => [c, 0]), i0, j0 - chunkCells, i1, j0);
+    edge(Array.from({ length: cols }, (_, c) => [c, rows - 1]), i0, j1, i1, Math.min(nz - 1, j1 + chunkCells));
+    edge(Array.from({ length: rows }, (_, r) => [0, r]), i0 - chunkCells, j0, i0, j1);
+    edge(Array.from({ length: rows }, (_, r) => [cols - 1, r]), i1, j0, Math.min(nx - 1, i1 + chunkCells), j1);
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));

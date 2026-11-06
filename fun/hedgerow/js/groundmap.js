@@ -97,11 +97,13 @@ export function createGroundMap(terrain, world, waterLevel, ponds = []) {
   // centimetres above it (a crater is shallow: kept off the whole bowl, its edge was the
   // cut-off circle's, not the water's)
   for (const p of ponds || []) {
-    const i0 = Math.max(0, Math.floor((p.x - p.r - minX) / res)), i1 = Math.min(nx - 1, Math.ceil((p.x + p.r - minX) / res));
-    const j0 = Math.max(0, Math.floor((p.z - p.r - minZ) / res)), j1 = Math.min(nz - 1, Math.ceil((p.z + p.r - minZ) / res));
+    const [x0, z0, x1, z1] = p.bounds || [p.x - p.r, p.z - p.r, p.x + p.r, p.z + p.r];
+    const i0 = Math.max(0, Math.floor((x0 - minX) / res)), i1 = Math.min(nx - 1, Math.ceil((x1 - minX) / res));
+    const j0 = Math.max(0, Math.floor((z0 - minZ) / res)), j1 = Math.min(nz - 1, Math.ceil((z1 - minZ) / res));
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const k = j * nx + i;
-      if (Math.hypot(minX + i * res - p.x, minZ + j * res - p.z) > p.r) continue;
+      const x = minX + i * res, z = minZ + j * res;
+      if (p.contains ? !p.contains(x, z) : Math.hypot(x - p.x, z - p.z) > p.r) continue;
       const keep = smoothstep(0.03, 0.16, H[k] - p.y);
       for (let c = 0; c < 3; c++) cov[k * 3 + c] *= keep;
     }

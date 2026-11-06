@@ -23,7 +23,8 @@
    player's left), yaw 0 turns a model's front to +z, 180 to the south. */
 
 import { fbm2, smoothstep, smoothPolyline, rng, lerp, polylineDistance } from '../util.js';
-import { bbox, near, along, hedgeBanks, gaps, curve, offset, atZ, roughGround, cutTrench, fieldDrain } from './kit.js';
+import { bbox, near, along, hedgeBanks, gaps, curve, offset, atZ, roughGround, cutTrench } from './kit.js';
+import { naturalDrain } from './landform-banks.js';
 import { fieldwork } from './fieldwork.js';
 
 /* ---------- lines on the ground ---------- */
@@ -38,7 +39,7 @@ const ROAD = smoothPolyline([[-2, 198], [-10, 214], [-20, 228], [-18, 244], [-8,
 // The old field drain offers a low approach through the middle of the meadow.
 // It bends around the knoll and stops short of the battery's wire: useful
 // cover while crouched, with an exposed final dash into the trench.
-const DRAIN = fieldDrain(smoothPolyline([[14, 70], [22, 80], [14, 96], [18, 114], [26, 129]], 2), { depth: 0.95, half: 3.0 });
+const DRAIN = naturalDrain(smoothPolyline([[14, 70], [22, 80], [14, 96], [18, 114], [26, 129]], 2), { depth: 0.95, half: 3.0 });
 // the hedgerows' lines across the fields: the first one, the battery's along the crest, the farm's
 const firstZ = (x) => 58 + 6 * Math.sin((x + 10) / 14);
 const crestZ = (x) => 143 + 5 * Math.sin((x - 4) / 18);
@@ -71,7 +72,7 @@ const HEDGES = hedgeBanks([
   ...gaps(curve(crestZ, 52, -56, 2), (x, z) => GUNS.every(([gx]) => Math.abs(x - gx) > 6) && Math.abs(x - 11) > 2.5 && inFields(x, z)),
   // between the north field and the farm, a gate under the manor's windows
   ...gaps(curve(northZ, 40, -56, 2), (x, z) => Math.abs(x - 16) > 5 && inFields(x, z) && !(x > -14 && x < 8)),
-]);
+], { natural: true });
 
 const TMP = {};
 /* the heading (yaw, degrees) of a line z = f(x) at x, and the trench's own line */
@@ -166,8 +167,10 @@ function splat(x, z) {
   mud += Math.min(1.5, Math.abs(ROUGH.height(x, z)) * 2.2);
   // Bare earth at the bottom of the drain, leaf mould on its damp margins.
   const drain = DRAIN.strength(x, z);
-  mud += drain * 2.8;
-  forest += smoothstep(4.0, 2.2, DRAIN.dist(x, z)) * (1 - drain) * 0.3;
+  // The narrow thalweg stays damp while the rounded upper shoulders keep
+  // grass, rather than painting the entire six-metre swale as a mud chute.
+  mud += DRAIN.wet(x, z) * 2.4 + drain * drain * 0.9;
+  forest += smoothstep(4.0, 2.2, DRAIN.dist(x, z)) * (1 - drain) * 0.18;
   // the farmyard: setts under the mud, trodden to mud at the edges
   const inYard = x > YARD.x0 && x < YARD.x1 && z > YARD.z0 && z < YARD.z1;
   if (inYard) { cobble = smoothstep(0, 3, Math.min(x - YARD.x0, YARD.x1 - x, z - YARD.z0, YARD.z1 - z)) * (0.6 + 0.4 * smoothstep(-0.3, 0.3, n)); mud += 0.8; }

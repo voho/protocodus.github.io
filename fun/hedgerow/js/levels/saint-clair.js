@@ -16,6 +16,7 @@
 import { fbm2, polylineDistance, smoothstep, smoothPolyline, rng, clamp, lerp } from '../util.js';
 import { corridorFrame, corridorRemap, sunkenLane } from './natural.js';
 import { fieldwork } from './fieldwork.js';
+import { clearingEdge, remapForestLevel } from './forest-layout.js';
 
 /* ---------- lines on the ground ---------- */
 
@@ -40,6 +41,7 @@ const TRENCH_DEPTH = 1.25;
 const trenchWallY = (x, z) => trackHeight(x, z) - TRENCH_DEPTH - 0.42;
 const SQUARE = { x0: -14, x1: 14, z0: 148, z1: 182 };
 const CLEARING = { x: 0, z: 508, r: 24 };
+const CLEARING_EDGE = clearingEdge(CLEARING);
 const BUNKER = { x: 9, z: 446 };
 const FIELDS = fieldwork([{ x: -28, z: 8, width: 23, length: 38, yaw: 4, soil: 1.7 }]);
 
@@ -201,7 +203,7 @@ function baseHeight(x, z) {
     }
   }
   // clearing: flatter
-  const dc = Math.hypot(x - CLEARING.x, z - CLEARING.z);
+  const dc = CLEARING_EDGE.distance(x, z);
   if (dc < CLEARING.r + 8) h = lerp(h, trackHeight(CLEARING.x, CLEARING.z), smoothstep(CLEARING.r + 8, CLEARING.r - 4, dc) * 0.85);
 
   // trenches: a flat floor TRENCH_DEPTH down (a man standing sees over
@@ -273,7 +275,7 @@ function splat(x, z, h, slope) {
   const bm = bumps(x, z);
   mud += Math.min(1.5, Math.abs(bm) * 2.2);
   // clearing grass
-  const dc = Math.hypot(x - CLEARING.x, z - CLEARING.z);
+  const dc = CLEARING_EDGE.distance(x, z);
   const cl = smoothstep(CLEARING.r + 4, CLEARING.r - 6, dc);
   grass += cl * 0.8; forest *= 1 - cl * 0.7;
   const s = mud + grass + forest + cobble * 3;
@@ -631,6 +633,14 @@ for (let i = 0; i < 220; i++) {
 
 /* ---------- ground cover (instanced near the camera) ---------- */
 
+// Clear a few unequal bays at the woodland edge. Filter only after the
+// original random stream has been consumed: trees elsewhere, the opening
+// combat core and every later field dressing keep their original layout.
+for (let i = scatter.length - 1; i >= 0; i--) {
+  const p = scatter[i];
+  if (!p.rock && CLEARING_EDGE.contains(p.x, p.z)) scatter.splice(i, 1);
+}
+
 const cover = [];
 for (let i = 0; i < 42000; i++) {
   const x = R.range(-60, 60), z = R.range(-30, 570);
@@ -718,7 +728,9 @@ const pickups = [
   { type: 'medkit', x: INTRO.point(4.2, 58)[0], z: 58 }, { type: 'ammo', x: -2, z: 96 }, { type: 'medkit', x: -13, z: 141 },
   { type: 'grenades', x: 12, z: 166 }, { type: 'ammo', x: -4, z: 182 }, { type: 'medkit', x: 26, z: 150 },
   { type: 'medkit', x: 2, z: 249 }, { type: 'ammo', x: 8, z: 295 }, { type: 'medkit', x: -6, z: 303 },
-  { type: 'grenades', x: -10, z: 362 }, { type: 'ammo', x: 0, z: 400 }, { type: 'medkit', x: 9, z: 404 },
+  // A metre toward the track keeps this bundle clear of the retained tree
+  // trunk after the forest curve crosses the coarse navigation-cell grid.
+  { type: 'grenades', x: -9, z: 362 }, { type: 'ammo', x: 0, z: 400 }, { type: 'medkit', x: 9, z: 404 },
   { type: 'grenades', x: -3, z: 432 }, { type: 'medkit', x: -7, z: 472 }, { type: 'ammo', x: 6, z: 458 },
   { type: 'medkit', x: -12, z: 519 },
 ];
@@ -754,7 +766,7 @@ const hints = [
   { x: -7, z: 505, r: 7, text: 'The field radio links this position to the road', sub: 'After destroying the gun, hold F at the radio to signal the cleared route' },
 ];
 
-export default {
+export default remapForestLevel({
   id: 'saint-clair',
   title: 'Saint-Clair',
   when: 'Normandy, 11 July 1944 — dusk, rain',
@@ -768,7 +780,7 @@ export default {
   playBounds: { minX: -46, maxX: 46, minZ: -24, maxZ: 556 },
   fine: [[-46, 376, 46, 410], [-20, 336, 20, 366], [-22, 28, -4, 106], ...FIELDS.fine],
   water: { level: 0, contains: (x, z) => Math.abs(z - RIVER_Z(x)) < 13, riverZ: RIVER_Z, x0: -100, x1: 100 },
-  baseHeight, splat, trackHeight, introRemap: INTRO,
+  baseHeight, splat, trackHeight, introRemap: INTRO, clearingEdge: CLEARING_EDGE,
   fields: FIELDS.definitions,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
   fog: { color: '#383e45', density: 0.0048 },
@@ -798,4 +810,4 @@ export default {
   ambience: { rain: 1, wind: [1.6, 0.7] },
   lines: { LANE, DITCH, STREET, TRACK, TRENCH_W, TRENCH_E, TRENCH_C },
   craters: CRATERS,
-};
+});

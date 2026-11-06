@@ -186,8 +186,13 @@ if (!process.env.HEDGEROW_LEVEL) {
   }
   if (L.id === 'pont-tournant') {
     const start = { x: 5.6, z: 15.8 }, goal = { x: 3, z: 79 };
-    assertBodyRoute(world, start, nav.findPath(start.x, start.z, goal.x, goal.z), 'starting glider wing');
-    console.log('ok    the starting route goes around the glider wing with full standing head clearance');
+    for (const height of [1.7, 1.78]) {
+      const bodyNav = height === 1.7 ? nav : createNav(world, L.playBounds, { bodyHeight: height });
+      const path = bodyNav.findPath(start.x, start.z, goal.x, goal.z);
+      assertBodyRoute(world, start, path, `starting glider wing (${height}m)`, height);
+      assert.ok(Math.hypot(path.at(-1).x - goal.x, path.at(-1).z - goal.z) < .2, 'the body-sized route reaches the actual wire approach');
+    }
+    console.log('ok    the starting route clears the glider for both NPC and full standing-player heights');
   }
   if (L.id === 'la-varenne') {
     const start = { x: 27.5059, z: 140.8225 }, path = nav.findPath(start.x, start.z, 24, 149.881);

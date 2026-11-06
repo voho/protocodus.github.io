@@ -14,7 +14,108 @@ import { MOVE } from './world.js';
 
 const DIAG = Math.SQRT2;
 
-export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius = 0.4, slope = 0.7, step = 0.45 } = {}) {
+/* A moving circle against a box with rounded corners, clipped to the part
+   of the movement where the body overlaps its vertical span. This catches
+   a low ceiling entered while the ground descends between body samples. */
+function bodyCrosses(col, ax, az, bx, bz, ya, yb, radius, height, step) {
+  let lo = 0, hi = 1;
+  const dy = yb - ya, low = col.bottom - height, high = col.top - step;
+  if (Math.abs(dy) < 1e-10) {
+    if (ya <= low || ya >= high) return false;
+  } else {
+    let a = (low - ya) / dy, b = (high - ya) / dy;
+    if (a > b) [a, b] = [b, a];
+    lo = Math.max(lo, a); hi = Math.min(hi, b);
+    if (lo >= hi - 1e-10) return false;
+  }
+  const dx = bx - ax, dz = bz - az;
+  if (col.type === 'cyl') return circleCrosses(ax - col.x, az - col.z, dx, dz, radius + col.r, lo, hi);
+  const rx = ax - col.x, rz = az - col.z;
+  const x = rx * col.c - rz * col.s, z = rx * col.s + rz * col.c;
+  const vx = dx * col.c - dz * col.s, vz = dx * col.s + dz * col.c;
+  if (rectangleCrosses(x, z, vx, vz, col.hx + radius, col.hz, lo, hi) ||
+      rectangleCrosses(x, z, vx, vz, col.hx, col.hz + radius, lo, hi)) return true;
+  for (const cx of [-col.hx, col.hx]) for (const cz of [-col.hz, col.hz]) {
+    if (circleCrosses(x - cx, z - cz, vx, vz, radius, lo, hi)) return true;
+  }
+  return false;
+}
+
+function rectangleCrosses(x, z, vx, vz, hx, hz, lo, hi) {
+  for (const [p, v, h] of [[x, vx, hx], [z, vz, hz]]) {
+    if (Math.abs(v) < 1e-10) { if (Math.abs(p) >= h) return false; continue; }
+    let a = (-h - p) / v, b = (h - p) / v;
+    if (a > b) [a, b] = [b, a];
+    lo = Math.max(lo, a); hi = Math.min(hi, b);
+    if (lo >= hi - 1e-10) return false;
+  }
+  return true;
+}
+
+function circleCrosses(x, z, vx, vz, radius, lo, hi) {
+  const speed2 = vx * vx + vz * vz;
+  const t = speed2 > 1e-12 ? Math.max(lo, Math.min(hi, -(x * vx + z * vz) / speed2)) : lo;
+  return (x + vx * t) ** 2 + (z + vz * t) ** 2 < radius * radius - 1e-10;
+}
+
+/* The heightfield is linear inside each master-grid triangle. Include the
+   X/Z edges and its diagonal, so even a short crest has its actual height. */
+function floorKnots(grid, ax, az, bx, bz) {
+  if (!grid) return [0, .5, 1];
+  const ts = [0, 1];
+  for (const [a, b, origin] of [[ax, bx, grid.minX], [az, bz, grid.minZ], [ax + az, bx + bz, grid.minX + grid.minZ]]) {
+    if (Math.abs(b - a) < 1e-10) continue;
+    const low = Math.ceil((Math.min(a, b) - origin) / grid.res), high = Math.floor((Math.max(a, b) - origin) / grid.res);
+    for (let k = low; k <= high; k++) {
+      const t = (origin + k * grid.res - a) / (b - a);
+      if (t > 1e-8 && t < 1 - 1e-8) ts.push(t);
+    }
+  }
+  ts.sort((a, b) => a - b);
+  return ts.filter((t, i) => !i || t - ts[i - 1] > 1e-8);
+}
+
+
+// NPCs use 1.70 m. A taller actor (for example, the 1.78 m standing
+// player) must request its own bodyHeight rather than reuse that route.
+/* Footing changes when its small support circle enters/leaves a surface,
+   not by a ramp interpolated across the edge of a raised deck. */
+function supportRanges(col, ax, az, bx, bz, radius = .15) {
+  const dx = bx - ax, dz = bz - az;
+  const circle = (x, z, r) => {
+    const a = dx * dx + dz * dz, b = 2 * (x * dx + z * dz), c = x * x + z * z - r * r;
+    if (a < 1e-12) return c <= 0 ? [0, 1] : null;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) return null;
+    const lo = Math.max(0, (-b - Math.sqrt(disc)) / (2 * a)), hi = Math.min(1, (-b + Math.sqrt(disc)) / (2 * a));
+    return lo <= hi ? [lo, hi] : null;
+  };
+  if (col.type === 'cyl') return [circle(ax - col.x, az - col.z, radius + col.r)].filter(Boolean);
+  const rx = ax - col.x, rz = az - col.z;
+  const x = rx * col.c - rz * col.s, z = rx * col.s + rz * col.c;
+  const vx = dx * col.c - dz * col.s, vz = dx * col.s + dz * col.c;
+  const rect = (hx, hz) => {
+    let lo = 0, hi = 1;
+    for (const [p, v, h] of [[x, vx, hx], [z, vz, hz]]) {
+      if (Math.abs(v) < 1e-12) { if (Math.abs(p) > h) return null; continue; }
+      let a = (-h - p) / v, b = (h - p) / v;
+      if (a > b) [a, b] = [b, a];
+      lo = Math.max(lo, a); hi = Math.min(hi, b);
+      if (lo > hi) return null;
+    }
+    return [lo, hi];
+  };
+  // The corner circle calculation uses world velocity; transform its
+  // centre back to world coordinates before taking the quadratic.
+  const ranges = [rect(col.hx + radius, col.hz), rect(col.hx, col.hz + radius)];
+  for (const cx of [-col.hx, col.hx]) for (const cz of [-col.hz, col.hz]) {
+    const wx = col.x + cx * col.c + cz * col.s, wz = col.z - cx * col.s + cz * col.c;
+    ranges.push(circle(ax - wx, az - wz, radius));
+  }
+  return ranges.filter(Boolean);
+}
+
+export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius = 0.4, slope = 0.7, step = 0.45, bodyHeight = 1.7 } = {}) {
   const nx = Math.ceil((maxX - minX) / cell), nz = Math.ceil((maxZ - minZ) / cell);
   const n = nx * nz;
   const h = new Float32Array(n).fill(NaN);          // ground height, NaN = no footing
@@ -23,7 +124,7 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
 
   const standable = (x, z, g) => {
     p.x = x; p.z = z;
-    if (world.pushOut(p, radius, g, 1.7, 0.45) && Math.hypot(p.x - x, p.z - z) > 0.12) return false;
+    if (world.pushOut(p, radius, g, bodyHeight, 0.45) && Math.hypot(p.x - x, p.z - z) > 0.12) return false;
     return !world.tooDeep(x, z, 0.9, g);
   };
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
@@ -92,6 +193,67 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     return best;
   }
 
+  const ceilingCandidates = [];
+  function headroomClear(ax, az, bx, bz, ya, yb) {
+    const bodyRadius = Math.max(.05, radius - .05);
+    world.query(Math.min(ax, bx) - bodyRadius, Math.min(az, bz) - bodyRadius,
+      Math.max(ax, bx) + bodyRadius, Math.max(az, bz) + bodyRadius, ceilingCandidates);
+    const grid = world.terrain?.grid;
+    const overheadBottom = Math.min(ya, yb) + step;
+    let low = Math.min(ya, yb), high = Math.max(ya, yb), overhead = false;
+    // Ordinary walls are already caught by body samples and width rays.
+    // Overhead colliders need a continuous circle/box test: a brief graze
+    // or a changing floor can put the head into one between samples.
+    for (const col of ceilingCandidates) if ((col.flags & MOVE) && col.bottom > overheadBottom) { overhead = true; break; }
+    if (!overhead) return true;
+    if (grid?.H) {
+      const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - grid.minX) / grid.res));
+      const i1 = Math.min(grid.nx - 1, Math.ceil((Math.max(ax, bx) - grid.minX) / grid.res));
+      const j0 = Math.max(0, Math.floor((Math.min(az, bz) - grid.minZ) / grid.res));
+      const j1 = Math.min(grid.nz - 1, Math.ceil((Math.max(az, bz) - grid.minZ) / grid.res));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const y = grid.H[j * grid.nx + i]; low = Math.min(low, y); high = Math.max(high, y);
+      }
+    } else if (world.terrain) {
+      const y = world.terrain.height((ax + bx) * .5, (az + bz) * .5);
+      low = Math.min(low, y); high = Math.max(high, y);
+    }
+    const crossing = ceilingCandidates.filter(col => (col.flags & MOVE) && col.bottom > overheadBottom &&
+      col.bottom < high + bodyHeight - 1e-8 && col.top > low + step + 1e-8);
+    if (!crossing.length) return true;
+    let knots = floorKnots(grid, ax, az, bx, bz);
+    const supports = ceilingCandidates.filter(col => (col.flags & MOVE) && col.top <= Math.max(ya, yb) + step + 1e-3 && col.top >= low - step);
+    for (const col of supports) for (const range of supportRanges(col, ax, az, bx, bz)) knots.push(...range);
+    knots.sort((a, b) => a - b); knots = knots.filter((t, i) => !i || t - knots[i - 1] > 1e-8);
+    // A terrain slope can meet either a support top or its step-up
+    // eligibility threshold inside one master triangle.
+    const crossings = [];
+    if (world.terrain) for (let i = 1; i < knots.length; i++) {
+      const ta = knots[i - 1], tb = knots[i];
+      const ha = world.terrain.height(ax + (bx - ax) * ta, az + (bz - az) * ta);
+      const hb = world.terrain.height(ax + (bx - ax) * tb, az + (bz - az) * tb);
+      if (Math.abs(hb - ha) < 1e-10) continue;
+      for (const col of supports) for (const top of [col.top, col.top - step]) {
+        const t = (top - ha) / (hb - ha);
+        if (t > 1e-8 && t < 1 - 1e-8) crossings.push(ta + (tb - ta) * t);
+      }
+    }
+    knots.push(...crossings); knots.sort((a, b) => a - b); knots = knots.filter((t, i) => !i || t - knots[i - 1] > 1e-8);
+    let py = ya;
+    for (let i = 1; i < knots.length; i++) {
+      const ta = knots[i - 1], tb = knots[i], epsilon = Math.min(1e-6, (tb - ta) * 1e-4);
+      const left = ta + epsilon, right = tb - epsilon;
+      const px = ax + (bx - ax) * left, pz = az + (bz - az) * left;
+      const x = ax + (bx - ax) * right, z = az + (bz - az) * right;
+      const ly = world.groundAt(px, pz, py, step), y = world.groundAt(x, z, ly, step);
+      if (Math.abs(ly - py) > step + 1e-3 || Math.abs(y - ly) > step + 1e-3 || world.tooDeep(x, z, .9, y)) return false;
+      for (const col of crossing) if (bodyCrosses(col, px, pz, x, z, ly, y, bodyRadius, bodyHeight, step)) return false;
+      py = y;
+    }
+    const end = world.groundAt(bx, bz, py, step);
+    return Math.abs(end - py) <= step + 1e-3 && Math.abs(end - yb) < .05;
+  }
+
   /* Is the straight line a → b walkable: on connected cells, with continuous
      footing and room for the whole standing body? Short start connectors
      can begin on clear ground beside an otherwise blocked grid centre. */
@@ -104,7 +266,7 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     // beside it. Ask for the support at the real coordinate, preserving
     // the cell's deck height only when there is a surface here to stand on.
     const startY = feet ?? world.groundAt(ax, az, Number.isFinite(h[prev]) ? h[prev] : world.terrain?.height(ax, az) ?? 0, step);
-    let ground = startY;
+    let ground = startY, previousX = ax, previousZ = az;
     for (let s = 1; s <= steps; s++) {
       const t = s / steps;
       const x = ax + (bx - ax) * t, z = az + (bz - az) * t;
@@ -118,12 +280,13 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
       // the segment and preserve the same step limit used to build it.
       const y = world.groundAt(x, z, ground, step);
       if (Math.abs(y - ground) > step + 1e-3 || world.tooDeep(x, z, .9, y)) return false;
-      ground = y;
       // Sparse knee/chest rays miss a thin wing at head height, or a bar
       // between those rays. Sweep the complete standing body along its
       // actual footing as well, with the same width as the ray fan.
       p.x = x; p.z = z;
-      if (world.pushOut(p, Math.max(.05, radius - .05), ground, 1.7, step) && Math.hypot(p.x - x, p.z - z) > .02) return false;
+      if (world.pushOut(p, Math.max(.05, radius - .05), y, bodyHeight, step) && Math.hypot(p.x - x, p.z - z) > .02) return false;
+      if (!headroomClear(previousX, previousZ, x, z, ground, y)) return false;
+      ground = y; previousX = x; previousZ = z;
     }
     if (d < 1e-3) return true;
     const dx = (bx - ax) / d, dz = (bz - az) / d;
@@ -174,7 +337,7 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     // making every width ray start in the wall. First take that tiny step
     // outward; never accept a start buried in a wall or push through it.
     const start = { x, z };
-    world.pushOut(start, Math.max(.05, radius - .05) + .005, y, 1.7, step);
+    world.pushOut(start, Math.max(.05, radius - .05) + .005, y, bodyHeight, step);
     const adjusted = Math.hypot(start.x - x, start.z - z);
     if (adjusted > .03) return [];
     x = start.x; z = start.z;
@@ -362,7 +525,7 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
   }
 
   return {
-    cell, nx, nz, findPath, lineClear,
+    cell, nx, nz, bodyHeight, findPath, lineClear,
     walkable: (x, z) => walkable(index(x, z)),
     height: (x, z) => { const k = index(x, z); return walkable(k) ? h[k] : null; },
     /* the nearest walkable point to (x, z), or null */

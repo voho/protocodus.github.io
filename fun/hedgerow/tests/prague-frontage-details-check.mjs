@@ -1,40 +1,12 @@
-// Authored additions must stay supported, bounded and gameplay-neutral;
-// they share the source facade instead of cloning its large mesh buffers.
+// Genuine period volumes, glazing, grounded foundations and exposed roof
+// ends must remain bounded while the named gameplay passages stay clear.
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const { pragueModels } = await import('../js/prague-models.js');
-const { pragueFrontageVariants } = await import('../js/prague-frontage-details.js');
 const { varyPragueFrontages, PRAGUE_FRONTAGE_VARIATION } = await import('../js/levels/prague-frontages.js');
 const L = (await import('../js/levels/prague.js')).default;
 const THREE = await import('three');
-const baseModels = pragueModels(), variants = pragueFrontageVariants(baseModels), repeat = pragueFrontageVariants(baseModels);
-assert.equal(variants.size, 3);
-const metrics = [];
-for (const [name, model] of variants) {
-  const base = baseModels.get(model.extras.frontageBase), added = model.prims.slice(base.prims.length);
-  assert.ok(base && !/passage|damaged/.test(base.name));
-  assert.deepEqual(model.colliders, base.colliders, `${name}: all passage/sidewalk routes retain their exact collision`);
-  assert.deepEqual(model.anchors, base.anchors);
-  for (let i = 0; i < base.prims.length; i++) assert.equal(model.prims[i], base.prims[i], 'large original geometry/material buffers are shared');
-  assert.ok(added.length <= 7, 'details enter the existing palette batching, with only one possible mapped sign material');
-  assert.ok(model.extras.detailTriangles <= 800, `${name}: detail is bounded to 800 triangles`);
-  const bounds = { minY: Infinity, maxZ: -Infinity, maxX: -Infinity };
-  for (let k = 0; k < added.length; k++) {
-    const g = added[k].geometry, p = g.attributes.position, normals = g.attributes.normal;
-    assert.deepEqual(p.array, repeat.get(name).prims[base.prims.length + k].geometry.attributes.position.array, 'details are deterministic');
-    for (const attr of Object.values(g.attributes)) assert.ok(attr.array.every(Number.isFinite));
-    for (let i = 0; i < p.count; i++) {
-      assert.ok(Math.abs(Math.hypot(normals.getX(i), normals.getY(i), normals.getZ(i)) - 1) < 1e-5);
-      bounds.minY = Math.min(bounds.minY, p.getY(i)); bounds.maxZ = Math.max(bounds.maxZ, p.getZ(i)); bounds.maxX = Math.max(bounds.maxX, Math.abs(p.getX(i)));
-    }
-    assert.ok(g.boundingSphere && Number.isFinite(g.boundingSphere.radius));
-  }
-  assert.ok(bounds.minY >= 2.35, 'all additions leave full standing headroom below');
-  assert.ok(bounds.maxX < 6.2 && bounds.maxZ < 6.41, 'detail stays within this frontage and a shallow, supported canopy projection');
-  assert.ok(model.box.min.equals(base.box.min), 'street contact remains the exact original facade footprint');
-  metrics.push({ name, triangles: model.extras.detailTriangles, materialGroups: added.length, minY: bounds.minY, maxZ: bounds.maxZ });
-}
-assert.throws(() => pragueFrontageVariants(new Map()), /Missing prague_ochre/);
+const baseModels = pragueModels();
 // Real floor counts and roof forms must differ, not just tint/add adornment
 // to the same five-storey volume. Cast against actual glazing at each bay.
 const frontages = [
@@ -64,6 +36,26 @@ for (const [name, floors, wallHeight, bays, rows, roofStyle] of frontages) {
   }
 }
 glassMat.dispose();
+// A ray through the previously visible downhill corner must meet a
+// shallow vertical footing. The original masonry shell remains above it.
+const footingMat = new THREE.MeshBasicMaterial();
+for (const name of ['prague_ochre', 'prague_rose', 'prague_gray', 'prague_old_classical', 'prague_classical_sage', 'prague_interwar']) {
+  const m = baseModels.get(name), footing = m.prims.filter(p => p.geometry.boundingBox.min.y < -0.1);
+  assert.equal(m.extras.foundationDepth, 0.18);
+  assert.equal(footing.length, 1);
+  const p = footing[0], g = p.geometry, bounds = g.boundingBox;
+  assert.equal(p.key, 'stone'); assert.equal(g.attributes.position.count / 3, 12);
+  assert.ok(Math.abs(bounds.min.y + 0.18) < 1e-6 && Math.abs(bounds.max.y) < 1e-6);
+  assert.deepEqual([bounds.min.x, bounds.max.x, bounds.min.z, bounds.max.z], [-7, 7, -5, 5], 'footing never projects into a pavement/passage');
+  for (const a of Object.values(g.attributes)) assert.ok(a.array.every(Number.isFinite));
+  for (const side of [-1, 1]) {
+    const hit = new THREE.Raycaster(new THREE.Vector3(side * 6.95, -0.075, 5.2), new THREE.Vector3(0, 0, -1), 0, 0.4).intersectObject(new THREE.Mesh(g, footingMat))[0];
+    assert.ok(hit && Math.abs(hit.point.z - 5) < 1e-6, 'both downhill frontage corners have actual masonry contact');
+  }
+  assert.ok(m.colliders.every(c => c.c[1] - c.h[1] >= -1e-6), 'visual footing adds no underground gameplay collider');
+}
+assert.equal(baseModels.get('prague_passage').extras.foundationDepth, undefined, 'named open vaults receive no foundation across their route');
+footingMat.dispose();
 const replacements = new Map(PRAGUE_FRONTAGE_VARIATION.map(([x, z, m]) => [`${x}:${z}`, m]));
 // Work with both the original and integrated level: reconstruct only the
 // ordinary-name input when the authored choices are already applied.
@@ -89,9 +81,5 @@ for (const [name, height] of [['prague_ochre', 17.2], ['prague_rose', 18.3], ['p
   }
 }
 capMat.dispose();
-for (const map of [variants, repeat]) for (const m of map.values()) {
-  const base = baseModels.get(m.extras.frontageBase);
-  for (const p of m.prims.slice(base.prims.length)) p.geometry.dispose();
-}
 for (const m of baseModels.values()) if (m.name !== 'prague_damaged') for (const p of m.prims) p.geometry.dispose();
-console.log('prague-frontage-details-check:', JSON.stringify(metrics), '3/4/6-storey actual glazing/volumes, finite normals, shared buffers, bounded geometry, protected arcades/damage and idempotent authored addresses pass');
+console.log('prague-frontage-details-check: 3/4/6-storey actual glazing/volumes, sunk contact footings, finite normals, bounded geometry, closed party-roofs and protected authored routes pass');

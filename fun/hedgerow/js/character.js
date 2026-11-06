@@ -17,6 +17,8 @@ import { instantiate } from './assets.js';
 import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { createRagdoll } from './ragdoll.js';
 import { createMountedWeaponPose } from './mounted-weapon.js';
+import { articulatedKar98kModel, createKar98kActionPose } from './kar98k-action.js';
+import { createHandTarget } from './hand-target.js';
 
 const LOWER = new Set(['root', 'hips', 'thigh_l', 'shin_l', 'foot_l', 'thigh_r', 'shin_r', 'foot_r']);
 // first person: the head bone's scale while the head is folded away from the eyes
@@ -198,7 +200,7 @@ function createStandIn(matlib, { outfit, scene }) {
   };
 }
 
-export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel = null, grenadeModel = null, scene, face = null }) {
+export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel = null, grenadeModel = null, scene, face = null, weaponActions = false }) {
   if (!gltf) return createStandIn(matlib, { outfit, scene });
   const root = cloneSkinned(gltf.scene);
   root.name = 'soldier_' + outfit;
@@ -252,6 +254,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   root.traverse((o) => { if (o.isBone) bones[o.name] = o; });
   const socket = root.getObjectByName('socket_weapon');
   const socketL = root.getObjectByName('socket_weapon_l');
+  const offhandPose = createHandTarget(root, bones, socketL);
   let mountedPose = null;
 
   /* The head and helmet as one rigid piece in the head bone's own space, hung on the head
@@ -294,12 +297,15 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   }
 
   let weapon = null, muzzleLocal = new THREE.Vector3(0, 0, 0.6);
+  let boltPose = null;
   const offhandLocal = new THREE.Vector3();
   function setWeapon(model) {
+    boltPose?.reset(); boltPose = null;
     if (weapon) { weapon.parent?.remove(weapon); weapon = null; }
     if (!model || !socket) return;
-    weapon = instantiate(model, matlib);
+    weapon = instantiate(weaponActions ? articulatedKar98kModel(model) : model, matlib);
     socket.add(weapon);
+    if (weaponActions) boltPose = createKar98kActionPose(root, bones, socket, weapon);
     const m = model.anchors.muzzle;
     if (m) muzzleLocal.set(m[0], m[1], m[2]);
     const o = model.anchors.offhand;
@@ -550,6 +556,10 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     get ragdoll() { return ragdoll; },
     get upper() { return upperName; },
     setWeapon,
+    cancelWeaponAction() {
+      boltPose?.reset();
+      state.boltAge = -1; state.boltReload = false;
+    },
     holdMountedWeapon(gun, anchors = {}) {
       mountedPose?.restore();
       mountedPose = gun ? createMountedWeaponPose(root, bones, socket, socketL, gun, anchors) : null;
@@ -570,6 +580,8 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     armsYaw: 0,         // turned to his left (+),
     armsRoll: 0,        // canted, top to his left (+)
     mountedGrip: true,  // release the mounted gun while ducking behind it
+    boltAge: -1, boltReload: false,
+    offhandTarget: null, offhandWeight: 0,
 
     /* first person: the head (and the helmet on it) folded away from the eyes */
     hideHead(on) {
@@ -604,8 +616,9 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     /* Death. With `world` the body becomes a ragdoll (velocity: how it was
        moving; impulses: [{part, vel}] from the shot or blast); without, or
        on a rig the ragdoll cannot drive, the death clip plays. */
-    die(kind = 'death_fwd', { world = null, velocity, impulses } = {}) {
+    die(kind = 'death_fwd', { world = null, velocity, impulses, onImpact } = {}) {
       if (dead) return;
+      boltPose?.reset();
       mountedPose?.restore();
       mountedPose = null;
       if (oneShot === 'throw') holdForThrow(false);
@@ -616,7 +629,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         if (spineBase) bones.spine.quaternion.copy(spineBase);   // no aim pitch frozen in
         if (spinePosBase) bones.spine.position.copy(spinePosBase);
         if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
-        ragdoll = createRagdoll(bones, world, { velocity, impulses, root });
+        ragdoll = createRagdoll(bones, world, { velocity, impulses, root, onImpact });
         if (ragdoll) { mixer.stopAllAction(); return; }
       }
       const a = act('full', kind) || act('full', 'death_fwd');
@@ -650,6 +663,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (spinePosBase) bones.spine.position.copy(spinePosBase);
       if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
       if (armBase) armBase.forEach(([b, q]) => b.quaternion.copy(q));
+      boltPose?.restore();
       mountedPose?.restore();
       mixer.update(dt);
       if (oneShot && mixer.time >= oneShotEnd) {
@@ -667,8 +681,9 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         clavBase ||= [bones.clavicle_l, bones.clavicle_r].map((b) => [b, new THREE.Quaternion(), new THREE.Vector3()]);
         clavBase.forEach(([b, q, p]) => { q.copy(b.quaternion); p.copy(b.position); });
       }
-      const grip = !dead && !oneShot && !(mountedPose && state.mountedGrip) && forendBottom !== null && handPts.length && weapon?.parent === socket;
-      if (grip) {
+      const propGrip = !dead && !oneShot && state.offhandTarget && state.offhandWeight > 1e-5;
+      const grip = !dead && !oneShot && !propGrip && !(mountedPose && state.mountedGrip) && forendBottom !== null && handPts.length && weapon?.parent === socket;
+      if (grip || propGrip) {
         armBase ||= [bones.upperarm_l, bones.forearm_l, bones.hand_l].map((b) => [b, new THREE.Quaternion()]);
         armBase.forEach(([b, q]) => q.copy(b.quaternion));
       }
@@ -687,7 +702,9 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       }
       if (!dead && (Math.abs(state.armsPitch) + Math.abs(state.armsYaw) + Math.abs(state.armsRoll)) > 1e-4) liftArms(state.armsPitch, state.armsYaw, state.armsRoll);
       if (grip) gripForend();
+      if (propGrip) offhandPose?.update(state.offhandTarget, state.offhandWeight);
       if (!dead && state.mountedGrip) mountedPose?.update();
+      if (!dead) boltPose?.update(state.boltAge, state.boltReload);
       if (ground != null) {
         shadow.position.set(root.position.x, ground + 0.03, root.position.z);
         shadow.visible = root.visible;
@@ -712,6 +729,8 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     },
 
     dispose() {
+      ragdoll?.cancelImpact();
+      boltPose?.reset();
       shadow.parent?.remove(shadow);
       root.parent?.remove(root);
       mixer.stopAllAction();

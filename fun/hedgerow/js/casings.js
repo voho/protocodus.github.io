@@ -2,7 +2,7 @@
 
    Every shot of the player's rifle or sub-machine gun throws its empty case
    out to the right (effects.js shell): a little brass case — the Garand's
-   long, bottlenecked .30-06, the Thompson's short .45 — tumbling as it
+   long, bottlenecked .30-06, the sub-machine guns' short cases — tumbling as it
    flies, catching the muzzle flash, the lamps and the sky, then bouncing
    off the cobbles or the mud and lying where it fell. One instanced mesh
    per shape; the last CAP cases of each stay on the ground. */
@@ -41,8 +41,8 @@ export function createCasings(G) {
   const dq = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), m = new THREE.Matrix4();
 
   /* A case out of the gun at (x, y, z), thrown towards (rx, rz) (the gun's right); pistol: the
-     sub-machine gun's short one (by default when the player holds the Thompson) */
-  function eject(x, y, z, rx, rz, pistol = G.player?.weapon === 'thompson') {
+     sub-machine gun's short one (by default for the Thompson and MP40). */
+  function eject(x, y, z, rx, rz, pistol = G.player?.weapon === 'thompson' || G.player?.weapon === 'mp40') {
     const K = kinds[pistol ? 1 : 0];
     let c;
     if (K.list.length < CAP) {
@@ -62,9 +62,11 @@ export function createCasings(G) {
     c.q.setFromUnitVectors(Y, f);
     c.w.set(rx, 0, rz).multiplyScalar((Math.random() - 0.5) * 30).addScaledVector(Y, 18 + Math.random() * 20);
     c.rest = false;
+    c.contacted = false;
   }
 
   function update(dt) {
+    if (!(dt > 0) || !Number.isFinite(dt)) return;
     for (const K of kinds) {
       let moved = false;
       for (const c of K.list) {
@@ -83,6 +85,14 @@ export function createCasings(G) {
         const g = G.world.groundAt(c.p.x, c.p.z, c.p.y + 0.2, 0.25, 0.02) + 0.006;
         if (c.p.y < g) {
           c.p.y = g;
+          // The visible case, rather than a guessed post-shot timer, tells
+          // us when and where the brass actually meets its landing surface.
+          // Later small bounces remain quiet; recycled slots get a fresh cue.
+          if (!c.contacted) {
+            c.contacted = true;
+            const surface = G.world.surfaceUnder?.(c.p.x, g, c.p.z) ?? 'stone';
+            G.audio?.casingImpact?.(c.p.x, g, c.p.z, surface, Math.max(0, -c.v.y));
+          }
           if (c.v.y < -0.9) {
             // a bounce, losing most of it, and a new tumble
             c.v.y *= -0.32; c.v.x *= 0.55; c.v.z *= 0.55;

@@ -15,6 +15,9 @@
 
 import * as THREE from 'three';
 
+const FIXED_STEP = 1 / 120, MAX_STEPS = 12;
+const REFERENCE_STEP = 1 / 60;
+
 const P_DEF = [
   // name, bone, offset along the bone's +Y, radius
   ['pelvis', 'hips', 0, 0.15], ['spine', 'spine', 0, 0.15], ['chest', 'chest', 0, 0.16], ['neck', 'neck', 0, 0.08],
@@ -75,13 +78,15 @@ function basis(d, side, out) {
 /* Build a ragdoll from a character's bones as they are now.
    world: { groundAt(x, z, y, step, r), pushOut(p, r, feet, height, step) }
    velocity: Vector3 of the body when it died; impulses: [{part, vel: Vector3}] */
-export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), impulses = [], root = null } = {}) {
+export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), impulses = [], root = null, onImpact = null } = {}) {
   for (const [, b] of P_DEF) if (!bones[b]) return null;
   root?.updateMatrixWorld(true);
   const n = P_DEF.length;
   const index = new Map(P_DEF.map(([name], i) => [name, i]));
   const pos = [], prev = [], rad = new Float32Array(n);
-  const dt0 = 1 / 60;
+  // The impulses were authored for the original 60 Hz / two-substep
+  // solver. Retain that launch scale while fixing its simulation cadence.
+  const dt0 = REFERENCE_STEP;
   const wq = new THREE.Quaternion();
   P_DEF.forEach(([name, bone, off, r], i) => {
     const b = bones[bone];
@@ -118,8 +123,11 @@ export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), im
     return { bone: bones[bone], i, j, q0, d0: d0.normalize(), s, B0inv: s ? B0.clone().invert() : null };
   });
 
-  let asleep = false, still = 0;
+  let asleep = false, still = 0, accumulator = 0, fixedTicks = 0;
   const tmp = new THREE.Vector3(), push = { x: 0, z: 0 };
+  let impactCallback = typeof onImpact === 'function' ? onImpact : null, impactArmed = 0, impactCandidate = null;
+  const impactStartY = new Float64Array(3), impactDown = new Float64Array(3);
+  function cancelImpact() { impactCallback = null; impactCandidate = null; }
 
   function satisfy() {
     for (const [i, j, L] of sticks) {
@@ -147,7 +155,12 @@ export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), im
       push.x = p.x; push.z = p.z;
       if (world.pushOut(push, r, p.y - r, r * 2, 0.02)) { p.x = push.x; p.z = push.z; }
       const g = world.groundAt(p.x, p.z, p.y + 0.3, 0.45, r * 0.6) + r;
+      // Reuse the floor query to arm the torso only after real clearance.
+      if (impactCallback && i < 3 && impactStartY[i] > g + .03) impactArmed |= 1 << i;
       if (p.y < g) {
+        if (impactCallback && i < 3 && (impactArmed & (1 << i)) && impactStartY[i] >= g - .015 && impactDown[i] > .45 && (!impactCandidate || impactDown[i] > impactCandidate.speed)) {
+          impactCandidate = { x: p.x, y: g - r, z: p.z, speed: impactDown[i], part: P_DEF[i][0], time: (fixedTicks + 1) * FIXED_STEP };
+        }
         p.y = g;
         // friction: lose most of the sliding
         const q = prev[i];
@@ -159,23 +172,40 @@ export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), im
   }
 
   function step(dt) {
-    if (asleep) return;
-    const sub = 2, h = Math.min(dt, 1 / 30) / sub;
-    let moved = 0;
-    for (let s = 0; s < sub; s++) {
+    if (asleep || !(dt > 0) || !Number.isFinite(dt)) return;
+    // Main caps dt at .05 s. Bound exceptional callers to .1 s / twelve
+    // solves; discard an old hitch rather than grow an unbounded backlog.
+    accumulator = Math.min(FIXED_STEP * MAX_STEPS, accumulator + dt);
+    let steps = 0;
+    while (accumulator + 1e-10 >= FIXED_STEP && steps++ < MAX_STEPS && !asleep) {
+      const h = FIXED_STEP;
+      accumulator = Math.max(0, accumulator - h);
       for (let i = 0; i < n; i++) {
         const p = pos[i], q = prev[i];
         tmp.copy(p);
         p.x += (p.x - q.x) * 0.995;
         p.y += (p.y - q.y) * 0.995 - 9.8 * h * h;
         p.z += (p.z - q.z) * 0.995;
+        if (impactCallback && i < 3) { impactStartY[i] = tmp.y; impactDown[i] = Math.max(0, (tmp.y - p.y) / h); }
         q.copy(tmp);
       }
       for (let it = 0; it < 6; it++) { satisfy(); collide(); }
+      if (impactCandidate && impactCallback) {
+        const hit = impactCandidate, notify = impactCallback;
+        cancelImpact();
+        hit.surface = world.surfaceUnder?.(hit.x, hit.y, hit.z) || 'mud';
+        notify(Object.freeze(hit));
+      }
+      // Check sleep on the original 60 Hz cadence, independent of render
+      // frames. This preserves the complete reference path and final pose,
+      // including the exact frame that used to put the body to sleep.
+      if (++fixedTicks % 2 === 0) {
+        let moved = 0;
+        for (let i = 0; i < n; i++) moved = Math.max(moved, pos[i].distanceToSquared(prev[i]));
+        still = moved < 1e-7 ? still + REFERENCE_STEP : 0;
+        if (still > 1.2) asleep = true;
+      }
     }
-    for (let i = 0; i < n; i++) moved = Math.max(moved, pos[i].distanceToSquared(prev[i]));
-    still = moved < 1e-7 ? still + dt : 0;
-    if (still > 1.2) asleep = true;
   }
 
   /* Turn the bones to follow the particles. */
@@ -203,7 +233,7 @@ export function createRagdoll(bones, world, { velocity = new THREE.Vector3(), im
   }
 
   return {
-    step, pose,
+    step, pose, cancelImpact,
     get asleep() { return asleep; },
     get pelvis() { return pos[index.get('pelvis')]; },
     positions: pos,

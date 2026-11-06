@@ -23,17 +23,21 @@ export function createPonds(craters, terrain, textures, shared) {
     let rim = Infinity;
     for (let a = 0; a < 12; a++) {
       const t = (a / 12) * Math.PI * 2;
-      rim = Math.min(rim, terrain.height(c.x + Math.cos(t) * c.r, c.z + Math.sin(t) * c.r));
+      const p = c.waterShape ? c.waterShape.point(t, 1) : [c.x + Math.cos(t) * c.r, c.z + Math.sin(t) * c.r];
+      rim = Math.min(rim, terrain.height(...p));
     }
     if (rim < y + 0.06) continue;
     const R = c.r * 0.9, base = pos.length / 3;
     pos.push(c.x, y, c.z);
     for (let i = 0; i < SEG; i++) {
       const t = (i / SEG) * Math.PI * 2;
-      pos.push(c.x + Math.cos(t) * R, y, c.z + Math.sin(t) * R);
+      if (c.waterShape) { const p = c.waterShape.point(t, 0.9); pos.push(p[0], y, p[1]); }
+      else pos.push(c.x + Math.cos(t) * R, y, c.z + Math.sin(t) * R);
     }
     for (let i = 0; i < SEG; i++) idx.push(base, base + 1 + ((i + 1) % SEG), base + 1 + i);
-    list.push({ x: c.x, z: c.z, r: R, y });
+    list.push({ x: c.x, z: c.z, r: R, y, ...(c.waterShape ? {
+      bounds: c.waterShape.bounds(0.9), contains: (x, z) => c.waterShape.contains(x, z, 0.9),
+    } : {}) });
   }
   if (!list.length) return null;
   const geo = new THREE.BufferGeometry();

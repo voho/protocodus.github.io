@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 const THREE = await import('three');
 const { GLTFLoader } = await import('../assets/vendor/GLTFLoader.js');
 const { createCharacter } = await import('../js/character.js');
-const { readSet } = await import('../js/assets.js');
+const { readSet, instantiate } = await import('../js/assets.js');
 const { WEAPONS } = await import('../js/config.js');
 const { startFirstPersonReload, RELOAD_TILT } = await import('../js/reload.js');
 const { ARMS } = await import('../js/player.js');
@@ -152,9 +152,20 @@ for (const id of Object.keys(WEAPONS)) {
   const at = seen(eyeOf(ch), fresh.getWorldPosition(new THREE.Vector3()));
   console.log(`${id} reload: the fresh ${w.prop} seats ${at.down.toFixed(0)}° down, ${at.right.toFixed(0)}° right`);
   assert.ok(inPicture(at), `${id}: the reload should happen in the picture`);
+  const gripError = ch.socketL.getWorldPosition(new THREE.Vector3()).distanceTo(fresh.getWorldPosition(new THREE.Vector3()));
+  assert.ok(gripError < .002, `${id}: the real left hand should hold the fresh ${w.prop}, not leave it floating (${gripError} m)`);
   run.update(0.5);
   assert.ok(!fresh.parent, `${id}: the fresh ${w.prop} is seated (gone into the gun) by half way`);
   run.end();
+  assert.equal(ch.offhandTarget, null, `${id}: ending or interrupting a reload releases the prop target`);
+}
+
+for (const [id, width, height] of [['garand', .026, .051], ['kar98k', .0132, .066]]) {
+  const w = WEAPONS[id], prop = instantiate(models.get(w.prop), matlib);
+  prop.position.fromArray(w.seatedAt.p); prop.quaternion.fromArray(w.seatedAt.q).normalize();
+  const size = new THREE.Box3().setFromObject(prop, true).getSize(new THREE.Vector3());
+  assert.ok(Math.abs(size.x - width) < .002 && Math.abs(size.y - height) < .002 && Math.abs(size.z - .084) < .002,
+    `${id}: actual cartridge stack sits across the receiver with 84 mm rounds parallel to the barrel`);
 }
 {
   const ch = posed('garand', ARMS.sprint);

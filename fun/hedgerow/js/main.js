@@ -13,6 +13,7 @@ import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials
 import { createTerrainTextureArrays } from './terrain-textures.js';
 import { loadModels } from './assets.js';
 import { createSky } from './sky.js';
+import { createEnvironmentMaps } from './environment-maps.js';
 import { lightingProfileFor } from './lighting-profiles.js';
 import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
@@ -67,6 +68,7 @@ import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
 import { createHayDetail } from './hay-detail.js';
 import { createFieldCrops } from './field-crops.js';
+import { createPragueFlags } from './prague-flags.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import { MISSIONS, pickMission, bestKey } from './missions.js';
@@ -135,6 +137,7 @@ function back() {
 
 let renderer, scene, camera, G = null, input, hud, audio;
 let state = 'loading';
+let graphicsLost = false;
 let quality = QUALITY[settings.quality] || QUALITY.high;
 // dynamic resolution state (see adaptResolution)
 let resScale = 1, resCeiling = 1, resCeilingAge = 0, slowFor = 0, fastFor = 0, frameAvg = 1 / 60, lastFrameAt = 0;
@@ -360,6 +363,8 @@ async function boot() {
     G.fieldCrops.group.visible = !!quality.clutter;
     scene.add(G.fieldCrops.group);
   }
+  G.pragueFlags = createPragueFlags(LEVEL, (x, z) => G.terrain.height(x, z), { shared });
+  if (G.pragueFlags) scene.add(G.pragueFlags.group);
   await next('walls');
   dressWalls(G, built.props, LEVEL.lines);
   await next('boots');
@@ -452,15 +457,11 @@ async function boot() {
   mark('environment');
   loading.update('world', 19 / 21, 'Preparing sky reflections');
 
-  // Bake both skies once; changing time of day only swaps the cached reflection map.
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envScene = new THREE.Scene();
-  const envSky = createSky({ fog: NIGHT_FOG, profile: LIGHTING });
-  envSky.mesh.material.depthTest = false;
-  envScene.add(envSky.mesh);
-  G.environments = { night: pmrem.fromScene(envScene, 0, 0.1, 1000) };
-  envSky.setDaylight(true);
-  G.environments.day = pmrem.fromScene(envScene, 0, 0.1, 1000);
+  // Bake both skies once; changing time of day swaps the cached map. Its
+  // retained CPU scene also rebuilds the targets after a graphics reset.
+  const environmentMaps = createEnvironmentMaps(renderer, { fog: NIGHT_FOG, profile: LIGHTING });
+  G.environmentMaps = environmentMaps;
+  G.environments = environmentMaps.bake();
   scene.environment = G.environments.night.texture;
   scene.environmentIntensity = 0.8;
 
@@ -506,9 +507,10 @@ async function boot() {
   menuCamera(0);
   await warmShaders();
   // Keep temporary sky programs alive until warm-up has skipped their compiled shaders.
-  envSky.mesh.geometry.dispose();
-  envSky.mesh.material.dispose();
-  pmrem.dispose();
+  environmentMaps.releaseTemporary();
+  THREE.Material.prototype.setValues = setValues;
+  THREE.ShaderMaterial.prototype.copy = copyShader;
+  madeShaders.clear();
 
   mark('ready');
   ready = true;
@@ -518,6 +520,7 @@ async function boot() {
   state = 'menu';
   // the mission's own light (a morning, a night) from the first look at it
   if (LEVEL.daylight) setDaylight(true);
+  installGraphicsRecovery(environmentMaps);
   fade.classList.remove('on');
   loadingArt.classList.remove('on');
   if (FLY) startFly();
@@ -544,6 +547,62 @@ function error(text) {
   briefingLoad.textContent = text;
 }
 
+// An active mission pauses across a device reset. Never resume the world
+// until its GPU-only reflections and eye-adaptation state are valid again.
+function installGraphicsRecovery(environmentMaps) {
+  const status = $('[data-graphics-status]');
+  const disabled = new Map();
+  canvas.addEventListener('webglcontextlost', event => {
+    event.preventDefault();
+    if (graphicsLost) return;
+    graphicsLost = true;
+    if (state === 'playing') pause();
+    input.enable(false); input.exitLock(); audio.suspend();
+    status.hidden = false;
+    status.textContent = 'Graphics interrupted. Recovering… Reload the page if this continues.';
+    for (const button of document.querySelectorAll('[data-action="start"], [data-action="resume"], [data-action="checkpoint"]')) {
+      disabled.set(button, button.disabled); button.disabled = true;
+    }
+    // Release listeners tied to the old renderer generation while its
+    // context is lost, rather than deleting stale handles after recovery.
+    environmentMaps.clear(); G.environments = null; scene.environment = null;
+    taa?.dispose();
+    renderer.setRenderTarget(null);
+    // Resizing retires the renderer's HDR/effects buffers while their old
+    // context is still lost. applyGraphics restores the real viewport.
+    renderer.setSize(1, 1, false);
+    scene.traverse(object => {
+      if (!object.isLight || !object.shadow) return;
+      object.shadow.map?.dispose(); object.shadow.map = null;
+      object.shadow.mapPass?.dispose(); object.shadow.mapPass = null;
+      object.shadow.needsUpdate = true;
+    });
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    if (!graphicsLost) return;
+    try {
+      G.environments = environmentMaps.bake();
+      environmentMaps.releaseTemporary();
+      scene.environment = G.environments[G.daylight ? 'day' : 'night'].texture;
+      adapt?.reset(); taa?.reset(); renderer.shadowMap.needsUpdate = true;
+      graphicsLost = false;
+      applyGraphics();
+      // Prepare one valid frame while controls are still disabled. The
+      // status stays visible while the restored shaders/targets warm up.
+      taa?.jitter(); blur?.update();
+      try { renderer.render(scene, camera); }
+      finally { taa?.restore(); }
+      blur?.store();
+      for (const [button, wasDisabled] of disabled) button.disabled = wasDisabled;
+      disabled.clear(); status.hidden = true;
+    } catch (err) {
+      graphicsLost = true;
+      status.textContent = 'Graphics could not be restored. Reload the page to continue.';
+      console.error('Graphics recovery:', err);
+    }
+  });
+}
+
 function freshStats() {
   return { kills: 0, headshots: 0, shots: 0, hits: 0, headHits: 0, grenades: 0, damageTaken: 0, deaths: 0, objectives: 0 };
 }
@@ -553,6 +612,7 @@ const KEEP_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDep
 const CLEAR_DEPTH = { enabled: true, needsSwap: false, render(r) { r.autoClearDepth = true; } };
 
 function applyGraphics() {
+  if (graphicsLost) return;
   quality = QUALITY[settings.quality] || QUALITY.high;
   applyResolution();
   // light in the rain first: it reads the scene's depth, which only the first pass gets
@@ -856,7 +916,7 @@ function textures(roots) {
 }
 
 function startMission() {
-  if (!ready) return;              // Move out waits for the world (it says how far loading has got)
+  if (!ready || graphicsLost) return; // Move out waits for prepared graphics.
   mark('move out');
   audio.init();
   if (!missionStarted) {
@@ -865,6 +925,7 @@ function startMission() {
     mission.start();
   }
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
+  cancelCompletionPresentation();
   player.reset(spawn);
   missionTime = 0;
   G.stats = freshStats();
@@ -874,6 +935,7 @@ function startMission() {
 }
 
 function resume() {
+  if (graphicsLost) return;
   hud.hideCrosshair(false);
   state = 'playing';
   show(null);
@@ -893,6 +955,7 @@ function pause() {
   audio.suspend();
   document.body.classList.remove('playing');
   $('[data-pause-mission]').textContent = `${LEVEL.title} · ${formatTime(missionTime)}`;
+  $('[data-screen="pause"] [data-action="checkpoint"]').disabled = !!mission?.done;
   const ol = $('[data-pause-objectives]');
   ol.innerHTML = '';
   LEVEL.objectives.forEach((o) => {
@@ -929,6 +992,7 @@ async function paintFieldMap(detail) {
 const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', officer: 'an officer' };
 let deathSequence = 0;
 let deathPresentation = null;
+let completionPresentation = null, completionRecorded = false;
 
 function onDeath() {
   const sequence = ++deathSequence;
@@ -967,6 +1031,13 @@ function updateDeathPresentation(dt) {
 }
 
 function retryCheckpoint() {
+  if (graphicsLost || mission?.done) return;
+  cancelCompletionPresentation();
+  // A corpse may keep falling during the fade, but its old contact cue
+  // belongs to the attempt that just ended.
+  player.char.ragdoll?.cancelImpact?.();
+  for (const enemy of G.enemies) enemy.char.ragdoll?.cancelImpact?.();
+  audio.cancelContacts?.();
   deathSequence++;
   audio.cancelActions();
   const { spawn, inventory } = mission.restoreCheckpoint();
@@ -987,36 +1058,55 @@ function retryCheckpoint() {
   resume();
 }
 
+function cancelCompletionPresentation() {
+  completionPresentation = null; completionRecorded = false;
+}
+
 function onComplete() {
-  setTimeout(() => {
-    state = 'complete';
-    input.enable(false);
-    input.exitLock();
-    document.body.classList.remove('playing');
-    const s = G.stats;
-    const acc = s.shots ? s.hits / s.shots : 0;
-    const timeBonus = Math.max(0, Math.round((900 - missionTime) * 3));
-    const score = s.kills * 100 + s.headshots * 60 + s.objectives * 400 + Math.round(acc * 1500) + timeBonus - s.deaths * 300;
-    trackAttemptEnd('win', score);
-    let best = 0;
-    try { best = Number(localStorage.getItem(bestKey(MISSION.id)) || 0); if (score > best) localStorage.setItem(bestKey(MISSION.id), String(score)); } catch { /* */ }
-    const rows = [
-      ['Time', formatTime(missionTime)], ['Enemies killed', `${s.kills} / ${G.enemies.length}`], ['Headshots', s.headshots],
-      ['Accuracy', `${Math.round(acc * 100)} %`], ['Grenades thrown', s.grenades], ['Times down', s.deaths],
-      ['Score', score], ['Best', Math.max(best, score)],
-    ];
-    const dl = $('[data-stats]');
-    dl.innerHTML = '';
-    for (const [k, v] of rows) {
-      const dt = document.createElement('dt'); dt.textContent = k;
-      const dd = document.createElement('dd'); dd.textContent = v;
-      if (k === 'Score') dd.className = 'score';
-      dl.append(dt, dd);
-    }
-    $('[data-complete-title]').textContent = LEVEL.completeTitle || `${LEVEL.title}: mission complete`;
-    $('[data-action="next"]').hidden = !MISSIONS[MISSIONS.indexOf(MISSION) + 1];
-    show('complete');
-  }, 2500);
+  if (!mission.done || completionRecorded) return;
+  // The final order decides the result. Hits or a death during the short
+  // presentation must not change the score that was already earned.
+  const s = Object.freeze({ ...G.stats }), time = missionTime;
+  const accuracy = s.shots ? s.hits / s.shots : 0;
+  const timeBonus = Math.max(0, Math.round((900 - time) * 3));
+  const score = s.kills * 100 + s.headshots * 60 + s.objectives * 400 + Math.round(accuracy * 1500) + timeBonus - s.deaths * 300;
+  let best = 0;
+  try {
+    const saved = Number(localStorage.getItem(bestKey(MISSION.id)));
+    if (Number.isFinite(saved) && saved > 0) best = saved;
+    if (score > best) localStorage.setItem(bestKey(MISSION.id), String(score));
+  } catch { /* private storage */ }
+  completionPresentation = { elapsed: 0, report: Object.freeze({ stats: s, time, accuracy, score, best: Math.max(best, score), enemies: G.enemies.length }) };
+  completionRecorded = true;
+  trackAttemptEnd('win', score);
+}
+
+function updateCompletionPresentation(dt) {
+  if (!completionPresentation) return;
+  if (!mission.done) { cancelCompletionPresentation(); return; }
+  if (state !== 'playing' || graphicsLost || !(dt > 0) || !Number.isFinite(dt)) return;
+  completionPresentation.elapsed += dt;
+  if (completionPresentation.elapsed < 2.5 - 1e-9) return;
+  const { stats: s, time, accuracy, score, best, enemies: total } = completionPresentation.report;
+  completionPresentation = null;
+  deathPresentation = null; deathSequence++;
+  state = 'complete'; input.enable(false); input.exitLock();
+  document.body.classList.remove('playing');
+  const rows = [
+    ['Time', formatTime(time)], ['Enemies killed', `${s.kills} / ${total}`], ['Headshots', s.headshots],
+    ['Accuracy', `${Math.round(accuracy * 100)} %`], ['Grenades thrown', s.grenades], ['Times down', s.deaths],
+    ['Score', score], ['Best', best],
+  ];
+  const dl = $('[data-stats]'); dl.innerHTML = '';
+  for (const [k, v] of rows) {
+    const dt = document.createElement('dt'); dt.textContent = k;
+    const dd = document.createElement('dd'); dd.textContent = v;
+    if (k === 'Score') dd.className = 'score';
+    dl.append(dt, dd);
+  }
+  $('[data-complete-title]').textContent = LEVEL.completeTitle || `${LEVEL.title}: mission complete`;
+  $('[data-action="next"]').hidden = !MISSIONS[MISSIONS.indexOf(MISSION) + 1];
+  show('complete');
 }
 
 function showBest() {
@@ -1148,6 +1238,7 @@ function step() {
   timer.update();
   const elapsed = timer.getDelta();
   const dt = Math.min(elapsed, 0.05);
+  if (graphicsLost) { input?.endFrame(); return; }
   if (!G || !G.weather || !G.rig) return;
   const playing = state === 'playing';
   const live = playing || state === 'dead' || state === 'complete' || state === 'fly';
@@ -1170,12 +1261,15 @@ function step() {
   }
 
   if (playing) {
-    missionTime += dt;
+    if (!mission.done) missionTime += dt;
     audio.advanceActions(dt);
     player.update(dt, input, settings);
     enemies.update(dt);
     explosives.update(dt);
     G.debris.update(dt);
+    // Tick a previous completion before mission.update can create a new
+    // one, so its first frame retains the full presentation duration.
+    updateCompletionPresentation(dt);
     mission.update(dt, input);
     updateDeathPresentation(dt);
     if (input.pressed('Escape')) pause();

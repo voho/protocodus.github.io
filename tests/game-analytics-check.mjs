@@ -64,13 +64,13 @@ assert.equal('seed' in ash.events[0], false);
 // checkpoint is a bounded authored index. Exercise the real retry callback.
 const hedge = collector();
 const clearable = { clear: noop };
-const hedgerow = await functions('fun/hedgerow/js/main.js', ['analyticsAttemptContext', 'trackAttemptStart', 'trackAttemptEnd', 'retryCheckpoint'], {
+const hedgerow = await functions('fun/hedgerow/js/main.js', ['analyticsAttemptContext', 'trackAttemptStart', 'trackAttemptEnd', 'cancelCompletionPresentation', 'retryCheckpoint'], {
   ...hedge, LEVEL, DIFFICULTY, settings: { difficulty: 'veteran' },
   mission: { checkpoint: 0, restoreCheckpoint: () => ({ spawn: LEVEL.start, inventory: null }) },
-  missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0, deathSequence: 0,
+  missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0, deathSequence: 0, graphicsLost: false,
   fade: { classList: { add: noop, remove: noop } }, explosives: clearable,
-  G: { debris: clearable, casings: clearable, chunks: clearable, steam: clearable },
-  enemies: { resetLiving: noop }, player: { reset: noop }, resume: noop,
+  G: { debris: clearable, casings: clearable, chunks: clearable, steam: clearable, enemies: [] },
+  enemies: { resetLiving: noop }, player: { reset: noop, char: {} }, resume: noop,
   audio: { cancelActions: noop },
   setTimeout: callback => callback(),
 });

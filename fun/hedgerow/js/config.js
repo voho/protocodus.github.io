@@ -54,6 +54,9 @@ export const WEAPONS = {
     // the sight line in the model (rear aperture, front post) and the eye behind it
     sight: { rear: [0, 0.089, 0.01], front: [0, 0.083, 0.76], relief: 0.16 }, reach: 0.95,
     kick: 0.075,       // first person: how hard each shot throws the muzzle up (viewmotion.js)
+    // prop_seat('garand_clip') from the authored Blender grip frame,
+    // converted into glTF's Y-up axes; the clip is not modelled gun-aligned.
+    seatedAt: { p: [0, 0.074, 0.114], q: [-0.944604, 0.221889, 0.120922, 0.209444] },
   },
   thompson: {
     name: 'M1A1 Thompson', model: 'thompson', kind: 'smg',
@@ -76,6 +79,7 @@ export const WEAPONS = {
     // Tangent rear notch and hooded front post of the shipped model.
     sight: { rear: [0, 0.074, 0.205], front: [0, 0.073, 0.758], relief: 0.355 },
     reach: 1.0, kick: 0.085,
+    seatedAt: { p: [0, 0.118, -0.030], q: [-0.944604, 0.221889, 0.120922, 0.209444] },
   },
   mp40: {
     name: 'MP 40', model: 'mp40', kind: 'smg',

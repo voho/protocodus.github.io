@@ -42,7 +42,7 @@ import * as THREE from 'three';
 import { ENEMY, ENEMY_WEAPONS, GRENADE, GAIT } from './config.js';
 import { clamp, damp, dampAngle, rng, wrapAngle, lerp } from './util.js';
 import { createCharacter, mergedSoldier, randomFace } from './character.js';
-import { startReload as reloadSequence } from './reload.js';
+import { startReload as reloadSequence, reloadEvents } from './reload.js';
 import { MOVE, SHOT, SIGHT } from './world.js';
 import { createNav } from './nav.js';
 import { breathe } from './pace.js';
@@ -141,13 +141,13 @@ export function createEnemies(G, defs) {
       health: ENEMY.health * (d.tough || 1), dead: false, char: null,
       state: 'idle', awareness: 0, lastSeen: -99, lastContact: -99, lastKnown: null, contact: null, pendingContact: null, reportTimer: 0, sees: false, exposure: 0,
       cover: null, coverDeadline: 0, peekSpot: null, stance: d.stance || 'stand', target: null, moveSpeed: 0, vel: new THREE.Vector3(),
-      fireTimer: 0, burstLeft: 0, aimTimer: 0, reaction: 0, suppressed: 0,
+      fireTimer: 0, burstLeft: 0, aimTimer: 0, reaction: 0, suppressed: 0, shotRecoil: 0,
       phase: 'hide', phaseTimer: 0, grenades: type === 'rifle' ? 1 : type === 'smg' ? 1 : 0, grenadeCheck: 2 + R() * 3,
       perceiveTimer: R() * 0.15, searchTimer: 0, stuck: 0, lastPos: new THREE.Vector3(), alertAt: -1,
       patrol: d.patrol || null, patrolIdx: 0, patrolWait: 0,
       leash: d.hold ? 0 : d.leash ?? (type === 'mg' ? 0 : 18),
       mg: null, active: false, firstShot: true, shotsAtTarget: 0,
-      mag: wdef.mag || 30, reloadT: 0, reloadTotal: 1, reloadStage: 0,
+      mag: wdef.mag || 30, reloadT: 0, reloadTotal: 1, reloadStage: 0, reloadAudio: null,
       path: null, pathIdx: 0, pathFails: 0, rejectedCover: new Map(), srch: null, amb: null, alertCover: false,
       patience: 10, waryUntil: -1, scanPhase: R() * 6,
       tacticTimer: 7 + R() * 4, tacticalRole: null, covering: null, coverUntil: -1, fireLaneBlocked: false,
@@ -267,6 +267,7 @@ export function createEnemies(G, defs) {
   function die(e, from, part) {
     e.dead = true;
     e.state = 'dead';
+    e.reloadAudio?.cancel(); e.reloadAudio = null;
     e.pendingThrow = null; e.danger = null; e.heardGrenade = null; e.laneStep = null; e.order = null; e.tacticalRole = null; e.covering = null;
     if (e.cover) { e.cover.taken = null; e.cover = null; }
     let kind = 'death_fwd';
@@ -289,8 +290,14 @@ export function createEnemies(G, defs) {
         impulses.push({ part: part || 'body', vel: dir.multiplyScalar(part === 'head' ? 2.6 : 3.4).add(new THREE.Vector3(0, 0.4, 0)) });
       }
     }
-    e.char.die(kind, { world: G.world, velocity: e.vel.clone(), impulses });
-    G.audio.bodyFall(e.pos.x, e.pos.y, e.pos.z, G.world.surfaceUnder(e.pos.x, e.pos.y, e.pos.z), 0.4 + R() * 0.3);
+    // Keep this draw on the AI stream even when real contact replaces the
+    // fallback, so a body-sound change cannot alter squad decisions.
+    const fallbackDelay = 0.4 + R() * 0.3;
+    e.char.die(kind, {
+      world: G.world, velocity: e.vel.clone(), impulses,
+      onImpact: ({ x, y, z, surface, speed }) => G.audio.bodyImpact(x, y, z, surface, speed),
+    });
+    if (!e.char.ragdoll) G.audio.bodyFall(e.pos.x, e.pos.y, e.pos.z, G.world.surfaceUnder(e.pos.x, e.pos.y, e.pos.z), fallbackDelay);
     if (G.debris && e.char.weapon && e.char.ragdoll) {
       G.debris.drop(e.char.weapon, new THREE.Vector3((R() - 0.5) * 1.5, 1.2, (R() - 0.5) * 1.5), { spin: 5, radius: 0.08, life: 240 });
     }
@@ -558,15 +565,21 @@ export function createEnemies(G, defs) {
 
   function startReload(e) {
     const w = e.wdef;
+    e.reloadAudio?.cancel(); e.reloadAudio = null;
     e.reloadT = e.reloadTotal = w.reload || 3;
     e.reloadStage = 0;
     e.burstLeft = 0;
+    let clip = null;
     if (e.type !== 'mg') {
-      const clip = e.type === 'smg' && e.char.hasClip('reload_smg') ? 'reload_smg' : 'reload';
+      clip = e.type === 'smg' && e.char.hasClip('reload_smg') ? 'reload_smg' : 'reload';
       e.char.oneShot(clip, (e.char.clipLength(clip) || 1.6) / e.reloadTotal);
       e.reloadRun = reloadSequence(G, e.char, w, clip);
     }
-    G.audio.reload?.(w.sound, e.pos);
+    e.reloadAudio = G.audio.reloadActor?.(w.sound, () => e.dead ? null : e.pos, {
+      duration: e.reloadTotal,
+      events: clip ? reloadEvents(G.soldier)[clip] || reloadEvents(G.soldier).reload : undefined,
+    }) || null;
+    if (!e.reloadAudio) G.audio.reload?.(w.sound, e.pos);
     // Caught empty in the open: run to a real cover position rather than
     // stand facing the player through the entire magazine change.
     if (canLeave(e) && !e.cover && e.state === 'combat') {
@@ -578,8 +591,12 @@ export function createEnemies(G, defs) {
   /* the hands during an enemy reload (the shared sequencer in reload.js) */
   function reloadSteps(e, dt) {
     e.reloadT -= dt;
+    e.reloadAudio?.advance(dt);
     e.reloadRun?.update(1 - Math.max(0, e.reloadT) / e.reloadTotal);
-    if (e.reloadT <= 0) { e.reloadT = 0; e.mag = e.wdef.mag || 30; e.reloadRun?.end(); e.reloadRun = null; }
+    if (e.reloadT <= 0) {
+      e.reloadT = 0; e.mag = e.wdef.mag || 30; e.reloadRun?.end(); e.reloadRun = null;
+      e.reloadAudio?.finish(); e.reloadAudio = null;
+    }
   }
 
   function shoot(e) {
@@ -627,6 +644,8 @@ export function createEnemies(G, defs) {
     }
     e.firstShot = false;
     e.shotsAtTarget++;
+    // A small shoulder response follows a fired round; mounted guns retain their bipod pose.
+    if (!e.mg) e.shotRecoil = Math.min(.065, e.shotRecoil + (e.type === 'rifle' ? .045 : .018));
     // visuals and sound
     const dir = new THREE.Vector3();
     let end;
@@ -1539,6 +1558,7 @@ export function createEnemies(G, defs) {
 
   function animate(e, dt) {
     const ch = e.char;
+    e.shotRecoil = damp(e.shotRecoil, 0, 18, dt);
     const speed = Math.hypot(e.vel.x, e.vel.z);
     let move;
     const crouch = e.stance === 'crouch';
@@ -1584,6 +1604,7 @@ export function createEnemies(G, defs) {
       const dh = Math.hypot(e.lastKnown.x - e.pos.x, e.lastKnown.z - e.pos.z);
       ch.aimPitch = clamp(Math.atan2(dy, dh), -0.8, 0.8);
     } else ch.aimPitch = 0;
+    if (!e.mg) ch.aimPitch += e.shotRecoil;
     ch.root.position.copy(e.pos);
     ch.root.rotation.y = e.yaw;
     // out of view and not close: the skeleton is posed five times a second
@@ -1628,11 +1649,13 @@ export function createEnemies(G, defs) {
         e.char.shadow.visible = e.inView;
         continue;
       }
+      // A reload already in progress must complete even when the player
+      // leaves this encounter; otherwise its actor-owned sound stays queued.
+      if (e.reloadT > 0) reloadSteps(e, dt);
       e.active = dPl < 170;
       if (!e.active) { e.char.shadow.visible = false; continue; }
       e.lastPos.copy(e.pos);
       receiveContact(e);
-      if (e.reloadT > 0) reloadSteps(e, dt);
       e.perceiveTimer -= dt;
       if (e.perceiveTimer <= 0) {
         const step = 0.12;
@@ -1674,8 +1697,9 @@ export function createEnemies(G, defs) {
       e.state = e.patrol ? 'patrol' : 'idle';
       e.awareness = 0; e.lastKnown = null; e.contact = null; e.pendingContact = null; e.reportTimer = 0; e.lastSeen = -99; e.lastContact = -99; e.alertAt = -1;
       if (e.cover) { e.cover.taken = null; e.cover = null; }
-      e.phase = 'hide'; e.suppressed = 0; e.vel.set(0, 0, 0); e.health = ENEMY.health * (e.def.tough || 1);
+      e.phase = 'hide'; e.suppressed = 0; e.shotRecoil = 0; e.vel.set(0, 0, 0); e.health = ENEMY.health * (e.def.tough || 1);
       e.mag = e.wdef.mag || 30; e.reloadT = 0; e.reloadRun?.end(); e.reloadRun = null; e.char.holdLeft(null);
+      e.reloadAudio?.cancel(); e.reloadAudio = null;
       e.srch = null; e.amb = null; e.path = null; e.alertCover = false; e.waryUntil = -1; e.patrolIdx = 0; e.patrolWait = 0;
       e.rejectedCover.clear();
       e.danger = null; e.heardGrenade = null; e.pendingThrow = null; e.peekSpot = null; e.tacticalRole = null; e.covering = null; e.coverUntil = -1; e.fireLaneBlocked = false; e.tacticTimer = 7 + R() * 4;

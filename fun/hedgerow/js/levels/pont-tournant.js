@@ -352,7 +352,7 @@ const objectives = [
   { id: 'bridge', text: 'Rush the bridge before it can be blown', kind: 'cross', z: CANAL_Z + HALF + 2, marker: [0, CANAL_Z + HALF] },
   { id: 'demolition', text: 'Disconnect the bridge demolition circuit', kind: 'interact', target: 'demolition', x: 4.2, z: CANAL_Z + HALF + 2.8, r: 2.5, duration: 4, action: 'disconnect', prompt: 'disconnect the demolition cable', progressText: 'Disconnecting the cable' },
   { id: 'cafe', text: 'Clear the café and the houses on the far bank', kind: 'clear', groups: ['farbank'] },
-  { id: 'hold', text: 'Hold the north end of the bridge', kind: 'hold', x: 0, z: 150, r: 24, time: 90, counter: ['counter'], warning: 'They are coming down the road — hold the bridge' },
+  { id: 'hold', text: 'Hold the north end of the bridge', kind: 'hold', x: 0, z: 150, r: 24, time: 90, counter: ['counter'], warning: 'They are coming down the road — hold the bridge', earlyRelief: { minimum: 30, confirmation: 6, message: 'Bridge secured' } },
 ];
 
 const hints = [

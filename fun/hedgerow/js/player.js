@@ -36,6 +36,8 @@ import { createViewMotion } from './viewmotion.js';
 import { createDaze } from './daze.js';
 import { missionLoadout, loadoutInventory } from './loadout.js';
 import { attachResistanceIdentity } from './resistance-kit.js';
+import { BOLT_CYCLE_DURATION } from './kar98k-action.js';
+import { KAR98K_ACTION_TIMING } from './weapon-action-timing.js';
 
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), dir = new THREE.Vector3();
 
@@ -62,7 +64,7 @@ export function createPlayer(G) {
     crouch: false, crouchT: 0, sprint: false, grounded: true,
     hurtTimer: 99, regenHold: 0,
     weapon: loadout[0], loadout, ammo: {}, grenades: GRENADE.carry,
-    cooldown: 0, reloading: 0, switching: 0, spread: 0,
+    cooldown: 0, reloading: 0, switching: 0, spread: 0, boltAge: -1,
     cooking: -1, throwing: 0,
     vault: null, wading: 0,
     stepAcc: 0, steps: 0, firedAt: -10, lastHurtDir: 0,
@@ -93,8 +95,10 @@ export function createPlayer(G) {
   // actions. A browser timer could otherwise start one while paused, or
   // after a checkpoint has restored a different weapon.
   let autoReload = null;
+  let boltCasePending = false;
+  const boltCasePoint = new THREE.Vector3(), boltForward = new THREE.Vector3();
 
-  const charOpts = () => ({ outfit: G.level?.playerOutfit === 'axis' ? 'axis' : 'allied', weaponModel: G.models.get(WEAPONS[P.weapon].model), grenadeModel: G.models.get(G.level?.playerGrenade || 'grenade_us'), scene: G.scene });
+  const charOpts = () => ({ outfit: G.level?.playerOutfit === 'axis' ? 'axis' : 'allied', weaponModel: G.models.get(WEAPONS[P.weapon].model), grenadeModel: G.models.get(G.level?.playerGrenade || 'grenade_us'), scene: G.scene, weaponActions: FP });
   let identityKit = null;
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
   identityKit = attachResistanceIdentity(P.char, G.matlib, G.level?.playerIdentity);
@@ -103,6 +107,7 @@ export function createPlayer(G) {
   P.reset = (spawn, keepInventory = null) => {
     grenadeRelease = null;
     autoReload = null;
+    cancelBolt();
     G.audio.cancelActions?.();
     P.pos.set(spawn[0], 0, spawn[1]);
     P.pos.y = G.world.groundAt(P.pos.x, P.pos.z, 1e4, 0.5);
@@ -163,6 +168,7 @@ export function createPlayer(G) {
       P.alive = false;
       grenadeRelease = null; P.cooking = -1; P.throwing = 0;
       autoReload = null;
+      cancelBolt();
       P.reloadRun?.end(); P.reloadRun = null; P.reloading = 0;
       P.killer = by;
       P.diedAt = G.time;
@@ -178,8 +184,13 @@ export function createPlayer(G) {
       P.suppression = 0;
       if (!FP) P.char.hideHead(false);      // first person: the eyes go down with him; the head shows once the camera has left it
       P.headBack = !FP;
-      P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
-      G.audio.bodyFall(P.pos.x, P.pos.y, P.pos.z, G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z), 0.45, true);
+      const fallenChar = P.char;
+      P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses,
+        onImpact: ({ x, y, z, surface, speed }) => {
+          if (!P.alive && P.char === fallenChar) G.audio.bodyImpact(x, y, z, surface, speed, true);
+        },
+      });
+      if (!P.char.ragdoll) G.audio.bodyFall(P.pos.x, P.pos.y, P.pos.z, G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z), 0.45, true);
       if (G.debris && P.char.weapon && P.char.ragdoll) G.debris.drop(P.char.weapon, new THREE.Vector3(0, 1, 0), { spin: 4, radius: 0.08 });
       G.events.emit('playerDied');
     }
@@ -203,10 +214,16 @@ export function createPlayer(G) {
   };
 
   function weaponDef() { return WEAPONS[P.weapon]; }
+  function cancelBolt() {
+    P.boltAge = -1; boltCasePending = false;
+    P.char.boltAge = -1; P.char.boltReload = false;
+    P.char.cancelWeaponAction?.();
+  }
 
   function switchTo(id) {
     if (id === P.weapon || P.switching > 0 || !loadout.includes(id)) return;
     autoReload = null;
+    cancelBolt();
     P.reloadRun?.end();
     P.reloadRun = null;
     P.weapon = id;
@@ -231,6 +248,7 @@ export function createPlayer(G) {
     const w = weaponDef(), a = P.ammo[P.weapon];
     if (P.reloading > 0 || a.mag >= w.mag || a.reserve <= 0 || P.switching > 0 || P.cooking >= 0 || P.throwing > 0) return false;
     autoReload = null;
+    P.boltAge = -1;
     P.reloading = P.reloadTotal = w.reload;
     P.reloadRun?.end();
     if (FP) P.reloadRun = startFirstPersonReload(G, P.char, w);
@@ -295,11 +313,12 @@ export function createPlayer(G) {
     }
     // effects
     G.effects.muzzle(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, w.kind === 'rifle' ? 1.2 : 0.9);
-    G.effects.shell(muzzle.x - md.x * 0.5, muzzle.y, muzzle.z - md.z * 0.5, -md.z, md.x);
-    {
-      // where the empty case lands: a pace to the right of the gun
-      const cx = muzzle.x - md.x * 0.5 - md.z, cz = muzzle.z - md.z * 0.5 + md.x;
-      G.audio.casing(cx, P.pos.y, cz, G.world.surfaceUnder(cx, P.pos.y, cz), 0.4 + Math.random() * 0.15);
+    if (w.action === 'bolt') {
+      // A manually worked rifle retains its case until the bolt is drawn
+      // back. A full reload can take over before the shot cycle begins.
+      P.boltAge = 0; boltCasePending = true;
+    } else {
+      G.effects.shell(muzzle.x - md.x * 0.5, muzzle.y, muzzle.z - md.z * 0.5, -md.z, md.x);
     }
     G.lights.flash(muzzle.x + md.x * 0.3, muzzle.y, muzzle.z + md.z * 0.3, '#ffb36b', 60, 9, 0.06);
     G.audio.gunshot(w.sound, muzzle.x, muzzle.y, muzzle.z, { player: true });
@@ -354,6 +373,18 @@ export function createPlayer(G) {
     if (a.mag === 0 && a.reserve > 0) autoReload = { weapon: P.weapon, ammo: a, delay: 0.25 };
   }
 
+  function ejectBoltCase() {
+    boltCasePending = false;
+    const gun = P.char.weapon;
+    if (gun) {
+      gun.localToWorld(boltCasePoint.set(-.02, .055, -.03));
+      boltForward.set(0, 0, 1).transformDirection(gun.matrixWorld);
+    } else {
+      boltCasePoint.copy(P.pos).y += 1.35;
+      boltForward.set(Math.sin(P.yaw), 0, Math.cos(P.yaw));
+    }
+    G.effects.shell(boltCasePoint.x, boltCasePoint.y, boltCasePoint.z, -boltForward.z, boltForward.x);
+  }
 
   /* The round from the eye along `d`: the first man or thing it hits, after going through at most
      one thin board, crate side or canvas (`through`: where it went in, and out at ox, oy, oz), with
@@ -525,6 +556,7 @@ export function createPlayer(G) {
     // a throw started this frame gets its full 300 ms animation lead-in.
     const reloadingAtStart = P.reloading > 0;
     if (grenadeRelease) grenadeRelease.delay -= dt;
+    if (P.boltAge >= 0) P.boltAge = Math.min(BOLT_CYCLE_DURATION, P.boltAge + dt);
     if (autoReload) {
       autoReload.delay -= dt;
       if (autoReload.delay <= 1e-9) {
@@ -554,7 +586,7 @@ export function createPlayer(G) {
     if (input.held('KeyD')) fx -= 1;
     const len = Math.hypot(fx, fz);
     if (len > 0) { fx /= len; fz /= len; }
-    const aiming = input.mouseR && P.reloading <= 0 && P.throwing <= 0;
+    const aiming = input.mouseR && P.reloading <= 0 && P.throwing <= 0 && P.switching <= 0 && P.boltAge < 0;
     if (aiming && !P.wasAiming) G.audio.gear('aim');
     P.wasAiming = aiming;
     P.sprint = input.held('Shift') && fz > 0.3 && !aiming && P.reloading <= 0 && P.cooking < 0;
@@ -681,6 +713,7 @@ export function createPlayer(G) {
 
     // grenades: hold G to cook, release to throw
     if (input.pressed('KeyG') && P.grenades > 0 && P.cooking < 0 && P.throwing <= 0 && P.reloading <= 0) {
+      if (P.boltAge >= 0) { cancelBolt(); G.audio.cancelActions?.(); }
       P.cooking = G.time;
       G.audio.pin();
     }
@@ -718,6 +751,7 @@ export function createPlayer(G) {
       const t = P.reloading > 0 && P.reloadRun?.pose ? P.reloadRun.pose(1 - P.reloading / P.reloadTotal)
         : P.switching > 0.25 ? ARMS.away
         : P.blocked ? ARMS.wall
+        : P.boltAge >= 0 ? { pitch: -.08, yaw: .07, roll: .10 }
         : P.sprint ? ARMS.sprint
         : null;
       for (const k of ['pitch', 'yaw', 'roll']) P.arms[k] = damp(P.arms[k], t ? t[k] : 0, 10, dt);
@@ -736,7 +770,12 @@ export function createPlayer(G) {
     // leaning out: the body rolls over his feet about its own forward axis (rotation order XYZ:
     // the roll is in the body's frame, before its yaw); negative z is to his left
     ch.root.rotation.z = -P.lean * LEAN;
+    const boltReload = w.action === 'bolt' && P.reloading > 0;
+    ch.boltReload = boltReload;
+    ch.boltAge = boltReload ? P.reloadTotal - P.reloading : P.boltAge;
     ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.2));
+    if (boltCasePending && w.action === 'bolt' && ch.boltAge >= (boltReload ? KAR98K_ACTION_TIMING.reload.eject : KAR98K_ACTION_TIMING.shot.eject)) ejectBoltCase();
+    if (P.boltAge >= BOLT_CYCLE_DURATION) P.boltAge = -1;
     // Read the newly posed hand on the release frame, after movement and
     // animation have caught up with the player's current position.
     if (grenadeRelease && grenadeRelease.delay <= 1e-9) releaseGrenade();

@@ -89,17 +89,44 @@ is crossed. At most four action groups hold 32 cues each. Pause preserves them,
 and death, reset or a switch discard the pending cues and fade any active parts.
 `tests/audio-actions-check.mjs` renders normal and four-times-slower simulation
 cadence, main's advance-before-new-shot ordering, paused advancement, cancellation
-and queue limits. Gunshot attacks/tails, enemy reloads and sound propagation
-keep their audio-clock timelines. Reflections remove sub-bass and reduce the second return to keep
+and queue limits. NPC reload handles advance separately with each soldier's
+reload timer. Magazine/clip and bolt beats use the shipped rig's named event
+fractions, and each beat takes its world position and material path when it
+actually occurs. A soldier running into cover therefore does not leave the
+rest of his reload behind. At most 12 NPC action groups hold 32 descriptors
+each; death, interrupted/replaced reloads, reset and menus cancel them without
+affecting another soldier or the player's weapon. Normal completion discards
+unused descriptors while letting an already-emitted final mechanical tail end.
+`tests/audio-actors-check.mjs`
+uses real rig events and PCM to check moving/covered sources, slow simulation,
+pause, per-actor cancellation, queue limits and cleanup. Gunshot attacks/tails
+and sound propagation keep their audio-clock timelines. Reflections remove
+sub-bass and reduce the second return to keep
 automatic fire clear; a final smooth peak guard leaves ordinary levels unchanged
 below 0.82 and catches coincident blast/fire transients at a 0.94 ceiling.
 Wildlife shares the weather fade/duck bus so it fades with the mission ambience.
+Pont's quiet aircraft pass follows a fixed world flight bearing, so turning
+changes the heard direction without rotating the flight with the listener.
+One pass at most, including its fade, uses the existing 20 Hz spatial update
+budget and no world traces. Roof/weather exposure and ambience volume affect
+the engine bed; pause freezes its audio clock and menus release its oscillators.
+`tests/audio-aircraft-check.mjs` renders bearing/level, shelter, mute, menu
+cancellation, the one-pass bound and cleanup. This is original procedural
+multi-engine ambience, not a recording of an identified aircraft.
 Canal frog calls originate at their configured water-bank height rather than
 following the listener up a bridge or hill. Each call keeps its emission point;
 walking or turning updates only its heard distance, filtering and bearing.
 The 36-sample voice budget protects the player's attack and nearby threats ahead
 of quieter distant tails. One-shot panners, filters and echo sends disconnect
 after their last source ends, including sources scheduled for later playback.
+The visible brass case triggers one quiet original synthesized tick/ring on
+its actual first ground contact. The landing material and normal impact speed
+control audibility; mud, grass, foliage, fabric and water absorb it. Later small
+bounces add no invented sound train. Eight contact voices at most play at once,
+and each releases within a fraction of a second. The Thompson and MP 40 use the
+short case mesh pool. `tests/audio-casings-check.mjs` checks the actual physics
+ground frame, slow-render timing, pool reuse, material/mix silence, live pause,
+reset, source budget and resource cleanup without booting a WebGL scene.
 Horizon artillery reports accept the flash's world bearing and a travel delay
 in seconds on the audio clock. Their broad stereo bearing follows listener
 turns without extra world traces; pause freezes the remaining delay. At most
@@ -132,6 +159,18 @@ menu gating and pause stop/freeze its loops. `tests/audio-radios-check.mjs` rend
 phase gating, stereo bearing, listener turns, distance/wall filtering and cleanup.
 `tests/audio-prague-check.mjs` verifies open courtyards and roofed/blocked passage
 paths against the mission's placed procedural colliders without a GPU boot.
+
+Bodies use an original procedural thump and restrained clothing/kit detail at
+the first meaningful pelvis, spine or chest floor contact. The physics callback
+passes the actual surface point, material and downward speed; it does not use an
+estimated death timer or invent a later rifle clatter. Eight short contact groups
+at most include a reserved player slot. Suspension freezes tails, while retry
+and menu cancellation stop them. `tests/ragdoll-contact-check.mjs` checks real-rig
+contact timing, unchanged physics, surfaces and cancellation at20–240Hz;
+`tests/body-consumer-check.mjs` and `tests/ai-body-audio-check.mjs` cover actual
+player/NPC deaths. `tests/audio-bodies-check.mjs` renders the real WebAudio mix,
+material/speed differences, bearing, occlusion, exact mute and bounded cleanup.
+No additional recording or license is required for these original sounds.
 
 `node fun/hedgerow/tests/audio-check.mjs` validates file hashes and payload size,
 decodes all files using Chromium Web Audio, renders a real gunshot, verifies the

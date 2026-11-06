@@ -28,6 +28,7 @@ import { createFireAmbience } from './audio-fires.js';
 import { createRadioAmbience } from './audio-radios.js';
 import { KAR98K_ACTION_TIMING } from './weapon-action-timing.js';
 import { createSimulationActions } from './audio-actions.js';
+import { actorReloadTiming } from './audio-reload-timing.js';
 
 // One-shot mono files keep positional sounds anchored to their source. No
 // remote audio requests, and no full recording sessions in the shipping game.
@@ -47,6 +48,8 @@ const SAMPLE_BASE = new URL('../assets/audio/', import.meta.url);
 const MAX_SAMPLE_VOICES = 36;
 const SPATIAL_INTERVAL = .05, SPATIAL_BUDGET = 32;
 const MAX_HORIZON_REPORTS = 4;
+const MAX_CASING_CONTACTS = 8;
+const MAX_BODY_CONTACTS = 8;
 
 export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, verb = null;
@@ -68,8 +71,11 @@ export function createAudio() {
   let dull = null, ring = null, ringVolume = null, dazed = 0;
   let echoA = null, echoB = null, echoFb = null, echoLP = null;   // the slap-back (setSpace)
   const samples = new Map(), sampleLast = new Map(), sampleVoices = new Set();
-  let playerActions = null;
+  let playerActions = null, actorActions = null;
   const horizonReports = new Set();
+  const casingContacts = new Set();
+  const bodyContacts = new Set();
+  const aircraftPasses = new Set();
   const transientBuses = new WeakMap(), activeBuses = new Set();
   let sampleCulled = 0, sampleStolen = 0;
   let sampleLoad = null, sampleFailed = 0, sampleRetries = 0;
@@ -77,6 +83,8 @@ export function createAudio() {
   let fireAmbience = null, fireSources = [];
   let radioAmbience = null, radioSources = [];
   let horizonCulled = 0;
+  let casingPlayed = 0, casingCulled = 0;
+  let bodyPlayed = 0, bodyCulled = 0;
 
   // A bounded queue avoids competing with the mission's model/texture loads.
   // Loading is optional: the first shot never waits on a network request.
@@ -222,6 +230,7 @@ export function createAudio() {
     tone.start(); waver.start();
     sfx = ctx.createGain(); sfx.gain.value = mix.effects; sfx.connect(master);
     playerActions = createSimulationActions({ ctx, output: sfx });
+    actorActions = createSimulationActions({ ctx, output: sfx, maxActions: 12 });
     ambienceMix = ctx.createGain(); ambienceMix.gain.value = mix.ambience;
     amb = ctx.createGain(); amb.gain.value = 0;
     amb.connect(ambienceMix).connect(master);   // silent until the mission (setOutdoors)
@@ -352,7 +361,7 @@ export function createAudio() {
 
   /* Spatial chain for a sound at a world position. Returns the input node
      or null when it is too far to hear. */
-  function spatial(x, y, z, { ref = 6, max = 400, echo = 0, lowpassFar = true, occlude = true, ambient = false } = {}) {
+  function spatial(x, y, z, { ref = 6, max = 400, echo = 0, lowpassFar = true, occlude = true, ambient = false, destination = null } = {}) {
     const d = Math.hypot(x - listener.x, y - listener.y, z - listener.z);
     if (d > max) return null;
     const g = ctx.createGain();
@@ -366,7 +375,7 @@ export function createAudio() {
       g.connect(lp); lp.connect(pan);
       nodes.push(lp);
     } else g.connect(pan);
-    pan.connect(ambient ? amb : sfx);
+    pan.connect(destination || (ambient ? amb : sfx));
     if (echo > 0) {
       send = ctx.createGain();
       pan.connect(send); send.connect(verb);
@@ -385,7 +394,9 @@ export function createAudio() {
   function applySpatial(position, time, immediate = false) {
     if (Number.isFinite(position.bearing)) {
       // A horizon direction has no local collider path or distance change.
-      spatialParam(position.pan.pan, -Math.sin(position.bearing - listener.yaw) * position.spread, time, immediate);
+      const progress = position.moving ? Math.max(0, Math.min(1, (time - position.start) / position.duration)) : 0;
+      const bearing = position.bearing + (position.travel || 0) * progress;
+      spatialParam(position.pan.pan, -Math.sin(bearing - listener.yaw) * position.spread, time, immediate);
       position.revision = listenerRevision;
       return;
     }
@@ -410,7 +421,7 @@ export function createAudio() {
     let count = 0, visited = 0;
     while (visited < total && count < SPATIAL_BUDGET) {
       const bus = buses[(start + visited++) % total];
-      if (!bus.position || bus.position.revision === listenerRevision) continue;
+      if (!bus.position || (bus.position.revision === listenerRevision && !bus.position.moving)) continue;
       applySpatial(bus.position, time); count++;
     }
     spatialCursor = (start + visited) % total;
@@ -557,13 +568,45 @@ export function createAudio() {
     const out = at ? spatial(at.x, at.y + 1.2, at.z, { ref: 2, max: 30 }) : action.out;
     if (!out) return;
     const t = action ? 0 : ctx.currentTime;
-    const dispatch = (tt, make) => action ? action.at(tt, (_, when) => make(when)) : make(tt);
+    reloadCues(kind, (tt, make) => action ? action.at(tt, make) : make(out, tt), t);
+  }
+
+  // Each actor advances only its own handle with the same dt as reloadT.
+  // A future beat holds no source/path at the soldier's old position. Its
+  // short emitted tail stays where it happened, with the normal shared
+  // material-path budget and independent listener-bearing updates.
+  function reloadActor(kind, getPosition, options) {
+    if (!ctx || typeof getPosition !== 'function') return null;
+    const action = actorActions.create();
+    let cancelled = false;
+    const position = () => {
+      if (cancelled) return null;
+      const at = getPosition();
+      if (at && [at.x, at.y, at.z].every(Number.isFinite)) return at;
+      cancelled = true; action.cancel(); return null;
+    };
+    reloadCues(kind, (offset, make) => action.at(offset, (output, when) => {
+      const at = position();
+      if (!at) return null;
+      const out = spatial(at.x, at.y + 1.2, at.z, { ref: 2, max: 30, destination: output });
+      return out ? make(out, when) : null;
+    }), 0, actorReloadTiming(kind, options));
+    return {
+      advance(dt) { if (position()) action.advance(dt); },
+      cancel() { cancelled = true; action.cancel(); },
+      finish() { cancelled = true; action.finish(); },
+    };
+  }
+
+  // The same mechanical pattern serves player, moving NPC and legacy
+  // position-only callers. Only the dispatch clock/output route differs.
+  function reloadCues(kind, dispatch, t = 0, profile = null) {
     const click = (tt, f, peak, d = 0.04, q = 3) => {
       const freq = f * (0.95 + R() * 0.1);
-      dispatch(tt, when => burst(out, when, { dur: d, peak, type: 'bandpass', freq, q }));
+      dispatch(tt, (out, when) => burst(out, when, { dur: d, peak, type: 'bandpass', freq, q }));
     };
-    const slide = (tt, f0, f1, peak, d = 0.09) => dispatch(tt, when => burst(out, when, { dur: d, peak, type: 'bandpass', freq: f0, sweepTo: f1, q: 2 }));
-    const clunk = (tt, f, peak) => dispatch(tt, when => tone(out, when, { f0: f, f1: f * 0.58, dur: 0.08, peak, type: 'triangle' }));
+    const slide = (tt, f0, f1, peak, d = 0.09) => dispatch(tt, (out, when) => burst(out, when, { dur: d, peak, type: 'bandpass', freq: f0, sweepTo: f1, q: 2 }));
+    const clunk = (tt, f, peak) => dispatch(tt, (out, when) => tone(out, when, { f0: f, f1: f * 0.58, dur: 0.08, peak, type: 'triangle' }));
     if (kind === 'garand') {
       slide(t + 0.17, 1800, 2600, 0.12); click(t + 0.24, 2300, 0.3);
       slide(t + 0.72, 1200, 1800, 0.15, 0.12); click(t + 0.83, 2800, 0.26);
@@ -572,14 +615,15 @@ export function createAudio() {
       clunk(t + 1.85, 260, 0.18);
     } else if (kind === 'thompson' || kind === 'mp40') {
       const steel = kind === 'mp40' ? 0.83 : 1;
-      click(t + 0.25, 3000, 0.22, 0.03);
-      slide(t + 0.3, 1500 * steel, 900 * steel, 0.12, 0.1);
-      click(t + 0.78, 1300 * steel, 0.1, 0.06, 1.5);
-      slide(t + 0.8, 900 * steel, 1600 * steel, 0.14, 0.12); click(t + 0.95, 2400 * steel, 0.32, 0.04, 2);
-      slide(t + 1.55, 2000 * steel, 1400 * steel, 0.15, 0.08); click(t + 1.62, 2600 * steel, 0.3);
-      click(t + 2.05, 2200 * steel, 0.38, 0.05, 2); clunk(t + 2.05, kind === 'mp40' ? 205 : 250, 0.08);
+      const timing = profile || { release: .25, extract: .3, drop: .78, insert: .8, seated: .95, pull: 1.55, rack: 1.62, shut: 2.05 };
+      click(t + timing.release, 3000, 0.22, 0.03);
+      slide(t + timing.extract, 1500 * steel, 900 * steel, 0.12, 0.1);
+      click(t + timing.drop, 1300 * steel, 0.1, 0.06, 1.5);
+      slide(t + timing.insert, 900 * steel, 1600 * steel, 0.14, 0.12); click(t + timing.seated, 2400 * steel, 0.32, 0.04, 2);
+      slide(t + timing.pull, 2000 * steel, 1400 * steel, 0.15, 0.08); click(t + timing.rack, 2600 * steel, 0.3);
+      click(t + timing.shut, 2200 * steel, 0.38, 0.05, 2); clunk(t + timing.shut, kind === 'mp40' ? 205 : 250, 0.08);
     } else if (kind === 'kar98k') {
-      const timing = KAR98K_ACTION_TIMING.reload;
+      const timing = profile || KAR98K_ACTION_TIMING.reload;
       click(t + timing.lift, 1850, 0.18); slide(t + timing.pull, 1200, 2400, 0.16, 0.13);
       click(t + timing.clipIn, 3300, 0.15, 0.025); // stripper clip into the guide
       slide(t + timing.roundsIn, 1900, 950, 0.15, 0.22); // rounds pressed into the internal magazine
@@ -796,10 +840,15 @@ export function createAudio() {
 
   /* The kit on a moving soldier: canteen, scabbard, pouches, the rifle on its
      sling, webbing and wool. */
-  function kit(out, t, peak) {
-    burst(out, t, { dur: 0.05, peak: peak * 0.35, type: 'bandpass', freq: 2900 + R() * 900, q: 5 });
-    if (R() < 0.5) tone(out, t + 0.01, { f0: 1700 + R() * 600, f1: 1500, dur: 0.07, peak: peak * 0.06, type: 'triangle' });
-    burst(out, t, { dur: 0.12, peak: peak * 0.18, type: 'bandpass', freq: 1200, q: 0.8 });
+  function kit(out, t, peak, track = null) {
+    const click = burst(out, t, { dur: 0.05, peak: peak * 0.35, type: 'bandpass', freq: 2900 + R() * 900, q: 5 });
+    track?.(click);
+    if (R() < 0.5) {
+      const ring = tone(out, t + 0.01, { f0: 1700 + R() * 600, f1: 1500, dur: 0.07, peak: peak * 0.06, type: 'triangle' });
+      track?.(ring);
+    }
+    const cloth = burst(out, t, { dur: 0.12, peak: peak * 0.18, type: 'bandpass', freq: 1200, q: 0.8 });
+    track?.(cloth);
   }
 
   /* The player's own moves: kneeling, getting up, shouldering the rifle,
@@ -854,22 +903,93 @@ export function createAudio() {
     }
   }
 
-  /* A body hitting the ground `delay` from now, the kit with it, the rifle
-     clattering down a moment later. */
-  function bodyFall(x, y, z, surface = 'mud', delay = 0.5, player = false) {
+  /* A single, quiet first contact from casings.js. The physics already owns
+     the bounce timing: this adds no guessed delay or invented extra bounces.
+     Soft ground absorbs the small case, while boards and hard surfaces give
+     a brief wooden tick or brass ring. This original synthesis uses no new
+     recording or claim to reproduce a particular cartridge. */
+  function casingImpact(x, y, z, surface, speed = 4) {
+    if (!ctx || ctx.state !== 'running' || ![x, y, z, speed].every(Number.isFinite) || speed < .8) return false;
+    const kind = STEP[surface] || 'hard';
+    if (kind !== 'hard' && kind !== 'metal' && kind !== 'wood') return false;
+    if (casingContacts.size >= MAX_CASING_CONTACTS) { casingCulled++; return false; }
+    const out = spatial(x, y, z, { ref: 1.2, max: 16 });
+    if (!out) return false;
+    const t = ctx.currentTime + .001, strength = Math.min(1, speed / 5);
+    const wood = kind === 'wood', f = (wood ? 2300 : 3700) + R() * (wood ? 650 : 1100);
+    const contact = { remaining: wood ? 2 : 3 };
+    casingContacts.add(contact); casingPlayed++;
+    const track = source => source.addEventListener('ended', () => { if (!--contact.remaining) casingContacts.delete(contact); }, { once: true });
+    track(tone(out, t, { f0: f, f1: f * .985, dur: wood ? .04 : .095, peak: (wood ? .03 : .046) * strength, type: 'sine' }));
+    if (!wood) track(tone(out, t, { f0: f * 2.64, f1: f * 2.61, dur: .035, peak: .012 * strength, type: 'sine' }));
+    track(burst(out, t, { dur: .007, peak: .022 * strength, type: 'bandpass', freq: wood ? 2500 : 5600, q: 2 }));
+    return true;
+  }
+
+  function bodyContactOutput(x, y, z, player, ref = 2.5, max = 40) {
+    // Leave one of the eight slots for the player's own fall.
+    if (bodyContacts.size >= MAX_BODY_CONTACTS || (!player && [...bodyContacts].filter(contact => !contact.player).length >= MAX_BODY_CONTACTS - 1)) { bodyCulled++; return false; }
+    const gate = ctx.createGain(); gate.connect(sfx);
+    const out = player ? transientBus(gate, [gate]) : spatial(x, y, z, { ref, max, destination: gate });
+    if (!out) { gate.disconnect(); return false; }
+    const contact = { gate, sources: new Set(), cancelled: false, player };
+    bodyContacts.add(contact); bodyPlayed++;
+    const track = source => {
+      contact.sources.add(source);
+      source.addEventListener('ended', () => {
+        contact.sources.delete(source);
+        if (!contact.sources.size) { bodyContacts.delete(contact); gate.disconnect(); }
+      }, { once: true });
+    };
+    return { out, track };
+  }
+
+  /* A torso actually meeting its floor. The short clothing/kit detail
+     belongs to this contact; the dropped rifle has its own physics. */
+  function bodyImpact(x, y, z, surface = 'mud', speed = 4, player = false) {
+    if (!ctx || ctx.state !== 'running' || !outdoors || ![x, y, z, speed].every(Number.isFinite) || speed <= .45) return false;
+    const output = bodyContactOutput(x, y, z, player);
+    if (!output) return false;
+    const { out, track } = output;
+    const t = ctx.currentTime + .001, kind = STEP[surface] || 'mud';
+    const soft = kind === 'mud' || kind === 'grass' || kind === 'leaves' || kind === 'soft', water = kind === 'water';
+    const strength = .62 * Math.min(1.1, Math.pow(speed / 4, .7)) * (player ? .72 : 1);
+    track(burst(out, t, { dur: .18, peak: (water ? .19 : soft ? .27 : .31) * strength, type: 'lowpass', freq: water ? 240 : soft ? 290 : kind === 'wood' ? 350 : 480, q: .8, brown: true }));
+    track(tone(out, t, { f0: 82, f1: 42, dur: .16, peak: (water || soft ? .12 : .16) * strength }));
+    track(burst(out, t + .008, { dur: .1, peak: .06 * strength, type: 'bandpass', freq: 1000, q: .7 }));
+    track(burst(out, t + .02, { dur: .04, peak: .035 * strength * (water ? .25 : soft ? .55 : 1), type: 'bandpass', freq: 2300, q: 2 }));
+    if (water) track(burst(out, t + .01, { dur: .16, peak: .11 * strength, type: 'bandpass', freq: 650, sweepTo: 320, q: .8 }));
+    else if (kind === 'wood') track(burst(out, t, { dur: .065, peak: .05 * strength, type: 'lowpass', freq: 1000, q: .7 }));
+    return true;
+  }
+
+  function cancelContacts() {
     if (!ctx) return;
-    const out = player ? sfx : spatial(x, y, z, { ref: 3, max: 50 });
-    if (!out) return;
-    const t = ctx.currentTime + delay;
+    for (const contact of bodyContacts) {
+      if (contact.cancelled) continue;
+      contact.cancelled = true;
+      contact.gate.gain.cancelAndHoldAtTime(ctx.currentTime);
+      contact.gate.gain.linearRampToValueAtTime(0, ctx.currentTime + .02);
+      for (const source of contact.sources) { try { source.stop(ctx.currentTime + .04); } catch { /* already ended */ } }
+    }
+  }
+
+  /* Legacy fallback for rigs without physical particles. */
+  function bodyFall(x, y, z, surface = 'mud', delay = 0.5, player = false) {
+    if (!ctx || ctx.state !== 'running' || !outdoors || ![x, y, z, delay].every(Number.isFinite)) return false;
+    const output = bodyContactOutput(x, y, z, player, 3, 50);
+    if (!output) return false;
+    const { out, track } = output, t = ctx.currentTime + Math.max(0, delay);
     const kind = STEP[surface] || 'mud';
-    burst(out, t, { dur: 0.22, peak: 0.55, type: 'lowpass', freq: kind === 'hard' ? 500 : 320, q: 0.9, brown: true });
-    tone(out, t, { f0: 85, f1: 45, dur: 0.18, peak: 0.35 });
-    if (kind === 'mud' || kind === 'water') burst(out, t + 0.03, { dur: 0.25, peak: 0.25, type: 'bandpass', freq: 800, sweepTo: 300, q: 1.5 });
-    kit(out, t + 0.03, 0.5);
-    kit(out, t + 0.12, 0.3);
+    track(burst(out, t, { dur: 0.22, peak: 0.55, type: 'lowpass', freq: kind === 'hard' ? 500 : 320, q: 0.9, brown: true }));
+    track(tone(out, t, { f0: 85, f1: 45, dur: 0.18, peak: 0.35 }));
+    if (kind === 'mud' || kind === 'water') track(burst(out, t + 0.03, { dur: 0.25, peak: 0.25, type: 'bandpass', freq: 800, sweepTo: 300, q: 1.5 }));
+    kit(out, t + 0.03, 0.5, track);
+    kit(out, t + 0.12, 0.3, track);
     const rt = t + 0.18 + R() * 0.2;
-    burst(out, rt, { dur: 0.07, peak: 0.25, type: 'bandpass', freq: kind === 'hard' ? 1800 : 1000, q: 1.5 });
-    if (kind === 'hard') tone(out, rt, { f0: 900, f1: 850, dur: 0.15, peak: 0.05, type: 'triangle' });
+    track(burst(out, rt, { dur: 0.07, peak: 0.25, type: 'bandpass', freq: kind === 'hard' ? 1800 : 1000, q: 1.5 }));
+    if (kind === 'hard') track(tone(out, rt, { f0: 900, f1: 850, dur: 0.15, peak: 0.05, type: 'triangle' }));
+    return true;
   }
 
   function pin() {
@@ -948,19 +1068,36 @@ export function createAudio() {
   /* bombers going over high up, unseen: the beat of many engines, swelling over half a minute and
      drifting across the sky */
   function aircraft(t) {
+    if (aircraftPasses.size) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
     const pan = ctx.createStereoPanner();
-    const from = R() < 0.5 ? -0.8 : 0.8, dur = 28 + R() * 12;
-    pan.pan.setValueAtTime(from, t); pan.pan.linearRampToValueAtTime(-from, t + dur);
+    const from = R() < 0.5 ? -1.25 : 1.25, dur = 28 + R() * 12;
     g.gain.exponentialRampToValueAtTime(0.06, t + dur * 0.45);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     lp.connect(g).connect(pan).connect(weather);
-    transientBus(lp, [lp, g, pan]);
+    const position = { bearing: listener.yaw + from, travel: -2 * from, start: t, duration: dur, moving: true, spread: .85, pan, revision: listenerRevision };
+    applySpatial(position, t, true);
+    transientBus(lp, [lp, g, pan], position);
+    const pass = { gain: g, sources: new Set(), cancelled: false };
+    aircraftPasses.add(pass);
     for (const f of [58, 59.3, 61.1, 87.5]) {
       const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * (0.98 + R() * 0.04);
       o.connect(lp); attachSource(o, lp); o.onended = () => o.disconnect(); o.start(t); o.stop(t + dur + 0.1);
+      pass.sources.add(o);
+      o.addEventListener('ended', () => { pass.sources.delete(o); if (!pass.sources.size) aircraftPasses.delete(pass); }, { once: true });
+    }
+  }
+
+  function cancelAircraft() {
+    if (!ctx) return;
+    for (const pass of aircraftPasses) {
+      if (pass.cancelled) continue;
+      pass.cancelled = true;
+      pass.gain.gain.cancelAndHoldAtTime(ctx.currentTime);
+      pass.gain.gain.setTargetAtTime(0, ctx.currentTime, .04);
+      for (const source of pass.sources) { try { source.stop(ctx.currentTime + .2); } catch { /* already ended */ } }
     }
   }
 
@@ -995,6 +1132,7 @@ export function createAudio() {
   function tick() {
     if (!ctx || ctx.state !== 'running' || !outdoors) return;
     const t = ctx.currentTime;
+    updateSpatial();
     fireAmbience?.update(t);
     radioAmbience?.update(t);
     // Ease the weather behind nearby combat, then restore it smoothly. Foley
@@ -1051,7 +1189,14 @@ export function createAudio() {
     get acousticStatus() { return occlusion.status; },
     get environmentStatus() { return { shelter: sheltered, enclosure }; },
     get actionStatus() { return playerActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 4, maxCues: 32 }; },
+    get actorActionStatus() { return actorActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 12, maxCues: 32 }; },
     get nodeStatus() { return { oneShotBuses: activeBuses.size }; },
+    get casingStatus() { return { active: casingContacts.size, played: casingPlayed, culled: casingCulled, max: MAX_CASING_CONTACTS }; },
+    get bodyContactStatus() { return { active: bodyContacts.size, sources: [...bodyContacts].reduce((n, contact) => n + contact.sources.size, 0), retiring: [...bodyContacts].filter(contact => contact.cancelled).length, played: bodyPlayed, culled: bodyCulled, max: MAX_BODY_CONTACTS }; },
+    get aircraftStatus() {
+      const retiring = [...aircraftPasses].filter(pass => pass.cancelled).length;
+      return { active: aircraftPasses.size - retiring, retiring, max: 1 };
+    },
     get horizonStatus() { return { active: horizonReports.size, pending: [...horizonReports].filter(report => !report.cancelled && report.start > ctx.currentTime).length, sources: [...horizonReports].reduce((count, report) => count + report.sources.size, 0), max: MAX_HORIZON_REPORTS, culled: horizonCulled }; },
     get spatialStatus() { return { updates: spatialUpdates, peak: peakSpatialUpdates, budget: SPATIAL_BUDGET, interval: SPATIAL_INTERVAL }; },
     get fireStatus() { return fireAmbience?.status ?? { active: 0, retiring: 0, max: 4, sources: fireSources.length, pathUpdates: 0, interval: .25, prepared: false, textureBytes: 0 }; },
@@ -1103,6 +1248,9 @@ export function createAudio() {
     /* the weather and wildlife heard (in the mission) or faded out (the menus) */
     setOutdoors(on) {
       if (!on) cancelHorizon();
+      if (!on) cancelAircraft();
+      if (!on) actorActions?.cancel();
+      if (!on) cancelContacts();
       if (on === outdoors || !amb) return;
       outdoors = on;
       ambienceTarget = on ? 1 : 0;
@@ -1129,7 +1277,7 @@ export function createAudio() {
     },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
-    gunshot, garandPing, dryFire, reload, switchWeapon, cancelActions, whizz, impact, explosion, thunder, distant,
-    footstep, gear, casing, bodyFall, pin, grenadeBounce, ui, daze,
+    gunshot, garandPing, dryFire, reload, reloadActor, switchWeapon, cancelActions, whizz, impact, explosion, thunder, distant,
+    footstep, gear, casing, casingImpact, bodyFall, bodyImpact, cancelContacts, pin, grenadeBounce, ui, daze,
   };
 }

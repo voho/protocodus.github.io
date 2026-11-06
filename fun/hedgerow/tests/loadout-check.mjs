@@ -110,6 +110,22 @@ for (const loadout of [['garand', 'thompson'], ['kar98k', 'mp40']]) {
 
 {
   const { P, G, fire, tick, run, hold, audioCalls, effectCalls } = game(['kar98k', 'mp40']);
+  const cases = () => effectCalls.filter(call => call.name === 'shell');
+  fire(); run(.4);
+  assert.equal(cases().length, 0, 'the fired case stays in the rifle until its manual action opens');
+  run(.05); assert.equal(cases().length, 1);
+  assert.ok(Math.abs(cases()[0].time - P.firedAt - .43) < .02, 'the visible case matches the action threshold');
+  assert.equal(audioCalls.filter(call => call.name === 'casing').length, 0, 'the gun leaves landing sounds to actual casing contacts');
+  run(1); assert.equal(cases().length, 1, 'a cycle ejects once');
+
+  P.reset([0, 0, 0]); effectCalls.length = 0; P.ammo.kar98k.mag = 1;
+  fire(); run(.45); assert.equal(cases().length, 0, 'an empty-magazine reload takes over the pending case');
+  run(.07); assert.equal(cases().length, 1, 'the full reload extracts it at its own bolt-pull event');
+
+  P.reset([0, 0, 0]); effectCalls.length = 0;
+  fire(); tick('Digit2'); run(1);
+  assert.equal(cases().length, 0, 'an interrupted cosmetic cycle cannot eject from the replacement weapon');
+
   P.reset([0, 0, 0]); P.ammo.kar98k.mag = 1;
   fire(); hold('KeyG'); tick('KeyG'); run(.4);
   tick('KeyR'); assert.equal(P.reloading, 0, 'manual and queued reloads cannot overlap a cooked grenade');

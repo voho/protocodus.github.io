@@ -1,4 +1,4 @@
-/* Player mechanical cues follow simulation progress. Pending cues are small
+/* Mechanical cues follow simulation progress. Pending cues are small
    descriptors, not already-started Web Audio sources; a slow render frame
    therefore cannot make a bolt/reload finish audibly before its animation. */
 export function createSimulationActions({ ctx, output, maxActions = 4, maxCues = 32 }) {
@@ -11,6 +11,7 @@ export function createSimulationActions({ ctx, output, maxActions = 4, maxCues =
   }
 
   function cancel(action) {
+    if (action.cancelled) return;
     action.pending.length = 0; action.cancelled = true;
     const time = ctx.currentTime;
     action.out.gain.cancelAndHoldAtTime(time);
@@ -23,9 +24,12 @@ export function createSimulationActions({ ctx, output, maxActions = 4, maxCues =
   function create() {
     if (actions.size >= maxActions) { cancel(actions.values().next().value); evicted++; }
     const out = ctx.createGain(); out.connect(output);
-    const action = { out, elapsed: 0, pending: [], sources: new Set(), cancelled: false,
+    const action = { out, elapsed: 0, pending: [], sources: new Set(), cancelled: false, finished: false,
+      advance(dt) { advanceAction(action, dt); },
+      cancel() { cancel(action); },
+      finish() { action.pending.length = 0; action.finished = true; releaseIfFinished(action); },
       at(offset, make) {
-        if (action.cancelled || !Number.isFinite(offset) || offset < 0 || typeof make !== 'function' || action.pending.length >= maxCues) { rejected++; return action; }
+        if (action.cancelled || action.finished || !Number.isFinite(offset) || offset < 0 || typeof make !== 'function' || action.pending.length >= maxCues) { rejected++; return action; }
         action.pending.push({ offset, make });
         action.pending.sort((a, b) => a.offset - b.offset);
         return action;
@@ -37,8 +41,12 @@ export function createSimulationActions({ ctx, output, maxActions = 4, maxCues =
   }
 
   function advance(dt) {
+    for (const action of actions) advanceAction(action, dt);
+  }
+
+  function advanceAction(action, dt) {
     if (!Number.isFinite(dt) || dt <= 0 || ctx.state !== 'running') return;
-    for (const action of actions) {
+    if (actions.has(action) && !action.finished) {
       action.elapsed += dt;
       while (action.pending.length && action.pending[0].offset <= action.elapsed + 1e-9) {
         const cue = action.pending.shift();

@@ -87,7 +87,7 @@ export function startReload(G, char, w, clip) {
         break;
       case 'oprod_slap':
       case 'bolt_back':
-        G.audio.ui?.('hit');
+        // The reload audio sequence supplies the positional mechanism beat.
         break;
     }
   }
@@ -132,14 +132,16 @@ export function startFirstPersonReload(G, char, w) {
   // the fresh clip or magazine rides on the rifle from where the hand brings it to where it seats
   const anchors = G.models.get(w.model)?.anchors || {};
   const seat = new THREE.Vector3(), from = new THREE.Vector3(), rot = new THREE.Quaternion();
-  if (smg && w.seatedAt) {
+  if (w.seatedAt) {
     seat.fromArray(w.seatedAt.p); rot.fromArray(w.seatedAt.q);
-    from.copy(seat).add(new THREE.Vector3(0, -0.17, -0.02));
+    from.copy(seat).add(new THREE.Vector3(0, smg ? -0.17 : 0.16, smg ? -0.02 : 0.02));
   } else {
     seat.fromArray(anchors.clip || [0, 0.074, 0.114]);
     from.copy(seat).add(new THREE.Vector3(0, 0.16, 0.02));
   }
   const [inAt, seatAt] = smg ? [0.24, 0.37] : [0.24, 0.36];
+  const handTarget = new THREE.Object3D(); handTarget.name = 'reload_hand_target';
+  handTarget.quaternion.copy(rot); handTarget.position.copy(from); gun?.add(handTarget);
   let fresh = null, dropped = false, done = false;
 
   return {
@@ -150,6 +152,9 @@ export function startFirstPersonReload(G, char, w) {
     },
     update(t) {
       if (!gun || done) return;
+      handTarget.position.lerpVectors(from, seat, ease(inAt, seatAt, t));
+      char.offhandTarget = handTarget;
+      char.offhandWeight = ease(.12, .23, t) * (1 - ease(.43, .56, t));
       // the empty magazine out and down
       if (smg && !dropped && t >= 0.12) {
         dropped = true;
@@ -176,6 +181,8 @@ export function startFirstPersonReload(G, char, w) {
     },
     end() {
       done = true;
+      if (char.offhandTarget === handTarget) { char.offhandTarget = null; char.offhandWeight = 0; }
+      handTarget.parent?.remove(handTarget);
       fresh?.parent?.remove(fresh);
       fresh = null;
       if (seated) seated.visible = true;

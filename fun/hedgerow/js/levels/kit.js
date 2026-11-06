@@ -3,6 +3,7 @@
    hedgebanks of the bocage, ground bumps and shell craters. */
 
 import { polylineDistance, smoothstep } from '../util.js';
+import { roundedBankRise, profileSide } from './landform-banks.js';
 
 /* the bounding box of a line grown by `pad` (distance tests only run near it) */
 export function bbox(line, pad) {
@@ -41,9 +42,12 @@ export function along(line, step, offset, fn, from = -Infinity, to = Infinity) {
 
 /* hedgerows on their earth banks. Each run is a line of points [[x, z], ...] (it may bend; a gap is
    where no run is) or a straight [x0, z0, x1, z1]. */
-export function hedgeBanks(runs, { height = 0.85, half = 2.4 } = {}) {
+export function hedgeBanks(runs, { height = 0.85, half = 2.4, natural = false } = {}) {
   const lines = runs.map((r) => (typeof r[0] === 'number' ? [[r[0], r[1]], [r[2], r[3]]] : r));
   const boxes = lines.map((l) => bbox(l, half + 1));
+  // Preserve dist() reach so the new crown shape cannot reshuffle seeded
+  // rough terrain elsewhere in the battlefield.
+  const bankBoxes = natural ? lines.map((l) => bbox(l, half * 1.4 + 1)) : boxes;
   const lens = lines.map((l) => l.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0), 0));
   /* the distance to the nearest run (Infinity beyond reach) */
   const dist = (x, z) => {
@@ -61,7 +65,16 @@ export function hedgeBanks(runs, { height = 0.85, half = 2.4 } = {}) {
   return {
     dist,
     /* the bank's rise at (x, z) */
-    rise: (x, z) => { const d = dist(x, z); return d < half ? height * smoothstep(half, half * 0.35, d) : 0; },
+    rise: (x, z) => {
+      if (!natural) { const d = dist(x, z); return d < half ? height * smoothstep(half, half * 0.35, d) : 0; }
+      let h = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (!inBox(bankBoxes[i], x, z)) continue;
+        const line = lines[i]; polylineDistance(line, x, z, tmp);
+        h = Math.max(h, roundedBankRise(tmp.d * profileSide(line, tmp, x, z), tmp.t * lens[i], i, Math.min(tmp.t, 1 - tmp.t) * lens[i], { height, half }));
+      }
+      return h;
+    },
     /* hedges along the runs, evenly about every `step` metres, at their height: P(model, x, z, yaw, opts) */
     plant(P, y, step = 4) {
       lines.forEach((l, i) => {

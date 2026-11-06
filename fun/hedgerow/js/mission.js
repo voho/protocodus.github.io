@@ -16,7 +16,7 @@ import { FIRE_FOG } from './lights.js';
 export function createMission(G, L, built) {
   const M = {
     index: 0, done: false, checkpoint: 0, inventory: null,
-    pickups: [], hintsShown: new Set(), flakDestroyed: false, charge: null, wrecked: new Set(), held: 0, sentAt: -99,
+    pickups: [], hintsShown: new Set(), flakDestroyed: false, charge: null, wrecked: new Set(), held: 0, secureHeld: 0, sentAt: -99,
     completed: new Set(), interaction: null, interactionHealth: null, interactionBlocked: false,
   };
   const objectives = L.objectives;
@@ -69,7 +69,7 @@ export function createMission(G, L, built) {
     if (anchors.operator) return anchorPoint(prop, anchors.operator, o.anchorHeight ?? 1.2);
     return { x: site.x, y: site.y + 1, z: site.z };
   }
-  G.events.on('playerDied', () => { resetInteraction(null); G.hud.prompt(null); });
+  G.events.on('playerDied', () => { resetInteraction(null); M.secureHeld = 0; G.hud.prompt(null); });
 
   function active() {
     const first = current();
@@ -106,7 +106,7 @@ export function createMission(G, L, built) {
     M.index = i;
     const o = current();
     if (!o) return;
-    M.held = 0; M.sentAt = -99; M.charge = null; M.warned = false; resetInteraction();
+    M.held = 0; M.secureHeld = 0; M.sentAt = -99; M.charge = null; M.warned = false; resetInteraction();
     G.hud.objective(objectiveText(o), announce);
     if (announce) G.audio.ui('objective');
   }
@@ -195,7 +195,7 @@ export function createMission(G, L, built) {
 
   M.update = (dt, input) => {
     const p = G.player;
-    if (!p.alive || M.done) { resetInteraction(null); return; }
+    if (!p.alive || M.done) { resetInteraction(null); M.secureHeld = 0; return; }
     const px = p.pos.x, pz = p.pos.z;
     // Detect the hit before pickups heal: a dressing in this same frame
     // must not conceal damage that interrupted work on the equipment.
@@ -277,15 +277,25 @@ export function createMission(G, L, built) {
       } else if (o.kind === 'hold') {
         const inside = Math.hypot(px - o.x, pz - o.z) < o.r;
         if (inside) M.held += dt;
+        // Some authored holds can be relieved once the entire defending
+        // force is defeated. An empty roster is not evidence of a victory.
+        const relief = o.earlyRelief;
+        const defeated = relief && G.enemies?.length > 0 && G.enemies.every(e => e.dead);
+        const confirming = inside && defeated && M.held >= relief.minimum;
+        // Only the part after the minimum counts if this frame crosses it.
+        M.secureHeld = confirming ? M.secureHeld + Math.min(dt, Math.max(0, M.held - relief.minimum)) : 0;
         // the counter-attack: sent at him when it starts, and again every twenty seconds to where he is
         if (G.time - M.sentAt > 20 && (M.held > 0 || inside)) {
           M.sentAt = G.time;
-          for (const g of o.counter || []) G.enemyCtl?.send(g, px, pz);
-          if (!M.warned) { M.warned = true; G.hud.notice('Counter-attack!', o.warning || 'Hold the position', 3.5); }
+          const attacking = (o.counter || []).filter(g => living([g]).length > 0);
+          for (const g of attacking) G.enemyCtl?.send(g, px, pz);
+          if (attacking.length && !M.warned) { M.warned = true; G.hud.notice('Counter-attack!', o.warning || 'Hold the position', 3.5); }
         }
         const left = Math.max(0, Math.ceil(o.time - M.held));
-        G.hud.objective(inside ? `${o.text} — ${left} s` : `${o.text} — get back to the position`, false);
-        if (M.held >= o.time) advance();
+        const secureLeft = confirming ? Math.max(0, relief.confirmation - M.secureHeld) : Infinity;
+        const secureText = confirming ? `${relief.message || 'Position secured'} — relief in ${Math.ceil(Math.max(0, secureLeft - 1e-8))} s` : null;
+        G.hud.objective(inside ? secureText || `${o.text} — ${left} s` : `${o.text} — get back to the position`, false);
+        if (M.held >= o.time || secureLeft < 1e-8) advance();
       }
     }
     G.hud.prompt(prompt);
@@ -313,6 +323,7 @@ export function createMission(G, L, built) {
     // interaction lock too, otherwise dying during a fuse prevents the
     // soldier ever placing another demolition charge.
     M.charge = null;
+    M.secureHeld = 0;
     resetInteraction(null);
     G.hud.prompt(null);
     // objectives completed after the checkpoint are kept (the ground taken stays taken)

@@ -222,15 +222,28 @@ function damagedFacade(base) {
   };
 }
 
+// Horizontal masonry must meet the gently graded street/courtyards at
+// either downhill corner. This short sunk footing fills at most 15 cm of
+// visible gap without raising the house or changing its gameplay shell.
+function foundation(model) {
+  const depth = 0.18, b = createBuilder(model.name);
+  b.material('stone', pragueTrimMaterial());
+  b.box('stone', [14, depth, 10], [0, -depth / 2, 0], [0, 0, 0], 0x9a998d);
+  const plinth = b.done();
+  return { ...model, prims: [...model.prims, ...plinth.prims],
+    box: model.box.clone().union(plinth.box),
+    extras: { ...model.extras, foundationDepth: depth } };
+}
+
 export function pragueModels() {
   const list = [
-    facade('prague_ochre', { height: 17.2, tint: 0xf7dfad, shop: 'PEKÁRNA' }),
-    facade('prague_rose', { height: 18.3, tint: 0xe5b9ad, shop: 'POTRAVINY' }),
-    facade('prague_gray', { height: 16.6, tint: 0xc7ceca, shop: 'LÉKÁRNA', ornate: false }),
+    foundation(facade('prague_ochre', { height: 17.2, tint: 0xf7dfad, shop: 'PEKÁRNA' })),
+    foundation(facade('prague_rose', { height: 18.3, tint: 0xe5b9ad, shop: 'POTRAVINY' })),
+    foundation(facade('prague_gray', { height: 16.6, tint: 0xc7ceca, shop: 'LÉKÁRNA', ornate: false })),
     facade('prague_passage', { height: 17.2, tint: 0xe3d3b0, passage: true }),
     tramRails(), mosaicPavement(), mosaicPavement(-1), radioRelaySign(),
   ];
   list.push(damagedFacade(list[0]));
-  list.push(...praguePeriodFrontages());
+  list.push(...praguePeriodFrontages().map(foundation));
   return new Map(list.map((m) => [m.name, m]));
 }

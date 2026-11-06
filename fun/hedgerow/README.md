@@ -22,6 +22,9 @@ radio to signal the cleared route before reaching the rally point.
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
 three river crossings, the ends of the trench, the flanks of the bunker.
+The forest track follows two broad bends into a clearing with an uneven
+tree line; its fighting positions, props and patrol routes follow the same
+ground rather than remaining on the former straight line.
 An old stone culvert carries a farm crossing over the drainage ditch; its
 open barrel, arch stones and worn cattle fences are scripted in Three.js.
 
@@ -46,8 +49,10 @@ bridge wired for demolition. The road curves in over the marsh on a low
 causeway; through the gaps in the wire, past the pond in the angle of the
 road and the canal, silence the pillbox and the guards, rush the bridge,
 disconnect the demolition cable at the bridge cabin, clear the café and the houses climbing the far bank and the side street,
-then hold the north end for ninety seconds while they come down the street
-from where it bends at the top. The gliders and the bridge are modelled in three.js
+then hold the north end while they come down the street from where it
+bends at the top. Relief arrives after ninety seconds; defeating the whole
+force can bring it forward after a sustained, secure defence.
+The gliders and the bridge are modelled in three.js
 (`js/procedural.js`), along with field harrows, orchard ladders, canal
 mooring bollards and the demolition switch. Saint-Clair and La Varenne
 have cultivated fields with shallow furrows, grass margins and worn
@@ -71,6 +76,11 @@ The street buildings, vaulted passages, tram, overhead wires, mosaic
 pavements and barricades are scripted in Three.js. This is a fictional
 operation inspired by the uprising, not a reconstruction of a documented
 engagement. Prague has its own dry dawn weather and lighting profile.
+Three- to six-storey frontages mix older classical houses and interwar
+infill, with pitched roofs, parapets and different window rhythms. Two
+Czechoslovak flags hang from timber staffs and iron brackets above the
+street and relay courtyard; their original cotton weave and restrained
+flutter are procedural.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -225,6 +235,19 @@ rounds for a Kar98k, 32 for an MP 40, a 75-round belt for the MG 42 — and
 ducks while he does. The dead fall as ragdolls, pushed by the shot or thrown
 by the blast that killed them, and drop their rifles.
 
+The captured Kar98k's bolt lifts and draws back after each shot, with the
+right hand working it while the left supports the rifle. Its case comes
+out on extraction. During reloads the left hand follows the actual clip or
+magazine, and cartridge stacks use the weapon model's authored seat frame.
+Mechanical foley follows simulation progress, including moving enemy
+reloads, so pausing or slow rendering does not finish a reload's sound
+before its visible action. Brass sounds at its first physical ground
+contact; soft ground remains quiet.
+Bodies also sound at their first meaningful torso contact, using the
+actual floor material and impact speed. Their fixed-step falls preserve
+the same motion across render rates, and checkpoint retries cancel old
+contact cues.
+
 ## How it is built
 
 * `js/` — three.js r185 (the site's vendored copy), plain ES modules, no build.
@@ -253,6 +276,10 @@ by the blast that killed them, and drop their rifles.
     `lighting-profiles.js` — the default overcast and Prague dawn profiles ·
     `field-map.js` — the sampled briefing/pause sketch · `loadout.js` and
     `resistance-kit.js` — mission equipment and resistance identification
+  * `prague-flags.js` — two opaque, merged cloth/hardware draws with original
+    weave, fixed hoists and wind driven by the simulation clock ·
+    `environment-maps.js` — retained sky scene and owned reflection targets,
+    including renderer-state restoration when a capture fails
   * `terrain.js` heightfield + splat material (each 32 m chunk drawn at half
     its resolution past 140 m, which halves the ground's triangles in the
     long views) · `world.js` colliders, rays,
@@ -688,6 +715,10 @@ by the blast that killed them, and drop their rifles.
   `face_gaunt` and `face_older` shape keys);
   `tests/ragdoll-check.mjs` — a shot soldier falls, is pushed by the shot,
   keeps his limbs' length and comes to rest;
+  `tests/ragdoll-time-check.mjs` — seven real-rig falls retain the published
+  60 Hz trajectories and sleep poses at 20–240 Hz, with bounded hitch work;
+  `tests/ragdoll-contact-check.mjs` — first torso contacts preserve those
+  trajectories, report actual surfaces and cancel safely on disposal;
   `tests/route-check.mjs` — rebuilds the level's collision world from the
   real GLB colliders and walks every route (main road, both flanks of the
   checkpoint, the gardens, all three river crossings, both trench ends, both
@@ -762,6 +793,12 @@ by the blast that killed them, and drop their rifles.
   `tests/audio-prague-check.mjs`, `tests/audio-radios-check.mjs` — bounded
   wall occlusion, spatial fires, captured-weapon foley, receiver phase gates,
   listener rotation, real PCM output and voice cleanup;
+  `tests/audio-actions-check.mjs`, `tests/audio-actors-check.mjs`,
+  `tests/audio-casings-check.mjs` — simulation-time mechanical cues,
+  moving NPC reload lifecycle and actual brass-contact timing;
+  `tests/bolt-action-check.mjs` and `tests/fp-check.mjs` — the shipped bolt
+  solids, arm lengths, hand/prop contact, cartridge alignment, interruption
+  and the return to the normal grip;
   `tests/loading-check.mjs` — interleaved asset events never rewind progress,
   completed stages stay done, and readiness waits for the final stage:
 
@@ -836,10 +873,20 @@ aim. Saved preferences are validated and old saves remain compatible.
 Switching tabs pauses the game and clears held input. Failed or delayed
 pointer-lock requests return safely to the menu.
 
+After a graphics device reset in a prepared mission, play pauses while
+the sky reflections and exposure state are rebuilt. Resume stays disabled
+until the first restored frame is drawn. Mission progress and the selected
+day/night lighting are preserved; combat resumes only when requested.
+
 The radio and demolition circuit require uninterrupted use. Releasing F,
 leaving reach, losing sight or taking damage interrupts the action. Retrying
 a checkpoint clears unfinished interactions and permits a canceled demolition
 charge to be replanted.
+
+The final objective freezes the mission's result immediately. Its short
+transition to the results screen uses simulation time, so pausing or a
+graphics reset preserves the remaining delay. Later action cannot alter
+the earned score, and repeated completion signals cannot record another win.
 
 Run all simulation, geometry, mission, AI and asset checks:
 
