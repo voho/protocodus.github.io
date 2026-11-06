@@ -467,7 +467,7 @@ export function createAudio() {
 
   /* The player's own moves: kneeling, getting up, shouldering the rifle,
      a jump, a landing (on `surface`). */
-  function gear(kind, surface = 'mud') {
+  function gear(kind, surface = 'mud', level = 1) {
     if (!ctx) return;
     const t = ctx.currentTime;
     if (kind === 'crouch' || kind === 'stand') {
@@ -480,6 +480,10 @@ export function createAudio() {
     } else if (kind === 'jump') {
       burst(sfx, t, { dur: 0.15, peak: 0.07, type: 'bandpass', freq: 1100, q: 0.7 });
       kit(sfx, t + 0.03, 0.2);
+    } else if (kind === 'heart') {
+      // lub-dub, felt more than heard
+      tone(sfx, t, { f0: 62, f1: 38, dur: 0.12, peak: 0.25 * level });
+      tone(sfx, t + 0.16, { f0: 55, f1: 34, dur: 0.1, peak: 0.16 * level });
     } else if (kind === 'lean') {
       burst(sfx, t, { dur: 0.16, peak: 0.05, type: 'bandpass', freq: 1300, sweepTo: 800, q: 0.7 });
       kit(sfx, t + 0.04, 0.12);

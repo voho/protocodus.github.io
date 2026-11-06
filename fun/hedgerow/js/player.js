@@ -69,6 +69,7 @@ export function createPlayer(G) {
     daze: 0, dazeT: 99,
     lean: 0, leanX: 0, leanZ: 0,            // -1..1 (to his left), and how far the head is out in x, z
     breath: BREATH.hold, winded: 0, holding: false,
+    suppression: 0, suppressedAt: -99, beat: 0,   // pinned down by fire close past him (0..1)
   };
   const FP = !!CAMERA.firstPerson;
   // the eyes from the head bone: up and forward of it, in metres; and, not
@@ -123,6 +124,7 @@ export function createPlayer(G) {
     P.char.steady = FP;
     P.lean = 0; P.leanX = P.leanZ = 0; G.rig.lean = 0; P.char.root.rotation.z = 0;
     P.breath = BREATH.hold; P.winded = 0; P.holding = false;
+    P.suppression = 0; P.suppressedAt = -99; P.beat = 0;
     G.rig.swayYaw = G.rig.swayPitch = 0;
     P.yawFix = 0; P.pitchFix = 0; P.blocked = false; P.arms = { pitch: 0, yaw: 0, roll: 0 }; P.pendingWeapon = null;
     motion.reset(); vm = { yaw: 0, pitch: 0, drop: 0 };
@@ -140,6 +142,7 @@ export function createPlayer(G) {
     P.hurtTimer = 0;
     G.stats.damageTaken += amount;
     G.audio.ui('hurt');
+    P.suppress(kind === 'bullet' ? 0.8 : 1.5);
     G.rig.addShake(kind === 'bullet' ? 0.25 : 0.6);
     if (from) {
       const ang = Math.atan2(from.x - P.pos.x, from.z - P.pos.z);
@@ -160,6 +163,7 @@ export function createPlayer(G) {
       }
       P.lean = 0; P.leanX = P.leanZ = 0; G.rig.lean = 0; G.rig.swayYaw = G.rig.swayPitch = 0;
       P.char.root.rotation.z = 0;
+      P.suppression = 0;
       if (!FP) P.char.hideHead(false);      // first person: the eyes go down with him; the head shows once the camera has left it
       P.headBack = !FP;
       P.char.die(back ? 'death_back' : 'death_fwd', { world: G.world, velocity: P.vel.clone(), impulses });
@@ -168,6 +172,14 @@ export function createPlayer(G) {
       G.events.emit('playerDied');
     }
     G.hud.health(P.health / PLAYER.health);
+  };
+
+  /* A round cracking past or striking close by (ai.js): `amount` 0..1, how close. A burst
+     builds it up; it ebbs a second and a half after the last. */
+  P.suppress = (amount) => {
+    if (!P.alive) return;
+    P.suppression = Math.min(1, P.suppression + amount * 0.3);
+    P.suppressedAt = G.time;
   };
 
   /* a blast close by (combat.js): 0..1, how hard it hit him */
@@ -239,6 +251,7 @@ export function createPlayer(G) {
     // spread: hip/aim, movement, bloom
     const moving = Math.min(1, P.movingSpeed / 3);
     let spread = lerp(w.spreadHip, w.spreadAim, G.rig.aimT) + w.spreadMove * moving * (P.crouch ? 0.5 : 1) + P.spread;
+    spread *= 1 + 0.6 * P.suppression;      // shooting back while pinned down: hurried
     if (P.crouch) spread *= 0.75;
     P.spread = Math.min(P.spread + w.bloom, 0.12);
     G.rig.forward(dir);
@@ -402,7 +415,8 @@ export function createPlayer(G) {
     const t = G.time;
     const amp = SWAY * G.rig.aimT
       * (P.crouch ? 0.6 : 1) * (1 + Math.min(1, hSpeed / 2.5) * 1.5) * (1 + 3 * P.daze)
-      * (P.holding ? 0.12 : P.winded > 0 ? 1 + 1.6 * P.winded / BREATH.winded : 1);
+      * (P.holding ? 0.12 : P.winded > 0 ? 1 + 1.6 * P.winded / BREATH.winded : 1)
+      * (1 + 2.5 * P.suppression);
     const k = 1 - Math.exp(-6 * dt);       // eased, so holding the breath settles rather than snaps
     G.rig.swayYaw += (amp * (Math.sin(t * 0.9) + 0.35 * Math.sin(t * 2.7 + 1.3)) - G.rig.swayYaw) * k;
     G.rig.swayPitch += (amp * (0.55 * Math.sin(t * 1.8 + 0.4) + 0.3 * Math.sin(t * 3.4)) - G.rig.swayPitch) * k;
@@ -569,6 +583,10 @@ export function createPlayer(G) {
     else if (aiming || firingRecently || hSpeed > 0.4 || P.cooking >= 0) P.yaw = dampAngle(P.yaw, cy, aiming ? 30 : 12, dt);
     else if (Math.abs(wrapAngle(cy - P.yaw)) > 1.2) P.yaw = dampAngle(P.yaw, cy, 4, dt);
 
+    // pinned down: it ebbs once the fire stops; his heart pounding while it is high
+    if (G.time - P.suppressedAt > 1.5) P.suppression = Math.max(0, P.suppression - 0.45 * dt);
+    P.beat -= dt;
+    if (P.suppression > 0.35 && P.beat <= 0) { G.audio.gear('heart', null, P.suppression); P.beat = 60 / (85 + 75 * P.suppression); }
     if (FP) steady(dt, input, aiming, hSpeed);
 
     // timers

@@ -1147,6 +1147,7 @@ function step() {
       grade.uniforms.uDaze.value = live && player ? player.daze : 0;
       grade.uniforms.uDazeT.value = player ? player.dazeT : 99;
       grade.uniforms.uAim.value = state === 'playing' && player?.alive ? G.rig.aimT : 0;
+      grade.uniforms.uSuppress.value = live && player?.alive ? player.suppression : 0;
     }
   }
   // aiming in brings things nearer: detail follows how big they look, not how far they are

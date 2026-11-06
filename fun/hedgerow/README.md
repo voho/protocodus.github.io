@@ -152,6 +152,11 @@ you have your breath back. Q and E lean you out round a corner or over a
 wall's end, as far as the wall beside you lets you; the enemy sees your
 head where it is.
 
+Fire cracking close past you or striking the wall beside you pins you
+down: the edges of the view go soft and dark and the colour drains, your
+heart pounds, the sights shake and your shots go wide, until a second and
+a half after the last round, when it ebbs.
+
 Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.

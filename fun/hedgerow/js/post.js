@@ -10,6 +10,8 @@
    going, after a white flash at the blast. A blast close by also spatters
    the view with mud (spatter()): blobs of it, most at the edges and the
    bottom, wet and ragged, some dripping, wiped away over a few seconds.
+   Pinned down by fire cracking close past (uSuppress), the same softness
+   comes in from the edges, with the dark and the colour draining.
    Down the sights (uAim) the eye is on the foresight: what lies out
    towards the edges of the view goes soft, drawn a little towards the
    middle, and a shade darker, so the sight picture stands out. */
@@ -26,6 +28,7 @@ uniform sampler2D tAdapt;      // the eye (adapt.js): its exposure factor, one p
 uniform float uHurt, uFlash, uSat, uAspect, uSharp, uContrast;
 uniform float uDaze, uDazeT;  // dazed by a blast (0..1), seconds since it
 uniform float uAim;           // how far aimed down the sights (0..1)
+uniform float uSuppress;      // pinned down by fire close past him (0..1)
 uniform vec2 uTexel;
 uniform vec3 uMud;          // how much mud (0: none), its seed, seconds since it hit
 varying vec2 vUv;
@@ -105,7 +108,7 @@ void main() {
     col = mix(col, ghost, 0.4 * uDaze);
   }
   // down the sights: the edges soft (a short smear towards the middle) and a little darker
-  float edge = smoothstep(0.06, 0.42, r2) * uAim;
+  float edge = max(smoothstep(0.06, 0.42, r2) * uAim, smoothstep(0.03, 0.5, r2) * uSuppress);
   if (edge > 0.003) {
     vec3 soft = vec3(0.0);
     for (int i = 0; i < 4; i++) soft += texture2D(tSrc, vUv - c * (0.006 + 0.007 * float(i))).rgb;
@@ -129,7 +132,9 @@ void main() {
   vec3 cool = vec3(0.92, 0.98, 1.08), warm = vec3(1.08, 1.0, 0.9);
   float hl = smoothstep(0.05, 0.9, l);
   col *= mix(cool, warm, hl);
-  col = mix(vec3(l), col, uSat * (1.0 - uHurt * 0.6) * (1.0 - uDaze * 0.55));
+  col = mix(vec3(l), col, uSat * (1.0 - uHurt * 0.6) * (1.0 - uDaze * 0.55) * (1.0 - uSuppress * 0.45));
+  // pinned down: the edges of the view closing in, dark
+  col *= 1.0 - smoothstep(0.1, 0.65, r2) * 0.45 * uSuppress;
   // vignette (dazed: closing in, and the dark coming and going)
   col *= 1.0 - smoothstep(0.18 - 0.12 * uDaze, 0.75 - 0.25 * uDaze, r2) * (0.3 + 0.55 * uDaze);
   col *= 1.0 - uDaze * 0.15 * (0.5 + 0.5 * sin(uDazeT * 2.4));
@@ -154,7 +159,7 @@ export function createGrade() {
       tSrc: { value: null }, tAdapt: { value: open }, uHurt: { value: 0 }, uFlash: { value: 0 },
       uSat: { value: 0.82 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.02 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
-      uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 }, uAim: { value: 0 },
+      uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 }, uAim: { value: 0 }, uSuppress: { value: 0 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });
