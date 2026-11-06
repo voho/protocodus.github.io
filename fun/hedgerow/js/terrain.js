@@ -5,7 +5,10 @@
    samples it once into a 0.5 m master grid, answers height / normal / ray
    queries from that grid, and builds chunked meshes (1 m, or 0.5 m where
    the level asks for detail, e.g. trenches) with skirts to hide the seams
-   between resolutions. The material blends four ground textures by the
+   between resolutions; past LOD_FAR from the eye a chunk is drawn at half
+   its resolution (updateLod), where its 1 m facets are under a pixel or two
+   and the vertex work for them was the terrain's biggest cost in the long
+   views up the street and the meadows. The material blends four ground textures by the
    splat weights and their heights, puts rock on steep slopes and standing
    water with rain rings in the hollows of the mud. */
 
@@ -18,6 +21,7 @@ import { breathe } from './pace.js';
 
 const RES = 0.5;
 const CHUNK = 32;
+const LOD_FAR = 140;      // metres from the eye to a chunk's nearest edge where it is drawn coarse
 
 // a row of the heightfield, a chunk of the mesh at a time, the browser getting its turns between (pace.js)
 export async function createTerrain(def, textures, shared) {
@@ -102,9 +106,21 @@ export async function createTerrain(def, textures, shared) {
     }
   }
 
+  /* A chunk's mesh at its own resolution, with the half resolution kept beside it for the
+     distance (when the chunk's cells divide evenly into it; a narrow chunk at the edge may not). */
   function buildChunk(x0, z0, x1, z1, step) {
     const i0 = Math.round((x0 - minX) / RES), j0 = Math.round((z0 - minZ) / RES);
     const i1 = Math.round((x1 - minX) / RES), j1 = Math.round((z1 - minZ) / RES);
+    const fineGeo = chunkGeometry(i0, j0, i1, j1, step);
+    const coarse = (i1 - i0) % (2 * step) === 0 && (j1 - j0) % (2 * step) === 0 ? chunkGeometry(i0, j0, i1, j1, 2 * step) : null;
+    const mesh = new THREE.Mesh(fineGeo, material);
+    mesh.name = 'terrain_chunk';
+    mesh.matrixAutoUpdate = false;
+    mesh.userData = { fine: fineGeo, coarse, box: [x0, z0, x1, z1] };
+    return mesh;
+  }
+
+  function chunkGeometry(i0, j0, i1, j1, step) {
     const cols = Math.floor((i1 - i0) / step) + 1, rows = Math.floor((j1 - j0) / step) + 1;
     const vcount = cols * rows + 2 * (cols + rows);
     const pos = new Float32Array(vcount * 3);
@@ -152,13 +168,23 @@ export async function createTerrain(def, textures, shared) {
     geo.setIndex(idx);
     geo.computeBoundingSphere();
     geo.computeBoundingBox();
-    const mesh = new THREE.Mesh(geo, material);
-    mesh.name = 'terrain_chunk';
-    mesh.matrixAutoUpdate = false;
-    return mesh;
+    return geo;
   }
 
-  return { height, normal, raycast, surfaceAt, group, material, grid: { H, nx, nz, minX, minZ, res: RES } };
+  /* Each chunk fine or coarse by how far its nearest edge is from the eye (a few metres'
+     hysteresis, so one on the line does not flip back and forth). */
+  function updateLod(eye) {
+    for (const m of group.children) {
+      const { fine, coarse, box } = m.userData;
+      if (!coarse) continue;
+      const dx = Math.max(box[0] - eye.x, 0, eye.x - box[2]), dz = Math.max(box[1] - eye.z, 0, eye.z - box[3]);
+      const d = Math.hypot(dx, dz), far = m.geometry === coarse;
+      if (!far && d > LOD_FAR + 8) m.geometry = coarse;
+      else if (far && d < LOD_FAR - 8) m.geometry = fine;
+    }
+  }
+
+  return { height, normal, raycast, surfaceAt, updateLod, group, material, grid: { H, nx, nz, minX, minZ, res: RES } };
 }
 
 /* ---------- material ---------- */

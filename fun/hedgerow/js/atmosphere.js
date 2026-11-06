@@ -22,33 +22,65 @@ function radialTexture(stops, size = 128) {
 
 /* ---------- halos ---------- */
 
+/* All the halos in one draw: a quad per halo, turned to face the view as a sprite is, its colour,
+   brightness and size set per halo each frame (as 60-odd sprites they were 60-odd draws). */
+const HALO_VERT = /* glsl */ `
+attribute vec4 aHalo;      // xyz centre, w size
+attribute vec3 aColor;     // colour times opacity
+varying vec2 vUv;
+varying vec3 vColor;
+void main() {
+  vUv = uv;
+  vColor = aColor;
+  vec4 mv = viewMatrix * vec4(aHalo.xyz, 1.0);
+  mv.xy += position.xy * aHalo.w;
+  gl_Position = projectionMatrix * mv;
+}`;
+const HALO_FRAG = /* glsl */ `
+uniform sampler2D map;
+varying vec2 vUv;
+varying vec3 vColor;
+void main() { gl_FragColor = vec4(vColor, 1.0) * texture2D(map, vUv); }`;
+
 export function createHalos(fogDensity = 0.018) {
   const tex = radialTexture([[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(255,255,255,0.55)'], [0.4, 'rgba(255,255,255,0.12)'], [1, 'rgba(255,255,255,0)']]);
   const group = new THREE.Group();
   group.name = 'halos';
   const items = [];
+  const quad = new THREE.PlaneGeometry(1, 1);
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.index = quad.index;
+  geometry.setAttribute('position', quad.getAttribute('position'));
+  geometry.setAttribute('uv', quad.getAttribute('uv'));
+  let halo = null, color = null;
+  const material = new THREE.ShaderMaterial({
+    vertexShader: HALO_VERT, fragmentShader: HALO_FRAG, uniforms: { map: { value: tex } },
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 8;
+  group.add(mesh);
+  const c = new THREE.Color();
 
-  function add(x, y, z, color = '#ffb060', size = 2, strength = 1, flicker = 0) {
-    const m = new THREE.SpriteMaterial({
-      map: tex, color: new THREE.Color(color).multiplyScalar(strength), transparent: true,
-      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-    });
-    const s = new THREE.Sprite(m);
-    s.position.set(x, y, z);
-    s.scale.setScalar(size);
-    s.renderOrder = 8;
-    group.add(s);
-    const it = { s, size, strength, flicker, phase: Math.random() * 100, on: true };
+  function add(x, y, z, colour = '#ffb060', size = 2, strength = 1, flicker = 0) {
+    const it = { position: new THREE.Vector3(x, y, z), color: new THREE.Color(colour).multiplyScalar(strength), size, strength, flicker, phase: Math.random() * 100, on: true };
     items.push(it);
     return it;
   }
 
   function update(dt, time, cam) {
+    if (!halo || halo.count < items.length) {
+      // (re)sized to the halos there are
+      halo = new THREE.InstancedBufferAttribute(new Float32Array(items.length * 4), 4).setUsage(THREE.DynamicDrawUsage);
+      color = new THREE.InstancedBufferAttribute(new Float32Array(items.length * 3), 3).setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute('aHalo', halo);
+      geometry.setAttribute('aColor', color);
+    }
+    let n = 0;
     for (const it of items) {
-      const d = it.s.position.distanceTo(cam);
-      const vis = it.on && d < 600;
-      it.s.visible = vis;
-      if (!vis) continue;
+      const d = it.position.distanceTo(cam);
+      if (!it.on || d >= 600) continue;
       let k = 1;
       if (it.flicker) {
         const t = time * 9 + it.phase;
@@ -56,9 +88,16 @@ export function createHalos(fogDensity = 0.018) {
       }
       // fade into the fog, and not right in the face
       const fog = Math.exp(-(d * fogDensity) * (d * fogDensity));
-      it.s.material.opacity = k * fog * smoothstep(0.8, 3, d);
-      it.s.scale.setScalar(it.size * (0.9 + 0.2 * k));
+      const opacity = k * fog * smoothstep(0.8, 3, d);
+      if (opacity <= 0.002) continue;
+      halo.setXYZW(n, it.position.x, it.position.y, it.position.z, it.size * (0.9 + 0.2 * k));
+      c.copy(it.color).multiplyScalar(opacity);
+      color.setXYZ(n, c.r, c.g, c.b);
+      n++;
     }
+    geometry.instanceCount = n;
+    mesh.visible = n > 0;
+    if (n) halo.needsUpdate = color.needsUpdate = true;
   }
 
   return { group, add, update, items };

@@ -1154,6 +1154,7 @@ function step() {
   // aiming in brings things nearer: detail follows how big they look, not how far they are
   G.lodScale = fovScale(camera.fov, G.rig?.baseFov ?? camera.fov);
   built.veg.update(dt, camera, quality, G.lodScale);
+  G.terrain.updateLod(camera.position);
   G.grass.update(camera, player?.pos, renderer.domElement.height);
   G.clutter.update(camera, renderer.domElement.width, renderer.domElement.height);
   hud.update(dt);

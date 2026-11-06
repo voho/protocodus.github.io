@@ -220,7 +220,9 @@ by the blast that killed them, and drop their rifles.
     helpers the later two share: hedgebanks, trenches, rough ground) ·
     `procedural.js` the glider, the canal bridge and the supply canisters
     modelled in three.js · `controls.js` the controls list
-  * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
+  * `terrain.js` heightfield + splat material (each 32 m chunk drawn at half
+    its resolution past 140 m, which halves the ground's triangles in the
+    long views) · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
     set has one, the `_lod` impostor beyond the quality's near range (those
@@ -731,6 +733,8 @@ reduce the shipped static model library's geometry storage by 33%; the clutter
 check submits about 67% fewer pieces in its forward view. Aiming computes its
 three focus samples at the fullscreen triangle's vertices, and volumetric
 lighting samples shadow visibility only where that light can contribute.
+The halos round the lamps and fires are one instanced draw rather than a
+sprite each (some 60 fewer draw calls on Saint-Clair).
 Resting ragdolls keep their final bone pose, and the compass lets CSS handle
 responsive positioning without forcing a layout calculation each frame.
 

@@ -45,7 +45,7 @@ export function createGroundMap(terrain, world, waterLevel, ponds = []) {
   const cov = new Float32Array(N * 3).fill(NaN);
   const vert = new Uint8Array(N);      // a vertex of the mesh
   for (const chunk of terrain.group.children) {
-    const g = chunk.geometry;
+    const g = chunk.userData.fine || chunk.geometry;     // (the chunk at full resolution, whatever it is drawn at now)
     const pos = g.attributes.position, spl = g.attributes.splat;
     if (!pos || !spl) continue;
     for (let v = 0; v < pos.count; v++) {
