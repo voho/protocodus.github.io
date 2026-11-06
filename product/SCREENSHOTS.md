@@ -1,6 +1,6 @@
 # Product media and claim sources
 
-## Current verification — 5 November 2026
+## Current verification — 6 November 2026
 
 The public Reason Shop is authoritative for availability, published versions and
 the artwork presented on released product pages. Local Rack candidates remain
@@ -12,10 +12,10 @@ separately labelled. The complete URLs, dimensions and SHA-256 hashes are in
 | --- | --- | --- |
 | Acustra Acoustic Guitar | 1.9.0 | 1457 × 1200 |
 | Binaurel Advanced Panner | 0.1.0 | 1508 × 552 |
-| Ceres Circuit-Modelled Synth | 1.0.3 | 1508 × 1104 |
+| Ceres Circuit-Modelled Synth | 1.1.4 | 754 × 552 |
 | Lamer Degrader | 1.0.0 | 1600 × 293 |
 | Maremba | 1.5.7 | 1600 × 1171 |
-| Press78 FM Synth | 0.1.13 | 1508 × 1104 |
+| Press78 FM Synth | 1.0.4 | 754 × 552 |
 | YouKnow Circuit-Modelled Synth | 1.3.5 | 1600 × 1171 |
 
 The `shop-front.webp` and `shop-rear.webp` images retain full original dimensions
@@ -24,11 +24,20 @@ verified images. Every released product has the current 800 × 800 Shop cover
 in WebP and an unchanged PNG for social sharing. Binaurel’s official banner is
 also retained. Older files and receipts remain for historical provenance.
 
-Respira has been submitted, but its public listing returned HTTP 404 and it
-was absent from the developer catalog on the verification date. Its page
-therefore describes an instrument awaiting publication. Unreleased Electry and
-Clareq are excluded from the public catalog and sitemap. Other development
-previews retain their explicitly identified source revisions.
+Ceres 1.1.4 and Press78 1.0.4 Shop pages were published on 5 November. The Shop
+“Released” field still shows their original product date, 2 November; it is not
+the publication date of these updates.
+
+Acukoto 0.18.0d1 and Aculele 0.4.39d1 are accepted devices with Shop pages
+awaiting approval and automatic publication enabled. Aculyre 0.7.9d1 is
+accepted, but the Shop editor only offers the older 0.7.4 article; its draft
+remains unsubmitted. Respira 0.1.16d1 is awaiting device acceptance, with no Shop
+page yet. All four checked public URLs return HTTP 404. Their website pages
+have no purchase links. Respira's panel previews retain their actual 0.1.14d1
+source labels. See the [release audit](../docs/reason-shop-status.md).
+
+Unreleased Electry and Clareq remain excluded from the public catalog and
+sitemap. Other development previews retain their identified source revisions.
 
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
 against `protocodus/rill-daw` main `a5a9ce4b360ad9f303661d4e01039bcf3b7cda02`.

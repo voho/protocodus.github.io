@@ -1,7 +1,7 @@
 {
   "product": "Acukoto",
   "reviewed": "2026-11-03",
-  "availability": "coming_soon",
+  "availability": "awaiting_shop_approval",
   "source_version": "0.18.0d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
@@ -129,5 +129,16 @@
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
     "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acukoto/Design/Shop/realistic/layers.json"
+  },
+  "publication_check": {
+    "checked_on": "2026-11-06",
+    "product": "acukoto",
+    "status": "awaiting_shop_approval",
+    "checked_url": "https://www.reasonstudios.com/shop/product_page/34541/",
+    "http_status": 404,
+    "accepted_version": "0.18.0d1",
+    "shop_page_version": "0.18.0",
+    "shop_page_status": "waiting_for_approval",
+    "publish_on_approval": true
   }
 }

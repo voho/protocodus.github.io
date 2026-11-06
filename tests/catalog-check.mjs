@@ -35,6 +35,12 @@ for (const product of catalog.products) {
   const application = schemas.find(s => s['@type'] === 'SoftwareApplication');
   assert.ok(application, `${product.product}: software structured data exists`);
   assert.equal(application.softwareVersion, product.version, `${product.product}: schema uses the published version`);
+  const provenance = JSON.parse(read(`product/${product.product}/ASSET_PROVENANCE.json`));
+  assert.equal(provenance.availability, 'published', `${product.product}: provenance identifies a public release`);
+  assert.equal(provenance.public_release.version, product.version, `${product.product}: release provenance matches the catalog`);
+  assert.equal(provenance.public_release.accepted_version, product.accepted_version, `${product.product}: accepted device version is recorded consistently`);
+  assert.equal(product.accepted_version.replace(/[dbf]\d+$/, ''), product.version, `${product.product}: public version corresponds to the accepted device`);
+  assert.equal(provenance.current_shop_gallery.version, product.version, `${product.product}: artwork provenance identifies the public release`);
   for (const asset of product.assets) {
     const data = readFileSync(new URL(asset.file, root));
     assert.equal(createHash('sha256').update(data).digest('hex'), asset.sha256, `${asset.file}: source provenance still matches`);
@@ -51,6 +57,35 @@ for (const pending of catalog.unpublished) {
   for (const file of pages) assert.ok(!read(file).includes(`href="${pending.checked_url}`), `${file}: no dead purchase link for ${pending.product}`);
   const card = home.match(new RegExp(`<article[^>]*class="product-card p-${pending.product}">[\\s\\S]*?</article>`))?.[0];
   assert.match(card, /Awaiting Shop publication/, `${pending.product}: visible catalog status remains unpublished`);
+  const html = read(`product/${pending.product}/index.html`);
+  const provenance = JSON.parse(read(`product/${pending.product}/ASSET_PROVENANCE.json`));
+  assert.equal(provenance.availability, pending.status, `${pending.product}: provenance matches the pending approval stage`);
+  assert.deepEqual(provenance.publication_check, { checked_on: catalog.verified_at, ...pending }, `${pending.product}: publication evidence matches the catalog`);
+  assert.ok(!provenance.public_release, `${pending.product}: no public release claimed before publication`);
+  const schemas = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap(m => JSON.parse(m[1]));
+  for (const application of schemas.filter(s => s['@type'] === 'SoftwareApplication')) {
+    assert.ok(!application.datePublished, `${pending.product}: unpublished software has no release date in structured data`);
+    assert.equal(application.softwareVersion, pending.accepted_version || pending.submitted_version, `${pending.product}: structured data identifies the verified device version`);
+  }
+  for (const source of [html, card]) {
+    assert.doesNotMatch(source, /data-shop-version=|data-analytics-action="open_shop"|schema\.org\/InStock/, `${pending.product}: no public release or purchase CTA before publication`);
+  }
+  if (pending.accepted_version) {
+    assert.ok(html.includes(`data-accepted-version="${pending.accepted_version}"`), `${pending.product}: page identifies the latest accepted device`);
+    assert.match(html, /[Aa]ccepted/);
+    const acceptedArticle = pending.accepted_version.replace(/[dbf]\d+$/, '');
+    if (pending.status === 'awaiting_shop_approval') {
+      assert.equal(pending.shop_page_version, acceptedArticle, `${pending.product}: submitted page uses the accepted version`);
+      assert.equal(pending.shop_page_status, 'waiting_for_approval');
+    } else if (pending.status === 'awaiting_shop_article') {
+      assert.notEqual(pending.shop_page_version, acceptedArticle, `${pending.product}: article mismatch remains explicit`);
+      assert.equal(pending.shop_page_status, 'draft', `${pending.product}: do not submit the older article`);
+    }
+  } else if (pending.submitted_version) {
+    assert.ok(html.includes(`data-submitted-version="${pending.submitted_version}"`), `${pending.product}: page identifies the submitted device`);
+    assert.match(html, /[Aa]waiting device acceptance/);
+    assert.doesNotMatch(html, /data-accepted-version=/, `${pending.product}: submitted does not mean accepted`);
+  }
 }
 const expectedVideos = new Set(media.videos.map(v => v.id));
 const expectedPlaylists = new Set(media.playlists.map(v => String(v.id)));

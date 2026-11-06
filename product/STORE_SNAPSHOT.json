@@ -1,5 +1,5 @@
 {
-  "verified_at": "2026-11-05",
+  "verified_at": "2026-11-06",
   "developer_url": "https://www.reasonstudios.com/shop/browse/?developer=Protocodus",
   "products": [
     {
@@ -58,7 +58,8 @@
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
           "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
         }
-      ]
+      ],
+      "accepted_version": "1.9.0d2"
     },
     {
       "product": "binaurel",
@@ -128,65 +129,68 @@
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34488/Binaurel_Orbit_Cover_800x800.png",
           "source_sha256": "d0e25ce436e3170f960621e9d0627810af66c389a8482e0c05b891904aeb6720"
         }
-      ]
+      ],
+      "accepted_version": "0.1.0d26"
     },
     {
       "product": "ceres",
       "title": "Ceres Circuit-Modelled Synth",
       "url": "https://www.reasonstudios.com/shop/rack-extension/ceres-circuit-modelled-synth/",
-      "version": "1.0.3",
+      "version": "1.1.4",
       "release_date": "2026-11-02",
       "gallery": [
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres.png.10000x10000_q85.webp",
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres-rear.png.10000x10000_q85.webp"
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/Ceres_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/Ceres_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34538/Ceres_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/ceres/shop-front.webp",
           "role": "front",
-          "sha256": "8f5fb11024198fbebb345d1560d75ae4ca97eae26da274d4ed3c842da438d739",
+          "sha256": "e763010dc93df7305f46e657b3418ef6cce8fedc529095dd62a30abdbbc9f3cf",
           "dimensions": [
-            1508,
-            1104
+            754,
+            552
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres.png",
-          "source_sha256": "03c97f850a857f2596b169ebc8c72ac60be07d014ae43b9995ad5c7d23195329"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/Ceres_Front.png",
+          "source_sha256": "8d763d23826277d70160758901082ab0d734114873384f6f2a06e1f926961923"
         },
         {
           "file": "product/ceres/shop-rear.webp",
           "role": "rear",
-          "sha256": "149858048ae5a13fae6a8e03d28912512376e54dc478d95e9a1acfdea53a819f",
+          "sha256": "4e1cb326dfa6ca34413c885350c933d3e98a616a4cb93336fb02b6274620f974",
           "dimensions": [
-            1508,
-            1104
+            754,
+            552
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/ceres-rear.png",
-          "source_sha256": "a6f22a575d04901c589b3fd12c1443a3911d46d00a296a62b547f9208d23ff10"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Ceres/pictures/Ceres_Back.png",
+          "source_sha256": "b823bc7e39ee83aa9178d8e61431a1a8e55270ecac32a500f9a925580dd1c196"
         },
         {
           "file": "product/ceres/shop-cover.webp",
           "role": "cover",
-          "sha256": "49abfebadc5e85da0f353ede45dcd2b5cd1b4ab6c6f44fc77b3511a97b8fde53",
+          "sha256": "162c2a55904b58b65756f2027f88bfdf8aa6c1d4c063eed61baddc89c5896cf4",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
-          "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34538/Ceres_Thumbnail_800.png",
+          "source_sha256": "c27193da88a4f608fa8fb474ef750fe3ac86fc5a957face487bb2111d8b89b89"
         },
         {
           "file": "product/ceres/shop-cover.png",
           "role": "social",
-          "sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca",
+          "sha256": "c27193da88a4f608fa8fb474ef750fe3ac86fc5a957face487bb2111d8b89b89",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34490/Ceres_Thumbnail_800.png",
-          "source_sha256": "10188ca1de5c8d41716319fc40bff1e9ec015188e3e64db868a25a33cd93a9ca"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34538/Ceres_Thumbnail_800.png",
+          "source_sha256": "c27193da88a4f608fa8fb474ef750fe3ac86fc5a957face487bb2111d8b89b89"
         }
-      ]
+      ],
+      "accepted_version": "1.1.4f1",
+      "shop_page_published_on": "2026-11-05"
     },
     {
       "product": "lamer",
@@ -244,7 +248,8 @@
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
           "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
         }
-      ]
+      ],
+      "accepted_version": "1.0.0f10"
     },
     {
       "product": "maremba",
@@ -302,65 +307,68 @@
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
           "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
         }
-      ]
+      ],
+      "accepted_version": "1.5.7f5"
     },
     {
       "product": "press78",
       "title": "Press78 FM Synth",
       "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/",
-      "version": "0.1.13",
+      "version": "1.0.4",
       "release_date": "2026-11-02",
       "gallery": [
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png.10000x10000_q85.webp",
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png.10000x10000_q85.webp"
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34539/Press78_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/press78/shop-front.webp",
           "role": "front",
-          "sha256": "c8e6530626b5cab86deedb65768b92f49312cdad75ff0d75fb3c51722ffe0ba3",
+          "sha256": "eb1cbf20403dab9b920e18d76e558e6d05afcf91a95271e3cef94d98b1a314cf",
           "dimensions": [
-            1508,
-            1104
+            754,
+            552
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png",
-          "source_sha256": "1cf68c975d6eda1f8ac3f47e8b6f8f895a1fbff89fdc37b49f41af807e435886"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Front.png",
+          "source_sha256": "8eb4c9e6f4c6b044e67bc986fa7e984fb6ad11f13ede3371fc6adcecb52c07ce"
         },
         {
           "file": "product/press78/shop-rear.webp",
           "role": "rear",
-          "sha256": "4d709b8626b5e8f3f17c02d2e859464fd9399025e44faa0cc18084d5841caabc",
+          "sha256": "2784d5ee6ae66e32e2d6c51c2557336eefb07a91d072eeb6b995f382a811f7b1",
           "dimensions": [
-            1508,
-            1104
+            754,
+            552
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png",
-          "source_sha256": "a0cd61bdf48ffba0a10f5a6a4135bb0603bcbd963e77849ae8bccdaeee0358c4"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Back.png",
+          "source_sha256": "a95045a1e610d588d9e6a79a94bdb674a6ff3885faa831e345ecc3d23e3023b7"
         },
         {
           "file": "product/press78/shop-cover.webp",
           "role": "cover",
-          "sha256": "c94c461f84746b4539a00712c8639c184431d20d9b5a6f969167df29d50cd823",
+          "sha256": "a81089a2dde69f9c12d5139dd5ec8bb46726bd05a39836fae1bd0199aa5c1890",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
-          "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34539/Press78_Thumbnail_800.png",
+          "source_sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606"
         },
         {
           "file": "product/press78/shop-cover.png",
           "role": "social",
-          "sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404",
+          "sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
-          "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34539/Press78_Thumbnail_800.png",
+          "source_sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606"
         }
-      ]
+      ],
+      "accepted_version": "1.0.4f1",
+      "shop_page_published_on": "2026-11-05"
     },
     {
       "product": "youknow",
@@ -418,16 +426,49 @@
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
           "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
         }
-      ]
+      ],
+      "accepted_version": "1.3.5f5"
     }
   ],
   "unpublished": [
     {
+      "product": "acukoto",
+      "status": "awaiting_shop_approval",
+      "checked_url": "https://www.reasonstudios.com/shop/product_page/34541/",
+      "http_status": 404,
+      "accepted_version": "0.18.0d1",
+      "shop_page_version": "0.18.0",
+      "shop_page_status": "waiting_for_approval",
+      "publish_on_approval": true
+    },
+    {
+      "product": "aculele",
+      "status": "awaiting_shop_approval",
+      "checked_url": "https://www.reasonstudios.com/shop/product_page/34535/",
+      "http_status": 404,
+      "accepted_version": "0.4.39d1",
+      "shop_page_version": "0.4.39",
+      "shop_page_status": "waiting_for_approval",
+      "publish_on_approval": true
+    },
+    {
+      "product": "aculyre",
+      "status": "awaiting_shop_article",
+      "checked_url": "https://www.reasonstudios.com/shop/product_page/34534/",
+      "http_status": 404,
+      "accepted_version": "0.7.9d1",
+      "shop_page_version": "0.7.4",
+      "shop_page_status": "draft",
+      "note": "The Shop article selector only offers 0.7.4; accepted version 0.7.9d1 is not selectable. Do not submit the draft against the older article."
+    },
+    {
       "product": "respira",
-      "status": "awaiting_publication",
+      "status": "awaiting_device_acceptance",
       "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
       "http_status": 404,
-      "submitted_version": "0.1.14d1"
+      "submitted_version": "0.1.16d1",
+      "shop_page_status": "not_created"
     }
-  ]
+  ],
+  "release_date_note": "release_date preserves the Shop Released field, which may be the original product date. shop_page_published_on records the separately verified page publication date."
 }

@@ -1,9 +1,9 @@
 {
   "product": "Press78",
-  "reviewed": "2026-10-28",
+  "reviewed": "2026-11-06",
   "availability": "published",
   "source_version": "1.0.4f1",
-  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
+  "source_format": "Reason Rack Extension. Current public Shop release and accepted device version verified on 6 November 2026.",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "release/dsp-20261103-evening",
   "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
@@ -67,9 +67,12 @@
     }
   ],
   "public_release": {
-    "version": "0.1.13",
-    "released": "2026-11-02",
-    "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/"
+    "version": "1.0.4",
+    "shop_page_published_on": "2026-11-05",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/",
+    "accepted_version": "1.0.4f1",
+    "shop_release_date_field": "2026-11-02",
+    "verified_on": "2026-11-06"
   },
   "development_refresh": {
     "date": "2026-11-03",
@@ -127,53 +130,53 @@
     "source_branch": "release/dsp-20261103-evening"
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
-    "version": "0.1.13",
+    "checked_on": "2026-11-06",
+    "version": "1.0.4",
     "url": "https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/",
     "assets": [
       {
         "file": "product/press78/shop-front.webp",
         "role": "front",
-        "sha256": "c8e6530626b5cab86deedb65768b92f49312cdad75ff0d75fb3c51722ffe0ba3",
+        "sha256": "eb1cbf20403dab9b920e18d76e558e6d05afcf91a95271e3cef94d98b1a314cf",
         "dimensions": [
-          1508,
-          1104
+          754,
+          552
         ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-front.png",
-        "source_sha256": "1cf68c975d6eda1f8ac3f47e8b6f8f895a1fbff89fdc37b49f41af807e435886"
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Front.png",
+        "source_sha256": "8eb4c9e6f4c6b044e67bc986fa7e984fb6ad11f13ede3371fc6adcecb52c07ce"
       },
       {
         "file": "product/press78/shop-rear.webp",
         "role": "rear",
-        "sha256": "4d709b8626b5e8f3f17c02d2e859464fd9399025e44faa0cc18084d5841caabc",
+        "sha256": "2784d5ee6ae66e32e2d6c51c2557336eefb07a91d072eeb6b995f382a811f7b1",
         "dimensions": [
-          1508,
-          1104
+          754,
+          552
         ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/press78-back.png",
-        "source_sha256": "a0cd61bdf48ffba0a10f5a6a4135bb0603bcbd963e77849ae8bccdaeee0358c4"
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Press78/pictures/Press78_Back.png",
+        "source_sha256": "a95045a1e610d588d9e6a79a94bdb674a6ff3885faa831e345ecc3d23e3023b7"
       },
       {
         "file": "product/press78/shop-cover.webp",
         "role": "cover",
-        "sha256": "c94c461f84746b4539a00712c8639c184431d20d9b5a6f969167df29d50cd823",
+        "sha256": "a81089a2dde69f9c12d5139dd5ec8bb46726bd05a39836fae1bd0199aa5c1890",
         "dimensions": [
           800,
           800
         ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
-        "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34539/Press78_Thumbnail_800.png",
+        "source_sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606"
       },
       {
         "file": "product/press78/shop-cover.png",
         "role": "social",
-        "sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404",
+        "sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606",
         "dimensions": [
           800,
           800
         ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34491/Press78_Thumbnail_800.png",
-        "source_sha256": "b2097a99475df55a7f4323762e736f3310e1701f6c624a6e53120a769a3d3404"
+        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34539/Press78_Thumbnail_800.png",
+        "source_sha256": "d16d3a243d99e76d5e34bc8831fdcf56dc61bdbae8a7c8034a12174178e16606"
       }
     ],
     "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."

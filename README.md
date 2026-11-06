@@ -13,6 +13,9 @@ candidates are identified separately. All channel videos and SoundCloud
 **playlists only** are recorded in [`product/MEDIA.json`](product/MEDIA.json).
 Run `node scripts/render-media.mjs` after updating that inventory.
 
+The [6 November release audit](docs/reason-shop-status.md) records accepted
+device versions, public Shop pages and the remaining publication blockers.
+
 ```sh
 npm ci
 npx playwright install chromium

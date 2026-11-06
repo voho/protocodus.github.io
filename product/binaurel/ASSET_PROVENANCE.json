@@ -1,7 +1,7 @@
 {
   "product": "Binaurel",
   "reviewed": "2026-10-31",
-  "availability": "coming_soon",
+  "availability": "published",
   "source_version": "0.1.0d26",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
@@ -34,7 +34,7 @@
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
+    "checked_on": "2026-11-06",
     "version": "0.1.0",
     "url": "https://www.reasonstudios.com/shop/rack-extension/binaurel-advanced-panner/",
     "assets": [
@@ -95,5 +95,12 @@
       }
     ],
     "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  },
+  "public_release": {
+    "version": "0.1.0",
+    "accepted_version": "0.1.0d26",
+    "shop_release_date_field": "2026-11-04",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/binaurel-advanced-panner/",
+    "verified_on": "2026-11-06"
   }
 }

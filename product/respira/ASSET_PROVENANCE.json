@@ -1,13 +1,7 @@
 {
   "product": "Respira",
   "reviewed": "2026-11-04",
-  "availability": "available_in_reason_shop",
-  "public_release": {
-    "version": "0.1.14d1",
-    "first_released_on": "2026-11-04",
-    "source_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
-    "basis": "The owner uploaded the 0.1.14d1 U45 to Reason Studios on 4 November 2026 and asked for the site to present it as released. Reason Studios' approval was pending that day, so the Shop page did not yet answer; its URL follows the Shop's long-name pattern (long_name 'Respira Bellows Accordion')."
-  },
+  "availability": "awaiting_device_acceptance",
   "source_version": "0.1.14d1",
   "source_format": "Rack Extension 0.1.14d1 built from main, uploaded to Reason Studios on 4 November 2026. Panel views follow the shipped default patch.",
   "source_repository": "protocodus/reason-rack-extensions",
@@ -138,5 +132,14 @@
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
     "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
+  },
+  "publication_check": {
+    "checked_on": "2026-11-06",
+    "product": "respira",
+    "status": "awaiting_device_acceptance",
+    "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
+    "http_status": 404,
+    "submitted_version": "0.1.16d1",
+    "shop_page_status": "not_created"
   }
 }

@@ -658,7 +658,7 @@
     }
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
+    "checked_on": "2026-11-06",
     "version": "1.3.5",
     "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
     "assets": [
@@ -708,5 +708,13 @@
       }
     ],
     "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  },
+  "availability": "published",
+  "public_release": {
+    "version": "1.3.5",
+    "accepted_version": "1.3.5f5",
+    "shop_release_date_field": "2026-10-05",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+    "verified_on": "2026-11-06"
   }
 }

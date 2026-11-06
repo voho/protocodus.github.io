@@ -188,7 +188,7 @@
     }
   },
   "reviewed": "2026-10-27",
-  "availability": "published_in_reason_shop",
+  "availability": "published",
   "source_selection": "Selected custom 1.0.0f10 release, overriding the superseded origin/main-only 1.0.1f1 candidate, as recorded in delivery-20261014/source-manifest.json.",
   "feature_sources": [
     "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/README.md",
@@ -267,7 +267,7 @@
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
+    "checked_on": "2026-11-06",
     "version": "1.0.0",
     "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
     "assets": [
@@ -317,5 +317,12 @@
       }
     ],
     "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  },
+  "public_release": {
+    "version": "1.0.0",
+    "accepted_version": "1.0.0f10",
+    "shop_release_date_field": "2026-10-21",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
+    "verified_on": "2026-11-06"
   }
 }
