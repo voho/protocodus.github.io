@@ -9,7 +9,10 @@
    drained of colour, the dark closing in from the sides and coming and
    going, after a white flash at the blast. A blast close by also spatters
    the view with mud (spatter()): blobs of it, most at the edges and the
-   bottom, wet and ragged, some dripping, wiped away over a few seconds. */
+   bottom, wet and ragged, some dripping, wiped away over a few seconds.
+   Down the sights (uAim) the eye is on the foresight: what lies out
+   towards the edges of the view goes soft, drawn a little towards the
+   middle, and a shade darker, so the sight picture stands out. */
 
 import * as THREE from 'three';
 
@@ -22,6 +25,7 @@ uniform sampler2D tSrc;
 uniform sampler2D tAdapt;      // the eye (adapt.js): its exposure factor, one pixel
 uniform float uHurt, uFlash, uSat, uAspect, uSharp, uContrast;
 uniform float uDaze, uDazeT;  // dazed by a blast (0..1), seconds since it
+uniform float uAim;           // how far aimed down the sights (0..1)
 uniform vec2 uTexel;
 uniform vec3 uMud;          // how much mud (0: none), its seed, seconds since it hit
 varying vec2 vUv;
@@ -100,6 +104,14 @@ void main() {
     col = mix(col, smear * 0.25, smoothstep(0.02, 0.4, r2) * uDaze * 0.85);
     col = mix(col, ghost, 0.4 * uDaze);
   }
+  // down the sights: the edges soft (a short smear towards the middle) and a little darker
+  float edge = smoothstep(0.06, 0.42, r2) * uAim;
+  if (edge > 0.003) {
+    vec3 soft = vec3(0.0);
+    for (int i = 0; i < 4; i++) soft += texture2D(tSrc, vUv - c * (0.006 + 0.007 * float(i))).rgb;
+    col = mix(col, soft * 0.25, edge * 0.8);
+    col *= 1.0 - 0.22 * edge;
+  }
   // mud on the view: dark, wet brown, a little of the light through its thin edges and a sheen
   if (uMud.x > 0.003) {
     vec2 m = mud(vUv);
@@ -142,7 +154,7 @@ export function createGrade() {
       tSrc: { value: null }, tAdapt: { value: open }, uHurt: { value: 0 }, uFlash: { value: 0 },
       uSat: { value: 0.82 }, uAspect: { value: 1.6 },
       uSharp: { value: 0.45 }, uContrast: { value: 1.02 }, uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 768) },
-      uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 },
+      uMud: { value: new THREE.Vector3() }, uDaze: { value: 0 }, uDazeT: { value: 99 }, uAim: { value: 0 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
   });

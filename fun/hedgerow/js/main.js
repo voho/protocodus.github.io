@@ -422,7 +422,7 @@ async function boot() {
   // post
   hdrChain = hdr;
   if (hdr) {
-    bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8 });
+    bloom = createBloom({ strength: 0.22, threshold: 1.2, knee: 0.8, dirt: 6 });
     grade = createGrade();
     // the eye adapting to a flare (adapt.js): the exposure closes down when the view brightens; the
     // grade applies its factor, found and kept on the GPU (nothing is read back)
@@ -1146,6 +1146,7 @@ function step() {
       // dazed by a blast close by (player.js): the view doubles, smears, drains and closes in
       grade.uniforms.uDaze.value = live && player ? player.daze : 0;
       grade.uniforms.uDazeT.value = player ? player.dazeT : 99;
+      grade.uniforms.uAim.value = state === 'playing' && player?.alive ? G.rig.aimT : 0;
     }
   }
   // aiming in brings things nearer: detail follows how big they look, not how far they are

@@ -113,7 +113,10 @@ Lamps and fires cast
 soft shadows and their light hangs in the rain between you and them, corners
 and the ground under things darken, and the frame is finished like film —
 gentle contrast and sharpening — going soft behind whatever you
-aim at.
+aim at, and down the sights soft and a shade darker towards the edges of
+the view too, so the sight picture stands out. The lens is not quite
+clean: a flare, a fire or your own muzzle flash brings up faint smudges
+and dried drops across that side of the view.
 The ambient light keeps the lane and forest readable, with a light vignette
 and no film grain so shadow detail stays clear.
 
