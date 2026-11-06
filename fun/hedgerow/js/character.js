@@ -177,6 +177,7 @@ function createStandIn(matlib, { outfit, scene }) {
     root, bones: {}, mixer: { time: 0 }, socket: null, meshes: [body, head, helmet, gun], shadow,
     get weapon() { return gun; }, get dead() { return dead; }, get upper() { return 'idle'; },
     aimPitch: 0, setWeapon() {}, holdLeft() {}, releaseLeft() {}, holdMountedWeapon() {}, setDistance() {}, far: false, clipLength: () => null, hasClip: () => false, socketL: null,
+    hideHead(on) { head.visible = helmet.visible = !on; },
     animate(move) { crouch = move.startsWith('crouch') ? 1 : 0; },
     oneShot() { return 0.5; },
     die() { dead = true; },

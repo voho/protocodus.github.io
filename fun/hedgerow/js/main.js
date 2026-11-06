@@ -7,10 +7,13 @@
 import * as THREE from 'three';
 import { DIFFICULTY, QUALITY, CAMERA } from './config.js';
 import { normalizeSettings } from './settings.js';
+import { currentDeviceSupport, MIN_GAME_VIEWPORT } from './device-support.js';
 import { SHOT } from './world.js';
 import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
+import { createTerrainTextureArrays } from './terrain-textures.js';
 import { loadModels } from './assets.js';
-import { createSky, DAY_FOG_COLOR } from './sky.js';
+import { createSky } from './sky.js';
+import { lightingProfileFor } from './lighting-profiles.js';
 import { createFlares } from './flares.js';
 import { createFlames } from './flames.js';
 import { createPlumes } from './plumes.js';
@@ -62,6 +65,8 @@ import { createRuts } from './ruts.js';
 import { createPonds } from './ponds.js';
 import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
+import { createHayDetail } from './hay-detail.js';
+import { createFieldCrops } from './field-crops.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import { MISSIONS, pickMission, bestKey } from './missions.js';
@@ -80,7 +85,8 @@ const loadingArt = document.querySelector('[data-loading-art]');
 loadingArt.style.backgroundImage = `url("${MISSION.image}")`;
 document.querySelector('[data-title-eyebrow]').textContent = MISSION.place;
 document.querySelector('[data-title-subtitle]').textContent = MISSION.subtitle;
-// the controls, the same list on the title, the controls screen and the pause
+document.querySelector('[data-title-campaign]').textContent = MISSION.campaign || 'The Normandy campaign';
+// One controls list, including the title and pause disclosures.
 for (const dl of document.querySelectorAll('[data-controls]')) {
   for (const [k, v] of CONTROLS) {
     const dt = document.createElement('dt'); dt.textContent = k;
@@ -89,12 +95,14 @@ for (const dl of document.querySelectorAll('[data-controls]')) {
   }
 }
 const LEVEL = (await MISSION.load()).default;
+const LIGHTING = lightingProfileFor(LEVEL);
+const NIGHT_FOG = LEVEL.fog.nightColor || LEVEL.fog.color;
 const missionUrl = (id, go = false) => `?mission=${encodeURIComponent(id)}${go ? '&go' : ''}`;
 const DEBUG = params.has('debug');
 const FLY = params.has('fly');
 const GOD = params.has('god');
 const AT = params.get('at')?.split(',').map(Number);
-const NIGHT_EXPOSURE = 1.7, DAY_EXPOSURE = 1.15;
+const NIGHT_EXPOSURE = 1.7, DAY_EXPOSURE = LIGHTING.exposure;
 
 const canvas = document.getElementById('stage');
 const $ = (s) => document.querySelector(s);
@@ -134,6 +142,7 @@ let built = null, player = null, enemies = null, mission = null, explosives = nu
 let bloom = null, grade = null, adapt = null, volumetric = null, ssao = null, dof = null, ssr = null, shafts = null, taa = null, distort = null, blur = null;
 let chain = [];        // the effects chain as applyGraphics last set it
 let missionTime = 0;
+let fieldMapData = null;
 let analyticsAttemptActive = false, analyticsAttemptStart = 0;
 function analyticsAttemptContext() {
   const checkpoint = Number.isInteger(mission?.checkpoint) && mission.checkpoint >= 0 && mission.checkpoint < LEVEL.checkpoints.length ? mission.checkpoint : 0;
@@ -157,7 +166,7 @@ function trackAttemptEnd(result, score) {
   });
 }
 const shared = {
-  wet: { value: 1 }, time: { value: 0 }, rain: { value: 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
+  wet: { value: LEVEL.weather?.wetness ?? 1 }, time: { value: 0 }, rain: { value: LEVEL.weather?.rain ?? 1 }, waterLevel: { value: LEVEL.water?.level ?? -1e4 },
   relief: { value: 1 },       // the ground's relief near the eye (terrain.js), by quality
   // the meadow grass's density map and radius, for the ground under it (grass.js, terrain.js)
   grassMap: { value: null }, grassMin: { value: new THREE.Vector2() }, grassSize: { value: new THREE.Vector2(1, 1) }, grassR: { value: 0 },
@@ -216,6 +225,14 @@ const madeShaders = new Set();
 const setValues = THREE.Material.prototype.setValues, copyShader = THREE.ShaderMaterial.prototype.copy;
 
 async function boot() {
+  const support = currentDeviceSupport();
+  if (!support.supported) {
+    $('[data-unsupported-detail]').textContent = support.reason === 'phone'
+      ? 'Phones are not supported. Open Hedgerow on a tablet or PC with a keyboard and mouse.'
+      : `Enlarge the window to at least ${MIN_GAME_VIEWPORT.width} × ${MIN_GAME_VIEWPORT.height} pixels, then choose Check again.`;
+    show('unsupported');
+    return;
+  }
   loading.update('textures', 0, 'Preparing graphics and sound');
   await yieldNow();
   THREE.Material.prototype.setValues = function (values) { if (this.isShaderMaterial) madeShaders.add(this); return setValues.call(this, values); };
@@ -241,7 +258,7 @@ async function boot() {
   renderer.info.autoReset = false;
 
   scene = new THREE.Scene();
-  const fogColor = new THREE.Color(LEVEL.fog.color);
+  const fogColor = new THREE.Color(NIGHT_FOG);
   scene.fog = new THREE.FogExp2(fogColor, LEVEL.fog.density);
   scene.background = fogColor;
   camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, CAMERA.near ?? 0.1, 1700);
@@ -252,7 +269,7 @@ async function boot() {
   audio = createAudio();
   audio.setVolume(settings.volume);
   audio.setMix?.({ effects: settings.effectsVolume, ambience: settings.ambienceVolume });
-  audio.setAmbience(LEVEL.ambience);
+  audio.setAmbience({ ...LEVEL.ambience, frogsHeight: (LEVEL.water?.level ?? 0) + 0.2 });
   const events = createEvents();
 
   // the sound, opened before the menu is there to be clicked (the browser's first audio context holds
@@ -269,13 +286,23 @@ async function boot() {
   loading.update('textures', 0, 'Loading surface textures');
   const textures = await loadTextures('assets/textures', (f, info) => loading.update('textures', f,
     info ? `Loading textures · ${info.completed} of ${info.total} ready` : 'Loading surface textures'));
+  const terrainTextures = createTerrainTextureArrays(renderer, textures);
+  textures.groundAlbedo = terrainTextures.albedo;
+  textures.groundNormal = terrainTextures.normal;
   loading.update('textures', 1);
   mark('models');
   loading.update('models', 0, 'Loading village, military, nature, weapons and soldiers');
   const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f, info) => loading.update('models', f,
     `Loading models · ${info.completed} of ${info.total} sets ready`));
   // and the ones modelled in three.js (procedural.js): the glider, the canal bridge, the supply canisters
-  for (const [name, m] of proceduralModels()) lib.models.set(name, m);
+  let missionModels = [];
+  if (LEVEL.id === 'prague') {
+    const [{ pragueModels }, { pragueStreetModels }] = await Promise.all([
+      import('./prague-models.js'), import('./prague-street-models.js'),
+    ]);
+    missionModels = [...pragueModels(), ...pragueStreetModels()];
+  }
+  for (const [name, m] of [...proceduralModels(), ...missionModels]) lib.models.set(name, m);
   loading.update('models', 1);
   // each step of the layout: the bar moves on, the browser gets its turn, the step is marked
   let laid = 0;
@@ -294,7 +321,7 @@ async function boot() {
   const matlib = createMaterialLibrary(textures, shared);
   const fogUniforms = { color: { value: fogColor }, density: { value: LEVEL.fog.density } };
   G = {
-    scene, camera, renderer, input, hud, audio, events, settings, shared, textures, matlib,
+    scene, camera, renderer, input, hud, audio, events, settings, shared, textures, terrainTextures, matlib,
     models: lib.models, soldier: lib.soldier, level: LEVEL,
     diff: DIFFICULTY[settings.difficulty] || DIFFICULTY.regular,
     time: 0, lightning: 0, godMode: GOD, daylight: false,
@@ -302,8 +329,8 @@ async function boot() {
   };
   G.effects = createEffects({ fog: fogUniforms, camera, wet: shared.wet });
   scene.add(G.effects.group);
-  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256, second: (quality.shadows || 0) >= 512 });
-  const sky = createSky({ fog: LEVEL.fog.color });
+  G.lights = createLighting(scene, { pool: 8, shadows: !!quality.shadows, shadowSize: quality.shadows || 256, second: (quality.shadows || 0) >= 512, profile: LIGHTING });
+  const sky = createSky({ fog: NIGHT_FOG, profile: LIGHTING });
   scene.add(sky.mesh);
   sky.setFires(G.effects.fires);
   G.sky = sky;
@@ -315,8 +342,24 @@ async function boot() {
 
   await next('level');
   built = await buildLevel(G, LEVEL, quality);
-  audio.setOcclusion?.((from, to) => G.world.clear(from.x, from.y, from.z, to.x, to.y, to.z, SHOT) ? 0 : 1);
   G.cover = built.cover;
+  audio.setOcclusionProbe((lx, ly, lz, sx, sy, sz) => {
+    const dx = sx - lx, dy = sy - ly, dz = sz - lz;
+    const distance = Math.hypot(dx, dy, dz);
+    return distance < 1 ? null : G.world.raycast(lx, ly, lz,
+      dx / distance, dy / distance, dz / distance, Math.max(0, distance - 0.25), SHOT, { noWater: true });
+  });
+  audio.setFireSources(G.effects.fires);
+  G.hayDetail = createHayDetail(built.props, G.matlib);
+  if (G.hayDetail) {
+    G.hayDetail.group.visible = !!quality.clutter;
+    scene.add(G.hayDetail.group);
+  }
+  G.fieldCrops = createFieldCrops(LEVEL, (x, z) => G.terrain.height(x, z), G.matlib, { shared, wind: LEVEL.ambience?.wind });
+  if (G.fieldCrops) {
+    G.fieldCrops.group.visible = !!quality.clutter;
+    scene.add(G.fieldCrops.group);
+  }
   await next('walls');
   dressWalls(G, built.props, LEVEL.lines);
   await next('boots');
@@ -399,7 +442,9 @@ async function boot() {
   G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
-    count: rainCount(), terrain: G.terrain, water: LEVEL.water, world: G.world,
+    count: rainCount(), capacity: QUALITY.high.rain * (LEVEL.weather?.rain ?? 1), terrain: G.terrain, water: LEVEL.water, world: G.world,
+    lightning: LEVEL.weather?.lightning ?? (LEVEL.weather?.rain ?? 1) > 0.1,
+    wind: LEVEL.ambience?.wind || [1.6, 0.7],
     onThunder: (t) => audio.thunder(t),
   });
   scene.add(G.weather.group);
@@ -410,7 +455,7 @@ async function boot() {
   // Bake both skies once; changing time of day only swaps the cached reflection map.
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
-  const envSky = createSky({ fog: LEVEL.fog.color });
+  const envSky = createSky({ fog: NIGHT_FOG, profile: LIGHTING });
   envSky.mesh.material.depthTest = false;
   envScene.add(envSky.mesh);
   G.environments = { night: pmrem.fromScene(envScene, 0, 0.1, 1000) };
@@ -547,6 +592,8 @@ function applyGraphics() {
   G?.weather?.setCount(rainCount());
   G?.grass?.setCount(quality.blades ?? 0);
   G?.clutter?.setOn(quality.clutter ?? 0);
+  if (G?.hayDetail) G.hayDetail.group.visible = !!quality.clutter;
+  if (G?.fieldCrops) G.fieldCrops.group.visible = !!quality.clutter;
   shared.relief.value = quality.relief ?? 1;
   if (G?.rig) { G.rig.baseFov = settings.fov; G.rig.cameraMotion = settings.cameraShake ? 1 : 0; }
   if (G) G.diff = DIFFICULTY[settings.difficulty] || DIFFICULTY.regular;
@@ -561,7 +608,7 @@ function setDaylight(on) {
   G.daylight = on;
   G.lights.setDaylight(on);
   G.sky.setDaylight(on);
-  const fog = on ? DAY_FOG_COLOR : LEVEL.fog.color;
+  const fog = on ? LIGHTING.fog : NIGHT_FOG;
   scene.fog.color.set(fog);
   // The background color also backs the particles' shared fog uniform.
   scene.background.set(fog);
@@ -604,7 +651,7 @@ function openMissions() {
     const body = document.createElement('span');
     body.className = 'mc-body';
     const best = (() => { try { return Number(localStorage.getItem(bestKey(m.id)) || 0); } catch { return 0; } })();
-    for (const [cls, text] of [['mc-n', `Mission ${i + 1}${m === MISSION ? ' · loaded' : ''}`], ['mc-title', m.title], ['mc-when', `${m.place} · ${m.time}`], ['mc-sum', m.summary], ['mc-best', best > 0 ? `Best score ${best}` : '']]) {
+    for (const [cls, text] of [['mc-n', `Mission ${i + 1}${m === MISSION ? ' · selected' : ''}`], ['mc-title', m.title], ['mc-when', `${m.place} · ${m.time}`], ['mc-sum', m.summary], ['mc-best', best > 0 ? `Best score ${best}` : '']]) {
       if (!text) continue;
       const span = document.createElement('span');
       span.className = cls; span.textContent = text;
@@ -649,6 +696,9 @@ async function prepareMission() {
   mark('mission');
   mission = createMission(G, LEVEL, built);
   G.mission = mission;
+  const relay = built.placed.get('relay-radio');
+  if (relay) audio.setRadioSources([{ x: relay.x, y: relay.y + 1, z: relay.z,
+    active: () => mission.isActive('report') }]);
   G.events.on('playerDied', onDeath);
   G.events.on('missionComplete', onComplete);
 }
@@ -816,7 +866,6 @@ function startMission() {
   }
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
   player.reset(spawn);
-  hud.weapon('M1 Garand', player.ammo.garand, player.grenades);
   missionTime = 0;
   G.stats = freshStats();
   trackAttemptStart();
@@ -825,7 +874,6 @@ function startMission() {
 }
 
 function resume() {
-  if (player && !player.alive && deathScreenReady) { showDeathScreen(); return; }
   hud.hideCrosshair(false);
   state = 'playing';
   show(null);
@@ -842,33 +890,49 @@ function pause() {
   state = 'paused';
   input.enable(false);
   input.exitLock();
-  audio.setOutdoors(false);
+  audio.suspend();
   document.body.classList.remove('playing');
   $('[data-pause-mission]').textContent = `${LEVEL.title} · ${formatTime(missionTime)}`;
   const ol = $('[data-pause-objectives]');
   ol.innerHTML = '';
-  LEVEL.objectives.forEach((o, i) => {
+  LEVEL.objectives.forEach((o) => {
     const li = document.createElement('li');
     li.textContent = o.text;
-    li.dataset.state = mission?.done || i < (mission?.index ?? 0) ? 'done' : i === (mission?.index ?? 0) ? 'current' : 'todo';
+    li.dataset.state = mission?.done || mission?.isComplete(o.id) ? 'done' : mission?.isActive(o.id) ? 'current' : 'todo';
+    if (li.dataset.state === 'current') li.setAttribute('aria-current', 'step');
+    li.setAttribute('aria-label', `${o.text} — ${li.dataset.state === 'done' ? 'completed' : li.dataset.state === 'current' ? 'current order' : 'upcoming order'}`);
     ol.append(li);
   });
   show('pause');
+  screenEls.pause.scrollTop = 0;
+  screenEls.pause.querySelector('.panel').scrollTop = 0;
+  for (const detail of document.querySelectorAll('[data-screen="pause"] [data-field-map][open]')) paintFieldMap(detail);
+}
+
+async function paintFieldMap(detail) {
+  const body = detail.querySelector('[data-field-map-body]');
+  body.setAttribute('aria-busy', 'true');
+  if (!body.children.length) body.textContent = 'Drawing the field sketch…';
+  try {
+    const maps = await import('./field-map.js');
+    fieldMapData ||= maps.buildFieldMapData(LEVEL);
+    const data = await fieldMapData;
+    maps.renderFieldMap(body, data, { title: LEVEL.title, mission,
+      player: detail.closest('[data-screen="pause"]') ? player?.pos : null, yaw: G?.rig?.yaw || 0 });
+  } catch (err) {
+    fieldMapData = null;
+    body.textContent = 'The field sketch could not be drawn. Close and open it to retry.';
+    console.warn('Field map:', err);
+  } finally { body.removeAttribute('aria-busy'); }
 }
 
 const KILLER_NAME = { rifle: 'a rifleman', smg: 'a submachine gunner', mg: 'the MG 42', officer: 'an officer' };
-let deathScreenReady = false;
-
-function showDeathScreen() {
-  state = 'dead';
-  input.enable(false);
-  input.exitLock();
-  document.body.classList.remove('playing');
-  show('dead');
-}
+let deathSequence = 0;
+let deathPresentation = null;
 
 function onDeath() {
-  deathScreenReady = false;
+  const sequence = ++deathSequence;
+  audio.cancelActions();
   G.stats.deaths++;
   if (!mission.done) trackAttemptEnd('loss');
   // who did it: the camera turns to him (camera.js) while the line says so
@@ -878,20 +942,39 @@ function onDeath() {
     hud.notice(`Killed by ${KILLER_NAME[k.type] || 'the enemy'}`, `${d} m`, 4.5);
   }
   hud.hideCrosshair(true);
-  setTimeout(() => hud.calm(true), 900);
-  setTimeout(() => {
-    if (player.alive) return;
-    deathScreenReady = true;
-    if (state === 'playing') showDeathScreen();
-  }, k ? 5200 : 2600);
+  deathPresentation = { sequence, elapsed: 0, calm: false, delay: k ? 5.2 : 2.6 };
+}
+
+// A paused death camera resumes where it stopped. A wall-clock callback
+// guarded by state==='playing' could expire in pause and leave the player
+// dead forever without the checkpoint menu.
+function updateDeathPresentation(dt) {
+  if (!deathPresentation) return;
+  if (deathPresentation.sequence !== deathSequence || player.alive) { deathPresentation = null; return; }
+  if (state !== 'playing') return;
+  deathPresentation.elapsed += dt;
+  if (!deathPresentation.calm && deathPresentation.elapsed >= 0.9) {
+    deathPresentation.calm = true;
+    hud.calm(true);
+  }
+  if (deathPresentation.elapsed < deathPresentation.delay) return;
+  deathPresentation = null;
+  state = 'dead';
+  input.enable(false);
+  input.exitLock();
+  document.body.classList.remove('playing');
+  show('dead');
 }
 
 function retryCheckpoint() {
-  deathScreenReady = false;
+  deathSequence++;
+  audio.cancelActions();
   const { spawn, inventory } = mission.restoreCheckpoint();
+  // Cancel live fuses immediately; a charge must not detonate during the fade
+  // after the mission has already restored its checkpoint interaction state.
+  explosives.clear();
   fade.classList.add('on');
   setTimeout(() => {
-    explosives.clear();
     G.debris.clear();
     G.casings.clear();
     G.chunks.clear();
@@ -1058,7 +1141,7 @@ function adaptResolution(now) {
 }
 // ?debug: keep stepping when the page gets no animation frames (a hidden
 // preview pane), so scripted tests still run
-if (DEBUG) setInterval(() => { if (performance.now() - lastStep > 150) step(); }, 40);
+if (DEBUG) setInterval(() => { if (ready && performance.now() - lastStep > 150) step(); }, 40);
 
 function step() {
   lastStep = performance.now();
@@ -1088,11 +1171,13 @@ function step() {
 
   if (playing) {
     missionTime += dt;
+    audio.advanceActions(dt);
     player.update(dt, input, settings);
     enemies.update(dt);
     explosives.update(dt);
     G.debris.update(dt);
     mission.update(dt, input);
+    updateDeathPresentation(dt);
     if (input.pressed('Escape')) pause();
     distantTimer -= dt;
     if (distantTimer < 0) {
@@ -1101,7 +1186,7 @@ function step() {
         const az = 0.5 + R() * 2.2, km = 3 + R() * 6;
         G.sky.uniforms.uArtyDir.value.set(Math.sin(az), 0, Math.cos(az));
         artyFlash = 1;
-        setTimeout(() => audio.distant('artillery'), km * 2900 / 3);
+        audio.distant('artillery', { azimuth: az, delay: km * 2.9 });
       } else audio.distant('mg');
       distantTimer = 12 + R() * 22;
     }
@@ -1115,7 +1200,7 @@ function step() {
   }
 
   if (state !== 'paused') {
-    const flash = G.weather.update(dt, G.time, camera, 1);
+    const flash = G.weather.update(dt, G.time, camera, LEVEL.weather?.rain ?? 1);
     G.lightning = flash;
     G.sky.update(dt, G.time, camera, flash, G.weather.flashDir);
     artyFlash = Math.max(0, artyFlash - dt * 2.2);
@@ -1174,10 +1259,13 @@ function step() {
   G.clutter.update(camera, renderer.domElement.width, renderer.domElement.height);
   hud.update(dt);
   hud.compass(G.rig.yaw);
-  audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
+  camera.getWorldDirection(listenerForward);
+  audio.setListener(camera.position.x, camera.position.y, camera.position.z, Math.atan2(listenerForward.x, listenerForward.z));
   if (playing) listenRound(dt);
   // the weather and wildlife out on the battlefield (and watching from it, dead), not over the menus
-  audio.setOutdoors(playing || state === 'dead');
+  // Pause suspends the audio clock; keep its delayed reports and local
+  // equipment intact so they resume with the remaining simulation delay.
+  audio.setOutdoors(playing || state === 'dead' || state === 'paused');
   audio.tick();
   // and what he hears goes dull behind a ringing in the ears (clear again in the menus)
   audio.daze(live && player ? player.daze : 0);
@@ -1208,6 +1296,7 @@ function step() {
 /* What is round the listener, for the echoes (audio.setSpace): eight rays out at head height, one
    every frame in turn, 30 m each. */
 const ECHO_RAYS = 8, ECHO_REACH = 30;
+const listenerForward = new THREE.Vector3();
 const echoHits = new Float32Array(ECHO_RAYS).fill(ECHO_REACH);
 let echoRay = 0, echoTimer = 0;
 function listenRound(dt) {
@@ -1221,13 +1310,17 @@ function listenRound(dt) {
   let closed = 0, sum = 0;
   for (const t of echoHits) { closed += t < ECHO_REACH ? 1 - t / (ECHO_REACH * 1.5) : 0; sum += t; }
   audio.setSpace(closed / ECHO_RAYS, sum / ECHO_RAYS);
+  const roof = G.world.raycast(p.x, p.y + 0.05, p.z, 0, 1, 0, 18, SHOT, { noTerrain: true, noWater: true });
+  const surface = roof?.surface || roof?.collider?.surface || '';
+  audio.setShelter(roof ? /foliage|leaf/.test(surface) ? 0.35 : 1 : 0);
 }
 
 /* the title's slow drift over the battlefield: round the level's `menuView` ({from, to}: points
    [x, y, z]), by default down Saint-Clair's street */
 let menuT = 0;
+const menuMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 function menuCamera(dt) {
-  menuT += dt * 0.03;
+  if (!menuMotion.matches) menuT += dt * 0.03;
   const v = LEVEL.menuView || { from: [0, 3.4, 90], to: [0, 3.5, 118] };
   const sx = Math.sin(menuT) * 6, sz = Math.cos(menuT) * 5;
   camera.position.set(v.from[0] + sx, v.from[1], v.from[2] + sz);
@@ -1235,6 +1328,10 @@ function menuCamera(dt) {
 }
 
 /* ---------- wiring ---------- */
+
+for (const detail of document.querySelectorAll('[data-field-map]')) {
+  detail.addEventListener('toggle', () => { if (detail.open) paintFieldMap(detail); });
+}
 
 // Esc in a sub-screen (the controls, the settings, the missions, the briefing) goes back a step
 window.addEventListener('keydown', (e) => {
@@ -1254,10 +1351,10 @@ window.addEventListener('blur', pause);
 document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-action]');
   const card = e.target.closest('[data-mission]');
-  if (card) { audio?.init(); chooseMission(card.dataset.mission); return; }
+  if (card) { if (state !== 'paused') audio?.init(); chooseMission(card.dataset.mission); return; }
   if (!a) return;
   const act = a.dataset.action;
-  audio?.init();
+  if (state !== 'paused') audio?.init();
   if (act === 'briefing') openBriefing();
   else if (act === 'start') startMission();
   else if (act === 'back') back();

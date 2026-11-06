@@ -15,10 +15,11 @@
      operator's cabin at the north end.
    * `supply_canister`: an airborne supply container with its chute
      crumpled beside it, burst open.
-   * `field_harrow`, `orchard_ladder`: civilian fieldwork left among the
-     cultivated strips and orchard rows.
-   * `mooring_bollard`, `demolition_switch`: the canal's mooring hardware
-     and the exposed demolition firing point beside the bridge cabin.
+   * `duckboard_walk`, `fence_field`, `stone_culvert`: field engineering
+     and farm details, built in metres with the same wet material palette.
+
+   The civilian field_harrow/orchard_ladder and canal mooring_bollard/
+   demolition_switch models remain available alongside these additions.
 
    UVs are in metres (box projected), vertex colours carry a little
    occlusion towards the ground, as the baked models' do. */
@@ -218,6 +219,78 @@ function supplyCanister() {
   return b.done(0);
 }
 
+/* ---------- farm and field engineering ---------- */
+
+/* Four metres of duckboards: the raised sleepers keep the boards out of the
+   mud. A continuous, low collision deck avoids catching the soldier on every
+   plank joint; the visual boards still have uneven ends and iron nail heads. */
+function duckboardWalk() {
+  const b = builder('duckboard_walk');
+  for (const x of [-0.43, 0.43]) b.add('wood_dark', new THREE.BoxGeometry(0.13, 0.12, 4), [x, 0.06, 0]);
+  for (let i = 0; i < 13; i++) {
+    const z = -1.85 + i * 0.305, width = 1.22 + (i % 3) * 0.045;
+    b.add(i % 4 === 0 ? 'wood_dark' : 'wood_old', new THREE.BoxGeometry(width, 0.08, 0.27), [(i % 2 ? 1 : -1) * 0.025, 0.14 + (i % 3) * 0.003, z], [0, (i % 3 - 1) * 1.1, 0]);
+    for (const x of [-0.43, 0.43]) b.add('iron', new THREE.CylinderGeometry(0.013, 0.013, 0.006, 5), [x, 0.184 + (i % 3) * 0.003, z]);
+  }
+  b.box([0, 0.09, 0], [0.64, 0.09, 2], 0, null, 'wood');
+  return b.done(0);
+}
+
+/* A traditional two-rail cattle fence. Sections have generous gaps between
+   them in the levels; the rails are low enough to vault and stop a shot only
+   where there is timber, rather than making an invisible solid wall. */
+function fieldFence() {
+  const b = builder('fence_field');
+  for (const [i, x] of [-1.9, 0, 1.9].entries()) {
+    b.add('wood_old', new THREE.CylinderGeometry(0.075, 0.11, 1.15, 5), [x, 0.51, 0], [0, i * 23, (i - 1) * 2]);
+    b.box([x, 0.51, 0], [0.09, 0.56, 0.09], 0, null, 'wood');
+  }
+  for (const y of [0.43, 0.88]) {
+    b.add('wood_old', new THREE.BoxGeometry(4.04, 0.12, 0.075), [0, y, 0.07], [0, 0, 0.8]);
+    b.box([0, y, 0.07], [2.02, 0.07, 0.045], 0, null, 'wood');
+    for (const x of [-1.9, 0, 1.9]) b.add('rust', new THREE.CylinderGeometry(0.018, 0.018, 0.01, 6).rotateX(Math.PI / 2), [x, y, 0.114]);
+  }
+  return b.done(-0.05);
+}
+
+/* A small stone culvert carrying a farm crossing over a drainage ditch. The
+   barrel runs along +z. Separate arch stones leave real mortar joints, and
+   the dark, recessed barrel is open at both ends rather than painted on. */
+function stoneCulvert() {
+  const b = builder('stone_culvert');
+  for (const sx of [-1, 1]) {
+    b.add('stone', new THREE.BoxGeometry(1.35, 1.05, 3.2), [sx * 1.65, 0.525, 0]);
+    b.box([sx * 1.65, 0.525, 0], [0.675, 0.525, 1.6], 0, null, 'stone');
+  }
+  for (let i = 0; i < 11; i++) {
+    const a = i * Math.PI / 11 + 0.012, end = (i + 1) * Math.PI / 11 - 0.012;
+    const shape = new THREE.Shape();
+    shape.moveTo(Math.cos(a) * 1.2, Math.sin(a) * 1.2 + 0.15);
+    shape.absarc(0, 0.15, 1.2, a, end, false);
+    shape.lineTo(Math.cos(end) * 0.95, Math.sin(end) * 0.95 + 0.15);
+    shape.absarc(0, 0.15, 0.95, end, a, true);
+    shape.closePath();
+    const g = new THREE.ExtrudeGeometry(shape, { depth: 3.2, bevelEnabled: false, curveSegments: 2 });
+    b.add(i % 3 ? 'stone' : 'stone_dark', g, [0, 0, -1.6]);
+    // A short oriented box per voussoir follows the actual arch. A single
+    // solid box here would seal the barrel's opening; omitting the stones
+    // lets bullets pass through visible masonry.
+    const mid = (a + end) * 0.5, radius = 1.075;
+    // builder.box rotates about y only, so use conservative axis-aligned
+    // cells through the arch's thickness, kept outside the open barrel.
+    const cx = Math.cos(mid) * radius, cy = Math.sin(mid) * radius + 0.15;
+    const hw = Math.abs(Math.sin(mid)) * 0.12 + Math.abs(Math.cos(mid)) * 0.125;
+    const hh = Math.abs(Math.cos(mid)) * 0.12 + Math.abs(Math.sin(mid)) * 0.125;
+    b.box([cx, cy, 0], [hw, hh, 1.6], 0, null, 'stone');
+  }
+  b.add('stone_dark', new THREE.BoxGeometry(4.7, 0.18, 3.4), [0, 1.43, 0]);
+  b.box([0, 1.43, 0], [2.35, 0.09, 1.7], 0, null, 'stone');
+  // Low edge stones at the mouths of the barrel, leaving the crossing open.
+  for (const z of [-1.6, 1.6]) for (const x of [-1.8, 1.8]) b.add('stone', new THREE.BoxGeometry(0.9, 0.32, 0.28), [x, 1.66, z]);
+  b.add('moss', new THREE.BoxGeometry(1.0, 0.025, 0.3), [-1.7, 1.835, -1.6]);
+  return b.done(0);
+}
+
 /* ---------- civilian fieldwork and the canal's demolition circuit ---------- */
 
 function fieldHarrow() {
@@ -290,6 +363,6 @@ function demolitionSwitch() {
 
 export function proceduralModels() {
   const out = new Map();
-  for (const m of [glider(), canalBridge(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch()]) out.set(m.name, m);
+  for (const m of [glider(), canalBridge(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch(), duckboardWalk(), fieldFence(), stoneCulvert()]) out.set(m.name, m);
   return out;
 }

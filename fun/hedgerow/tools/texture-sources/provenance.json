@@ -1,0 +1,68 @@
+{
+  "schema": "hedgerow-generated-diffuse-sources-v1",
+  "provider": "OpenAI ImageGen host-native tool",
+  "model": "not exposed by tool",
+  "createdUTC": "2026-11-06T19:34:27.357371+00:00",
+  "externalReferences": [],
+  "paidProviderJob": false,
+  "license": "project-generated content under existing project terms; no public-domain claim",
+  "sources": {
+    "grass": {
+      "originalFilename": "exec-f14b582d-410d-45fe-a61a-b5ebbefe9b5e.png",
+      "originalSha256": "479b0b015287bd782529a8bb15e25cdbadfdf7c9e71c16a3b47d639528abb30f",
+      "retainedFilename": "grass-source.webp",
+      "retainedSha256": "aad41fda86b20432a3cd7e033a6a92dcfe426da3e23f745d2b1239ab6da5558a",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "channels": "RGB",
+      "encoding": "lossless WebP",
+      "promptFile": "grass-prompt.txt",
+      "negativePrompt": "exclusions are embedded in the prompt; no separate parameter was available",
+      "repeatsPerRuntimeTile": 2,
+      "sourceWorldPeriodMetres": 2.150537634408602,
+      "relief": "conservative estimate from diffuse luminance; not measured displacement",
+      "retainedPixelsMatchOriginalRGB": true,
+      "promptSha256": "0ddbb1545b9a641f78f71c9b1c5f2ce8eacae6d4b9531c4a7f1b6e901d7d7a52"
+    },
+    "forest": {
+      "originalFilename": "exec-b1c2646e-134a-44aa-9dd8-052731fa6ed3.png",
+      "originalSha256": "6d6a44f0f6274d48f399881cffbc7d1085277100424807fa7b3067c33e36ac2a",
+      "retainedFilename": "forest-source.webp",
+      "retainedSha256": "82bbcf00b2e72713d6d2485cf04fd218bc4f6f3df38bf1680b38c000ccb58b4a",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "channels": "RGB",
+      "encoding": "lossless WebP",
+      "promptFile": "forest-prompt.txt",
+      "negativePrompt": "exclusions are embedded in the prompt; no separate parameter was available",
+      "repeatsPerRuntimeTile": 4,
+      "sourceWorldPeriodMetres": 1.1494252873563218,
+      "relief": "conservative estimate from diffuse luminance; not measured displacement",
+      "retainedPixelsMatchOriginalRGB": true,
+      "promptSha256": "f06de5acd5125a49354470fe1bd12ea0ee27b1e86183a54605d9954dd4bac393"
+    }
+  },
+  "proceduralFields": {
+    "landscape": {
+      "generator": "../textures.py:landscape",
+      "calibrationFile": "landscape-calibration.json",
+      "calibrationSha256": "1bb111b99e52c1fe5dc2e072d6725f9464aeae1466a184c5dba2efa9ff362404",
+      "dimensions": [
+        256,
+        256
+      ],
+      "channels": {
+        "R": "moisture",
+        "G": "growth",
+        "B": "organic drift",
+        "A": "independent secondary"
+      },
+      "encoding": "lossless WebP, all channels linear, six effective bits/channel",
+      "license": "original project procedural content; no external source"
+    }
+  }
+}

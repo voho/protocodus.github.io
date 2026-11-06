@@ -56,18 +56,24 @@ for (const c of L.checkpoints) spot('checkpoint spawn', c.spawn[0], c.spawn[1]);
 // Check an interaction's real transformed anchor can be reached and seen
 // from at least one walkable spot inside its operating radius.
 for (const o of L.objectives.filter((o) => o.kind === 'interact')) {
-  const p = placed.get(o.target), a = p?.model.anchors[o.anchor || 'interact'];
+  const p = placed.get(o.target), anchors = p?.model.anchors || {};
+  const explicit = o.anchor && anchors[o.anchor];
+  const a = explicit || anchors.interact || anchors.operator;
   if (!p || !a) { problems.push(`interaction ${o.id}: target or anchor missing`); continue; }
-  const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
-  const x = p.x + (a[0] * c + a[2] * s) * p.scale, z = p.z + (-a[0] * s + a[2] * c) * p.scale;
-  const y = p.y + (a[1] + (o.anchorHeight || 0)) * p.scale;
+  const c = Math.cos(p.yaw), s = Math.sin(p.yaw), scale = p.scale || 1;
+  const x = p.x + (a[0] * c + a[2] * s) * scale, z = p.z + (-a[0] * s + a[2] * c) * scale;
+  // An operator anchor is a foot point: use hand height for visibility,
+  // exactly as the runtime does when no equipment-face anchor is supplied.
+  const handHeight = explicit || anchors.interact ? (o.anchorHeight || 0) : (o.anchorHeight ?? 1.2);
+  const y = p.y + (a[1] + handHeight) * scale;
+  const sx = explicit ? x : o.x ?? p.x, sz = explicit ? z : o.z ?? p.z;
   let accessible = false;
   for (const r of [0.65, 1.2, 1.9]) for (let i = 0; i < 20; i++) {
-    if (r >= (o.r || 2.5)) continue;
-    const px = x + Math.sin(i * Math.PI / 10) * r, pz = z + Math.cos(i * Math.PI / 10) * r;
+    if (r >= (o.r ?? 2.2)) continue;
+    const px = sx + Math.sin(i * Math.PI / 10) * r, pz = sz + Math.cos(i * Math.PI / 10) * r;
     if (!nav.walkable(px, pz)) continue;
     const py = world.groundAt(px, pz, 1e4, 0.4);
-    if (Math.abs(py + 1.2 - y) < 2 && world.clear(px, py + 1.5, pz, x, y, z)) accessible = true;
+    if (Math.abs(py - p.y) < 2.2 && world.clear(px, py + 1.5, pz, x, y, z)) accessible = true;
   }
   if (!accessible) problems.push(`interaction ${o.id}: equipment cannot be operated from walkable ground`);
 }

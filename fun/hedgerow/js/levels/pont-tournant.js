@@ -33,11 +33,15 @@ const LANE = smoothPolyline([[0, CANAL_Z - HALF + 1], [-0.5, 94], [-4, 82], [-12
 const SIDE = smoothPolyline([[-30, 52], [-26, 30], [-21, 8], [-24, -14], [-30, -30]], 2);
 const STREET = smoothPolyline([[0, CANAL_Z + HALF - 1], [1, 156], [5, 180], [5, 200], [-4, 216], [-18, 230], [-26, 246], [-28, 262]], 2);
 const CROSS = smoothPolyline([[4.5, 176], [18, 178], [32, 175], [48, 178]], 2);
+// A maintenance footpath through the reeds joins the left-hand gap in the
+// wire. It is slower and more sheltered than the road, and the duckboards
+// give the marsh a recognisable route instead of an undifferentiated field.
+const MARSH_PATH = smoothPolyline([[18, 26], [24, 40], [24, 56], [22, 70]], 2);
 const POND = { x: -20, z: 89, r: 7.5, h: 1.0, crater: true };
 const TRENCH_W = smoothPolyline([[-30, 100], [-38, 98.2], [-46, 100.4]], 1);
 const TRENCH_E = smoothPolyline([[17, 91.5], [25, 93.6], [31, 90.8], [38, 93]], 1);
 const TRENCH_DEPTH = 1.2;
-const BOX = { LANE: bbox(LANE, 10), SIDE: bbox(SIDE, 10), STREET: bbox(STREET, 12), CROSS: bbox(CROSS, 10), TW: bbox(TRENCH_W, 6), TE: bbox(TRENCH_E, 6) };
+const BOX = { LANE: bbox(LANE, 10), SIDE: bbox(SIDE, 10), STREET: bbox(STREET, 12), CROSS: bbox(CROSS, 10), MARSH: bbox(MARSH_PATH, 5), TW: bbox(TRENCH_W, 6), TE: bbox(TRENCH_E, 6) };
 const TRENCHES = [[TRENCH_W, BOX.TW], [TRENCH_E, BOX.TE]];
 const TMP = {};
 /* the street's x at z, and a point `off` metres to its side there (+ its left) */
@@ -59,6 +63,7 @@ function roughAllowed(x, z) {
   if (z > CANAL_Z + 12 && Math.abs(x - sx(z)) < 30) k = 0;
   k = Math.min(k, smoothstep(9, 13, Math.hypot(x - 10, z - 95)));
   k = Math.min(k, smoothstep(POND.r + 2, POND.r + 5, Math.hypot(x - POND.x, z - POND.z)));
+  k = Math.min(k, smoothstep(1.4, 3.5, near(MARSH_PATH, BOX.MARSH, x, z)));
   return k;
 }
 const ROUGH = roughGround(rng(1944066), {
@@ -71,6 +76,11 @@ function baseHeight(x, z) {
   if (k > 0) h += k * (0.12 * fbm2(x / 5.3 + 11.7, z / 5.3 - 3.1, 3) + ROUGH.height(x, z));
   // the marsh south of the canal: wet hollows between tussocky rises
   if (z < CANAL_Z - 18) h -= 0.35 * smoothstep(0.1, 0.5, fbm2(x / 21 + 5, z / 21 - 2, 2)) * k;
+  const foot = near(MARSH_PATH, BOX.MARSH, x, z);
+  if (foot < 3) {
+    polylineDistance(MARSH_PATH, x, z, TMP);
+    h = lerp(h, lipHeight(TMP.px, TMP.pz) - 0.06, smoothstep(2.8, 0.9, foot));
+  }
   // the pond in the angle of the road and the canal, its water a metre down (ponds.js fills it)
   const dp = Math.hypot(x - POND.x, (z - POND.z) * 1.15);
   if (dp < POND.r + 2) h = lerp(h, lipHeight(POND.x, POND.z) - POND.h, smoothstep(POND.r + 0.5, POND.r * 0.3, dp));
@@ -105,6 +115,7 @@ function splat(x, z) {
   // the marsh: wetter, muddier towards the canal
   if (z < CANAL_Z) mud += smoothstep(0.0, 0.5, fbm2(x / 21 + 5, z / 21 - 2, 2)) * 0.9;
   mud += smoothstep(3.4, 1.6, near(LANE, BOX.LANE, x, z)) * 2 + smoothstep(3.0, 1.4, near(SIDE, BOX.SIDE, x, z)) * 2;
+  mud += smoothstep(2.0, 0.7, near(MARSH_PATH, BOX.MARSH, x, z)) * 2.5;
   for (const [T, b] of TRENCHES) mud += smoothstep(2.4, 1.0, near(T, b, x, z)) * 2;
   mud += smoothstep(14, 11.5, Math.abs(z - CANAL_Z)) * 1.5;
   mud += Math.min(1.5, Math.abs(ROUGH.height(x, z)) * 2.2);
@@ -140,6 +151,11 @@ P('glider', 12, 16, 8, { id: 'glider' });
 P('glider', -8, 48, -24, { fire: true, fireSize: 1.3, debris: 4 });
 P('glider', 40, 58, 32);
 P('stretcher', 6, 10, 80); P('crate', 7.5, 6, 15); P('dropped_helmet_us', 10, 4, 0); P('supply_canister', 18, 2, 40);
+for (const z of [37, 41, 45, 49, 53, 57, 61, 65]) {
+  const { x, tx, tz } = atZ(MARSH_PATH, z);
+  P('duckboard_walk', x, z, Math.atan2(tx, tz) * 180 / Math.PI, { y: above(-0.015) });
+}
+P('fence_field', 27, 29, 10); P('fence_field', 18, 68, 0);
 
 // the wire belt across the marsh, gaps where the patrols come through; the road barred at it
 const wireZ = (x) => 73 + 2.5 * Math.sin(x / 9);
@@ -174,7 +190,7 @@ for (let x = -48; x <= 48; x += 4) {
   P('wall_low', x, CANAL_Z + 12.9, 0, { y: lipHeight(x, CANAL_Z + 12.9) - 0.05 });
 }
 P('cable_reel', 4.6, CANAL_Z + 15.5, 30); P('crate', -4.5, CANAL_Z + 15, 0);
-// The firing point sits outside the cabin, reachable from the north quay.
+// The firing point is reachable from the north quay, outside the cabin.
 P('demolition_switch', 4.2, CANAL_Z + HALF + 3.4, 180, { id: 'demolition', separate: true });
 for (const x of [-36, -20, 20, 36]) for (const side of [-1, 1]) {
   P('mooring_bollard', x, CANAL_Z + side * 14.4, side * 12, { y: lipHeight(x, CANAL_Z + side * 14.4) - 0.04 });
@@ -230,6 +246,7 @@ for (const [nx, nz] of [[10, 95], [-7, 99.5]]) for (let k = 0; k < 6; k++) {
 const R = rng(20250605);
 const scatter = [];
 const noTree = (x, z) => near(LANE, BOX.LANE, x, z) < 5 || near(SIDE, BOX.SIDE, x, z) < 4.5 || near(STREET, BOX.STREET, x, z) < 8
+  || near(MARSH_PATH, BOX.MARSH, x, z) < 1.8
   || near(CROSS, BOX.CROSS, x, z) < 6 || Math.abs(z - CANAL_Z) < 15
   || TRENCHES.some(([T, b]) => near(T, b, x, z) < 4) || Math.hypot(x - 10, z - 95) < 11 || Math.abs(z - wireZ(x)) < 3
   || Math.hypot(x - POND.x, z - POND.z) < POND.r + 1.5
@@ -272,7 +289,7 @@ for (let i = 0; i < 46; i++) {
 const cover = [];
 for (let i = 0; i < 26000; i++) {
   const x = R.range(-54, 54), z = R.range(-24, 252);
-  if (near(LANE, BOX.LANE, x, z) < 3.4 || near(SIDE, BOX.SIDE, x, z) < 2.6 || near(STREET, BOX.STREET, x, z) < 5.5 || near(CROSS, BOX.CROSS, x, z) < 3.5
+  if (near(LANE, BOX.LANE, x, z) < 3.4 || near(SIDE, BOX.SIDE, x, z) < 2.6 || near(STREET, BOX.STREET, x, z) < 5.5 || near(CROSS, BOX.CROSS, x, z) < 3.5 || near(MARSH_PATH, BOX.MARSH, x, z) < 1.1
     || Math.abs(z - CANAL_Z) < 13.5 || Math.hypot(x - POND.x, (z - POND.z) * 1.15) < POND.r) continue;
   const q = R();
   const m = z < CANAL_Z ? (q < 0.45 ? 'grass_tall' : q < 0.6 ? 'reeds' : q < 0.7 ? 'weeds' : 'grass_tuft')
@@ -333,7 +350,7 @@ const objectives = [
   { id: 'wire', text: 'Get through the wire belt', kind: 'cross', z: 77, marker: [0, 74] },
   { id: 'pillbox', text: 'Silence the pillbox and the bridge guards', kind: 'clear', groups: ['pillbox'] },
   { id: 'bridge', text: 'Rush the bridge before it can be blown', kind: 'cross', z: CANAL_Z + HALF + 2, marker: [0, CANAL_Z + HALF] },
-  { id: 'demolition', text: 'Disconnect the bridge demolition circuit', kind: 'interact', target: 'demolition', x: 4.2, z: CANAL_Z + HALF + 2.8, r: 2.5, duration: 4, action: 'disconnect the demolition cable' },
+  { id: 'demolition', text: 'Disconnect the bridge demolition circuit', kind: 'interact', target: 'demolition', x: 4.2, z: CANAL_Z + HALF + 2.8, r: 2.5, duration: 4, action: 'disconnect', prompt: 'disconnect the demolition cable', progressText: 'Disconnecting the cable' },
   { id: 'cafe', text: 'Clear the café and the houses on the far bank', kind: 'clear', groups: ['farbank'] },
   { id: 'hold', text: 'Hold the north end of the bridge', kind: 'hold', x: 0, z: 150, r: 24, time: 90, counter: ['counter'], warning: 'They are coming down the road — hold the bridge' },
 ];
@@ -341,6 +358,7 @@ const objectives = [
 const hints = [
   { x: 4, z: 8, r: 6, text: 'The bridge is wired for demolition', sub: 'Get across before they can fire the charges' },
   { x: -12, z: 62, r: 8, text: 'The wire has gaps', sub: 'Out in the field on the left; the road itself is barred' },
+  { x: 23, z: 36, r: 6, text: 'The duckboards lead through the marsh', sub: 'Follow them to the gap in the wire; the reeds conceal a crouched approach' },
   { x: -3, z: 88, r: 7, text: 'Their pillbox looks down the road', sub: 'Work round it through the trenches, grenades through the slit' },
   { x: 0, z: 140, r: 6, text: 'The demolition switch is beside the bridge cabin', sub: 'Hold F at the wooden box to disconnect the cable; then clear the café' },
 ];
@@ -353,7 +371,7 @@ export default {
   briefing: [
     'Your glider cast off over the coast and came down in the marsh south of the canal, short of the bridge at Pont-Tournant. The landing broke it open; the others are coming out of the wrecks behind you.',
     'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, rush the bridge and disconnect the firing cable at the wooden switch beside its north cabin. Then clear the café and the houses on the far bank.',
-    'Then hold the north end. They will counter-attack down the road from the village. The paratroopers are on their way.',
+    'The road is exposed. A duckboard maintenance path through the reeds on your left leads to a gap in the wire; the trenches on either bank give another way around the pillbox. Then hold the north end. They will counter-attack down the road from the village. The paratroopers are on their way.',
   ],
   daylight: false,
   weather: { rain: 0.65 },
@@ -377,6 +395,6 @@ export default {
   },
   mist: (x, z) => Math.min(1, smoothstep(40, 10, Math.abs(z - CANAL_Z)) + 0.6 * smoothstep(100, 60, z)),
   ambience: { rain: 0.65, wind: [1.8, 0.8], aircraft: true, frogs: CANAL_Z },
-  lines: { LANE, SIDE, STREET, CROSS, TRENCH_W, TRENCH_E },
+  lines: { LANE, SIDE, STREET, CROSS, TRENCH_W, TRENCH_E, MARSH_PATH },
   craters: [...ROUGH.craters, POND],
 };

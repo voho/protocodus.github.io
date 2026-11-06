@@ -67,10 +67,11 @@ const clearable = { clear: noop };
 const hedgerow = await functions('fun/hedgerow/js/main.js', ['analyticsAttemptContext', 'trackAttemptStart', 'trackAttemptEnd', 'retryCheckpoint'], {
   ...hedge, LEVEL, DIFFICULTY, settings: { difficulty: 'veteran' },
   mission: { checkpoint: 0, restoreCheckpoint: () => ({ spawn: LEVEL.start, inventory: null }) },
-  missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0,
+  missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0, deathSequence: 0,
   fade: { classList: { add: noop, remove: noop } }, explosives: clearable,
   G: { debris: clearable, casings: clearable, chunks: clearable, steam: clearable },
   enemies: { resetLiving: noop }, player: { reset: noop }, resume: noop,
+  audio: { cancelActions: noop },
   setTimeout: callback => callback(),
 });
 hedgerow.trackAttemptStart();

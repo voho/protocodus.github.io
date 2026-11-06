@@ -157,6 +157,27 @@ export function cutTrench(line, box, lip, depth, h, x, z) {
   return up + (floor - up) * lerpT;
 }
 
+/* A field drain has a rounded, walkable profile, unlike the steep revetted
+   sides of a fighting trench. Cache its bounds and length: ground sampling
+   calls this hundreds of thousands of times. The last few metres fade into
+   the meadow so both ends can be entered without a step or a hard seam. */
+export function fieldDrain(line, { depth = 0.85, half = 2.8, fade = 5 } = {}) {
+  const box = bbox(line, half + 1.5);
+  const length = line.reduce((n, p, i) => n + (i ? Math.hypot(p[0] - line[i - 1][0], p[1] - line[i - 1][1]) : 0), 0);
+  const sample = (x, z) => {
+    if (!inBox(box, x, z)) return 0;
+    polylineDistance(line, x, z, tmp);
+    const ends = smoothstep(0, fade, Math.min(tmp.t, 1 - tmp.t) * length);
+    return smoothstep(half, 0.65, tmp.d) * ends;
+  };
+  return {
+    line, box,
+    dist: (x, z) => near(line, box, x, z),
+    strength: sample,
+    cut: (h, x, z) => h - depth * sample(x, z),
+  };
+}
+
 /* `line` moved `d` metres to its side (+ the left, +x when heading +z), point by point */
 export function offset(line, d) {
   return line.map(([x, z], i) => {

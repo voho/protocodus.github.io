@@ -24,6 +24,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = `http://127.0.0.1:${server.address().port}`;
+const expectedSamples = JSON.parse(await readFile(new URL('../assets/audio/manifest.json', import.meta.url), 'utf8')).assets.length;
 let browser;
 try {
   const systemChromium = await stat('/usr/bin/chromium').then(() => '/usr/bin/chromium').catch(() => null);
@@ -59,7 +60,7 @@ try {
       const loaded = await audio.preloadSamples();
       audio.setListener(0, 1.7, 0, 0);
       let occlusionQueries = 0;
-      audio.setOcclusion(() => { occlusionQueries++; return 0.6; });
+      audio.setOcclusionProbe(() => { occlusionQueries++; return { surface: 'stone' }; });
       audio.setOutdoors(true);
       audio.setSpace(0.6, 12);
       if (test.combat) {
@@ -86,14 +87,14 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(external, [], 'all sounds load locally');
   for (const result of reports) {
-    assert.equal(result.loaded.loaded, 32, `${result.name}: browser decodes every recording`);
+    assert.equal(result.loaded.loaded, expectedSamples, `${result.name}: browser decodes every recording`);
     assert.equal(result.loaded.failed, 0);
     assert.ok(Number.isFinite(result.rms) && Number.isFinite(result.peak));
     if (result.name.endsWith('muted')) assert.equal(result.peak, 0, `${result.name} must be silent, including echoes and tinnitus`);
     else assert.ok(result.rms > 0.001, `${result.name} must produce audible output`);
     if (result.name === 'recorded combat') assert.ok(result.occlusionQueries < 7, 'repeated same-cell events reuse obstruction query');
   }
-  console.log('audio-browser-check: all 32 recordings decoded; combat and ambience render; effects/master/ambience mute correctly, including echoes and tinnitus');
+  console.log(`audio-browser-check: all ${expectedSamples} runtime recordings decoded; combat and ambience render; effects/master/ambience mute correctly, including echoes and tinnitus`);
   console.log(JSON.stringify(reports.map(({ name, rms, peak }) => ({ name, rms: +rms.toFixed(5), peak: +peak.toFixed(5) }))));
 } finally {
   await browser?.close();

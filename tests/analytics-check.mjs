@@ -9,7 +9,7 @@ const root = new URL('../', import.meta.url);
 // Source coverage is part of the behavior: opening any site page directly must work.
 function htmlFiles(directory = root) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name.startsWith('.') || ['assets', 'tests', 'docs', 'tools', 'node_modules'].includes(entry.name)) return [];
+    if (entry.name.startsWith('.') || ['assets', 'tests', 'docs', 'tools', 'node_modules', 'work'].includes(entry.name)) return [];
     const url = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory);
     return entry.isDirectory() ? htmlFiles(url) : entry.name.endsWith('.html') ? [url] : [];
   });

@@ -11,6 +11,7 @@ import { GLSL_HELPERS } from './terrain.js';
 import { ROOMS_GLSL, ROOM_UNIFORMS } from './rooms.js';
 import { dimFillSpecular, addFireBounce, FIRE_UNIFORMS } from './fill.js';
 import { GUST_GLSL } from './weather.js';
+import { surfaceResponse } from './surface-weather.js';
 
 /* key: [detail texture, metres per tile, normal strength, wet porosity, extra] */
 const SPEC = {
@@ -179,6 +180,9 @@ const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0
 /* the close-up grain of the baked solids (addWeather `grain`): its texture (grainTexture, made
    with the first material library) and how strong it is (0: none) */
 export const GRAIN_UNIFORMS = { tGrain: { value: null }, uGrain: { value: 1 } };
+/* Artistic weathering can be inspected independently; the normal-variance
+   filter keeps wet microdetail steady at glancing angles and in motion. */
+export const SURFACE_UNIFORMS = { uWeathering: { value: 1 }, uSurfaceAA: { value: 1 } };
 
 /* A metre of surface, tiling: mottling a few centimetres across, finer grit and small pits. RGB
    its relief as a normal map, A the albedo detail (0.5 on average). Value noise on lattices
@@ -245,6 +249,7 @@ export function createMaterialLibrary(textures, shared) {
     if (cache.has(id)) return cache.get(id);
     const spec = SPEC[key] || ['metal', 1.0, 0.3, 0.6];
     const [tex, tile, nStrength, porosity, extra = {}] = spec;
+    const response = surfaceResponse(key);
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(opts.color || PALETTE[key] || '#808080'),
       roughness: opts.roughness ?? extra.roughness ?? ROUGH[key] ?? 0.9,
@@ -260,8 +265,8 @@ export function createMaterialLibrary(textures, shared) {
       mat.emissiveIntensity = extra.emissiveIntensity ?? 1;
     }
     addWeather(mat, shared, {
-      porosity, detailTex: textures[tex], tile, foliage: tex === 'foliage',
-      streaks: tex !== 'foliage' && !NO_STREAKS.test(key),
+      porosity, detailTex: textures[tex], tile, foliage: tex === 'foliage', response,
+      streaks: tex !== 'foliage' && !NO_STREAKS.test(key) && response.rivulets !== false,
     });
     cache.set(id, mat);
     return mat;
@@ -275,6 +280,7 @@ export function createMaterialLibrary(textures, shared) {
     if (src.map || src.emissiveMap) {
       if (baked.has(src.uuid)) return baked.get(src.uuid);
       const m = src;
+      const response = surfaceResponse(src.name);
       // The GLB atlases use the loader's default single-axis filtering. At
       // grazing angles that smears wall courses, roof tiles and the rifle's
       // grain even though the separate terrain textures stay sharp. Keep the
@@ -302,11 +308,11 @@ export function createMaterialLibrary(textures, shared) {
       // the far treelines and copses are scenery cards tens of metres tall: no wind
       const bk = !cards && BARK.find(([re]) => re.test(src.name || ''));
       addWeather(m, shared, {
-        porosity: cards ? 0.4 : 0.75, foliage: cards, sway: cards && src.name !== 'nat_far',
+        porosity: cards ? 0.4 : response.porosity, response: cards ? null : response, foliage: cards, sway: cards && src.name !== 'nat_far',
         // the ground cover's atlas (ferns, tussocks, nettles, weeds, reeds, ivy)
         cover: cards && src.name === 'nat_ground',
         bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
-        streaks: !cards && !CARRIED.test(src.name || ''),
+        streaks: !cards && !CARRIED.test(src.name || '') && response.rivulets !== false,
         rooms: !!src.userData?.rooms,
         smoulder: !cards && (SMOULDER.find(([re]) => re.test(src.name || ''))?.[1] || null),
         skin: SKIN.test(src.name || ''),
@@ -331,13 +337,16 @@ export function createMaterialLibrary(textures, shared) {
    With `detailTex` (palette materials) a tiling detail texture (RGB normal,
    A albedo detail) in metre UVs adds the surface grain. `rooms`: lit
    window panes (rooms.js) show the room behind them. */
-function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false, gun = false }) {
+function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, foliage = false, sway = foliage, cover = false, bark = null, streaks = false, rooms = false, smoulder = null, skin = false, glints = false, grain = false, gun = false, response = null }) {
   const detail = !!detailTex;
   const tileScale = 1 / tile;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '');
+  const masonry = !!response?.masonry && !rooms;
+  const wetSheen = response?.sheen ?? 1, wetFloor = response?.floor ?? 0;
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '') + (masonry ? 'M' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
+      uWetSheen: { value: wetSheen }, uWetFloor: { value: wetFloor }, ...SURFACE_UNIFORMS,
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
       tDetail: { value: detailTex },
       ...(bark ? { tBark: { value: bark.tex }, uBark: { value: bark.k }, uMoss: { value: bark.moss } } : {}),
@@ -423,7 +432,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         }`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        uniform float uPorosity, uWet, uTime, uRain;
+        uniform float uPorosity, uWet, uTime, uRain, uWetSheen, uWetFloor;
+        uniform float uWeathering, uSurfaceAA;
         uniform sampler2D tDetail;
         varying vec3 vWNormalM;
         varying vec2 vDetailUv;
@@ -442,7 +452,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         vec3 grainW = vec3(0.0);
         vec4 grainX, grainY, grainZ;` : ''}
         ${GLSL_HELPERS}
-        ${streaks ? DAMP_GLSL : ''}
+        ${streaks || masonry ? DAMP_GLSL : ''}
         ${rooms ? ROOMS_GLSL : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         ${bark ? `{
@@ -529,8 +539,34 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           grainZ = texture2D(tGrain, vWPosM.xy);
           float g = grainX.a * grainW.x + grainY.a * grainW.y + grainZ.a * grainW.z;
           diffuseColor.rgb *= mix(1.0, 0.7 + 0.6 * g, grainK);
+          // pits stay dull beside smoother grains, breaking the wet highlight
+          roughnessFactor = clamp(roughnessFactor + (0.5 - g) * 0.18 * grainK, 0.04, 1.0);
         }` : ''}
-        roughnessFactor = mix(roughnessFactor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}, uWet);
+        ${masonry ? `// Lime, stone and concrete weather unevenly. Broad damp patches break the
+        // repetition of the baked atlas; pale mineral bloom and lichen cling to
+        // exposed, rough, non-metal surfaces, never painted doors or window glass.
+        {
+          float mineral = smoothstep(0.64, 0.88, roughnessFactor);
+          #ifdef USE_METALNESSMAP
+            mineral *= 1.0 - smoothstep(0.05, 0.2, texture2D(metalnessMap, vMetalnessMapUv).b);
+          #endif
+          vec3 wp = vWPosM;
+          float n = dampNoise(wp.xz * 0.34 + vec2(wp.y * 0.19, -wp.y * 0.13));
+          float fleck = dampNoise(wp.xz * 7.7 + vec2(wp.y * 9.1, wp.y * 4.3));
+          float scale = uWeathering * mineral;
+          float damp = smoothstep(0.35, 0.72, n) * uWet * scale;
+          diffuseColor.rgb *= 1.0 - damp * 0.12;
+          float facing = 0.45 + 0.55 * smoothstep(-0.1, 0.7, vWNormalM.y - vWNormalM.z * 0.55);
+          float lichen = smoothstep(0.49, 0.71, n) * smoothstep(0.47, 0.72, fleck) * facing * scale;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.82, 0.95, 0.69) + vec3(0.014, 0.018, 0.006), lichen * 0.42);
+          float lime = smoothstep(0.7, 0.89, n) * (1.0 - smoothstep(0.4, 0.62, fleck)) * scale;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.12 + vec3(0.012), lime * 0.3);
+          roughnessFactor = min(1.0, roughnessFactor + 0.1 * lichen);
+        }` : ''}
+        // Water absorbed by hessian, wool, bark and old timber darkens them
+        // without replacing their finish with the sheen of wet painted steel.
+        float wetTarget = min(roughnessFactor, max(uWetFloor, ${foliage ? 'max(roughnessFactor * 0.75, 0.42)' : 'roughnessFactor * 0.5 + 0.06'}));
+        roughnessFactor = mix(roughnessFactor, wetTarget, uWet * uWetSheen);
         ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);\n        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.75, mDamp);\n        roughnessFactor = mix(roughnessFactor, 0.9, mMud * 0.6);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
@@ -882,17 +918,15 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           if (dot(nb, nb) > 1e-24) normal = normalize(nb);
         }`);
     }
-    // Filter normal-map sparkle before the lighting integration. Three's
-    // geometric roughness only sees the mesh normals; a finely grained wet
-    // surface can still become a shower of white pixels when it recedes.
-    // Broaden just the unresolved specular lobe, preserving resolved texture
-    // and sharp close-up reflections. Derivatives stay outside branches.
+    // Normal maps contain detail smaller than a pixel at distance or along a
+    // wet wall viewed edge-on. Fold that unresolved variance into the specular
+    // lobe (GGX alpha squared, matching terrain.js) instead of letting it sparkle as the camera moves (the geometry's
+    // own roughness in three.js does not include these perturbed normals).
     shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>', `
-        {
-          vec3 detailDx = dFdx(normal), detailDy = dFdy(normal);
-          float variance = max(dot(detailDx, detailDx), dot(detailDy, detailDy));
-          roughnessFactor = sqrt(min(1.0, roughnessFactor * roughnessFactor + min(0.12, variance * 0.18)));
-        }
+        vec3 surfDx = dFdx(normal), surfDy = dFdy(normal);
+        float surfVariance = min(0.12, 0.5 * max(dot(surfDx, surfDx), dot(surfDy, surfDy))) * max(0.0, uSurfaceAA);
+        float surfAlpha = roughnessFactor * roughnessFactor;
+        roughnessFactor = min(1.0, sqrt(sqrt(surfAlpha * surfAlpha + surfVariance)));
         #include <lights_physical_fragment>`);
     if (gun || skin) addViewFill(shader);
     addFireBounce(shader, 'vWPosM', 'normalize(vWNormalM)');
@@ -1004,7 +1038,7 @@ export async function loadTextures(base, onProgress) {
   const loader = new THREE.TextureLoader();
   const detail = ['stone', 'plaster', 'brick', 'tile', 'slate', 'planks', 'bark', 'fabric', 'concrete', 'metal', 'rock', 'foliage'];
   const ground = ['mud', 'grass', 'forest', 'cobble'];
-  const names = [...detail, ...ground, ...ground.map(g => g + '_n')];
+  const names = [...detail, ...ground, ...ground.map(g => g + '_n'), 'landscape'];
   const out = {};
   let done = 0;
   await Promise.all(names.map(name => new Promise((resolve, reject) => {

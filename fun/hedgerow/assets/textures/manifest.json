@@ -1,0 +1,496 @@
+{
+  "schema": "hedgerow-texture-validation-v1",
+  "maps": {
+    "bark": {
+      "bytes": 228102,
+      "sha256": "1f760bc0a273e7bfeccc5f04591a7fd432da98a13f1979de56149de1cb271c7c",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        71,
+        255
+      ],
+      "normalLengthP01P99": [
+        0.7025,
+        1.1231
+      ]
+    },
+    "brick": {
+      "bytes": 118270,
+      "sha256": "86c221abce38abc810eddc8160bb9e7a973fcc4b8f2eb733ad807181e7024008",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        87,
+        182
+      ],
+      "normalLengthP01P99": [
+        0.8595,
+        1.1042
+      ]
+    },
+    "cobble": {
+      "bytes": 550692,
+      "sha256": "89d0d5fcd0c47112d992c53b8649c210563bf3e9d805b8175ddbad7dd040d7f1",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "heightMean": 0.67,
+      "normalErrorDegreesP50P95P99": [
+        0.462,
+        0.833,
+        1.039
+      ],
+      "roughnessRange": [
+        0.502,
+        0.8471
+      ],
+      "boundaryStepRatiosXY": {
+        "albedo": [
+          1.3740490674972534,
+          1.4236135482788086
+        ],
+        "height": [
+          1.3766566514968872,
+          2.017810344696045
+        ],
+        "normal": [
+          1.1143629550933838,
+          2.4981131553649902
+        ],
+        "roughness": [
+          1.3436323404312134,
+          1.9552640914916992
+        ]
+      }
+    },
+    "cobble_n": {
+      "bytes": 1544622,
+      "sha256": "a71fd20ab236b37e6c84d37c4886cec4f41438e787dd30bc562484ae74659c82",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        128,
+        216
+      ],
+      "normalLengthP01P99": [
+        0.9963,
+        1.0035
+      ]
+    },
+    "concrete": {
+      "bytes": 152798,
+      "sha256": "ca0aee771620183b92e0be5e4925197dd78abbcf59b26585e7a12a0148d4b08e",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        16,
+        169
+      ],
+      "normalLengthP01P99": [
+        0.9183,
+        1.0261
+      ]
+    },
+    "fabric": {
+      "bytes": 222780,
+      "sha256": "6ac222dd3c49f204849a844168942be109970a4ff45c49aaf8e181dc5ce1c819",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        87,
+        167
+      ],
+      "normalLengthP01P99": [
+        0.8508,
+        1.0516
+      ]
+    },
+    "foliage": {
+      "bytes": 241030,
+      "sha256": "29cdecfca30b313ee7d0cbab9d1ac36e62401c86ad70c37042fd82fd5414e928",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        78,
+        210
+      ],
+      "normalLengthP01P99": [
+        0.7781,
+        1.1322
+      ]
+    },
+    "forest": {
+      "bytes": 584500,
+      "sha256": "bab3f123d9d66b4e77cf068674e69e7d22afe8697ac3bce96e1218b6b8559b29",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        62,
+        147
+      ],
+      "heightMean": 0.3692,
+      "normalErrorDegreesP50P95P99": [
+        0.449,
+        0.797,
+        0.874
+      ],
+      "roughnessRange": [
+        0.7686,
+        0.8941
+      ],
+      "boundaryStepRatiosXY": {
+        "albedo": [
+          0.9859771728515625,
+          1.247805118560791
+        ],
+        "height": [
+          1.121492862701416,
+          1.1399105787277222
+        ],
+        "normal": [
+          0.9423656463623047,
+          1.1543258428573608
+        ],
+        "roughness": [
+          0.9133551120758057,
+          1.151318907737732
+        ]
+      }
+    },
+    "forest_n": {
+      "bytes": 1130172,
+      "sha256": "ac4e9736a194e77b119ee57b3bd0193d4fe1c20e931d4eb542a55c05f1fc179d",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        196,
+        228
+      ],
+      "normalLengthP01P99": [
+        0.9961,
+        1.0037
+      ]
+    },
+    "grass": {
+      "bytes": 384146,
+      "sha256": "f19936d575b3347a7228d57a7873d6a53c66c05007332f4e342b6cbbc191644f",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        99,
+        123
+      ],
+      "heightMean": 0.43,
+      "normalErrorDegreesP50P95P99": [
+        0.356,
+        0.556,
+        0.596
+      ],
+      "roughnessRange": [
+        0.8471,
+        0.8941
+      ],
+      "boundaryStepRatiosXY": {
+        "albedo": [
+          0.9695882797241211,
+          0.9247138500213623
+        ],
+        "height": [
+          1.1476879119873047,
+          1.0907930135726929
+        ],
+        "normal": [
+          0.9615108370780945,
+          0.9720515608787537
+        ],
+        "roughness": [
+          1.0103559494018555,
+          1.0113670825958252
+        ]
+      }
+    },
+    "grass_n": {
+      "bytes": 182930,
+      "sha256": "4f237bbf08b4e2eb1b8b5488fd88d574b3c7c2bb236cd02dbd912a40ed401dc2",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        216,
+        228
+      ],
+      "normalLengthP01P99": [
+        1.0,
+        1.0027
+      ]
+    },
+    "landscape": {
+      "bytes": 40822,
+      "sha256": "6ffd0db70388f95f395f4f84a16b2b660fdb6b615b64948713b038349a8911f7",
+      "width": 256,
+      "height": 256,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "channels": {
+        "R": {
+          "meaning": "moisture",
+          "mean": 0.40592,
+          "std": 0.07203,
+          "P1P5P50P95P99": [
+            0.25098,
+            0.29804,
+            0.40784,
+            0.53333,
+            0.58039
+          ],
+          "boundaryStepRatiosXY": [
+            0.9250011444091797,
+            0.9202517867088318
+          ],
+          "suggestedWorldPeriodMetres": 31
+        },
+        "G": {
+          "meaning": "growth",
+          "mean": 0.45772,
+          "std": 0.08503,
+          "P1P5P50P95P99": [
+            0.26667,
+            0.31373,
+            0.4549,
+            0.59608,
+            0.64314
+          ],
+          "boundaryStepRatiosXY": [
+            1.1767034530639648,
+            0.7990825176239014
+          ],
+          "suggestedWorldPeriodMetres": 57
+        },
+        "B": {
+          "meaning": "organicDrift",
+          "mean": 0.42311,
+          "std": 0.05792,
+          "P1P5P50P95P99": [
+            0.31373,
+            0.3451,
+            0.42353,
+            0.51765,
+            0.56471
+          ],
+          "boundaryStepRatiosXY": [
+            0.9684264063835144,
+            0.9780353903770447
+          ],
+          "suggestedWorldPeriodMetres": 23
+        },
+        "A": {
+          "meaning": "secondary",
+          "mean": 0.44245,
+          "std": 0.13358,
+          "P1P5P50P95P99": [
+            0.14667,
+            0.21961,
+            0.4549,
+            0.65882,
+            0.72157
+          ],
+          "boundaryStepRatiosXY": [
+            0.9382164478302002,
+            0.7865657210350037
+          ],
+          "suggestedWorldPeriodMetres": 9
+        }
+      },
+      "channelCorrelation": [
+        [
+          1.0,
+          0.04014,
+          0.05659,
+          -0.07041
+        ],
+        [
+          0.04014,
+          1.0,
+          0.07714,
+          0.03775
+        ],
+        [
+          0.05659,
+          0.07714,
+          1.0,
+          -0.00339
+        ],
+        [
+          -0.07041,
+          0.03775,
+          -0.00339,
+          1.0
+        ]
+      ],
+      "packing": "linear RGBA scalar fields, six effective bits/channel, lossless WebP"
+    },
+    "metal": {
+      "bytes": 50916,
+      "sha256": "8a7cbc7c237e00824afb0cd2d4a7a6f67c6b52f1044903c2c97bddff5193382b",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        70,
+        213
+      ],
+      "normalLengthP01P99": [
+        0.9035,
+        1.0105
+      ]
+    },
+    "mud": {
+      "bytes": 377368,
+      "sha256": "4826bd5a253706e7cf713ffe103234f52a340dea5b03350e8b8eb4e66ec7b9cd",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        37,
+        204
+      ],
+      "heightMean": 0.4436,
+      "normalErrorDegreesP50P95P99": [
+        0.494,
+        0.791,
+        0.879
+      ],
+      "roughnessRange": [
+        0.5961,
+        0.8314
+      ],
+      "boundaryStepRatiosXY": {
+        "albedo": [
+          1.283869981765747,
+          1.4600653648376465
+        ],
+        "height": [
+          1.0180035829544067,
+          1.014138102531433
+        ],
+        "normal": [
+          1.004074215888977,
+          1.0462646484375
+        ],
+        "roughness": [
+          1.0083177089691162,
+          1.0044456720352173
+        ]
+      }
+    },
+    "mud_n": {
+      "bytes": 1673874,
+      "sha256": "26479b7e91726a416c9f763e6e8ad3aff507085ada292d4634ebb78bd4d9fc9c",
+      "width": 1024,
+      "height": 1024,
+      "alphaRange": [
+        152,
+        212
+      ],
+      "normalLengthP01P99": [
+        0.9963,
+        1.0035
+      ]
+    },
+    "planks": {
+      "bytes": 118416,
+      "sha256": "c532a95d0f0688e15260bbeaee539bcb1cdbf76d2f30eb743ffc65d37107b0d1",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        34,
+        196
+      ],
+      "normalLengthP01P99": [
+        0.7434,
+        1.0193
+      ]
+    },
+    "plaster": {
+      "bytes": 125552,
+      "sha256": "413278cd19d6d05f71d8a01e71632f75e46903889d41a773af2253f76013c70b",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        24,
+        171
+      ],
+      "normalLengthP01P99": [
+        0.9392,
+        1.0035
+      ]
+    },
+    "rock": {
+      "bytes": 222696,
+      "sha256": "2cae533884f5116bbdc904984b8167f35aa4cfd1b848effe3980ada03526cb42",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        8,
+        198
+      ],
+      "normalLengthP01P99": [
+        0.7528,
+        1.0835
+      ]
+    },
+    "slate": {
+      "bytes": 136616,
+      "sha256": "8eed31b7a54b2c992fb2fe38a95f57f6872007783db8880286ad9e1e416ad5ba",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        0,
+        171
+      ],
+      "normalLengthP01P99": [
+        0.7009,
+        1.1905
+      ]
+    },
+    "stone": {
+      "bytes": 166186,
+      "sha256": "d713616376184f78aea405f2f012e7a41e60c8f37b4941e5d270fdf4f3d9f896",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        80,
+        182
+      ],
+      "normalLengthP01P99": [
+        0.8668,
+        1.0992
+      ]
+    },
+    "tile": {
+      "bytes": 111998,
+      "sha256": "6a711b31729cf39fc8dc27d94ad89237f35448c5022c2fec504fe9d0a28cb258",
+      "width": 512,
+      "height": 512,
+      "alphaRange": [
+        9,
+        187
+      ],
+      "normalLengthP01P99": [
+        0.7219,
+        1.1633
+      ]
+    }
+  },
+  "budget": {
+    "downloadBytes": 8364486,
+    "downloadLimitBytes": 8388608,
+    "rgba8FullMipBytes": 61865956,
+    "rgba8FullMipLimitBytes": 61865984,
+    "textureCount": 21
+  },
+  "failures": []
+}

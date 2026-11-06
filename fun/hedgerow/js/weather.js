@@ -490,7 +490,11 @@ void main() {
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.0), a);
 }`;
 
-export function createWeather({ count = 8000, terrain, water = null, world = null, onThunder, seed = 4 }) {
+export function createWeather({ count = 8000, capacity = count, terrain, water = null, world = null, onThunder, seed = 4, lightning = true, wind = [1.6, 0.7] }) {
+  const initialCount = Math.max(0, Math.floor(Number.isFinite(count) ? count : 0));
+  // Zero rain remains a valid allocation. Reserve the high preset so a
+  // quality change is not capped by the preset selected at page load.
+  count = Math.max(1, initialCount, Math.floor(Number.isFinite(capacity) ? capacity : 0));
   const R = rng(seed);
   // where a drop lands: the first thing in its way from above (a crate's lid, a sandbag, the truck's
   // bonnet, a step, a roof - so what is sheltered under it stays dry), else the ground, or the
@@ -530,7 +534,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   const rainUniforms = {
     uCam: { value: new THREE.Vector3() },
     uBox: { value: new THREE.Vector3(36, 22, 36) },
-    uVel: { value: new THREE.Vector3(1.6, -11.5, 0.7) },
+    uVel: { value: new THREE.Vector3(wind[0], -11.5, wind[1]) },
     uTime: { value: 0 },
     uLength: { value: 0.5 },
     uWidth: { value: 0.006 },
@@ -698,6 +702,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   let strike = null;            // {t, pulses: [[start, dur, power]...], dir}
   const flashDir = new THREE.Vector3(0, 0.5, 1).normalize();
   let flash = 0;
+  let intensity = 0;
 
   function scheduleStrike(time) {
     const pulses = [];
@@ -717,6 +722,8 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   }
 
   function update(dt, time, camera, rainAmount = 1) {
+    rainAmount = Math.max(0, Math.min(2, Number.isFinite(rainAmount) ? rainAmount : 0));
+    intensity = rainAmount;
     rainUniforms.uTime.value = time;
     rainUniforms.uCam.value.copy(camera.position);
     rainUniforms.uOpacity.value = 0.2 * rainAmount;
@@ -757,7 +764,7 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
     if (cChanged) crownAttr.needsUpdate = true;
 
     // lightning
-    if (time > nextStrike && !strike) {
+    if (lightning && rainAmount > 0.05 && time > nextStrike && !strike) {
       scheduleStrike(time);
       nextStrike = time + 14 + R() * 26;
     }
@@ -848,14 +855,18 @@ export function createWeather({ count = 8000, terrain, water = null, world = nul
   }
   let sheetsOn = false;
 
+  function setCount(n) {
+    const active = Math.max(0, Math.min(count, Math.floor(Number.isFinite(n) ? n : 0)));
+    geo.instanceCount = active;
+    lgeo.instanceCount = Math.round((SLOTS * PER_LAMP * active) / count);
+    sheets.visible = sheetsOn && active > 0; shell.visible = !sheetsOn && active > 0;
+  }
+  setCount(initialCount);
   return {
     group, update, flashDir, setLights, setSkyLight, drawLate,
     get flash() { return flash; },
-    setCount(n) {
-      geo.instanceCount = Math.min(n, count);
-      lgeo.instanceCount = Math.round((SLOTS * PER_LAMP * Math.min(n, count)) / count);
-      sheets.visible = sheetsOn && n > 0; shell.visible = !sheetsOn && n > 0;
-    },
+    get intensity() { return intensity; },
+    setCount,
     strikeNow(time) { scheduleStrike(time); },
   };
 }

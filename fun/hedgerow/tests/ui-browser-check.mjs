@@ -1,11 +1,12 @@
 /* DOM/UI regression check, independent of GPU speed. The scene boot is replaced
-   with a presentation fixture; the actual menu shell, CSS, archive, controls,
+   with a presentation fixture; the actual accessibility module, CSS, archive, controls,
    settings, mission copy and HUD run unchanged. Full-scene QA is separate.
    CHROMIUM_PATH selects a system browser. HEDGEROW_QA_OUTPUT saves screenshots. */
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
-import { mkdir, stat } from 'node:fs/promises';
+import { mkdir, stat, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { extname, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
@@ -29,9 +30,17 @@ const errors = [];
 let browser;
 try {
   const executablePath = process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
-  browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
+  browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox', '--disable-gpu', '--disable-software-rasterizer'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    window.__webglRequests = [];
+    const get = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function(type, ...args) {
+      if (/webgl/.test(type)) { window.__webglRequests.push(type); throw new Error('WebGL forbidden in DOM-only UI check'); }
+      return get.call(this, type, ...args);
+    };
+  });
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin || url.pathname.endsWith('/js/main.js') || url.pathname === '/assets/js/analytics.js') {
@@ -44,9 +53,14 @@ try {
   });
   await page.goto(origin + '/fun/hedgerow/?mission=saint-clair');
   await page.waitForSelector('[data-archive]:not([hidden])');
+  assert.deepEqual(await page.locator('script[src]').evaluateAll(es => es.filter(e => /ui-accessibility|menu-shell/.test(e.src)).map(e => e.src.split('/').at(-1))), ['ui-accessibility.js'], 'Exactly one module owns focus');
+  assert.equal(await page.locator('[data-archive-image]').getAttribute('src'), null, 'Closed historical reference does not download its pixels');
   await page.evaluate(async () => {
     await document.fonts.ready;
-    await document.querySelector('[data-archive-image]').decode();
+    document.querySelector('[data-loading]').hidden = true;
+    document.querySelector('[data-loading-briefing]').hidden = true;
+    document.querySelector('[data-fade]').classList.remove('on');
+    const begin = document.querySelector('[data-action="start"]'); begin.disabled = false; begin.textContent = 'Begin mission';
     const { DEFAULT_SETTINGS } = await import('/fun/hedgerow/js/config.js');
     const { CONTROLS } = await import('/fun/hedgerow/js/controls.js');
     const { MISSIONS } = await import('/fun/hedgerow/js/missions.js');
@@ -82,17 +96,21 @@ try {
       }
       card.append(img, body); li.append(card); document.querySelector('[data-mission-list]').append(li);
     }
-    await Promise.all([...document.images].map(img => img.decode()));
+    await Promise.all([...document.images].filter(img => img.hasAttribute('src')).map(img => img.decode()));
   });
   const show = async name => {
     await page.evaluate(name => {
-      for (const screen of document.querySelectorAll('[data-screen]')) screen.classList.toggle('on', screen.dataset.screen === name);
+      for (const screen of document.querySelectorAll('[data-screen]')) {
+        screen.classList.toggle('on', screen.dataset.screen === name);
+        if (screen.dataset.screen === name) screen.scrollTop = 0;
+      }
     }, name);
     await page.waitForFunction(name => document.querySelector(`[data-screen="${name}"]`).getAttribute('aria-hidden') === 'false', name);
   };
 
-  for (const width of [1440, 768, 390, 320]) {
-    await page.setViewportSize({ width, height: 900 });
+  const layouts = [];
+  for (const {width, height} of [{width:768,height:1024}, {width:1024,height:768}, {width:960,height:600}, {width:1440,height:900}]) {
+    await page.setViewportSize({ width, height });
     for (const name of ['start', 'missions', 'briefing', 'controls', 'settings', 'pause']) {
       await show(name);
       const layout = await page.evaluate(name => {
@@ -103,7 +121,15 @@ try {
       assert.ok(layout.contentWidth <= layout.width + 1, `${name} overflows horizontally at ${width}px`);
       assert.ok(layout.top >= 0, `${name} top is unreachable at ${width}px`);
       assert.ok(layout.hiddenScreens, 'Inactive dialogs must be inert');
-      if (output && (width === 1440 || width === 390)) await page.screenshot({ path: resolve(output, `ui-${name}-${width}.png`) });
+      layouts.push({ name, width, height, ...layout });
+      if (name === 'briefing') {
+        for (const y of [0, 99999]) {
+          await page.locator('[data-screen="briefing"]').evaluate((el,y) => {el.scrollTop=y}, y);
+          const rect = await page.locator('[data-action="start"]').boundingBox();
+          assert.ok(rect.y >= 0 && rect.y + rect.height <= height, `Begin mission stays visible at ${width}×${height}`);
+        }
+      }
+      if (output) await page.screenshot({ path: resolve(output, `ui-${name}-${width}x${height}.png`) });
     }
   }
 
@@ -119,7 +145,38 @@ try {
   await page.locator('[data-setting="difficulty"]').selectOption('veteran');
   assert.match(await page.locator('[data-difficulty-note]').textContent(), /Accurate enemy fire/);
 
+  await page.locator('[data-setting="effectsVolume"]').focus();
+  await show('controls'); await show('settings');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.setting), 'effectsVolume', 'Settings restores the previously focused control');
+  await page.locator('[data-setting="ambienceVolume"]').evaluate(el => { el.value = '0.65'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  assert.equal(await page.locator('[data-setting-value="ambienceVolume"]').textContent(), '65%');
+  assert.ok(await page.locator('[data-setting="motionBlur"]').count()); assert.ok(await page.locator('[data-setting="cameraShake"]').count());
+
+  await show('briefing');
+  const mapDetails = page.locator('[data-screen="briefing"] [data-field-map]');
+  await mapDetails.evaluate(async el => {
+    const { default:L } = await import('/fun/hedgerow/js/levels/saint-clair.js');
+    const { buildFieldMapData, renderFieldMap } = await import('/fun/hedgerow/js/field-map.js');
+    renderFieldMap(el.querySelector('[data-field-map-body]'), await buildFieldMapData(L), {
+      title:L.title, mission: {isComplete:id => id===L.objectives[0].id, isActive:id => id===L.objectives[1].id}
+    });
+    el.open=true;
+  });
+  for (const {width,height} of [{width:768,height:1024}, {width:1024,height:768}, {width:960,height:600}]) {
+    await page.setViewportSize({width,height});
+    for (const y of [0,500,99999]) {
+      await page.locator('[data-screen="briefing"]').evaluate((el,y) => {el.scrollTop=y}, y);
+      const rect=await page.locator('[data-action="start"]').boundingBox();
+      assert.ok(rect.y>=0 && rect.y+rect.height<=height, 'Sticky action remains visible with field map open');
+    }
+    assert.ok(await page.locator('[data-screen="briefing"]').evaluate(el=>el.scrollWidth<=innerWidth));
+    if (output) await page.screenshot({path:resolve(output,`ui-map-open-${width}x${height}.png`)});
+  }
+  assert.equal(await page.locator('.field-map-orders [aria-current="step"]').count(), 1);
+
   await show('start');
+  await page.locator('[data-archive]').evaluate(el => {el.open=true});
+  await page.waitForFunction(() => document.querySelector('[data-archive-image]').naturalWidth>0);
   const archive = await page.locator('[data-archive-image]').evaluate(img => ({ width: img.naturalWidth, alt: img.alt, src: img.getAttribute('src') }));
   assert.equal(archive.width, 1600, 'Historical image decodes locally');
   assert.match(archive.src, /^assets\/archive\//);
@@ -133,8 +190,21 @@ try {
     hud.health(.42);
   });
   assert.equal(await page.locator('[role="meter"]').getAttribute('aria-valuenow'), '42');
+  await show('unsupported');
+  assert.equal(await page.locator('[data-screen="unsupported"] h2').textContent(), 'Use a tablet or PC');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.action), 'retry');
+  assert.deepEqual(await page.evaluate(() => window.__webglRequests), [], 'DOM fixture never creates WebGL');
+  await page.goto(origin + '/fun/hedgerow/?mission=prague');
+  await page.waitForFunction(() => document.querySelector('[data-screen="start"]').getAttribute('aria-hidden') === 'false');
+  assert.equal(await page.locator('[data-archive]').isHidden(), true, 'Normandy archive is not associated with Prague');
+  assert.equal(await page.locator('[data-archive-image]').getAttribute('src'), null);
   assert.deepEqual(errors, [], 'UI has no script errors or failed local requests');
-  console.log('ui-browser-check: six dialogs at four widths, local archive, keyboard focus, settings values, reduced motion and health semantics passed');
+  if (output) {
+    const hashes={};
+    for (const path of ['index.html','hedgerow.css','js/ui-accessibility.js','js/archive.js','js/hud.js','js/controls.js']) hashes[path]=createHash('sha256').update(await readFile(resolve(root,'fun/hedgerow',path))).digest('hex');
+    await writeFile(resolve(output,'report.json'),JSON.stringify({layouts,hashes,errors,webglRequests:0},null,2));
+  }
+  console.log('ui-browser-check: supported tablet/PC dialogs, sticky orders/maps, sole focus trap/restoration, lazy local archive, audio values/ARIA, difficulty, reduced motion and health passed without WebGL');
 } finally {
   await browser?.close();
   await new Promise(done => server.close(done));

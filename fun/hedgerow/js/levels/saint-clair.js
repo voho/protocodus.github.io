@@ -14,14 +14,23 @@
    it into meshes, colliders, vegetation, enemies and triggers. */
 
 import { fbm2, polylineDistance, smoothstep, smoothPolyline, rng, clamp, lerp } from '../util.js';
+import { corridorFrame, corridorRemap, sunkenLane } from './natural.js';
 import { fieldwork } from './fieldwork.js';
 
 /* ---------- lines on the ground ---------- */
 
-const LANE = smoothPolyline([[0, -30], [1.5, -5], [3, 18], [-1, 42], [1.5, 64], [0, 84]], 1.5);
+const OLD_LANE = smoothPolyline([[0, -30], [1.5, -5], [3, 18], [-1, 42], [1.5, 64], [0, 84]], 1.5);
+// Two broad bends hide and reveal the village instead of exposing a long
+// straight shooting corridor. The final mouth still joins the old gate.
+const LANE = smoothPolyline([[-8, -40], [0.5, -6], [13, 20], [-8, 60], [0, 84], [0, 116]], 1.25);
+const INTRO = corridorRemap(OLD_LANE, LANE, { minZ: -30, maxZ: 84 });
+const LANE_GROUND = sunkenLane(LANE);
+const laneDatum = (_x, z) => 0.85 + 1.55 * smoothstep(67, 86, z);
 const STREET = smoothPolyline([[0, 84], [0.5, 120], [0, 150], [0, 180], [-0.5, 215], [0, 246], [0, 258]], 2);
 const TRACK = smoothPolyline([[0, 281], [-3, 300], [-9, 326], [-7, 350], [2, 374], [6, 398], [3, 424], [-4, 450], [-6, 472], [-2, 492], [0, 512], [0, 535], [0, 565]], 2);
-const DITCH = smoothPolyline([[-9, 30], [-11, 55], [-12, 78], [-14, 92], [-20, 104]], 2);
+const DITCH = INTRO.line(smoothPolyline([[-9, 30], [-11, 55], [-12, 78], [-14, 92], [-20, 104]], 2), 1.5)
+  .map(([x, z]) => [x - 3 * Math.exp(-(((z - 38) / 10) ** 2)), z]);
+const DITCH_FRAME = corridorFrame(DITCH);
 const RIVER_Z = (x) => 270 + 3 * Math.sin(x / 23);
 const TRENCH_W = smoothPolyline([[-40, 392], [-33, 386], [-27, 391], [-20, 385], [-13, 390], [-6, 386]], 1);
 const TRENCH_E = smoothPolyline([[9, 386], [15, 391], [22, 385], [29, 390], [36, 386], [42, 391]], 1);
@@ -44,7 +53,7 @@ const bbox = (line, pad) => {
 };
 const inBox = (b, x, z) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1;
 const BOX = {
-  LANE: bbox(LANE, 12), STREET: bbox(STREET, 12), TRACK: bbox(TRACK, 10), DITCH: bbox(DITCH, 6),
+  LANE: bbox(LANE, 12), OLD_LANE: bbox(OLD_LANE, 12), STREET: bbox(STREET, 12), TRACK: bbox(TRACK, 10), DITCH: bbox(DITCH, 6),
   TW: bbox(TRENCH_W, 7), TE: bbox(TRENCH_E, 7), TC: bbox(TRENCH_C, 7),
 };
 const TRENCHES = [[TRENCH_W, 'TW'], [TRENCH_E, 'TE'], [TRENCH_C, 'TC']];
@@ -53,10 +62,11 @@ const TRENCHES = [[TRENCH_W, 'TW'], [TRENCH_E, 'TE'], [TRENCH_C, 'TC']];
 
 // Where the ground may be rough: away from roads, paths, trenches, the river
 // and the squares (building pads are levelled later anyway).
-function roughAllowed(x, z) {
+function roughAllowed(x, z, seedLayout = false) {
   let k = 1;
   if (z < 262 && inBox(BOX.STREET, x, z)) { polylineDistance(STREET, x, z, tmpD); k = Math.min(k, smoothstep(6, 10, tmpD.d)); }
-  if (z < 88 && inBox(BOX.LANE, x, z)) { polylineDistance(LANE, x, z, tmpD); k = Math.min(k, smoothstep(4.5, 7.5, tmpD.d)); }
+  const lane = seedLayout ? OLD_LANE : LANE, laneBox = seedLayout ? BOX.OLD_LANE : BOX.LANE;
+  if (z < 88 && inBox(laneBox, x, z)) { polylineDistance(lane, x, z, tmpD); k = Math.min(k, smoothstep(4.5, 7.5, tmpD.d)); }
   if (z > 276 && inBox(BOX.TRACK, x, z)) { polylineDistance(TRACK, x, z, tmpD); k = Math.min(k, smoothstep(3.5, 6.5, tmpD.d)); }
   for (const [T, b] of TRENCHES) if (inBox(BOX[b], x, z)) { polylineDistance(T, x, z, tmpD); k = Math.min(k, smoothstep(2.6, 5, tmpD.d)); }
   k = Math.min(k, smoothstep(9, 15, Math.abs(z - RIVER_Z(x))));
@@ -84,15 +94,20 @@ function addBump(b) {
   for (let n = 0; n < 900; n++) {
     const x = RB.range(-95, 95), z = RB.range(-40, 600);
     const r = RB.range(0.8, 2.8);
+    // Preserve the original random stream beyond this district. Changing
+    // one road must not silently reshuffle every crater in the forest.
+    if (roughAllowed(x, z, true) < 1) continue;
+    const h = RB.range(0.12, 0.42) * (r / 2);
     if (roughAllowed(x, z) < 1) continue;
-    addBump({ x, z, r, h: RB.range(0.12, 0.42) * (r / 2), crater: false });
+    addBump({ x, z, r, h, crater: false });
   }
   // shell craters: the fields south of the village, the river banks, the forest
   for (let n = 0; n < 70; n++) {
     const x = RB.range(-60, 60), z = RB.pick([RB.range(10, 80), RB.range(285, 380), RB.range(400, 540)]);
-    if (roughAllowed(x, z) < 1) continue;
+    if (roughAllowed(x, z, true) < 1) continue;
     const r = RB.range(1.6, 3.6);
     const c = { x, z, r, h: RB.range(0.5, 1.0) * r * 0.35, crater: true };
+    if (roughAllowed(x, z) < 1) continue;
     addBump(c);
     CRATERS.push(c);
   }
@@ -125,7 +140,7 @@ function rough(x, z) {
 
 function riverProfile(x, z) {
   const dz = Math.abs(z - RIVER_Z(x));
-  const ford = smoothstep(9, 3, Math.abs(x + 32));           // the ford, west of the bridge
+  const ford = smoothstep(9, 3, Math.abs(x + 32));           // the ford, east of the bridge
   const bed = lerp(-1.6, -0.55, ford);
   const half = lerp(5, 3, ford), bank = lerp(10.5, 14, ford);
   if (dz > bank) return null;
@@ -143,7 +158,12 @@ function baseHeight(x, z) {
   h += fz * (7.5 * smoothstep(290, 384, z) - 1.2 * smoothstep(405, 440, z) + 1.8 * smoothstep(470, 505, z));
   h += fz * fbm2(x / 17 + 9, z / 17, 3) * 1.5;
   // hills closing the sides; the forest ones are steeper
-  h += (6 + 10 * fz) * smoothstep(40, 72, ax) + 4 * smoothstep(60, 95, ax);
+  const oldSides = (6 + 10 * fz) * smoothstep(40, 72, ax) + 4 * smoothstep(60, 95, ax);
+  // The lower fields are folds of different widths, rather than two
+  // identical raised walls parallel to the lane. Broad relief stays gentle.
+  const westFold = 6.5 * smoothstep(27 + 5 * Math.sin(z / 41), 86, x) + 1.0 * Math.exp(-((x - 31) ** 2 / 420 + (z - 30) ** 2 / 850));
+  const eastFold = 4.8 * smoothstep(31 + 7 * Math.sin(z / 53 + 1.2), 94, -x);
+  h += lerp(oldSides, westFold + eastFold, smoothstep(112, 76, z));
   // a little ridge path on the west side of the forest
   h += fz * 1.6 * smoothstep(14, 28, x) * smoothstep(42, 30, x) * smoothstep(300, 330, z) * smoothstep(470, 440, z);
 
@@ -161,11 +181,7 @@ function baseHeight(x, z) {
 
   // sunken lane between the hedgebanks
   if (z < 88 && inBox(BOX.LANE, x, z)) polylineDistance(LANE, x, z, tmpD); else tmpD.d = Infinity;
-  if (tmpD.d < 9 && z < 88) {
-    const laneH = 2.0 - 1.15 * smoothstep(84, 70, z);
-    const bankUp = 0.45 * smoothstep(4.2, 6.0, tmpD.d) * smoothstep(9, 7, tmpD.d);
-    h = lerp(h, laneH, smoothstep(5.0, 2.8, tmpD.d)) + bankUp;
-  }
+  if (tmpD.d < 11 && z < 88) h = LANE_GROUND.cut(h, x, z, laneDatum);
   // the drainage ditch on the right of the lane
   if (inBox(BOX.DITCH, x, z)) {
     polylineDistance(DITCH, x, z, tmpD);
@@ -174,7 +190,7 @@ function baseHeight(x, z) {
 
   // the street (flat, a little camber)
   if (inBox(BOX.STREET, x, z)) polylineDistance(STREET, x, z, tmpD); else tmpD.d = Infinity;
-  if (tmpD.d < 8) h = lerp(h, 2.0 + 0.4 * smoothstep(250, 120, z) - tmpD.d * tmpD.d * 0.003, smoothstep(8, 5, tmpD.d));
+  if (tmpD.d < 8 && z >= 84) h = lerp(h, 2.0 + 0.4 * smoothstep(250, 120, z) - tmpD.d * tmpD.d * 0.003, smoothstep(8, 5, tmpD.d));
 
   // the forest track
   if (z > 276 && inBox(BOX.TRACK, x, z)) {
@@ -238,6 +254,10 @@ function splat(x, z, h, slope) {
   // lane, ditch, track
   if (z < 88 && inBox(BOX.LANE, x, z)) { polylineDistance(LANE, x, z, tmpD); mud += smoothstep(4.0, 2.0, tmpD.d) * 2; }
   if (inBox(BOX.DITCH, x, z)) { polylineDistance(DITCH, x, z, tmpD); mud += smoothstep(3, 1, tmpD.d) * 1.5; }
+  // A farm crossing carried over the drain: trodden earth on either bank,
+  // with leaf mould collecting under the old orchard boundary.
+  const crossingX = x - INTRO.delta(z);
+  mud += smoothstep(2.6, 1.2, Math.abs(z - 38)) * smoothstep(-23, -19, crossingX) * smoothstep(-3, -6, crossingX) * 1.4;
   if (z > 276 && inBox(BOX.TRACK, x, z)) { polylineDistance(TRACK, x, z, tmpD); mud += smoothstep(3.2, 1.6, tmpD.d) * 2; }
   // street cobbles with a muddy edge
   if (inBox(BOX.STREET, x, z)) polylineDistance(STREET, x, z, tmpD); else tmpD.d = Infinity;
@@ -286,30 +306,41 @@ function along(line, step, offset, fn, from = 0, to = Infinity) {
   }
 }
 
-// --- the sunken lane: hedgerows on both banks with gaps into the fields ---
-along(LANE, 4, 6.2, (x, z, yaw) => { if (Math.abs(z - 34) > 4 && z < 80) P('hedge', x, z, yaw + (Math.round(z) % 8 < 4 ? 0 : 180), { veg: true }); }, -26);
-along(LANE, 4, -6.2, (x, z, yaw) => { if (Math.abs(z - 52) > 4 && z < 80) P('hedge', x, z, yaw + (Math.round(z) % 8 < 4 ? 0 : 180), { veg: true }); }, -26);
-P('jeep_wreck', -1.5, 12, 160);
-P('crate', 2.2, 14, 25);
-P('signpost', 3.4, 70, -20);
-P('field_harrow', -35, -12, 14);
-P('orchard_ladder', 25, 51, -18); P('crate', 26.2, 51.5, 20);
-P('pole', -4.6, 46, 0);
-P('pole', -4.6, 76, 0);
+// --- the sunken lane: unequal, softly rounded banks and wide farm gaps ---
+along(LANE, 4, 0, (x, z, yaw, tx, tz) => {
+  const sample = LANE_GROUND.frame.nearest(x, z, {});
+  for (const side of [-1, 1]) {
+    const off = LANE_GROUND.profile(sample.along, side).crest * side;
+    const px = x + tz * off, pz = z - tx * off;
+    const gap = side > 0 ? 34 : 52;
+    if (Math.abs(pz - gap) > 6 && pz < 80 && pz > -26) P('hedge', px, pz, yaw + (Math.round(z) % 8 < 4 ? 0 : 180), { veg: true });
+  }
+}, -30);
+const Q = (m, x, z, yaw = 0, o = {}) => { const p = INTRO.point(x, z); return P(m, p[0], p[1], INTRO.yaw(yaw, z), o); };
+Q('jeep_wreck', -1.5, 12, 160);
+Q('crate', 2.2, 14, 25);
+Q('signpost', 3.4, 70, -20);
+Q('field_harrow', -35, -12, 14);
+Q('orchard_ladder', 25, 51, -18); Q('crate', 26.2, 51.5, 20);
+Q('pole', -4.6, 46, 0);
+Q('pole', -4.6, 76, 0);
+const culvertAt = INTRO.point(-9.7, 38);
+P('stone_culvert', culvertAt[0] - 3, 38, DITCH_FRAME.atZ(38).yaw * 180 / Math.PI, { y: (x, z) => baseHeight(x, z) - 0.3 });
+Q('fence_field', -18, 40.5, 0); Q('fence_field', -23, 40.5, 0);
 // the orchard (left) and the field with the ditch (right)
 for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-  P('oak_b', 13 + i * 7 + (j % 2) * 2, 44 + j * 9, (i * 37 + j * 11) % 360, { veg: true, scale: 0.55 + ((i + j) % 3) * 0.05 });
+  Q('oak_b', 13 + i * 7 + (j % 2) * 2, 44 + j * 9, (i * 37 + j * 11) % 360, { veg: true, scale: 0.55 + ((i + j) % 3) * 0.05 });
 }
-P('haystack', 32, 70, 0);
-P('haystack', 25, 77, 40);
-P('cart', 17, 70, 70);
-P('fence', 8, 80, 0); P('fence', 34, 80, 0);
-P('wall_low', 12, 82, 0); P('wall_broken', 16, 82, 0); P('gate', 20.8, 82.6, 72); P('wall_low', 25, 82, 0); P('wall_low', 29, 82, 0); P('wall_low', 33, 82, 0); P('wall_low', 37, 82, 0);
-P('hedge', 42, 82, 0, { veg: true }); P('hedge', 46, 82, 180, { veg: true });
-P('hedge', -24, 84, 0, { veg: true }); P('hedge', -28, 84, 180, { veg: true }); P('hedge', -32, 84, 0, { veg: true }); P('hedge', -36, 84, 180, { veg: true }); P('hedge', -40, 84, 0, { veg: true }); P('hedge', -44, 84, 180, { veg: true });
-P('bush_a', -16, 66, 0, { veg: true }); P('bush_b', -18, 80, 0, { veg: true }); P('bush_a', -8, 86, 30, { veg: true });
+Q('haystack', 32, 70, 0);
+Q('haystack', 25, 77, 40);
+Q('cart', 17, 70, 70);
+Q('fence', 8, 80, 0); Q('fence', 34, 80, 0);
+Q('wall_low', 12, 82, 0); Q('wall_broken', 16, 82, 0); Q('gate', 20.8, 82.6, 72); Q('wall_low', 25, 82, 0); Q('wall_low', 29, 82, 0); Q('wall_low', 33, 82, 0); Q('wall_low', 37, 82, 0);
+Q('hedge', 42, 82, 0, { veg: true }); Q('hedge', 46, 82, 180, { veg: true });
+Q('hedge', -24, 84, 0, { veg: true }); Q('hedge', -28, 84, 180, { veg: true }); Q('hedge', -32, 84, 0, { veg: true }); Q('hedge', -36, 84, 180, { veg: true }); Q('hedge', -40, 84, 0, { veg: true }); Q('hedge', -44, 84, 180, { veg: true });
+Q('bush_a', -16, 66, 0, { veg: true }); Q('bush_b', -18, 80, 0, { veg: true }); Q('bush_a', -8, 86, 30, { veg: true });
 // field edges
-for (let z = 6; z < 84; z += 4) { P('hedge', 46, z, 90 + (z % 8 ? 180 : 0), { veg: true }); P('hedge', -46, z, 90 + (z % 8 ? 0 : 180), { veg: true }); }
+for (let z = 6; z < 84; z += 4) { P('hedge', 42 + 2.5 * Math.sin(z / 26), z, 90 + (z % 8 ? 180 : 0), { veg: true }); P('hedge', -42 + 3 * Math.sin(z / 31 + 0.7), z, 90 + (z % 8 ? 0 : 180), { veg: true }); }
 
 // --- the checkpoint at the edge of the village ---
 P('barrier', 0, 86.5, 0);
@@ -615,6 +646,7 @@ for (let i = 0; i < 42000; i++) {
   else m = q < 0.15 ? 'nettles' : q < 0.3 ? 'weeds' : q < 0.4 ? 'grass_tall' : 'grass_tuft';
   cover.push({ m, x, z, yaw: R() * 360, scale: 0.7 + R() * 0.6 });
 }
+
 for (let i = cover.length - 1; i >= 0; i--) if (FIELDS.mask(cover[i].x, cover[i].z) > 0.3) cover.splice(i, 1);
 
 /* ---------- enemies ---------- */
@@ -648,7 +680,7 @@ const enemies = [
   E('mg', 0, 0, 180, 'bridge', { nest: 'nest_bridge', arc: 0.8 }),
   E('rifle', -6, 291, 180, 'bridge'),
   E('rifle', 11, 290.5, 170, 'bridge'),
-  E('rifle', -1, 297, 180, 'bridge', { patrol: [[-12, 296], [12, 296]] }),
+  E('rifle', -1, 297, 180, 'bridge', { patrol: [[-12, 296], [11, 297]] }),
   E('rifle', -30, 286, 160, 'ford', { leash: 8 }),
   E('rifle', 30, 288, 200, 'logbridge', { leash: 8 }),
   // two men walking the forest track, one each way
@@ -683,7 +715,7 @@ const enemies = [
 /* ---------- pickups, checkpoints, objectives ---------- */
 
 const pickups = [
-  { type: 'medkit', x: 4.2, z: 58 }, { type: 'ammo', x: -2, z: 96 }, { type: 'medkit', x: -13, z: 141 },
+  { type: 'medkit', x: INTRO.point(4.2, 58)[0], z: 58 }, { type: 'ammo', x: -2, z: 96 }, { type: 'medkit', x: -13, z: 141 },
   { type: 'grenades', x: 12, z: 166 }, { type: 'ammo', x: -4, z: 182 }, { type: 'medkit', x: 26, z: 150 },
   { type: 'medkit', x: 2, z: 249 }, { type: 'ammo', x: 8, z: 295 }, { type: 'medkit', x: -6, z: 303 },
   { type: 'grenades', x: -10, z: 362 }, { type: 'ammo', x: 0, z: 400 }, { type: 'medkit', x: 9, z: 404 },
@@ -692,7 +724,7 @@ const pickups = [
 ];
 
 const checkpoints = [
-  { x: 0.5, z: -6, spawn: [0.5, -6, 0] },
+  { x: 0.5, z: -6, spawn: [0.5, -6, LANE_GROUND.frame.atZ(-6).yaw] },
   { x: 0, z: 96, r: 7, spawn: [0, 96, 0] },
   { x: 0, z: 150, r: 7, spawn: [0, 147, 0] },
   { x: 0, z: 248, r: 8, spawn: [0, 246, 0] },
@@ -708,17 +740,17 @@ const objectives = [
   { id: 'trench', text: 'Break through the trench line', kind: 'cross', z: 400, marker: [2, 398] },
   { id: 'bunker', text: 'Get past the bunker covering the track', kind: 'cross', z: 462, marker: [-4, 462] },
   { id: 'flak', text: 'Destroy the flak gun in the clearing', kind: 'destroy', target: 'flak', x: 4, z: 511 },
-  { id: 'radio', text: 'Signal the cleared route from the field radio', kind: 'interact', target: 'radio', anchor: 'operator', anchorHeight: 1.2, x: -9, z: 509, r: 2.3, duration: 3, action: 'signal the cleared route' },
+  { id: 'radio', text: 'Signal the cleared route from the field radio', kind: 'interact', target: 'radio', anchor: 'operator', anchorHeight: 1.2, x: -9, z: 509, r: 2.3, duration: 3, action: 'signal', prompt: 'signal the cleared route', progressText: 'Signalling the cleared route' },
   { id: 'rally', text: 'Reach the rally point on the forest road', kind: 'reach', x: 0, z: 549, r: 7 },
 ];
 
 const hints = [
-  { x: 0.5, z: -2, r: 6, text: 'WASD to move, mouse to look', sub: 'Hold the right button to aim, left to fire' },
-  { x: 2, z: 20, r: 6, text: 'C to crouch', sub: 'Crouched, you are harder to see and to hit' },
-  { x: -1, z: 42, r: 6, text: 'The lane leads straight into their machine gun', sub: 'Gaps in the hedges lead to the orchard (left) and the ditch (right)' },
-  { x: 18, z: 76, r: 7, text: 'Space vaults over low walls' },
+  { x: INTRO.point(0.5, -2)[0], z: -2, r: 6, text: 'WASD to move, mouse to look', sub: 'Hold the right button to aim, left to fire' },
+  { x: INTRO.point(2, 20)[0], z: 20, r: 6, text: 'C to crouch', sub: 'Crouched, you are harder to see and to hit' },
+  { x: INTRO.point(-1, 42)[0], z: 42, r: 6, text: 'Their machine gun covers the mouth of the lane', sub: 'Gaps in the hedges lead to the orchard (left) and the ditch (right)' },
+  { x: INTRO.point(18, 76)[0], z: 76, r: 7, text: 'Space vaults over low walls' },
   { x: 0, z: 104, r: 7, text: 'G throws a grenade', sub: 'Hold G to cook it first' },
-  { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies downstream (left), a fallen tree upstream (right)' },
+  { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies east (right); a fallen tree crosses west (left)' },
   { x: -7, z: 505, r: 7, text: 'The field radio links this position to the road', sub: 'After destroying the gun, hold F at the radio to signal the cleared route' },
 ];
 
@@ -731,12 +763,12 @@ export default {
     'You go ahead alone along the sunken lane. Get into the village, clear a way to the bridge and push through the forest. Their 20 mm flak gun in the clearing is shooting up our spotter planes — put a charge on it, then use the field radio to signal the cleared route.',
     'The light is going and the rain will cover you. Stay low, use the hedges and the walls. There is always another way round.',
   ],
-  start: [0.5, -6, 0],
+  start: [0.5, -6, LANE_GROUND.frame.atZ(-6).yaw],
   bounds: { minX: -100, maxX: 100, minZ: -45, maxZ: 610 },
   playBounds: { minX: -46, maxX: 46, minZ: -24, maxZ: 556 },
-  fine: [[-46, 376, 46, 410], [-20, 336, 20, 366], ...FIELDS.fine],
+  fine: [[-46, 376, 46, 410], [-20, 336, 20, 366], [-22, 28, -4, 106], ...FIELDS.fine],
   water: { level: 0, contains: (x, z) => Math.abs(z - RIVER_Z(x)) < 13, riverZ: RIVER_Z, x0: -100, x1: 100 },
-  baseHeight, splat, trackHeight,
+  baseHeight, splat, trackHeight, introRemap: INTRO,
   fields: FIELDS.definitions,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
   fog: { color: '#383e45', density: 0.0048 },
@@ -764,6 +796,6 @@ export default {
     return Math.min(1, river + fields + forest + village);
   },
   ambience: { rain: 1, wind: [1.6, 0.7] },
-  lines: { LANE, STREET, TRACK, TRENCH_W, TRENCH_E, TRENCH_C },
+  lines: { LANE, DITCH, STREET, TRACK, TRENCH_W, TRENCH_E, TRENCH_C },
   craters: CRATERS,
 };

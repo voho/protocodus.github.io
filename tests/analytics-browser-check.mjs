@@ -121,7 +121,7 @@ try {
     route => route.fulfill({ contentType: 'text/javascript', body: '' }));
   const files = await readdir(root, { recursive: true });
   const pages = files.filter(file => file.endsWith('.html') && !file.split(sep).some(part =>
-    part.startsWith('.') || ['assets', 'tests', 'docs', 'tools', 'node_modules'].includes(part)));
+    part.startsWith('.') || ['assets', 'tests', 'docs', 'tools', 'node_modules', 'work'].includes(part)));
   assert.ok(pages.length >= 18);
   for (const file of pages) {
     await page.goto(origin + '/' + file.replaceAll(sep, '/'));

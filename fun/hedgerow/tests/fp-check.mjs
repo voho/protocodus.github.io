@@ -91,7 +91,7 @@ for (const [move, upper, speed, stand] of [['walk', 'aim', 1.31, 'idle'], ['run'
 
 /* Down the sights: turn the body and bend the spine until the sight line
    runs along the view, then look from behind the rear sight. */
-for (const id of ['garand', 'thompson']) {
+for (const id of Object.keys(WEAPONS)) {
   const w = WEAPONS[id];
   const ch = createCharacter(soldier, matlib, { outfit: 'allied', weaponModel: models.get(w.model), scene: new THREE.Scene() });
   ch.steady = true;
@@ -135,7 +135,7 @@ function posed(id, arms = null) {
   for (let i = 0; i < 30; i++) ch.update(1 / 60, 0);
   return ch;
 }
-for (const id of ['garand', 'thompson']) {
+for (const id of Object.keys(WEAPONS)) {
   const w = WEAPONS[id];
   const ch = posed(id);
   const G = { models, matlib, debris: { drop(o) { o.parent?.remove(o); } } };   // the empty falls away

@@ -140,7 +140,7 @@ export async function buildLevel(G, L, quality) {
       tmpM.compose(pos.set(p.x, y, p.z), q, sc.setScalar(scale));
       batch.add(m, tmpM);
     }
-    if (!p.veg && !/^(lamp_post|pole|signpost|bridge|log_bridge|trench_wall|duckboard|barbed|wall_lamp|ivy)/.test(p.m)) contact.push({ m, x: p.x, y, z: p.z, yaw, scale });
+    if (p.contact !== false && !p.veg && !/^(lamp_post|pole|signpost|bridge|log_bridge|trench_wall|duckboard|barbed|wall_lamp|ivy)/.test(p.m)) contact.push({ m, x: p.x, y, z: p.z, yaw, scale });
     if (p.m === 'barbed_wire') wires.push({ x: p.x, y, z: p.z, yaw, len: (m.box.max.x - m.box.min.x) * scale });
     // lights
     if (p.light) {

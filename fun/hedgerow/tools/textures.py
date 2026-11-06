@@ -3,7 +3,7 @@
     python3 fun/hedgerow/tools/textures.py            # all
     python3 fun/hedgerow/tools/textures.py stone mud  # some
 
-Writes `assets/textures/<name>.webp` (512², tileable, lossy WebP).
+Writes `assets/textures/<name>.webp` (512² model detail, 1024² ground).
 
 Two kinds:
 
@@ -14,18 +14,23 @@ Two kinds:
 * ground textures for the terrain (mud, grass, forest, cobble): RGB = albedo
   (sRGB), A = height; their normals come from `<name>_n.webp` (RGB normal,
   A = roughness).
+* landscape: independent linear broad fields, R = moisture, G = growth,
+  B = organic drift, A = secondary noise. 256², lossless scalar data.
 
-Everything is built from periodic pieces (spectral noise from filtered white
-noise, cell noise with wrap-around distances, np.roll), so every texture
-tiles. Deterministic: fixed seeds.
+Procedural fields use periodic pieces (spectral noise from filtered white
+noise, wrapped cells and np.roll). Sward and litter use retained seamless
+diffuse sources, sampled with wrapped resampling. Rebuilds are deterministic:
+fixed seeds and source bytes. Prompts/provenance: tools/texture-sources/.
 """
-import os, sys
+import os, sys, json
 import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'assets', 'textures')
+SOURCES = os.path.join(HERE, 'texture-sources')
 N = 512
+USE_GENERATED = True
 
 
 # --------------------------------------------------------------------------
@@ -113,6 +118,22 @@ def normal_from_height(h, strength):
     return np.stack([nx / l, ny / l, nz / l], axis=-1)
 
 
+def pack_ground_vectors(normal, rough):
+    """Bounded precision for linear data, encoded with lossless WebP.
+
+    Seven effective bits in X/Y and six in roughness save download bytes
+    without YUV's directional smearing. Blue follows the stored X/Y vector,
+    retaining unit length. On the shipped maps the extra P95 angular error
+    is below 0.7 degrees; roughness error is at most 2/255.
+    """
+    rgb = np.rint((normal * .5 + .5) * 255).clip(0, 255)
+    xy = np.clip(np.rint((rgb[..., :2] - 128) / 2) * 2 + 128, 0, 255)
+    z = np.sqrt(np.maximum(1 - np.sum((xy / 127.5 - 1) ** 2, axis=-1), .001))
+    blue = np.rint((z * .5 + .5) * 255)
+    alpha = np.clip(np.rint(np.clip(rough, 0, 1) * 255 / 4) * 4, 0, 255)
+    return np.dstack([xy, blue, alpha]).astype(np.uint8)
+
+
 def per_cell(ident, seed, count=None):
     rng = np.random.default_rng(seed)
     vals = rng.random(int(ident.max()) + 1)
@@ -153,18 +174,29 @@ def pack_detail(name, height, albedo, strength):
 
 
 def pack_ground(name, albedo_rgb, height, rough, strength):
-    rgb = (np.clip(albedo_rgb, 0, 1) ** (1 / 2.2) * 255).astype(np.uint8)
-    a = (np.clip(height, 0, 1) * 255).astype(np.uint8)
+    # Albedo is authored in linear light; the browser decodes the exact sRGB
+    # transfer function. Alpha remains linear data, untouched by that decode.
+    c = np.clip(albedo_rgb, 0, 1)
+    srgb = np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1 / 2.4) - 0.055)
+    rgb = np.rint(srgb * 255).astype(np.uint8)
+    a = np.rint(np.clip(height, 0, 1) * 255).astype(np.uint8)
     save(name, np.dstack([rgb, a]))
-    nrm = normal_from_height(height, strength)
-    nrgb = ((nrm * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8)
-    save(name + '_n', np.dstack([nrgb, (np.clip(rough, 0, 1) * 255).astype(np.uint8)]))
+    # Derive from the *shipped* quantized height so parallax and lighting
+    # describe exactly the same surface. Lossy YUV colour subsampling is not
+    # suitable for these RGB vectors: it changes the direction of narrow ribs.
+    nrm = normal_from_height(a.astype(np.float32) / 255, strength)
+    save(name + '_n', pack_ground_vectors(nrm, rough), lossless=True)
 
 
-def save(name, img):
+def save(name, img, lossless=False):
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, name + '.webp')
-    Image.fromarray(img, 'RGBA').save(path, 'WEBP', quality=80 if img.shape[0] > 512 else 88, method=6, exact=True)
+    # The dev server can be reading these while an art iteration runs. Publish
+    # each complete file atomically, never a partly encoded WebP.
+    pending = path + '.pending'
+    Image.fromarray(img, 'RGBA').save(pending, 'WEBP', quality=80 if img.shape[0] > 512 else 88,
+                                    lossless=lossless, method=6, exact=True)
+    os.replace(pending, path)
     print(f'{name:10s} {os.path.getsize(path) // 1024:4d} KB')
 
 
@@ -382,6 +414,128 @@ def foliage():
 NG = 1024
 
 
+def patch_coords(n, cx, cy, radius):
+    """A small unwrapped stamp with wrapped destination coordinates.
+
+    Keep both sides of a stamp, including ones crossing a tile boundary. A
+    clipped paint operation is a subtle seam even when its noise is periodic.
+    """
+    r = int(np.ceil(radius))
+    x = np.arange(int(cx) - r, int(cx) + r + 1)
+    y = np.arange(int(cy) - r, int(cy) + r + 1)
+    yy, xx = np.meshgrid(y - cy, x - cx, indexing='ij')
+    return np.ix_(y % n, x % n), xx, yy
+
+
+def sward_blades(alb, h, seed, tufts=1800):
+    """Overlapping, tapered leaves in coherent tufts, not anisotropic noise.
+
+    A 4.3 m tile puts these 2–10 cm leaves at their real scale. The tall
+    standing grass is separate geometry; this is the compressed basal sward.
+    """
+    n = len(h)
+    rng = np.random.default_rng(seed)
+    greens = np.stack([lin(c) for c in ('#303c20', '#4c582d', '#586035', '#3c4d26', '#68623e')])
+    for _ in range(tufts):
+        cx, cy = rng.random(2) * n
+        direction = rng.random() * np.pi * 2
+        for _ in range(rng.integers(5, 10)):
+            length = rng.uniform(5, 24)
+            width = rng.uniform(0.55, 1.3)
+            angle = direction + rng.normal(0, 0.8)
+            bend = rng.uniform(-4, 4)
+            sx, sy = cx + rng.normal(0, 2), cy + rng.normal(0, 2)
+            idx, xx, yy = patch_coords(n, sx, sy, length + abs(bend) + 2)
+            u = xx * np.cos(angle) + yy * np.sin(angle)
+            v = -xx * np.sin(angle) + yy * np.cos(angle)
+            t = np.clip(u / length, 0, 1)
+            center = bend * np.sin(t * np.pi * 0.7)
+            radius = width * (0.8 + 0.5 * np.sin(t * np.pi)) * (1 - t ** 3)
+            cross = np.abs(v - center)
+            m = smoothstep(-0.65, 0.65, radius - cross)
+            m *= smoothstep(-0.5, 0.8, u) * (1 - smoothstep(length - 1, length + 0.4, u))
+            crown = np.clip(1 - cross / np.maximum(radius, 0.2), 0, 1)
+            col = greens[rng.choice(len(greens), p=(.17, .29, .15, .30, .09))]
+            color = col * (0.75 + 0.35 * crown)[..., None]
+            alb[idx] = mix(alb[idx], color, m * 0.88)
+            # Thin overlapping blades rest just above the mat, never sharp
+            # noise spikes that turn into a metallic sheen in lower mip levels.
+            raised = 0.47 + rng.uniform(-0.035, 0.035) + 0.07 * crown
+            h[idx] = h[idx] * (1 - m) + raised * m
+    return alb, h
+
+
+def mineral_gravel(alb, h, seed, count=700):
+    """Partly buried irregular grains, with colour and relief sharing a mask."""
+    n = len(h)
+    rng = np.random.default_rng(seed)
+    palette = np.stack([lin(c) for c in ('#6c6657', '#544e42', '#8a806d', '#454741', '#78664e')])
+    for _ in range(count):
+        cx, cy = rng.random(2) * n
+        size = rng.uniform(1.5, 6.5)
+        idx, xx, yy = patch_coords(n, cx, cy, size + 2)
+        angle = rng.uniform(0, np.pi)
+        u = (xx * np.cos(angle) + yy * np.sin(angle)) / size
+        v = (-xx * np.sin(angle) + yy * np.cos(angle)) / (size * rng.uniform(.55, .9))
+        theta = np.arctan2(v, u)
+        d = np.sqrt(u * u + v * v) / (1 + .12 * np.sin(theta * 5 + angle))
+        m = 1 - smoothstep(.68, 1.0, d)
+        m *= rng.uniform(.45, .92)  # fines bury the lower half of the stone
+        crown = np.clip(1 - d * d, 0, 1)
+        color = palette[rng.integers(len(palette))] * (0.82 + 0.26 * crown)[..., None]
+        alb[idx] = mix(alb[idx], color, m)
+        h[idx] += .12 * m * crown
+    return alb, h
+
+
+def fallen_leaves(alb, h, seed, count=2300):
+    """Beech, lobed oak and narrow ash litter, curled and partly decomposed.
+
+    In July these are last year's leaves, mostly dark brown. A shared leaf
+    mask drives the pigment, paper-thin relief, rib and broken edge. No baked
+    directional light is used, so the runtime sun can move independently.
+    """
+    n = len(h)
+    rng = np.random.default_rng(seed)
+    palette = np.stack([lin(c) for c in ('#58432d', '#6b5033', '#403323', '#79603d', '#3e3928', '#5d5133')])
+    drifts = spectral(n, 1.9, seed + 1, lo=2)
+    decay = spectral(n, 1.2, seed + 2, lo=30)
+    coverage = np.zeros_like(h)
+    for _ in range(count):
+        cx, cy = rng.random(2) * n
+        if drifts[int(cy) % n, int(cx) % n] < .28:
+            continue
+        size = rng.uniform(7, 18)
+        species = rng.choice(3, p=(.45, .35, .20))
+        aspect = rng.uniform(.40, .58) if species < 2 else rng.uniform(.24, .34)
+        idx, xx, yy = patch_coords(n, cx, cy, size + 2)
+        angle = rng.random() * np.pi * 2
+        u = (xx * np.cos(angle) + yy * np.sin(angle)) / size
+        v = (-xx * np.sin(angle) + yy * np.cos(angle)) / (size * aspect)
+        shape = np.clip(1 - u * u, 0, 1) ** (.65 if species != 1 else .48)
+        if species == 1:
+            shape *= .72 + .24 * np.cos((u + .08) * np.pi * 4.2)
+        else:
+            shape *= 1 + .035 * np.sin(u * 48 + angle)  # small serrations
+        m = smoothstep(-.07, .04, shape - np.abs(v)) * (np.abs(u) < 1)
+        # Irregular rotted margins and occasional holes interrupt silhouettes.
+        local_decay = decay[idx]
+        m *= smoothstep(.21, .36, local_decay + .18 * (1 - np.abs(v)))
+        cross = np.clip(np.abs(v) / np.maximum(shape, .001), 0, 1)
+        rib = 1 - smoothstep(.025, .11, np.abs(v))
+        branches = np.abs(((u * 4.5 - np.abs(v) * 1.7) % 1) - .5)
+        vein = (1 - smoothstep(.01, .075, branches)) * (1 - cross) * .35
+        curl = cross ** 5 * (.7 + .3 * np.sin(u * 7 + angle))
+        col = palette[rng.integers(len(palette))]
+        col = col * (.79 + .24 * (1 - cross) + .08 * rib + .04 * vein)[..., None]
+        col *= (.84 + .32 * local_decay)[..., None]
+        alb[idx] = mix(alb[idx], col, m * .94)
+        leaf_h = .48 + rng.uniform(-.04, .035) + .055 * curl + .018 * rib + .008 * vein
+        h[idx] = h[idx] * (1 - m) + leaf_h * m
+        coverage[idx] = np.maximum(coverage[idx], m)
+    return alb, h, coverage
+
+
 def stamp_ellipses(n, count, seed, size=(4, 10), aspect=(0.3, 0.6)):
     """Periodic field of random ellipses: returns (coverage 0..1, id value)."""
     rng = np.random.default_rng(seed)
@@ -426,122 +580,149 @@ def scratch_lines(n, count, seed, length=(10, 60), width=1):
 
 
 def mud():
-    """Churned wet mud: trodden by boots and wheels into lumps a foot across and smaller ones
-    squeezed up between them, the clods rounded off by the wet; wheel ruts, pebbles, straw; the
-    water standing in a film in the hollows (glossy), the crests drained (dull)."""
+    """Compacted silty clay, broken aggregates, embedded grit and old straw.
+
+    World-space wheel ruts and water are rendered by the terrain shader; baking
+    parallel stripes here would repeat the same rut in every four-metre square.
+    """
     n = NG
-    big = spectral(n, 2.3, 201, lo=1)
-    mid = spectral(n, 1.7, 202, lo=6)
-    fine = spectral(n, 1.0, 203, lo=60)
-    ruts = spectral(n, 1.8, 206, lo=2, aniso=(1.0, 6.0))       # long hollows along v
-    ruts = 1 - smoothstep(0.35, 0.75, ruts)
-    f1, f2, ident = cells(n, 260, 204)
-    psz = 4.0 + 9.0 * per_cell(ident, 210)
-    pebble = smoothstep(psz, psz * 0.35, f1) * (per_cell(ident, 205) > 0.55)
-    pebble *= smoothstep(0.3, 0.6, spectral(n, 1.4, 211, lo=4))          # half buried
-    c1, c2, cid = cells(n, 90, 212)
-    clods = smoothstep(0.0, 25.0, c2 - c1) * per_cell(cid, 213)
-    straw = np.clip(scratch_lines(n, 200, 207, (12, 40), 0), 0, 1) * (spectral(n, 1.5, 208, lo=3) > 0.6)
-    churn = spectral(n, 1.3, 214, lo=10)
-    lumps = spectral(n, 1.0, 216, lo=30)
-    h = (0.30 * big + 0.20 * mid + 0.06 * fine - 0.22 * ruts + 0.22 * pebble + 0.10 * blur(clods, 3)
-         + 0.26 * (churn - 0.5) + 0.12 * (lumps - 0.5))
-    h = (h - h.min()) / (h.max() - h.min())
-    dark, light, stone_c, straw_c = lin('#2a2119'), lin('#5e4c3a'), lin('#5a544a'), lin('#7a6640')
-    alb = mix(dark, light, np.clip(0.25 + 0.6 * mid + 0.25 * (fine - 0.5) + 0.2 * (h - 0.5), 0, 1))
-    alb = mix(alb, stone_c * (0.6 + 0.7 * per_cell(ident, 209))[..., None], pebble * 0.85)
-    alb = alb * (0.9 + 0.2 * clods)[..., None]
-    alb = mix(alb, straw_c, straw * 0.5)
-    # glossy where the water lies, in the hollows of the lumps and of the churn round them (two
-    # scales, so it still breaks up far off, where the fine one is lost to the mipmaps)
-    rough = np.clip(0.62 + 4.0 * (h - blur(h, 12)) + 3.0 * (h - blur(h, 40)) - 0.15 * ruts + 0.1 * (h - 0.5), 0.08, 0.95)
-    pack_ground('mud', alb, h, rough, 16.0)
+    big = spectral(n, 2.2, 201, lo=1, hi=8)
+    mid = spectral(n, 1.7, 202, lo=10, hi=70)
+    grain = spectral(n, .7, 203, lo=90, hi=300)
+    aggregate = spectral(n, 1.1, 204, lo=25, hi=140)
+    # The clay breaks into rounded, connected clods. A low-amplitude grain
+    # layer remains visible near the eye without making the whole lane sparkle.
+    clods = smoothstep(.30, .66, aggregate)
+    h = .38 + .17 * (big - .5) + .20 * (mid - .5) + .13 * clods + .025 * (grain - .5)
+    clay = np.clip(.22 + .52 * mid + .18 * big + .12 * (aggregate - .5), 0, 1)
+    alb = mix(lin('#2d241b'), lin('#62513c'), clay)
+    alb *= (.95 + .10 * grain)[..., None]
+    alb, h = mineral_gravel(alb, h, 205, 850)
+    straw = np.clip(scratch_lines(n, 200, 207, (5, 25), 0), 0, 1)
+    straw *= smoothstep(.48, .68, spectral(n, 1.5, 208, lo=3))
+    alb = mix(alb, lin('#76623f'), straw * .65)
+    h += straw * .025
+    # A few centimetres of churned clay need more than a nearly flat height
+    # interval. Keep its mean stable for blending while restoring broad
+    # hollows for the runtime's rain-water cap and near-eye relief.
+    h = .44 + (h - .44) * 1.45
+    # Dry roughness belongs to the mineral surface. The runtime handles rain,
+    # hollows and standing water, so no mirror-smooth patches are baked in.
+    rough = np.clip(.76 + .13 * (mid - .5) + .16 * (h - blur(h, 12)) - .08 * (1 - clods), .57, .91)
+    pack_ground('mud', alb, np.clip(h, 0, 1), rough, 13.0)
+
+
+def grass_procedural():
+    """Compressed meadow sward with overlapping leaves and sparse clover."""
+    n = NG
+    big = spectral(n, 2.0, 211, lo=1, hi=6)
+    mid = spectral(n, 1.5, 212, lo=8, hi=55)
+    fine = spectral(n, .8, 213, lo=60, hi=220)
+    h = .40 + .08 * (mid - .5) + .025 * (fine - .5)
+    alb = mix(lin('#29331c'), lin('#4c532e'), .35 + .45 * mid)
+    alb *= (.87 + .21 * big + .06 * fine)[..., None]
+    # A few worn-through patches expose dark humus; they are not large bright
+    # clouds in the green, and retain the same fine structure as the sward.
+    bare = smoothstep(.66, .82, spectral(n, 1.6, 215, lo=3))
+    alb = mix(alb, lin('#3e3523') * (.8 + .3 * fine)[..., None], bare * .8)
+    alb, h = sward_blades(alb, h, 216, 2100)
+    # Trifoliate clover occurs in groups, not scattered unrelated round dots.
+    rng = np.random.default_rng(217)
+    clover_color = lin('#43572e')
+    for _ in range(160):
+        cx, cy = rng.random(2) * n
+        size = rng.uniform(2, 4)
+        angle = rng.random() * np.pi * 2
+        for leaf in range(3):
+            a = angle + leaf * np.pi * 2 / 3
+            idx, xx, yy = patch_coords(n, cx + np.cos(a) * size, cy + np.sin(a) * size, size + 1)
+            u = (xx * np.cos(a) + yy * np.sin(a)) / size
+            v = (-xx * np.sin(a) + yy * np.cos(a)) / (size * .8)
+            d = np.sqrt(u * u + v * v)
+            m = 1 - smoothstep(.65, 1, d)
+            crown = np.clip(1 - d, 0, 1)
+            alb[idx] = mix(alb[idx], clover_color * (.85 + .3 * crown)[..., None], m * .9)
+            h[idx] = h[idx] * (1 - m) + (.54 + .035 * crown) * m
+    rough = np.clip(.86 + .07 * (mid - .5) - .06 * (h - .45), .79, .93)
+    pack_ground('grass', alb, h, rough, 5.5)
+
+
+def forest_procedural():
+    """Decaying beech/oak/ash litter over humus, twigs, moss and fine roots."""
+    n = NG
+    big = spectral(n, 2.1, 221, lo=1, hi=8)
+    mid = spectral(n, 1.5, 222, lo=8, hi=65)
+    fine = spectral(n, .7, 223, lo=80, hi=280)
+    h = .36 + .12 * (mid - .5) + .035 * (fine - .5)
+    alb = mix(lin('#282217'), lin('#504129'), .30 + .45 * mid)
+    alb *= (.88 + .19 * big + .08 * fine)[..., None]
+    alb, h, leaf = fallen_leaves(alb, h, 224, 2500)
+    twigs = np.clip(scratch_lines(n, 110, 230, (12, 70), 0), 0, 1)
+    twigs = np.maximum(twigs, blur(twigs, 1) * .6)
+    alb = mix(alb, lin('#51412a'), twigs * .8)
+    h += twigs * .055
+    moss = smoothstep(.60, .82, spectral(n, 1.7, 228, lo=4, hi=30))
+    moss *= (.50 + .50 * fine) * (1 - leaf * .55)
+    alb = mix(alb, lin('#414b27') * (.8 + .4 * fine)[..., None], moss * .75)
+    h += moss * .035
+    rough = np.clip(.89 - .12 * leaf + .08 * (mid - .5) - .04 * moss, .68, .94)
+    pack_ground('forest', alb, np.clip(h, 0, 1), rough, 6.0)
+
+
+def diffuse_source(name, repeats, target):
+    """Normalize a retained, generated diffuse source into a periodic tile.
+
+    The original diffuse image is not a measured material scan. The derived
+    relief below is deliberately shallow. Repetition sets physical feature
+    size: the meadow source covers ~2.15 m, the litter source ~1.15 m.
+    """
+    source = os.path.join(SOURCES, name + '-source.webp')
+    with Image.open(source) as im:
+        im = im.convert('RGB')
+        # Give Lanczos the real wrapped neighbourhood rather than clamped
+        # pixels at each edge. Only the middle resampled tile is retained.
+        border = Image.new('RGB', (im.width * 3, im.height * 3))
+        for y in range(3):
+            for x in range(3):
+                border.paste(im, (x * im.width, y * im.height))
+        side = NG // repeats
+        scaled = border.resize((side * 3, side * 3), Image.Resampling.LANCZOS)
+        tile = np.asarray(scaled.crop((side, side, side * 2, side * 2)), dtype=np.float32) / 255
+    srgb = np.tile(tile, (repeats, repeats, 1))
+    linear = np.where(srgb <= .04045, srgb / 12.92, ((srgb + .055) / 1.055) ** 2.4)
+    # Retain organic pigment variation while matching the established palette
+    # in linear light. This is colour calibration, not baked relighting.
+    linear = np.maximum(linear, 1e-5) ** .78
+    linear *= np.asarray(target) / linear.mean(axis=(0, 1))
+    luma = linear @ np.array([.2126, .7152, .0722])
+    low, high = np.percentile(luma, [2, 98])
+    value = np.clip((luma - low) / max(high - low, 1e-6), 0, 1)
+    return linear, value
 
 
 def grass():
-    """Wet meadow: tufts of blades lying in different directions, clover, dead
-    stalks, soil between."""
-    n = NG
-    big = spectral(n, 2.0, 211, lo=1)
-    mid = spectral(n, 1.4, 212, lo=8)
-    dirx = spectral(n, 2.2, 216, lo=1)        # blade direction field
-    b1 = spectral(n, 0.6, 213, lo=120, aniso=(1.0, 0.25))
-    b2 = spectral(n, 0.6, 214, lo=120, aniso=(0.25, 1.0))
-    bl = np.where(dirx > 0.5, b1, b2) * 0.75 + np.maximum(b1, b2) * 0.25
-    clover_cov, clover_v = stamp_ellipses(n, 1600, 217, size=(3, 6), aspect=(0.7, 1.0))
-    clover = clover_cov * (spectral(n, 1.8, 218, lo=3) > 0.6)
-    dead = smoothstep(0.55, 0.9, spectral(n, 1.5, 215, lo=4)) * 0.7
-    stalks = np.clip(scratch_lines(n, 500, 219, (8, 30), 0), 0, 1)
-    h = 0.25 * mid + 0.6 * bl + 0.1 * big + 0.2 * clover
-    g_dark, g_light, g_dead, soil, clov = lin('#18230f'), lin('#4f5e2c'), lin('#7a6a42'), lin('#2f251b'), lin('#3c5226')
-    alb = mix(g_dark, g_light, np.clip(bl * 1.0 + 0.25 * (mid - 0.5), 0, 1))
-    alb = mix(alb, g_dead, np.clip(dead * 0.7 + stalks * 0.5, 0, 1))
-    alb = mix(alb, clov, clover * 0.8)
-    alb = mix(alb, soil, smoothstep(0.32, 0.12, bl) * 0.55)
-    rough = 0.7 + 0.25 * mid
-    pack_ground('grass', alb, h, rough, 6.0)
-
-
-def stamp_leaves(n, count, seed, size=(7, 20), aspect=(0.35, 0.6)):
-    """Periodic litter of flat leaves, pointed at both ends, each lying on the
-    ones before it. Returns (cover 0..1, the top leaf's id 0..1, how far across
-    it the point is: 0 on the midrib .. 1 at the edge)."""
-    rng = np.random.default_rng(seed)
-    cov = np.zeros((n, n), np.float32)
-    val = np.zeros((n, n), np.float32)
-    acr = np.ones((n, n), np.float32)
-    for _ in range(count):
-        cx, cy = rng.random(2) * n
-        a = rng.uniform(*size)
-        b = a * rng.uniform(*aspect)
-        th = rng.random() * np.pi
-        r = int(a + 2)
-        ys = (np.arange(int(cy) - r, int(cy) + r + 1)) % n
-        xs = (np.arange(int(cx) - r, int(cx) + r + 1)) % n
-        yy, xx = np.meshgrid(np.arange(-r, r + 1) + (int(cy) - cy), np.arange(-r, r + 1) + (int(cx) - cx), indexing='ij')
-        u = (xx * np.cos(th) + yy * np.sin(th)) / a
-        v = np.abs(-xx * np.sin(th) + yy * np.cos(th)) / b
-        w = np.clip(1 - u * u, 0, 1) ** 0.75           # half-width: narrower towards the tips than an ellipse
-        m = smoothstep(0.0, 0.1, w - v) * (np.abs(u) < 1)
-        sub = np.ix_(ys, xs)
-        cov[sub] = m + cov[sub] * (1 - m)
-        top = m > 0.5
-        val[sub] = np.where(top, rng.random(), val[sub])
-        acr[sub] = np.where(top, np.clip(v / np.maximum(w, 1e-3), 0, 1), acr[sub])
-    return cov, val, acr
+    if not USE_GENERATED:
+        return grass_procedural()
+    alb, value = diffuse_source('grass', 2, lin('#404b26'))
+    mat = blur(value, 1)
+    h = .44 + .10 * (mat - .5) + .045 * (mat - blur(value, 5))
+    rough = np.clip(.87 + .025 * (blur(value, 12) - .5) - .035 * (value - .5), .82, .92)
+    pack_ground('grass', alb, h, rough, 5.5)
 
 
 def forest():
-    """Forest floor: last year's beech and oak leaves lying flat (a paler
-    midrib, edges curling a little), fallen needles, twigs, moss, dark soil."""
-    n = NG
-    big = spectral(n, 2.1, 221, lo=1)
-    mid = spectral(n, 1.4, 222, lo=6)
-    needles = np.maximum(spectral(n, 0.6, 226, lo=160, aniso=(1.0, 0.2)), spectral(n, 0.6, 227, lo=160, aniso=(0.2, 1.0)))
-    leaf, leaf_v, acr = stamp_leaves(n, 2600, 224)
-    leaf *= smoothstep(0.3, 0.45, spectral(n, 1.6, 229, lo=3))   # drifts, with bare soil between
-    twigs = np.clip(scratch_lines(n, 160, 230, (20, 90), 1), 0, 1)
-    moss = smoothstep(0.58, 0.85, spectral(n, 1.6, 228, lo=4))
-    rib = smoothstep(0.14, 0.0, acr) * leaf
-    curl = smoothstep(0.75, 1.0, acr) * leaf
-    h = 0.35 * needles + 0.25 * mid + leaf * (0.1 + 0.08 * leaf_v) + 0.05 * curl - 0.03 * rib + 0.25 * twigs
-    soil, needle_c, moss_c, twig_c = lin('#20170f'), lin('#5d4128'), lin('#3c4c22'), lin('#3e2e20')
-    # beech copper, oak brown, pale and dry, dark and rotting, olive
-    leaf_cols = np.stack([lin('#6b4a2c'), lin('#4a3522'), lin('#7a5a36'), lin('#33251a'), lin('#5c4a2e')])
-    lc = leaf_cols[(leaf_v * 4.999).astype(int)]
-    lc = lc * (0.82 + 0.3 * (1 - acr))[..., None]
-    lc = mix(lc, lc * 1.35, rib * 0.7)
-    alb = mix(soil, needle_c, np.clip(needles * 1.15, 0, 1))
-    alb = mix(alb, lc, np.clip(leaf, 0, 1) * 0.92)
-    alb = mix(alb, twig_c, twigs * 0.8)
-    alb = mix(alb, moss_c, moss * 0.75)
-    alb = alb * (0.85 + 0.3 * big)[..., None]
-    rough = np.clip(0.78 + 0.15 * mid - 0.2 * leaf, 0, 1)
+    if not USE_GENERATED:
+        return forest_procedural()
+    alb, value = diffuse_source('forest', 4, lin('#503d27'))
+    mat = blur(value, 1)
+    broad = spectral(NG, 2.1, 221, lo=1, hi=8)
+    h = .40 + .22 * (mat - .5) + .10 * (mat - blur(value, 5)) + .08 * (broad - .5)
+    rough = np.clip(.88 - .10 * value + .03 * (broad - .5), .74, .94)
     pack_ground('forest', alb, h, rough, 6.0)
 
 
 def cobble():
-    """Granite setts laid in courses, worn flat on top by wheels and boots
+    """Granite setts in 2.5 m tiles, worn flat on top by wheels and boots
     with a narrow rounded edge down into the joint, each settled a little
     askew in its bed; mud and grit in the joints, a few sunk or missing."""
     n = NG
@@ -564,23 +745,68 @@ def cobble():
     fine = spectral(n, 1.1, 233, lo=40)
     big = spectral(n, 2.2, 234, lo=1)
     h = 0.88 * dome + 0.07 * fine * smoothstep(0.0, 4.0, e2) + 0.05 * rnd
-    stone_a, stone_b, stone_c, joint = lin('#55524c'), lin('#7c776d'), lin('#6a5f54'), lin('#2a221a')
+    stone_a, stone_b, stone_c, joint = lin('#55524c'), lin('#7c776d'), lin('#6a5f54'), lin('#393126')
     alb = mix(stone_a, stone_b, np.clip(rnd * 0.9 + 0.3 * (fine - 0.5), 0, 1))
     alb = mix(alb, stone_c, (rnd2 > 0.7) * 0.6)
     alb = alb * (0.82 + 0.36 * big)[..., None] * (0.9 + 0.2 * dome)[..., None]
     alb = mix(alb, joint, 1 - smoothstep(1.5, 7.0, e2))
     grit = smoothstep(0.6, 0.8, spectral(n, 1.6, 239, lo=5)) * (1 - dome)
     alb = mix(alb, lin('#3a2e22'), grit * 0.7)
-    # polished where the traffic wears them
-    rough = np.clip(0.34 + 0.5 * (1 - smoothstep(0.0, 0.8, dome)), 0, 1)
+    # Granite minerals interrupt a flat palette without painting sunlight in.
+    mineral = spectral(n, 0.6, 242, lo=90, hi=350)
+    quartz = smoothstep(0.69, 0.85, mineral) * dome
+    mica = (1 - smoothstep(0.16, 0.28, mineral)) * dome
+    alb = mix(alb, lin('#aaa18b'), quartz * 0.28)
+    alb *= (1 - mica * 0.18)[..., None]
+    # Rain is applied at runtime; the dry worn crowns keep a broad sheen.
+    rough = np.clip(0.52 + 0.32 * (1 - smoothstep(0.0, 0.8, dome)) + (fine - 0.5) * 0.035, 0, 1)
     pack_ground('cobble', alb, h, rough, 7.0)
+
+
+def landscape():
+    """Independent broad fields: moisture, growth, organic drift, secondary.
+
+    Material height should describe relief, not control where rainwater or
+    vegetation occurs. Match the old broad fields' marginal distributions,
+    retaining their calibration independently of any current surface assets.
+    """
+    with open(os.path.join(SOURCES, 'landscape-calibration.json')) as f:
+        calibration = json.load(f)
+    n = 256
+    fields = []
+    for channel in ('R', 'G', 'B', 'A'):
+        spec = calibration['channels'][channel]
+        spectrum = spec['spectrum']
+        # Independent random seeds and a bounded correlation guard keep the
+        # four unrelated systems from tracing the same patches in the world.
+        for trial in range(64):
+            noise = spectral(n, spectrum['beta'], spec['seed'] + trial * 101,
+                             lo=spectrum['lo'], hi=spectrum['hi'])
+            order = np.argsort(noise, axis=None)
+            rank = np.empty(n * n, dtype=np.float32)
+            rank[order] = np.linspace(0, 1, n * n)
+            mapped = np.interp(rank, calibration['quantileProbabilities'], spec['targetQuantiles']).reshape(n, n)
+            if all(abs(np.corrcoef(mapped.ravel(), other.ravel())[0, 1]) < .10 for other in fields):
+                break
+        else:
+            raise RuntimeError('could not decorrelate landscape fields')
+        fields.append(mapped)
+    # Six-bit scalar precision is ample for these softly sampled broad
+    # fields. Unlike lossy YUV compression it never mixes their channels.
+    data = np.stack(fields, axis=-1)
+    rgba = np.clip(np.rint(data * 255 / 4) * 4, 0, 255).astype(np.uint8)
+    save('landscape', rgba, lossless=True)
 
 
 ALL = dict(stone=stone, plaster=plaster, brick=brick, tile=tile, slate=slate, planks=planks,
            bark=bark, fabric=fabric, concrete=concrete, metal=metal, rock=rock, foliage=foliage,
-           mud=mud, grass=grass, forest=forest, cobble=cobble)
+           mud=mud, grass=grass, forest=forest, cobble=cobble, landscape=landscape)
 
 if __name__ == '__main__':
-    names = sys.argv[1:] or list(ALL)
+    args = sys.argv[1:]
+    if '--procedural' in args:
+        USE_GENERATED = False
+        args.remove('--procedural')
+    names = args or list(ALL)
     for n in names:
         ALL[n]()

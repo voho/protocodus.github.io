@@ -92,32 +92,129 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     return best;
   }
 
-  /* Is the straight line a → b walkable: on walkable, connected cells, and
-     clear of colliders at knee height across a soldier's width (the cells
-     only know their centres, 2 m apart; a line can still clip a corner)? */
-  function lineClear(ax, az, bx, bz) {
+  /* Is the straight line a → b walkable: on connected cells, with continuous
+     footing and room for the whole standing body? Short start connectors
+     can begin on clear ground beside an otherwise blocked grid centre. */
+  function lineClear(ax, az, bx, bz, physicalOnly = false, feet = null) {
     const d = Math.hypot(bx - ax, bz - az);
-    const steps = Math.max(1, Math.ceil(d / (cell * 0.4)));
+    const steps = Math.max(1, Math.ceil(d / Math.min(0.35, cell * 0.4)));
     let prev = index(ax, az);
-    if (!walkable(prev)) return false;
+    if (!physicalOnly && !walkable(prev)) return false;
+    // The centre can be on a wall while the actual point is on the floor
+    // beside it. Ask for the support at the real coordinate, preserving
+    // the cell's deck height only when there is a surface here to stand on.
+    const startY = feet ?? world.groundAt(ax, az, Number.isFinite(h[prev]) ? h[prev] : world.terrain?.height(ax, az) ?? 0, step);
+    let ground = startY;
     for (let s = 1; s <= steps; s++) {
       const t = s / steps;
-      const k = index(ax + (bx - ax) * t, az + (bz - az) * t);
-      if (k !== prev) {
+      const x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+      const k = index(x, z);
+      if (!physicalOnly && k !== prev) {
         if (!link(prev, k)) return false;
         prev = k;
       }
+      // A ray between cell-centre heights can sail over a trench that
+      // the walking body would fall into. Follow the real footing along
+      // the segment and preserve the same step limit used to build it.
+      const y = world.groundAt(x, z, ground, step);
+      if (Math.abs(y - ground) > step + 1e-3 || world.tooDeep(x, z, .9, y)) return false;
+      ground = y;
+      // Sparse knee/chest rays miss a thin wing at head height, or a bar
+      // between those rays. Sweep the complete standing body along its
+      // actual footing as well, with the same width as the ray fan.
+      p.x = x; p.z = z;
+      if (world.pushOut(p, Math.max(.05, radius - .05), ground, 1.7, step) && Math.hypot(p.x - x, p.z - z) > .02) return false;
     }
     if (d < 1e-3) return true;
     const dx = (bx - ax) / d, dz = (bz - az) / d;
-    const ya = h[index(ax, az)] + 0.6, yb = h[index(bx, bz)] + 0.6;
-    const dy = (yb - ya) / d;
-    const len = Math.hypot(d, yb - ya);
-    for (const off of [0, radius - 0.05, -(radius - 0.05)]) {
-      const ox = ax - dz * off, oz = az + dx * off;
-      if (world.raycast(ox, ya, oz, dx * d / len, dy * d / len, dz * d / len, len, MOVE, { noTerrain: true, noWater: true })) return false;
+    for (const clearance of [0.6, 1.4]) {
+      const ya = startY + clearance, yb = ground + clearance;
+      const dy = (yb - ya) / d;
+      const len = Math.hypot(d, yb - ya);
+      for (const off of [0, radius - 0.05, -(radius - 0.05)]) {
+        const ox = ax - dz * off, oz = az + dx * off;
+        if (world.raycast(ox, ya, oz, dx * d / len, dy * d / len, dz * d / len, len, MOVE, { noTerrain: true, noWater: true })) return false;
+      }
     }
     return true;
+  }
+
+  function connectedStart(x, z) {
+    const nearest = snap(x, z);
+    if (nearest < 0) return [];
+    const q = centre(nearest);
+    if (lineClear(x, z, q.x, q.z, true)) return [{ k: nearest, points: [], cost: Math.hypot(q.x - x, q.z - z) }];
+    const i0 = Math.floor((x - minX) / cell), j0 = Math.floor((z - minZ) / cell), candidates = [];
+    for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) {
+      const i = i0 + di, j = j0 + dj;
+      if (i < 0 || j < 0 || i >= nx || j >= nz) continue;
+      const k = j * nx + i;
+      if (!walkable(k) || k === nearest) continue;
+      const point = centre(k);
+      candidates.push({ k, ...point, d: (point.x - x) ** 2 + (point.z - z) ** 2 });
+    }
+    candidates.sort((a, b) => a.d - b.d);
+    for (const candidate of candidates) if (lineClear(x, z, candidate.x, candidate.z, true)) return [{ k: candidate.k, points: [], cost: Math.sqrt(candidate.d) }];
+    return localConnector(x, z);
+  }
+
+  /* A narrow bent trench can fit a soldier while fitting no 2 m centre.
+     Only when every straight connector failed, search a small finer patch
+     for the way out to the ordinary grid. This changes neither the global
+     walk radius nor its slope/step thresholds. Every local leg uses the
+     same complete body sweep and real footing as the ordinary routes. */
+  function localConnector(x, z) {
+    const fine = cell / 5, reach = 20, width = reach * 2 + 1;
+    const seen = new Uint8Array(width * width), nodes = [], entrances = new Map();
+    const key = (i, j) => (j + reach) * width + i + reach;
+    const initial = index(x, z);
+    let y = world.groundAt(x, z, Number.isFinite(h[initial]) ? h[initial] : world.terrain?.height(x, z) ?? 0, step);
+    // The actual body is slightly narrower than the path's safety margin.
+    // A valid player beside a wall can be a centimetre inside that margin,
+    // making every width ray start in the wall. First take that tiny step
+    // outward; never accept a start buried in a wall or push through it.
+    const start = { x, z };
+    world.pushOut(start, Math.max(.05, radius - .05) + .005, y, 1.7, step);
+    const adjusted = Math.hypot(start.x - x, start.z - z);
+    if (adjusted > .03) return [];
+    x = start.x; z = start.z;
+    y = world.groundAt(x, z, y, step);
+    nodes.push({ i: 0, j: 0, x, z, y, cost: adjusted, from: -1 }); seen[key(0, 0)] = 1;
+
+    function entrancePoints(head, q) {
+      const points = [{ x: q.x, z: q.z, y: h[q.k] }];
+      for (let at = head; at > 0; at = nodes[at].from) points.push(nodes[at]);
+      points.push(nodes[0]); points.reverse();
+      const pulled = adjusted > 1e-4 ? [{ x, z }] : [];
+      // Keep actual bends, but not every forty-centimetre sample along
+      // a straight part. Only the entrance chosen by A* needs pulling.
+      for (let at = 0; at < points.length - 1;) {
+        let next = points.length - 1;
+        for (; next > at + 1; next--) if (lineClear(points[at].x, points[at].z, points[next].x, points[next].z, true, points[at].y)) break;
+        pulled.push({ x: points[next].x, z: points[next].z }); at = next;
+      }
+      return pulled;
+    }
+    for (let head = 0; head < nodes.length && head < 768; head++) {
+      const node = nodes[head], k = index(node.x, node.z);
+      if (walkable(k) && !entrances.has(k)) {
+        const q = centre(k), support = world.groundAt(q.x, q.z, node.y, step);
+        if (Math.abs(support - h[k]) < .05 && lineClear(node.x, node.z, q.x, q.z, true, node.y)) {
+          entrances.set(k, { k, cost: node.cost + Math.hypot(q.x - node.x, q.z - node.z), buildPoints: () => entrancePoints(head, { ...q, k }) });
+        }
+      }
+      for (const [di, dj, weight] of NB) {
+        const i = node.i + di, j = node.j + dj;
+        if (Math.abs(i) > reach || Math.abs(j) > reach || seen[key(i, j)]) continue;
+        const px = x + i * fine, pz = z + j * fine;
+        if (index(px, pz) < 0) continue;
+        const ground = world.groundAt(px, pz, node.y, step);
+        if (Math.abs(ground - node.y) > step + 1e-3 || !lineClear(node.x, node.z, px, pz, true, node.y)) continue;
+        seen[key(i, j)] = 1;
+        nodes.push({ i, j, x: px, z: pz, y: ground, cost: node.cost + fine * weight, from: head });
+      }
+    }
+    return [...entrances.values()];
   }
 
   // A* scratch, reused between searches
@@ -153,6 +250,20 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     return top;
   };
   const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, DIAG], [1, -1, DIAG], [-1, 1, DIAG], [-1, -1, DIAG]];
+  const opposite = [1, 0, 3, 2, 7, 6, 5, 4];
+  const edges = new Uint8Array(n * 8); // 0 unknown, 1 clear, 2 blocked
+
+  function edgeClear(a, b, direction) {
+    const key = a * 8 + direction;
+    if (edges[key]) return edges[key] === 1;
+    const p = centre(a), q = centre(b);
+    // Thin walls and raised beams can sit wholly between two otherwise
+    // walkable centres. Cache body-width rays lazily, once per explored
+    // undirected edge, rather than allowing height alone to link them.
+    const clear = lineClear(p.x, p.z, q.x, q.z);
+    edges[key] = edges[b * 8 + opposite[direction]] = clear ? 1 : 2;
+    return clear;
+  }
 
   /* A path from (ax, az) to (bx, bz) as world points [{x, z}, ...] ending at
      the goal. When the goal cannot be reached (inside a building, across
@@ -160,9 +271,9 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
      nearest to it, if that is closer than where we start; null when there
      is no way at all within `maxNodes` expansions. */
   function findPath(ax, az, bx, bz, maxNodes = 12000) {
-    const s = snap(ax, az), t = snap(bx, bz);
-    if (s < 0 || t < 0) return null;
     if (lineClear(ax, az, bx, bz)) return [{ x: bx, z: bz }];
+    const starts = connectedStart(ax, az), t = snap(bx, bz);
+    if (!starts.length || t < 0) return null;
     search++;
     heap.length = 0;
     const ti = t % nx, tj = Math.floor(t / nx);
@@ -170,9 +281,16 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
       const di = Math.abs((k % nx) - ti), dj = Math.abs(Math.floor(k / nx) - tj);
       return (Math.max(di, dj) + (DIAG - 1) * Math.min(di, dj)) * cell;
     };
-    stamp[s] = search; gCost[s] = 0; from[s] = -1; fOf[s] = hEst(s);
-    push(s);
-    let found = false, expanded = 0, near = s, nearH = hEst(s);
+    let found = false, expanded = 0, near = starts[0].k, nearH = hEst(near);
+    // A clear centre inside a narrow trench can be a grid island. Seed
+    // every physically reached entrance, so A* can choose one connected
+    // to the destination instead of stopping at the first isolated cell.
+    for (const start of starts) {
+      const k = start.k;
+      stamp[k] = search; gCost[k] = start.cost; from[k] = -1; fOf[k] = start.cost + hEst(k);
+      push(k);
+      if (hEst(k) < nearH) { near = k; nearH = hEst(k); }
+    }
     while (heap.length) {
       const k = pop();
       if (closed[k] === search) continue;
@@ -182,13 +300,15 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
       if (hk < nearH) { nearH = hk; near = k; }
       if (++expanded > maxNodes) break;
       const i = k % nx, j = Math.floor(k / nx);
-      for (const [di, dj, w] of NB) {
+      for (let direction = 0; direction < NB.length; direction++) {
+        const [di, dj, w] = NB[direction];
         const ii = i + di, jj = j + dj;
         if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
         const q = jj * nx + ii;
         if (closed[q] === search || !link(k, q)) continue;
         // no cutting corners past a blocked cell
         if (di && dj && (!link(k, j * nx + ii) || !link(k, jj * nx + i))) continue;
+        if (!edgeClear(k, q, direction)) continue;
         const g = gCost[k] + w * cell + Math.abs(h[q] - h[k]) * 2;
         if (stamp[q] === search && g >= gCost[q]) continue;
         stamp[q] = search; gCost[q] = g; from[q] = k; fOf[q] = g + hEst(q);
@@ -197,16 +317,23 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
     }
     let goal = t;
     if (!found) {
-      if (near === s || nearH > hEst(s) - cell) return null;
+      const q = centre(near);
+      if (Math.hypot(q.x - bx, q.z - bz) > Math.hypot(ax - bx, az - bz) - cell) return null;
       goal = near;
       const c = centre(near); bx = c.x; bz = c.z;
     }
     const cells = [];
     for (let k = goal; k !== -1; k = from[k]) cells.push(k);
     cells.reverse();
+    const start = starts.find(s => s.k === cells[0]);
+    const startPoints = start.buildPoints ? start.buildPoints() : start.points;
     // pull the string: from each kept point, jump to the furthest cell in sight
-    const pts = [{ x: ax, z: az }];
-    let i = 0;
+    const pts = [{ x: ax, z: az }, ...startPoints];
+    // Include the snapped start itself when no later cell is visible.
+    // Skipping it assumes that the actual point can reach its first grid
+    // neighbour directly, even when the centre was selected from beside
+    // an obstacle. `connectedStart` checked this short connector as a body.
+    let i = startPoints.length ? 0 : -1;
     const c = {};
     while (i < cells.length - 1) {
       let j = cells.length - 1;
@@ -217,10 +344,20 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
       i = j;
     }
     pts.shift();
-    if (!pts.length) return [{ x: bx, z: bz }];
+    // Both requested points may snap to the same cell on one side of a
+    // crate or wall. The direct line already failed above; returning the
+    // requested goal here would route a soldier through that obstacle.
+    if (!pts.length) return null;
     // end exactly at the goal when it can be reached from the last point
     const last = pts[pts.length - 1];
-    if (last && lineClear(last.x, last.z, bx, bz)) pts[pts.length - 1] = { x: bx, z: bz };
+    if (last && lineClear(last.x, last.z, bx, bz)) {
+      // Replacing the grid centre changes the entire incoming segment.
+      // Keep the corner when the exact goal would pull that segment back
+      // through the obstacle the route just went around.
+      const previous = pts.length > 1 ? pts[pts.length - 2] : { x: ax, z: az };
+      if (lineClear(previous.x, previous.z, bx, bz)) pts[pts.length - 1] = { x: bx, z: bz };
+      else pts.push({ x: bx, z: bz });
+    }
     return pts;
   }
 

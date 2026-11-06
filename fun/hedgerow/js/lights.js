@@ -19,6 +19,7 @@
    into its shadow map. */
 
 import * as THREE from 'three';
+import { resolveLightingProfile } from './lighting-profiles.js';
 
 /* The street lamps and the lanterns on the houses are capped: their light in the rain is a bell under
    them (volumetric.js), given out a little above level (the cosine from straight down). */
@@ -29,7 +30,8 @@ export const FIRE_FOG = 0.35;
 // Enough diffuse sky light to read the lane and forest without lifting lamps or the sky.
 const AMBIENT_INTENSITY = 4.4;
 
-export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512, second = false } = {}) {
+export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 512, second = false, profile = null } = {}) {
+  const daylightProfile = resolveLightingProfile(profile), day = daylightProfile.lights;
   const hemi = new THREE.HemisphereLight('#6c7888', '#2a241c', AMBIENT_INTENSITY);
   scene.add(hemi);
   const key = new THREE.DirectionalLight('#9a8f86', 1.2);
@@ -41,21 +43,26 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   scene.add(rim);
   let daylight = false;
   let ambientIntensity = AMBIENT_INTENSITY, keyIntensity = 1.2, keyHeight = 25;
+  let keyX = 60, keyZ = 30, keyRelative = false;
 
   // Change the existing lights, keeping the shader's light and shadow counts fixed.
   function setDaylight(enabled) {
     daylight = !!enabled;
-    ambientIntensity = daylight ? 2.8 : AMBIENT_INTENSITY;
-    keyIntensity = daylight ? 2.2 : 1.2;
-    keyHeight = daylight ? 85 : 25;
-    hemi.color.set(daylight ? '#c6d2df' : '#6c7888');
-    hemi.groundColor.set(daylight ? '#6d7569' : '#2a241c');
+    ambientIntensity = daylight ? day.hemi.intensity : AMBIENT_INTENSITY;
+    keyIntensity = daylight ? day.key.intensity : 1.2;
+    keyHeight = daylight ? day.key.offset[1] : 25;
+    keyX = daylight ? day.key.offset[0] : 60;
+    keyZ = daylight ? day.key.offset[2] : 30;
+    keyRelative = daylight ? !!day.key.relative : false;
+    hemi.color.set(daylight ? day.hemi.sky : '#6c7888');
+    hemi.groundColor.set(daylight ? day.hemi.ground : '#2a241c');
     hemi.intensity = ambientIntensity;
-    key.color.set(daylight ? '#fff1d9' : '#9a8f86');
+    key.color.set(daylight ? day.key.color : '#9a8f86');
     key.intensity = keyIntensity;
     key.position.y = keyHeight;
-    rim.color.set(daylight ? '#b7c7d6' : '#566577');
-    rim.intensity = daylight ? 0.6 : 0.3;
+    rim.color.set(daylight ? day.rim.color : '#566577');
+    rim.intensity = daylight ? day.rim.intensity : 0.3;
+    rim.position.fromArray(daylight ? day.rim.position : [30, 40, -40]);
   }
 
   const lights = [];
@@ -115,8 +122,9 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
     // lightning lifts the sky's light a little; its hard light comes from the bolt (flares.js)
     hemi.intensity = ambientIntensity + lightning * 0.8;
     key.intensity = keyIntensity + lightning * 0.6;
-    key.position.set(cam.x + 60, keyHeight + lightning * 40, cam.z + 30);
-    key.target.position.set(cam.x, 0, cam.z);
+    const keyBase = keyRelative ? cam.y : 0;
+    key.position.set(cam.x + keyX, keyBase + keyHeight + lightning * 40, cam.z + keyZ);
+    key.target.position.set(cam.x, keyBase, cam.z);
 
     const flick = (s) => {
       if (!s.flicker) return s.intensity;
@@ -225,7 +233,7 @@ export function createLighting(scene, { pool = 8, shadows = true, shadowSize = 5
   }
 
   return {
-    hemi, key, rim, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; },
+    hemi, key, rim, profile: daylightProfile, setDaylight, addStatic, flash, update, statics, active, shadowLight, shadowLight2, get shadowOf() { return shadowOf; }, get shadowOf2() { return shadowOf2; },
     get held() { return held; }, set held(v) { held = v; },
   };
 }

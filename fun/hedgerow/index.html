@@ -6,10 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus</title>
   <meta name="description"
-    content="A first-person Second World War shooter in the browser. Fight your way through a Norman village and the forest beyond it at dusk, in the rain.">
+    content="Four first-person Second World War operations, from Normandy hedgerows to the barricades of the Prague uprising.">
   <meta name="theme-color" content="#0b0d10">
   <meta property="og:title" content="Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus">
-  <meta property="og:description" content="First-person WW2 shooter in the browser: a village, a river and a forest at dusk, in the rain.">
+  <meta property="og:description" content="First-person WW2 operations from Normandy hedgerows to the Prague uprising.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/hedgerow/">
   <meta property="og:image" content="https://protocodus.cz/fun/hedgerow/hedgerow-card.webp?v=20261023-fun">
@@ -27,7 +27,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus">
-  <meta name="twitter:description" content="First-person WW2 shooter in the browser: a village, a river and a forest at dusk, in the rain.">
+  <meta name="twitter:description" content="First-person WW2 operations from Normandy hedgerows to the Prague uprising.">
   <meta name="twitter:image" content="https://protocodus.cz/fun/hedgerow/hedgerow-card.webp?v=20261023-fun">
   <meta name="twitter:image:alt" content="Hedgerow: the title over a rainy Norman village at dusk, a lamp lit on the lane">
 </head>
@@ -36,7 +36,7 @@
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
 
-  <canvas id="stage" aria-label="Hedgerow game view"></canvas>
+  <canvas id="stage" aria-label="Hedgerow game view" tabindex="-1"></canvas>
 
   <!-- In-game HUD -->
   <div class="hud" data-hud hidden>
@@ -51,7 +51,7 @@
     </div>
 
     <div class="objective" data-objective role="status" aria-live="polite">
-      <p class="objective-label">Objective</p>
+      <p class="objective-label">Current objective</p>
       <p class="objective-text" data-objective-text></p>
     </div>
 
@@ -62,8 +62,8 @@
     <div class="detect" data-detect></div>
 
     <div class="status">
-      <span class="status-label">Condition</span>
-      <div class="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div class="health-fill" data-health></div></div>
+      <p class="status-label">Condition</p>
+      <div class="health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" data-health-meter><div class="health-fill" data-health></div></div>
       <p class="stance" data-stance>Standing</p>
     </div>
 
@@ -83,49 +83,54 @@
 
   <!-- Title, loading and menu -->
   <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="hedgerow-title">
-    <div class="start-topline"><span>A Normandy campaign</span><span>France · 1944</span></div>
     <div class="panel title-panel">
-      <p class="eyebrow" data-title-eyebrow>Normandy · July 1944</p>
+      <p class="game-category" data-title-campaign>The Normandy campaign</p>
       <h1 class="wordmark" id="hedgerow-title">HEDGEROW</h1>
+      <p class="eyebrow" data-title-eyebrow>Normandy · July 1944</p>
       <p class="subtitle" data-title-subtitle>Saint-Clair, at dusk</p>
-      <p class="title-description">Through the lanes, fields and villages<br>of occupied Normandy.</p>
-      <nav class="menu" data-menu hidden aria-label="Main menu">
-        <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Play mission <svg class="menu-arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13m-5-5 5 5-5 5"/></svg></button>
-        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Choose mission <span aria-hidden="true">01—03</span></button>
-        <div class="menu-pair">
-          <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
-          <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
-        </div>
-      </nav>
       <div class="loading" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="hedgerow-loading-label" aria-valuemin="0"
           aria-valuemax="100" aria-valuenow="0" data-loading-bar>
           <i class="loading-fill" data-loading-fill></i>
         </div>
         <p class="loading-label" id="hedgerow-loading-label" data-loading-label>Preparing graphics and sound</p>
-        <p class="loading-summary" role="status" data-loading-summary>0 of 5 steps done · 5 left</p>
-        <details class="loading-detail"><summary>Preparation details</summary><ol class="loading-steps" data-loading-steps aria-label="Loading steps"></ol></details>
+        <details class="loading-details">
+          <summary class="loading-summary"><span role="status" data-loading-summary>0 of 5 steps done · 5 left</span></summary>
+          <ol class="loading-steps" data-loading-steps aria-label="Loading steps"></ol>
+        </details>
       </div>
       <div class="error" data-error hidden>
         <p data-error-text></p>
         <button type="button" class="ghost" data-action="retry" data-analytics-cta="error_retry" data-analytics-action="retry">Retry</button>
       </div>
-      <p class="loading-controls" data-loading-controls><kbd>W A S D</kbd> Move <span>·</span> <kbd>Mouse</kbd> Look <span>·</span> <kbd>Esc</kbd> Pause</p>
+      <nav class="menu" data-menu hidden aria-label="Main menu">
+        <button type="button" class="menu-item primary" data-action="briefing" data-analytics-cta="menu_play_mission" data-analytics-action="open_briefing">Mission briefing <span aria-hidden="true">→</span></button>
+        <button type="button" class="menu-item" data-action="missions" data-analytics-cta="menu_missions" data-analytics-action="open_missions">Choose mission</button>
+        <button type="button" class="menu-item" data-action="controls" data-analytics-cta="menu_controls" data-analytics-action="open_controls">Controls</button>
+        <button type="button" class="menu-item" data-action="settings" data-analytics-cta="menu_settings" data-analytics-action="open_settings">Settings</button>
+        <a class="menu-item" href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">Back to games</a>
+      </nav>
       <p class="best" data-best hidden></p>
+      <details class="archive-details" data-archive hidden>
+        <summary>Historical reference photograph</summary>
+        <figure class="archive-panel">
+          <img data-archive-image alt="" decoding="async" loading="lazy">
+          <figcaption><p data-archive-caption></p><a data-archive-credit target="_blank" rel="noopener noreferrer"></a></figcaption>
+        </figure>
+      </details>
     </div>
-    <figure class="archive-panel" data-archive hidden>
-      <div class="archive-heading"><span>Normandy archive</span><span data-archive-date>1944</span></div>
-      <div class="archive-image-wrap"><img data-archive-image alt="" decoding="async"><span class="archive-number" aria-hidden="true">NORMANDY / 1944</span></div>
-      <figcaption><p data-archive-caption></p><a data-archive-credit target="_blank" rel="noopener noreferrer"></a></figcaption>
-    </figure>
-    <div class="start-footer"><a href="/fun/" data-analytics-cta="menu_exit_games" data-analytics-action="exit_game">← Back to games</a><span>Keyboard &amp; mouse required</span></div>
+    <details class="controls-card" data-loading-controls>
+      <summary>Field controls</summary>
+      <dl class="keys" data-controls></dl>
+    </details>
+    <p class="title-footnote">First-person combat · Four operations · 1944–1945</p>
   </section>
 
   <section class="screen" data-screen="missions" role="dialog" aria-modal="true" aria-labelledby="missions-title">
     <div class="panel missions-panel">
-      <p class="eyebrow">Operations / Normandy 1944</p>
-      <h2 id="missions-title">Select a mission</h2>
-      <p class="panel-intro">Three original missions inspired by the Normandy campaign. Choose your next operation.</p>
+      <p class="eyebrow">Operations</p>
+      <h2 id="missions-title">Choose your mission</h2>
+      <p class="hint">Four original operations, from Normandy to the Prague uprising.</p>
       <ol class="mission-list" data-mission-list></ol>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="missions_back" data-analytics-action="navigate_back">Back</button>
     </div>
@@ -137,14 +142,20 @@
       <h2 id="briefing-title" data-briefing-title>Saint-Clair</h2>
       <p class="when" data-briefing-when></p>
       <div class="briefing-text" data-briefing-text></div>
+      <h3 class="section-label">Your orders</h3>
       <ul class="briefing-goals" data-briefing-goals></ul>
       <p class="loading-briefing" data-loading-briefing>Preparing graphics and sound. 0 of 5 steps done · 5 left.</p>
       <div class="row">
         <button type="button" class="menu-item primary" data-action="start" data-analytics-cta="briefing_start_mission" data-analytics-action="start" disabled>Loading 0%</button>
         <button type="button" class="menu-item" data-action="back" data-analytics-cta="briefing_back" data-analytics-action="navigate_back">Back</button>
       </div>
+      <details class="field-map-details" data-field-map>
+        <summary>Field map</summary>
+        <div data-field-map-body></div>
+        <p class="field-map-key">North up · Numbered locations match your orders · Enemy positions are not shown</p>
+      </details>
       <p class="briefing-inspired" data-briefing-inspired></p>
-      <p class="hint">Move out captures the mouse. Press <kbd>Esc</kbd> to pause.</p>
+      <p class="hint">Mouse to aim · W A S D to move · Esc to pause</p>
     </div>
   </section>
 
@@ -152,7 +163,7 @@
     <div class="panel">
       <p class="eyebrow">Field guide</p>
       <h2 id="controls-title">Controls</h2>
-      <p class="panel-intro">Move deliberately. Use cover, lean to check corners and steady your sights before firing.</p>
+      <p class="panel-intro">Use cover, lean to check corners and steady your sights before firing.</p>
       <dl class="keys" data-controls></dl>
       <button type="button" class="menu-item" data-action="back" data-analytics-cta="controls_back" data-analytics-action="navigate_back">Back</button>
     </div>
@@ -207,10 +218,15 @@
           <button type="button" class="menu-item" data-action="quit" data-analytics-cta="pause_quit" data-analytics-action="quit">Quit to title</button>
         </nav>
       </div>
-      <div class="pause-controls">
-        <h3>Controls</h3>
+      <details class="field-map-details" data-field-map>
+        <summary>Field map</summary>
+        <div data-field-map-body></div>
+        <p class="field-map-key">North up · Arrow shows your position and facing</p>
+      </details>
+      <details class="pause-controls">
+        <summary>Field controls</summary>
         <dl class="keys" data-controls></dl>
-      </div>
+      </details>
     </div>
   </section>
 
@@ -241,8 +257,21 @@
     </div>
   </section>
 
+  <section class="screen" data-screen="unsupported" role="dialog" aria-modal="true" aria-labelledby="unsupported-title">
+    <div class="panel">
+      <p class="eyebrow">Device requirements</p>
+      <h2 id="unsupported-title">Use a tablet or PC</h2>
+      <p class="panel-intro">Hedgerow requires a keyboard and mouse. Phones are not supported.</p>
+      <p class="hint" data-unsupported-detail></p>
+      <div class="row">
+        <button type="button" class="menu-item primary" data-action="retry" data-analytics-cta="unsupported_retry" data-analytics-action="retry">Check again</button>
+        <a class="menu-item" href="/fun/" data-analytics-cta="unsupported_exit_games" data-analytics-action="exit_game">Back to games</a>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="./js/ui-accessibility.js"></script>
   <script type="module" src="./js/main.js"></script>
-  <script type="module" src="./js/menu-shell.js"></script>
 </body>
 
 </html>

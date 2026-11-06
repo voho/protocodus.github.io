@@ -126,9 +126,17 @@ try {
   result.terrain = await page.evaluate(async () => {
     const THREE = await import('three');
     const { createTerrain } = await import('/fun/hedgerow/js/terrain.js');
+    const { createTerrainTextureArrays } = await import('/fun/hedgerow/js/terrain-textures.js');
     const { loadTextures } = await import('/fun/hedgerow/js/materials.js');
     const { createGrade } = await import('/fun/hedgerow/js/post.js');
     const textures = await loadTextures('/fun/hedgerow/assets/textures');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, outputBufferType: THREE.HalfFloatType });
+    document.body.replaceChildren(renderer.domElement);
+    renderer.setSize(600, 400);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    const ground = createTerrainTextureArrays(renderer, textures);
+    textures.groundAlbedo = ground.albedo;
+    textures.groundNormal = ground.normal;
     const shared = { wet: { value: 1 }, rain: { value: 0.7 }, time: { value: 8 }, relief: { value: 1 } };
     // The bank rises four metres over two metres: its >55-degree slope
     // executes the triplanar rock branch. Four ground bands also exercise
@@ -140,10 +148,6 @@ try {
         : z < -1 ? [0, 1, 0, 0] : z < 3 ? [0, 0, 1, 0] : [0, 0, 0, 1],
       fine: [[-8, -8, 8, 8]],
     }, textures, shared);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, outputBufferType: THREE.HalfFloatType });
-    document.body.replaceChildren(renderer.domElement);
-    renderer.setSize(600, 400);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     // Ground alpha encodes reflectivity. As in the game, the final opaque
     // grade consumes that intermediate image before the canvas is presented.
     renderer.setEffects([createGrade()]);
@@ -164,12 +168,14 @@ try {
     shared.relief.value = 1;
     renderer.render(scene, camera);
     return { chunks: terrain.group.children.length, triangles: renderer.info.render.triangles,
+      groundLayers: [textures.groundAlbedo.image.depth, textures.groundNormal.image.depth],
       bankSlope: 1 - terrain.normal(0, 0)[1], glError: renderer.getContext().getError() };
   });
   await page.screenshot({ path: resolve(output, 'terrain.png') });
   assert.ok(result.first[0] > 240, 'test setup: foreground covers sample in the first frame');
   assert.ok(result.exposed[2] > 240 && result.exposed[0] < 15, `no red temporal trail on newly exposed blue wall: ${result.exposed}`);
   assert.ok(Math.abs(result.storedDepth - 10) < 0.1, 'history retains linear eye depth in metres');
+  assert.deepEqual(result.terrain.groundLayers, [4, 4], 'terrain fixture uses both complete four-layer ground arrays');
   assert.ok(result.terrain.triangles > 0 && result.terrain.bankSlope > 0.42, 'real terrain mesh exercises steep triplanar rock shading');
   assert.equal(result.terrain.glError, 0, 'terrain renders with no WebGL errors');
   assert.deepEqual(errors, [], 'material and post shaders compile and render without errors');

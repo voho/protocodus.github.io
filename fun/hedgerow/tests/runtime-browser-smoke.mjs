@@ -70,11 +70,11 @@ try{
     renderer.render=draw; hedgerow.step();
   });
   await page.screenshot({path:out+'gameplay.png',animations:'disabled',timeout:120000});
-  report.initial=await page.evaluate(()=>({state:hedgerow.state,position:hedgerow.G.player.pos.toArray(),ammo:hedgerow.G.player.ammo.garand.mag,render:hedgerow.G.renderer.info.render,objective:document.querySelector('[data-objective-text]').textContent}));
+  report.initial=await page.evaluate(()=>({state:hedgerow.state,position:hedgerow.G.player.pos.toArray(),weapon:hedgerow.G.player.weapon,ammo:hedgerow.G.player.ammo[hedgerow.G.player.weapon].mag,render:hedgerow.G.renderer.info.render,objective:document.querySelector('[data-objective-text]').textContent}));
   console.log('Checking fire, aim, pause, settings');
   await page.evaluate(()=>{window.qaDraw=hedgerow.G.renderer.render;hedgerow.G.renderer.render=()=>{};});
   await page.evaluate(()=>{hedgerow.input.test.click();hedgerow.step();});
-  report.afterShot=await page.evaluate(()=>hedgerow.G.player.ammo.garand.mag);
+  report.afterShot=await page.evaluate(()=>hedgerow.G.player.ammo[hedgerow.G.player.weapon].mag);
   assert.equal(report.afterShot,report.initial.ammo-1);
   await page.evaluate(()=>{hedgerow.input.test.aim(true);hedgerow.step();});
   assert.equal(await page.evaluate(()=>hedgerow.G.player.wasAiming), true);
@@ -93,9 +93,30 @@ try{
   await page.waitForFunction(()=>hedgerow.state==='playing',null,{polling:100});
   await page.evaluate(()=>{hedgerow.G.godMode=false;hedgerow.G.player.damage(1000);document.exitPointerLock();});
   await page.waitForFunction(()=>hedgerow.state==='paused',null,{polling:100});
-  await page.waitForTimeout(3000);
+  report.deathPaused=await page.evaluate(async()=>{
+    const before={time:hedgerow.G.time,health:hedgerow.G.player.health,alive:hedgerow.G.player.alive};
+    for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,16));hedgerow.step();}
+    return {before,after:{time:hedgerow.G.time,health:hedgerow.G.player.health,alive:hedgerow.G.player.alive},state:hedgerow.state};
+  });
+  assert.equal(report.deathPaused.state,'paused','the death camera remains paused');
+  assert.equal(report.deathPaused.before.alive,false,'the real damage call killed the player');
+  assert.deepEqual(report.deathPaused.after,report.deathPaused.before,'paused main steps preserve the dead player and simulation clock');
   await page.locator('[data-action="resume"]').click({force:true});
-  await page.waitForFunction(()=>hedgerow.state==='dead',null,{polling:100});
+  // The game RAF is deliberately frozen above. Advance the production main
+  // loop so its simulation-time death camera can finish after resuming.
+  // Wall-clock waiting alone would leave the presentation frozen forever.
+  report.deathPresentation=await page.evaluate(async()=>{
+    const start=hedgerow.G.time;
+    let steps=0;
+    while(hedgerow.state==='playing' && steps<400){
+      await new Promise(r=>setTimeout(r,16));hedgerow.step();steps++;
+    }
+    const arrived=hedgerow.state;
+    for(let i=0;i<10;i++){await new Promise(r=>setTimeout(r,16));hedgerow.step();}
+    return {steps,elapsed:hedgerow.G.time-start,arrived,state:hedgerow.state};
+  });
+  assert.equal(report.deathPresentation.arrived,'dead','resumed simulation steps finish the death camera');
+  assert.equal(report.deathPresentation.state,'dead','the death menu remains stable');
   await page.locator('[data-screen="dead"] [data-action="checkpoint"]').click({force:true});
   await page.waitForFunction(()=>hedgerow.G.player.alive && hedgerow.state==='playing',null,{polling:100});
   report.checkpointRecovery=true;

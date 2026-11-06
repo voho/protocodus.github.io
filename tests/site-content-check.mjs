@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const origin = 'https://protocodus.cz';
 const contactEmail = 'protocodus@proton.me';
-const excluded = new Set(['assets', 'tests', 'docs', 'tools', 'node_modules']);
+const excluded = new Set(['assets', 'tests', 'docs', 'tools', 'node_modules', 'work']);
 function publicHtml(directory = root) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (entry.name.startsWith('.') || excluded.has(entry.name)) return [];

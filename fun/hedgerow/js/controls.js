@@ -12,7 +12,7 @@ export const CONTROLS = [
   ['G', 'Throw grenade (hold to cook)'],
   ['Q / E', 'Lean left / right'],
   ['Shift (aiming)', 'Hold breath to steady the sights'],
-  ['F (hold)', 'Use equipment / set charge'],
+  ['F', 'Use equipment / set charges (hold for equipment)'],
   ['I', 'Toggle invincibility'],
   ['O', 'Switch night / day'],
   ['Esc', 'Pause, controls and objectives'],

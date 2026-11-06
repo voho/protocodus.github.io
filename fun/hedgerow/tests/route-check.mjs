@@ -104,7 +104,11 @@ console.log('ok    negative controls (walls and deep water stop him)');
 
 const failures = [];
 for (const [name, pts] of Object.entries(ROUTES)) {
-  const s = walk(name, pts);
+  // The authored introduction keeps old lane-side offsets in a new curved
+  // frame. Resample before remapping so a long test chord cannot cut
+  // straight through the inside of an intentional S bend.
+  const route = L.introRemap && pts.some(([, z]) => z < 84) ? L.introRemap.line(pts, 2) : pts;
+  const s = walk(name, route);
   failures.push(...s);
   console.log(`${s.length ? 'STUCK' : 'ok   '} ${name}`);
 }

@@ -196,13 +196,11 @@ export function createTerrainMaterial(textures, shared) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
   mat.name = 'terrain';
   mat.envMapIntensity = 0.9;
-  mat.customProgramCacheKey = () => 'hedgerow-terrain';
+  mat.customProgramCacheKey = () => 'hedgerow-terrain-arrays-landscape-v1';
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
-      tMud: { value: textures.mud }, tMudN: { value: textures.mud_n },
-      tGrass: { value: textures.grass }, tGrassN: { value: textures.grass_n },
-      tForest: { value: textures.forest }, tForestN: { value: textures.forest_n },
-      tCobble: { value: textures.cobble }, tCobbleN: { value: textures.cobble_n },
+      tGround: { value: textures.groundAlbedo }, tGroundN: { value: textures.groundNormal },
+      tLandscape: { value: textures.landscape },
       tRock: { value: textures.rock },
       uRockColor: { value: new THREE.Color('#5f5c55') },
       uWet: shared.wet, uTime: shared.time, uRain: shared.rain,
@@ -228,7 +226,8 @@ export function createTerrainMaterial(textures, shared) {
         vWNormal = normalize(mat3(modelMatrix) * objectNormal);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        uniform sampler2D tMud, tMudN, tGrass, tGrassN, tForest, tForestN, tCobble, tCobbleN, tRock;
+        uniform highp sampler2DArray tGround, tGroundN;
+        uniform sampler2D tLandscape, tRock;
         uniform vec3 uRockColor;
         uniform float uWet, uTime, uRain, uWaterLevel, uSwardR, uRelief, uSpecAA;
         uniform sampler2D tSward;
@@ -247,10 +246,10 @@ export function createTerrainMaterial(textures, shared) {
         float reliefDepth(vec2 xz, vec4 w, vec2 gx, vec2 gy, vec4 sc) {
           vec2 uv = xz / 4.0;
           vec4 h = vec4(1.0);
-          if (w.x > 0.002) h.x = textureGrad(tMud, uv, gx, gy).a;
-          if (w.y > 0.002) h.y = textureGrad(tGrass, uv * 0.93 + 0.37, gx * 0.93, gy * 0.93).a;
-          if (w.z > 0.002) h.z = textureGrad(tForest, uv * 0.87 + 0.61, gx * 0.87, gy * 0.87).a;
-          if (w.w > 0.002) h.w = textureGrad(tCobble, uv * 1.6, gx * 1.6, gy * 1.6).a;
+          if (w.x > 0.002) h.x = textureGrad(tGround, vec3(uv, 0.0), gx, gy).a;
+          if (w.y > 0.002) h.y = textureGrad(tGround, vec3(uv * 0.93 + 0.37, 1.0), gx * 0.93, gy * 0.93).a;
+          if (w.z > 0.002) h.z = textureGrad(tGround, vec3(uv * 0.87 + 0.61, 2.0), gx * 0.87, gy * 0.87).a;
+          if (w.w > 0.002) h.w = textureGrad(tGround, vec3(uv * 1.6, 3.0), gx * 1.6, gy * 1.6).a;
           vec4 hw = w + h * 0.55 * step(0.002, w);
           float ma = max(max(hw.x, hw.y), max(hw.z, hw.w)) - 0.18;
           vec4 b = max(hw - ma, 0.0) * step(0.002, w);
@@ -274,7 +273,7 @@ export function createTerrainMaterial(textures, shared) {
           vec2 g0 = vWPos.xz / 4.0;
           vec2 gx = dFdx(g0), gy = dFdy(g0);
           // where water stands, and how high (the same noise the shading uses below)
-          float gatherR = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
+          float gatherR = texture2D(tLandscape, vWPos.xz / 31.0).r;
           float levelR = smoothstep(0.45, 0.75, gatherR) * 1.2;
           // how deep each ground is (m): mud ruts, grass, leaf litter, the cobbles' joints
           vec4 sc = vec4(0.06, 0.012, 0.025, 0.035) * fade * uRelief;
@@ -311,10 +310,10 @@ export function createTerrainMaterial(textures, shared) {
           }
         }
         vec2 uvw = pxz / 4.0;
-        vec4 cM = texture2D(tMud, uvw);
-        vec4 cG = texture2D(tGrass, uvw * 0.93 + 0.37);
-        vec4 cF = texture2D(tForest, uvw * 0.87 + 0.61);
-        vec4 cC = texture2D(tCobble, uvw * 1.6);
+        vec4 cM = texture(tGround, vec3(uvw, 0.0));
+        vec4 cG = texture(tGround, vec3(uvw * 0.93 + 0.37, 1.0));
+        vec4 cF = texture(tGround, vec3(uvw * 0.87 + 0.61, 2.0));
+        vec4 cC = texture(tGround, vec3(uvw * 1.6, 3.0));
         vec4 hts = vec4(cM.a, cG.a, cF.a, cC.a);
         vec4 w = max(vSplat, 0.0);
         vec4 hw = w + hts * 0.55 * step(0.002, w);
@@ -322,16 +321,22 @@ export function createTerrainMaterial(textures, shared) {
         vec4 b = max(hw - ma, 0.0) * step(0.002, w);
         b /= max(dot(b, vec4(1.0)), 1e-4);
         vec3 alb = cM.rgb * b.x + cG.rgb * b.y + cF.rgb * b.z + cC.rgb * b.w;
-        vec4 nM = texture2D(tMudN, uvw), nG = texture2D(tGrassN, uvw * 0.93 + 0.37);
-        vec4 nF = texture2D(tForestN, uvw * 0.87 + 0.61), nC = texture2D(tCobbleN, uvw * 1.6);
+        vec4 nM = texture(tGroundN, vec3(uvw, 0.0)), nG = texture(tGroundN, vec3(uvw * 0.93 + 0.37, 1.0));
+        vec4 nF = texture(tGroundN, vec3(uvw * 0.87 + 0.61, 2.0)), nC = texture(tGroundN, vec3(uvw * 1.6, 3.0));
         vec4 nb = nM * b.x + nG * b.y + nF * b.z + nC * b.w;
         tNormal = nb.xyz * 2.0 - 1.0;
         tRough = nb.w;
-        // macro variation breaks the tiling
-        float macro = texture2D(tMud, pxz / 57.0).a * 0.6 + texture2D(tGrass, pxz / 23.0).a * 0.4;
+        // Broad, irregular growth/soil patches break the repeating tile's
+        // colour as well as its brightness. The land stays its own material:
+        // dry sward tends towards straw, damp hollows towards deeper green;
+        // stony cobbles keep their neutral colour and ordered courses.
+        float macro = texture2D(tLandscape, pxz / 57.0).g;
         alb *= 0.78 + 0.44 * macro;
+        vec3 growthTint = mix(vec3(1.10, 0.99, 0.75), vec3(0.85, 1.03, 0.88), smoothstep(0.30, 0.68, macro));
+        alb *= mix(vec3(1.0), growthTint, b.y * 0.65);
+        tRough = clamp(tRough + (macro - 0.5) * 0.12 * (b.x + b.y), 0.35, 1.0);
         // the forest floor: moss spreading in the damp, drifts of last year's leaves
-        float drift = texture2D(tForest, pxz / 13.0 + 0.31).a * 0.6 + texture2D(tGrass, pxz / 29.0 + 0.53).a * 0.4;
+        float drift = texture2D(tLandscape, pxz / 23.0).b;
         alb = mix(alb, alb * vec3(0.62, 0.95, 0.42) + vec3(0.004, 0.012, 0.002), b.z * smoothstep(0.56, 0.72, drift) * 0.7);
         alb = mix(alb, alb * vec3(1.25, 1.0, 0.72), b.z * smoothstep(0.42, 0.3, drift) * 0.6);
         // Rock on steep banks is projected from three axes. A top-down UV
@@ -364,7 +369,7 @@ export function createTerrainMaterial(textures, shared) {
         // stand on nearly level ground; hillside puddles must not tilt.
         float drainage = 1.0 - smoothstep(0.005, 0.06, slope);
         float hold = (b.x + b.w + b.z * 0.35) * (1.0 - rockW) * drainage;
-        float gather = texture2D(tForest, vWPos.xz / 31.0).a * 0.65 + texture2D(tMud, vWPos.xz / 9.0).a * 0.35;
+        float gather = texture2D(tLandscape, vWPos.xz / 31.0).r;
         float level = smoothstep(0.45, 0.75, gather) * 1.2;
         float depthW = level - dot(b, hts);
         tPuddle = smoothstep(-0.02, 0.06, depthW);

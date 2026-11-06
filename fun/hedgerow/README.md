@@ -2,12 +2,14 @@
 
 A first-person Second World War shooter for the browser — realistic-looking,
 arcade to play. You are one soldier pushing through hand-built missions,
-three of them, each an original scenario inspired by a real situation of
-the Normandy campaign. **Choose mission** on the title screen picks one; the
+four of them: three original Normandy scenarios and a fourth set during the
+Prague uprising. **Choose mission** on the title screen picks one; the
 page builds one battlefield at a time, so choosing another reloads the page
-with `?mission=<id>` (`js/missions.js`), showing a shot from that mission,
-out of focus, behind the menus while it loads. A captioned public-domain WWII
-photograph accompanies each operation; the scenarios remain fictional.
+with `?mission=<id>` (`js/missions.js`), showing original generated WWII
+loading artwork for that mission while its battlefield is prepared. These
+images are fictional reconstructions, not archival photographs; their
+provenance is recorded in `assets/missions/README.md`. An optional title
+archive retains captioned public-domain photographs and their source links.
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
@@ -20,6 +22,8 @@ radio to signal the cleared route before reaching the rally point.
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
 three river crossings, the ends of the trench, the flanks of the bunker.
+An old stone culvert carries a farm crossing over the drainage ditch; its
+open barrel, arch stones and worn cattle fences are scripted in Three.js.
 
 **Mission 2 — The guns at La Varenne.** Normandy, the morning of 6 June
 1944, drizzle; inspired by the paratroopers' assaults on the gun batteries
@@ -28,9 +32,12 @@ of three guns dug in along a hedgerow, shelling the causeway the seaborne
 troops must come up. Up a long meadow of shell craters from the valley
 bottom to the guns on the crest, ten metres up (the sunken lane winding up
 a fold on the left, the orchard track round a spur on the right, both under
-machine guns, or from crater to crater past the knoll between them), into
-the trench below the guns, a charge on each gun, then down to the shells
+machine guns, or along an old field drain past the knoll between them), into
+the trench below the guns, a charge on each gun **in any order**, then down to the shells
 stacked in the farmyard, and on to the road north.
+The drain has rounded banks and a muddy bottom that conceal a crouched
+approach, ending before the battery's wire. The compass marks the nearest
+remaining gun; the whole battery must be destroyed before the dump unlocks.
 
 **Mission 3 — The bridge at Pont-Tournant.** Normandy, twenty past midnight
 on 6 June 1944, wind and rain; inspired by the glider-borne coups de main
@@ -45,11 +52,25 @@ from where it bends at the top. The gliders and the bridge are modelled in three
 mooring bollards and the demolition switch. Saint-Clair and La Varenne
 have cultivated fields with shallow furrows, grass margins and worn
 turning strips; the ground texture and collision use the same surface.
+A raised maintenance footpath and eight sections of weathered duckboards
+lead through the reeds to the left-hand gap in the wire. These boards and
+their collision decks are also scripted in Three.js.
 
 Both are laid out after the old maps of the real places (OpenStreetMap of
 the Bénouville canal bridge and the Merville battery): ground that rises and
 folds, roads and hedges that wind, ponds and side streets, rather than a
 flat field.
+
+**Mission 4 — Prague Rising.** Vinohrady, at dawn on 7 May 1945. A Czech
+resistance fighter carries a captured Karabiner 98k and MP 40 through a tram
+barricade to a radio annex. The street and the linked courtyards offer
+different approaches. Clear the annex, hold F beside the relay for 1.5
+seconds to tune it, defend it for 45 seconds while the report is sent,
+destroy the German command set, and withdraw through the western passage.
+The street buildings, vaulted passages, tram, overhead wires, mosaic
+pavements and barricades are scripted in Three.js. This is a fictional
+operation inspired by the uprising, not a reconstruction of a documented
+engagement. Prague has its own dry dawn weather and lighting profile.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -135,11 +156,11 @@ and no film grain so shadow detail stays clear.
 | Space | vault low cover / jump |
 | Left / right button | fire / aim down the sights |
 | R | reload |
-| 1 / 2 / wheel | M1 Garand / Thompson |
+| 1 / 2 / wheel | switch between the mission's two weapons |
 | G | grenade (hold to cook) |
 | Q / E | lean left / right |
 | Shift (aiming) | hold breath |
-| F | use (set a charge); hold to operate mission equipment |
+| F | set a charge; hold to operate mission equipment |
 | I | toggle invincibility |
 | O | switch night / day |
 | Esc | pause: the objectives so far and the controls |
@@ -147,6 +168,9 @@ and no film grain so shadow detail stays clear.
 The controls are listed on the title screen while the mission loads, on the
 controls screen and on the pause screen (`js/controls.js`, one list for all
 three); the pause screen also ticks off the mission's objectives.
+The briefing and pause menus include an optional field map with contours,
+water, routes, numbered orders and, while paused, your position and heading.
+The sketch does not reveal enemy locations.
 
 Down the sights the aim is never quite still: it wanders in a slow loop
 with your breath, more on the move, winded or dazed, less crouched. Shift
@@ -169,7 +193,7 @@ lose force past 25 m, the Garand's past 120 m. Shots echo off what is
 round you: quick, bright and ringing between the houses of a street, once,
 late and dull off the far hedges out in a field.
 
-Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
+Saint-Clair and Pont-Tournant start at night; La Varenne and Prague start in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
 
@@ -204,7 +228,7 @@ by the blast that killed them, and drop their rifles.
 ## How it is built
 
 * `js/` — three.js r185 (the site's vendored copy), plain ES modules, no build.
-  * `main.js` boot, menus, frame loop with dynamic resolution (holds ~60 fps
+  * `main.js` boot, menus, frame loop with dynamic resolution (targets 60 fps
     by scaling the render down to 60 % on slow GPUs and dense screens, and
     back up when there is headroom); the loading runs in the background: the
     menu shows at once and answers throughout, Move out counting the percent
@@ -219,11 +243,16 @@ by the blast that killed them, and drop their rifles.
     uploaded one a slice, and the soldiers and the mission set up behind
     the menu, so Move out starts at once · `levelBuild.js` level data → world ·
     `missions.js` the list of missions, each loading its level module ·
-    `levels/saint-clair.js`, `levels/la-varenne.js`, `levels/pont-tournant.js`
+    `levels/saint-clair.js`, `levels/la-varenne.js`, `levels/pont-tournant.js`, `levels/prague.js`
     the missions (ground, props, enemies, objectives; `levels/kit.js` the
-    helpers the later two share: hedgebanks, trenches, rough ground) ·
+    helpers the countryside missions share: hedgebanks, trenches, rough ground) ·
     `procedural.js` the glider, the canal bridge and the supply canisters
     modelled in three.js · `controls.js` the controls list
+  * `prague-models.js`, `prague-street-models.js`, `prague-surfaces.js` —
+    period urban architecture and street models, loaded only for Prague ·
+    `lighting-profiles.js` — the default overcast and Prague dawn profiles ·
+    `field-map.js` — the sampled briefing/pause sketch · `loadout.js` and
+    `resistance-kit.js` — mission equipment and resistance identification
   * `terrain.js` heightfield + splat material (each 32 m chunk drawn at half
     its resolution past 140 m, which halves the ground's triangles in the
     long views) · `world.js` colliders, rays,
@@ -295,6 +324,14 @@ by the blast that killed them, and drop their rifles.
     for stones (grit to fist-sized, a third sunk) and twigs within ~9 m,
     lying along the slope (high and medium); `clutter-cells.js` culls whole
     cells conservatively before drawing, and empty cells skip terrain samples
+    · `field-crops.js` — bounded, rooted cereal plots with shader-driven wind
+    · `hay-detail.js` — static broken stalks at the hay stacks
+  * `terrain-textures.js` packs the four ground albedo/height maps and four
+    normal/roughness maps into two GPU texture arrays. The independent
+    `landscape.webp` controls broad moisture and vegetation variation, so
+    changing a material's close relief does not move the landscape's wet
+    patches. Texture sources, packed-channel contracts and validation are
+    recorded in `tools/TEXTURES.md` and `assets/textures/manifest.json`.
   * `materials.js` palette-keyed wet materials (and close-up bark on the
     baked trunks: the bark detail projected in the tree's own space from
     two sides, per species; on the other baked solids within ~7 m a
@@ -565,10 +602,11 @@ by the blast that killed them, and drop their rifles.
     the rain standing in it; only in the mud; pinned 'boot' decals of
     atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
     turned along the way each man went),
-    `audio.js` and `audio-samples.js` (32 locally bundled CC0 recordings with
-    procedural fallback; source licenses, transformations and checksums in
-    `assets/audio/`; weapon recordings are sound-design ingredients, not
-    asserted exact recordings of every depicted firearm; foley: steps by what is
+    `audio.js` (21 runtime CC0 recordings, with procedural layers and a
+    fallback when samples cannot load; source, license and processing records
+    in `assets/audio/SOURCES.md`; weapon recordings are sound-design
+    ingredients, not asserted exact recordings of each depicted firearm;
+    foley: steps by what is
     underfoot — hobnails on stone, sucking mud, swishing grass, crackling
     leaves, hollow planks, splashing water — the kit when running and
     landing, reloads in their parts, empty cases ringing on stone, bodies
@@ -659,6 +697,12 @@ by the blast that killed them, and drop their rifles.
   and walk grid: all its models exist, there is a way from the start through
   each objective in turn (over each line to cross), and the start, every
   enemy, pickup and checkpoint stand on walkable ground;
+  `tests/field-routes-check.mjs` — walks the La Varenne field drain and
+  Pont-Tournant marsh path against the real colliders, checks their steps,
+  and verifies the culvert's stone arch blocks shots while its barrel stays open;
+  `tests/objective-order-check.mjs` — runs all six battery-gun orders through
+  the mission controller, checking phase gates, nearest-target interactions,
+  one live fuse, score, completion and checkpoint retries during demolition;
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
   in the ground and leave the far village in sight;
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
@@ -681,6 +725,9 @@ by the blast that killed them, and drop their rifles.
   patrol walks it, a distant shot is looked into, lost contact means a
   search and an ambush (hidden, facing his way, springing from cover), the
   killer walks to the body, the death camera follows him;
+  `tests/ai-tactics-check.mjs` — squad bounds, physical corner peeking,
+  friendly firing lanes, grenade awareness and cancellation, covered reloads,
+  and fair remembered contacts;
   `tests/clutter-check.mjs` — the ground clutter's pieces exist, lie beside
   things rather than inside them, out of the river and the middle of the
   street;
@@ -699,32 +746,35 @@ by the blast that killed them, and drop their rifles.
   swims a degree or two round the aim — camera only, slowly — while it lasts;
   `tests/combat-check.mjs` — each player grenade reports only its own kills,
   excluding survivors, corpses and enemies behind cover; the mission has no sniper;
+  `tests/player-grenade-check.mjs` — the release beat freezes while paused,
+  uses the current hand pose, preserves cooked fuses, and cancels on death or retry;
   `tests/mg-pose-check.mjs` — the shipped MG and soldier keep both grips and
   arm lengths through traverse, release while ducking and regrip afterward;
   `tests/rain-surfaces-check.mjs` — solid props stay wet without water rings;
   exposed ground, river and ponds retain their rain effects;
+  `tests/surface-weather-check.mjs` — shipped materials retain distinct wet
+  finishes and restrained masonry weathering;
+  `tests/hay-detail-check.mjs` — loose straw stays on the shipped haystack
+  shell, with deterministic static batches and a hard geometry budget;
+  `tests/audio-check.mjs` — verifies CC0 payload hashes, real Web Audio sample
+  decoding, distance delay, voice cleanup, missing-sample fallback, and mute;
+  `tests/audio-space-check.mjs`, `tests/audio-fires-check.mjs`,
+  `tests/audio-prague-check.mjs`, `tests/audio-radios-check.mjs` — bounded
+  wall occlusion, spatial fires, captured-weapon foley, receiver phase gates,
+  listener rotation, real PCM output and voice cleanup;
   `tests/loading-check.mjs` — interleaved asset events never rewind progress,
   completed stages stay done, and readiness waits for the final stage:
 
-      node fun/hedgerow/tests/world-check.mjs
-      node fun/hedgerow/tests/route-check.mjs
-      node fun/hedgerow/tests/character-check.mjs
-      node fun/hedgerow/tests/ragdoll-check.mjs
-      node fun/hedgerow/tests/distance-check.mjs
-      node fun/hedgerow/tests/lod-check.mjs
-      node fun/hedgerow/tests/grass-check.mjs
-      node fun/hedgerow/tests/clutter-cells-check.mjs
-      node fun/hedgerow/tests/assets-check.mjs
-      node fun/hedgerow/tests/hud-check.mjs
-      node fun/hedgerow/tests/modes-check.mjs
-      node fun/hedgerow/tests/ai-check.mjs
-      node fun/hedgerow/tests/fp-check.mjs
-      node fun/hedgerow/tests/clutter-check.mjs
-      node fun/hedgerow/tests/daze-check.mjs
-      node fun/hedgerow/tests/combat-check.mjs
-      node fun/hedgerow/tests/mg-pose-check.mjs
-      node fun/hedgerow/tests/rain-surfaces-check.mjs
-      node fun/hedgerow/tests/loading-check.mjs
+      npm run test:hedgerow
+
+The runner discovers every `*-check.mjs` in the game's test directory and
+runs each in a separate process, serially. Use `npm run test:hedgerow --
+--list` to list them, or a filename substring to run a subset, for example
+`npm run test:hedgerow -- audio`.
+
+The audio check uses Playwright and a local Chromium executable
+(`CHROMIUM_PATH`, default `/usr/bin/chromium`). Install the repository's
+development dependencies with `npm ci` before running it.
 
 For a repeatable visibility benchmark on the shipped colliders and sampled
 terrain, run `node fun/hedgerow/tests/sight-benchmark.mjs`. It compares the
@@ -751,12 +801,13 @@ the briefing), `?test=<glb>` (drop a model in front of the free camera).
 The debug FPS uses uncapped wall time; the simulation's 50 ms step limit does
 not hide frames slower than 20 FPS. The overlay refreshes twice a second.
 
-Interface: self-hosted Inter for controls and status, with a system
-Baskerville/Palatino/Georgia serif stack for headings. Olive and warm paper
-colors, quiet borders and compact HUD elements keep the battlefield visible.
-Menus support keyboard focus trapping, inactive-dialog isolation, reduced
-motion and narrow screens. Archive photographs have captions, source links
-and public-domain provenance in `assets/archive/`.
+Type: menus and HUD use the site's self-hosted Inter sans serif, with
+Courier Prime (OFL) reserved for control keys and numeric settings. Loading
+stages and field controls open on demand; the pause screen keeps the current
+orders visible. Dialogs retain keyboard focus and settings show their values.
+The interface targets tablets and PCs with a keyboard and mouse. Phones are
+blocked before WebGL or game assets load. Archive photographs have captions,
+source links and public-domain provenance in `assets/archive/`.
 
 Design notes: `docs/2026-10-19-hedgerow-design.md`.
 
@@ -796,7 +847,7 @@ Run all simulation, geometry, mission, AI and asset checks:
 npm run test:hedgerow
 ```
 
-Run the isolated Chromium graphics, audio and responsive-menu regressions:
+Run the isolated Chromium graphics, audio and tablet/PC menu regressions:
 
 ```sh
 npm ci
@@ -816,6 +867,7 @@ For a slower full-world boot, screenshot and gameplay smoke check, run:
 npm run test:hedgerow:runtime -- saint-clair high
 npm run test:hedgerow:runtime -- la-varenne medium
 npm run test:hedgerow:runtime -- pont-tournant low
+npm run test:hedgerow:runtime -- prague medium
 ```
 
 This starts a local server, captures the actual scene and checks firing,

@@ -87,7 +87,7 @@ export function createExplosives(G) {
   const matDark = new THREE.MeshStandardMaterial({ color: '#2f3326', roughness: 0.6, metalness: 0.3 });
 
   function meshFor(kind) {
-    const name = kind === 'enemy' ? 'grenade_de' : kind === 'charge' ? 'charge' : 'grenade_us';
+    const name = kind === 'enemy' ? 'grenade_de' : kind === 'charge' ? 'charge' : G.level?.playerGrenade || 'grenade_us';
     const model = G.models.get(name);
     if (model) {
       const g = new THREE.Group();
@@ -211,7 +211,10 @@ export function createExplosives(G) {
           const vn = e.vel.x * hit.nx + e.vel.y * hit.ny + e.vel.z * hit.nz;
           e.vel.x -= 1.6 * vn * hit.nx; e.vel.y -= 1.6 * vn * hit.ny; e.vel.z -= 1.6 * vn * hit.nz;
           e.vel.multiplyScalar(0.45);
-          if (Math.abs(vn) > 1.5) G.audio.grenadeBounce(e.pos.x, e.pos.y, e.pos.z);
+          if (Math.abs(vn) > 1.5) {
+            G.audio.grenadeBounce(e.pos.x, e.pos.y, e.pos.z);
+            G.events.emit('grenadeBounce', { grenade: e });
+          }
           if (e.vel.length() < 0.6 && hit.ny > 0.6) { e.rest = true; e.vel.set(0, 0, 0); }
         } else {
           e.pos.addScaledVector(e.vel, h);

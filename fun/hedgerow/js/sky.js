@@ -9,9 +9,10 @@
    tracer up into it in bursts (front()). */
 
 import * as THREE from 'three';
+import { resolveLightingProfile } from './lighting-profiles.js';
 
 // Shared with the scene and particle fog so the daytime horizon has no seam.
-export const DAY_FOG_COLOR = '#aab6be';
+export const DAY_FOG_COLOR = resolveLightingProfile().fog;
 
 const VERT = /* glsl */ `
 varying vec3 vDir;
@@ -31,7 +32,7 @@ uniform float uArty;
 uniform vec3 uArtyDir;
 uniform float uFlare;
 uniform vec3 uFlareDir;
-uniform float uFront, uNightGlow;
+uniform float uFront, uNightGlow, uCloudCover;
 uniform vec3 uCam;
 uniform vec4 uFires[6];
 varying vec3 vDir;
@@ -158,13 +159,13 @@ void main() {
   float c1 = fbm(q + w * 1.6);
   float c2 = fbm(uv * 1.3 - drift * 1.7 + 4.0 + w * 0.8);
   float dens = c1 * 0.7 + c2 * 0.45;
-  float cloud = smoothstep(0.35, 0.8, dens);
+  float cloud = smoothstep(0.35 + (1.0 - uCloudCover) * 0.20, 0.8 + (1.0 - uCloudCover) * 0.05, dens);
   float belly = smoothstep(0.5, 0.95, dens);
   vec3 dark = uZenith * 0.55;
   vec3 lit = mix(uHorizon * 1.15, uGlow * 0.6 + uHorizon * 0.7, band * 1.5);
   float deck = smoothstep(0.06, 0.4, el);
   // the gaps show the darker sky above the deck; the bellies hang lower and catch more light
-  col = mix(col * mix(1.0, 0.6, deck), mix(dark, lit * 1.3, c2 * 0.55 + belly * 0.45), cloud * deck);
+  col = mix(col * mix(1.0, 0.6, deck * uCloudCover), mix(dark, lit * 1.3, c2 * 0.55 + belly * 0.45), cloud * deck);
   // the burning farms light the cloud base over them (taken 320 m up), the thick bellies
   // most, flickering with the flames
   vec2 P = uCam.xz + uv * 320.0;
@@ -200,7 +201,8 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2643a', fog = '#3a4047', glowAzimuth = 1.0 } = {}) {
+export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2643a', fog = '#3a4047', glowAzimuth = 1.0, cloudCover = 1, profile = null } = {}) {
+  const daylight = resolveLightingProfile(profile), day = daylight.sky;
   const uniforms = {
     uZenith: { value: new THREE.Color(zenith) },
     uHorizon: { value: new THREE.Color(horizon) },
@@ -217,12 +219,14 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
     uFlareDir: { value: new THREE.Vector3(0, 0.6, 0.8) },
     uFront: { value: 1 },
     uNightGlow: { value: 1 },
+    uCloudCover: { value: Math.min(1, Math.max(0, cloudCover)) },
     uCam: { value: new THREE.Vector3() },
     uFires: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
   };
   const night = {
     zenith: uniforms.uZenith.value.clone(), horizon: uniforms.uHorizon.value.clone(),
     glow: uniforms.uGlow.value.clone(), fog: uniforms.uFog.value.clone(),
+    glowDirection: uniforms.uGlowDir.value.clone(), cloudCover: uniforms.uCloudCover.value,
   };
   let fires = null;
   const mat = new THREE.ShaderMaterial({
@@ -236,14 +240,17 @@ export function createSky({ zenith = '#161b21', horizon = '#3b4148', glow = '#a2
   // only the sky that shows to be shaded
   mesh.renderOrder = 1000;
   return {
-    mesh, uniforms,
+    mesh, uniforms, profile: daylight,
     setDaylight(enabled) {
-      uniforms.uZenith.value.set(enabled ? '#94a5b8' : night.zenith);
-      uniforms.uHorizon.value.set(enabled ? '#bdc8cf' : night.horizon);
-      uniforms.uGlow.value.set(enabled ? '#000000' : night.glow);
-      uniforms.uFog.value.set(enabled ? DAY_FOG_COLOR : night.fog);
-      uniforms.uFront.value = enabled ? 0 : 1;
-      uniforms.uNightGlow.value = enabled ? 0.05 : 1;
+      uniforms.uZenith.value.set(enabled ? day.zenith : night.zenith);
+      uniforms.uHorizon.value.set(enabled ? day.horizon : night.horizon);
+      uniforms.uGlow.value.set(enabled ? day.glow : night.glow);
+      uniforms.uFog.value.set(enabled ? daylight.fog : night.fog);
+      if (enabled) uniforms.uGlowDir.value.set(Math.sin(day.glowAzimuth), 0, Math.cos(day.glowAzimuth));
+      else uniforms.uGlowDir.value.copy(night.glowDirection);
+      uniforms.uCloudCover.value = enabled ? day.cloudCover : night.cloudCover;
+      uniforms.uFront.value = enabled ? day.front : 1;
+      uniforms.uNightGlow.value = enabled ? day.nightGlow : 1;
     },
     /* the fires whose glow the cloud carries (effects.js addFire records: x, z, size, on) */
     setFires(list) { fires = list; },

@@ -36,7 +36,7 @@ function scenario({ target = true } = {}) {
   const s = scenario(); s.tick(3);
   assert.equal(s.M.index, 0, 'being near the equipment is not enough');
   s.hold(true); s.tick(1); s.hold(false); s.tick(0.1);
-  assert.equal(s.M.interaction, 0, 'release cancels partial work');
+  assert.equal(s.M.interaction, null, 'release cancels partial work');
   s.hold(true); s.tick(1.1);
   assert.equal(s.M.index, 0, 'repeated taps cannot accumulate progress');
   s.tick(1);
@@ -54,7 +54,7 @@ for (const cause of ['damage', 'range', 'wall', 'death', 'checkpoint']) {
   if (cause === 'checkpoint') s.M.restoreCheckpoint();
   s.tick(0.2);
   assert.equal(s.M.index, 0, `${cause} interrupts before completion`);
-  assert.ok(s.M.interaction < 0.3, `${cause} cancels the held progress`);
+  assert.ok((s.M.interaction?.elapsed || 0) < 0.3, `${cause} cancels the held progress`);
   if (cause === 'damage') {
     s.tick(3); assert.equal(s.M.index, 0, 'damage requires releasing use before retry');
     assert.match(s.prompts.at(-1), /Interrupted/);
@@ -76,7 +76,7 @@ for (const cause of ['damage', 'range', 'wall', 'death', 'checkpoint']) {
   s.G.player.health = 60; s.tick(0.1);
   assert.equal(s.G.player.health, 100, 'the nearby dressing heals the hit');
   assert.equal(s.M.index, 0, 'healing in the same frame cannot conceal an interruption');
-  assert.equal(s.M.interaction, 0);
+  assert.equal(s.M.interaction, null);
 }
 {
   const s = scenario();

@@ -8,7 +8,7 @@ export function createHud(root) {
   const $ = (s) => root.querySelector(s);
   const el = {
     cross: $('[data-crosshair]'), hit: $('[data-hitmark]'), damage: $('[data-damage]'), hurt: $('[data-hurt]'),
-    health: $('[data-health]'), stance: $('[data-stance]'),
+    health: $('[data-health]'), healthMeter: $('[data-health-meter]'), stance: $('[data-stance]'),
     wname: $('[data-weapon-name]'), mag: $('[data-ammo-mag]'), reserve: $('[data-ammo-reserve]'), grenades: $('[data-grenades]'),
     objective: $('[data-objective]'), objText: $('[data-objective-text]'),
     compass: $('[data-compass]'), strip: $('[data-compass-strip]'), mark: $('[data-compass-mark]'), dist: $('[data-compass-dist]'),
@@ -50,7 +50,7 @@ export function createHud(root) {
     gmarks.push({ el: d, icon, text: '' });
   }
 
-  let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false, lastHealthPercent = 100;
+  let hitTimer = 0, noticeTimer = 0, lastHealth = 1, lastHealthPercent = 100, calm = false;
   let objectiveAngle = null, objectiveDist = 0;
   let lastHeading = null, lastBearing = null, lastDistance = null, markerShown = null;
   // Let CSS centre and clamp the compass against its current width. Reading
@@ -89,7 +89,7 @@ export function createHud(root) {
       el.health.classList.toggle('low', frac < 0.35);
       const percent = Math.round(clamp(frac, 0, 1) * 100);
       if (percent !== lastHealthPercent) {
-        el.health.parentElement.setAttribute?.('aria-valuenow', percent);
+        el.healthMeter?.setAttribute?.('aria-valuenow', percent);
         lastHealthPercent = percent;
       }
       lastHealth = frac;

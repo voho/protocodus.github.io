@@ -23,7 +23,7 @@
    player's left), yaw 0 turns a model's front to +z, 180 to the south. */
 
 import { fbm2, smoothstep, smoothPolyline, rng, lerp, polylineDistance } from '../util.js';
-import { bbox, near, along, hedgeBanks, gaps, curve, offset, atZ, roughGround, cutTrench } from './kit.js';
+import { bbox, near, along, hedgeBanks, gaps, curve, offset, atZ, roughGround, cutTrench, fieldDrain } from './kit.js';
 import { fieldwork } from './fieldwork.js';
 
 /* ---------- lines on the ground ---------- */
@@ -35,6 +35,10 @@ import { fieldwork } from './fieldwork.js';
 const LANE = smoothPolyline([[30, -28], [36, -6], [46, 20], [40, 48], [48, 78], [40, 108], [46, 132], [38, 160], [24, 184], [12, 198]], 2);
 const TRACK = smoothPolyline([[-12, -26], [-26, 6], [-40, 34], [-34, 64], [-44, 96], [-38, 124], [-44, 152], [-32, 178], [-16, 200]], 2);
 const ROAD = smoothPolyline([[-2, 198], [-10, 214], [-20, 228], [-18, 244], [-8, 258], [-10, 272]], 2);
+// The old field drain offers a low approach through the middle of the meadow.
+// It bends around the knoll and stops short of the battery's wire: useful
+// cover while crouched, with an exposed final dash into the trench.
+const DRAIN = fieldDrain(smoothPolyline([[14, 70], [22, 80], [14, 96], [18, 114], [26, 129]], 2), { depth: 0.95, half: 3.0 });
 // the hedgerows' lines across the fields: the first one, the battery's along the crest, the farm's
 const firstZ = (x) => 58 + 6 * Math.sin((x + 10) / 14);
 const crestZ = (x) => 143 + 5 * Math.sin((x - 4) / 18);
@@ -95,6 +99,7 @@ function roughAllowed(x, z) {
   k = Math.min(k, smoothstep(3.0, 5.5, near(ROAD, BOX.ROAD, x, z)));
   k = Math.min(k, smoothstep(2.6, 5, near(TRENCH_A, BOX.TA, x, z)));
   k = Math.min(k, smoothstep(2.4, 4.5, HEDGES.dist(x, z)));
+  k = Math.min(k, smoothstep(2.0, 4.0, DRAIN.dist(x, z)));
   for (const [gx, gz] of GUNS) k = Math.min(k, smoothstep(5, 8, Math.hypot(x - gx, z - gz)));
   if (x > YARD.x0 - 12 && x < YARD.x1 + 12 && z > YARD.z0 - 4 && z < YARD.z1 + 22) k = 0;
   return k;
@@ -109,6 +114,11 @@ function baseHeight(x, z) {
   let h = lipHeight(x, z) + fbm2(x / 19, z / 19, 2) * 0.25 + FIELDS.height(x, z);
   const k = roughAllowed(x, z);
   if (k > 0) h += k * (0.16 * fbm2(x / 5.3 + 11.7, z / 5.3 - 3.1, 3) + ROUGH.height(x, z));
+  // The low ridges left by generations of cultivation are subtle at eye
+  // level, but keep the meadow from reading as a uniformly noisy plane.
+  const field = smoothstep(62, 72, z) * smoothstep(128, 116, z) * smoothstep(-25, -16, x) * smoothstep(34, 26, x);
+  h += Math.sin((x + z * 0.12) * 1.05) * 0.075 * field * k;
+  h = DRAIN.cut(h, x, z);
   // the farm stands on a level patch
   const yard = smoothstep(14, 4, Math.max(YARD.x0 - x, x - YARD.x1, YARD.z0 - z, z - YARD.z1 - 12, 0));
   h = lerp(h, lipHeight(0, 212), yard);
@@ -154,6 +164,10 @@ function splat(x, z) {
   forest += smoothstep(2.6, 1.2, hd) * 0.8;
   for (const [gx, gz] of GUNS) mud += smoothstep(6, 3, Math.hypot(x - gx, z - gz)) * 1.5;
   mud += Math.min(1.5, Math.abs(ROUGH.height(x, z)) * 2.2);
+  // Bare earth at the bottom of the drain, leaf mould on its damp margins.
+  const drain = DRAIN.strength(x, z);
+  mud += drain * 2.8;
+  forest += smoothstep(4.0, 2.2, DRAIN.dist(x, z)) * (1 - drain) * 0.3;
   // the farmyard: setts under the mud, trodden to mud at the edges
   const inYard = x > YARD.x0 && x < YARD.x1 && z > YARD.z0 && z < YARD.z1;
   if (inYard) { cobble = smoothstep(0, 3, Math.min(x - YARD.x0, YARD.x1 - x, z - YARD.z0, YARD.z1 - z)) * (0.6 + 0.4 * smoothstep(-0.3, 0.3, n)); mud += 0.8; }
@@ -186,6 +200,10 @@ P('supply_canister', -24, 92, 140);
 P('field_harrow', -21, 4, -12);
 P('orchard_ladder', -46, 85, 25); P('crate', -44.5, 84, -12);
 P('field_harrow', -21, 184, 90);
+// Farm boundaries explain the orchard route; the broken sections leave wide
+// ways through and can be vaulted. A discarded barrel marks the drain.
+along(TRACK, 8.5, 5.2, (x, z, yaw) => P('fence_field', x, z, yaw), 72, 122);
+P('barrel_wood', 26, 78, 0);
 
 // --- the battery: three guns in pits cut through the hedge, the infantry's trench behind ---
 GUNS.forEach(([gx, gz], i) => {
@@ -252,6 +270,7 @@ for (let k = 0; k < 18; k++) C(RC.pick(['dropped_helmet_us', 'ammo_box', 'branch
 const R = rng(20250606);
 const scatter = [];
 const noTree = (x, z) => near(LANE, BOX.LANE, x, z) < 5 || near(TRACK, BOX.TRACK, x, z) < 4 || near(ROAD, BOX.ROAD, x, z) < 4
+  || DRAIN.dist(x, z) < 3.8
   || near(TRENCH_A, BOX.TA, x, z) < 4 || GUNS.some(([gx, gz]) => Math.hypot(x - gx, z - gz) < 9)
   || (x > YARD.x0 - 14 && x < YARD.x1 + 14 && z > YARD.z0 - 4 && z < YARD.z1 + 22);
 const BIG = { oak_big: ['oak_a', 1.5], beech_big: ['oak_b', 1.55], pine_big: ['pine_a', 1.45] };
@@ -288,14 +307,15 @@ const cover = [];
 for (let i = 0; i < 30000; i++) {
   const x = R.range(-56, 56), z = R.range(-26, 262);
   if (near(LANE, BOX.LANE, x, z) < 2.6 || near(TRACK, BOX.TRACK, x, z) < 2.2 || near(ROAD, BOX.ROAD, x, z) < 2.4) continue;
+  if (DRAIN.strength(x, z) > 0.4) continue;
   if (x > YARD.x0 && x < YARD.x1 && z > YARD.z0 && z < YARD.z1) continue;
   const q = R(), hd = HEDGES.dist(x, z);
   const m = hd < 2.6 ? (q < 0.3 ? 'nettles' : q < 0.55 ? 'fern' : q < 0.7 ? 'weeds' : 'grass_tall')
     : q < 0.45 ? 'grass_tall' : q < 0.55 ? 'weeds' : 'grass_tuft';
   cover.push({ m, x, z, yaw: R() * 360, scale: 0.7 + R() * 0.6 });
 }
-// The open cultivated strips have no knee-high wild meadow vegetation.
-// Filter after sampling so all unrelated deterministic vegetation stays put.
+
+// Filter after sampling so unrelated deterministic vegetation stays put.
 for (let i = cover.length - 1; i >= 0; i--) if (FIELDS.mask(cover[i].x, cover[i].z) > 0.3) cover.splice(i, 1);
 for (let i = scatter.length - 1; i >= 0; i--) if (FIELDS.mask(scatter[i].x, scatter[i].z) > 0.3) scatter.splice(i, 1);
 
@@ -351,7 +371,7 @@ const checkpoints = [
 
 const objectives = [
   { id: 'hedge', text: 'Get through the first hedgerow', kind: 'cross', z: 66, marker: [4, firstZ(4) - 3] },
-  ...['west', 'middle', 'east'].map((side, i) => ({ id: `gun${i + 1}`, text: `Destroy the ${side} gun`, kind: 'destroy', target: `gun${i + 1}`, x: GUNS[i][0], z: GUNS[i][1] - 3.1 })),
+  ...['west', 'middle', 'east'].map((side, i) => ({ id: `gun${i + 1}`, text: `Destroy the ${side} gun`, kind: 'destroy', orderGroup: 'battery', groupText: 'Destroy the battery guns', target: `gun${i + 1}`, x: GUNS[i][0], z: GUNS[i][1] - 3.1 })),
   { id: 'dump', text: 'Blow the ammunition dump in the farmyard', kind: 'destroy', target: 'dump', x: 5, z: 203.4 },
   { id: 'rally', text: 'Reach the road north of La Varenne', kind: 'reach', x: -12, z: 252, r: 7 },
 ];
@@ -360,6 +380,8 @@ const hints = [
   { x: 20, z: -6, r: 6, text: 'The guns are firing on the causeway', sub: 'Follow the compass marker; hold the right button to aim' },
   { x: 5, z: 50, r: 7, text: 'The meadow is open ground', sub: 'The sunken lane (left) and the orchard track (right) are covered by machine guns' },
   { x: 0, z: 118, r: 8, text: 'The trench runs the length of the hedge', sub: 'Get into it at either end, or bomb it with grenades (G)' },
+  { x: 20, z: 78, r: 6, text: 'The field drain leads towards the battery', sub: 'Crouch to keep below its banks; the last stretch to the trench is open' },
+  { x: -30, z: 132, r: 8, text: 'Take the guns in any order', sub: 'The compass marks the nearest remaining gun; press F beside it to set a charge' },
   { x: GUNS[0][0], z: GUNS[0][1] - 5, r: 6, text: 'Press F at a gun to set a charge', sub: 'Six seconds: get clear' },
 ];
 
@@ -371,7 +393,7 @@ export default {
   briefing: [
     'You came down miles from the drop zone in the night. At first light a dozen of us have found each other in the fields west of the beach — and found a battery of guns at the farm of La Varenne, dug in along a hedgerow and shelling the causeway the seaborne troops must come up.',
     'The guns face north, at the beach. Their infantry hold a trench along the south side of the hedge, between a machine gun at each end. Work along it and put a charge on each gun, then blow the shells they have stacked in the farmyard.',
-    'The ground rises all the way to their hedge, and they look down on you. The hedgerows are your cover and theirs: there is the sunken lane winding up the fold on the left, the orchard track round the spur on the right, the knoll and its copse in the middle of the meadow, and craters across it. Keep moving.',
+    'The ground rises all the way to their hedge, and they look down on you. Take the guns in whichever order your approach allows. There is the sunken lane winding up the fold on the left, the orchard track round the spur on the right, and an old field drain winding past the knoll through the meadow. Stay low, then cross the last open stretch into the trench.',
   ],
   daylight: true,
   weather: { rain: 0.45 },
@@ -379,9 +401,10 @@ export default {
   menuView: { from: [30, lipHeight(30, 110) + 4, 110], to: [0, lipHeight(0, 148) + 1.5, 148] },
   bounds: { minX: -110, maxX: 110, minZ: -50, maxZ: 300 },
   playBounds: { minX: -52, maxX: 52, minZ: -22, maxZ: 262 },
-  fine: [[-44, 126, 40, 158], ...FIELDS.fine],
+  fine: [[-44, 126, 40, 158], [10, 64, 30, 130], ...FIELDS.fine],
   water: null,
   baseHeight, splat, trackHeight: lipHeight,
+  fields: FIELDS.definitions,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,
   fog: { color: '#4a5058', density: 0.0062 },
   farFires: [[-80, 6, 240, 2.0], [90, 4, 60, 1.6]],
@@ -395,7 +418,6 @@ export default {
   },
   mist: (x, z) => 0.45 + 0.35 * smoothstep(60, 20, Math.abs(x)) * smoothstep(-20, 40, z) * smoothstep(200, 140, z),
   ambience: { rain: 0.45, wind: [1.3, 0.6], birds: true },
-  lines: { LANE, TRACK, ROAD, TRENCH_A },
+  lines: { LANE, TRACK, ROAD, TRENCH_A, DRAIN: DRAIN.line },
   craters: ROUGH.craters,
-  fields: FIELDS.definitions,
 };

@@ -66,6 +66,29 @@ export const WEAPONS = {
     // where the magazine model sits in the gun (weapons.glb, thompson_mag_seated)
     seatedAt: { p: [0, -0.13, 0.104], q: [-0.62089, -0.066765, 0.166366, 0.763129] },
   },
+  kar98k: {
+    name: 'Karabiner 98k', model: 'kar98k', kind: 'rifle', action: 'bolt',
+    damage: 76, headMul: 3.2, limbMul: 0.75, interval: 1.25, auto: false,
+    mag: 5, reserve: 45, reload: 3.2, prop: 'kar98k_clip', propSize: [0.02, 0.07, 0.07],
+    spreadHip: 0.042, spreadAim: 0.0035, spreadMove: 0.032, bloom: 0.025, bloomDecay: 3.4,
+    recoil: 0.042, recoilYaw: 0.009, range: 280, sound: 'kar98k', tracer: false,
+    falloff: [130, 280, 0.78], pierce: 0.28, pierceKeep: 0.65,
+    // Tangent rear notch and hooded front post of the shipped model.
+    sight: { rear: [0, 0.074, 0.205], front: [0, 0.073, 0.758], relief: 0.355 },
+    reach: 1.0, kick: 0.085,
+  },
+  mp40: {
+    name: 'MP 40', model: 'mp40', kind: 'smg',
+    damage: 25, headMul: 2.5, limbMul: 0.8, interval: 0.11, auto: true,
+    mag: 32, reserve: 160, reload: 2.6, prop: 'mp40_mag', propSize: [0.025, 0.25, 0.04],
+    drops: true, seated: 'mp40_mag_seated',
+    spreadHip: 0.048, spreadAim: 0.016, spreadMove: 0.031, bloom: 0.008, bloomDecay: 4.8,
+    recoil: 0.014, recoilYaw: 0.007, range: 110, sound: 'mp40', tracer: false,
+    falloff: [25, 80, 0.52], pierce: 0.1, pierceKeep: 0.45,
+    sight: { rear: [0, 0.095, -0.032], front: [0, 0.082, 0.414], relief: 0.13 },
+    reach: 0.68, kick: 0.035,
+    seatedAt: { p: [0, -0.13, 0.106], q: [-0.62089, -0.066765, 0.166366, 0.763129] },
+  },
 };
 
 export const ENEMY_WEAPONS = {

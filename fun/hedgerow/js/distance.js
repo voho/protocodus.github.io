@@ -16,12 +16,13 @@ export function buildDistance(G, L, { models, matlib, material }) {
   group.name = 'distance';
   const B = L.bounds;
   const F = L.far || {};
+  const urban = F.urban === true;
   const cx0 = B.minX, cx1 = B.maxX, cz0 = B.minZ, cz1 = B.maxZ;
   const outside = (x, z) => Math.hypot(Math.max(0, cx0 - x, x - cx1), Math.max(0, cz0 - z, z - cz1));
 
   /* the far ground */
-  const hills = F.height || ((x, z) => 18 + 22 * fbm2(x / 420 + 1.3, z / 420 - 2.1, 4) + 8 * fbm2(x / 150, z / 150, 3));
-  const woods = F.woods || ((x, z) => smoothstep(0.08, 0.22, fbm2(x / 230 + 7.7, z / 230 - 4.4, 3)));
+  const hills = F.height || (urban ? ((x, z) => L.trackHeight?.(x, z) ?? L.baseHeight(x, z)) : ((x, z) => 18 + 22 * fbm2(x / 420 + 1.3, z / 420 - 2.1, 4) + 8 * fbm2(x / 150, z / 150, 3)));
+  const woods = F.woods || (urban ? (() => 0) : ((x, z) => smoothstep(0.08, 0.22, fbm2(x / 230 + 7.7, z / 230 - 4.4, 3))));
   const height = (x, z) => {
     const d = outside(x, z);
     const edge = L.baseHeight(clamp(x, cx0, cx1), clamp(z, cz0, cz1));
@@ -45,6 +46,10 @@ export function buildDistance(G, L, { models, matlib, material }) {
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const x = x0 + i * STEP, z = z0 + j * STEP, k = j * nx + i;
     pos[k * 3] = x; pos[k * 3 + 1] = height(x, z); pos[k * 3 + 2] = z;
+    if (urban) {
+      spl[k * 4] = 0.05; spl[k * 4 + 1] = 0; spl[k * 4 + 2] = 0; spl[k * 4 + 3] = 0.95;
+      continue;
+    }
     const w = woods(x, z), fc = fieldCell(x, z), plough = hash(fc.id) < 0.3 ? 1 : 0;
     spl[k * 4] = (1 - w) * plough * 0.8 + 0.05;
     spl[k * 4 + 1] = (1 - w) * (1 - plough * 0.8);
@@ -72,12 +77,12 @@ export function buildDistance(G, L, { models, matlib, material }) {
   /* far trees: woods and hedgerow lines, LOD impostors only */
   const lods = ['pine_a_lod', 'pine_b_lod', 'pine_c_lod', 'oak_a_lod', 'oak_b_lod', 'birch_a_lod', 'pine_big_lod', 'oak_big_lod', 'beech_big_lod', 'fir_big_lod']
     .filter((n) => models.has(n));
-  const lines = ['treeline_far', 'treeline_far_b'].filter((n) => models.has(n));
+  const lines = (F.treelines === false || (urban && F.treelines !== true) ? [] : ['treeline_far', 'treeline_far_b']).filter((n) => models.has(n));
   const R = rng(4242);
   // beyond COPSE m the broadleaf woods are copses (one card pair per 24 m), not single trees
   const COPSE = 330, copse = models.has('hill_trees_lod');
   const place = new Map([...lods, ...(copse ? ['hill_trees_lod'] : [])].map((n) => [n, []]));
-  const maxD = F.treeRange || 620;
+  const maxD = F.treeRange ?? (urban ? 0 : 620);
   const coniferAt = (x, z) => fbm2(x / 300, z / 300, 2) > 0;
   if (lods.length) {
     for (let z = z0; z < z1; z += 6) for (let x = x0; x < x1; x += 6) {

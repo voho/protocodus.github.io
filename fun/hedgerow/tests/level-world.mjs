@@ -10,6 +10,14 @@ import { rectDistance, smoothstep, lerp } from '../js/util.js';
 const { proceduralModels } = await import('../js/procedural.js');
 const { default: L } = await import(`../js/levels/${process.env.HEDGEROW_LEVEL || 'saint-clair'}.js`);
 
+let missionModels = [];
+if (L.id === 'prague') {
+  const [{ pragueModels }, { pragueStreetModels }] = await Promise.all([
+    import('../js/prague-models.js'), import('../js/prague-street-models.js'),
+  ]);
+  missionModels = [...pragueModels(), ...pragueStreetModels()];
+}
+
 export { L };
 export const DEG = Math.PI / 180;
 const here = new URL('..', import.meta.url).pathname;
@@ -37,7 +45,7 @@ for (const set of ['village', 'military', 'nature']) {
 }
 
 // and the ones modelled in three.js (procedural.js)
-for (const [name, m] of proceduralModels()) {
+for (const [name, m] of [...proceduralModels(), ...missionModels]) {
   models.set(name, { name, min: m.box.min.toArray(), max: m.box.max.toArray(), colliders: m.colliders, anchors: m.anchors });
 }
 
