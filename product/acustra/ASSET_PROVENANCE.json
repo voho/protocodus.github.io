@@ -2,12 +2,16 @@
   "product": "Acustra Acoustic Guitar",
   "format": "Reason Rack Extension",
   "checked_on": "2026-10-28",
-  "availability": "available_in_reason_shop",
+  "availability": "published",
   "public_release": {
     "version": "1.9.0",
     "first_released_on": "2026-10-20",
     "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
-    "basis": "Version 1.9.0, its version history and 'Released: 2026-10-20' read from the public Shop page on 28 October 2026. The Shop keeps the first release date when the version changes, so 20 October 2026 is 1.3.2's date, not 1.9.0's."
+    "basis": "Version 1.9.0, its version history and 'Released: 2026-10-20' read from the public Shop page on 28 October 2026. The Shop keeps the first release date when the version changes, so 20 October 2026 is 1.3.2's date, not 1.9.0's.",
+    "accepted_version": "1.9.0d2",
+    "shop_release_date_field": "2026-10-20",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+    "verified_on": "2026-11-06"
   },
   "artwork_source": {
     "kind": "current_published_reason_shop_gallery",
@@ -291,7 +295,7 @@
     "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acustra/Design/Shop/realistic/layers.json"
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
+    "checked_on": "2026-11-06",
     "version": "1.9.0",
     "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
     "assets": [

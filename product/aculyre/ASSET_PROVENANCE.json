@@ -1,7 +1,7 @@
 {
   "product": "Aculyre",
   "reviewed": "2026-11-03",
-  "availability": "coming_soon",
+  "availability": "awaiting_shop_article",
   "source_version": "0.7.9d1",
   "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
   "source_repository": "protocodus/reason-rack-extensions",
@@ -158,5 +158,16 @@
     "generator": "Tools/shop_covers/build_shop_covers.py",
     "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
     "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Aculyre/Design/Shop/realistic/layers.json"
+  },
+  "publication_check": {
+    "checked_on": "2026-11-06",
+    "product": "aculyre",
+    "status": "awaiting_shop_article",
+    "checked_url": "https://www.reasonstudios.com/shop/product_page/34534/",
+    "http_status": 404,
+    "accepted_version": "0.7.9d1",
+    "shop_page_version": "0.7.4",
+    "shop_page_status": "draft",
+    "note": "The Shop article selector only offers 0.7.4; accepted version 0.7.9d1 is not selectable. Do not submit the draft against the older article."
   }
 }

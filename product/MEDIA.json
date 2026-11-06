@@ -1,8 +1,22 @@
 {
-  "verified_at": "2026-11-05",
+  "verified_at": "2026-11-06",
   "youtube_channel": "https://www.youtube.com/@protocodus",
   "soundcloud_profile": "https://soundcloud.com/protocodus",
   "videos": [
+    {
+      "id": "7rh4ti-U3T4",
+      "title": "Tarantella napoletana for seven modelled ukuleles | Protocodus Aculele for Reason",
+      "product": "aculele",
+      "url": "https://www.youtube.com/watch?v=7rh4ti-U3T4",
+      "kind": "video"
+    },
+    {
+      "id": "m5cxwdFxrjY",
+      "title": "Aloha ʻOe on a physically modelled ukulele | Protocodus Aculele for Reason",
+      "product": "aculele",
+      "url": "https://www.youtube.com/watch?v=m5cxwdFxrjY",
+      "kind": "video"
+    },
     {
       "id": "gt2cQCEUpkE",
       "title": "Sakura Sakura on a physically modelled koto | Acukoto for Reason",

@@ -331,7 +331,7 @@
     "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Maremba/Design/Shop/realistic/layers.json"
   },
   "current_shop_gallery": {
-    "checked_on": "2026-11-05",
+    "checked_on": "2026-11-06",
     "version": "1.5.7",
     "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
     "assets": [
@@ -381,5 +381,13 @@
       }
     ],
     "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  },
+  "availability": "published",
+  "public_release": {
+    "version": "1.5.7",
+    "accepted_version": "1.5.7f5",
+    "shop_release_date_field": "2026-10-13",
+    "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
+    "verified_on": "2026-11-06"
   }
 }

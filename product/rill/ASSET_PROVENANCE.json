@@ -1,12 +1,12 @@
 {
-  "checked_on": "2026-11-05",
+  "checked_on": "2026-11-06",
   "product": "Rill desktop music workstation",
   "source_repository": "https://github.com/protocodus/rill-daw",
-  "source_commit": "a5a9ce4b360ad9f303661d4e01039bcf3b7cda02",
+  "source_commit": "1facbdc196cfa2a7f3bde1a488ff614c3c419add",
   "source_version": "0.1.0",
   "licence": "MIT",
-  "basis": "README screenshots are unchanged at the reviewed main commit. Product copy follows the current README and USER_GUIDE. The download remains a rolling alpha, not a tagged release.",
-  "derivatives": "Pillow 12.3.0: WebP quality 90, method 6, at source size; the og:image JPEG at quality 86.",
+  "basis": "Native captures of the 6 November main source, using an original 32-bar demo session. Application controls and rendering are unchanged. The download remains a rolling alpha, not a tagged release.",
+  "derivatives": "Pillow 11.0.0: proportional Lanczos downsampling of native 2x PNG captures; WebP quality 90, method 6, at 2000 × 1250 (mixer 2400 × 1250); social JPEG at 1600 × 1000, quality 86, optimized.",
   "downloads": {
     "service": "nightly.link",
     "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
@@ -23,63 +23,63 @@
   },
   "assets": {
     "rill-arrangement.webp": {
-      "source": "artifacts/readme-arrangement.png",
-      "source_sha256": "7a33bb772821549a7a815c8fcf6239d0fce65e420aeade3f462db349871c76ad",
-      "sha256": "7380dd0f6fcbc75f1074734a6b0255e728c8c3765600597c11235bc4d2d92531",
-      "bytes": 200792,
+      "source": "native-capture/2026-11-06/rill-arrangement.png",
+      "source_sha256": "4ccdad3064fabb7115ec14c285f448c0355c68dca4af70f8ce99770b71d88db9",
+      "sha256": "ae0c608e8f081a7ade1220b12c0741c2a7a011416b1ae8717051074b283c659a",
+      "bytes": 236318,
       "dimensions": [
-        1600,
-        1000
+        2000,
+        1250
       ]
     },
     "rill-arrangement.jpg": {
-      "source": "artifacts/readme-arrangement.png",
-      "source_sha256": "7a33bb772821549a7a815c8fcf6239d0fce65e420aeade3f462db349871c76ad",
-      "sha256": "809c28a0571ad76287f3059b894cf617ad405237ee55cc111adee2ab50b0815a",
-      "bytes": 316351,
+      "source": "native-capture/2026-11-06/rill-arrangement.png",
+      "source_sha256": "4ccdad3064fabb7115ec14c285f448c0355c68dca4af70f8ce99770b71d88db9",
+      "sha256": "b7423e675c6c8ab06f20f3bb272e78cf90411a9a11718d6a3d43ae562d1ce92d",
+      "bytes": 302456,
       "dimensions": [
         1600,
         1000
       ]
     },
     "rill-piano-roll.webp": {
-      "source": "artifacts/readme-piano-roll.png",
-      "source_sha256": "201d9b84d5748d26f22df4b55ada98019e72cfbcd2bd0ee66de7a77682d08012",
-      "sha256": "fa18925aaa48389ec92340c015c148149a7ef1466158f567ad74f514ae07125b",
-      "bytes": 80712,
+      "source": "native-capture/2026-11-06/rill-piano-roll.png",
+      "source_sha256": "d09f30ecd3f6c9691696eee4b7eaf212651f9e8be42e429833d4a5e2a67d7688",
+      "sha256": "473b46e51ca294ee3f40fb3c18bc3a396f711284f62acadb262e507f96c4ded7",
+      "bytes": 75308,
       "dimensions": [
-        1600,
-        1000
+        2000,
+        1250
       ]
     },
     "rill-audio-editor.webp": {
-      "source": "artifacts/readme-audio-editor.png",
-      "source_sha256": "87e828c3242212277d4137c74e5c7ff564a62efd80dda5d837ad562bcc83dc7c",
-      "sha256": "7aaf4f4c140406453273c786a3824da9cc6d55daf6d5a04e56c0b7badab4504b",
-      "bytes": 97862,
+      "source": "native-capture/2026-11-06/rill-audio-editor.png",
+      "source_sha256": "8ea30f4b9d3327774770496fa10f3ead17dd4184911e883f035c933d00801a9f",
+      "sha256": "00d49721ce651109317db0ba1c8e34ef901cbbfb725d2c04438a81bb0215198f",
+      "bytes": 132832,
       "dimensions": [
-        1600,
-        1000
+        2000,
+        1250
       ]
     },
     "rill-mixer.webp": {
-      "source": "artifacts/readme-mixer.png",
-      "source_sha256": "3273d0d95ba6ce4111f4e6fe0b7dbcd2acff932bdc214db95ec17e0ae5764996",
-      "sha256": "d40ca5ed10495d23dd87b0ad9e5c04305863f69b16a262ceb8c18ea4ac09fba3",
-      "bytes": 86650,
+      "source": "native-capture/2026-11-06/rill-mixer.png",
+      "source_sha256": "59bd9dadd6ff0cafe3fbfe93c85f2a86e25bbaf709a13ab3dbb181e65bc6bdfc",
+      "sha256": "85ae5bbed21c558ad0d37733ab317cf7dd80b6bcf2fc0b2e9ec8e1da37d28542",
+      "bytes": 125882,
       "dimensions": [
         2400,
-        1000
+        1250
       ]
     },
     "rill-ai-assistant.webp": {
-      "source": "artifacts/readme-ai-assistant.png",
-      "source_sha256": "90f3d07853d7a5a2430df7aed9d742607b340137bbf4f96cce408d2913a6697d",
-      "sha256": "b8ec5ab1679137451ecd5219ba04db5acbd51f2a2637e85cb07530deb0a83ec8",
-      "bytes": 137854,
+      "source": "native-capture/2026-11-06/rill-ai-assistant.png",
+      "source_sha256": "70dbc61cbce65cccb5e77cdc0937b56d051f3851b2c3e27a9f347cfaf0d7a081",
+      "sha256": "59e0ed0e776b2f40d983cbae91c969d4e505c03a9b5ec1592271dcecb90b659e",
+      "bytes": 66718,
       "dimensions": [
-        1600,
-        1000
+        2000,
+        1250
       ]
     },
     "rill-logo.svg": {
@@ -91,5 +91,26 @@
         208
       ]
     }
+  },
+  "capture": {
+    "date": "2026-11-06",
+    "method": "RILL --screenshot with native eframe rendering on macOS, dark appearance. All screenshots are complete application content; no UI elements were composited or retouched.",
+    "source_dimensions": [
+      3200,
+      2000
+    ],
+    "mixer_source_dimensions": [
+      3840,
+      2000
+    ],
+    "demo": "Glass Current: original audio loops, four audio tracks, four MIDI tracks and two buses at 120 BPM.",
+    "setup": "Capture-only harness sets window dimensions, fits timelines, selects D minor and prepares the visible unsent assistant prompt. Plugin discovery, preview generation and audio-device startup are disabled during capture. No AI request is sent.",
+    "harness": "scripts/rill-capture/capture-harness.patch",
+    "demo_generator": "scripts/rill-capture/make_demo.py"
+  },
+  "previous_capture": {
+    "source_commit": "a5a9ce4b360ad9f303661d4e01039bcf3b7cda02",
+    "checked_on": "2026-11-05",
+    "basis": "README screenshots captured on 27 October 2026; replaced by current native captures."
   }
 }
