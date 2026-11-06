@@ -37,6 +37,7 @@ function fixture({ state = 'dead', done = false, lost = false } = {}) {
     screenEls: { pause: { scrollTop: 0, querySelector: () => ({ scrollTop: 0 }) } },
     $: selector => { if (!nodes.has(selector)) nodes.set(selector, { textContent: '', innerHTML: '', append() {} }); return nodes.get(selector); },
     show: name => screens.push(name), trackAttemptStart: record('attemptStart'),
+    resetAcoustics: record('resetAcoustics'),
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
   });
   for (const name of ['retryCheckpoint', 'cancelCompletionPresentation', 'resume', 'pause']) {

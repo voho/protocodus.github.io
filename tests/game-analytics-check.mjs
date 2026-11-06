@@ -70,7 +70,7 @@ const hedgerow = await functions('fun/hedgerow/js/main.js', ['analyticsAttemptCo
   missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0, deathSequence: 0, graphicsLost: false,
   fade: { classList: { add: noop, remove: noop } }, explosives: clearable,
   G: { debris: clearable, casings: clearable, chunks: clearable, steam: clearable, enemies: [] },
-  enemies: { resetLiving: noop }, player: { reset: noop, char: {} }, resume: noop,
+  enemies: { resetLiving: noop }, player: { reset: noop, char: {} }, resetAcoustics: noop, resume: noop,
   audio: { cancelActions: noop },
   setTimeout: callback => callback(),
 });

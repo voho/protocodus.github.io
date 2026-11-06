@@ -19,6 +19,7 @@ import { createRagdoll } from './ragdoll.js';
 import { createMountedWeaponPose } from './mounted-weapon.js';
 import { articulatedKar98kModel, createKar98kActionPose } from './kar98k-action.js';
 import { createHandTarget } from './hand-target.js';
+import { createHeldGrenadePose, seatHeldGrenade, THROW_ANIMATION_LEAD } from './held-grenade.js';
 
 const LOWER = new Set(['root', 'hips', 'thigh_l', 'shin_l', 'foot_l', 'thigh_r', 'shin_r', 'foot_r']);
 // first person: the head bone's scale while the head is folded away from the eyes
@@ -255,6 +256,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   const socket = root.getObjectByName('socket_weapon');
   const socketL = root.getObjectByName('socket_weapon_l');
   const offhandPose = createHandTarget(root, bones, socketL);
+  const grenadePose = weaponActions ? createHeldGrenadePose(root, bones, socket) : null;
   let mountedPose = null;
 
   /* The head and helmet as one rigid piece in the head bone's own space, hung on the head
@@ -405,7 +407,10 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   setWeapon(weaponModel);
   // a grenade appears in the right hand while throwing; the rifle goes to the left
   const grenade = grenadeModel && socket ? instantiate(grenadeModel, matlib) : null;
-  if (grenade) { grenade.visible = false; socket.add(grenade); }
+  if (grenade) {
+    grenade.visible = false; socket.add(grenade);
+    if (weaponActions) seatHeldGrenade(grenade, grenadeModel.name);
+  }
   // a magazine or clip in the left hand while reloading
   let leftProp = null;
   function holdLeft(model) {
@@ -437,6 +442,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
   };
   let lowerName = null, upperName = null, lowerAct = null, upperAct = null;
   let oneShot = null, oneShotEnd = 0, dead = false;
+  let grenadeHolding = false;
   let spineBase = null;       // the spine as the clips left it, before the aim pitch
   let spinePosBase = null;
   let clavBase = null;        // the collarbones as the clips left them, before the arms' lift
@@ -566,6 +572,29 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     },
     holdLeft,
     releaseLeft,
+    setGrenadeHold(on) {
+      const next = !!on && !dead;
+      if (next === grenadeHolding) return;
+      grenadeHolding = next;
+      if (next) holdForThrow(true);
+      else {
+        if (actions.upper.throw) actions.upper.throw.paused = false;
+        if (oneShot !== 'throw') {
+          holdForThrow(false);
+          if (upperName === 'throw') play('upper', state._pendingUpper || 'aim', .12);
+        }
+      }
+    },
+    poseHeldGrenade(camera, dt, world) { if (!dead) grenadePose?.update(dt, camera, grenadeHolding, world); },
+    releaseHeldGrenade() { if (grenade) grenade.visible = false; },
+    heldGrenadeWorld(out = new THREE.Vector3()) { return grenade ? grenade.getWorldPosition(out) : null; },
+    heldGrenadeRotation(out = new THREE.Quaternion()) { return grenade ? grenade.getWorldQuaternion(out) : null; },
+    cancelGrenade() {
+      grenadeHolding = false; grenadePose?.reset();
+      if (actions.upper.throw) actions.upper.throw.paused = false;
+      if (oneShot === 'throw') { oneShot = null; play('upper', state._pendingUpper || 'aim', .12); }
+      holdForThrow(false);
+    },
     /* distance from the camera: picks the full or the low-detail mesh */
     setDistance,
     get far() { return far; },
@@ -596,19 +625,30 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
     animate(move, upper, speed = 1) {
       if (dead) return;
       play('lower', move, 0.22, speed);
-      if (!oneShot) play('upper', upper, 0.18);
+      if (!oneShot && grenadeHolding) {
+        state._pendingUpper = upper;
+        const a = upperName === 'throw' ? actions.upper.throw : play('upper', 'throw', .12);
+        if (a) { a.time = 0; a.paused = true; }
+      } else if (!oneShot) play('upper', upper, 0.18);
       else state._pendingUpper = upper;
     },
 
     /* reload / throw / hit on the upper body; returns its duration. */
-    oneShot(name, timeScale = 1) {
+    oneShot(name, timeScale = 1, birthAdvance = 0) {
       if (dead) return 0;
+      const prepared = name === 'throw' && grenadeHolding;
       const a = play('upper', name, 0.12, timeScale);
       if (!a) return 0;
+      if (prepared) a.stopFading().setEffectiveWeight(1);
+      // At the existing 300 ms release beat the authored hand must be in
+      // front of the player, rather than still behind his shoulder. Skip
+      // the birth update here because its release clock starts next frame.
+      const firstPersonThrow = name === 'throw' && weaponActions;
+      if (firstPersonThrow) a.time = Math.max(0, THROW_ANIMATION_LEAD - Math.max(0, birthAdvance) * timeScale);
       if (oneShot === 'throw' && name !== 'throw') holdForThrow(false);
       if (name === 'throw') holdForThrow(true);
       oneShot = name;
-      const dur = a.getClip().duration / timeScale;
+      const dur = (a.getClip().duration - (firstPersonThrow ? a.time : 0)) / timeScale;
       oneShotEnd = mixer.time + dur;
       return dur;
     },
@@ -618,10 +658,13 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
        on a rig the ragdoll cannot drive, the death clip plays. */
     die(kind = 'death_fwd', { world = null, velocity, impulses, onImpact } = {}) {
       if (dead) return;
+      const hadGrenade = grenadeHolding || oneShot === 'throw';
+      grenadeHolding = false; grenadePose?.reset(true);
+      if (actions.upper.throw) actions.upper.throw.paused = false;
+      if (grenade) grenade.visible = false;
       boltPose?.reset();
       mountedPose?.restore();
       mountedPose = null;
-      if (oneShot === 'throw') holdForThrow(false);
       holdLeft(null);
       dead = true;
       oneShot = null;
@@ -632,6 +675,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
         ragdoll = createRagdoll(bones, world, { velocity, impulses, root, onImpact });
         if (ragdoll) { mixer.stopAllAction(); return; }
       }
+      if (hadGrenade) holdForThrow(false);
       const a = act('full', kind) || act('full', 'death_fwd');
       if (!a) return;
       a.setLoop(THREE.LoopOnce, 1);
@@ -663,6 +707,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
       if (spinePosBase) bones.spine.position.copy(spinePosBase);
       if (clavBase) clavBase.forEach(([b, q, p]) => { b.quaternion.copy(q); b.position.copy(p); });
       if (armBase) armBase.forEach(([b, q]) => b.quaternion.copy(q));
+      grenadePose?.restore();
       boltPose?.restore();
       mountedPose?.restore();
       mixer.update(dt);
@@ -730,6 +775,7 @@ export function createCharacter(gltf, matlib, { outfit = 'allied', weaponModel =
 
     dispose() {
       ragdoll?.cancelImpact();
+      grenadePose?.reset(true);
       boltPose?.reset();
       shadow.parent?.remove(shadow);
       root.parent?.remove(root);

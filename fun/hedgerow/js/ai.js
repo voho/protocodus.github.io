@@ -112,6 +112,7 @@ export function createEnemies(G, defs) {
   const nav = G.nav || (G.nav = createNav(G.world, G.level?.playBounds || G.world.bounds));
   // what each group last saw of the player: where, which way he was going, when
   const intel = new Map();
+  const casualtyQueue = [], casualtyR = rng(1945);
   const manoeuvres = new Map();              // one bounding move per squad at a time
   const coverGrid = new Map();
   for (const c of cover) {
@@ -139,7 +140,7 @@ export function createEnemies(G, defs) {
       def: d, id: enemies.length, type, group: d.group || 'none', wdef,
       pos: new THREE.Vector3(), yaw: 0, home: { x: d.at[0], z: d.at[1], yaw: (d.yaw || 0) * Math.PI / 180 },
       health: ENEMY.health * (d.tough || 1), dead: false, char: null,
-      state: 'idle', awareness: 0, lastSeen: -99, lastContact: -99, lastKnown: null, contact: null, pendingContact: null, reportTimer: 0, sees: false, exposure: 0,
+      state: 'idle', awareness: 0, lastSeen: -99, lastContact: -99, lastKnown: null, contact: null, pendingContact: null, casualtyReaction: null, reportTimer: 0, sees: false, exposure: 0,
       cover: null, coverDeadline: 0, peekSpot: null, stance: d.stance || 'stand', target: null, moveSpeed: 0, vel: new THREE.Vector3(),
       fireTimer: 0, burstLeft: 0, aimTimer: 0, reaction: 0, suppressed: 0, shotRecoil: 0,
       phase: 'hide', phaseTimer: 0, grenades: type === 'rifle' ? 1 : type === 'smg' ? 1 : 0, grenadeCheck: 2 + R() * 3,
@@ -248,6 +249,63 @@ export function createEnemies(G, defs) {
     if (report) alertGroup(e);
   }
 
+  // Only recent visible falls can create this alarm. It concerns the
+  // casualty, never the unseen shooter's coordinates or a confirmed call.
+  const unawareOfThreat = e => !e.dead && !e.sees && !e.danger &&
+    (e.state === 'idle' || e.state === 'patrol' || e.state === 'return');
+  const casualtyRange = () => ((G.daylight ?? G.level?.daylight ?? false) ? 18 : 10) * (G.lightning > .4 ? 1.4 : 1);
+
+  function queueCasualty(victim) {
+    const point = victim.char.boneWorld('chest', new THREE.Vector3()), range = casualtyRange();
+    const nearby = enemies.filter(e => e !== victim && unawareOfThreat(e) && !e.casualtyReaction)
+      .map(e => ({ e, distance: Math.hypot(e.pos.x - point.x, e.pos.y + 1.2 - point.y, e.pos.z - point.z) }))
+      .filter(pair => pair.distance <= range).sort((a, b) => a.distance - b.distance);
+    const notice = { victim, expires: G.time + 2.5, investigator: null };
+    for (const { e } of nearby.slice(0, 8)) {
+      if (casualtyQueue.length >= 32) break;
+      casualtyQueue.push({ observer: e, notice, at: G.time + .08, expires: G.time + 1.2 });
+    }
+  }
+
+  function processCasualties() {
+    if (!casualtyQueue.length) return;       // no new idle sight traces
+    let remaining = casualtyQueue.length, checked = 0;
+    while (casualtyQueue.length && remaining-- > 0 && checked < 2) {
+      const pair = casualtyQueue.shift(), e = pair.observer, victim = pair.notice.victim;
+      if (G.time < pair.at) { casualtyQueue.push(pair); continue; }
+      checked++;
+      if (G.time > pair.expires || !unawareOfThreat(e) || e.casualtyReaction || !victim.char.root.parent) continue;
+      const eye = eyePos(e, new THREE.Vector3()), point = victim.char.boneWorld('chest', new THREE.Vector3());
+      const inCone = () => eye.distanceTo(point) <= casualtyRange() &&
+        Math.abs(wrapAngle(Math.atan2(point.x - eye.x, point.z - eye.z) - e.yaw)) <= ENEMY.viewFov;
+      if (!inCone() || !G.world.clear(eye.x, eye.y, eye.z, point.x, point.y, point.z, SIGHT)) {
+        victim.char.boneWorld('head', point);
+        if (!inCone() || !G.world.clear(eye.x, eye.y, eye.z, point.x, point.y, point.z, SIGHT)) continue;
+      }
+      e.casualtyReaction = { notice: pair.notice, x: point.x, y: point.y, z: point.z, at: G.time + .55 + casualtyR() * .4 };
+    }
+  }
+
+  function reactToCasualty(e) {
+    const reaction = e.casualtyReaction;
+    if (!reaction) return;
+    if (!unawareOfThreat(e) || G.time > reaction.notice.expires || !reaction.notice.victim.char.root.parent) {
+      e.casualtyReaction = null; return;
+    }
+    if (G.time < reaction.at) return;
+    e.casualtyReaction = null;
+    e.lastKnown = { x: reaction.x, y: reaction.y, z: reaction.z, uncertain: true };
+    e.awareness = Math.max(e.awareness, .75); e.waryUntil = Math.max(e.waryUntil, G.time + 30);
+    const alreadyLooking = enemies.some(o => o !== e && !o.dead && o.group === e.group && o.srch?.reason === 'casualty' && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 25);
+    if (canLeave(e) && Math.hypot(reaction.x - e.home.x, reaction.z - e.home.z) <= e.leash &&
+        !alreadyLooking && (!reaction.notice.investigator || reaction.notice.investigator.dead)) {
+      reaction.notice.investigator = e;
+      startSearch(e, reaction.x, reaction.z, { reason: 'casualty', sweeps: 1, listen: .8 + casualtyR() * .4 });
+    } else {
+      e.state = 'alert'; e.alertCover = false; e.path = null;
+    }
+  }
+
   function incomingBearing(e, from) {
     // Preserve a fresh sensed position; a hit alone supplies a bearing,
     // not the unseen shooter's distance or elevation. Freeze its original
@@ -281,6 +339,8 @@ export function createEnemies(G, defs) {
   function die(e, from, part) {
     e.dead = true;
     e.state = 'dead';
+    e.casualtyReaction = null;
+    for (let i = casualtyQueue.length - 1; i >= 0; i--) if (casualtyQueue[i].observer === e) casualtyQueue.splice(i, 1);
     e.reloadAudio?.cancel(); e.reloadAudio = null;
     e.pendingThrow = null; e.danger = null; e.heardGrenade = null; e.laneStep = null; e.order = null; e.tacticalRole = null; e.covering = null;
     if (e.cover) { e.cover.taken = null; e.cover = null; }
@@ -322,6 +382,7 @@ export function createEnemies(G, defs) {
     for (const other of enemies) {
       if (other.pendingContact?.report.reporter === e.id && other.pendingContact.at > G.time) other.pendingContact = null;
     }
+    queueCasualty(e);
     G.events.emit('enemyKilled', e);
   }
 
@@ -352,6 +413,7 @@ export function createEnemies(G, defs) {
         if (e.state === 'idle' || e.state === 'patrol') e.state = 'alert';
         continue;
       }
+      if (e.srch?.reason === 'casualty') e.srch.reason = 'investigate';
       if (e.state === 'combat') { if (!e.sees) { e.lastKnown = { x, z }; e.lastContact = G.time; } continue; }
       e.lastKnown = { x, z }; e.lastContact = G.time;
       if (e.state === 'ambush') continue;            // stays put, listening
@@ -594,7 +656,9 @@ export function createEnemies(G, defs) {
       e.char.oneShot(clip, (e.char.clipLength(clip) || 1.6) / e.reloadTotal);
       e.reloadRun = reloadSequence(G, e.char, w, clip);
     }
-    e.reloadAudio = G.audio.reloadActor?.(w.sound, () => e.dead ? null : e.pos, {
+    const reloadPoint = e.type === 'mg' ? null : new THREE.Vector3();
+    e.reloadAudio = G.audio.reloadActor?.(w.sound, () => e.dead ? null : reloadPoint ? e.char.boneWorld('hand_r', reloadPoint) : e.pos, {
+      heightOffset: reloadPoint ? 0 : undefined,
       duration: e.reloadTotal,
       events: clip ? reloadEvents(G.soldier)[clip] || reloadEvents(G.soldier).reload : undefined,
     }) || null;
@@ -1137,6 +1201,13 @@ export function createEnemies(G, defs) {
   function goTo(e, tx, tz, speed, dt, { lookAt = null, faceRate = 6 } = {}) {
     if (!e.path || e.pathGoalX !== tx || e.pathGoalZ !== tz) {
       const path = walkingPath(e, tx, tz, true);
+      // A casualty alone cannot authorize leaving the post's leash just
+      // because the route between two permitted points detours outside it.
+      // Immediate grenade survival retains its existing movement priority.
+      if (e.state === 'search' && e.srch?.reason === 'casualty' && !e.danger &&
+          path?.some(p => Math.hypot(p.x - e.home.x, p.z - e.home.z) > e.leash)) {
+        e.path = null; e.vel.set(0, 0, 0); return true;
+      }
       // no way round on the walk grid: straight there only if nothing stands in the way, else
       // give up on it now (walking at a wall until the stuck timer notices looked broken)
       if (!path && !reachable(e, tx, tz)) {
@@ -1352,7 +1423,7 @@ export function createEnemies(G, defs) {
   /* ---------- looking for him ---------- */
 
   /* `reason`: 'investigate' (a sound), 'search' (where he was last seen),
-     'body' (the man who shot him, making sure). */
+     'body' (the man who shot him, making sure), 'casualty' (a visible fallen comrade). */
   function startSearch(e, x, z, { reason = 'search', sweeps = 3, heading = null, listen = 0 } = {}) {
     if (e.cover) { e.cover.taken = null; e.cover = null; }
     e.state = 'search';
@@ -1381,7 +1452,7 @@ export function createEnemies(G, defs) {
     for (let i = 0; i < 14; i++) {
       const a = base + (R() * 2 - 1) * spread, r = 6 + R() * 9;
       const x = s.x + Math.sin(a) * r, z = s.z + Math.cos(a) * r;
-      if (!nav.walkable(x, z) || Math.hypot(x - e.home.x, z - e.home.z) > e.leash + 45) continue;
+      if (!nav.walkable(x, z) || Math.hypot(x - e.home.x, z - e.home.z) > e.leash + (s.reason === 'casualty' ? 0 : 45)) continue;
       const y = (nav.height(x, z) ?? y0) + 1.5;
       const hidden = !G.world.clear(s.x, y0, s.z, x, y, z, SIGHT);
       cands.push({ x, z, score: (hidden ? 3 : 0) - Math.abs(a - base) * 0.5 + R() });
@@ -1409,7 +1480,7 @@ export function createEnemies(G, defs) {
         break;
       case 'approach': {
         const d = Math.hypot(s.x - e.pos.x, s.z - e.pos.z);
-        const stop = s.reason === 'investigate' ? 4.5 : s.reason === 'body' ? 2.2 : 1.5;
+        const stop = s.reason === 'investigate' ? 4.5 : s.reason === 'body' || s.reason === 'casualty' ? 2.2 : 1.5;
         // hurry while far from where he was seen, then slow down, rifle up
         const speed = (s.reason === 'search' || s.reason === 'assault') && d > 18 ? ENEMY.run * 0.8 : ENEMY.walk * 1.1;
         if (d < stop || goTo(e, s.x, s.z, speed, dt) || s.timer <= 0) {
@@ -1668,6 +1739,7 @@ export function createEnemies(G, defs) {
         e.char.shadow.visible = e.inView;
         continue;
       }
+      if (e.casualtyReaction && G.time > e.casualtyReaction.notice.expires) e.casualtyReaction = null;
       // A reload already in progress must complete even when the player
       // leaves this encounter; otherwise its actor-owned sound stays queued.
       if (e.reloadT > 0) reloadSteps(e, dt);
@@ -1681,6 +1753,7 @@ export function createEnemies(G, defs) {
         perceive(e, step - e.perceiveTimer);
         e.perceiveTimer = step;
       }
+      reactToCasualty(e);
       const avoiding = updateDanger(e, dt);
       updateThrow(e, dt);
       if (avoiding) { /* survival overrides a firing or patrol order */ }
@@ -1703,13 +1776,16 @@ export function createEnemies(G, defs) {
         aware.push({ angle: ang, level: 1, alert: true, d: dPl });
       }
     }
+    processCasualties();
     aware.sort((a, b) => a.d - b.d);
     G.hud.awareness(aware);
   }
 
   /* Back to their posts after the player respawns (the dead stay dead). */
   function resetLiving() {
+    casualtyQueue.length = 0;
     for (const e of enemies) {
+      e.casualtyReaction = null;
       if (e.dead) continue;
       e.pos.set(e.home.x, e.fixedY ?? G.world.groundAt(e.home.x, e.home.z, 1e4, 0.5), e.home.z);
       e.yaw = e.home.yaw;

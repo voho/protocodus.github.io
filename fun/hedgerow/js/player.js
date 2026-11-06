@@ -109,6 +109,7 @@ export function createPlayer(G) {
     grenadeRelease = null;
     autoReload = null;
     cancelBolt();
+    P.char.cancelGrenade?.();
     G.audio.cancelActions?.();
     P.pos.set(spawn[0], 0, spawn[1]);
     P.pos.y = G.world.groundAt(P.pos.x, P.pos.z, 1e4, 0.5);
@@ -222,7 +223,7 @@ export function createPlayer(G) {
   }
 
   function switchTo(id) {
-    if (id === P.weapon || P.switching > 0 || !loadout.includes(id)) return;
+    if (id === P.weapon || P.switching > 0 || P.cooking >= 0 || P.throwing > 0 || !loadout.includes(id)) return;
     autoReload = null;
     cancelBolt();
     P.reloadRun?.end();
@@ -415,12 +416,12 @@ export function createPlayer(G) {
     }
   }
 
-  function throwGrenade() {
+  function throwGrenade(dt) {
     const cooked = P.cooking >= 0 ? G.time - P.cooking : 0;
     P.cooking = -1;
     P.grenades--;
     P.throwing = 0.9;
-    P.char.oneShot('throw', 1.2);
+    P.char.oneShot('throw', 1.2, dt);
     G.hud.weapon(weaponDef().name, P.ammo[P.weapon], P.grenades);
     grenadeRelease = { delay: 0.3, cooked };
   }
@@ -429,12 +430,23 @@ export function createPlayer(G) {
     const pending = grenadeRelease;
     grenadeRelease = null;            // one release, even if a long frame crosses the beat
     G.rig.forward(dir);
-    const hand = P.char.boneWorld('hand_r', new THREE.Vector3());
+    const hand = new THREE.Vector3();
+    if (!P.char.heldGrenadeWorld?.(hand)) P.char.boneWorld('hand_r', hand);
     const start = hand.lengthSq() > 0 ? hand : P.pos.clone().setY(P.pos.y + 1.6);
+    // Keep the small projectile on this side of a nearby solid even when
+    // the authored throwing arm reaches across its face.
+    const eye = G.camera.position, offset = new THREE.Vector3().subVectors(start, eye), distance = offset.length();
+    if (distance > 1e-6) {
+      offset.divideScalar(distance);
+      const obstruction = G.world.raycast(eye.x, eye.y, eye.z, offset.x, offset.y, offset.z, distance + .06, MOVE, { noWater: true });
+      if (obstruction && obstruction.t < distance + .06) start.copy(eye).addScaledVector(offset, Math.max(0, obstruction.t - .06));
+    }
     // aim a little above the crosshair so the arc lands near it
     const v = new THREE.Vector3(dir.x, dir.y + 0.28, dir.z).normalize().multiplyScalar(GRENADE.throwSpeed);
     v.add(new THREE.Vector3(P.vel.x, 0, P.vel.z).multiplyScalar(0.5));
-    G.explosives.throwGrenade('player', start, v, pending.cooked + 0.3);
+    const flight = G.explosives.throwGrenade('player', start, v, pending.cooked + 0.3);
+    if (flight?.mesh) P.char.heldGrenadeRotation?.(flight.mesh.quaternion);
+    P.char.releaseHeldGrenade?.();
     G.stats.grenades++;
   }
 
@@ -587,7 +599,7 @@ export function createPlayer(G) {
     if (input.held('KeyD')) fx -= 1;
     const len = Math.hypot(fx, fz);
     if (len > 0) { fx /= len; fz /= len; }
-    const aiming = input.mouseR && P.reloading <= 0 && P.throwing <= 0 && P.switching <= 0 && P.boltAge < 0;
+    const aiming = input.mouseR && P.reloading <= 0 && P.cooking < 0 && P.throwing <= 0 && P.switching <= 0 && P.boltAge < 0;
     if (aiming && !P.wasAiming) G.audio.gear('aim');
     P.wasAiming = aiming;
     P.sprint = input.held('Shift') && fz > 0.3 && !aiming && P.reloading <= 0 && P.cooking < 0;
@@ -713,14 +725,14 @@ export function createPlayer(G) {
     }
 
     // grenades: hold G to cook, release to throw
-    if (input.pressed('KeyG') && P.grenades > 0 && P.cooking < 0 && P.throwing <= 0 && P.reloading <= 0) {
+    if (input.pressed('KeyG') && P.grenades > 0 && P.cooking < 0 && P.throwing <= 0 && P.reloading <= 0 && P.switching <= 0) {
       if (P.boltAge >= 0) { cancelBolt(); G.audio.cancelActions?.(); }
       P.cooking = G.time;
       G.audio.pin();
     }
     if (P.cooking >= 0) {
-      if (G.time - P.cooking > GRENADE.fuse - 0.2) throwGrenade();          // held too long: it goes anyway
-      else if (!input.held('KeyG')) throwGrenade();
+      if (G.time - P.cooking > GRENADE.fuse - 0.2) throwGrenade(dt);          // held too long: it goes anyway
+      else if (!input.held('KeyG')) throwGrenade(dt);
     }
 
     // health regeneration
@@ -761,6 +773,7 @@ export function createPlayer(G) {
     } else if (aiming || firingRecently) upper = P.crouch ? 'crouch_aim' : 'aim';
     else if (P.crouch) upper = hSpeed > 0.3 ? 'crouch_walk' : 'crouch_idle';
     else upper = move;
+    ch.setGrenadeHold?.(P.cooking >= 0);
     ch.animate(move, upper, gait);
     if (FP) ch.aimPitch = clamp(G.rig.pitch + P.pitchFix, -0.9, 0.9);
     else ch.aimPitch = (aiming || firingRecently) ? clamp(G.rig.pitch, -0.9, 0.9) : clamp(G.rig.pitch * 0.4, -0.4, 0.4);
@@ -777,10 +790,6 @@ export function createPlayer(G) {
     ch.update(dt, G.world.groundAt(P.pos.x, P.pos.z, P.pos.y + 0.2));
     if (boltCasePending && w.action === 'bolt' && ch.boltAge >= (boltReload ? KAR98K_ACTION_TIMING.reload.eject : KAR98K_ACTION_TIMING.shot.eject)) ejectBoltCase();
     if (P.boltAge >= BOLT_CYCLE_DURATION) P.boltAge = -1;
-    // Read the newly posed hand on the release frame, after movement and
-    // animation have caught up with the player's current position.
-    if (grenadeRelease && grenadeRelease.delay <= 1e-9) releaseGrenade();
-
     // footsteps
     if (P.grounded && hSpeed > 0.5 && !P.vault) {
       P.stepAcc += dt * hSpeed / (P.sprint ? 1.6 : 1.2);
@@ -799,6 +808,10 @@ export function createPlayer(G) {
 
     if (FP) firstPersonView(dt, w, aiming, hSpeed, local.s * hSpeed);
     else G.rig.update(dt, P.pos, lerp(PLAYER.eye, PLAYER.crouchEye, P.crouchT), aiming, hSpeed);
+    if (FP) ch.poseHeldGrenade?.(G.camera, dt, G.world);
+    // Release from the final visible hand pose, once, at the existing
+    // simulation beat. The held copy disappears when the projectile exists.
+    if (grenadeRelease && grenadeRelease.delay <= 1e-9) releaseGrenade();
     G.hud.crosshair(lerp(w.spreadHip, w.spreadAim, G.rig.aimT) + P.spread + w.spreadMove * Math.min(1, hSpeed / 3), G.rig.aimT, G.camera.fov, FP);
     G.hud.stance(P.crouch ? 'Crouched' : P.sprint ? 'Sprinting' : P.wading > 0.3 ? 'Wading' : 'Standing');
   };

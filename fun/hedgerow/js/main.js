@@ -37,6 +37,7 @@ import { createWeather } from './weather.js';
 import { createLighting } from './lights.js';
 import { createEffects } from './effects.js';
 import { createAudio } from './audio.js';
+import { acousticReflection } from './audio-space.js';
 import { createHud } from './hud.js';
 import { createInput } from './input.js';
 import { createEvents } from './events.js';
@@ -929,6 +930,7 @@ function startMission() {
   const spawn = AT ? [AT[0], AT[1], 0] : LEVEL.start;
   cancelCompletionPresentation();
   player.reset(spawn);
+  resetAcoustics();
   missionTime = 0;
   G.stats = freshStats();
   trackAttemptStart();
@@ -1051,6 +1053,7 @@ function retryCheckpoint() {
   G.steam.clear();
   enemies.resetLiving();
   player.reset(spawn, inventory);
+  resetAcoustics();
   trackAttemptStart('checkpoint_retry');
   fade.classList.remove('on');
   resume();
@@ -1390,18 +1393,28 @@ function step() {
 const ECHO_RAYS = 8, ECHO_REACH = 30;
 const listenerForward = new THREE.Vector3();
 const echoHits = new Float32Array(ECHO_RAYS).fill(ECHO_REACH);
+const echoReflections = new Float32Array(ECHO_RAYS);
 let echoRay = 0, echoTimer = 0;
+function resetAcoustics() {
+  echoHits.fill(ECHO_REACH); echoReflections.fill(0);
+  echoRay = 0; echoTimer = 0;
+  audio.setSpace(0, ECHO_REACH, 1);
+}
 function listenRound(dt) {
   const p = camera.position, a = (echoRay / ECHO_RAYS) * Math.PI * 2;
   const h = G.world.raycast(p.x, p.y, p.z, Math.sin(a), 0, Math.cos(a), ECHO_REACH, SHOT, { noWater: true });
   echoHits[echoRay] = h ? h.t : ECHO_REACH;
+  echoReflections[echoRay] = acousticReflection(h);
   echoRay = (echoRay + 1) % ECHO_RAYS;
   echoTimer -= dt;
   if (echoTimer > 0) return;
   echoTimer = 0.5;
-  let closed = 0, sum = 0;
-  for (const t of echoHits) { closed += t < ECHO_REACH ? 1 - t / (ECHO_REACH * 1.5) : 0; sum += t; }
-  audio.setSpace(closed / ECHO_RAYS, sum / ECHO_RAYS);
+  let closed = 0, sum = 0, reflected = 0;
+  for (let i = 0; i < ECHO_RAYS; i++) {
+    const t = echoHits[i], weight = t < ECHO_REACH ? 1 - t / (ECHO_REACH * 1.5) : 0;
+    closed += weight; reflected += weight * echoReflections[i]; sum += t;
+  }
+  audio.setSpace(closed / ECHO_RAYS, sum / ECHO_RAYS, closed ? reflected / closed : 1);
   const roof = G.world.raycast(p.x, p.y + 0.05, p.z, 0, 1, 0, 18, SHOT, { noTerrain: true, noWater: true });
   const surface = roof?.surface || roof?.collider?.surface || '';
   audio.setShelter(roof ? /foliage|leaf/.test(surface) ? 0.35 : 1 : 0);

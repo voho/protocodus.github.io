@@ -9,7 +9,7 @@ was incorporated into the shipped images.
   at dusk, July 1944.
 - `la-varenne.webp`: a cratered meadow, orchard and hedgerow gun battery in the
   early morning of 6 June 1944.
-- `pont-tournant.webp`: a night glider landing beside a canal swing bridge,
+- `pont-tournant.webp`: a night glider landing beside a canal bridge,
   6 June 1944.
 - `prague.webp`: a fictional Vinohrady street during the Prague uprising,
   with a prewar tram barricade and Czech resistance fighters, 7 May 1945.

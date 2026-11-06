@@ -21,6 +21,7 @@
 import { fbm2, smoothstep, smoothPolyline, rng, lerp, polylineDistance } from '../util.js';
 import { bbox, near, along, roughGround, cutTrench, atZ } from './kit.js';
 import { CANAL_BRIDGE } from '../procedural.js';
+import { canalBankCut, causewayShoulders } from './canal-ground.js';
 
 /* Laid out after the canal bridges on the old maps: on the near bank the road comes over the
    marsh on a low causeway and swings round onto the bridge, a pond in the angle between it and
@@ -30,6 +31,7 @@ const CANAL_Z = 120;
 const HALF = CANAL_BRIDGE.length / 2;
 const DECK_Y = 2.15;
 const LANE = smoothPolyline([[0, CANAL_Z - HALF + 1], [-0.5, 94], [-4, 82], [-12, 70], [-24, 58], [-38, 46], [-52, 36], [-66, 28]], 2);
+const CAUSEWAY = causewayShoulders(LANE);
 const SIDE = smoothPolyline([[-30, 52], [-26, 30], [-21, 8], [-24, -14], [-30, -30]], 2);
 const STREET = smoothPolyline([[0, CANAL_Z + HALF - 1], [1, 156], [5, 180], [5, 200], [-4, 216], [-18, 230], [-26, 246], [-28, 262]], 2);
 const CROSS = smoothPolyline([[4.5, 176], [18, 178], [32, 175], [48, 178]], 2);
@@ -86,18 +88,18 @@ function baseHeight(x, z) {
   if (dp < POND.r + 2) h = lerp(h, lipHeight(POND.x, POND.z) - POND.h, smoothstep(POND.r + 0.5, POND.r * 0.3, dp));
   // the canal: stone-faced, its bed 2.6 m under the water
   const dz = Math.abs(z - CANAL_Z);
-  if (dz < 13) h = lerp(h, -2.6, smoothstep(12.6, 11.2, dz));
+  if (dz < 13) h = canalBankCut(h, x, z, CANAL_Z);
   // the road over the marsh on its low causeway, ditches either side; the lane and the street
   // follow the ground; all of them level with the bridge's deck at its ends
-  for (const [line, box, w, raise] of [[LANE, BOX.LANE, 7, 0.6], [SIDE, BOX.SIDE, 5, 0.2], [STREET, BOX.STREET, 7, 0], [CROSS, BOX.CROSS, 5, 0]]) {
+  for (const [line, box, w, raise] of [[LANE, BOX.LANE, CAUSEWAY.reach, 0.6], [SIDE, BOX.SIDE, 5, 0.2], [STREET, BOX.STREET, 7, 0], [CROSS, BOX.CROSS, 5, 0]]) {
     const d = near(line, box, x, z);
     if (d < w && dz > 11.5) {
       polylineDistance(line, x, z, TMP);
       const ends = smoothstep(26, 16, Math.abs(TMP.pz - CANAL_Z)) * (line === LANE || line === STREET ? 1 : 0);
       const top = lipHeight(TMP.px, TMP.pz) + raise * smoothstep(CANAL_Z - 20, CANAL_Z - 40, TMP.pz);
       const ty = lerp(top, DECK_Y - 0.03, ends) - d * d * 0.004;
-      if (raise > 0.3) h -= 0.5 * smoothstep(3.6, 4.8, d) * smoothstep(w, 5.4, d) * (1 - ends);
-      h = lerp(h, ty, smoothstep(line === STREET ? w : 4.2, line === STREET ? w * 0.5 : 3.0, d));
+      if (line === LANE) h = CAUSEWAY.cut(h, ty, x, z, TMP, ends);
+      else h = lerp(h, ty, smoothstep(line === STREET ? w : 4.2, line === STREET ? w * 0.5 : 3.0, d));
     }
   }
   for (const [T, b] of TRENCHES) h = cutTrench(T, b, lipHeight, TRENCH_DEPTH, h, x, z);
@@ -115,6 +117,12 @@ function splat(x, z) {
   // the marsh: wetter, muddier towards the canal
   if (z < CANAL_Z) mud += smoothstep(0.0, 0.5, fbm2(x / 21 + 5, z / 21 - 2, 2)) * 0.9;
   mud += smoothstep(3.4, 1.6, near(LANE, BOX.LANE, x, z)) * 2 + smoothstep(3.0, 1.4, near(SIDE, BOX.SIDE, x, z)) * 2;
+  const laneD = near(LANE, BOX.LANE, x, z);
+  if (laneD < CAUSEWAY.reach) {
+    polylineDistance(LANE, x, z, TMP);
+    const ends = smoothstep(26, 16, Math.abs(TMP.pz - CANAL_Z));
+    mud += CAUSEWAY.profile(x, z, TMP, ends).wet * 0.8;
+  }
   mud += smoothstep(2.0, 0.7, near(MARSH_PATH, BOX.MARSH, x, z)) * 2.5;
   for (const [T, b] of TRENCHES) mud += smoothstep(2.4, 1.0, near(T, b, x, z)) * 2;
   mud += smoothstep(14, 11.5, Math.abs(z - CANAL_Z)) * 1.5;
@@ -188,6 +196,8 @@ for (let x = -48; x <= 48; x += 4) {
   if (Math.abs(x) < 7) continue;
   P('wall_low', x, CANAL_Z - 12.9, 0, { y: lipHeight(x, CANAL_Z - 12.9) - 0.05 });
   P('wall_low', x, CANAL_Z + 12.9, 0, { y: lipHeight(x, CANAL_Z + 12.9) - 0.05 });
+  P('canal_quay', x, CANAL_Z - 12.9, 0, { y: 2, contact: false });
+  P('canal_quay', x, CANAL_Z + 12.9, 180, { y: 2, contact: false });
 }
 P('cable_reel', 4.6, CANAL_Z + 15.5, 30); P('crate', -4.5, CANAL_Z + 15, 0);
 // The firing point is reachable from the north quay, outside the cabin.
@@ -349,14 +359,14 @@ const checkpoints = [
 const objectives = [
   { id: 'wire', text: 'Get through the wire belt', kind: 'cross', z: 77, marker: [0, 74] },
   { id: 'pillbox', text: 'Silence the pillbox and the bridge guards', kind: 'clear', groups: ['pillbox'] },
-  { id: 'bridge', text: 'Rush the bridge before it can be blown', kind: 'cross', z: CANAL_Z + HALF + 2, marker: [0, CANAL_Z + HALF] },
+  { id: 'bridge', text: 'Cross the canal bridge', kind: 'cross', z: CANAL_Z + HALF + 2, marker: [0, CANAL_Z + HALF] },
   { id: 'demolition', text: 'Disconnect the bridge demolition circuit', kind: 'interact', target: 'demolition', x: 4.2, z: CANAL_Z + HALF + 2.8, r: 2.5, duration: 4, action: 'disconnect', prompt: 'disconnect the demolition cable', progressText: 'Disconnecting the cable' },
   { id: 'cafe', text: 'Clear the café and the houses on the far bank', kind: 'clear', groups: ['farbank'] },
   { id: 'hold', text: 'Hold the north end of the bridge', kind: 'hold', x: 0, z: 150, r: 24, time: 90, counter: ['counter'], warning: 'They are coming down the road — hold the bridge', earlyRelief: { minimum: 30, confirmation: 6, message: 'Bridge secured' } },
 ];
 
 const hints = [
-  { x: 4, z: 8, r: 6, text: 'The bridge is wired for demolition', sub: 'Get across before they can fire the charges' },
+  { x: 4, z: 8, r: 6, text: 'The bridge is wired for demolition', sub: 'Cross the bridge and disconnect the firing cable' },
   { x: -12, z: 62, r: 8, text: 'The wire has gaps', sub: 'Out in the field on the left; the road itself is barred' },
   { x: 23, z: 36, r: 6, text: 'The duckboards lead through the marsh', sub: 'Follow them to the gap in the wire; the reeds conceal a crouched approach' },
   { x: -3, z: 88, r: 7, text: 'Their pillbox looks down the road', sub: 'Work round it through the trenches, grenades through the slit' },
@@ -370,7 +380,7 @@ export default {
   when: 'Normandy, 6 June 1944 — 00:20, wind and rain',
   briefing: [
     'Your glider cast off over the coast and came down in the marsh south of the canal, short of the bridge at Pont-Tournant. The landing broke it open; the others are coming out of the wrecks behind you.',
-    'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, rush the bridge and disconnect the firing cable at the wooden switch beside its north cabin. Then clear the café and the houses on the far bank.',
+    'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, cross the bridge and disconnect the firing cable at the wooden switch beside its north cabin. Then clear the café and the houses on the far bank.',
     'The road is exposed. A duckboard maintenance path through the reeds on your left leads to a gap in the wire; the trenches on either bank give another way around the pillbox. Then hold the north end. They will counter-attack down the road from the village. The paratroopers are on their way.',
   ],
   daylight: false,
@@ -379,7 +389,7 @@ export default {
   menuView: { from: [-4, 4.6, 92], to: [0, 3.4, 124] },
   bounds: { minX: -110, maxX: 110, minZ: -50, maxZ: 300 },
   playBounds: { minX: -50, maxX: 50, minZ: -22, maxZ: 252 },
-  fine: [[-40, 84, 40, 104]],
+  fine: [[-40, 84, 40, 104], [-50, 104, 50, 110], [-50, 130, 50, 140]],
   water: { level: 0, contains: (x, z) => Math.abs(z - CANAL_Z) < 13, riverZ: () => CANAL_Z, x0: -110, x1: 110 },
   baseHeight, splat, trackHeight: lipHeight,
   props, scatter, cover, clutter, enemies, pickups, checkpoints, objectives, hints,

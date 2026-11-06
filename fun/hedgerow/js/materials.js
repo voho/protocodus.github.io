@@ -17,6 +17,9 @@ import { surfaceResponse } from './surface-weather.js';
 const SPEC = {
   stone: ['stone', 2.2, 1.0, 0.9],
   stone_dark: ['stone', 2.2, 1.0, 0.9],
+  // Modeled ashlar already owns its joints; shared grain only pits the face.
+  stone_cut: ['grain', 1.0, 0.4, 0.9],
+  stone_cut_dark: ['grain', 1.0, 0.4, 0.9],
   plaster: ['plaster', 2.5, 0.6, 1.0],
   plaster_dirty: ['plaster', 2.5, 0.6, 1.0],
   brick: ['brick', 1.0, 0.9, 0.9],
@@ -79,6 +82,7 @@ const SPEC = {
 
 const PALETTE = {
   stone: '#8a8478', stone_dark: '#5f5a52', plaster: '#b5ab97', plaster_dirty: '#978c77', brick: '#84483a',
+  stone_cut: '#8a8478', stone_cut_dark: '#5f5a52',
   roof_tile: '#7a4030', roof_slate: '#3f444a', thatch: '#7d6a45', wood: '#6b5039', wood_dark: '#3f2e22',
   wood_old: '#6d6458', paint_green: '#3d5240', paint_blue: '#4a5d6e', paint_red: '#7a2a22', paint_white: '#c9c6bc',
   glass: '#151b21', window_lit: '#ffb35c', iron: '#2e2f31', rust: '#6e3b22', concrete: '#8c8a84', cobble: '#6c6862',
@@ -251,13 +255,14 @@ export function createMaterialLibrary(textures, shared) {
     if (cache.has(id)) return cache.get(id);
     const spec = SPEC[key] || ['metal', 1.0, 0.3, 0.6];
     const [tex, tile, nStrength, porosity, extra = {}] = spec;
+    const detailTexture = tex === 'grain' ? GRAIN_UNIFORMS.tGrain.value : textures[tex];
     const response = surfaceResponse(key);
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(opts.color || PALETTE[key] || '#808080'),
       roughness: opts.roughness ?? extra.roughness ?? ROUGH[key] ?? 0.9,
       metalness: opts.metalness ?? extra.metalness ?? METAL[key] ?? 0,
       vertexColors: true,
-      normalMap: nStrength > 0 ? textures[tex] : null,
+      normalMap: nStrength > 0 ? detailTexture : null,
       normalScale: new THREE.Vector2(nStrength, nStrength),
     });
     mat.name = key;
@@ -267,7 +272,7 @@ export function createMaterialLibrary(textures, shared) {
       mat.emissiveIntensity = extra.emissiveIntensity ?? 1;
     }
     addWeather(mat, shared, {
-      porosity, detailTex: textures[tex], tile, foliage: tex === 'foliage', response,
+      porosity, detailTex: detailTexture, tile, foliage: tex === 'foliage', response,
       streaks: tex !== 'foliage' && !NO_STREAKS.test(key) && response.rivulets !== false,
     });
     cache.set(id, mat);
@@ -279,6 +284,9 @@ export function createMaterialLibrary(textures, shared) {
   const baked = new Map();
   function resolve(src) {
     if (!src) return get('stone');
+    // This opaque Prague interior material owns its existing-UV shader.
+    // Preserve its shared source instead of replacing the custom callback.
+    if (src.isMeshStandardMaterial && src.userData?.pragueAmbientWindows === true) return src;
     if (src.map || src.emissiveMap) {
       if (baked.has(src.uuid)) return baked.get(src.uuid);
       const m = src;

@@ -44,10 +44,10 @@ remaining gun; the whole battery must be destroyed before the dump unlocks.
 
 **Mission 3 — The bridge at Pont-Tournant.** Normandy, twenty past midnight
 on 6 June 1944, wind and rain; inspired by the glider-borne coups de main
-on the canal and river bridges. Your glider has come down short of a swing
+on the canal and river bridges. Your glider has come down short of a canal
 bridge wired for demolition. The road curves in over the marsh on a low
 causeway; through the gaps in the wire, past the pond in the angle of the
-road and the canal, silence the pillbox and the guards, rush the bridge,
+road and the canal, silence the pillbox and the guards, cross the bridge,
 disconnect the demolition cable at the bridge cabin, clear the café and the houses climbing the far bank and the side street,
 then hold the north end while they come down the street from where it
 bends at the top. Relief arrives after ninety seconds; defeating the whole
@@ -60,6 +60,9 @@ turning strips; the ground texture and collision use the same surface.
 A raised maintenance footpath and eight sections of weathered duckboards
 lead through the reeds to the left-hand gap in the wire. These boards and
 their collision decks are also scripted in Three.js.
+The causeway shoulders blend into the marsh in uneven curves. Continuous
+dressed-stone quays follow both banks, with darker stone at the waterline;
+the bridge mouth retains its original collision profile.
 
 Both are laid out after the old maps of the real places (OpenStreetMap of
 the Bénouville canal bridge and the Merville battery): ground that rises and
@@ -81,6 +84,9 @@ infill, with pitched roofs, parapets and different window rhythms. Two
 Czechoslovak flags hang from timber staffs and iron brackets above the
 street and relay courtyard; their original cotton weave and restrained
 flutter are procedural.
+Selected upper windows have dark, unlit interiors with linen curtains or
+roller blinds. Their perspective shifts as you pass; the existing opaque
+walls and window dimensions remain the physical boundary.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -231,6 +237,9 @@ An unseen hit or near miss gives a soldier an incoming bearing, without
 revealing the shooter's range or height. He keeps recent real sightings or
 sounds, and a casualty cannot start a new report after death. Confirmed
 information already heard by the squad remains valid.
+An unaware guard can also notice a nearby comrade falling in his actual
+field of view. One mobile witness checks the casualty while others become
+wary at their posts; this does not reveal an unseen shooter's position.
 
 Reloading is a real motion: the empty Thompson magazine drops to the ground
 and a fresh one comes up in the left hand; the Garand's empty clip flies out
@@ -252,6 +261,11 @@ Bodies also sound at their first meaningful torso contact, using the
 actual floor material and impact speed. Their fixed-step falls preserve
 the same motion across render rates, and checkpoint retries cancel old
 contact cues.
+
+Holding G brings the grenade into the right hand and transfers the rifle
+to the left. Releasing G starts the throw; the physical grenade leaves the
+visible hand once at the release beat. Nearby solids keep its starting
+point on the player's side of the wall.
 
 ## How it is built
 
@@ -804,6 +818,11 @@ contact cues.
   `tests/bolt-action-check.mjs` and `tests/fp-check.mjs` — the shipped bolt
   solids, arm lengths, hand/prop contact, cartridge alignment, interruption
   and the return to the normal grip;
+  `tests/held-grenade-presentation-check.mjs` — original grenade geometry,
+  cooking poses, release phase at multiple update rates, wall containment,
+  projectile orientation and death/reset cancellation;
+  `tests/ai-casualty-check.mjs` — real-rig fall recognition, visibility,
+  uncertain memory, leash routes, threat priority and bounded work;
   `tests/loading-check.mjs` — interleaved asset events never rewind progress,
   completed stages stay done, and readiness waits for the final stage:
 

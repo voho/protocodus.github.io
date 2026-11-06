@@ -52,6 +52,10 @@ and `footstep_wood`; two variants each of `impactMetal_light`, `impactWood_light
 and `impactMining`. Original numeric suffixes are retained. Stereo sources are
 mixed to mono in memory before positional playback; the vendored files remain
 unchanged. Wetness, heel/toe detail, webbing, and ricochets retain procedural layers.
+Grass playback keeps its contact and swish, then fades out at 240 ms instead of
+holding a voice for the recording's very low noise floor. Other surface durations
+stay intact. `tests/audio-steps-check.mjs` checks retained energy across walk/run
+pitch variation, onset, fallback, real-time voice/path bounds, pause and cleanup.
 
 Pinned license:
 <https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/LICENSES/kenney-impact-sounds-license.txt>.
@@ -131,7 +135,12 @@ affecting another soldier or the player's weapon. Normal completion discards
 unused descriptors while letting an already-emitted final mechanical tail end.
 `tests/audio-actors-check.mjs`
 uses real rig events and PCM to check moving/covered sources, slow simulation,
-pause, per-actor cancellation, queue limits and cleanup. Gunshot attacks/tails
+pause, per-actor cancellation, queue limits and cleanup. Rifle and SMG reloads
+use the actual right-hand world point, including crouched poses below low
+cover; the mounted MG retains its feet-height source. `tests/ai-reload-source-check.mjs`
+checks the shipped moving rigs, and `tests/audio-actor-height-check.mjs` renders
+decoded foley through actual low stone cover, default-height controls, mute
+and canceled/evicted source-getter cleanup. Gunshot attacks/tails
 and sound propagation keep their audio-clock timelines. Reflections remove
 sub-bass and reduce the second return to keep
 automatic fire clear; a final smooth peak guard leaves ordinary levels unchanged

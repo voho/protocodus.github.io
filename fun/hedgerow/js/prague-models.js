@@ -7,6 +7,7 @@ import { createBuilder } from './street-model-kit.js';
 import { pragueTrimMaterial, pragueMosaicMaterial } from './prague-surfaces.js';
 import { addPragueFacadeDamage } from './prague-facade-damage.js';
 import { praguePeriodFrontages } from './prague-frontage-details.js';
+import { addPragueWindowInteriors } from './prague-window-interiors.js';
 
 const SIGN_CACHE = new Map();
 function signMaterial(text, background = '#263b37') {
@@ -245,5 +246,5 @@ export function pragueModels() {
   ];
   list.push(damagedFacade(list[0]));
   list.push(...praguePeriodFrontages().map(foundation));
-  return new Map(list.map((m) => [m.name, m]));
+  return addPragueWindowInteriors(new Map(list.map((m) => [m.name, m])));
 }

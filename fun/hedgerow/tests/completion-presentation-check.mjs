@@ -45,7 +45,8 @@ function fixture({ savedBest = '0', storageThrows = false } = {}) {
       setItem(key, value) { if (storageThrows) throw new Error('Storage blocked'); stored.push({ key, value }); } },
     bestKey: id => `best-${id}`, formatTime: value => `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`,
     show: screen => shown.push(screen), trackAttemptEnd: (outcome, score) => outcomes.push({ outcome, score }),
-    trackAttemptStart: noop, setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
+    trackAttemptStart: noop, resetAcoustics: noop,
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
   });
   for (const name of functions) {
     const start = source.indexOf(`function ${name}(`), end = source.indexOf('\n}', start);

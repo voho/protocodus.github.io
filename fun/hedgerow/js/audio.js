@@ -616,10 +616,12 @@ export function createAudio() {
   // material-path budget and independent listener-bearing updates.
   function reloadActor(kind, getPosition, options) {
     if (!ctx || typeof getPosition !== 'function') return null;
+    // Existing callers give feet; a rig can provide an exact world source point.
+    const heightOffset = Number.isFinite(options?.heightOffset) ? options.heightOffset : 1.2;
     const action = actorActions.create();
     let cancelled = false;
     const position = () => {
-      if (cancelled) return null;
+      if (cancelled || action.cancelled) return null;
       const at = getPosition();
       if (at && [at.x, at.y, at.z].every(Number.isFinite)) return at;
       cancelled = true; action.cancel(); return null;
@@ -627,7 +629,7 @@ export function createAudio() {
     reloadCues(kind, (offset, make) => action.at(offset, (output, when) => {
       const at = position();
       if (!at) return null;
-      const out = spatial(at.x, at.y + 1.2, at.z, { ref: 2, max: 30, destination: output });
+      const out = spatial(at.x, at.y + heightOffset, at.z, { ref: 2, max: 30, destination: output });
       return out ? make(out, when) : null;
     }), 0, actorReloadTiming(kind, options));
     return {
@@ -825,7 +827,11 @@ export function createAudio() {
     if (!out) return;
     const t = ctx.currentTime;
     const family = STEP[surface] || 'hard';
-    const recorded = ['hard', 'grass', 'wood'].includes(family) && sample(family, out, t, (player ? 0.32 : 0.4) * loud, { spread: run ? 0.075 : 0.045 });
+    const recorded = ['hard', 'grass', 'wood'].includes(family) && sample(family, out, t, (player ? 0.32 : 0.4) * loud, {
+      spread: run ? 0.075 : 0.045,
+      // Keep the contact and swish; release the very low recording noise floor.
+      duration: family === 'grass' ? .24 : null,
+    });
     const g = (player ? 0.22 : 0.3) * loud * (recorded ? 0.28 : 1);
     const v = 0.9 + R() * 0.2;
     const toe = t + 0.05 + R() * 0.03;
