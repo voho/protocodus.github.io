@@ -163,18 +163,13 @@
     "checked_on": "2026-11-06",
     "product": "aculele",
     "status": "awaiting_shop_approval",
-    "checked_url": "https://www.reasonstudios.com/shop/product_page/34535/",
+    "checked_url": "https://www.reasonstudios.com/shop/product_page/34606/",
     "http_status": 404,
     "accepted_version": "0.4.39d1",
     "shop_page_version": "0.4.39",
     "shop_page_status": "waiting_for_approval",
     "publish_on_approval": true,
-    "submission_hold": {
-      "reason": "draft_only_requested",
-      "requested_on": "2026-11-06",
-      "demos_added_on": "2026-11-06"
-    },
-    "draft_page_id": 34606,
-    "draft_publish_on_approval": false
+    "shop_page_id": 34606,
+    "submitted_on": "2026-11-06"
   }
 }

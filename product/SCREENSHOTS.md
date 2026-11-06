@@ -33,9 +33,9 @@ Ceres 1.1.4 and Press78 1.0.4 Shop pages were published on 5 November. The Shop
 the publication date of these updates.
 
 Acukoto 0.18.0d1 is accepted, with its Shop page awaiting approval and automatic
-publication enabled. Aculele 0.4.39d1 is accepted; draft 34606 now contains both
-YouTube demos and remains unsubmitted with automatic publication off. The owner
-is handling its older queued page 34535. Aculyre 0.7.9d1 is
+publication enabled. Aculele 0.4.39d1 is accepted; Shop page 34606 contains both
+YouTube demos and is awaiting approval with automatic publication enabled. It
+replaced older queued page 34535. Aculyre 0.7.9d1 is
 accepted, but the Shop editor only offers the older 0.7.4 article; its draft
 remains unsubmitted. Respira 0.1.16d1 is awaiting device acceptance, with no Shop
 page yet. All four checked public URLs return HTTP 404. Their website pages
@@ -56,7 +56,7 @@ not a stable release. Podcare retains its existing illustration.
 
 [`MEDIA.json`](MEDIA.json) records all 20 public Protocodus YouTube uploads and
 six SoundCloud playlists, containing 17 demos, verified on 6 November 2026.
-The two Aculele performances are also saved in Reason Shop draft 34606.
+The two Aculele performances are also included in submitted Reason Shop page 34606.
 The pages embed playlists only, never standalone SoundCloud tracks. Prototype
 videos and older YouKnow V1 recordings are labelled. Run
 `node scripts/render-media.mjs` to regenerate the crawlable HTML.
