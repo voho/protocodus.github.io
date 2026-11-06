@@ -24,6 +24,10 @@ verified images. Every released product has the current 800 × 800 Shop cover
 in WebP and an unchanged PNG for social sharing. Binaurel’s official banner is
 also retained. Older files and receipts remain for historical provenance.
 
+Acustra and Maremba retain the newer website covers recorded under
+`shop_cover_refresh` on 5 November. Their homepage, social and structured-data
+images use those covers; their device panels still follow the public Shop.
+
 Ceres 1.1.4 and Press78 1.0.4 Shop pages were published on 5 November. The Shop
 “Released” field still shows their original product date, 2 November; it is not
 the publication date of these updates.

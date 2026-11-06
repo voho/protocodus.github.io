@@ -36,6 +36,15 @@ for (const product of catalog.products) {
   assert.ok(application, `${product.product}: software structured data exists`);
   assert.equal(application.softwareVersion, product.version, `${product.product}: schema uses the published version`);
   const provenance = JSON.parse(read(`product/${product.product}/ASSET_PROVENANCE.json`));
+  const socialUrl = html.match(/<meta property="og:image" content="([^"]+)">/)?.[1];
+  assert.equal(application.image, socialUrl, `${product.product}: structured data and social sharing use the same current cover`);
+  assert.ok(html.includes(`<meta name="twitter:image" content="${socialUrl}">`), `${product.product}: social cover metadata agrees`);
+  // A documented website cover refresh can precede approval of its Shop artwork.
+  const coverSources = product.assets.filter(asset => asset.role === 'social');
+  if (provenance.shop_cover_refresh) coverSources.push({ ...provenance.shop_cover_refresh, file: `product/${product.product}/${provenance.shop_cover_refresh.file}` });
+  const socialCover = coverSources.find(asset => socialUrl === `https://protocodus.cz/${asset.file}?v=${asset.sha256.slice(0, 12)}`);
+  assert.ok(socialCover, `${product.product}: social cover is either verified Shop artwork or a documented website refresh`);
+  assert.equal(createHash('sha256').update(readFileSync(new URL(socialCover.file, root))).digest('hex'), socialCover.sha256, `${product.product}: social cover matches its recorded source`);
   assert.equal(provenance.availability, 'published', `${product.product}: provenance identifies a public release`);
   assert.equal(provenance.public_release.version, product.version, `${product.product}: release provenance matches the catalog`);
   assert.equal(provenance.public_release.accepted_version, product.accepted_version, `${product.product}: accepted device version is recorded consistently`);
