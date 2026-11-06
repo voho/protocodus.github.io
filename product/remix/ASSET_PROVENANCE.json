@@ -2,7 +2,7 @@
   "product": "Remix",
   "reviewed": "2026-11-06",
   "availability": "coming_soon",
-  "source_version": "1.0.0d1",
+  "source_version": "1.1.0d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "file": "remix-rack-front.webp",
-      "sha256": "55d5ea455fae3ce3b945a6cdca5f1e0e919a0059adeff82d79ca51521d1f91c7"
+      "sha256": "ed0c3ce71d2f799d2c038139eec0381b222848e9d1705e7d688cfd09d40dca65"
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "3bb8045168711a93bdb58023c94782d9a3c1c060f948261da74d9653b367d948"
+      "sha256": "b135fe27259809a2512983c297892de238c8427615a8f8deb736eb740e31d931"
     }
   ],
   "shop_cover_refresh": {
@@ -36,7 +36,7 @@
   "rack_images": {
     "date": "2026-11-06",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "3854d5a",
-    "note": "4U 1.0.0d1 panels, converted to WebP quality 92"
+    "source_commit": "355fea6",
+    "note": "4U 1.1.0d1 panels (Shape and Skew), converted to WebP quality 92"
   }
 }
