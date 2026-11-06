@@ -272,6 +272,42 @@
       "changes": "None",
       "bytes": 11481,
       "sha256": "61235a18de3f3d92118235398222dbf51d448f1be70b1c8bc962b10b86f2d9c6"
+    },
+    {
+      "file": "cloth1.ogg",
+      "creator": "Kenney (Kenney Vleugels)",
+      "collection": "RPG Audio",
+      "source": "https://kenney.nl/assets/rpg-audio",
+      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/cloth1.ogg",
+      "license": "CC0-1.0",
+      "licenseFile": "kenney-rpg-audio-license.txt",
+      "edit": "Unmodified original Ogg Vorbis",
+      "sha256": "ddb93a3671233f95da0e0b10367f082f7eb42fa6caaddcf776410aa8833c747d",
+      "bytes": 16508
+    },
+    {
+      "file": "cloth2.ogg",
+      "creator": "Kenney (Kenney Vleugels)",
+      "collection": "RPG Audio",
+      "source": "https://kenney.nl/assets/rpg-audio",
+      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/cloth2.ogg",
+      "license": "CC0-1.0",
+      "licenseFile": "kenney-rpg-audio-license.txt",
+      "edit": "Unmodified original Ogg Vorbis",
+      "sha256": "8a7451193c38bc05483aec25dd193e163a15d44cf7fff04ac7912573231b0201",
+      "bytes": 11787
+    },
+    {
+      "file": "metalLatch.ogg",
+      "creator": "Kenney (Kenney Vleugels)",
+      "collection": "RPG Audio",
+      "source": "https://kenney.nl/assets/rpg-audio",
+      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/metalLatch.ogg",
+      "license": "CC0-1.0",
+      "licenseFile": "kenney-rpg-audio-license.txt",
+      "edit": "Unmodified original Ogg Vorbis",
+      "sha256": "ba9ba60b172b3ebc131a940f25793cd2e207aca7af73dc80d637277f060f1708",
+      "bytes": 10208
     }
   ],
   "retainedAssets": [
@@ -489,30 +525,6 @@
       "bytes": 18248
     },
     {
-      "file": "cloth1.ogg",
-      "creator": "Kenney (Kenney Vleugels)",
-      "collection": "RPG Audio",
-      "source": "https://kenney.nl/assets/rpg-audio",
-      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/cloth1.ogg",
-      "license": "CC0-1.0",
-      "licenseFile": "kenney-rpg-audio-license.txt",
-      "edit": "Unmodified original Ogg Vorbis",
-      "sha256": "ddb93a3671233f95da0e0b10367f082f7eb42fa6caaddcf776410aa8833c747d",
-      "bytes": 16508
-    },
-    {
-      "file": "cloth2.ogg",
-      "creator": "Kenney (Kenney Vleugels)",
-      "collection": "RPG Audio",
-      "source": "https://kenney.nl/assets/rpg-audio",
-      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/cloth2.ogg",
-      "license": "CC0-1.0",
-      "licenseFile": "kenney-rpg-audio-license.txt",
-      "edit": "Unmodified original Ogg Vorbis",
-      "sha256": "8a7451193c38bc05483aec25dd193e163a15d44cf7fff04ac7912573231b0201",
-      "bytes": 11787
-    },
-    {
       "file": "impactGeneric_light_000.ogg",
       "creator": "Kenney (Kenney Vleugels)",
       "collection": "Impact Sounds",
@@ -571,18 +583,6 @@
       "edit": "Unmodified original Ogg Vorbis",
       "sha256": "9851a69d0c613e13bceef08060ecc4148f098ef487927cbebe270d642398a3b3",
       "bytes": 13615
-    },
-    {
-      "file": "metalLatch.ogg",
-      "creator": "Kenney (Kenney Vleugels)",
-      "collection": "RPG Audio",
-      "source": "https://kenney.nl/assets/rpg-audio",
-      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/rpg-audio/Audio/metalLatch.ogg",
-      "license": "CC0-1.0",
-      "licenseFile": "kenney-rpg-audio-license.txt",
-      "edit": "Unmodified original Ogg Vorbis",
-      "sha256": "ba9ba60b172b3ebc131a940f25793cd2e207aca7af73dc80d637277f060f1708",
-      "bytes": 10208
     }
   ],
   "retainedFrom": {

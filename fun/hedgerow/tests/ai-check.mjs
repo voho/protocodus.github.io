@@ -15,6 +15,15 @@ const { L, world, terrain } = await import('./level-world.mjs');
 const { createEnemies, buildCoverPoints } = await import('../js/ai.js');
 const { createNav } = await import('../js/nav.js');
 const { createCameraRig } = await import('../js/camera.js');
+const { wrapAngle } = await import('../js/util.js');
+
+// Accumulated yaw can cross any number of full turns. The facing check
+// must accept the same physical direction across the +/-pi boundary,
+// while still rejecting a soldier genuinely facing away from the spot.
+for (const turns of [-4 * Math.PI, 0, 4 * Math.PI]) {
+  assert.ok(Math.abs(wrapAngle((Math.PI - .01) - (-Math.PI + .01 + turns))) < .03);
+  assert.ok(Math.abs(wrapAngle((Math.PI - .01) - (-Math.PI + .6 + turns))) > .35);
+}
 
 const nav = createNav(world, L.playBounds);
 const cover = buildCoverPoints(world, terrain);
@@ -167,7 +176,7 @@ const D = (type, x, z, yaw, group, o = {}) => ({ type, at: [x, z], yaw, group, .
     const c = amb.cover;
     const py = world.groundAt(watch.x, watch.z, 1e4, 0.5) + 1.2;
     assert.ok(!world.clear(c.x, c.y + 0.95, c.z, watch.x, py, watch.z, 2), 'the ambush cover hides a crouching man from the watched spot');
-    const facing = Math.abs(((Math.atan2(watch.x - amb.pos.x, watch.z - amb.pos.z) - amb.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    const facing = Math.abs(wrapAngle(Math.atan2(watch.x - amb.pos.x, watch.z - amb.pos.z) - amb.yaw));
     assert.ok(facing < 0.35, `the ambusher faces the spot he watches (off by ${facing.toFixed(2)} rad)`);
     // he walks into it
     G2.player.pos.set(watch.x, world.groundAt(watch.x, watch.z, 1e4, 0.5), watch.z);

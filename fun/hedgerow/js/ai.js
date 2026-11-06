@@ -193,7 +193,7 @@ export function createEnemies(G, defs) {
   /* ---------- reactions ---------- */
 
   function alertGroup(e) {
-    if (!e.lastKnown || e.group === 'none') return;
+    if (!e.lastKnown || e.lastKnown.uncertain || e.group === 'none') return;
     const known = e.contact && e.contact.t >= Math.max(e.lastSeen, e.lastContact) ? e.contact : {
       ...e.lastKnown, vx: 0, vz: 0, t: G.time,
     };
@@ -248,15 +248,29 @@ export function createEnemies(G, defs) {
     if (report) alertGroup(e);
   }
 
+  function incomingBearing(e, from) {
+    // Preserve a fresh sensed position; a hit alone supplies a bearing,
+    // not the unseen shooter's distance or elevation. Freeze its original
+    // timestamp so repeated hits cannot keep old visual intel fresh.
+    const known = e.lastKnown;
+    const at = known?.t ?? Math.max(e.lastSeen, e.lastContact, e.contact?.t ?? -99);
+    if (known && !known.uncertain && G.time - at <= 1.5) {
+      e.lastKnown = { ...known, t: at };
+      return;
+    }
+    const dx = from.x - e.pos.x, dz = from.z - e.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > .01) e.lastKnown = { x: e.pos.x + dx / d * 20, y: e.pos.y, z: e.pos.z + dz / d * 20, uncertain: true };
+  }
+
   function damage(e, amount, from, part, byPlayer) {
     if (e.dead) return false;
     e.health -= amount;
-    // A hit gives the direction it came from, not a live fix through walls.
-    if (byPlayer && from) e.lastKnown = { x: from.x, y: from.y, z: from.z };
     if (e.health <= 0) {
       die(e, from, part);
       return true;
     }
+    if (byPlayer && from) incomingBearing(e, from);
     e.char.oneShot('hit', 1.2);
     e.lastContact = G.time;
     e.suppressed = Math.max(e.suppressed, 0.8);
@@ -303,17 +317,21 @@ export function createEnemies(G, defs) {
     }
     G.stats.kills++;
     if (part === 'head') G.stats.headshots++;
+    // A dead man cannot begin a new contact call. A call already heard
+    // remains valid; cancel only this reporter's unfinished human delay.
+    for (const other of enemies) {
+      if (other.pendingContact?.report.reporter === e.id && other.pendingContact.at > G.time) other.pendingContact = null;
+    }
     G.events.emit('enemyKilled', e);
-    alertGroup(e);
   }
 
   function suppress(e, t, from) {
     if (e.dead) return;
     e.suppressed = Math.max(e.suppressed, t);
+    if (from && e.state !== 'combat') incomingBearing(e, from);
     e.lastContact = G.time;
     if (e.state !== 'combat') {
       e.awareness = Math.max(e.awareness, 0.75);
-      if (from) e.lastKnown = { x: from.x, z: from.z };
       enterCombat(e);
     }
   }
@@ -335,6 +353,7 @@ export function createEnemies(G, defs) {
         continue;
       }
       if (e.state === 'combat') { if (!e.sees) { e.lastKnown = { x, z }; e.lastContact = G.time; } continue; }
+      e.lastKnown = { x, z }; e.lastContact = G.time;
       if (e.state === 'ambush') continue;            // stays put, listening
       if (d < radius * 0.3) { e.lastKnown = { x, z }; e.lastContact = G.time; enterCombat(e); continue; }
       heard.push({ e, d });
@@ -701,7 +720,7 @@ export function createEnemies(G, defs) {
   }
 
   function tryGrenade(e) {
-    if (!e.lastKnown || e.grenades <= 0 || e.pendingThrow || e.reloadT > 0 || e.suppressed > 0.2) return false;
+    if (!e.lastKnown || e.lastKnown.uncertain || e.grenades <= 0 || e.pendingThrow || e.reloadT > 0 || e.suppressed > 0.2) return false;
     const d = Math.hypot(e.lastKnown.x - e.pos.x, e.lastKnown.z - e.pos.z);
     if (d < 8 || d > 26) return false;
     if (G.time - e.lastSeen < 3.5 || G.time - e.lastSeen > 25) return false;

@@ -4,7 +4,7 @@
    the irregular detail of real surfaces. See assets/audio/SOURCES.md for
    provenance. Samples load in the background; every event keeps a complete
    procedural fallback when a file or codec is unavailable. The rain bed,
-   wind, thunder, bullets cracking past, reloads and explosions use filtered
+   wind, thunder, bullets cracking past, mechanical slides and explosions use filtered
    noise and short oscillator sweeps. World sounds are panned and
    attenuated by distance from the listener and lose their highs with
    distance; gunfire carries a short slap-back echo from the houses and the
@@ -42,6 +42,8 @@ const SAMPLE_FILES = {
   metalHit: [0, 1].map(i => `impactMetal_light_00${i}.ogg`),
   woodHit: [0, 1].map(i => `impactWood_light_00${i}.ogg`),
   stoneHit: [0, 1].map(i => `impactMining_00${i}.ogg`),
+  cloth: ['cloth1.ogg', 'cloth2.ogg'],
+  latch: ['metalLatch.ogg'],
 };
 const SAMPLE_TOTAL = Object.values(SAMPLE_FILES).flat().length;
 const SAMPLE_BASE = new URL('../assets/audio/', import.meta.url);
@@ -50,6 +52,7 @@ const SPATIAL_INTERVAL = .05, SPATIAL_BUDGET = 32;
 const MAX_HORIZON_REPORTS = 4;
 const MAX_CASING_CONTACTS = 8;
 const MAX_BODY_CONTACTS = 8;
+const MAX_DEBRIS_CONTACTS = 8;
 
 export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, verb = null;
@@ -75,6 +78,7 @@ export function createAudio() {
   const horizonReports = new Set();
   const casingContacts = new Set();
   const bodyContacts = new Set();
+  const debrisContacts = new Set();
   const aircraftPasses = new Set();
   const transientBuses = new WeakMap(), activeBuses = new Set();
   let sampleCulled = 0, sampleStolen = 0;
@@ -85,6 +89,7 @@ export function createAudio() {
   let horizonCulled = 0;
   let casingPlayed = 0, casingCulled = 0;
   let bodyPlayed = 0, bodyCulled = 0;
+  let debrisPlayed = 0, debrisCulled = 0;
 
   // A bounded queue avoids competing with the mission's model/texture loads.
   // Loading is optional: the first shot never waits on a network request.
@@ -143,7 +148,9 @@ export function createAudio() {
 
   // No immediate repetition within a material family. Tiny rate/gain changes
   // keep sustained automatic fire and a walking gait from becoming a loop.
-  function sample(kind, out, at, gain = 1, { rate = 1, spread = 0.045, priority = 0 } = {}) {
+  function sample(kind, out, at, gain = 1, {
+    rate = 1, spread = 0.045, priority = 0, offset = 0, duration = null, onSource = null,
+  } = {}) {
     const files = SAMPLE_FILES[kind]?.filter(file => samples.has(file));
     if (!files?.length) return false;
     const level = gain * (out.gain?.value ?? 1);
@@ -170,14 +177,46 @@ export function createAudio() {
     const source = ctx.createBufferSource(), envelope = ctx.createGain();
     source.buffer = samples.get(file);
     source.playbackRate.value = rate * (1 - spread + R() * spread * 2);
-    envelope.gain.value = gain * (0.94 + R() * 0.12);
+    const levelGain = gain * (0.94 + R() * 0.12);
+    const startOffset = Math.max(0, Math.min(offset, source.buffer.duration));
+    const available = (source.buffer.duration - startOffset) / source.playbackRate.value;
+    const playDuration = duration === null ? available : Math.max(.001, Math.min(duration, available));
+    envelope.gain.value = levelGain;
+    if (duration !== null) {
+      envelope.gain.setValueAtTime(levelGain, at + Math.max(0, playDuration - .015));
+      envelope.gain.linearRampToValueAtTime(0, at + playDuration);
+    }
     source.connect(envelope).connect(out);
     attachSource(source, out);
-    const voice = { source, priority, level, at, duration: source.buffer.duration / source.playbackRate.value };
+    const voice = { source, priority, level, at, duration: playDuration };
     sampleVoices.add(voice);
     source.onended = () => { sampleVoices.delete(voice); source.disconnect(); envelope.disconnect(); };
-    source.start(at);
+    source.start(at, startOffset);
+    if (duration !== null) source.stop(at + playDuration);
+    onSource?.(source);
     return true;
+  }
+
+  // Trim only in memory: the vendored CC0 files and their receipts stay intact.
+  // Each layer owns one source, preserving the action/contact cancellation path.
+  function mechanicalClick(out, when, freq, peak, dur = .04, q = 3) {
+    let source = null;
+    const recorded = sample('latch', out, when, peak * .18, {
+      rate: Math.max(.78, Math.min(1.22, freq / 2300)), spread: .025,
+      offset: .04, duration: dur + .025, onSource: value => { source = value; },
+    });
+    if (recorded) return source;
+    return burst(out, when, { dur, peak, type: 'bandpass', freq, q });
+  }
+
+  function clothLayer(out, when, peak, { dur = .12, freq = 1200, q = .8 } = {}) {
+    let source = null;
+    const recorded = sample('cloth', out, when, peak * .65, {
+      offset: .085, duration: dur + .04, spread: .08,
+      onSource: value => { source = value; },
+    });
+    if (recorded) return source;
+    return burst(out, when, { dur, peak, type: 'bandpass', freq, q });
   }
 
   // The bullet still travels at gameplay speed; its distant muzzle blast
@@ -603,7 +642,7 @@ export function createAudio() {
   function reloadCues(kind, dispatch, t = 0, profile = null) {
     const click = (tt, f, peak, d = 0.04, q = 3) => {
       const freq = f * (0.95 + R() * 0.1);
-      dispatch(tt, (out, when) => burst(out, when, { dur: d, peak, type: 'bandpass', freq, q }));
+      dispatch(tt, (out, when) => mechanicalClick(out, when, freq, peak, d, q));
     };
     const slide = (tt, f0, f1, peak, d = 0.09) => dispatch(tt, (out, when) => burst(out, when, { dur: d, peak, type: 'bandpass', freq: f0, sweepTo: f1, q: 2 }));
     const clunk = (tt, f, peak) => dispatch(tt, (out, when) => tone(out, when, { f0: f, f1: f * 0.58, dur: 0.08, peak, type: 'triangle' }));
@@ -847,7 +886,7 @@ export function createAudio() {
       const ring = tone(out, t + 0.01, { f0: 1700 + R() * 600, f1: 1500, dur: 0.07, peak: peak * 0.06, type: 'triangle' });
       track?.(ring);
     }
-    const cloth = burst(out, t, { dur: 0.12, peak: peak * 0.18, type: 'bandpass', freq: 1200, q: 0.8 });
+    const cloth = clothLayer(out, t, peak * .18);
     track?.(cloth);
   }
 
@@ -926,6 +965,43 @@ export function createAudio() {
     return true;
   }
 
+  /* Clips, magazines and rifles have their own actual contact, rather
+     than sharing a grenade's hard clank. Collision radius is a size cue,
+     not a claim about the object's exact mass. */
+  function debrisImpact(x, y, z, surface = 'stone', speed = 4, radius = .05) {
+    if (!ctx || ctx.state !== 'running' || !outdoors || ![x, y, z, speed, radius].every(Number.isFinite) || speed < .8 || radius <= 0) return false;
+    const kind = STEP[surface] || 'hard', small = radius < .035, large = radius >= .06;
+    const soft = ['mud', 'grass', 'leaves', 'soft'].includes(kind), water = kind === 'water';
+    if (small && (soft || water)) return false;
+    if (debrisContacts.size >= MAX_DEBRIS_CONTACTS) { debrisCulled++; return false; }
+    const gate = ctx.createGain(); gate.connect(sfx);
+    const out = spatial(x, y, z, { ref: 1.5, max: 22, destination: gate });
+    if (!out) { gate.disconnect(); return false; }
+    const contact = { gate, sources: new Set(), cancelled: false };
+    debrisContacts.add(contact); debrisPlayed++;
+    const track = source => {
+      contact.sources.add(source);
+      source.addEventListener('ended', () => {
+        contact.sources.delete(source);
+        if (!contact.sources.size) { debrisContacts.delete(contact); gate.disconnect(); }
+      }, { once: true });
+    };
+    const t = ctx.currentTime + .001;
+    const level = Math.min(1.1, Math.pow(speed / 4, .6)) * Math.max(.2, Math.min(1, radius / .08));
+    if (soft || water) {
+      track(burst(out, t, { dur: large ? .09 : .055, peak: (large ? .065 : .025) * level, type: 'lowpass', freq: water ? 450 : 260, q: .7 }));
+      if (large) track(tone(out, t, { f0: water ? 155 : 240, f1: water ? 95 : 180, dur: .06, peak: .022 * level }));
+    } else if (small) {
+      track(burst(out, t, { dur: .014, peak: .035 * level, type: 'bandpass', freq: kind === 'wood' ? 1100 : 3400, q: 2 }));
+      track(tone(out, t, { f0: kind === 'wood' ? 950 : 2600, f1: kind === 'wood' ? 800 : 2400, dur: .045, peak: .025 * level }));
+    } else {
+      track(burst(out, t, { dur: large ? .08 : .045, peak: (large ? .09 : .065) * level, type: 'lowpass', freq: kind === 'wood' ? 700 : 1100, q: .8 }));
+      track(tone(out, t, { f0: large ? 280 : 1600, f1: large ? 210 : 1300, dur: large ? .07 : .04, peak: (large ? .035 : .014) * level }));
+      if (large) track(burst(out, t + .006, { dur: .035, peak: .025 * level, type: 'bandpass', freq: 1900, q: 1.3 }));
+    }
+    return true;
+  }
+
   function bodyContactOutput(x, y, z, player, ref = 2.5, max = 40) {
     // Leave one of the eight slots for the player's own fall.
     if (bodyContacts.size >= MAX_BODY_CONTACTS || (!player && [...bodyContacts].filter(contact => !contact.player).length >= MAX_BODY_CONTACTS - 1)) { bodyCulled++; return false; }
@@ -935,6 +1011,8 @@ export function createAudio() {
     const contact = { gate, sources: new Set(), cancelled: false, player };
     bodyContacts.add(contact); bodyPlayed++;
     const track = source => {
+      // A quiet recorded detail may be culled while the impact body remains.
+      if (!source) return;
       contact.sources.add(source);
       source.addEventListener('ended', () => {
         contact.sources.delete(source);
@@ -956,7 +1034,7 @@ export function createAudio() {
     const strength = .62 * Math.min(1.1, Math.pow(speed / 4, .7)) * (player ? .72 : 1);
     track(burst(out, t, { dur: .18, peak: (water ? .19 : soft ? .27 : .31) * strength, type: 'lowpass', freq: water ? 240 : soft ? 290 : kind === 'wood' ? 350 : 480, q: .8, brown: true }));
     track(tone(out, t, { f0: 82, f1: 42, dur: .16, peak: (water || soft ? .12 : .16) * strength }));
-    track(burst(out, t + .008, { dur: .1, peak: .06 * strength, type: 'bandpass', freq: 1000, q: .7 }));
+    track(clothLayer(out, t + .008, .06 * strength, { dur: .1, freq: 1000, q: .7 }));
     track(burst(out, t + .02, { dur: .04, peak: .035 * strength * (water ? .25 : soft ? .55 : 1), type: 'bandpass', freq: 2300, q: 2 }));
     if (water) track(burst(out, t + .01, { dur: .16, peak: .11 * strength, type: 'bandpass', freq: 650, sweepTo: 320, q: .8 }));
     else if (kind === 'wood') track(burst(out, t, { dur: .065, peak: .05 * strength, type: 'lowpass', freq: 1000, q: .7 }));
@@ -965,7 +1043,7 @@ export function createAudio() {
 
   function cancelContacts() {
     if (!ctx) return;
-    for (const contact of bodyContacts) {
+    for (const contact of [...bodyContacts, ...debrisContacts]) {
       if (contact.cancelled) continue;
       contact.cancelled = true;
       contact.gate.gain.cancelAndHoldAtTime(ctx.currentTime);
@@ -1193,6 +1271,7 @@ export function createAudio() {
     get nodeStatus() { return { oneShotBuses: activeBuses.size }; },
     get casingStatus() { return { active: casingContacts.size, played: casingPlayed, culled: casingCulled, max: MAX_CASING_CONTACTS }; },
     get bodyContactStatus() { return { active: bodyContacts.size, sources: [...bodyContacts].reduce((n, contact) => n + contact.sources.size, 0), retiring: [...bodyContacts].filter(contact => contact.cancelled).length, played: bodyPlayed, culled: bodyCulled, max: MAX_BODY_CONTACTS }; },
+    get debrisContactStatus() { return { active: debrisContacts.size, sources: [...debrisContacts].reduce((n, contact) => n + contact.sources.size, 0), played: debrisPlayed, culled: debrisCulled, max: MAX_DEBRIS_CONTACTS }; },
     get aircraftStatus() {
       const retiring = [...aircraftPasses].filter(pass => pass.cancelled).length;
       return { active: aircraftPasses.size - retiring, retiring, max: 1 };
@@ -1278,6 +1357,6 @@ export function createAudio() {
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
     gunshot, garandPing, dryFire, reload, reloadActor, switchWeapon, cancelActions, whizz, impact, explosion, thunder, distant,
-    footstep, gear, casing, casingImpact, bodyFall, bodyImpact, cancelContacts, pin, grenadeBounce, ui, daze,
+    footstep, gear, casing, casingImpact, bodyFall, bodyImpact, debrisImpact, cancelContacts, pin, grenadeBounce, ui, daze,
   };
 }

@@ -227,6 +227,11 @@ they go back to their posts, warier for a while. When one of them kills you
 the camera turns to him and follows him — usually as he walks over to make
 sure.
 
+An unseen hit or near miss gives a soldier an incoming bearing, without
+revealing the shooter's range or height. He keeps recent real sightings or
+sounds, and a casualty cannot start a new report after death. Confirmed
+information already heard by the squad remains valid.
+
 Reloading is a real motion: the empty Thompson magazine drops to the ground
 and a fresh one comes up in the left hand; the Garand's empty clip flies out
 with its ping on the last shot. R reloads, an empty trigger reloads, and the
@@ -629,7 +634,7 @@ contact cues.
     the rain standing in it; only in the mud; pinned 'boot' decals of
     atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
     turned along the way each man went),
-    `audio.js` (21 runtime CC0 recordings, with procedural layers and a
+    `audio.js` (24 runtime CC0 recordings, with procedural layers and a
     fallback when samples cannot load; source, license and processing records
     in `assets/audio/SOURCES.md`; weapon recordings are sound-design
     ingredients, not asserted exact recordings of each depicted firearm;
@@ -869,7 +874,10 @@ Sound has independent master, effects and ambience controls, directional
 falloff, travel delay, wall occlusion and brief ambience ducking during nearby
 combat. Sample voices are bounded and repeat variants alternate. Camera shake
 and motion blur are optional; removing cosmetic motion preserves recoil and
-aim. Saved preferences are validated and old saves remain compatible.
+aim. A system reduced-motion preference starts with both effects off unless
+the player has already saved a different choice. The menu camera also stays
+still with reduced motion. Saved preferences are validated and old saves
+remain compatible.
 Switching tabs pauses the game and clears held input. Failed or delayed
 pointer-lock requests return safely to the menu.
 
@@ -882,6 +890,8 @@ The radio and demolition circuit require uninterrupted use. Releasing F,
 leaving reach, losing sight or taking damage interrupts the action. Retrying
 a checkpoint clears unfinished interactions and permits a canceled demolition
 charge to be replanted.
+Retries restore the checkpoint before controls reopen; a delayed callback
+cannot move or revive a paused world afterward.
 
 The final objective freezes the mission's result immediately. Its short
 transition to the results screen uses simulation time, so pausing or a

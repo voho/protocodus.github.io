@@ -706,7 +706,7 @@ const enemies = [
   E('rifle', -9, 387.2, 175, 'trench', { hold: true, inTrench: true }),
   E('rifle', 13, 389, 185, 'trench', { hold: true, inTrench: true }),
   E('smg', 22, 386, 180, 'trench', { hold: true, inTrench: true }),
-  E('rifle', 34, 387.5, 180, 'trench', { hold: true, inTrench: true }),
+  E('rifle', 34, 387.2, 180, 'trench', { hold: true, inTrench: true }),
   E('mg', 0, 0, 180, 'trench', { nest: 'nest_trench', arc: 0.9 }),
   // the bunker
   E('mg', 0, 0, 180, 'bunker', { bunker: 'bunker', arc: 0.75 }),

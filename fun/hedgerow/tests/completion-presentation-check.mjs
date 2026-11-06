@@ -115,8 +115,10 @@ function fixture({ savedBest = '0', storageThrows = false } = {}) {
   c.onComplete(); c.mission.done = false; c.retryCheckpoint();
   assert.equal(c.completionPresentation, null); assert.equal(c.completionRecorded, false);
   assert.equal(c.mission.restoreCalls, 1);
-  assert.deepEqual(f.timers.map(timer => timer.delay), [350], 'Only the actual short checkpoint fade remains');
-  f.timers[0].callback(); f.advance(60);
+  assert.equal(f.timers.length, 0, 'A valid checkpoint retry leaves no delayed world callback');
+  assert.equal(f.resets.length, 1, 'Checkpoint reset completes once in the actual retry task');
+  assert.equal(c.player.alive, true, 'Retry has a ready soldier before returning to play');
+  f.advance(60);
   assert.equal(c.state, 'playing'); assert.equal(f.shown.includes('complete'), false, 'A valid retry cancels stale completion');
 }
 {

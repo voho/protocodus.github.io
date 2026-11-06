@@ -1,10 +1,10 @@
 # Hedgerow sound sources
 
-The active runtime loads 21 **CC0 1.0 public domain** audio files. They are
+The active runtime loads 24 **CC0 1.0 public domain** audio files. They are
 served from the game itself, with no third-party runtime requests. Total audio
-payload: **201,882 bytes**. `manifest.json` records each exact file's size,
+payload: **240,385 bytes**. `manifest.json` records each exact file's size,
 SHA-256, original filename, and edits. Acquired 6 November 2026. The directory
-also retains 19 inactive files from the earlier sound bank, with their source
+also retains 16 inactive files from the earlier sound bank, with their source
 receipts under `retainedAssets` in the manifest; these are not downloaded
 during gameplay.
 
@@ -56,6 +56,28 @@ unchanged. Wetness, heel/toe detail, webbing, and ricochets retain procedural la
 Pinned license:
 <https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/LICENSES/kenney-impact-sounds-license.txt>.
 
+## Clothing and mechanical detail
+
+- Creator: Kenney Vleugels, **RPG Audio**.
+- Source: <https://kenney.nl/assets/rpg-audio>.
+- Files: `cloth1.ogg`, `cloth2.ogg` and `metalLatch.ogg`, copied unchanged
+  from `assets/kenney/rpg-audio/Audio/` in the same pinned mirror above.
+- License: CC0 1.0; original pack text is retained verbatim as
+  `kenney-rpg-audio-license.txt`.
+
+These are generic material layers, not recordings of a specific historical
+weapon. Alternating cloth excerpts replace white-noise webbing detail on the
+moving kit and body contacts. A quiet latch excerpt replaces synthesized reload
+clicks; the existing slides and low mechanical knocks retain weapon-specific
+pitch and timing. Playback skips the recordings' padded starts (85 ms for cloth,
+40 ms for the latch), uses short in-memory excerpts with a 15 ms tail fade, and
+limits latch gain because the unchanged Vorbis file can decode above full scale.
+No new audio payloads are created or fetched remotely. Missing files retain the
+previous complete synthesis, and the shared 36-sample voice budget keeps gunfire
+ahead of these quiet details. `tests/audio-foley-check.mjs` checks actual decoded
+PCM, excerpt onset, simulation pause/cancellation, moving sources, exact mute,
+voice priority and complete cleanup.
+
 ## Runtime behavior and validation
 
 `js/audio.js` loads three files at a time in the background. Failed requests or
@@ -80,8 +102,8 @@ at 20 Hz, up to 32 buses per update in round-robin order. This adds no geometry
 probes: the source's cached transmission remains the event snapshot. A distant
 shot therefore arrives from the right world bearing even if the listener turns.
 
-Reloads and mechanical actions are synthesized for the Garand, Thompson,
-Kar98k, MP 40 and MG 42. Player reload/bolt sequences cancel when the weapon
+Reloads combine quiet recorded latch detail with synthesized slides and low
+mechanical knocks for the Garand, Thompson, Kar98k, MP 40 and MG 42. Player reload/bolt sequences cancel when the weapon
 switches. Player mechanical cues advance on the animation's simulation clock,
 so slow rendering cannot make the bolt or magazine finish audibly ahead of its
 pose. Pending cues contain descriptors; AudioSources start only when a threshold
@@ -170,7 +192,18 @@ contact timing, unchanged physics, surfaces and cancellation at20–240Hz;
 `tests/body-consumer-check.mjs` and `tests/ai-body-audio-check.mjs` cover actual
 player/NPC deaths. `tests/audio-bodies-check.mjs` renders the real WebAudio mix,
 material/speed differences, bearing, occlusion, exact mute and bounded cleanup.
-No additional recording or license is required for these original sounds.
+The contact body remains original synthesis; the quiet cloth layer uses the
+CC0 RPG Audio excerpts described above and retains its procedural fallback.
+
+Dropped clips, magazines and rifles also sound only at their first actual floor
+contact. Their existing collision radius supplies a restrained size scale, and
+material plus incoming speed determines the knock; tiny clips are silent on soft
+ground or in water. This original synthesis avoids using a grenade clank for
+every object. Eight independent equipment groups at most share contact
+cancellation with bodies. `tests/debris-contact-check.mjs` verifies physical
+contacts and preserves the genuine grenade bounce, while
+`tests/audio-debris-check.mjs` renders material/size/speed, spatial filtering,
+mute, pause, cancellation and resource limits.
 
 `node fun/hedgerow/tests/audio-check.mjs` validates file hashes and payload size,
 decodes all files using Chromium Web Audio, renders a real gunshot, verifies the

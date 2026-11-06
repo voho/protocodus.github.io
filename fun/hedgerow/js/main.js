@@ -113,10 +113,11 @@ const fade = $('[data-fade]');
 
 /* ---------- settings ---------- */
 
+const menuMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const settings = (() => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem('hedgerow.settings') || '{}'); } catch { s = {}; }
-  return normalizeSettings(s);
+  return normalizeSettings(s, { reducedMotion: menuMotion.matches });
 })();
 const saveSettings = () => { try { localStorage.setItem('hedgerow.settings', JSON.stringify(settings)); } catch { /* private mode */ } };
 
@@ -1033,28 +1034,24 @@ function updateDeathPresentation(dt) {
 function retryCheckpoint() {
   if (graphicsLost || mission?.done) return;
   cancelCompletionPresentation();
-  // A corpse may keep falling during the fade, but its old contact cue
-  // belongs to the attempt that just ended.
+  // Old contact cues belong to the attempt that just ended.
   player.char.ragdoll?.cancelImpact?.();
   for (const enemy of G.enemies) enemy.char.ragdoll?.cancelImpact?.();
   audio.cancelContacts?.();
   deathSequence++;
   audio.cancelActions();
   const { spawn, inventory } = mission.restoreCheckpoint();
-  // Cancel live fuses immediately; a charge must not detonate during the fade
-  // after the mission has already restored its checkpoint interaction state.
+  // Reset the entire attempt in this click, before play resumes. A delayed
+  // callback could otherwise move the player during pause or graphics loss.
   explosives.clear();
-  fade.classList.add('on');
-  setTimeout(() => {
-    G.debris.clear();
-    G.casings.clear();
-    G.chunks.clear();
-    G.steam.clear();
-    enemies.resetLiving();
-    player.reset(spawn, inventory);
-    trackAttemptStart('checkpoint_retry');
-    fade.classList.remove('on');
-  }, 350);
+  G.debris.clear();
+  G.casings.clear();
+  G.chunks.clear();
+  G.steam.clear();
+  enemies.resetLiving();
+  player.reset(spawn, inventory);
+  trackAttemptStart('checkpoint_retry');
+  fade.classList.remove('on');
   resume();
 }
 
@@ -1412,7 +1409,6 @@ function listenRound(dt) {
 /* the title's slow drift over the battlefield: round the level's `menuView` ({from, to}: points
    [x, y, z]), by default down Saint-Clair's street */
 let menuT = 0;
-const menuMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 function menuCamera(dt) {
   if (!menuMotion.matches) menuT += dt * 0.03;
   const v = LEVEL.menuView || { from: [0, 3.4, 90], to: [0, 3.5, 118] };

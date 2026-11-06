@@ -13,7 +13,8 @@ const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const audioRoot = resolve(root, 'fun/hedgerow/assets/audio');
 const manifest = JSON.parse(await readFile(resolve(audioRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.license, 'CC0-1.0');
-assert.equal(manifest.assets.length, 21);
+const sampleTotal = manifest.assets.length;
+assert.ok(sampleTotal > 0);
 let bytes = 0;
 for (const asset of manifest.assets) {
   const data = await readFile(resolve(audioRoot, asset.file));
@@ -194,7 +195,7 @@ try {
   }, mode);
 
   const close = await render('close');
-  assert.deepEqual(close.status, { ready: 21, failed: 0, total: 21, active: 1 });
+  assert.deepEqual(close.status, { ready: sampleTotal, failed: 0, total: sampleTotal, active: 1 });
   assert.ok(close.attack.rms > .025, 'a decoded field recording has an immediate audible attack');
   assert.ok(close.whole.peak <= 1 && Number.isFinite(close.whole.rms), 'the mix has a finite, bounded output');
   assert.equal(close.after.active, 0, 'finished sample voices release their nodes');
@@ -287,18 +288,18 @@ try {
   const mixAmbience = await render('mix-ambience-only'), mixAmbienceMuted = await render('mix-ambience-muted');
   assert.ok(mixCombat.whole.rms > .001 && mixAmbience.whole.rms > .001);
   for (const result of [mixEffectsMuted, mixMasterMuted, mixAmbienceMuted]) assert.equal(result.whole.peak, 0, 'master/effects/ambience controls silence their complete buses, echoes and ringing included');
-  assert.deepEqual(mixCombat.preloaded, { loaded: 21, failed: 0, total: 21 }, 'the legacy preload API truthfully reports the active runtime manifest');
+  assert.deepEqual(mixCombat.preloaded, { loaded: sampleTotal, failed: 0, total: sampleTotal }, 'the legacy preload API truthfully reports the active runtime manifest');
 
   transientAudio = true;
   const retried = await render('retry');
   assert.equal(retried.loadDetails.retries, 1, 'one transient local asset response is retried in the background');
-  assert.equal(retried.status.ready, 21);
+  assert.equal(retried.status.ready, sampleTotal);
   assert.equal(retried.status.failed, 0);
 
   missingAudio = true;
   const fallback = await render('fallback');
-  assert.deepEqual(fallback.status, { ready: 0, failed: 21, total: 21, active: 0 });
-  assert.equal(fallback.loadDetails.failures.length, 21);
+  assert.deepEqual(fallback.status, { ready: 0, failed: sampleTotal, total: sampleTotal, active: 0 });
+  assert.equal(fallback.loadDetails.failures.length, sampleTotal);
   assert.ok(fallback.attack.rms > .025, 'gunfire remains audible when every sample request fails');
   const reportFlag = process.argv.indexOf('--report');
   if (reportFlag >= 0) await writeFile(process.argv[reportFlag + 1], JSON.stringify({

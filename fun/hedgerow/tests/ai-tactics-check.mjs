@@ -196,11 +196,13 @@ console.log('ok    reloads stay protected; grenade release follows simulation ti
   const [near, far] = en.list;
   near.perceiveTimer = far.perceiveTimer = 1e6;
   near.damage(1, { x: -10, y: 4, z: 0 }, 'body', true);
-  assert.deepEqual(near.lastKnown, { x: -10, y: 4, z: 0 }, 'a hit remembers its origin, not the hidden player position');
+  assert.ok(near.lastKnown.uncertain && near.lastKnown.x < 0 && near.lastKnown.z === 0, 'a hit retains the incoming bearing without tracking the hidden player');
+  assert.equal(near.lastKnown.y, near.pos.y, 'an unseen hit cannot reveal shooter elevation');
+  assert.ok(Math.abs(near.lastKnown.x) < 40, 'a hit bounds the search distance rather than revealing the hidden source range');
   run(G, en, 2);
   assert.equal(far.state, 'idle', 'a remote post does not receive a shouted contact across the map');
 }
-console.log('ok    hits retain their source and distant sentries do not share contact telepathically');
+console.log('ok    hits retain only their bearing and distant sentries do not share contact telepathically');
 // Preserve the independent exposure and throw/ambush cases added on main.
 {
   const { G, hits } = game({ boxes: [{ x: 0, y: .72, z: 28, hx: 4, hy: .72, hz: .5 }] });

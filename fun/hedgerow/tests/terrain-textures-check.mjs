@@ -20,11 +20,11 @@ function sources() {
   })));
 }
 
-function renderer({ failCopy = false } = {}) {
-  const copies = [], allocations = [], listeners = new Map();
-  const gl = { MAX_ARRAY_TEXTURE_LAYERS: 35071, NO_ERROR: 0, getParameter: () => 256,
-    texStorage3D() {}, copyTexSubImage3D() {}, isContextLost: () => false, getError: () => 0 };
-  return { copies, allocations, listeners, getContext: () => gl,
+function renderer({ failCopy = false, lost = false, layers = 256 } = {}) {
+  const copies = [], allocations = [], queries = [], listeners = new Map();
+  const gl = { MAX_ARRAY_TEXTURE_LAYERS: 35071, NO_ERROR: 0, getParameter: parameter => { queries.push(parameter); return layers; },
+    texStorage3D() {}, copyTexSubImage3D() {}, isContextLost: () => lost, getError: () => 0 };
+  return { copies, allocations, queries, listeners, getContext: () => gl,
     domElement: { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) },
     initTexture(texture) { allocations.push(texture); },
     copyTextureToTexture(source, destination, region, position, sourceMip, destinationMip) {
@@ -36,6 +36,16 @@ function renderer({ failCopy = false } = {}) {
 }
 
 assert.deepEqual(GROUND_LAYERS, ['mud', 'grass', 'forest', 'cobble']);
+const interrupted = renderer({ lost: true, layers: null });
+assert.throws(() => createTerrainTextureArrays(interrupted, sources()), /Interrupted while loading graphics.*Retry to reload/);
+assert.equal(interrupted.queries.length, 0, 'lost contexts are identified before unreliable capability queries');
+assert.equal(interrupted.allocations.length, 0, 'interrupted loads allocate no GPU storage');
+assert.equal(interrupted.copies.length, 0);
+assert.equal(interrupted.listeners.size, 0);
+const unsupported = renderer({ layers: 3 });
+assert.throws(() => createTerrainTextureArrays(unsupported, sources()), /fewer than four texture-array layers/);
+assert.deepEqual(unsupported.queries, [unsupported.getContext().MAX_ARRAY_TEXTURE_LAYERS], 'real live-context limits still enforce the hardware requirement');
+assert.equal(unsupported.allocations.length, 0);
 const input = sources(), r = renderer();
 let sourceDisposals = 0;
 for (const texture of Object.values(input)) texture.addEventListener('dispose', () => sourceDisposals++);

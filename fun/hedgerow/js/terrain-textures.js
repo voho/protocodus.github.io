@@ -65,6 +65,9 @@ function arrayFor(source, name) {
 export function createTerrainTextureArrays(renderer, textures, { onRestoreError } = {}) {
   if (typeof renderer?.initTexture !== 'function' || typeof renderer?.copyTextureToTexture !== 'function') fail('renderer lacks the required GPU copy API');
   const gl = renderer.getContext();
+  // Lost contexts report null/zero limits. This is an interrupted load,
+  // not evidence that the device cannot support the ground textures.
+  if (gl?.isContextLost?.()) throw new Error('Interrupted while loading graphics. Choose Retry to reload.');
   if (typeof gl?.texStorage3D !== 'function' || typeof gl?.copyTexSubImage3D !== 'function') fail('WebGL2 texture arrays are required');
   if (gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS) < GROUND_LAYERS.length) fail('fewer than four texture-array layers are available');
   const colors = inspectGroup(textures, '', THREE.SRGBColorSpace);

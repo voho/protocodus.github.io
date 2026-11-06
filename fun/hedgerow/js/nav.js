@@ -363,7 +363,7 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
       if (walkable(k) && !entrances.has(k)) {
         const q = centre(k), support = world.groundAt(q.x, q.z, node.y, step);
         if (Math.abs(support - h[k]) < .05 && lineClear(node.x, node.z, q.x, q.z, true, node.y)) {
-          entrances.set(k, { k, cost: node.cost + Math.hypot(q.x - node.x, q.z - node.z), buildPoints: () => entrancePoints(head, { ...q, k }) });
+          entrances.set(k, { k, local: true, cost: node.cost + Math.hypot(q.x - node.x, q.z - node.z), buildPoints: () => entrancePoints(head, { ...q, k }) });
         }
       }
       for (const [di, dj, weight] of NB) {
@@ -434,8 +434,12 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
      nearest to it, if that is closer than where we start; null when there
      is no way at all within `maxNodes` expansions. */
   function findPath(ax, az, bx, bz, maxNodes = 12000) {
+    return pathFrom(ax, az, bx, bz, maxNodes);
+  }
+
+  function pathFrom(ax, az, bx, bz, maxNodes, entrances = null) {
     if (lineClear(ax, az, bx, bz)) return [{ x: bx, z: bz }];
-    const starts = connectedStart(ax, az), t = snap(bx, bz);
+    const starts = entrances || connectedStart(ax, az), t = snap(bx, bz);
     if (!starts.length || t < 0) return null;
     search++;
     heap.length = 0;
@@ -477,6 +481,13 @@ export function createNav(world, { minX, maxX, minZ, maxZ }, { cell = 2, radius 
         stamp[q] = search; gCost[q] = g; from[q] = k; fOf[q] = g + hEst(q);
         push(q);
       }
+    }
+    // A valid centre can belong to a tiny grid island inside a narrow
+    // bend. Retry its actual walking exits only after that small component
+    // is exhausted; global searches and node-budget failures stay bounded.
+    if (!found && !heap.length && expanded <= 64 && expanded < maxNodes && !entrances && starts.length === 1 && !starts[0].local) {
+      const exits = localConnector(ax, az).filter(start => closed[start.k] !== search);
+      if (exits.length) return pathFrom(ax, az, bx, bz, maxNodes - expanded, [...starts, ...exits]);
     }
     let goal = t;
     if (!found) {

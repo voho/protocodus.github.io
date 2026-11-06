@@ -3,9 +3,10 @@
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY } from './config.js';
 
 const ranges = { sensitivity: [0.2, 3], volume: [0, 1], effectsVolume: [0, 1], ambienceVolume: [0, 1], fov: [55, 90] };
-export function normalizeSettings(saved) {
+export function normalizeSettings(saved, { reducedMotion = false } = {}) {
   const source = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
   const result = { ...DEFAULT_SETTINGS };
+  if (reducedMotion) { result.cameraShake = false; result.motionBlur = false; }
   for (const [key, [min, max]] of Object.entries(ranges)) {
     const value = source[key];
     if (typeof value === 'number' && Number.isFinite(value)) result[key] = Math.min(max, Math.max(min, value));

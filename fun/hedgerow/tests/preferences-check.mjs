@@ -15,6 +15,12 @@ assert.equal(repaired.quality, 'high');
 assert.equal(repaired.difficulty, 'regular');
 assert.equal(repaired.cameraShake, true);
 assert.equal(repaired.motionBlur, true);
+assert.equal(normalizeSettings({}, { reducedMotion: true }).cameraShake, false,
+  'The system reduced-motion preference sets a quiet initial camera');
+assert.equal(normalizeSettings({ cameraShake: true, motionBlur: true }, { reducedMotion: true }).cameraShake, true,
+  'An explicit saved camera choice takes precedence over the system default');
+assert.equal(normalizeSettings({ motionBlur: true }, { reducedMotion: true }).motionBlur, true,
+  'An explicit saved blur choice is preserved');
 assert.equal(repaired.ambienceVolume, 0.35);
 assert.equal(repaired.unknown, undefined);
 

@@ -248,7 +248,7 @@ export function createDebris(G, { max = 48 } = {}) {
     object.position.copy(pos);
     G.scene.add(object);
     const d = {
-      object, vel: vel.clone(), life, radius, rest: false,
+      object, vel: vel.clone(), life, radius, rest: false, contacted: false,
       ang: new THREE.Vector3((Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin),
     };
     list.push(d);
@@ -268,6 +268,7 @@ export function createDebris(G, { max = 48 } = {}) {
   }
 
   function update(dt) {
+    if (!(dt > 0) || !Number.isFinite(dt)) return;
     for (let i = list.length - 1; i >= 0; i--) {
       const d = list[i];
       d.life -= dt;
@@ -275,19 +276,36 @@ export function createDebris(G, { max = 48 } = {}) {
       if (d.rest) continue;
       d.vel.y -= 9.8 * dt;
       const o = d.object;
+      const oldY = o.position.y;
       o.position.addScaledVector(d.vel, dt);
       o.rotation.x += d.ang.x * dt; o.rotation.y += d.ang.y * dt; o.rotation.z += d.ang.z * dt;
       tmp.copy(o.position);
-      if (G.world.pushOut(tmp, d.radius, o.position.y - d.radius, d.radius * 2, 0.02)) {
+      // Match the floor's half-radius support. Tops already beneath the
+      // previous bottom are floor contacts, rather than sideways impacts.
+      const fallStep = Math.max(.02, oldY - o.position.y + .002);
+      const sweepFeet = Math.min(oldY, o.position.y) - d.radius * .5;
+      const sweepHeight = Math.abs(oldY - o.position.y) + d.radius;
+      if (G.world.pushOut(tmp, d.radius, sweepFeet, sweepHeight, fallStep)) {
         d.vel.x = (tmp.x - o.position.x) / Math.max(dt, 1e-3) * 0.3; d.vel.z = (tmp.z - o.position.z) / Math.max(dt, 1e-3) * 0.3;
         o.position.x = tmp.x; o.position.z = tmp.z;
       }
-      const g = G.world.groundAt(o.position.x, o.position.z, o.position.y + 0.2, 0.25, d.radius) + d.radius * 0.5;
+      // Searching beneath the previous bottom catches a fast platform
+      // crossing without letting a low lateral approach step onto its top.
+      const floorCeiling = Math.max(oldY, o.position.y) - d.radius * .5 + .002;
+      const g = G.world.groundAt(o.position.x, o.position.z, floorCeiling, 0, d.radius) + d.radius * .5;
       if (o.position.y < g) {
         o.position.y = g;
+        if (!d.contacted) {
+          d.contacted = true;
+          // Initial overlap is a placement correction, not a falling hit.
+          if (oldY >= g - .03) {
+            const surfaceY = g - d.radius * .5;
+            const surface = G.world.surfaceUnder?.(o.position.x, surfaceY, o.position.z) || 'stone';
+            G.audio.debrisImpact?.(o.position.x, surfaceY, o.position.z, surface, Math.max(0, -d.vel.y), d.radius);
+          }
+        }
         if (Math.abs(d.vel.y) > 1.2) {
           d.vel.y = -d.vel.y * 0.3; d.vel.x *= 0.55; d.vel.z *= 0.55; d.ang.multiplyScalar(0.5);
-          G.audio.grenadeBounce?.(o.position.x, o.position.y, o.position.z);
         } else {
           // settle: lie flat-ish
           d.vel.set(0, 0, 0); d.rest = true;
