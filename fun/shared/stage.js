@@ -53,6 +53,24 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+/* A soft shade under the board: a rounded rectangle, faded by distance. */
+const CONTACT_SHADOW_VERTEX = /* glsl */ `
+varying vec2 vPlace;
+void main() {
+  vPlace = (modelMatrix * vec4(position, 1.0)).xz;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+const CONTACT_SHADOW_FRAGMENT = /* glsl */ `
+uniform vec2 uHalf, uCentre;
+uniform float uSoft, uOpacity;
+varying vec2 vPlace;
+void main() {
+  vec2 q = abs(vPlace - uCentre) - uHalf + 0.4;
+  float distance = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.4;
+  float shade = 1.0 - smoothstep(-uSoft, uSoft * 1.8, distance);
+  gl_FragColor = vec4(0.0, 0.0, 0.0, shade * shade * uOpacity);
+}`;
+
 const BACKDROP_VERTEX = /* glsl */ `
 varying vec2 vUv;
 void main() {
@@ -288,6 +306,8 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
   key.shadow.mapSize.set(mobile ? 768 : 1024, mobile ? 768 : 1024);
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.03;
+  // Filtered edges for the shadows patches and lines cast on the tiles.
+  key.shadow.radius = 3;
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 40;
   scene.add(key, key.target);
@@ -299,11 +319,17 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
   flashLight.position.set(0, 2.5, 0);
   scene.add(flashLight);
 
-  // The board floats; its shadow lands on an invisible floor below.
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: atelier ? 0.12 : 0.3 }));
+  // The board floats over a soft pool of shade rather than a hard-edged
+  // shadow-map rectangle: a rounded box blurred analytically, sized to the
+  // board in `frame` and nudged away from the key light.
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    vertexShader: CONTACT_SHADOW_VERTEX, fragmentShader: CONTACT_SHADOW_FRAGMENT,
+    uniforms: { uHalf: { value: new THREE.Vector2(3, 3) }, uCentre: { value: new THREE.Vector2(0.25, -0.2) }, uSoft: { value: 0.9 }, uOpacity: { value: atelier ? 0.32 : 0.42 } },
+    transparent: true, depthWrite: false, toneMapped: false,
+  }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = atelier ? -0.7 : -1;
-  floor.receiveShadow = true;
+  floor.renderOrder = -1;
   scene.add(floor);
 
   const bloom = hdr ? createBloom({ strength: 0.32, threshold: 1, knee: 0.5, spread: 1.15, levels: mobile ? 3 : 4, resolutionScale: 0.5 }) : null;
@@ -543,6 +569,8 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       halfW = w; halfD = d;
       const reach = Math.max(w, d) + 1.5;
       Object.assign(key.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach });
+      floor.material.uniforms.uHalf.value.set(w, d);
+      floor.scale.set(2 * w + 6, 2 * d + 6, 1);
       key.shadow.camera.updateProjectionMatrix();
       stage.invalidateShadows();
       refit();

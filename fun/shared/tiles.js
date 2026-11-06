@@ -2,18 +2,20 @@
    relief vary independently without one physical material per cell. */
 import * as THREE from 'three';
 
-/* Glass on the tile tops: a soft crown of light near one corner, a bright
-   rim just inside the edge, and a broad band of light that drifts across
-   the whole board every half a minute or so. It is all emissive, so the
-   tile colours and the board underneath stay as they are. */
+/* Glass on the tile tops: the body darkens slightly towards the far
+   corner, a thin lip of light runs along the edges nearest the key light,
+   and a narrow band of light crosses the whole board about every half
+   minute. It is all emissive and faint,
+   so clues keep their contrast and the board underneath stays neutral. */
 const GLASS = `
 float glassTop = smoothstep(0.55, 0.95, vTileTop);
-vec2 crownAt = vTileSurface - vec2(-0.15, -0.17);
-float crown = exp(-dot(crownAt, crownAt) * 26.0);
-float rimLight = smoothstep(0.3, 0.42, max(abs(vTileSurface.x), abs(vTileSurface.y)));
+float glassEdge = max(abs(vTileSurface.x), abs(vTileSurface.y));
+float towardLight = clamp(0.5 - (vTileSurface.x + vTileSurface.y) * 0.75, 0.0, 1.0);
+float lip = smoothstep(0.34, 0.425, glassEdge) * towardLight;
 float sweep = sin(dot(vTileWorld, vec2(0.42, 0.28)) - uSheenTime * 0.22);
-float sheen = pow(max(0.0, sweep), 10.0);
-totalEmissiveRadiance += glassTop * (crown * 0.045 + rimLight * 0.03 + sheen * (0.09 + crown * 0.1)) * vec3(0.92, 0.97, 1.0);
+float sheen = pow(max(0.0, sweep), 16.0);
+diffuseColor.rgb *= mix(1.0, 0.86 + 0.2 * towardLight, glassTop);
+totalEmissiveRadiance += glassTop * (lip * 0.07 + sheen * 0.025) * vec3(0.92, 0.97, 1.0);
 `;
 
 export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin', ...options }) {
@@ -43,7 +45,7 @@ export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin'
         : 'diffuseColor.rgb *= 0.985 + 0.025 * clamp(vTileSurface.x - vTileSurface.y, -1.0, 1.0);'))
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTileEmission;\n' + GLASS);
   };
-  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v3-${finish}`;
+  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v4-${finish}`;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'tiles';
   mesh.castShadow = mesh.receiveShadow = true;
