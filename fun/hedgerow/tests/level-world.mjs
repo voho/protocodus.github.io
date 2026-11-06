@@ -1,11 +1,14 @@
 // The level's collision world for the node checks, built as levelBuild.js
 // builds it: the level data placed with the colliders authored in the GLBs,
 // the analytic ground with its building pads, the river, the scattered
-// trees and rocks. Shared by route-check.mjs and ai-check.mjs.
+// trees and rocks. Shared by route-check.mjs, ai-check.mjs and mission-check.mjs.
+// HEDGEROW_LEVEL=<id> builds another mission's level (default Saint-Clair).
+import './three-hooks.mjs';
 import { readFileSync } from 'node:fs';
 import { createWorld } from '../js/world.js';
 import { rectDistance, smoothstep, lerp } from '../js/util.js';
-import L from '../js/levels/saint-clair.js';
+const { proceduralModels } = await import('../js/procedural.js');
+const { default: L } = await import(`../js/levels/${process.env.HEDGEROW_LEVEL || 'saint-clair'}.js`);
 
 export { L };
 export const DEG = Math.PI / 180;
@@ -31,6 +34,11 @@ for (const set of ['village', 'military', 'nature']) {
       anchors: ex.anchors ? JSON.parse(ex.anchors) : {},
     });
   }
+}
+
+// and the ones modelled in three.js (procedural.js)
+for (const [name, m] of proceduralModels()) {
+  models.set(name, { name, min: m.box.min.toArray(), max: m.box.max.toArray(), colliders: m.colliders, anchors: m.anchors });
 }
 
 function worldColliders(m, x, y, z, yaw, scale = 1) {

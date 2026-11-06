@@ -1,5 +1,10 @@
 /* Hedgerow — the mission: objectives in order, checkpoints, pickups,
-   control hints, the charge on the flak gun, the score. */
+   control hints, the charges on the guns, the score.
+
+   Objective kinds: 'reach' (within r of x, z), 'cross' (north of z),
+   'destroy' (a charge on the placed prop `target`), 'clear' (every enemy of
+   the `groups` dead), 'hold' (stay within r of x, z for `time` seconds while
+   the `counter` groups come for him). */
 
 import * as THREE from 'three';
 import { instantiate } from './assets.js';
@@ -9,7 +14,7 @@ import { FIRE_FOG } from './lights.js';
 export function createMission(G, L, built) {
   const M = {
     index: 0, done: false, checkpoint: 0, inventory: null,
-    pickups: [], hintsShown: new Set(), flakDestroyed: false, charge: null,
+    pickups: [], hintsShown: new Set(), flakDestroyed: false, charge: null, wrecked: new Set(), held: 0, sentAt: -99,
   };
   const objectives = L.objectives;
 
@@ -32,9 +37,12 @@ export function createMission(G, L, built) {
     M.index = i;
     const o = current();
     if (!o) return;
+    M.held = 0; M.sentAt = -99; M.charge = null;
     G.hud.objective(o.text, announce);
     if (announce) G.audio.ui('objective');
   }
+
+  const living = (groups) => (G.enemies || []).filter((e) => !e.dead && groups.includes(e.group));
 
   function advance() {
     const o = current();
@@ -51,6 +59,12 @@ export function createMission(G, L, built) {
   function markerFor(o) {
     if (!o) return null;
     if (o.marker) return o.marker;
+    if (o.kind === 'clear') {
+      // the nearest of them still standing
+      let best = null, bd = Infinity;
+      for (const e of living(o.groups)) { const d = Math.hypot(e.pos.x - G.player.pos.x, e.pos.z - G.player.pos.z); if (d < bd) { bd = d; best = [e.pos.x, e.pos.z]; } }
+      return best;
+    }
     if (o.x !== undefined) return [o.x, o.z];
     return null;
   }
@@ -64,9 +78,10 @@ export function createMission(G, L, built) {
     G.audio.ui('checkpoint');
   }
 
-  /* the charge on the flak gun */
-  function placeCharge() {
-    const flak = built.placed.get('flak');
+  /* a charge on the objective's gun (`target`: the id it was placed with) */
+  function placeCharge(o) {
+    const id = o.target;
+    const flak = built.placed.get(id);
     if (!flak) return;
     const a = flak.model.anchors.charge;
     let x = flak.x, y = flak.y + 1, z = flak.z;
@@ -91,7 +106,8 @@ export function createMission(G, L, built) {
       G.effects.addFire(flak.x, flak.y + 0.6, flak.z, 0.9);
       G.lights.addStatic({ x: flak.x, y: flak.y + 1.5, z: flak.z, color: '#ff8a3a', intensity: 18, range: 16, flicker: 0.45, fog: FIRE_FOG });
       G.effects.explosion(flak.x, flak.y + 1, flak.z, 1.4);
-      if (current() && current().id === 'flak') advance();
+      M.wrecked.add(id);
+      if (current() && current().target === id) advance();
     });
     G.hud.notice('Charge set', 'Six seconds — get clear!', 2.5);
     G.audio.ui('beep');
@@ -137,8 +153,24 @@ export function createMission(G, L, built) {
         const d = Math.hypot(px - o.x, pz - o.z);
         if (d < 3.2) {
           prompt = 'Press <b>E</b> to set a demolition charge';
-          if (input.pressed('KeyE')) placeCharge();
+          if (input.pressed('KeyE')) placeCharge(o);
         }
+      } else if (o.kind === 'clear') {
+        const left = living(o.groups).length;
+        if (!left) advance();
+        else G.hud.objective(`${o.text} (${left} left)`, false);
+      } else if (o.kind === 'hold') {
+        const inside = Math.hypot(px - o.x, pz - o.z) < o.r;
+        if (inside) M.held += dt;
+        // the counter-attack: sent at him when it starts, and again every twenty seconds to where he is
+        if (G.time - M.sentAt > 20 && (M.held > 0 || inside)) {
+          M.sentAt = G.time;
+          for (const g of o.counter || []) G.enemyCtl?.send(g, px, pz);
+          if (!M.warned) { M.warned = true; G.hud.notice('Counter-attack!', o.warning || 'Hold the position', 3.5); }
+        }
+        const left = Math.max(0, Math.ceil(o.time - M.held));
+        G.hud.objective(inside ? `${o.text} — ${left} s` : `${o.text} — get back to the position`, false);
+        if (M.held >= o.time) advance();
       }
     }
     G.hud.prompt(prompt);

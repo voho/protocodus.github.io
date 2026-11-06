@@ -348,4 +348,32 @@ for (const id of ['garand', 'thompson']) {
   assert.ok(!stand.visible, 'with the head shown again (the death camera), the stand-in goes');
 }
 
-console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right, the arms keep out of the eye, and his shadow keeps its head');
+/* The left hand holds the forend from below, not through it: the hand's skin across the middle of
+   the forend rises no higher than its underside (measured down the middle of each model: the wood
+   under the offhand anchor) plus the fingertips' centimetre, and reaches up to touch it. */
+for (const [id, under] of [['garand', -0.039], ['thompson', 0.016]]) {
+  const w = WEAPONS[id], off = models.get(w.model).anchors.offhand;
+  for (const upper of ['idle', 'aim', 'crouch_aim']) {
+    const ch = createCharacter(soldier, matlib, { outfit: 'allied', weaponModel: models.get(w.model), scene: new THREE.Scene() });
+    ch.steady = true;
+    ch.animate(upper === 'crouch_aim' ? 'crouch_idle' : 'idle', upper, 1);
+    for (let i = 0; i < 20; i++) ch.update(1 / 60, 0);
+    const skin = ch.meshes.find((m) => m.isSkinnedMesh && !/_lod$/.test(m.name));
+    const hi = skin.skeleton.bones.indexOf(ch.bones.hand_l);
+    const { skinIndex: si, skinWeight: sw, position } = skin.geometry.attributes;
+    const inv = new THREE.Matrix4().copy(ch.weapon.matrixWorld).invert(), v = new THREE.Vector3();
+    let top = -Infinity;
+    for (let i = 0; i < position.count; i++) {
+      let wt = 0;
+      for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === hi) wt += sw.getComponent(i, k);
+      if (wt < 0.5) continue;
+      skin.getVertexPosition(i, v).applyMatrix4(skin.matrixWorld).applyMatrix4(inv);
+      if (Math.abs(v.x) < 0.015 && Math.abs(v.z - off[2]) < 0.04) top = Math.max(top, v.y);
+    }
+    console.log(`${id} ${upper}: the left hand's top ${((top - under) * 1000).toFixed(0)} mm from the forend's underside`);
+    assert.ok(top < under + 0.015, `${id} ${upper}: the left hand should not come up through the forend`);
+    assert.ok(top > under - 0.02, `${id} ${upper}: the left hand should touch the forend`);
+  }
+}
+
+console.log('fp-check: the rifle sits steady on the march, the sights line up when aiming, reloads and the sprint are in the picture, sway, kick, landing, a flinch, the head bob and the fall feel right, the arms keep out of the eye, the left hand holds the forend from below, and his shadow keeps its head');

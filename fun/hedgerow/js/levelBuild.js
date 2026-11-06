@@ -24,16 +24,17 @@ import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './ut
 
 const SURFACE = (name) => {
   if (/^(house|church|wall|fountain|cross|bridge|ruin)/.test(name)) return 'stone';
-  if (/^(barn|shed|fence|gate|crate|cart|sentry|trench_wall|duckboard|watchtower|log|stump|signpost|pole|tree|pine|oak)/.test(name)) return 'wood';
+  if (/^(barn|shed|fence|gate|crate|cart|sentry|trench_wall|duckboard|watchtower|log|stump|signpost|pole|tree|pine|oak|glider)/.test(name)) return 'wood';
   if (/^(sandbag|mg_nest|tent)/.test(name)) return 'sandbag';
-  if (/^(truck|jeep|barrel|flak|hedgehog|barbed|radio|jerrycan|ammo|lamp)/.test(name)) return 'metal';
+  if (/^(truck|jeep|barrel|flak|pak|hedgehog|barbed|radio|jerrycan|ammo|lamp|canal_bridge|supply)/.test(name)) return 'metal';
   if (/^bunker/.test(name)) return 'concrete';
   if (/^(hedge|bush|haystack|reeds|fern|grass)/.test(name)) return 'foliage';
   if (/^(boulder|outcrop|rocks)/.test(name)) return 'stone';
   return 'stone';
 };
 
-const SEPARATE = new Set(['flak38', 'radio_table']);
+// kept as their own objects (not merged): what a charge can wreck, and the radio
+const SEPARATE = new Set(['flak38', 'pak40', 'radio_table']);
 
 // built a piece at a time, the browser getting its turns between (pace.js): loading runs behind the menu
 export async function buildLevel(G, L, quality) {
@@ -126,7 +127,7 @@ export async function buildLevel(G, L, quality) {
       veg.add(p.m, p.x, y, p.z, yaw, scale);
     } else if (p.m === 'signpost') {
       signposts.push({ x: p.x, y, z: p.z, yaw });
-    } else if (SEPARATE.has(p.m)) {
+    } else if (SEPARATE.has(p.m) || p.separate) {
       const o = instantiate(m, G.matlib);
       o.position.set(p.x, y, p.z);
       o.rotation.y = yaw;
@@ -287,7 +288,7 @@ export async function buildLevel(G, L, quality) {
     if (d.inTrench) {
       // stand on the trench's centre line
       let best = null;
-      for (const k of ['TRENCH_W', 'TRENCH_E', 'TRENCH_C']) {
+      for (const k of Object.keys(L.lines).filter((k) => k.startsWith('TRENCH'))) {
         const r = polylineDistance(L.lines[k], d.at[0], d.at[1], {});
         if (!best || r.d < best.d) best = r;
       }
@@ -308,8 +309,8 @@ export async function buildLevel(G, L, quality) {
   /* ---------- 6. river, cover ---------- */
   await breathe();
   mark('river');
-  const water = buildRiver(L.water, G.textures, G.shared);
-  G.scene.add(water);
+  const water = L.water ? buildRiver(L.water, G.textures, G.shared) : null;
+  if (water) G.scene.add(water);
   await breathe();
   mark('cover points');
   const cover = await buildCoverPointsPaced(world, terrain);

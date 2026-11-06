@@ -12,7 +12,7 @@ export function createHud(root) {
     wname: $('[data-weapon-name]'), mag: $('[data-ammo-mag]'), reserve: $('[data-ammo-reserve]'), grenades: $('[data-grenades]'),
     objective: $('[data-objective]'), objText: $('[data-objective-text]'),
     compass: $('[data-compass]'), strip: $('[data-compass-strip]'), mark: $('[data-compass-mark]'), dist: $('[data-compass-dist]'),
-    notice: $('[data-notice]'), prompt: $('[data-prompt]'), gwarn: $('[data-grenade-warn]'), detect: $('[data-detect]'),
+    notice: $('[data-notice]'), prompt: $('[data-prompt]'), gwarn: $('[data-grenade-warn]'), gdirs: $('[data-grenade-dirs]'), detect: $('[data-detect]'),
     debug: $('[data-debug]'),
     reload: $('[data-reload]'), reloadFill: $('[data-reload-fill]'), reloadHint: $('[data-reload-hint]'),
   };
@@ -37,6 +37,18 @@ export function createHud(root) {
   // awareness arrows
   const detects = [];
   for (let i = 0; i < 6; i++) { const a = document.createElement('i'); a.style.opacity = 0; el.detect.appendChild(a); detects.push(a); }
+
+  // grenade markers: one per live grenade near him (up to three)
+  const gmarks = [];
+  for (let i = 0; i < 3; i++) {
+    const d = document.createElement('div'), arrow = document.createElement('i');
+    const mark = document.createElement('span'), icon = document.createElement('b');
+    arrow.className = 'gd-arrow'; mark.className = 'gd-mark'; icon.className = 'gd-icon';
+    mark.appendChild(icon); d.appendChild(arrow); d.appendChild(mark);
+    d.hidden = true;
+    el.gdirs.appendChild(d);
+    gmarks.push({ el: d, icon, text: '' });
+  }
 
   let hitTimer = 0, noticeTimer = 0, lastHealth = 1, calm = false;
   let objectiveAngle = null, objectiveDist = 0;
@@ -96,6 +108,7 @@ export function createHud(root) {
     },
 
     objective(text, flash = true) {
+      if (!flash && el.objText.textContent === text) return;
       el.objText.textContent = text;
       if (flash) {
         el.objective.classList.remove('flash');
@@ -141,7 +154,20 @@ export function createHud(root) {
       if (el.prompt.innerHTML !== html) el.prompt.innerHTML = html;
     },
 
-    grenadeWarning(on) { el.gwarn.hidden = !on; },
+    /* live grenades near him: [{angle (rel to the view, + = left), dist}], nearest first */
+    grenadeWarning(list) {
+      el.gwarn.hidden = !list.length;
+      for (let i = 0; i < gmarks.length; i++) {
+        const g = list[i], m = gmarks[i];
+        m.el.hidden = !g;
+        if (!g) continue;
+        m.el.style.setProperty('--a', `${((-g.angle * 180) / Math.PI).toFixed(1)}deg`);
+        // the nearer, the closer in to the crosshair it sits
+        m.el.style.setProperty('--r', `${Math.round(90 + 14 * clamp(g.dist, 0, 9))}px`);
+        const text = `${Math.max(1, Math.round(g.dist))}m`;
+        if (text !== m.text) { m.icon.textContent = text; m.text = text; }
+      }
+    },
 
     /* after death: the red of the wounds fades so the view behind reads */
     calm(on) { calm = on; },

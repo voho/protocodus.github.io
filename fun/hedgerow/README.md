@@ -1,8 +1,12 @@
 # Hedgerow
 
 A first-person Second World War shooter for the browser — realistic-looking,
-arcade to play. You are one soldier pushing through hand-built missions; this
-proof of concept has the first one:
+arcade to play. You are one soldier pushing through hand-built missions,
+three of them, each an original scenario inspired by a real situation of
+the Normandy campaign. **Choose mission** on the title screen picks one; the
+page builds one battlefield at a time, so choosing another reloads the page
+with `?mission=<id>` (`js/missions.js`), showing a shot from that mission,
+out of focus, behind the menus while it loads.
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
@@ -15,6 +19,33 @@ point.
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
 three river crossings, the ends of the trench, the flanks of the bunker.
+
+**Mission 2 — The guns at La Varenne.** Normandy, the morning of 6 June
+1944, drizzle; inspired by the paratroopers' assaults on the gun batteries
+behind the beaches. Scattered in the night, a handful of you find a battery
+of three guns dug in along a hedgerow, shelling the causeway the seaborne
+troops must come up. Up a long meadow of shell craters from the valley
+bottom to the guns on the crest, ten metres up (the sunken lane winding up
+a fold on the left, the orchard track round a spur on the right, both under
+machine guns, or from crater to crater past the knoll between them), into
+the trench below the guns, a charge on each gun, then down to the shells
+stacked in the farmyard, and on to the road north.
+
+**Mission 3 — The bridge at Pont-Tournant.** Normandy, twenty past midnight
+on 6 June 1944, wind and rain; inspired by the glider-borne coups de main
+on the canal and river bridges. Your glider has come down short of a swing
+bridge wired for demolition. The road curves in over the marsh on a low
+causeway; through the gaps in the wire, past the pond in the angle of the
+road and the canal, silence the pillbox and the guards, rush the bridge,
+clear the café and the houses climbing the far bank and the side street,
+then hold the north end for ninety seconds while they come down the street
+from where it bends at the top. The gliders and the bridge are modelled in three.js
+(`js/procedural.js`).
+
+Both are laid out after the old maps of the real places (OpenStreetMap of
+the Bénouville canal bridge and the Merville battery): ground that rises and
+folds, roads and hedges that wind, ponds and side streets, rather than a
+flat field.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -102,9 +133,13 @@ and no film grain so shadow detail stays clear.
 | E | use (set the charge) |
 | I | toggle invincibility |
 | O | switch night / day |
-| Esc | pause |
+| Esc | pause: the objectives so far and the controls |
 
-The mission starts at night. Press **O** during play to switch to daylight
+The controls are listed on the title screen while the mission loads, on the
+controls screen and on the pause screen (`js/controls.js`, one list for all
+three); the pause screen also ticks off the mission's objectives.
+
+Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
 
@@ -114,6 +149,9 @@ off close by leaves you dazed for a few seconds, longer the closer it was:
 a white flash, then the ears ringing over a muffled world, the view doubled,
 swimming and closing in, your legs and your aim slow.
 When your grenade kills enemies, a notice shows that blast's kill count.
+A live grenade landing near you puts a warning round the crosshair with an
+arrow pointing to it and how many metres off it is, closer in the nearer it
+is (up to three at once).
 
 The Germans are not statues. Patrols walk their beats and stop to look
 round. A shot or a grenade heard from a distance sends one or two of a
@@ -150,7 +188,12 @@ by the blast that killed them, and drop their rifles.
     are asked for all at once and compiled off the main thread, the textures
     uploaded one a slice, and the soldiers and the mission set up behind
     the menu, so Move out starts at once · `levelBuild.js` level data → world ·
-    `levels/saint-clair.js` the mission (ground, props, enemies, objectives)
+    `missions.js` the list of missions, each loading its level module ·
+    `levels/saint-clair.js`, `levels/la-varenne.js`, `levels/pont-tournant.js`
+    the missions (ground, props, enemies, objectives; `levels/kit.js` the
+    helpers the later two share: hedgebanks, trenches, rough ground) ·
+    `procedural.js` the glider, the canal bridge and the supply canisters
+    modelled in three.js · `controls.js` the controls list
   * `terrain.js` heightfield + splat material · `world.js` colliders, rays,
     walking · `vegetation.js` instanced trees and ground cover in up to
     three tiers: full model, a thinned `_mid` beyond ~22 m when the nature
@@ -495,7 +538,14 @@ by the blast that killed them, and drop their rifles.
     leaves, hollow planks, splashing water — the kit when running and
     landing, reloads in their parts, empty cases ringing on stone, bodies
     and rifles falling, ricochets, rain ticking on the helmet; dazed by a
-    blast, everything muffled behind a ringing in the ears)
+    blast, everything muffled behind a ringing in the ears; the weather in
+    layers, the hiss of the rain on the fields, a patter of hundreds of
+    small drops a second and the odd heavy drip into a puddle, easing and
+    coming on, wind that gusts and whistles in the hedges at the strongest
+    gusts; per mission, birds in the morning, frogs along the canal and
+    bombers droning over at night, the wildlife falling silent for a while
+    after shooting nearby; all of it heard out on the battlefield only,
+    faded out over the menus)
   * the effects chain (`renderer.setEffects`, in order): the particles of
     `effects.js` drawn into the scene's buffer with its depth · `ssao.js` ambient
     occlusion at half resolution · `ssr.js` reflections in the wet ground,
@@ -569,6 +619,10 @@ by the blast that killed them, and drop their rifles.
   checkpoint, the gardens, all three river crossings, both trench ends, both
   bunker flanks), with negative controls, and checks every wall lamp and
   ivy patch has a wall behind it;
+  `tests/mission-check.mjs` — for every mission, on its own collision world
+  and walk grid: all its models exist, there is a way from the start through
+  each objective in turn (over each line to cross), and the start, every
+  enemy, pickup and checkpoint stand on walkable ground;
   `tests/distance-check.mjs` — the horizon treelines face the level, sit
   in the ground and leave the far village in sight;
   `tests/lod-check.mjs` — soldiers switch to low detail at a distance
@@ -601,7 +655,8 @@ by the blast that killed them, and drop their rifles.
   magazine seats in the picture, the rifle is carried in the picture at a
   sprint and out of it while changing weapons, the sway, kick and landing
   dip stay within a few degrees and centimetres and settle, and the folded
-  head's shadow stand-in sits where the full-size head would be;
+  head's shadow stand-in sits where the full-size head would be, and the
+  left hand holds each gun's forend from below instead of through it;
   `tests/daze-check.mjs` — a blast dazes him by how close it went off (all
   of it at a grenade's feet, none past 11 m, a charge nearly twice as far,
   less behind a wall), it wears off over three to nine seconds, and the view

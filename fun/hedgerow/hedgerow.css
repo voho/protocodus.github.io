@@ -289,3 +289,78 @@ h2 { margin: 0 0 14px; font-family: var(--stamp); font-size: 30px; font-weight: 
   .weapon { right: 12px; bottom: 12px; }
   .ammo { font-size: 26px; }
 }
+
+/* ---------- missions, the loading picture, controls on the title and the pause ---------- */
+
+/* behind the screens, over the canvas until the battlefield is there to be seen */
+.loading-art {
+  position: fixed; inset: 0; z-index: 35; pointer-events: none;
+  background: var(--night) center / cover no-repeat;
+  opacity: 0; transition: opacity 1.2s ease;
+  /* a shot from the mission, out of focus behind the menus; grown so the blur keeps dark edges off */
+  filter: blur(10px); transform: scale(1.06);
+}
+.loading-art::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(5, 6, 7, 0.15), rgba(5, 6, 7, 0.75)); }
+.loading-art.on { opacity: 1; }
+
+.screen[data-screen="start"] { gap: 28px; flex-wrap: wrap; }
+.controls-card { width: min(340px, 100%); margin: auto; padding: 22px 24px; text-align: left; flex-shrink: 0; }
+.controls-card h2 { font-size: 22px; text-align: center; }
+.controls-card .keys { font-size: 13px; gap: 4px 14px; }
+
+.missions-panel { width: min(860px, 100%); }
+.mission-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 18px 0 0; padding: 0; text-align: left; }
+.mission-card {
+  display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0; overflow: hidden;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line-strong); border-radius: 3px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mission-card:hover, .mission-card:focus-visible { border-color: var(--brass); background: var(--brass-soft); outline: none; }
+.mission-card[aria-current="true"] { border-color: var(--brass); }
+.mission-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #15171a; }
+.mission-card .mc-body { display: block; padding: 12px 14px 14px; }
+.mission-card .mc-n { display: block; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--brass); }
+.mission-card .mc-title { display: block; margin: 4px 0 2px; font-family: var(--stamp); font-size: 22px; }
+.mission-card .mc-when { display: block; font-size: 12px; color: var(--muted); }
+.mission-card .mc-sum { display: block; margin-top: 8px; font-size: 13px; line-height: 1.45; color: #d8d2c2; }
+.mission-card .mc-best { display: block; margin-top: 8px; font-size: 12px; color: var(--brass); }
+.briefing-inspired { margin: 10px 0 0; font-size: 12px; color: var(--muted); font-style: italic; }
+
+.pause-panel { display: flex; gap: 28px; width: min(860px, 100%); text-align: left; flex-wrap: wrap; }
+.pause-main { flex: 1 1 300px; text-align: center; }
+.pause-controls { flex: 1 1 300px; padding-left: 24px; border-left: 1px solid var(--line); }
+.pause-controls h3 { margin: 0 0 12px; font-family: var(--stamp); font-weight: 400; font-size: 20px; text-align: center; }
+.pause-controls .keys { font-size: 13px; gap: 4px 14px; }
+.pause-objectives { list-style: none; margin: 0; padding: 0; text-align: left; font-size: 14px; line-height: 1.6; }
+.pause-objectives li { padding-left: 22px; position: relative; color: var(--muted); }
+.pause-objectives li::before { content: '○'; position: absolute; left: 0; color: var(--dim); }
+.pause-objectives li[data-state="done"] { color: var(--dim); text-decoration: line-through; }
+.pause-objectives li[data-state="done"]::before { content: '✓'; color: var(--green); }
+.pause-objectives li[data-state="current"] { color: var(--ink); }
+.pause-objectives li[data-state="current"]::before { content: '▸'; color: var(--brass); }
+@media (max-width: 700px) {
+  .pause-controls { padding-left: 0; border-left: none; border-top: 1px solid var(--line); padding-top: 18px; }
+}
+
+/* a grenade near him: a marker round the crosshair towards it, nearer the middle the closer it lies */
+.grenade-dirs { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.grenade-dirs > div {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  transform: rotate(var(--a, 0deg));
+}
+.grenade-dirs .gd-mark {
+  position: absolute; left: -22px; top: calc(-1 * var(--r, 150px) - 22px); width: 44px; height: 44px;
+  display: grid; place-items: center;
+  transform: rotate(calc(-1 * var(--a, 0deg)));
+}
+.grenade-dirs .gd-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(224, 68, 47, 0.9); box-shadow: 0 0 12px rgba(224, 68, 47, 0.8);
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0;
+  animation: blink 0.4s steps(2) infinite;
+}
+.grenade-dirs .gd-arrow {
+  position: absolute; left: -9px; top: calc(-1 * var(--r, 150px) - 38px); width: 18px; height: 14px;
+  background: rgba(224, 68, 47, 0.95); clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
