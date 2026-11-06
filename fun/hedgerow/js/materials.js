@@ -175,7 +175,9 @@ const NO_STREAKS = /^(cloth|skin|hair|leather|webbing|gun|rubber|wire|marking)/;
 
 /* trunks that get close-up bark (detail strength, moss): furrowed oak and pine,
    smooth beech, papery birch, old dead wood */
-const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0.85], [/^birch/, 0.4, 0.15], [/^(tree_dead|stump|log)/, 0.8, 0.6]];
+// The fourth field turns the fine relief across papery birch bark; the
+// authored atlas keeps its larger lenticels, knots and weathered base.
+const BARK = [[/^oak/, 1.0, 0.7], [/^(pine|fir)/, 0.9, 0.35], [/^beech/, 0.35, 0.85], [/^birch/, 0.25, 0.15, true], [/^(tree_dead|stump|log)/, 0.8, 0.6]];
 
 /* the close-up grain of the baked solids (addWeather `grain`): its texture (grainTexture, made
    with the first material library) and how strong it is (0: none) */
@@ -311,7 +313,7 @@ export function createMaterialLibrary(textures, shared) {
         porosity: cards ? 0.4 : response.porosity, response: cards ? null : response, foliage: cards, sway: cards && src.name !== 'nat_far',
         // the ground cover's atlas (ferns, tussocks, nettles, weeds, reeds, ivy)
         cover: cards && src.name === 'nat_ground',
-        bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2] } : null,
+        bark: bk ? { tex: textures.bark, k: bk[1], moss: bk[2], papery: !!bk[3] } : null,
         streaks: !cards && !CARRIED.test(src.name || '') && response.rivulets !== false,
         rooms: !!src.userData?.rooms,
         smoulder: !cards && (SMOULDER.find(([re]) => re.test(src.name || ''))?.[1] || null),
@@ -342,7 +344,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
   const tileScale = 1 / tile;
   const masonry = !!response?.masonry && !rooms;
   const wetSheen = response?.sheen ?? 1, wetFloor = response?.floor ?? 0;
-  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? 'k' : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '') + (masonry ? 'M' : '');
+  mat.customProgramCacheKey = () => 'hedgerow-' + (detail ? 'd' : 'b') + (foliage ? 'f' : '') + (cover ? 'c' : '') + (sway ? 'w' : '') + (bark ? (bark.papery ? 'kp' : 'k') : '') + (streaks ? 's' : '') + (rooms ? 'r' : '') + (smoulder ? 'm' + smoulder[0] : '') + (skin ? 'h' : '') + (glints ? 'g' : '') + (grain ? 'G' : '') + (gun ? 'u' : '') + (mat.normalMap ? 'n' : '') + (masonry ? 'M' : '');
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uTile: { value: tileScale }, uPorosity: { value: porosity },
@@ -463,8 +465,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           barkW = smoothstep(0.35, 0.65, abs(vBarkN.x) / (abs(vBarkN.x) + abs(vBarkN.z) + 1e-4));
           barkA = barkB = vec4(0.5, 0.5, 1.0, 0.5);
           if (barkK > 0.01) {
-            barkA = texture2D(tBark, vBarkP.xy);
-            barkB = texture2D(tBark, vBarkP.zy);
+            barkA = texture2D(tBark, ${bark.papery ? 'vBarkP.yx' : 'vBarkP.xy'});
+            barkB = texture2D(tBark, ${bark.papery ? 'vBarkP.yz' : 'vBarkP.zy'});
             diffuseColor.rgb *= mix(1.0, 0.45 + 1.1 * mix(barkA.a, barkB.a, barkW), barkK);
           }
           // moss low on the trunk and on its weather side, in the furrows first
@@ -570,8 +572,8 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         ${streaks ? 'roughnessFactor = mix(roughnessFactor, 0.04, mRiv);\n        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.75, mDamp);\n        roughnessFactor = mix(roughnessFactor, 0.9, mMud * 0.6);' : ''}`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         ${bark ? `if (barkK > 0.01) {
-          vec3 nA = cotangentFrame(normal, -vViewPosition, vBarkP.xy) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
-          vec3 nB = cotangentFrame(normal, -vViewPosition, vBarkP.zy) * normalize(vec3((barkB.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
+          vec3 nA = cotangentFrame(normal, -vViewPosition, ${bark.papery ? 'vBarkP.yx' : 'vBarkP.xy'}) * normalize(vec3((barkA.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
+          vec3 nB = cotangentFrame(normal, -vViewPosition, ${bark.papery ? 'vBarkP.yz' : 'vBarkP.zy'}) * normalize(vec3((barkB.xy * 2.0 - 1.0) * barkK * 1.3, 1.0));
           normal = normalize(mix(nA, nB, barkW));
         }` : ''}
         ${grain ? `if (grainN > 0.01) {

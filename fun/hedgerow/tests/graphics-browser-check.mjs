@@ -103,7 +103,7 @@ try {
     const samples = new THREE.Scene();
     samples.add(new THREE.HemisphereLight(0xffffff, 0x334455, 2));
     samples.add(new THREE.DirectionalLight(0xffffff, 2));
-    const variants = ['oak', 'allied', 'm1_garand', 'village', 'nat_ground'].map(name => {
+    const variants = ['oak', 'birch_a', 'allied', 'm1_garand', 'village', 'nat_ground'].map(name => {
       const material = new THREE.MeshStandardMaterial({ map, normalMap: normal });
       material.name = name;
       if (name === 'nat_ground') material.alphaTest = 0.5;
