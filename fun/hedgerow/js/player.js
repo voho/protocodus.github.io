@@ -263,7 +263,7 @@ export function createPlayer(G) {
     dir.addScaledVector(rx, Math.cos(th) * r).addScaledVector(ry, Math.sin(th) * r).normalize();
 
     const cam = G.camera.position;
-    const camHit = traceShot(cam, dir, w.range);
+    const camHit = traceShot(cam, dir, w);
     // from the muzzle to what the crosshair found
     const muzzle = P.char.muzzleWorld(new THREE.Vector3());
     const target = camHit ? camHit.point : tmp.copy(cam).addScaledVector(dir, w.range);
@@ -271,9 +271,12 @@ export function createPlayer(G) {
     const mlen = md.length();
     md.divideScalar(mlen || 1);
     let finalHit = camHit;
-    const block = G.world.raycast(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, Math.max(0, mlen - 0.3), SHOT);
+    // (what stands between the muzzle and the first thing the round went through or hit)
+    const first = camHit?.through[0];
+    const clearTo = first ? Math.hypot(first.x - muzzle.x, first.y - muzzle.y, first.z - muzzle.z) : mlen;
+    const block = G.world.raycast(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, Math.max(0, clearTo - 0.3), SHOT);
     if (block && mlen > 0.5) {
-      finalHit = { point: new THREE.Vector3(block.x, block.y, block.z), world: block };
+      finalHit = { point: new THREE.Vector3(block.x, block.y, block.z), world: block, through: [], keep: 1, dist: block.t };
     }
     // effects
     G.effects.muzzle(muzzle.x, muzzle.y, muzzle.z, md.x, md.y, md.z, w.kind === 'rifle' ? 1.2 : 0.9);
@@ -301,10 +304,20 @@ export function createPlayer(G) {
 
     if (finalHit) {
       const p = finalHit.point;
+      // through planks or canvas: splinters where it went in and where it came out
+      for (const h of finalHit.through) {
+        G.effects.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface, dir.x, dir.y, dir.z);
+        G.decals?.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface);
+        G.audio.impact(h.x, h.y, h.z, h.surface);
+        G.effects.impact(h.ox, h.oy, h.oz, dir.x, dir.y, dir.z, h.surface, dir.x, dir.y, dir.z);
+      }
       if (finalHit.enemy) {
         const e = finalHit.enemy;
         const mul = finalHit.part === 'head' ? w.headMul : finalHit.part === 'legs' ? w.limbMul : 1;
-        const killed = e.damage(w.damage * mul, P.pos, finalHit.part, true);
+        // the round slowing over the distance, and what it went through first
+        const [near, far, least] = w.falloff || [Infinity, Infinity, 1];
+        const fall = lerp(1, least, clamp((finalHit.dist - near) / (far - near), 0, 1));
+        const killed = e.damage(w.damage * mul * fall * finalHit.keep, P.pos, finalHit.part, true);
         G.effects.blood(p.x, p.y, p.z, dir.x, dir.y, dir.z);
         G.audio.impact(p.x, p.y, p.z, 'flesh');
         G.stats.hits++;
@@ -326,12 +339,32 @@ export function createPlayer(G) {
     if (a.mag === 0 && a.reserve > 0) setTimeout(() => { if (P.alive && P.ammo[P.weapon] === a && a.mag === 0) startReload(); }, 250);
   }
 
-  function traceShot(o, d, range) {
-    const wh = G.world.raycast(o.x, o.y, o.z, d.x, d.y, d.z, range, SHOT);
-    const eh = rayEnemies(G.enemies, o, d, wh ? wh.t : range);
-    if (eh) return { point: new THREE.Vector3(o.x + d.x * eh.t, o.y + d.y * eh.t, o.z + d.z * eh.t), enemy: eh.enemy, part: eh.part };
-    if (wh) return { point: new THREE.Vector3(wh.x, wh.y, wh.z), world: wh };
-    return null;
+  /* The round from the eye along `d`: the first man or thing it hits, after going through at most
+     one thin board, crate side or canvas (`through`: where it went in, and out at ox, oy, oz), with
+     `keep` of its damage left and `dist` metres travelled. */
+  const PIERCED = new Set(['wood', 'canvas', 'fabric', 'planks']);
+  function traceShot(o, d, w) {
+    const from = new THREE.Vector3().copy(o), through = [];
+    let keep = 1, gone = 0;
+    for (;;) {
+      const range = w.range - gone;
+      const wh = G.world.raycast(from.x, from.y, from.z, d.x, d.y, d.z, range, SHOT);
+      const eh = rayEnemies(G.enemies, from, d, wh ? wh.t : range);
+      if (eh) return { point: from.clone().addScaledVector(d, eh.t), enemy: eh.enemy, part: eh.part, through, keep, dist: gone + eh.t };
+      if (wh && !through.length && PIERCED.has(wh.surface) && typeof wh.collider === 'object' && w.pierce) {
+        const depth = G.world.depthThrough(wh.collider, wh.x, wh.y, wh.z, d.x, d.y, d.z);
+        if (depth <= w.pierce) {
+          from.set(wh.x, wh.y, wh.z).addScaledVector(d, depth + 0.02);
+          through.push({ ...wh, ox: from.x, oy: from.y, oz: from.z });
+          gone += wh.t + depth + 0.02;
+          keep *= w.pierceKeep;
+          continue;
+        }
+      }
+      if (wh) return { point: new THREE.Vector3(wh.x, wh.y, wh.z), world: wh, through, keep, dist: gone + wh.t };
+      // through the board and on into the distance
+      return through.length ? { point: from.clone().addScaledVector(d, range), through, keep, dist: w.range } : null;
+    }
   }
 
   function throwGrenade() {

@@ -121,4 +121,19 @@ assert.ok(near(rectDistance(3, 0, 0, 0, 1, 1, 0), 2), 'rect distance outside');
 assert.ok(rectDistance(0, 0, 0, 0, 1, 1, 0.3) < 0, 'rect distance inside');
 assert.ok(near(rectDistance(0, 3, 0, 0, 3, 1, Math.PI / 2), 0), 'rect distance rotated');
 
+// how far a round goes through a collider it struck (penetration): the wall's 0.5 m thickness
+// straight on, more at a slant; a trunk's diameter through its middle; the rotated plank's own 6 cm
+{
+  const h = w.raycast(0, 1, 0, 0, 0, 1, 50);
+  assert.ok(near(w.depthThrough(h.collider, h.x, h.y, h.z, 0, 0, 1), 0.5), 'wall depth straight on');
+  const s = Math.SQRT1_2, hs = w.raycast(-5, 1, 5, s, 0, s, 50);
+  assert.ok(near(w.depthThrough(hs.collider, hs.x, hs.y, hs.z, s, 0, s), 0.5 * Math.SQRT2), 'wall depth at 45 degrees');
+  const ht = w.raycast(-10, 1, -5, 0, 0, 1, 50);
+  assert.ok(near(w.depthThrough(ht.collider, ht.x, ht.y, ht.z, 0, 0, 1), 1), 'trunk depth through its middle');
+  const plank = w.add({ type: 'box', x: 20, y: 1, z: -20, hx: 1, hy: 0.5, hz: 0.03, yaw: Math.PI / 2, surface: 'wood' });
+  const hp = w.raycast(10, 1, -20, 1, 0, 0, 50);
+  assert.equal(hp.collider, plank, 'the plank is hit');
+  assert.ok(near(w.depthThrough(plank, hp.x, hp.y, hp.z, 1, 0, 0), 0.06), 'rotated plank depth');
+}
+
 console.log('world-check: all good');

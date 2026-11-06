@@ -33,6 +33,7 @@ export function createAudio() {
   const next = { gust: 0, swell: 0, bird: 4, plane: 25, frog: 2 };
   let lastLoud = -99, outdoors = false;
   let dull = null, ring = null, dazed = 0;
+  let echoA = null, echoB = null, echoFb = null, echoLP = null;   // the slap-back (setSpace)
 
   /* on a click (the browser lets sound start only on one): the sound made if it is not yet, and
      started */
@@ -65,7 +66,7 @@ export function createAudio() {
     tone.start(); waver.start();
     sfx = ctx.createGain(); sfx.connect(master);
     amb = ctx.createGain(); amb.gain.value = 0; amb.connect(master);   // silent until the mission (setOutdoors)
-    // outdoor slap-back: two short delays, filtered
+    // outdoor slap-back: two short delays, filtered, set to the place (setSpace)
     verb = ctx.createGain(); verb.gain.value = 0.32;
     const d1 = ctx.createDelay(1), d2 = ctx.createDelay(1);
     d1.delayTime.value = 0.11; d2.delayTime.value = 0.27;
@@ -73,6 +74,7 @@ export function createAudio() {
     const fb = ctx.createGain(); fb.gain.value = 0.3;
     verb.connect(f1); f1.connect(d1); f1.connect(d2);
     d1.connect(master); d2.connect(fb); fb.connect(d1); d2.connect(master);
+    echoA = d1; echoB = d2; echoFb = fb; echoLP = f1;
 
     const n = ctx.sampleRate * 2;
     noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
@@ -685,6 +687,20 @@ export function createAudio() {
       if (on === outdoors || !amb) return;
       outdoors = on;
       amb.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.4);
+    },
+    /* Where the listener stands, for the echoes (main.js): `closed`, how much of the horizon round
+       him is walls, banks or trees within 30 m (0..1), and `dist`, how far off they are on average.
+       A street between houses rings with quick, bright, repeated echoes; out in a field a shot
+       comes back once, late and dull, off the far hedges. */
+    setSpace(closed, dist) {
+      if (!echoA) return;
+      const t = ctx.currentTime, k = 0.6;
+      const first = Math.min(0.2, Math.max(0.03, (2 * dist) / 343));
+      echoA.delayTime.setTargetAtTime(first, t, k);
+      echoB.delayTime.setTargetAtTime(Math.min(0.45, first * 2.2 + 0.08 * (1 - closed)), t, k);
+      echoFb.gain.setTargetAtTime(0.12 + 0.38 * closed, t, k);
+      echoLP.frequency.setTargetAtTime(1500 + 2500 * closed, t, k);
+      verb.gain.setTargetAtTime(0.22 + 0.25 * closed, t, k);
     },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },

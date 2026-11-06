@@ -157,6 +157,14 @@ down: the edges of the view go soft and dark and the colour drains, your
 heart pounds, the sights shake and your shots go wide, until a second and
 a half after the last round, when it ebbs.
 
+A rifle round goes through a fence board, a crate's side or a tent's
+canvas (up to a quarter of a metre of wood for the Garand, a tenth for the
+Thompson) and on into whoever hides behind it, with splinters where it
+went in and came out and less of its punch left; the Thompson's rounds
+lose force past 25 m, the Garand's past 120 m. Shots echo off what is
+round you: quick, bright and ringing between the houses of a street, once,
+late and dull off the far hedges out in a field.
+
 Saint-Clair starts at night, La Varenne in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
@@ -625,7 +633,8 @@ by the blast that killed them, and drop their rifles.
   foot across and smaller ones squeezed up between them, its normals from
   that relief and its gloss from where the water lies in the hollows, so a
   flare or a fire ahead breaks up on it in glints instead of glazing it).
-* `tests/world-check.mjs` — collision world unit checks;
+* `tests/world-check.mjs` — collision world unit checks (and how far a round
+  goes through what it struck);
   `tests/character-check.mjs` — the aim pitch stays put under held poses
   (three's mixer skips unchanged bones), reload clip timing and the hand prop,
   per-soldier face blends (each enemy mixes the rig's `face_broad`,

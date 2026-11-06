@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { DEFAULT_SETTINGS, DIFFICULTY, QUALITY, CAMERA } from './config.js';
+import { SHOT } from './world.js';
 import { loadTextures, createMaterialLibrary, updateSmoulder } from './materials.js';
 import { loadModels } from './assets.js';
 import { createSky, DAY_FOG_COLOR } from './sky.js';
@@ -1158,6 +1159,7 @@ function step() {
   hud.update(dt);
   hud.compass(G.rig.yaw);
   audio.setListener(camera.position.x, camera.position.y, camera.position.z, G.rig.yaw);
+  if (playing) listenRound(dt);
   // the weather and wildlife out on the battlefield (and watching from it, dead), not over the menus
   audio.setOutdoors(playing || state === 'dead');
   audio.tick();
@@ -1185,6 +1187,24 @@ function step() {
       `veg ${vs.inst} inst ${(vs.tris / 1000).toFixed(0)}k  fx ${G.effects.count}\n` +
       `pos ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}  ${state}`);
   }
+}
+
+/* What is round the listener, for the echoes (audio.setSpace): eight rays out at head height, one
+   every frame in turn, 30 m each. */
+const ECHO_RAYS = 8, ECHO_REACH = 30;
+const echoHits = new Float32Array(ECHO_RAYS).fill(ECHO_REACH);
+let echoRay = 0, echoTimer = 0;
+function listenRound(dt) {
+  const p = camera.position, a = (echoRay / ECHO_RAYS) * Math.PI * 2;
+  const h = G.world.raycast(p.x, p.y, p.z, Math.sin(a), 0, Math.cos(a), ECHO_REACH, SHOT, { noWater: true });
+  echoHits[echoRay] = h ? h.t : ECHO_REACH;
+  echoRay = (echoRay + 1) % ECHO_RAYS;
+  echoTimer -= dt;
+  if (echoTimer > 0) return;
+  echoTimer = 0.5;
+  let closed = 0, sum = 0;
+  for (const t of echoHits) { closed += t < ECHO_REACH ? 1 - t / (ECHO_REACH * 1.5) : 0; sum += t; }
+  audio.setSpace(closed / ECHO_RAYS, sum / ECHO_RAYS);
 }
 
 /* the title's slow drift over the battlefield: round the level's `menuView` ({from, to}: points
