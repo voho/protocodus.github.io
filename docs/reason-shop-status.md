@@ -31,7 +31,7 @@ Acustra 1.9.19d1 is still testing; it does not supersede the public 1.9.0 releas
 | Product | Device status | Shop page | Next step |
 | --- | --- | --- | --- |
 | Acukoto | 0.18.0d1 accepted; 0.18.0 release row exists | 0.18.0 waiting for approval | Await Reason's page review; publish on approval is enabled |
-| Aculele | 0.4.39d1 accepted; 0.4.39 release row exists | Submission hold requested: a demo must be added first | Draft 34606 is preserved with automatic publication off; queued page 34535 still needs removal |
+| Aculele | 0.4.39d1 accepted; 0.4.39 release row exists | Both demos added to draft 34606; draft remains unsubmitted | Automatic publication is off for the draft; owner is handling older queued page 34535 |
 | Aculyre | 0.7.9d1 accepted; latest release row is 0.7.4 | Draft's Article selector only offers 0.7.4 | Reason must make the accepted 0.7.9 article available; then select it and submit the draft |
 | Respira | 0.1.16d1 submitted for device acceptance | No Shop page yet | Await device acceptance before Shop submission |
 
@@ -40,11 +40,18 @@ that copy against 0.7.4. Aculele's existing copy, artwork and price were retaine
 when submitting its page. All four checked public URLs returned HTTP 404 and
 none appeared in the public developer catalog.
 
-The owner subsequently instructed us to hold Aculele until a demo is added.
-Do not submit or resubmit Aculele before that requirement is met. Reopening the
-queued page created draft 34606; it did not withdraw page 34535. The draft was
-saved with publish on approval off. The original remains queued with automatic
-publication enabled until its removal is confirmed.
+The owner subsequently instructed us to hold Aculele until a demo is added,
+then requested these two videos in the draft and on the website:
+
+- [Tarantella napoletana](https://www.youtube.com/watch?v=7rh4ti-U3T4)
+- [Aloha ʻOe](https://www.youtube.com/watch?v=m5cxwdFxrjY)
+
+Both are saved in draft 34606, which remains unsubmitted with publish on
+approval off. Adding demos did not submit or publish it. Reopening the older
+queued page had created this draft without withdrawing page 34535; that older
+page still appeared as waiting for approval on this check. The owner is
+handling the older queued page. Leave the updated draft unsubmitted until a
+separate submission request.
 
 Keyra 0.4.14d1, Convretor 0.1.0d9 and Electry 1.2.8d1 are testing, with no
 accepted device versions. Legacy REPAN and YouKnow106 entries are also testing.
