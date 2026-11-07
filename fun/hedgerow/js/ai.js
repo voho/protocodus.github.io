@@ -1833,6 +1833,7 @@ export function createEnemies(G, defs) {
       e.awareness = 0; e.lastKnown = null; e.contact = null; e.pendingContact = null; e.reportTimer = 0; e.lastSeen = -99; e.lastContact = -99; e.alertAt = -1;
       if (e.cover) { e.cover.taken = null; e.cover = null; }
       e.phase = 'hide'; e.suppressed = 0; e.shotRecoil = 0; e.vel.set(0, 0, 0); e.health = ENEMY.health * (e.def.tough || 1);
+      e.shotsAtTarget = 0;
       e.mag = e.wdef.mag || 30; e.reloadT = 0; e.reloadRun?.end(); e.reloadRun = null; e.char.holdLeft(null);
       e.reloadAudio?.cancel(); e.reloadAudio = null;
       e.srch = null; e.amb = null; e.path = null; e.alertCover = false; e.waryUntil = -1; e.patrolIdx = 0; e.patrolWait = 0;
