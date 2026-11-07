@@ -871,9 +871,12 @@ runs each in a separate process, serially. Use `npm run test:hedgerow --
 --list` to list them, or a filename substring to run a subset, for example
 `npm run test:hedgerow -- audio`.
 
-The audio check uses Playwright and a local Chromium executable
-(`CHROMIUM_PATH`, default `/usr/bin/chromium`). Install the repository's
-development dependencies with `npm ci` before running it.
+The standalone suite includes sound checks that use Playwright and Chromium.
+Install the repository's development dependencies with `npm ci`.
+Sound checks use `CHROMIUM_PATH`, falling back
+to `/usr/bin/chromium`. The setup below can use Playwright's pinned browser
+instead. The Hedgerow QA workflow runs this serial suite for game, shared
+Three.js, test-runner and dependency changes on pull requests and `main`.
 
 For a repeatable visibility benchmark on the shipped colliders and sampled
 terrain, run `node fun/hedgerow/tests/sight-benchmark.mjs`. It compares the
@@ -955,16 +958,19 @@ transition to the results screen uses simulation time, so pausing or a
 graphics reset preserves the remaining delay. Later action cannot alter
 the earned score, and repeated completion signals cannot record another win.
 
-Run all simulation, geometry, mission, AI and asset checks:
+On Linux, prepare the pinned browser and run all simulation, geometry,
+mission, AI, asset and sound checks:
 
 ```sh
+npm ci
+npx playwright install --with-deps chromium
+export CHROMIUM_PATH="$(node -p "require('playwright').chromium.executablePath()")"
 npm run test:hedgerow
 ```
 
 Run the isolated Chromium graphics, audio and tablet/PC menu regressions:
 
 ```sh
-npm ci
 npm run test:hedgerow:browser
 ```
 

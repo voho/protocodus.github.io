@@ -1,0 +1,63 @@
+name: Hedgerow QA
+
+on:
+  pull_request:
+    paths:
+      - 'fun/hedgerow/**'
+      - 'assets/vendor/three/**'
+      - 'assets/fonts/**'
+      - 'assets/js/**'
+      - 'scripts/test-hedgerow.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/hedgerow-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'fun/hedgerow/**'
+      - 'assets/vendor/three/**'
+      - 'assets/fonts/**'
+      - 'assets/js/**'
+      - 'scripts/test-hedgerow.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/hedgerow-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hedgerow-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  game:
+    name: Game regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned test tooling
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium for sound regressions
+        run: npx playwright install --with-deps chromium
+      - name: Run game checks serially
+        shell: bash
+        run: |
+          export CHROMIUM_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          mkdir -p test-results/hedgerow
+          npm run test:hedgerow 2>&1 | tee test-results/hedgerow/checks.log
+      - name: Save game check results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: hedgerow-qa
+          path: test-results/hedgerow/
+          retention-days: 7

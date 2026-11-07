@@ -19,7 +19,7 @@ const server=createServer(async(request,response)=>{
 });
 await new Promise(done=>server.listen(0,'127.0.0.1',done));let browser;
 try{
-  browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const page=await browser.newPage();await page.goto(`http://127.0.0.1:${server.address().port}/`);
   const report={};
   for(const mode of ['shot','blast','foley','ambient']){
