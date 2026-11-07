@@ -52,12 +52,24 @@ on 6 June 1944, wind and rain; inspired by the glider-borne coups de main
 on the canal and river bridges. Your glider has come down short of a canal
 bridge wired for demolition. The road curves in over the marsh on a low
 causeway; through the gaps in the wire, past the pond in the angle of the
-road and the canal, silence the pillbox and the guards, cross the bridge,
+road and the canal, silence the pillbox and the guards, cross the bridge
+(or the coal barge scuttled across the canal upstream of it),
 disconnect the demolition cable at the bridge cabin, clear the café and the houses climbing the far bank and the side street,
 then hold the north end while they come down the street from where it
 bends at the top. Relief arrives after ninety seconds; defeating the whole
 force can bring it forward after a sustained, secure defence.
-The gliders and the bridge are modelled in three.js
+Each stage has more than one way through. The marsh has three ways
+into the wire, each with something solid every ten or fifteen metres: the
+duckboards on the left, the open middle past a burnt-out lorry on the
+causeway, and a shelled gap on the right by a reed-cutter's hut that leads
+past the pond into the west trench. An old boundary of pollards and a
+sagging rail fence crosses the marsh, and anti-glider stakes stand in the
+open ground. The scuttled barge's gangways cross out of the café's line
+of fire, and a back lane of garden walls, gates and sheds runs behind the
+houses on the right up to the bend. In the hold, the counter-attack comes
+down the street to a half-built barricade, and round by the side street
+on the left and the back lane on the right.
+The gliders, the bridge, the barge (`js/canal-models.js`) and the stakes are modelled in three.js
 (`js/procedural.js`), along with field harrows, orchard ladders, canal
 mooring bollards and the demolition switch. Saint-Clair and La Varenne
 have cultivated fields with shallow furrows, grass margins and worn
