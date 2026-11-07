@@ -12,6 +12,8 @@
   <meta property="og:description"
     content="An endless snowboarding game. Carve through changing weather, land tricks and build your score.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/alpen/">
   <meta property="og:image" content="https://protocodus.cz/fun/alpen/alpen-card.webp?v=20261023-fun">
   <meta property="og:image:width" content="880">
@@ -26,6 +28,34 @@
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
   </script>
   <link rel="modulepreload" href="/assets/vendor/three/three.module.min.js">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Alpen",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["Sports", "Snowboarding", "3D Action"],
+        "url": "https://protocodus.cz/fun/alpen/",
+        "image": "https://protocodus.cz/fun/alpen/alpen-card.webp?v=20261023-fun",
+        "description": "An endless snowboarding game. Carve through changing weather, land tricks and build your score.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Alpen", "item": "https://protocodus.cz/fun/alpen/" }
+        ]
+      }
+    ]
+  }
+  </script>
   <script defer src="/assets/js/analytics.js"></script>
 
   <meta name="twitter:card" content="summary_large_image">

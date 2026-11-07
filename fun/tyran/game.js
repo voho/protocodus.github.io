@@ -660,7 +660,7 @@ function renderUpgrades() {
       : u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} damage · ${(1 / firingInterval(nextWeapon)).toFixed(2)} volleys/s`
       : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / ${String(MAX_UPGRADE + 1).padStart(2, '0')}</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum level' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: MAX_UPGRADE }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" data-analytics-cta="tyran_upgrade_${u.id}" data-analytics-action="buy_upgrade" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / ${String(MAX_UPGRADE + 1).padStart(2, '0')}</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum level' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: MAX_UPGRADE }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons(); renderSupplies();
 }
@@ -669,7 +669,7 @@ function renderSupplies() {
   $('supply-list').innerHTML = SUPPLIES.map(item => {
     const [stock, max] = supplyStock(state, item.id), cost = supplyCost(state, item.id), full = stock >= max;
     const label = item.id === 'life' ? 'reserve ships' : item.id === 'bomb' ? 'charges' : 'drones';
-    return `<button class="upgrade-card" data-supply="${item.id}" ${full || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`supply:${item.id}`)}<span class="upgrade-level">${stock} / ${max} ${label}</span><span class="upgrade-name">${item.name}</span><span class="upgrade-description">${item.subtitle}</span><span class="upgrade-cost">${full ? 'Fully stocked' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-supply="${item.id}" data-analytics-cta="tyran_supply_${item.id}" data-analytics-action="buy_supply" ${full || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`supply:${item.id}`)}<span class="upgrade-level">${stock} / ${max} ${label}</span><span class="upgrade-name">${item.name}</span><span class="upgrade-description">${item.subtitle}</span><span class="upgrade-cost">${full ? 'Fully stocked' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
 }
 
@@ -687,7 +687,7 @@ function renderWeapons() {
     const stats = primaryStats({ ...state, primary: weapon.id });
     const status = equipped ? 'Equipped' : owned ? 'Owned · select to equip' : `${number(weapon.cost)} credits to buy`;
     const disabled = !owned && state.credits < weapon.cost;
-    return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}>${shopArtMarkup(`weapon:${weapon.id}`)}<span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
+    return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-analytics-cta="tyran_weapon_${weapon.id}" data-analytics-action="select_weapon" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}>${shopArtMarkup(`weapon:${weapon.id}`)}<span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
   });
   const plasma = WEAPONS[1], stats = weaponStats(state, 'plasma');
   primaries.push(`<article class="weapon-card" data-weapon="plasma" data-state="equipped" style="--weapon-color:${plasma.color}">${shopArtMarkup('weapon:plasma')}<span class="weapon-copy"><strong>${plasma.name}</strong><small>Secondary · q</small></span><span class="weapon-description">${plasma.description} ${SECONDARY_ENERGY_COST} energy/shot · restarts at ${SECONDARY_RESTART_ENERGY}.</span>${weaponBars(stats, 1, fastestInterval)}<span class="weapon-status">Always equipped</span></article>`);
@@ -1631,7 +1631,7 @@ on('help-button', () => {
   $('help-screen').hidden = false; $('help-screen').scrollTop = 0; $('help-screen').focus();
 }); on('help-close', closeHelp);
 
-$('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i === 0 ? 'active' : ''}" data-world="${i}" aria-pressed="${i === 0}" aria-label="Preview sector ${i + 1}: ${w.name}" style="--world-color:${w.color || w.accent}"><span class="world-number">${String(i + 1).padStart(2, '0')}</span><span class="world-name">${w.name}</span><span class="world-type">${w.subtitle || w.id}</span><span class="world-orbit" aria-hidden="true"></span></button>`).join('');
+$('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i === 0 ? 'active' : ''}" data-world="${i}" data-analytics-cta="tyran_sector_${w.id}" data-analytics-action="select_sector" aria-pressed="${i === 0}" aria-label="Preview sector ${i + 1}: ${w.name}" style="--world-color:${w.color || w.accent}"><span class="world-number">${String(i + 1).padStart(2, '0')}</span><span class="world-name">${w.name}</span><span class="world-type">${w.subtitle || w.id}</span><span class="world-orbit" aria-hidden="true"></span></button>`).join('');
   $('world-list').addEventListener('click', event => { const button = event.target.closest('button[data-world]'); if (button) { document.body.dataset.preview = 'true'; selectWorld(Number(button.dataset.world)); } });
 canvas.tabIndex = -1;
 document.querySelectorAll('.modal-screen').forEach(el => { el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); });

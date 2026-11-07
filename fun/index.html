@@ -11,6 +11,8 @@
   <meta property="og:title" content="Browser Games — Arcade, Strategy, 3D Action &amp; Puzzles | Protocodus">
   <meta property="og:description" content="Play Tyran, Ashline, Alpen, Meteora, Hedgerow and Puzzle Box: arcade shooting, strategy, snowboarding, space combat, a WW2 shooter and 3D logic puzzles for kids.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/">
   <meta property="og:image" content="https://protocodus.cz/fun/tyran/tyran-card.webp?v=20261023-fun">
   <meta property="og:image:width" content="880">
@@ -20,6 +22,40 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/style.css?v=20260911-brand">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "name": "Browser Games — Arcade, Strategy, 3D Action & Puzzles | Protocodus",
+        "url": "https://protocodus.cz/fun/",
+        "description": "Play Tyran, Ashline, Alpen, Meteora, Hedgerow and Puzzle Box: browser arcade shooting, strategy, snowboarding, space combat, a WW2 shooter and 3D logic puzzles for kids. No installation or account needed.",
+        "isPartOf": {
+          "@id": "https://protocodus.cz/#website"
+        },
+        "mainEntity": {
+          "@type": "ItemList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Tyran", "url": "https://protocodus.cz/fun/tyran/" },
+            { "@type": "ListItem", "position": 2, "name": "Ashline", "url": "https://protocodus.cz/fun/ashline/" },
+            { "@type": "ListItem", "position": 3, "name": "Alpen", "url": "https://protocodus.cz/fun/alpen/" },
+            { "@type": "ListItem", "position": 4, "name": "Meteora", "url": "https://protocodus.cz/fun/meteora/" },
+            { "@type": "ListItem", "position": 5, "name": "Hedgerow", "url": "https://protocodus.cz/fun/hedgerow/" },
+            { "@type": "ListItem", "position": 6, "name": "Puzzle Box", "url": "https://protocodus.cz/fun/puzzles/" }
+          ]
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" }
+        ]
+      }
+    ]
+  }
+  </script>
   <script defer src="/assets/js/analytics.js"></script>
 
   <meta name="twitter:card" content="summary_large_image">
@@ -140,7 +176,7 @@
     </div>
   </main>
 
-  <footer class="footer">
+  <footer class="footer" id="footer">
     <div class="wrap">
       <div class="footer-top">
         <a href="/" class="brand" aria-label="Protocodus home" data-analytics-cta="footer_brand" data-analytics-action="navigate_home">

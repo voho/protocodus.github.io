@@ -10,6 +10,8 @@
   <meta property="og:title" content="Ashline — Real-Time Strategy Browser Game | Protocodus">
   <meta property="og:description" content="Command an expedition on the ash frontier. Build a base, harvest luminous minerals, and outmaneuver rival forces in an original browser real-time strategy game.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/ashline/">
   <meta property="og:image" content="https://protocodus.cz/fun/ashline/assets/ashline-card.jpg">
   <meta property="og:image:width" content="1200">
@@ -19,6 +21,34 @@
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fonts/oxanium-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./ashline.css?v=aaa-20261010">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Ashline",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["Real-Time Strategy", "Strategy", "Sci-Fi"],
+        "url": "https://protocodus.cz/fun/ashline/",
+        "image": "https://protocodus.cz/fun/ashline/assets/ashline-card.jpg",
+        "description": "Command an expedition on the ash frontier. Build a base, harvest luminous minerals, and outmaneuver rival forces in an original browser real-time strategy game.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Ashline", "item": "https://protocodus.cz/fun/ashline/" }
+        ]
+      }
+    ]
+  }
+  </script>
   <script defer src="/assets/js/analytics.js"></script>
 
   <meta name="twitter:card" content="summary_large_image">
@@ -132,7 +162,7 @@
     <div class="briefing-content">
       <div class="briefing-tabs" role="tablist" aria-label="Operation type"><button type="button" id="campaign-tab" role="tab" data-analytics-cta="briefing_tab_campaign" data-analytics-action="select_tab" aria-selected="false" aria-controls="campaign-panel" tabindex="-1">Campaign <span id="campaign-progress">0 / 10</span></button><button type="button" id="skirmish-tab" role="tab" data-analytics-cta="briefing_tab_skirmish" data-analytics-action="select_tab" aria-selected="true" aria-controls="skirmish-panel">Skirmish</button></div>
       <section id="skirmish-panel" role="tabpanel" aria-labelledby="skirmish-tab"><h2>New skirmish</h2><p class="setup-intro">Leave everything on Random, or choose your forces and your corner of the frontier. <button type="button" id="campaign-invite" class="link-button" data-analytics-cta="briefing_campaign_invite" data-analytics-action="select_tab">New to Tephra? Begin Operation Ashline.</button></p>
-      <form id="launch-form"><div class="mission-options"><label>Your faction<select id="player-race" aria-describedby="race-description"><option value="random" selected>Random</option><option value="organics">Organics</option><option value="aiUnity">AI Unity</option></select></label><label>Rival faction<select id="enemy-race"><option value="random" selected>Random</option><option value="aiUnity">AI Unity</option><option value="organics">Organics</option></select></label><label>Opposition<select id="difficulty"><option value="random" selected>Random</option><option value="easy">Cadet</option><option value="normal">Commander</option><option value="hard">Veteran</option></select></label><label>Sector seed<div class="seed-input"><input id="seed" maxlength="24" placeholder="Random" aria-label="Map seed; blank for random" autocomplete="off" spellcheck="false"><button type="button" id="random-seed" data-analytics-cta="briefing_random_seed" data-analytics-action="randomize_seed" title="Generate another sector" aria-label="Randomize map seed">⤨</button></div></label><label>Terrain<select id="map-profile" aria-describedby="map-description"><option value="random" selected>Random</option><option value="rift">Volcanic rift</option></select></label><label>Environment<select id="environment" aria-describedby="environment-description"><option value="random" selected>Random</option><option value="ash">Ash wastes</option><option value="jungle">Jungle frontier</option><option value="desert">Dune desert</option><option value="tundra">Frost tundra</option></select></label><label>Battlefield size<select id="map-size"><option value="random" selected>Random</option><option value="expanse">Expanse · 256 × 192</option></select></label><label>Rival commander<select id="rival-doctrine" aria-describedby="doctrine-description"><option value="random">Random</option></select></label><label>Mode<select id="skirmish-mode" aria-describedby="mode-description"><option value="random" selected>Random</option><option value="annihilation">Annihilation</option></select></label></div><p id="race-description"></p><p id="map-description"></p><p id="environment-description"></p><p id="doctrine-description"></p><p id="mode-description"></p><button class="primary-button" type="submit" id="deploy" data-analytics-cta="briefing_deploy_skirmish" data-analytics-action="deploy_skirmish" disabled>Deploy expedition <span>↗</span></button></form>
+      <form id="launch-form"><div class="mission-options"><label>Your faction<select id="player-race" data-analytics-cta="skirmish_player_race" data-analytics-action="change_setting" aria-describedby="race-description"><option value="random" selected>Random</option><option value="organics">Organics</option><option value="aiUnity">AI Unity</option></select></label><label>Rival faction<select id="enemy-race" data-analytics-cta="skirmish_enemy_race" data-analytics-action="change_setting"><option value="random" selected>Random</option><option value="aiUnity">AI Unity</option><option value="organics">Organics</option></select></label><label>Opposition<select id="difficulty" data-analytics-cta="skirmish_difficulty" data-analytics-action="select_difficulty"><option value="random" selected>Random</option><option value="easy">Cadet</option><option value="normal">Commander</option><option value="hard">Veteran</option></select></label><label>Sector seed<div class="seed-input"><input id="seed" maxlength="24" placeholder="Random" aria-label="Map seed; blank for random" autocomplete="off" spellcheck="false"><button type="button" id="random-seed" data-analytics-cta="briefing_random_seed" data-analytics-action="randomize_seed" title="Generate another sector" aria-label="Randomize map seed">⤨</button></div></label><label>Terrain<select id="map-profile" data-analytics-cta="skirmish_map_profile" data-analytics-action="change_setting" aria-describedby="map-description"><option value="random" selected>Random</option><option value="rift">Volcanic rift</option></select></label><label>Environment<select id="environment" data-analytics-cta="skirmish_environment" data-analytics-action="change_setting" aria-describedby="environment-description"><option value="random" selected>Random</option><option value="ash">Ash wastes</option><option value="jungle">Jungle frontier</option><option value="desert">Dune desert</option><option value="tundra">Frost tundra</option></select></label><label>Battlefield size<select id="map-size" data-analytics-cta="skirmish_map_size" data-analytics-action="change_setting"><option value="random" selected>Random</option><option value="expanse">Expanse · 256 × 192</option></select></label><label>Rival commander<select id="rival-doctrine" data-analytics-cta="skirmish_rival_doctrine" data-analytics-action="change_setting" aria-describedby="doctrine-description"><option value="random">Random</option></select></label><label>Mode<select id="skirmish-mode" data-analytics-cta="skirmish_mode" data-analytics-action="select_mode" aria-describedby="mode-description"><option value="random" selected>Random</option><option value="annihilation">Annihilation</option></select></label></div><p id="race-description"></p><p id="map-description"></p><p id="environment-description"></p><p id="doctrine-description"></p><p id="mode-description"></p><button class="primary-button" type="submit" id="deploy" data-analytics-cta="briefing_deploy_skirmish" data-analytics-action="deploy_skirmish" disabled>Deploy expedition <span>↗</span></button></form>
       <p class="briefing-foot">Your sector takes shape when you deploy.</p></section>
       <section id="campaign-panel" role="tabpanel" aria-labelledby="campaign-tab" hidden>
         <h2>Operation Ashline</h2><p class="setup-intro">Ten operations with Expedition 07, from landfall on Tephra to the last Unity mainframe east of the Ashline. Each victory clears the next.</p>
@@ -143,7 +173,7 @@
           <h4>Objectives</h4><ul id="campaign-objectives" class="campaign-objectives"></ul>
           <h4>Cleared for this operation</h4><p id="campaign-unlocks" class="campaign-unlocks"></p><p id="campaign-veterans" class="campaign-veterans" hidden></p>
           <dl class="campaign-facts"><div><dt>Sector</dt><dd id="campaign-sector"></dd></div><div><dt>Opposition</dt><dd id="campaign-opposition"></dd></div><div><dt>Par time</dt><dd id="campaign-par"></dd></div><div><dt>Best</dt><dd id="campaign-best"></dd></div><div><dt>Medal</dt><dd id="campaign-medal"></dd></div></dl>
-          <div class="campaign-launch"><label>Opposition<select id="campaign-difficulty"><option value="easy">Cadet</option><option value="normal" selected>Commander</option><option value="hard">Veteran</option></select></label><button type="button" id="campaign-start" class="primary-button" data-analytics-cta="briefing_campaign_start" data-analytics-action="start_campaign">Begin operation <span>↗</span></button><button type="button" id="campaign-remix" class="secondary-button" data-analytics-cta="briefing_campaign_remix" data-analytics-action="remix_operation" title="Play this operation on a newly generated sector">Remix sector</button></div>
+          <div class="campaign-launch"><label>Opposition<select id="campaign-difficulty" data-analytics-cta="campaign_difficulty" data-analytics-action="select_difficulty"><option value="easy">Cadet</option><option value="normal" selected>Commander</option><option value="hard">Veteran</option></select></label><button type="button" id="campaign-start" class="primary-button" data-analytics-cta="briefing_campaign_start" data-analytics-action="start_campaign">Begin operation <span>↗</span></button><button type="button" id="campaign-remix" class="secondary-button" data-analytics-cta="briefing_campaign_remix" data-analytics-action="remix_operation" title="Play this operation on a newly generated sector">Remix sector</button></div>
         </article>
       </section>
       <div class="saved-operation"><button type="button" id="load-saved" class="secondary-button" data-analytics-cta="briefing_load_saved" data-analytics-action="load_game" disabled>Load saved operation</button><small id="saved-operation" role="status">No saved operation</small></div>

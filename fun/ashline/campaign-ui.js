@@ -126,7 +126,8 @@ function installArchive() {
   };
   tabs.replaceChildren(...ARCHIVE_SECTIONS.map(([section, label]) => {
     const button = document.createElement('button'); button.type = 'button'; button.role = 'tab'; button.id = `archive-tab-${section}`;
-    button.dataset.section = section; button.textContent = label; button.setAttribute('aria-controls', 'archive-body');
+    button.dataset.section = section; button.dataset.analyticsCta = `ashline_archive_${section}`; button.dataset.analyticsAction = 'open_tab';
+    button.textContent = label; button.setAttribute('aria-controls', 'archive-body');
     button.addEventListener('click', () => show(section));
     return button;
   }));
@@ -181,6 +182,7 @@ export function createCampaign({ launch, focus, transmit }) {
       const def = MISSIONS[id], record = progress.missions[id], open = isUnlocked(progress, id);
       const item = document.createElement('li'), button = document.createElement('button');
       button.type = 'button'; button.className = 'campaign-entry'; button.dataset.mission = id;
+      button.dataset.analyticsCta = `ashline_mission_${id}`; button.dataset.analyticsAction = 'select_mission';
       button.setAttribute('aria-pressed', String(progress.selected === id)); button.disabled = !open;
       const number = document.createElement('span'); number.className = 'entry-index'; number.textContent = String(index + 1).padStart(2, '0');
       const name = document.createElement('span'); name.className = 'entry-name'; name.textContent = def.name;

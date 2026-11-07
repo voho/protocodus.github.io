@@ -7,8 +7,10 @@
   <meta name="description" content="An arcade shooter across ten worlds. Break enemy formations, defeat guardians and upgrade your ship in an endless campaign.">
   <meta name="theme-color" content="#08110f">
   <meta property="og:title" content="Tyran — Arcade Space Shooter Browser Game | Protocodus">
-  <meta property="og:description" content="Ten worlds. Endless flight. An arcade shooter by Protocodus.">
+  <meta property="og:description" content="An arcade shooter across ten worlds. Break enemy formations, defeat guardians and upgrade your ship in an endless campaign.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/tyran/">
   <meta property="og:image" content="https://protocodus.cz/fun/tyran/assets/hero.jpg">
   <meta property="og:image:width" content="1672">
@@ -22,11 +24,39 @@
   <link rel="preload" href="./assets/hero.jpg" as="image">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./flight-layout.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Tyran",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["Arcade Shooter", "Shoot 'em up", "Action"],
+        "url": "https://protocodus.cz/fun/tyran/",
+        "image": "https://protocodus.cz/fun/tyran/assets/hero.jpg",
+        "description": "An arcade shooter across ten worlds. Break enemy formations, defeat guardians and upgrade your ship in an endless campaign.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Tyran", "item": "https://protocodus.cz/fun/tyran/" }
+        ]
+      }
+    ]
+  }
+  </script>
   <script defer src="/assets/js/analytics.js"></script>
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Tyran — Arcade Space Shooter Browser Game | Protocodus">
-  <meta name="twitter:description" content="Ten worlds. Endless flight. An arcade shooter by Protocodus.">
+  <meta name="twitter:description" content="An arcade shooter across ten worlds. Break enemy formations, defeat guardians and upgrade your ship in an endless campaign.">
   <meta name="twitter:image" content="https://protocodus.cz/fun/tyran/assets/hero.jpg">
   <meta name="twitter:image:alt" content="Tyran: a fighter over a terrain world under enemy fire">
 </head>
@@ -114,10 +144,10 @@
             <legend class="menu-legend-hidden">New flights difficulty</legend>
             <span class="menu-marker" aria-hidden="true"></span><span class="menu-label">Difficulty</span>
             <div class="difficulty-options menu-choice">
-              <label><input type="radio" name="difficulty" value="easy" checked><span>Easy</span></label>
-              <label><input type="radio" name="difficulty" value="medium"><span>Medium</span></label>
-              <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
-              <label><input type="radio" name="difficulty" value="real"><span>Real</span></label>
+              <label><input type="radio" name="difficulty" value="easy" data-analytics-cta="menu_difficulty_easy" data-analytics-action="select_difficulty" checked><span>Easy</span></label>
+              <label><input type="radio" name="difficulty" value="medium" data-analytics-cta="menu_difficulty_medium" data-analytics-action="select_difficulty"><span>Medium</span></label>
+              <label><input type="radio" name="difficulty" value="hard" data-analytics-cta="menu_difficulty_hard" data-analytics-action="select_difficulty"><span>Hard</span></label>
+              <label><input type="radio" name="difficulty" value="real" data-analytics-cta="menu_difficulty_real" data-analytics-action="select_difficulty"><span>Real</span></label>
             </div>
             <small id="difficulty-description">Room to learn.</small>
             <small id="difficulty-scope" class="menu-scope">Applies to new flights. Saves keep their difficulty.</small>

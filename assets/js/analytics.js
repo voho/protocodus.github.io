@@ -167,14 +167,18 @@
       ...(element.dataset.analyticsAction ? { action: element.dataset.analyticsAction } : {}),
     };
   }
-  function productOf(element, url) {
+  function productOf(element, url = new URL(location.href)) {
     const rowLink = element.closest('tr')?.querySelector('th')?.querySelector('a[href]')?.getAttribute('href');
     const candidate = /^\/product\/([^/]+)\//.exec(url.pathname)?.[1]
       || element.closest('.product-card')?.className.match(/\bp-([\w]+)\b/)?.[1]
       || element.closest('tr[id], li[id]')?.id
       || (rowLink && /^\/product\/([^/]+)\//.exec(rowLink)?.[1])
       || ({
+        acukoto: 'acukoto',
+        aculele: 'aculele',
+        aculyre: 'aculyre',
         'acustra-acoustic-guitar': 'acustra',
+        'binaurel-advanced-panner': 'binaurel',
         'ceres-circuit-modelled-synth': 'ceres',
         'lamer-degrader': 'lamer',
         maremba: 'maremba',
@@ -230,13 +234,29 @@
     // Game boards and tactical controls can fire constantly. Only explicit HUD
     // actions are observed here; lifecycle outcomes come from the game itself.
     const action = button.dataset.analyticsAction || button.dataset.action || (button.classList.contains('menu-toggle') ? 'menu_toggle' : '');
-    if (button.hasAttribute('data-analytics-cta') || ['theme', 'sound', 'help', 'daily', 'share', 'reset', 'new', 'hint', 'menu_toggle'].includes(action)) {
+    if (button.hasAttribute('data-analytics-cta') || ['theme', 'sound', 'help', 'daily', 'share', 'reset', 'new', 'hint', 'undo', 'menu_toggle'].includes(action)) {
       const params = { action: action || 'button_click', section_id: sectionOf(button), ...ctaContext(button) };
+      const item = productOf(button);
+      if (products.has(item)) params.product_id = item;
       const chapter = button.getAttribute('data-start');
       if (action === 'play_chapter' && button.closest('.lamer-chapters') && chapter?.trim()) {
         const seconds = Number(chapter);
         if (Number.isFinite(seconds) && seconds >= 0) params.chapter_seconds = seconds;
       }
+      track('ui_action', params);
+    }
+  });
+  document.addEventListener('change', event => {
+    const control = event.target.closest?.('select, input[type="radio"], input[type="checkbox"]');
+    if (!control || control.disabled || control.closest('[data-analytics-ignore]')) return;
+    const action = control.dataset.analyticsAction || (control.getAttribute('name') === 'difficulty' ? 'select_difficulty' : '');
+    if (control.hasAttribute('data-analytics-cta') || action) {
+      const value = control.getAttribute('type') === 'checkbox' ? (control.checked ? 'on' : 'off') : (control.value ?? control.getAttribute('value') ?? '');
+      const params = { action: action || 'change_setting', section_id: sectionOf(control), ...ctaContext(control) };
+      const item = productOf(control);
+      if (products.has(item)) params.product_id = item;
+      if (action === 'select_difficulty' || control.getAttribute('name') === 'difficulty') params.difficulty = value;
+      else if (action === 'select_mode') params.game_mode = value;
       track('ui_action', params);
     }
   });

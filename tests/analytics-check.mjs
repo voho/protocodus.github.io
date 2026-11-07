@@ -172,7 +172,11 @@ const productLink = homepage.document.body.appendChild(new homepage.Element('a',
 homepage.click(productLink);
 assert.equal(homepage.gaEvents('select_item').length, 1, 'Navigating from the homepage to a product records product selection');
 for (const [slug, expectedProduct] of [
+  ['acukoto', 'acukoto'],
+  ['aculele', 'aculele'],
+  ['aculyre', 'aculyre'],
   ['acustra-acoustic-guitar', 'acustra'],
+  ['binaurel-advanced-panner', 'binaurel'],
   ['ceres-circuit-modelled-synth', 'ceres'],
   ['lamer-degrader', 'lamer'],
   ['maremba', 'maremba'],
@@ -184,6 +188,31 @@ for (const [slug, expectedProduct] of [
   })));
   assert.equal(homepage.gaEvents('shop_click').at(-1)[2].product_id, expectedProduct, `Reason Shop slug ${slug} maps to ${expectedProduct}`);
 }
+const cardWithButton = homepage.document.body.appendChild(new homepage.Element('article', { class: 'product-card p-lamer' }));
+const cardButton = cardWithButton.appendChild(new homepage.Element('button', {
+  'data-analytics-cta': 'card_preview', 'data-analytics-action': 'preview_demo',
+}));
+homepage.click(cardButton);
+assert.equal(homepage.gaEvents('ui_action').at(-1)[2].product_id, 'lamer', 'Button CTAs inside product cards retain product attribution');
+assert.equal(homepage.gaEvents('ui_action').at(-1)[2].cta_id, 'card_preview');
+const puzzlePage = browser('https://protocodus.cz/fun/puzzles/');
+const undoButton = puzzlePage.document.body.appendChild(new puzzlePage.Element('button', { 'data-action': 'undo' }));
+puzzlePage.click(undoButton);
+assert.equal(puzzlePage.gaEvents('ui_action').at(-1)[2].action, 'undo', 'Puzzle undo button emits ui_action');
+const diffRadio = puzzlePage.document.body.appendChild(new puzzlePage.Element('input', {
+  type: 'radio', name: 'difficulty', value: 'hard',
+  'data-analytics-cta': 'puzzle_difficulty_hard', 'data-analytics-action': 'select_difficulty',
+}));
+puzzlePage.click(diffRadio, 'change');
+assert.equal(puzzlePage.gaEvents('ui_action').at(-1)[2].action, 'select_difficulty', 'Difficulty radio change emits ui_action');
+assert.equal(puzzlePage.gaEvents('ui_action').at(-1)[2].difficulty, 'hard', 'Difficulty radio change records normalized difficulty');
+const modeSelect = puzzlePage.document.body.appendChild(new puzzlePage.Element('select', {
+  id: 'skirmish-mode', value: 'survival',
+  'data-analytics-cta': 'skirmish_mode', 'data-analytics-action': 'select_mode',
+}));
+modeSelect.value = 'survival';
+puzzlePage.click(modeSelect, 'change');
+assert.equal(puzzlePage.gaEvents('ui_action').at(-1)[2].game_mode, 'survival', 'Skirmish mode select change records normalized game_mode');
 const catalogPage = browser('https://protocodus.cz/');
 const catalogRow = catalogPage.document.body.appendChild(new catalogPage.Element('tr'));
 catalogRow.appendChild(new catalogPage.Element('th')).appendChild(new catalogPage.Element('a', { href: '/product/youknow/' }));

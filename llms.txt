@@ -1,0 +1,54 @@
+# Protocodus
+
+> Protocodus s.r.o. is an independent software and audio engineering studio based in Prague, Czech Republic, founded by Vojtěch Hordějčuk on March 5, 2026. Protocodus develops RILL (a free, open-source desktop music workstation), Reason Rack Extensions (physically modelled acoustic instruments, circuit-modelled synthesizers, and audio effects for the Reason Studios Rack), command-line audio tools, and ad-free browser games.
+
+## Studio & Entity Information
+
+- **Legal Name**: Protocodus s.r.o.
+- **Founder & Principal Engineer**: Vojtěch Hordějčuk
+- **Registered Office**: Příčná 1892/4, Nové Město, 110 00 Praha 1, Czech Republic
+- **Company ID (IČO)**: 24589101
+- **Commercial Register**: Municipal Court in Prague, Section C, File 442841 (Incorporated March 5, 2026)
+- **Data Box**: 483zrp2
+- **Website**: https://protocodus.cz/
+- **Support & Licensing Contact**: protocodus@proton.me
+- **Reason Studios Developer Shop**: https://www.reasonstudios.com/shop/browse/?developer=Protocodus
+- **GitHub**: https://github.com/protocodus
+- **YouTube**: https://www.youtube.com/channel/UCmvSdHJ0mLBPyQWaTVEJDAQ
+- **SoundCloud**: https://soundcloud.com/protocodus
+- **LinkedIn**: https://www.linkedin.com/company/protocodus
+
+## Desktop Software & Audio Tools
+
+- [RILL — Free, Open-Source Music Workstation](https://protocodus.cz/product/rill/): Desktop DAW for macOS, Linux, and Windows (v0.1.0 Alpha, MIT License) featuring colour-coded audio and MIDI arrangement, piano roll, audio editor, VST3 instrument and effect hosting, mixer, and an optional AI assistant. [GitHub](https://github.com/protocodus/rill-daw)
+- [Podcare](https://protocodus.cz/#products): Python command-line podcast production tool that cleans, aligns, and levels multi-microphone recordings with noise reduction, filler-word removal, and loudness mastering.
+
+## Published Reason Rack Extensions
+
+- [Acustra — Acoustic Guitar](https://protocodus.cz/product/acustra/): Physically modelled six-string steel-string acoustic guitar Rack Extension (v1.9.0, released 2026-10-20) with four body shapes, fingerpicking and strumming engines, and microphone/piezo capture. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/)
+- [YouKnow — Circuit-Modelled Synth](https://protocodus.cz/product/youknow/): Circuit-modelled 1–16 voice polyphonic synthesizer Rack Extension (v1.3.5, released 2026-10-05) with nonlinear resonant low-pass filter, stereo BBD chorus, per-voice component variation, and 100 authored Rack patches. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/)
+- [Maremba — Marimba, Balafon & Kalimba](https://protocodus.cz/product/maremba/): Physically modelled mallet and tine percussion Rack Extension (v1.5.7, released 2026-10-13) modelling concert and Guatemalan marimbas, balafon, and kalimba with seven audio outputs and 20 patches. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/maremba/)
+- [Ceres — Circuit-Modelled Synth](https://protocodus.cz/product/ceres/): Dual-layer circuit-modelled polyphonic synthesizer Rack Extension (v1.1.4, released 2026-11-02) with 1–16 voices per layer, high- and low-pass filters, SUB oscillator, ring modulation, and 23 patches. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/ceres-circuit-modelled-synth/)
+- [Press78 — FM Synthesizer](https://protocodus.cz/product/press78/): Twelve-voice editable two-operator FM synthesizer Rack Extension (v1.0.4, released 2026-11-02) inspired by vintage FM keyboards with stereo chorus and modelled output circuit. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/press78-fm-synth/)
+- [Binaurel — 3D Headphone Panner](https://protocodus.cz/product/binaurel/): 3D binaural headphone panner Rack Extension (v0.1.0, released 2026-11-04) with measured KU100 ear cues, azimuth, elevation, distance, room control, and six CV inputs. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/binaurel-advanced-panner/)
+- [Lamer Degrader — Creative Codec Effect](https://protocodus.cz/product/lamer/): Real-time MP3 and Ogg Vorbis compression degradation effect Rack Extension (v1.0.0, released 2026-10-21) with 8–256 kbps bitrate targets, 1–4 encoding passes, and aligned dry/wet mixing. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/)
+
+## Reason Rack Extensions in Review & Development
+
+- [Respira — Modelled Accordion](https://protocodus.cz/product/respira/): Physically modelled accordion Rack Extension (v0.1.16d1) with eight registers, bass and chord buttons, and automatic or manual modulation-wheel bellows.
+- [Acukoto — Modelled Koto](https://protocodus.cz/product/acukoto/): Physically modelled 13-string paulownia koto Rack Extension (v0.18.0d1) with movable bridges, two tunings, sympathetic resonance, and left-hand pitch bends.
+- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (v0.4.14d1) combining components from five grand models and an upright with three continuous pedals and 14 patches.
+- [Aculele — Modelled Ukulele](https://protocodus.cz/product/aculele/): Physically modelled ukulele Rack Extension (v0.4.39d1) with soprano, concert, and tenor bodies, nylon or fluorocarbon strings, and mic/piezo capture.
+- [Aculyre — Modelled Lyre](https://protocodus.cz/product/aculyre/): Physically modelled lyre harp Rack Extension (v0.7.9d1) with three instruments, steel/nylon/gut strings, sympathetic resonance, and mic/piezo capture.
+- [Remix — Crossfader Utility](https://protocodus.cz/product/remix/): Free 3U crossfader utility Rack Extension (v1.1.0) with Shape and Skew curve controls, live scope, and CV control.
+- [Convretor — Audio to CV Utility](https://protocodus.cz/product/convretor/): Compact 3U audio-to-CV utility Rack Extension (v1.0.0) driving four CV outputs with independent scale, polarity, and high/low-pass input filtering.
+
+## Playable Browser Games
+
+- [Protocodus Browser Games](https://protocodus.cz/fun/): Six self-contained HTML5/WebGL browser games playable with no installation, account, or advertisements.
+- [Tyran](https://protocodus.cz/fun/tyran/): Arcade vertical space shooter across ten sectors with squadron formations, boss guardians, wing drones, and ship upgrades.
+- [Ashline](https://protocodus.cz/fun/ashline/): Sci-fi real-time strategy game with a ten-operation campaign and skirmish modes featuring Organics and AI Unity factions, base building, power logistics, and unit promotions.
+- [Alpen](https://protocodus.cz/fun/alpen/): Endless 3D alpine snowboarding game with changing weather, carving, grabs, flips, and score combos.
+- [Meteora](https://protocodus.cz/fun/meteora/): Story-driven 3D space combat game with ten campaign missions, tactical briefings, ship loadouts, and survival mode in the Meteora asteroid belt.
+- [Hedgerow](https://protocodus.cz/fun/hedgerow/): First-person World War II shooter with three operations set in the Normandy hedgerows in July 1944.
+- [Puzzle Box](https://protocodus.cz/fun/puzzles/): Two 3D logic puzzle games for kids and adults — Zipper (single-line pathing) and Patcher (board region cutting) — with daily puzzles and three difficulty sizes.

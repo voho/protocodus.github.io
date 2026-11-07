@@ -12,6 +12,8 @@
   <meta property="og:description"
     content="Ten missions of space combat in an asteroid belt: convoys, recon, capital ships and a colony ship that has to jump before the Harrow arrive.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/meteora/">
   <meta property="og:image" content="https://protocodus.cz/fun/meteora/meteora-card.webp?v=20261023-fun">
   <meta property="og:image:width" content="880">
@@ -23,6 +25,34 @@
   <link rel="stylesheet" href="./meteora.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Meteora",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["Space Combat", "Flight Simulation", "3D Action"],
+        "url": "https://protocodus.cz/fun/meteora/",
+        "image": "https://protocodus.cz/fun/meteora/meteora-card.webp?v=20261023-fun",
+        "description": "A story-driven space combat game in the browser. Ten missions in an asteroid belt: escort convoys, scout the dark, break capital ships and save forty thousand people from the machines that came home.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Meteora", "item": "https://protocodus.cz/fun/meteora/" }
+        ]
+      }
+    ]
+  }
   </script>
   <script defer src="/assets/js/analytics.js"></script>
 

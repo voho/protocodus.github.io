@@ -96,6 +96,12 @@ for (const page of pages.values()) {
   assert.ok(description[0].attrs.content.trim().length >= 50, `${label}: meta description must be descriptive`);
   assert.equal(openGraphDescription.length, 1, `${label}: declare one Open Graph description`);
   assert.ok(openGraphDescription[0].attrs.content.trim().length >= 50, `${label}: Open Graph description must be descriptive`);
+  const openGraphSiteName = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:site_name');
+  const openGraphLocale = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:locale');
+  assert.equal(openGraphSiteName.length, 1, `${label}: declare one Open Graph site name`);
+  assert.equal(openGraphSiteName[0].attrs.content, 'Protocodus', `${label}: Open Graph site name must be Protocodus`);
+  assert.equal(openGraphLocale.length, 1, `${label}: declare one Open Graph locale`);
+  assert.equal(openGraphLocale[0].attrs.content, 'en_US', `${label}: Open Graph locale must be en_US`);
   const canonical = page.tags.filter(({ name, attrs }) => name === 'link' && attrs.rel?.split(/\s+/).includes('canonical'));
   const openGraphUrl = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:url');
   const openGraphImage = page.tags.filter(({ name, attrs }) => name === 'meta' && attrs.property === 'og:image');
@@ -138,16 +144,18 @@ for (const page of pages.values()) {
     for (const email of displayedEmails) assert.equal(email.toLowerCase(), recipient, `${label}: displayed email must match its mailto recipient`);
     checkedMailLinks++;
   }
+  assert.ok(page.schemas.length >= 1, `${label}: every public page must declare JSON-LD structured data`);
   function checkSchema(value, primary = false) {
     if (Array.isArray(value)) return value.forEach((child) => checkSchema(child, primary));
     if (!value || typeof value !== 'object') return;
-    if (primary && ['SoftwareApplication', 'WebPage', 'Product', 'Organization', 'WebSite'].includes(value['@type']) && typeof value.url === 'string' && new URL(value.url, page.url).origin === origin) {
+    if (Array.isArray(value['@graph'])) value['@graph'].forEach((entry) => checkSchema(entry, primary));
+    if (primary && ['SoftwareApplication', 'VideoGame', 'CollectionPage', 'WebPage', 'Product', 'Organization', 'WebSite'].includes(value['@type']) && typeof value.url === 'string' && new URL(value.url, page.url).origin === origin) {
       assert.equal(value.url, page.url, `${label}: structured page/product URL must match its canonical route`);
     }
     if (typeof value.image === 'string') checkReference(page, value.image, 'structured image');
     if (typeof value.logo === 'string') checkReference(page, value.logo, 'structured logo');
     if (typeof value.email === 'string') assert.equal(value.email.toLowerCase(), contactEmail, `${label}: structured email must match shared support address`);
-    Object.values(value).forEach((child) => { if (child && typeof child === 'object') checkSchema(child); });
+    Object.entries(value).forEach(([key, child]) => { if (key !== '@graph' && child && typeof child === 'object') checkSchema(child); });
   }
   page.schemas.forEach((schema) => checkSchema(schema, true));
 }
@@ -167,4 +175,13 @@ const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) 
 const canonicalUrls = [...pages.values()].map((page) => page.url).sort();
 assert.deepEqual([...sitemapUrls].sort(), canonicalUrls, 'sitemap.xml must list the exact set of canonical public page URLs');
 
-console.log(`Site content checks passed: ${pages.size} pages, ${checkedReferences} internal references, shared support address, anchors, IDs, canonical/social URLs, structured data, robots.txt and sitemap.xml.`);
+const llmsPath = join(root, 'llms.txt');
+assert.ok(existsSync(llmsPath), 'Publish llms.txt at the root for AI/GEO discoverability');
+const llms = readFileSync(llmsPath, 'utf8');
+assert.match(llms, /^#\s+Protocodus\b/m, 'llms.txt starts with the studio title');
+assert.match(llms, /24589101/, 'llms.txt includes the registered Czech company ID');
+for (const page of pages.values()) {
+  assert.ok(llms.includes(page.url), `llms.txt lists canonical public URL ${page.url}`);
+}
+
+console.log(`Site content checks passed: ${pages.size} pages, ${checkedReferences} internal references, shared support address, anchors, IDs, canonical/social URLs, structured data, robots.txt, sitemap.xml and llms.txt.`);

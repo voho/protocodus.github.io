@@ -148,9 +148,37 @@ assert.deepEqual(tyr.events[1], {
   result: 'win', score: 1250, duration_seconds: 32,
 });
 
-for (const context of [ashline, hedgerow, alpen, tyran]) delete context.window.protocodusAnalytics;
+// Meteora distinguishes survival, training, special and campaign missions, and
+// suppresses analytics during benchmark or debug-autopilot runs.
+const met = collector();
+const meteora = await functions('fun/meteora/js/main.js', ['missionAnalyticsMode', 'trackMissionStart', 'trackMissionEnd'], {
+  ...met, AUTOPILOT: false, survivalRun: false, currentMission: { id: 'm01', training: false, special: false },
+  world: { diff: { key: 'veteran' }, mission: { def: { id: 'm01' } } },
+  results: () => ({ id: 'm01', won: true, score: 8400, time: 95 }),
+});
+assert.equal(meteora.missionAnalyticsMode({ training: true }), 'training');
+assert.equal(meteora.missionAnalyticsMode({ special: true }), 'special');
+assert.equal(meteora.missionAnalyticsMode({ training: false, special: false }), 'campaign');
+assert.equal(meteora.missionAnalyticsMode(null), 'survival');
+meteora.trackMissionStart();
+assert.deepEqual(met.events[0], {
+  event: 'game_start', game_name: 'meteora', game_mode: 'campaign', level: 'm01', difficulty: 'veteran',
+});
+meteora.trackMissionEnd();
+assert.deepEqual(met.events[1], {
+  event: 'game_end', game_name: 'meteora', game_mode: 'campaign', level: 'm01', difficulty: 'veteran',
+  result: 'win', score: 8400, duration_seconds: 95,
+});
+meteora.AUTOPILOT = true;
+meteora.trackMissionStart();
+meteora.trackMissionEnd();
+assert.equal(met.events.length, 2, 'Autopilot and benchmark runs do not emit player analytics');
+meteora.AUTOPILOT = false;
+
+for (const context of [ashline, hedgerow, alpen, tyran, meteora]) delete context.window.protocodusAnalytics;
 assert.doesNotThrow(() => { ashline.analyticsStarted = false; ashline.game.status = 'playing'; ashline.trackOperationStart(); });
 assert.doesNotThrow(() => { hedgerow.trackAttemptStart(); hedgerow.trackAttemptEnd('win'); });
 assert.doesNotThrow(() => alpen.trackRunStart('restart'));
 assert.doesNotThrow(() => { tyran.analyticsFlight = null; tyran.trackFlightStart(); tyran.trackFlightEnd('loss'); });
+assert.doesNotThrow(() => { meteora.trackMissionStart(); meteora.trackMissionEnd(); });
 console.log('Game analytics checks passed: authored modes/levels, normalized difficulty/checkpoints, displayed score, deduplicated outcomes, retries and optional tracking.');

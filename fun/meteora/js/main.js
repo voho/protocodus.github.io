@@ -610,10 +610,7 @@ async function launch(mission, loadout) {
   if (!BENCH && !AUTOPILOT && roomForIntro()) chase.intro(4.6);
   mode = 'flight';
   flightSince = performance.now();
-  if (!AUTOPILOT) window.protocodusAnalytics?.track('game_start', {
-    game_name: 'meteora', game_mode: survivalRun ? 'survival' : mission.training ? 'training' : mission.special ? 'special' : 'campaign',
-    level: def.id, difficulty: world.diff.key,
-  });
+  trackMissionStart(def);
   screens.show(null, { remember: false });
   document.activeElement?.blur?.();
   audio?.start();
@@ -967,6 +964,23 @@ function frame(now) {
   if (DEBUG) debugFrame(dt);
 }
 
+function missionAnalyticsMode(mission = currentMission) {
+  return survivalRun || !mission ? 'survival' : mission.training ? 'training' : mission.special ? 'special' : 'campaign';
+}
+function trackMissionStart(def = world.mission?.def) {
+  if (!AUTOPILOT && def) window.protocodusAnalytics?.track('game_start', {
+    game_name: 'meteora', game_mode: missionAnalyticsMode(), level: def.id, difficulty: world.diff.key,
+  });
+}
+function trackMissionEnd() {
+  if (AUTOPILOT) return;
+  const result = results(world);
+  window.protocodusAnalytics?.track('game_end', {
+    game_name: 'meteora', game_mode: missionAnalyticsMode(), level: result.id, difficulty: world.diff.key,
+    result: result.won ? 'win' : 'loss', score: result.score, duration_seconds: result.time,
+  });
+}
+
 function tick(dt) {
   if (!AUTOPILOT) input.pollPad();
   const flight = mode === 'flight';
@@ -1005,14 +1019,7 @@ function tick(dt) {
       outcomeAt = performance.now();
       // Capture the decided result once, before the closing shot. Benchmarks
       // and the debug pilot are simulations rather than player sessions.
-      if (!AUTOPILOT) {
-        const result = results(world);
-        window.protocodusAnalytics?.track('game_end', {
-          game_name: 'meteora', game_mode: survivalRun ? 'survival' : currentMission.training ? 'training' : currentMission.special ? 'special' : 'campaign',
-          level: result.id, difficulty: world.diff.key, result: result.won ? 'win' : 'loss',
-          score: result.score, duration_seconds: result.time,
-        });
-      }
+      trackMissionEnd();
       // The closing shot, unless the wreck camera already has the view or
       // the fold has taken the fighter away.
       if (world.player.alive && world.state !== 'dead' && !jumped) chase.outro();

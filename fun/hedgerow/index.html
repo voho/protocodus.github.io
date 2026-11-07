@@ -6,11 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus</title>
   <meta name="description"
-    content="Three first-person Second World War operations in the Normandy hedgerows.">
+    content="Three first-person Second World War operations through Normandy hedgerows, a defended gun battery and a canal bridge.">
   <meta name="theme-color" content="#0b0d10">
   <meta property="og:title" content="Hedgerow — WW2 First-Person Shooter Browser Game | Protocodus">
   <meta property="og:description" content="Three first-person WW2 operations through Normandy hedgerows, a defended gun battery and a canal bridge.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://protocodus.cz/fun/hedgerow/">
   <meta property="og:image" content="https://protocodus.cz/fun/hedgerow/hedgerow-card.webp?v=20261023-fun">
   <meta property="og:image:width" content="880">
@@ -22,6 +24,34 @@
   <link rel="stylesheet" href="./hedgerow.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Hedgerow",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["First-Person Shooter", "Action", "Tactical Shooter"],
+        "url": "https://protocodus.cz/fun/hedgerow/",
+        "image": "https://protocodus.cz/fun/hedgerow/hedgerow-card.webp?v=20261023-fun",
+        "description": "Three first-person Second World War operations through Normandy hedgerows, a defended gun battery and a canal bridge.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Hedgerow", "item": "https://protocodus.cz/fun/hedgerow/" }
+        ]
+      }
+    ]
+  }
   </script>
   <script defer src="/assets/js/analytics.js"></script>
 
@@ -177,16 +207,16 @@
       <p class="panel-intro">Changes apply immediately and are saved on this device.</p>
       <h3 class="setting-group">Input &amp; sound</h3>
       <label class="setting" for="sensitivity">Mouse sensitivity <span class="setting-control"><input id="sensitivity" type="range" min="0.2" max="3" step="0.05" data-setting="sensitivity"><output for="sensitivity" data-setting-value="sensitivity"></output></span></label>
-      <label class="setting" for="invertY">Invert vertical look <input id="invertY" type="checkbox" data-setting="invertY"></label>
+      <label class="setting" for="invertY">Invert vertical look <input id="invertY" type="checkbox" data-setting="invertY" data-analytics-cta="setting_invert_y" data-analytics-action="toggle_setting"></label>
       <label class="setting" for="volume">Master volume <span class="setting-control"><input id="volume" type="range" min="0" max="1" step="0.05" data-setting="volume"><output for="volume" data-setting-value="volume"></output></span></label>
       <label class="setting" for="effectsVolume">Effects <span class="setting-control"><input id="effectsVolume" type="range" min="0" max="1" step="0.05" data-setting="effectsVolume"><output for="effectsVolume" data-setting-value="effectsVolume"></output></span></label>
       <label class="setting" for="ambienceVolume">Ambience <span class="setting-control"><input id="ambienceVolume" type="range" min="0" max="1" step="0.05" data-setting="ambienceVolume"><output for="ambienceVolume" data-setting-value="ambienceVolume"></output></span></label>
       <h3 class="setting-group">Display &amp; gameplay</h3>
       <label class="setting" for="fov">Field of view <span class="setting-control"><input id="fov" type="range" min="55" max="90" step="1" data-setting="fov"><output for="fov" data-setting-value="fov"></output></span></label>
-      <label class="setting" for="motionBlur">Motion blur <input id="motionBlur" type="checkbox" data-setting="motionBlur"></label>
-      <label class="setting" for="cameraShake">Camera shake <input id="cameraShake" type="checkbox" data-setting="cameraShake"></label>
+      <label class="setting" for="motionBlur">Motion blur <input id="motionBlur" type="checkbox" data-setting="motionBlur" data-analytics-cta="setting_motion_blur" data-analytics-action="toggle_setting"></label>
+      <label class="setting" for="cameraShake">Camera shake <input id="cameraShake" type="checkbox" data-setting="cameraShake" data-analytics-cta="setting_camera_shake" data-analytics-action="toggle_setting"></label>
       <label class="setting">Difficulty
-        <select data-setting="difficulty" aria-describedby="difficulty-note">
+        <select data-setting="difficulty" data-analytics-cta="setting_difficulty" data-analytics-action="select_difficulty" aria-describedby="difficulty-note">
           <option value="recruit">Recruit</option>
           <option value="regular">Regular</option>
           <option value="veteran">Veteran</option>
@@ -194,7 +224,7 @@
       </label>
       <p class="setting-note" id="difficulty-note" data-difficulty-note></p>
       <label class="setting">Graphics
-        <select data-setting="quality" aria-describedby="graphics-note">
+        <select data-setting="quality" data-analytics-cta="setting_quality" data-analytics-action="change_setting" aria-describedby="graphics-note">
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>

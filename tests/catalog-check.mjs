@@ -72,9 +72,13 @@ for (const pending of catalog.unpublished) {
   assert.deepEqual(provenance.publication_check, { checked_on: catalog.verified_at, ...pending }, `${pending.product}: publication evidence matches the catalog`);
   assert.ok(!provenance.public_release, `${pending.product}: no public release claimed before publication`);
   const schemas = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap(m => JSON.parse(m[1]));
-  for (const application of schemas.filter(s => s['@type'] === 'SoftwareApplication')) {
+  const applications = schemas.filter(s => s['@type'] === 'SoftwareApplication');
+  assert.equal(applications.length, 1, `${pending.product}: unpublished product page includes SoftwareApplication structured data`);
+  const socialUrl = html.match(/<meta property="og:image" content="([^"]+)">/)?.[1];
+  for (const application of applications) {
     assert.ok(!application.datePublished, `${pending.product}: unpublished software has no release date in structured data`);
     assert.equal(application.softwareVersion, pending.accepted_version || pending.submitted_version, `${pending.product}: structured data identifies the verified device version`);
+    assert.equal(application.image, socialUrl, `${pending.product}: structured data and social sharing use the same current cover`);
   }
   for (const source of [html, card]) {
     assert.doesNotMatch(source, /data-shop-version=|data-analytics-action="open_shop"|schema\.org\/InStock/, `${pending.product}: no public release or purchase CTA before publication`);

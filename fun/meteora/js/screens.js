@@ -188,7 +188,7 @@ export function createScreens(root, settings, handlers) {
         const seg = el(doc, 'div', { class: 'seg', role: 'radiogroup', 'aria-label': text });
         const paint = () => { for (const b of seg.children) b.setAttribute('aria-checked', String(b.dataset.value === (settings[key] ?? fallback))); };
         for (const [value, name, title] of options) {
-          const b = el(doc, 'button', { type: 'button', role: 'radio', text: name, title, 'data-value': value });
+          const b = el(doc, 'button', { type: 'button', role: 'radio', text: name, title, 'data-value': value, 'data-analytics-cta': `meteora_setting_${key}_${value}`, 'data-analytics-action': 'change_setting' });
           b.addEventListener('click', () => { settings[key] = value; paint(); changed(); });
           seg.append(b);
         }
@@ -196,7 +196,7 @@ export function createScreens(root, settings, handlers) {
         return el(doc, 'div', { class: 'field' }, el(doc, 'span', { text }), seg);
       };
       const toggle = (key, text, title, on = v => !!v, set = c => c) => {
-        const box = el(doc, 'input', { type: 'checkbox', checked: on(settings[key]) });
+        const box = el(doc, 'input', { type: 'checkbox', checked: on(settings[key]), 'data-analytics-cta': `meteora_setting_${key}`, 'data-analytics-action': 'toggle_setting' });
         box.addEventListener('change', () => { settings[key] = set(box.checked); changed(); });
         return el(doc, 'label', { class: 'switch', title }, el(doc, 'span', { text }), box);
       };
@@ -251,11 +251,11 @@ export function createScreens(root, settings, handlers) {
         win.addEventListener('keydown', onKey, true);
       };
       for (const [action, text] of ACTIONS) {
-        const button = el(doc, 'button', { type: 'button', class: 'keycap', text: capOf(bound[action]), 'aria-label': `${text}: ${capOf(bound[action])}` });
+        const button = el(doc, 'button', { type: 'button', class: 'keycap', text: capOf(bound[action]), 'aria-label': `${text}: ${capOf(bound[action])}`, 'data-analytics-cta': `meteora_keybind_${action}`, 'data-analytics-action': 'rebind_key' });
         button.addEventListener('click', () => listen(action, button));
         keyRows.append(el(doc, 'div', { class: 'keyrow' }, el(doc, 'span', { text }), button));
       }
-      const resetKeys = el(doc, 'button', { type: 'button', class: 'ghost small', text: 'Default keys' });
+      const resetKeys = el(doc, 'button', { type: 'button', class: 'ghost small', text: 'Default keys', 'data-analytics-cta': 'meteora_default_keys', 'data-analytics-action': 'reset_keys' });
       resetKeys.addEventListener('click', () => { delete settings.keys; saveSettings(settings); handlers.settingsChanged?.(settings); refreshKeys(); renderSettings(); });
       form.append(el(doc, 'fieldset', { class: 'keys-set wide' }, el(doc, 'legend', { text: 'Keys · click one, then press a key' }), keyRows, resetKeys));
     }
@@ -317,7 +317,7 @@ export function createScreens(root, settings, handlers) {
       box.textContent = '';
       for (const key of DIFFICULTY_ORDER) {
         const d = DIFFICULTIES[key];
-        const card = el(doc, 'button', { type: 'button', class: `card${key === selected ? ' selected' : ''}`, 'aria-pressed': String(key === selected) },
+        const card = el(doc, 'button', { type: 'button', class: `card${key === selected ? ' selected' : ''}`, 'aria-pressed': String(key === selected), 'data-analytics-cta': `meteora_difficulty_${key}`, 'data-analytics-action': 'select_difficulty' },
           el(doc, 'strong', { text: d.name }), el(doc, 'span', { text: d.blurb }),
           el(doc, 'span', { class: 'tag', text: `${d.repairDrones} Tender${d.repairDrones > 1 ? 's' : ''}` }));
         card.addEventListener('click', () => {
@@ -350,7 +350,7 @@ export function createScreens(root, settings, handlers) {
       // The range and the special operations above, the campaign's ten below.
       const card = (m, num, cls, open, where) => {
         const best = progress.best[m.id];
-        const b = el(doc, 'button', { type: 'button', class: `mission${cls}`, disabled: !open });
+        const b = el(doc, 'button', { type: 'button', class: `mission${cls}`, disabled: !open, 'data-analytics-cta': `meteora_mission_${m.id}`, 'data-analytics-action': 'select_mission' });
         b.innerHTML = `<span class="num">${num}</span><strong>${open ? m.title : 'Classified'}</strong>${open && m.operation ? `<span class="mission-role">${m.operation.role}</span>` : ''}${where ? `<span class="where">${where}</span>` : ''}${best ? `<span class="score">${best.score.toLocaleString('en')} · ${fmtTime(best.time)} · ${DIFFICULTIES[best.difficulty]?.name ?? ''}</span>${medal(best.medal)}` : ''}`;
         if (open) b.addEventListener('click', () => onPick(m));
         return b;
@@ -398,7 +398,7 @@ export function createScreens(root, settings, handlers) {
       const seg = $('[data-brief-difficulty]');
       seg.textContent = '';
       for (const key of DIFFICULTY_ORDER) {
-        const b = el(doc, 'button', { type: 'button', role: 'radio', text: DIFFICULTIES[key].name, title: DIFFICULTIES[key].blurb, 'aria-checked': String(key === difficultyKey) });
+        const b = el(doc, 'button', { type: 'button', role: 'radio', text: DIFFICULTIES[key].name, title: DIFFICULTIES[key].blurb, 'aria-checked': String(key === difficultyKey), 'data-analytics-cta': `meteora_brief_difficulty_${key}`, 'data-analytics-action': 'select_difficulty' });
         b.addEventListener('click', () => {
           for (const o of seg.children) o.setAttribute('aria-checked', String(o === b));
           onDifficulty(key);
@@ -447,7 +447,7 @@ export function createScreens(root, settings, handlers) {
       // A locked choice shows its name and a lock; why it is locked is its
       // tooltip, as what a choice does is for the others.
       const choice = (title, sub, selected, enabled, recommended, onClick, why = 'Not yet in service', blurb = '') => {
-        const b = el(doc, 'button', { type: 'button', class: `choice${selected ? ' selected' : ''}${enabled ? '' : ' locked'}`, disabled: !enabled, 'aria-pressed': String(selected), title: enabled ? blurb : why },
+        const b = el(doc, 'button', { type: 'button', class: `choice${selected ? ' selected' : ''}${enabled ? '' : ' locked'}`, disabled: !enabled, 'aria-pressed': String(selected), title: enabled ? blurb : why, 'data-analytics-cta': `meteora_hangar_${title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`, 'data-analytics-action': 'select_loadout' },
           el(doc, 'strong', { text: title }));
         if (enabled && sub) b.append(el(doc, 'small', { text: sub }));
         if (recommended) b.append(el(doc, 'span', { class: 'rec', text: 'REC', title: 'Recommended' }));
@@ -605,7 +605,7 @@ export function createScreens(root, settings, handlers) {
       const tabs = $('[data-codex-tabs]');
       tabs.textContent = '';
       for (const [key, name] of [['story', 'Story'], ['case', 'Case file'], ['craft', 'Craft'], ['weapons', 'Weapons'], ['record', 'Service record'], ['controls', 'Controls']]) {
-        const b = el(doc, 'button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(key === tab), text: name });
+        const b = el(doc, 'button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(key === tab), text: name, 'data-analytics-cta': `meteora_codex_${key}`, 'data-analytics-action': 'open_tab' });
         b.addEventListener('click', () => api.codex(progress, key));
         tabs.append(b);
       }

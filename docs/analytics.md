@@ -78,7 +78,7 @@ in the property. Account settings are separate from this repository.
 | `navigation_click`, `outbound_click`, `social_click` | Internal/section navigation and external/social destinations; includes middle clicks |
 | `section_view`, `scroll_depth` | Once-per-page section/card visibility and 25/50/75/90/100% scroll milestones |
 | `engagement_time` | 10/30/60/180/600 seconds of visible-page time; background tabs excluded |
-| `disclosure_toggle`, `ui_action` | Details panels, menu and selected puzzle HUD actions |
+| `disclosure_toggle`, `ui_action` | Details panels, menu, game settings/hangar/codex controls, and selected puzzle HUD actions |
 | `video_*`, `audio_*` | Native video/audio, YouTube and SoundCloud start, pause, progress, completion, seek and errors |
 | `game_start`, `game_end` | Actual starts and decided outcomes in all seven games; mode, difficulty, score and active duration where available |
 | `web_vital` | CLS, LCP, INP, FCP, TTFB from locally vendored official `web-vitals`; value and rating |
@@ -222,19 +222,21 @@ ecommerce reports use the supplied `items` arrays. Consider `shop_click` and
 
 ## Search Console and indexing
 
-`robots.txt` and `sitemap.xml` are published at the site root for Google Search
-Console and search crawlers. Every public HTML page declares one canonical URL,
-matching Open Graph and Twitter card metadata, and validated JSON-LD structured data on the
-homepage (`Organization`, `WebSite`) and released Reason Shop product pages
-(`SoftwareApplication`). Product pages also have breadcrumb structured data;
+`robots.txt`, `sitemap.xml`, and `llms.txt` are published at the site root for Google Search
+Console, search crawlers, and AI answer engines (GEO). Every public HTML page declares one canonical URL,
+matching Open Graph (`og:site_name`, `og:locale`, `og:title`, `og:description`, `og:image`) and Twitter card metadata, and validated JSON-LD structured data across all 23 public pages:
+the homepage (`Organization` with registered entity/Prague address/ARES/Reason Shop identity and `WebSite`),
+all 15 product pages (`SoftwareApplication` and `BreadcrumbList`), the games hub (`CollectionPage` with `ItemList` and `BreadcrumbList`),
+and all six browser game pages (`VideoGame` and `BreadcrumbList`). Released Reason Shop products include `InStock` offers and `sameAs` store links;
+unpublished products omit `datePublished` and `InStock` offers while documenting their verified device version;
 RILL describes its free, MIT-licensed alpha. `node tests/site-content-check.mjs` verifies that
-`sitemap.xml` stays in exact sync with all discovered public HTML pages.
+`sitemap.xml` and `llms.txt` stay in sync with the published site.
 
 The domain property `sc-domain:protocodus.cz` was verified in Search Console on
 5 November 2026, with the existing DNS TXT verification record. The canonical
 `https://protocodus.cz/sitemap.xml` was submitted and returned **Success** on the
 same date. The 27 discovered pages at submission reflect the then-deployed
-site; the updated sitemap contains 24 public pages after removing Electry and the releases pages.
+site; the updated sitemap contains 23 public pages after removing Clareq, Electry, and the releases pages.
 No invented verification token or duplicate HTML verification tag is needed.
 
 The verified `protocodus.cz` domain property was also linked to the matching
