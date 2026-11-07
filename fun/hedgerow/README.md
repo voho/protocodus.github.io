@@ -20,6 +20,9 @@ bunker, to the flak gun in the clearing — blow it up — then use the field
 radio to signal the cleared route before reaching the rally point.
 The fallen trunk stands above the water; Space vaults its raised roots
 before the dry timber crossing.
+Unequal river shoulders widen and narrow between the protected crossings,
+blending smoothly into the surrounding ground. Low mist thins softly above
+the water surface.
 
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
@@ -190,6 +193,9 @@ and no film grain so shadow detail stays clear.
 The controls are listed on the title screen while the mission loads, on the
 controls screen and on the pause screen (`js/controls.js`, one list for all
 three); the pause screen also ticks off the mission's objectives.
+Vaults check clearance along their arc, and ordinary jumps stop at solid
+ceilings. Footfalls follow actual travel, so blocked movement does not
+produce running steps or their enemy-hearing cues.
 The briefing and pause menus include an optional field map with contours,
 water, routes, numbered orders and, while paused, your position and heading.
 The sketch does not reveal enemy locations.
@@ -220,7 +226,9 @@ or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
 
 Health comes back when you stay out of fire. Dying returns you to the last
-checkpoint; the enemies you killed stay dead. A grenade or a charge going
+checkpoint; the enemies you killed stay dead. Retry clears the abandoned
+attempt's pending shots and echoes while the battlefield ambience continues.
+A grenade or a charge going
 off close by leaves you dazed for a few seconds, longer the closer it was:
 a white flash, then the ears ringing over a muffled world, the view doubled,
 swimming and closing in, your legs and your aim slow.

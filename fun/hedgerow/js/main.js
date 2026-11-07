@@ -451,7 +451,7 @@ async function boot() {
   await yieldNow();
   mark('weather');
 
-  G.mist = createMist({ terrain: G.terrain, density: LEVEL.mist || (() => 0.6) });
+  G.mist = createMist({ terrain: G.terrain, water: built.water, density: LEVEL.mist || (() => 0.6) });
   scene.add(G.mist.mesh);
   G.weather = createWeather({
     count: rainCount(), capacity: QUALITY.high.rain * (LEVEL.weather?.rain ?? 1), terrain: G.terrain, water: LEVEL.water, world: G.world,
@@ -1042,6 +1042,7 @@ function updateDeathPresentation(dt) {
 
 function retryCheckpoint() {
   if (graphicsLost || mission?.done) return;
+  audio.cancelAttempt?.();
   cancelCompletionPresentation();
   // Old contact cues belong to the attempt that just ended.
   player.char.ragdoll?.cancelImpact?.();

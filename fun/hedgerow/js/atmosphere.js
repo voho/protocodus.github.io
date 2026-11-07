@@ -110,6 +110,7 @@ attribute vec4 aMist;      // xyz centre, w seed
 attribute vec2 aSize;      // width, height
 uniform float uTime;
 varying vec2 vUv;
+varying vec3 vMistWorld;
 varying float vSeed;
 varying float vFade;
 void main() {
@@ -122,13 +123,17 @@ void main() {
   vSeed = aMist.w;
   float d = length(toCam);
   vFade = smoothstep(2.0, 10.0, d) * (1.0 - smoothstep(55.0, 80.0, d));
+  vMistWorld = p;
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`;
 
 const MIST_FRAG = /* glsl */ `
 uniform vec3 uColor;
 uniform float uTime, uOpacity, uFlash;
+uniform float uWaterLevel, uWaterSoftness;
+uniform vec4 uWaterBounds;
 varying vec2 vUv;
+varying vec3 vMistWorld;
 varying float vSeed;
 varying float vFade;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -142,12 +147,23 @@ void main() {
   float n = noise(q) * 0.6 + noise(q * 2.3) * 0.3 + noise(q * 5.1) * 0.1;
   float shape = smoothstep(0.0, 0.3, vUv.x) * smoothstep(1.0, 0.7, vUv.x) * smoothstep(0.0, 0.25, vUv.y) * smoothstep(1.0, 0.35, vUv.y);
   float a = shape * smoothstep(0.25, 0.75, n) * uOpacity * vFade;
+  // Fade the mist before its intersection with the opaque river plane.
+  // These bounds come from the actual river mesh; dry banks above the
+  // shallow fade band keep their existing density and reflection mask.
+  if (uWaterSoftness > 0.0 && vMistWorld.x >= uWaterBounds.x && vMistWorld.x <= uWaterBounds.z &&
+      vMistWorld.z >= uWaterBounds.y && vMistWorld.z <= uWaterBounds.w) {
+    a *= smoothstep(0.0, uWaterSoftness, vMistWorld.y - uWaterLevel);
+  }
   if (a < 0.002) discard;
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.5), a);
 }`;
 
-export function createMist({ count = 70, terrain, density = () => 1, seed = 31, color = '#4a5058' }) {
+export function createMist({ count = 70, terrain, water = null, density = () => 1, seed = 31, color = '#4a5058' }) {
   const R = rng(seed);
+  const waterBox = water ? new THREE.Box3().setFromObject(water) : null;
+  const waterBounds = waterBox
+    ? new THREE.Vector4(waterBox.min.x, waterBox.min.z, waterBox.max.x, waterBox.max.z)
+    : new THREE.Vector4(1, 1, 0, 0);
   const quad = new THREE.PlaneGeometry(1, 1);
   quad.translate(0.5, 0.5, 0);
   const geo = new THREE.InstancedBufferGeometry();
@@ -159,7 +175,9 @@ export function createMist({ count = 70, terrain, density = () => 1, seed = 31, 
   geo.setAttribute('aMist', mistAttr);
   geo.setAttribute('aSize', new THREE.InstancedBufferAttribute(aSize, 2));
   geo.instanceCount = count;
-  const uniforms = { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uOpacity: { value: 0.16 }, uFlash: { value: 0 } };
+  const uniforms = { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uOpacity: { value: 0.16 }, uFlash: { value: 0 },
+    uWaterBounds: { value: waterBounds }, uWaterLevel: { value: waterBox?.max.y ?? 0 },
+    uWaterSoftness: { value: waterBox ? .48 : 0 } };
   const mat = new THREE.ShaderMaterial({ vertexShader: MIST_VERT, fragmentShader: MIST_FRAG, uniforms, transparent: true, depthWrite: false, fog: false });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;

@@ -149,6 +149,42 @@ function riverProfile(x, z) {
   return bed + (2.0 - bed) * smoothstep(half, bank, dz);
 }
 
+// Keep the established crossings while the open banks form unequal bays.
+// Slow, unequal width lobes add a shallow inner bar and a broad outer shoulder.
+// Water centreline/strip remain exact; only positive upper-bank ground blends
+// outside the wet edge, so no invisible water route is added.
+function naturalRiverParams(x, z) {
+  const distance = Math.min(Math.abs(x + 32), Math.abs(x), Math.abs(x - 32));
+  const amount = smoothstep(8, 10, distance);
+  const ford = smoothstep(9, 3, Math.abs(x + 32));
+  const g = (centre, width) => Math.exp(-(((x - centre) / width) ** 2));
+  const north = z >= RIVER_Z(x);
+  const half = lerp(5, 3, ford) + (north
+    ? 0.95 * g(17, 10) - 0.65 * g(-17, 11) + 1.0 * g(60, 24)
+    : -0.6 * g(17, 11) + 1.1 * g(-17, 11) + 0.45 * g(-60, 24));
+  const bank = lerp(10.5, 14, ford) + (north
+    ? 2.4 * g(17, 13) - 0.8 * g(-17, 12) + 3.3 * g(60, 27)
+    : -0.9 * g(17, 13) + 2.5 * g(-17, 14) + 1.4 * g(-60, 27));
+  return { amount, half, bank, bed: lerp(-1.6, -0.55, ford) };
+}
+
+function naturalRiverCut(h, x, z) {
+  const dz = Math.abs(z - RIVER_Z(x));
+  // Even the sum of the maximum width lobes and shoulder fade ends by25m.
+  // Most terrain queries need neither profiles nor exponential/params work.
+  if (dz >= 25) return h;
+  const rv = riverProfile(x, z);
+  const legacy = rv === null ? h : Math.min(h, lerp(h, rv, smoothstep(14, 9, dz)));
+  if (Math.min(Math.abs(x + 32), Math.abs(x), Math.abs(x - 32)) <= 8) return legacy;
+  const p = naturalRiverParams(x, z);
+  // Fade into the surrounding land with zero derivative at the outer join.
+  // The legacy null-at-bank cut has an abrupt outer edge on high valley sides.
+  const profile = p.bed + (2 - p.bed) * smoothstep(p.half, p.bank, dz);
+  const shoulder = 1 - smoothstep(p.bank - 1.5, p.bank + 4.5, dz);
+  const natural = Math.min(h, lerp(h, profile, shoulder));
+  return lerp(legacy, natural, p.amount);
+}
+
 /* The ground without building pads. */
 function baseHeight(x, z) {
   const ax = Math.abs(x);
@@ -178,8 +214,7 @@ function baseHeight(x, z) {
   h = lerp(h, 2.0 + 0.4 * smoothstep(250, 120, z) + fbm2(x / 30, z / 30, 2) * 0.12 + rg * 0.6, village);
 
   // the river
-  const rv = riverProfile(x, z);
-  if (rv !== null) h = Math.min(h, lerp(h, rv, smoothstep(14, 9, Math.abs(z - RIVER_Z(x)))));
+  h = naturalRiverCut(h, x, z);
 
   // sunken lane between the hedgebanks
   if (z < 88 && inBox(BOX.LANE, x, z)) polylineDistance(LANE, x, z, tmpD); else tmpD.d = Infinity;
@@ -268,7 +303,14 @@ function splat(x, z, h, slope) {
   mud += smoothstep(6.5, 5.0, tmpD.d) * (1 - cobble) * 1.2;
   // river banks
   const dr = Math.abs(z - RIVER_Z(x));
-  mud += smoothstep(11, 7, dr) * 1.6;
+  if (dr < 16) {
+    if (Math.min(Math.abs(x + 32), Math.abs(x), Math.abs(x - 32)) <= 8) mud += smoothstep(11, 7, dr) * 1.6;
+    else {
+      const rb = naturalRiverParams(x, z);
+      const dampEdge = rb.half + (rb.bank - rb.half) * 0.4629;
+      mud += lerp(smoothstep(11, 7, dr), smoothstep(dampEdge + 2.3, dampEdge - 0.8, dr), rb.amount) * 1.6;
+    }
+  }
   // trenches
   for (const [T, bx] of TRENCHES) if (inBox(BOX[bx], x, z)) { polylineDistance(T, x, z, tmpD); mud += smoothstep(2.4, 1.0, tmpD.d) * 2; }
   // churned earth in and round the shell craters, fresh soil on the mounds
@@ -706,7 +748,7 @@ const enemies = [
   E('rifle', -33, 386.5, 180, 'trench', { hold: true, inTrench: true }),
   E('rifle', -21, 386, 180, 'trench', { hold: true, inTrench: true }),
   E('rifle', -9, 387.2, 175, 'trench', { hold: true, inTrench: true }),
-  E('rifle', 13, 389, 185, 'trench', { hold: true, inTrench: true }),
+  E('rifle', 12.65, 388.65, 185, 'trench', { hold: true, inTrench: true }),
   E('smg', 22, 386, 180, 'trench', { hold: true, inTrench: true }),
   E('rifle', 34, 387.2, 180, 'trench', { hold: true, inTrench: true }),
   E('mg', 0, 0, 180, 'trench', { nest: 'nest_trench', arc: 0.9 }),

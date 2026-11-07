@@ -1,6 +1,6 @@
-// Unanchored soldiers must start on ground or a low step, with clear bodies.
-// Highest-surface queries can otherwise hide overlaps by seating a soldier
-// on a tree/parapet/roof cap. Named gunner/trench/platform anchors are explicit.
+// Soldiers must start with clear bodies. Ground posts need terrain/low-step
+// support; named gunner/trench/platform anchors retain their authored heights.
+// Highest-surface queries can otherwise hide tree/parapet/roof cap overlaps.
 import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -16,6 +16,8 @@ if (!process.env.HEDGEROW_LEVEL) {
   process.exit(0);
 }
 const { L, world, terrain, placed } = await import('./level-world.mjs');
+const { worldAnchor } = await import('../js/assets.js');
+const { polylineDistance } = await import('../js/util.js');
 const intentional = (d) => {
   if (d.nest || d.bunker) {
     assert.ok(placed.has(d.nest || d.bunker), 'a fixed weapon position names a real placed model');
@@ -37,7 +39,33 @@ const intentional = (d) => {
   return false;
 };
 const mobile = L.enemies.filter(d => !intentional(d));
+const fixed = L.enemies.filter(d => intentional(d));
 assert.ok(mobile.length > 0);
+// Preserve the authored fixed support contract, then test its actual body.
+// An intentional anchor must not exempt an NPC from its revetment/wall.
+function fixedFeet(d) {
+  if (d.inTrench) {
+    let best;
+    for (const key of Object.keys(L.lines).filter(k => k.startsWith('TRENCH'))) {
+      const p = polylineDistance(L.lines[key], ...d.at, {});
+      if (!best || p.d < best.d) best = p;
+    }
+    return [best.px, terrain.height(best.px, best.pz), best.pz];
+  }
+  if (d.nest) {
+    const p = placed.get(d.nest);
+    return worldAnchor(p.model, 'gunner', p.x, p.y, p.z, p.yaw) || [p.x, p.y, p.z + .8];
+  }
+  if (d.bunker) {
+    const p = placed.get(d.bunker), a = worldAnchor(p.model, 'gunner', p.x, p.y, p.z, p.yaw);
+    assert.ok(a, 'the bunker uses its real runtime gunner anchor'); return a;
+  }
+  if (d.anchorOf) {
+    const [id, name] = d.anchorOf, p = placed.get(id);
+    return worldAnchor(p.model, name, p.x, p.y, p.z, p.yaw);
+  }
+  return d.anchor.slice(0, 3);
+}
 const analytic = terrain.height, cache = new Map(), { minX, minZ } = L.bounds;
 const sample = (i, j) => {
   const key = i + ',' + j;
@@ -60,6 +88,20 @@ try {
         assert.ok(Math.hypot(p.x - x, p.z - z) < .001, `${L.id} ${d.group} soldier must have a clear body at ground and spawn height`);
       }
     }
+    for (const d of fixed) {
+      const [x, feet, z] = fixedFeet(d);
+      for (const body of [1.2, 1.7]) {
+        const p = { x, z }; world.pushOut(p, .34, feet, body, .45);
+        assert.ok(Math.hypot(p.x - x, p.z - z) < .001, `${L.id} ${d.group} authored anchor must clear a standing and crouched NPC capsule`);
+      }
+    }
+    if (L.id === 'saint-clair') {
+      const role = fixed.find(d => d.group === 'trench' && d.type === 'rifle' && d.yaw === 185);
+      assert.ok(role, 'the historical revetment control retains its trench role');
+      const [x, feet, z] = fixedFeet({ ...role, at: [13, 389] }), old = { x, z };
+      world.pushOut(old, .34, feet, 1.7, .45);
+      assert.ok(Math.hypot(old.x - x, old.z - z) > .3, 'negative control exposes the former held rifleman inside a revetment');
+    }
   }
 } finally { terrain.height = analytic; }
-console.log(`spawn-support-check: ${L.id} ${mobile.length} unanchored posts clear at standing/crouched ground/master support; ${L.enemies.length - mobile.length} fixed anchors classified`);
+console.log(`spawn-support-check: ${L.id} ${mobile.length} ground posts and ${fixed.length} fixed anchors clear at standing/crouched analytic/master support`);

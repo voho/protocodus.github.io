@@ -72,7 +72,7 @@ for (const cause of ['damage', 'range', 'wall', 'death', 'checkpoint']) {
 {
   const s = scenario(); s.hold(true); s.tick(1.95);
   s.G.player.heal = (amount) => { s.G.player.health = Math.min(100, s.G.player.health + amount); };
-  s.M.pickups.push({ type: 'medkit', x: 0, z: 1, taken: false, object: new THREE.Object3D() });
+  s.M.pickups.push({ type: 'medkit', x: 0, y: 0, z: 1, taken: false, object: new THREE.Object3D() });
   s.G.player.health = 60; s.tick(0.1);
   assert.equal(s.G.player.health, 100, 'the nearby dressing heals the hit');
   assert.equal(s.M.index, 0, 'healing in the same frame cannot conceal an interruption');

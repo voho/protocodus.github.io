@@ -82,6 +82,9 @@ export function createAudio() {
   const debrisContacts = new Set();
   const aircraftPasses = new Set();
   const transientBuses = new WeakMap(), activeBuses = new Set();
+  const attemptSources = new Map(), retiringEchoes = new Set();
+  let echoGraph = null, retirementBuffer = null, retirementClock = null, retirementDeadline = 0;
+
   let sampleCulled = 0, sampleStolen = 0;
   let sampleLoad = null, sampleFailed = 0, sampleRetries = 0;
   const sampleErrors = [];
@@ -192,7 +195,7 @@ export function createAudio() {
       envelope.gain.linearRampToValueAtTime(0, at + playDuration);
     }
     source.connect(envelope).connect(out);
-    attachSource(source, out);
+    attachSource(source, out, envelope, at);
     const voice = { source, priority, level, at, duration: playDuration };
     sampleVoices.add(voice);
     source.onended = () => { sampleVoices.delete(voice); source.disconnect(); envelope.disconnect(); };
@@ -283,20 +286,8 @@ export function createAudio() {
     weather = ctx.createBiquadFilter(); weather.type = 'lowpass'; weather.frequency.value = 20000; weather.Q.value = .5;
     weatherExposure = ctx.createGain(); weatherExposure.gain.value = 1;
     weather.connect(weatherExposure).connect(amb);
-    // outdoor slap-back: two short delays, filtered, set to the place (setSpace)
-    verb = ctx.createGain(); verb.gain.value = 0.32;
-    const d1 = ctx.createDelay(1), d2 = ctx.createDelay(1);
-    d1.delayTime.value = 0.11; d2.delayTime.value = 0.27;
-    const f1 = ctx.createBiquadFilter(); f1.type = 'lowpass'; f1.frequency.value = 2200;
-    const fb = ctx.createGain(); fb.gain.value = 0.3;
-    // Reflections carry the mid-range crack, not repeated sub-bass pressure.
-    // A quieter second return keeps rapid fire legible in narrow streets.
-    const echoHP = ctx.createBiquadFilter(); echoHP.type = 'highpass'; echoHP.frequency.value = 150; echoHP.Q.value = 0.5;
-    const returnA = ctx.createGain(), returnB = ctx.createGain();
-    returnA.gain.value = 0.8; returnB.gain.value = 0.52;
-    verb.connect(echoHP).connect(f1); f1.connect(d1); f1.connect(d2);
-    d1.connect(returnA).connect(sfx); d2.connect(fb); fb.connect(d1); d2.connect(returnB).connect(sfx);
-    echoA = d1; echoB = d2; echoFb = fb; echoLP = f1;
+    // Outdoor slap-back. A new attempt receives an empty delay network.
+    installEchoGraph();
 
     const n = ctx.sampleRate * 2;
     noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
@@ -316,6 +307,88 @@ export function createAudio() {
     radioAmbience = createRadioAmbience({ ctx, output: sfx, makeNoise: () => noise(false, radioR), occlusion, listener, random: radioR });
     radioAmbience.setSources(radioSources);
     loadSamples();
+  }
+
+  function installEchoGraph(previous = null) {
+    verb = ctx.createGain(); verb.gain.value = previous?.send ?? .32;
+    const d1 = ctx.createDelay(1), d2 = ctx.createDelay(1);
+    d1.delayTime.value = previous?.first ?? .11;
+    d2.delayTime.value = previous?.second ?? .27;
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass';
+    filter.frequency.value = previous?.cutoff ?? 2200;
+    const feedback = ctx.createGain(); feedback.gain.value = previous?.feedback ?? .3;
+    const highpass = ctx.createBiquadFilter(); highpass.type = 'highpass';
+    highpass.frequency.value = 150; highpass.Q.value = .5;
+    const returnA = ctx.createGain(), returnB = ctx.createGain();
+    returnA.gain.value = .8; returnB.gain.value = .52;
+    verb.connect(highpass).connect(filter); filter.connect(d1); filter.connect(d2);
+    d1.connect(returnA).connect(sfx); d2.connect(feedback); feedback.connect(d1);
+    d2.connect(returnB).connect(sfx);
+    echoA = d1; echoB = d2; echoFb = feedback; echoLP = filter;
+    echoGraph = { nodes: [verb, highpass, filter, d1, d2, feedback, returnA, returnB], returns: [returnA, returnB] };
+  }
+
+  function retireEchoGraph(graph, time) {
+    // Repeated retries must retain at most one fading network/cleanup source.
+    for (const previous of retiringEchoes) previous.release();
+    if (ctx.state !== 'running') {
+      for (const node of graph.nodes) node.disconnect();
+      if (retirementClock) {
+        try { retirementClock.stop(time); } catch { /* already ended */ }
+        retirementClock.disconnect(); retirementClock = null;
+      }
+      return;
+    }
+    for (const node of graph.returns) {
+      node.gain.cancelAndHoldAtTime(time);
+      node.gain.linearRampToValueAtTime(0, time + .008);
+    }
+    const retired = { release() {
+      if (!retiringEchoes.delete(retired)) return;
+      for (const node of graph.nodes) node.disconnect();
+    } };
+    retiringEchoes.add(retired);
+    if (retirementClock && time >= retirementDeadline) {
+      retirementClock.disconnect(); retirementClock = null;
+    }
+    if (!retirementClock) {
+      if (!retirementBuffer) retirementBuffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const clock = ctx.createBufferSource(); clock.buffer = retirementBuffer; clock.loop = true;
+      retirementClock = clock;
+      clock.addEventListener('ended', () => {
+        clock.disconnect();
+        if (retirementClock !== clock) return;
+        retirementClock = null;
+        for (const previous of retiringEchoes) previous.release();
+      }, { once: true });
+      // An unconnected silent source supplies audio-clock cleanup only.
+      clock.start(time);
+    }
+    retirementDeadline = time + .025;
+    retirementClock.stop(retirementDeadline);
+  }
+
+  function cancelAttempt() {
+    if (!ctx) return;
+    cancelActions(); actorActions?.cancel(); cancelContacts();
+    const time = ctx.currentTime;
+    for (const [source, { envelope, at }] of attemptSources) {
+      const immediate = ctx.state !== 'running' || at > time;
+      if (!immediate && envelope) {
+        envelope.gain.cancelAndHoldAtTime(time);
+        envelope.gain.linearRampToValueAtTime(0, time + .008);
+      }
+      try { source.stop(immediate ? time : time + .01); } catch { /* already ended */ }
+      if (immediate) source.disconnect();
+    }
+    // These reports refer to flashes from the old attempt, not ambient beds.
+    for (const report of horizonReports) report.cancelled = true;
+    horizonReports.clear();
+    const previous = { send: verb.gain.value, first: echoA.delayTime.value,
+      second: echoB.delayTime.value, cutoff: echoLP.frequency.value, feedback: echoFb.gain.value };
+    const old = echoGraph;
+    installEchoGraph(previous);
+    retireEchoGraph(old, time);
   }
 
   function noise(brown = false, random = R) {
@@ -427,7 +500,7 @@ export function createAudio() {
     }
     const position = { x, y, z, ref, max, echo, lowpassFar, path, gain: g, pan, lp, send, revision: listenerRevision };
     applySpatial(position, ctx.currentTime, true);
-    return transientBus(g, nodes, position);
+    return transientBus(g, nodes, position, ambient);
   }
 
   function spatialParam(param, value, time, immediate) {
@@ -475,8 +548,8 @@ export function createAudio() {
   // One-shot panners/filters/sends have a lifetime too. Disconnect them once
   // all attached (including future-scheduled) sources end, rather than leave
   // an empty graph connected after every footstep and bullet impact.
-  function transientBus(input, nodes, position = null) {
-    const bus = { input, nodes, position, sources: 0 };
+  function transientBus(input, nodes, position = null, ambient = false) {
+    const bus = { input, nodes, position, sources: 0, ambient };
     transientBuses.set(input, bus); activeBuses.add(bus);
     queueMicrotask(() => { if (!bus.sources) releaseBus(bus); });
     return input;
@@ -488,8 +561,12 @@ export function createAudio() {
     for (const node of bus.nodes) node.disconnect();
   }
 
-  function attachSource(source, input) {
+  function attachSource(source, input, envelope = null, at = ctx.currentTime) {
     const bus = transientBuses.get(input);
+    if (!bus?.ambient) {
+      attemptSources.set(source, { envelope, at });
+      source.addEventListener('ended', () => attemptSources.delete(source), { once: true });
+    }
     if (!bus) return;
     bus.sources++;
     source.addEventListener('ended', () => { if (!--bus.sources) releaseBus(bus); }, { once: true });
@@ -510,7 +587,7 @@ export function createAudio() {
     const g = ctx.createGain();
     env(g, t, attack, peak, dur);
     s.connect(f).connect(g).connect(out);
-    attachSource(s, out);
+    attachSource(s, out, g, t);
     s.onended = () => { s.disconnect(); f.disconnect(); g.disconnect(); };
     s.start(t, R() * 1.5);
     s.stop(t + dur + attack + 0.05);
@@ -524,7 +601,7 @@ export function createAudio() {
     const g = ctx.createGain();
     env(g, t, 0.003, peak, dur);
     o.connect(g).connect(out);
-    attachSource(o, out);
+    attachSource(o, out, g, t);
     o.onended = () => { o.disconnect(); g.disconnect(); };
     o.start(t); o.stop(t + dur + 0.05);
     return o;
@@ -592,7 +669,8 @@ export function createAudio() {
     for (const [f, a] of [[2760, 0.16], [4150, 0.08], [5800, 0.04]]) {
       const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
       const g = ctx.createGain(); env(g, t, 0.002, a, 0.5);
-      o.connect(g).connect(sfx); o.onended = () => { o.disconnect(); g.disconnect(); }; o.start(t); o.stop(t + 0.6);
+      o.connect(g).connect(sfx); attachSource(o, sfx, g, t);
+      o.onended = () => { o.disconnect(); g.disconnect(); }; o.start(t); o.stop(t + 0.6);
     }
   }
 
@@ -751,7 +829,7 @@ export function createAudio() {
     o.frequency.setValueAtTime(f0, t + 0.01);
     o.frequency.exponentialRampToValueAtTime(f0 * (0.4 + R() * 0.15), t + 0.38);
     const g = ctx.createGain(); env(g, t + 0.01, 0.01, 0.045 + R() * 0.03, 0.36);
-    o.connect(g).connect(out); attachSource(o, out);
+    o.connect(g).connect(out); attachSource(o, out, g, t + .01);
     o.onended = () => { o.disconnect(); g.disconnect(); }; o.start(t + 0.01); o.stop(t + 0.45);
   }
 
@@ -1208,7 +1286,7 @@ export function createAudio() {
     lp.connect(g).connect(pan).connect(weather);
     const position = { bearing: listener.yaw + from, travel: -2 * from, start: t, duration: dur, moving: true, spread: .85, pan, revision: listenerRevision };
     applySpatial(position, t, true);
-    transientBus(lp, [lp, g, pan], position);
+    transientBus(lp, [lp, g, pan], position, true);
     const pass = { gain: g, sources: new Set(), cancelled: false };
     aircraftPasses.add(pass);
     for (const f of [58, 59.3, 61.1, 87.5]) {
@@ -1320,6 +1398,7 @@ export function createAudio() {
     get actionStatus() { return playerActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 4, maxCues: 32 }; },
     get actorActionStatus() { return actorActions?.status ?? { active: 0, sources: 0, pending: 0, dispatched: 0, evicted: 0, rejected: 0, maxActions: 12, maxCues: 32 }; },
     get nodeStatus() { return { oneShotBuses: activeBuses.size }; },
+    get attemptStatus() { return { sources: attemptSources.size, retiringEchoes: retiringEchoes.size, maxRetiringEchoes: 1 }; },
     get casingStatus() { return { active: casingContacts.size, played: casingPlayed, culled: casingCulled, max: MAX_CASING_CONTACTS }; },
     get bodyContactStatus() { return { active: bodyContacts.size, sources: [...bodyContacts].reduce((n, contact) => n + contact.sources.size, 0), retiring: [...bodyContacts].filter(contact => contact.cancelled).length, played: bodyPlayed, culled: bodyCulled, max: MAX_BODY_CONTACTS }; },
     get debrisContactStatus() { return { active: debrisContacts.size, sources: [...debrisContacts].reduce((n, contact) => n + contact.sources.size, 0), played: debrisPlayed, culled: debrisCulled, max: MAX_DEBRIS_CONTACTS }; },
@@ -1410,7 +1489,7 @@ export function createAudio() {
     },
     suspend() { ctx?.suspend(); },
     resume() { ctx?.resume(); },
-    gunshot, garandPing, dryFire, reload, reloadActor, switchWeapon, cancelActions, whizz, impact, explosion, thunder, distant,
+    gunshot, garandPing, dryFire, reload, reloadActor, switchWeapon, cancelActions, cancelAttempt, whizz, impact, explosion, thunder, distant,
     footstep, gear, casing, casingImpact, bodyFall, bodyImpact, debrisImpact, cancelContacts, pin, grenadeBounce, ui, daze,
   };
 }

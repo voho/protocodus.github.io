@@ -333,6 +333,63 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
     return hitAny;
   }
 
+  // One spatial query on positive ordinary vertical motion.
+  // The body is the engine's standing/crouched horizontal circle, extruded
+  // vertically. Find exact horizontal overlap during the vertical overlap time.
+  const upwardNear = [];
+  function segmentPointDistanceSq(ax, az, bx, bz, px, pz) {
+    const dx = bx - ax, dz = bz - az, lengthSq = dx * dx + dz * dz;
+    const t = lengthSq > 0 ? clamp(((px - ax) * dx + (pz - az) * dz) / lengthSq, 0, 1) : 0;
+    return (ax + dx * t - px) ** 2 + (az + dz * t - pz) ** 2;
+  }
+  function segmentBoxDistanceSq(ax, az, bx, bz, hx, hz) {
+    let lo = 0, hi = 1;
+    const dx = bx - ax, dz = bz - az;
+    const slab = (origin, delta, half) => {
+      if (Math.abs(delta) < 1e-14) return Math.abs(origin) <= half;
+      let first = (-half - origin) / delta, last = (half - origin) / delta;
+      if (first > last) { const swap = first; first = last; last = swap; }
+      lo = Math.max(lo, first); hi = Math.min(hi, last); return lo <= hi;
+    };
+    if (slab(ax, dx, hx) && slab(az, dz, hz)) return 0;
+    const pointBox = (x, z) => Math.max(Math.abs(x) - hx, 0) ** 2 + Math.max(Math.abs(z) - hz, 0) ** 2;
+    return Math.min(pointBox(ax, az), pointBox(bx, bz),
+      segmentPointDistanceSq(ax, az, bx, bz, -hx, -hz),
+      segmentPointDistanceSq(ax, az, bx, bz, -hx, hz),
+      segmentPointDistanceSq(ax, az, bx, bz, hx, -hz),
+      segmentPointDistanceSq(ax, az, bx, bz, hx, hz));
+  }
+  function limitUpwardMove(x0, z0, x1, z1, radius, feet, height, rise) {
+    if (!(rise > 0)) return feet + rise;
+    const head = feet + height, dx = x1 - x0, dz = z1 - z0;
+    let allowed = feet + rise;
+    query(Math.min(x0, x1) - radius, Math.min(z0, z1) - radius,
+      Math.max(x0, x1) + radius, Math.max(z0, z1) + radius, upwardNear);
+    for (const col of upwardNear) {
+      // Already-intersecting side faces remain the ordinary horizontal solver's
+      // responsibility. Only a new underside crossing can stop this ascent.
+      if (!(col.flags & MOVE) || col.bottom < head - 1e-9 || col.bottom > head + rise) continue;
+      const begin = Math.max(0, (col.bottom - head) / rise),
+        end = Math.min(1, (col.top - feet) / rise);
+      if (end < begin) continue;
+      const ax = x0 + dx * begin, az = z0 + dz * begin,
+        bx = x0 + dx * end, bz = z0 + dz * end;
+      let distanceSq;
+      if (col.type === 'cyl') {
+        distanceSq = segmentPointDistanceSq(ax, az, bx, bz, col.x, col.z);
+        if (distanceSq >= (radius + col.r) ** 2) continue;
+      } else {
+        const arx = ax - col.x, arz = az - col.z, brx = bx - col.x, brz = bz - col.z;
+        distanceSq = segmentBoxDistanceSq(arx * col.c - arz * col.s, arx * col.s + arz * col.c,
+          brx * col.c - brz * col.s, brx * col.s + brz * col.c, col.hx, col.hz);
+        if (distanceSq >= radius * radius) continue;
+      }
+      // A micrometre keeps feet+height on the safe side after floating-point addition.
+      allowed = Math.min(allowed, Math.max(feet, col.bottom - height - 1e-6));
+    }
+    return allowed;
+  }
+
   /* The top of the lowest obstacle in front of a character (for vaulting):
      probes a point `reach` ahead. Returns {top, col} or null. */
   function obstacleAhead(x, z, dirX, dirZ, feet, reach = 0.75, r = 0.3) {
@@ -377,7 +434,7 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
   }
 
   return {
-    add, remove, query, raycast, depthThrough, clear, groundAt, pushOut, obstacleAhead, tooDeep, waterDepth, surfaceUnder,
+    add, remove, query, raycast, depthThrough, clear, groundAt, pushOut, limitUpwardMove, obstacleAhead, tooDeep, waterDepth, surfaceUnder,
     colliders, terrain, water, bounds: { minX, maxX, minZ, maxZ },
   };
 }

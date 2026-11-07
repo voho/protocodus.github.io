@@ -56,6 +56,31 @@ export const ARMS = {
   away: { pitch: -0.8, yaw: 0, roll: 0 },
 };
 
+// Check a new candidate once at Space input.
+// Each midpoint body conservatively encloses the standing body throughout
+// the small arc segment; retain the player's existing step/support policy.
+function vaultArcIsClear(world, from, to, arc) {
+  const distance = Math.hypot(to.x - from.x, to.z - from.z);
+  const bound = distance + Math.abs(to.y - from.y) + Math.PI * arc;
+  const segments = Math.max(4, Math.ceil(bound / .05));
+  if (!Number.isFinite(segments) || segments > 192) return false;
+  const bulge = arc * Math.PI * Math.PI / (8 * segments * segments);
+  const q = { x: from.x, z: from.z };
+  let ax = from.x, ay = from.y, az = from.z;
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments, bx = from.x + (to.x - from.x) * t,
+      bz = from.z + (to.z - from.z) * t,
+      by = from.y + (to.y - from.y) * t + Math.sin(t * Math.PI) * arc;
+    const x = (ax + bx) * .5, z = (az + bz) * .5;
+    q.x = x; q.z = z;
+    const blocked = world.pushOut(q, PLAYER.radius + Math.hypot(bx - ax, bz - az) * .5,
+      Math.min(ay, by), PLAYER.height + Math.abs(by - ay) + bulge, PLAYER.step);
+    if (blocked || Math.hypot(q.x - x, q.z - z) > 1e-6) return false;
+    ax = bx; ay = by; az = bz;
+  }
+  return true;
+}
+
 export function createPlayer(G) {
   const loadout = missionLoadout(G.level);
   const P = {
@@ -99,6 +124,13 @@ export function createPlayer(G) {
   let boltCasePending = false;
   const boltCasePoint = new THREE.Vector3(), boltForward = new THREE.Vector3();
 
+  // Test a requested stand against the real standing body before changing
+  // posture. The scratch position absorbs corrections; player feet stay put.
+  function canStand() {
+    tmp.set(P.pos.x, 0, P.pos.z);
+    return !G.world.pushOut(tmp, PLAYER.radius, P.pos.y, PLAYER.height, PLAYER.step);
+  }
+
   const charOpts = () => ({ outfit: G.level?.playerOutfit === 'axis' ? 'axis' : 'allied', weaponModel: G.models.get(WEAPONS[P.weapon].model), grenadeModel: G.models.get(G.level?.playerGrenade || 'grenade_us'), scene: G.scene, weaponActions: FP });
   let identityKit = null;
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
@@ -116,6 +148,7 @@ export function createPlayer(G) {
     P.pos.set(spawn[0], 0, spawn[1]);
     P.pos.y = G.world.groundAt(P.pos.x, P.pos.z, 1e4, 0.5);
     P.vel.set(0, 0, 0);
+    P.stepAcc = 0;
     P.yaw = spawn[2] || 0;
     G.rig.yaw = P.yaw; G.rig.pitch = -0.08;
     P.alive = true; P.health = PLAYER.health; P.killer = null;
@@ -595,7 +628,9 @@ export function createPlayer(G) {
     if (wheel && loadout.length > 1) switchTo(loadout[(loadout.indexOf(P.weapon) + 1) % loadout.length]);
     const w = weaponDef();
     if (!FP && input.pressed('KeyQ')) G.rig.shoulder *= -1;
-    if (input.pressed('KeyC') || input.pressed('Control')) { P.crouch = !P.crouch; G.audio.gear(P.crouch ? 'crouch' : 'stand'); }
+    if ((input.pressed('KeyC') || input.pressed('Control')) && (!P.crouch || canStand())) {
+      P.crouch = !P.crouch; G.audio.gear(P.crouch ? 'crouch' : 'stand');
+    }
     if (input.pressed('KeyR')) startReload();
 
     // movement intent in camera space
@@ -610,7 +645,10 @@ export function createPlayer(G) {
     if (aiming && !P.wasAiming) G.audio.gear('aim');
     P.wasAiming = aiming;
     P.sprint = input.held('Shift') && fz > 0.3 && !aiming && P.reloading <= 0 && P.cooking < 0;
-    if (P.sprint && P.crouch) P.crouch = false;
+    if (P.sprint && P.crouch) {
+      if (canStand()) P.crouch = false;
+      else P.sprint = false;
+    }
 
     const cy = G.rig.yaw;
     const sinY = Math.sin(cy), cosY = Math.cos(cy);
@@ -626,6 +664,9 @@ export function createPlayer(G) {
     if (P.reloading > 0 && !P.crouch) speed = Math.min(speed, PLAYER.walk * 0.8);
     speed *= 1 - 0.4 * P.daze;            // dazed, he stumbles along
 
+    // Footfalls follow resolved ordinary movement, not velocity into a wall.
+    let stepDistance = 0;
+
     // vault / jump
     // A new vault takes over this update before ordinary movement can
     // move the body away from the saved start of its arc.
@@ -640,7 +681,11 @@ export function createPlayer(G) {
           const gy = G.world.groundAt(lx, lz, ob.top + 0.05, 0.1, 0.3);
           tmp.set(lx, gy, lz);
           const blocked = G.world.pushOut(tmp, PLAYER.radius, gy, PLAYER.height, PLAYER.step);
-          if (!blocked && !G.world.tooDeep(lx, lz, PLAYER.maxWade, gy)) { landed = { x: lx, y: gy, z: lz }; break; }
+          if (!blocked && !G.world.tooDeep(lx, lz, PLAYER.maxWade, gy)) {
+            const candidate = { x: lx, y: gy, z: lz };
+            const arc = Math.max(0.25, ob.top - Math.max(P.pos.y, gy) + 0.35);
+            if (vaultArcIsClear(G.world, P.pos, candidate, arc)) { landed = candidate; break; }
+          }
         }
         if (landed) {
           P.vault = { from: P.pos.clone(), to: new THREE.Vector3(landed.x, landed.y, landed.z), t: 0, dur: 0.55, arc: Math.max(0.25, ob.top - Math.max(P.pos.y, landed.y) + 0.35), dirX: fdx, dirZ: fdz };
@@ -682,8 +727,15 @@ export function createPlayer(G) {
       // level bounds
       const B = G.level.playBounds;
       if (B) { tmp.x = clamp(tmp.x, B.minX, B.maxX); tmp.z = clamp(tmp.z, B.minZ, B.maxZ); }
+      const rise = P.vel.y * dt;
+      const nextY = rise > 0 ? G.world.limitUpwardMove(P.pos.x, P.pos.z, tmp.x, tmp.z,
+        PLAYER.radius, P.pos.y, h, rise) : P.pos.y + rise;
+      if (nextY < P.pos.y + rise) P.vel.y = 0;
+      // Collision correction cannot add more stride than this frame intended.
+      stepDistance = Math.min(Math.hypot(tmp.x - P.pos.x, tmp.z - P.pos.z),
+        Math.hypot(P.vel.x, P.vel.z) * Math.max(0, dt));
       P.pos.x = tmp.x; P.pos.z = tmp.z;
-      P.pos.y += P.vel.y * dt;
+      P.pos.y = nextY;
       const g2 = G.world.groundAt(P.pos.x, P.pos.z, Math.max(P.pos.y, ground), PLAYER.step);
       if (P.pos.y <= g2) {
         if (FP && !P.grounded && P.vel.y < -3) motion.land(-P.vel.y);
@@ -728,7 +780,7 @@ export function createPlayer(G) {
     // fire
     const canFire = P.cooldown <= 0 && P.reloading <= 0 && P.switching <= 0 && P.throwing <= 0 && !P.vault && P.cooking < 0;
     const pulled = input.fired();
-    const trigger = w.auto ? input.mouseL : pulled;
+    const trigger = w.auto ? (input.mouseL || pulled) : pulled;
     if (!trigger || pulled) emptyTriggerLatched = false;
     if (trigger && canFire) {
       if (P.sprint) P.sprint = false;
@@ -802,8 +854,8 @@ export function createPlayer(G) {
     if (boltCasePending && w.action === 'bolt' && ch.boltAge >= (boltReload ? KAR98K_ACTION_TIMING.reload.eject : KAR98K_ACTION_TIMING.shot.eject)) ejectBoltCase();
     if (P.boltAge >= BOLT_CYCLE_DURATION) P.boltAge = -1;
     // footsteps
-    if (P.grounded && hSpeed > 0.5 && !P.vault) {
-      P.stepAcc += dt * hSpeed / (P.sprint ? 1.6 : 1.2);
+    if (P.grounded && hSpeed > 0.5 && stepDistance > 0 && !P.vault) {
+      P.stepAcc += stepDistance / (P.sprint ? 1.6 : 1.2);
       if (P.stepAcc > 1) {
         P.stepAcc = 0;
         P.steps++;

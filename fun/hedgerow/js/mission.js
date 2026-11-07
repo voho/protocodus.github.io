@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { instantiate } from './assets.js';
+import { deathDropPoint } from './pickup-placement.js';
 import { SIGHT } from './world.js';
 import { wrapAngle } from './util.js';
 import { FIRE_FOG } from './lights.js';
@@ -21,6 +22,8 @@ export function createMission(G, L, built) {
     completed: new Set(), interaction: null, interactionHealth: null, interactionBlocked: false,
   };
   const objectives = L.objectives;
+  let pickupCursor = 0, pickupQueryAt = -Infinity, pickupQueries = 0;
+  function resetPickupAccess() { pickupCursor = 0; pickupQueryAt = -Infinity; pickupQueries = 0; }
 
   // pickups
   for (const p of L.pickups) {
@@ -236,11 +239,20 @@ export function createMission(G, L, built) {
       }
     });
 
-    // pickups
-    for (const k of M.pickups) {
+    // Keep nearby collection physical, using each bundle's actual floor.
+    // Two short sight checks per simulation instant bound even dense drops.
+    if (pickupQueryAt !== G.time) { pickupQueryAt = G.time; pickupQueries = 0; }
+    const pickupCount = M.pickups.length;
+    for (let n = 0; n < pickupCount; n++) {
+      const index = (pickupCursor + n) % pickupCount, k = M.pickups[index];
       if (k.taken) continue;
-      const d = Math.hypot(px - k.x, pz - k.z);
-      if (d > 1.4) continue;
+      const d = Math.hypot(px - k.x, pz - k.z), py = p.pos.y ?? k.y;
+      if (d > 1.4 || !Number.isFinite(k.y) || !Number.isFinite(py) || Math.abs(py - k.y) > 1.4) continue;
+      if (k.type === 'medkit' && p.health >= 100) continue;
+      if (pickupQueries >= 2) { pickupCursor = index; break; }
+      pickupQueries++;
+      const eye = G.camera?.position || { x: px, y: py + 1.5, z: pz };
+      if (G.world?.clear && !G.world.clear(eye.x, eye.y, eye.z, k.x, k.y + .15, k.z, SIGHT)) continue;
       let ok = false;
       if (k.type === 'medkit' && p.health < 100) { p.heal(60); ok = true; G.hud.notice('Field dressing', '+60 health', 1.5); }
       if (k.type === 'ammo') { ok = p.addAmmo(0.5); if (ok) G.hud.notice('Ammunition', '', 1.2); }
@@ -327,6 +339,7 @@ export function createMission(G, L, built) {
   };
 
   M.start = () => {
+    resetPickupAccess();
     M.completed.clear();
     M.done = false;
     setObjective(0, false);
@@ -336,6 +349,7 @@ export function createMission(G, L, built) {
   };
 
   M.restoreCheckpoint = () => {
+    resetPickupAccess();
     const c = L.checkpoints[M.checkpoint];
     // main.js cancels live explosives on a retry. Release the matching
     // interaction lock too, otherwise dying during a fuse prevents the
@@ -354,8 +368,9 @@ export function createMission(G, L, built) {
       const m = G.models.get('ammo_box');
       if (!m) return;
       const o = instantiate(m, G.matlib);
-      const x = e.pos.x + 0.6, z = e.pos.z + 0.3;
-      const y = G.world.groundAt(x, z, e.pos.y + 0.5, 0.6);
+      const point = deathDropPoint(G.world, e.pos, m.box, o.scale.x);
+      if (!point) { Math.random(); return; } // retain the type draw even if no physical local space exists
+      const { x, y, z } = point;
       o.position.set(x, y, z);
       G.scene.add(o);
       M.pickups.push({ type: Math.random() < 0.2 ? 'grenades' : 'ammo', x, z, y, object: o, taken: false });

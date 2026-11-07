@@ -180,6 +180,18 @@ walking or turning updates only its heard distance, filtering and bearing.
 The 36-sample voice budget protects the player's attack and nearby threats ahead
 of quieter distant tails. One-shot panners, filters and echo sends disconnect
 after their last source ends, including sources scheduled for later playback.
+Checkpoint retry cancels the previous attempt's active/scheduled foreground
+cues and pending mechanical actions. It also replaces the two-delay reflection
+network, so old stored room returns cannot arrive from the new checkpoint.
+Active tails fade briefly; suspended retry disconnects them without advancing
+the audio clock. Weather, wildlife, aircraft, fire/receiver beds and all mix
+settings retain their existing state. Ordinary pause and graphics recovery
+preserve the remaining report delay until explicit Resume.
+`tests/audio-attempt-lifecycle-check.mjs` checks actual main retry/recovery with
+real audio, overlapping actions, fresh sounds, exact mute, mix settings and
+repeated cleanup; `tests/audio-attempt-echo-check.mjs` isolates stored reflections
+after every source/path has ended. `tests/audio-attempt-compatibility-check.mjs`
+protects normal PCM levels and the existing ambient emitters/bed mix.
 The visible brass case triggers one quiet original synthesized tick/ring on
 its actual first ground contact. The landing material and normal impact speed
 control audibility; mud, grass, foliage, fabric and water absorb it. Later small
