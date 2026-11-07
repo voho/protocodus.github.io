@@ -1254,6 +1254,10 @@ export function createSpray(THREE, shading) {
   let streakFirst = n;
   let streakLast = -1;
   let sleeping = true;
+  let posFull = false;
+  let alphaFull = false;
+  geo.attributes.position.onUpload(() => { posFull = false; });
+  geo.attributes.aAlpha.onUpload(() => { alphaFull = false; });
   const markSlot = (i) => {
     streakDirty = true;
     sleeping = false;
@@ -1647,6 +1651,8 @@ export function createSpray(THREE, shading) {
         position[j + 1] -= dy;
         position[j + 2] -= dz;
       }
+      posFull = true;
+      geo.attributes.position.clearUpdateRanges();
       geo.attributes.position.needsUpdate = true;
     }
     const wx = wind ? wind.x : 0;
@@ -1726,19 +1732,14 @@ export function createSpray(THREE, shading) {
     }
     if (live > 0) {
       const span = lastMod - firstMod + 1;
-      geo.index.clearUpdateRanges();
       geo.index.addUpdateRange(0, live);
       geo.index.needsUpdate = true;
       const posAttr = geo.attributes.position;
-      if (!posAttr.needsUpdate) {
-        posAttr.clearUpdateRanges();
+      if (!posFull) {
         posAttr.addUpdateRange(firstMod * 3, span * 3);
-        posAttr.needsUpdate = true;
-      } else {
-        posAttr.clearUpdateRanges();
       }
+      posAttr.needsUpdate = true;
       const sizeAttr = geo.attributes.aSize;
-      sizeAttr.clearUpdateRanges();
       sizeAttr.addUpdateRange(firstMod, span);
       sizeAttr.needsUpdate = true;
     }
@@ -1746,8 +1747,9 @@ export function createSpray(THREE, shading) {
     // after its life has gone, so the alpha travels once more than the rest.
     if (live > 0 || snuffed) {
       const alphaAttr = geo.attributes.aAlpha;
-      alphaAttr.clearUpdateRanges();
-      alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      if (!alphaFull) {
+        alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      }
       alphaAttr.needsUpdate = true;
     }
     geo.setDrawRange(0, live);
@@ -1757,15 +1759,12 @@ export function createSpray(THREE, shading) {
       const streakAttr = geo.attributes.aStreak;
       const seedAttr = geo.attributes.aSeed;
       const tintAttr = geo.attributes.aTint;
-      streakAttr.clearUpdateRanges();
       streakAttr.addUpdateRange(streakFirst, span);
       streakAttr.needsUpdate = true;
-      seedAttr.clearUpdateRanges();
       seedAttr.addUpdateRange(streakFirst, span);
       seedAttr.needsUpdate = true;
       // The tint changes exactly when a slot is recycled, which is exactly
       // when the streak does — one dirty flag serves all three.
-      tintAttr.clearUpdateRanges();
       tintAttr.addUpdateRange(streakFirst, span);
       tintAttr.needsUpdate = true;
       streakDirty = false;
@@ -1797,6 +1796,7 @@ export function createSpray(THREE, shading) {
     streakLast = -1;
     geo.setDrawRange(0, 0);
     cloud.points.visible = false;
+    alphaFull = true;
     geo.attributes.aAlpha.clearUpdateRanges();
     geo.attributes.aAlpha.needsUpdate = true;
   }
@@ -1931,6 +1931,10 @@ const S_VERT = `
   varying float vEnd;
   void main() {
     vAlpha = aAlpha;
+    if (aAlpha <= 0.002) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
     vSide = aSide;
     vEnd = aEnd;
     vec4 mv = modelViewMatrix * vec4(position + uDir * aEnd, 1.0);
@@ -2234,7 +2238,10 @@ export function createStreaks(THREE) {
       geo.attributes.position.needsUpdate = true;
       posDirty = false;
     }
-    geo.attributes.aAlpha.needsUpdate = true;
+    if (drawn > 0) {
+      geo.attributes.aAlpha.addUpdateRange(0, drawn * 4);
+      geo.attributes.aAlpha.needsUpdate = true;
+    }
   }
 
   return { lines, update };
