@@ -36,7 +36,7 @@
   "rack_images": {
     "date": "2026-11-07",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "1.1.0f3",
+    "source_commit": "d551b56",
     "note": "3U 1.1.0f3 panels (narrower scope and Main fader, Shape and Skew side by side; narrower rear input groups and a wider Main fader CV group), converted to WebP quality 92"
   }
 }
