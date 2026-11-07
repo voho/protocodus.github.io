@@ -72,11 +72,12 @@ export function scuttledBarge() {
   for (const z of [hz0, hz1]) b.box('rust', [hw * 2, 0.36, 0.08], [0, 0.18, z]);
   for (let z = hz0 + 0.45, i = 0; z < hz1 - 0.2; z += 0.92, i++) {
     if (i === 9) { // a shell went through here: two boards gone and a third split
-      b.box('wood_old', [hw * 0.9, 0.06, 0.88], [-hw * 0.48, 0.34, z], [4, 0, -9]);
+      b.box('wood_dark', [hw * 0.9, 0.06, 0.88], [-hw * 0.48, 0.34, z], [4, 0, -9], 0x5c5650);
       b.box('metal_dark', [hw * 0.9, 0.02, 0.88], [hw * 0.5, 0.05, z]);
       continue;
     }
-    b.box(i % 5 === 2 ? 'wood_dark' : 'wood_old', [hw * 2 - 0.04, 0.07, 0.88], [0, 0.39 + (i % 3) * 0.006, z], [0, 0, (i % 4 - 1.5) * 0.4]);
+    // tarred and coal-blackened boards, a little lighter where the tar has worn
+    b.box(i % 5 === 2 ? 'wood_old' : 'wood_dark', [hw * 2 - 0.04, 0.07, 0.88], [0, 0.39 + (i % 3) * 0.006, z], [0, 0, (i % 4 - 1.5) * 0.4], [0x5c5650, 0x4a4540, 0x544e48][i % 3]);
   }
   // a tarpaulin dragged half off the boards forward
   b.box('canvas', [hw * 1.4, 0.05, 2.8], [hw * 0.25, 0.45, hz1 - 1.8], [0, 6, 2]);
