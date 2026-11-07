@@ -2,7 +2,7 @@
   "product": "Remix",
   "reviewed": "2026-11-07",
   "availability": "coming_soon",
-  "source_version": "1.1.0f2",
+  "source_version": "1.1.0f3",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "0aabc4e6fbcba0e796f338cad67aa716cf68d51cb219cbcf0643e1d912350d3c"
+      "sha256": "b1febc65a99a07aee7c72b5db776db12f0d2a0f1d2efdc9cc5edf9a297187a37"
     }
   ],
   "shop_cover_refresh": {
@@ -36,7 +36,7 @@
   "rack_images": {
     "date": "2026-11-07",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "ec63f90",
-    "note": "3U 1.1.0f2 panels (narrower scope and Main fader, Shape and Skew side by side; rear Smooth is the stock trim knob), converted to WebP quality 92"
+    "source_commit": "1.1.0f3",
+    "note": "3U 1.1.0f3 panels (narrower scope and Main fader, Shape and Skew side by side; narrower rear input groups and a wider Main fader CV group), converted to WebP quality 92"
   }
 }
