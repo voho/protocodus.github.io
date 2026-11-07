@@ -1,8 +1,8 @@
 {
   "product": "Remix",
-  "reviewed": "2026-11-06",
+  "reviewed": "2026-11-07",
   "availability": "coming_soon",
-  "source_version": "1.1.0d1",
+  "source_version": "1.1.0d2",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "file": "remix-rack-front.webp",
-      "sha256": "ed0c3ce71d2f799d2c038139eec0381b222848e9d1705e7d688cfd09d40dca65"
+      "sha256": "9fa6b0dc2d7a5cc5845736985e7bcbf73f110e2cc2473d361dbb8e6aa859a64b"
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "b135fe27259809a2512983c297892de238c8427615a8f8deb736eb740e31d931"
+      "sha256": "ebb16bca3d1506400024b320b23c55e2010794ff8fbdeb52afd8999fb352f70a"
     }
   ],
   "shop_cover_refresh": {
@@ -34,9 +34,9 @@
     "supersedes": "Earlier thumbnail records in this file describe the previous cover."
   },
   "rack_images": {
-    "date": "2026-11-06",
+    "date": "2026-11-07",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "355fea6",
-    "note": "4U 1.1.0d1 panels (Shape and Skew), converted to WebP quality 92"
+    "source_commit": "52e3bd3",
+    "note": "4U 1.1.0d2 panels (Mix fader under the scope, Shape and Skew beside it), converted to WebP quality 92"
   }
 }
