@@ -94,7 +94,7 @@ try {
     if (UNIT_DIRECTIONS !== 8) throw Error('Every unit needs eight independently illustrated facings');
     const stats = spriteStats();
     for (const type of Object.keys(UNITS)) if (stats.directions[type] !== UNIT_DIRECTIONS) throw Error(`${type}: missing prepared directions`);
-    const pixels = Object.fromEntries([...Object.keys(UNITS).map(type => [type, unitPixels[unitRole(type)]]), ...Object.entries(BUILDINGS).map(([type, d]) => [type, d.size * 64 + 16])]);
+    const pixels = Object.fromEntries([...Object.keys(UNITS).map(type => [type, unitPixels[unitRole(type)]]), ...Object.entries(BUILDINGS).map(([type, d]) => [type, d.role === 'turret' ? 104 : d.size * 64 + 16])]);
     for (const [type, size] of Object.entries(pixels)) for (const team of [0, 1]) for (const moving of [false, true]) {
       let draws = 0;
       ctx.drawImage = function (source, ...args) {

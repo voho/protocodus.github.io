@@ -161,7 +161,7 @@ function mineralFrame(source, type) {
 }
 
 function powerDownFrame(source) {
-  const result = canvas(source.width, source.height), ctx = result.getContext('2d');
+  const result = canvas(source.width, source.height), ctx = result.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(source, 0, 0);
   const pixels = ctx.getImageData(0, 0, result.width, result.height), data = pixels.data;
   for (let i = 0; i < data.length; i += 4) {
@@ -645,7 +645,9 @@ export function drawSprite(ctx, entity, time = 0) {
   const defense = defenseSprite(entity, time);
   if (defense) {
     smoothSprites(ctx);
-    ctx.drawImage(defense.image, -defense.size / 2, -defense.size / 2, defense.size, defense.size);
+    const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
+    const source = unpowered ? (defense.powerDown ??= powerDownFrame(defense.image)) : defense.image;
+    ctx.drawImage(source, -defense.size / 2, -defense.size / 2, defense.size, defense.size);
     restoreSampling(ctx); return true;
   }
   const sprite = spriteFrame(entity, time);

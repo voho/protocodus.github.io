@@ -709,8 +709,10 @@ export function createWildlife(THREE, shading) {
     mesh.customDepthMaterial = revealDepth;
     revealOf.set(mesh, reveal.array);
   }
-  const markReveal = (mesh) => {
-    mesh.geometry.attributes.aReveal.needsUpdate = true;
+  const markReveal = (mesh, count) => {
+    const attr = mesh.geometry.attributes.aReveal;
+    attr.addUpdateRange(0, count);
+    attr.needsUpdate = true;
   };
   // And the stride of every animal that has legs to move, beside its matrix
   const strideOf = (mesh) => {
@@ -1132,8 +1134,9 @@ export function createWildlife(THREE, shading) {
     // Nothing changed on the GPU's side of an empty pool, so an upload is
     // only queued when there are live instances to carry.
     if (n > 0) {
+      rabbits.instanceMatrix.addUpdateRange(0, n * 16);
       rabbits.instanceMatrix.needsUpdate = true;
-      markReveal(rabbits);
+      markReveal(rabbits, n);
     }
 
     // --- deer --------------------------------------------------------------
@@ -1224,16 +1227,21 @@ export function createWildlife(THREE, shading) {
     deerHeads.count = dn - sn;
     stagHeads.count = sn;
     if (dn > 0) {
+      deerBodies.instanceMatrix.addUpdateRange(0, dn * 16);
       deerBodies.instanceMatrix.needsUpdate = true;
-      markReveal(deerBodies);
-      deerBodies.geometry.attributes.aGait.needsUpdate = true;
+      markReveal(deerBodies, dn);
+      const deerGaitAttr = deerBodies.geometry.attributes.aGait;
+      deerGaitAttr.addUpdateRange(0, dn * 2);
+      deerGaitAttr.needsUpdate = true;
       if (dn - sn > 0) {
+        deerHeads.instanceMatrix.addUpdateRange(0, (dn - sn) * 16);
         deerHeads.instanceMatrix.needsUpdate = true;
-        markReveal(deerHeads);
+        markReveal(deerHeads, dn - sn);
       }
       if (sn > 0) {
+        stagHeads.instanceMatrix.addUpdateRange(0, sn * 16);
         stagHeads.instanceMatrix.needsUpdate = true;
-        markReveal(stagHeads);
+        markReveal(stagHeads, sn);
       }
     }
 
@@ -1280,15 +1288,20 @@ export function createWildlife(THREE, shading) {
     }
     wolves.count = wn;
     if (wn > 0) {
+      wolves.instanceMatrix.addUpdateRange(0, wn * 16);
       wolves.instanceMatrix.needsUpdate = true;
-      markReveal(wolves);
-      wolves.geometry.attributes.aGait.needsUpdate = true;
+      markReveal(wolves, wn);
+      const wolfGaitAttr = wolves.geometry.attributes.aGait;
+      wolfGaitAttr.addUpdateRange(0, wn * 2);
+      wolfGaitAttr.needsUpdate = true;
     }
 
     eyes.count = eyeCount;
     eyes.visible = eyeCount > 0;
     if (eyeCount > 0) {
+      eyes.instanceMatrix.addUpdateRange(0, eyeCount * 16);
       eyes.instanceMatrix.needsUpdate = true;
+      eyeGlow.addUpdateRange(0, eyeCount);
       eyeGlow.needsUpdate = true;
     }
   }

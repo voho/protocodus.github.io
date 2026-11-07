@@ -124,10 +124,34 @@ export function snoise2Smooth(x, y, seed = 0) {
   const fy = y - y0;
   const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
   const uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
-  const a = hash2(x0, y0, seed);
-  const b = hash2(x0 + 1, y0, seed);
-  const c = hash2(x0, y0 + 1, seed);
-  const d = hash2(x0 + 1, y0 + 1, seed);
+
+  const runSeed = (seed | 0) ^ (worldSeed | 0);
+  const seedTerm = Math.imul(runSeed, 0x9e3779b1);
+  const base0 = Math.imul(y0 | 0, 0x165667b1) ^ seedTerm;
+  const base1 = Math.imul((y0 + 1) | 0, 0x165667b1) ^ seedTerm;
+  const hx0 = Math.imul(x0 | 0, 0x27d4eb2d);
+  const hx1 = Math.imul((x0 + 1) | 0, 0x27d4eb2d);
+
+  let hA = hx0 ^ base0;
+  hA = Math.imul(hA ^ (hA >>> 15), 0x85ebca6b);
+  hA = Math.imul(hA ^ (hA >>> 13), 0xc2b2ae35);
+  const a = ((hA ^ (hA >>> 16)) >>> 0) * INV_2_32;
+
+  let hB = hx1 ^ base0;
+  hB = Math.imul(hB ^ (hB >>> 15), 0x85ebca6b);
+  hB = Math.imul(hB ^ (hB >>> 13), 0xc2b2ae35);
+  const b = ((hB ^ (hB >>> 16)) >>> 0) * INV_2_32;
+
+  let hC = hx0 ^ base1;
+  hC = Math.imul(hC ^ (hC >>> 15), 0x85ebca6b);
+  hC = Math.imul(hC ^ (hC >>> 13), 0xc2b2ae35);
+  const c = ((hC ^ (hC >>> 16)) >>> 0) * INV_2_32;
+
+  let hD = hx1 ^ base1;
+  hD = Math.imul(hD ^ (hD >>> 15), 0x85ebca6b);
+  hD = Math.imul(hD ^ (hD >>> 13), 0xc2b2ae35);
+  const d = ((hD ^ (hD >>> 16)) >>> 0) * INV_2_32;
+
   const top = a + (b - a) * ux;
   return (top + (c + (d - c) * ux - top) * uy) * 2 - 1;
 }

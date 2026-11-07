@@ -44,8 +44,19 @@ machine guns, or along an old field drain past the knoll between them), into
 the trench below the guns, a charge on each gun **in any order**, then down to the shells
 stacked in the farmyard, and on to the road north.
 The drain has rounded banks and a muddy bottom that conceal a crouched
-approach, ending before the battery's wire. The compass marks the nearest
+approach, ending at a gap in the battery's wire. The compass marks the nearest
 remaining gun; the whole battery must be destroyed before the dump unlocks.
+Cover comes in steps up the slope: a shell-felled tree and an abandoned cart
+in the lane, the low hedge left along an old field boundary across the
+meadow, a wayside calvary under a lone oak on the knoll (an observation post
+overlooks the meadow from its wall), apple trees in rows round the orchard
+track, and the night's bomb craters, rainwater standing in them. The wire
+belt in front of the trench is continuous but for three blown gaps (at the
+drain's head, by the dugout and near the orchard); elsewhere it must be
+climbed in the open. Each gun stands in a turfed, plank-revetted horseshoe
+(`js/battery-models.js`) open at the barrel and at the back, and the
+battery's horse-drawn limbers stand half unloaded in the field behind the
+crest. `tests/varenne-routes-check.mjs` walks every approach.
 
 **Mission 3 — The bridge at Pont-Tournant.** Normandy, twenty past midnight
 on 6 June 1944, wind and rain; inspired by the glider-borne coups de main

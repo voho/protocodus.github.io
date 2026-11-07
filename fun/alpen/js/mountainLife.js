@@ -1987,6 +1987,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       // than treating the jump as a slide to compensate.
       lastBackZ = null;
       lineBackZ = null;
+      cabinsPlaced = false;
       for (let i = 0; i < NUM_CANNONS; i++) {
         const c = cannons[i];
         placeCannon(c, riderZ + 40 - i * CANNON_SPACING);
@@ -2009,6 +2010,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.ax = 0;
         npc.vxLast = 0;
         npc.flail = 0;
+        if (npc.arms) {
+          npc.arms.swing = 0;
+          npc.arms.out = 0;
+          npc.arms.plantW = 0;
+        }
       }
     },
   };
