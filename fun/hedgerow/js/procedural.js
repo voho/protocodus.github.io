@@ -26,7 +26,7 @@
    occlusion towards the ground, as the baked models' do. */
 
 import * as THREE from 'three';
-import { canalQuay } from './canal-models.js';
+import { canalQuay, scuttledBarge, gliderStake } from './canal-models.js';
 import { gunRevetment } from './battery-models.js';
 
 const DEG = Math.PI / 180;
@@ -366,6 +366,6 @@ function demolitionSwitch() {
 
 export function proceduralModels() {
   const out = new Map();
-  for (const m of [glider(), canalBridge(), canalQuay(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch(), duckboardWalk(), fieldFence(), stoneCulvert(), gunRevetment(builder)]) out.set(m.name, m);
+  for (const m of [glider(), canalBridge(), canalQuay(), scuttledBarge(), gliderStake(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch(), duckboardWalk(), fieldFence(), stoneCulvert(), gunRevetment(builder)]) out.set(m.name, m);
   return out;
 }
