@@ -602,6 +602,11 @@ const SMOKE_VERT = `
   uniform float uMaxSize;
   void main() {
     vAlpha = aAlpha;
+    if (aAlpha <= 0.001) {
+      gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+      gl_PointSize = 0.0;
+      return;
+    }
     vTurn = vec2(cos(aTurn), sin(aTurn));
     vCell = vec2(mod(aShape, 2.0), floor(aShape * 0.5)) * 0.5;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -1151,6 +1156,8 @@ export function createHuts(THREE, shading) {
   smokeGeo.setAttribute('aTurn', new THREE.BufferAttribute(sTurn, 1));
   smokeGeo.setAttribute('aShape', new THREE.BufferAttribute(sShape, 1));
   smokeGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+  let alphaFull = false;
+  smokeGeo.attributes.aAlpha.onUpload(() => { alphaFull = false; });
 
   const smokeMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -1373,25 +1380,22 @@ export function createHuts(THREE, shading) {
       const posAttr = smokeGeo.attributes.position;
       const sizeAttr = smokeGeo.attributes.aSize;
       const turnAttr = smokeGeo.attributes.aTurn;
-      posAttr.clearUpdateRanges();
       posAttr.addUpdateRange(firstMod * 3, span * 3);
       posAttr.needsUpdate = true;
-      sizeAttr.clearUpdateRanges();
       sizeAttr.addUpdateRange(firstMod, span);
       sizeAttr.needsUpdate = true;
-      turnAttr.clearUpdateRanges();
       turnAttr.addUpdateRange(firstMod, span);
       turnAttr.needsUpdate = true;
     }
     if (alphaFirst <= alphaLast) {
       const alphaAttr = smokeGeo.attributes.aAlpha;
-      alphaAttr.clearUpdateRanges();
-      alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      if (!alphaFull) {
+        alphaAttr.addUpdateRange(alphaFirst, alphaLast - alphaFirst + 1);
+      }
       alphaAttr.needsUpdate = true;
     }
     if (shapeDirty) {
       const shapeAttr = smokeGeo.attributes.aShape;
-      shapeAttr.clearUpdateRanges();
       shapeAttr.addUpdateRange(shapeFirst, shapeLast - shapeFirst + 1);
       shapeAttr.needsUpdate = true;
       shapeDirty = false;
@@ -1528,6 +1532,7 @@ export function createHuts(THREE, shading) {
       sLife[i] = 0;
       sAlpha[i] = 0;
     }
+    alphaFull = true;
     smokeGeo.attributes.aAlpha.clearUpdateRanges();
     smokeGeo.attributes.aAlpha.needsUpdate = true;
   }

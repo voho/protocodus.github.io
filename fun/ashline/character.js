@@ -141,13 +141,12 @@ export function approachingColumn(game, { team = 0, minimum = 5, reach = 20, clo
     if (x >= 0 && y >= 0 && x < game.width && y < game.height && visible[y * game.width + x]) contacts.push(e);
   }
   if (contacts.length < minimum || !structures.length) return null;
-  const column = contacts.filter(e => {
-    let best = null, bestDistance = Infinity;
-    for (const p of structures) { const d = Math.hypot(p.x - e.x, p.y - e.y); if (d < bestDistance) { bestDistance = d; best = p; } }
-    if (bestDistance <= close) return true;
-    if (bestDistance > reach) return false;
-    return (Math.cos(e.angle) * (best.x - e.x) + Math.sin(e.angle) * (best.y - e.y)) / bestDistance >= .5;
-  });
+  const column = contacts.filter(e => structures.some(p => {
+    const d = Math.hypot(p.x - e.x, p.y - e.y);
+    if (d <= close) return true;
+    if (d > reach) return false;
+    return (Math.cos(e.angle) * (p.x - e.x) + Math.sin(e.angle) * (p.y - e.y)) / d >= .5;
+  }));
   if (column.length < minimum) return null;
   const x = column.reduce((sum, e) => sum + e.x, 0) / column.length, y = column.reduce((sum, e) => sum + e.y, 0) / column.length;
   // The alert points at the threatened friendly structure, never at the hostile column itself.

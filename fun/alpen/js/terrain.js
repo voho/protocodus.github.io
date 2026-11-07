@@ -785,6 +785,8 @@ export function centersAt(z, out = []) {
    mellow-bank stretches would be judged out of bounds while a rider was still
    on ground the mesh is drawing as a ramp. */
 export function lipEdgeAt(z) {
+  const ctx = findRowContext(z);
+  if (ctx) return ctx.half + ctx.powderW + ctx.rockW + ctx.lipW;
   const vary = 1 + wall.lipVary * snoise2(z * wall.lipFreq, 0, 23);
   const w = bandWidthsAt(z, lipEdgeScratch);
   return corridorHalfAt(z) + w[0] + w[1] + wall.lipWidth * vary;
@@ -793,14 +795,23 @@ const lipEdgeScratch = [0, 0];
 
 /* How far past that a point is, in metres. Negative anywhere on the run. */
 export function beyondLipAt(x, z) {
+  const ctx = findRowContext(z);
+  if (ctx) {
+    const centre = nearestCenterFrom(x, ctx.mid, ctx.split);
+    return Math.abs(x - centre) - (ctx.half + ctx.powderW + ctx.rockW + ctx.lipW);
+  }
   return Math.abs(x - nearestCenter(x, z)) - lipEdgeAt(z);
 }
 
-export function nearestCenter(x, z) {
-  const mid = wanderAt(z);
-  const s = forkSplit(z);
+function nearestCenterFrom(x, mid, s) {
   if (s <= 0) return mid;
   return Math.abs(x - (mid - s)) < Math.abs(x - (mid + s)) ? mid - s : mid + s;
+}
+
+export function nearestCenter(x, z) {
+  const ctx = findRowContext(z);
+  if (ctx) return nearestCenterFrom(x, ctx.mid, ctx.split);
+  return nearestCenterFrom(x, wanderAt(z), forkSplit(z));
 }
 
 /* What the board is standing on, as the four weights the physics and the
@@ -818,31 +829,51 @@ const surfScratch = [0, 0];
    the weights synchronously and never hold the reference. */
 const surfMaterial = { rock: 0, groomed: 1, ice: 0, powder: 0 };
 export function getTerrainMaterialAt(x, z) {
-  const half = corridorHalfAt(z);
-  const d = Math.abs(x - nearestCenter(x, z));
-  const w = bandWidthsAt(z, surfScratch);
+  const ctx = findRowContext(z);
+  let half;
+  let d;
+  let w0;
+  let w1;
+  let guideX;
+  let icy;
+  if (ctx) {
+    half = ctx.half;
+    d = Math.abs(x - nearestCenterFrom(x, ctx.mid, ctx.split));
+    w0 = ctx.powderW;
+    w1 = ctx.rockW;
+    guideX = ctx.guideX;
+    icy = ctx.chapterIcy;
+  } else {
+    half = corridorHalfAt(z);
+    d = Math.abs(x - nearestCenter(x, z));
+    const w = bandWidthsAt(z, surfScratch);
+    w0 = w[0];
+    w1 = w[1];
+    guideX = guideAt(z);
+    icy = chapterTraitsAt(z).icy;
+  }
 
   /* Full machine hardpack on the ribbon; the regular corridor snow rides
      as a blend — a bit under half groomed response, the rest soft. */
   const corridorF = 1 - smoothstep(half - 4, half + 10, d);
   const ribbonF = 1 - smoothstep(guide.tol - 3, guide.tol + 6,
-    Math.abs(x - guideAt(z)));
+    Math.abs(x - guideX));
   const groomed = corridorF * (0.45 + 0.55 * ribbonF);
   const past = Math.max(0, d - half);
   /* Capped to match what the colour pass now paints. The two have to agree —
      the ground that looks like talus is the ground that grinds — and the
      picture out here is snow with stone through it rather than bare stone,
      so the handling should be too. */
-  const rock = smoothstep(w[0], w[0] + 12, past)
-    * (1 - 0.7 * smoothstep(w[0] + w[1], w[0] + w[1] + 90, past))
+  const rock = smoothstep(w0, w0 + 12, past)
+    * (1 - 0.7 * smoothstep(w0 + w1, w0 + w1 + 90, past))
     * 0.74;
   // Scoured névé where the wall starts shedding its cover — and, in a
   // glacier or crest chapter, spread across the open ground as well: the
   // picture up there is blue hardpack, so the handling is too. The groomed
   // ribbon keeps its machine surface; the piste stays the reliable line.
-  const chapIce = chapterTraitsAt(z).icy * 0.55 * (1 - groomed);
+  const chapIce = icy * 0.55 * (1 - groomed);
   const ice = Math.min(1,
-    smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6 + chapIce);
+    smoothstep(w0 + w1, w0 + w1 + 50, past) * 0.6 + chapIce);
   const powder = Math.max(0, (1 - groomed) * (1 - rock) * (1 - ice));
 
   surfMaterial.rock = rock;
@@ -1690,11 +1721,32 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
 }
 
 /* The pure form, for everyone who is asking about one point rather than a
-   row of them. It is the row path with a row of one. */
-const scratch = makeContext();
+   row of them. It is the row path with a row of one. A small ring of contexts
+   keeps central-difference probes (`z ± EPS` around `z`) and `drawnHeightAt`'s
+   bracketing grid rows (`gz` and `gz + s`) from evicting one another on every
+   sample. */
+const ROW_POOL_SIZE = 8;
+const rowPool = Array.from({ length: ROW_POOL_SIZE }, makeContext);
+let rowPoolHead = 0;
+
+function findRowContext(z) {
+  const seed = getWorldSeed();
+  for (let i = 0; i < ROW_POOL_SIZE; i++) {
+    const ctx = rowPool[(rowPoolHead - i + ROW_POOL_SIZE) & (ROW_POOL_SIZE - 1)];
+    if (ctx.z === z && ctx.seed === seed) return ctx;
+  }
+  return null;
+}
+
+function cachedRowContext(z) {
+  const hit = findRowContext(z);
+  if (hit) return hit;
+  rowPoolHead = (rowPoolHead + 1) & (ROW_POOL_SIZE - 1);
+  return rowContext(z, rowPool[rowPoolHead]);
+}
 
 export function heightAt(x, z) {
-  return heightIn(rowContext(z, scratch), x);
+  return heightIn(cachedRowContext(z), x);
 }
 
 /* Metres of outcrop standing at (x, z) on the finest lattice. Props keep off
@@ -1711,7 +1763,7 @@ function pastCorridor(ctx, x) {
 }
 
 export function torHeightAt(x, z) {
-  const ctx = rowContext(z, scratch);
+  const ctx = cachedRowContext(z);
   return torsIn(ctx, x, pastCorridor(ctx, x), TERRAIN.spacing);
 }
 
@@ -1721,7 +1773,7 @@ export function torHeightAt(x, z) {
    to a metre above the snow at range, where the mound is not drawn, and
    settled into it as the rider came close. */
 export function pillowHeightAt(x, z) {
-  const ctx = rowContext(z, scratch);
+  const ctx = cachedRowContext(z);
   const past = pastCorridor(ctx, x);
   if (past <= 3) return 0;
   const band = smoothstep(3, 8, past)
@@ -1774,12 +1826,13 @@ export function drawnHeightAt(x, z) {
      per message. */
   const seed = getWorldSeed();
   if (cell.gx !== gx || cell.gz !== gz || cell.seed !== seed) {
-    // Two rows, two samples each, and `rowContext` caches on z — so the pair
-    // that shares a row costs one context between them.
-    const back = rowContext(gz, scratch);
+    // Two rows, two samples each, and `cachedRowContext` keeps both rows in
+    // its ring — so crossing a lateral cell boundary on the same board strip
+    // or stepping one cell downhill reuses the contexts already built.
+    const back = cachedRowContext(gz);
     cell.h00 = heightIn(back, gx);
     cell.h10 = heightIn(back, gx + s);
-    const front = rowContext(gz + s, scratch);
+    const front = cachedRowContext(gz + s);
     cell.h01 = heightIn(front, gx);
     cell.h11 = heightIn(front, gx + s);
     cell.gx = gx;

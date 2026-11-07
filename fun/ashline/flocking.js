@@ -16,9 +16,9 @@ export function createFlockSnapshot(entities){
     const commanded=['move','attackMove'].includes(e.order.type);
     const active=e.order.type!=='idle'&&!e.yieldReturn&&!e.repairActive&&(!e.targetId||e.moving)&&(commanded||e.moving||e.path.length>0);
     const goal=active?(commanded?e.order:e.pathGoal):null;
-    const speed=e.moving?(e.moveSpeed||0):0;
+    const speed=e.moving?(e.moveSpeed||0):0,vx=Math.cos(e.angle)*speed,vy=Math.sin(e.angle)*speed;
     const u={id:e.id,team:e.team,x:e.x,y:e.y,size:e.size,
-      vx:Math.cos(e.angle)*speed,vy:Math.sin(e.angle)*speed,goal:goal?{x:goal.x,y:goal.y}:null,
+      vx,vy,speed:Math.hypot(vx,vy),goal:goal?{x:goal.x,y:goal.y}:null,
       formation:commanded&&goal&&e.order.formation?{...e.order.formation}:null,
       // Distance from the body to its own goal, read by every neighbour that weighs this body's heading.
       goalDistance:goal?Math.hypot(goal.x-e.x,goal.y-e.y):0};
@@ -51,18 +51,26 @@ export function flockSteering(u,goal,neighbors,time,route=goal){
   const dx=route.x-u.x,dy=route.y-u.y,d=Math.hypot(dx,dy);
   if(d<1e-6)return null;
   const fx=dx/d,fy=dy/d;
+  const orderType=u.order?.type,formation=(orderType==='move'||orderType==='attackMove')?u.order.formation:null;
   let separation=0,alignment=0,cx=0,cy=0,pressure=0,flockmates=0,headings=0;
   for(const other of neighbors){
-    const ox=other.x-u.x,oy=other.y-u.y,range=Math.hypot(ox,oy);
-    if(other.id===u.id||range>=RADIUS)continue;
+    if(other.id===u.id)continue;
+    const ox=other.x-u.x,oy=other.y-u.y,oq=ox*ox+oy*oy;
+    if(oq>=FAR)continue;
+    const range=Math.hypot(ox,oy);
+    if(range>=RADIUS)continue;
     const side=oy*fx-ox*fy,forward=ox*fx+oy*fy;
-    const formation=['move','attackMove'].includes(u.order?.type)?u.order.formation:null;
     const sameFormation=formation&&other.formation&&formation.x===other.formation.x&&formation.y===other.formation.y;
-    const spacing=(u.size+other.size)*.43;
+    const spacing=(u.size+other.size)*.43,maxPersonal=spacing+COMFORT;
     // Respect the selected formation's spacing rather than expanding safe,
     // tightly packed ranks solely to satisfy the free-roaming comfort margin.
-    let goalGap;
-    const personal=sameFormation?Math.max(spacing,Math.min(spacing+COMFORT,goalGap=Math.hypot(other.goal.x-goal.x,other.goal.y-goal.y))):spacing+COMFORT;
+    let goalGap,personal=maxPersonal;
+    if(sameFormation){
+      const hx=other.goal.x-goal.x,hy=other.goal.y-goal.y,hq=hx*hx+hy*hy;
+      if(hq>FAR_GOAL)goalGap=7;
+      else if(hq>maxPersonal*maxPersonal*(1+1e-5)&&hq<NEAR_GOAL)goalGap=3;
+      else{goalGap=Math.hypot(hx,hy);personal=Math.max(spacing,Math.min(maxPersonal,goalGap));}
+    }
     // Correct only the missing clearance, rather than holding a large normalized
     // repulsion for an entire leg and overshooting into a new cohesion correction.
     if(range<personal){
@@ -80,7 +88,7 @@ export function flockSteering(u,goal,neighbors,time,route=goal){
     // Translating an intact formation needs no pull toward its physical center.
     cx+=sameFormation?ox-(other.goal.x-goal.x):ox;
     cy+=sameFormation?oy-(other.goal.y-goal.y):oy;flockmates++;
-    const speed=Math.hypot(other.vx,other.vy);
+    const speed=other.speed??Math.hypot(other.vx,other.vy);
     if(speed>.05){alignment+=(other.vy*fx-other.vx*fy)/speed;headings++;}
   }
   const arrival=clamp((Math.hypot(goal.x-u.x,goal.y-u.y)-1.2)/2.8,0,1);

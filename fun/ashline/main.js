@@ -694,7 +694,11 @@ function entityAt(point) {
   let building = null;
   for (const e of game.entities) {
     if (e.hp <= 0) continue;
-    if (e.kind === 'unit') { const p = renderer.poseOf(e); if (Math.hypot(p.x - point.x, p.y - point.y) < .55 && isVisible(e)) return e; }
+    if (e.kind === 'unit') {
+      if (Math.abs(e.x - point.x) > 2 || Math.abs(e.y - point.y) > 2) continue;
+      const p = renderer.poseOf(e), dx = p.x - point.x, dy = p.y - point.y;
+      if (dx * dx + dy * dy < .3025 && isVisible(e)) return e;
+    }
     else if (!building && point.x >= e.x && point.y >= e.y && point.x <= e.x + e.size && point.y <= e.y + e.size && isVisible(e)) building = e;
   }
   return building;
@@ -1561,10 +1565,15 @@ canvas.addEventListener('pointerleave', () => { if (!pointer) { pointerPosition 
 canvas.addEventListener('dblclick', event => {
   if (busy()) return;
   const point = localPoint(event), entity = entityAt(renderer.screenToWorld(point.x, point.y, view));
-  if (entity?.team === 0 && entity.kind === 'unit') {
+  if (entity?.team === 0 && (entity.kind === 'unit' || isProducer(entity))) {
     const topLeft = renderer.screenToWorld(0, 0, view), bottomRight = renderer.screenToWorld(renderer.width, renderer.height, view);
-    view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.type === entity.type && e.hp > 0
-      && e.x >= topLeft.x && e.x <= bottomRight.x && e.y >= topLeft.y && e.y <= bottomRight.y).map(e => e.id));
+    const matches = game.entities.filter(e => {
+      if (e.team !== 0 || e.kind !== entity.kind || e.type !== entity.type || e.hp <= 0) return false;
+      const p = e.kind === 'unit' ? renderer.poseOf(e) : entityCenter(e);
+      return p.x >= topLeft.x && p.x <= bottomRight.x && p.y >= topLeft.y && p.y <= bottomRight.y;
+    });
+    if (!event.shiftKey) view.selected.clear();
+    for (const e of matches) view.selected.add(e.id);
     // The double click's own clicks already brought the cue and the reply.
     updateHUD();
   }

@@ -95,7 +95,7 @@ function cachedSprite(key, size, paint, build) {
   let sprite = spriteCache.get(key);
   if (!sprite) {
     if (build) sprite = build();
-    else { sprite = document.createElement('canvas'); sprite.width = sprite.height = size; paint(sprite.getContext('2d'), size); }
+    else { sprite = document.createElement('canvas'); sprite.width = sprite.height = size; paint(sprite.getContext('2d', { willReadFrequently: true }), size); }
     spriteCache.set(key, sprite);
   }
   return sprite;
@@ -1719,9 +1719,9 @@ export class Renderer {
     this.updateShake(view, clock);
     const left = this.width / 2 - view.x * zoom + this.shakeX, top = this.height / 2 - view.y * zoom + this.shakeY;
     const knownWalls = new Map();
-    for (const e of this.rememberedBuildings.values()) if (entityRole(e) === 'wall' && !entityVisible(e)) knownWalls.set(wallKey(e), e);
-    for (const e of state.entities) if (e.hp > 0 && entityRole(e) === 'wall' && (e.team === 0 || entityVisible(e))) knownWalls.set(wallKey(e), e);
-    const wallVisual = e => entityRole(e) === 'wall' ? { ...e, wallConnections: wallConnections(e, knownWalls) } : e;
+    for (const e of this.rememberedBuildings.values()) if (BUILDINGS[e.type]?.role === 'wall' && !entityVisible(e)) knownWalls.set(wallKey(e), e);
+    for (const e of state.entities) if (e.hp > 0 && e.kind === 'building' && BUILDINGS[e.type]?.role === 'wall' && (e.team === 0 || entityVisible(e))) knownWalls.set(wallKey(e), e);
+    const wallVisual = e => e.kind === 'building' && BUILDINGS[e.type]?.role === 'wall' ? { ...e, wallConnections: wallConnections(e, knownWalls) } : e;
     const x0 = Math.max(0, Math.floor(view.x - this.width / zoom / 2) - 2);
     const y0 = Math.max(0, Math.floor(view.y - this.height / zoom / 2) - 3);
     const x1 = Math.min(W, Math.ceil(view.x + this.width / zoom / 2) + 2);
@@ -1740,12 +1740,19 @@ export class Renderer {
     world();
     // Drawable bodies: friendly or currently visible, posed once per frame for every layer.
     const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
-    const live = [], visibleUnits = [];
+    const live = [], visibleUnits = [], rangeUnits = [];
+    const hasSelected = view.selected?.size > 0;
+    const refreshBodies = state.time !== this.bodyTime || state !== this.bodyState;
+    const bodies = refreshBodies ? [] : null;
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) {
+      if (bodies && e.kind !== 'rock') bodies.push(e);
       const p = e.kind === 'unit' && this.blending ? this.unitPose(e, visible) : e;
       // Off-screen orders still draw their visible route, but distant bodies do
       // not need depth sorting with the small portion of the map on screen.
-      if (e.kind === 'unit') visibleUnits.push(p);
+      if (e.kind === 'unit') {
+        visibleUnits.push(p);
+        if (hasSelected && p.team === 0 && view.selected.has(p.id) && UNITS[p.type].damage > 0) rangeUnits.push(p);
+      }
       if (inView(p)) live.push(p);
     }
     // A body a landing shell destroys stays where it was last seen until the shell arrives.
@@ -1754,12 +1761,11 @@ export class Renderer {
       for (const d of this.dying) if (clock < d.until && d.until - clock < 1) { this.dying[keep++] = d; if (inView(d.body)) live.push(d.body); }
       this.dying.length = keep;
     }
-    if (state.time !== this.bodyTime || state !== this.bodyState) {
+    if (refreshBodies) {
       // Bodies the player could see on this tick; a death explosion next tick finds its wreck here.
-      this.bodies = state.entities.filter(e => e.hp > 0 && (e.team === 0 || entityVisible(e)) && e.kind !== 'rock');
+      this.bodies = bodies;
       this.bodyTime = state.time; this.bodyState = state;
     }
-    const rangeUnits = visibleUnits.filter(e => e.team === 0 && view.selected?.has(e.id) && UNITS[e.type].damage > 0);
     if (rangeUnits.length) {
       const fade = 1 / Math.sqrt(rangeUnits.length);
       ctx.lineWidth = 1 / scale;

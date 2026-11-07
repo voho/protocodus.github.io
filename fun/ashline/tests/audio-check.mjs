@@ -71,7 +71,7 @@ try {
   assert(status.ducking.combat > .3 && status.ducking.music > .2, 'Alerts duck combat and music');
   await page.waitForFunction(() => sound.status.reverb.combat < .8, null, { timeout: 2000 });
   assert(await page.evaluate(() => sound.status.reverb.combat < .8 && sound.status.ducking.combat > .3), 'Ducking pulls the battle\'s reverb down with it');
-  assert.equal(await page.evaluate(() => sound.play('organics.artillery')), false, 'Repeated combat effects are rate limited');
+  assert.equal(await page.evaluate(() => { sound.play('organics.artillery'); return sound.play('organics.artillery'); }), false, 'Repeated combat effects are rate limited');
   assert(await page.evaluate(() => sound.status.aggregated) > 0, 'A repeated shot reinforces the voice already playing');
   assert.equal(await page.evaluate(async () => {
     const { RECIPES } = await import('./soundbank.js');
