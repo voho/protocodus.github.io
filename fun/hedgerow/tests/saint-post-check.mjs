@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const { L, world, terrain } = await import('./level-world.mjs');
 assert.equal(L.id, 'saint-clair');
 const index = L.enemies.findIndex((e) => e.group === 'trench' && e.type === 'rifle' && e.at[0] === 34 && e.at[1] === 387.2);
-assert.equal(index, 35, 'the same authored enemy slot keeps its identity'); assert.equal(L.enemies.length, 47);
+assert.equal(index, 35, 'the same authored enemy slot keeps its identity'); assert.equal(L.enemies.length, 48);   // 47 authored + the field-gate sentry appended last
 const post = L.enemies[index]; assert.equal(post.yaw, 180); assert.equal(post.hold, true); assert.equal(post.inTrench, true);
 const analytic = terrain.height, cache = new Map(), res = 0.5, { minX, minZ } = L.bounds;
 const h = (i, j) => { const key = i + ',' + j; if (!cache.has(key)) cache.set(key, Math.fround(analytic(minX + i * res, minZ + j * res))); return cache.get(key); };
