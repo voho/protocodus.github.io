@@ -2,7 +2,7 @@
   "product": "Remix",
   "reviewed": "2026-11-07",
   "availability": "coming_soon",
-  "source_version": "1.1.0f1",
+  "source_version": "1.1.0f2",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "file": "remix-rack-front.webp",
-      "sha256": "aaaa83cefc5fa712dd5ce000cf387d87f0043189bcf7b49b66bf5ee2289f0509"
+      "sha256": "0029070bfcc9106bae857bd740ecef8dced03e2c52c75a4a08ba26a9cc4cce74"
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "2fa149aa13a3c9742aaccddcf4a4e6c7047797a5147d4de3dc8475144d30e20b"
+      "sha256": "0aabc4e6fbcba0e796f338cad67aa716cf68d51cb219cbcf0643e1d912350d3c"
     }
   ],
   "shop_cover_refresh": {
@@ -36,7 +36,7 @@
   "rack_images": {
     "date": "2026-11-07",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "083bc75",
-    "note": "3U 1.1.0f1 panels (no front deck titles; A and B beside the Main fader; Shape and Skew named above their knobs), converted to WebP quality 92"
+    "source_commit": "ec63f90",
+    "note": "3U 1.1.0f2 panels (narrower scope and Main fader, Shape and Skew side by side; rear Smooth is the stock trim knob), converted to WebP quality 92"
   }
 }
