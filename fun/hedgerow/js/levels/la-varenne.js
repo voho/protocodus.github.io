@@ -15,9 +15,12 @@
 
    Ways round: the sunken lane winding up the fold on the west (under the
    west MG), the track round the spur through the orchard on the east (under
-   the east MG), or the meadow between them by the knoll and from crater to
-   crater; the trench can be entered at either end or jumped into from the
-   hedge gaps.
+   the east MG), or the meadow between them by the drain, the knoll and from
+   crater to crater; the trench can be entered at either end, through the
+   three gaps bombed in its wire, or jumped into from the hedge gaps. Cover
+   is laid in steps up the slope (fallen tree and cart in the lane, the old
+   boundary's low hedge across the meadow, the calvary on the knoll, the
+   orchard's rows), so each approach reads as a run between safe places.
 
    World axes as Saint-Clair: +z north (the way forward), +x west (the
    player's left), yaw 0 turns a model's front to +z, 180 to the south. */
@@ -53,6 +56,24 @@ const FIELDS = fieldwork([
   { x: -9, z: 21, width: 25, length: 39, yaw: -9, soil: 2.1 },
   { x: -7, z: 177, width: 32, length: 18, yaw: 5, soil: 1.2, relief: 0.045 },
 ]);
+
+// An old field boundary, grubbed out but for its bank and a few stretches of low hedge: the one
+// line of cover across the middle of the meadow, broken where the drain and the patrols go
+// through and where the knoll's calvary stands in for it.
+const REMNANT_Z = (x) => 104 + 3 * Math.sin(x / 11);
+const REMNANT = hedgeBanks([[26, 21], [12, 2], [-19, -27]].map(([a, b]) => curve(REMNANT_Z, a, b, 1.5)), { height: 0.5, half: 1.8, natural: true });
+// The heavy bombers' sticks from the night before: wide, older craters than the shell holes,
+// rainwater standing in them, lying across the battery's approach and into the field behind it.
+const BOMBS = [[-14, 121, 4.2], [9, 116, 3.6], [31, 121, 3.3], [-31, 117, 3.8], [16, 165, 3.6], [-20, 158, 3.2], [-2, 88, 3.4]]
+  .map(([x, z, r]) => ({ x, z, r, h: r * 0.3, crater: true }));
+const bombHeight = (x, z) => {
+  let h = 0;
+  for (const b of BOMBS) {
+    const d = Math.hypot(x - b.x, z - b.z) / b.r;
+    if (d < 1.6) h += -b.h * smoothstep(1.0, 0.0, d) * smoothstep(0.0, 0.2, 1 - d * 0.2) + b.h * 0.45 * smoothstep(0.75, 1.05, d) * smoothstep(1.6, 1.05, d);
+  }
+  return h;
+};
 
 const BOX = { LANE: bbox(LANE, 10), TRACK: bbox(TRACK, 10), ROAD: bbox(ROAD, 10), TA: bbox(TRENCH_A, 6) };
 
@@ -101,6 +122,8 @@ function roughAllowed(x, z) {
   k = Math.min(k, smoothstep(2.6, 5, near(TRENCH_A, BOX.TA, x, z)));
   k = Math.min(k, smoothstep(2.4, 4.5, HEDGES.dist(x, z)));
   k = Math.min(k, smoothstep(2.0, 4.0, DRAIN.dist(x, z)));
+  k = Math.min(k, smoothstep(1.8, 3.6, REMNANT.dist(x, z)));
+  for (const b of BOMBS) k = Math.min(k, smoothstep(b.r * 1.2, b.r * 1.7, Math.hypot(x - b.x, z - b.z)));
   for (const [gx, gz] of GUNS) k = Math.min(k, smoothstep(5, 8, Math.hypot(x - gx, z - gz)));
   if (x > YARD.x0 - 12 && x < YARD.x1 + 12 && z > YARD.z0 - 4 && z < YARD.z1 + 22) k = 0;
   return k;
@@ -120,6 +143,7 @@ function baseHeight(x, z) {
   const field = smoothstep(62, 72, z) * smoothstep(128, 116, z) * smoothstep(-25, -16, x) * smoothstep(34, 26, x);
   h += Math.sin((x + z * 0.12) * 1.05) * 0.075 * field * k;
   h = DRAIN.cut(h, x, z);
+  h += REMNANT.rise(x, z) + bombHeight(x, z);
   // the farm stands on a level patch
   const yard = smoothstep(14, 4, Math.max(YARD.x0 - x, x - YARD.x1, YARD.z0 - z, z - YARD.z1 - 12, 0));
   h = lerp(h, lipHeight(0, 212), yard);
@@ -174,8 +198,10 @@ function splat(x, z) {
   // the farmyard: setts under the mud, trodden to mud at the edges
   const inYard = x > YARD.x0 && x < YARD.x1 && z > YARD.z0 && z < YARD.z1;
   if (inYard) { cobble = smoothstep(0, 3, Math.min(x - YARD.x0, YARD.x1 - x, z - YARD.z0, YARD.z1 - z)) * (0.6 + 0.4 * smoothstep(-0.3, 0.3, n)); mud += 0.8; }
-  // the orchard by the track
+  // the orchard by the track, the old boundary's bank, the bomb craters' bare spoil
   if (x < -28 && z > 66 && z < 132) { forest += 0.35; }
+  forest += smoothstep(2.0, 0.8, REMNANT.dist(x, z)) * 0.6;
+  mud += Math.min(1.6, Math.abs(bombHeight(x, z)) * 1.8);
   const s = mud + grass + forest + cobble * 3;
   if (cobble > 0.5) return [mud * 0.3 / s, grass * 0.05 / s, 0, 1];
   return [mud / s, grass / s, forest / s, cobble * 3 / s];
@@ -195,24 +221,62 @@ P('supply_canister', 22, -4, 30); P('supply_canister', 14, 6, -60); P('supply_ca
 P('crate', 16.5, 5, 20); P('stretcher', 24, 3, 75); P('pole', 8, 30, 0); P('pole', 8, 74, 0);
 // the first hedgerow's gate
 P('gate', 4, firstZ(4) - 0.5, yawOf(firstZ, 4)); P('signpost', 10, firstZ(10) - 4, -20);
-// the meadow: a burnt-out staff car in the gate's lee, haystacks, a cart
+// the meadow: a burnt-out staff car in the gate's lee, haystacks, a trough
 P('kubelwagen', -6, 82, 150, { fire: true, fireSize: 0.7, debris: 2 });
-P('haystack', 20, 96, 0); P('haystack', -20, 108, 0); P('cart', 12, 118, 70); P('haystack', 26, 72, 0);
+P('haystack', 20, 96, 0); P('haystack', -20, 108, 0); P('haystack', 26, 72, 0);
 P('water_trough', -14, 70, 20);
 P('supply_canister', -24, 92, 140);
 P('field_harrow', -21, 4, -12);
-P('orchard_ladder', -46, 85, 25); P('crate', -44.5, 84, -12);
 P('field_harrow', -21, 184, 90);
 // Farm boundaries explain the orchard route; the broken sections leave wide
 // ways through and can be vaulted. A discarded barrel marks the drain.
 along(TRACK, 8.5, 5.2, (x, z, yaw) => P('fence_field', x, z, yaw), 72, 122);
 P('barrel_wood', 26, 78, 0);
 
-// --- the battery: three guns in pits cut through the hedge, the infantry's trench behind ---
+const RV = rng(6061944);   // the later additions draw their own dice, leaving the older layout where it was
+const laneAt = (z, side = 0) => { const a = atZ(LANE, z); return [a.x + a.tz * side, z - a.tx * side, Math.atan2(a.tx, a.tz) * 180 / Math.PI]; };
+
+// The sunken lane: a tree brought down across it by the shelling, and a farm cart abandoned
+// further up where the machine gun looks down the lane, the one solid thing to get behind.
+{
+  const [x, z, yaw] = laneAt(86, 0.6);
+  P('log', x, z, yaw + 68, { scale: 1.15 }); P('log', x - 1.6, z + 0.7, yaw + 52, { scale: 0.7 });
+  P('bush_a', x + 2.4, z - 1.2, 30, { veg: true, scale: 1.2 });
+  const [cx, cz, cyaw] = laneAt(118, 1.5);
+  P('cart', cx, cz, cyaw + 8);
+  const [bx, bz] = laneAt(121, -1.6); P('barrel_wood', bx, bz, 0);
+}
+
+// The knoll between the lane and the drain: a wayside calvary in a ring of old wall under a lone
+// oak, the meadow's landmark, with a sandbagged observation post in its lee looking downhill.
+P('cross', -8, 96, 170);
+P('wall_broken', -5.2, 93.2, 160); P('wall_broken', -11.6, 94.1, 205); P('wall_low', -9.4, 99.6, 10);
+P('sandbags_low', -5, 100.8, 175); P('sandbags_curve', -12.2, 99.4, 150);
+P('boulder_b', -15.6, 92, 40); P('boulder_a', -2.4, 97.5, 110); P('rocks_small', -10, 90.5, 0);
+P('field_telephone', -6.6, 101.4, 200); P('cable_reel', -2.2, 104.2, 20);
+
+// The old boundary's low hedge, in stretches with a few pollarded oaks standing out of it.
+REMNANT.plant((m, x, z, yaw, o) => P('hedge_low', x, z, yaw, o), above(-0.12), 4.2);
+
+// The orchard round the track: apple trees in rows, a few lost to the shelling, a ladder and the
+// last autumn's barrels left among them. Trunks every few metres: cover from tree to tree.
+const ORCHARD = [];
+for (let row = 0; row < 12; row++) for (let col = 0; col < 5; col++) {
+  const x = -27.5 - col * 5.6 + row * 0.55 + RV.range(-0.5, 0.5), z = 66 + row * 6 + col * 0.8 + RV.range(-0.5, 0.5);
+  if (x < -52 || REMNANT.dist(x, z) < 2.5 || near(TRACK, BOX.TRACK, x, z) < 4 || Math.abs(near(TRACK, BOX.TRACK, x, z) - 8.5) < 1.4) continue;
+  const fate = RV();
+  if (fate < 0.12) continue;
+  ORCHARD.push([x, z, fate < 0.2 ? 'stump' : fate < 0.26 ? 'tree_dead' : 'tree']);
+}
+P('orchard_ladder', -46, 85, 25); P('crate', -44.5, 84, -12);
+P('barrel_wood', -31.5, 98, 0); P('barrel_wood', -32.2, 98.8, 0); P('crate', -30.8, 99.6, 40);
+P('log', -48, 112, 80);
+
+// --- the battery: three guns in revetted pits cut through the hedge, the infantry's trench behind ---
 GUNS.forEach(([gx, gz], i) => {
   P('pak40', gx, gz, 0, { pad: true, y: lipHeight(gx, gz) - 0.35, id: `gun${i + 1}` });
-  P('sandbags_curve', gx - 2.2, gz + 3.2, 20); P('sandbags_curve', gx + 2.2, gz + 3.2, -20);
-  P('ammo_stack', gx + 3.6, gz - 0.5, 15 + i * 30);
+  P('gun_revetment', gx, gz, 0, { y: lipHeight(gx, gz) - 0.35 });
+  P('ammo_stack', gx + 2.6, gz - 1.4, 15 + i * 30);
   P('camo_net', gx, gz + 0.5, 0);
 });
 // trench walls and the sandbags on its lip (south: the side they fire from)
@@ -221,9 +285,28 @@ along(TRENCH_A, 3.9, -0.86, (x, z, yaw) => P('trench_wall', x, z, yaw + 180, { y
 along(TRENCH_A, 8.5, -2.1, (x, z, yaw) => P('sandbags_low', x, z, yaw + 180));
 P('mg_nest', 38, crestZ(38) + 7, 200, { id: 'nest_w' });
 P('mg_nest', -42, crestZ(-42) + 8, 160, { id: 'nest_e' });
+P('sandbags_ruined', 31, trenchZ(31) + 2.6, yawOf(trenchZ, 31)); P('sandbags_ruined', -34, trenchZ(-34) + 2.4, yawOf(trenchZ, -34) + 180);
 P('dugout_entrance', 8, trenchZ(8) - 5, yawOf(trenchZ, 8)); P('field_telephone', 6.5, trenchZ(6.5) - 3.6, 30); P('cable_reel', 15, trenchZ(15) - 6, 20);
-for (const x of [26, 18, -10, -20]) P('barbed_wire', x, trenchZ(x) - 9, yawOf(trenchZ, x));
-P('sign_minen', 30, trenchZ(30) - 10, 180); P('sign_minen', -30, trenchZ(-30) - 9, 190);
+// The wire belt in front of the trench, continuous but for the gaps the bombs blew in it: at the
+// drain's head, in front of the dugout and by the orchard. Elsewhere it has to be climbed in the open.
+const WIRE_GAPS = [[22, 28], [1, 7], [-24, -18]];
+for (let x = 34; x > -38; x -= 3.9) if (!WIRE_GAPS.some(([a, b]) => x > a - 2 && x < b + 2)) P('barbed_wire', x, trenchZ(x) - 9, yawOf(trenchZ, x));
+P('sign_minen', 30, trenchZ(30) - 10, 180); P('sign_minen', -30, trenchZ(-30) - 9, 190); P('sign_minen', 11, trenchZ(11) - 10.5, 170);
+// trees on the crest broken by the bombing
+for (const [x, z, yaw] of [[16, 141, 30], [-14, 140.5, 200], [-36, 135, 110], [33, 154, 300]]) P('tree_dead', x, z, yaw, { veg: true });
+
+// The battery's horse lines behind the crest: two ammunition limbers, their crates half unloaded.
+P('cart', 14, 160.5, 100); P('cart', 19.5, 163.5, 75);
+P('crate_large', 16.4, 158.4, 10); P('crate_large', 11.6, 163, 95); P('crate', 13.4, 157.2, 60);
+P('haystack', 22.5, 168.5, 0); P('water_trough', 9, 160, 80);
+
+// Field edges: stumps of felled trees, a sawn log, a field stone, along the banks' field side.
+for (let i = 0, n = 0; i < 3000 && n < 34; i++) {
+  const x = RV.range(-50, 36), z = RV.range(-12, 190), d = HEDGES.dist(x, z), m = RV.pick(['stump', 'stump', 'log', 'boulder_a', 'rocks_small']);
+  if (d < 2.6 || d > 3.6 || FIELDS.mask(x, z) > 0.1 || x > atZ(LANE, z).x - 7 || REMNANT.dist(x, z) < 3) continue;
+  if (near(TRACK, BOX.TRACK, x, z) < 4 || near(TRENCH_A, BOX.TA, x, z) < 5 || DRAIN.dist(x, z) < 4 || GUNS.some(([gx, gz]) => Math.hypot(x - gx, z - gz) < 9)) continue;
+  P(m, x, z, RV() * 360, { scale: 0.8 + RV() * 0.35 }); n++;
+}
 
 // --- the farm of La Varenne round its yard ---
 P('house_e', 0, 232, 180, { pad: true });                      // the manor, its front on the yard
@@ -273,7 +356,8 @@ for (let k = 0; k < 18; k++) C(RC.pick(['dropped_helmet_us', 'ammo_box', 'branch
 const R = rng(20250606);
 const scatter = [];
 const noTree = (x, z) => near(LANE, BOX.LANE, x, z) < 5 || near(TRACK, BOX.TRACK, x, z) < 4 || near(ROAD, BOX.ROAD, x, z) < 4
-  || DRAIN.dist(x, z) < 3.8
+  || DRAIN.dist(x, z) < 3.8 || REMNANT.dist(x, z) < 2.5 || BOMBS.some((b) => Math.hypot(x - b.x, z - b.z) < b.r * 1.3)
+  || (x < -24 && x > -50 && z > 62 && z < 136)
   || near(TRENCH_A, BOX.TA, x, z) < 4 || GUNS.some(([gx, gz]) => Math.hypot(x - gx, z - gz) < 9)
   || (x > YARD.x0 - 14 && x < YARD.x1 + 14 && z > YARD.z0 - 4 && z < YARD.z1 + 22);
 const BIG = { oak_big: ['oak_a', 1.5], beech_big: ['oak_b', 1.55], pine_big: ['pine_a', 1.45] };
@@ -286,12 +370,15 @@ for (let i = 0; i < 900; i++) {
   const r = R();
   tree(r < 0.35 ? 'oak_big' : r < 0.6 ? R.pick(['oak_a', 'oak_b']) : r < 0.75 ? 'beech_big' : r < 0.85 ? 'birch_a' : R.pick(['bush_a', 'bramble']), x, z, 0.9 + R() * 0.45);
 }
-// the orchard along the track
-for (let i = 0; i < 70; i++) {
-  const x = R.range(-50, -28), z = R.range(66, 132);
-  if (noTree(x, z)) continue;
-  tree(R.pick(['oak_a', 'oak_b', 'oak_a', 'birch_a']), x, z, 0.55 + R() * 0.25);
+// the orchard along the track: low, spreading crowns on short trunks, as the cider apples grow
+for (const [x, z, kind] of ORCHARD) {
+  if (kind === 'stump') props.push({ m: 'stump', x, z, yaw: RV() * 360, scale: 0.75 });
+  else if (kind === 'tree_dead') props.push({ m: 'tree_dead', x, z, yaw: RV() * 360, scale: 0.55, veg: true });
+  else scatter.push({ m: RV() < 0.75 ? 'oak_a' : 'oak_b', x, z, yaw: RV() * 360, scale: 0.42 + RV() * 0.14 });
 }
+// the lone oak over the calvary, and pollards standing out of the old boundary's stretches
+scatter.push({ m: 'oak_big', x: -13.5, z: 97.5, yaw: 70, scale: 1.05, alt: 'oak_a', altScale: 1.5 });
+for (const x of [24, 6, -24]) scatter.push({ m: 'oak_a', x, z: REMNANT_Z(x) + 0.4, yaw: RV() * 360, scale: 0.7 + RV() * 0.2 });
 // the woods beyond the fields
 for (let i = 0; i < 1500; i++) {
   const x = R.range(-105, 105), z = R.range(-48, 298);
@@ -311,9 +398,10 @@ for (let i = 0; i < 30000; i++) {
   const x = R.range(-56, 56), z = R.range(-26, 262);
   if (near(LANE, BOX.LANE, x, z) < 2.6 || near(TRACK, BOX.TRACK, x, z) < 2.2 || near(ROAD, BOX.ROAD, x, z) < 2.4) continue;
   if (DRAIN.strength(x, z) > 0.4) continue;
+  if (BOMBS.some((b) => Math.hypot(x - b.x, z - b.z) < b.r * 0.85)) continue;
   if (x > YARD.x0 && x < YARD.x1 && z > YARD.z0 && z < YARD.z1) continue;
   const q = R(), hd = HEDGES.dist(x, z);
-  const m = hd < 2.6 ? (q < 0.3 ? 'nettles' : q < 0.55 ? 'fern' : q < 0.7 ? 'weeds' : 'grass_tall')
+  const m = hd < 2.6 || REMNANT.dist(x, z) < 2.2 ? (q < 0.3 ? 'nettles' : q < 0.55 ? 'fern' : q < 0.7 ? 'weeds' : 'grass_tall')
     : q < 0.45 ? 'grass_tall' : q < 0.55 ? 'weeds' : 'grass_tuft';
   cover.push({ m, x, z, yaw: R() * 360, scale: 0.7 + R() * 0.6 });
 }
@@ -327,22 +415,30 @@ for (let i = scatter.length - 1; i >= 0; i--) if (FIELDS.mask(scatter[i].x, scat
 const E = (type, x, z, yaw, group, o = {}) => ({ type, at: [x, z], yaw, group, ...o });
 const enemies = [
   // the meadow
-  E('rifle', 14, 92, 190, 'meadow', { patrol: [[14, 92], [-12, 100], [-18, 124], [16, 124]] }),
-  E('rifle', -8, 70, 200, 'meadow', { leash: 12 }),
+  E('rifle', 14, 92, 190, 'meadow', { patrol: [[14, 92], [0, 84], [-17, 88], [-16, 124], [16, 124]] }),
   E('rifle', 30, 110, 160, 'meadow', { patrol: [[30, 110], [30, 80], [20, 66]] }),
+  // the observation post on the knoll, looking down the meadow from behind the calvary's wall
+  E('rifle', -5.4, 102.2, 185, 'knoll', { stance: 'crouch', leash: 7 }),
+  E('rifle', -10.4, 102.6, 160, 'knoll', { leash: 7 }),
+  // the orchard: a pair working through the trees, and a man at the lane's cart
+  E('rifle', -38, 104, 170, 'orchard', { patrol: [[-38, 104], [-48, 92], [-46, 76], [-32, 88]] }),
+  E('smg', -36, 116, 190, 'orchard', { leash: 10 }),
+  E('rifle', ...laneAt(124, -1).slice(0, 2), 190, 'lane', { leash: 8 }),
   // the trench line along the battery hedge
   ...[['rifle', 28], ['rifle', 17], ['smg', 6], ['rifle', -6], ['rifle', -12], ['rifle', -22], ['smg', -33]]
     .map(([t, x], i) => E(t, x, inTrenchZ(x), 180 + ((i * 7) % 15) - 7, 'trench', { hold: true, inTrench: true })),
   E('mg', 0, 0, 200, 'trench', { nest: 'nest_w', arc: 0.9 }),
   E('mg', 0, 0, 160, 'trench', { nest: 'nest_e', arc: 0.9 }),
   // the guns' crews
-  E('rifle', GUNS[0][0] + 3, GUNS[0][1] + 3, 190, 'guns', { stance: 'crouch', leash: 8 }),
-  E('rifle', GUNS[1][0] + 3, GUNS[1][1] + 3.5, 170, 'guns', { stance: 'crouch', leash: 8 }),
-  E('smg', GUNS[2][0] + 3, GUNS[2][1] + 3, 185, 'guns', { stance: 'crouch', leash: 8 }),
-  E('rifle', GUNS[2][0] - 3, GUNS[2][1] + 4.5, 200, 'guns', { leash: 8 }),
+  E('rifle', GUNS[0][0] + 2.6, GUNS[0][1] + 1.2, 190, 'guns', { stance: 'crouch', leash: 8 }),
+  E('rifle', GUNS[1][0] + 2.6, GUNS[1][1] + 1.6, 170, 'guns', { stance: 'crouch', leash: 8 }),
+  E('smg', GUNS[2][0] + 2.6, GUNS[2][1] + 1.2, 185, 'guns', { stance: 'crouch', leash: 8 }),
+  E('rifle', GUNS[2][0] - 2.6, GUNS[2][1] + 1.0, 200, 'guns', { leash: 8 }),
   // the north field, between the guns and the farm
   E('rifle', 10, 170, 180, 'north', { patrol: [[10, 170], [-30, 170], [-30, 180], [10, 180]] }),
   E('rifle', -16, 165, 160, 'north', { leash: 14 }),
+  E('rifle', 9.5, 167.5, 200, 'north', { stance: 'crouch', leash: 9 }),
+  E('smg', 21, 160.5, 170, 'north', { leash: 9 }),
   // the farm
   E('smg', 2, 200, 180, 'farm'),
   E('rifle', -12, 199, 190, 'farm'),
@@ -359,7 +455,8 @@ const enemies = [
 const pickups = [
   { type: 'medkit', x: 18, z: 4 }, { type: 'ammo', x: 24, z: 8 }, { type: 'grenades', x: 16, z: 10 },
   { type: 'medkit', x: 4, z: 69 }, { type: 'ammo', x: -16, z: 74 }, { type: 'medkit', x: 40, z: 100 },
-  { type: 'grenades', x: -40, z: 110 }, { type: 'ammo', x: 2, z: 128 }, { type: 'medkit', x: 34, z: 132 },
+  { type: 'grenades', x: -40, z: 110 }, { type: 'ammo', x: 2, z: 128 }, { type: 'medkit', x: 33, z: 127 },
+  { type: 'ammo', x: -7.5, z: 101.6 }, { type: 'medkit', x: -34, z: 92 }, { type: 'grenades', x: 16, z: 106.5 },
   { type: 'medkit', x: -2, z: 158 }, { type: 'ammo', x: -36, z: 150 }, { type: 'grenades', x: 18, z: 160 },
   { type: 'medkit', x: 20, z: 188 }, { type: 'ammo', x: -30, z: 180 }, { type: 'medkit', x: -14, z: 240 },
 ];
@@ -381,8 +478,9 @@ const objectives = [
 
 const hints = [
   { x: 20, z: -6, r: 6, text: 'The guns are firing on the causeway', sub: 'Follow the compass marker; hold the right button to aim' },
-  { x: 5, z: 50, r: 7, text: 'The meadow is open ground', sub: 'The sunken lane (left) and the orchard track (right) are covered by machine guns' },
-  { x: 0, z: 118, r: 8, text: 'The trench runs the length of the hedge', sub: 'Get into it at either end, or bomb it with grenades (G)' },
+  { x: 5, z: 50, r: 7, text: 'Three ways up the hill', sub: 'The sunken lane (left), the drain past the knoll (centre) or the orchard (right)' },
+  { x: 4, z: 96, r: 7, text: 'The old hedge line is the last cover', sub: 'Crouch behind it; the observation post on the knoll overlooks the meadow' },
+  { x: 0, z: 118, r: 8, text: 'The wire in front of the trench is broken in three places', sub: 'At the drain\'s head, by the dugout, near the orchard; grenades (G) clear the trench' },
   { x: 20, z: 78, r: 6, text: 'The field drain leads towards the battery', sub: 'Crouch to keep below its banks; the last stretch to the trench is open' },
   { x: -30, z: 132, r: 8, text: 'Take the guns in any order', sub: 'The compass marks the nearest remaining gun; press F beside it to set a charge' },
   { x: GUNS[0][0], z: GUNS[0][1] - 5, r: 6, text: 'Press F at a gun to set a charge', sub: 'Six seconds: get clear' },
@@ -396,7 +494,7 @@ export default {
   briefing: [
     'You came down miles from the drop zone in the night. At first light a dozen of us have found each other in the fields west of the beach — and found a battery of guns at the farm of La Varenne, dug in along a hedgerow and shelling the causeway the seaborne troops must come up.',
     'The guns face north, at the beach. Their infantry hold a trench along the south side of the hedge, between a machine gun at each end. Work along it and put a charge on each gun, then blow the shells they have stacked in the farmyard.',
-    'The ground rises all the way to their hedge, and they look down on you. Take the guns in whichever order your approach allows. There is the sunken lane winding up the fold on the left, the orchard track round the spur on the right, and an old field drain winding past the knoll through the meadow. Stay low, then cross the last open stretch into the trench.',
+    'The ground rises all the way to their hedge, and they look down on you. Take the guns in whichever order your approach allows. There is the sunken lane winding up the fold on the left, the orchard track round the spur on the right, and an old field drain winding past the knoll through the meadow. The bombers have blown gaps in their wire; find one, then cross the last open stretch into the trench.',
   ],
   daylight: true,
   weather: { rain: 0.45 },
@@ -422,5 +520,5 @@ export default {
   mist: (x, z) => 0.45 + 0.35 * smoothstep(60, 20, Math.abs(x)) * smoothstep(-20, 40, z) * smoothstep(200, 140, z),
   ambience: { rain: 0.45, wind: [1.3, 0.6], birds: true },
   lines: { LANE, TRACK, ROAD, TRENCH_A, DRAIN: DRAIN.line },
-  craters: ROUGH.craters,
+  craters: [...ROUGH.craters, ...BOMBS],
 };
