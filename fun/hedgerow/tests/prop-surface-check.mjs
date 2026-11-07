@@ -22,7 +22,7 @@ const expected = new Map([
   ...['bicycle', 'poster_board', 'cable_reel', 'drum_stack', 'halftrack_wreck', 'kubelwagen', 'mg42_tripod', 'motorcycle_sidecar'].map(name => [name, 'metal']),
 ]);
 const uses = new Map();
-for (const id of ['saint-clair', 'la-varenne', 'pont-tournant', 'prague']) {
+for (const id of ['saint-clair', 'la-varenne', 'pont-tournant']) {
   const { default: level } = await import(`../js/levels/${id}.js`);
   for (const prop of level.props) uses.set(prop.m, (uses.get(prop.m) || 0) + 1);
 }

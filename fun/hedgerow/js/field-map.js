@@ -5,7 +5,6 @@ const NS = 'http://www.w3.org/2000/svg';
 const LABELS = {
   'saint-clair': { enter: 'Village checkpoint', square: 'Church square', river: 'River crossings', trench: 'Trench line', bunker: 'Bunker', flak: 'Flak gun', rally: 'Forest rally point' },
   'la-varenne': { hedge: 'First hedgerow', gun1: 'West gun', gun2: 'Middle gun', gun3: 'East gun', dump: 'Ammunition dump', rally: 'North road' },
-  prague: { barricade: 'Tram barricade', relay: 'Radio annex', transmit: 'Tune the relay', report: 'Hold the annex', command: 'German command radio', rally: 'Rally courtyard' },
 };
 const number = n => Number(n.toFixed(2));
 export function fieldPoint(data, x, z) {

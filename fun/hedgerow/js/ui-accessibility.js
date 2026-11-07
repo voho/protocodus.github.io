@@ -82,7 +82,7 @@ if (archiveDetails) {
   let savedMission = null;
   try { savedMission = localStorage.getItem('hedgerow.mission'); } catch { /* Private browsing. */ }
   const id = pickMission(new URLSearchParams(location.search).get('mission'), savedMission).id;
-  const archive = id === 'prague' ? null : archivalImageForMission(id);
+  const archive = archivalImageForMission(id);
   if (archive) {
     const img = archiveDetails.querySelector('[data-archive-image]');
     img.alt = archive.caption; img.width = archive.width; img.height = archive.height;

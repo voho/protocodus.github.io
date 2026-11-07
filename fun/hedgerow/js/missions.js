@@ -25,13 +25,6 @@ export const MISSIONS = [
     inspired: 'Inspired by the glider-borne coups de main on the canal and river bridges in the first minutes of D-Day.',
     load: () => import('./levels/pont-tournant.js'),
   },
-  {
-    id: 'prague', title: 'Prague Rising', place: 'Prague · 7 May 1945', time: 'Dawn',
-    campaign: 'The Prague uprising', subtitle: 'The barricades of Vinohrady', image: 'assets/missions/prague.webp',
-    summary: 'Fight through tram barricades and courtyard passages to hold a resistance radio relay, then withdraw.',
-    inspired: 'An original fictional operation inspired by the Prague uprising and the defence of Czech Radio, 5–9 May 1945.',
-    load: () => import('./levels/prague.js'),
-  },
 ];
 
 /* the mission asked for in the URL, else the last one chosen, else the first */

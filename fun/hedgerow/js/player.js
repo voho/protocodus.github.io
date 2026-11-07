@@ -35,7 +35,6 @@ import { SHOT, MOVE } from './world.js';
 import { createViewMotion } from './viewmotion.js';
 import { createDaze } from './daze.js';
 import { missionLoadout, loadoutInventory } from './loadout.js';
-import { attachResistanceIdentity } from './resistance-kit.js';
 import { BOLT_CYCLE_DURATION } from './kar98k-action.js';
 import { KAR98K_ACTION_TIMING } from './weapon-action-timing.js';
 
@@ -132,11 +131,8 @@ export function createPlayer(G) {
   }
 
   const charOpts = () => ({ outfit: G.level?.playerOutfit === 'axis' ? 'axis' : 'allied', weaponModel: G.models.get(WEAPONS[P.weapon].model), grenadeModel: G.models.get(G.level?.playerGrenade || 'grenade_us'), scene: G.scene, weaponActions: FP });
-  let identityKit = null;
   P.char = createCharacter(G.soldier, G.matlib, charOpts());
-  identityKit = attachResistanceIdentity(P.char, G.matlib, G.level?.playerIdentity);
   G.scene.add(P.char.root);
-  P.releaseGraphicsResources = () => identityKit?.releaseGraphicsResources();
 
   P.reset = (spawn, keepInventory = null) => {
     grenadeRelease = null;
@@ -160,10 +156,8 @@ export function createPlayer(G) {
     P.char.holdLeft?.(null);
     Object.assign(P, loadoutInventory(loadout, keepInventory));
     if (P.char.dead) {
-      identityKit?.dispose();
       P.char.dispose();
       P.char = createCharacter(G.soldier, G.matlib, charOpts());
-      identityKit = attachResistanceIdentity(P.char, G.matlib, G.level?.playerIdentity);
       G.scene.add(P.char.root);
     } else {
       P.char.setWeapon(G.models.get(WEAPONS[P.weapon].model));
@@ -400,11 +394,9 @@ export function createPlayer(G) {
         G.audio.ui(killed ? 'kill' : 'hit');
       } else if (finalHit.world) {
         const h = finalHit.world;
-        if (!G.pragueGlass?.impact(h, finalHit === camHit ? dir : md)) {
-          G.effects.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone', dir.x, dir.y, dir.z);
-          G.decals?.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone');
-          G.audio.impact(h.x, h.y, h.z, h.surface);
-        }
+        G.effects.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone', dir.x, dir.y, dir.z);
+        G.decals?.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone');
+        G.audio.impact(h.x, h.y, h.z, h.surface);
         // near misses keep enemies' heads down
         for (const e of G.enemies) {
           if (!e.dead && Math.hypot(e.pos.x - h.x, e.pos.y + 1 - h.y, e.pos.z - h.z) < 2.2) e.suppress(1.2, P.pos);

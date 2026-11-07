@@ -4,7 +4,6 @@ import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const {createMission}=await import('../js/mission.js');
 const pont=(await import('../js/levels/pont-tournant.js')).default;
-const prague=(await import('../js/levels/prague.js')).default;
 const pontHold=pont.objectives.find(o=>o.kind==='hold');
 const relief={minimum:30,confirmation:6,message:'Bridge secured'};
 
@@ -72,9 +71,10 @@ for(const interruption of ['range','death','checkpoint']) {
   tick(2.9);assert.equal(M.done,false);tick(.1);assert.equal(M.done,true,'only resumed simulation deltas count');
 }
 {
-  const report=prague.objectives.find(o=>o.kind==='hold');
-  assert.equal(report.time,45);assert.equal(report.earlyRelief,undefined);
-  const {M,tick}=scenario({objective:report});tick(44.9);assert.equal(M.done,false,'Prague keeps its complete radio report duration even with no surviving enemies');tick(.1);assert.equal(M.done,true);
+  const {earlyRelief:_,...ordinary}=pontHold;
+  const timedControl={...ordinary,time:45};
+  assert.equal(timedControl.earlyRelief,undefined);
+  const {M,tick}=scenario({objective:timedControl});tick(44.9);assert.equal(M.done,false,'an ordinary timed hold keeps its full duration even with no surviving enemies');tick(.1);assert.equal(M.done,true);
 }
 assert.deepEqual(pontHold.earlyRelief,relief,'the actual Pont objective opts in explicitly');
-console.log('ok    range/death/retry reset confirmation, menus freeze it, and Prague keeps its full forty-five seconds');
+console.log('ok    range/death/retry reset confirmation, menus freeze it, and holds without explicit relief keep their full authored duration');

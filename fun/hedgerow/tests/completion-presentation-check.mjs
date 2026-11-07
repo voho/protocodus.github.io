@@ -19,7 +19,7 @@ function fixture({ savedBest = '0', storageThrows = false } = {}) {
     });
     return nodes.get(selector);
   };
-  const identity = { id: 'prague' }, noop = () => {};
+  const identity = { id: 'completion-fixture' }, noop = () => {};
   const mission = { done: true, checkpoint: 0, restoreCalls: 0,
     restoreCheckpoint() { this.restoreCalls++; this.done = false; return { spawn: [0, 0, 0], inventory: {} }; },
     start() { this.done = false; }, isComplete: () => false, isActive: () => true };
@@ -36,7 +36,7 @@ function fixture({ savedBest = '0', storageThrows = false } = {}) {
     hud: { notice: noop, hideCrosshair: noop, calm: noop, show: noop },
     input: { enable: noop, exitLock: noop, requestLock: noop }, mark: noop,
     fade: { classList }, explosives: { clear: noop }, enemies: { resetLiving: noop },
-    LEVEL: { title: 'Prague', completeTitle: 'The relay holds', start: [0, 0, 0],
+    LEVEL: { title: 'Completion fixture', completeTitle: 'The order is fulfilled', start: [0, 0, 0],
       objectives: [{ id: 'rally', text: 'Withdraw' }] }, MISSION: identity, MISSIONS: [identity],
     KILLER_NAME: {}, document: { body: { classList }, querySelectorAll: () => [],
       createElement: tag => ({ tag, textContent: '', className: '', dataset: {}, setAttribute() {} }) },

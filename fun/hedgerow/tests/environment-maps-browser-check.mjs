@@ -46,6 +46,11 @@ try {
   result = await page.evaluate(async () => {
     const THREE = await import('three');
     const { createEnvironmentMaps } = await import('/fun/hedgerow/js/environment-maps.js');
+    const { resolveLightingProfile } = await import('/fun/hedgerow/js/lighting-profiles.js');
+    const base = resolveLightingProfile();
+    const profile = { ...base, id: 'environment-fixture-low-sun', fog: '#a6adb1',
+      sky: { ...base.sky, zenith: '#7c8fa5', horizon: '#bdc0bc', glow: '#725b4d',
+        glowAzimuth: -1.13, cloudCover: .78, nightGlow: .07 } };
     const { createTAA } = await import('/fun/hedgerow/js/taa.js');
     const { createAdaptation } = await import('/fun/hedgerow/js/adapt.js');
     const { createGrade } = await import('/fun/hedgerow/js/post.js');
@@ -67,7 +72,7 @@ try {
       renderer.autoClear = true;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       const before = renderer.info.memory.textures;
-      const maps = createEnvironmentMaps(renderer, { profile: 'prague-dawn' });
+      const maps = createEnvironmentMaps(renderer, { profile });
       const render = renderer.render;
       let calls = 0, failedAt = null, message = null;
       renderer.render = function (object, camera) {
@@ -95,7 +100,7 @@ try {
       failures.push({ mode, calls, failedAt, message, before, after, afterDispose, finalError: gl.getError() });
     }
 
-    const maps = createEnvironmentMaps(renderer, { fog: '#080e16', profile: 'prague-dawn' });
+    const maps = createEnvironmentMaps(renderer, { fog: '#080e16', profile });
     let environments = maps.bake();
     maps.releaseTemporary();
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(45, 1, .05, 50);

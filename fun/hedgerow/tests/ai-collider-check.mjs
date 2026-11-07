@@ -143,7 +143,6 @@ if (!process.env.HEDGEROW_LEVEL) {
     'saint-clair': { at: [-3.5, 125], target: [-5, 101] },
     'la-varenne': { at: [10, 170], target: [11, 147] },
     'pont-tournant': { at: [-30, 78], target: [-5, 79] },
-    'prague': { at: [-7, 39], target: [0, 15] },
   };
   const scenario = scenarios[L.id];
   if (scenario) {

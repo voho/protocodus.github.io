@@ -3,6 +3,7 @@ import './three-hooks.mjs';
 import assert from 'node:assert/strict';
 const { MISSIONS } = await import('../js/missions.js');
 const { buildFieldMapData, fieldPoint } = await import('../js/field-map.js');
+assert.deepEqual(MISSIONS.map(entry => entry.id), ['saint-clair', 'la-varenne', 'pont-tournant']);
 for (const entry of MISSIONS) {
   const { default: level } = await entry.load();
   const data = await buildFieldMapData(level, { yieldTask: () => Promise.resolve() });
@@ -22,7 +23,6 @@ for (const entry of MISSIONS) {
   assert.equal(data.routes.length, Object.values(level.lines).filter(line => Array.isArray(line) && line.length > 1).length);
   assert.ok(data.routes.every(route => route.path.startsWith('M') && !/NaN|Infinity/.test(route.path)));
   if (level.water) assert.ok(data.water.length > 0, 'the actual river/canal is mapped');
-  if (entry.id === 'prague') assert.equal(data.woods.length, 0, 'Prague does not inherit woodland on its sketch');
   console.log(`ok    ${entry.id}: ${data.markers.length} orders, ${data.routes.length} routes, ${data.contours.length} contour levels`);
 }
-console.log('field-map-check: four real layouts, north/west orientation, order locations and finite bounded geometry pass');
+console.log('field-map-check: three real Normandy layouts, north/west orientation, order locations and finite bounded geometry pass');

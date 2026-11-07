@@ -7,7 +7,6 @@ const { createPlayer } = await import('../js/player.js');
 const { createWorld } = await import('../js/world.js');
 const { createCameraRig } = await import('../js/camera.js');
 const { DEFAULT_SETTINGS, WEAPONS } = await import('../js/config.js');
-const { attachResistanceIdentity } = await import('../js/resistance-kit.js');
 
 assert.deepEqual(missionLoadout(), ['garand', 'thompson']);
 assert.deepEqual(missionLoadout(null), ['garand', 'thompson']);
@@ -135,12 +134,4 @@ for (const loadout of [['garand', 'thompson'], ['kar98k', 'mp40']]) {
   assert.equal(G.stats.grenades, 1);
 }
 
-const char = { bones: { upperarm_l: new THREE.Bone() } };
-const kit = attachResistanceIdentity(char, { get: () => new THREE.MeshBasicMaterial() }, 'czech-resistance');
-assert.ok(kit && kit.group.parent === char.bones.upperarm_l);
-assert.equal(kit.group.children.length, 2);
-assert.ok(kit.group.children.every(mesh => !mesh.material.transparent));
-assert.ok(new THREE.Box3().setFromObject(kit.group).getSize(new THREE.Vector3()).length() < .25, 'identification is sized as an armband');
-kit.dispose(); kit.dispose(); assert.equal(char.bones.upperarm_l.children.length, 0);
-assert.equal(attachResistanceIdentity(char, {}, null), null);
-console.log('loadout-check: mission arms, ammo bounds, switching/reloading, paused and cancelled empty-magazine actions, pickup caps, checkpoint/HUD restore and resistance identification pass');
+console.log('loadout-check: mission and custom captured arms, ammo bounds, switching/reloading, paused and cancelled empty-magazine actions, pickup caps and checkpoint/HUD restore pass');

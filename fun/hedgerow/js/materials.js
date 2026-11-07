@@ -284,9 +284,6 @@ export function createMaterialLibrary(textures, shared) {
   const baked = new Map();
   function resolve(src) {
     if (!src) return get('stone');
-    // This opaque Prague interior material owns its existing-UV shader.
-    // Preserve its shared source instead of replacing the custom callback.
-    if (src.isMeshStandardMaterial && src.userData?.pragueAmbientWindows === true) return src;
     if (src.map || src.emissiveMap) {
       if (baked.has(src.uuid)) return baked.get(src.uuid);
       const m = src;

@@ -98,6 +98,15 @@ try {
     }
     await Promise.all([...document.images].filter(img => img.hasAttribute('src')).map(img => img.decode()));
   });
+  const missionCards = await page.locator('[data-mission-list] [data-mission]').evaluateAll(cards => cards.map(card => {
+    const img = card.querySelector('img');
+    return { id: card.dataset.mission, image: img.getAttribute('src'), width: img.naturalWidth, height: img.naturalHeight };
+  }));
+  assert.deepEqual(missionCards.map(card => card.id), ['saint-clair', 'la-varenne', 'pont-tournant'], 'The selector has exactly three Normandy missions');
+  for (const card of missionCards) {
+    assert.equal(card.image, `assets/missions/${card.id}.webp`, 'Each mission uses its own local loading image');
+    assert.ok(card.width > 0 && card.height > 0, 'Every mission-card image decodes');
+  }
   const show = async name => {
     await page.evaluate(name => {
       for (const screen of document.querySelectorAll('[data-screen]')) {
@@ -194,17 +203,24 @@ try {
   assert.equal(await page.locator('[data-screen="unsupported"] h2').textContent(), 'Use a tablet or PC');
   assert.equal(await page.evaluate(() => document.activeElement.dataset.action), 'retry');
   assert.deepEqual(await page.evaluate(() => window.__webglRequests), [], 'DOM fixture never creates WebGL');
+  await page.evaluate(() => localStorage.setItem('hedgerow.mission', 'prague'));
   await page.goto(origin + '/fun/hedgerow/?mission=prague');
   await page.waitForFunction(() => document.querySelector('[data-screen="start"]').getAttribute('aria-hidden') === 'false');
-  assert.equal(await page.locator('[data-archive]').isHidden(), true, 'Normandy archive is not associated with Prague');
+  assert.equal(await page.locator('[data-archive]').isHidden(), false, 'A removed mission in the URL and storage falls back to the Normandy archive');
+  assert.match(await page.locator('[data-archive-caption]').textContent(), /2nd Infantry Division/);
+  assert.equal(await page.locator('[data-archive-image]').getAttribute('src'), null, 'The fallback archive remains lazy');
+  await page.evaluate(() => localStorage.setItem('hedgerow.mission', 'la-varenne'));
+  await page.goto(origin + '/fun/hedgerow/?mission=prague');
+  await page.waitForSelector('[data-archive]:not([hidden])');
+  assert.match(await page.locator('[data-archive-caption]').textContent(), /Eisenhower/, 'A valid stored Normandy mission wins over a removed URL mission');
   assert.equal(await page.locator('[data-archive-image]').getAttribute('src'), null);
   assert.deepEqual(errors, [], 'UI has no script errors or failed local requests');
   if (output) {
     const hashes={};
     for (const path of ['index.html','hedgerow.css','js/ui-accessibility.js','js/archive.js','js/hud.js','js/controls.js']) hashes[path]=createHash('sha256').update(await readFile(resolve(root,'fun/hedgerow',path))).digest('hex');
-    await writeFile(resolve(output,'report.json'),JSON.stringify({layouts,hashes,errors,webglRequests:0},null,2));
+    await writeFile(resolve(output,'report.json'),JSON.stringify({layouts,missionCards,hashes,errors,webglRequests:0},null,2));
   }
-  console.log('ui-browser-check: supported tablet/PC dialogs, sticky orders/maps, sole focus trap/restoration, lazy local archive, audio values/ARIA, difficulty, reduced motion and health passed without WebGL');
+  console.log('ui-browser-check: three local Normandy cards, removed-mission fallback, supported tablet/PC dialogs, sticky orders/maps, sole focus trap/restoration, lazy local archive, audio values/ARIA, difficulty, reduced motion and health passed without WebGL');
 } finally {
   await browser?.close();
   await new Promise(done => server.close(done));

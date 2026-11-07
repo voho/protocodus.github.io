@@ -69,8 +69,6 @@ import { setFill } from './fill.js';
 import { createClutter } from './clutter.js';
 import { createHayDetail } from './hay-detail.js';
 import { createFieldCrops } from './field-crops.js';
-import { createPragueFlags } from './prague-flags.js';
-import { createPragueGlassFeedback } from './prague-glass-feedback.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import { MISSIONS, pickMission, bestKey } from './missions.js';
@@ -301,14 +299,7 @@ async function boot() {
   const lib = await loadModels('assets/models', ['village', 'military', 'nature', 'weapons', 'soldier'], (f, info) => loading.update('models', f,
     `Loading models · ${info.completed} of ${info.total} sets ready`));
   // and the ones modelled in three.js (procedural.js): the glider, the canal bridge, the supply canisters
-  let missionModels = [];
-  if (LEVEL.id === 'prague') {
-    const [{ pragueModels }, { pragueStreetModels }] = await Promise.all([
-      import('./prague-models.js'), import('./prague-street-models.js'),
-    ]);
-    missionModels = [...pragueModels(), ...pragueStreetModels()];
-  }
-  for (const [name, m] of [...proceduralModels(), ...missionModels]) lib.models.set(name, m);
+  for (const [name, m] of proceduralModels()) lib.models.set(name, m);
   loading.update('models', 1);
   // each step of the layout: the bar moves on, the browser gets its turn, the step is marked
   let laid = 0;
@@ -349,10 +340,6 @@ async function boot() {
   await next('level');
   built = await buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
-  if (LEVEL.id === 'prague') {
-    G.pragueGlass = createPragueGlassFeedback(built.props, { map: G.decals.glassMap, effects: G.effects, audio });
-    scene.add(G.pragueGlass.mesh);
-  }
   audio.setOcclusionProbe((lx, ly, lz, sx, sy, sz) => {
     const dx = sx - lx, dy = sy - ly, dz = sz - lz;
     const distance = Math.hypot(dx, dy, dz);
@@ -370,8 +357,6 @@ async function boot() {
     G.fieldCrops.group.visible = !!quality.clutter;
     scene.add(G.fieldCrops.group);
   }
-  G.pragueFlags = createPragueFlags(LEVEL, (x, z) => G.terrain.height(x, z), { shared });
-  if (G.pragueFlags) scene.add(G.pragueFlags.group);
   await next('walls');
   dressWalls(G, built.props, LEVEL.lines);
   await next('boots');
@@ -570,10 +555,7 @@ function installGraphicsRecovery(environmentMaps) {
     for (const button of document.querySelectorAll('[data-action="start"], [data-action="resume"], [data-action="checkpoint"]')) {
       disabled.set(button, button.disabled); button.disabled = true;
     }
-    // Release listeners tied to the old renderer generation while its
-    // context is lost, rather than deleting stale handles after recovery.
-    player?.releaseGraphicsResources?.();
-    G.pragueGlass?.releaseGraphicsResources();
+    // Retire renderer-owned targets from the lost context before rebuilding.
     environmentMaps.clear(); G.environments = null; scene.environment = null;
     taa?.dispose();
     renderer.setRenderTarget(null);
@@ -765,9 +747,6 @@ async function prepareMission() {
   mark('mission');
   mission = createMission(G, LEVEL, built);
   G.mission = mission;
-  const relay = built.placed.get('relay-radio');
-  if (relay) audio.setRadioSources([{ x: relay.x, y: relay.y + 1, z: relay.z,
-    active: () => mission.isActive('report') }]);
   G.events.on('playerDied', onDeath);
   G.events.on('missionComplete', onComplete);
 }

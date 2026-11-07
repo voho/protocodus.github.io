@@ -84,10 +84,19 @@ try {
   if (oldScheduler === undefined) delete globalThis.scheduler; else globalThis.scheduler = oldScheduler;
 }
 
+const expectedRadioPlacements = {
+  'saint-clair': [{ id: 'radio', x: -10, z: 509, yaw: 90, scale: 1 }],
+  'la-varenne': [{ id: null, x: -4, z: 202, yaw: 160, scale: 1 }],
+  'pont-tournant': [],
+};
+assert.deepEqual(MISSIONS.map(mission => mission.id), Object.keys(expectedRadioPlacements), 'The authored placement audit covers exactly the three Normandy levels');
 let placements = 0;
 for (const mission of MISSIONS) {
   const level = (await mission.load()).default;
-  for (const p of level.props.filter(p => p.m === 'radio_table')) {
+  const radios = level.props.filter(p => p.m === 'radio_table');
+  assert.deepEqual(radios.map(p => ({ id: p.id ?? null, x: p.x, z: p.z, yaw: p.yaw || 0, scale: p.scale || 1 })),
+    expectedRadioPlacements[mission.id], `${mission.id}: the actual radio addresses, orientation and scale remain authored`);
+  for (const p of radios) {
     placements++;
     const yaw = (p.yaw || 0) * Math.PI / 180, scale = p.scale || 1;
     const oldColliders = worldColliders(original, p.x, 0, p.z, yaw, scale), newColliders = worldColliders(detail, p.x, 0, p.z, yaw, scale);
@@ -103,7 +112,7 @@ for (const mission of MISSIONS) {
     }
   }
 }
-assert.equal(placements, 4);
+assert.equal(placements, 2, 'The two retained radio placements receive the full geometry and interaction audit');
 const library = createMaterialLibrary({ metal: null }, { wet: { value: .28 }, rain: { value: 0 }, time: { value: 0 } });
 const groups = [];
 for (const model of [original, detail]) {
@@ -127,4 +136,4 @@ for (const model of [original, detail, a, b, loaded]) for (const p of model.prim
 for (const g of geometries) g.dispose(); for (const m of materials) m.dispose(); for (const t of maps) t.dispose();
 for (const mesh of sourceMeshes) mesh.material.dispose();
 assert.equal(borrowedDisposals, 1, 'The explicit catalog/texture owner performs the single final atlas disposal');
-console.log('radio-detail-check: real GLB/parser/load hook, exact source/contact/anchors,46 additive triangles, shared lazy atlas, original operator clearance and one extra material bucket pass');
+console.log('radio-detail-check: real GLB/parser/load hook, exact source/contact/anchors,46 additive triangles, shared lazy atlas, two authored Normandy placements, original operator clearance and one extra material bucket pass');

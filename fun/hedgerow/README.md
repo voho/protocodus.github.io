@@ -1,15 +1,15 @@
 # Hedgerow
 
 A first-person Second World War shooter for the browser — realistic-looking,
-arcade to play. You are one soldier pushing through hand-built missions,
-four of them: three original Normandy scenarios and a fourth set during the
-Prague uprising. **Choose mission** on the title screen picks one; the
+arcade to play. You are one soldier pushing through three hand-built
+Normandy missions. **Choose mission** on the title screen picks one; the
 page builds one battlefield at a time, so choosing another reloads the page
 with `?mission=<id>` (`js/missions.js`), showing original generated WWII
 loading artwork for that mission while its battlefield is prepared. These
 images are fictional reconstructions, not archival photographs; their
 provenance is recorded in `assets/missions/README.md`. An optional title
 archive retains captioned public-domain photographs and their source links.
+You carry an M1 Garand and Thompson in all three operations.
 
 **Mission 1 — Saint-Clair, at dusk.** Normandy, July 1944, evening, rain.
 Up a sunken lane between hedgerows, through the checkpoint into the village,
@@ -73,29 +73,6 @@ Both are laid out after the old maps of the real places (OpenStreetMap of
 the Bénouville canal bridge and the Merville battery): ground that rises and
 folds, roads and hedges that wind, ponds and side streets, rather than a
 flat field.
-
-**Mission 4 — Prague Rising.** Vinohrady, at dawn on 7 May 1945. A Czech
-resistance fighter carries a captured Karabiner 98k and MP 40 through a tram
-barricade to a radio annex. The street and the linked courtyards offer
-different approaches. Clear the annex, hold F beside the relay for 1.5
-seconds to tune it, defend it for 45 seconds while the report is sent,
-destroy the German command set, and withdraw through the western passage.
-The street buildings, vaulted passages, tram, overhead wires, mosaic
-pavements and barricades are scripted in Three.js. This is a fictional
-operation inspired by the uprising, not a reconstruction of a documented
-engagement. Prague has its own dry dawn weather and lighting profile.
-Three- to six-storey frontages mix older classical houses and interwar
-infill, with pitched roofs, parapets and different window rhythms. Two
-Czechoslovak flags hang from timber staffs and iron brackets above the
-street and relay courtyard; their original cotton weave and restrained
-flutter are procedural.
-Three older frontages also have timber attic shutters and dormers beneath
-the existing roof height.
-Selected upper windows have dark, unlit interiors with linen curtains or
-roller blinds. Their perspective shifts as you pass; the existing opaque
-walls and window dimensions remain the physical boundary.
-Rifle hits leave bounded pane cracks and small lit shards, with a short
-glass strike. Frames and boarded openings keep their ordinary impact response.
 
 The look is built for realism at dusk in the rain, using baked PBR textures
 and shared materials on scripted additions (stone courses and mortar,
@@ -224,7 +201,7 @@ lose force past 25 m, the Garand's past 120 m. Shots echo off what is
 round you: quick, bright and ringing between the houses of a street, once,
 late and dull off the far hedges out in a field.
 
-Saint-Clair and Pont-Tournant start at night; La Varenne and Prague start in daylight. Press **O** during play to switch to daylight
+Saint-Clair and Pont-Tournant start at night; La Varenne starts in daylight. Press **O** during play to switch to daylight
 or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
 
@@ -274,11 +251,9 @@ rounds for a Kar98k, 32 for an MP 40, a 75-round belt for the MG 42 — and
 ducks while he does. The dead fall as ragdolls, pushed by the shot or thrown
 by the blast that killed them, and drop their rifles.
 
-The captured Kar98k's bolt lifts and draws back after each shot, with the
-right hand working it while the left supports the rifle. Its case comes
-out on extraction. During reloads the left hand follows the actual clip or
-magazine, and cartridge stacks use the weapon model's authored seat frame.
-The MP 40 has a recessed receiver opening around its fixed cocking handle,
+During reloads the left hand follows the actual clip or magazine, and
+cartridge stacks use the weapon model's authored seat frame.
+The enemy MP 40 model has a recessed receiver opening around its fixed cocking handle,
 using the original metal finish and the same two model primitives.
 Mechanical foley follows simulation progress, including moving enemy
 reloads, so pausing or slow rendering does not finish a reload's sound
@@ -316,21 +291,15 @@ walls and floors between the soldier and the target block placement.
     uploaded one a slice, and the soldiers and the mission set up behind
     the menu, so Move out starts at once · `levelBuild.js` level data → world ·
     `missions.js` the list of missions, each loading its level module ·
-    `levels/saint-clair.js`, `levels/la-varenne.js`, `levels/pont-tournant.js`, `levels/prague.js`
+    `levels/saint-clair.js`, `levels/la-varenne.js`, `levels/pont-tournant.js`
     the missions (ground, props, enemies, objectives; `levels/kit.js` the
     helpers the countryside missions share: hedgebanks, trenches, rough ground) ·
     `procedural.js` the glider, the canal bridge and the supply canisters
     modelled in three.js · `controls.js` the controls list
-  * `prague-models.js`, `prague-street-models.js`, `prague-surfaces.js` —
-    period urban architecture and street models, loaded only for Prague ·
-    `lighting-profiles.js` — the default overcast and Prague dawn profiles ·
-    `field-map.js` — the sampled briefing/pause sketch · `loadout.js` and
-    `resistance-kit.js` — mission equipment and resistance identification
-  * `prague-flags.js` — two opaque, merged cloth/hardware draws with original
-    weave, fixed hoists and wind driven by the simulation clock ·
-    `prague-glass-feedback.js` — physical-pane hit classification and a shared
-    fracture pool, retaining closed-facade collision and checkpoint damage ·
-    `radio-detail.js` — numeric tuning scales and knob marks on the original
+  * `lighting-profiles.js` — the default overcast lighting settings ·
+    `field-map.js` — the sampled briefing/pause sketch · `loadout.js` —
+    mission equipment
+  * `radio-detail.js` — numeric tuning scales and knob marks on the original
     radio set, using a shared procedural print atlas ·
     `environment-maps.js` — retained sky scene and owned reflection targets,
     including renderer-state restoration when a capture fails
@@ -848,14 +817,14 @@ walls and floors between the soldier and the target block placement.
   `tests/audio-check.mjs` — verifies CC0 payload hashes, real Web Audio sample
   decoding, distance delay, voice cleanup, missing-sample fallback, and mute;
   `tests/audio-space-check.mjs`, `tests/audio-fires-check.mjs`,
-  `tests/audio-prague-check.mjs`, `tests/audio-radios-check.mjs` — bounded
-  wall occlusion, spatial fires, captured-weapon foley, receiver phase gates,
+  `tests/audio-radios-check.mjs` — bounded
+  wall occlusion, spatial fires, weapon foley, receiver phase gates,
   listener rotation, real PCM output and voice cleanup;
   `tests/audio-actions-check.mjs`, `tests/audio-actors-check.mjs`,
   `tests/audio-casings-check.mjs` — simulation-time mechanical cues,
   moving NPC reload lifecycle and actual brass-contact timing;
-  `tests/bolt-action-check.mjs` and `tests/fp-check.mjs` — the shipped bolt
-  solids, arm lengths, hand/prop contact, cartridge alignment, interruption
+  `tests/bolt-action-check.mjs` and `tests/fp-check.mjs` — generic weapon
+  geometry and pose checks cover bolt solids, arm lengths, hand/prop contact, cartridge alignment, interruption
   and the return to the normal grip;
   `tests/held-grenade-presentation-check.mjs` — original grenade geometry,
   cooking poses, release phase at multiple update rates, wall containment,
@@ -988,7 +957,6 @@ For a slower full-world boot, screenshot and gameplay smoke check, run:
 npm run test:hedgerow:runtime -- saint-clair high
 npm run test:hedgerow:runtime -- la-varenne medium
 npm run test:hedgerow:runtime -- pont-tournant low
-npm run test:hedgerow:runtime -- prague medium
 ```
 
 This starts a local server, captures the actual scene and checks firing,

@@ -1,4 +1,4 @@
-/* Small, static Three.js model builder for Prague's authored street pieces.
+/* Small, static Three.js model builder for authored street and canal pieces.
    All dimensions are metres, rotations are degrees, front is +z. Geometry
    is merged by palette/material key before it enters the normal world-cell
    batcher; there are no per-part objects or runtime updates. */

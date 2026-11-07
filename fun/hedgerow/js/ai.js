@@ -788,11 +788,9 @@ export function createEnemies(G, defs) {
       G.effects.blood(target.x, target.y, target.z, dir.x, dir.y, dir.z);
     } else {
       if (wh) {
-        if (!G.pragueGlass?.impact(wh, dir)) {
-          G.effects.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone', dir.x, dir.y, dir.z);
-          G.decals?.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
-          G.audio.impact(wh.x, wh.y, wh.z, wh.surface);
-        }
+        G.effects.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone', dir.x, dir.y, dir.z);
+        G.decals?.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
+        G.audio.impact(wh.x, wh.y, wh.z, wh.surface);
         // a glancing tracer skips off stone, metal or a hard road, now and then off the mud: it
         // goes on, slower, off the way it bounced, often up into the sky
         const into = -(dir.x * wh.nx + dir.y * wh.ny + dir.z * wh.nz);

@@ -1,10 +1,12 @@
 // Optional full-world smoke (several minutes on a software GPU):
 // node fun/hedgerow/tests/runtime-browser-smoke.mjs [mission-id] [quality]
+// Missions: saint-clair (default), la-varenne, pont-tournant.
 // Captures actual rendered scenes, then tests simulation/menus without
 // submitting extra GPU frames. This is not a performance benchmark or a
 // complete combat playthrough. Do not add ?debug: its hidden-frame watchdog
 // intentionally keeps drawing even when requestAnimationFrame is controlled.
 import assert from 'node:assert/strict';
+import { pickMission } from '../js/missions.js';
 import { chromium } from 'playwright';
 import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -25,7 +27,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const mission = process.argv[2] || 'saint-clair';
+const requestedMission = process.argv[2] || 'saint-clair';
+const mission = pickMission(requestedMission).id;
 const quality = process.argv[3] || 'medium';
 const out = resolve(process.env.HEDGEROW_QA_OUTPUT || resolve(root, 'work/qa-world'), `${mission}-${quality}`) + sep;
 await mkdir(out, {recursive:true});
@@ -49,7 +52,7 @@ await page.addInitScript(q=>{
     new MutationObserver(()=>{ const next=label.textContent.split(' · ')[0]; if(next!==previous){previous=next;console.log('QA: '+next);} }).observe(label,{childList:true,subtree:true});
   });
 },quality);
-const report={mission,quality};
+const report={mission,requestedMission,quality};
 try{
   console.log(`Loading ${mission} ${quality}`);
   await page.goto(`${origin}/fun/hedgerow/?mission=${mission}&god`,{waitUntil:'domcontentloaded'});

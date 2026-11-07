@@ -8,15 +8,8 @@ import { readFileSync } from 'node:fs';
 import { createWorld } from '../js/world.js';
 import { rectDistance, smoothstep, lerp } from '../js/util.js';
 const { proceduralModels } = await import('../js/procedural.js');
-const { default: L } = await import(`../js/levels/${process.env.HEDGEROW_LEVEL || 'saint-clair'}.js`);
-
-let missionModels = [];
-if (L.id === 'prague') {
-  const [{ pragueModels }, { pragueStreetModels }] = await Promise.all([
-    import('../js/prague-models.js'), import('../js/prague-street-models.js'),
-  ]);
-  missionModels = [...pragueModels(), ...pragueStreetModels()];
-}
+const { pickMission } = await import('../js/missions.js');
+const { default: L } = await pickMission(process.env.HEDGEROW_LEVEL).load();
 
 export { L };
 export const DEG = Math.PI / 180;
@@ -45,7 +38,7 @@ for (const set of ['village', 'military', 'nature']) {
 }
 
 // and the ones modelled in three.js (procedural.js)
-for (const [name, m] of [...proceduralModels(), ...missionModels]) {
+for (const [name, m] of proceduralModels()) {
   models.set(name, { name, min: m.box.min.toArray(), max: m.box.max.toArray(), colliders: m.colliders, anchors: m.anchors });
 }
 

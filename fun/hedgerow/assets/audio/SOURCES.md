@@ -222,16 +222,14 @@ distance response, wall filtering, conservative level, fade and resource limits.
 The shared fire texture prepares during loading with an independent random
 stream, so the first nearby fire adds no texture-generation work to a play frame.
 
-The Prague relay can play a quiet original keyed signal and receiver hiss while
-its report phase is active. This is a fictional short signal pattern, not a
+Authored radio sources can play a quiet original keyed signal and receiver hiss
+while their mission phase is active. This is a fictional short signal pattern, not a
 transcribed historical message or a human recording. Two receiver voices at most
 use one shared texture, prepared when their source list is installed. Position
 updates run at 8 Hz, with at most one cached path refresh per update. Receiver
 audio keeps its own world path and master volume/daze, while phase completion,
 menu gating and pause stop/freeze its loops. `tests/audio-radios-check.mjs` renders
 phase gating, stereo bearing, listener turns, distance/wall filtering and cleanup.
-`tests/audio-prague-check.mjs` verifies open courtyards and roofed/blocked passage
-paths against the mission's placed procedural colliders without a GPU boot.
 
 Bodies use an original procedural thump and restrained clothing/kit detail at
 the first meaningful pelvis, spine or chest floor contact. The physics callback

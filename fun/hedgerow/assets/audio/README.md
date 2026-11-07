@@ -1,10 +1,10 @@
 # Sound sources
 
 This document records the preserved earlier 32-file sound bank. Current
-playback uses the 21-file bank described in [SOURCES.md](SOURCES.md); the
-manifest preserves receipts for the 19 earlier-only files as inactive assets.
+playback uses the 25-file bank described in [SOURCES.md](SOURCES.md); the
+manifest preserves receipts for the 16 earlier-only files as inactive assets.
 
-Hedgerow bundles 32 CC0 1.0 sound effects, approximately 597 KiB in total.
+That earlier bank bundled 32 CC0 1.0 sound effects, approximately 597 KiB in total.
 No sound is fetched from another website during play. The original procedural
 sound remains available when a file fails to load or its codec is unsupported.
 

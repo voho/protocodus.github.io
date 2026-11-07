@@ -45,7 +45,7 @@ assert.equal(instanceCount, a.plants);
 assert.ok(a.group.children.length <= 4, 'nearby cereal stalks share static cell draws');
 assert.ok(a.triangles <= 147456, 'the full scene has a hard triangle cap');
 assert.equal(createFieldCrops(level, height, matlib, { enabled: false }), null, 'low quality can omit crop geometry entirely');
-assert.equal(createFieldCrops({ id: 'prague' }, height, matlib), null, 'urban missions receive no default agricultural dressing');
+assert.equal(createFieldCrops({ id: 'unconfigured-field-fixture' }, height, matlib), null, 'unconfigured missions receive no default agricultural dressing');
 assert.equal(createFieldCrops({ id: 'saint-clair', crops: [] }, height, matlib), null, 'explicit empty authored plots override defaults');
 assert.equal(createFieldCrops({ crops: [{ x0: -1e20, x1: 1e20, z0: -1e20, z1: 1e20 }] }, height, matlib), null,
   'unreasonable extents cannot produce an unbounded candidate loop');

@@ -49,7 +49,7 @@ function fixture(outfit,{fps=60,ads=false,wall=false}={}){
  const world=createWorld({...bounds,terrain});
  if(wall)world.add({type:'box',x:0,y:1.5,z:.45,hx:2,hy:1.5,hz:.1,surface:'stone'});
  const grenadeName=outfit==='allied'?'grenade_us':'grenade_de';
- const G={time:0,level:{playBounds:bounds,loadout:outfit==='allied'?['garand','thompson']:['kar98k','mp40'],playerOutfit:outfit,playerIdentity:outfit==='axis'?'czech-resistance':null,playerGrenade:grenadeName},world,terrain,
+ const G={time:0,level:{playBounds:bounds,loadout:outfit==='allied'?['garand','thompson']:['kar98k','mp40'],playerOutfit:outfit,playerGrenade:grenadeName},world,terrain,
   camera:new THREE.PerspectiveCamera(68,1.6,.05,100),scene:new THREE.Scene(),soldier,models,
   matlib:{get:()=>new THREE.MeshBasicMaterial(),resolve:m=>m||new THREE.MeshBasicMaterial()},renderer:{},
   hud:services,audio:services,effects:services,lights:services,debris:services,casings:services,
