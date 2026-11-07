@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 
 import { L, DEG, models, missing, world } from './level-world.mjs';
+import { ROUTES } from './saint-routes.mjs';
 
 /* ---------- wall-mounted props: a wall behind both edges ---------- */
 const MOUNTED = { wall_lamp: 0, ivy_patch: 1.2 };       // probe height above the prop's origin
@@ -78,21 +79,6 @@ function walk(name, pts) {
   return stuck;
 }
 
-const ROUTES = {
-  'main road': [[0.5, -6], [0.5, 30], [0, 80], [-3.4, 86.5], [-3, 93], [2.5, 112], [2.5, 122], [-0.6, 129], [0, 145], [0, 160],
-    [-1, 175], [1.5, 195], [2, 203], [-1, 217], [1.5, 240], [1.5, 252], [0, 258], [0, 270], [1.2, 283], [1, 292], [-3, 300],
-    [-9, 326], [-7, 350], [2, 374], [0, 378], [0, 384], [-3, 390], [-3, 396], [6, 398], [3, 424], [-4, 450], [-6, 472],
-    [-2, 492], [-3, 503], [-2, 520], [0, 549]],
-  'orchard flank': [[1, 30], [6.5, 34], [14, 40], [16, 78], [16, 84], [22, 95], [28, 112], [28, 140], [10, 146]],
-  'ditch flank': [[0, 52], [-8, 55], [-11, 60], [-12, 78], [-14, 92], [-20, 104], [-25, 128], [-12, 148]],
-  'west gardens': [[0, 146], [22, 148], [28, 165], [26, 185], [30, 215], [16, 247], [2, 252]],
-  'ford': [[-20, 250], [-30, 258], [-32, 262], [-32, 270], [-32, 278], [-28, 286], [-10, 292]],
-  'fallen tree': [[25, 252], [30, 262], [32, 266], [32, 273], [32, 280], [30, 288], [10, 292]],
-  'trench west end': [[-10, 360], [-38, 380], [-42, 392], [-40, 398], [-20, 404], [0, 410]],
-  'trench east end': [[10, 360], [38, 378], [44, 390], [40, 398], [10, 406]],
-  'bunker west flank': [[0, 425], [-14, 438], [-12, 460], [-4, 470]],
-  'bunker east flank': [[6, 424], [22, 432], [24, 452], [16, 462], [-4, 470]],
-};
 
 // the check must see walls: straight into house_a, through the church, off the bridge into the river
 for (const [name, pts] of Object.entries({
