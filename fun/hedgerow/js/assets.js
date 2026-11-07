@@ -14,6 +14,8 @@ import { splitRooms, reseedRooms } from './rooms.js';
 import { breathe } from './pace.js';
 import { createAssetProgress } from './loading.js';
 import { addRadioNumericScales } from './radio-detail.js';
+import { prepareMP40ReceiverDetail } from './mp40-receiver-detail.js';
+import { addTreeRootDetails } from './tree-root-details.js';
 
 export async function loadModels(base, sets, onProgress) {
   const loader = new GLTFLoader();
@@ -39,6 +41,9 @@ export async function loadModels(base, sets, onProgress) {
   }));
   const radio = out.models.get('radio_table');
   if (radio) out.models.set('radio_table', addRadioNumericScales(radio));
+  const mp40 = out.models.get('mp40');
+  if (mp40) out.models.set('mp40', prepareMP40ReceiverDetail(mp40));
+  addTreeRootDetails(out.models);
   return out;
 }
 

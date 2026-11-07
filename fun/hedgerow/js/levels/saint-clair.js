@@ -746,7 +746,7 @@ const enemies = [
   E('smg', -16, 358, 170, 'fox', { hold: true, stance: 'crouch' }),
   // the trench line
   E('rifle', -33, 386.5, 180, 'trench', { hold: true, inTrench: true }),
-  E('rifle', -21, 386, 180, 'trench', { hold: true, inTrench: true }),
+  E('rifle', -21, 386.4, 180, 'trench', { hold: true, inTrench: true }),
   E('rifle', -9, 387.2, 175, 'trench', { hold: true, inTrench: true }),
   E('rifle', 12.65, 388.65, 185, 'trench', { hold: true, inTrench: true }),
   E('smg', 22, 386, 180, 'trench', { hold: true, inTrench: true }),

@@ -50,7 +50,8 @@ function fixedFeet(d) {
       const p = polylineDistance(L.lines[key], ...d.at, {});
       if (!best || p.d < best.d) best = p;
     }
-    return [best.px, terrain.height(best.px, best.pz), best.pz];
+    // Runtime captures its analytic trench anchor before creating sampled terrain.
+    return [best.px, analytic(best.px, best.pz), best.pz];
   }
   if (d.nest) {
     const p = placed.get(d.nest);

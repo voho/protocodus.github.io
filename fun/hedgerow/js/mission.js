@@ -24,6 +24,20 @@ export function createMission(G, L, built) {
   const objectives = L.objectives;
   let pickupCursor = 0, pickupQueryAt = -Infinity, pickupQueries = 0;
   function resetPickupAccess() { pickupCursor = 0; pickupQueryAt = -Infinity; pickupQueries = 0; }
+  const consumedAtCheckpoint = new Set();
+  function savePickupState() {
+    consumedAtCheckpoint.clear();
+    for (const pickup of M.pickups) if (pickup.taken) consumedAtCheckpoint.add(pickup);
+  }
+  function restorePickupState() {
+    for (const pickup of M.pickups) {
+      const taken = consumedAtCheckpoint.has(pickup);
+      if (!!pickup.taken === taken) continue;
+      pickup.taken = taken;
+      if (taken) G.scene.remove(pickup.object);
+      else G.scene.add(pickup.object);
+    }
+  }
 
   // pickups
   for (const p of L.pickups) {
@@ -182,6 +196,7 @@ export function createMission(G, L, built) {
     if (i <= M.checkpoint) return;
     M.checkpoint = i;
     M.inventory = G.player.inventory();
+    savePickupState();
     M.objectiveAt = M.index;
     G.hud.notice('Checkpoint', '', 2);
     G.audio.ui('checkpoint');
@@ -346,6 +361,7 @@ export function createMission(G, L, built) {
     M.checkpoint = 0;
     M.inventory = null;
     M.objectiveAt = 0;
+    savePickupState();
   };
 
   M.restoreCheckpoint = () => {
@@ -357,6 +373,7 @@ export function createMission(G, L, built) {
     M.charge = null;
     M.secureHeld = 0;
     resetInteraction(null);
+    restorePickupState();
     G.hud.prompt(null);
     // objectives completed after the checkpoint are kept (the ground taken stays taken)
     return { spawn: c.spawn, inventory: M.inventory };

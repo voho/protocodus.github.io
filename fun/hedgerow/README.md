@@ -21,8 +21,8 @@ radio to signal the cleared route before reaching the rally point.
 The fallen trunk stands above the water; Space vaults its raised roots
 before the dry timber crossing.
 Unequal river shoulders widen and narrow between the protected crossings,
-blending smoothly into the surrounding ground. Low mist thins softly above
-the water surface.
+blending smoothly into the surrounding ground. Low mist thins softly where
+it meets the water or sloping forest floor, using the existing terrain map.
 
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
@@ -169,6 +169,8 @@ clean: a flare, a fire or your own muzzle flash brings up faint smudges
 and dried drops across that side of the view.
 The ambient light keeps the lane and forest readable, with a light vignette
 and no film grain so shadow detail stays clear.
+Nearby trees have smoother root flanks at high detail, retaining their
+original trunk bases, buried tips and distant silhouettes.
 
 ## Controls
 
@@ -226,7 +228,10 @@ or back to night; **I** switches damage protection on or off. A notice confirms
 each change. Both choices last until the page is reloaded, including checkpoint retries.
 
 Health comes back when you stay out of fire. Dying returns you to the last
-checkpoint; the enemies you killed stay dead. Retry clears the abandoned
+checkpoint; the enemies you killed stay dead. Inventory returns to its saved
+state, and supplies collected since that checkpoint become available again.
+Supplies collected before the checkpoint remain consumed.
+Retry clears the abandoned
 attempt's pending shots and echoes while the battlefield ambience continues.
 A grenade or a charge going
 off close by leaves you dazed for a few seconds, longer the closer it was:
@@ -254,6 +259,8 @@ information already heard by the squad remains valid.
 An unaware guard can also notice a nearby comrade falling in his actual
 field of view. One mobile witness checks the casualty while others become
 wary at their posts; this does not reveal an unseen shooter's position.
+An ambusher who cannot reach his reserved cover abandons that attempt and
+searches the last predicted route instead of waiting in the open.
 Running steps use the boot's actual height and the guard's current ear
 position. Masonry, earth and timber reduce their audible range; a quiet
 footstep behind cover leaves the guard's existing knowledge intact.
@@ -270,6 +277,8 @@ The captured Kar98k's bolt lifts and draws back after each shot, with the
 right hand working it while the left supports the rifle. Its case comes
 out on extraction. During reloads the left hand follows the actual clip or
 magazine, and cartridge stacks use the weapon model's authored seat frame.
+The MP 40 has a recessed receiver opening around its fixed cocking handle,
+using the original metal finish and the same two model primitives.
 Mechanical foley follows simulation progress, including moving enemy
 reloads, so pausing or slow rendering does not finish a reload's sound
 before its visible action. Brass sounds at its first physical ground

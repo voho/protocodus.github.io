@@ -19,7 +19,10 @@ for(const type of ['ammo','grenades']){const s=scenario({type,kind:'wall'}),befo
  const s=scenario({drop:true,type:'ammo'});s.killForDrop();assert.equal(s.M.pickups.length,1,'actual AI death emits a real supply drop');const k=s.M.pickups[0];assert.equal(k.type,'ammo');s.tick();assert.equal(k.taken,true);assert.ok(Object.values(s.P.ammo).some(a=>a.reserve>0));s.dispose();
 }
 {
- const s=scenario();s.tick();assert.equal(s.M.pickups[0].taken,true);s.M.restoreCheckpoint();s.P.health=40;s.tick();assert.equal(s.P.health,40,'retry cannot collect a consumed dressing twice');assert.equal(s.M.pickups[0].taken,true);s.dispose();
+ const s=scenario();s.tick();const k=s.M.pickups[0],object=k.object;assert.equal(k.taken,true);
+ s.M.restoreCheckpoint();assert.equal(k.taken,false,'post-checkpoint dressing returns with the rolled-back attempt');assert.equal(k.object,object);s.P.health=40;s.tick();assert.equal(s.P.health,100);assert.equal(k.taken,true);
+ // A later checkpoint commits this consumption with the saved inventory.
+ s.G.level.checkpoints.push({x:s.P.pos.x,z:s.P.pos.z,r:1,spawn:[0,0,0]});s.tick();assert.equal(s.M.checkpoint,1);s.M.restoreCheckpoint();s.P.health=40;s.tick();assert.equal(s.P.health,40,'pre-checkpoint dressing remains consumed');assert.equal(k.taken,true);s.dispose();
 }
 {
  for(const spec of [{kind:'open',distance:4},{kind:'upper-floor'},{kind:'open',full:true}]){const s=scenario(spec);for(let i=0;i<30;i++)s.tick();assert.equal(s.rays(),0,'out-of-range/different-floor/full-health dressing adds no idle traces');s.dispose();}

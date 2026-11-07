@@ -61,7 +61,7 @@ for(const scale of[.5,1,2])for(const spec of specs){
 const cases=[];
 const slope={height:(x,z)=>.25*x+.1*z,normal:()=>{const n=Math.hypot(.25,1,.1);return[-.25/n,1/n,-.1/n];},surfaceAt:()=> 'stone',raycast(x,y,z,dx,dy,dz,max){const d=dy-.25*dx-.1*dz;if(d>=0)return Infinity;const t=(.25*x+.1*z-y)/d;return t>=0&&t<=max?t:Infinity;}};
 for(const kind of['clear','wall','corner','step','slope']){
- const s=pickupScenario({drop:true,type:'ammo',terrain:kind==='slope'?slope:null});
+ const s=pickupScenario({drop:true,type:'ammo',terrain:kind==='slope'?slope:null,level:{checkpoints:[{spawn:[0,0,0]},{x:0,z:0,r:1,spawn:[0,0,0]}]}});s.tick();assert.equal(s.M.checkpoint,1);
  if(kind==='wall'||kind==='corner')s.G.world.add({type:'box',x:1,y:1.5,z:.5,hx:.2,hy:1.5,hz:2,surface:'stone'});
  if(kind==='corner')s.G.world.add({type:'box',x:.4,y:1.5,z:.8,hx:2,hy:1.5,hz:.2,surface:'stone'});
  if(kind==='step')s.G.world.add({type:'box',x:1,y:.15,z:.5,hx:.3,hy:.15,hz:.4,surface:'stone'});
@@ -72,7 +72,7 @@ for(const kind of['clear','wall','corner','step','slope']){
  if(kind==='clear')assert.deepEqual([k.x,k.y,k.z],[1,0,.5],'clear ground preserves exact old offset');
  if(kind==='step')assert.ok(Math.abs(k.y-.3)<1e-9,'low step receives the supported box');
  s.tick();assert.equal(k.taken,true);assert.ok(Object.values(s.P.ammo).some(a=>a.reserve>0),'real P adds the unchanged ammunition amount');
- const inv=s.P.inventory(),count=s.M.pickups.length,position=[k.x,k.y,k.z];s.M.restoreCheckpoint();s.tick();assert.deepEqual(s.P.inventory(),inv);assert.equal(s.M.pickups.length,count);assert.deepEqual([k.x,k.y,k.z],position);assert.equal(k.taken,true,'retry cannot recreate or recollect it');
+ const inv=s.P.inventory(),count=s.M.pickups.length,position=[k.x,k.y,k.z],object=k.object;const saved=s.M.restoreCheckpoint();assert.equal(k.taken,false);s.enemies.resetLiving();s.P.reset(saved.spawn,saved.inventory);s.tick();assert.deepEqual(s.P.inventory(),inv,'inventory rollback then recollection yields one supply');assert.equal(s.M.pickups.length,count);assert.deepEqual([k.x,k.y,k.z],position);assert.equal(k.object,object);assert.equal(k.taken,true,'retry reuses the retained object without a new drop');
  cases.push({kind,position,sight});s.dispose();
 }
 // Captured from the actual published producer before this change. UUID

@@ -1626,7 +1626,7 @@ export function createEnemies(G, defs) {
       const before = e.pathFails;
       if (goTo(e, e.cover.x, e.cover.z, ENEMY.run, dt)) {
         e.path = null;
-        if (e.pathFails > before) { endAmbush(e); return; }
+        if (e.pathFails > before || Math.hypot(e.cover.x - e.pos.x, e.cover.z - e.pos.z) > 1.2) { endAmbush(e); return; }
         a.phase = 'wait';
       }
       return;

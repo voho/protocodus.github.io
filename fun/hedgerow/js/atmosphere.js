@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { rng, smoothstep } from './util.js';
 import { dimFillSpecular } from './fill.js';
 import { breathe } from './pace.js';
+import { GROUND_GLSL } from './groundmap.js';
 
 function radialTexture(stops, size = 128) {
   const c = document.createElement('canvas');
@@ -132,6 +133,10 @@ uniform vec3 uColor;
 uniform float uTime, uOpacity, uFlash;
 uniform float uWaterLevel, uWaterSoftness;
 uniform vec4 uWaterBounds;
+#ifdef MIST_GROUND_FADE
+uniform float uGroundSoftness;
+${GROUND_GLSL}
+#endif
 varying vec2 vUv;
 varying vec3 vMistWorld;
 varying float vSeed;
@@ -154,11 +159,16 @@ void main() {
       vMistWorld.z >= uWaterBounds.y && vMistWorld.z <= uWaterBounds.w) {
     a *= smoothstep(0.0, uWaterSoftness, vMistWorld.y - uWaterLevel);
   }
+  // Borrow the existing rendered-ground map to soften opaque ground contact.
+  // Placement and motion remain unchanged; higher airborne mist keeps its density.
+#ifdef MIST_GROUND_FADE
+  if (uGroundSoftness > 0.0) a *= smoothstep(0.0, uGroundSoftness, vMistWorld.y - groundY(vMistWorld.xz));
+#endif
   if (a < 0.002) discard;
   gl_FragColor = vec4(uColor * (1.0 + uFlash * 2.5), a);
 }`;
 
-export function createMist({ count = 70, terrain, water = null, density = () => 1, seed = 31, color = '#4a5058' }) {
+export function createMist({ count = 70, terrain, water = null, groundMap = null, density = () => 1, seed = 31, color = '#4a5058' }) {
   const R = rng(seed);
   const waterBox = water ? new THREE.Box3().setFromObject(water) : null;
   const waterBounds = waterBox
@@ -177,8 +187,9 @@ export function createMist({ count = 70, terrain, water = null, density = () => 
   geo.instanceCount = count;
   const uniforms = { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uOpacity: { value: 0.16 }, uFlash: { value: 0 },
     uWaterBounds: { value: waterBounds }, uWaterLevel: { value: waterBox?.max.y ?? 0 },
-    uWaterSoftness: { value: waterBox ? .48 : 0 } };
-  const mat = new THREE.ShaderMaterial({ vertexShader: MIST_VERT, fragmentShader: MIST_FRAG, uniforms, transparent: true, depthWrite: false, fog: false });
+    uWaterSoftness: { value: waterBox ? .48 : 0 },
+    ...(groundMap ? { ...groundMap.uniforms, uGroundSoftness: { value: .48 } } : {}) };
+  const mat = new THREE.ShaderMaterial({ vertexShader: MIST_VERT, fragmentShader: MIST_FRAG, uniforms, defines: groundMap ? { MIST_GROUND_FADE: 1 } : {}, transparent: true, depthWrite: false, fog: false });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   mesh.renderOrder = 4;
