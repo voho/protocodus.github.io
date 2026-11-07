@@ -76,8 +76,29 @@ try{
   await page.evaluate(()=>{hedgerow.input.test.click();hedgerow.step();});
   report.afterShot=await page.evaluate(()=>hedgerow.G.player.ammo[hedgerow.G.player.weapon].mag);
   assert.equal(report.afterShot,report.initial.ammo-1);
-  await page.evaluate(()=>{hedgerow.input.test.aim(true);hedgerow.step();});
-  assert.equal(await page.evaluate(()=>hedgerow.G.player.wasAiming), true);
+  report.aimRequested=await page.evaluate(()=>{
+    const player=hedgerow.G.player, boltActive=player.boltAge>=0;
+    hedgerow.input.test.aim(true);hedgerow.step();
+    return {boltActive,boltAge:player.boltAge,aiming:player.wasAiming};
+  });
+  if(report.aimRequested.boltActive) assert.equal(report.aimRequested.aiming,false,'aim stays suppressed during the real bolt cycle');
+  else assert.equal(report.aimRequested.aiming,true,'an idle weapon can aim immediately');
+  // Kar98k aim resumes after its production bolt action. With the RAF frozen,
+  // advance the real main loop; never alter action fields to skip the cycle.
+  report.aimRecovery=await page.evaluate(async()=>{
+    const player=hedgerow.G.player, start=hedgerow.G.time;
+    let steps=0;
+    while(player.boltAge>=0 && hedgerow.state==='playing' && steps<180 && hedgerow.G.time-start<3){
+      await new Promise(r=>setTimeout(r,16));hedgerow.step();steps++;
+    }
+    const boltAge=player.boltAge, elapsed=hedgerow.G.time-start;
+    // The cycle clears at the end of player.update; aim is resolved next step.
+    if(boltAge<0){await new Promise(r=>setTimeout(r,16));hedgerow.step();}
+    return {steps,elapsed,boltAge,aiming:player.wasAiming,state:hedgerow.state};
+  });
+  assert.equal(report.aimRecovery.state,'playing','the aim check remains in normal simulation');
+  assert.ok(report.aimRecovery.boltAge<0,'the bolt cycle completes within 180 steps and 3 simulation seconds');
+  assert.equal(report.aimRecovery.aiming,true,'held aim resumes on the next real step');
   await page.evaluate(()=>document.exitPointerLock());
   await page.waitForFunction(()=>hedgerow.state==='paused',null,{polling:100});
   await page.screenshot({path:out+'pause.png',animations:'disabled',timeout:120000});

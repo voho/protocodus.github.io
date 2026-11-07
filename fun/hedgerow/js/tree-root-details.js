@@ -175,7 +175,9 @@ export function addTreeRootDetails(models) {
 export function releaseTreeRootDetails(model) {
   const record = owned.get(model) || prepared.get(model);
   if (!record || record.released) return false;
-  record.geometry.dispose(); record.released = true;
-  prepared.delete(model); owned.delete(record.model);
+  const geometry = record.geometry, result = record.model;
+  record.released = true; record.model = null; record.geometry = null;
+  prepared.delete(model); owned.delete(result);
+  geometry.dispose();
   return true;
 }

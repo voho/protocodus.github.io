@@ -345,6 +345,10 @@ walls and floors between the soldier and the target block placement.
   * `assets.js` retains shared vertex indices for military, nature and weapon
     models, reducing geometry memory and allowing the scene and shadow passes
     to reuse vertices; village window extraction keeps its flat triangles
+  * `mp40-receiver-detail.js` and `tree-root-details.js` prepare cached detail
+    geometry after loading. Actors borrow it; only the model-library owner
+    releases it after all users are gone, using either the source or returned
+    model. Context retirement keeps the CPU geometry and cache for reupload.
   * `player.js` (first person: your own animated body, the head folded
     away, the rifle shouldered; aiming turns the body and bends the spine
     until the sights lie along the view; the arms carry the rifle canted low

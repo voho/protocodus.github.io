@@ -8,7 +8,7 @@ const SLOT = Object.freeze({
   // Existing dark matte MP40 atlas texel; no new material or texture.
   cavityUV:[151.5/1024,71.5/1024],
 });
-const prepared = new WeakMap();
+const prepared = new WeakMap(), owned = new WeakMap();
 
 function solids(g) {
   const p=g.attributes.position, parent=Array.from({length:p.count},(_,i)=>i);
@@ -43,7 +43,9 @@ function split(poly,axis,value,sign){
 
 export function prepareMP40ReceiverDetail(model) {
   if(model?.name!=='mp40')return model;
-  if(prepared.has(model))return prepared.get(model);
+  if(owned.has(model)&&!owned.get(model).released)return model;
+  const cached=prepared.get(model);
+  if(cached&&!cached.released)return cached.model;
   const primitive=model.prims?.[0],g=primitive?.geometry;
   if(!g?.index||!g.attributes||Object.keys(g.attributes).length!==4)return model;
   for(const[name,size]of Object.entries({position:3,normal:3,uv:2,color:3})){
@@ -120,12 +122,15 @@ export function prepareMP40ReceiverDetail(model) {
   }
   function geometry(values,faces){const out=new THREE.BufferGeometry();for(const[n,a]of Object.entries(g.attributes))out.setAttribute(n,new THREE.BufferAttribute(new a.array.constructor(values[n]),a.itemSize,a.normalized));out.setIndex(faces);out.computeBoundingBox();out.computeBoundingSphere();return out;}
   const result={...model,prims:[{...primitive,geometry:geometry(attrs,indices)},...model.prims.slice(1)]};
-  prepared.set(model,result);return result;
+  const record={model:result,geometry:result.prims[0].geometry,released:false};
+  prepared.set(model,record);owned.set(result,record);return result;
 }
 
 // Only a model-library owner may call this after ALL users are gone.
 // A character switch/death/dispose must never release shared geometry.
 export function releaseMP40ReceiverDetail(model){
-  const result=prepared.get(model);if(!result||result===model)return false;
-  result.prims[0].geometry.dispose();prepared.delete(model);return true;
+  const record=owned.get(model)||prepared.get(model);if(!record||record.released)return false;
+  const geometry=record.geometry;record.released=true;
+  prepared.delete(model);owned.delete(record.model);
+  record.model=null;record.geometry=null;geometry.dispose();return true;
 }
