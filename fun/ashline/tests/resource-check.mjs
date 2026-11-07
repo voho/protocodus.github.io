@@ -27,7 +27,7 @@ try {
     await assets.startAssets();
     const stats = assets.spriteStats();
     if (!stats.ready || stats.errors.length) throw Error(stats.errors.join('; ') || 'Assets did not become ready');
-    const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
     let frames = 0, decodedPixels = 0;
     const rows = [];
     for (const type of Object.keys(UNITS)) {
@@ -40,7 +40,10 @@ try {
       canvas.width = image.width; canvas.height = image.height; ctx.drawImage(image, 0, 0);
       for (let pose = 0; pose < meta.rows / 2; pose++) for (let direction = 0; direction < 8; direction++) {
         const cell = pose * 8 + direction;
-        const expected = ctx.getImageData(cell % 4 * meta.pixels, Math.floor(cell / 4) * meta.pixels, meta.pixels, meta.pixels).data;
+        const cellCanvas = document.createElement('canvas'); cellCanvas.width = cellCanvas.height = meta.pixels;
+        const cellCtx = cellCanvas.getContext('2d');
+        cellCtx.drawImage(image, cell % 4 * meta.pixels, Math.floor(cell / 4) * meta.pixels, meta.pixels, meta.pixels, 0, 0, meta.pixels, meta.pixels);
+        const expected = cellCtx.getImageData(0, 0, meta.pixels, meta.pixels).data;
         const capture = document.createElement('canvas').getContext('2d'); let sourceImage;
         capture.drawImage = source => { sourceImage = source; };
         assets.drawSprite(capture, { type, team: 0, angle: direction * Math.PI / 4, moving: pose === 1, id: 0 }, .25);

@@ -55,7 +55,7 @@ function foundation(ctx, e, p) {
   for (const side of [-1, 1]) {
     const x = side * w * .35;
     plate(ctx, round(x - (big ? 4 : 2.3), h * .1, big ? 8 : 4.6, h * .27, 1), p.paint, '#263c52', 1, p.trim);
-    line(ctx, [x - 1.2, h * .25], [x + 1.2, h * .25], '#786b54', 1.1);
+    line(ctx, [x - 1.4, h * .23], [x + 1.4, h * .23], '#f0b850', 2);
     if (big) for (let i = 0; i < 3; i++) line(ctx, [x - 3, -h * .26 + i * 2], [x + 3, -h * .26 + i * 2], '#34464d', .9);
   }
   // A broad bearing and fixed pedestal separate the rotary weapon from its foundation.
@@ -102,11 +102,11 @@ function weapon(ctx, e, p, angle, recoil) {
   }
 }
 function mask(source, color, blur = 0) {
-  const out = makeCanvas(source.width), ctx = out.getContext('2d');
+  const out = makeCanvas(source.width), ctx = out.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(source, 0, 0); ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = color;
   ctx.fillRect(0, 0, out.width, out.height);
   if (!blur) return out;
-  const soft = makeCanvas(source.width), dest = soft.getContext('2d');
+  const soft = makeCanvas(source.width), dest = soft.getContext('2d', { willReadFrequently: true });
   dest.filter = `blur(${blur}px)`; dest.drawImage(out, 0, 0); return soft;
 }
 export function defenseMuzzle(entity) {
@@ -118,9 +118,10 @@ export function defenseSprite(entity, time = 0) {
   const direction = (Math.round(angleOf(entity) / TAU * 64) % 64 + 64) % 64, team = entity.team === 1 ? 1 : 0;
   const key = `${entity.type}:${team}:${direction}`;
   if (cache.has(key)) return cache.get(key);
-  const big = tower(entity), pixels = big ? 128 : 96, size = big ? 80 : 60, image = makeCanvas(pixels);
-  const ctx = image.getContext('2d'); ctx.translate(pixels / 2, pixels / 2); ctx.scale(pixels / size, pixels / size);
-  foundation(ctx, entity, PALETTE[team]); weapon(ctx, entity, PALETTE[team], direction * TAU / 64, 0);
+  const big = tower(entity), pixels = big ? 144 : 104, size = big ? 80 : 60, image = makeCanvas(pixels);
+  const ctx = image.getContext('2d', { willReadFrequently: true }); ctx.save(); ctx.translate(pixels / 2, pixels / 2); ctx.scale(pixels / size, pixels / size);
+  foundation(ctx, entity, PALETTE[team]); weapon(ctx, entity, PALETTE[team], direction * TAU / 64, 0); ctx.restore();
+  ctx.putImageData(ctx.getImageData(0, 0, pixels, pixels), 0, 0);
   const shapeKey = `${entity.type}:${direction}`;
   if (!shadows.has(shapeKey)) { shadows.set(shapeKey, mask(image, '#0b1117', 1.3)); bytes += pixels * pixels * 4; }
   const shadow = shadows.get(shapeKey);
