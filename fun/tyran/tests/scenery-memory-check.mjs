@@ -22,7 +22,7 @@ try {
     };
     const before = hash(world.getSprite('temple', 0, 1));
     let maxDamageSprites = 0;
-    for (const type of ['temple','bunker','station','radar','dome','solar','refinery','tower']) {
+    for (const type of ['temple','bunker','station','radar','dome','solar','refinery','tower','building']) {
       for (let variant = 0; variant < 5; variant++) for (let stage = 1; stage <= 3; stage++) {
         world.getSprite(type, variant, stage);
         maxDamageSprites = Math.max(maxDamageSprites, world.memoryStats().damageSpriteCount);

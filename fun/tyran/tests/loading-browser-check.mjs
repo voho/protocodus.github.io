@@ -7,7 +7,7 @@ const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
 const { SAMPLE_BYTES } = await import('../audio-assets.js');
 const LAST_EFFECT = Object.keys(SAMPLE_BYTES).at(-1);
 const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
-const url = process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/';
+const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const output = process.env.TYRAN_LOADING_OUTPUT || '/tmp/tyran-loader-qa';
 const errors = [], results = [];
 await mkdir(output, { recursive: true });
@@ -57,7 +57,7 @@ try {
           overlay: box(overlay), card: box(card), title: box(title), status: box(status), message: status.textContent,
           statusRole: status.getAttribute('role'), live: status.getAttribute('aria-live'), atomic: status.getAttribute('aria-atomic'),
           label: overlay.getAttribute('aria-labelledby'), centerInLoader: overlay.contains(document.elementFromPoint(innerWidth / 2, innerHeight / 2)),
-          overflow: [title, status, document.querySelector('.startup-note')].some(el => el.scrollWidth > el.clientWidth)
+          overflow: [title, status, document.querySelector('.startup-note')].filter(Boolean).some(el => el.scrollWidth > el.clientWidth)
             || document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
           activityAnimation: getComputedStyle(document.querySelector('.startup-activity>span')).animationName,
         };

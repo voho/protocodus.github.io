@@ -167,7 +167,7 @@ export class GPUCanvas2D {
   this._useProgram(imageProgram);gl.uniform1iv(this._imageUniforms['uTextures[0]'],slots);
   this._useProgram(program);gl.uniform1iv(this._uniforms['uTextures[0]'],slots);gl.activeTexture(gl.TEXTURE0);this._activeTextureUnit=0;this._boundTextures=new Array(TEXTURE_UNITS).fill(null);gl.enable(gl.BLEND);gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.disable(gl.DITHER);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL,gl.NONE);
-  this.maxTextureSize=gl.getParameter(gl.MAX_TEXTURE_SIZE);this._batchTexture=null;this._batchKind=null;this._batchComposite=null;this._batchGradient=null;this._batchUsesGradient=false;this._actualTexture=null;this._appliedBlend=null;this._blendEnabled=true;this._appliedGradient=null;this._count=0;this._batchStart=0;this._commandCount=0;this._commands.length=0;this._batchTextures.length=0;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=false;
+  this.maxTextureSize=gl.getParameter(gl.MAX_TEXTURE_SIZE);this._batchTexture=null;this._batchKind=null;this._batchComposite=null;this._batchGradient=null;this._batchUsesGradient=false;this._actualTexture=null;this._appliedBlend=null;this._blendEnabled=true;this._appliedGradient=null;this._count=0;this._batchStart=0;this._commandCount=0;this._commands.length=0;this._batchTextures.length=0;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=false;this._sizedWidth=0;this._sizedHeight=0;
   // Valid sampler binding even when a batch contains only solid triangles.
   this._white=gl.createTexture();this._bindTextureUnit(0,this._white);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   for(let unit=1;unit<TEXTURE_UNITS;unit++)this._bindTextureUnit(unit,this._white);this._actualTexture=this._white;this._stopColors=new Float32Array(16);this._stops=new Float32Array(4);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);
@@ -179,7 +179,7 @@ export class GPUCanvas2D {
   const previous=this._activeProgram||this.program;
   this._useProgram(this.program);this.gl.uniform2f(this._uniforms.uSize,width,height);
   this._useProgram(this.imageProgram);this.gl.uniform2f(this._imageUniforms.uSize,width,height);
-  this._useProgram(previous);
+  this._useProgram(previous);this._sizedWidth=width;this._sizedHeight=height;
  }
  setRecoveryPrewarm(callback){this._recoveryPrewarm=typeof callback==='function'?callback:null;}
  fail(error){
@@ -257,7 +257,7 @@ export class GPUCanvas2D {
   if(this._softDrawing&&!this._lost){this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,null);this.gl.viewport(0,0,this.canvas.width,this.canvas.height);}this._softDrawing=false;
  }
  resize(width,height){width=Math.max(1,Math.round(width));height=Math.max(1,Math.round(height));const changed=this.canvas.width!==width||this.canvas.height!==height,recovering=this._recoveryActive;this.reset();if(changed){this._restoreEpoch++;this.canvas.width=width;this.canvas.height=height;}if(this.usable){this.gl.viewport(0,0,width,height);this._setProgramSizes(width,height);if(this._softLayerScale)this.prepareSoftLayer(this._softLayerScale);}else if(changed&&recovering&&this._contextAvailable&&!this._disposed)this._recoveryPromise=this._restore(false);return this;}
- beginFrame(){if(!this.usable||!this._verifyUploads())return false;if(this._pendingReleases.length)this._flushReleases();this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl,clear=this._clearColor;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);gl.clearColor(clear[0],clear[1],clear[2],1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
+ beginFrame(){if(!this.usable||!this._verifyUploads())return false;if(this._pendingReleases.length)this._flushReleases();this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl,clear=this._clearColor,w=this.canvas.width,h=this.canvas.height;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,w,h);if(this._sizedWidth!==w||this._sizedHeight!==h)this._setProgramSizes(w,h);gl.clearColor(clear[0],clear[1],clear[2],1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
  /** Opaque frame background. The world's terrain covers every pixel, so the
   * clear replaces a blended full-screen fill without changing the picture. */
  setClearColor(value){const c=parseColor(value),target=this._clearColor;target[0]=c[0];target[1]=c[1];target[2]=c[2];this.clearColorValue=value;}
@@ -536,8 +536,8 @@ export class GPUCanvas2D {
   }catch(error){if(gl.isContextLost())this._loseContext();else this.fail(error);return null;}
  }
  prewarm(source){
-  if(this._disposed||this._failure)return false;
-  if(Array.isArray(source)){for(const item of source)this.prewarm(item);return this.usable;}
+  if(!source||this._disposed||this._failure)return false;
+  if(Array.isArray(source)||typeof source[Symbol.iterator]==='function'){for(const item of source)this.prewarm(item);return this.usable;}
   if(this._lost)this._queueRecoverySource(source);else this._texture(source);return this.usable;
  }
  drawImage(source,p0,p1,p2,p3,p4,p5,p6,p7){

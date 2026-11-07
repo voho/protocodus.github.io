@@ -26,7 +26,7 @@ try {
     };
     window.__frames = count => { for (let i = 0; i < count; i++) __frame(); };
   });
-  await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/');
+  await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
   await page.evaluate(async () => {
     const { AudioEngine } = await import('./audio.js');
@@ -164,12 +164,12 @@ try {
   assert.deepEqual(pixelResult, { max: 0, minAlpha: 255, width: 1280, height: 720 }, 'Every viewport pixel, including instruments and touch controls, is opaque black');
   const finished = await page.evaluate(() => {
     __frames(6); const heldBlack = __snapshot(); __frames(3); const hangar = __snapshot();
-    return { heldBlack, hangar, history: __audioHistory, focus: document.activeElement.id };
+    return { heldBlack, hangar, history: __audioHistory, focus: document.activeElement.id || document.activeElement.dataset.primary || '' };
   });
   assert.equal(finished.heldBlack.scene, 'bonus-outro'); assert.equal(finished.heldBlack.opacity, 1);
   assert.equal(finished.hangar.scene, 'hangar'); assert.equal(finished.hangar.hangar, true);
   assert.equal(finished.hangar.overlay, false); assert.equal(finished.hangar.gain, 1); assert.equal(finished.hangar.musicPaused, true);
-  assert.equal(finished.focus, 'next-button');
+  assert.equal(finished.focus, 'pulse');
   assert(finished.history.every(frame => frame.song === 'challenge'), 'Challenge music never swaps to a flight song during results, fade or shop entry');
   const fadeGains = finished.history.filter(frame => frame.scene === 'bonus-outro').map(frame => frame.gain);
   assert(fadeGains.every((gain, index) => index === 0 || gain <= fadeGains[index - 1]), 'The complete fade is monotonic');

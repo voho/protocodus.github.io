@@ -555,12 +555,16 @@ export function spawnFormation(s, kind = null, wave = null, order = 0) {
   return anchor;
 }
 
-function bolt(s, p, x, y, angle, profile, damage, extra = {}) {
-  s.bullets.push({ x, y, px: x, py: y, vx: Math.cos(angle) * profile.speed, vy: Math.sin(angle) * profile.speed,
+const activeSquads = new Set();
+
+function bolt(s, p, x, y, angle, profile, damage, extra = null) {
+  const b = { x, y, px: x, py: y, vx: Math.cos(angle) * profile.speed, vy: Math.sin(angle) * profile.speed,
     damage, baseDamage: profile.damage, radius: profile.radius, team: p.id, life: profile.life,
     color: '#9cfff0', weaponColor: profile.color, kind: profile.kind, pierce: profile.pierce || 0, homing: profile.homing || 0,
     splash: profile.splash || 0, splashFactor: profile.splashFactor || 0, chain: profile.chain || 0, chainRange: profile.chainRange || 0,
-    chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1, ...extra });
+    chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1 };
+  if (extra) Object.assign(b, extra);
+  s.bullets.push(b);
 }
 
 function shoot(s, p, id, remainder = 0) {
@@ -1594,11 +1598,17 @@ export function update(s, dt, input = [], environmentHit = null) {
   }
   s.enemies.length = retained;
   // A lancer destroyed this step takes its beam with it, keeping saves consistent.
-  if (s.beams.length) s.beams = s.beams.filter(beam => s.enemies.some(enemy => enemy.id === beam.owner));
+  if (s.beams.length) {
+    retained = 0;
+    for (const beam of s.beams) if (s.enemies.some(enemy => enemy.id === beam.owner)) s.beams[retained++] = beam;
+    s.beams.length = retained;
+  }
   if (s.squadrons.length) {
-    const active = new Set();
-    for (const e of s.enemies) if (e.squad) active.add(e.squad);
-    s.squadrons = s.squadrons.filter(squad => active.has(squad.id));
+    activeSquads.clear();
+    for (const e of s.enemies) if (e.squad) activeSquads.add(e.squad);
+    retained = 0;
+    for (const squad of s.squadrons) if (activeSquads.has(squad.id)) s.squadrons[retained++] = squad;
+    s.squadrons.length = retained;
   }
   retained = 0;
   for (const formation of s.formations) {

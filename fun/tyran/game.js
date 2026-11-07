@@ -52,7 +52,7 @@ await Promise.all([
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) { const el = document.getElementById(id); if (el) elements.set(id, el); } return elements.get(id); };
 const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
-const setFill = (el, fraction) => { const transform = `scaleX(${Number(clamp(fraction, 0, 1).toFixed(3))})`; if (el.style.transform !== transform) el.style.transform = transform; };
+const setFill = (el, fraction) => { const permille = Math.round(clamp(fraction, 0, 1) * 1000); if (el._tyranFill !== permille) { el._tyranFill = permille; el.style.transform = `scaleX(${permille / 1000})`; } };
 const setHidden = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden; };
 const setAttribute = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
 const setActionLabel = (el, label) => { const arrow = document.createElement('span'); arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '↗'; el.replaceChildren(label, arrow); };

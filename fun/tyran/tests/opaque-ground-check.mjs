@@ -5,7 +5,7 @@ const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'c
 const page = await browser.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto(new URL('worlds.js', process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/').href);
+  await page.goto(new URL('worlds.js', process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/').href);
   await page.setContent('');
   const result = await page.evaluate(async () => {
     const { WorldRenderer } = await import('./worlds.js');
@@ -79,16 +79,17 @@ try {
     }
     // The actual render path must use the completed strips without submitting
     // their substrate again, while retaining the same cached strip identities.
-    world.setWorld(0); world.setViewport(W); world.detailScale = 1; world.tiles.clear();
-    world.drawGroundScenery = world.drawCloudShadows = world.drawAtmosphere = () => {};
-    const target = surface(W, H), c = target.getContext('2d'), cached = world.getTile(0);
+    world.setWorld(0); world.setViewport(W); world.detailScale = 1; world.tiles.clear(); world.sceneryLayers[0].clear();
+    for (const row of [-1, 0, 1, 2]) { const emptyBand = []; emptyBand.details = []; world.bands.set(row, emptyBand); }
+    world.drawCloudShadows = world.drawAtmosphere = () => {};
+    const target = surface(W, H), c = target.getContext('2d'), cached = world.getSceneryLayer(0, world.getBand(0));
     let substrateCalls = 0, terrainCalls = 0;
     const vignetteCalls = [];
     const substrate = world.drawSubstrate.bind(world), drawImage = c.drawImage.bind(c);
     world.drawSubstrate = (...args) => { substrateCalls++; return substrate(...args); };
-    world.getTile(1); substrateCalls = 0;
+    world.getSceneryLayer(1, world.getBand(1)); substrateCalls = 0;
     c.drawImage = (...args) => {
-      if (world.tiles.has(0) && [...world.tiles.values()].includes(args[0])) terrainCalls++;
+      if (world.sceneryLayers[0].has(0) && [...world.sceneryLayers[0].values()].includes(args[0])) terrainCalls++;
       if (args[0] === world.vignetteSprite) vignetteCalls.push(args.slice(1));
       return drawImage(...args);
     };
@@ -159,7 +160,7 @@ try {
       }
       activity.push({ type, maxDifference, saves, restores, statePreserved });
     }
-    return { phase, pictures, substrateCalls, terrainCalls, cacheRetained: world.getTile(0) === cached, activity, vignette, vignetteArea };
+    return { phase, pictures, substrateCalls, terrainCalls, cacheRetained: world.getSceneryLayer(0, world.getBand(0)) === cached, activity, vignette, vignetteArea };
   });
   for (const sample of result.phase) assert.equal(sample.max, 0, `substrate phase remains exact at row ${sample.row}, density ${sample.density}`);
   console.log(JSON.stringify(result));

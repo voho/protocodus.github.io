@@ -49,6 +49,15 @@ async function flight(viewport = { width: 1440, height: 960 }) {
   // Poll with a timer because Playwright's default wait uses our paused RAF.
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
   await page.evaluate(async () => {
+    const { GPUCanvas2D } = await import('./gpu-canvas.js');
+    const gpuEllipse = GPUCanvas2D.prototype.ellipse;
+    GPUCanvas2D.prototype.ellipse = function (x, y, rx, ry, ...rest) {
+      if ((this.canvas.id === 'game-canvas' || this.canvas.id === 'game-gpu-canvas') && rx === 37 && ry === 46) {
+        const transform = this.getTransform();
+        window.__paintedPilot = { x: transform.e * tyran.state.width / this.canvas.width, y: transform.f * tyran.state.height / this.canvas.height };
+      }
+      return gpuEllipse.call(this, x, y, rx, ry, ...rest);
+    };
     await tyran.world.ready;
     document.querySelector('#launch-button').click();
     __pumpFrame(__frameTime);

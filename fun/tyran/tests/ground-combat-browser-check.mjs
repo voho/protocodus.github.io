@@ -177,7 +177,14 @@ try {
       tyran.step(1 / 60); document.querySelector('#announcement').hidden = true;
     });
     assert(await mobile.locator('#p1-rapid').isVisible() && await mobile.locator('#p1-invulnerable').isVisible());
-    const panel = await mobile.locator('#p1-panel').boundingBox();
+    const resourcesBox = await mobile.locator('#p1-panel .player-resources').boundingBox();
+    const bonusesBox = await mobile.locator('#p1-bonuses').boundingBox();
+    const panel = resourcesBox && bonusesBox ? {
+      x: Math.min(resourcesBox.x, bonusesBox.x),
+      y: Math.min(resourcesBox.y, bonusesBox.y),
+      width: Math.max(resourcesBox.x + resourcesBox.width, bonusesBox.x + bonusesBox.width) - Math.min(resourcesBox.x, bonusesBox.x),
+      height: Math.max(resourcesBox.y + resourcesBox.height, bonusesBox.y + bonusesBox.height) - Math.min(resourcesBox.y, bonusesBox.y),
+    } : null;
     const stick = await mobile.locator('#touch-stick').boundingBox(), fire = await mobile.locator('#touch-fire').boundingBox(), secondary = await mobile.locator('#touch-secondary').boundingBox();
     const bomb = await mobile.locator('#touch-bomb').boundingBox();
     assert(panel, `${name}: the expanded pilot HUD is visible`);

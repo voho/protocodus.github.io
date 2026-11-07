@@ -5,7 +5,7 @@ const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'c
 const page = await browser.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto(new URL('worlds.js', process.env.TYRAN_URL || 'http://127.0.0.1:8774/fun/tyran/').href);
+  await page.goto(new URL('worlds.js', process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/').href);
   await page.setContent('');
   const result = await page.evaluate(async () => {
     const { WorldRenderer, PARALLAX_LAYERS } = await import('./worlds.js');

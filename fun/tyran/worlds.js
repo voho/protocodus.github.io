@@ -91,6 +91,8 @@ const STRUCTURES = new Set(['temple','bunker','station','radar','dome','solar','
 const EMISSIVE = new Set(['crystal','pylon','mushroom','radar','tower','vent']);
 const NATURE_SPRITES = Object.freeze(['tree','alienTree','palm','pine','fern','cactus','mushroom','pod','ice','crystal','rock','asteroid','basalt','vent','coral','cloud']);
 const STRUCTURE_SPRITES = Object.freeze(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler']);
+const STRUCTURE_SPRITE_SET = new Set(STRUCTURE_SPRITES);
+const EMISSIVE_STAGE_POWER = Object.freeze([1, .52, .19, 0]);
 const STRUCTURE_ATLASES = Object.freeze(['structures','structureLight','structureHeavy']);
 const STRUCTURE_STRENGTH = Object.freeze({temple:1.5,ruin:.7,bunker:1.8,station:1.35,radar:.9,dome:1.05,solar:.7,refinery:1.55,building:1.4,tower:1.15,pylon:.85,fortress:2.2,hut:.65,satellite:.9,crawler:1.55,hauler:1.15});
 export const BUILDING_DURABILITY_MULTIPLIER = 2.5;
@@ -607,8 +609,8 @@ export class WorldRenderer {
         const x=(col+.18+r()*.64)*MAP_TILE_SIZE,py=(tileRow+.16+r()*.68)*MAP_TILE_SIZE;
         const structure=STRUCTURES.has(type),vehicle=type==='crawler'||type==='hauler';
         const size=vehicle?34+r()*12:structure?52+r()*35:30+r()*33;
-        const maxHp=STRUCTURE_SPRITES.includes(type)?structureDurability(type,size):12+size*.22,id=`${this.levelHash}:${row}:${col}:${y}:${n}`;
-        const prop={id,row,x,y:py,type,size,variant:Math.floor(r()*5),hp:this.destroyed.has(id)?0:this.damage.get(id)??maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type),depth:0};
+        const maxHp=STRUCTURE_SPRITE_SET.has(type)?structureDurability(type,size):12+size*.22,id=`${this.levelHash}:${row}:${col}:${y}:${n}`;
+        const prop={id,row,x,y:py,type,size,variant:Math.floor(r()*5),hp:this.destroyed.has(id)?0:this.damage.get(id)??maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type),structural:STRUCTURE_SPRITE_SET.has(type),active:ACTIVE_STRUCTURES.has(type),depth:0};
         props.push(prop);
         const key=`${Math.floor(py/HIT_CELL)}:${Math.floor(x/HIT_CELL)}`;
         let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
@@ -738,7 +740,8 @@ export class WorldRenderer {
           bounds.left=Math.min(bounds.left,item.x-reach);bounds.right=Math.max(bounds.right,item.x+reach);
           bounds.top=Math.min(bounds.top,item.y-reach);bounds.bottom=Math.max(bounds.bottom,item.y+reach);
         }
-        details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items,bounds});
+        const seed=Math.floor(rng()*0xffffffff);
+        if(bounds.right>=-MARGIN&&bounds.left<=this.mapWidth+MARGIN)details.push({x,y,radius,seed,items,bounds});
       }
     }
     band.details=details;return details;
@@ -834,8 +837,12 @@ export class WorldRenderer {
     const view=this.layerViews[0];view.x=this.parallaxX;view.y=scroll;
     const first=view.first=Math.floor((-scroll-PAD)/TILE);
     const last=view.last=Math.floor((h-scroll+PAD)/TILE),cache=this.sceneryLayers[0];
+    const drawnFirst=Math.floor(-scroll/TILE),drawnLast=Math.floor((h-scroll)/TILE);
+    if(this.sceneryDirty.size){
+      for(let row=drawnFirst;row<=drawnLast;row++)if(this.sceneryDirty.has(row)&&(!this.deferStrips||cache.has(row)))this.getSceneryLayer(row,this.getBand(row));
+    }
     c.save();c.translate(view.x,view.y);c.globalAlpha=1;
-    for(let row=Math.floor(-scroll/TILE);row<=Math.floor((h-scroll)/TILE);row++){
+    for(let row=drawnFirst;row<=drawnLast;row++){
       if(this.deferStrips&&!cache.has(row)){this.queueTerrain(row);this.queueScenery(row);continue;}
       c.drawImage(this.getSceneryLayer(row,this.getBand(row)),-MARGIN,row*TILE,this.mapWidth+MARGIN*2,TILE+.5);
     }
@@ -847,24 +854,23 @@ export class WorldRenderer {
     for(let row=first;row<=last;row++) {
       const band=this.getBand(row);c.globalAlpha=1;
       for(const prop of band){
-        if(this.destroyed.has(prop.id))continue;
         const y=prop.y+scroll;if(y<-PAD||y>h+PAD||prop.x<-PAD||prop.x>this.viewportWidth+PAD)continue;
+        if(prop.hp<=0||(this.destroyed.size&&this.destroyed.has(prop.id)))continue;
         prop.screenX=prop.x+view.x;prop.screenY=y;this.visibleProps.push(prop);
         // A preview that is still preparing leaves a structure's lights out until its art exists, rather than painting it inside the frame.
-        if(!this.deferStrips||this.fixtureDone.has(prop.type)){
-          this.drawStructureActivity(c,prop,time,quality,motion);
+        if(prop.structural&&(!this.deferStrips||this.fixtureDone.has(prop.type))){
+          if(prop.active)this.drawStructureActivity(c,prop,time,quality,motion);
           this.structureEffects.draw(c,prop,time,quality,motion);
         }
         if(prop.emissive&&quality!=='low'){
-          const power=STRUCTURE_SPRITES.includes(prop.type)?[1,.52,.19,0][structureStage(prop)]:1;
+          const power=prop.structural?EMISSIVE_STAGE_POWER[structureStage(prop)]:1;
           const radius=prop.size*.65;c.globalAlpha=(.1+Math.sin((motion?time:0)*1.7+prop.variant*2)*.03)*power;
           c.drawImage(this.lightSprite,prop.x-radius,prop.y-radius,radius*2,radius*2);
         }
-        this.drawGroundSite(c,prop,time,motion);
+        if(prop.groundRole==='cache')this.drawGroundSite(c,prop,time,motion);
       }
     }
     c.restore();
-    const drawnFirst=Math.floor(-scroll/TILE),drawnLast=Math.floor((h-scroll)/TILE);
     for(const row of cache.keys())if(row<drawnFirst-1||row>drawnLast){this.recycleStrip(this.stripPool,cache.get(row));cache.delete(row);this.sceneryDirty.delete(row);}
   }
   draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5,motion=true) {
@@ -1299,6 +1305,9 @@ export class WorldRenderer {
     const streaks=this.index===7||this.index===2||this.index===5;
     if(streaks){
       c.beginPath();c.strokeStyle=this.index===7?'rgba(162,189,220,.17)':'rgba(238,194,145,.2)';c.lineWidth=this.index===7?.8:.7;
+    }else{
+      const color=this.index===1?'#e4f6f2':this.index===6?'#ffa26e':this.index===8?'#a9ffd3':space?'#c6c1e6':'#acdabb';
+      c.fillStyle=color;if(this.index===6){c.strokeStyle=color;c.lineWidth=.7;}
     }
     for(let group=0;group<Math.ceil(this.viewportWidth/WIDTH);group++)for(let i=0;i<count;i++) {
       const depth=.3+(i%7)*.13;
@@ -1306,10 +1315,10 @@ export class WorldRenderer {
       const x=group*WIDTH+((i*191.7+this.parallaxX*(motion?layer.x:1)+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
       const y=((i*149.31+scroll*(motion?layer.speed:1)+time*(this.index===1?18:4))%(h+40)+h+40)%(h+40)-20;
       if(streaks){c.moveTo(x,y);c.lineTo(this.index===7?x-4:x+6+depth*8,this.index===7?y+17:y+1);continue;}
-      const color=this.index===1?'#e4f6f2':this.index===6?'#ffa26e':this.index===8?'#a9ffd3':space?'#c6c1e6':'#acdabb';
+      if(x>this.viewportWidth+4)continue;
       c.globalAlpha=this.index===1?.25+depth*.28:this.index===6?.15+Math.sin(time+i)*.12:.16+Math.sin(time*.8+i)*.1;
-      circle(c,x,y,(space?.6:1)*depth,color);
-      if(this.index===6&&i%4===0)line(c,[[x,y],[x-1,y+5]],color,.7);
+      c.beginPath();c.arc(x,y,(space?.6:1)*depth,0,TAU);c.fill();
+      if(this.index===6&&i%4===0){c.beginPath();c.moveTo(x,y);c.lineTo(x-1,y+5);c.stroke();}
     }
     if(streaks)c.stroke();
     c.globalAlpha=1;

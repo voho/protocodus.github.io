@@ -99,22 +99,27 @@ function emitFilled(ctx,points,style,thinWidth=null){
 // Exact circle/ellipse coverage in the few backing pixels touched by a tiny
 // dot. Transform each pixel edge into unit-circle space, split at intersections,
 // and integrate its triangle or sector area. No raster canvas or pixel reads.
+const tinyCuts=[0,0,0,0],tinyPoints=[0,0,0,0,0,0,0,0];
 function circleEdgeArea(ax,ay,bx,by){
   const dx=bx-ax,dy=by-ay,a=dx*dx+dy*dy,b=2*(ax*dx+ay*dy),c=ax*ax+ay*ay-1;
-  const cuts=[0,1],disc=b*b-4*a*c;
-  if(a>EPS&&disc>0){const root=Math.sqrt(disc),t0=(-b-root)/(2*a),t1=(-b+root)/(2*a);if(t0>0&&t0<1)cuts.push(t0);if(t1>0&&t1<1)cuts.push(t1);cuts.sort((x,y)=>x-y);}
-  let result=0;
-  for(let i=1;i<cuts.length;i++){const t0=cuts[i-1],t1=cuts[i],px=ax+dx*t0,py=ay+dy*t0,qx=ax+dx*t1,qy=ay+dy*t1,mx=(px+qx)*.5,my=(py+qy)*.5,cross=px*qy-py*qx;
+  tinyCuts[0]=0;let n=1;const disc=b*b-4*a*c;
+  if(a>EPS&&disc>0){const root=Math.sqrt(disc),inv=1/(2*a),t0=(-b-root)*inv,t1=(-b+root)*inv;if(t0>0&&t0<1)tinyCuts[n++]=t0;if(t1>0&&t1<1)tinyCuts[n++]=t1;}
+  tinyCuts[n++]=1;let result=0;
+  for(let i=1;i<n;i++){const t0=tinyCuts[i-1],t1=tinyCuts[i],px=ax+dx*t0,py=ay+dy*t0,qx=ax+dx*t1,qy=ay+dy*t1,mx=(px+qx)*.5,my=(py+qy)*.5,cross=px*qy-py*qx;
     result+=(mx*mx+my*my<1-EPS?cross:Math.atan2(cross,px*qx+py*qy))*.5;
   }return result;
 }
 function emitTinyEllipse(ctx,e,style){
   const {cx,cy,ax,ay,bx,by}=e,rx=Math.hypot(ax,bx),ry=Math.hypot(ay,by),det=ax*by-ay*bx;
   if(rx>.65||ry>.65||Math.abs(det)<EPS)return false;
-  const v=data(ctx).vertices;v.length=0;
+  const v=data(ctx).vertices;v.length=0;const invDet=1/det;
   for(let y=Math.floor(cy-ry);y<Math.ceil(cy+ry);y++)for(let x=Math.floor(cx-rx);x<Math.ceil(cx+rx);x++){
-    const points=[];for(const [px,py]of [[x,y],[x+1,y],[x+1,y+1],[x,y+1]]){const dx=px-cx,dy=py-cy;points.push((by*dx-bx*dy)/det,(-ay*dx+ax*dy)/det);}
-    let mass=0;for(let i=0;i<8;i+=2){const j=(i+2)%8;mass+=circleEdgeArea(points[i],points[i+1],points[j],points[j+1]);}
+    const dx0=x-cx,dx1=dx0+1,dy0=y-cy,dy1=dy0+1;
+    tinyPoints[0]=(by*dx0-bx*dy0)*invDet;tinyPoints[1]=(-ay*dx0+ax*dy0)*invDet;
+    tinyPoints[2]=(by*dx1-bx*dy0)*invDet;tinyPoints[3]=(-ay*dx1+ax*dy0)*invDet;
+    tinyPoints[4]=(by*dx1-bx*dy1)*invDet;tinyPoints[5]=(-ay*dx1+ax*dy1)*invDet;
+    tinyPoints[6]=(by*dx0-bx*dy1)*invDet;tinyPoints[7]=(-ay*dx0+ax*dy1)*invDet;
+    let mass=0;for(let i=0;i<8;i+=2){const j=(i+2)&7;mass+=circleEdgeArea(tinyPoints[i],tinyPoints[i+1],tinyPoints[j],tinyPoints[j+1]);}
     const alpha=clamp(Math.abs(mass*det));if(alpha<EPS)continue;
     triangle(v,x,y,alpha,x+1,y,alpha,x,y+1,alpha);triangle(v,x,y+1,alpha,x+1,y,alpha,x+1,y+1,alpha);
   }
