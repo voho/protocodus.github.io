@@ -1,8 +1,8 @@
 # Hedgerow sound sources
 
-The active runtime loads 24 **CC0 1.0 public domain** audio files. They are
+The active runtime loads 25 **CC0 1.0 public domain** audio files. They are
 served from the game itself, with no third-party runtime requests. Total audio
-payload: **240,385 bytes**. `manifest.json` records each exact file's size,
+payload: **246,911 bytes**. `manifest.json` records each exact file's size,
 SHA-256, original filename, and edits. Acquired 6 November 2026. The directory
 also retains 16 inactive files from the earlier sound bank, with their source
 receipts under `retainedAssets` in the manifest; these are not downloaded
@@ -44,18 +44,23 @@ Pinned download path example:
 - Download mirror: <https://github.com/GeorgeQLe/assets-sfx-combat>, pinned commit
   `9662dc1bed3b06ae753045915f9accfac044c7ce`.
 - Original pack license is retained verbatim as `KENNEY-LICENSE.txt`.
-- All 15 OGG payloads are copied unchanged from
+- All 16 OGG payloads are copied unchanged from
   `assets/kenney/impact-sounds/Audio/` in that mirror.
 
 Selected files: three variants each of `footstep_concrete`, `footstep_grass`,
 and `footstep_wood`; two variants each of `impactMetal_light`, `impactWood_light`,
-and `impactMining`. Original numeric suffixes are retained. Stereo sources are
+and `impactMining`; one `impactGlass_light` strike. Original numeric suffixes are retained. Stereo sources are
 mixed to mono in memory before positional playback; the vendored files remain
 unchanged. Wetness, heel/toe detail, webbing, and ricochets retain procedural layers.
 Grass playback keeps its contact and swish, then fades out at 240 ms instead of
 holding a voice for the recording's very low noise floor. Other surface durations
 stay intact. `tests/audio-steps-check.mjs` checks retained energy across walk/run
 pitch variation, onset, fallback, real-time voice/path bounds, pause and cleanup.
+The small glass strike marks a bullet hitting a pane, with a quiet 180 ms
+playback cap and procedural fallback. It does not imply full-window shattering
+or a new path through the backing wall. `tests/audio-glass-check.mjs` verifies
+the original receipt/license, decoded onset, normal impact levels, distance,
+bearing, real stone occlusion, exact mute and the existing voice/path budgets.
 
 Pinned license:
 <https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/LICENSES/kenney-impact-sounds-license.txt>.
@@ -137,10 +142,13 @@ unused descriptors while letting an already-emitted final mechanical tail end.
 uses real rig events and PCM to check moving/covered sources, slow simulation,
 pause, per-actor cancellation, queue limits and cleanup. Rifle and SMG reloads
 use the actual right-hand world point, including crouched poses below low
-cover; the mounted MG retains its feet-height source. `tests/ai-reload-source-check.mjs`
+cover. A mounted MG uses its fixed receiver while the operator ducks; an
+unmounted fallback retains the feet-height source. `tests/ai-reload-source-check.mjs`
 checks the shipped moving rigs, and `tests/audio-actor-height-check.mjs` renders
 decoded foley through actual low stone cover, default-height controls, mute
-and canceled/evicted source-getter cleanup. Gunshot attacks/tails
+and canceled/evicted source-getter cleanup. `tests/audio-mounted-source-check.mjs`
+checks the shipped MG/rig and bunker/nest openings, all 14 mechanical beats,
+unchanged query counts and source cleanup. Gunshot attacks/tails
 and sound propagation keep their audio-clock timelines. Reflections remove
 sub-bass and reduce the second return to keep
 automatic fire clear; a final smooth peak guard leaves ordinary levels unchanged

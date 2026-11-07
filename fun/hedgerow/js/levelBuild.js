@@ -25,6 +25,7 @@ import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './ut
 const SURFACE = (name) => {
   if (/^(house|church|wall|fountain|cross|bridge|ruin)/.test(name)) return 'stone';
   if (/^(barn|shed|fence|gate|crate|cart|sentry|trench_wall|duckboard|watchtower|log|stump|signpost|pole|tree|pine|oak|glider)/.test(name)) return 'wood';
+  if (/^(beech|birch|fir)(?:_|$)/.test(name)) return 'wood';
   if (/^(sandbag|mg_nest|tent)/.test(name)) return 'sandbag';
   if (/^(truck|jeep|barrel|flak|pak|hedgehog|barbed|radio|jerrycan|ammo|lamp|canal_bridge|supply)/.test(name)) return 'metal';
   if (/^bunker/.test(name)) return 'concrete';

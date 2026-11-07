@@ -323,15 +323,15 @@ const enemies = [
   E('smg', 27, 92.8, 185, 'pillbox', { hold: true, inTrench: true }),
   E('rifle', 34, 91.9, 180, 'pillbox', { hold: true, inTrench: true }),
   E('rifle', 3.6, 101.5, 180, 'pillbox', { leash: 6 }),
-  E('rifle', 2.5, 105, 170, 'pillbox', { patrol: [[2, 104], [2, 134], [-2, 134], [-2, 104]] }),
+  E('rifle', 2, 105, 170, 'pillbox', { patrol: [[2, 104], [2, 134], [-2, 134], [-2, 104]] }),
   // the far bank: the café, the street
   E('smg', X(-6, 146), 146, 180, 'farbank'),
-  E('rifle', X(3.5, 144), 144, 180, 'farbank'),
+  E('rifle', X(3.5, 143.7), 143.7, 180, 'farbank'),
   E('rifle', X(-7, 146), 146, 160, 'farbank', { leash: 8 }),
   E('rifle', X(9, 153), 153, 200, 'farbank', { leash: 8 }),
   E('rifle', X(-2, 170), 170, 180, 'farbank', { patrol: [[X(-2, 158), 158], [X(-2, 190), 190]] }),
   E('smg', X(4, 182), 182, 185, 'farbank'),
-  E('rifle', X(-9, 186), 186, 170, 'farbank', { leash: 10 }),
+  E('rifle', X(-6, 186), 186, 170, 'farbank', { leash: 10 }),
   E('rifle', 22, 177, 200, 'farbank', { patrol: [[16, 177], [44, 177]] }),
   // the counter-attack, waiting up the road for the order
   ...[['smg', 2, 228], ['rifle', 7, 230], ['rifle', -6, 232], ['rifle', 8, 238], ['smg', -4, 240, 1.4], ['rifle', 12, 222], ['rifle', -12, 224], ['rifle', 3, 246]]

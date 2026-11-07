@@ -138,5 +138,5 @@ try {
   const reportPath = resolve(reportDirectory, 'audio-actor-height-report.json');
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, JSON.stringify({ frames: frames.length, coveredEnergyRatio: results.exact.late.total / results.clear.late.total, results }, null, 2));
-  console.log('audio-actor-height-check: actual moving/crouched rig, decoded foley below stone cover, unchanged default/MG source contract, zero-height world points, exact mute, cancellation and bounded getter cleanup pass');
+  console.log('audio-actor-height-check: actual moving/crouched rig, decoded foley below stone cover, unchanged default height contract, zero-height world points, exact mute, cancellation and bounded getter cleanup pass');
 } finally { await browser?.close(); await new Promise(done => server.close(done)); }

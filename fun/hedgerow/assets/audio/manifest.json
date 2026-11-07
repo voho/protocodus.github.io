@@ -308,6 +308,21 @@
       "edit": "Unmodified original Ogg Vorbis",
       "sha256": "ba9ba60b172b3ebc131a940f25793cd2e207aca7af73dc80d637277f060f1708",
       "bytes": 10208
+    },
+    {
+      "file": "impactGlass_light_000.ogg",
+      "sourcePack": "Kenney Impact Sounds 1.0",
+      "sourceFile": "Audio/impactGlass_light_000.ogg",
+      "changes": "None",
+      "bytes": 6526,
+      "sha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+      "creator": "Kenney (Kenney Vleugels)",
+      "collection": "Impact Sounds",
+      "source": "https://kenney.nl/assets/impact-sounds",
+      "download": "https://raw.githubusercontent.com/GeorgeQLe/assets-sfx-combat/9662dc1bed3b06ae753045915f9accfac044c7ce/assets/kenney/impact-sounds/Audio/impactGlass_light_000.ogg",
+      "license": "CC0-1.0",
+      "licenseFile": "kenney-impact-sounds-license.txt",
+      "edit": "Unmodified original Ogg Vorbis"
     }
   ],
   "retainedAssets": [

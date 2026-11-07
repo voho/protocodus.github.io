@@ -13,6 +13,7 @@ import { mergeGeometries } from '../assets/utils/BufferGeometryUtils.js';
 import { splitRooms, reseedRooms } from './rooms.js';
 import { breathe } from './pace.js';
 import { createAssetProgress } from './loading.js';
+import { addRadioNumericScales } from './radio-detail.js';
 
 export async function loadModels(base, sets, onProgress) {
   const loader = new GLTFLoader();
@@ -36,6 +37,8 @@ export async function loadModels(base, sets, onProgress) {
     }
     progress(set, 1);
   }));
+  const radio = out.models.get('radio_table');
+  if (radio) out.models.set('radio_table', addRadioNumericScales(radio));
   return out;
 }
 

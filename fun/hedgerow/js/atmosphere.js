@@ -933,5 +933,5 @@ export async function createDecals({ max = 200, shared = null, pinned = {} } = {
 
   function clear() { for (const K of Object.values(kinds)) { K.n = K.base; K.cursor = K.base; K.mesh.count = K.n; K.mesh.visible = K.n > 0; } }
 
-  return { group, add, pin, impact, clear, setPanes, paneAt };
+  return { group, add, pin, impact, clear, setPanes, paneAt, get glassMap() { return sets.glass.map; } };
 }

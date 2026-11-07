@@ -362,9 +362,11 @@ export function createPlayer(G) {
         G.audio.ui(killed ? 'kill' : 'hit');
       } else if (finalHit.world) {
         const h = finalHit.world;
-        G.effects.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone', dir.x, dir.y, dir.z);
-        G.decals?.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone');
-        G.audio.impact(h.x, h.y, h.z, h.surface);
+        if (!G.pragueGlass?.impact(h, finalHit === camHit ? dir : md)) {
+          G.effects.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone', dir.x, dir.y, dir.z);
+          G.decals?.impact(h.x, h.y, h.z, h.nx, h.ny, h.nz, h.surface || 'stone');
+          G.audio.impact(h.x, h.y, h.z, h.surface);
+        }
         // near misses keep enemies' heads down
         for (const e of G.enemies) {
           if (!e.dead && Math.hypot(e.pos.x - h.x, e.pos.y + 1 - h.y, e.pos.z - h.z) < 2.2) e.suppress(1.2, P.pos);
@@ -728,7 +730,7 @@ export function createPlayer(G) {
     if (input.pressed('KeyG') && P.grenades > 0 && P.cooking < 0 && P.throwing <= 0 && P.reloading <= 0 && P.switching <= 0) {
       if (P.boltAge >= 0) { cancelBolt(); G.audio.cancelActions?.(); }
       P.cooking = G.time;
-      G.audio.pin();
+      G.audio.pin(G.level?.playerGrenade || 'grenade_us');
     }
     if (P.cooking >= 0) {
       if (G.time - P.cooking > GRENADE.fuse - 0.2) throwGrenade(dt);          // held too long: it goes anyway
@@ -799,7 +801,7 @@ export function createPlayer(G) {
         const surf = P.wading > 0.05 ? 'water' : G.world.surfaceUnder(P.pos.x, P.pos.y, P.pos.z);
         G.audio.footstep(P.pos.x, P.pos.y, P.pos.z, surf, P.crouch ? 0.5 : P.sprint ? 1.2 : 0.8, true, { run: P.sprint, wet: G.shared.wet.value });
         if (surf === 'water') G.effects.splash(P.pos.x, G.world.water.level, P.pos.z, 0.5);
-        if (P.sprint) G.events.emit('noise', { x: P.pos.x, z: P.pos.z, radius: 12, kind: 'step' });
+        if (P.sprint) G.events.emit('noise', { x: P.pos.x, y: P.pos.y + .05, z: P.pos.z, radius: 12, kind: 'step' });
       }
     }
 

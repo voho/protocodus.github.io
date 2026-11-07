@@ -39,6 +39,7 @@
    around the player, crack past and kick up dirt. */
 
 import * as THREE from 'three';
+import { acousticProfile } from './audio-space.js';
 import { ENEMY, ENEMY_WEAPONS, GRENADE, GAIT } from './config.js';
 import { clamp, damp, dampAngle, rng, wrapAngle, lerp } from './util.js';
 import { createCharacter, mergedSoldier, randomFace } from './character.js';
@@ -113,6 +114,7 @@ export function createEnemies(G, defs) {
   // what each group last saw of the player: where, which way he was going, when
   const intel = new Map();
   const casualtyQueue = [], casualtyR = rng(1945);
+  let stepListener = 0, stepBudgetAt = -Infinity, stepChecks = 0;
   const manoeuvres = new Map();              // one bounding move per squad at a time
   const coverGrid = new Map();
   for (const c of cover) {
@@ -397,22 +399,43 @@ export function createEnemies(G, defs) {
     }
   }
 
+  // Quiet running steps need a plausible transmitted path. Each event
+  // examines at most eight listeners, rotating through crowded groups;
+  // skipped listeners keep their previous knowledge, never assumed hearing.
+  function hearStep(x, y, z, radius) {
+    if (![x, y, z, radius, G.time].every(Number.isFinite) || radius <= 0) return;
+    if (stepBudgetAt !== G.time) { stepBudgetAt = G.time; stepChecks = 0; }
+    if (stepChecks >= 8) return;
+    const listeners = enemies.filter(e => !e.dead && e.state !== 'combat' && e.state !== 'ambush' &&
+      Math.hypot(e.pos.x - x, e.pos.z - z) <= radius);
+    const count = Math.min(8 - stepChecks, listeners.length);
+    stepChecks += count;
+    for (let i = 0; i < count; i++) {
+      const e = listeners[(stepListener + i) % listeners.length], ear = e.char.boneWorld('head', new THREE.Vector3());
+      const dx = x - ear.x, dy = y - ear.y, dz = z - ear.z, distance = Math.hypot(dx, dy, dz);
+      if (distance > radius) continue;
+      const hit = distance > .25 ? G.world.raycast(ear.x, ear.y, ear.z, dx / distance, dy / distance, dz / distance,
+        distance - .25, SHOT, { noWater: true }) : null;
+      if (distance > radius * acousticProfile(hit).gain) continue;
+      e.awareness = Math.max(e.awareness, .45);
+      e.lastKnown = { x, z };
+      if (e.state === 'search' && e.srch?.reason === 'casualty') {
+        e.srch = null; e.path = null; e.alertCover = false; e.state = 'alert';
+      } else if (e.state === 'idle' || e.state === 'patrol' || e.state === 'return') e.state = 'alert';
+    }
+    stepListener = listeners.length ? (stepListener + count) % listeners.length : 0;
+  }
+
   /* Shots and blasts. Close by: into cover, ready. Further off: the
      nearest one or two of each group go and look, the rest take cover
      facing the sound. Running feet only turn heads. */
-  G.events.on('noise', ({ x, z, radius, kind }) => {
+  G.events.on('noise', ({ x, y, z, radius, kind }) => {
+    if (kind === 'step') { hearStep(x, y, z, radius); return; }
     const heard = [];
     for (const e of enemies) {
       if (e.dead) continue;
       const d = Math.hypot(e.pos.x - x, e.pos.z - z);
       if (d > radius) continue;
-      if (kind === 'step') {
-        if (e.state === 'combat' || e.state === 'ambush') continue;
-        e.awareness = Math.max(e.awareness, 0.45);
-        e.lastKnown = { x, z };
-        if (e.state === 'idle' || e.state === 'patrol') e.state = 'alert';
-        continue;
-      }
       if (e.srch?.reason === 'casualty') e.srch.reason = 'investigate';
       if (e.state === 'combat') { if (!e.sees) { e.lastKnown = { x, z }; e.lastContact = G.time; } continue; }
       e.lastKnown = { x, z }; e.lastContact = G.time;
@@ -656,8 +679,19 @@ export function createEnemies(G, defs) {
       e.char.oneShot(clip, (e.char.clipLength(clip) || 1.6) / e.reloadTotal);
       e.reloadRun = reloadSequence(G, e.char, w, clip);
     }
-    const reloadPoint = e.type === 'mg' ? null : new THREE.Vector3();
-    e.reloadAudio = G.audio.reloadActor?.(w.sound, () => e.dead ? null : reloadPoint ? e.char.boneWorld('hand_r', reloadPoint) : e.pos, {
+    // The mounted weapon stays raised while its operator ducks to reload.
+    // Current MG42 receiver center, verified against its shipped geometry.
+    const receiver = e.mg ? G.models.get('mg42')?.anchors?.receiver || [0, .300, -.552] : null;
+    const reloadPoint = e.type !== 'mg' || receiver ? new THREE.Vector3() : null;
+    const reloadSource = () => {
+      if (e.dead) return null;
+      if (receiver) {
+        const m = e.mg, c = Math.cos(m.mesh.rotation.y), s = Math.sin(m.mesh.rotation.y);
+        return reloadPoint.set(m.x + receiver[0] * c + receiver[2] * s, m.y + receiver[1], m.z - receiver[0] * s + receiver[2] * c);
+      }
+      return reloadPoint ? e.char.boneWorld('hand_r', reloadPoint) : e.pos;
+    };
+    e.reloadAudio = G.audio.reloadActor?.(w.sound, reloadSource, {
       heightOffset: reloadPoint ? 0 : undefined,
       duration: e.reloadTotal,
       events: clip ? reloadEvents(G.soldier)[clip] || reloadEvents(G.soldier).reload : undefined,
@@ -754,9 +788,11 @@ export function createEnemies(G, defs) {
       G.effects.blood(target.x, target.y, target.z, dir.x, dir.y, dir.z);
     } else {
       if (wh) {
-        G.effects.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone', dir.x, dir.y, dir.z);
-        G.decals?.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
-        G.audio.impact(wh.x, wh.y, wh.z, wh.surface);
+        if (!G.pragueGlass?.impact(wh, dir)) {
+          G.effects.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone', dir.x, dir.y, dir.z);
+          G.decals?.impact(wh.x, wh.y, wh.z, wh.nx, wh.ny, wh.nz, wh.surface || 'stone');
+          G.audio.impact(wh.x, wh.y, wh.z, wh.surface);
+        }
         // a glancing tracer skips off stone, metal or a hard road, now and then off the mud: it
         // goes on, slower, off the way it bounced, often up into the sky
         const into = -(dir.x * wh.nx + dir.y * wh.ny + dir.z * wh.nz);
@@ -1036,9 +1072,13 @@ export function createEnemies(G, defs) {
       return;
     }
 
-    // cover compromised: the player can see us crouched
-    if (e.cover && e.phase === 'hide' && e.sees && e.exposure >= 1 && e.stance === 'crouch' && R() < dt * 1.5) {
+    // Seeing the player's whole body does not mean he can see ours
+    // behind this cover. Recheck the same crouched body height used when
+    // choosing shelter, against the observed threat rather than live data.
+    if (e.cover && e.phase === 'hide' && e.sees && e.exposure >= 1 && e.stance === 'crouch' && R() < dt * 1.5 &&
+        G.world.clear(e.pos.x, e.pos.y + .95, e.pos.z, lk.x, threatHeight(lk) + 1.2, lk.z, SHOT)) {
       e.phase = 'move';
+      e.rejectedCover.set(e.cover, G.time + 20);
       e.cover.taken = null; e.cover = null;
       return;
     }
@@ -1783,7 +1823,7 @@ export function createEnemies(G, defs) {
 
   /* Back to their posts after the player respawns (the dead stay dead). */
   function resetLiving() {
-    casualtyQueue.length = 0;
+    casualtyQueue.length = 0; stepListener = 0; stepBudgetAt = -Infinity; stepChecks = 0;
     for (const e of enemies) {
       e.casualtyReaction = null;
       if (e.dead) continue;

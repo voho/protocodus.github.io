@@ -42,6 +42,7 @@ const SAMPLE_FILES = {
   metalHit: [0, 1].map(i => `impactMetal_light_00${i}.ogg`),
   woodHit: [0, 1].map(i => `impactWood_light_00${i}.ogg`),
   stoneHit: [0, 1].map(i => `impactMining_00${i}.ogg`),
+  glassHit: ['impactGlass_light_000.ogg'],
   cloth: ['cloth1.ogg', 'cloth2.ogg'],
   latch: ['metalLatch.ogg'],
 };
@@ -707,6 +708,13 @@ export function createAudio() {
     const out = spatial(x, y, z, { ref: 3, max: 80 });
     if (!out) return;
     const t = ctx.currentTime;
+    if (surface === 'glass') {
+      // A short brittle strike on a pane, not an implied full-window crash.
+      if (sample('glassHit', out, t, .22, { spread: .06, priority: 1, duration: .18 })) return;
+      burst(out, t, { dur: .045, peak: .16, type: 'highpass', freq: 4500, q: .6 });
+      tone(out, t, { f0: 3400, f1: 2500, dur: .05, peak: .025, type: 'sine' });
+      return;
+    }
     const hit = surface === 'metal' || surface === 'iron' ? 'metalHit' : surface === 'wood' || surface === 'planks' ? 'woodHit' : ['stone', 'cobble', 'concrete', 'tile'].includes(surface) ? 'stoneHit' : null;
     if (hit && sample(hit, out, t, 0.3, { spread: 0.1, priority: 1 })) {
       if ((hit === 'metalHit' && R() < 0.4) || (hit === 'stoneHit' && R() < 0.22)) ricochet(out, t);
@@ -1076,11 +1084,19 @@ export function createAudio() {
     return true;
   }
 
-  function pin() {
-    if (!ctx) return;
-    const t = ctx.currentTime;
-    burst(sfx, t, { dur: 0.04, peak: 0.3, type: 'bandpass', freq: 3200, q: 4 });
-    tone(sfx, t + 0.05, { f0: 3000, f1: 2500, dur: 0.15, peak: 0.08, type: 'triangle' });
+  // Generic CC0 handling detail, not an exact grenade recording. The
+  // fuse still begins at the player's existing G-press simulation time.
+  function pin(kind = 'grenade_us') {
+    if (!ctx || ctx.state !== 'running') return;
+    const action = playerAction();
+    if (kind === 'grenade_de') {
+      // A muted end-cap touch and soft cord/cloth pull avoid a US pin ring.
+      action.at(0, (out, when) => mechanicalClick(out, when, 1300, .14, .03, 1.2));
+      action.at(.055, (out, when) => clothLayer(out, when, .065, { dur: .10, freq: 1500, q: .8 }));
+    } else {
+      action.at(0, (out, when) => mechanicalClick(out, when, 3200, .24, .03, 4));
+      action.at(.035, (out, when) => tone(out, when, { f0: 3000, f1: 2500, dur: .08, peak: .035, type: 'triangle' }));
+    }
   }
 
   function grenadeBounce(x, y, z) {

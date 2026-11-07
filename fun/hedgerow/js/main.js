@@ -70,6 +70,7 @@ import { createClutter } from './clutter.js';
 import { createHayDetail } from './hay-detail.js';
 import { createFieldCrops } from './field-crops.js';
 import { createPragueFlags } from './prague-flags.js';
+import { createPragueGlassFeedback } from './prague-glass-feedback.js';
 import { createHalos, createMist, createDecals } from './atmosphere.js';
 import { formatTime, clamp, lerp, rng, fovScale } from './util.js';
 import { MISSIONS, pickMission, bestKey } from './missions.js';
@@ -348,6 +349,10 @@ async function boot() {
   await next('level');
   built = await buildLevel(G, LEVEL, quality);
   G.cover = built.cover;
+  if (LEVEL.id === 'prague') {
+    G.pragueGlass = createPragueGlassFeedback(built.props, { map: G.decals.glassMap, effects: G.effects, audio });
+    scene.add(G.pragueGlass.mesh);
+  }
   audio.setOcclusionProbe((lx, ly, lz, sx, sy, sz) => {
     const dx = sx - lx, dy = sy - ly, dz = sz - lz;
     const distance = Math.hypot(dx, dy, dz);
@@ -568,6 +573,7 @@ function installGraphicsRecovery(environmentMaps) {
     // Release listeners tied to the old renderer generation while its
     // context is lost, rather than deleting stale handles after recovery.
     player?.releaseGraphicsResources?.();
+    G.pragueGlass?.releaseGraphicsResources();
     environmentMaps.clear(); G.environments = null; scene.environment = null;
     taa?.dispose();
     renderer.setRenderTarget(null);

@@ -670,7 +670,7 @@ const enemies = [
   E('rifle', 14, 86, 200, 'gate', { leash: 10 }),
   // main street
   E('smg', 1.5, 113, 180, 'street'),
-  E('rifle', -3.5, 125, 190, 'street'),
+  E('rifle', -3.5, 124.8, 190, 'street'),
   E('rifle', 3.2, 132, 170, 'street'),
   E('rifle', 9.5, 124, 210, 'street', { leash: 8 }),
   E('rifle', 21, 118, 180, 'street', { patrol: [[21, 103], [21, 135]] }),
@@ -691,7 +691,7 @@ const enemies = [
   E('rifle', -6, 291, 180, 'bridge'),
   E('rifle', 11, 290.5, 170, 'bridge'),
   E('rifle', -1, 297, 180, 'bridge', { patrol: [[-12, 296], [11, 297]] }),
-  E('rifle', -30, 286, 160, 'ford', { leash: 8 }),
+  E('rifle', -29.5, 286, 160, 'ford', { leash: 8 }),
   E('rifle', 30, 288, 200, 'logbridge', { leash: 8 }),
   // two men walking the forest track, one each way
   E('rifle', -4, 305, 0, 'track', { patrol: [[-4, 305], [-9, 326], [-7, 350], [1, 371]] }),

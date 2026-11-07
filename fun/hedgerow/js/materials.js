@@ -706,7 +706,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
             // smears a few centimetres across, and flecks of it a few millimetres
             float mud = max(smoothstep(0.44, 0.72, n1 * 0.7 + n2 * 0.3), smoothstep(0.7, 0.8, n3) * 0.8) * hand;
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.74, 0.69, 0.64), gk);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.052, 0.036) * (0.8 + 0.4 * n2), mud * 0.85 * gk);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.07, 0.052, 0.036) * (0.8 + 0.4 * n2), mud * 0.45 * gk);
             roughnessFactor = mix(roughnessFactor, 0.7, mud * gk);
           }
         }
@@ -733,7 +733,7 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (skK > 0.01) {
           // each side's relief turned onto the surface by its coordinates' frame on the screen
-          float k = skK * mix(0.45, 1.3, step(skinK, clothK));
+          float k = skK * mix(0.18, 1.3, step(skinK, clothK));
           vec3 nX = cotangentFrame(normal, -vViewPosition, vSkP.zy) * normalize(vec3((skX.xy * 2.0 - 1.0) * k, 1.0));
           vec3 nY = cotangentFrame(normal, -vViewPosition, vSkP.xz) * normalize(vec3((skY.xy * 2.0 - 1.0) * k, 1.0));
           vec3 nZ = cotangentFrame(normal, -vViewPosition, vSkP.xy) * normalize(vec3((skZ.xy * 2.0 - 1.0) * k, 1.0));
@@ -909,9 +909,9 @@ function addWeather(mat, shared, { porosity = 0.75, detailTex = null, tile = 1, 
           float sk = steel * gunK;
           // the phosphate's matte varies in blotches the eye can see in the sheen: patches worn smoother
           // by hands and cleaning beside dull ones, pitted finer than that
-          float park = clamp(mix(0.42, 0.88, smoothstep(0.3, 0.7, m1)) + 0.14 * (m2 - 0.5) * maa, 0.36, 0.92);
+          float park = mix(0.65, clamp(mix(0.42, 0.88, smoothstep(0.3, 0.7, m1)) + 0.14 * (m2 - 0.5) * maa, 0.36, 0.92), 0.25);
           roughnessFactor = mix(roughnessFactor, mix(park, 0.35, edge), sk);
-          vec3 phosphate = vec3(0.033, 0.034, 0.035) * (0.75 + 0.5 * m1);      // linear; about 50 in sRGB
+          vec3 phosphate = vec3(0.033, 0.034, 0.035) * (0.95 + 0.1 * m1);      // linear; about 50 in sRGB
           diffuseColor.rgb = mix(diffuseColor.rgb, mix(phosphate, vec3(0.3, 0.3, 0.31), edge), sk);
           metalnessFactor = mix(metalnessFactor, mix(0.08, 1.0, edge), sk);
           // their relief (m): the grain lines sunk a quarter of a millimetre, the pits a twentieth

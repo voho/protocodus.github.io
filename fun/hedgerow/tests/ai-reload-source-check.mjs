@@ -53,16 +53,16 @@ for (const type of ['rifle', 'smg']) {
 }
 
 {
-  const f = aiFixture({ soldierModel: rig, models, definitions: [soldier(0, 0, { type: 'mg', gun: [0, 1.1, 0, 0] })] });
+  const f = aiFixture({ soldierModel: rig, models, definitions: [soldier(0, 0, { type: 'mg' })] });
   const { G, enemies } = f, e = enemies.list[0];
-  assert.ok(e.mg, 'the unchanged control uses the actual mounted gun');
+  assert.equal(e.mg, null, 'the fallback control has no mounted weapon');
   let source = null, profile = null;
   G.audio.reloadActor = (_kind, getter, options) => { source = getter; profile = options; return { advance() {}, cancel() {}, finish() {} }; };
   advance(G, enemies, .3); forceCombat(e, G); e.sees = true; e.perceiveTimer = 1e6; e.mag = 1; e.aimTimer = 0; e.fireTimer = 0;
   advance(G, enemies, .1);
-  assert.ok(source, 'the mounted control starts a real reload');
-  assert.equal(source(), e.pos, 'mounted MG retains its existing feet source');
-  assert.equal(profile.heightOffset, undefined, 'mounted MG retains the default audio height');
+  assert.ok(source, 'the unmounted control starts a real reload');
+  assert.equal(source(), e.pos, 'unmounted MG retains its existing feet source');
+  assert.equal(profile.heightOffset, undefined, 'unmounted MG retains the default audio height');
   for (const actor of enemies.list) actor.char.dispose();
 }
-console.log('ok    mounted MG source behavior remains unchanged');
+console.log('ok    unmounted MG fallback source behavior remains unchanged');

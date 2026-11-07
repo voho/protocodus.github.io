@@ -87,6 +87,8 @@ flutter are procedural.
 Selected upper windows have dark, unlit interiors with linen curtains or
 roller blinds. Their perspective shifts as you pass; the existing opaque
 walls and window dimensions remain the physical boundary.
+Rifle hits leave bounded pane cracks and small lit shards, with a short
+glass strike. Frames and boarded openings keep their ordinary impact response.
 
 The look is built for realism at dusk in the rain: every model carries baked
 PBR textures (stone courses and mortar, peeling paint, rusted and chipped
@@ -240,6 +242,9 @@ information already heard by the squad remains valid.
 An unaware guard can also notice a nearby comrade falling in his actual
 field of view. One mobile witness checks the casualty while others become
 wary at their posts; this does not reveal an unseen shooter's position.
+Running steps use the boot's actual height and the guard's current ear
+position. Masonry, earth and timber reduce their audible range; a quiet
+footstep behind cover leaves the guard's existing knowledge intact.
 
 Reloading is a real motion: the empty Thompson magazine drops to the ground
 and a fresh one comes up in the left hand; the Garand's empty clip flies out
@@ -297,6 +302,10 @@ point on the player's side of the wall.
     `resistance-kit.js` — mission equipment and resistance identification
   * `prague-flags.js` — two opaque, merged cloth/hardware draws with original
     weave, fixed hoists and wind driven by the simulation clock ·
+    `prague-glass-feedback.js` — physical-pane hit classification and a shared
+    fracture pool, retaining closed-facade collision and checkpoint damage ·
+    `radio-detail.js` — numeric tuning scales and knob marks on the original
+    radio set, using a shared procedural print atlas ·
     `environment-maps.js` — retained sky scene and owned reflection targets,
     including renderer-state restoration when a capture fails
   * `terrain.js` heightfield + splat material (each 32 m chunk drawn at half
@@ -648,7 +657,7 @@ point on the player's side of the wall.
     the rain standing in it; only in the mud; pinned 'boot' decals of
     atmosphere.js, sunk in, the hobnails and the heel iron printed as pits,
     turned along the way each man went),
-    `audio.js` (24 runtime CC0 recordings, with procedural layers and a
+    `audio.js` (25 runtime CC0 recordings, with procedural layers and a
     fallback when samples cannot load; source, license and processing records
     in `assets/audio/SOURCES.md`; weapon recordings are sound-design
     ingredients, not asserted exact recordings of each depicted firearm;

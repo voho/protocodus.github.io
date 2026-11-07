@@ -657,7 +657,7 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
   /* a round through a window's glass (facing nx, nz): shards of it broken out, glinting as they turn
      in the room's light and the lamps', falling, most just below the pane, a few thrown out further;
      a fleck or two catching the light brightly for a moment */
-  function glass(x, y, z, nx, nz) {
+  function glass(x, y, z, nx, nz, { glints = true } = {}) {
     for (let k = 0, n = 10 + Math.floor(R() * 7); k < n; k++) {
       const out = 0.2 + R() * R() * 2.2, side = (R() - 0.5) * 1.2;
       alpha.spawn({
@@ -668,8 +668,8 @@ export function createEffects({ fog, camera, wet = { value: 1 }, seed = 21 }) {
       });
     }
     // flecks catching the light: a burst at the hole, and some going down with the shards, glinting
-    // as they turn
-    for (let k = 0; k < 10; k++) {
+    // as they turn. Dark Prague panes use the ordinary lit shards only.
+    if (glints) for (let k = 0; k < 10; k++) {
       const fall = k >= 4;
       add.spawn({
         x: x + nx * 0.04, y: y + (R() - 0.5) * 0.1, z: z + nz * 0.04,
