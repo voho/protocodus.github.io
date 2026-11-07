@@ -109,6 +109,14 @@ try {
 
   await page.goto(origin + '/fun/puzzles/?game=zipper#medium-analytics-private-seed');
   await page.waitForFunction(() => window.protocodusAnalytics?.isEnabled());
+  // Finish this game's imports before installing the empty script routes below.
+  await page.waitForFunction(() => {
+    const ready = document.body.classList.contains('ready') &&
+      typeof document.querySelector('#stage')?.puzzleTest?.cellPoint === 'function';
+    const unavailable = document.querySelector('[data-loading].failed [data-loading-text]');
+    return ready || unavailable?.textContent ===
+      'Zipper needs WebGL 2, which this browser or device does not provide.';
+  });
   rows = await events();
   assert.equal(rows.find(row => row.event === 'protocodus.page_view').analytics.game_name, 'puzzles');
   assert.ok(!JSON.stringify(rows).includes('analytics-private-seed'));
