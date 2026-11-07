@@ -62,5 +62,9 @@ if (L.id === 'saint-clair') {
 } else {
   walk(L.lines.MARSH_PATH);
   assert.equal(L.props.filter((p) => p.m === 'duckboard_walk').length, 8);
+  // The scuttled barge is a second way over the canal: quay, gangway, quay.
+  walk(L.lines.BARGE);
+  assert.ok(world.groundAt(-38, 120, 1e4, 0.5) > L.water.level + 1, 'the barge deck stands clear of the water');
+  walk(L.lines.BACK);
 }
 console.log(`ok    ${L.id}: field routes and engineering geometry`);

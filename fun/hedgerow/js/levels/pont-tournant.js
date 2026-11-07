@@ -39,11 +39,26 @@ const CROSS = smoothPolyline([[4.5, 176], [18, 178], [32, 175], [48, 178]], 2);
 // wire. It is slower and more sheltered than the road, and the duckboards
 // give the marsh a recognisable route instead of an undifferentiated field.
 const MARSH_PATH = smoothPolyline([[18, 26], [24, 40], [24, 56], [22, 70]], 2);
+// A back lane behind the houses on the right of the street, from the quay where the barge lies
+// up to the bend: the café and the street can be taken from behind, and in the counter-attack it
+// is the way they try to come round the right.
+const BACK = smoothPolyline([[-44, 138], [-34, 142], [-25, 151], [-20, 165], [-19, 181], [-19, 197], [-23, 211]], 2);
+// the barge scuttled across the canal upstream of the bridge, from the south quay to the north
+const BARGE = { x: -38, z: CANAL_Z, yaw: -19.65, y: 1.82 };
+/* a point on the barge in its own frame (x across, +z to the bow on the north quay) */
+const bargeAt = (lx, lz) => {
+  const c = Math.cos(BARGE.yaw * Math.PI / 180), s = Math.sin(BARGE.yaw * Math.PI / 180);
+  return [BARGE.x + lx * c + lz * s, BARGE.z - lx * s + lz * c];
+};
+const BARGE_ENDS = [bargeAt(0, -13.9), bargeAt(0, 13.9)];
+// the way over it: off the south quay onto the open gangway beside the wheelhouse, along the
+// hatch boards, round the windlass on the foredeck
+const BARGE_WALK = [[-34.5, 102.5], bargeAt(-1.7, -14.8), bargeAt(-1.7, -10.5), bargeAt(0, -8), bargeAt(0, 9), bargeAt(1.6, 11), bargeAt(1.6, 14.8), [-43, 138]];
 const POND = { x: -20, z: 89, r: 7.5, h: 1.0, crater: true };
 const TRENCH_W = smoothPolyline([[-30, 100], [-38, 98.2], [-46, 100.4]], 1);
 const TRENCH_E = smoothPolyline([[17, 91.5], [25, 93.6], [31, 90.8], [38, 93]], 1);
 const TRENCH_DEPTH = 1.2;
-const BOX = { LANE: bbox(LANE, 10), SIDE: bbox(SIDE, 10), STREET: bbox(STREET, 12), CROSS: bbox(CROSS, 10), MARSH: bbox(MARSH_PATH, 5), TW: bbox(TRENCH_W, 6), TE: bbox(TRENCH_E, 6) };
+const BOX = { LANE: bbox(LANE, 10), SIDE: bbox(SIDE, 10), STREET: bbox(STREET, 12), CROSS: bbox(CROSS, 10), MARSH: bbox(MARSH_PATH, 5), BACK: bbox(BACK, 8), TW: bbox(TRENCH_W, 6), TE: bbox(TRENCH_E, 6) };
 const TRENCHES = [[TRENCH_W, BOX.TW], [TRENCH_E, BOX.TE]];
 const TMP = {};
 /* the street's x at z, and a point `off` metres to its side there (+ its left) */
@@ -91,7 +106,7 @@ function baseHeight(x, z) {
   if (dz < 13) h = canalBankCut(h, x, z, CANAL_Z);
   // the road over the marsh on its low causeway, ditches either side; the lane and the street
   // follow the ground; all of them level with the bridge's deck at its ends
-  for (const [line, box, w, raise] of [[LANE, BOX.LANE, CAUSEWAY.reach, 0.6], [SIDE, BOX.SIDE, 5, 0.2], [STREET, BOX.STREET, 7, 0], [CROSS, BOX.CROSS, 5, 0]]) {
+  for (const [line, box, w, raise] of [[LANE, BOX.LANE, CAUSEWAY.reach, 0.6], [SIDE, BOX.SIDE, 5, 0.2], [STREET, BOX.STREET, 7, 0], [CROSS, BOX.CROSS, 5, 0], [BACK, BOX.BACK, 4, 0]]) {
     const d = near(line, box, x, z);
     if (d < w && dz > 11.5) {
       polylineDistance(line, x, z, TMP);
@@ -124,6 +139,7 @@ function splat(x, z) {
     mud += CAUSEWAY.profile(x, z, TMP, ends).wet * 0.8;
   }
   mud += smoothstep(2.0, 0.7, near(MARSH_PATH, BOX.MARSH, x, z)) * 2.5;
+  mud += smoothstep(2.6, 1.2, near(BACK, BOX.BACK, x, z)) * 2;
   for (const [T, b] of TRENCHES) mud += smoothstep(2.4, 1.0, near(T, b, x, z)) * 2;
   mud += smoothstep(14, 11.5, Math.abs(z - CANAL_Z)) * 1.5;
   mud += Math.min(1.5, Math.abs(ROUGH.height(x, z)) * 2.2);
@@ -165,16 +181,42 @@ for (const z of [37, 41, 45, 49, 53, 57, 61, 65]) {
 }
 P('fence_field', 27, 29, 10); P('fence_field', 18, 68, 0);
 
+/* The marsh between the gliders and the wire is open ground at night, so it is broken up the way
+   a real wet meadow is: an old boundary of pollards and a sagging rail fence across it, with gaps
+   where the cattle went through; a hay rick and a reed-cutter's hut; the stakes the Germans drove
+   in against gliders; what came out of the wrecks. Each approach has something solid every ten or
+   fifteen metres to run to, and none of it lines up into a corridor. */
+const BOUNDARY_Z = (x) => 44 + 3 * Math.sin(x / 11 + 0.6);
+for (let x = -46; x <= 46; x += 4.3) {
+  const z = BOUNDARY_Z(x), gap = Math.abs(x - atZ(MARSH_PATH, z).x) < 4 || Math.abs(x - atZ(LANE, z).x) < 7 || Math.abs(x + 8) < 6;
+  if (gap || Math.abs(x - 6) < 3) continue;
+  if (Math.round(x * 7) % 3) P('fence_field', x, z, -Math.atan((BOUNDARY_Z(x + 0.5) - BOUNDARY_Z(x - 0.5))) * 180 / Math.PI + Math.sin(x * 3) * 8);
+}
+P('haystack', -27, 31, 20, { scale: 0.85 }); P('haystack', 33, 20, 70, { scale: 0.75 });
+P('shed', -29, 61, 200);
+P('supply_canister', 1.5, 27, -60); P('supply_canister', -3.5, 60, 15); P('crate', -1.5, 59, 30);
+P('stretcher', -12, 44, 120); P('dropped_helmet_us', -10.5, 41, 0);
+P('sandbags_ruined', 8, 66, 170); P('sandbags_ruined', -36, 68, 190);
+// anti-glider stakes in a loose grid on the open marsh, not on the paths
+for (const [x, z] of [[-40, 14], [-18, 22], [26, 8], [-34, 46], [14, 34], [-22, 40], [38, 40], [8, 52], [-16, 58], [32, 64], [-42, 60], [44, 20]]) {
+  if (near(MARSH_PATH, BOX.MARSH, x, z) > 3 && near(LANE, BOX.LANE, x, z) > 6) P('glider_stake', x, z, (x * 37 + z * 11) % 360);
+}
+// telegraph poles along the causeway, the wire down between two of them
+along(LANE, 26, -6.5, (x, z, yaw) => P('pole', x, z, yaw + 90), 26, 100);
+
 // the wire belt across the marsh, gaps where the patrols come through; the road barred at it
 const wireZ = (x) => 73 + 2.5 * Math.sin(x / 9);
 const ROAD_AT_WIRE = atZ(LANE, 73).x;
 for (let x = -46; x <= 46; x += 4) {
   const z = wireZ(x);
-  if (Math.abs(x - ROAD_AT_WIRE) < 5 || Math.abs(x - 22) < 3 || Math.abs(x - 2) < 3) continue;
+  if (Math.abs(x - ROAD_AT_WIRE) < 5 || Math.abs(x - 22) < 3 || Math.abs(x - 2) < 3 || Math.abs(x + 34) < 3) continue;
   P('barbed_wire', x, z + Math.sin(x * 0.7) * 0.6, -Math.atan(wireZ(x + 0.5) - wireZ(x - 0.5)) * 180 / Math.PI + Math.sin(x) * 6);
 }
 P('barrier', ROAD_AT_WIRE, 72, heading(LANE, 72)); P('hedgehog', atZ(LANE, 77).x - 5, 77, 20); P('hedgehog', atZ(LANE, 76).x + 5.5, 76, -15);
-P('sign_minen', 12, 69, 180); P('sign_minen', -30, 69, 180);
+P('sign_minen', 12, 69, 180); P('sign_minen', -27, 69, 180);
+// a lorry that tried to come down the causeway in the first alarm, burning out beside the road:
+// cover for a run up the road, but it lights the ground round it
+P('truck_burnt', atZ(LANE, 86).x - 4.6, 86, heading(LANE, 86) + 8, { fire: true, fireSize: 0.8 });
 
 // the south bank: the pillbox and the machine gun covering the bridge, the trenches either side
 P('bunker', 10, 95, 180, { pad: true, id: 'pillbox' });
@@ -192,10 +234,14 @@ P('cart', POND.x + 9.5, POND.z - 3, 60);
 
 // the canal: its bridge, a low wall along each quay but at the bridge
 P('canal_bridge', 0, CANAL_Z, 0, { y: DECK_Y, id: 'bridge', light: true });
+// the barge they sank across the canal to close it: its gangways are the second way over, slower
+// and in the open, but out of the café's line and under the hull's side
+P('scuttled_barge', BARGE.x, BARGE.z, BARGE.yaw, { y: BARGE.y, id: 'barge', contact: false });
+const atBarge = (x, z, r) => BARGE_ENDS.some(([bx, bz]) => Math.hypot(x - bx, z - bz) < r);
 for (let x = -48; x <= 48; x += 4) {
   if (Math.abs(x) < 7) continue;
-  P('wall_low', x, CANAL_Z - 12.9, 0, { y: lipHeight(x, CANAL_Z - 12.9) - 0.05 });
-  P('wall_low', x, CANAL_Z + 12.9, 0, { y: lipHeight(x, CANAL_Z + 12.9) - 0.05 });
+  if (!atBarge(x, CANAL_Z - 12.9, 4.6)) P('wall_low', x, CANAL_Z - 12.9, 0, { y: lipHeight(x, CANAL_Z - 12.9) - 0.05 });
+  if (!atBarge(x, CANAL_Z + 12.9, 4.6)) P('wall_low', x, CANAL_Z + 12.9, 0, { y: lipHeight(x, CANAL_Z + 12.9) - 0.05 });
   P('canal_quay', x, CANAL_Z - 12.9, 0, { y: 2, contact: false });
   P('canal_quay', x, CANAL_Z + 12.9, 180, { y: 2, contact: false });
 }
@@ -203,8 +249,13 @@ P('cable_reel', 4.6, CANAL_Z + 15.5, 30); P('crate', -4.5, CANAL_Z + 15, 0);
 // The firing point is reachable from the north quay, outside the cabin.
 P('demolition_switch', 4.2, CANAL_Z + HALF + 3.4, 180, { id: 'demolition', separate: true });
 for (const x of [-36, -20, 20, 36]) for (const side of [-1, 1]) {
+  if (atBarge(x, CANAL_Z + side * 14.4, 4)) continue;
   P('mooring_bollard', x, CANAL_Z + side * 14.4, side * 12, { y: lipHeight(x, CANAL_Z + side * 14.4) - 0.04 });
 }
+
+// goods left on the north quay where the barge was unloading: cover for whoever comes off it
+P('crate_large', -35.5, 136.5, 12); P('crate', -33.8, 137.4, 40); P('drum_stack', -29, 135.6, 4);
+P('cart', -47, 139, 75);
 
 // --- the village on the north bank: the café at the bridge, houses up the street, a side street ---
 const FRONT = 6.4;
@@ -225,6 +276,21 @@ P('rubble_pile', X(8, 196), 196, 30); P('beam_charred', X(9.2, 200), 200, 60, { 
 for (const z of [158, 204]) { P('wall_low', X(18, z), z, 90); P('wall_low', X(-18, z), z, 90); }
 P('wall_low', X(-18, 186), 186, 90);
 P('fence_picket', X(16, 160), 160, 90); P('fence_picket', X(-16, 174), 174, 90); P('well', 24, 162, 0); P('haystack', X(-24, 214), 214, 0);
+// the back lane: garden walls on the houses' side with their gates open, a broken field wall on
+// the other, a shed, a trough, a woodpile of a rick; short sight lines and something to lean on
+// every few metres, so it plays as close quarters against the long view down the street
+for (const [z, m] of [[143, 'wall_broken'], [172, 'wall_low'], [178, 'wall_low'], [194, 'wall_broken'], [208, 'wall_low']]) {
+  const [x, wz, yaw] = beside(BACK, z, -1, -3.2); P(m, x, wz, yaw);
+}
+for (const [z, m] of [[148, 'wall_low'], [160, 'wall_broken'], [168, 'wall_low'], [186, 'wall_broken'], [200, 'wall_low']]) {
+  const [x, wz, yaw] = beside(BACK, z, 1, -3.4); P(m, x, wz, yaw);
+}
+P('shed', X(-26, 176), 176, 95); P('water_trough', X(-21.6, 157), 157, 80); P('haystack', X(-29, 192), 192, 0, { scale: 0.8 });
+P('cart', X(-21, 190), 190, 170); P('barrel_wood', X(-17.8, 166), 166, 0); P('furniture_broken', X(-17.4, 199), 199, 30);
+// halfway up the street the people of the village had begun a barricade of their own: a cart on
+// its side, a wardrobe and barrels. It is cover for whoever holds it, from either way.
+P('cart', X(3.4, 175), 175, 82); P('furniture_broken', X(6.4, 176.5), 176.5, 200); P('barrel_wood', X(0.6, 174.4), 174.4, 0);
+P('sandbags_ruined', X(-5.6, 149), 149, 20);
 
 /* ---------- clutter ---------- */
 
@@ -256,7 +322,7 @@ for (const [nx, nz] of [[10, 95], [-7, 99.5]]) for (let k = 0; k < 6; k++) {
 const R = rng(20250605);
 const scatter = [];
 const noTree = (x, z) => near(LANE, BOX.LANE, x, z) < 5 || near(SIDE, BOX.SIDE, x, z) < 4.5 || near(STREET, BOX.STREET, x, z) < 8
-  || near(MARSH_PATH, BOX.MARSH, x, z) < 1.8
+  || near(MARSH_PATH, BOX.MARSH, x, z) < 1.8 || near(BACK, BOX.BACK, x, z) < 4.5 || atBarge(x, z, 6) || Math.abs(z - BOUNDARY_Z(x)) < 1.6
   || near(CROSS, BOX.CROSS, x, z) < 6 || Math.abs(z - CANAL_Z) < 15
   || TRENCHES.some(([T, b]) => near(T, b, x, z) < 4) || Math.hypot(x - 10, z - 95) < 11 || Math.abs(z - wireZ(x)) < 3
   || Math.hypot(x - POND.x, z - POND.z) < POND.r + 1.5
@@ -284,6 +350,13 @@ for (let i = 0; i < 60; i++) {
   if (noTree(x, z)) continue;
   scatter.push({ m: R() < 0.4 ? R.pick(['oak_a', 'oak_b']) : R.pick(['bush_a', 'bush_b']), x, z, yaw: R() * 360, scale: 0.6 + R() * 0.3 });
 }
+// pollard willows along the old marsh boundary, cut back to their heads
+for (let x = -44; x <= 44; x += R.range(6, 11)) {
+  const z = BOUNDARY_Z(x) + R.range(-1.2, 1.2);
+  if (Math.abs(x - atZ(MARSH_PATH, z).x) < 4 || Math.abs(x - atZ(LANE, z).x) < 7 || Math.abs(x + 8) < 6) continue;
+  scatter.push({ m: R() < 0.6 ? 'oak_b' : 'birch_a', x, z, yaw: R() * 360, scale: 0.5 + R() * 0.15 });
+  scatter.push({ m: 'bush_b', x: x + R.range(-1.5, 1.5), z: z + R.range(-1, 1), yaw: R() * 360, scale: 0.7 + R() * 0.3 });
+}
 // reed beds along the south quay and in the marsh hollows
 for (let i = 0; i < 260; i++) {
   const x = R.range(-60, 60), z = R.pick([R.range(CANAL_Z - 17, CANAL_Z - 14), R.range(-10, 70)]);
@@ -299,7 +372,7 @@ for (let i = 0; i < 46; i++) {
 const cover = [];
 for (let i = 0; i < 26000; i++) {
   const x = R.range(-54, 54), z = R.range(-24, 252);
-  if (near(LANE, BOX.LANE, x, z) < 3.4 || near(SIDE, BOX.SIDE, x, z) < 2.6 || near(STREET, BOX.STREET, x, z) < 5.5 || near(CROSS, BOX.CROSS, x, z) < 3.5 || near(MARSH_PATH, BOX.MARSH, x, z) < 1.1
+  if (near(LANE, BOX.LANE, x, z) < 3.4 || near(SIDE, BOX.SIDE, x, z) < 2.6 || near(STREET, BOX.STREET, x, z) < 5.5 || near(CROSS, BOX.CROSS, x, z) < 3.5 || near(MARSH_PATH, BOX.MARSH, x, z) < 1.1 || near(BACK, BOX.BACK, x, z) < 1.6
     || Math.abs(z - CANAL_Z) < 13.5 || Math.hypot(x - POND.x, (z - POND.z) * 1.15) < POND.r) continue;
   const q = R();
   const m = z < CANAL_Z ? (q < 0.45 ? 'grass_tall' : q < 0.6 ? 'reeds' : q < 0.7 ? 'weeds' : 'grass_tuft')
@@ -333,9 +406,16 @@ const enemies = [
   E('smg', X(4, 182), 182, 185, 'farbank'),
   E('rifle', X(-6, 186), 186, 170, 'farbank', { leash: 10 }),
   E('rifle', 22, 177, 200, 'farbank', { patrol: [[16, 177], [44, 177]] }),
-  // the counter-attack, waiting up the road for the order
-  ...[['smg', 2, 228], ['rifle', 7, 230], ['rifle', -6, 232], ['rifle', 8, 238], ['smg', -4, 240, 1.4], ['rifle', 12, 222], ['rifle', -12, 224], ['rifle', 3, 246]]
+  // a sentry on the north quay watching the barge, and one in the back lane
+  E('rifle', -31.5, 138.4, 200, 'farbank', { leash: 6 }),
+  E('rifle', atZ(BACK, 182).x, 182, 160, 'farbank', { patrol: [[atZ(BACK, 168).x, 168], [atZ(BACK, 196).x, 196]] }),
+  // the counter-attack, waiting up the road for the order: most of it comes down the street, a
+  // section works round by the side street on the left and a pair down the back lane on the right,
+  // so the hold has to be watched three ways rather than down one barrel
+  ...[['smg', 2, 228], ['rifle', 7, 230], ['rifle', -6, 232], ['smg', -4, 240, 1.4], ['rifle', 3, 246]]
     .map(([t, dx, z, tough]) => E(t, X(dx, z), z, heading(STREET, z) + 180, 'counter', { leash: 40, ...(tough ? { tough } : {}) })),
+  E('rifle', 34, 181, 100, 'counter', { leash: 40 }), E('smg', 38, 176, 95, 'counter', { leash: 40 }),
+  E('rifle', atZ(BACK, 208).x, 208, 170, 'counter', { leash: 40 }), E('rifle', atZ(BACK, 213).x + 1.5, 213, 165, 'counter', { leash: 40 }),
 ];
 
 /* ---------- pickups, checkpoints, objectives ---------- */
@@ -346,6 +426,8 @@ const pickups = [
   { type: 'grenades', x: -2, z: 70 }, { type: 'ammo', x: -18, z: 101 }, { type: 'medkit', x: 16, z: 103 },
   ...[['medkit', 3, 141], ['ammo', -9, 141], ['grenades', 2, 162], ['medkit', -4, 176], ['ammo', 3, 150], ['medkit', -8, 156]]
     .map(([type, x, z]) => ({ type, x: X(x, z), z })),
+  // the right flank: the hut by the shelled gap, the barge's landing, the back lane
+  { type: 'ammo', x: -27, z: 58 }, { type: 'medkit', x: -32, z: 104 }, { type: 'grenades', x: -38, z: 136.2 }, { type: 'ammo', x: atZ(BACK, 160).x, z: 160 },
 ];
 
 const checkpoints = [
@@ -367,10 +449,13 @@ const objectives = [
 
 const hints = [
   { x: 4, z: 8, r: 6, text: 'The bridge is wired for demolition', sub: 'Cross the bridge and disconnect the firing cable' },
-  { x: -12, z: 62, r: 8, text: 'The wire has gaps', sub: 'Out in the field on the left; the road itself is barred' },
+  { x: -12, z: 62, r: 8, text: 'The wire has gaps', sub: 'Out in the field on the left, and where a shell broke it on the right; the road itself is barred' },
+  { x: -32, z: 72, r: 6, text: 'The pond and the reeds hide the way to their trench', sub: 'Drop into the west trench and work along it towards the bridge' },
+  { x: -33, z: 104, r: 6, text: 'A barge lies sunk across the canal', sub: 'Its gangways are a second way over, out of sight of the café' },
   { x: 23, z: 36, r: 6, text: 'The duckboards lead through the marsh', sub: 'Follow them to the gap in the wire; the reeds conceal a crouched approach' },
   { x: -3, z: 88, r: 7, text: 'Their pillbox looks down the road', sub: 'Work round it through the trenches, grenades through the slit' },
   { x: 0, z: 140, r: 6, text: 'The demolition switch is beside the bridge cabin', sub: 'Hold F at the wooden box to disconnect the cable; then clear the café' },
+  { x: -36, z: 140, r: 6, text: 'A back lane runs behind the houses', sub: 'The café and the street can be taken from behind' },
 ];
 
 export default {
@@ -381,7 +466,8 @@ export default {
   briefing: [
     'Your glider cast off over the coast and came down in the marsh south of the canal, short of the bridge at Pont-Tournant. The landing broke it open; the others are coming out of the wrecks behind you.',
     'The bridge is the only road from the beaches to the east. It is wired for demolition. Get through the wire, put the pillbox and the machine gun out of action, cross the bridge and disconnect the firing cable at the wooden switch beside its north cabin. Then clear the café and the houses on the far bank.',
-    'The road is exposed. A duckboard maintenance path through the reeds on your left leads to a gap in the wire; the trenches on either bank give another way around the pillbox. Then hold the north end. They will counter-attack down the road from the village. The paratroopers are on their way.',
+    'The road is exposed. A duckboard maintenance path through the reeds on your left leads to a gap in the wire; on the right a shell has broken it by the pond, and their trenches either side give a way around the pillbox. Upstream of the bridge a barge lies sunk across the canal, and its gangways are a second way over.',
+    'Then hold the north end. They will counter-attack from the village, down the street and round by the side streets. The paratroopers are on their way.',
   ],
   daylight: false,
   weather: { rain: 0.65 },
@@ -405,6 +491,6 @@ export default {
   },
   mist: (x, z) => Math.min(1, smoothstep(40, 10, Math.abs(z - CANAL_Z)) + 0.6 * smoothstep(100, 60, z)),
   ambience: { rain: 0.65, wind: [1.8, 0.8], aircraft: true, frogs: CANAL_Z },
-  lines: { LANE, SIDE, STREET, CROSS, TRENCH_W, TRENCH_E, MARSH_PATH },
+  lines: { LANE, SIDE, STREET, CROSS, TRENCH_W, TRENCH_E, MARSH_PATH, BACK, BARGE: BARGE_WALK },
   craters: [...ROUGH.craters, POND],
 };
