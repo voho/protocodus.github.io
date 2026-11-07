@@ -97,9 +97,10 @@ walls and window dimensions remain the physical boundary.
 Rifle hits leave bounded pane cracks and small lit shards, with a short
 glass strike. Frames and boarded openings keep their ordinary impact response.
 
-The look is built for realism at dusk in the rain: every model carries baked
-PBR textures (stone courses and mortar, peeling paint, rusted and chipped
-steel, hessian, wool, bark and moss, with occlusion, grime and rain streaks
+The look is built for realism at dusk in the rain, using baked PBR textures
+and shared materials on scripted additions (stone courses and mortar,
+peeling paint, rusted and chipped steel, hessian, wool, bark and moss,
+with occlusion, grime and rain streaks
 baked in), foliage is alpha cards rendered from modelled leaves (light
 shines through them: a crown between you and a flare or a fire glows green
 where its leaves are thinnest; each tree and plant a slightly different
