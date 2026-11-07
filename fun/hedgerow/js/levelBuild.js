@@ -23,6 +23,10 @@ import { CAPPED, FIRE_FOG } from './lights.js';
 import { rectDistance, smoothstep, lerp, DEG, polylineDistance, rng } from './util.js';
 
 const SURFACE = (name) => {
+  // These catalog volumes follow timber members, including camo-net poles.
+  // Wooden casks use their body material; their narrow iron hoops share it.
+  if (/^(beam_charred|bench|furniture_broken|camo_net|sign_minen|barrel_wood)$/.test(name)) return 'wood';
+  if (/^(bicycle|poster_board|cable_reel|drum_stack|halftrack_wreck|kubelwagen|mg42_tripod|motorcycle_sidecar)$/.test(name)) return 'metal';
   if (/^(house|church|wall|fountain|cross|bridge|ruin)/.test(name)) return 'stone';
   if (/^(barn|shed|fence|gate|crate|cart|sentry|trench_wall|duckboard|watchtower|log|stump|signpost|pole|tree|pine|oak|glider)/.test(name)) return 'wood';
   if (/^(beech|birch|fir)(?:_|$)/.test(name)) return 'wood';
@@ -121,8 +125,12 @@ export async function buildLevel(G, L, quality) {
     else if (p._padH !== undefined) y = p._padH - 0.04;
     else y = minGround(terrain, m, p.x, p.z, yaw, scale) - 0.04;
     const surface = SURFACE(p.m);
-    for (const c of worldColliders(m, p.x, y, p.z, yaw, scale, surface)) world.add(c);
-    const rec = { model: m, x: p.x, y, z: p.z, yaw, scale, object: null };
+    const colliders = p.id ? new Set() : null;
+    for (const c of worldColliders(m, p.x, y, p.z, yaw, scale, surface)) {
+      const added = world.add(c);
+      colliders?.add(added);
+    }
+    const rec = { model: m, x: p.x, y, z: p.z, yaw, scale, colliders, object: null };
     if (p.id) placed.set(p.id, rec);
     if (p.veg) {
       veg.add(p.m, p.x, y, p.z, yaw, scale);

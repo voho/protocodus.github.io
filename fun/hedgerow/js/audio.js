@@ -150,7 +150,7 @@ export function createAudio() {
   // No immediate repetition within a material family. Tiny rate/gain changes
   // keep sustained automatic fire and a walking gait from becoming a loop.
   function sample(kind, out, at, gain = 1, {
-    rate = 1, spread = 0.045, priority = 0, offset = 0, duration = null, onSource = null,
+    rate = 1, spread = 0.045, priority = 0, offset = 0, duration = null, onSource = null, attack = 0,
   } = {}) {
     const files = SAMPLE_FILES[kind]?.filter(file => samples.has(file));
     if (!files?.length) return false;
@@ -183,6 +183,10 @@ export function createAudio() {
     const available = (source.buffer.duration - startOffset) / source.playbackRate.value;
     const playDuration = duration === null ? available : Math.max(.001, Math.min(duration, available));
     envelope.gain.value = levelGain;
+    if (attack > 0) {
+      envelope.gain.setValueAtTime(0, at);
+      envelope.gain.linearRampToValueAtTime(levelGain, at + attack);
+    }
     if (duration !== null) {
       envelope.gain.setValueAtTime(levelGain, at + Math.max(0, playDuration - .015));
       envelope.gain.linearRampToValueAtTime(0, at + playDuration);
@@ -557,6 +561,8 @@ export function createAudio() {
     const family = kind === 'garand' ? 'rifle' : kind === 'kar98k' ? 'bolt' : 'smg';
     const recorded = sample(family, o, t, kind === 'mg42' ? 0.95 : 1.1, {
       rate: kind === 'thompson' ? 0.9 : kind === 'mg42' ? 0.88 : 1,
+      // Skip low room-tone padding before the crack, with a short fade.
+      offset: .025, attack: .002,
       spread: 0.025, priority: player ? 3 : 2,
     });
     if (!recorded) {
@@ -749,12 +755,22 @@ export function createAudio() {
     o.onended = () => { o.disconnect(); g.disconnect(); }; o.start(t + 0.01); o.stop(t + 0.45);
   }
 
-  function explosion(x, y, z, scale = 1) {
+  function explosion(x, y, z, scale = 1, water = false) {
     if (!ctx) return;
     const out = spatial(x, y, z, { ref: 12, max: 900, echo: 1.2 });
     if (!out) return;
     const t = ctx.currentTime + travelTime(x, y, z);
     if (Math.hypot(x - listener.x, y - listener.y, z - listener.z) < 140) lastLoud = ctx.currentTime;
+    if (water) {
+      // Above-water impression of the low thump and collapsing spray;
+      // no dry dirt/stone patter or exact underwater-recording claim.
+      burst(out, t, { dur: .16, peak: .65 * scale, type: 'lowpass', freq: 1300, sweepTo: 350 });
+      burst(out, t, { dur: 1.2, peak: .85 * scale, type: 'lowpass', freq: 380, sweepTo: 65, brown: true });
+      tone(out, t, { f0: 70, f1: 25, dur: .9, peak: .9 * scale });
+      burst(out, t + .12, { dur: .85, peak: .28 * scale, type: 'bandpass', freq: 1000, sweepTo: 350, q: .6, attack: .04 });
+      for (let i = 0; i < 3; i++) burst(out, t + .35 + R() * .6, { dur: .1, peak: .05 * scale, type: 'bandpass', freq: 800, sweepTo: 400, q: .7 });
+      return;
+    }
     burst(out, t, { dur: 0.25, peak: 1.4 * scale, type: 'lowpass', freq: 5000, sweepTo: 800 });
     burst(out, t, { dur: 1.8, peak: 1.2 * scale, type: 'lowpass', freq: 600, sweepTo: 80, brown: true });
     tone(out, t, { f0: 70, f1: 25, dur: 1.2, peak: 1.4 * scale });
@@ -1099,11 +1115,24 @@ export function createAudio() {
     }
   }
 
-  function grenadeBounce(x, y, z) {
+  function grenadeBounce(x, y, z, surface = null, speed = null) {
     if (!ctx) return;
     const out = spatial(x, y, z, { ref: 3, max: 40 });
     if (!out) return;
-    burst(out, ctx.currentTime, { dur: 0.05, peak: 0.3, type: 'bandpass', freq: 1100, q: 2 });
+    const kind = STEP[surface] || 'hard';
+    const strength = Number.isFinite(speed) ? Math.max(.45, Math.min(1.2, Math.abs(speed) / 3.5)) : 1;
+    const t = ctx.currentTime;
+    if (kind === 'mud' || kind === 'grass' || kind === 'leaves' || kind === 'soft' || kind === 'water') {
+      const mud = kind === 'mud';
+      burst(out, t, { dur: .06, peak: (mud ? .18 : .14) * strength, type: 'lowpass', freq: mud ? 500 : 650, q: .7 });
+    } else if (kind === 'wood') {
+      burst(out, t, { dur: .065, peak: .22 * strength, type: 'bandpass', freq: 650, q: 1.5 });
+    } else if (kind === 'metal') {
+      burst(out, t, { dur: .06, peak: .3 * strength, type: 'bandpass', freq: 1700, q: 3 });
+    } else {
+      // Omitted material/speed preserve the legacy generic danger cue.
+      burst(out, t, { dur: .05, peak: .3 * strength, type: 'bandpass', freq: 1100, q: 2 });
+    }
   }
 
   function ui(kind = 'click') {

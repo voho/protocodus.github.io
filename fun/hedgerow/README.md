@@ -18,6 +18,8 @@ river (bridge under a machine gun, a ford downstream, a fallen tree
 upstream), through the forest's foxholes and trench line, past a concrete
 bunker, to the flak gun in the clearing — blow it up — then use the field
 radio to signal the cleared route before reaching the rally point.
+The fallen trunk stands above the water; Space vaults its raised roots
+before the dry timber crossing.
 
 Every defended point has more than one way past it: the orchard or the ditch
 round the checkpoint, the back gardens or the ruined house along the street,
@@ -84,6 +86,8 @@ infill, with pitched roofs, parapets and different window rhythms. Two
 Czechoslovak flags hang from timber staffs and iron brackets above the
 street and relay courtyard; their original cotton weave and restrained
 flutter are procedural.
+Three older frontages also have timber attic shutters and dormers beneath
+the existing roof height.
 Selected upper windows have dark, unlit interiors with linen curtains or
 roller blinds. Their perspective shifts as you pass; the existing opaque
 walls and window dimensions remain the physical boundary.
@@ -262,6 +266,8 @@ Mechanical foley follows simulation progress, including moving enemy
 reloads, so pausing or slow rendering does not finish a reload's sound
 before its visible action. Brass sounds at its first physical ground
 contact; soft ground remains quiet.
+Grenade contacts distinguish timber, metal and softer ground. Water entry
+has its own splash, and submerged blasts omit dry debris sounds.
 Bodies also sound at their first meaningful torso contact, using the
 actual floor material and impact speed. Their fixed-step falls preserve
 the same motion across render rates, and checkpoint retries cancel old
@@ -271,6 +277,8 @@ Holding G brings the grenade into the right hand and transfers the rifle
 to the left. Releasing G starts the throw; the physical grenade leaves the
 visible hand once at the release beat. Nearby solids keep its starting
 point on the player's side of the wall.
+Demolition charges require a clear approach on the equipment's floor;
+walls and floors between the soldier and the target block placement.
 
 ## How it is built
 

@@ -403,7 +403,9 @@ for (let z = 92; z < 252; z += 4) P('hedge', -44, z, 90 + (z % 8 ? 0 : 180), { v
 
 // --- the river ---
 P('bridge_stone', 0, 270, 0, { y: 2.0, id: 'bridge' });
-P('log_bridge', 32, RIVER_Z(32), 0, { y: null, id: 'logbridge' });
+// Seat the span in both banks instead of using the low river bed.
+// Its raised root plate is crossed with the normal Space jump/vault.
+P('log_bridge', 32, RIVER_Z(32), 0, { y: -0.64, id: 'logbridge' });
 const NEST_BRIDGE = P('mg_nest', 5, 287.5, 180, { id: 'nest_bridge' });
 P('barbed_wire', -2.5, 284.5, 0); P('sandbags', -6, 289, 10); P('sandbags_low', 11, 288, -10);
 P('crate', 8.5, 292, 0); P('hedgehog', 3, 281.5, 30);
@@ -763,6 +765,7 @@ const hints = [
   { x: INTRO.point(18, 76)[0], z: 76, r: 7, text: 'Space vaults over low walls' },
   { x: 0, z: 104, r: 7, text: 'G throws a grenade', sub: 'Hold G to cook it first' },
   { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies east (right); a fallen tree crosses west (left)' },
+  { x: 32, z: RIVER_Z(32) - 10, r: 4, text: 'The fallen tree crosses the river', sub: 'Press Space to jump or vault over the roots.' },
   { x: -7, z: 505, r: 7, text: 'The field radio links this position to the road', sub: 'After destroying the gun, hold F at the radio to signal the cleared route' },
 ];
 

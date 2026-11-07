@@ -59,6 +59,24 @@ assert.ok(w.clear(0, 1, 0, 0, 1, 9.78, SIGHT), 'the final 5 cm of a sight line a
 assert.ok(!w.clear(0, 1, 0, 0, 1, 9.81, SIGHT), 'a blocker before the endpoint margin counts');
 assert.ok(w.clear(0, 1, 0, 0, 1, 0), 'a zero-length sight line is clear');
 
+// Multiple exclusions are opt-in exact identities, with the same terrain
+// and ordinary single-collider behavior as other physical queries.
+{
+  const terrain = { height: () => 0, normal: () => [0, 1, 0], surfaceAt: () => 'mud', raycast: (_x, y, _z, _dx, dy, _dz, max) => dy < 0 && -y / dy <= max ? -y / dy : Infinity };
+  const world = createWorld({ minX: -10, maxX: 10, minZ: -10, maxZ: 10, terrain });
+  const ownA = world.add({ type: 'box', x: 0, y: 1, z: 2, hx: 1, hy: 1, hz: .3 }), ownB = world.add({ type: 'box', x: 0, y: 1, z: 4, hx: 1, hy: 1, hz: .3 }), wall = world.add({ type: 'box', x: 0, y: 1, z: 5, hx: 2, hy: 1, hz: .1 });
+  const ray = ignore => world.raycast(0, 1, 0, 0, 0, 1, 9, SIGHT, { ignore, noWater: true });
+  assert.equal(ray().collider, ownA); assert.equal(ray(ownA).collider, ownB, 'the existing single-collider ignore contract remains intact');
+  assert.equal(ray(new Set()).collider, ownA, 'an empty set cannot weaken a physical ray');
+  assert.equal(ray(new Set([ownA, ownB])).collider, wall, 'ignoring the equipment cannot skip an unrelated wall beyond it');
+  assert.equal(world.clear(0, 1, 0, 0, 1, 8, SHOT), false, 'ordinary projectile/sight queries retain all collisions');
+  const floor = world.raycast(4, 3, 0, 0, -1, 0, 5, SIGHT, { ignore: new Set([ownA, ownB, wall, 'terrain']) });
+  assert.equal(floor.collider, 'terrain', 'a target exclusion cannot ignore the supporting terrain');
+  const before = [ownA, ownB, wall].map(({ stamp, ...shape }) => shape);
+  ray(new Set([ownA, ownB]));
+  assert.deepEqual([ownA, ownB, wall].map(({ stamp, ...shape }) => shape), before, 'opt-in exclusions never mutate geometry, flags or surfaces');
+}
+
 // The boolean query must agree with the full hit query, including rotated
 // boxes, cylinders, terrain, all masks and origins outside the grid.
 const R = rng(1944);

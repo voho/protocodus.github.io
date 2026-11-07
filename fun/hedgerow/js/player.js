@@ -95,6 +95,7 @@ export function createPlayer(G) {
   // actions. A browser timer could otherwise start one while paused, or
   // after a checkpoint has restored a different weapon.
   let autoReload = null;
+  let emptyTriggerLatched = false;
   let boltCasePending = false;
   const boltCasePoint = new THREE.Vector3(), boltForward = new THREE.Vector3();
 
@@ -108,6 +109,7 @@ export function createPlayer(G) {
   P.reset = (spawn, keepInventory = null) => {
     grenadeRelease = null;
     autoReload = null;
+    emptyTriggerLatched = false;
     cancelBolt();
     P.char.cancelGrenade?.();
     G.audio.cancelActions?.();
@@ -229,6 +231,7 @@ export function createPlayer(G) {
     P.reloadRun?.end();
     P.reloadRun = null;
     P.weapon = id;
+    emptyTriggerLatched = false;
     P.reloading = 0;
     // first person: the gun in his hands goes down out of sight, is changed there, the new one comes up
     if (FP) { P.switching = 0.5; P.pendingWeapon = id; }
@@ -274,11 +277,13 @@ export function createPlayer(G) {
   function fire(aiming) {
     const w = weaponDef(), a = P.ammo[P.weapon];
     if (a.mag <= 0) {
-      G.audio.dryFire();
+      if (!emptyTriggerLatched) G.audio.dryFire();
+      emptyTriggerLatched = true;
       P.cooldown = 0.25;
       if (a.reserve > 0) startReload();
       return;
     }
+    emptyTriggerLatched = false;
     a.mag--;
     P.cooldown = w.interval;
     P.firedAt = G.time;
@@ -622,6 +627,32 @@ export function createPlayer(G) {
     speed *= 1 - 0.4 * P.daze;            // dazed, he stumbles along
 
     // vault / jump
+    // A new vault takes over this update before ordinary movement can
+    // move the body away from the saved start of its arc.
+    if (!P.vault && input.pressed('Space') && P.grounded) {
+      const fdx = len > 0 ? wx : Math.sin(P.yaw), fdz = len > 0 ? wz : Math.cos(P.yaw);
+      const ob = G.world.obstacleAhead(P.pos.x, P.pos.z, fdx, fdz, P.pos.y, 0.7);
+      if (ob && ob.top - P.pos.y <= PLAYER.vault && ob.top - P.pos.y > PLAYER.step - 0.05) {
+        // find the landing beyond the obstacle
+        let landed = null;
+        for (let d = 1.0; d <= 2.6; d += 0.3) {
+          const lx = P.pos.x + fdx * d, lz = P.pos.z + fdz * d;
+          const gy = G.world.groundAt(lx, lz, ob.top + 0.05, 0.1, 0.3);
+          tmp.set(lx, gy, lz);
+          const blocked = G.world.pushOut(tmp, PLAYER.radius, gy, PLAYER.height, PLAYER.step);
+          if (!blocked && !G.world.tooDeep(lx, lz, PLAYER.maxWade, gy)) { landed = { x: lx, y: gy, z: lz }; break; }
+        }
+        if (landed) {
+          P.vault = { from: P.pos.clone(), to: new THREE.Vector3(landed.x, landed.y, landed.z), t: 0, dur: 0.55, arc: Math.max(0.25, ob.top - Math.max(P.pos.y, landed.y) + 0.35), dirX: fdx, dirZ: fdz };
+          P.crouch = false;
+          G.audio.gear('jump');
+        }
+      } else if (!ob || ob.top - P.pos.y <= PLAYER.step) {
+        P.vel.y = PLAYER.jump;
+        P.grounded = false;
+        G.audio.gear('jump');
+      }
+    }
     if (P.vault) {
       const v = P.vault;
       v.t += dt / v.dur;
@@ -631,30 +662,6 @@ export function createPlayer(G) {
       P.pos.y = lerp(v.from.y, v.to.y, t) + Math.sin(t * Math.PI) * v.arc;
       if (t >= 1) { P.vault = null; P.vel.set(v.dirX * 2, 0, v.dirZ * 2); }
     } else {
-      if (input.pressed('Space') && P.grounded) {
-        const fdx = len > 0 ? wx : Math.sin(P.yaw), fdz = len > 0 ? wz : Math.cos(P.yaw);
-        const ob = G.world.obstacleAhead(P.pos.x, P.pos.z, fdx, fdz, P.pos.y, 0.7);
-        if (ob && ob.top - P.pos.y <= PLAYER.vault && ob.top - P.pos.y > PLAYER.step - 0.05) {
-          // find the landing beyond the obstacle
-          let landed = null;
-          for (let d = 1.0; d <= 2.6; d += 0.3) {
-            const lx = P.pos.x + fdx * d, lz = P.pos.z + fdz * d;
-            const gy = G.world.groundAt(lx, lz, ob.top + 0.05, 0.1, 0.3);
-            tmp.set(lx, gy, lz);
-            const blocked = G.world.pushOut(tmp, PLAYER.radius, gy, PLAYER.height, PLAYER.step);
-            if (!blocked && !G.world.tooDeep(lx, lz, PLAYER.maxWade, gy)) { landed = { x: lx, y: gy, z: lz }; break; }
-          }
-          if (landed) {
-            P.vault = { from: P.pos.clone(), to: new THREE.Vector3(landed.x, landed.y, landed.z), t: 0, dur: 0.55, arc: Math.max(0.25, ob.top - Math.max(P.pos.y, landed.y) + 0.35), dirX: fdx, dirZ: fdz };
-            P.crouch = false;
-            G.audio.gear('jump');
-          }
-        } else if (!ob || ob.top - P.pos.y <= PLAYER.step) {
-          P.vel.y = PLAYER.jump;
-          P.grounded = false;
-          G.audio.gear('jump');
-        }
-      }
 
       // horizontal velocity
       const accel = P.grounded ? PLAYER.accel : PLAYER.airAccel;
@@ -720,7 +727,9 @@ export function createPlayer(G) {
 
     // fire
     const canFire = P.cooldown <= 0 && P.reloading <= 0 && P.switching <= 0 && P.throwing <= 0 && !P.vault && P.cooking < 0;
-    const trigger = w.auto ? input.mouseL : input.fired();
+    const pulled = input.fired();
+    const trigger = w.auto ? input.mouseL : pulled;
+    if (!trigger || pulled) emptyTriggerLatched = false;
     if (trigger && canFire) {
       if (P.sprint) P.sprint = false;
       fire(aiming);

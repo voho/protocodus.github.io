@@ -2,10 +2,10 @@
    Address keys avoid periodic colour/height stripes and preserve every
    named arcade and the two damaged shopfronts. Data only: no Three import. */
 export const PRAGUE_FRONTAGE_VARIATION = Object.freeze([
-  [-19, -46, 'prague_classical_sage'], [-19, -32, 'prague_old_classical'],
+  [-19, -46, 'prague_classical_sage'], [-19, -32, 'prague_old_classical_attic'],
   [-19, -18, 'prague_interwar'], [-19, 10, 'prague_classical_sage'],
-  [-19, 38, 'prague_old_classical'], [-19, 52, 'prague_interwar'],
-  [-19, 80, 'prague_classical_sage'], [-19, 122, 'prague_interwar'], [-19, 136, 'prague_old_classical'],
+  [-19, 38, 'prague_old_classical_attic'], [-19, 52, 'prague_interwar'],
+  [-19, 80, 'prague_classical_sage'], [-19, 122, 'prague_interwar'], [-19, 136, 'prague_old_classical_attic'],
   [19, -46, 'prague_interwar'], [19, -32, 'prague_classical_sage'],
   [19, -18, 'prague_old_classical'], [19, 10, 'prague_interwar'], [19, 24, 'prague_old_classical'],
   [19, 52, 'prague_classical_sage'], [19, 80, 'prague_interwar'], [19, 94, 'prague_old_classical'],

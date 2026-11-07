@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { instantiate } from './assets.js';
+import { SIGHT } from './world.js';
 import { wrapAngle } from './util.js';
 import { FIRE_FOG } from './lights.js';
 
@@ -68,6 +69,32 @@ export function createMission(G, L, built) {
     // an occluding wall while still rejecting a real wall between the two.
     if (anchors.operator) return anchorPoint(prop, anchors.operator, o.anchorHeight ?? 1.2);
     return { x: site.x, y: site.y + 1, z: site.z };
+  }
+  function chargePoint(o) {
+    const prop = built.placed.get(o.target);
+    if (!prop) return null;
+    const anchor = prop.model.anchors.charge;
+    return anchor ? anchorPoint(prop, anchor) : { x: prop.x, y: prop.y + 1, z: prop.z };
+  }
+  // Both equipment actions share the same reach and floor rule. A charge
+  // can touch its own equipment collider, but the entire anchor path must
+  // still clear unrelated obstacles, including ones beyond that collider.
+  function interactionAccess(o) {
+    const site = interactionSite(o), destroy = o.kind === 'destroy';
+    const p = G.player, inside = site && Math.hypot(p.pos.x - site.x, p.pos.z - site.z) < (o.r ?? (destroy ? 3.2 : 2.2)) &&
+      Math.abs((p.pos.y ?? site.y) - site.y) < 2.2;
+    if (!inside) return { site, inside: false, visible: false };
+    const aim = destroy ? chargePoint(o) : interactionAim(o, site);
+    if (!aim) return { site, inside: false, visible: false };
+    const eye = G.camera?.position || { x: p.pos.x, y: (p.pos.y ?? site.y) + 1.5, z: p.pos.z };
+    let visible;
+    if (destroy && G.world?.raycast) {
+      const dx = aim.x - eye.x, dy = aim.y - eye.y, dz = aim.z - eye.z, distance = Math.hypot(dx, dy, dz);
+      const ignore = built.placed.get(o.target)?.colliders;
+      const hit = distance > .05 ? G.world.raycast(eye.x, eye.y, eye.z, dx / distance, dy / distance, dz / distance, distance - .05, SIGHT, { noWater: true, ignore }) : null;
+      visible = !hit;
+    } else visible = !G.world?.clear || G.world.clear(eye.x, eye.y, eye.z, aim.x, aim.y, aim.z);
+    return { site, inside, visible };
   }
   G.events.on('playerDied', () => { resetInteraction(null); M.secureHeld = 0; G.hud.prompt(null); });
 
@@ -162,12 +189,7 @@ export function createMission(G, L, built) {
     const id = o.target;
     const flak = built.placed.get(id);
     if (!flak) return;
-    const a = flak.model.anchors.charge;
-    let x = flak.x, y = flak.y + 1, z = flak.z;
-    if (a) {
-      const c = Math.cos(flak.yaw), s = Math.sin(flak.yaw);
-      x = flak.x + a[0] * c + a[2] * s; y = flak.y + a[1]; z = flak.z - a[0] * s + a[2] * c;
-    }
+    const { x, y, z } = chargePoint(o);
     M.charge = G.explosives.placeCharge(new THREE.Vector3(x, y, z), 6, () => {
       M.flakDestroyed = true;
       // the gun is wrecked: tip it, char it, set it burning
@@ -233,18 +255,14 @@ export function createMission(G, L, built) {
       if (o.kind === 'reach' && Math.hypot(px - o.x, pz - o.z) < o.r) advance();
       else if (o.kind === 'cross' && pz > o.z) advance();
       else if (o.kind === 'destroy' && !M.charge) {
-        const d = Math.hypot(px - o.x, pz - o.z);
-        if (d < 3.2) {
+        const { inside, visible } = interactionAccess(o);
+        if (inside && !visible) prompt = 'Move into view of the equipment';
+        else if (inside) {
           prompt = 'Press <b>F</b> to set a demolition charge';
           if (input.pressed('KeyF')) placeCharge(o);
         }
       } else if (o.kind === 'interact') {
-        const site = interactionSite(o);
-        const inside = site && Math.hypot(px - site.x, pz - site.z) < (o.r ?? 2.2)
-          && Math.abs((p.pos.y ?? site.y) - site.y) < 2.2;
-        const aim = inside ? interactionAim(o, site) : null;
-        const eye = G.camera?.position || { x: px, y: (p.pos.y ?? site?.y ?? 0) + 1.5, z: pz };
-        const visible = inside && (!G.world?.clear || G.world.clear(eye.x, eye.y, eye.z, aim.x, aim.y, aim.z));
+        const { site, inside, visible } = interactionAccess(o);
         const held = !!input.held?.('KeyF');
         M.interactionHealth = p.health;
         if (interactionHurt && held) M.interactionBlocked = true;

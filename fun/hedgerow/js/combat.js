@@ -133,7 +133,7 @@ export function createExplosives(G) {
         G.chunks?.burst(x, gy, z, scale, G.terrain.surfaceAt(x, z));
       }
     }
-    G.audio.explosion(x, y, z, scale);
+    G.audio.explosion(x, y, z, scale, inWater);
     // it lights the street; the wet air round it glows, but is not turned white
     G.lights.flash(x, y + 1, z, '#ffb070', 220 * scale, 30, 0.4, 0.12);
     G.events.emit('noise', { x, z, radius: 90, kind: 'explosion' });
@@ -212,13 +212,20 @@ export function createExplosives(G) {
           e.vel.x -= 1.6 * vn * hit.nx; e.vel.y -= 1.6 * vn * hit.ny; e.vel.z -= 1.6 * vn * hit.nz;
           e.vel.multiplyScalar(0.45);
           if (Math.abs(vn) > 1.5) {
-            G.audio.grenadeBounce(e.pos.x, e.pos.y, e.pos.z);
+            const water = G.world.water;
+            const submerged = water && e.pos.y < water.level + .02 && water.contains(e.pos.x, e.pos.z);
+            if (!submerged) G.audio.grenadeBounce(e.pos.x, e.pos.y, e.pos.z, hit.surface, Math.abs(vn));
             G.events.emit('grenadeBounce', { grenade: e });
           }
           if (e.vel.length() < 0.6 && hit.ny > 0.6) { e.rest = true; e.vel.set(0, 0, 0); }
         } else {
           e.pos.addScaledVector(e.vel, h);
-          if (hit && hit.surface === 'water' && !e.splashed) { e.splashed = true; G.effects.splash(hit.x, hit.y, hit.z, 0.7); e.vel.multiplyScalar(0.3); }
+          if (hit && hit.surface === 'water' && !e.splashed) {
+            e.splashed = true;
+            G.effects.splash(hit.x, hit.y, hit.z, 0.7);
+            G.audio.impact(hit.x, hit.y, hit.z, 'water');
+            e.vel.multiplyScalar(0.3);
+          }
         }
       }
       e.mesh.position.copy(e.pos);

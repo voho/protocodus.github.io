@@ -153,6 +153,18 @@ and sound propagation keep their audio-clock timelines. Reflections remove
 sub-bass and reduce the second return to keep
 automatic fire clear; a final smooth peak guard leaves ordinary levels unchanged
 below 0.82 and catches coincident blast/fire transients at a 0.94 ceiling.
+Recorded gunshots skip 25 ms of low room-tone padding in memory and begin with
+a 2 ms fade, retaining over 99.99% of the decoded recording energy. The original
+files and their hashes stay intact. Mechanical, cloth, footstep and impact
+excerpts keep their existing offsets. `tests/audio-onset-check.mjs` verifies
+both excerpts in all firearm families, exact propagation time, other-family
+defaults, the fade, missing-bank fallback, mute and source cleanup.
+An empty automatic weapon gives one dry-trigger warning for a held pull. A
+fresh press, loaded shot, weapon switch or reset rearms the feedback; the
+existing empty retry cooldown and ammunition/reload checks continue. Actual
+input press edges also rearm when release and repress occur between simulation
+frames. `tests/player-empty-feedback-check.mjs` checks both automatic weapons,
+semi-auto presses, refill/reload, switch, death/reset and real mouse-event edges.
 Wildlife shares the weather fade/duck bus so it fades with the mission ambience.
 Pont's quiet aircraft pass follows a fixed world flight bearing, so turning
 changes the heard direction without rotating the flight with the listener.
@@ -231,6 +243,30 @@ cancellation with bodies. `tests/debris-contact-check.mjs` verifies physical
 contacts and preserves the genuine grenade bounce, while
 `tests/audio-debris-check.mjs` renders material/size/speed, spatial filtering,
 mute, pause, cancellation and resource limits.
+
+Dry grenade contacts use their actual collision material and incoming normal
+speed. Stone/defaults retain the existing knock; timber is lower, metal brighter,
+and soil, grass and fabric softer. The single procedural source keeps its
+existing spatial path and range. This changes only the contact timbre/level;
+physical thresholds, bounce events, AI hearing and HUD warning stay unchanged.
+The softer soil cue can be masked by loud combat; it does not replace the HUD
+warning. `tests/grenade-contact-check.mjs` checks actual floors, wall-normal
+speed, low/fast contact thresholds and warning/event behavior;
+`tests/audio-grenade-contacts-check.mjs` renders retained defaults, material/speed,
+nearby warning levels, masonry transmission, mute, source bounds and live pause.
+
+Grenades use the existing visible water classification for a lower, softer
+procedural blast and collapsing spray, without dry grit/stone patter. This is
+an above-water sound-design impression, not an identified underwater recording.
+The wet branch uses seven sources instead of the dry branch's nine, with the
+same travel delay, spatial path and mix controls. Actual first water entry
+plays the existing one-source liquid impact at the visible splash point;
+submerged bed contacts skip the dry clink while preserving physical/gameplay
+bounce events. A later contact outside the water footprint is audible normally.
+`tests/grenade-water-check.mjs` verifies pre-change trajectories, wet-to-dry
+contacts, one-time entry, pause/clear/rethrow and the existing blast threshold.
+`tests/audio-water-check.mjs` checks retained dry PCM, wet timbre/source count,
+arrival, masonry transmission, mute, cleanup and live audio-clock suspension.
 
 `node fun/hedgerow/tests/audio-check.mjs` validates file hashes and payload size,
 decodes all files using Chromium Web Audio, renders a real gunshot, verifies the

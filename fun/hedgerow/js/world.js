@@ -178,6 +178,7 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
   function traceRay(ox, oy, oz, dx, dy, dz, maxT, mask, opts, anyHit = false) {
     let best = maxT, hit = null, bnx = 0, bny = 1, bnz = 0;
     const normal = anyHit ? null : tmpN;
+    const ignoreSet = opts.ignore instanceof Set ? opts.ignore : null;
     // walk the grid cells along the ray (2D DDA)
     stamp++;
     let gx = Math.floor((ox - minX) / cell), gz = Math.floor((oz - minZ) / cell);
@@ -192,7 +193,7 @@ export function createWorld({ minX, maxX, minZ, maxZ, cell = 8, terrain = null, 
         for (const col of grid[gz * cols + gx]) {
           if (col.stamp === stamp) continue;
           col.stamp = stamp;
-          if (!(col.flags & mask) || col === opts.ignore) continue;
+          if (!(col.flags & mask) || col === opts.ignore || ignoreSet?.has(col)) continue;
           const t = col.type === 'box'
             ? rayBox(col, ox, oy, oz, dx, dy, dz, best, normal)
             : rayCyl(col, ox, oy, oz, dx, dy, dz, best, normal);

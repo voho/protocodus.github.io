@@ -110,7 +110,8 @@ assert.deepEqual(Object.keys(windows[0].geometry.attributes).sort(), ['color', '
 const integrated = pragueModels();
 for (const [name, model] of integrated) {
   const marked = model.prims.filter(p => p.material?.userData?.pragueAmbientWindows === true);
-  assert.equal(marked.length, expected.has(name) ? 1 : 0, 'The actual factory scopes the hook to the three genuine period types');
+  assert.equal(marked.length, expected.has(name) || name === 'prague_old_classical_attic' ? 1 : 0, 'The actual factory scopes the hook to three genuine period types and their prepared attic variant');
+  if (name === 'prague_old_classical_attic') assert.equal(marked[0], integrated.get('prague_old_classical').prims.find(p => p.material?.userData?.pragueAmbientWindows), 'Attic variant reuses the prepared base glass primitive and marked UVs');
 }
 for (const p of group.children) { for (const attr of Object.values(p.geometry.attributes)) assert.ok(attr.array.every(Number.isFinite)); p.geometry.dispose(); }
 const geometries = new Set([...raw, ...catalog.values(), ...integrated.values()].flatMap(m => m.prims.map(p => p.geometry)));

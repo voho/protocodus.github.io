@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { worldColliders } from './assets.js';
 import { rng } from './util.js';
 
-const HOUSE = /^prague_(ochre|rose|gray|passage|damaged|old_classical|classical_sage|interwar)$/;
+const HOUSE = /^prague_(ochre|rose|gray|passage|damaged|old_classical|old_classical_attic|classical_sage|interwar)$/;
 const key = c => c?.type === 'box' ? ['box', c.x, c.y, c.z, c.hx, c.hy, c.hz, c.yaw || 0].map(v => typeof v === 'number' ? Math.round(v * 1e5) : v).join(':') : null;
 
 function createPragueGlassRegistry(props) {
