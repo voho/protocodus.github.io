@@ -2,7 +2,7 @@
   "product": "Remix",
   "reviewed": "2026-11-07",
   "availability": "coming_soon",
-  "source_version": "1.1.0d3",
+  "source_version": "1.1.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "assets": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "file": "remix-rack-front.webp",
-      "sha256": "6ec394f75295548139d4d01010574c862d5e49bdfe95ba1c658aef930104f045"
+      "sha256": "aaaa83cefc5fa712dd5ce000cf387d87f0043189bcf7b49b66bf5ee2289f0509"
     },
     {
       "file": "remix-rack-rear.webp",
-      "sha256": "aae6be1c80e018673ee0001123bb08eadea0e93901653b02fdda13178f3c3438"
+      "sha256": "2fa149aa13a3c9742aaccddcf4a4e6c7047797a5147d4de3dc8475144d30e20b"
     }
   ],
   "shop_cover_refresh": {
@@ -36,7 +36,7 @@
   "rack_images": {
     "date": "2026-11-07",
     "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "fbd38aa",
-    "note": "4U 1.1.0d3 panels (Main fader under the scope; rear CV trim above Smooth), converted to WebP quality 92"
+    "source_commit": "083bc75",
+    "note": "3U 1.1.0f1 panels (no front deck titles; A and B beside the Main fader; Shape and Skew named above their knobs), converted to WebP quality 92"
   }
 }
