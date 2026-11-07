@@ -381,7 +381,9 @@ Q('cart', 17, 70, 70);
 Q('fence', 8, 80, 0); Q('fence', 34, 80, 0);
 Q('wall_low', 12, 82, 0); Q('wall_broken', 16, 82, 0); Q('gate', 20.8, 82.6, 72); Q('wall_low', 25, 82, 0); Q('wall_low', 29, 82, 0); Q('wall_low', 33, 82, 0); Q('wall_low', 37, 82, 0);
 Q('hedge', 42, 82, 0, { veg: true }); Q('hedge', 46, 82, 180, { veg: true });
-Q('hedge', -24, 84, 0, { veg: true }); Q('hedge', -28, 84, 180, { veg: true }); Q('hedge', -32, 84, 0, { veg: true }); Q('hedge', -36, 84, 180, { veg: true }); Q('hedge', -40, 84, 0, { veg: true }); Q('hedge', -44, 84, 180, { veg: true });
+Q('hedge', -24, 84, 0, { veg: true }); Q('hedge', -28, 84, 180, { veg: true });
+// the field gate (a gap of two hedges) at the top of the far field: the east hedgerow flank
+Q('fence_field', -33.6, 85.4, 32); Q('hedge', -40, 84, 0, { veg: true }); Q('hedge', -44, 84, 180, { veg: true });
 Q('bush_a', -16, 66, 0, { veg: true }); Q('bush_b', -18, 80, 0, { veg: true }); Q('bush_a', -8, 86, 30, { veg: true });
 // field edges
 for (let z = 6; z < 84; z += 4) { P('hedge', 42 + 2.5 * Math.sin(z / 26), z, 90 + (z % 8 ? 180 : 0), { veg: true }); P('hedge', -42 + 3 * Math.sin(z / 31 + 0.7), z, 90 + (z % 8 ? 0 : 180), { veg: true }); }
@@ -436,12 +438,15 @@ for (const z of [95, 117, 141]) { P('wall_low', 15.5, z, 90); }
 P('fence', 22, 96, 0); P('fence', 25, 96, 0); P('shed', 24, 108, -90); P('wall_broken', 24, 120, 90); P('haystack', 30, 130, 0);
 P('fence', 20, 146, 0); P('fence', 23, 146, 0); P('wall_low', 28, 146, 0);
 P('shed', 23, 190, 180); P('wall_low', 16, 200, 90); P('wall_low', 16, 204, 90); P('fence', 21, 218, 0); P('haystack', 30, 206, 30); P('cart', 26, 235, 100);
-for (let z = 92; z < 252; z += 4) P('hedge', 44, z, 90 + (z % 8 ? 180 : 0), { veg: true });
+for (let z = 92; z < 252; z += 4) P('hedge', 43.6 + 1.1 * Math.sin(z / 17 + 0.6), z, 90 + (z % 8 ? 180 : 0), { veg: true });
 // back gardens, east (right)
 for (const z of [104, 128]) P('wall_low', -15.5, z, 90);
 P('fence', -20, 95, 0); P('shed', -25, 116, 90); P('wall_high', -22, 140, 0); P('wall_high', -18, 140, 0);
 P('wall_low', -16, 196, 90); P('fence', -22, 206, 0); P('fence', -25, 206, 0); P('shed', -26, 220, 90); P('haystack', -30, 232, 0);
-for (let z = 92; z < 252; z += 4) P('hedge', -44, z, 90 + (z % 8 ? 0 : 180), { veg: true });
+for (let z = 92; z < 252; z += 4) P('hedge', -43.6 - 1.1 * Math.sin(z / 21 + 2.1), z, 90 + (z % 8 ? 0 : 180), { veg: true });
+// hedgerow standards: the odd oak or ash left to grow in the bocage hedges, unevenly spaced
+for (const [side, z, m, sc] of [[1, 103, 'oak_a', 0.95], [1, 131, 'oak_b', 0.85], [1, 176, 'oak_a', 1.05], [1, 229, 'birch_a', 0.9],
+  [-1, 97, 'oak_b', 1.0], [-1, 150, 'oak_a', 0.9], [-1, 197, 'birch_a', 0.85], [-1, 243, 'oak_b', 1.1]]) P(m, side * 47.5, z, (z * 37) % 360, { veg: true, scale: sc });
 
 // --- the river ---
 P('bridge_stone', 0, 270, 0, { y: 2.0, id: 'bridge' });
@@ -544,6 +549,42 @@ P('mg42_tripod', 3.5, 454, 200); P('drum_stack', 14.5, 458.5, 0);
 P('camo_net', 4, 511, 200); P('jerrycan_stack', 11.8, 525.6, 10); P('drum_stack', -16.5, 523.5, 40);
 P('field_telephone', -9.2, 507.6, 90); P('cable_reel', -7.2, 503.6, 0); P('stretcher', -17.2, 509.5, 120);
 P('kubelwagen', 14.5, 530.5, -70);
+
+/* ---------- cover and alternative ways through (layout pass) ----------
+   Each fight has a cover beat roughly every 10–15 m along every way through
+   it, so moving up is a run from one piece of cover to the next rather than
+   a sprint across open ground; long sightlines down the lane and the street
+   are broken by a blocker before they reach the guns. The cover is what a
+   Norman village really has lying about (farm-models.js): woodpiles, hay,
+   field walls, a boat pulled up the bank, a barricade of house furniture and
+   a woodcutters' landing in the forest. tests/route-check.mjs walks the new
+   east hedgerow and churchyard flanks; tests/saint-cover-check.mjs measures
+   the open stretches along every route. */
+// the lane: a fallen limb and a woodpile against the banks break the machine gun's view down it
+Q('log', -2.9, 47, 6); Q('woodpile', 3.3, 66, -8);
+// the orchard: hay and wood stacked under the trees, a field wall at its top
+Q('hay_bales', 25, 60, 15); Q('woodpile', 31.5, 48, 82); Q('drystone_wall', 30, 66.5, 4);
+// the far field and the east hedgerow: up the headland to the field gate, then into the gardens
+// (world frame, P: the far hedge itself is not carried by the lane's bends)
+Q('hay_bales', -18.5, 29, 70); P('drystone_wall_tumbled', -31, 46, 88); P('hay_bales', -29.5, 57, -10);
+P('drystone_wall', -34, 69, 92); P('woodpile', -25.5, 80, 4); Q('woodpile', -8.5, 47.5, 75);
+// the east gardens and the churchyard flank behind the church
+P('hay_bales', -33, 104, 20); P('woodpile', -31.5, 126, 90); P('drystone_wall_tumbled', -35, 150, 4);
+P('drystone_wall', -34.5, 163, 90); P('hay_bales', -36, 198, 30); P('woodpile', -33, 214, 90); P('drystone_wall_tumbled', -36, 240, 80);
+// the west gardens: a back way with something to crouch behind every few houses
+P('woodpile', 33.5, 112, 90); P('hay_bales', 35, 138, 20); P('drystone_wall', 34, 158, 90);
+P('woodpile', 31, 176, 90); P('woodpile', 35, 196, 90); P('drystone_wall_tumbled', 35, 226, 90); P('hay_bales', 33.5, 242, -25);
+// the street: furniture barricades the defenders threw up, each leaving a way past
+P('street_barricade', 3.4, 139, -5); P('street_barricade', -3.3, 186.5, 4); P('street_barricade', -3.0, 226, 8);
+// the river: field walls and a boat on the south bank, a woodpile and a fallen wall on the far side
+P('river_boat', -24.5, 252.5, 22); P('drystone_wall', -37, 292, 78); P('drystone_wall_tumbled', -12.5, 251.5, 3); P('woodpile', 14.5, 254.5, 6);
+P('drystone_wall', 22, 249.5, -4); P('river_boat', 39, 283.5, -160);
+P('woodpile', -18, 296.5, 15); P('drystone_wall_tumbled', 22, 296.5, -10);
+// the forest: a woodcutters' landing beside the track, timber stacked where the foxholes can be flanked
+P('timber_stack', 6, 316, 80); P('timber_stack', 14, 334, 95); P('timber_stack', -21, 346, 70);
+// the clearing is the woodcutters' felling: stumps, stacked trunks and cordwood round its edge
+P('timber_stack', -17, 490, 35); P('timber_stack', 22, 516, 95); P('woodpile', -21, 529, 10);
+for (const [x, z] of [[-8, 495], [9, 493], [-13, 533], [15, 537], [-20, 510]]) P('stump', x, z, (x * 53 + z) % 360);
 
 // the farms burning beyond the hedges (out of reach, seen through the trees)
 P('ruin_b', -68, 152, 60); P('ruin_b', 64, 302, -110); P('barn', -61, 433, 20);
@@ -764,6 +805,8 @@ const enemies = [
   E('rifle', 0, 0, 200, 'clearing', { anchorOf: ['tower', 'lookout'], leash: 0 }),
   E('rifle', -16, 502, 150, 'clearing', { patrol: [[-16, 502], [-18, 520], [-6, 531], [-4, 512]] }),
   E('smg', 2, 529, 180, 'clearing'),
+  // appended so the authored slots above keep their indices (saint-post-check)
+  E('rifle', -29, 97, 165, 'gate', { leash: 8 }),            // watches the field gate from the east gardens
 ];
 
 /* ---------- pickups, checkpoints, objectives ---------- */
@@ -777,6 +820,8 @@ const pickups = [
   { type: 'grenades', x: -9, z: 362 }, { type: 'ammo', x: 0, z: 400 }, { type: 'medkit', x: 9, z: 404 },
   { type: 'grenades', x: -3, z: 432 }, { type: 'medkit', x: -7, z: 472 }, { type: 'ammo', x: 6, z: 458 },
   { type: 'medkit', x: -12, z: 519 },
+  // rewards for taking the long way round
+  { type: 'ammo', x: INTRO.point(-33, 66)[0], z: 66 }, { type: 'grenades', x: -40, z: 180 },
 ];
 
 const checkpoints = [
@@ -803,7 +848,7 @@ const objectives = [
 const hints = [
   { x: INTRO.point(0.5, -2)[0], z: -2, r: 6, text: 'WASD to move, mouse to look', sub: 'Hold the right button to aim, left to fire' },
   { x: INTRO.point(2, 20)[0], z: 20, r: 6, text: 'C to crouch', sub: 'Crouched, you are harder to see and to hit' },
-  { x: INTRO.point(-1, 42)[0], z: 42, r: 6, text: 'Their machine gun covers the mouth of the lane', sub: 'Gaps in the hedges lead to the orchard (left) and the ditch (right)' },
+  { x: INTRO.point(-1, 42)[0], z: 42, r: 6, text: 'Their machine gun covers the mouth of the lane', sub: 'Gaps in the hedges lead to the orchard (left), the ditch (right) and the far field gate' },
   { x: INTRO.point(18, 76)[0], z: 76, r: 7, text: 'Space vaults over low walls' },
   { x: 0, z: 104, r: 7, text: 'G throws a grenade', sub: 'Hold G to cook it first' },
   { x: 0, z: 255, r: 7, text: 'Their machine gun covers the bridge', sub: 'A ford lies east (right); a fallen tree crosses west (left)' },

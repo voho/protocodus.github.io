@@ -32,6 +32,20 @@ tree line; its fighting positions, props and patrol routes follow the same
 ground rather than remaining on the former straight line.
 An old stone culvert carries a farm crossing over the drainage ditch; its
 open barrel, arch stones and worn cattle fences are scripted in Three.js.
+Two more ways through were opened: the east hedgerow (out of the lane's
+right-hand gap, up the far hedge and through a field gate into the east
+gardens) and round behind the church and its churchyard into the north
+street. Along every flank there is something to crouch behind every ten to
+fifteen metres, and the long sightlines down the lane and the street are
+broken before they reach the guns: woodpiles, stacked hay, dry-stone field
+walls (some tumbled to knee height), a river boat pulled up the bank,
+barricades of house furniture in the street and, in the forest, a
+woodcutters' landing and a felling clearing of stumps and stacked trunks
+round the flak gun. These are scripted in Three.js (`js/farm-models.js`,
+no third-party assets), each with one box collider so the soldiers use them
+as cover too; `tests/saint-cover-check.mjs` measures the longest open
+stretch along each route. The village's boundary hedges wander, with the odd
+oak or birch left standing in them.
 
 **Mission 2 — The guns at La Varenne.** Normandy, the morning of 6 June
 1944, drizzle; inspired by the paratroopers' assaults on the gun batteries

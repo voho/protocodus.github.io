@@ -17,6 +17,8 @@
      crumpled beside it, burst open.
    * `duckboard_walk`, `fence_field`, `stone_culvert`: field engineering
      and farm details, built in metres with the same wet material palette.
+   * Saint-Clair's woodpiles, hay bales, dry-stone walls, river boat,
+     street barricade and timber stack (farm-models.js).
    * `gun_revetment` (battery-models.js): La Varenne's revetted gun pits.
 
    The civilian field_harrow/orchard_ladder and canal mooring_bollard/
@@ -27,6 +29,7 @@
 
 import * as THREE from 'three';
 import { canalQuay, scuttledBarge, gliderStake } from './canal-models.js';
+import { farmModels } from './farm-models.js';
 import { gunRevetment } from './battery-models.js';
 
 const DEG = Math.PI / 180;
@@ -366,6 +369,6 @@ function demolitionSwitch() {
 
 export function proceduralModels() {
   const out = new Map();
-  for (const m of [glider(), canalBridge(), canalQuay(), scuttledBarge(), gliderStake(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch(), duckboardWalk(), fieldFence(), stoneCulvert(), gunRevetment(builder)]) out.set(m.name, m);
+  for (const m of [glider(), canalBridge(), canalQuay(), scuttledBarge(), gliderStake(), supplyCanister(), fieldHarrow(), orchardLadder(), mooringBollard(), demolitionSwitch(), duckboardWalk(), fieldFence(), stoneCulvert(), gunRevetment(builder), ...farmModels()]) out.set(m.name, m);
   return out;
 }
