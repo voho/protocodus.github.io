@@ -1,17 +1,17 @@
 {
-  "checked_on": "2026-11-06",
+  "checked_on": "2026-11-08",
   "product": "Rill desktop music workstation",
   "source_repository": "https://github.com/protocodus/rill-daw",
-  "source_commit": "1facbdc196cfa2a7f3bde1a488ff614c3c419add",
+  "source_commit": "ced4d553f4453b1f5dadbc2ee497ac4fa4f79a07",
   "source_version": "0.1.0",
   "licence": "MIT",
-  "basis": "Native captures of the 6 November main source, using an original 32-bar demo session. Application controls and rendering are unchanged. The download remains a rolling alpha, not a tagged release.",
-  "derivatives": "Pillow 11.0.0: proportional Lanczos downsampling of native 2x PNG captures; WebP quality 90, method 6, at 2000 × 1250 (mixer 2400 × 1250); social JPEG at 1600 × 1000, quality 86, optimized.",
+  "basis": "Complete native captures of RILL code revision 451b7dcc1a34e755751c825d81d4880019cb9023 on 8 November 2026, using the original 32-bar Glass Current session. The source commit records these exact PNGs and the updated README. Only the documented capture harness changes startup/view setup; production rendering and controls are unchanged. Downloads remain rolling alpha builds.",
+  "derivatives": "Pillow 13.0.0: lossless WebP, method 6, at the native PNG dimensions (2000 × 1250; mixer 2400 × 1250). All six WebP images preserve every source RGB pixel. Social JPEG: proportional Lanczos downsampling of the arrangement to 1600 × 1000, quality 86, optimized. No compositing, retouching or simulated UI.",
   "downloads": {
     "service": "nightly.link",
     "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
     "branch": "main",
-    "note": "Each link serves the latest successful main build's artifact; artifacts are kept for 14 days. No GitHub Release exists yet (checked 2026-11-04).",
+    "note": "Each link serves the latest successful main build’s artifact; artifacts are kept for 14 days. These are rolling development builds.",
     "artifacts": [
       "rill-aarch64-apple-darwin",
       "rill-x86_64-apple-darwin",
@@ -19,64 +19,74 @@
       "rill-x86_64-unknown-linux-gnu",
       "rill-aarch64-unknown-linux-gnu"
     ],
-    "label": "Alpha (owner, 2026-11-04): no tag or GitHub Release; the page links the latest successful main build."
+    "label": "Alpha: the page links rolling main-branch builds, not a stable release."
   },
   "assets": {
     "rill-arrangement.webp": {
-      "source": "native-capture/2026-11-06/rill-arrangement.png",
-      "source_sha256": "4ccdad3064fabb7115ec14c285f448c0355c68dca4af70f8ce99770b71d88db9",
-      "sha256": "ae0c608e8f081a7ade1220b12c0741c2a7a011416b1ae8717051074b283c659a",
-      "bytes": 236318,
+      "source": "artifacts/readme-arrangement.png",
+      "source_sha256": "4b30ed7a87a0f95d74de5febaff72261c7b9924db6faeb199562bb7d3f2accce",
+      "sha256": "9bfb15baf71ae074c4357158c884276076ad6befb6be0e153f60f3e9f801f38e",
+      "bytes": 342982,
       "dimensions": [
         2000,
         1250
       ]
     },
     "rill-arrangement.jpg": {
-      "source": "native-capture/2026-11-06/rill-arrangement.png",
-      "source_sha256": "4ccdad3064fabb7115ec14c285f448c0355c68dca4af70f8ce99770b71d88db9",
-      "sha256": "b7423e675c6c8ab06f20f3bb272e78cf90411a9a11718d6a3d43ae562d1ce92d",
-      "bytes": 302456,
+      "source": "artifacts/readme-arrangement.png",
+      "source_sha256": "4b30ed7a87a0f95d74de5febaff72261c7b9924db6faeb199562bb7d3f2accce",
+      "sha256": "f4e817d70429475c2bdfed5326bfefaead34c8b10ffaa610a1dba5bcf098e060",
+      "bytes": 304753,
       "dimensions": [
         1600,
         1000
       ]
     },
     "rill-piano-roll.webp": {
-      "source": "native-capture/2026-11-06/rill-piano-roll.png",
-      "source_sha256": "d09f30ecd3f6c9691696eee4b7eaf212651f9e8be42e429833d4a5e2a67d7688",
-      "sha256": "473b46e51ca294ee3f40fb3c18bc3a396f711284f62acadb262e507f96c4ded7",
-      "bytes": 75308,
+      "source": "artifacts/readme-piano-roll.png",
+      "source_sha256": "d0bc886e7cf548cc812dcc71f582d87db2a1c8b6422d0df99deed750b93d0c8e",
+      "sha256": "7c44c4b9219016db2761031e1ec0dc489b3c9ef2d12ae3362a3a047849e0c4d2",
+      "bytes": 105918,
       "dimensions": [
         2000,
         1250
       ]
     },
     "rill-audio-editor.webp": {
-      "source": "native-capture/2026-11-06/rill-audio-editor.png",
-      "source_sha256": "8ea30f4b9d3327774770496fa10f3ead17dd4184911e883f035c933d00801a9f",
-      "sha256": "00d49721ce651109317db0ba1c8e34ef901cbbfb725d2c04438a81bb0215198f",
-      "bytes": 132832,
+      "source": "artifacts/readme-audio-editor.png",
+      "source_sha256": "02e78133987127e7b8e30ceb2ac4b894009fa127bc89e07ce4de3ac43a2f2bb2",
+      "sha256": "393880f37de5c62d6618b04dd290f010bf9c810acad4e5034bfe1f479f8ec2d5",
+      "bytes": 447704,
       "dimensions": [
         2000,
         1250
       ]
     },
     "rill-mixer.webp": {
-      "source": "native-capture/2026-11-06/rill-mixer.png",
-      "source_sha256": "59bd9dadd6ff0cafe3fbfe93c85f2a86e25bbaf709a13ab3dbb181e65bc6bdfc",
-      "sha256": "85ae5bbed21c558ad0d37733ab317cf7dd80b6bcf2fc0b2e9ec8e1da37d28542",
-      "bytes": 125882,
+      "source": "artifacts/readme-mixer.png",
+      "source_sha256": "da232b8b391c2200490a0d7a617f3b9ea72090af025a58afedf62b5eddf0c955",
+      "sha256": "e5bc62a3f4c294b698273b6e857e042e26037ccf15f98c703110910f1a6e9979",
+      "bytes": 268022,
       "dimensions": [
         2400,
         1250
       ]
     },
     "rill-ai-assistant.webp": {
-      "source": "native-capture/2026-11-06/rill-ai-assistant.png",
-      "source_sha256": "70dbc61cbce65cccb5e77cdc0937b56d051f3851b2c3e27a9f347cfaf0d7a081",
-      "sha256": "59e0ed0e776b2f40d983cbae91c969d4e505c03a9b5ec1592271dcecb90b659e",
-      "bytes": 66718,
+      "source": "artifacts/readme-ai-assistant.png",
+      "source_sha256": "0ef2c776b8b2f3e356d416b77235388eceb4d6271ab510b03520ceb725f34a1c",
+      "sha256": "43112ce394baa0b376542f2216ef2afbd9241e2c93dc43f0b051a5a8b74d0614",
+      "bytes": 237934,
+      "dimensions": [
+        2000,
+        1250
+      ]
+    },
+    "rill-automation.webp": {
+      "source": "artifacts/readme-automation.png",
+      "source_sha256": "29bdfdaaef6461a5efec538b3d7a66de90a68d45e93d7a6d55f4f081a6ed4931",
+      "sha256": "e1de08723b5b909f53bbab71764f212fd47fd4123473ba20cfc2ed805efa534b",
+      "bytes": 129386,
       "dimensions": [
         2000,
         1250
@@ -93,24 +103,28 @@
     }
   },
   "capture": {
-    "date": "2026-11-06",
-    "method": "RILL --screenshot with native eframe rendering on macOS, dark appearance. All screenshots are complete application content; no UI elements were composited or retouched.",
+    "date": "2026-11-08",
+    "code_commit": "451b7dcc1a34e755751c825d81d4880019cb9023",
+    "method": "RILL native eframe screenshots on Linux under Xvfb, dark appearance, at 1.25 pixels per point. Complete application content; no UI elements were composited or retouched.",
     "source_dimensions": [
-      3200,
-      2000
+      2000,
+      1250
     ],
     "mixer_source_dimensions": [
-      3840,
-      2000
+      2400,
+      1250
     ],
-    "demo": "Glass Current: original audio loops, four audio tracks, four MIDI tracks and two buses at 120 BPM.",
-    "setup": "Capture-only harness sets window dimensions, fits timelines, selects D minor and prepares the visible unsent assistant prompt. Plugin discovery, preview generation and audio-device startup are disabled during capture. No AI request is sent.",
+    "demo": "Glass Current: original synthesized audio, four audio tracks, four MIDI tracks, two buses and an Atmosphere volume automation lane; 32 bars at 120 BPM.",
+    "instrument": "The MIDI tracks are assigned to a genuine locally installed Surge XT 1.3.4 instrument, independently checked through native audio rendering. The plug-in is not bundled with the website or RILL.",
+    "setup": "Capture-only harness sets window dimensions, fitted timelines, D minor, selected tracks/clips, and a prepared request pinned to the Glass chords / Opening · glass chords MIDI clip. Device startup, discovery and automatic plug-in previews are disabled during capture. No provider credentials, AI request, generated reply or AI song edit is used; Connect AI remains visible.",
     "harness": "scripts/rill-capture/capture-harness.patch",
-    "demo_generator": "scripts/rill-capture/make_demo.py"
+    "demo_generator": "scripts/rill-capture/make_demo.py",
+    "capture_script": "scripts/rill-capture/capture.sh",
+    "reproduction_notes": "scripts/rill-capture/README.md"
   },
   "previous_capture": {
-    "source_commit": "a5a9ce4b360ad9f303661d4e01039bcf3b7cda02",
-    "checked_on": "2026-11-05",
-    "basis": "README screenshots captured on 27 October 2026; replaced by current native captures."
+    "source_commit": "1facbdc196cfa2a7f3bde1a488ff614c3c419add",
+    "checked_on": "2026-11-06",
+    "basis": "Native captures of the 6 November main source, using an original 32-bar demo session. Application controls and rendering are unchanged. The download remains a rolling alpha, not a tagged release."
   }
 }

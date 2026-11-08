@@ -1,26 +1,39 @@
 diff --git a/crates/daw-app/src/app.rs b/crates/daw-app/src/app.rs
-index b4f1fbd..4d87f3e 100644
+index 94db06a..44a89ee 100644
 --- a/crates/daw-app/src/app.rs
 +++ b/crates/daw-app/src/app.rs
-@@ -3598,7 +3598,12 @@ impl DawApp {
+@@ -3782,7 +3782,16 @@ impl DawApp {
      /// Open the workspace or popup named by the `--view` command-line option.
      pub fn open_screenshot_view(&mut self, view: &str) {
          match view {
 -            "assistant" => self.open_global_assistant(),
 +            "assistant" => {
-+                self.open_global_assistant();
 +                if self.screenshot.is_some() {
-+                    self.assistant.prompt = "Create a four-bar D-minor arpeggio using one of my installed VST3 instruments.".into();
++                    if let Some((track_id, clip_id)) = self.selected_track.zip(self.selected_clip) {
++                        self.open_context_assistant(daw_tools::ToolScope::MidiClip { track_id, clip_id });
++                        self.assistant.prompt = "Make these chords more expressive: keep the D-minor harmony, vary the velocities gently, and add a short passing note before each chord change.".into();
++                    }
++                } else {
++                    self.open_global_assistant();
 +                }
 +            },
              "setup" => self.open_popup(PopupKind::Setup),
              "mixer" => self.view = WorkspaceView::Mixer,
-             "channel" => {
+             "analysis" => {
+@@ -3838,7 +3847,7 @@ impl DawApp {
+     }
+     fn capture_screenshot(&mut self, ctx: &egui::Context) {
+         if let Some(path) = &self.screenshot {
+-            if self.frame_count >= 8
++            if self.frame_count >= 30
+                 && !self.plugin_sync.scanning()
+                 && self.audio_admission.is_none()
+                 && !self.screenshot_requested
 diff --git a/crates/daw-app/src/arrangement.rs b/crates/daw-app/src/arrangement.rs
-index d3001ce..851147f 100644
+index 2cd7cb9..a72ab9c 100644
 --- a/crates/daw-app/src/arrangement.rs
 +++ b/crates/daw-app/src/arrangement.rs
-@@ -236,7 +236,7 @@ impl DawApp {
+@@ -267,7 +267,7 @@ impl DawApp {
              self.tool = daw_ui::EditorTool::Select;
          }
          daw_ui::editor_tool_shortcuts(ui, &mut self.tool, &supported);
@@ -28,12 +41,25 @@ index d3001ce..851147f 100644
 +        let mut fit = self.screenshot.is_some() && self.frame_count <= 6;
          let mut nudge = 0;
          let mut add_pattern = false;
-         let amplitude_id = egui::Id::new("arrangement_waveform_amplitude");
+         let mut density_choice = None;
+diff --git a/crates/daw-app/src/audio_editor.rs b/crates/daw-app/src/audio_editor.rs
+index a830bb6..bebbfd8 100644
+--- a/crates/daw-app/src/audio_editor.rs
++++ b/crates/daw-app/src/audio_editor.rs
+@@ -797,7 +797,7 @@ impl DawApp {
+         let view_before = state.view;
+         let had_view = state.fitted;
+         let mut view_action = daw_ui::TimelineViewAction::None;
+-        let mut fit = false;
++        let mut fit = self.screenshot.is_some() && self.frame_count <= 25;
+         let mut analyze = None;
+         let mut gain_rect = Rect::NOTHING;
+         let mut sensitivity_rect = Rect::NOTHING;
 diff --git a/crates/daw-app/src/main.rs b/crates/daw-app/src/main.rs
-index 24b6f7c..72e066d 100644
+index 38822ca..48b14cc 100644
 --- a/crates/daw-app/src/main.rs
 +++ b/crates/daw-app/src/main.rs
-@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
+@@ -155,7 +155,7 @@ fn main() -> anyhow::Result<()> {
          viewport: eframe::egui::ViewportBuilder::default()
              .with_app_id(daw_ui::APP_ID)
              .with_icon(daw_ui::app_icon())
@@ -42,7 +68,7 @@ index 24b6f7c..72e066d 100644
              .with_min_inner_size([1100.0, 720.0]),
          vsync: true,
          ..Default::default()
-@@ -151,6 +151,12 @@ fn main() -> anyhow::Result<()> {
+@@ -165,6 +165,22 @@ fn main() -> anyhow::Result<()> {
          options,
          Box::new(move |cc| {
              let mut app = app::DawApp::new(cc, project, screenshot);
@@ -51,15 +77,25 @@ index 24b6f7c..72e066d 100644
 +                app.automatic_plugin_previews = false;
 +                app.audio_device_enabled = false;
 +                app.root = 2;
++                let track_name = std::env::var("RILL_CAPTURE_TRACK").ok();
++                if let Some(track) = app.project.tracks.iter().find(|track| {
++                    track_name.as_ref().is_some_and(|name| &track.name == name)
++                }) {
++                    app.selected_track = Some(track.id);
++                    app.selected_clip = track.clips.first().map(|clip| clip.id);
++                }
++                if view.as_deref() == Some("assistant") {
++                    app.open_screenshot_view("clip");
++                }
 +            }
              app.refresh_plugins();
              if mcp {
-                 app.assistant.start_mcp_stdio(mcp_profile);
+                 app.assistant
 diff --git a/crates/daw-app/src/midi_editor.rs b/crates/daw-app/src/midi_editor.rs
-index 00b1ae0..9530abe 100644
+index 38e958d..36459f0 100644
 --- a/crates/daw-app/src/midi_editor.rs
 +++ b/crates/daw-app/src/midi_editor.rs
-@@ -566,7 +566,7 @@ impl DawApp {
+@@ -745,7 +745,7 @@ impl DawApp {
              state.transform = None;
          }
          let mut actions = Vec::new();
