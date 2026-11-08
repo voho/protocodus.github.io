@@ -42,7 +42,7 @@ page yet. All four checked public URLs return HTTP 404. Their website pages
 have no purchase links. Respira's panel previews retain their actual 0.1.14d1
 source labels. See the [release audit](../docs/reason-shop-status.md).
 
-Unreleased Electry and Clareq remain excluded from the public catalog and
+Unreleased Electry remains excluded from the public catalog and
 sitemap. Other development previews retain their identified source revisions.
 
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified

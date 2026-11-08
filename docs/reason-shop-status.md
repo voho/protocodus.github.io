@@ -55,7 +55,7 @@ publication remains pending Reason's review.
 Keyra 0.4.14d1, Convretor 0.1.0d9 and Electry 1.2.8d1 are testing, with no
 accepted device versions. Legacy REPAN and YouKnow106 entries are also testing.
 Remix has no accepted version in Manage Products; its latest observed build
-failed. These are not releases. Electry and Clareq remain excluded from the site.
+failed. These are not releases. Electry remains excluded from the site.
 
 ## Website checks
 

@@ -236,7 +236,7 @@ The domain property `sc-domain:protocodus.cz` was verified in Search Console on
 5 November 2026, with the existing DNS TXT verification record. The canonical
 `https://protocodus.cz/sitemap.xml` was submitted and returned **Success** on the
 same date. The 27 discovered pages at submission reflect the then-deployed
-site; the updated sitemap contains 23 public pages after removing Clareq, Electry, and the releases pages.
+site; the updated sitemap contains 23 public pages after removing Electry and the releases pages.
 No invented verification token or duplicate HTML verification tag is needed.
 
 The verified `protocodus.cz` domain property was also linked to the matching

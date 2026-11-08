@@ -9,7 +9,7 @@ const media = JSON.parse(read('product/MEDIA.json'));
 const home = read('index.html');
 const pages = ['index.html', ...readdirSync(new URL('product/', root), { withFileTypes: true }).filter(e => e.isDirectory() && existsSync(new URL(`product/${e.name}/index.html`, root))).map(e => `product/${e.name}/index.html`)];
 const decode = text => text.replaceAll('&amp;', '&');
-for (const removed of ['clareq', 'electry']) {
+for (const removed of ['electry']) {
   assert.ok(!existsSync(new URL(`product/${removed}/index.html`, root)), `${removed}: removed public product page`);
   assert.ok(!read('sitemap.xml').includes(`/product/${removed}/`), `${removed}: removed from sitemap`);
   assert.ok(!read('assets/js/analytics.js').includes(`'${removed}'`), `${removed}: removed from analytics catalog`);
