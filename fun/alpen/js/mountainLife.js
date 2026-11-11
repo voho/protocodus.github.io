@@ -1089,6 +1089,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     const t = Math.min(1, Math.max(0, _sk[1].subVectors(p, a).dot(_sk[0]) / len2));
     return { d: _sk[2].copy(a).addScaledVector(_sk[0], t).distanceTo(p), t };
   }
+  const POLE_RADIUS = 0.012;
   function skinByJoints(g, arms, spine) {
     const p = g.attributes.position;
     const index = new Uint16Array(p.count * 4);
@@ -1120,6 +1121,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
             best = pole.d / 0.03;
             bone = 2 + k * 2;
             w = 1;
+            /* A true-to-life shaft is 16 mm across: under a pixel from
+               twenty metres, so a skier's baskets hung in the air beside
+               him on nothing. Drawn half as thick again the shaft holds a
+               line at the distance the figures are actually seen from. */
+            if (pole.d > 1e-5 && pole.d < POLE_RADIUS) {
+              const axis = _sk[2].copy(gripStart[k]).addScaledVector(_sk[0], pole.t);
+              v.sub(axis).multiplyScalar(POLE_RADIUS / pole.d).add(axis);
+              p.setXYZ(i, v.x, v.y, v.z);
+            }
           }
         }
       });
