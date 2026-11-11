@@ -7,6 +7,15 @@ export function nextPaint() {
   return new Promise(resolve => schedulePaint(() => setTimeout(resolve, 0)));
 }
 
+// Preparation runs in many short steps. Waiting a whole frame after each one made loading take as long
+// as the frame count, however fast the device; steps now share a frame until its CPU budget is spent.
+let sliceEnd = 0;
+export async function paintWhenDue(budget = 12) {
+  if (performance.now() < sliceEnd) return;
+  await nextPaint();
+  sliceEnd = performance.now() + budget;
+}
+
 export async function generateOperation(seed, difficulty, options) {
   const generateLocally = async () => {
     // Local previews can load the game modules while disallowing file-origin workers.

@@ -421,7 +421,7 @@ test('the commander keeps producing while it saves for an expansion, and drops t
   const build=({threat=false,saving=0}={})=>{
     const {s,unit,building}=scene();
     building('barracks',50,4);building('factory',54,12);building('reactor',57,11);building('refinery',62,12);
-    for(let i=0;i<6;i++)unit('rifle',52+i,14);for(let i=0;i<3;i++)unit('harvester',63+i,17);unit('scout',57,12);
+    for(let i=0;i<6;i++)unit('rifle',52+i,14);for(let i=0;i<5;i++)unit('harvester',63+i,17);unit('scout',57,12);
     s.teams[1].credits=1000;s.time=200;
     s.ai.expansion={x:30,y:30,oreX:32.5,oreY:34.5,startedAt:200-saving,lastProgressAt:200,lastX:60,lastY:8};
     if(threat){const raider=unit('rifle',58,10,0);raider.cooldown=1000;}

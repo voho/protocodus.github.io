@@ -1,4 +1,4 @@
-import { nextPaint } from './loading.js';
+import { paintWhenDue } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawSpriteOverlay, releaseSpriteOverlays, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, unitRank, unitRange, buildingRole, unitRole } from './sim.js';
 import { mapRoutes, mapLayout, PROFILE_RELIEF } from './terrain.js';
@@ -89,7 +89,27 @@ function latticeNoise() {
 }
 // Code-drawn gradients, lamps, smoke and fire are baked once into small sprites and scaled with
 // drawImage: a radial gradient or shadowBlur per call was the renderer's largest state churn.
-const SPRITE_RADIUS = 48;
+const SPRITE_RADIUS = 48, GRIT_VARIANTS = 16, GROUND_REPEAT = 480, GRAIN_SIZE = 640, GROUND_MARGIN = 96;
+// The ground texture's fine detail alone: each pixel's difference from its blurred surroundings, as
+// translucent black or white, so a plain source-over fill darkens and lightens without a blend mode.
+function groundGrain(image) {
+  const size = GRAIN_SIZE, low = size / 16, pad = 2;
+  const sharp = document.createElement('canvas'), soft = document.createElement('canvas'), blur = document.createElement('canvas');
+  sharp.width = sharp.height = soft.width = soft.height = size; blur.width = blur.height = low + pad * 2;
+  const s = sharp.getContext('2d', { willReadFrequently: true }), b = blur.getContext('2d'), f = soft.getContext('2d', { willReadFrequently: true });
+  s.drawImage(image, 0, 0, size, size);
+  // The texture tiles, so its blurred copy wraps around the edges too and the grain stays seamless.
+  for (const y of [-1, 0, 1]) for (const x of [-1, 0, 1]) b.drawImage(image, pad + x * low, pad + y * low, low, low);
+  f.drawImage(blur, pad, pad, low, low, 0, 0, size, size);
+  const px = s.getImageData(0, 0, size, size), mean = f.getImageData(0, 0, size, size).data, d = px.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const delta = (d[i] + d[i + 1] + d[i + 2] - mean[i] - mean[i + 1] - mean[i + 2]) / 3;
+    d[i] = d[i + 1] = d[i + 2] = delta > 0 ? 255 : 0; d[i + 3] = Math.min(56, Math.abs(delta) * .9);
+  }
+  s.putImageData(px, 0, 0);
+  soft.width = soft.height = blur.width = blur.height = 0;
+  return sharp;
+}
 const spriteCache = new Map();
 function cachedSprite(key, size, paint, build) {
   let sprite = spriteCache.get(key);
@@ -178,7 +198,7 @@ const SHELL_FLIGHT = .35, GRAVITY = 260, PARTICLE_LIMIT = 900, HIT_FLASH = .11;
 // Tiles a particle or effect may draw beyond its anchor or flight path: a size-3 collapse's debris and sparks
 // land within four tiles, and so does the field patch ring. Anything farther outside the view draws nothing.
 const EFFECT_REACH = 4;
-const SHAKE_LENGTH = .55, SHAKE_LIMIT = 4, VIGNETTE_STEP = 8;
+const SHAKE_LENGTH = .55, SHAKE_LIMIT = 4;
 const WRECK = '#0d0f10';
 const ASH_LAYERS = [
   { share: .5, depth: .45, parallax: .92, fall: 7, size: .9, alpha: .16 },
@@ -714,7 +734,8 @@ export function drawIcon(canvas, type, team = 0, state = {}) {
 
 export class Renderer {
   constructor(canvas, minimapCanvas) {
-    this.canvas = canvas; this.ctx = canvas.getContext('2d');
+    // Every frame repaints the whole battlefield, so neither surface needs an alpha channel to blend.
+    this.canvas = canvas; this.ctx = canvas.getContext('2d', { alpha: false });
     this.minimap = minimapCanvas; this.width = 0; this.height = 0;
     this.terrain = document.createElement('canvas');
     this.fog = document.createElement('canvas');
@@ -823,19 +844,18 @@ export class Renderer {
   releaseTerrain() {
     // Clearing a canvas releases its backing store immediately, including GPU
     // surfaces; dropping JS references alone can retain them until a later GC.
-    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles];
+    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles, this.grain, this.ground];
     surfaces.push(...this.rankBadges.values()); this.rankBadges.clear();
     for (const surface of surfaces) if (surface) surface.width = surface.height = 0;
-    this.terrainSource = this.groundImage = null;
-    this.fogTint = this.minimapBase = this.miniTiles = null;
+    this.terrainSource = this.groundImage = this.groundZoom = null;
+    this.fogTint = this.minimapBase = this.miniTiles = this.grain = this.grainPattern = null;
     this.knownOre = this.knownMineralTypes = this.fogNoise = null;
     this.oreState = this.oreGrid = this.oreTypes = this.fogImage = this.miniImage = this.minimapBounds = null;
     this.fogVisible = this.fogExplored = null;
     this.rockProps = []; this.propRows = []; this.scenery = [];
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
     this.seenEffects = new WeakSet(); this.lastMinimap = -Infinity;
-    if (this.vignette) this.vignette.width = this.vignette.height = 0;
-    this.vignette = null; this.resetFrameState();
+    this.resetFrameState();
     releaseRenderSprites(); releaseSpriteOverlays(); releaseEnvironmentProps();
   }
 
@@ -844,11 +864,9 @@ export class Renderer {
   }
 
   async prepareTerrain(state, onProgress = () => {}) {
-    const steps = this.terrainSteps(state);
-    let deadline = performance.now() + 12;
-    for (const progress of steps) {
+    for (const progress of this.terrainSteps(state)) {
       if (progress) onProgress(progress);
-      if (performance.now() >= deadline) { await nextPaint(); deadline = performance.now() + 12; }
+      await paintWhenDue();
     }
   }
 
@@ -871,7 +889,7 @@ export class Renderer {
     this.lastDecalFade = 0; this.fogVisible = null; this.fogExplored = null; this.rockProps = [];
     this.terrainSource = state.terrain; this.environmentId = environmentId;
     this.groundImage = terrainImages.ground;
-    const ctx = this.terrain.getContext('2d');
+    const ctx = this.terrain.getContext('2d', { alpha: false });
     ctx.setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
     this.decals.getContext('2d').setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
     const seed = [...String(state.seed)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 10000, 17);
@@ -880,15 +898,18 @@ export class Renderer {
     rect(ctx, 0, 0, width, height, `rgb(${environment.ground.map(c => c + 23).join(',')})`);
     if (terrainImages.ground) {
       const pattern = ctx.createPattern(terrainImages.ground, 'repeat');
-      const factor = 480 / terrainImages.ground.width;
+      const factor = GROUND_REPEAT / terrainImages.ground.width;
       pattern.setTransform(new DOMMatrix().scale(factor));
       rect(ctx, 0, 0, width, height, pattern);
       rect(ctx, 0, 0, width, height, environment.wash);
+      this.grain = groundGrain(terrainImages.ground);
+      this.grainPattern = this.ctx.createPattern(this.grain, 'repeat');
     }
     const base = document.createElement('canvas'); base.width = state.width * 4; base.height = state.height * 4;
     this.fogNoise = new Uint8Array(base.width * base.height);
     const baseCtx = base.getContext('2d'), colors = baseCtx.createImageData(base.width, base.height);
     const broadNoise = latticeNoise(), detailNoise = latticeNoise(), rustNoise = latticeNoise();
+    const warm = PROFILE_RELIEF[state.mapProfile]?.tint ?? 0;
     for (let y = 0; y < base.height; y++) {
       if (y % 8 === 0) yield { value: .15 * y / base.height, label: `Laying ${environment.name.toLowerCase()}` };
       for (let x = 0; x < base.width; x++) {
@@ -896,7 +917,6 @@ export class Renderer {
       const detail = detailNoise(x / 13, y / 13, seed + 9);
       const rusty = Math.max(0, rustNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
       const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
-      const warm = PROFILE_RELIEF[state.mapProfile]?.tint ?? 0;
       colors.data[i] = environment.ground[0] + c + rusty * environment.deposit[0] + warm;
       colors.data[i + 1] = environment.ground[1] + c + rusty * environment.deposit[1] + warm * .4;
       colors.data[i + 2] = environment.ground[2] + c + rusty * environment.deposit[2] - warm * .6;
@@ -952,6 +972,18 @@ export class Renderer {
     yield* this.materialSteps(state, ctx, seed);
     yield { value: .5, label: 'Placing stones, vegetation and mineral fields' };
     const scatteredTrees = state.terrain.includes(4);
+    // Seventeen flecks per tile were most of the bake's canvas calls. A few pre-scattered tiles at the bake's
+    // own resolution, picked per tile, read the same and cost one blit each.
+    const grit = [environment.dust, '#111a2433'].map((light, set) => Array.from({ length: GRIT_VARIANTS }, (_, variant) => {
+      const tile = document.createElement('canvas'), g = tile.getContext('2d');
+      tile.width = tile.height = Math.ceil((TILE + 2) * this.terrainScale);
+      g.setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
+      for (let j = 0; j < 17; j++) {
+        const nx = noise(variant * 19 + j, set, seed), ny = noise(set, variant * 19 + j, seed);
+        rect(g, nx * TILE, ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 ? light : '#111a2433');
+      }
+      return tile;
+    }));
     for (let y = 0; y < state.height; y++) {
       yield { value: .5 + .5 * y / state.height, label: 'Placing stones, vegetation and mineral fields' };
       for (let x = 0; x < state.width; x++) {
@@ -988,9 +1020,9 @@ export class Renderer {
         ellipse(ctx, px + 16, py + 18, 33, 26, stain);
       }
       // Rock plates carry their own grit; basalt takes only dark flecks.
-      if (type !== 1) for (let j = 0; j < 17; j++) {
-        const nx = noise(x * 19 + j, y, seed), ny = noise(x, y * 19 + j, seed);
-        rect(ctx, px + nx * TILE, py + ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 && type !== 2 ? environment.dust : '#111a2433');
+      if (type !== 1) {
+        const tile = grit[type === 2 ? 1 : 0][Math.floor(noise(x * 19, y * 19, seed) * GRIT_VARIANTS)];
+        ctx.drawImage(tile, px, py, tile.width / this.terrainScale, tile.height / this.terrainScale);
       }
       if (type === 1 || type === 4) {
         const cx = px + 16 + (n - .5) * 9, cy = py + 20 + (noise(x, y, seed + 2) - .5) * 9;
@@ -1042,6 +1074,8 @@ export class Renderer {
     }
     // The noise bake is only needed for the colours above; release its store now.
     base.width = base.height = 0;
+    for (const tile of grit.flat()) tile.width = tile.height = 0;
+    this.groundZoom = null;
     yield { value: 1, label: 'Battlefield ready' };
   }
 
@@ -1059,38 +1093,64 @@ export class Renderer {
     };
     const release = (...surfaces) => { for (const c of surfaces) if (c && !free.includes(c)) free.push(c); };
     try {
+    // Materials cover a fraction of the map. Each mask keeps the rows of 8-tile blocks it can reach, with a
+    // margin wider than any blur or offset below, so readbacks and full-map blits skip the empty ground.
+    const BLOCK = 8, MARGIN = 3, bw = Math.ceil(state.width / BLOCK), bh = Math.ceil(state.height / BLOCK), reach = new Map();
+    const within = (target, mask, unit) => {
+      target.beginPath();
+      for (const [x, y, w] of reach.get(mask)) target.rect(x * unit, y * unit, w * unit, BLOCK * unit);
+      target.clip();
+    };
     // Tile test -> soft, organic alpha mask (blur, then threshold).
     const tileMask = (test, blur = 4) => {
-      const raw = scratch(), r = raw.getContext('2d');
-      for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) if (test(y * state.width + x, x, y)) r.fillRect(x * 8, y * 8, 8, 8);
+      const raw = scratch(), r = raw.getContext('2d'), on = new Uint8Array(bw * bh);
+      for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) if (test(y * state.width + x, x, y)) {
+        r.fillRect(x * 8, y * 8, 8, 8);
+        const x0 = Math.max(0, x - MARGIN) / BLOCK | 0, x1 = Math.min(state.width - 1, x + MARGIN) / BLOCK | 0;
+        const y0 = Math.max(0, y - MARGIN) / BLOCK | 0, y1 = Math.min(state.height - 1, y + MARGIN) / BLOCK | 0;
+        on[y0 * bw + x0] = on[y0 * bw + x1] = on[y1 * bw + x0] = on[y1 * bw + x1] = 1;
+      }
+      const runs = [];
+      for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) if (on[y * bw + x]) {
+        const start = x; while (x < bw && on[y * bw + x]) x++;
+        runs.push([start * BLOCK, y * BLOCK, (x - start) * BLOCK]);
+      }
       const soft = scratch(), s = soft.getContext('2d');
       s.filter = `blur(${blur}px)`; s.drawImage(raw, 0, 0); s.filter = 'none'; release(raw);
-      const px = s.getImageData(0, 0, mw, mh);
-      for (let i = 3; i < px.data.length; i += 4) px.data[i] = px.data[i] >= 128 ? 255 : 0;
-      s.putImageData(px, 0, 0); return soft;
+      for (const [x, y, w] of runs) {
+        const px = s.getImageData(x * 8, y * 8, Math.min(mw - x * 8, w * 8), Math.min(mh - y * 8, BLOCK * 8));
+        for (let i = 3; i < px.data.length; i += 4) px.data[i] = px.data[i] >= 128 ? 255 : 0;
+        s.putImageData(px, x * 8, y * 8);
+      }
+      reach.set(soft, runs); return soft;
     };
     // Flat colour through a mask; offsets and blur are in world pixels.
     const stamp = (mask, color, dx = 0, dy = 0, alpha = 1, blur = 0) => {
       const c = scratch(), t = c.getContext('2d');
+      within(t, mask, 8);
       if (blur) t.filter = `blur(${blur / 4}px)`;
       t.drawImage(mask, 0, 0); t.filter = 'none';
       t.globalCompositeOperation = 'source-in'; t.fillStyle = color; t.fillRect(0, 0, mw, mh);
-      ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(c, dx, dy, width, height); ctx.restore();
+      ctx.save(); within(ctx, mask, TILE);
+      ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(c, dx, dy, width, height); ctx.restore();
       release(c);
     };
     // Per-pixel material at 4 px/tile, upsampled and clipped by the mask.
     const plate = function* (mask, paint) {
       const lw = state.width * 4, lh = state.height * 4, low = document.createElement('canvas'); low.width = lw; low.height = lh;
       const l = low.getContext('2d'), img = l.createImageData(lw, lh);
-      for (let y = 0; y < lh; y++) {
-        if (y % 8 === 0) yield;
-        for (let x = 0; x < lw; x++) paint(x, y, img.data, (y * lw + x) * 4);
+      for (const [bx, by, w] of reach.get(mask)) {
+        yield;
+        for (let y = by * 4; y < Math.min(lh, (by + BLOCK) * 4); y++)
+          for (let x = bx * 4; x < Math.min(lw, (bx + w) * 4); x++) paint(x, y, img.data, (y * lw + x) * 4);
       }
       l.putImageData(img, 0, 0);
       const c = scratch(), t = c.getContext('2d');
+      within(t, mask, 8);
       t.imageSmoothingEnabled = true; t.drawImage(low, 0, 0, mw, mh); low.width = low.height = 0;
       t.globalCompositeOperation = 'destination-in'; t.drawImage(mask, 0, 0);
-      ctx.imageSmoothingEnabled = true; ctx.drawImage(c, 0, 0, width, height);
+      ctx.save(); within(ctx, mask, TILE);
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(c, 0, 0, width, height); ctx.restore();
       release(c);
     };
     // A tighter blur keeps single rock tiles on the plate while corners still round.
@@ -1119,7 +1179,8 @@ export class Renderer {
       });
       const innerEdge = (dx, dy) => {
         const edge = scratch(), e = edge.getContext('2d'); e.drawImage(craterMask, 0, 0);
-        e.globalCompositeOperation = 'destination-out'; e.drawImage(craterMask, dx / 4, dy / 4); return edge;
+        e.globalCompositeOperation = 'destination-out'; e.drawImage(craterMask, dx / 4, dy / 4);
+        reach.set(edge, reach.get(craterMask)); return edge;
       };
       // The sunken near wall faces the upper-left light; the opposite inner wall stays in shadow.
       for (const [dx, dy, color, alpha, blur] of [[7, 9, '#182228', .43, 3], [-6, -8, '#a3957d', .38, 2], [-2, -3, '#b6aa91', .26, 0]]) {
@@ -1637,18 +1698,30 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  vignetteImage() {
-    // One small radial-gradient bake per viewport size, stretched every frame.
-    const key = `${this.width}x${this.height}`;
-    if (this.vignette && this.vignetteKey === key) return this.vignette;
-    if (this.vignette) this.vignette.width = this.vignette.height = 0;
-    const k = VIGNETTE_STEP, c = document.createElement('canvas'), w = this.width / k, h = this.height / k;
-    c.width = Math.ceil(w); c.height = Math.ceil(h);
-    const g = c.getContext('2d'), gradient = g.createRadialGradient(w / 2, h / 2, w * .2, w / 2, h / 2, w * .72);
-    gradient.addColorStop(0, '#07111c00'); gradient.addColorStop(1, '#07111c38');
-    g.fillStyle = gradient; g.fillRect(0, 0, c.width, c.height);
-    this.vignette = c; this.vignetteKey = key;
-    return c;
+  // The ground under everything. The terrain bake is capped in size, so close zooms enlarge it; the ground
+  // texture's fine grain goes back on top, registered with the baked copy beneath it, in proportion to that
+  // enlargement. Both are kept at screen resolution with a margin, so a still or slowly panning camera pays one
+  // unscaled copy per frame and only a pan past the margin or a zoom repaints them.
+  drawGround(ctx, left, top, zoom, W, H) {
+    const M = GROUND_MARGIN, dpr = this.dpr, ground = this.ground ||= document.createElement('canvas');
+    const w = Math.ceil((this.width + 2 * M) * dpr), h = Math.ceil((this.height + 2 * M) * dpr);
+    if (ground.width !== w || ground.height !== h) { ground.width = w; ground.height = h; this.groundZoom = null; }
+    if (this.groundZoom !== zoom || Math.abs(left - this.groundLeft) > M || Math.abs(top - this.groundTop) > M) {
+      const g = ground.getContext('2d', { alpha: false }), scale = zoom / TILE, enlarged = scale / this.terrainScale;
+      g.setTransform(dpr, 0, 0, dpr, M * dpr, M * dpr); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'low';
+      rect(g, -M, -M, this.width + 2 * M, this.height + 2 * M, '#0e1720');
+      g.drawImage(this.terrain, left, top, W * zoom, H * zoom);
+      if (this.grainPattern && enlarged > 1.15) {
+        const k = GROUND_REPEAT / this.grain.width * scale;
+        this.grainPattern.setTransform(new DOMMatrix([k, 0, 0, k, left, top]));
+        g.globalAlpha = Math.min(1, (enlarged - 1.15) / .85);
+        rect(g, left, top, W * zoom, H * zoom, this.grainPattern);
+        g.globalAlpha = 1;
+      }
+      this.groundZoom = zoom; this.groundLeft = left; this.groundTop = top;
+    }
+    // Whole device pixels keep the copy unfiltered; the ground sits at most half a pixel off the bodies on it.
+    ctx.drawImage(ground, Math.round((left - this.groundLeft - M) * dpr) / dpr, Math.round((top - this.groundTop - M) * dpr) / dpr, w / dpr, h / dpr);
   }
 
   // In the live loop visibility changes only inside a simulation tick, so frames between ticks skip the
@@ -1728,8 +1801,7 @@ export class Renderer {
     const y1 = Math.min(state.height, Math.ceil(view.y + this.height / zoom / 2) + 3);
     // Sprites leave high-quality smoothing behind; the terrain blit keeps the context default.
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
-    rect(ctx, 0, 0, this.width, this.height, '#0e1720');
-    ctx.drawImage(this.terrain, left, top, W * zoom, state.height * zoom);
+    this.drawGround(ctx, left, top, zoom, W, state.height);
     this.trackFlights(state, time, clock);
     this.drawDecals(state, visible, time, clock);
     ctx.drawImage(this.decals, left, top, W * zoom, state.height * zoom);
@@ -2218,8 +2290,6 @@ export class Renderer {
       ctx.strokeStyle = '#b8e4e990'; ctx.lineWidth = 1;
       ctx.strokeRect(Math.min(x1, x2) + .5, Math.min(y1, y2) + .5, Math.abs(x2 - x1), Math.abs(y2 - y1));
     }
-    const vignette = this.vignetteImage();
-    ctx.imageSmoothingEnabled = true; ctx.drawImage(vignette, 0, 0, vignette.width * VIGNETTE_STEP, vignette.height * VIGNETTE_STEP);
     if (performance.now() - this.lastMinimap > 130) {
       this.drawMinimap(state, view, entityVisible); this.lastMinimap = performance.now();
     } else this.drawMinimapOverlay(state, view);
