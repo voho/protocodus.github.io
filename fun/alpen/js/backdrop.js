@@ -38,6 +38,7 @@
    mountains behind it rather than into empty sky. */
 
 import { parseGlb } from './glb.js';
+import { getWorldSeed } from './noise.js';
 
 export const BACKDROP_GLB = new URL('../assets/models/backdrop/alps.glb', import.meta.url).href;
 export const BACKDROP_SHAPE = new URL('../assets/textures/backdrop/alps-shape.webp', import.meta.url).href;
@@ -56,6 +57,57 @@ const TAU = Math.PI * 2;
 const LND = Math.log(BACKDROP.distance[1] / BACKDROP.distance[0]);
 const RSPAN = BACKDROP.radius[1] - BACKDROP.radius[0];
 const SKYLINE_BINS = 720;
+
+/* The seeded relief (see BACKDROP_VERT): three fields' tile sizes in metres
+   and weights, where the finest fades out, where the relief fades in past
+   the model's foot, and its amplitude near and far. One table, because the
+   vertex shader that draws it and the skyline that hides the sun behind it
+   must be the same mountain. */
+const VARY = {
+  tile: [26000, 9000, 4300],
+  weight: [1, 0.6, 0.45],
+  knollFade: [5000, 12000],
+  fadeIn: 2900,
+  amp: [420, 750],
+  ampSpan: [3000, 20000],
+};
+const smooth = (a, b, x) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/* What the GPU's `textureLod(uNoise, uv, 0.0)` returns for one channel:
+   bilinear, repeating, the canvas's top row at v = 1. */
+export function fieldSampler(texture) {
+  const cv = texture?.image;
+  const data = cv?.getContext?.('2d')?.getImageData?.(0, 0, cv.width, cv.height)?.data;
+  if (!data) return null;
+  const w = cv.width;
+  const h = cv.height;
+  const texel = (i, j, c) => data[((h - 1 - ((j % h) + h) % h) * w + ((i % w) + w) % w) * 4 + c] / 255;
+  return (u, v, c) => {
+    const x = u * w - 0.5;
+    const y = v * h - 0.5;
+    const i = Math.floor(x);
+    const j = Math.floor(y);
+    const fx = x - i;
+    const fy = y - j;
+    return (texel(i, j, c) * (1 - fx) + texel(i + 1, j, c) * fx) * (1 - fy)
+      + (texel(i, j + 1, c) * (1 - fx) + texel(i + 1, j + 1, c) * fx) * fy;
+  };
+}
+
+/* Metres the relief raises the real point (x, z), d away: the vertex
+   shader's `lift`, term for term. */
+export function backdropLift(sample, vary, x, z, d) {
+  const [t0, t1, t2] = VARY.tile;
+  const lift = (sample(x / t0 + vary.x, z / t0 + vary.y, 0) - 0.5) * VARY.weight[0]
+    + (sample(x / t1 + vary.y * 1.7, z / t1 + vary.x * 1.7, 1) - 0.5) * VARY.weight[1]
+    + (sample(x / t2 - vary.x * 2.3, z / t2 - vary.y * 2.3, 2) - 0.5) * VARY.weight[2]
+      * (1 - smooth(VARY.knollFade[0], VARY.knollFade[1], d));
+  const amp = VARY.amp[0] + (VARY.amp[1] - VARY.amp[0]) * smooth(VARY.ampSpan[0], VARY.ampSpan[1], d);
+  return lift * smooth(BACKDROP.distance[0], VARY.fadeIn, d) * amp;
+}
 
 /* The real distance a drawn radius stands for. */
 export function backdropDistance(r) {
@@ -81,16 +133,23 @@ export function backdropGeometry(THREE, prim) {
 /* The skyline, as the elevation of the highest vertex on every half degree
    of bearing (dilated by a bin each way, so the line between two vertices
    is never under the table). Bearings are the sun's: from straight down the
-   run (-z) towards +x. Used to set the sun behind the peaks. */
-export function backdropSkyline(nodes, bins = SKYLINE_BINS) {
+   run (-z) towards +x. Used to set the sun behind the peaks. `lift`, when
+   given, is the seeded relief in metres at a real point — without it the
+   sun set behind the model's crests rather than the ones drawn. */
+export function backdropSkyline(nodes, bins = SKYLINE_BINS, lift = null) {
   const raw = new Float32Array(bins).fill(-Math.PI / 2);
   for (const node of Object.values(nodes)) {
     for (const prim of node.prims) {
       const p = prim.attributes.POSITION;
       for (let i = 0; i < p.length; i += 3) {
         const x = p[i];
-        const y = p[i + 1];
+        let y = p[i + 1];
         const z = p[i + 2];
+        if (lift) {
+          const r = Math.hypot(x, z);
+          const d = backdropDistance(r);
+          y += lift(x * d / r, z * d / r, d) * r / d;
+        }
         let b = Math.atan2(x, -z);
         if (b < 0) b += TAU;
         const k = Math.min(bins - 1, Math.floor((b / TAU) * bins));
@@ -162,14 +221,19 @@ const BACKDROP_VERT = `
        and the far ranges move most, since a few hundred metres is what it
        takes to change the outline of a peak twenty kilometres off. The
        baked normals and horizons are left as they are: the slopes this
-       adds are a tenth, well inside what the maps' own relief hides. */
-    float lift = (textureLod(uNoise, real.xz / 26000.0 + uVary, 0.0).r - 0.5)
-      + (textureLod(uNoise, real.xz / 9000.0 + uVary.yx * 1.7, 0.0).g - 0.5) * 0.6
+       adds are a tenth, well inside what the maps' own relief hides. The
+       skyline table the sun sets behind does follow it (backdropLift). */
+    float lift = (textureLod(uNoise, real.xz / ${VARY.tile[0].toFixed(1)} + uVary, 0.0).r - 0.5)
+        * ${VARY.weight[0].toFixed(2)}
+      + (textureLod(uNoise, real.xz / ${VARY.tile[1].toFixed(1)} + uVary.yx * 1.7, 0.0).g - 0.5)
+        * ${VARY.weight[1].toFixed(2)}
       // knolls and saddles, only where the mesh is fine enough to hold them
-      + (textureLod(uNoise, real.xz / 4300.0 - uVary * 2.3, 0.0).b - 0.5) * 0.45
-        * (1.0 - smoothstep(5000.0, 12000.0, d));
-    lift *= smoothstep(${BACKDROP.distance[0].toFixed(1)}, 2900.0, d)
-      * mix(420.0, 750.0, smoothstep(3000.0, 20000.0, d));
+      + (textureLod(uNoise, real.xz / ${VARY.tile[2].toFixed(1)} - uVary * 2.3, 0.0).b - 0.5)
+        * ${VARY.weight[2].toFixed(2)}
+        * (1.0 - smoothstep(${VARY.knollFade[0].toFixed(1)}, ${VARY.knollFade[1].toFixed(1)}, d));
+    lift *= smoothstep(${BACKDROP.distance[0].toFixed(1)}, ${VARY.fadeIn.toFixed(1)}, d)
+      * mix(${VARY.amp[0].toFixed(1)}, ${VARY.amp[1].toFixed(1)},
+        smoothstep(${VARY.ampSpan[0].toFixed(1)}, ${VARY.ampSpan[1].toFixed(1)}, d));
     real.y += lift;
     p.y += lift * r / d;
     /* The piste's wander, as real parallax: a step sideways of L metres
@@ -578,7 +642,13 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
       probeMesh.renderOrder = 1;
       probeGroup.add(probeMesh);
     }
-    table = backdropSkyline(nodes);
+    /* Where in the fields this run's ranges are cut: two golden-ratio
+       hashes of the seed, which is fixed for the life of the page. */
+    const seed = getWorldSeed();
+    const vary = uniforms.uVary.value.set((seed * 0.6180339887) % 1, (seed * 0.7548776662) % 1);
+    const sample = fieldSampler(noise);
+    table = backdropSkyline(nodes, SKYLINE_BINS,
+      sample && ((x, z, d) => backdropLift(sample, vary, x, z, d)));
     loaded = true;
   }
 

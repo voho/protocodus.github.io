@@ -2692,6 +2692,26 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   for (let d = 0; d < 360; d += 5) {
     assert.ok(deg(d) > -2 && deg(d) < 20, `a believable skyline at ${d}°: ${deg(d).toFixed(1)}°`);
   }
+  // The seeded relief moves the skyline the sun sets behind with the drawn
+  // range: a uniform rise lifts every bearing, by degrees and not by peaks,
+  // and the extreme fields a seed can draw still leave a believable skyline.
+  {
+    const raised = bd.backdropSkyline(nodes, undefined, () => 300);
+    for (let d = 0; d < 360; d += 5) {
+      const rise = (bd.skylineAt(raised, d * Math.PI / 180) - bd.skylineAt(skyline, d * Math.PI / 180)) * 180 / Math.PI;
+      assert.ok(rise > 0.05 && rise < 8, `the skyline follows the relief at ${d}°: +${rise.toFixed(2)}°`);
+    }
+    assert.equal(bd.backdropLift(() => 0.5, { x: 0.3, y: 0.7 }, 5000, -9000, 12000), 0, 'a level field lifts nothing');
+    assert.equal(bd.backdropLift(() => 1, { x: 0, y: 0 }, 0, -2400, 2400), 0, 'the foot of the model does not move');
+    for (const extreme of [0, 1]) {
+      const pushed = bd.backdropSkyline(nodes, undefined,
+        (x, z, d) => bd.backdropLift(() => extreme, { x: 0, y: 0 }, x, z, d));
+      for (let d = 0; d < 360; d += 5) {
+        const e = bd.skylineAt(pushed, d * Math.PI / 180) * 180 / Math.PI;
+        assert.ok(e > -3 && e < 22, `a believable skyline under relief ${extreme} at ${d}°: ${e.toFixed(1)}°`);
+      }
+    }
+  }
   // The maps: WebP, at the sizes the shader's frame assumes (u round the
   // ring, v out along it).
   const webpSize = (buf) => {
