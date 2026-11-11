@@ -268,7 +268,7 @@
    `update`, because the answer depends on where the chase camera ended up
    this frame and `update` runs before the chase camera has decided. */
 
-import { snoise2, noise2, hash2 } from './noise.js';
+import { snoise2, noise2, hash2, getWorldSeed } from './noise.js';
 import { heightAt, nearestCenter } from './terrain.js';
 import { TERRAIN, RENDER, MOBILE_RENDER } from './config.js';
 import { SKY_GLSL } from './shading.js';
@@ -3251,6 +3251,9 @@ export function createSky(THREE) {
        edge stands at the curtain's pitch. */
     bu.uShear.value = pitch + 0.02 - 0.195;
     bu.uLateral.value = lateral;
+    // two golden-ratio hashes of the seed: where in the fields this run's ranges are cut
+    const seed = getWorldSeed();
+    bu.uVary.value.set((seed * 0.6180339887) % 1, (seed * 0.7548776662) % 1);
     /* The sea of cloud is a settled airmass's and a cold hour's: the same
        damp the mist reads, under a high with no front in it, thinning as
        the sun climbs (the mist's own `cold` term already does that). Its

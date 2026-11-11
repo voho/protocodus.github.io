@@ -132,6 +132,8 @@ const BACKDROP_VERT = `
   attribute vec4 aHorizonB;
   uniform float uLateral;
   uniform float uShear;
+  uniform sampler2D uNoise;
+  uniform vec2 uVary;
   uniform vec4 uSunA;
   uniform vec4 uSunB;
 #ifdef SKY_PROBE
@@ -147,6 +149,29 @@ const BACKDROP_VERT = `
     float d = ${BACKDROP.distance[0].toFixed(1)} * exp((r - ${BACKDROP.radius[0].toFixed(1)})
       / ${RSPAN.toFixed(1)} * ${LND.toFixed(6)});
     vec3 p = position;
+    vec3 real = position * (d / r);
+    /* EVERY MOUNTAIN ITS OWN RANGE. The model is one landscape, and two
+       things about it showed: every run looked out at the same peaks, and
+       the valley rim facing the piste is a ridge a couple of kilometres
+       long with a dead level crest, which reads as a dam. The ground is
+       raised and lowered here by three slow fields — massifs three kilometres
+       across, shoulders of one and knolls of half that — offset by the run's seed, so a crest
+       no longer holds one height along its length and the skyline is a
+       different one for every seed. Nothing moves inside the first
+       kilometre of the model, where it has to meet the game's own ground,
+       and the far ranges move most, since a few hundred metres is what it
+       takes to change the outline of a peak twenty kilometres off. The
+       baked normals and horizons are left as they are: the slopes this
+       adds are a tenth, well inside what the maps' own relief hides. */
+    float lift = (textureLod(uNoise, real.xz / 26000.0 + uVary, 0.0).r - 0.5)
+      + (textureLod(uNoise, real.xz / 9000.0 + uVary.yx * 1.7, 0.0).g - 0.5) * 0.6
+      // knolls and saddles, only where the mesh is fine enough to hold them
+      + (textureLod(uNoise, real.xz / 4300.0 - uVary * 2.3, 0.0).b - 0.5) * 0.45
+        * (1.0 - smoothstep(5000.0, 12000.0, d));
+    lift *= smoothstep(${BACKDROP.distance[0].toFixed(1)}, 2900.0, d)
+      * mix(420.0, 750.0, smoothstep(3000.0, 20000.0, d));
+    real.y += lift;
+    p.y += lift * r / d;
     /* The piste's wander, as real parallax: a step sideways of L metres
        turns a point d away by L/d, which at the radius it is drawn at is
        L·r/d. The near ridges slide across the far ones. */
@@ -159,7 +184,7 @@ const BACKDROP_VERT = `
        the eye until their foot meets the ground's far edge, easing back to
        the model's true elevations by the valley floor. */
     p.y -= r * uShear * (1.0 - smoothstep(${BACKDROP.distance[0].toFixed(1)}, 9000.0, d));
-    vReal = position * (d / r);
+    vReal = real;
     vDist = d;
     vDir = p;
     // The horizon on the sun's bearing, between the two baked either side,
@@ -477,6 +502,7 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
   const probeGroup = new THREE.Group();
   const uniforms = {
     uLateral: { value: 0 },
+    uVary: { value: new THREE.Vector2() },
     uSunA: { value: new THREE.Vector4() },
     uSunB: { value: new THREE.Vector4() },
     uSunDir: { value: sunDir },
