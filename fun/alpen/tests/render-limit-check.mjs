@@ -71,6 +71,9 @@ console.log('Render limits passed: texture, renderbuffer, viewport, aspect and n
   // Callback times that wobble by a millisecond do not change the rate.
   assert(Math.abs(drawn(120, 1).fps - 60) < 0.5);
   assert(Math.abs(drawn(60, 2).fps - 60) < 0.5);
+  assert(Math.abs(drawn(168, 1).fps - 84) < 0.5);
+  assert(Math.abs(drawn(165, 2).fps - 82.5) < 0.5);
+  assert(Math.abs(drawn(240, 1).fps - 60) < 0.5);
   // A dropped refresh costs that refresh, not a second one on top of it.
   assert(drawn(144, 0, 7).worst < 3 * 1000 / 144 + 0.01);
   // A GPU that only manages every second refresh of a 144 Hz panel is left alone.

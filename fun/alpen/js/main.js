@@ -1734,7 +1734,8 @@ const skipFrame = createFramePacer(RENDER.frameMs);
 
 function frame(now) {
   requestAnimationFrame(frame);
-  if (skipFrame(now, last)) return;
+  // A pending resize clears the canvas, so its frame is always drawn.
+  if (skipFrame(now, last) && !resizeFrame) return;
   const cpuStart = performance.now();
   /* A pending resize is applied here, before this frame draws, rather than in
      its own callback. That callback was queued after this one, so it resized

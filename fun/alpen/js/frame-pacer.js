@@ -7,9 +7,11 @@
    number of refreshes so the pacing stays even.
 
    The panel's period is learnt from the callbacks, which arrive once a
-   refresh whether or not one is drawn. It follows a shorter gap quickly and a
-   longer one slowly, so a hitch does not read as a slower panel, while a GPU
-   that cannot keep up stretches every gap and lifts the cap by itself. The
+   refresh whether or not one is drawn. Gaps near the current estimate are
+   averaged evenly, because weighting short ones more reads ordinary jitter
+   as a faster panel and skips one refresh too many. A much longer gap moves
+   it slowly, so a hitch does not read as a slower panel, while a GPU that
+   cannot keep up stretches every gap and lifts the cap by itself. The
    skip is judged against the clock, not counted, so a refresh the browser
    dropped is not waited out a second time.
 
@@ -22,7 +24,7 @@ export function createFramePacer(frameMs) {
   return (now, lastDrawn) => {
     const gap = now - lastCallback;
     lastCallback = now;
-    if (gap > 0 && gap < 50) refreshMs += (gap - refreshMs) * (gap < refreshMs ? 0.2 : 0.02);
+    if (gap > 0 && gap < 50) refreshMs += (gap - refreshMs) * (gap < refreshMs * 1.4 ? 0.05 : 0.02);
     const every = Math.floor(frameMs / refreshMs);
     return every > 1 && lastDrawn > 0 && now - lastDrawn < (every - 0.5) * refreshMs;
   };
