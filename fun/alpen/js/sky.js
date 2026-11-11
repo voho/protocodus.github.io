@@ -310,6 +310,11 @@ const SHADOW_MAP_FAR = 1024;
    actually in. */
 const SHADOW_BIAS_TEXELS = 2.0;
 const SHADOW_MAP = MOBILE_RENDER ? SHADOW_MAP_FAR : SHADOW_MAP_NEAR;
+/* Metres of clear-day air that take 1/e of a distant mountain. At 80 km
+   a ridge at thirty kilometres kept the contrast of one at five and the
+   range read as a single cut-out; at this, each ridge behind the last is a
+   step paler and bluer, which is what gives the view its depth. */
+const BACKDROP_CLARITY = 46000;
 // Metres of world per texel — the unit the two offsets below are really in.
 const SHADOW_TEXEL = (2 * SHADOW_REACH) / SHADOW_MAP;
 const SHADOW_RADIUS_TEXELS = 2.5;
@@ -3236,7 +3241,7 @@ export function createSky(THREE) {
     bu.uGlow.value.copy(atmosphere.glow);
     bu.uGlowStrength.value = 1 - w.storm * 0.8;
     bu.uCurtain.value = -(pitch + 0.015);
-    bu.uClarity.value = 80000 * (1 - 0.85 * ramp(w.storm, 0.05, 0.6))
+    bu.uClarity.value = BACKDROP_CLARITY * (1 - 0.85 * ramp(w.storm, 0.05, 0.6))
       * (1 - 0.35 * ramp(w.cloud, 0.3, 1));
     bu.uWhiteout.value = Math.max(ramp(w.storm, 0.28, 0.82), 1 - backdropShown);
     // the valleys fill as the fog closes in

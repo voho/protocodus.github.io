@@ -561,7 +561,7 @@ export function createChaseCamera(THREE, camera) {
     // out again to keep the landing in view, and a hard touchdown still gets
     // its brief lens punch.
     // Squared up to the old full opening, then linear with the asymptote:
-    // 72° at 42 m/s as before, about 75° at the flow ceiling.
+    // `fovAtSpeed` (76°) at 42 m/s, about 80° at the flow ceiling.
     const lens = openRatio * openRatio + Math.max(0, ratio - 1);
     // Comfort removes decorative zoom and banking. Flight opening and the
     // collision compensation below still keep the landing and rider visible.

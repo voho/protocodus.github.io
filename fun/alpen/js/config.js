@@ -60,9 +60,12 @@ export const RENDER = {
      The old 43-degree end point produced the opposite cue: a long telephoto
      view that flattened the piste and made side walls fill the frame. The
      post stack already supplies a restrained peripheral tunnel, while the
-     board, spray and passing trees are the physical cues. A seven-degree
-     opening keeps the rider readable and lets the mountain rush past. */
-  fovAtSpeed: 72,
+     board, spray and passing trees are the physical cues. Seven degrees of
+     opening kept the rider readable but was hard to notice at all: a
+     hundred kilometres an hour looked like forty with a bigger number.
+     Eleven is felt as the trees start to stream past the frame's edges,
+     and is still far short of the fisheye that shrinks the rider. */
+  fovAtSpeed: 76,
   near: 0.5,
   far: 3600,
   /* The draw distance is a curtain of haze, and everything is arranged
@@ -147,7 +150,9 @@ export const GRADE = {
      numbers are barely perceptible. Doubling them puts the effect back where
      it reads — and it all still starts from nothing below `blurFrom`, so a
      slow run is as clean as it ever was. */
-  blurFrom: 24,       // m/s before tunnel vision starts to become visible
+  /* 65 km/h. At 24 a rider met the treatment only on a straight schuss;
+     carving a red run sits around twenty and never saw it. */
+  blurFrom: 18,       // m/s before tunnel vision starts to become visible
   /* The treatment stays useful across the full 50–250 m/s flow range.
 
      This used to be `blurFull: 48` — a linear ramp clamped at forty-eight
@@ -2350,8 +2355,8 @@ export const TRAIL = {
    speed the rider had to earn, and they are what turns fast into *fast*. */
 export const STREAKS = {
   count: 220,
-  from: 26,           // m/s before any appear
-  full: 44,           // and where the field is at its thickest
+  from: 19,           // m/s before any appear
+  full: 38,           // and where the field is at its thickest
   length: 0.11,       // share of a streak's own velocity, per unit speed
   maxLength: 22,      // metres — infinite W speed must not become white bars
   radius: 13,
