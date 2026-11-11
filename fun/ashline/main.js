@@ -1328,6 +1328,13 @@ async function prepareOperation(restore = false) {
       doctrine: $('rival-doctrine').value, mode: $('skirmish-mode').value,
     }) : null;
     const mission = skirmish ? campaign.skirmishMission(skirmish.mode) : null;
+    // The sector generates in its worker while the art downloads and decodes. A campaign operation brings its
+    // own settings and ignores the rival commander choice; a skirmish, in any mode, reads the setup form.
+    const launchSettings = operation ?? skirmish;
+    const generated = restored ? null : generateOperation(seed, launchSettings.difficulty, {
+      ...launchSettings.options, ...(mission ? { mission } : {}),
+    });
+    generated?.catch(() => {}); // Reported when awaited below, after the art.
     updateLoading(2, 'Loading units and structures');
     assetTimer = setInterval(() => updateLoading(2 + assetStatus.loaded / assetStatus.total * 32,
       assetStatus.loaded === assetStatus.total ? 'Preparing faction colors' : `Loading units and structures · ${assetStatus.loaded} / ${assetStatus.total}`), 60);
@@ -1336,12 +1343,7 @@ async function prepareOperation(restore = false) {
     if (!assetStatus.ready) { $('loading-back').dataset.reload = 'true'; $('loading-back').textContent = 'Reload and retry'; throw new Error('Some battlefield art could not load. Reload the page to retry.'); }
     updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
     await nextPaint();
-    // A campaign operation brings its own settings and ignores the rival commander choice; a skirmish, in
-    // any mode, reads the setup form.
-    const launchSettings = operation ?? skirmish;
-    const prepared = restored?.game || await generateOperation(seed, launchSettings.difficulty, {
-      ...launchSettings.options, ...(mission ? { mission } : {}),
-    });
+    const prepared = restored?.game || await generated;
     updateLoading(40, 'Preparing the battlefield');
     await nextPaint();
     await reset(prepared, restored);

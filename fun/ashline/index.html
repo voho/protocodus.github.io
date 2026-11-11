@@ -20,7 +20,7 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fonts/oxanium-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="./ashline.css?v=aaa-20261010">
+  <link rel="stylesheet" href="./ashline.css?v=aaa-20261111">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -74,6 +74,7 @@
 
     <main class="battlefield" id="battlefield">
       <canvas id="world" tabindex="0" aria-label="Battlefield. Select units with left click or drag. Right click to gather, attack, or harvest. Hold right click and drag to preserve and rotate the formation. WASD or arrow keys pan the camera. Q attack move. H stop. F unit ability. Backspace jumps to the latest alert. Period and comma cycle idle units and idle production. Five zoom levels."></canvas>
+      <div class="vignette" aria-hidden="true"></div>
       <div id="terrain-readout" hidden></div>
       <div id="notifications" aria-hidden="true"></div>
       <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -197,6 +198,6 @@
   <div id="boot-error" class="no-script" hidden>Ashline could not start. Reload the page or try a current browser.</div>
   <script>(function(){var show=function(e){if(!(window.ashline&&window.ashline.booted)&&(e.target===window||e.type==='unhandledrejection'||(e.target&&e.target.tagName==='SCRIPT')))document.getElementById('boot-error').hidden=false;};addEventListener('error',show,true);addEventListener('unhandledrejection',show);})()</script>
   <script nomodule>document.getElementById('boot-error').hidden=false</script>
-  <script type="module" src="./main.js?v=aaa-20261010"></script>
+  <script type="module" src="./main.js?v=aaa-20261111"></script>
 </body>
 </html>

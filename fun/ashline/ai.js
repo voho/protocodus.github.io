@@ -50,10 +50,13 @@ export const DOCTRINES={
 // Difficulty is behaviour as well as pace. Cadet thinks slowly, attacks late with small fixed columns, never
 // retreats, adapts or uses abilities; Commander adapts and fights with abilities; Veteran adds focus fire,
 // hauler raids, walls and a faster cadence. retreat/commit compare Lanchester sums of aiCombatPower.
+// crews is the haulers kept per finished refinery, plus one, up to haulers. Two left the fields half worked:
+// in mirrored duels a commander with three beat one with two in 34 of 48 games (Commander), four beat two
+// in 40 of 48 (Veteran), and five did no better than four.
 const LEVELS={
   easy:{think:3.5,firstRaid:300,cadence:150,waveMin:8,waveMax:8,armyCap:13,caps:{rifle:6,rocket:2,scout:1,tank:4,artillery:0,striker:0},bases:2,expandAt:240,expandEvery:240,towers:2,adapt:0,focus:0,abilities:false,lanchester:false,retreat:0,commit:1,rescout:0,lab:false,queue:1,producers:1,haulers:2},
-  normal:{think:2,firstRaid:150,cadence:90,waveMin:7,waveMax:12,armyCap:48,bases:4,expandAt:180,expandEvery:150,towers:2,adapt:1,focus:0,abilities:true,lanchester:true,retreat:.6,commit:1.15,rescout:80,lab:true,queue:2,producers:3,haulers:7},
-  hard:{think:1.2,firstRaid:100,cadence:50,waveMin:5,waveMax:60,armyCap:160,bases:6,expandAt:120,expandEvery:150,towers:3,adapt:1.5,focus:3,abilities:true,lanchester:true,retreat:.8,commit:1.3,rescout:50,lab:true,queue:2,producers:4,haulers:10},
+  normal:{think:2,firstRaid:150,cadence:90,waveMin:7,waveMax:12,armyCap:48,bases:4,expandAt:180,expandEvery:150,towers:2,adapt:1,focus:0,abilities:true,lanchester:true,retreat:.6,commit:1.15,rescout:80,lab:true,queue:2,producers:3,haulers:7,crews:3},
+  hard:{think:1.2,firstRaid:100,cadence:50,waveMin:5,waveMax:60,armyCap:160,bases:6,expandAt:120,expandEvery:150,towers:3,adapt:1.5,focus:3,abilities:true,lanchester:true,retreat:.8,commit:1.3,rescout:50,lab:true,queue:2,producers:4,haulers:10,crews:4},
 };
 // Difficulty names as the briefing shows them.
 export const LEVEL_NAMES={easy:'Cadet',normal:'Commander',hard:'Veteran'};
@@ -523,7 +526,7 @@ function produce(s,team,v,k,power,held){
     if(!trainUnit(s,team,type,producer?.id).ok)return false;
     v.queued[role]=(v.queued[role]||0)+1;return true;
   };
-  if(v.count('harvester')<Math.min(k.haulers,easy?2:1+2*v.done('refinery').length))train('harvester',undefined,0);
+  if(v.count('harvester')<Math.min(k.haulers,easy?2:1+k.crews*v.done('refinery').length))train('harvester',undefined,0);
   const depth=k.queue+(credits()-held>1200?1:0);
   const producers={barracks:v.done('barracks'),factory:power.gridRatio<.65?[]:v.done('factory')};
   const free=role=>producers[['rifle','rocket','scout'].includes(role)?'barracks':'factory'].filter(e=>e.queue.length<depth&&(role!=='striker'||research.advancedBallistics&&e.upgrades?.advancedProduction))

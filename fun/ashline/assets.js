@@ -3,7 +3,7 @@ import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim
 import { UNIT_SHEETS } from './assets/prepared/units/manifest.js';
 import { defenseSprite, defenseSpriteStats } from './defense-sprites.js';
 export const assetStatus = { loaded: 0, total: 5 + Object.keys(UNITS).length, ready: false, started: false, errors: [] };
-import { nextPaint } from './loading.js';
+import { paintWhenDue } from './loading.js';
 let startLoading;
 const loadingRequested = new Promise(resolve => { startLoading = resolve; });
 export function startAssets() { assetStatus.started = true; startLoading(); return assetsReady; }
@@ -363,7 +363,7 @@ async function load(name, prepare, directory = 'generated') {
     image.src = new URL(`./assets/${directory}/${name}.webp`, import.meta.url).href;
     await image.decode();
     // Image decoding can finish together. Serialize CPU work with a paint between atlases.
-    const prepared = preparation.then(async () => { await nextPaint(); await prepare(image); assetStatus.loaded++; });
+    const prepared = preparation.then(async () => { await paintWhenDue(); await prepare(image); assetStatus.loaded++; });
     preparation = prepared.catch(() => {});
     await prepared;
   } catch (error) {
@@ -411,7 +411,7 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
     const views = preparedUnitViews(image, type), poses = views.length / UNIT_DIRECTIONS;
     const frames = [];
     for (let pose = 0; pose < poses; pose++) {
-      await nextPaint();
+      await paintWhenDue();
       const directions = views.slice(pose * UNIT_DIRECTIONS, (pose + 1) * UNIT_DIRECTIONS);
       for (const view of directions) {
         view.body = view.teams.map(source => ({ image: source, x: -source.width / 2, y: -source.height / 2,
@@ -454,15 +454,15 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
   }),
   load('ground', image => { terrainImages.ground = image; }),
 ])).then(async () => {
-  await nextPaint();
+  await paintWhenDue();
   sprites.wall = wallFrames();
   for (const type of Object.keys(BUILDINGS)) for (const frame of sprites[type] || []) {
-    await nextPaint();
+    await paintWhenDue();
     frame.powerDownTeams = frame.teams.map(powerDownFrame);
     if (frame.hopperTeams) frame.powerDownHoppers = frame.hopperTeams.map(teams => teams.map(powerDownFrame));
   }
   for (const type of ['refinery', 'unityRefinery']) for (const frame of sprites[type] || []) {
-    await nextPaint();
+    await paintWhenDue();
     frame.mineralHoppers = { 2: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 2))),
       3: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 3))) };
     if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)

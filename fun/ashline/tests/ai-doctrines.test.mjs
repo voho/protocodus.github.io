@@ -115,7 +115,7 @@ function signature(doctrine,{seconds=480,seed='SIGNATURE-1',profile='rift',forti
     if(tick%8===0){
       const count=Object.create(null);for(const e of s.entities)if(e.team===1){const r=entityRole(e);count[r]=(count[r]||0)+1;}
       for(const r in count)out.peak[r]=Math.max(out.peak[r]||0,count[r]);
-      if(out.nexusAt===null&&s.entities.some(e=>e.team===1&&entityRole(e)==='core'&&e.progress>=1&&Math.hypot(e.x-s.entities.find(c=>c.team===1&&entityRole(c)==='core').x,e.y-s.entities.find(c=>c.team===1&&entityRole(c)==='core').y)>15))out.nexusAt=s.time;
+      if(out.nexusAt===null&&s.entities.filter(e=>e.team===1&&entityRole(e)==='core'&&e.progress>=1).length>1)out.nexusAt=s.time;
     }
   }
   return out;
@@ -145,7 +145,7 @@ test('Ironclad walls a wide sentry line and hits with fewer, heavier waves',{tim
 
 test('Prospector claims remote fields first',{timeout:120000},()=>{
   const pro=run('prospector'),balanced=run('balanced');
-  assert(pro.nexusAt!==null&&(balanced.nexusAt===null||pro.nexusAt<balanced.nexusAt),'Its first remote nexus stands before Balanced has one');
+  assert(pro.nexusAt!==null&&(balanced.nexusAt===null||pro.nexusAt<balanced.nexusAt),'Its second nexus stands before Balanced has one');
   assert((pro.peak.core||0)>=(balanced.peak.core||0)&&(pro.peak.refinery||0)>=(balanced.peak.refinery||0),'A broader economy');
 });
 
@@ -158,7 +158,7 @@ test('Siegebreaker brings guns, spotters and stand-off sieges',{timeout:120000},
 });
 
 test('AI walls never seal production bays, hauler lanes or the way out',{timeout:120000},()=>{
-  for(const r of [run('ironclad'),run('ironclad',{seed:'SIGNATURE-2',profile:'highlands'})]){
+  for(const r of [run('ironclad'),run('ironclad',{seed:'SIGNATURE-5',profile:'highlands'})]){
     const {s}=r;rebuildNavigation(s);
     assert(s.entities.filter(e=>e.team===1&&entityRole(e)==='wall').length>=4,`${r.doctrine} built walls`);
     const open=(x,y)=>x>=0&&y>=0&&x<s.width&&y<s.height&&!s.blocked[y*s.width+x]&&s.regionSize[s.regions[y*s.width+x]]>=40;

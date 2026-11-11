@@ -92,6 +92,27 @@ Against `3bdd0cfb`, three alternating runs each (80 ticks at 600 units, 30 at 2,
 - **Renderer.** The mineral-memory sweep runs once per tick instead of every frame, the tactical map's box is cached rather than forcing a layout each frame, and the fog and minimap images are reused. Canvas output is pixel-identical in a fogged and an open fixture; `draw()` median 3.60 → 3.50 ms at 126 units in headless Chrome, where software rasterisation hides most of the saving.
 - **Terrain bake.** Noise layers keep their four lattice values per cell (bit-identical: 8.26 million samples compared). Deploy to a playable Expanse sector: 3.4–3.6 → 2.9–3.1 s.
 
+## Loading and frame cost, 2026-11-11
+
+Against `ba28764`, in headless Chromium at 1440 × 900 on a shared 4-core container with software rasterisation, baseline and new runs alternating; compare these figures only with each other. Deploy is the time from pressing Deploy to a running Rift skirmish with the art not yet decoded; the frame is the median of 40 `draw()` calls with a one-pixel readback at the opening base.
+
+| Measure | Before → after |
+| --- | --- |
+| Deploy, Standard 144 × 112 | 3.3 → 2.3 s |
+| Deploy, Expanse 256 × 192 (three runs) | 4.50–4.60 → 3.10–3.33 s |
+| Deploy, Wilds 320 × 240 | 5.6 → 3.9 s |
+| Frame, DPR 1 | 21.1 → 13.8 ms |
+| Frame, DPR 2 | 84.8 → 51.0 ms |
+| Frames per second in play, DPR 1 | 38–40 → 55–56 |
+
+- **Loading.** Art preparation waited one whole animation frame after every step, well over a second of idling on any device. Steps now share a frame until 12 ms of it are spent (`paintWhenDue`), as the terrain bake already did. The sector generates in its worker while the art downloads and decodes instead of after it.
+- **Terrain bake.** Each material mask records the 8-tile blocks it can reach, with a 3-tile margin that exceeds every blur and offset. Threshold readbacks, per-pixel plate painting and the full-map stamps are confined to those blocks, which matters most for craters and basalt. The seventeen grit flecks per tile (about 800,000 `fillRect` calls on an Expanse) became one blit of a pre-scattered tile, picked per tile from sixteen.
+- **Ground.** Terrain, and at close zooms the texture grain, are composed once into a screen-sized cache with a 96-pixel margin and copied unscaled each frame, in place of a filtered full-screen enlargement of the bake. The cache is repainted after a zoom or a pan beyond the margin. It costs (width + 192) × (height + 192) × 4 bytes at the device pixel ratio: about 7 MiB at 1440 × 900, 27 MiB at DPR 2.
+- **Vignette.** A CSS layer over the canvas, blended by the compositor, in place of a full-screen stretch inside every frame.
+- **Opaque surfaces.** The battlefield and the terrain bake have no alpha channel, so the page compositor does not blend the canvas.
+
+The four full-screen layers (terrain, decals, fog, vignette) were about 16 of the 21 ms; fog and decals remain. A hardware-accelerated canvas gains less from the frame changes than these software figures show.
+
 ## Larger sectors, 2026-10-11
 
 New skirmishes default to the 256 × 192 Expanse, and 320 × 240 Wilds is the largest size. One Veteran AI-versus-AI game per size, stepped at 50 ms, on the shared 4-core container while other checks ran:
