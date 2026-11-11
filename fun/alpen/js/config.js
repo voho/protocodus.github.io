@@ -48,6 +48,10 @@ export const RENDER = {
      starts optimistic and walks down; it never walks past `minScale`, and it
      only walks back up after the frame time has been comfortable for a
      while, so a single slow frame cannot start it oscillating. */
+  /* The longest a drawn frame may be asked to last on a panel that could
+     show more: frame-pacer.js draws every n-th refresh while n refreshes
+     fit in this. A shade over a 60 Hz frame, so 120 Hz halves to an even sixty. */
+  frameMs: 17.2,
   minScale: 0.55,
   maxScale: 1.0,
   /* Live world-target size, written by `retro.setSize`. Point sprites size
