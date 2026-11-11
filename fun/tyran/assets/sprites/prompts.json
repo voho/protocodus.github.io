@@ -2,7 +2,7 @@
   "generated": "2026-09-19",
   "method": "Built-in ImageGen",
   "useCase": "stylized-concept",
-  "notes": "Lossless WebP atlases preserve the original decoded RGBA pixels and dimensions. Duplicate PNG copies and retired landscape paintings have been removed. Source and reference paths record historical generation inputs, not required repository files. Runtime extracts reusable cells and bakes biome palettes into cached sprites. Materials feed seeded tile masks; ground and atmosphere are the two scrolling planes.",
+  "notes": "The lossless WebP sheets in source/ preserve the original decoded RGBA pixels and dimensions; the atlas entries below describe those sheets. tools/pack-atlases.py trims and packs them into the lossless atlases the game loads and writes their rectangles to sprite-cells.js. Duplicate PNG copies and retired landscape paintings have been removed. Source and reference paths record historical generation inputs, not required repository files. Runtime extracts reusable cells and bakes biome palettes into cached sprites. Materials feed seeded tile masks; ground and atmosphere are the two scrolling planes.",
   "atlases": [
     {
       "file": "fleet.webp",

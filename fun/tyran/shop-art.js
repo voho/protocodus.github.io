@@ -87,7 +87,8 @@ function firePower(c,color){
 }
 function build(key,color){
   const out=document.createElement('canvas');out.width=WIDTH;out.height=HEIGHT;
-  const c=out.getContext('2d');c.scale(2,2);c.imageSmoothingQuality='high';stage(c,color);
+  // Painted on the CPU: encoding a GPU canvas waits for a readback of every preview.
+  const c=out.getContext('2d',{willReadFrequently:true});c.scale(2,2);c.imageSmoothingQuality='high';stage(c,color);
   if(key.startsWith('weapon:'))firing(c,key.slice(7),color);
   else if(key==='upgrade:weapon'){
     fighter(c,160,83,104,116);for(const x of [127,193]){bolt(c,'pulse',color,x,47,27,77);c.fillStyle='#798d8b';c.fillRect(x-3,62,6,27);c.fillStyle='#c3d9ce';c.fillRect(x-1,60,2,23);}

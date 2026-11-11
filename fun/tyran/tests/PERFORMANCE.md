@@ -109,3 +109,21 @@ The first flight frame is unchanged: the digests of the first frame of all twelv
 - Not changed. `tyran.launch` into a sector that is not prepared still does the whole preparation inside the call (about 200 ms): launch is synchronous and complete, which the preload and recovery checks pin. So do New campaign pressed while another sector is on show, Continue, and a Practice or Next pressed within about a quarter second of choosing the sector or opening the shop: they pay what is left, while the fully prepared case costs 2–8 ms. The shop cannot start earlier, during the bonus-stage fade: the renderer holds one sector at a time, and building the next fleet there would evict ship sprites that may still be on screen.
 - Measured and left alone. Priming the renderer's blend states with a hand-made frame halved a 35–40 ms main-thread wait that a traced scratch harness showed on the first sector change after a page load (thread time under 1 ms, seldom a late frame, absent after a warm-up step in `sector-entry-check`); it was not kept.
 - Checks. All pure-Node checks pass, with the new `gpu-deferred-check.mjs`, and so do `browser-check`, `preload-browser-check`, `gpu-recovery-browser-check` and `gpu-memory-check`. In a full run of the 63 browser checks (all but the two long benchmarks and the measurement) 55 passed. Seven fail in this environment on the base commit too, with the same assertions: `bonus-outro-browser-check`, `ground-combat-browser-check`, `living-scenery-check`, `loading-browser-check`, `opaque-ground-check`, `scenery-memory-check` and `timing-check`. The eighth, `browser-check`, fails about one run in five on either build at its `#announcement` assertion, because the first frame after Next can already show the extra-ship notice that the cycle bonus grants (4 of 24 rounds before, 5 of 24 after).
+
+### 2026-11-11: startup
+
+Bundled headless Chromium on the SwiftShader software renderer, 1440 × 960, served from loopback, cold cache; before = the commit preceding this entry. Times are page loads after the first of each browser launch (the first is slower on both builds).
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Time to `data-ready` | 5.5–5.8 s | 4.5–4.7 s |
+| Startup profile: sprite cropping (`connectedCells` + `spriteCell`) | 1,440 ms | 200 ms |
+| Startup profile: shop previews (`build`) | 1,220 ms | 800 ms |
+| Transferred before the menu is ready | 26.9 MB | 24.6 MB |
+
+- What changed. `tools/pack-atlases.py` now trims every sprite, resolves the pieces that cross a grid line and packs the crops ahead of time; the game copies the rectangles listed in `sprite-cells.js` instead of flood-filling 13 full sheets and scanning 239 cells on every launch. Shop previews are painted on a CPU canvas rather than read back from the GPU. `index.html` preloads the module graph and the atlases so they start together rather than one import level at a time (not visible on loopback).
+- Exactness. The packed atlases are lossless and all 239 cells hash identically to the previous runtime crop.
+- Lossy colour was tried and withdrawn. WebP quality 90 with lossless alpha took the atlases from 22.1 to 6.7 MB (first load 11.1 MB) at 36–47 dB PSNR; the artwork stays lossless by decision, so the packed atlases are 19.8 MB.
+- Flight is unchanged: `frame-cost-check` js pass 1.63 → 1.46 ms of script per frame (within the run-to-run spread), same draw calls and vertices. The 3.6 s of `_verifyUploads` in this container's startup is the software rasterizer finishing 58 MB of texture uploads and is not a hardware figure.
+- Left alone. The 78 effects are still 3.3 MB of WAV; lossless FLAC would roughly halve that but touches the byte-size table, cache version and the effect build tool. The ten sector fleets still stay resident as CPU cells (34 MB of the 68 MB); loading them on demand would break the synchronous, complete `launch`.
+- Checks. The 80 `*-check.mjs` files other than the two benchmarks were run against both builds in this container: 77 pass on both, and `debris-browser-check`, `structure-effects-check` and `terrain-relief-check` fail on both with the same assertion.
