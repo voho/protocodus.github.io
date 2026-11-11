@@ -468,13 +468,16 @@ export function createHud(canvas) {
       text(`${t.label.toUpperCase()}  ${fmt(t.left)}${blocked ? '  BLOCKED' : ''}`, x, y, 13, blocked ? RED : t.left < 30 ? AMBER : INK, 'left', 600);
       y += 19;
     }
+    // The job in hand — the first required objective still open — is the
+    // one marked and lit; whatever else is listed waits its turn.
+    const current = list.find(o => o.state === 'active' && o.kind !== 'bonus');
     for (const o of list) {
-      const icon = o.state === 'done' ? '✓' : o.state === 'failed' ? '✕' : o.kind === 'bonus' ? '☆' : '○';
-      const colour = o.state === 'done' ? GREEN : o.state === 'failed' ? RED : o.kind === 'bonus' ? 'rgba(255, 224, 102, 0.85)' : INK;
+      const icon = o.state === 'done' ? '✓' : o.state === 'failed' ? '✕' : o.kind === 'bonus' ? '☆' : o === current ? '▸' : '○';
+      const colour = o.state === 'done' ? GREEN : o.state === 'failed' ? RED : o.kind === 'bonus' ? 'rgba(255, 224, 102, 0.85)' : o === current ? AMBER : INK;
       const count = o.count && o.state === 'active' ? `  ${o.count.n}/${o.count.of}` : '';
       const fresh = rt.time - (o.shownAt ?? 0) < 1.2 && o.state === 'active';
       const row = fitLine(`${icon}  ${o.text}`, width - 24 - (count ? measure(count) : 0));
-      text(`${row}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left');
+      text(`${row}${count}`, x + (fresh ? 6 * (1 - (rt.time - o.shownAt) / 1.2) : 0), y, 12, colour, 'left', o === current ? 600 : 500);
       y += 19;
     }
     if (bonus) { text(`☆  ${bonus} bonus objective${bonus > 1 ? 's' : ''}`, x, y, 11, 'rgba(255, 224, 102, 0.7)', 'left'); y += 19; }

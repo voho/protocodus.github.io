@@ -16,11 +16,13 @@ const frustum = eye => [
   [0, -SQ, -SQ, -(-SQ * eye[1] - SQ * eye[2])], [0, SQ, -SQ, -(SQ * eye[1] - SQ * eye[2])],
 ].flat();
 const MARGIN = 1.15;
-// The far mesh takes over at 100 radii, capped for ordinary rocks; landmarks never coarsen.
-const lodDistance = i => (b.landmark[i] ? Infinity : Math.min(b.radius[i] * FIELD.lodScale, FIELD.lodCap));
+// Each size gives up its near mesh, then its far mesh, at its own number of
+// radii; the near mesh is capped for ordinary rocks; landmarks never coarsen.
+const lodDistance = i => (b.landmark[i] ? Infinity : Math.min(b.radius[i] * FIELD.types[b.type[i]].lod[0], FIELD.lodCap));
+const speckDistance = i => (b.landmark[i] ? Infinity : b.radius[i] * FIELD.types[b.type[i]].lod[1]);
 
 function brute(eye, planes, alive) {
-  const near = new Set(), far = new Set();
+  const near = new Set(), far = new Set(), speck = new Set();
   for (let i = 0; i < b.count; i++) {
     if (!alive[i]) continue;
     const p = [b.pos[3 * i], b.pos[3 * i + 1], b.pos[3 * i + 2]], r = b.radius[i] * MARGIN;
@@ -30,18 +32,19 @@ function brute(eye, planes, alive) {
     for (let k = 0; k < 6 && inside; k++) {
       if (planes[4 * k] * p[0] + planes[4 * k + 1] * p[1] + planes[4 * k + 2] * p[2] + planes[4 * k + 3] < -r) inside = false;
     }
-    if (inside) (d > lodDistance(i) ? far : near).add(i);
+    if (inside) (d > speckDistance(i) ? speck : d > lodDistance(i) ? far : near).add(i);
   }
-  return { near, far };
+  return { near, far, speck };
 }
-function collect(culler, eye, alive) {
-  const out = culler.cull(frustum(eye), eye, alive);
-  const near = new Set(), far = new Set();
+function collect(culler, eye, alive, detail) {
+  const out = culler.cull(frustum(eye), eye, alive, detail);
+  const sets = { near: new Set(), far: new Set(), speck: new Set() };
   out.forEach((lists, type) => {
-    for (let k = 0; k < lists.near.count; k++) { assert.equal(b.type[lists.near.index[k]], type); near.add(lists.near.index[k]); }
-    for (let k = 0; k < lists.far.count; k++) { assert.equal(b.type[lists.far.index[k]], type); far.add(lists.far.index[k]); }
+    for (const [name, set] of Object.entries(sets)) {
+      for (let k = 0; k < lists[name].count; k++) { assert.equal(b.type[lists[name].index[k]], type); set.add(lists[name].index[k]); }
+    }
   });
-  return { near, far };
+  return sets;
 }
 
 const culler = createCuller(b, FIELD, { margin: MARGIN });
@@ -50,6 +53,7 @@ for (const eye of [[0, 0, 0], [2500, 300, 1800], [-3800, -600, 3900], [0, 0, 900
     const got = collect(culler, eye, field.alive), want = brute(eye, frustum(eye), field.alive);
     assert.deepEqual([...got.near].sort((x, y) => x - y), [...want.near].sort((x, y) => x - y));
     assert.deepEqual([...got.far].sort((x, y) => x - y), [...want.far].sort((x, y) => x - y));
+    assert.deepEqual([...got.speck].sort((x, y) => x - y), [...want.speck].sort((x, y) => x - y));
   });
 }
 test('destroyed rocks are not drawn', () => {
@@ -59,24 +63,32 @@ test('destroyed rocks are not drawn', () => {
   const victim = [...seen.near][0];
   alive[victim] = 0;
   const after = collect(culler, eye, alive);
-  assert.ok(!after.near.has(victim) && !after.far.has(victim));
+  assert.ok(!after.near.has(victim) && !after.far.has(victim) && !after.speck.has(victim));
   assert.equal(after.near.size, seen.near.size - 1);
 });
 test('rocks switch to the far mesh by size, capped, and landmarks never do', () => {
   const eye = [0, 0, 0];
-  const { near, far } = collect(culler, eye, field.alive);
+  const { near, far, speck } = collect(culler, eye, field.alive);
   const d = i => Math.hypot(b.pos[3 * i] - eye[0], b.pos[3 * i + 1] - eye[1], b.pos[3 * i + 2] - eye[2]);
   for (const i of near) assert.ok(d(i) <= lodDistance(i) + 1e-6);
-  for (const i of far) assert.ok(d(i) > lodDistance(i));
+  for (const i of far) assert.ok(d(i) > lodDistance(i) && d(i) <= speckDistance(i) + 1e-6);
+  for (const i of speck) assert.ok(d(i) > speckDistance(i) && !b.landmark[i]);
+  assert.ok(speck.size > far.size, 'most of what is in view is a few pixels across');
   assert.ok([...far].some(i => b.type[i] === 0 && d(i) < 1000), 'pebbles go coarse close in');
   for (const i of far) assert.ok(!b.landmark[i], 'a landmark never coarsens');
   for (const i of near) assert.ok(b.landmark[i] || d(i) <= FIELD.lodCap + 1e-6, 'no ordinary rock keeps full detail past the cap');
+});
+test('a sharper picture keeps its detail further out', () => {
+  const eye = [0, 0, 0];
+  const plain = collect(culler, eye, field.alive), sharp = collect(culler, eye, field.alive, 2);
+  assert.ok(sharp.near.size > plain.near.size && sharp.speck.size < plain.speck.size);
+  assert.equal(sharp.near.size + sharp.far.size + sharp.speck.size, plain.near.size + plain.far.size + plain.speck.size);
 });
 test('each draw list runs near to far by cell, so the depth test rejects hidden rocks early', () => {
   const eye = [300, 100, 200];
   const out = culler.cull(frustum(eye), eye, field.alive);
   for (const lists of out) {
-    for (const list of [lists.near, lists.far]) {
+    for (const list of [lists.near, lists.far, lists.speck]) {
       let previous = -Infinity;
       for (let k = 0; k < list.count; k++) {
         const c = culler.cellCenter(culler.cellOf[list.index[k]]);

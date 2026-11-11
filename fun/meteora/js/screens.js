@@ -16,6 +16,7 @@ import { PRIMARIES, PLAYER_SECONDARIES, REACTORS, SECONDARIES, assess, bankCount
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './difficulty.js';
 import { MISSIONS, SPECIAL_OPS, TRAINING, COMMENDATIONS, RANKS, isAvailable, missionById, missionLabel, nextMission, rankOf } from './campaign.js';
 import { aftermath, difficultyTactics } from './operations.js';
+import { drawMap } from './briefing-map.js';
 import { PROLOGUE, CODEX, HINTS, CASE_FILE } from './story.js';
 
 const KEY = 'meteora.settings';
@@ -56,6 +57,12 @@ const el = (doc, tag, props = {}, ...children) => {
   for (const c of children.flat()) if (c != null) e.append(c);
   return e;
 };
+// What loses the mission, under its objectives (operations.js).
+function failsLine(node, mission) {
+  const text = mission?.operation?.fails;
+  node.hidden = !text;
+  node.textContent = text ? `Mission fails if: ${text}` : '';
+}
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 export const SHOT_DOWN = 'Lantern One\'s beacon went silent before the job was done. A Tender found the wreck, the crews cut you out of it, and the Watch wrote the mission off. Commander Doukas wants you back in the cockpit before the Harrow come again.';
 const medal = (kind, big = false) => kind ? `<i class="medal ${kind}${big ? ' big' : ''}" aria-label="${kind} medal"></i>` : '';
@@ -73,77 +80,6 @@ function renderKeys(container, keys) {
     }
     container.append(el(doc, 'section', {}, el(doc, 'h3', { text: group.title }), list));
   }
-}
-
-/* ---------- the tactical map ---------- */
-
-const ICON_COLOURS = {
-  player: '#7fd8ff', nav: '#7fd8ff', friend: '#5dff8f', capital: '#5dff8f', station: '#f2d27a',
-  enemy: '#ff4a3a', 'capital-enemy': '#ff4a3a', danger: '#ff7a5a', unknown: '#ffb347',
-};
-function drawMap(canvas, mission, focus, t) {
-  const ctx = canvas.getContext('2d');
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const W = canvas.clientWidth, H = canvas.clientHeight;
-  if (!W || !H) return;
-  if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-  const extent = mission.map.extent ?? 8000;
-  const scale = Math.min(W, H) / extent * 1.15;
-  const cx = W / 2 - focus[0] * scale, cy = H / 2 - focus[2] * scale;
-  const X = p => cx + p[0] * scale, Y = p => cy + p[2] * scale;
-  // Grid and belt grain.
-  ctx.strokeStyle = 'rgba(127, 216, 255, 0.07)'; ctx.lineWidth = 1;
-  const step = 1000 * scale;
-  for (let x = ((cx % step) + step) % step; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = ((cy % step) + step) % step; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  let seed = mission.number * 977 + 13;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  ctx.fillStyle = 'rgba(160, 170, 190, 0.18)';
-  const rockCount = Math.min(900, (mission.field?.types ?? []).reduce((n, t) => n + t.count, 0));
-  for (let k = 0; k < rockCount; k++) {
-    const x = (rnd() - 0.5) * extent * 2, z = (rnd() - 0.5) * extent * 2;
-    const clear = (mission.map.icons ?? []).some(i => (i.kind === 'capital' || i.kind === 'station' || i.kind === 'capital-enemy') && Math.hypot(i.pos[0] - x, i.pos[2] - z) < 700);
-    if (clear) continue;
-    ctx.fillRect(X([x, 0, z]), Y([x, 0, z]), 1.2, 1.2);
-  }
-  // Routes.
-  for (const r of mission.map.routes ?? []) {
-    ctx.setLineDash([6, 6]);
-    ctx.lineDashOffset = -t * 30;
-    ctx.strokeStyle = r.kind === 'hostile' ? 'rgba(255, 74, 58, 0.7)' : r.kind === 'convoy' ? 'rgba(93, 255, 143, 0.65)' : 'rgba(127, 216, 255, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    r.path.forEach((p, i) => (i ? ctx.lineTo(X(p), Y(p)) : ctx.moveTo(X(p), Y(p))));
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  // Icons.
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const i of mission.map.icons ?? []) {
-    const x = X(i.pos), y = Y(i.pos), c = ICON_COLOURS[i.kind] ?? '#e9edf3';
-    ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 2;
-    const pulse = 1 + 0.15 * Math.sin(t * 3 + x);
-    switch (i.kind) {
-      case 'player': ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y + 6); ctx.lineTo(x - 6, y + 6); ctx.closePath(); ctx.fill(); break;
-      case 'nav': ctx.beginPath(); ctx.moveTo(x, y - 8 * pulse); ctx.lineTo(x + 8 * pulse, y); ctx.lineTo(x, y + 8 * pulse); ctx.lineTo(x - 8 * pulse, y); ctx.closePath(); ctx.stroke(); break;
-      case 'friend': ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.stroke(); break;
-      case 'capital': case 'capital-enemy': ctx.strokeRect(x - 16, y - 6, 32, 12); ctx.globalAlpha = 0.25; ctx.fillRect(x - 16, y - 6, 32, 12); ctx.globalAlpha = 1; break;
-      case 'station': ctx.strokeRect(x - 9, y - 9, 18, 18); break;
-      case 'enemy': ctx.beginPath(); ctx.moveTo(x, y + 7); ctx.lineTo(x + 7, y - 6); ctx.lineTo(x - 7, y - 6); ctx.closePath(); ctx.fill(); break;
-      case 'danger': ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(x, y, 10 * pulse, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); break;
-      default: ctx.font = '700 16px "Space Grotesk", sans-serif'; ctx.fillText('?', x, y);
-    }
-    if (i.label && !(i.kind === 'unknown' && i.label === '?')) {
-      ctx.font = '500 12px "Space Grotesk", sans-serif';
-      ctx.fillStyle = 'rgba(233, 237, 243, 0.85)';
-      ctx.fillText(i.label, x, y + 18);
-    }
-  }
-  // Scale bar.
-  ctx.fillStyle = 'rgba(160, 178, 205, 0.7)'; ctx.font = '500 11px "Space Grotesk", sans-serif'; ctx.textAlign = 'left';
-  ctx.fillRect(14, H - 18, 1000 * scale, 2); ctx.fillText('1 km', 14, H - 28);
 }
 
 /* ---------- the module ---------- */
@@ -386,7 +322,10 @@ export function createScreens(root, settings, handlers) {
       showTactics(difficultyKey);
       const obj = $('[data-brief-objectives]');
       obj.textContent = '';
-      for (const o of mission.objectivesPreview) obj.append(el(doc, 'li', { class: o.bonus ? 'bonus' : '', text: o.text }));
+      for (const o of mission.objectivesPreview) {
+        obj.append(el(doc, 'li', { class: o.bonus ? 'bonus' : '' }, [el(doc, 'span', { text: o.text }), el(doc, 'small', { text: o.bonus ? 'Bonus' : 'Required' })]));
+      }
+      failsLine($('[data-brief-fails]'), mission);
       const r = mission.recommend;
       const secs = r.secondaries ?? [];
       const banks = secs.length > 1 && secs.every(k => k === secs[0]) ? [`${SECONDARIES[secs[0]]?.short} ×2`] : secs.map(k => SECONDARIES[k]?.short);
@@ -413,6 +352,8 @@ export function createScreens(root, settings, handlers) {
       mapState = {
         mission, focus: [...stages[0].focus], t: 0,
         stages: recap ? [{ who: 'narrator', text: recap, focus: stages[0].focus }, ...stages] : stages,
+        // The map numbers the Commander's stages; the recap before them is not one.
+        plan: { points: stages.map(st => st.focus), current: null, offset: recap ? 1 : 0 },
       };
       api.briefingStage(0);
     },
@@ -429,6 +370,7 @@ export function createScreens(root, settings, handlers) {
       t.classList.remove('fresh'); void t.offsetWidth; t.classList.add('fresh', 'story-text');
       $('[data-brief-step]').textContent = `${stage + 1} / ${stages.length}`;
       mapState.target = s.focus;
+      mapState.plan.current = stage - mapState.plan.offset;
       return stage;
     },
     animate(dt) {
@@ -436,7 +378,7 @@ export function createScreens(root, settings, handlers) {
       mapState.t += dt;
       const target = mapState.target ?? mapState.focus;
       for (let k = 0; k < 3; k++) mapState.focus[k] += (target[k] - mapState.focus[k]) * Math.min(1, dt * 3);
-      drawMap($('[data-brief-map]'), mapState.mission, mapState.focus, mapState.t);
+      drawMap($('[data-brief-map]'), mapState.mission, mapState.focus, mapState.t, mapState.plan);
     },
     /* ---------- the hangar ---------- */
     hangar({ loadout, unlocked, mission, onChange, eyebrow, difficulty = null }) {
@@ -520,6 +462,7 @@ export function createScreens(root, settings, handlers) {
         if (o.state === 'hidden') continue;
         list.append(el(doc, 'li', { class: [o.kind === 'bonus' ? 'bonus' : '', o.state].join(' '), text: o.text + (o.count && o.state === 'active' ? ` (${o.count.n}/${o.count.of})` : '') }));
       }
+      failsLine($('[data-pause-fails]'), world.missionDef);
     },
     // The pause screen's tabs: the mission, the controls, the settings.
     pauseTab(name) {

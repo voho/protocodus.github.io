@@ -249,6 +249,10 @@ function sharedBelt(seed, cfg) {
   return belt;
 }
 
+/* A mission's rocks without a field to fly in: the briefing's map draws
+   them, and the launch that follows finds them already made. */
+export const beltOf = sharedBelt;
+
 /* ---------- the live field ---------- */
 
 // A query's candidates, ascending, in place. They are distinct, so this is

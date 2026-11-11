@@ -48,7 +48,35 @@ function prepareRock(gltf, file) {
     for (let i = 0; i < p.count; i++) r = Math.max(r, Math.hypot(p.getX(i), p.getY(i), p.getZ(i)));
     mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), r);
   }
-  return { lod0: lod0.geometry, lod1: lod1.geometry, material: lod0.material };
+  // The two smallest sizes are a few pixels across long before the others.
+  const small = lod1.geometry.index.count / 3 < 200;
+  return { lod0: lod0.geometry, lod1: lod1.geometry, speck: speckOf(lod1.geometry, small ? 0 : 1), material: lod0.material };
+}
+
+/* A rock a few pixels across, in 20 or 80 triangles: an icosahedron whose
+   every corner is the far mesh's vertex that reaches furthest that way,
+   with that vertex's normal, UV and tangent — so it keeps the rock's
+   outline, takes the same material and needs nothing from Blender. */
+function speckOf(geometry, detail) {
+  const corners = new THREE.IcosahedronGeometry(1, detail).attributes.position;
+  const from = geometry.attributes.position;
+  const pick = new Uint32Array(corners.count);
+  for (let k = 0; k < corners.count; k++) {
+    const x = corners.getX(k), y = corners.getY(k), z = corners.getZ(k);
+    let best = -Infinity;
+    for (let i = 0; i < from.count; i++) {
+      const reach = from.getX(i) * x + from.getY(i) * y + from.getZ(i) * z;
+      if (reach > best) { best = reach; pick[k] = i; }
+    }
+  }
+  const speck = new THREE.BufferGeometry();
+  for (const [name, a] of Object.entries(geometry.attributes)) {
+    const array = new Float32Array(pick.length * a.itemSize);
+    for (let k = 0; k < pick.length; k++) for (let c = 0; c < a.itemSize; c++) array[k * a.itemSize + c] = a.getComponent(pick[k], c);
+    speck.setAttribute(name, new THREE.BufferAttribute(array, a.itemSize));
+  }
+  speck.boundingSphere = geometry.boundingSphere;
+  return speck;
 }
 
 /* ---------- the hull detail layer ---------- */

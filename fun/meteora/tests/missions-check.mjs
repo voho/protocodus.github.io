@@ -11,6 +11,7 @@ import { createWorld, startRun, stepWorld, drainEvents, IDLE } from '../js/world
 import { makeRng } from '../js/rng.js';
 import { CLASSES, HULLS } from '../js/catalog.js';
 import { play } from './autopilot.mjs';
+import { applyDamage } from '../js/combat.js';
 import '../js/missions/survival.js';
 import { CASE_FILE, RECAPS } from '../js/story.js';
 
@@ -40,6 +41,7 @@ for (const mission of [...MISSIONS, ...SPECIAL_OPS]) {
     assert.ok(mission.map.icons.length >= 2);
     assert.ok(mission.recommend.hull && mission.recommend.why && mission.debrief.won && mission.debrief.lost);
     assert.ok(mission.models.length > 0 && mission.objectivesPreview.length > 0);
+    assert.ok(mission.operation?.fails?.length > 10, 'the briefing says what loses the mission');
   });
   test(`${mission.id}: ninety seconds of random input in every hull break nothing`, () => {
     for (const hull of HULLS) {
@@ -121,6 +123,20 @@ test('flight training teaches one thing at a time, in order, and passes on five 
 });
 test('training counts for nothing in the campaign', () => {
   assert.ok(!MISSIONS.includes(TRAINING));
+});
+test('Survival: every fifth wave is led by an ace, and says so', () => {
+  const w = createWorld({ seed: 1234 });
+  startRun(w);
+  const waves = [];
+  for (let i = 0; i < 120 * 400 && w.wave < 5; i++) {
+    stepWorld(w, IDLE, DT);
+    w.player.hull = w.player.maxHull;
+    for (const e of drainEvents(w)) if (e.type === 'wave') waves.push(e);
+    if (i % 60 === 0) for (const e of w.entities) if (e.team === 1 && e.alive) applyDamage(e, 1e6, w.events, null, null, { sourceId: w.player.id, sourceTeam: 0 });
+  }
+  assert.equal(w.wave, 5);
+  assert.ok(w.entities.some(e => e.alive && e.cls === 'ninth' && e.name === 'Harrow ace'));
+  assert.deepEqual(waves.map(e => e.kind), [null, null, 'Mite swarm', null, 'led by an ace']);
 });
 test('Survival still runs on the new world', () => {
   const w = createWorld({ seed: 1234 });

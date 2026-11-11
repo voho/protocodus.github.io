@@ -1,10 +1,13 @@
 /* Meteora — drawing the belt.
 
-   Twenty-one thousand rocks in ten draw calls: one per rock size for the
-   near mesh and one for the far mesh, packed nearest first. Every frame cull.js picks the rocks
-   the camera can see, and their per-instance data — position and scale,
-   tumble axis and rate, phase — is packed into the front of each size's
-   instance buffers. A destroyed rock simply stops being picked.
+   Twenty-one thousand rocks in fifteen draw calls: for each rock size one
+   for the near mesh, one for the far mesh and one for the specks, packed
+   nearest first. Every frame cull.js picks the rocks the camera can see,
+   and their per-instance data — position and scale, tumble axis and rate,
+   phase — is packed into the front of that draw's one instance buffer. A
+   list that has not changed since the last frame (the boulders' seldom do)
+   is neither packed nor sent again. A destroyed rock simply stops being
+   picked.
 
    Rocks tumble in the vertex shader from that per-instance data, so
    spinning twenty thousand of them costs the CPU nothing. The collision
@@ -39,18 +42,20 @@ export function tumbleMaterial(base, time) {
   return material;
 }
 
+const STRIDE = 9;   // aOffset 4, aSpin 4, aPhase 1
+
 function instancedFrom(base, capacity) {
   const g = new THREE.InstancedBufferGeometry();
   g.index = base.index;
   for (const [name, attribute] of Object.entries(base.attributes)) g.setAttribute(name, attribute);
-  const attr = (name, size) => {
-    const a = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, capacity) * size), size);
-    a.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute(name, a);
-    return a;
-  };
+  // One buffer for all three, so a draw's instances go up in one copy.
+  const data = new THREE.InstancedInterleavedBuffer(new Float32Array(Math.max(1, capacity) * STRIDE), STRIDE);
+  data.setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aOffset', new THREE.InterleavedBufferAttribute(data, 4, 0));
+  g.setAttribute('aSpin', new THREE.InterleavedBufferAttribute(data, 4, 4));
+  g.setAttribute('aPhase', new THREE.InterleavedBufferAttribute(data, 1, 8));
   g.instanceCount = 0;
-  return { geometry: g, offset: attr('aOffset', 4), spin: attr('aSpin', 4), phase: attr('aPhase', 1) };
+  return { geometry: g, data, shown: new Int32Array(Math.max(1, capacity)) };
 }
 
 export function createFieldRender(scene, field, rocks, time, cullOptions = {}) {
@@ -72,23 +77,25 @@ export function createFieldRender(scene, field, rocks, time, cullOptions = {}) {
       group.add(mesh);
       return b;
     };
-    return { near: make(rock.lod0), far: make(rock.lod1) };
+    return { near: make(rock.lod0), far: make(rock.lod1), speck: make(rock.speck) };
   });
 
   const fill = (batch, list) => {
-    const o = batch.offset.array, s = batch.spin.array, ph = batch.phase.array;
-    for (let k = 0; k < list.count; k++) {
-      const i = list.index[k];
-      o[4 * k] = belt.pos[3 * i]; o[4 * k + 1] = belt.pos[3 * i + 1]; o[4 * k + 2] = belt.pos[3 * i + 2]; o[4 * k + 3] = belt.scale[i];
-      s[4 * k] = belt.axis[3 * i]; s[4 * k + 1] = belt.axis[3 * i + 1]; s[4 * k + 2] = belt.axis[3 * i + 2]; s[4 * k + 3] = belt.spin[i];
-      ph[k] = belt.phase[i];
+    const n = list.count, shown = batch.shown;
+    let same = n === batch.geometry.instanceCount;
+    for (let k = 0; same && k < n; k++) same = shown[k] === list.index[k];
+    if (same) return;
+    const d = batch.data.array;
+    for (let k = 0, o = 0; k < n; k++, o += STRIDE) {
+      const i = shown[k] = list.index[k];
+      d[o] = belt.pos[3 * i]; d[o + 1] = belt.pos[3 * i + 1]; d[o + 2] = belt.pos[3 * i + 2]; d[o + 3] = belt.scale[i];
+      d[o + 4] = belt.axis[3 * i]; d[o + 5] = belt.axis[3 * i + 1]; d[o + 6] = belt.axis[3 * i + 2]; d[o + 7] = belt.spin[i];
+      d[o + 8] = belt.phase[i];
     }
-    batch.geometry.instanceCount = list.count;
-    for (const a of [batch.offset, batch.spin, batch.phase]) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(0, list.count * a.itemSize);
-      a.needsUpdate = true;
-    }
+    batch.geometry.instanceCount = n;
+    batch.data.clearUpdateRanges();
+    batch.data.addUpdateRange(0, n * STRIDE);
+    batch.data.needsUpdate = true;
   };
 
   // Fragments drift and turn on their own, so they get ordinary instancing.
@@ -107,9 +114,11 @@ export function createFieldRender(scene, field, rocks, time, cullOptions = {}) {
   const frustum = new THREE.Frustum(), projScreen = new THREE.Matrix4();
   const planes = new Float64Array(24), eye = [0, 0, 0];
   const stats = { cells: culler.cells, drawn: 0 };
+  const REFERENCE = 1080 / 2 / Math.tan(35 * Math.PI / 180);   // pixels per radian the switch distances were set at
   return {
     group, stats,
-    update(camera) {
+    /* `height`: the picture's, in pixels. */
+    update(camera, height = 1080) {
       camera.updateMatrixWorld();
       projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum.setFromProjectionMatrix(projScreen, camera.coordinateSystem, camera.reversedDepth);
@@ -118,12 +127,15 @@ export function createFieldRender(scene, field, rocks, time, cullOptions = {}) {
         planes[4 * k + 2] = plane.normal.z; planes[4 * k + 3] = plane.constant;
       });
       eye[0] = camera.position.x; eye[1] = camera.position.y; eye[2] = camera.position.z;
-      const lists = culler.cull(planes, eye, field.alive);
+      // As big on screen as at 1080p with a 70° lens, as detailed.
+      const detail = Math.min(2, Math.max(0.6, height / 2 / Math.tan(camera.fov * Math.PI / 360) / REFERENCE));
+      const lists = culler.cull(planes, eye, field.alive, detail);
       let drawn = 0;
       lists.forEach((l, type) => {
         fill(batches[type].near, l.near);
         fill(batches[type].far, l.far);
-        drawn += l.near.count + l.far.count;
+        fill(batches[type].speck, l.speck);
+        drawn += l.near.count + l.far.count + l.speck.count;
       });
       stats.drawn = drawn;
     },

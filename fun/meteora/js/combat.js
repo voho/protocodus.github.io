@@ -245,10 +245,11 @@ function shipsTouch(a, b, dist, reach, events) {
     b.ship.pos[k] -= n[k] * depth * ib / (ia + ib);
   }
   const contact = b.ship.pos.map((c, k) => c + n[k] * b.radius);
-  // Hulls meet at the rim of their spheres, so the normal impulse passes
-  // through both centres; each ship is a point mass here.
-  const approach = resolveContact(pointBody(a.ship.vel, a.ship.stats.mass), pointBody(b.ship.vel, b.ship.stats.mass),
-    n, [0, 0, 0], C.restitution, C.mu);
+  // Hulls meet at the rim of their spheres, so the push apart passes
+  // through both centres and turns neither; the friction of a glancing
+  // blow acts at the rim, and sets both ships turning.
+  const approach = resolveContact(shipBody(a.ship), shipBody(b.ship), n,
+    [-n[0] * a.radius, -n[1] * a.radius, -n[2] * a.radius], C.restitution, C.mu, [n[0] * b.radius, n[1] * b.radius, n[2] * b.radius]);
   // Wingmates bumping is a scrape, not a crash: a quarter of the damage.
   const scale = a.team === b.team && a.team >= 0 ? C.friendlyScale : 1;
   collisionDamage(a, approach, events, contact, n, scale);

@@ -43,13 +43,20 @@ then pick a mission), **Flight training** (Saint takes you through
 steering, speed, the afterburner, rolling and sliding, targeting, guns and
 a locked missile, one step at a time, then five weaving drones to pass;
 nothing shoots back and it counts for nothing in the campaign),
-**Survival** (endless waves, best score per hull), **Codex** (the story
+**Survival** (endless waves — a Mite swarm every third, a bone-white ace
+at the head of every fifth — with the best score kept per hull), **Codex** (the story
 so far, the case file, the craft, the weapons, your service record and
 commendations, and the controls) and **Settings**.
 
 Every mission starts with a **briefing** — the situation in stages over a
-tactical map, the objectives and bonus objectives, and a recommended
-loadout with the reason for it. The **hangar** is where you choose a hull,
+tactical map, the objectives (each marked required or bonus), the one
+sentence of what fails the mission, and a recommended loadout with the
+reason for it. The map is the mission from above: its real rocks, with the
+cleared lanes and the room round its stations, its routes with arrows the
+way they run, the briefing's stages numbered where each one points, and a
+legend of whatever is on it. In flight the objective in hand is the one
+marked ▸ in the directives; the pause screen repeats the full list and
+what fails the mission. The **hangar** is where you choose a hull,
 a gun, the ordnance in each bank and a reactor; it rates the choice against
 what the mission needs and says so if you depart from the recommendation.
 The flight opens on a short establishing shot under the mission's title
@@ -286,7 +293,8 @@ refills after a pause.
 
 Collisions have mass and spin. Ramming a rock costs hull by the closing
 speed, capped per impact; pebbles do a quarter of that, and wingmates
-bumping each other only scrape. A rock is hit where you see it: each of
+bumping each other only scrape. Two ships that meet off-centre both come
+away turning, by the friction at their hulls. A rock is hit where you see it: each of
 the five rock models is measured into a map of its surface in every
 direction (`tools/rock-shapes.mjs`), and ships, shots, sight lines and the
 camera meet that shape, turned as far as the rock has tumbled — not a
@@ -412,8 +420,16 @@ meteora.pilot = createBot(7); meteora.speed = 3;
 
 - The belt is culled per frame (cells, then rocks) and drawn in one call
   per rock size and detail level, nearest cell first, so the depth test
-  rejects hidden rocks before they are shaded. Rocks switch to a far mesh
-  at 100 of their own radii.
+  rejects hidden rocks before they are shaded. A rock is drawn with its
+  near mesh, its far mesh or a speck of 20 or 80 triangles (made at load
+  from the far mesh, `js/models.js`), each size switching at its own
+  distance so that triangles stay about a pixel across, and further out
+  on a sharper picture: about half the belt's triangles at 1080p (980,000
+  to 470,000 from the spawn). Each draw's instances go up as one buffer,
+  and only when its list of rocks has changed.
+- The menu opens once the rocks and your own ship are in (6.4 MB instead
+  of 10.6); the Perpetua loads behind it and joins the scene when the
+  renderer is ready for her.
 - Large ships keep their detail with a tri-planar detail layer instead of
   bigger textures; glow sprites are judged against the camera and dropped
   when they would cover the screen.
