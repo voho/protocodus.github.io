@@ -47,6 +47,8 @@ async function boot() {
   let tapAnchor = -1;
   let shell = null;
   let winTimer = 0;
+  // Patches placed one after another without a slip; the chime climbs with it.
+  let streak = 0, placedAt = 0;
   // Keyboard: a cursor cell, and the cell a patch is being grown from.
   let cursor = -1;
   let keyAnchor = -1;
@@ -119,6 +121,7 @@ async function boot() {
     sound.win();
     board.celebrate();
     stage.flash('#ffffff', 0.8);
+    shell.pop(assisted ? 'Solved!' : 'Perfect!', { x: stage.width / 2, y: stage.height * 0.42 }, true);
     announce();
     const finished = puzzle;
     clearTimeout(winTimer);
@@ -128,8 +131,16 @@ async function boot() {
   function place(patch, record = true) {
     patches.push(patch);
     if (record) undo.push({ type: 'place', patch });
-    sound.place();
-    board.place(patch, colourFor(patch.clue), () => { stage.flash(colourFor(patch.clue), 0.12); });
+    sound.place(Math.max(1, streak));
+    const combo = streak;
+    board.place(patch, colourFor(patch.clue), () => {
+      stage.flash(colourFor(patch.clue), 0.12);
+      stage.kick(0.35 + Math.min(combo, 6) * 0.08);
+      if (solved) return;
+      const at = stage.project(board.centre(puzzle.clues[patch.clue].cell));
+      if (combo >= 3) shell.pop(`Combo ×${combo}`, at, true);
+      else shell.pop(`+${patch.w * patch.h}`, at);
+    });
     shell.begin();
     announce();
     if (isSolved(puzzle, patches)) finish();
@@ -139,6 +150,8 @@ async function boot() {
     const replaced = patches.filter((p) => overlaps(p, patch));
     for (const old of replaced) lift(old, false);
     undo.push({ type: 'place', patch, replaced });
+    streak = !replaced.length && performance.now() - placedAt < 8000 ? streak + 1 : 1;
+    placedAt = performance.now();
     place(patch, false);
   }
 
@@ -146,6 +159,7 @@ async function boot() {
     patches = patches.filter((p) => p !== patch);
     if (record) undo.push({ type: 'lift', patch });
     board.lift(patch.clue);
+    streak = 0;
     sound.lift();
     announce();
   }
@@ -227,7 +241,7 @@ async function boot() {
     const isClue = puzzle.clues.some((clue) => clue.cell === anchor);
     if (!moved && !isClue) shell.toast('Drag between opposite corners, or tap both corners.');
     else if (!moved && (reason === 'number' || reason === 'shape')) shell.toast('Choose the opposite corner to make a bigger patch.');
-    else { board.reject(rect); sound.buzz(); shell.toast(REASONS[reason]); }
+    else { board.reject(rect); sound.buzz(); streak = 0; shell.toast(REASONS[reason]); }
   }
   const release = (event) => {
     if (!drag || !board || event.pointerId !== drag.pointerId) return;

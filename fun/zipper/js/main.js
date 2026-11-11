@@ -9,6 +9,7 @@ import { createThemeSwitch } from '../../shared/themes.js';
 import { generate, canStep, isSolved, hint, straightLine } from './puzzle.js';
 import { createBoard } from './board.js';
 
+const PRAISE = ['Nice!', 'Great!', 'Sweet!', 'Super!', 'Wow!', 'Amazing!', 'Brilliant!'];
 const canvas = document.getElementById('stage');
 const loading = document.querySelector('[data-loading]');
 const status = document.querySelector('[data-status]');
@@ -96,9 +97,17 @@ async function boot() {
     pathDirty = false;
     if (erasedCells.size) { board.flare([...erasedCells]); erasedCells.clear(); }
     board.setPath(path);
-    if (pathSound === 'step') sound.step(path.length / N());
-    else if (pathSound === 'back') sound.back();
-    if (numberReached) sound.number();
+    if (pathSound === 'step') {
+      // The tune starts over at each number and climbs with the run since.
+      let run = 0;
+      while (run < path.length - 1 && !puzzle.numbers[path[path.length - 1 - run]]) run++;
+      sound.step(run);
+    } else if (pathSound === 'back') sound.back();
+    if (numberReached) {
+      const reached = puzzle.numbers[head()] || path.filter((cell) => puzzle.numbers[cell]).length;
+      sound.number(reached - 1);
+      if (!solved) shell.pop(PRAISE[Math.min(reached - 2, PRAISE.length - 1)], stage.project(board.centre(head())));
+    }
     pathSound = null;
     numberReached = false;
     announce();
@@ -111,6 +120,7 @@ async function boot() {
     sound.win();
     board.celebrate();
     stage.flash(themes.current.accent, 1);
+    shell.pop(assisted ? 'Solved!' : 'Perfect!', { x: stage.width / 2, y: stage.height * 0.42 }, true);
     const finished = puzzle;
     winTimer = setTimeout(() => { if (puzzle === finished && solved) shell.showWin({ ms, assisted }); }, 1500);
   }

@@ -19,7 +19,7 @@
 </head>
 <body>
   <script type="module">
-    import { clueTexture, waitForFont } from '../slab.js';
+    import { cluePainter, waitForFont } from '../slab.js';
     await waitForFont();
     const clues = [
       { shape: 'square', number: 4 }, { shape: 'wide', number: 6 }, { shape: 'tall', number: 3 },
@@ -35,11 +35,13 @@
           const box = document.createElement('div');
           box.className = `tile ${surface}`;
           box.style.width = box.style.height = `${px}px`;
-          const texture = clueTexture({ shape: clue.shape, number: clue.number ?? null }, colour);
+          const label = document.createElement('canvas');
+          label.width = label.height = 256;
+          cluePainter({ shape: clue.shape, number: clue.number ?? null }, colour)(label.getContext('2d'), 256);
           const canvas = document.createElement('canvas');
           const side = Math.round(px * 0.76 / 0.88);
           canvas.width = canvas.height = side;
-          canvas.getContext('2d').drawImage(texture.image, 0, 0, side, side);
+          canvas.getContext('2d').drawImage(label, 0, 0, side, side);
           box.append(canvas);
           row.append(box);
         }

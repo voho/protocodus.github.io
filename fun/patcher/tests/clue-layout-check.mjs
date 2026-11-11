@@ -52,9 +52,10 @@ const context = vm.createContext({
   },
 });
 const source = await readFile(new URL('../../shared/slab.js', import.meta.url), 'utf8');
-const start = source.indexOf('export function clueTexture(');
-const end = source.indexOf('\nconst planes =', start);
-vm.runInContext(source.slice(start, end).replace('export function clueTexture', 'globalThis.clueTexture = function'), context);
+const start = source.indexOf('export function cluePainter(');
+const end = source.indexOf('\n/* All the labels', start);
+vm.runInContext(`${source.slice(start, end).replace('export function cluePainter', 'function cluePainter')}
+globalThis.clueTexture = (clue, colour) => canvasTexture(cluePainter(clue, colour));`, context);
 const close = (a, b, message) => assert.ok(Math.abs(a - b) < 1e-6, message);
 let checked = 0;
 for (profile of ['normal', 'wide', 'tall', 'legacy']) {

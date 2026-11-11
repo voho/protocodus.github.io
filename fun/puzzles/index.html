@@ -26,6 +26,15 @@
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
   </script>
+  <!-- The game is picked by script, so its imports are found three requests
+       deep. Fetch the engine and the shared table alongside the page instead. -->
+  <link rel="modulepreload" href="/assets/vendor/three/three.module.min.js">
+  <link rel="modulepreload" href="/assets/vendor/three/three.core.min.js">
+  <link rel="modulepreload" href="../shared/stage.js">
+  <link rel="modulepreload" href="../shared/shell.js">
+  <link rel="modulepreload" href="../shared/slab.js">
+  <link rel="modulepreload" href="../shared/tiles.js">
+  <link rel="modulepreload" href="../shared/themes.js">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -120,6 +129,7 @@
     </footer>
   </div>
   <p class="toast" data-toast role="status"></p>
+  <div class="pops" data-pops aria-hidden="true"></div>
 
   <dialog data-dialog="help" aria-labelledby="help-title">
     <form method="dialog" class="card">
@@ -151,6 +161,7 @@
       <p class="eyebrow">Solved</p>
       <h2 id="win-title" data-only="zipper">One line, no loose ends!</h2>
       <h2 id="win-title-patcher" data-only="patcher">Not a cell to spare!</h2>
+      <p class="win-stars" data-win-stars role="img"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z"/></svg></p>
       <p class="win-time" data-win-time>0:00</p>
       <p data-win-note></p>
       <div class="card-actions">
