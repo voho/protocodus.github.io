@@ -45,10 +45,6 @@
 - [Retra — Retro Processor](https://protocodus.cz/product/retra/): Stereo retro processor Rack Extension (latest build 0.7.0f2) chaining eight modelled stages (distortion, cassette or vinyl, wobble, dropouts, signal-reactive noise, amplifier, speaker, and digital or MP3/Ogg) under one Amount knob, with 20 patches.
 - [Electry — Modelled Electric Guitar](https://protocodus.cz/product/electry/): Physically modelled six-string electric guitar Rack Extension (latest build 2.4.6d1) with three single-coil pickups, a floating tremolo bridge, 15 technique keyswitches, and a direct signal for your own amp.
 
-## Plug-ins in Development
-
-- [Septum — Virtual-Analog Synth](https://protocodus.cz/product/septum/): Ten-voice virtual-analog synthesizer plug-in (v0.9.0, unreleased) for VST3, CLAP, AU and standalone, with two tones, nine waveforms, a multimode filter, arpeggiator and effects.
-
 ## Playable Browser Games
 
 - [Protocodus Browser Games](https://protocodus.cz/fun/): Six self-contained HTML5/WebGL browser games playable with no installation, account, or advertisements.

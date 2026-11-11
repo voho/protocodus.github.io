@@ -43,8 +43,8 @@ have no purchase links. Respira's panel previews retain their actual 0.1.14d1
 source labels. See the [release audit](../docs/reason-shop-status.md).
 
 On 11 November, at the owner's request for every instrument and effect, the
-catalog added Retra (0.7.0f2), Electry (2.4.6d1) and the Septum plug-in (0.9.0)
-as in-development pages, reversing Electry's earlier exclusion. Every Rack page
+catalog added Retra (0.7.0f2), and Electry (2.4.6d1) as in-development
+pages, reversing Electry's earlier exclusion. Every Rack page
 now shows the latest committed development panels from Rack `main`
 `d8e18ad` (`dist/`, and Press78's `GUI2D` previews, which print 1.0.6f1 where
 `dist/` still held 1.0.3f1); published products keep their Shop gallery in the
