@@ -1,12 +1,12 @@
 {
-  "checked_on": "2026-11-09",
+  "checked_on": "2026-11-11",
   "product": "Rill desktop music workstation",
   "source_repository": "https://github.com/protocodus/rill-daw",
   "source_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
   "source_version": "0.1.0",
   "licence": "MIT",
-  "basis": "Complete native captures of RILL code revision 70c416f09bc931500af660b8f5e32633821c14d6 on 9 November 2026, using the original 32-bar Glass Current session from make_demo.py. The source commit records these exact PNGs. That commit is on the pull request branch claude/project-thread-kc5brd of the source repository until it is merged. Production rendering and controls are unchanged. Downloads remain rolling alpha builds.",
-  "derivatives": "Pillow 12.3.0: lossless WebP, method 6, at the native PNG dimensions (2000 × 1250; mixer 2400 × 1250). All six WebP images preserve every source RGB pixel. Social JPEG: proportional Lanczos downsampling of the arrangement to 1600 × 1000, quality 86, optimized. No compositing, retouching or simulated UI.",
+  "basis": "Complete native captures of RILL code revision 70c416f09bc931500af660b8f5e32633821c14d6 on 9 November 2026, using the original 32-bar Glass Current session from make_demo.py. The source commit records these exact PNGs. That commit is on the pull request branch claude/project-thread-kc5brd of the source repository until it is merged. Production rendering and controls are unchanged. Downloads remain rolling alpha builds. R1 Mini and R1 Filter panels added on 11 November 2026 from rill-daw main bb50f7b (artifacts/readme-r1-mini.png, artifacts/readme-r1-filter.png); the six workstation captures are byte-identical in that revision.",
+  "derivatives": "Pillow 12.3.0: lossless WebP, method 6, at the native PNG dimensions (2000 × 1250; mixer 2400 × 1250). All WebP images preserve every source RGB pixel. Social JPEG: proportional Lanczos downsampling of the arrangement to 1600 × 1000, quality 86, optimized. No compositing, retouching or simulated UI. R1 panels: lossless WebP, method 6, at native dimensions (2093 × 2362 and 2093 × 1674).",
   "downloads": {
     "service": "nightly.link",
     "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
@@ -99,6 +99,28 @@
       "dimensions": [
         669.924,
         208
+      ]
+    },
+    "rill-r1-mini.webp": {
+      "source": "artifacts/readme-r1-mini.png",
+      "source_commit": "bb50f7b",
+      "source_sha256": "bad5d6c65c97b1780eddfe388ddf190f7c48239ba30a98f0c5800c6bd8aceb01",
+      "sha256": "7cbebe30cc01a97e27516be2c9996e4e9ef78a253764b9852a70a2d84ba3655e",
+      "bytes": 179468,
+      "dimensions": [
+        2093,
+        2362
+      ]
+    },
+    "rill-r1-filter.webp": {
+      "source": "artifacts/readme-r1-filter.png",
+      "source_commit": "bb50f7b",
+      "source_sha256": "b97e58b30e7a903651f428f5210ff3e113b2812a13a1f0a20adbf84fc6569948",
+      "sha256": "ec9fc115a5a0629767de27cdb48d1bd17d90001a6d9524a3a557fbbffa16fe2f",
+      "bytes": 99466,
+      "dimensions": [
+        2093,
+        1674
       ]
     }
   },

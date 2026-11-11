@@ -51,6 +51,8 @@
 .rill-disclosure .text-link { font-size: .8rem; }
 .rill-ai .rill-disclosure { margin-top: 1.2rem; }
 .rill-mixer-shot { margin-top: 3rem; }
+.rill-device-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; margin-top: 4rem; }
+.rill-device-grid figcaption { margin-top: 1rem; color: var(--fg-muted); font-size: .9rem; line-height: 1.6; max-width: 60ch; }
 .rill-download { background: #18241d; }
 .rill-download-head { display: grid; grid-template-columns: 1.15fr 1fr; gap: 3rem; align-items: center; }
 .rill-download-head .lede { font-size: 1rem; }
@@ -84,6 +86,7 @@
   .rill-hero-shot { margin-top: 2.5rem; }
   .rill-platform-line { gap: .4rem 1rem; }
   .rill-spec-strip .wrap { display: grid; grid-template-columns: 1fr 1fr; font-size: .7rem; }
+  .rill-device-grid { grid-template-columns: 1fr; margin-top: 2.5rem; }
   .rill-section-head, .rill-download-head, .rill-principles, .rill-download-grid, .rill-install { grid-template-columns: 1fr; }
   .rill-section-head .lede { margin-top: 1.5rem; }
   .rill-principles { gap: 1.5rem; margin-top: 2.5rem; }
