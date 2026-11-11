@@ -58,19 +58,22 @@ export const FIELD = {
   half: [4000, 1000, 4000],
   spawn: [0, 0, 0], spawnClear: 200,
   cell: 1000, hashCell: 100, bigRadius: 300, maxDynamic: 64,
-  types: [  // nominal bounding radius, count, draw distance (m)
-    { radius: 1.5, count: 12000, draw: 1500 },
-    { radius: 4, count: 6000, draw: 3000 },
-    { radius: 12, count: 2500, draw: 6000 },
-    { radius: 40, count: 600, draw: Infinity },
-    { radius: 125, count: 150, draw: Infinity },
+  // Nominal bounding radius, count, draw distance (m), and how many of its
+  // own radii away a rock gives up its near mesh, then its far mesh (cull.js).
+  // At 1080p a radius is 770 px / that number: each mesh is dropped where its
+  // triangles would shrink to about a pixel.
+  types: [
+    { radius: 1.5, count: 12000, draw: 1500, lod: [80, 300] },
+    { radius: 4, count: 6000, draw: 3000, lod: [57, 300] },
+    { radius: 12, count: 2500, draw: 6000, lod: [40, 150] },
+    { radius: 40, count: 600, draw: Infinity, lod: [28, 150] },
+    { radius: 125, count: 150, draw: Infinity, lod: [22, 150] },
   ],
   landmarks: { count: 6, scale: [6, 10] },
   scale: [0.7, 1.4], gap: 0.95,
   destructible: 3, hpPerRadius: 5,   // hp = 5 · r^1.5 for types 0–2
   density: 1200,                      // kg/m³: porous carbonaceous rubble
-  lodScale: 100,                      // far mesh beyond 100 radii (~9 px radius at 1080p)…
-  lodCap: 2500,                       // …but never further than this, except for landmarks
+  lodCap: 2500,                       // no near mesh further out than this, except for landmarks
   restitution: 0.5,
 };
 

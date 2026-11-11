@@ -141,6 +141,20 @@ test('the heavier fighter shoves the lighter interceptor harder, momentum conser
   near(after[2], before[2], 1e-3);
   assert.ok(Math.abs(b2.ship.vel[2] - 30) > Math.abs(a.ship.vel[2] + 30), 'the lighter ship changes more');
 });
+test('a glancing blow between two ships sets both turning; a square one turns neither', () => {
+  const reach = PLAYER.radius + ENEMY.radius - 0.1;
+  const pair = (va, vb) => [body(PLAYER, 0, { pos: [0, 0, 0], vel: va }), body(ENEMY, 1, { pos: [0, 0, -reach], vel: vb })];
+  const [a, b2] = pair([40, 0, -5], [-40, 0, 5]);
+  const before = momentum([PLAYER.mass, a.ship.vel], [ENEMY.mass, b2.ship.vel]);
+  resolveShipShip(a, b2, []);
+  const after = momentum([PLAYER.mass, a.ship.vel], [ENEMY.mass, b2.ship.vel]);
+  for (let k = 0; k < 3; k++) near(after[k], before[k], 1e-3, 'momentum');
+  assert.ok(len(a.ship.w) > 0.05 && len(b2.ship.w) > 0.05, `spin ${len(a.ship.w)}, ${len(b2.ship.w)}`);
+  assert.ok(Math.abs(a.ship.vel[0]) < 40 && Math.abs(b2.ship.vel[0]) < 40, 'friction slows the slide');
+  const [c, d] = pair([0, 0, -30], [0, 0, 30]);
+  resolveShipShip(c, d, []);
+  near(len(c.ship.w), 0, 1e-9); near(len(d.ship.w), 0, 1e-9);
+});
 test('reset after a fight restores the belt and clears everything', () => {
   const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
   const fire = { ...idle, fire: true, throttleSet: 1 };

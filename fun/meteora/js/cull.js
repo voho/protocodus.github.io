@@ -10,20 +10,27 @@
    the frustum or beyond the farthest draw distance of the sizes it holds;
    a cell entirely inside the frustum skips the per-rock plane tests. Only
    then are single rocks tested, against their own size's draw distance.
-   A rock switches to its far mesh at 100 of its own radii — the same size
-   on screen for a pebble as for a boulder — but no further out than 2.5 km,
-   where even a boulder's far mesh holds up; the kilometre-wide landmarks
-   always keep their detail. Measured from the spawn, the densest clump and
-   the belt's edge, that draws 12–37 % fewer triangles than one 2 km switch
-   for every size. No allocation per frame: the lists are preallocated. */
+   A rock is drawn with one of three meshes, chosen so that its triangles
+   stay about a pixel or two across: the near mesh, the far mesh, and beyond
+   that a speck of a few dozen triangles. Each size switches at its own
+   number of radii (config.js) — a boulder's near mesh has thirteen times a
+   pebble's triangles, so it has to be thirteen times bigger on screen to be
+   worth them — and the near mesh never reaches further than 2.5 km; the
+   kilometre-wide landmarks always keep their detail. `detail` scales the
+   switch distances with the picture: twice the pixels across a rock, twice
+   as far. Measured at 1080p from the spawn, the densest clump and the
+   belt's edge, that draws about half the triangles of one switch at 100
+   radii for every size (a third fewer at 1620p). No allocation per frame: the lists are preallocated. */
 
-export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.lodCap, margin = 1.15 } = {}) {
+export function createCuller(belt, cfg, { lod = cfg.types.map(t => t.lod), lodCap = cfg.lodCap, margin = 1.15 } = {}) {
   const types = cfg.types.length;
   const draw = cfg.types.map(t => t.draw);
-  const reach = new Float32Array(belt.count), lod = new Float64Array(belt.count);
+  const reach = new Float32Array(belt.count), lodNear = new Float64Array(belt.count), lodFar = new Float64Array(belt.count);
   for (let i = 0; i < belt.count; i++) {
     reach[i] = belt.radius[i] * margin;
-    lod[i] = belt.landmark[i] ? Infinity : Math.min(belt.radius[i] * lodScale, lodCap);
+    const [near, far] = lod[belt.type[i]];
+    lodNear[i] = belt.landmark[i] ? Infinity : Math.min(belt.radius[i] * near, lodCap);
+    lodFar[i] = belt.landmark[i] ? Infinity : belt.radius[i] * far;
   }
 
   // Cells: member lists and a bounding sphere around their rocks.
@@ -75,6 +82,7 @@ export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.
   const out = counts.map(n => ({
     near: { index: new Int32Array(n), count: 0 },
     far: { index: new Int32Array(n), count: 0 },
+    speck: { index: new Int32Array(n), count: 0 },
   }));
 
   return {
@@ -82,8 +90,8 @@ export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.
     cellOf,
     cellCenter: k => [cells[k].cx, cells[k].cy, cells[k].cz],
     // planes: 6 × [nx, ny, nz, d], inside when n·p + d ≥ −r. eye: [x, y, z].
-    cull(planes, eye, alive) {
-      for (const o of out) { o.near.count = 0; o.far.count = 0; }
+    cull(planes, eye, alive, detail = 1) {
+      for (const o of out) { o.near.count = 0; o.far.count = 0; o.speck.count = 0; }
       const ex = eye[0], ey = eye[1], ez = eye[2];
       for (const cell of cells) {
         const dx = cell.cx - ex, dy = cell.cy - ey, dz = cell.cz - ez;
@@ -120,7 +128,7 @@ export function createCuller(belt, cfg, { lodScale = cfg.lodScale, lodCap = cfg.
               }
               if (!visible) continue;
             }
-            const list = d > lod[i] ? lists.far : lists.near;
+            const list = d > lodFar[i] * detail ? lists.speck : d > lodNear[i] * detail ? lists.far : lists.near;
             list.index[list.count++] = i;
           }
         }

@@ -3,7 +3,7 @@
    Waves of three, then one more each wave up to ten, folding in from
    somewhere the player is not looking. From the third wave the Harrow mix
    in their other craft: a pack of Mites every third wave, Talons from the
-   fifth. A kill scores 100 × the wave; secondaries rearm one round every
+   fifth, and an ace at the head of every fifth. A kill scores 100 × the wave; secondaries rearm one round every
    eight seconds; the best score is kept per hull. */
 
 import { FIELD, COMBAT } from '../config.js';
@@ -37,7 +37,16 @@ export const SURVIVAL = defineMission({
           m.spawn('mite', { team: 1, pos, forward: normalize([0, 0, 0], sub([0, 0, 0], p.ship.pos, pos)), throttle: 1, tags: ['wave'] });
         }
       }
-      w.events.push({ type: 'wave', n: w.wave, count: w.entities.filter(e => e.team === 1 && e.alive).length });
+      // Every fifth wave is led by an ace: a bone-white Thorn that out-turns
+      // the rest, takes four times the killing and is worth fifteen of them.
+      const ace = w.wave % 5 === 0;
+      if (ace) {
+        const pos = points[points.length - 1].map((c, i) => c + (i === 1 ? 120 : 0));
+        m.spawn('ninth', { team: 1, pos, forward: normalize([0, 0, 0], sub([0, 0, 0], p.ship.pos, pos)), throttle: 0.8, name: 'Harrow ace', tags: ['wave'] });
+      }
+      const swarm = w.wave >= 3 && w.wave % 3 === 0;
+      const kind = ace && swarm ? 'an ace and a Mite swarm' : ace ? 'led by an ace' : swarm ? 'Mite swarm' : null;
+      w.events.push({ type: 'wave', n: w.wave, count: w.entities.filter(e => e.team === 1 && e.alive).length, kind });
       yield m.until(() => !hostilesLeft());
       yield m.wait(COMBAT.wave.delay);
     }

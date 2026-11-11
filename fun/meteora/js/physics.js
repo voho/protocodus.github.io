@@ -8,7 +8,8 @@
    already spinning brings that spin into the contact.
 
    A ship is a rigid body with a mass and three moments of inertia (from
-   radii of gyration about its pitch, yaw and roll axes). Rocks are point
+   radii of gyration about its pitch, yaw and roll axes), and two ships
+   that scrape past each other both come away turning. Rocks are point
    masses, and a rock fixed in the belt has no inverse mass at all — it
    cannot be moved, only bounced off. */
 
@@ -48,29 +49,37 @@ function applyImpulse(body, r, J, sign) {
   for (let i = 0; i < 3; i++) body.w[i] += sign * tmp[i] * body.invInertia[i];
 }
 
-/* Resolve a contact between A and B. `n` points from B to A; `rA` is the
-   contact point relative to A's centre (world). Returns the closing speed
+// The velocity of `body` at arm `r` from its centre (world), spin included.
+function pointVelocity(out, body, r) {
+  out[0] = body.vel[0]; out[1] = body.vel[1]; out[2] = body.vel[2];
+  if (!body.invInertia) return out;
+  qRotate(wWorld, body.q, body.w);
+  cross(tmp, wWorld, r);
+  for (let i = 0; i < 3; i++) out[i] += tmp[i];
+  return out;
+}
+
+/* Resolve a contact between A and B. `n` points from B to A; `rA` and `rB`
+   are the contact point relative to each centre (world); a body without
+   moments of inertia has no use for its arm. Returns the closing speed
    along the normal (0 when the bodies are already separating). */
-export function resolveContact(A, B, n, rA, restitution, mu) {
-  const vc = [A.vel[0], A.vel[1], A.vel[2]];
-  if (A.invInertia) {
-    qRotate(wWorld, A.q, A.w);
-    const spin = cross([0, 0, 0], wWorld, rA);
-    for (let i = 0; i < 3; i++) vc[i] += spin[i];
-  }
-  for (let i = 0; i < 3; i++) vc[i] -= B.vel[i];
+const NO_ARM = Object.freeze([0, 0, 0]), vB = [0, 0, 0];
+export function resolveContact(A, B, n, rA, restitution, mu, rB = NO_ARM) {
+  const vc = pointVelocity([0, 0, 0], A, rA);
+  pointVelocity(vB, B, rB);
+  for (let i = 0; i < 3; i++) vc[i] -= vB[i];
   const vn = dot(vc, n);
   if (vn >= 0) return 0;
-  const jn = -(1 + restitution) * vn / (inverseEffectiveMass(A, rA, n) + B.invMass);
+  const jn = -(1 + restitution) * vn / (inverseEffectiveMass(A, rA, n) + inverseEffectiveMass(B, rB, n));
   const J = [n[0] * jn, n[1] * jn, n[2] * jn];
   const vt = [vc[0] - n[0] * vn, vc[1] - n[1] * vn, vc[2] - n[2] * vn];
   const slide = len(vt);
   if (slide > 1e-9 && mu > 0) {
     const t = [vt[0] / slide, vt[1] / slide, vt[2] / slide];
-    const jt = Math.min(mu * jn, slide / (inverseEffectiveMass(A, rA, t) + B.invMass));
+    const jt = Math.min(mu * jn, slide / (inverseEffectiveMass(A, rA, t) + inverseEffectiveMass(B, rB, t)));
     for (let i = 0; i < 3; i++) J[i] -= t[i] * jt;
   }
   applyImpulse(A, rA, J, 1);
-  for (let i = 0; i < 3; i++) B.vel[i] -= J[i] * B.invMass;
+  applyImpulse(B, rB, J, -1);
   return -vn;
 }

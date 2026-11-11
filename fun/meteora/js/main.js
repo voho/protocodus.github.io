@@ -22,7 +22,7 @@
 import * as THREE from 'three';
 import { RENDER, SHAKE, STEP, FIELD, bigDeathSpan } from './config.js';
 import { NEUTRAL_CONTROLS } from './flight.js';
-import { advance, createWorld, drainEvents, resetWorld, startRun, IDLE } from './world.js';
+import { advance, createWorld, drainEvents, resetWorld, spawn, startRun, IDLE } from './world.js';
 import { SURVIVAL } from './missions/survival.js';
 import { defineMission, results } from './mission.js';
 import {
@@ -119,9 +119,14 @@ const MENU_SCENE = defineMission({
   start: { pos: [0, 0, 0], forward: [0.3, 0.05, -1] },
   setup(m) {
     m.wing('kestrel', 2, { names: ['Saint', 'Wren'] });
-    m.spawn('perpetua', { team: 0, pos: [-900, 260, -2600], forward: [1, 0, 0.25], name: 'Perpetua', helm: { path: [[3000, 260, -1600]], speed: 6 } });
+    if (menuFleet) m.spawn('perpetua', menuPerpetua());
   },
 });
+/* The Perpetua is a third of what the menu would otherwise wait for (3.6 MB
+   of 10.6), so the menu opens without her: she is loaded and the renderer
+   made ready for her behind it, and then she joins the scene. */
+let menuFleet = false;
+const menuPerpetua = () => ({ team: 0, pos: [-900, 260, -2600], forward: [1, 0, 0.25], name: 'Perpetua', helm: { path: [[3000, 260, -1600]], speed: 6 } });
 
 const screens = createScreens(document, settings, {
   click: () => { audio?.start(); music?.start(); audio?.ui('click'); },
@@ -271,7 +276,7 @@ async function boot() {
   let first;
   try {
     await library.loadRocks(f => screens.progress(0.15 + 0.4 * f, 'Charting the belt'));
-    first = ['fighter', 'interceptor', 'perpetua', progress.loadouts?.last?.hull === 'swift' ? 'swift' : null, progress.loadouts?.last?.hull === 'anvil' ? 'anvil' : null].filter(Boolean);
+    first = ['fighter', progress.loadouts?.last?.hull === 'swift' ? 'swift' : null, progress.loadouts?.last?.hull === 'anvil' ? 'anvil' : null].filter(Boolean);
     await library.preload(first, f => screens.progress(0.55 + 0.35 * f, 'Fuelling the wing'));
   } catch (error) {
     screens.error(`${error.message}. Check your connection and try again.`);
@@ -367,7 +372,11 @@ async function boot() {
   mode = 'menu';
   // The rest of the fleet loads behind the menu; the bay gets ready for
   // the three hulls you can fly as soon as it and they are in.
-  const fleet = library.preload(['swift', 'anvil', 'perpetua', 'drone', 'freighter', 'maul', 'talon', 'mite']);
+  library.preload(['perpetua']).then(() => getReady(['perpetua'])).then(() => {
+    menuFleet = true;
+    if (world.missionDef === MENU_SCENE) spawn(world, 'perpetua', menuPerpetua());
+  });
+  const fleet = library.preload(['swift', 'anvil', 'perpetua', 'interceptor', 'drone', 'freighter', 'maul', 'talon', 'mite']);
   Promise.all([fleet, hangar.loaded]).then(() => {
     if (hangar.ready) return warmup.warm(hangar.scene, hangar.camera, hangar.samples(['fighter', 'swift', 'anvil']));
   }).catch(error => console.warn('meteora: the hangar was not made ready', error));
@@ -395,7 +404,7 @@ function buildFieldRender() {
     fieldRender.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
   }
   // Legacy bench: every rock switches to its far mesh at 2 km, as before.
-  fieldRender = createFieldRender(scene, world.field, library.rocks, beltTime, LEGACY ? { lodScale: Infinity, lodCap: 2000 } : {});
+  fieldRender = createFieldRender(scene, world.field, library.rocks, beltTime, LEGACY ? { lod: world.field.cfg.types.map(() => [Infinity, Infinity]), lodCap: 2000 } : {});
   fieldRender.field = world.field;
 }
 
@@ -869,7 +878,7 @@ function handleEvents(events) {
     if (STAGED.has(e.type)) stage(e);
     switch (e.type) {
       case 'fire': if (!e.turret) projectiles.flash(e.pos, e.team, null, 1); else projectiles.flash(e.pos, e.team, null, Math.min(3, 1 + (e.size ?? 0) / 300)); break;
-      case 'wave': say(`Wave ${e.n} incoming · ${e.count} contacts`); break;
+      case 'wave': say(`Wave ${e.n} incoming · ${e.kind ? `${e.kind} · ` : ''}${e.count} contacts`); break;
       case 'shipKilled':
         if (e.id === p?.id) wreck = { pos: e.pos, vel: e.vel, t: 0 };
         jolt(e.pos, e.big ? 3 : e.id === p?.id ? 2 : 1.1, e.big ? 900 : 90);
@@ -1095,7 +1104,7 @@ function tick(dt) {
   sky.update(camera, paused ? 0 : dt, glow);
   glow.end();
   smoke.end();
-  fieldRender.update(camera);
+  fieldRender.update(camera, renderer.domElement.height);
   screens.animate(dt);
   const query = BENCH ? gpuBegin() : null;
   // The bloom's passes are renders of their own: count the frame as a whole.
