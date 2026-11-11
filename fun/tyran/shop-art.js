@@ -87,7 +87,8 @@ function firePower(c,color){
 }
 function build(key,color){
   const out=document.createElement('canvas');out.width=WIDTH;out.height=HEIGHT;
-  const c=out.getContext('2d');c.scale(2,2);c.imageSmoothingQuality='high';stage(c,color);
+  // Painted on the CPU: encoding a GPU canvas waits for a readback of every preview.
+  const c=out.getContext('2d',{willReadFrequently:true});c.scale(2,2);c.imageSmoothingQuality='high';stage(c,color);
   if(key.startsWith('weapon:'))firing(c,key.slice(7),color);
   else if(key==='upgrade:weapon'){
     fighter(c,160,83,104,116);for(const x of [127,193]){bolt(c,'pulse',color,x,47,27,77);c.fillStyle='#798d8b';c.fillRect(x-3,62,6,27);c.fillStyle='#c3d9ce';c.fillRect(x-1,60,2,23);}
@@ -113,7 +114,9 @@ function build(key,color){
     asset(c,'projectiles',11,160,75,103,103);glow(c,160,75,47,color,.34);
     for(const radius of [37,48,61]){c.strokeStyle=radius===48?'#d3c2ffa8':'#ad91ec38';c.lineWidth=radius===48?1.4:.7;c.beginPath();c.ellipse(160,75,radius,radius*.72,-.3,.3,5.7);c.stroke();}
   }
-  return out.toDataURL('image/png');
+  // Every preview is opaque. JPEG encodes about ten times faster than PNG at
+  // startup and keeps the shop markup, which embeds all thirteen, small.
+  return out.toDataURL('image/jpeg',.92);
 }
 export function warmShopArt(){
   if(ready)return ready;
