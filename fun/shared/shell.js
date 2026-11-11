@@ -19,6 +19,10 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
   const defaultFeedback = feedback?.textContent || '';
   const dailyButton = $('[data-action="daily"]');
   const canvas = $('#stage');
+  const pops = $('[data-pops]');
+  const progress = $('[data-progress]');
+  const progressCount = $('[data-progress-count]');
+  const progressDetail = $('[data-progress-detail]');
   const read = (name) => { try { return localStorage.getItem(`${storageKey}-${name}`); } catch { return null; } };
   const store = (name, value) => { try { localStorage.setItem(`${storageKey}-${name}`, value); } catch { /* private mode */ } };
 
@@ -39,7 +43,12 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
   const resumeClock = () => {
     if (ticking && startedAt === null && !document.hidden && !help.open && !win.open) startedAt = performance.now();
   };
-  setInterval(() => { if (startedAt !== null) timerOut.textContent = format(now()); }, 250);
+  // Four ticks a second keep the clock prompt; only a new second touches the page.
+  setInterval(() => {
+    if (startedAt === null) return;
+    const text = format(now());
+    if (timerOut.textContent !== text) timerOut.textContent = text;
+  }, 250);
   const fromHash = () => {
     const match = /^#(easy|medium|hard)-([a-z0-9]{3,16})$/i.exec(location.hash);
     return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
@@ -99,16 +108,26 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
       timerOut.textContent = '0:00'; hintButton.disabled = false;
     },
     setProgress(done, total, detail = '') {
-      const progress = $('[data-progress]');
       if (progress) { progress.max = total; progress.value = done; progress.setAttribute('aria-valuetext', `${done} of ${total}. ${detail}`); }
-      if ($('[data-progress-count]')) $('[data-progress-count]').textContent = `${done} / ${total}`;
-      if ($('[data-progress-detail]')) $('[data-progress-detail]').textContent = detail;
+      if (progressCount) progressCount.textContent = `${done} / ${total}`;
+      if (progressDetail) progressDetail.textContent = detail;
     },
     setFeedback(text) { if (feedback) feedback.textContent = text; },
     clearFeedback() { if (feedback) feedback.textContent = defaultFeedback; },
     setUndoAvailable(available) { if (undoButton) undoButton.disabled = !available; },
     countHint() { hints++; const badge = hintButton.querySelector('[data-hints]'); if (badge) badge.textContent = String(hints); },
     toast: showToast,
+    /* A word of praise or a score that pops up at `at` (page pixels) and
+       floats away; `big` for the rarer, louder ones. */
+    pop(text, at, big = false) {
+      const word = document.createElement('span');
+      word.className = big ? 'pop big' : 'pop';
+      word.textContent = text;
+      word.style.left = `${at.x}px`;
+      word.style.top = `${at.y}px`;
+      pops.append(word);
+      setTimeout(() => word.remove(), 1200);
+    },
     showWin({ ms, assisted }) {
       const bestKey = `best-${difficulty}`;
       const previous = Number(read(bestKey)) || 0;
@@ -121,6 +140,11 @@ export function createShell({ storageKey, sound, onNew, onReset, onHint, onUndo 
       else if (record) note.textContent = `${level} · a new best time${previous ? `, down from ${format(previous)}` : ''}!`;
       else note.textContent = `${level} · best ${format(previous)}.`;
       if (seed === dailySeed()) note.textContent = `Daily puzzle complete! ${note.textContent}`;
+      // Three stars for an unaided solve, two with a hint or two, one beyond.
+      const stars = !assisted ? 3 : hints <= 2 ? 2 : 1;
+      const rating = win.querySelector('[data-win-stars]');
+      rating.setAttribute('data-stars', String(stars));
+      rating.setAttribute('aria-label', `${stars} of 3 stars`);
       win.querySelector('[data-action="harder"]').hidden = difficulty === 'hard';
       if (!win.open) win.showModal();
     },

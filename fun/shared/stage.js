@@ -190,12 +190,14 @@ void main() {
   gl_FragColor = vec4(colour, 1.0);
 }`;
 
-/* Reflections come from a small lit room rendered once into a PMREM: a
+/* Reflections come from a small lit room rendered into a PMREM: a
    dim glow overhead, a cool and a warm panel at the sides, a strip in the
    accent behind and two glints in the theme's colours low at the sides.
    The flat tops mostly mirror the ceiling, so the ceiling stays soft
-   and the colour comes in on the bevels. */
-function studioEnvironment(renderer, accent, secondary) {
+   and the colour comes in on the bevels. The room and the generator live
+   as long as the stage: a change of theme only recolours three panels,
+   where a new generator would compile its blur shaders again. */
+function createStudio(renderer) {
   const room = new THREE.Scene();
   const add = (geometry, colour, intensity, position, rotation, side = THREE.DoubleSide) => {
     const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(colour).multiplyScalar(intensity), side });
@@ -203,19 +205,22 @@ function studioEnvironment(renderer, accent, secondary) {
     mesh.position.set(...position);
     mesh.rotation.set(...rotation);
     room.add(mesh);
+    return material.color;
   };
   add(new THREE.BoxGeometry(24, 24, 24), '#0a0c10', 1, [0, 0, 0], [0, 0, 0], THREE.BackSide);
   add(new THREE.PlaneGeometry(10, 10), '#ffffff', 1.4, [0, 11.9, 0], [Math.PI / 2, 0, 0]);
   add(new THREE.PlaneGeometry(4, 9), '#cfe0ff', 3, [-11.9, 2, 0], [0, Math.PI / 2, 0]);
   add(new THREE.PlaneGeometry(4, 9), '#ffe2c4', 2, [11.9, 2, -3], [0, -Math.PI / 2, 0]);
-  add(new THREE.PlaneGeometry(14, 1.2), accent, 4, [0, 5, -11.9], [0, 0, 0]);
-  add(new THREE.PlaneGeometry(6, 2), accent, 2.5, [-8, -2, 9], [0, Math.PI * 0.8, 0]);
-  add(new THREE.PlaneGeometry(6, 2), secondary, 2.5, [8, -1, 9], [0, -Math.PI * 0.8, 0]);
+  const strip = add(new THREE.PlaneGeometry(14, 1.2), '#ffffff', 1, [0, 5, -11.9], [0, 0, 0]);
+  const glintA = add(new THREE.PlaneGeometry(6, 2), '#ffffff', 1, [-8, -2, 9], [0, Math.PI * 0.8, 0]);
+  const glintB = add(new THREE.PlaneGeometry(6, 2), '#ffffff', 1, [8, -1, 9], [0, -Math.PI * 0.8, 0]);
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const environment = pmrem.fromScene(room, 0.04);
-  pmrem.dispose();
-  room.traverse((object) => { object.geometry?.dispose(); object.material?.dispose(); });
-  return environment;
+  return (accent, secondary) => {
+    strip.set(accent).multiplyScalar(4);
+    glintA.set(accent).multiplyScalar(2.5);
+    glintB.set(secondary).multiplyScalar(2.5);
+    return pmrem.fromScene(room, 0.04);
+  };
 }
 
 /* A soft round dot for the weather. */
@@ -288,10 +293,13 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       uTime: { value: 0 },
       uMotif: { value: 0 },
     },
-    depthTest: false, depthWrite: false,
+    depthWrite: false,
   });
   const backdropMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), backdropMaterial);
-  backdropMesh.renderOrder = -10;
+  // Drawn on the far plane after the board, so the depth test spares this
+  // shader, the dearest on the table, every pixel the board covers. The
+  // weather and the shade under the board are transparent and still follow.
+  backdropMesh.renderOrder = 10;
   backdropMesh.frustumCulled = false;
   backdropMesh.position.z = -100;
   camera.add(backdropMesh);
@@ -335,15 +343,17 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
   const bloom = hdr ? createBloom({ strength: 0.32, threshold: 1, knee: 0.5, spread: 1.15, levels: mobile ? 3 : 4, resolutionScale: 0.5 }) : null;
   renderer.setEffects(bloom ? [bloom] : []);
   const dot = dotTexture();
+  const studio = createStudio(renderer);
 
   // The camera descends to its resting height over the table.
   const rig = { distance: 60, target: { distance: 30 }, center: new THREE.Vector3() };
   let halfW = 3, halfD = 3, width = 1, height = 1;
   const listeners = new Set();
+  const afterRender = [];
   let running = false, last = 0, time = 0, flash = 0;
   let pendingFrame = 0, pendingTimer = 0;
-  // A move lands: a pulse of light in the backdrop.
-  let pulse = 0;
+  // A move lands: a pulse of light in the backdrop and a nudge of the camera.
+  let pulse = 0, punch = 0;
   /* Sleep between ambient frames instead of polling requestAnimationFrame.
      Input cancels that sleep immediately. Reduced motion sleeps completely
      once a move settles. Active animation is capped at 60 draws per second. */
@@ -399,7 +409,9 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
     rig.target.distance = far;
   }
   function placeCamera() {
-    camera.position.set(rig.center.x, rig.center.y + rig.distance * CAMERA_UP, rig.center.z + rig.distance * CAMERA_BACK);
+    // A punch dips the camera towards the table and lets it spring back.
+    const distance = rig.distance * (1 - 0.018 * punch * punch);
+    camera.position.set(rig.center.x, rig.center.y + distance * CAMERA_UP, rig.center.z + distance * CAMERA_BACK);
     camera.lookAt(rig.center);
     camera.updateMatrixWorld();
   }
@@ -423,7 +435,7 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
   }
 
   function isActive(now) {
-    return now < activeUntil || Math.abs(rig.target.distance - rig.distance) >= 0.003 || flash > 0 || pulse > 0;
+    return now < activeUntil || Math.abs(rig.target.distance - rig.distance) >= 0.003 || flash > 0 || pulse > 0 || punch > 0;
   }
   function schedule() {
     if (!running || pendingFrame || pendingTimer) return;
@@ -462,8 +474,9 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
     last = now;
     lastDraw = now;
     time += dt;
-    if (!settled) {
+    if (!settled || punch > 0) {
       rig.distance += (rig.target.distance - rig.distance) * (1 - Math.exp(-dt * 5));
+      punch = Math.max(0, punch - dt * 4.5);
       placeCamera();
     }
     flash = Math.max(0, flash - dt * 2.2);
@@ -478,6 +491,7 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
     rim.color.copy(rimAccent).lerp(rimSecondary, 0.5 + 0.5 * Math.sin(sceneryTime * 0.23));
     for (const listener of listeners) listener(dt, time);
     renderer.render(scene, camera);
+    if (afterRender.length) for (const job of afterRender.splice(0)) job();
     schedule();
   }
 
@@ -522,7 +536,7 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       material.uniforms.uScale.value = height * pixelRatio * 0.5 * rig.distance / 30;
       if (atelier) material.uniforms.uBoard.value.set(halfW, halfD);
     });
-    return { dispose() { stop(); scene.remove(points); geometry.dispose(); material.dispose(); } };
+    return { dispose() { stop(); scene.remove(points); stage.afterRender(() => { geometry.dispose(); material.dispose(); }); } };
   }
 
   /* Now and then, a spray of sparks from somewhere round the table,
@@ -543,7 +557,7 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       }
       bursts.update(dt);
     });
-    return { dispose() { stop(); scene.remove(bursts.mesh); bursts.mesh.geometry.dispose(); bursts.mesh.material.dispose(); } };
+    return { dispose() { stop(); scene.remove(bursts.mesh); stage.afterRender(() => { bursts.mesh.geometry.dispose(); bursts.mesh.material.dispose(); }); } };
   }
 
   /* Soft discs below the board share the same shader as the weather. */
@@ -591,6 +605,12 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       return { x: rect.left + (corner.x + 1) / 2 * rect.width, y: rect.top + (1 - corner.y) / 2 * rect.height };
     },
     onFrame(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    /* Run `job` once the next frame is drawn. three frees a shader program
+       with its last material, so a board or a weather that disposed of its
+       materials at once made its successor compile the same programs again:
+       a stall on every new puzzle. Releasing after the successor has drawn
+       keeps them. */
+    afterRender(job) { afterRender.push(job); stage.wake(); },
     /* Something moved: draw every frame for the next `seconds`. */
     wake(seconds = 0.8) {
       activeUntil = Math.max(activeUntil, performance.now() + seconds * 1000);
@@ -601,6 +621,8 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
     /* Board animation explicitly marks its shadows dirty; ambient light and
        weather reuse the last map. This does not prolong an animation. */
     invalidateShadows() { renderer.shadowMap.needsUpdate = true; },
+    /* The table takes a knock: a number reached, a patch landed, a board solved. */
+    kick(strength = 1) { if (reduced) return; punch = Math.max(punch, Math.min(1.5, strength)); stage.wake(); },
     flash(colour, strength = 1) { if (reduced) return; flashLight.color.set(colour); flash = Math.max(flash, strength); stage.wake(); },
     /* A glossy material: a clear coat on a desktop GPU, plain shading on a
        phone, where the second specular lobe is not worth the heat. */
@@ -643,7 +665,7 @@ export function createStage(canvas, { theme, exposure = 1.1, ambience = 'classic
       rimAccent.set(theme.accent);
       rimSecondary.set(theme.secondary);
       environment?.dispose();
-      environment = studioEnvironment(renderer, theme.accent, theme.secondary);
+      environment = studio(theme.accent, theme.secondary);
       scene.environment = environment.texture;
       for (const item of weather) item.dispose();
       weather.length = 0;

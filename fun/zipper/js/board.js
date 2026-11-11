@@ -2,7 +2,7 @@
    and the line itself, which grows and shrinks after the player's path. */
 import * as THREE from 'three';
 import { createTileBatch } from '../../shared/tiles.js';
-import { slabGeometry, digitTexture, labelMesh } from '../../shared/slab.js';
+import { slabGeometry, digitPainter, labelSheet } from '../../shared/slab.js';
 
 const CELL = 1;
 const TILE = 0.9, TILE_H = 0.16, TILE_R = 0.16;
@@ -44,7 +44,14 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
     // with its candy palette beneath the line.
     const gradient = ((cell % n) + Math.floor(cell / n)) / Math.max(1, 2 * (n - 1));
     const base = new THREE.Color(theme.tileA || '#164350').lerp(new THREE.Color(theme.tileB || '#392957'), gradient);
-    const lit = accentColour.clone().lerp(new THREE.Color(theme.secondary || '#8f7cff'), gradient).multiplyScalar(0.35);
+    // Covered tiles turn into the world's jewels, in diagonal bands.
+    // The palette is pastel, for dark ink on Patcher's patches; a jewel wants
+    // the same hue deep and saturated.
+    const lit = accentColour.clone().lerp(new THREE.Color(theme.secondary || '#8f7cff'), gradient);
+    if (theme.palette) {
+      const hsl = new THREE.Color(theme.palette[((cell % n) + Math.floor(cell / n)) % theme.palette.length]).getHSL({});
+      lit.setHSL(hsl.h, Math.max(0.75, hsl.s), 0.34);
+    } else lit.multiplyScalar(0.35);
     const mesh = tiles[cell];
     mesh.material.color.copy(base);
     mesh.material.emissive.copy(accentColour);
@@ -56,23 +63,25 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
   const puckGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.09, 24);
   disposables.push(puckGeometry);
   const pucks = new Map();
+  // A numeral covers about half a cell, so a small square of the sheet is enough.
+  const digits = labelSheet(puzzle.waypoints.map((cell, index) => digitPainter(String(index + 1), '#0d0e12')), { size: 160 });
+  // The path passes through numbered cells; their numerals stay readable
+  // over it, including the initial 1 beneath the line's starting point.
+  digits.material.depthTest = false;
+  disposables.push(digits);
   puzzle.waypoints.forEach((cell, index) => {
     const material = stage.material({ color: '#ffffff', roughness: 0.15, metalness: 0, emissive: '#ffffff', emissiveIntensity: 0, clearcoatRoughness: 0.05 });
     const puck = new THREE.Mesh(puckGeometry, material);
     puck.position.set(cellX(cell), TILE_H + 0.045, cellZ(cell));
     puck.castShadow = true;
-    const texture = digitTexture(String(index + 1), '#0d0e12');
-    const label = labelMesh(texture, 0.48, 1);
+    const label = digits.mesh(index, 0.48);
     label.position.y = 0.047;
-    // The path passes through numbered cells; their numerals stay readable
-    // over it, including the initial 1 beneath the line's starting point.
-    label.material.depthTest = false;
     label.renderOrder = 4;
     puck.add(label);
     puck.userData = { glow: 0, pulse: 0, reached: false };
     group.add(puck);
     pucks.set(cell, puck);
-    disposables.push(material, texture, label.material);
+    disposables.push(material);
   });
 
   const wallColour = new THREE.Color(theme.wall || '#f6d155');
@@ -338,9 +347,9 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
         const number = puzzle.numbers[head];
         // Every step sends a small ripple across the board; a number reached
         // sends a bright one and lights the backdrop.
-        ripple(head, number ? '#ffffff' : accent, number ? 1 : 0.25);
+        ripple(head, number ? '#ffffff' : accent, number ? 0.6 : 0.25);
         fx.sparks.burst({ origin: at(head), count: stage.reduced ? 0 : number ? 26 : 4, colours: ['#ffffff', accent, theme.wall || '#f6d155'], speed: [0.8, number ? 3 : 1.4], spread: 1.3, gravityPull: number ? 2 : -0.5, airDrag: 2, lifespan: [0.3, number ? 0.9 : 0.5], size: [0.06, 0.06], spinRate: 5 });
-        if (number) stage.pulse(at(head), accent, 1);
+        if (number) { stage.pulse(at(head), accent, 1); stage.kick(0.6); }
       } else if (shrank) {
         ripple(head, '#ffffff', 0.2);
       }
@@ -372,6 +381,7 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       linePulse = 0.7;
       ripple(target[target.length - 1], '#ffffff', 1.2);
       stage.pulse(new THREE.Vector3(0, 0.5, 0), '#ffffff', 1.4);
+      stage.kick(1.3);
       stage.wake(4);
       const colours = theme.palette || [accent, '#f6d155', '#ffffff', '#f29e8e', '#9fb8ff'];
       fx.confetti.burst({ origin: new THREE.Vector3(0, 1, 0), count: stage.reduced ? 0 : 220, colours, speed: [4, 9], spread: 0.9, gravityPull: 8, lifespan: [1.4, 2.6], size: [0.14, 0.09], scatter: n * 0.6 });
@@ -387,11 +397,13 @@ export function createBoard(stage, puzzle, { accent, theme = {}, fx }) {
       stopFrames();
       for (const timer of celebrationTimers) clearTimeout(timer);
       stage.scene.remove(group);
-      tileBatch.dispose();
       stage.invalidateShadows?.();
-      tube.dispose();
-      joints.dispose();
-      for (const item of disposables) item.dispose();
+      stage.afterRender(() => {
+        tileBatch.dispose();
+        tube.dispose();
+        joints.dispose();
+        for (const item of disposables) item.dispose();
+      });
     },
   };
 }

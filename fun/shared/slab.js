@@ -33,34 +33,23 @@ export function slabGeometry(width, depth, height, radius = 0.12, bevel = 0.03) 
 
 export const LABEL_FONT = '"Space Grotesk", "Segoe UI", system-ui, sans-serif';
 
-/* A square canvas texture drawn by `draw(ctx, size)`. */
-export function canvasTexture(draw, size = 256) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  draw(ctx, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  return texture;
-}
-
-/* A number, centred. */
-export function digitTexture(text, colour = '#f3f4f4', weight = 600) {
-  return canvasTexture((ctx, size) => {
+/* Paints a number, centred, into a `size` square. */
+export function digitPainter(text, colour = '#f3f4f4', weight = 600) {
+  return (ctx, size) => {
     ctx.fillStyle = colour;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const scale = text.length > 1 ? 0.52 : 0.64;
     ctx.font = `${weight} ${Math.round(size * scale)}px ${LABEL_FONT}`;
     ctx.fillText(text, size / 2, size * 0.54);
-  });
+  };
 }
 
 /* A Patcher clue: wide and square silhouettes above their numbers, tall
-   silhouettes beside them. Shape-only clues sit in the middle of a key. */
-export function clueTexture({ shape, number }, colour = '#f3f4f4') {
-  return canvasTexture((ctx, size) => {
+   silhouettes beside them. Shape-only clues sit in the middle of a key.
+   Returns the painter of a `size` square. */
+export function cluePainter({ shape, number }, colour = '#f3f4f4') {
+  return (ctx, size) => {
     const both = number !== null && number !== undefined;
     const tint = { square: '#8fe0c4', wide: '#8cc2ff', tall: '#d9b2f5' }[shape] || '#8fe0c4';
     // Placed patches keep the same dark ink for both icon and number.
@@ -125,25 +114,55 @@ export function clueTexture({ shape, number }, colour = '#f3f4f4') {
     // Center the visible glyphs, rather than the nominal line-height box.
     ctx.fillStyle = colour;
     ctx.fillText(text, textX, (top + bottom + bounds.ascent - bounds.descent) / 2);
-  });
+  };
 }
 
-const planes = new Map();
-
-/* A flat label lying on a slab, `size` across, brighter than one for
-   `intensity` above one (which the bloom picks up). The plane is shared
-   by every label of that size, so a board has only its textures and
-   materials to release. */
-export function labelMesh(texture, size, intensity = 1) {
-  if (!planes.has(size)) planes.set(size, new THREE.PlaneGeometry(size, size));
+/* All the labels of a board on one texture: one canvas, one upload and one
+   material, where a texture and a material per label cost a canvas each on
+   every new board and every placed patch. `painters[i]` draws label `i`
+   into a `size` square; `intensity` above one is picked up by the bloom. */
+export function labelSheet(painters, { size = 256, intensity = 1 } = {}) {
+  const columns = Math.ceil(Math.sqrt(painters.length)) || 1, rows = Math.ceil(painters.length / columns) || 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = columns * size;
+  canvas.height = rows * size;
+  const ctx = canvas.getContext('2d');
+  painters.forEach((paint, i) => {
+    ctx.save();
+    ctx.translate((i % columns) * size, Math.floor(i / columns) * size);
+    paint(ctx, size);
+    ctx.restore();
+  });
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
   const material = new THREE.MeshBasicMaterial({
     map: texture, transparent: true, depthWrite: false,
     color: new THREE.Color(intensity, intensity, intensity),
   });
-  const mesh = new THREE.Mesh(planes.get(size), material);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.renderOrder = 2;
-  return mesh;
+  const geometries = new Map();
+  return {
+    material,
+    /* Label `index` as a flat mesh lying on a slab, `width` across. */
+    mesh(index, width) {
+      const key = `${index}:${width}`;
+      if (!geometries.has(key)) {
+        const geometry = new THREE.PlaneGeometry(width, width);
+        const uv = geometry.attributes.uv, column = index % columns, row = Math.floor(index / columns);
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, (column + uv.getX(i)) / columns, 1 - (row + 1 - uv.getY(i)) / rows);
+        geometries.set(key, geometry);
+      }
+      const mesh = new THREE.Mesh(geometries.get(key), material);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.renderOrder = 2;
+      return mesh;
+    },
+    dispose() {
+      texture.dispose();
+      material.dispose();
+      for (const geometry of geometries.values()) geometry.dispose();
+    },
+  };
 }
 
 /* Wait for the label font so the first textures use it; no longer than

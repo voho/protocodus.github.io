@@ -7,9 +7,35 @@ const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
 const up = new THREE.Vector3(0, 1, 0);
 
+/* A four-pointed glint with a soft core, the sparkle of a cut stone. */
+function glintTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(32, 32);
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
+  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(-32, -32, 64, 64);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const radius = i % 2 ? 4 : 31, angle = i * Math.PI / 4;
+    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+  }
+  ctx.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 export function createBursts(scene, { max = 500, additive = false } = {}) {
   const geometry = new THREE.PlaneGeometry(1, 1);
+  // The glint fills less of its square than a plain piece, so it is drawn larger.
+  const reach = additive ? 2.4 : 1;
   const material = new THREE.MeshBasicMaterial({
+    map: additive ? glintTexture() : null,
     side: THREE.DoubleSide, transparent: additive, depthWrite: !additive,
     blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
   });
@@ -60,8 +86,8 @@ export function createBursts(scene, { max = 500, additive = false } = {}) {
       colour[i * 3] = tint.r; colour[i * 3 + 1] = tint.g; colour[i * 3 + 2] = tint.b;
       age[i] = 0;
       life[i] = lifespan[0] + Math.random() * (lifespan[1] - lifespan[0]);
-      sizeW[i] = size[0] * (0.7 + Math.random() * 0.6);
-      sizeH[i] = size[1] * (0.7 + Math.random() * 0.6);
+      sizeW[i] = size[0] * (0.7 + Math.random() * 0.6) * reach;
+      sizeH[i] = (additive ? sizeW[i] : size[1] * (0.7 + Math.random() * 0.6));
       gravity[i] = gravityPull;
       drag[i] = airDrag;
       mesh.setColorAt(i, tint);

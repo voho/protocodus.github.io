@@ -15,6 +15,15 @@ float lip = smoothstep(0.34, 0.425, glassEdge) * towardLight;
 float sweep = sin(dot(vTileWorld, vec2(0.42, 0.28)) - uSheenTime * 0.22);
 float sheen = pow(max(0.0, sweep), 16.0);
 diffuseColor.rgb *= mix(1.0, 0.86 + 0.2 * towardLight, glassTop);
+// A tile that has taken a bright colour is cut like a gem: a flat table in
+// the middle and four facets round it, the two nearest the key light paler.
+// Dark, empty tiles keep their plain satin top.
+float gem = glassTop * smoothstep(0.10, 0.32, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+float crown = smoothstep(0.235, 0.255, glassEdge);
+float facet = abs(vTileSurface.x) > abs(vTileSurface.y) ? -sign(vTileSurface.x) : sign(vTileSurface.y);
+diffuseColor.rgb *= 1.0 + gem * crown * facet * 0.3;
+float glint = 1.0 - smoothstep(0.0, 0.11, length(vTileSurface - vec2(-0.13, 0.13)));
+totalEmissiveRadiance += gem * glint * glint * 0.5 * diffuseColor.rgb;
 totalEmissiveRadiance += glassTop * (lip * 0.07 + sheen * 0.025) * vec3(0.92, 0.97, 1.0);
 `;
 
@@ -45,7 +54,7 @@ export function createTileBatch(stage, sourceGeometry, count, { finish = 'satin'
         : 'diffuseColor.rgb *= 0.985 + 0.025 * clamp(vTileSurface.x - vTileSurface.y, -1.0, 1.0);'))
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTileEmission;\n' + GLASS);
   };
-  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v4-${finish}`;
+  material.customProgramCacheKey = () => `puzzle-instanced-tiles-v5-${finish}`;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'tiles';
   mesh.castShadow = mesh.receiveShadow = true;

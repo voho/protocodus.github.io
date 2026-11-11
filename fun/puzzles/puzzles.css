@@ -157,3 +157,53 @@ details.keys[open] summary { margin-bottom: 6px; }
 .card-actions .btn svg { width: 28px; height: 28px; flex: none; }
 .card-actions .tool { flex: 1 1 0; flex-direction: column; gap: 4px; min-height: 92px; padding: 10px 8px; border-radius: 20px; }
 .card-actions .tool svg { width: 38px; height: 38px; }
+
+/* ---------- the feel of a jewel game ---------- */
+/* Praise and scores pop out of the board where the move landed. */
+.pops { position: fixed; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.pop {
+  position: absolute;
+  translate: -50% -50%;
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 18px var(--accent), 0 0 4px var(--accent);
+  animation: pop-up 1100ms var(--ease) both;
+}
+.pop.big { font-size: 2.3rem; color: var(--accent); text-shadow: 0 3px 0 rgba(0, 0, 0, 0.45), 0 0 26px var(--accent); animation-duration: 1200ms; }
+@keyframes pop-up {
+  0% { opacity: 0; transform: translateY(6px) scale(0.3); }
+  16% { opacity: 1; transform: translateY(-14px) scale(1.25); }
+  30% { transform: translateY(-20px) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-58px) scale(0.92); }
+}
+
+/* The coverage bar is a tube of light that fills with the world's colours. */
+progress { height: 8px; border-radius: 8px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 14px -4px var(--accent); }
+progress::-webkit-progress-bar { border-radius: 8px; }
+progress::-webkit-progress-value { border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--secondary, var(--accent))); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); transition: width 260ms var(--ease); }
+progress::-moz-progress-bar { border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--secondary, var(--accent))); }
+
+/* The win card: stars land one by one, the time swells in after them. */
+dialog[data-dialog="win"][open] .card { animation: card-in 420ms var(--ease) both; }
+@keyframes card-in { from { opacity: 0; transform: translateY(18px) scale(0.92); } }
+.win-stars { display: flex; gap: 6px; margin-top: 14px; }
+.win-stars svg { width: 46px; height: 46px; fill: rgba(255, 255, 255, 0.1); stroke: rgba(255, 255, 255, 0.18); stroke-width: 1.2; stroke-linejoin: round; }
+.win-stars[data-stars="1"] svg:nth-child(-n+1), .win-stars[data-stars="2"] svg:nth-child(-n+2), .win-stars[data-stars="3"] svg {
+  fill: #ffd54a;
+  stroke: #fff3b0;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 60, 0.7));
+  animation: star-in 520ms var(--ease) both;
+}
+.win-stars svg:nth-child(2) { animation-delay: 160ms; }
+.win-stars svg:nth-child(3) { animation-delay: 320ms; }
+@keyframes star-in { 0% { opacity: 0; transform: scale(0.2) rotate(-40deg); } 60% { opacity: 1; transform: scale(1.3) rotate(8deg); } 100% { transform: none; } }
+.win-time { animation: card-in 420ms 380ms var(--ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  /* No motion: a word simply shows and goes when the script removes it. */
+  .pop { transform: translateY(-20px); }
+}
+.card .win-time { color: var(--accent); text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 45%, transparent); }

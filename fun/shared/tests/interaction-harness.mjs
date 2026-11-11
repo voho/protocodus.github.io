@@ -47,7 +47,7 @@ export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } =
     randomSeed: () => 'retryseed',
     createThemeSwitch: () => ({ current: { label: 'Test', accent: '#87d7be', palette: ['#87d7be'] } }),
     createStage: () => ({
-      start() { state.starts++; }, flash() {}, setTheme() {},
+      start() { state.starts++; }, flash() {}, kick() {}, setTheme() {}, width: 800, height: 600,
       pick: (x, y) => ({ x: x / 100, z: y / 100 }), project() {},
     }),
     createBoard: () => board,
@@ -63,10 +63,10 @@ export async function gameHarness(game, puzzle, logic, { failGenerations = 0 } =
         setProgress: (...args) => state.progress.push(args),
         setFeedback: (text) => state.feedback.push(text), clearFeedback: () => state.feedback.push(''),
         setUndoAvailable: (available) => { state.undoAvailable = available; },
-        restart() {}, showWin: () => state.wins++,
+        restart() {}, pop() {}, showWin: () => state.wins++,
       };
     },
-    waitForFont: () => Promise.resolve(),
+    waitForFont: () => Promise.resolve(), performance,
     document: {
       addEventListener: (name, listener) => documentListeners.set(name, listener),
       getElementById: () => canvas,

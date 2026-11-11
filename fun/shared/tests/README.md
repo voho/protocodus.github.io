@@ -19,7 +19,10 @@ node fun/shared/tests/stage-check.mjs
 The checks cover seeded solvability and uniqueness, difficulty grading, fixed
 rendering buffers and cleanup, non-mutating hints, fast pointer samples, touch
 ownership, reversible rectangles, corner taps, cancellation, replay timing,
-scenery contrast and daily seeds, and the active-play clock. Stage checks use
+scenery contrast and daily seeds, and the active-play clock. The board fakes run
+`stage.afterRender` jobs at once; in the game a disposed board releases its
+GPU resources only after its successor has drawn, so shader programs survive
+the swap. Stage checks use
 a fake clock and real Three.js camera math to verify the fixed slight tilt,
 framing and picking, sleeping idle scheduler, prompt input wakeups, static
 shadow invalidation and background/reduced-motion suspension. These scheduling

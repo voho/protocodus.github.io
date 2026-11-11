@@ -12,7 +12,7 @@ let shadows = 0, wakes = 0, materials = 0;
 const stage = {
   scene, time: 0, reduced: false,
   material(options) { materials++; return new THREE.MeshPhysicalMaterial(options); },
-  frame() {}, wake() { wakes++; }, pulse() {},
+  frame() {}, wake() { wakes++; }, pulse() {}, afterRender(job) { job(); },
   invalidateShadows() { shadows++; },
   onFrame(listener) { listeners.add(listener); return () => listeners.delete(listener); },
 };
@@ -25,8 +25,11 @@ const context = vm.createContext({
     if (!cachedSlabs.has(key)) cachedSlabs.set(key, new THREE.BoxGeometry(w, h, d));
     return cachedSlabs.get(key);
   },
-  clueTexture: () => new THREE.Texture(),
-  labelMesh: (texture, size) => new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial()),
+  cluePainter: () => () => {},
+  labelSheet: () => {
+    const material = new THREE.MeshBasicMaterial();
+    return { material, mesh: (index, size) => new THREE.Mesh(new THREE.PlaneGeometry(size, size), material), dispose() { material.dispose(); } };
+  },
 });
 for (const [path, entry] of [['../../shared/tiles.js', 'createTileBatch'], ['../js/board.js', 'createBoard']]) {
   const source = (await readFile(new URL(path, import.meta.url), 'utf8'))

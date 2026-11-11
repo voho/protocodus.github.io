@@ -14,7 +14,7 @@ let shadows = 0;
 const stage = {
   scene, time: 0, reduced: false,
   material: (options) => new THREE.MeshPhysicalMaterial(options),
-  frame() {}, wake() {}, pulse() {}, kick() {},
+  frame() {}, wake() {}, pulse() {}, kick() {}, afterRender(job) { job(); },
   invalidateShadows() { shadows++; },
   onFrame(listener) { listeners.add(listener); return () => listeners.delete(listener); },
 };
@@ -22,8 +22,11 @@ const fx = Object.fromEntries(['confetti', 'sparks'].map((name) => [name, { aliv
 const context = vm.createContext({
   THREE, console,
   slabGeometry: (w, d, h) => new THREE.BoxGeometry(w, h, d),
-  digitTexture: () => new THREE.Texture(),
-  labelMesh: () => new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial()),
+  digitPainter: () => () => {},
+  labelSheet: () => {
+    const material = new THREE.MeshBasicMaterial();
+    return { material, mesh: (index, size) => new THREE.Mesh(new THREE.PlaneGeometry(size, size), material), dispose() { material.dispose(); } };
+  },
   setTimeout() { const timer = {}; timers.add(timer); return timer; },
   clearTimeout(timer) { timers.delete(timer); },
 });
