@@ -7,8 +7,12 @@ const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
 const up = new THREE.Vector3(0, 1, 0);
 
-/* A four-pointed glint with a soft core, the sparkle of a cut stone. */
+/* A four-pointed glint with a soft core, the sparkle of a cut stone. One
+   texture for the page: burst systems come and go with the weather, and a
+   material does not dispose of its map. */
+let glint = null;
 function glintTexture() {
+  if (glint) return glint;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 64;
   const ctx = canvas.getContext('2d');
@@ -25,9 +29,9 @@ function glintTexture() {
     ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
   }
   ctx.fill();
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  glint = new THREE.CanvasTexture(canvas);
+  glint.colorSpace = THREE.SRGBColorSpace;
+  return glint;
 }
 
 export function createBursts(scene, { max = 500, additive = false } = {}) {
