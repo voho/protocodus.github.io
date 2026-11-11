@@ -656,19 +656,30 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
       mesh.receiveShadow = false;
       group.add(mesh);
       const [from, to] = node.extras.bearing;
-      const probeMaterial = new THREE.ShaderMaterial({
-        uniforms: { ...uniforms, uRef: { value: probeU(side * ((from + to) / 2) * Math.PI / 180 + turn) } },
-        defines: { SKY_PROBE: '' },
-        vertexShader: BACKDROP_VERT,
-        fragmentShader: BACKDROP_FRAG,
-        side: THREE.DoubleSide,
-        depthWrite: true,
-        depthTest: true,
-      });
-      const probeMesh = new THREE.Mesh(geometry, probeMaterial);
-      probeMesh.frustumCulled = false;
-      probeMesh.renderOrder = 1;
-      probeGroup.add(probeMesh);
+      const ref = probeU(side * ((from + to) / 2) * Math.PI / 180 + turn);
+      /* The file's sectors end on the panorama's join, but a turned range's
+         do not, and the part of a sector unwrapped past either edge is
+         clipped rather than wrapped. Such a sector is drawn a second time
+         one turn over, which puts that part at the opposite edge. */
+      const reach = (to - from) / 720 + 0.01;
+      const refs = [ref];
+      if (ref < reach) refs.push(ref + 1);
+      if (ref > 1 - reach) refs.push(ref - 1);
+      for (const uRef of refs) {
+        const probeMaterial = new THREE.ShaderMaterial({
+          uniforms: { ...uniforms, uRef: { value: uRef } },
+          defines: { SKY_PROBE: '' },
+          vertexShader: BACKDROP_VERT,
+          fragmentShader: BACKDROP_FRAG,
+          side: THREE.DoubleSide,
+          depthWrite: true,
+          depthTest: true,
+        });
+        const probeMesh = new THREE.Mesh(geometry, probeMaterial);
+        probeMesh.frustumCulled = false;
+        probeMesh.renderOrder = 1;
+        probeGroup.add(probeMesh);
+      }
     }
     /* Where in the fields this run's ranges are cut: two golden-ratio
        hashes of the seed, which is fixed for the life of the page. */

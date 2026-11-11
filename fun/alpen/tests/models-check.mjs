@@ -2761,6 +2761,22 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
         const axis = view.uniforms.uLateralAxis.value;
         const east = new THREE.Vector3(axis.x, 0, axis.y).transformDirection(m);
         assert.ok(east.distanceTo(new THREE.Vector3(1, 0, 0)) < 1e-6, seed + ': the piste wanders along the world x');
+        // The fog's panorama, as the probe's vertex shader places it: what a
+        // turned sector unwraps past either edge has to land at the other.
+        const want = new Uint8Array(360);
+        const have = new Uint8Array(360);
+        for (const mesh of view.probeGroup.children) {
+          const p = mesh.geometry.attributes.position.array;
+          const ref = mesh.material.uniforms.uRef.value;
+          for (let i = 0; i < p.length; i += 3) {
+            v.set(p[i], p[i + 1], p[i + 2]).applyMatrix4(m);
+            const raw = Math.atan2(v.z, -v.x) / (Math.PI * 2);
+            want[Math.min(359, Math.floor((raw - Math.floor(raw)) * 360))] = 1;
+            const u = raw - Math.floor(raw - ref + 0.5);
+            if (u >= 0 && u < 1) have[Math.floor(u * 360)] = 1;
+          }
+        }
+        assert.deepEqual(have, want, seed + ': the probe draws the whole ring');
       }
     } finally {
       setWorldSeed(old);
