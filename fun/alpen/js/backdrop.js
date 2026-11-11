@@ -51,6 +51,7 @@ export const BACKDROP = {
   radius: [1650, 2800],
   horizons: 8,
   horizonMax: 50,
+  turnMax: 50,
 };
 
 const TAU = Math.PI * 2;
@@ -68,8 +69,8 @@ const VARY = {
   weight: [1, 0.6, 0.45],
   knollFade: [5000, 12000],
   fadeIn: 2900,
-  amp: [420, 750],
-  ampSpan: [3000, 20000],
+  amp: [420, 1000],
+  ampSpan: [3000, 28000],
 };
 const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -190,6 +191,7 @@ const BACKDROP_VERT = `
   attribute vec4 aHorizonA;
   attribute vec4 aHorizonB;
   uniform float uLateral;
+  uniform vec2 uLateralAxis;
   uniform float uShear;
   uniform sampler2D uNoise;
   uniform vec2 uVary;
@@ -239,7 +241,8 @@ const BACKDROP_VERT = `
     /* The piste's wander, as real parallax: a step sideways of L metres
        turns a point d away by L/d, which at the radius it is drawn at is
        L·r/d. The near ridges slide across the far ones. */
-    p.x -= uLateral * r / d;
+    // (along the world's x, which the range's own turn has put elsewhere)
+    p.xz -= uLateralAxis * (uLateral * r / d);
     /* And the near ground follows the run down. The model's own shoulder
        falls away at a fixed grade, but the run's pitch changes by the
        chapter; where it is steeper the game's ground drops below the
@@ -261,10 +264,12 @@ const BACKDROP_VERT = `
     // The panorama the fog reads: u round the ring, kept within half a turn
     // of this sector's own middle so no triangle spans the join; v the
     // elevation; depth the drawn distance, nearest wins.
-    float u = atan(p.z, -p.x) * 0.15915494;
+    // the probe is the world's panorama, so the range's turn is applied here
+    vec3 pw = mat3(modelMatrix) * p;
+    float u = atan(pw.z, -pw.x) * 0.15915494;
     u -= floor(u - uRef + 0.5);
-    float len = length(p);
-    float v = asin(p.y / len) * 0.31830989 + 0.5;
+    float len = length(pw);
+    float v = asin(pw.y / len) * 0.31830989 + 0.5;
     gl_Position = vec4(u * 2.0 - 1.0, v * 2.0 - 1.0,
       clamp((len - 1400.0) / 1600.0, 0.0, 1.0) * 2.0 - 1.0, 1.0);
 #else
@@ -566,10 +571,12 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
   const probeGroup = new THREE.Group();
   const uniforms = {
     uLateral: { value: 0 },
+    uLateralAxis: { value: new THREE.Vector2(1, 0) },
     uVary: { value: new THREE.Vector2() },
     uSunA: { value: new THREE.Vector4() },
     uSunB: { value: new THREE.Vector4() },
-    uSunDir: { value: sunDir },
+    // in the range's own frame, like every direction its shader handles
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
     uKeyLight: { value: new THREE.Color(0, 0, 0) },
     uSkyFill: { value: new THREE.Color(0.4, 0.45, 0.5) },
     uGroundFill: { value: new THREE.Color(0.4, 0.45, 0.5) },
@@ -611,7 +618,28 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
   let settle = null;
   const ready = new Promise((resolve) => { settle = resolve; });
 
+  /* WHICH WAY THE RANGE FACES. The model is a whole panorama and a run
+     looks at a quarter of it, so the same horn stood over every piste. Each
+     seed now turns the model up to fifty degrees either way and may mirror
+     it: the peaks ahead are other peaks, or the same ones on the other
+     hand. No further than fifty, because the model's open valley is what
+     the run descends into and has to stay ahead of it. A world bearing b is
+     the model's `side * (b - turn)`; the shader works in the model's frame
+     throughout, so only what comes in from the world is converted — the
+     sun, the piste's sideways wander, and the probe's panorama. */
+  let turn = 0;
+  let side = 1;
+  const modelBearing = (bearing) => side * (bearing - turn);
+
   function adopt(nodes) {
+    const seed = getWorldSeed();
+    turn = (((seed * 0.5698402910) % 1) * 2 - 1) * BACKDROP.turnMax * Math.PI / 180;
+    side = (seed * 0.4142135624) % 1 < 0.5 ? 1 : -1;
+    for (const g of [group, probeGroup]) {
+      g.rotation.y = -turn;
+      g.scale.x = side;
+    }
+    uniforms.uLateralAxis.value.set(side * Math.cos(turn), -Math.sin(turn));
     const names = Object.keys(nodes).filter((n) => n.startsWith('range_')).sort();
     if (!names.length) throw new Error('backdrop: no range in the file');
     for (const name of names) {
@@ -628,23 +656,33 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
       mesh.receiveShadow = false;
       group.add(mesh);
       const [from, to] = node.extras.bearing;
-      const probeMaterial = new THREE.ShaderMaterial({
-        uniforms: { ...uniforms, uRef: { value: probeU(((from + to) / 2) * Math.PI / 180) } },
-        defines: { SKY_PROBE: '' },
-        vertexShader: BACKDROP_VERT,
-        fragmentShader: BACKDROP_FRAG,
-        side: THREE.DoubleSide,
-        depthWrite: true,
-        depthTest: true,
-      });
-      const probeMesh = new THREE.Mesh(geometry, probeMaterial);
-      probeMesh.frustumCulled = false;
-      probeMesh.renderOrder = 1;
-      probeGroup.add(probeMesh);
+      const ref = probeU(side * ((from + to) / 2) * Math.PI / 180 + turn);
+      /* The file's sectors end on the panorama's join, but a turned range's
+         do not, and the part of a sector unwrapped past either edge is
+         clipped rather than wrapped. Such a sector is drawn a second time
+         one turn over, which puts that part at the opposite edge. */
+      const reach = (to - from) / 720 + 0.01;
+      const refs = [ref];
+      if (ref < reach) refs.push(ref + 1);
+      if (ref > 1 - reach) refs.push(ref - 1);
+      for (const uRef of refs) {
+        const probeMaterial = new THREE.ShaderMaterial({
+          uniforms: { ...uniforms, uRef: { value: uRef } },
+          defines: { SKY_PROBE: '' },
+          vertexShader: BACKDROP_VERT,
+          fragmentShader: BACKDROP_FRAG,
+          side: THREE.DoubleSide,
+          depthWrite: true,
+          depthTest: true,
+        });
+        const probeMesh = new THREE.Mesh(geometry, probeMaterial);
+        probeMesh.frustumCulled = false;
+        probeMesh.renderOrder = 1;
+        probeGroup.add(probeMesh);
+      }
     }
     /* Where in the fields this run's ranges are cut: two golden-ratio
        hashes of the seed, which is fixed for the life of the page. */
-    const seed = getWorldSeed();
     const vary = uniforms.uVary.value.set((seed * 0.6180339887) % 1, (seed * 0.7548776662) % 1);
     const sample = fieldSampler(noise);
     table = backdropSkyline(nodes, SKYLINE_BINS,
@@ -695,8 +733,12 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
      of it, shared linearly. Called every frame, so the scratch is kept. */
   const sunWeights = new Float32Array(8);
   function setSun(bearing) {
+    const c = Math.cos(turn);
+    const s = Math.sin(turn);
+    uniforms.uSunDir.value.set(
+      side * (sunDir.x * c + sunDir.z * s), sunDir.y, -sunDir.x * s + sunDir.z * c);
     const n = BACKDROP.horizons;
-    let f = (bearing / TAU) * n;
+    let f = (modelBearing(bearing) / TAU) * n;
     f -= Math.floor(f / n) * n;
     const i = Math.floor(f) % n;
     const t = f - Math.floor(f);
@@ -716,6 +758,6 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
     adopt,
     setSun,
     get loaded() { return loaded; },
-    skyline: (bearing) => (table ? skylineAt(table, bearing) : -Math.PI / 2),
+    skyline: (bearing) => (table ? skylineAt(table, modelBearing(bearing)) : -Math.PI / 2),
   };
 }

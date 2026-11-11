@@ -2712,6 +2712,78 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       }
     }
   }
+  // Each seed turns and may mirror the range. The skyline the sun sets
+  // behind, the sun the shader lights with and the piste's sideways axis are
+  // all converted by hand, so hold each against the matrix that draws it.
+  {
+    const { getWorldSeed, setWorldSeed } = await import(new URL('js/noise.js', base).href);
+    const old = getWorldSeed();
+    const turns = [];
+    const sides = new Set();
+    try {
+      for (const seed of ['1EE9566', '0ABC123', 'alpen01', '0000042', 'zermatt', '7']) {
+        setWorldSeed(seed);
+        const sunDir = new THREE.Vector3(0.61, 0.33, -0.72).normalize();
+        const view = bd.createBackdrop(THREE, { sunDir, noise: null, rockDetail: null });
+        view.adopt(nodes);
+        view.group.updateMatrixWorld(true);
+        const m = view.group.matrixWorld;
+        assert.ok(Math.abs(Math.abs(m.determinant()) - 1) < 1e-9, seed + ': the range is turned, not stretched');
+        const turn = -view.group.rotation.y * 180 / Math.PI;
+        assert.ok(Math.abs(turn) <= bd.BACKDROP.turnMax + 1e-9, seed + `: the valley stays ahead (${turn.toFixed(1)}°)`);
+        turns.push(turn);
+        sides.add(view.group.scale.x);
+        // the drawn skyline, the slow way: every vertex through the matrix
+        const drawn = new Float32Array(720).fill(-Math.PI / 2);
+        const v = new THREE.Vector3();
+        for (const node of Object.values(nodes)) {
+          const p = node.prims[0].attributes.POSITION;
+          for (let i = 0; i < p.length; i += 3) {
+            v.set(p[i], p[i + 1], p[i + 2]).applyMatrix4(m);
+            let bearing = Math.atan2(v.x, -v.z);
+            if (bearing < 0) bearing += Math.PI * 2;
+            const k = Math.min(719, Math.floor(bearing / (Math.PI * 2) * 720));
+            drawn[k] = Math.max(drawn[k], Math.atan2(v.y, Math.hypot(v.x, v.z)));
+          }
+        }
+        let worst = 0;
+        for (let k = 0; k < 720; k += 3) {
+          const told = view.skyline((k + 0.5) / 720 * Math.PI * 2);
+          const near = Math.max(drawn[(k + 719) % 720], drawn[k], drawn[(k + 1) % 720]);
+          const far = Math.max(near, drawn[(k + 718) % 720], drawn[(k + 2) % 720]);
+          // the table is dilated by a bin, and the turn lands between bins
+          worst = Math.max(worst, drawn[k] - told, told - far);
+        }
+        assert.ok(worst < 0.012, seed + `: the sun sets behind the peaks as drawn (${(worst * 180 / Math.PI).toFixed(2)}° out)`);
+        view.setSun(Math.atan2(sunDir.x, -sunDir.z));
+        const lit = view.uniforms.uSunDir.value.clone().transformDirection(m);
+        assert.ok(lit.distanceTo(sunDir) < 1e-6, seed + ': the shader lights from where the sun is');
+        const axis = view.uniforms.uLateralAxis.value;
+        const east = new THREE.Vector3(axis.x, 0, axis.y).transformDirection(m);
+        assert.ok(east.distanceTo(new THREE.Vector3(1, 0, 0)) < 1e-6, seed + ': the piste wanders along the world x');
+        // The fog's panorama, as the probe's vertex shader places it: what a
+        // turned sector unwraps past either edge has to land at the other.
+        const want = new Uint8Array(360);
+        const have = new Uint8Array(360);
+        for (const mesh of view.probeGroup.children) {
+          const p = mesh.geometry.attributes.position.array;
+          const ref = mesh.material.uniforms.uRef.value;
+          for (let i = 0; i < p.length; i += 3) {
+            v.set(p[i], p[i + 1], p[i + 2]).applyMatrix4(m);
+            const raw = Math.atan2(v.z, -v.x) / (Math.PI * 2);
+            want[Math.min(359, Math.floor((raw - Math.floor(raw)) * 360))] = 1;
+            const u = raw - Math.floor(raw - ref + 0.5);
+            if (u >= 0 && u < 1) have[Math.floor(u * 360)] = 1;
+          }
+        }
+        assert.deepEqual(have, want, seed + ': the probe draws the whole ring');
+      }
+    } finally {
+      setWorldSeed(old);
+    }
+    assert.ok(Math.max(...turns) - Math.min(...turns) > 30, `seeds face different ways (${turns.map((t) => t.toFixed(0))})`);
+    assert.equal(sides.size, 2, 'and some are mirrored');
+  }
   // The maps: WebP, at the sizes the shader's frame assumes (u round the
   // ring, v out along it).
   const webpSize = (buf) => {
