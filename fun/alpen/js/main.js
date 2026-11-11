@@ -20,6 +20,7 @@
 
 import * as THREE from 'three';
 
+import { createFramePacer } from './frame-pacer.js';
 import { RENDER, RIDER, SCORE, PROPS, GRADE, HARD, SOFT } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
@@ -1729,9 +1730,12 @@ let lastStep = 0;
 let last = 0;
 let tickStep = 0;
 let cpuFrameMs = 0;
+const skipFrame = createFramePacer(RENDER.frameMs);
 
 function frame(now) {
   requestAnimationFrame(frame);
+  // A pending resize clears the canvas, so its frame is always drawn.
+  if (skipFrame(now, last) && !resizeFrame) return;
   const cpuStart = performance.now();
   /* A pending resize is applied here, before this frame draws, rather than in
      its own callback. That callback was queued after this one, so it resized

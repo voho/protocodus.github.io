@@ -44,3 +44,38 @@ size = sample(2560, 1080, 16384);
 const dpr = Math.min(RENDER.maxPixelRatio, Math.sqrt(RENDER.maxPixels / (2560 * 1080)));
 assert.deepEqual([size.displayWidth, size.displayHeight], [Math.round(2560 * dpr), Math.round(1080 * dpr)]);
 console.log('Render limits passed: texture, renderbuffer, viewport, aspect and normal quality budgets.');
+
+// Fast panels draw a whole fraction of their refreshes, never under 60 a
+// second, and a panel up to about 116 Hz draws every one.
+{
+  const { createFramePacer } = await import('../js/frame-pacer.js');
+  const drawn = (hz, jitter = 0, drop = 0) => {
+    const skip = createFramePacer(RENDER.frameMs);
+    let last = 0, count = 0, worst = 0;
+    for (let i = 1; i <= hz * 6; i++) {
+      if (drop && i % drop === 0) continue; // a refresh the browser never delivered
+      const now = i * 1000 / hz + Math.sin(i * 12.9898) * jitter;
+      if (skip(now, last)) continue;
+      // the first second is the pacer learning the panel
+      if (i > hz) { count++; worst = Math.max(worst, now - last); }
+      last = now;
+    }
+    return { fps: count / 5, worst };
+  };
+  for (const [hz, want] of [[50, 50], [60, 60], [75, 75], [90, 90], [100, 100],
+    [120, 60], [144, 72], [165, 82.5], [240, 60], [360, 60]]) {
+    const { fps, worst } = drawn(hz);
+    assert(Math.abs(fps - want) < 0.5, `${hz} Hz draws ${want} fps (${fps})`);
+    assert(worst < 1000 / want + 0.01, `${hz} Hz is paced evenly (${worst.toFixed(2)} ms)`);
+  }
+  // Callback times that wobble by a millisecond do not change the rate.
+  assert(Math.abs(drawn(120, 1).fps - 60) < 0.5);
+  assert(Math.abs(drawn(60, 2).fps - 60) < 0.5);
+  assert(Math.abs(drawn(168, 1).fps - 84) < 0.5);
+  assert(Math.abs(drawn(165, 2).fps - 82.5) < 0.5);
+  assert(Math.abs(drawn(240, 1).fps - 60) < 0.5);
+  // A dropped refresh costs that refresh, not a second one on top of it.
+  assert(drawn(144, 0, 7).worst < 3 * 1000 / 144 + 0.01);
+  // A GPU that only manages every second refresh of a 144 Hz panel is left alone.
+  assert(Math.abs(drawn(72).fps - 72) < 0.5);
+}
