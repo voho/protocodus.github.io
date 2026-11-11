@@ -707,12 +707,14 @@ const COVER_FIRST = 7;
 const DECOR_CLUMP = [3, 3, 1, 1, 2, 1, 3];
 const DECOR_CLUMP_MAX = 3;
 const COVER_CLUMP_MAX = 4;
-/* Drawn for the nearest four rings of bands only — at least 160 m ahead,
-   past which a knee-high tuft is a few pixels — and dissolved by 150 m so
-   that ring's edge is never seen. Everything further is streamed and placed
-   all the same; only the draw stops, so the band cache is untouched. */
+/* Drawn for the nearest four rings of bands only — at least 160 m ahead —
+   and dissolved by 110 m, well inside that ring's edge. A knee-high tuft is
+   three pixels of a 1080p frame at 80 m and under two at 150, so the last
+   forty metres were a third of the flora's triangles spent on specks.
+   Everything further is streamed and placed all the same; only the draw
+   stops, so the band cache is untouched. */
 const DECOR_RINGS = 4;
-const DECOR_FADE = [115, 150];
+const DECOR_FADE = [78, 110];
 /* Straw and the bilberry's twigs take little of the flora snow: their faces
    are flat ribbons turned to the sky, and at a third of the snow a tuft went
    as white as the slope it stood in and vanished from twenty metres. */

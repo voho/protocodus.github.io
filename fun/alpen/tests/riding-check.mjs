@@ -882,7 +882,7 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
 
 // The frame keeps opening past the old 42 m/s stop — the whole top half of
 // the flow range used to look exactly like 151 km/h — while the range
-// everybody rides in is framed exactly as before.
+// everybody rides in follows the squared ramp to an eleven-degree opening.
 {
   const settle = (v) => {
     const cam = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 2000);
@@ -893,11 +893,11 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
     return { fov: cam.fov, back: cam.position.distanceTo(r.pos) };
   };
   const slow = settle(20);
-  assert.ok(Math.abs(slow.fov - (65 + 7 * (20 / 42) ** 2)) < 0.05, `20 m/s is framed as before (${slow.fov})`);
+  assert.ok(Math.abs(slow.fov - (65 + 11 * (20 / 42) ** 2)) < 0.05, `20 m/s opens on the squared ramp (${slow.fov})`);
   const at = [42, 60, 96].map(settle);
   assert.ok(at[0].fov < at[1].fov && at[1].fov < at[2].fov, `the lens keeps opening (${at.map((s) => s.fov.toFixed(1))})`);
   assert.ok(at[0].back < at[1].back && at[1].back < at[2].back, 'and the boom keeps pulling back');
-  assert.ok(at[2].fov < 76, 'without running away');
+  assert.ok(at[2].fov < 81, 'without running away');
 }
 // A live OS comfort preference removes incidental movement while preserving
 // the camera's actual job: keeping the rider, landing and terrain in view.

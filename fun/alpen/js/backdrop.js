@@ -378,13 +378,25 @@ const BACKDROP_FRAG = `
     snow = max(0.0, snow - treeCover);
     forest += treeCover;
     vec3 needleTint = mix(uForest, uForest * vec3(0.88, 1.18, 0.92), crowns);
-    vec3 forestColor = mix(needleTint, uSnow * 0.82,
-      (0.04 + 0.10 * (1.0 - crowns)) * mix(0.40, 1.45, standOpen));
+    /* The snow between the crowns lies in their shade, so it is the sky's
+       blue rather than the sun's white: taken neutral, a forest belt whose
+       crowns are below the pixel averaged to concrete grey. The stands also
+       keep a tone of their own, so the belt still has a pattern at a
+       distance where nothing finer survives. */
+    vec3 forestColor = mix(needleTint, uSnow * vec3(0.50, 0.66, 0.92),
+      (0.04 + 0.10 * (1.0 - crowns)) * mix(0.40, 1.45, standOpen))
+      * mix(0.62, 1.30, stand);
     vec3 albedo = uSnow * snow + forestColor * forest + uIce * ice + rockColor * rock;
 
     // and the strata tilt the light on the rock
     n = normalize(n + vec3(strata.r - 0.5, 0.0, strata.g - 0.5) * 0.25 * rock);
-    vec3 litN = normalize(n + vec3(fast.g - 0.5, 0.0, fast.b - 0.5) * (0.22 * forest));
+    /* Two reliefs the maps are too coarse for, both from fields already
+       read: the canopy rolls stand by stand, and open snow is never a
+       smooth dome — the wind lays it in drifts and scoured slabs, which is
+       what catches the low sun on a far snowfield. */
+    vec3 litN = normalize(n + vec3(fast.g - 0.5, 0.0, fast.b - 0.5) * (0.22 * forest)
+      + vec3(slow.g - 0.5, 0.0, slow.r - 0.5) * (0.55 * forest + 0.30 * snow)
+      + vec3(fast.b - 0.5, 0.0, fast.r - 0.5) * (0.16 * snow));
 
     /* The key, and whether the land round this point hides it: the sun's
        elevation against the horizon on its bearing, softened by a degree
