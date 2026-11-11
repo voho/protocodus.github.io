@@ -39,7 +39,7 @@ export const OPERATIONS = {
   m09: { act: 'III · The long mercy', role: 'Convoy screening & quarantine', pace: 'Identify a hidden threat, then find a way around a capital ship.',
     stakes: 'These are the last people out. The ark has no second convoy to wait for.',
     tactic: 'Scan Skiff 4 before the checkpoint. A confirmed threat gives Vigil time to help.',
-    fails: 'A second transport is lost, Skiff 4 docks with its cargo unchecked, or you are shot down.' },
+    fails: 'A second transport is lost, Skiff 4 reaches the Long Mercy (scanned or not, it has to be stopped), or you are shot down.' },
   m10: { act: 'III · The long mercy', role: 'Fleet rearguard & escape', pace: 'Multiple fronts build into one final jump.',
     stakes: 'Forty-one thousand lives. One drive ring. One chance.',
     tactic: 'Delegate targets to your wing. The anchors and the drive ring decide the battle.',
