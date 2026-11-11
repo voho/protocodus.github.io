@@ -69,3 +69,6 @@
   .studio-page #products .product-grid { grid-template-columns: 1fr; gap: 2.5rem; }
   .studio-page #products .product-grid .p-podcare { grid-template-columns: 1fr; gap: 1rem; }
 }
+/* Latest development panels beside a published release's history. */
+.dev-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1rem, 3vw, 2rem); margin-block: 0 2rem; align-items: start; }
+@media (max-width: 760px) { .dev-panels { grid-template-columns: 1fr; } }

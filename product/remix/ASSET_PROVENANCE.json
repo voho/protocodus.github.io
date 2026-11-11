@@ -1,42 +1,71 @@
 {
-  "product": "Remix",
-  "reviewed": "2026-11-07",
-  "availability": "coming_soon",
-  "source_version": "1.1.0f3",
-  "source_repository": "protocodus/reason-rack-extensions",
-  "assets": [
-    {
-      "file": "Remix_Thumbnail_800.png",
-      "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d"
-    },
-    {
-      "file": "remix-rack-front.webp",
-      "sha256": "0029070bfcc9106bae857bd740ecef8dced03e2c52c75a4a08ba26a9cc4cce74"
-    },
-    {
-      "file": "remix-rack-rear.webp",
-      "sha256": "b1febc65a99a07aee7c72b5db776db12f0d2a0f1d2efdc9cc5edf9a297187a37"
-    }
-  ],
-  "shop_cover_refresh": {
-    "date": "2026-11-04",
-    "file": "Remix_Thumbnail_800.png",
-    "source": "Examples/Remix/Design/Shop/cover.png",
-    "source_sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
-    "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
-    "pixels": [
-      800,
-      800
-    ],
-    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
-    "source_branch": "main",
-    "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+ "product": "Remix",
+ "reviewed": "2026-11-07",
+ "availability": "coming_soon",
+ "source_version": "1.1.0f3",
+ "source_repository": "protocodus/reason-rack-extensions",
+ "assets": [
+  {
+   "file": "Remix_Thumbnail_800.png",
+   "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d"
   },
-  "rack_images": {
-    "date": "2026-11-07",
-    "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
-    "source_commit": "d551b56",
-    "note": "3U 1.1.0f3 panels (narrower scope and Main fader, Shape and Skew side by side; narrower rear input groups and a wider Main fader CV group), converted to WebP quality 92"
+  {
+   "file": "remix-rack-front.webp",
+   "sha256": "0029070bfcc9106bae857bd740ecef8dced03e2c52c75a4a08ba26a9cc4cce74"
+  },
+  {
+   "file": "remix-rack-rear.webp",
+   "sha256": "b1febc65a99a07aee7c72b5db776db12f0d2a0f1d2efdc9cc5edf9a297187a37"
   }
+ ],
+ "shop_cover_refresh": {
+  "date": "2026-11-04",
+  "file": "Remix_Thumbnail_800.png",
+  "source": "Examples/Remix/Design/Shop/cover.png",
+  "source_sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
+  "sha256": "883450bcbab1a1214224d8aa62c91003192f3a8189797ea150bf4f78ca07900d",
+  "pixels": [
+   800,
+   800
+  ],
+  "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+  "source_branch": "main",
+  "generator": "Tools/shop_covers/build_shop_covers.py",
+  "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+ },
+ "rack_images": {
+  "date": "2026-11-07",
+  "source": "Examples/Remix/Docs/screenshots/Remix_Front.png and Remix_Back.png",
+  "source_commit": "d551b56",
+  "note": "3U 1.1.0f3 panels (narrower scope and Main fader, Shape and Skew side by side; narrower rear input groups and a wider Main fader CV group), converted to WebP quality 92"
+ },
+ "development_panels": {
+  "reviewed": "2026-11-11",
+  "version_on_panel": "1.1.0f4",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "remix-rack-front.webp",
+    "sha256": "acd07370cf2baea584b4f49769f561df0b7ae9f79d63c7255d35be5b77eb4eb4",
+    "source": "dist/Remix_Front.png",
+    "source_sha256": "7fc8620180a7f636d853ef22bf4d9610deec9e317873076af7453e282a77a360",
+    "pixels": [
+     1508,
+     414
+    ]
+   },
+   {
+    "file": "remix-rack-rear.webp",
+    "sha256": "2c44e889958574ce348b85abe64dbbcdde435f88e7a843eac9432e96ffa69d0f",
+    "source": "dist/Remix_Back.png",
+    "source_sha256": "3f52d532fddb2f897ab2dfde477337dba2ab8c73ae5b9d1275158e12230d8a43",
+    "pixels": [
+     1508,
+     414
+    ]
+   }
+  ]
+ }
 }

@@ -1,36 +1,65 @@
 {
-  "product": "Convretor",
-  "reviewed": "2026-10-31",
-  "availability": "coming_soon",
-  "source_version": "0.1.0d9",
-  "source_repository": "protocodus/reason-rack-extensions",
-  "assets": [
-    {
-      "file": "Convretor_Thumbnail_800.png",
-      "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901"
-    },
-    {
-      "file": "convretor-rack-front.webp",
-      "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358"
-    },
-    {
-      "file": "convretor-rack-rear.webp",
-      "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
-    }
-  ],
-  "shop_cover_refresh": {
-    "date": "2026-11-04",
-    "file": "Convretor_Thumbnail_800.png",
-    "source": "Examples/Convretor/Design/Shop/cover.png",
-    "source_sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
-    "sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
-    "pixels": [
-      800,
-      800
-    ],
-    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
-    "source_branch": "main",
-    "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+ "product": "Convretor",
+ "reviewed": "2026-10-31",
+ "availability": "coming_soon",
+ "source_version": "0.1.0d9",
+ "source_repository": "protocodus/reason-rack-extensions",
+ "assets": [
+  {
+   "file": "Convretor_Thumbnail_800.png",
+   "sha256": "7be431935b3f7f04340d35229fc16e57b0626c8bf08d2c05aec33168a3b3b901"
+  },
+  {
+   "file": "convretor-rack-front.webp",
+   "sha256": "cee921d713993abcc47de59e2e7a441ed06642bbc44f62d7cfaf6e0cbc9f3358"
+  },
+  {
+   "file": "convretor-rack-rear.webp",
+   "sha256": "1b992ff02f6d85711b9da4e5f6bc11757a0095bdb94aa31b1962fbbc296ccb3c"
   }
+ ],
+ "shop_cover_refresh": {
+  "date": "2026-11-04",
+  "file": "Convretor_Thumbnail_800.png",
+  "source": "Examples/Convretor/Design/Shop/cover.png",
+  "source_sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
+  "sha256": "5f613ab13c3a36cacf82a8fa4b62c7610fc8c12dc9ca9a207a766d603000ebf9",
+  "pixels": [
+   800,
+   800
+  ],
+  "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+  "source_branch": "main",
+  "generator": "Tools/shop_covers/build_shop_covers.py",
+  "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+ },
+ "development_panels": {
+  "reviewed": "2026-11-11",
+  "version_on_panel": "0.1.0d9",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "convretor-rack-front.webp",
+    "sha256": "fc6811cac34e1c6eb165e97e99177b9d2a3c688c0231dd3b8b86a8819db6eb11",
+    "source": "dist/Convretor_Front.png",
+    "source_sha256": "efa1b9a71947d67ef17f72345f89b7c47d15765e31f4eb224dbf6c74bed9222f",
+    "pixels": [
+     1508,
+     414
+    ]
+   },
+   {
+    "file": "convretor-rack-rear.webp",
+    "sha256": "f348dfd5a15019de7012bbe32471f7eeca2065b2a8ec167163aead29a5b60dc6",
+    "source": "dist/Convretor_Back.png",
+    "source_sha256": "06d6b410504b6b93f40c734fc0b5d0378f3fdb2e09859e2c6a4280958682d78d",
+    "pixels": [
+     1508,
+     414
+    ]
+   }
+  ]
+ }
 }

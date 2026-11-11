@@ -1,0 +1,42 @@
+{
+ "product": "Electry",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-11",
+  "version_on_panel": "2.4.6d1",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "electry-rack-front.webp",
+    "sha256": "95072231be67cbc34c84dfe05c3a8e75ad00470f23d897d32ff1612b3db18cb5",
+    "source": "dist/Electry_Front.png",
+    "source_sha256": "de13c5229b1b89501aa8d8ee81e7ddb41d99027347bba815573f8de6f7dcec5f",
+    "pixels": [
+     754,
+     552
+    ]
+   },
+   {
+    "file": "electry-rack-rear.webp",
+    "sha256": "2fa519dfa9f9dcadb47db803aff2055f7b55b3c60ba42d1004ee5fda49dbed4d",
+    "source": "dist/Electry_Back.png",
+    "source_sha256": "16a950a58743e213a9bfc0c26bbd5cf6a09de0921d1c9427cd85935e0908b6bc",
+    "pixels": [
+     754,
+     552
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Electry_Thumbnail_800.png",
+  "sha256": "ca820f5302c59c38bda53212c393269f3a656593ac638cd80722eb917dbd04d0",
+  "source": "dist/Electry_Thumbnail_800.png"
+ },
+ "feature_sources": [
+  "dist/Electry-SHOP.md",
+  "Examples/Electry/CHANGELOG.md"
+ ]
+}

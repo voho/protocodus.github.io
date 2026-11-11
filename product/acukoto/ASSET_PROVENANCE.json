@@ -1,144 +1,173 @@
 {
-  "product": "Acukoto",
-  "reviewed": "2026-11-07",
-  "availability": "awaiting_shop_approval",
-  "source_version": "0.22.0f1",
-  "source_repository": "protocodus/reason-rack-extensions",
-  "assets": [
-    {
-      "file": "acukoto-rack-front.webp",
-      "sha256": "74a8ad75e16ef0301c553209976b63470f4c819e0b437b3142bd751b06ed9667",
-      "source": "dist/Acukoto_Front.png",
-      "source_sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
-      "pixels": [
-        1508,
-        828
-      ]
-    },
-    {
-      "file": "Acukoto_Front.png",
-      "sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
-      "source": "dist/Acukoto_Front.png",
-      "source_sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
-      "pixels": [
-        1508,
-        828
-      ]
-    },
-    {
-      "file": "acukoto-rack-rear.webp",
-      "sha256": "5b1047af55da231aba40aaafe4386be362883aa95b21580f83fb45c9ca6a00e5",
-      "source": "dist/Acukoto_Back.png",
-      "source_sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
-      "pixels": [
-        1508,
-        828
-      ]
-    },
-    {
-      "file": "Acukoto_Back.png",
-      "sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
-      "source": "dist/Acukoto_Back.png",
-      "source_sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
-      "pixels": [
-        1508,
-        828
-      ]
-    },
-    {
-      "file": "Acukoto_Thumbnail_800.png",
-      "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
-      "source": "dist/Acukoto_Thumbnail_800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork.",
-      "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
-      "pixels": [
-        800,
-        800
-      ]
-    }
-  ],
-  "development_refresh": {
-    "date": "2026-11-03",
-    "source_version": "0.18.0d1",
-    "upstream_revision": "90212a70d165de540e7f552c0ed37bd6765906ac",
-    "assets": {
-      "Acukoto_Thumbnail_800.png": {
-        "source": "dist/Acukoto_Thumbnail_800.png",
-        "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
-        "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
-        "pixels": [
-          800,
-          800
-        ]
-      },
-      "Acukoto_Front.png": {
-        "source": "dist/Acukoto_Front.png",
-        "sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
-        "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
-        "pixels": [
-          1508,
-          828
-        ]
-      },
-      "acukoto-rack-front.webp": {
-        "source": "dist/Acukoto_Front.png",
-        "sha256": "c370f218d0c4e3126685fefb9750eab4cd96efb0adda16bae2ac8dd6176ac3e0",
-        "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
-        "pixels": [
-          1508,
-          828
-        ]
-      },
-      "Acukoto_Back.png": {
-        "source": "dist/Acukoto_Back.png",
-        "sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
-        "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
-        "pixels": [
-          1508,
-          828
-        ]
-      },
-      "acukoto-rack-rear.webp": {
-        "source": "dist/Acukoto_Back.png",
-        "sha256": "8188eb5bebb8d73fd3467ac80313b8f64cb327bc474f339003e85a317ea6a1e9",
-        "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
-        "pixels": [
-          1508,
-          828
-        ]
-      }
-    },
-    "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
-    "source_branch": "release/dsp-20261103-evening"
+ "product": "Acukoto",
+ "reviewed": "2026-11-07",
+ "availability": "awaiting_shop_approval",
+ "source_version": "0.22.0f1",
+ "source_repository": "protocodus/reason-rack-extensions",
+ "assets": [
+  {
+   "file": "acukoto-rack-front.webp",
+   "sha256": "74a8ad75e16ef0301c553209976b63470f4c819e0b437b3142bd751b06ed9667",
+   "source": "dist/Acukoto_Front.png",
+   "source_sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
+   "pixels": [
+    1508,
+    828
+   ]
   },
-  "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
-  "source_branch": "release/dsp-20261103-evening",
-  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
-  "shop_cover_refresh": {
-    "date": "2026-11-05",
-    "file": "Acukoto_Thumbnail_800.png",
-    "source": "Examples/Acukoto/Design/Shop/cover.png",
-    "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
-    "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
-    "pixels": [
-      800,
-      800
-    ],
-    "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
-    "source_branch": "main",
-    "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
-    "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acukoto/Design/Shop/realistic/layers.json"
+  {
+   "file": "Acukoto_Front.png",
+   "sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
+   "source": "dist/Acukoto_Front.png",
+   "source_sha256": "cf00caa710884460ed5e7f86a601768930d579d386b2f4795189053d6230467c",
+   "pixels": [
+    1508,
+    828
+   ]
   },
-  "publication_check": {
-    "checked_on": "2026-11-06",
-    "product": "acukoto",
-    "status": "awaiting_shop_approval",
-    "checked_url": "https://www.reasonstudios.com/shop/product_page/34541/",
-    "http_status": 404,
-    "accepted_version": "0.18.0d1",
-    "shop_page_version": "0.18.0",
-    "shop_page_status": "waiting_for_approval",
-    "publish_on_approval": true
+  {
+   "file": "acukoto-rack-rear.webp",
+   "sha256": "5b1047af55da231aba40aaafe4386be362883aa95b21580f83fb45c9ca6a00e5",
+   "source": "dist/Acukoto_Back.png",
+   "source_sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
+   "pixels": [
+    1508,
+    828
+   ]
+  },
+  {
+   "file": "Acukoto_Back.png",
+   "sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
+   "source": "dist/Acukoto_Back.png",
+   "source_sha256": "d4c08b46971a3e9a969ed5f889f56ce96903d8306440a21f46d5e3669f62d819",
+   "pixels": [
+    1508,
+    828
+   ]
+  },
+  {
+   "file": "Acukoto_Thumbnail_800.png",
+   "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
+   "source": "dist/Acukoto_Thumbnail_800.png",
+   "note": "Existing approved luxury cover; unchanged source artwork.",
+   "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
+   "pixels": [
+    800,
+    800
+   ]
   }
+ ],
+ "development_refresh": {
+  "date": "2026-11-03",
+  "source_version": "0.18.0d1",
+  "upstream_revision": "90212a70d165de540e7f552c0ed37bd6765906ac",
+  "assets": {
+   "Acukoto_Thumbnail_800.png": {
+    "source": "dist/Acukoto_Thumbnail_800.png",
+    "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+    "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+    "pixels": [
+     800,
+     800
+    ]
+   },
+   "Acukoto_Front.png": {
+    "source": "dist/Acukoto_Front.png",
+    "sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
+    "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
+    "pixels": [
+     1508,
+     828
+    ]
+   },
+   "acukoto-rack-front.webp": {
+    "source": "dist/Acukoto_Front.png",
+    "sha256": "c370f218d0c4e3126685fefb9750eab4cd96efb0adda16bae2ac8dd6176ac3e0",
+    "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff",
+    "pixels": [
+     1508,
+     828
+    ]
+   },
+   "Acukoto_Back.png": {
+    "source": "dist/Acukoto_Back.png",
+    "sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
+    "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
+    "pixels": [
+     1508,
+     828
+    ]
+   },
+   "acukoto-rack-rear.webp": {
+    "source": "dist/Acukoto_Back.png",
+    "sha256": "8188eb5bebb8d73fd3467ac80313b8f64cb327bc474f339003e85a317ea6a1e9",
+    "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc",
+    "pixels": [
+     1508,
+     828
+    ]
+   }
+  },
+  "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+  "source_branch": "release/dsp-20261103-evening"
+ },
+ "source_format": "Rack Extension candidate. Panel views follow the shipped default patch.",
+ "source_branch": "release/dsp-20261103-evening",
+ "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+ "shop_cover_refresh": {
+  "date": "2026-11-05",
+  "file": "Acukoto_Thumbnail_800.png",
+  "source": "Examples/Acukoto/Design/Shop/cover.png",
+  "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
+  "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
+  "pixels": [
+   800,
+   800
+  ],
+  "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
+  "source_branch": "main",
+  "generator": "Tools/shop_covers/build_shop_covers.py",
+  "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
+  "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acukoto/Design/Shop/realistic/layers.json"
+ },
+ "publication_check": {
+  "checked_on": "2026-11-06",
+  "product": "acukoto",
+  "status": "awaiting_shop_approval",
+  "checked_url": "https://www.reasonstudios.com/shop/product_page/34541/",
+  "http_status": 404,
+  "accepted_version": "0.18.0d1",
+  "shop_page_version": "0.18.0",
+  "shop_page_status": "waiting_for_approval",
+  "publish_on_approval": true
+ },
+ "development_panels": {
+  "reviewed": "2026-11-11",
+  "version_on_panel": "0.25.16d1",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "acukoto-rack-front.webp",
+    "sha256": "40c98b4159b894ad98cda7c91122f2370c8037fa9cdce765e0edb786c80af405",
+    "source": "dist/Acukoto_Front.png",
+    "source_sha256": "2f844fd22c416f31eec3274de4018e45188a5da75d146f739d5e8cab8d9cb026",
+    "pixels": [
+     1508,
+     828
+    ]
+   },
+   {
+    "file": "acukoto-rack-rear.webp",
+    "sha256": "35c43ad9b2e67d287138d6642798d6b453219ab26a8477fba0e08a1212634e60",
+    "source": "dist/Acukoto_Back.png",
+    "source_sha256": "c726396c05bc3177baa0dd65855387853c3f84bc0d6cb0a690b99ce38be3ce5c",
+    "pixels": [
+     1508,
+     828
+    ]
+   }
+  ]
+ }
 }

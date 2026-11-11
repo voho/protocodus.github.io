@@ -1,0 +1,32 @@
+{
+ "product": "Septum",
+ "availability": "in_development",
+ "reviewed": "2026-11-11",
+ "source_repository": "protocodus/virtual-instrument-septum",
+ "source_commit": "ecd9b6c2f2fe85d2e3241de52939af5e9fa10acd",
+ "source_version": "0.9.0",
+ "feature_sources": [
+  "README.md"
+ ],
+ "assets": [
+  {
+   "file": "septum-editor.webp",
+   "sha256": "d9ebcfff44a324f1e4767f6c2e9c96c5dd909dc3f874af617989065927881d3d",
+   "source": "Docs/screenshots/septum.png",
+   "pixels": [
+    1960,
+    1206
+   ]
+  },
+  {
+   "file": "septum-social.png",
+   "sha256": "e449ef4d8280952aa1ff54860cf3efe95f285c38b42ee0ec7a5d54df68ba332c",
+   "source": "Docs/screenshots/septum.png, resized to 1200 × 738",
+   "pixels": [
+    1200,
+    738
+   ]
+  }
+ ],
+ "note": "Plug-in only: there is no Rack Extension, so no front and back panels exist."
+}

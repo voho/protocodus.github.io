@@ -35,13 +35,19 @@
 
 ## Reason Rack Extensions in Review & Development
 
-- [Respira — Modelled Accordion](https://protocodus.cz/product/respira/): Physically modelled accordion Rack Extension (v0.1.16d1) with eight registers, bass and chord buttons, and automatic or manual modulation-wheel bellows.
-- [Acukoto — Modelled Koto](https://protocodus.cz/product/acukoto/): Physically modelled 13-string paulownia koto Rack Extension (v0.18.0d1) with movable bridges, two tunings, sympathetic resonance, and left-hand pitch bends.
-- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (v0.4.14d1) combining components from five grand models and an upright with three continuous pedals and 14 patches.
-- [Aculele — Modelled Ukulele](https://protocodus.cz/product/aculele/): Physically modelled ukulele Rack Extension (v0.4.39d1) with soprano, concert, and tenor bodies, nylon or fluorocarbon strings, and mic/piezo capture.
-- [Aculyre — Modelled Lyre](https://protocodus.cz/product/aculyre/): Physically modelled lyre harp Rack Extension (v0.7.9d1) with three instruments, steel/nylon/gut strings, sympathetic resonance, and mic/piezo capture.
-- [Remix — Crossfader Utility](https://protocodus.cz/product/remix/): Free 3U crossfader utility Rack Extension (v1.1.0) with Shape and Skew curve controls, live scope, and CV control.
-- [Convretor — Audio to CV Utility](https://protocodus.cz/product/convretor/): Compact 3U audio-to-CV utility Rack Extension (v1.0.0) driving four CV outputs with independent scale, polarity, and high/low-pass input filtering.
+- [Respira — Modelled Accordion](https://protocodus.cz/product/respira/): Physically modelled accordion Rack Extension (v0.1.16d1 submitted; latest build 0.1.27f1) with eight registers, bass and chord buttons, and automatic or manual modulation-wheel bellows.
+- [Acukoto — Modelled Koto](https://protocodus.cz/product/acukoto/): Physically modelled 13-string paulownia koto Rack Extension (v0.18.0d1 accepted; latest build 0.25.16d1) with movable bridges, two tunings, sympathetic resonance, and left-hand pitch bends.
+- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (latest build 1.0.0f2) combining components from five grand models and an upright with three continuous pedals and 14 patches.
+- [Aculele — Modelled Ukulele](https://protocodus.cz/product/aculele/): Physically modelled ukulele Rack Extension (v0.4.39d1 accepted; latest build 0.4.64d1) with soprano, concert, and tenor bodies, nylon or fluorocarbon strings, and mic/piezo capture.
+- [Aculyre — Modelled Lyre](https://protocodus.cz/product/aculyre/): Physically modelled lyre harp Rack Extension (v0.7.9d1 accepted; latest build 0.13.5d1) with three instruments, steel/nylon/gut strings, sympathetic resonance, and mic/piezo capture.
+- [Remix — Crossfader Utility](https://protocodus.cz/product/remix/): Free 3U crossfader utility Rack Extension (latest build 1.1.0f4) with Shape and Skew curve controls, live scope, and CV control.
+- [Convretor — Audio to CV Utility](https://protocodus.cz/product/convretor/): Compact 3U audio-to-CV utility Rack Extension (latest build 0.1.0d9) driving four CV outputs with independent scale, polarity, and high/low-pass input filtering.
+- [Retra — Retro Processor](https://protocodus.cz/product/retra/): Stereo retro processor Rack Extension (latest build 0.7.0f2) chaining eight modelled stages (distortion, cassette or vinyl, wobble, dropouts, signal-reactive noise, amplifier, speaker, and digital or MP3/Ogg) under one Amount knob, with 20 patches.
+- [Electry — Modelled Electric Guitar](https://protocodus.cz/product/electry/): Physically modelled six-string electric guitar Rack Extension (latest build 2.4.6d1) with three single-coil pickups, a floating tremolo bridge, 15 technique keyswitches, and a direct signal for your own amp.
+
+## Plug-ins in Development
+
+- [Septum — Virtual-Analog Synth](https://protocodus.cz/product/septum/): Ten-voice virtual-analog synthesizer plug-in (v0.9.0, unreleased) for VST3, CLAP, AU and standalone, with two tones, nine waveforms, a multimode filter, arpeggiator and effects.
 
 ## Playable Browser Games
 

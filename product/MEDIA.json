@@ -1,8 +1,50 @@
 {
-  "verified_at": "2026-11-06",
+  "verified_at": "2026-11-11",
   "youtube_channel": "https://www.youtube.com/@protocodus",
   "soundcloud_profile": "https://soundcloud.com/protocodus",
   "videos": [
+    {
+      "id": "2Br1qIwNDgw",
+      "title": "We ran a 1910 rag through 8 old machines: tape, vinyl, radio, Ogg (Protocodus Retra for Reason)",
+      "product": "retra",
+      "url": "https://www.youtube.com/watch?v=2Br1qIwNDgw",
+      "kind": "video"
+    },
+    {
+      "id": "2UO5Jk-MAuU",
+      "title": "No Samples, Just Strings: A Minuet and Two Irish Jigs for Four Modelled Lyres (Protocodus Aculyre)",
+      "product": "aculyre",
+      "url": "https://www.youtube.com/watch?v=2UO5Jk-MAuU",
+      "kind": "video"
+    },
+    {
+      "id": "D8Ff79RFWho",
+      "title": "The csárdás finale, where the whole accordion opens up 🪗",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=D8Ff79RFWho",
+      "kind": "short"
+    },
+    {
+      "id": "QL3fTyPuFc8",
+      "title": "One accordion, three hands' worth of notes: csárdás friss 🔥",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=QL3fTyPuFc8",
+      "kind": "short"
+    },
+    {
+      "id": "xl819uJEPC8",
+      "title": "Tarantella at full speed, and not a single sample 🪗",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=xl819uJEPC8",
+      "kind": "short"
+    },
+    {
+      "id": "0EwHJA0w2jE",
+      "title": "No Samples, Just Air: Protocodus Respira Plays Tarantella & Csárdás at Full Speed",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=0EwHJA0w2jE",
+      "kind": "video"
+    },
     {
       "id": "7rh4ti-U3T4",
       "title": "Tarantella napoletana for seven modelled ukuleles | Protocodus Aculele for Reason",

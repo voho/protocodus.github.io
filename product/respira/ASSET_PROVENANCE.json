@@ -1,145 +1,174 @@
 {
-  "product": "Respira",
-  "reviewed": "2026-11-04",
-  "availability": "awaiting_device_acceptance",
-  "source_version": "0.1.14d1",
-  "source_format": "Rack Extension 0.1.14d1 built from main, uploaded to Reason Studios on 4 November 2026. Panel views follow the shipped default patch.",
-  "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "main",
-  "source_commit": "c7325aaad0c12be10636c03327a1daf6204ba243",
-  "instrument_repository": "protocodus/virtual-instrument-respira",
-  "instrument_commit": "ba1485ce2e7affb4e2befab71a940414882c888a",
-  "feature_sources": [
-    "Examples/Respira/README.md",
-    "Examples/Respira/info.lua",
-    "virtual-instrument-respira/README.md"
-  ],
-  "assets": [
-    {
-      "file": "respira-rack-front.webp",
-      "sha256": "18b3cc21e8885f2357685bcf1271dae3e9773b0fbf2024be873295bdcfba6f17",
-      "source": "dist/Respira_Front.png",
-      "source_sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
-      "pixels": [
-        1508,
-        552
-      ]
-    },
-    {
-      "file": "Respira_Front.png",
-      "sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
-      "source": "dist/Respira_Front.png",
-      "source_sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
-      "pixels": [
-        1508,
-        552
-      ]
-    },
-    {
-      "file": "respira-rack-rear.webp",
-      "sha256": "6240b2838b6b9117f4729fa6feff226f31048c22031bf5a9274fe917c46b803c",
-      "source": "dist/Respira_Back.png",
-      "source_sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
-      "pixels": [
-        1508,
-        552
-      ]
-    },
-    {
-      "file": "Respira_Back.png",
-      "sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
-      "source": "dist/Respira_Back.png",
-      "source_sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
-      "pixels": [
-        1508,
-        552
-      ]
-    },
-    {
-      "file": "Respira_Thumbnail_800.png",
-      "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
-      "source": "dist/Respira_Thumbnail_800.png",
-      "note": "Existing approved luxury cover; unchanged source artwork.",
-      "source_sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
-      "pixels": [
-        800,
-        800
-      ]
-    }
-  ],
-  "earlier_reviews": [
-    {
-      "reviewed": "2026-11-03",
-      "source_version": "0.1.12d1",
-      "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
-      "instrument_commit": "1b680b22abfcb72d4311cdee425079617746a57e",
-      "assets": [
-        {
-          "file": "respira-rack-front.webp",
-          "sha256": "8713011531f37d3ac43cf39238b54caf6271c1a570db6631bda55a107720c6b4"
-        },
-        {
-          "file": "Respira_Front.png",
-          "sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca"
-        },
-        {
-          "file": "respira-rack-rear.webp",
-          "sha256": "79d76d3689b43c3dcb5697cbaee3f0f42703f43c368e12e8192215fd441bc007"
-        },
-        {
-          "file": "Respira_Back.png",
-          "sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964"
-        },
-        {
-          "file": "Respira_Thumbnail_800.png",
-          "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c"
-        }
-      ]
-    },
-    {
-      "reviewed": "2026-10-27",
-      "source_version": "0.1.0d1",
-      "source_commit": "c2268f5cec6fed2e30b93afeeec1364fb1407af1",
-      "instrument_commit": "117bb8bcec04c8e7d5f8a9e23915afb81c0dec7c",
-      "assets": [
-        {
-          "file": "respira-rack-front.webp",
-          "sha256": "4a8b79ae8acb24f5eb01e6971b187a42aa9a5331db5e56eb2fe2f9bdb324cd5b"
-        },
-        {
-          "file": "respira-rack-rear.webp",
-          "sha256": "e55c1f25d576137a7e9a92d3e303a60d0280fe1590d46fe95fd3dda88db6ea4c"
-        },
-        {
-          "file": "Respira_Thumbnail_800.png",
-          "sha256": "60093a4d1f61f2fd224a4bdf30a58e1fa874d8651e990f651e24b8392b8008de"
-        }
-      ]
-    }
-  ],
-  "shop_cover_refresh": {
-    "date": "2026-11-05",
-    "file": "Respira_Thumbnail_800.png",
-    "source": "Examples/Respira/Design/Shop/cover.png",
-    "source_sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
-    "sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
-    "pixels": [
-      800,
-      800
-    ],
-    "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
-    "source_branch": "main",
-    "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
-    "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
+ "product": "Respira",
+ "reviewed": "2026-11-04",
+ "availability": "awaiting_device_acceptance",
+ "source_version": "0.1.14d1",
+ "source_format": "Rack Extension 0.1.14d1 built from main, uploaded to Reason Studios on 4 November 2026. Panel views follow the shipped default patch.",
+ "source_repository": "protocodus/reason-rack-extensions",
+ "source_branch": "main",
+ "source_commit": "c7325aaad0c12be10636c03327a1daf6204ba243",
+ "instrument_repository": "protocodus/virtual-instrument-respira",
+ "instrument_commit": "ba1485ce2e7affb4e2befab71a940414882c888a",
+ "feature_sources": [
+  "Examples/Respira/README.md",
+  "Examples/Respira/info.lua",
+  "virtual-instrument-respira/README.md"
+ ],
+ "assets": [
+  {
+   "file": "respira-rack-front.webp",
+   "sha256": "18b3cc21e8885f2357685bcf1271dae3e9773b0fbf2024be873295bdcfba6f17",
+   "source": "dist/Respira_Front.png",
+   "source_sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
+   "pixels": [
+    1508,
+    552
+   ]
   },
-  "publication_check": {
-    "checked_on": "2026-11-06",
-    "product": "respira",
-    "status": "awaiting_device_acceptance",
-    "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
-    "http_status": 404,
-    "submitted_version": "0.1.16d1",
-    "shop_page_status": "not_created"
+  {
+   "file": "Respira_Front.png",
+   "sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
+   "source": "dist/Respira_Front.png",
+   "source_sha256": "876e879101f8e448f288f3e91bd17d13e7bf43eea778a798e8b0a770c91ee5fc",
+   "pixels": [
+    1508,
+    552
+   ]
+  },
+  {
+   "file": "respira-rack-rear.webp",
+   "sha256": "6240b2838b6b9117f4729fa6feff226f31048c22031bf5a9274fe917c46b803c",
+   "source": "dist/Respira_Back.png",
+   "source_sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
+   "pixels": [
+    1508,
+    552
+   ]
+  },
+  {
+   "file": "Respira_Back.png",
+   "sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
+   "source": "dist/Respira_Back.png",
+   "source_sha256": "4d560aa02b265b2ef1d9c4528599f20686d5c20505717919452664374a14c435",
+   "pixels": [
+    1508,
+    552
+   ]
+  },
+  {
+   "file": "Respira_Thumbnail_800.png",
+   "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+   "source": "dist/Respira_Thumbnail_800.png",
+   "note": "Existing approved luxury cover; unchanged source artwork.",
+   "source_sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c",
+   "pixels": [
+    800,
+    800
+   ]
   }
+ ],
+ "earlier_reviews": [
+  {
+   "reviewed": "2026-11-03",
+   "source_version": "0.1.12d1",
+   "source_commit": "31268ba4dc7632dead60d7d55db24a3c146c122d",
+   "instrument_commit": "1b680b22abfcb72d4311cdee425079617746a57e",
+   "assets": [
+    {
+     "file": "respira-rack-front.webp",
+     "sha256": "8713011531f37d3ac43cf39238b54caf6271c1a570db6631bda55a107720c6b4"
+    },
+    {
+     "file": "Respira_Front.png",
+     "sha256": "20d0debf69b1ec154789e26577866c934668291cbf0ce599131874ba85a779ca"
+    },
+    {
+     "file": "respira-rack-rear.webp",
+     "sha256": "79d76d3689b43c3dcb5697cbaee3f0f42703f43c368e12e8192215fd441bc007"
+    },
+    {
+     "file": "Respira_Back.png",
+     "sha256": "63124c8c81181e44ab8e8b9c59bf37b52e63df75c2833847fdd804dacfd12964"
+    },
+    {
+     "file": "Respira_Thumbnail_800.png",
+     "sha256": "a7bf64900a37db5e3cc4c5b3ce6bd68289d9115e52232ae2675e3f5cd87a2c2c"
+    }
+   ]
+  },
+  {
+   "reviewed": "2026-10-27",
+   "source_version": "0.1.0d1",
+   "source_commit": "c2268f5cec6fed2e30b93afeeec1364fb1407af1",
+   "instrument_commit": "117bb8bcec04c8e7d5f8a9e23915afb81c0dec7c",
+   "assets": [
+    {
+     "file": "respira-rack-front.webp",
+     "sha256": "4a8b79ae8acb24f5eb01e6971b187a42aa9a5331db5e56eb2fe2f9bdb324cd5b"
+    },
+    {
+     "file": "respira-rack-rear.webp",
+     "sha256": "e55c1f25d576137a7e9a92d3e303a60d0280fe1590d46fe95fd3dda88db6ea4c"
+    },
+    {
+     "file": "Respira_Thumbnail_800.png",
+     "sha256": "60093a4d1f61f2fd224a4bdf30a58e1fa874d8651e990f651e24b8392b8008de"
+    }
+   ]
+  }
+ ],
+ "shop_cover_refresh": {
+  "date": "2026-11-05",
+  "file": "Respira_Thumbnail_800.png",
+  "source": "Examples/Respira/Design/Shop/cover.png",
+  "source_sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
+  "sha256": "87c9f3c2f0cc26c14f34574dada8fafcb304a231311782da7893adec20363550",
+  "pixels": [
+   800,
+   800
+  ],
+  "source_commit": "dbc4a057ac023ac2dd87e445023dd03ef09d5716",
+  "source_branch": "main",
+  "generator": "Tools/shop_covers/build_shop_covers.py",
+  "supersedes": "Earlier thumbnail records in this file describe the previous cover.",
+  "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
+ },
+ "publication_check": {
+  "checked_on": "2026-11-06",
+  "product": "respira",
+  "status": "awaiting_device_acceptance",
+  "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
+  "http_status": 404,
+  "submitted_version": "0.1.16d1",
+  "shop_page_status": "not_created"
+ },
+ "development_panels": {
+  "reviewed": "2026-11-11",
+  "version_on_panel": "0.1.27f1",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "respira-rack-front.webp",
+    "sha256": "49a208b4f6eac75dec85d59ccd71d01b8bab0a6f856cd15ea99ce91147ecfe74",
+    "source": "dist/Respira_Front.png",
+    "source_sha256": "d21b19463311c08f24618a2069b407d08fe0e2c5be7bb1ef0c5563013c44c4f8",
+    "pixels": [
+     1508,
+     690
+    ]
+   },
+   {
+    "file": "respira-rack-rear.webp",
+    "sha256": "d04c52080a56fe1e5ea65669d6dd794e2ad19f88356d42e764bcf5c1a2aeb74c",
+    "source": "dist/Respira_Back.png",
+    "source_sha256": "ad591d1e899ae50a61df4412fe15ec2c5b4140daa6edf2d85a1b8180f90fb842",
+    "pixels": [
+     1508,
+     690
+    ]
+   }
+  ]
+ }
 }

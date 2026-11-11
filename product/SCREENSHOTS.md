@@ -42,8 +42,18 @@ page yet. All four checked public URLs return HTTP 404. Their website pages
 have no purchase links. Respira's panel previews retain their actual 0.1.14d1
 source labels. See the [release audit](../docs/reason-shop-status.md).
 
-Unreleased Electry remains excluded from the public catalog and
-sitemap. Other development previews retain their identified source revisions.
+On 11 November, at the owner's request for every instrument and effect, the
+catalog added Retra (0.7.0f2), Electry (2.4.6d1) and the Septum plug-in (0.9.0)
+as in-development pages, reversing Electry's earlier exclusion. Every Rack page
+now shows the latest committed development panels from Rack `main`
+`d8e18ad` (`dist/`, and Press78's `GUI2D` previews, which print 1.0.6f1 where
+`dist/` still held 1.0.3f1); published products keep their Shop gallery in the
+hero and show those panels beside their version history. Each product's
+`ASSET_PROVENANCE.json` records them under `development_panels`. Lamer has no
+newer render than its Shop panels. Six new YouTube uploads (Retra, Aculyre,
+Respira and three Respira Shorts) were added to `MEDIA.json`. Shop
+publication states were rechecked with `catalog-live-check.mjs` and are
+unchanged.
 
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
 against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.

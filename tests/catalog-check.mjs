@@ -9,12 +9,6 @@ const media = JSON.parse(read('product/MEDIA.json'));
 const home = read('index.html');
 const pages = ['index.html', ...readdirSync(new URL('product/', root), { withFileTypes: true }).filter(e => e.isDirectory() && existsSync(new URL(`product/${e.name}/index.html`, root))).map(e => `product/${e.name}/index.html`)];
 const decode = text => text.replaceAll('&amp;', '&');
-for (const removed of ['electry']) {
-  assert.ok(!existsSync(new URL(`product/${removed}/index.html`, root)), `${removed}: removed public product page`);
-  assert.ok(!read('sitemap.xml').includes(`/product/${removed}/`), `${removed}: removed from sitemap`);
-  assert.ok(!read('assets/js/analytics.js').includes(`'${removed}'`), `${removed}: removed from analytics catalog`);
-  for (const file of pages) assert.doesNotMatch(read(file), new RegExp(removed, 'i'), `${file}: removed product still advertised`);
-}
 const cards = [...home.matchAll(/<article\b[^>]*class="product-card p-([a-z0-9]+)\b/g)].map(m => m[1]);
 assert.equal(cards[0], 'rill', 'RILL leads Products');
 assert.equal(cards.at(-1), 'podcare', 'Podcare follows all instruments and effects');
