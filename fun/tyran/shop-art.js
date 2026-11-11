@@ -114,9 +114,7 @@ function build(key,color){
     asset(c,'projectiles',11,160,75,103,103);glow(c,160,75,47,color,.34);
     for(const radius of [37,48,61]){c.strokeStyle=radius===48?'#d3c2ffa8':'#ad91ec38';c.lineWidth=radius===48?1.4:.7;c.beginPath();c.ellipse(160,75,radius,radius*.72,-.3,.3,5.7);c.stroke();}
   }
-  // Every preview is opaque. JPEG encodes about ten times faster than PNG at
-  // startup and keeps the shop markup, which embeds all thirteen, small.
-  return out.toDataURL('image/jpeg',.92);
+  return out.toDataURL('image/png');
 }
 export function warmShopArt(){
   if(ready)return ready;

@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """Pack the generated sprite sheets into the trimmed atlases the game loads.
 
-    python3 tools/pack-atlases.py [--lossless]
+    python3 tools/pack-atlases.py
 
 assets/sprites/source/ holds the original lossless grid sheets, which the game
 never requests. Each grid cell is cropped exactly as the game used to crop it at
 every startup, the crops are packed tightly into assets/sprites/, and the
 rectangles are written to sprite-cells.js. The game then only copies rectangles.
 
-Colour is stored lossy (quality 90) and alpha lossless, so silhouettes, crops
-and hit shapes are bit-identical to the sources. --lossless keeps colour exact
-too, which is how the packing itself is verified against the old runtime crop.
+The atlases are lossless: every sprite is bit-identical to the old runtime crop.
 
 Requires Pillow and numpy.
 """
 import json
 import math
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -31,9 +28,8 @@ LAYOUTS = {
 }
 SOLID = 8          # alpha below this is treated as empty
 GUTTER = 2         # transparent pixels between packed crops
-OPAQUE_BLEED = 4   # opaque crops repeat their edge so lossy blocks do not mix neighbours
+OPAQUE_BLEED = 4   # opaque crops repeat their edge into the gutter
 MAX_WIDTH = 2048
-QUALITY = 90
 
 
 def js_round(value):
@@ -155,7 +151,6 @@ def pack(crops):
 
 
 def main():
-    lossless = '--lossless' in sys.argv
     target = ROOT / 'assets' / 'sprites'
     source = target / 'source'
     table = {}
@@ -165,11 +160,7 @@ def main():
         crops = (connected_cells if connected else grid_cells)(name, pixels, columns, rows)
         sheet, rects, opaque = pack(crops)
         image = Image.fromarray(sheet).convert('RGB' if opaque else 'RGBA')
-        if lossless:
-            image.save(target / file_name(name), 'WEBP', lossless=True, quality=100, method=6, exact=True)
-        else:
-            image.save(target / file_name(name), 'WEBP', quality=QUALITY, method=6, alpha_quality=100,
-                       use_sharp_yuv=True)
+        image.save(target / file_name(name), 'WEBP', lossless=True, quality=100, method=6, exact=True)
         table[name] = rects
         print(f'{name}: {sheet.shape[1]}x{sheet.shape[0]}, {(target / file_name(name)).stat().st_size // 1024} KiB')
     lines = ',\n'.join(f'  {name}: {json.dumps(rects, separators=(",", ":"))}' for name, rects in table.items())
