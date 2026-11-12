@@ -1,12 +1,12 @@
 {
-  "checked_on": "2026-11-11",
+  "checked_on": "2026-11-12",
   "product": "Rill desktop music workstation",
   "source_repository": "https://github.com/protocodus/rill-daw",
   "source_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
   "source_version": "0.1.0",
   "licence": "MIT",
-  "basis": "Complete native captures of RILL code revision 70c416f09bc931500af660b8f5e32633821c14d6 on 9 November 2026, using the original 32-bar Glass Current session from make_demo.py. The source commit records these exact PNGs. That commit is on the pull request branch claude/project-thread-kc5brd of the source repository until it is merged. Production rendering and controls are unchanged. Downloads remain rolling alpha builds. R1 Mini and R1 Filter panels added on 11 November 2026 from rill-daw main bb50f7b (artifacts/readme-r1-mini.png, artifacts/readme-r1-filter.png); the six workstation captures are byte-identical in that revision.",
-  "derivatives": "Pillow 12.3.0: lossless WebP, method 6, at the native PNG dimensions (2000 × 1250; mixer 2400 × 1250). All WebP images preserve every source RGB pixel. Social JPEG: proportional Lanczos downsampling of the arrangement to 1600 × 1000, quality 86, optimized. No compositing, retouching or simulated UI. R1 panels: lossless WebP, method 6, at native dimensions (2093 × 2362 and 2093 × 1674).",
+  "basis": "Complete native captures of RILL code revision 70c416f09bc931500af660b8f5e32633821c14d6 on 9 November 2026, using the original 32-bar Glass Current session from make_demo.py. The source commit records these exact PNGs. That commit is on the pull request branch claude/project-thread-kc5brd of the source repository until it is merged. Production rendering and controls are unchanged. Downloads remain rolling alpha builds. The nine R1 device panels (rill-r1-*.webp) were captured on 12 November 2026 from rill-daw commit b735c1f (artifacts/readme-r1-*.png, pull request #57): native 2x frames cropped to the device popup, dark theme, with no other change.",
+  "derivatives": "Pillow 12.3.0: lossless WebP, method 6, at the native PNG dimensions (2000 × 1250; mixer 2400 × 1250). All WebP images preserve every source RGB pixel. Social JPEG: proportional Lanczos downsampling of the arrangement to 1600 × 1000, quality 86, optimized. No compositing, retouching or simulated UI. R1 panels: lossless WebP, method 6, at the native PNG dimensions (2156 pixels wide).",
   "downloads": {
     "service": "nightly.link",
     "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
@@ -103,24 +103,101 @@
     },
     "rill-r1-mini.webp": {
       "source": "artifacts/readme-r1-mini.png",
-      "source_commit": "bb50f7b",
-      "source_sha256": "bad5d6c65c97b1780eddfe388ddf190f7c48239ba30a98f0c5800c6bd8aceb01",
-      "sha256": "7cbebe30cc01a97e27516be2c9996e4e9ef78a253764b9852a70a2d84ba3655e",
-      "bytes": 179468,
+      "source_commit": "b735c1f",
+      "source_sha256": "8b8514ec27fc485dfc6d47ffa74d86665335c9f15963efc6b17cc2edd37bbff7",
+      "sha256": "c79d6d9c9d5eeecaa58d92a7a5d2649db6292f2a5d5aaef15e924081b5c1491e",
+      "bytes": 175212,
       "dimensions": [
-        2093,
-        2362
+        2156,
+        2298
+      ]
+    },
+    "rill-r1-sampler.webp": {
+      "source": "artifacts/readme-r1-sampler.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "89b3395b2b2f634f1b79a991418ae20946f79931d86d98d2c094790d082de08f",
+      "sha256": "4538934f39ea95ec0c9c4461ce1b9c16c0b56fc9bf8aabf1520fe5fcd88c3c19",
+      "bytes": 235322,
+      "dimensions": [
+        2156,
+        2666
+      ]
+    },
+    "rill-r1-drums.webp": {
+      "source": "artifacts/readme-r1-drums.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "8c0d4411948bfe2f0a84a2a647825db5a9317c74c025779ff88ed1986f922ce7",
+      "sha256": "c1a051936e4599154b7388813db5fc4eea8f98efb379997414d0f9078a43dd65",
+      "bytes": 135914,
+      "dimensions": [
+        2156,
+        1856
       ]
     },
     "rill-r1-filter.webp": {
       "source": "artifacts/readme-r1-filter.png",
-      "source_commit": "bb50f7b",
-      "source_sha256": "b97e58b30e7a903651f428f5210ff3e113b2812a13a1f0a20adbf84fc6569948",
-      "sha256": "ec9fc115a5a0629767de27cdb48d1bd17d90001a6d9524a3a557fbbffa16fe2f",
-      "bytes": 99466,
+      "source_commit": "b735c1f",
+      "source_sha256": "7befa4ad23aea1220e589878bd665676d031b9e5cbdf1f91b8044dfba0964b2b",
+      "sha256": "89f049261842ce3d1e3575529dc78cba6d183284c8607c1085616a17ad606809",
+      "bytes": 99318,
       "dimensions": [
-        2093,
-        1674
+        2156,
+        1630
+      ]
+    },
+    "rill-r1-equalizer.webp": {
+      "source": "artifacts/readme-r1-equalizer.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "426818ff648bb310e16e08ba61c2fcbded71dcc946b21d673c95b4cfa30020e1",
+      "sha256": "c6f311e4b855d4689fe2948e1284ad02a74f79f5b88e8dae6551fd8cf4b02238",
+      "bytes": 86558,
+      "dimensions": [
+        2156,
+        1530
+      ]
+    },
+    "rill-r1-saturator.webp": {
+      "source": "artifacts/readme-r1-saturator.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "69053d41f858690d676d1a5ed373027a3cf3817d77ade1765ca0c0ac23a4cf46",
+      "sha256": "6144440f58494797675c424d4576fde9739168aa2ced8aea17d5a4233e49f895",
+      "bytes": 81562,
+      "dimensions": [
+        2156,
+        1420
+      ]
+    },
+    "rill-r1-compressor.webp": {
+      "source": "artifacts/readme-r1-compressor.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "b859669ac18f6a04e446dd0bef74149c2d4610c600e02d5ebbace0e7e8c24932",
+      "sha256": "80c7955410eb17f21e5f21a569578a79bae74a098b66faf98cb6d7582d7bfdeb",
+      "bytes": 109972,
+      "dimensions": [
+        2156,
+        1594
+      ]
+    },
+    "rill-r1-modulator.webp": {
+      "source": "artifacts/readme-r1-modulator.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "4d5950f933474c8e7940b4cf56e9dcdd33ca58f265dc92d7d568f2c194dfdc50",
+      "sha256": "5425f60f77692a31c92e307348ae0f0018bffe9ec7463538edfe924b2ec242af",
+      "bytes": 109326,
+      "dimensions": [
+        2156,
+        1590
+      ]
+    },
+    "rill-r1-spacer.webp": {
+      "source": "artifacts/readme-r1-spacer.png",
+      "source_commit": "b735c1f",
+      "source_sha256": "1f791af4b42bddbc53824e1db23a73a3e9a899bf6a673730fa566f5a7969ae44",
+      "sha256": "cd349b3918884f33e6569027fec454e9e1f3ed177d592cb720ab669f79b95a9d",
+      "bytes": 131748,
+      "dimensions": [
+        2156,
+        1512
       ]
     }
   },
