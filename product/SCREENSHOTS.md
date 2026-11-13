@@ -66,6 +66,14 @@ its physical model from `dist/Keyra-SHOP.md`. Every build that is not in the
 Reason Shop now says "Unreleased" on its card, its page and its version
 history. The Shop snapshot of 6 November was not rechecked.
 
+Later on 13 November Keyra moved to 2.13.1f1, the candidate for its first
+release, from the Rack branch `claude/project-thread-fei5er` (`47f095b`),
+which is not on `main` yet: this change waits for that merge. Its panels are
+the ones the Universal 45 packaged, rendered on macOS by the build. The build
+has not been installed, created in Recon or run in Reason, and the page says
+so. `Keyra_Front.png` and `Keyra_Back.png` in its folder are the 0.4.14d1
+files no page uses; they are left as they were.
+
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
 against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.
 On 6 November, all five screenshots were recaptured from that source with the

@@ -132,16 +132,17 @@
  },
  "development_panels": {
   "reviewed": "2026-11-13",
-  "version_on_panel": "2.11.0f1",
+  "version_on_panel": "2.13.1f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_commit": "47f095bd6e3c2f9e9a049691d5dbf959dd4ffb63",
+  "source_branch": "claude/project-thread-fei5er",
+  "note": "The panels the 2.13.1f1 Universal 45 packaged, rendered on macOS by its build and converted to WebP quality 92 at full size. The branch is not on main yet.",
   "assets": [
    {
     "file": "keyra-rack-front.webp",
-    "sha256": "b7cd2d9701b59464466bcd22f88c77b8d001e7d6aaaf5a8d30217f5c1a9dc57e",
+    "sha256": "8e3dc60deaaf31a58728ea68259f05d538b52e16ecf1e42e48db2fe7559cef13",
     "source": "dist/Keyra_Front.png",
-    "source_sha256": "31d510c103754281fe9fb88ca856e083395c38f2b9af63525daf74ccea8c6fb7",
+    "source_sha256": "3d4dbd31a8105534af9b862d2d08c3a71fe8be851ba3a3f833d1e150853ea68c",
     "pixels": [
      1508,
      552
@@ -149,14 +150,47 @@
    },
    {
     "file": "keyra-rack-rear.webp",
-    "sha256": "f0ecc4f6e7e5dce08b4e7886ab2044a7761f718243dcb3881fc707ba7d6c4baa",
+    "sha256": "6b4cf11738d83ab821b79fd0eca5073fd9c3b4688cd9501daff0894dba19b612",
     "source": "dist/Keyra_Back.png",
-    "source_sha256": "9ef511739516292e0e1c48c08804a24e3fcaa9d79e849de9c711f0fa04b81647",
+    "source_sha256": "c33fea204add9b6357fee1d9eeee5678b8d07e5f25935fae04afe629b8e58fd3",
     "pixels": [
      1508,
      552
     ]
    }
   ]
- }
+ },
+ "earlier_reviews": [
+  {
+   "development_panels": {
+    "reviewed": "2026-11-13",
+    "version_on_panel": "2.11.0f1",
+    "source_repository": "protocodus/reason-rack-extensions",
+    "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
+    "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+    "assets": [
+     {
+      "file": "keyra-rack-front.webp",
+      "sha256": "b7cd2d9701b59464466bcd22f88c77b8d001e7d6aaaf5a8d30217f5c1a9dc57e",
+      "source": "dist/Keyra_Front.png",
+      "source_sha256": "31d510c103754281fe9fb88ca856e083395c38f2b9af63525daf74ccea8c6fb7",
+      "pixels": [
+       1508,
+       552
+      ]
+     },
+     {
+      "file": "keyra-rack-rear.webp",
+      "sha256": "f0ecc4f6e7e5dce08b4e7886ab2044a7761f718243dcb3881fc707ba7d6c4baa",
+      "source": "dist/Keyra_Back.png",
+      "source_sha256": "9ef511739516292e0e1c48c08804a24e3fcaa9d79e849de9c711f0fa04b81647",
+      "pixels": [
+       1508,
+       552
+      ]
+     }
+    ]
+   }
+  }
+ ]
 }

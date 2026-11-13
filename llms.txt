@@ -37,7 +37,7 @@
 
 - [Respira — Modelled Accordion](https://protocodus.cz/product/respira/): Physically modelled accordion Rack Extension (v0.1.16d1 submitted; latest build 0.1.27f1) with eight registers, bass and chord buttons, and automatic or manual modulation-wheel bellows.
 - [Acukoto — Modelled Koto](https://protocodus.cz/product/acukoto/): Physically modelled 13-string paulownia koto Rack Extension (v0.18.0d1 accepted; latest build 0.25.16d1) with movable bridges, two tunings, sympathetic resonance, and left-hand pitch bends.
-- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (unreleased; latest version 2.11.0f1) with five modelled pianos and no samples, three continuous pedals, four microphone pairs and 12 patches.
+- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (unreleased; latest version 2.13.1f1) with five modelled pianos and no samples, three continuous pedals, four microphone pairs and 12 patches.
 - [Aculele — Modelled Ukulele](https://protocodus.cz/product/aculele/): Physically modelled ukulele Rack Extension (v0.4.39d1 accepted; latest build 0.4.64d1) with soprano, concert, and tenor bodies, nylon or fluorocarbon strings, and mic/piezo capture.
 - [Aculyre — Modelled Lyre](https://protocodus.cz/product/aculyre/): Physically modelled lyre harp Rack Extension (v0.7.9d1 accepted; latest build 0.13.5d1) with three instruments, steel/nylon/gut strings, sympathetic resonance, and mic/piezo capture.
 - [Remix — Crossfader Utility](https://protocodus.cz/product/remix/): Free 3U crossfader utility Rack Extension (unreleased; latest version 1.2.0d1) with Shape and Skew curve controls, live scope, and CV control.
