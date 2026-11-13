@@ -135,8 +135,8 @@
   "version_on_panel": "2.13.1f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_commit": "47f095bd6e3c2f9e9a049691d5dbf959dd4ffb63",
-  "source_branch": "claude/project-thread-fei5er",
-  "note": "The panels the 2.13.1f1 Universal 45 packaged, rendered on macOS by its build and converted to WebP quality 92 at full size. The branch is not on main yet.",
+  "source_branch": "main",
+  "note": "The panels the 2.13.1f1 Universal 45 packaged, rendered on macOS by its build and converted to WebP quality 92 at full size.",
   "assets": [
    {
     "file": "keyra-rack-front.webp",
