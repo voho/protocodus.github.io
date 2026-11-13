@@ -68,9 +68,9 @@ history. The Shop snapshot of 6 November was not rechecked.
 
 Later on 13 November Keyra moved to 2.13.1f1, the candidate for its first
 release, on Rack `main` `86eba58` (built at `47f095b`). Its panels are
-the ones the Universal 45 packaged, rendered on macOS by the build. The build
-has not been installed, created in Recon or run in Reason, and the page says
-so. `Keyra_Front.png` and `Keyra_Back.png` in its folder are the 0.4.14d1
+the ones the Universal 45 packaged, rendered on macOS by the build. Recon
+created the build that evening (Rack `d81faad`, the receipt under the device's
+`Docs/validation/`); nobody has played it in Reason yet, and the page says so. `Keyra_Front.png` and `Keyra_Back.png` in its folder are the 0.4.14d1
 files no page uses; they are left as they were.
 
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
