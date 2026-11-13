@@ -347,10 +347,10 @@
   "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "1.9.41d1",
+  "reviewed": "2026-11-13",
+  "version_on_panel": "1.9.47f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
   "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
   "assets": [
    {
@@ -365,9 +365,9 @@
    },
    {
     "file": "acustra-rack-rear.webp",
-    "sha256": "4e622dda532998645a29a560f698576d0cece485d51dffaf8f544d0239308930",
+    "sha256": "b88a08030acc6c6a5ca1b68537b3bf4b2b02d5f64d46d804e79f17809707e2e8",
     "source": "dist/Acustra_Back.png",
-    "source_sha256": "c481b7c9560a05f2727d246548b53957da70f1c05d40f0ebed63f262b5d72c61",
+    "source_sha256": "cee830517afba24e212dd84cbd3401394c38d9ffb483b1418493c32354db132a",
     "pixels": [
      1457,
      1200

@@ -131,30 +131,30 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Keyra/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "1.0.0f2",
+  "reviewed": "2026-11-13",
+  "version_on_panel": "2.11.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
   "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
   "assets": [
    {
     "file": "keyra-rack-front.webp",
-    "sha256": "82f153cee1c5b14fa80ab614705f00a11db77302f30d13004efb45cdb5d3b7e2",
+    "sha256": "b7cd2d9701b59464466bcd22f88c77b8d001e7d6aaaf5a8d30217f5c1a9dc57e",
     "source": "dist/Keyra_Front.png",
-    "source_sha256": "b5afb1640626cc9e235e3795eb04a5da7131f19fd4741d54cfc8af2d2e33d48d",
+    "source_sha256": "31d510c103754281fe9fb88ca856e083395c38f2b9af63525daf74ccea8c6fb7",
     "pixels": [
      1508,
-     690
+     552
     ]
    },
    {
     "file": "keyra-rack-rear.webp",
-    "sha256": "28f779868485d2f6ba6f7d410cf858ce605578060808e44899010d9d7420f2e2",
+    "sha256": "f0ecc4f6e7e5dce08b4e7886ab2044a7761f718243dcb3881fc707ba7d6c4baa",
     "source": "dist/Keyra_Back.png",
-    "source_sha256": "3a0c2ba65c58e4b194039575fe392d7160a672b27141cf4b62e106ccd2f8ca04",
+    "source_sha256": "9ef511739516292e0e1c48c08804a24e3fcaa9d79e849de9c711f0fa04b81647",
     "pixels": [
      1508,
-     690
+     552
     ]
    }
   ]

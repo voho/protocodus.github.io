@@ -718,17 +718,17 @@
   "verified_on": "2026-11-06"
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "1.4.6f4",
+  "reviewed": "2026-11-13",
+  "version_on_panel": "1.4.7f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
   "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
   "assets": [
    {
     "file": "youknow-rack-front.webp",
-    "sha256": "ffc41fddaa126b621e74cc2c7619eade97cf22dc90f4ab9540eeea16e5887316",
+    "sha256": "18d6dab5dd6d479c03f62400bddcce347c8df2c311bcd89b7741a9ed4ef2833f",
     "source": "dist/YouKnow_Front.png",
-    "source_sha256": "3e649d408682fbcc5fc143f4fabf807dc837863e28335b2448949d4ad3c7f532",
+    "source_sha256": "0ead3b19703bf8ee0abe2b1a86a783124907919ea11ebb956e15995667d5f06d",
     "pixels": [
      1600,
      1171
@@ -736,9 +736,9 @@
    },
    {
     "file": "youknow-rack-rear.webp",
-    "sha256": "fd4cb551b7e790f6a4f8e4482a32ce7bace7fccedb7546fe5f1ad0389009db72",
+    "sha256": "c7ecd1e8437afbfee2388195eb816fd64369d1227731a35d664ebb12c0590055",
     "source": "dist/YouKnow_Back.png",
-    "source_sha256": "7c511a8a7321694144869bb8efa0f2dedd04ed9fe93863ec0742d3735c3b5332",
+    "source_sha256": "643d26de0cadb419b427826264ba91a7648734acdba8228d72e73bb1c6bf1abd",
     "pixels": [
      1600,
      1171

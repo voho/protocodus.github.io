@@ -55,6 +55,17 @@ Respira and three Respira Shorts) were added to `MEDIA.json`. Shop
 publication states were rechecked with `catalog-live-check.mjs` and are
 unchanged.
 
+On 13 November, at the owner's request, the catalog added Oregana (0.5.0d2,
+panels from the Rack development branch `claude/project-thread-utg2o6`, which
+is not yet on `main`; its cover is composed for the website from the rear
+panel, as the device has no Shop thumbnail) and moved every product to its
+latest development version on Rack `main` `06c5cb7`: Acustra
+1.9.47f1, YouKnow 1.4.7f1, Retra 0.7.0f4, Keyra 2.11.0f1 and Remix 1.2.0d1,
+the last two source that has not been built. Keyra's page was rewritten for
+its physical model from `dist/Keyra-SHOP.md`. Every build that is not in the
+Reason Shop now says "Unreleased" on its card, its page and its version
+history. The Shop snapshot of 6 November was not rechecked.
+
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
 against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.
 On 6 November, all five screenshots were recaptured from that source with the

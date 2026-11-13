@@ -2,17 +2,17 @@
  "product": "Retra",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.7.0f1",
+  "reviewed": "2026-11-13",
+  "version_on_panel": "0.7.0f4",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
+  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
   "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
   "assets": [
    {
     "file": "retra-rack-front.webp",
-    "sha256": "df9d4b403fe2e02a7f9b0383e862328b3644ccfb529f681a5bf1e59c1e98abb2",
+    "sha256": "f1a6ea5d5dd129f452462f290c3a8533f61c83e69f7557e7226b2a7c872340ee",
     "source": "dist/Retra_Front.png",
-    "source_sha256": "6fe851967bc40ce47806b308b81e7fde1b20c91e7edbf8074b992cd137630dd2",
+    "source_sha256": "e79c77806406b75951c0eadd9c574570cd449bcfc8b9eb2c6993cf585c143ef5",
     "pixels": [
      1508,
      690
@@ -20,9 +20,9 @@
    },
    {
     "file": "retra-rack-rear.webp",
-    "sha256": "8e607b20b9e3bf55f3c25a98df756587f33afbc32b1ab2408fefb8147f91a669",
+    "sha256": "88104405eba9611d2a63a9c641a116db269d61decb994e48893bb1fa96018d2d",
     "source": "dist/Retra_Back.png",
-    "source_sha256": "f25ea08e4dd274f4495038303d042738a5d126792a25b501580a51a9a6406f57",
+    "source_sha256": "79d0a084904cd5cf904ce18e4471f6d834f1c7c7b20d032c3ee5ab6cfa7a3189",
     "pixels": [
      1508,
      690

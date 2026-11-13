@@ -1,0 +1,44 @@
+{
+ "product": "Oregana",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-13",
+  "version_on_panel": "0.5.0d2",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "claude/project-thread-utg2o6",
+  "source_commit": "c56e46dae7a098039c6254ad916c4bb01b0bd553",
+  "note": "Latest committed development renders from the device's development branch (not yet on main), converted to WebP quality 92 at full size.",
+  "assets": [
+   {
+    "file": "oregana-rack-front.webp",
+    "sha256": "8a9178526002e0ecb4429757fdf49ac03c738e45f0d811e6d16c79c017abfc4a",
+    "source": "Examples/Oregana/Design/previews/front_2x.png",
+    "source_sha256": "b2b3f8ff35e7c9d222c9cf1ff0aff04fd49e49aab5d351a6c46f71aa38cb4c71",
+    "pixels": [
+     1508,
+     1104
+    ]
+   },
+   {
+    "file": "oregana-rack-rear.webp",
+    "sha256": "2b033aec694e220a5e5138e3432e16ed03e96ca7f8d2032640c0810aae044993",
+    "source": "Examples/Oregana/Design/previews/back_2x.png",
+    "source_sha256": "94ab751b2604fe9874ab56677f4e8564150b449b577ff02ba63d71035c0e2a14",
+    "pixels": [
+     1508,
+     1104
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Oregana_Thumbnail_800.png",
+  "sha256": "c071f71f64158898ea06d291a7cbda34a5fdb1bc841c1c8155fba9362acdda9b",
+  "source": "Composed for the website from Examples/Oregana/Design/previews/back_2x.png: the wordmark and the organ case on the panel's background. The device has no Shop thumbnail yet."
+ },
+ "feature_sources": [
+  "Examples/Oregana/README.md",
+  "Examples/Oregana/CHANGELOG.md",
+  "protocodus/virtual-instrument-oregana README.md"
+ ]
+}
