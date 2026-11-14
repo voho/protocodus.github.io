@@ -5,7 +5,7 @@
 ## Studio & Entity Information
 
 - **Legal Name**: Protocodus s.r.o.
-- **Founder & Principal Engineer**: Vojtěch Hordějčuk
+- **Founder & Principal Engineer**: Ing. Vojtěch Hordějčuk ([LinkedIn](https://www.linkedin.com/in/vohocz/), [voho.cz](https://voho.cz/))
 - **Registered Office**: Příčná 1892/4, Nové Město, 110 00 Praha 1, Czech Republic
 - **Company ID (IČO)**: 24589101
 - **Commercial Register**: Municipal Court in Prague, Section C, File 442841 (Incorporated March 5, 2026)

@@ -246,6 +246,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .detail dt { color: var(--fg-faint); font-size: 0.875rem; }
 .detail dd { color: var(--fg); font-size: 0.9375rem; margin-top: 0.5rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .detail-note { color: var(--fg-muted); font-size: 0.875rem; }
+.founder-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: clamp(1.5rem, 4vw, 3rem); }
+.founder-photo { width: clamp(7rem, 12vw, 10rem); height: auto; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line-lift); background: var(--bg); }
+.founder-links { display: flex; flex-wrap: wrap; gap: 0 1.5rem; margin-top: 0.75rem; }
 .band-contact { background: var(--bg); }
 .contact-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: clamp(2rem, 5vw, 4rem); }
 .contact-identity { justify-self: end; display: flex; flex-direction: column; align-items: center; gap: 0.375rem; text-align: center; }
@@ -318,6 +321,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   .features { gap: 1.5rem; }
   .platforms > div { grid-template-columns: 1fr; gap: 0.25rem; }
   .contact-box { padding-left: 1.25rem; }
+  .founder-layout { grid-template-columns: 1fr; }
   .shot-caption { font-size: 0.8125rem; }
   .instrument-facts { gap: 0.4rem 0.75rem; }
   .instrument-facts li { gap: 0.75rem; }
