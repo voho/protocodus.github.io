@@ -142,11 +142,13 @@
   "publish_on_approval": true
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.25.16d1",
+  "reviewed": "2026-11-15",
+  "build_version": "0.25.18d1",
+  "version_on_panel": "0.25.18d1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "claude/carbon-u45-2026-11-15",
+  "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69",
+  "note": "The 0.25.18d1 panels in dist/ on the Rack branch claude/carbon-u45-2026-11-15 (520dcfd1, built on the owner’s Mac on top of main a78ae287; to reach main after its Recon check), converted to WebP quality 92 at full size (cwebp -q 92 -m 6). Only the rear, which prints 0.25.18d1, changed; the front is byte-identical to the one shown since 0.25.16f1 and is kept.",
   "assets": [
    {
     "file": "acukoto-rack-front.webp",
@@ -160,9 +162,9 @@
    },
    {
     "file": "acukoto-rack-rear.webp",
-    "sha256": "35c43ad9b2e67d287138d6642798d6b453219ab26a8477fba0e08a1212634e60",
+    "sha256": "6eb9a1d8b8dc13797daeec007f861bbdd1d4d96e05d2c540671c9e8b64eb70da",
     "source": "dist/Acukoto_Back.png",
-    "source_sha256": "c726396c05bc3177baa0dd65855387853c3f84bc0d6cb0a690b99ce38be3ce5c",
+    "source_sha256": "bdcf20a9d56966c94313ba1a1cab150b50bfda7cfe3032b4952db92e85953502",
     "pixels": [
      1508,
      828

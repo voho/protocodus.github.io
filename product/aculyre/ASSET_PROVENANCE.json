@@ -199,11 +199,13 @@
   "note": "The Shop article selector only offers 0.7.4; accepted version 0.7.9d1 is not selectable. Do not submit the draft against the older article."
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.13.5d1",
+  "reviewed": "2026-11-15",
+  "build_version": "0.13.7d1",
+  "version_on_panel": "0.13.7d1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "claude/carbon-u45-2026-11-15",
+  "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69",
+  "note": "The 0.13.7d1 panels in dist/ on the Rack branch claude/carbon-u45-2026-11-15 (520dcfd1, built on the owner’s Mac on top of main a78ae287; to reach main after its Recon check), converted to WebP quality 92 at full size (cwebp -q 92 -m 6). Only the rear, which prints 0.13.7d1, changed; the front is byte-identical to the one shown since 0.13.5d1 and is kept.",
   "assets": [
    {
     "file": "aculyre-rack-front.webp",
@@ -217,9 +219,9 @@
    },
    {
     "file": "aculyre-rack-rear.webp",
-    "sha256": "84a0f5bc40a2c8773baddaa9af1516f172545b61b70b37f95d5fa81bbf31aab3",
+    "sha256": "7fa9ae7321b0ba8fa09ad26eb0eceac1d6fd38ceae3cffc6d08ef9ab50cc01ff",
     "source": "dist/Aculyre_Back.png",
-    "source_sha256": "c0b8e64919f53b733e15b04151ed7e717b752d082614a227e290f106ba094f37",
+    "source_sha256": "e7e4ed7641f287c0c02b9e1988240f8c9268c9b40396ea831d142ce2aa9eb25a",
     "pixels": [
      1508,
      828

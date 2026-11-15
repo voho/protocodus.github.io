@@ -143,11 +143,13 @@
   "shop_page_status": "not_created"
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
+  "reviewed": "2026-11-15",
+  "build_version": "0.1.27f2",
   "version_on_panel": "0.1.27f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "main",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "note": "dist/ on Rack main still holds the 0.1.27f1 panel images: the 0.1.27f2 rebuild changed only the version label on the rear (its GUI2D rear differs from 0.1.27f1’s essentially only there, its front by one pixel), so the existing WebP files are kept and the rear still prints 0.1.27f1.",
   "assets": [
    {
     "file": "respira-rack-front.webp",

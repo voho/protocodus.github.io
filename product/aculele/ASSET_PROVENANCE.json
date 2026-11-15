@@ -173,11 +173,13 @@
   "submitted_on": "2026-11-06"
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.4.64d1",
+  "reviewed": "2026-11-15",
+  "build_version": "0.4.67d1",
+  "version_on_panel": "0.4.67d1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "claude/carbon-u45-2026-11-15",
+  "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69",
+  "note": "The 0.4.67d1 panels in dist/ on the Rack branch claude/carbon-u45-2026-11-15 (520dcfd1, built on the owner’s Mac on top of main a78ae287; to reach main after its Recon check), converted to WebP quality 92 at full size (cwebp -q 92 -m 6). Only the rear, which prints 0.4.67d1, changed; the front is byte-identical to the one shown since 0.4.64d1 and is kept.",
   "assets": [
    {
     "file": "aculele-rack-front.webp",
@@ -191,9 +193,9 @@
    },
    {
     "file": "aculele-rack-rear.webp",
-    "sha256": "c54b81bce2f840f114ee978dab2123ea0508903ab00ada71bdb6e68e5671c401",
+    "sha256": "e2f0abebb6cf9769d2d39d74230b88086a9ab6ed628051da3e0eb28fc8f61113",
     "source": "dist/Aculele_Back.png",
-    "source_sha256": "155430e99f2ef530385ce38acc423343989234f0c123c9f0c927c4b3011051ba",
+    "source_sha256": "507dd99bb997eb20b58328f8ce518e983b6b1289d641e92efbd99d14476bac56",
     "pixels": [
      1508,
      1104

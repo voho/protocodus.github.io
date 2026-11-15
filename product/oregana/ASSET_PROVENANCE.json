@@ -2,18 +2,19 @@
  "product": "Oregana",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-13",
-  "version_on_panel": "0.5.0d2",
+  "reviewed": "2026-11-15",
+  "build_version": "0.8.0f1",
+  "version_on_panel": "0.8.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "claude/project-thread-utg2o6",
-  "source_commit": "c56e46dae7a098039c6254ad916c4bb01b0bd553",
-  "note": "Latest committed development renders from the device's development branch (not yet on main), converted to WebP quality 92 at full size.",
+  "source_branch": "main",
+  "source_commit": "bb5f40c601db8a557e37dcf7512e2cc992386579",
+  "note": "The panel previews at bb5f40c6, the source the 0.8.0f1 U45 was built from (b2a4b420), converted to WebP quality 92 at full size (cwebp -q 92 -m 6). dist/Oregana_Front.png and Oregana_Back.png on Rack main are still the 0.6.2 images, so they are not used.",
   "assets": [
    {
     "file": "oregana-rack-front.webp",
-    "sha256": "8a9178526002e0ecb4429757fdf49ac03c738e45f0d811e6d16c79c017abfc4a",
+    "sha256": "503b6966c8ec3efffaf9791eaf89961f830ad9a87d85dacd9110a710a381d9da",
     "source": "Examples/Oregana/Design/previews/front_2x.png",
-    "source_sha256": "b2b3f8ff35e7c9d222c9cf1ff0aff04fd49e49aab5d351a6c46f71aa38cb4c71",
+    "source_sha256": "566a9a0e7cf8585bb0874bbdee59ff0fdf6da9c02d82434053dad0ba16350316",
     "pixels": [
      1508,
      1104
@@ -21,9 +22,9 @@
    },
    {
     "file": "oregana-rack-rear.webp",
-    "sha256": "2b033aec694e220a5e5138e3432e16ed03e96ca7f8d2032640c0810aae044993",
+    "sha256": "576ca8c42b02cd07813e07d962f426230b542acf1b3db95401b8813c16de9aa8",
     "source": "Examples/Oregana/Design/previews/back_2x.png",
-    "source_sha256": "94ab751b2604fe9874ab56677f4e8564150b449b577ff02ba63d71035c0e2a14",
+    "source_sha256": "04ba92cb7dacf6ea4f19417090e9b5aa8df0f0b5dd879ddb4f5a06a741b81ce9",
     "pixels": [
      1508,
      1104
@@ -33,8 +34,20 @@
  },
  "cover": {
   "file": "Oregana_Thumbnail_800.png",
-  "sha256": "c071f71f64158898ea06d291a7cbda34a5fdb1bc841c1c8155fba9362acdda9b",
-  "source": "Composed for the website from Examples/Oregana/Design/previews/back_2x.png: the wordmark and the organ case on the panel's background. The device has no Shop thumbnail yet."
+  "sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0",
+  "source": "dist/Oregana_Thumbnail_800.png",
+  "source_sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "The Shop thumbnail added on Rack main in ce49aa67 (13 November 2026), copied unchanged. It replaces the cover composed for the website when the device had no Shop thumbnail.",
+  "supersedes": {
+   "file": "Oregana_Thumbnail_800.png",
+   "sha256": "c071f71f64158898ea06d291a7cbda34a5fdb1bc841c1c8155fba9362acdda9b",
+   "source": "Composed for the website from Examples/Oregana/Design/previews/back_2x.png: the wordmark and the organ case on the panel's background. The device has no Shop thumbnail yet."
+  }
  },
  "feature_sources": [
   "Examples/Oregana/README.md",

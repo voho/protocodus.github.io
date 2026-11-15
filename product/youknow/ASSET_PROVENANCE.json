@@ -718,11 +718,13 @@
   "verified_on": "2026-11-06"
  },
  "development_panels": {
-  "reviewed": "2026-11-13",
-  "version_on_panel": "1.4.7f1",
+  "reviewed": "2026-11-15",
+  "build_version": "1.4.9f1",
+  "version_on_panel": "1.4.9",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "main",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "note": "The 1.4.9f1 panels in dist/ on Rack main, converted to WebP quality 92 at full size (cwebp -q 92 -m 6). The front is byte-identical to 1.4.7f1’s and is kept; the rear, which prints version 1.4.9, is new.",
   "assets": [
    {
     "file": "youknow-rack-front.webp",
@@ -736,9 +738,9 @@
    },
    {
     "file": "youknow-rack-rear.webp",
-    "sha256": "c7ecd1e8437afbfee2388195eb816fd64369d1227731a35d664ebb12c0590055",
+    "sha256": "b073d91b16193ab5217618852f6817b5f5bcbda12ad9257434713bcd56c56027",
     "source": "dist/YouKnow_Back.png",
-    "source_sha256": "643d26de0cadb419b427826264ba91a7648734acdba8228d72e73bb1c6bf1abd",
+    "source_sha256": "a016dcee55466a0bfc71a3e6372a3f3e778374fa31864d8011799a9729435326",
     "pixels": [
      1600,
      1171

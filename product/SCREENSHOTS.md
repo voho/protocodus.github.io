@@ -73,6 +73,28 @@ created the build that evening (Rack `d81faad`, the receipt under the device's
 `Docs/validation/`); nobody has played it in Reason yet, and the page says so. `Keyra_Front.png` and `Keyra_Back.png` in its folder are the 0.4.14d1
 files no page uses; they are left as they were.
 
+On 15 November, at the owner's request, every Rack page moved to the newest
+Universal 45 in Rack `main` `a78ae28`'s `dist/`: Binaurel 0.1.0f2, Convretor
+0.1.0f2, Electry 2.4.6f1, Lamer 1.0.1f1, Maremba 1.6.5f1, Remix 1.2.0f2 and
+Respira 0.1.27f2 (the final rebuilds of 10 November, committed on 14
+November), Keyra 2.14.0f1 (panel C, 5U), Oregana 0.8.0f1 and YouKnow
+1.4.9f1. Acukoto 0.25.18d1, Aculele 0.4.67d1, Aculyre 0.13.7d1 and Acustra
+1.9.50d1 come from the Rack branch `claude/carbon-u45-2026-11-15`
+(`520dcfd`, on top of `a78ae28`), built on 15 November and waiting for their
+Recon check before they reach `main`; only their rear panels changed. Newer
+source on `main` with no U45 (Electry 2.4.9d1, Oregana 0.9.0d1) is not shown. None of these builds
+is uploaded or accepted, and every page labels them Unreleased; the Shop
+versions in `STORE_SNAPSHOT.json` are unchanged and were not rechecked.
+New panels were converted from `dist/` with `cwebp -q 92 -m 6`, which
+reproduces the earlier files byte for byte. Where `dist/` still held the
+earlier build's images (Electry, Maremba, Respira, and the fronts of Acukoto,
+Aculele, Aculyre, Acustra, Binaurel, Convretor and YouKnow) the files are
+kept: the rebuilds changed only the rear's printed version, so those rear
+captions say which label the picture shows. Oregana's panels are the previews at `bb5f40c`,
+the 0.8.0f1 build's source, because `dist/` still holds 0.6.2 images, and its
+cover is now the Shop thumbnail in `dist/` in place of the one composed for
+the website.
+
 RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
 against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.
 On 6 November, all five screenshots were recaptured from that source with the

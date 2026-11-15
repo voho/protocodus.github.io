@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Remix — Crossfader Rack Extension | Protocodus</title>
-  <meta name="description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by two knobs and drawn on a live scope.">
+  <meta name="description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by Shape, Skew and Sigmoid and drawn on a live scope.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="Remix — Crossfader Rack Extension | Protocodus">
-  <meta property="og:description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by two knobs and drawn on a live scope.">
+  <meta property="og:description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by Shape, Skew and Sigmoid and drawn on a live scope.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Protocodus">
   <meta property="og:locale" content="en_US">
@@ -28,11 +28,11 @@
     "name": "Remix",
     "url": "https://protocodus.cz/product/remix/",
     "image": "https://protocodus.cz/product/remix/Remix_Thumbnail_800.png?v=883450bcbab1",
-    "description": "Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by two knobs and drawn on a live scope.",
+    "description": "Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by Shape, Skew and Sigmoid and drawn on a live scope.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "macOS, Windows",
     "softwareRequirements": "Reason 14 or later",
-    "softwareVersion": "1.2.0d1",
+    "softwareVersion": "1.2.0f2",
     "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" }
   }
   </script>
@@ -41,7 +41,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Remix — Crossfader Rack Extension | Protocodus">
-  <meta name="twitter:description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by two knobs and drawn on a live scope.">
+  <meta name="twitter:description" content="Remix Crossfader is a free Rack Extension for Reason, coming soon: fade between two sources by hand or by CV along one smooth crossfade curve, shaped by Shape, Skew and Sigmoid and drawn on a live scope.">
   <meta name="twitter:image" content="https://protocodus.cz/product/remix/Remix_Thumbnail_800.png?v=883450bcbab1">
   <meta name="twitter:image:alt" content="Remix cover with teal and gold crossfade curves crossing above a centred fader.">
   <script type="application/ld+json">
@@ -129,13 +129,13 @@
               <span class="product-status">Unreleased</span>
               <a href="#details" class="detail-link" data-analytics-cta="hero_details" data-analytics-action="view_details">Explore Remix <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">Rack Extension in development. The latest version is 1.2.0d1, which has not been built yet; the latest build is 1.1.0f4. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
+            <p class="availability-note">Rack Extension in development. The latest build is 1.2.0f2, a release candidate built on 10 November 2026; it is not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="remix-rack-front.webp?v=acd07370cf2b" aria-label="View the Remix Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
-            <img src="remix-rack-front.webp?v=acd07370cf2b" width="1508" height="414" fetchpriority="high" decoding="async" alt="Remix Rack Extension front panel with a live crossfade scope, the Main fader under it, the Shape and Skew knobs and level meters">
-            <span class="shot-caption">Front panel · 1.1.0f4 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="remix-rack-front.webp?v=5bfeb05e2a2f" aria-label="View the Remix Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
+            <img src="remix-rack-front.webp?v=5bfeb05e2a2f" width="1508" height="414" fetchpriority="high" decoding="async" alt="Remix Rack Extension front panel with a live crossfade scope, the Main fader under it, the mix mode, the Shape, Skew and Sigmoid knobs and level meters">
+            <span class="shot-caption">Front panel · 1.2.0f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -146,13 +146,14 @@
         <div class="head">
           <span class="tag">The crossfader</span>
           <h2 class="title">One curve for every fade a mix needs.</h2>
-          <p class="lede">Shape turns the curve from exponential through linear to logarithmic; Skew weights it towards A or B. A fade resting at either end plays plain A or plain B.</p>
+          <p class="lede">Shape turns the curve from exponential through linear to logarithmic, Skew weights it towards A or B, and Sigmoid eases it into an S. A fade resting at either end plays plain A or plain B.</p>
         </div>
         <ul class="features">
-          <li><h3>Shape and Skew</h3><p>The logarithmic end, the default, holds the level between two different tracks with no dip in the middle. Linear suits two copies of the same signal; the exponential end lets B in late. Skew lets A hold on longer or brings B in early.</p></li>
+          <li><h3>Shape, Skew and Sigmoid</h3><p>In Normal mode, the default, the logarithmic end keeps both sources strong through the middle; the exponential end lets B in late and A out early, leaving a deep dip. Skew lets A hold on longer or brings B in early. Sigmoid, at 0 % by default, morphs the curve into an S with an eased entry and exit.</p></li>
+          <li><h3>Three mix modes</h3><p>Normal keeps the overlap or dip you shape. Constant Power normalizes the two gains for independent sources of equal power; Constant Gain keeps their sum at one for coherent material. Both follow fixed laws and do not measure the audio.</p></li>
           <li><h3>CV takes over</h3><p>Patch CV into the back and it takes over from the Main fader; the CV trim beside the jack scales it.</p></li>
           <li><h3>Stereo or mono</h3><p>Each input pair also accepts a mono source, and left and right stay separate throughout the crossfade.</p></li>
-          <li><h3>Smooth under automation</h3><p>Smooth, up to 50 ms, softens changes in CV, position, Shape or Skew, and slow automated fades glide without steps. Automate the Main fader, Shape, Skew and Smooth to build transitions into an arrangement.</p></li>
+          <li><h3>Smooth under automation</h3><p>Smooth, up to 50 ms, softens changes in CV, position, Shape, Skew, Sigmoid and mode, and slow automated fades glide without steps. Automate the Main fader, Shape, Skew, Sigmoid, mode and Smooth to build transitions into an arrangement.</p></li>
         </ul>
       </div>
     </section>
@@ -162,13 +163,13 @@
         <div class="edition-copy">
           <span class="tag">In the rack</span>
           <h2 class="title">See the curve as you shape it.</h2>
-          <p class="lede">A live scope on the four-unit panel draws the curve as you turn Shape and Skew, and marks the actual A and B gains at the current position, beside input and output meters.</p>
+          <p class="lede">A live scope on the three-unit panel draws the curve as you turn Shape, Skew and Sigmoid, and marks the actual A and B gains at the current position, beside input and output meters.</p>
           <p class="lede">CV patched into the back takes over from the Main fader, and Reason's standard trim beside the jack attenuates it. Remix sits with the Utilities and has no bypass, because a crossfader is always mixing.</p>
         </div>
         <figure class="shot">
-          <a class="screenshot-link" href="remix-rack-rear.webp?v=2c44e8899585" aria-label="View the Remix Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
-            <img src="remix-rack-rear.webp?v=2c44e8899585" width="1508" height="414" loading="lazy" decoding="async" alt="Remix Rack Extension rear panel and connections">
-            <span class="shot-caption">Rear panel · 1.1.0f4 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="remix-rack-rear.webp?v=fb96192d37e8" aria-label="View the Remix Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
+            <img src="remix-rack-rear.webp?v=fb96192d37e8" width="1508" height="414" loading="lazy" decoding="async" alt="Remix Rack Extension rear panel and connections">
+            <span class="shot-caption">Rear panel · 1.2.0f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -179,7 +180,7 @@
         <div>
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">Connect A and B.</h2>
-          <p class="lede">Send two sources to A and B, turn Mix, then turn Shape and Skew. Remix has no presets; its five controls are saved in your song.</p>
+          <p class="lede">Send two sources to A and B, move the Main fader, then turn Shape and Skew. Remix has no presets; its controls are saved in your song.</p>
         </div>
         <aside class="info-card compatibility" aria-label="Remix requirements and availability">
           <h3>Requirements &amp; availability</h3>
@@ -201,6 +202,10 @@
           <p class="lede">The Rack Extension is in development and not yet in the Reason Shop.</p>
         </div>
         <div class="version-history">
+          <article data-development-version="1.2.0f2">
+            <h3>1.2.0f2 <span>Unreleased · Release candidate · 10 November 2026</span></h3>
+            <p>1.2.0 built: the Normal, Constant Power and Constant Gain modes, the Sigmoid knob and Shape’s stronger extremes on the same 3U panel. Older songs load in Normal mode with Sigmoid at 0 %, and a song whose Shape is away from linear fades on a stronger curve than before. Reason’s test host created it fresh.</p>
+          </article>
           <article data-development-version="1.2.0d1">
             <h3>1.2.0d1 <span>Unreleased · In development · not yet built</span></h3>
             <p>Adds Normal, Constant Power and Constant Gain mix modes and a Sigmoid control that turns the fade into an S-curve, and extends Shape to steeper exponential and logarithmic curves.</p>

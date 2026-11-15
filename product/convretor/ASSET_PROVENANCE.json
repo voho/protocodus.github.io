@@ -34,11 +34,13 @@
   "supersedes": "Earlier thumbnail records in this file describe the previous cover."
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.1.0d9",
+  "reviewed": "2026-11-15",
+  "build_version": "0.1.0f2",
+  "version_on_panel": "0.1.0f2",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "main",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "note": "The 0.1.0f2 panels in dist/ on Rack main, converted to WebP quality 92 at full size (cwebp -q 92 -m 6). The front is byte-identical to 0.1.0d9’s and is kept; the rear is new.",
   "assets": [
    {
     "file": "convretor-rack-front.webp",
@@ -52,9 +54,9 @@
    },
    {
     "file": "convretor-rack-rear.webp",
-    "sha256": "f348dfd5a15019de7012bbe32471f7eeca2065b2a8ec167163aead29a5b60dc6",
+    "sha256": "f3cd37d45e7b0410d2a14abe7441de01824f82e348d5e3946d886f6de7043b72",
     "source": "dist/Convretor_Back.png",
-    "source_sha256": "06d6b410504b6b93f40c734fc0b5d0378f3fdb2e09859e2c6a4280958682d78d",
+    "source_sha256": "8895ea85847f7a5387221585a3cd3ad1fba737be2029259980b70db8de416b36",
     "pixels": [
      1508,
      414

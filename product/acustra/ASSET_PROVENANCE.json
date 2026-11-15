@@ -347,11 +347,13 @@
   "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
  },
  "development_panels": {
-  "reviewed": "2026-11-13",
-  "version_on_panel": "1.9.47f1",
+  "reviewed": "2026-11-15",
+  "build_version": "1.9.50d1",
+  "version_on_panel": "1.9.50d1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "06c5cb732161be54923e9967d9f829e756b71367",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "claude/carbon-u45-2026-11-15",
+  "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69",
+  "note": "The 1.9.50d1 panels in dist/ on the Rack branch claude/carbon-u45-2026-11-15 (520dcfd1, built on the owner’s Mac on top of main a78ae287; to reach main after its Recon check), converted to WebP quality 92 at full size (cwebp -q 92 -m 6). Only the rear, which prints 1.9.50d1, changed; the front is byte-identical to the one shown since 1.9.41d1 and is kept.",
   "assets": [
    {
     "file": "acustra-rack-front.webp",
@@ -365,9 +367,9 @@
    },
    {
     "file": "acustra-rack-rear.webp",
-    "sha256": "b88a08030acc6c6a5ca1b68537b3bf4b2b02d5f64d46d804e79f17809707e2e8",
+    "sha256": "efdfbea07d41329813539abdc68f8c567d7712f164573fca59575c466e1d91be",
     "source": "dist/Acustra_Back.png",
-    "source_sha256": "cee830517afba24e212dd84cbd3401394c38d9ffb483b1418493c32354db132a",
+    "source_sha256": "a4fe7462ddef19c88f72fa6ff05ebf4eb622fd2a2935b2f9dfbf3b75bc86c646",
     "pixels": [
      1457,
      1200

@@ -104,11 +104,13 @@
   "verified_on": "2026-11-06"
  },
  "development_panels": {
-  "reviewed": "2026-11-11",
-  "version_on_panel": "0.1.0d26",
+  "reviewed": "2026-11-15",
+  "build_version": "0.1.0f2",
+  "version_on_panel": "0.1.0f2",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "d8e18ade11f8e3f1ff937967d0c87b73e7a990a1",
-  "note": "Latest committed development renders, converted to WebP quality 92 at full size.",
+  "source_branch": "main",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "note": "The 0.1.0f2 panels in dist/ on Rack main, converted to WebP quality 92 at full size (cwebp -q 92 -m 6). The front is byte-identical to 0.1.0d26’s and is kept; the rear is new.",
   "assets": [
    {
     "file": "binaurel-rack-front.webp",
@@ -122,9 +124,9 @@
    },
    {
     "file": "binaurel-rack-rear.webp",
-    "sha256": "972c2899ba5f9a37521f49ac1e2c4e09c13ec6b2dda3d68c8b334cf4bf612cb8",
+    "sha256": "d346748cfebc9403b5ff2c8d483bd8826a8b5ba6a5b6236ea77d78da66fa2653",
     "source": "dist/Binaurel_Back.png",
-    "source_sha256": "3aa40c0140485b5b637c38c902b8173eeff13b2923f961a6ef515eb2a8147e54",
+    "source_sha256": "21cf7f69a8d76b8e49b73e9e047ae83c404aa35a34c187e3372e3ce226dcdd81",
     "pixels": [
      1508,
      552

@@ -131,36 +131,69 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Keyra/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-13",
-  "version_on_panel": "2.13.1f1",
+  "reviewed": "2026-11-15",
+  "build_version": "2.14.0f1",
+  "version_on_panel": "2.14.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
-  "source_commit": "47f095bd6e3c2f9e9a049691d5dbf959dd4ffb63",
   "source_branch": "main",
-  "note": "The panels the 2.13.1f1 Universal 45 packaged, rendered on macOS by its build and converted to WebP quality 92 at full size.",
+  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
+  "note": "The 2.14.0f1 panels (panel C, 5U) in dist/ on Rack main, committed with the version in ed8b9aaa; the U45 was built at afa5b1f1. Converted to WebP quality 92 at full size (cwebp -q 92 -m 6).",
   "assets": [
    {
     "file": "keyra-rack-front.webp",
-    "sha256": "8e3dc60deaaf31a58728ea68259f05d538b52e16ecf1e42e48db2fe7559cef13",
+    "sha256": "74191b67dc05813b6c7ad2462d5985ec49d38221cfa35b9b09bd3f284bc34a4c",
     "source": "dist/Keyra_Front.png",
-    "source_sha256": "3d4dbd31a8105534af9b862d2d08c3a71fe8be851ba3a3f833d1e150853ea68c",
+    "source_sha256": "560de25de9227d631520fe40a05e151f30d4127fb4db464254ea8926c3f00aa7",
     "pixels": [
      1508,
-     552
+     690
     ]
    },
    {
     "file": "keyra-rack-rear.webp",
-    "sha256": "6b4cf11738d83ab821b79fd0eca5073fd9c3b4688cd9501daff0894dba19b612",
+    "sha256": "d9c04b089de6299d2864b8c61c598aa0cbbda8038d14843e443a7a16d26f0c75",
     "source": "dist/Keyra_Back.png",
-    "source_sha256": "c33fea204add9b6357fee1d9eeee5678b8d07e5f25935fae04afe629b8e58fd3",
+    "source_sha256": "4af72bd162faa0641dc7dfe1160269a7130d86e608528add37b5f3070bf0c6a4",
     "pixels": [
      1508,
-     552
+     690
     ]
    }
   ]
  },
  "earlier_reviews": [
+  {
+   "development_panels": {
+    "reviewed": "2026-11-13",
+    "version_on_panel": "2.13.1f1",
+    "source_repository": "protocodus/reason-rack-extensions",
+    "source_commit": "47f095bd6e3c2f9e9a049691d5dbf959dd4ffb63",
+    "source_branch": "main",
+    "note": "The panels the 2.13.1f1 Universal 45 packaged, rendered on macOS by its build and converted to WebP quality 92 at full size.",
+    "assets": [
+     {
+      "file": "keyra-rack-front.webp",
+      "sha256": "8e3dc60deaaf31a58728ea68259f05d538b52e16ecf1e42e48db2fe7559cef13",
+      "source": "dist/Keyra_Front.png",
+      "source_sha256": "3d4dbd31a8105534af9b862d2d08c3a71fe8be851ba3a3f833d1e150853ea68c",
+      "pixels": [
+       1508,
+       552
+      ]
+     },
+     {
+      "file": "keyra-rack-rear.webp",
+      "sha256": "6b4cf11738d83ab821b79fd0eca5073fd9c3b4688cd9501daff0894dba19b612",
+      "source": "dist/Keyra_Back.png",
+      "source_sha256": "c33fea204add9b6357fee1d9eeee5678b8d07e5f25935fae04afe629b8e58fd3",
+      "pixels": [
+       1508,
+       552
+      ]
+     }
+    ]
+   }
+  },
   {
    "development_panels": {
     "reviewed": "2026-11-13",
