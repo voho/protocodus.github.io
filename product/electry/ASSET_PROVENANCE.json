@@ -1,44 +1,44 @@
 {
- "product": "Electry",
- "availability": "in_development",
- "development_panels": {
-  "reviewed": "2026-11-15",
-  "build_version": "2.4.6f1",
-  "version_on_panel": "2.4.6d1",
-  "source_repository": "protocodus/reason-rack-extensions",
-  "source_branch": "main",
-  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
-  "note": "dist/ on Rack main still holds the 2.4.6d1 panel images: the 2.4.6f1 rebuild changed only the version label on the rear (its GUI2D rear differs from 2.4.6d1’s only there, its front not at all), so the existing WebP files are kept and the rear still prints 2.4.6d1. Rack main’s source is 2.4.9d1, which has no U45 and is not shown.",
-  "assets": [
-   {
-    "file": "electry-rack-front.webp",
-    "sha256": "95072231be67cbc34c84dfe05c3a8e75ad00470f23d897d32ff1612b3db18cb5",
-    "source": "dist/Electry_Front.png",
-    "source_sha256": "de13c5229b1b89501aa8d8ee81e7ddb41d99027347bba815573f8de6f7dcec5f",
-    "pixels": [
-     754,
-     552
+  "product": "Electry",
+  "availability": "in_development",
+  "development_panels": {
+    "reviewed": "2026-11-15",
+    "build_version": "2.4.9d1",
+    "version_on_panel": "2.4.9d1",
+    "source_repository": "protocodus/reason-rack-extensions",
+    "source_branch": "main",
+    "source_commit": "92928d958aa14b3291a3982e9fb08e557f2b54fe",
+    "note": "Panels from dist/ of the 2.4.9d1 build (Shop set regenerated 2026-11-15 by Design/build_shop_metadata.py; the front now shows Player Feel), converted with cwebp -q 92 -m 6.",
+    "assets": [
+      {
+        "file": "electry-rack-front.webp",
+        "sha256": "f04201562744dfc6934a2ec67d871a62f01d18a9d4bdf0e0b7f94afe56afb080",
+        "source": "dist/Electry_Front.png",
+        "source_sha256": "a3d7efb9d4fbf0ea05ae8e8acbad174ec15aa315684b88aef5ab8f0696766616",
+        "pixels": [
+          754,
+          552
+        ]
+      },
+      {
+        "file": "electry-rack-rear.webp",
+        "sha256": "130bfaf0baecf733d1f1c31a2c02b1b206a24abb5f0b22054fc695ff8699370c",
+        "source": "dist/Electry_Back.png",
+        "source_sha256": "29072e7cf8120c3efeb1313ddf4652c5f7d103dbe1f233d3f0a1da701a1f62e4",
+        "pixels": [
+          754,
+          552
+        ]
+      }
     ]
-   },
-   {
-    "file": "electry-rack-rear.webp",
-    "sha256": "2fa519dfa9f9dcadb47db803aff2055f7b55b3c60ba42d1004ee5fda49dbed4d",
-    "source": "dist/Electry_Back.png",
-    "source_sha256": "16a950a58743e213a9bfc0c26bbd5cf6a09de0921d1c9427cd85935e0908b6bc",
-    "pixels": [
-     754,
-     552
-    ]
-   }
+  },
+  "cover": {
+    "file": "Electry_Thumbnail_800.png",
+    "sha256": "ca820f5302c59c38bda53212c393269f3a656593ac638cd80722eb917dbd04d0",
+    "source": "dist/Electry_Thumbnail_800.png"
+  },
+  "feature_sources": [
+    "dist/Electry-SHOP.md",
+    "Examples/Electry/CHANGELOG.md"
   ]
- },
- "cover": {
-  "file": "Electry_Thumbnail_800.png",
-  "sha256": "ca820f5302c59c38bda53212c393269f3a656593ac638cd80722eb917dbd04d0",
-  "source": "dist/Electry_Thumbnail_800.png"
- },
- "feature_sources": [
-  "dist/Electry-SHOP.md",
-  "Examples/Electry/CHANGELOG.md"
- ]
 }
