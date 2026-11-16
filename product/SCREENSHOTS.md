@@ -98,16 +98,15 @@ the 0.8.0f1 build's source, because `dist/` still holds 0.6.2 images, and its
 cover is now the Shop thumbnail in `dist/` in place of the one composed for
 the website.
 
-RILL is a free, MIT-licensed development alpha (Cargo version 0.1.0), verified
-against `protocodus/rill-daw` main `1facbdc196cfa2a7f3bde1a488ff614c3c419add`.
-On 6 November, all five screenshots were recaptured from that source with the
-native app screenshot command and an original 32-bar session. The capture-only
-[harness](../scripts/rill-capture/capture-harness.patch) configures framing and
-demo state without changing UI rendering; the [generator](../scripts/rill-capture/make_demo.py)
-creates the original demo audio and project. The page uses the official logo; imagery
-and feature sources are recorded in [`rill/ASSET_PROVENANCE.json`](rill/ASSET_PROVENANCE.json).
-The five platform downloads follow the latest successful main build; this is
-not a stable release. Podcare retains its existing illustration.
+RILL is a free, MIT-licensed development alpha. The site serves native
+screenshots from the [RILL repository](https://github.com/protocodus/rill-daw).
+The 16 November update shows the original sixteen-track *Night ferry* session
+in Compact and Overview, in both appearances. The R1 gallery shows the current
+device panels, including an eight-piece kit in R1 Drums. The other workflow
+views show the 32-bar *Glass Current* session captured on 9 November. The
+[source manifest](rill/ASSET_PROVENANCE.json) records revisions, capture details
+and SHA-256 hashes. The five platform downloads follow the latest successful
+main build. Podcare retains its existing illustration.
 
 ## Video and audio inventory
 

@@ -29,6 +29,7 @@
 .rill-section-head { display: grid; grid-template-columns: 1.15fr 1fr; gap: 0 4rem; align-items: end; }
 .rill-section-head .tag { grid-column: 1/-1; }
 .rill-section-head .lede { max-width: 46ch; margin-top: 0; }
+.rill-arranger-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 2rem; margin-top: 3rem; }
 .rill-principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3rem; margin-top: 4rem; }
 .rill-principles article { border-top: 1px solid #d5eee02a; padding-top: 1.5rem; }
 .rill-principles article > span { color: var(--accent); font-size: .75rem; }
