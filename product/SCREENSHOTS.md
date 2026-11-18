@@ -1,6 +1,6 @@
 # Product media and claim sources
 
-## Current verification — 6 November 2026
+## Current verification — 18 November 2026
 
 The public Reason Shop is authoritative for availability, published versions and
 the artwork presented on released product pages. Local Rack candidates remain
@@ -10,11 +10,14 @@ separately labelled. The complete URLs, dimensions and SHA-256 hashes are in
 
 | Product | Published version | Current panel dimensions |
 | --- | --- | --- |
+| Acukoto Modelled Koto | 0.25.16 | 1508 × 828 |
+| Aculele Modelled Ukulele | 0.4.64 | 1508 × 1104 |
+| Aculyre Modelled Lyre | 0.13.5 | 1508 × 828 |
 | Acustra Acoustic Guitar | 1.9.0 | 1457 × 1200 |
 | Binaurel Advanced Panner | 0.1.0 | 1508 × 552 |
 | Ceres Circuit-Modelled Synth | 1.1.4 | 754 × 552 |
 | Lamer Degrader | 1.0.0 | 1600 × 293 |
-| Maremba | 1.5.7 | 1600 × 1171 |
+| Maremba | 1.6.5 | 1600 × 1171 |
 | Press78 FM Synth | 1.0.4 | 754 × 552 |
 | YouKnow Circuit-Modelled Synth | 1.3.5 | 1600 × 1171 |
 
@@ -32,7 +35,7 @@ Ceres 1.1.4 and Press78 1.0.4 Shop pages were published on 5 November. The Shop
 “Released” field still shows their original product date, 2 November; it is not
 the publication date of these updates.
 
-Acukoto 0.18.0d1 is accepted, with its Shop page awaiting approval and automatic
+As checked on 6 November: Acukoto 0.18.0d1 is accepted, with its Shop page awaiting approval and automatic
 publication enabled. Aculele 0.4.39d1 is accepted; Shop page 34606 contains both
 YouTube demos and is awaiting approval with automatic publication enabled. It
 replaced older queued page 34535. Aculyre 0.7.9d1 is
@@ -97,6 +100,32 @@ captions say which label the picture shows. Oregana's panels are the previews at
 the 0.8.0f1 build's source, because `dist/` still holds 0.6.2 images, and its
 cover is now the Shop thumbnail in `dist/` in place of the one composed for
 the website.
+
+On 18 November, at the owner's request ("do the pages according to current dev
+status, only do not add extension icon if not in the store and put (in
+development)"), the live Shop was checked again (`catalog-live-check.mjs` and
+the product pages themselves). Acukoto 0.25.16 (Shop date 12 November), Aculele
+0.4.64 and Aculyre 0.13.5 (both 17 November) are published, and Maremba is
+1.6.5; Respira's Shop URL still returns 404. The four moved into `products` in
+`STORE_SNAPSHOT.json` with their Shop galleries, converted at full size to WebP
+quality 92 with Pillow (libwebp 1.3.2, method 6), as `cwebp` is not installed in
+this session; each cover PNG is copied byte for byte. The Shop shows only the
+public version: Aculele's accepted 0.4.64f2 is the build its Shop copy names,
+Maremba's 1.6.5f1 is printed on its Shop rear, and Acukoto's 0.25.16f1 and
+Aculyre's 0.13.5f1 are inferred as the last build of each version in Rack
+`dist/` (their Shop galleries still print 0.18.0d1 and 0.7.9d1). The ten Shop
+products carry the Rack Extension mark on the homepage; every other product
+says "Rack Extension (in development)" on its card and page, and the version
+lines no longer repeat "Unreleased". Every Rack page moved to the newest build
+on Rack `main` `8e7b324`, each created in Recon on 17 November: Acukoto
+0.25.21f4, Aculele 0.4.70f3, Aculyre 0.13.15f3, Acustra 1.9.63f4, Ceres
+1.1.8f5, Convretor 0.1.0f4, Electry 2.4.9f2, Keyra 2.24.0f3, Lamer 1.0.1f3,
+Maremba 1.6.5f3, Oregana 0.9.0f4, Press78 1.0.6f4, Remix 1.2.0f4, Respira
+0.1.27f4, Retra 0.7.0f6 and YouKnow 1.4.11f2. Their panels come from `dist/`
+there; where an image is byte-identical to the one shown it is kept. Ceres's
+`dist/` panels are still 1.1.8f2's and Lamer has none newer than its Shop
+panels, so both keep what they showed; YouKnow's rear prints 1.4.11f1.
+Binaurel's newest build is still 0.1.0f2.
 
 RILL is a free, MIT-licensed development alpha. The site serves native
 screenshots from the [RILL repository](https://github.com/protocodus/rill-daw).

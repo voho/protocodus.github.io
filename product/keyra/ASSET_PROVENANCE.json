@@ -131,19 +131,18 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Keyra/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-15",
-  "build_version": "2.14.0f1",
-  "version_on_panel": "2.14.0f1",
+  "reviewed": "2026-11-18",
+  "build_version": "2.24.0f3",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
-  "note": "The 2.14.0f1 panels (panel C, 5U) in dist/ on Rack main, committed with the version in ed8b9aaa; the U45 was built at afa5b1f1. Converted to WebP quality 92 at full size (cwebp -q 92 -m 6).",
+  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
+  "note": "The 2.24.0f3 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session.",
   "assets": [
    {
     "file": "keyra-rack-front.webp",
-    "sha256": "74191b67dc05813b6c7ad2462d5985ec49d38221cfa35b9b09bd3f284bc34a4c",
+    "sha256": "011d600d3d15300dff0c10a3e8663e495109917be204ccbf5e667268a5d1759a",
     "source": "dist/Keyra_Front.png",
-    "source_sha256": "560de25de9227d631520fe40a05e151f30d4127fb4db464254ea8926c3f00aa7",
+    "source_sha256": "5b0191382a68cf94e93d5110c9ea1eea300cf108ad122eccd3602c4bd5538340",
     "pixels": [
      1508,
      690
@@ -151,15 +150,20 @@
    },
    {
     "file": "keyra-rack-rear.webp",
-    "sha256": "d9c04b089de6299d2864b8c61c598aa0cbbda8038d14843e443a7a16d26f0c75",
+    "sha256": "c783b36f801aa915140ae9c3d56694ddb1cef9c40e5f94943afcbb4a46f7acc2",
     "source": "dist/Keyra_Back.png",
-    "source_sha256": "4af72bd162faa0641dc7dfe1160269a7130d86e608528add37b5f3070bf0c6a4",
+    "source_sha256": "407e1181de5c830b7191720c6a130909d437d5d7b7f82cb1558e860ce83ec4f5",
     "pixels": [
      1508,
      690
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "2.14.0f1",
+   "version_on_panel": "2.14.0f1",
+   "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896"
+  }
  },
  "earlier_reviews": [
   {

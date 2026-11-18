@@ -5,6 +5,17 @@ the public [Protocodus catalog](https://www.reasonstudios.com/shop/browse/?devel
 and each listing. A developer-portal “released” row alone does not establish
 that a Shop page is public.
 
+## Public check — 18 November 2026
+
+Checked the public listings only, without the developer portal. Ten products
+are public: the seven below, with Maremba now at 1.6.5, and Acukoto 0.25.16
+(Shop date 12 November), Aculele 0.4.64 and Aculyre 0.13.5 (both 17 November).
+Respira's Shop URL still returns 404. The accepted builds recorded for the new
+releases are Aculele 0.4.64f2 (from its Shop copy) and Maremba 1.6.5f1 (printed
+on its Shop rear); Acukoto 0.25.16f1 and Aculyre 0.13.5f1 are inferred as the
+last build of each version in Rack `dist/` and are not read from the portal.
+The tables below are the 6 November audit, unchanged.
+
 ## Public releases
 
 All seven public products have their latest accepted device version in the Shop.

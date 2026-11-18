@@ -40,13 +40,12 @@
   "note": "3U 1.1.0f3 panels (narrower scope and Main fader, Shape and Skew side by side; narrower rear input groups and a wider Main fader CV group), converted to WebP quality 92"
  },
  "development_panels": {
-  "reviewed": "2026-11-15",
-  "build_version": "1.2.0f2",
-  "version_on_panel": "1.2.0f2",
+  "reviewed": "2026-11-18",
+  "build_version": "1.2.0f4",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
-  "note": "The 1.2.0f2 panels in dist/ on Rack main, with Mode and Sigmoid, converted to WebP quality 92 at full size (cwebp -q 92 -m 6).",
+  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
+  "note": "The 1.2.0f4 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session. The front is byte-identical to the image already shown and kept.",
   "assets": [
    {
     "file": "remix-rack-front.webp",
@@ -60,14 +59,19 @@
    },
    {
     "file": "remix-rack-rear.webp",
-    "sha256": "fb96192d37e8308c1a400b23450376a5ae301d41601a5cb6fb1124228306376c",
+    "sha256": "f3de598a6a78f0a8441e8b86e89e7b6595b369a229d5aacfd52c209aa28ac21d",
     "source": "dist/Remix_Back.png",
-    "source_sha256": "75b555ee4ff8cf18f268523cafd700352adddba0cdfc00f21a7d62f502e56c37",
+    "source_sha256": "46ad87f650ca07ae9ff9dd131eab0fd498bc37d49775d95c547a347bb04966fe",
     "pixels": [
      1508,
      414
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "1.2.0f2",
+   "version_on_panel": "1.2.0f2",
+   "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896"
+  }
  }
 }

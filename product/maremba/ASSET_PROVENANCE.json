@@ -313,7 +313,7 @@
   ],
   "availability": "Development build; existing Shop release status preserved."
  },
- "reviewed": "2026-11-03",
+ "reviewed": "2026-11-18",
  "shop_cover_refresh": {
   "date": "2026-11-05",
   "file": "Maremba_Thumbnail_800.png",
@@ -331,73 +331,73 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Maremba/Design/Shop/realistic/layers.json"
  },
  "current_shop_gallery": {
-  "checked_on": "2026-11-06",
-  "version": "1.5.7",
+  "checked_on": "2026-11-18",
+  "version": "1.6.5",
   "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow (libwebp 1.3.2, method 6); the cover PNG is copied byte for byte.",
   "assets": [
    {
     "file": "product/maremba/shop-front.webp",
     "role": "front",
-    "sha256": "364893059fcf9444eeb00c8de12f3744452a66dd8496ab66f348b1e9d8693ee1",
+    "sha256": "7337c517221b7fea0a3e66a7a992f2694a5a7597789916fb23ec4b8eba9963ee",
     "dimensions": [
      1600,
      1171
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png",
-    "source_sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Front.png",
+    "source_sha256": "387105dc465370c64125ae85abf2a6dea2e7c9b1f8dd8154a0999fd64d9fcb8a"
    },
    {
     "file": "product/maremba/shop-rear.webp",
     "role": "rear",
-    "sha256": "3225190bc39f0bca4e17c991cc1effbb11f97f48a9aa7339483cad49a09155a1",
+    "sha256": "ea75dd69f63fb4a6c83c72e325cd9e0ab5ef3b1f6559773afc34cf7d23dbd5ea",
     "dimensions": [
      1600,
      1171
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png",
-    "source_sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Back.png",
+    "source_sha256": "b3f56ea7a8310554d9a855ae1d97edae3abaa69fc95c713ab440743a4e54a522"
    },
    {
     "file": "product/maremba/shop-cover.webp",
     "role": "cover",
-    "sha256": "e3d29ebf481c3ff8bd457bff01a24710e667c89d3b80f4ef19373c889ff48c48",
+    "sha256": "7b2006a90d8ff560eb49ce625ad73a49e96df0df28984e87e5c60bda7d5ab2b0",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
-    "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+    "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
    },
    {
     "file": "product/maremba/shop-cover.png",
     "role": "social",
-    "sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f",
+    "sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
-    "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+    "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
    }
-  ],
-  "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  ]
  },
  "availability": "published",
  "public_release": {
-  "version": "1.5.7",
-  "accepted_version": "1.5.7f5",
-  "shop_release_date_field": "2026-10-13",
+  "version": "1.6.5",
   "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
-  "verified_on": "2026-11-06"
+  "accepted_version": "1.6.5f1",
+  "accepted_version_basis": "The rear in the Shop gallery prints build 1.6.5f1.",
+  "shop_release_date_field": "2026-10-13",
+  "verified_on": "2026-11-18"
  },
  "development_panels": {
-  "reviewed": "2026-11-15",
-  "build_version": "1.6.5f1",
-  "version_on_panel": "1.6.5d1",
+  "reviewed": "2026-11-18",
+  "build_version": "1.6.5f3",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
-  "note": "dist/ on Rack main still holds the 1.6.5d1 panel images: the 1.6.5f1 rebuild changed only the build label on the rear (its GUI2D rear differs from 1.6.5d1’s only there, its front not at all), so the existing WebP files are kept and the rear still prints 1.6.5d1.",
+  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
+  "note": "The 1.6.5f3 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session. The front is byte-identical to the image already shown and kept.",
   "assets": [
    {
     "file": "maremba-rack-front.webp",
@@ -411,14 +411,26 @@
    },
    {
     "file": "maremba-rack-rear.webp",
-    "sha256": "9f77f716de535969a33b63aa1b6d1d0994f468d0cd3e6e9d2dce6d7acc752d71",
+    "sha256": "916df8e1252b6a239738305131e6aca99fdf8f064021bf6ff38ab52d2d341e97",
     "source": "dist/Maremba_Back.png",
-    "source_sha256": "f3b96337045486463f2081d1f2eea4e90330f77f0b9d37ae9fe15826cef569ce",
+    "source_sha256": "33532d2d5fc7b7c860629b5e5dfb729b62991ee78786f28fcc1c7536ce30c139",
     "pixels": [
      1600,
      1171
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "1.6.5f1",
+   "version_on_panel": "1.6.5d1",
+   "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896"
+  }
+ },
+ "earlier_public_release": {
+  "version": "1.5.7",
+  "accepted_version": "1.5.7f5",
+  "shop_release_date_field": "2026-10-13",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
+  "verified_on": "2026-11-06"
  }
 }

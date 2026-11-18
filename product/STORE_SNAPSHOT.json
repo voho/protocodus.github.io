@@ -1,7 +1,187 @@
 {
-  "verified_at": "2026-11-06",
+  "verified_at": "2026-11-18",
   "developer_url": "https://www.reasonstudios.com/shop/browse/?developer=Protocodus",
   "products": [
+    {
+      "product": "acukoto",
+      "title": "Acukoto Modelled Koto",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/",
+      "version": "0.25.16",
+      "release_date": "2026-11-12",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/acukoto/shop-front.webp",
+          "role": "front",
+          "sha256": "feece060ac0c1a02b9aff8cb8d0659c63245200a30b3e033553af0f5dabe1cce",
+          "dimensions": [
+            1508,
+            828
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Front.png",
+          "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff"
+        },
+        {
+          "file": "product/acukoto/shop-rear.webp",
+          "role": "rear",
+          "sha256": "983f7aaf6649c5b69efe800ba07461145a506b1f9efd7f43086afa4e9d5d61a6",
+          "dimensions": [
+            1508,
+            828
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Back.png",
+          "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc"
+        },
+        {
+          "file": "product/acukoto/shop-cover.webp",
+          "role": "cover",
+          "sha256": "c3f974da740cf7e535594e27923f75f9bbd7c28610e73ca849a998c42bf2e8f6",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
+          "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+        },
+        {
+          "file": "product/acukoto/shop-cover.png",
+          "role": "social",
+          "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
+          "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+        }
+      ],
+      "accepted_version": "0.25.16f1",
+      "accepted_version_basis": "The Shop shows only 0.25.16, and its gallery still prints 0.18.0d1; 0.25.16f1 is the last 0.25.16 build in Rack dist/, inferred, not read from the portal."
+    },
+    {
+      "product": "aculele",
+      "title": "Aculele Modelled Ukulele",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/",
+      "version": "0.4.64",
+      "release_date": "2026-11-17",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/aculele/shop-front.webp",
+          "role": "front",
+          "sha256": "9cffc0b1693a05c5a18df37ca592b04838288ef92f2c1c5b6e700585c04ad415",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Front.png",
+          "source_sha256": "578e327e027256648d53c629250c9ad66c405c2467a0b1c9f33d5f4230f3b41b"
+        },
+        {
+          "file": "product/aculele/shop-rear.webp",
+          "role": "rear",
+          "sha256": "a87ffade418c0fb9e12b167c2d2670e018e6cfa8f0c1e00ea6b33306eb121a88",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Back.png",
+          "source_sha256": "c3b08d81f24d874f7585becec8d7cd900a55e5fd19ace0b9a5aa395d22bd9e72"
+        },
+        {
+          "file": "product/aculele/shop-cover.webp",
+          "role": "cover",
+          "sha256": "207b7f9834a5698c86610ee477a0c841315095d9c7203608550f40b9bf6c93ea",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
+          "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+        },
+        {
+          "file": "product/aculele/shop-cover.png",
+          "role": "social",
+          "sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
+          "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+        }
+      ],
+      "accepted_version": "0.4.64f2",
+      "accepted_version_basis": "Examples/Aculele/Docs/release/shop-copy.md records 0.4.64f2 as the build the owner published on 2026-11-17."
+    },
+    {
+      "product": "aculyre",
+      "title": "Aculyre Modelled Lyre",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/aculyre-modelled-lyre/",
+      "version": "0.13.5",
+      "release_date": "2026-11-17",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculyre/pictures/Aculyre_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculyre/pictures/Aculyre_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34534/Aculyre_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/aculyre/shop-front.webp",
+          "role": "front",
+          "sha256": "7b2ba36aa46e4ab68def566c6ac5472fdd7e1f4466aa2cdf8f6d5b2af111e443",
+          "dimensions": [
+            1508,
+            828
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculyre/pictures/Aculyre_Front.png",
+          "source_sha256": "a37ac5b172bef03275d024952e035d576f6527445c953f6136acd751f85b5838"
+        },
+        {
+          "file": "product/aculyre/shop-rear.webp",
+          "role": "rear",
+          "sha256": "3b123084808627429206e374272b1ae96287772b16bee5a1bcc05c9fb5995639",
+          "dimensions": [
+            1508,
+            828
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculyre/pictures/Aculyre_Back.png",
+          "source_sha256": "bf3852de904cbc236b83e59fe2ba7b00e66f429967a2df103e26f2e88537ead5"
+        },
+        {
+          "file": "product/aculyre/shop-cover.webp",
+          "role": "cover",
+          "sha256": "b3dff90eacf786f79ab5ab7ada83a4f97c81987e75ca225ab85d1c1521382da1",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34534/Aculyre_Thumbnail_800.png",
+          "source_sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa"
+        },
+        {
+          "file": "product/aculyre/shop-cover.png",
+          "role": "social",
+          "sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34534/Aculyre_Thumbnail_800.png",
+          "source_sha256": "09ce1aafc3b5c100cd69a0286125e2ef55dc44801e77ea7e1abc1d011d1c2efa"
+        }
+      ],
+      "accepted_version": "0.13.5f1",
+      "accepted_version_basis": "The Shop shows only 0.13.5, and its gallery still prints 0.7.9d1; 0.13.5f1 is the last 0.13.5 build in Rack dist/, inferred, not read from the portal."
+    },
     {
       "product": "acustra",
       "title": "Acustra Acoustic Guitar",
@@ -255,60 +435,61 @@
       "product": "maremba",
       "title": "Maremba",
       "url": "https://www.reasonstudios.com/shop/rack-extension/maremba/",
-      "version": "1.5.7",
+      "version": "1.6.5",
       "release_date": "2026-10-13",
       "gallery": [
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png.10000x10000_q85.webp",
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png.10000x10000_q85.webp"
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/maremba/shop-front.webp",
           "role": "front",
-          "sha256": "364893059fcf9444eeb00c8de12f3744452a66dd8496ab66f348b1e9d8693ee1",
+          "sha256": "7337c517221b7fea0a3e66a7a992f2694a5a7597789916fb23ec4b8eba9963ee",
           "dimensions": [
             1600,
             1171
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Front.png",
-          "source_sha256": "b91db19184c41b327d8507c888958428c756f198999643a90b5a5f9666b3094a"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Front.png",
+          "source_sha256": "387105dc465370c64125ae85abf2a6dea2e7c9b1f8dd8154a0999fd64d9fcb8a"
         },
         {
           "file": "product/maremba/shop-rear.webp",
           "role": "rear",
-          "sha256": "3225190bc39f0bca4e17c991cc1effbb11f97f48a9aa7339483cad49a09155a1",
+          "sha256": "ea75dd69f63fb4a6c83c72e325cd9e0ab5ef3b1f6559773afc34cf7d23dbd5ea",
           "dimensions": [
             1600,
             1171
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.5.7_Back.png",
-          "source_sha256": "3fda30cdde9b453c0766c25fb635254dea1ddd29dbb72326416565611903ed12"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Back.png",
+          "source_sha256": "b3f56ea7a8310554d9a855ae1d97edae3abaa69fc95c713ab440743a4e54a522"
         },
         {
           "file": "product/maremba/shop-cover.webp",
           "role": "cover",
-          "sha256": "e3d29ebf481c3ff8bd457bff01a24710e667c89d3b80f4ef19373c889ff48c48",
+          "sha256": "7b2006a90d8ff560eb49ce625ad73a49e96df0df28984e87e5c60bda7d5ab2b0",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
-          "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+          "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
         },
         {
           "file": "product/maremba/shop-cover.png",
           "role": "social",
-          "sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f",
+          "sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34444/Maremba_1.5.7_Thumbnail_800.png",
-          "source_sha256": "f10e1431673c18528bcc9e718ad6782239ffe0096762c46613fb3f3d88c0543f"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+          "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
         }
       ],
-      "accepted_version": "1.5.7f5"
+      "accepted_version": "1.6.5f1",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 1.6.5f1."
     },
     {
       "product": "press78",
@@ -431,38 +612,6 @@
     }
   ],
   "unpublished": [
-    {
-      "product": "acukoto",
-      "status": "awaiting_shop_approval",
-      "checked_url": "https://www.reasonstudios.com/shop/product_page/34541/",
-      "http_status": 404,
-      "accepted_version": "0.18.0d1",
-      "shop_page_version": "0.18.0",
-      "shop_page_status": "waiting_for_approval",
-      "publish_on_approval": true
-    },
-    {
-      "product": "aculele",
-      "status": "awaiting_shop_approval",
-      "checked_url": "https://www.reasonstudios.com/shop/product_page/34606/",
-      "http_status": 404,
-      "accepted_version": "0.4.39d1",
-      "shop_page_version": "0.4.39",
-      "shop_page_status": "waiting_for_approval",
-      "publish_on_approval": true,
-      "shop_page_id": 34606,
-      "submitted_on": "2026-11-06"
-    },
-    {
-      "product": "aculyre",
-      "status": "awaiting_shop_article",
-      "checked_url": "https://www.reasonstudios.com/shop/product_page/34534/",
-      "http_status": 404,
-      "accepted_version": "0.7.9d1",
-      "shop_page_version": "0.7.4",
-      "shop_page_status": "draft",
-      "note": "The Shop article selector only offers 0.7.4; accepted version 0.7.9d1 is not selectable. Do not submit the draft against the older article."
-    },
     {
       "product": "respira",
       "status": "awaiting_device_acceptance",

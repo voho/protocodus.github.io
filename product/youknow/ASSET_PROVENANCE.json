@@ -718,13 +718,13 @@
   "verified_on": "2026-11-06"
  },
  "development_panels": {
-  "reviewed": "2026-11-15",
-  "build_version": "1.4.9f1",
-  "version_on_panel": "1.4.9",
+  "reviewed": "2026-11-18",
+  "build_version": "1.4.11f2",
+  "version_on_panel": "1.4.11f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896",
-  "note": "The 1.4.9f1 panels in dist/ on Rack main, converted to WebP quality 92 at full size (cwebp -q 92 -m 6). The front is byte-identical to 1.4.7f1’s and is kept; the rear, which prints version 1.4.9, is new.",
+  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
+  "note": "The 1.4.11f2 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session. The front is byte-identical to the image already shown and kept. The rear prints 1.4.11f1.",
   "assets": [
    {
     "file": "youknow-rack-front.webp",
@@ -738,14 +738,19 @@
    },
    {
     "file": "youknow-rack-rear.webp",
-    "sha256": "b073d91b16193ab5217618852f6817b5f5bcbda12ad9257434713bcd56c56027",
+    "sha256": "2b4c648064a22c53399dd0da147dd794cd29ab6cac0d630427f069a319ededcd",
     "source": "dist/YouKnow_Back.png",
-    "source_sha256": "a016dcee55466a0bfc71a3e6372a3f3e778374fa31864d8011799a9729435326",
+    "source_sha256": "3038bede31d33679bd31a0c75469597046ecb49ea847967a072fe536a0dccc9f",
     "pixels": [
      1600,
      1171
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "1.4.9f1",
+   "version_on_panel": "1.4.9",
+   "source_commit": "a78ae2873994f6e90902647c4d234bbf27070896"
+  }
  }
 }

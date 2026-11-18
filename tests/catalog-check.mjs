@@ -14,6 +14,16 @@ assert.equal(cards[0], 'rill', 'RILL leads Products');
 assert.equal(cards.at(-1), 'podcare', 'Podcare follows all instruments and effects');
 assert.ok(home.indexOf('id="fun"') > home.indexOf('p-podcare'), 'Games follow Podcare');
 assert.equal((home.match(/id="software"/g) || []).length, 1, 'Software navigation retains a single destination');
+// Owner rule (2026-11-18): a tagline never repeats the product's name ("Resonance Suppressor", not "Unrest Suppressor").
+for (const [, name, tagline] of home.matchAll(/class="product-card p-([a-z0-9]+)"[\s\S]*?<span class="product-type">([^<]*)<\/span>/g)) {
+  assert.ok(!tagline.toLowerCase().includes(name), `${name}: card tagline "${tagline}" repeats the product name`);
+}
+for (const path of pages.filter(path => path.startsWith('product/'))) {
+  const name = path.split('/')[1];
+  for (const [, tagline] of read(path).matchAll(/<span class="product-kicker">([^<]*)<\/span>/g)) {
+    assert.ok(!tagline.toLowerCase().includes(name), `${path}: tagline "${tagline}" repeats the product name`);
+  }
+}
 for (const product of catalog.products) {
   const html = read(`product/${product.product}/index.html`);
   const card = home.match(new RegExp(`<article[^>]*class="product-card p-${product.product}">[\\s\\S]*?</article>`))?.[0];
