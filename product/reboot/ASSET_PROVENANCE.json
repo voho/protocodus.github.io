@@ -1,0 +1,53 @@
+{
+ "product": "Reboot",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-18",
+  "build_version": "0.2.3f1",
+  "version_on_panel": "0.4.0d2",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
+  "note": "The 0.4.0d2 panel renders on Rack main (78328de7), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session. Reboot has no panels in dist/: 0.4.0d2 is source only, and the last build, 0.2.3f1, has the earlier four-machine panel.",
+  "assets": [
+   {
+    "file": "reboot-rack-front.webp",
+    "sha256": "673cc582eb659afd0543f573931057f0f250d180f295d85a8644474df5912317",
+    "source": "Examples/Reboot/Design/previews/front_2x.png",
+    "source_sha256": "8651fd26bb6f95ac0ca3e3d26a9420acd02f4be9e2c1375ae36dd2de7ae58094",
+    "pixels": [
+     1508,
+     1104
+    ]
+   },
+   {
+    "file": "reboot-rack-rear.webp",
+    "sha256": "03cbfba1300c1cb37dd6402fc9bd9303a46bd0ae961e7e0054c6ff35a3726d88",
+    "source": "Examples/Reboot/Design/previews/back_2x.png",
+    "source_sha256": "e33c52e15847b2827453e9085bbce8a549188b1fe5841b81dd65e10ceec435b4",
+    "pixels": [
+     1508,
+     1104
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Reboot_Thumbnail_800.png",
+  "sha256": "980d2aeb90e366a9972976c270d68238c76cb8ff15f52891a86e5008a21ab470",
+  "pixels": [
+   800,
+   800
+  ],
+  "source": "Composed for the website with a working copy of Tools/shop_covers/build_shop_covers.py from Rack main, given a Reboot entry (REBOOT in Inter Bold, RE dimmed, tagline Sound Chip Synth, ground #14171c) whose artwork is the panel kit's two machines, Examples/Reboot/Design/Kit/machine-handheld.png and machine-console.png. The device has no Shop thumbnail yet; nothing was added to the Rack repository.",
+  "kit_sha256": {
+   "machine-handheld.png": "95ff4c7b70258330b892a7b0f05c1a9cd1108b8728a4a732c1f727112e8d08a3",
+   "machine-console.png": "7de9498d48c9b0360fddd057df1c7d8efba5ecfa7e7f8f0f72074c46cd166112"
+  }
+ },
+ "feature_sources": [
+  "Examples/Reboot/README.md",
+  "Examples/Reboot/CHANGELOG.md"
+ ],
+ "naming": "Real chip, console and computer names stay in the canonical repository; the website uses the device's generic names (the Handheld, the Console, expansions A to E)."
+}

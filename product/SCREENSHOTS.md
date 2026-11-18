@@ -127,6 +127,23 @@ there; where an image is byte-identical to the one shown it is kept. Ceres's
 panels, so both keep what they showed; YouKnow's rear prints 1.4.11f1.
 Binaurel's newest build is still 0.1.0f2.
 
+Later on 18 November, at the owner's request ("add Reboot, Remit and Unrest,
+do not add fires yet. and yes show rack extension icon"), the homepage shows the
+Rack Extension mark on the ten Shop cards again (a 7 November rule had hidden
+it), and the catalog added three in-development pages from Rack `main`
+`ebbfa1b`. Remit's latest build is 0.4.0f18 (17 November, not uploaded); its
+`dist/` panels are 0.4.1f1 source, which prints that number on the back and
+is not built. Unrest's latest build is 0.1.0f2 (16 November, created in
+Recon), and its `dist/` panels print it. Reboot's latest build is 0.2.3f1 (17
+November, created in Recon), but 0.4.0d2, not yet built, rebuilds it around
+two machines; its page describes 0.4.0d2, shows that version's panel renders
+from `Examples/Reboot/Design/previews/`, and uses only the device's generic
+machine names. Remit and Unrest use their `dist/` Shop thumbnails; Reboot has
+none, so its cover was composed for the website with a working copy of the
+Rack cover builder and the two machines from its panel kit. Panels were
+converted with Pillow (libwebp 1.6.0, method 6, quality 92). Fires is not
+added.
+
 RILL is a free, MIT-licensed development alpha. The site serves native
 screenshots from the [RILL repository](https://github.com/protocodus/rill-daw).
 The 16 November update shows the original sixteen-track *Night ferry* session

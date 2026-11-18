@@ -1,0 +1,52 @@
+{
+ "product": "Remit",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-18",
+  "build_version": "0.4.0f18",
+  "version_on_panel": "0.4.1f1",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
+  "note": "The panels in dist/ on Rack main (ebbfa1be), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session. 0.4.1f1 is a source revision of the 0.4.0f18 build with the same panels; only the back prints the new number.",
+  "assets": [
+   {
+    "file": "remit-rack-front.webp",
+    "sha256": "3fd9ae81feec89020babb131c0f8e55c5da32a312d72f208e8790417b619fc6e",
+    "source": "dist/Remit_Front.png",
+    "source_sha256": "15534c602ee3f9c2d213b2e373d075c2aea36413dc4d8de3691652b4340fa051",
+    "pixels": [
+     1508,
+     690
+    ]
+   },
+   {
+    "file": "remit-rack-rear.webp",
+    "sha256": "a9109e2a8838d4f822d98b4b6c07af815d3a52066dca2905d32f5eebdb7f8f39",
+    "source": "dist/Remit_Back.png",
+    "source_sha256": "584bfdac12dff6e7fba48ac9b310379aad551681b3d0d1bed52b93dcb0fdd086",
+    "pixels": [
+     1508,
+     690
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Remit_Thumbnail_800.png",
+  "sha256": "4ddfbb32711310d86e7981975d159cd26e9910a8c008e7bd92c5525a1ad21717",
+  "source": "dist/Remit_Thumbnail_800.png",
+  "source_sha256": "4ddfbb32711310d86e7981975d159cd26e9910a8c008e7bd92c5525a1ad21717",
+  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "The Shop thumbnail on Rack main, copied unchanged."
+ },
+ "feature_sources": [
+  "Examples/Remit/README.md",
+  "Examples/Remit/CHANGELOG.md",
+  "dist/Remit-SHOP.md"
+ ]
+}

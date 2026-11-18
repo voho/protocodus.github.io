@@ -1,0 +1,52 @@
+{
+ "product": "Unrest",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-18",
+  "build_version": "0.1.0f2",
+  "version_on_panel": "0.1.0f2",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
+  "note": "The panels in dist/ on Rack main (ebbfa1be), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session.",
+  "assets": [
+   {
+    "file": "unrest-rack-front.webp",
+    "sha256": "b7f53b6c12951e02e74a833009dfe658392314d3361e027ef7b69b2e8a25aecf",
+    "source": "dist/Unrest_Front.png",
+    "source_sha256": "8f9d56945f33da83bfa6931e319c1d325bad562827e856148956337289d15c8c",
+    "pixels": [
+     1508,
+     828
+    ]
+   },
+   {
+    "file": "unrest-rack-rear.webp",
+    "sha256": "d8f6faf09b386f65491083af1a1731553350010f999ad9bf678e620923f46fdf",
+    "source": "dist/Unrest_Back.png",
+    "source_sha256": "c838711418e04957ee6964f02082919c7a07f1685a5f3458a5a81df8d51b6ca5",
+    "pixels": [
+     1508,
+     828
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Unrest_Thumbnail_800.png",
+  "sha256": "0d706f44e9c2b6ad6bdbeca207971132d3dd3d81b093bb2a41274ccf9eb13009",
+  "source": "dist/Unrest_Thumbnail_800.png",
+  "source_sha256": "0d706f44e9c2b6ad6bdbeca207971132d3dd3d81b093bb2a41274ccf9eb13009",
+  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "The Shop thumbnail on Rack main, copied unchanged."
+ },
+ "feature_sources": [
+  "Examples/Unrest/README.md",
+  "Examples/Unrest/CHANGELOG.md",
+  "dist/Unrest-SHOP.md"
+ ]
+}

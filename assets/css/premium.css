@@ -25,7 +25,6 @@
 .studio-page #products .product-body > p:not(.spotlight-deck) { font-size: .88rem; line-height: 1.65; }
 .studio-page #products .product-body .product-facts { margin-top: .9rem; padding-top: 1rem; font-size: .75rem; color: var(--fg-faint); }
 .studio-page #products .product-tags > span { font-size: .65rem; padding: .2rem .4rem; }
-.studio-page #products .rack-extension-mark { display: none; }
 .studio-page #products .product-actions { margin-top: auto; padding-top: 1.2rem; gap: .8rem; border-bottom: 1px solid var(--line); padding-bottom: 1rem; }
 .studio-page #products .shop-badge--compact img { height: 31px; }
 .studio-page #products .product-more { font-size: .8rem; margin-top: 0; }
