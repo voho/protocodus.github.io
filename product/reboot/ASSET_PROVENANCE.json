@@ -3,7 +3,7 @@
  "availability": "in_development",
  "development_panels": {
   "reviewed": "2026-11-18",
-  "build_version": "0.2.3f1",
+  "build_version": "0.4.0d2 (source; latest build 0.2.3f1)",
   "version_on_panel": "0.4.0d2",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",

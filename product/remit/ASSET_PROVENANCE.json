@@ -3,12 +3,12 @@
  "availability": "in_development",
  "development_panels": {
   "reviewed": "2026-11-18",
-  "build_version": "0.4.0f18",
+  "build_version": "0.4.1f1",
   "version_on_panel": "0.4.1f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
-  "note": "The panels in dist/ on Rack main (ebbfa1be), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session. 0.4.1f1 is a source revision of the 0.4.0f18 build with the same panels; only the back prints the new number.",
+  "source_commit": "4f172ca0f0cbd4d6661fcb76421466cccbb7e040",
+  "note": "The panels in dist/ on Rack main (ebbfa1be), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session. The 0.4.1f1 build (Rack main b05547b9, 18 November) left the dist/ panels byte-identical to the ones converted here.",
   "assets": [
    {
     "file": "remit-rack-front.webp",
