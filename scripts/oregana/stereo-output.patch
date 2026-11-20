@@ -1,0 +1,48 @@
+--- a/Source/DSP/OreganaEngine.h
++++ b/Source/DSP/OreganaEngine.h
+@@ -256,4 +256,5 @@
+     static constexpr int kRowSamples = 17;   // a row's 12 cm at the pipes' rate
+     std::array<std::array<std::array<std::array<float, kChunk + 2 * kRowSamples>, 2>, 2>, kDivisions> rowBus {};
++    std::array<std::array<int, 2>, kDivisions> rowFrames {}; // frames left in each delayed row
+     // Each speaking pipe's sound for a chunk, made before any is added up,
+     // and the pipes of each kind that are stepped four at a time.
+--- a/Source/DSP/OreganaEngine.cpp
++++ b/Source/DSP/OreganaEngine.cpp
+@@ -389,4 +389,5 @@
+         pressure[d] = 1.0f;
+         for (auto& channel : bus[d]) channel.fill(0.0f);
++        rowFrames[d].fill(0);
+         for (auto& rows : rowBus[d])
+             for (auto& channel : rows) channel.fill(0.0f);
+@@ -1100,5 +1101,9 @@
+         // and in the list's order, however the frames are cut.
+         if (s.outDelay > 0) {
+-            auto& rows = rowBus[s.division][s.outDelay / kRowSamples - 1];
++            const auto rowIndex = static_cast<std::size_t>(s.outDelay / kRowSamples - 1);
++            auto& rows = rowBus[s.division][rowIndex];
++            // Each pipe in this row writes through the end of this block
++            // at the same delay. Previous blocks can end no later.
++            rowFrames[s.division][rowIndex] = frames + s.outDelay;
+             busLeft = rows[0].data() + from + s.outDelay;
+             busRight = rows[1].data() + from + s.outDelay;
+@@ -1263,5 +1268,9 @@
+     now += static_cast<std::uint64_t>(frames);
+     for (std::size_t d = 0; d < kDivisions; ++d) {
+-        for (auto& rows : rowBus[d]) {
++        for (std::size_t rowIndex = 0; rowIndex < rowBus[d].size(); ++rowIndex) {
++            int& remaining = rowFrames[d][rowIndex];
++            if (remaining == 0) continue;
++            remaining = Max(remaining - frames, 0);
++            auto& rows = rowBus[d][rowIndex];
+             for (std::size_t c = 0; c < 2; ++c) {
+                 float* const row = rows[c].data();
+@@ -1293,6 +1302,7 @@
+             apart[kRecit - 1] += 0.5f * enclosed;
+             apart[kPedal - 1] += 0.5f * level[kPedal];
+-            // Kept running with nobody listening, so that an output taken
+-            // up while the organ sounds starts on what was just played.
++            // The web instrument exposes the main stereo pair only.
++            // Independent stem histories and peak meters never feed that mix.
++            if (divisions == nullptr) continue;
+             // The Recit's own output is raw too, so it goes through a box of
+             // its own, ahead of the Recit's level.

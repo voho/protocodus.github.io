@@ -49,6 +49,12 @@ EXPORTED(setControllers) void setControllers(double modWheel, double swellPedal)
 EXPORTED(setBend) void setBend(double value) { organ->SetBend(value); }
 EXPORTED(noteOn) void noteOn(int note, int velocity) { organ->KeyDown(note, velocity); }
 EXPORTED(noteOff) void noteOff(int note, int velocity) { organ->KeyUp(note, 0, velocity); }
+EXPORTED(divisionNoteOn) void divisionNoteOn(int division, int note, int velocity) {
+    organ->SetDivisionKey(division, note, true, velocity);
+}
+EXPORTED(divisionNoteOff) void divisionNoteOff(int division, int note, int velocity) {
+    organ->SetDivisionKey(division, note, false, velocity);
+}
 EXPORTED(allKeysUp) void allKeysUp() { organ->AllKeysUp(); }
 EXPORTED(allSoundOff) void allSoundOff() { organ->AllSoundOff(); }
 EXPORTED(leftSamples) float* leftSamples() { return left; }

@@ -1,20 +1,29 @@
-import { divisions as divisionNames } from './metadata.js';
+import { divisions } from './metadata.js';
 
-// The engine and the controls exchange physical values. Only the position of a
-// logarithmic slider is normalised, matching the native instrument's mapping.
 const settingGroups = [
-  ['Couplers & tremulants', id => id.startsWith('coupler_') || id.startsWith('tremulant_')],
-  ['Wind & action', id => ['wind_supply', 'pressure', 'wind', 'blower', 'action', 'dead_pipes', 'ciphers', 'runnings'].includes(id)],
-  ['Tuning & voicing', id => ['temperament', 'pitch', 'temperature', 'tuning', 'voicing'].includes(id)],
-  ['Church acoustics', id => ['room', 'room_size', 'decay', 'decay_bass', 'decay_treble', 'width', 'seat'].includes(id)],
-  ['Division mixer', id => /^(level|mute|solo)_/.test(id)],
+  ['Couplers & tremulants', 'couplers', id => /^(coupler_|tremulant_)/.test(id)],
+  ['Wind & action', 'wind', id => ['wind_supply', 'pressure', 'wind', 'blower', 'action', 'dead_pipes', 'ciphers', 'runnings'].includes(id)],
+  ['Tuning & voicing', 'tuning', id => ['temperament', 'pitch', 'temperature', 'tuning', 'voicing'].includes(id)],
+  ['Church acoustics', 'acoustics', id => ['room', 'room_size', 'decay', 'decay_bass', 'decay_treble', 'width', 'seat'].includes(id)],
+  ['Division mixer', 'mixer', id => /^(level|mute|solo)_/.test(id)],
 ];
 const roman = ['I', 'II', 'III', 'P'];
+const couplerNames = {
+  coupler_pos_hw: 'II to I', coupler_rec_hw: 'III to I', coupler_rec_pos: 'III to II',
+  coupler_hw_ped: 'I to P', coupler_pos_ped: 'II to P', coupler_rec_ped: 'III to P',
+  tremulant_pos: 'Trem. II', tremulant_rec: 'Trem. III',
+};
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function button(className, text) {
+  const node = element('button', className, text);
+  node.type = 'button';
   return node;
 }
 
@@ -24,80 +33,67 @@ function physicalLabel(control, value) {
   return number + (control.unit === '%' ? '%' : control.unit ? ' ' + (control.unit === 'C' ? '°C' : control.unit) : '');
 }
 
-export function createPanel({ controls, presets, onControl, onPreset }) {
-  const registration = document.getElementById('registration');
-  const keyboard = document.getElementById('keyboard');
-  const stopBank = document.getElementById('stop-bank');
-  const fineDraw = document.getElementById('fine-draw');
+export function createPanel({ controls, presets, onControl, onPreset, initialPreset = 0 }) {
+  const readout = document.getElementById('current-registration');
   const updateViews = [];
-  const stopRows = [];
-  const settings = [];
+  const stops = [];
   let values = controls.map(control => control.initial);
-  let currentPreset = 0;
+  let currentPreset = initialPreset;
+  let selectedPiston;
 
-  const edited = new Option('Edited registration', '');
-  edited.disabled = true;
-  edited.hidden = true;
-  registration.add(edited);
-  const groups = new Map();
-  presets.forEach((preset, index) => {
-    if (!groups.has(preset.group)) {
-      const group = element('optgroup');
-      group.label = preset.group;
-      registration.append(group);
-      groups.set(preset.group, group);
+  // Keep every piston visible. The building or region appears on its bank
+  // once, while each button retains the complete factory name for assistive UI.
+  const banks = new Map();
+  const presetButtons = presets.map((preset, index) => {
+    const grouped = preset.group !== 'Registrations';
+    const space = preset.name.indexOf(' ');
+    const groupName = grouped ? preset.name.slice(0, space) : 'Voices & ensembles';
+    const label = grouped ? preset.name.slice(space + 1) : preset.name;
+    if (!banks.has(groupName)) {
+      const bank = element('section', 'preset-group');
+      const grid = element('div', 'pistons');
+      bank.append(element('h3', '', groupName), grid);
+      document.getElementById('preset-bank').append(bank);
+      banks.set(groupName, grid);
+      if (!grouped) bank.classList.add('ensembles');
+      if (groupName === 'Church') bank.classList.add('church');
     }
-    groups.get(preset.group).append(new Option(preset.name, index));
+    const piston = button('preset-button', label);
+    piston.id = 'preset-' + index;
+    piston.setAttribute('aria-label', preset.name);
+    piston.setAttribute('aria-pressed', 'false');
+    piston.title = preset.name;
+    piston.addEventListener('click', () => onPreset(index));
+    banks.get(groupName).append(piston);
+    return piston;
   });
-  // A mouse or touch selection returns the player to the keys. Keyboard-only
-  // selection keeps the native picker's arrows and type-ahead available.
-  function bindChoice(select, apply) {
-    let pointerChoice = false;
-    select.addEventListener('pointerdown', event => { pointerChoice = event.button === 0; });
-    for (const event of ['keydown', 'blur', 'pointercancel']) {
-      select.addEventListener(event, () => { pointerChoice = false; });
-    }
-    select.addEventListener('change', () => {
-      apply(Number(select.value));
-      if (pointerChoice) {
-        pointerChoice = false;
-        keyboard.querySelector('[tabindex="0"]')?.focus({ preventScroll: true });
-      }
-    });
-  }
-  bindChoice(registration, onPreset);
-  function stepPreset(direction) {
-    onPreset((currentPreset + direction + presets.length) % presets.length);
-  }
-  document.getElementById('preset-prev').addEventListener('click', () => stepPreset(-1));
-  document.getElementById('preset-next').addEventListener('click', () => stepPreset(1));
+  const divisionGrids = divisions.map((name, index) => {
+    const group = element('section', 'division');
+    group.id = 'division-' + index;
+    const heading = element('h2');
+    heading.append(element('span', 'roman', roman[index]), document.createTextNode(name));
+    const grid = element('div', 'stop-grid');
+    group.append(heading, grid);
+    document.getElementById(index < 2 ? 'stops-left' : 'stops-right').append(group);
+    return grid;
+  });
 
   const updateRegistration = () => {
     const preset = presets[currentPreset];
-    const changed = values.some((value, i) => Math.abs(value - preset.values[i]) > 1e-8);
-    edited.text = preset.name + ' (edited)';
-    registration.value = changed ? '' : String(currentPreset);
+    const edited = values.some((value, i) => Math.abs(value - preset.values[i]) > 1e-8);
+    const description = preset.name + (edited ? ' (edited)' : '');
+    if (readout.textContent !== description) readout.textContent = description;
+    const nextPiston = edited ? undefined : presetButtons[currentPreset];
+    if (nextPiston !== selectedPiston) {
+      selectedPiston?.setAttribute('aria-pressed', 'false');
+      nextPiston?.setAttribute('aria-pressed', 'true');
+      selectedPiston = nextPiston;
+    }
   };
   const updateCount = () => {
-    const drawn = stopRows.filter(row => values[row.index] > 0).length;
-    document.getElementById('stop-count').textContent = drawn + ' drawn';
+    const drawn = stops.filter(index => values[index] > 0).length;
+    document.getElementById('stop-count').textContent = drawn + (drawn === 1 ? ' stop' : ' stops');
   };
-
-  const filterButtons = divisionNames.map((name, index) => {
-    const button = element('button', 'division-tab');
-    button.type = 'button';
-    button.id = 'division-' + index;
-    button.append(element('span', 'roman', roman[index]), document.createTextNode(name));
-    button.setAttribute('aria-controls', 'stop-bank');
-    button.addEventListener('click', () => showDivision(index));
-    document.getElementById('division-filters').append(button);
-    return button;
-  });
-  function showDivision(division) {
-    filterButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === division)));
-    stopRows.forEach(row => { row.node.hidden = row.division !== division; });
-  }
-
   function setControl(index, value) {
     values[index] = value;
     updateViews[index](value);
@@ -110,46 +106,42 @@ export function createPanel({ controls, presets, onControl, onPreset }) {
   }
 
   function createStop(control, index) {
-    const node = element('div', 'stop');
-    const button = element('button', 'stop-button', control.name);
-    button.type = 'button';
-    button.id = 'control-' + control.id;
-    button.addEventListener('click', () => edit(index, values[index] > 0 ? 0 : 1));
+    const row = element('div', 'stop');
+    const toggle = button('stop-button', control.name.replaceAll("'", '′'));
+    toggle.id = 'control-' + control.id;
+    toggle.addEventListener('click', () => edit(index, values[index] > 0 ? 0 : 1));
     const slider = element('input', 'draw-range');
     slider.type = 'range';
     slider.id = 'draw-' + control.id;
     slider.min = 0;
     slider.max = 1;
     slider.step = 'any';
-    slider.hidden = true;
-    slider.setAttribute('aria-label', divisionNames[control.division] + ' ' + control.name + ' draw');
+    slider.setAttribute('aria-label', divisions[control.division] + ' ' + control.name + ' draw');
     slider.addEventListener('input', () => edit(index, slider.valueAsNumber));
     updateViews[index] = value => {
-      const drawn = value > 0;
       const description = physicalLabel(control, value);
-      node.classList.toggle('drawn', drawn);
+      row.classList.toggle('drawn', value > 0);
+      toggle.setAttribute('aria-pressed', String(value > 0));
       slider.value = value;
       slider.setAttribute('aria-valuetext', description);
-      button.setAttribute('aria-pressed', String(drawn));
-      button.title = control.name + ' · ' + description + ' drawn';
+      toggle.title = slider.title = control.name + ' · ' + description + ' drawn';
     };
-    node.append(button, slider);
-    stopBank.append(node);
-    stopRows.push({ node, index, slider, division: control.division });
+    row.append(toggle, slider);
+    divisionGrids[control.division].append(row);
+    stops.push(index);
   }
-  fineDraw.addEventListener('change', () => {
-    stopRows.forEach(row => { row.slider.hidden = !fineDraw.checked; });
-  });
 
   function createRange(control, index, title) {
     const row = element('div', 'range-control');
-    const head = element('div', 'range-head');
     const label = element('label', 'range-label', title);
     const slider = element('input');
     const output = element('output');
     slider.type = 'range';
     slider.id = label.htmlFor = 'control-' + control.id;
+    slider.setAttribute('aria-label', control.name);
     output.setAttribute('for', slider.id);
+    // Values exchanged with the engine are physical. Only the thumb position
+    // on a logarithmic control is normalised.
     const log = control.curve === 'log';
     slider.min = log ? 0 : control.min;
     slider.max = log ? 1 : control.max;
@@ -160,67 +152,67 @@ export function createPanel({ controls, presets, onControl, onPreset }) {
     });
     updateViews[index] = value => {
       slider.value = log ? Math.log(value / control.min) / Math.log(control.max / control.min) : value;
-      const description = physicalLabel(control, value);
-      output.value = description;
-      slider.setAttribute('aria-valuetext', description);
+      output.value = physicalLabel(control, value);
+      slider.setAttribute('aria-valuetext', output.value);
     };
-    head.append(label, output);
-    row.append(head, slider);
+    row.append(label, slider, output);
     return row;
   }
 
   function createChoice(control, index, title) {
-    const row = element('div', 'parameter-choice');
-    const label = element('label', '', title);
-    const select = element('select');
-    select.id = label.htmlFor = 'control-' + control.id;
-    control.options.forEach((name, i) => select.add(new Option(name, i)));
-    bindChoice(select, value => edit(index, value));
-    updateViews[index] = value => { select.value = value; };
-    row.append(label, select);
-    return row;
+    const group = element('div', 'choice');
+    group.id = 'control-' + control.id;
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', title);
+    const options = element('div', 'options');
+    const buttons = control.options.map((option, i) => {
+      const pick = button('choice-button', option);
+      pick.id = group.id + '-' + i;
+      pick.addEventListener('click', () => edit(index, i));
+      options.append(pick);
+      return pick;
+    });
+    updateViews[index] = value => buttons.forEach((pick, i) => pick.setAttribute('aria-pressed', String(i === value)));
+    group.append(element('span', 'choice-label', title), options);
+    return group;
   }
 
   function createSwitch(control, index) {
-    const label = element('label', 'switch');
-    const checkbox = element('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = 'control-' + control.id;
-    checkbox.addEventListener('change', () => edit(index, Number(checkbox.checked)));
-    updateViews[index] = value => { checkbox.checked = Boolean(value); };
-    label.append(checkbox, document.createTextNode(control.name));
-    return label;
+    const shortName = couplerNames[control.id] || control.name.split(' ').at(-1);
+    const toggle = button('switch', shortName);
+    toggle.id = 'control-' + control.id;
+    toggle.setAttribute('aria-label', control.name);
+    toggle.title = control.name;
+    toggle.addEventListener('click', () => edit(index, values[index] ? 0 : 1));
+    updateViews[index] = value => { toggle.setAttribute('aria-pressed', String(Boolean(value))); };
+    return toggle;
   }
 
-  const groupsContainer = document.getElementById('settings-groups');
-  settingGroups.forEach(([title, includes]) => {
-    const group = element('details');
+  const settings = settingGroups.map(([title, id, includes]) => {
+    const group = element('section', 'setting-strip ' + id);
     const grid = element('div', 'parameter-grid');
-    group.append(element('summary', '', title), grid);
-    groupsContainer.append(group);
-    settings.push({ grid, includes });
+    group.append(element('h2', '', title), grid);
+    document.getElementById('settings-groups').append(group);
+    return { grid, includes };
   });
-
   controls.forEach((control, index) => {
     if (Number.isInteger(control.division)) {
       createStop(control, index);
       return;
     }
-    const title = control.id === 'keyboard' ? 'Manual' : control.name;
-    const view = control.options
-      ? createChoice(control, index, title)
+    let title = control.name;
+    if (control.id === 'keyboard') title = 'Keyboard / MIDI';
+    if (control.id.startsWith('level_')) title = control.name.split(' ')[0].replace('Recit', 'Récit');
+    if (control.id.startsWith('tremulant_')) title = control.name.replace('Tremulant ', '');
+    const view = control.options ? createChoice(control, index, title)
       : control.steps === 2 ? createSwitch(control, index) : createRange(control, index, title);
-    const primary = {
-      volume: 'volume-control',
-      keyboard: 'manual-control',
-      pedal_keys: 'pedal-control',
-      swell: 'expression-controls',
-      crescendo: 'expression-controls',
-    }[control.id];
-    const parent = primary ? document.getElementById(primary) : settings.find(group => group.includes(control.id)).grid;
+    const primaries = {
+      volume: 'performance-controls', swell: 'performance-controls', crescendo: 'performance-controls',
+      keyboard: 'manual-control', pedal_keys: 'pedal-control',
+    };
+    const parent = primaries[control.id] ? document.getElementById(primaries[control.id]) : settings.find(group => group.includes(control.id)).grid;
     parent.append(view);
   });
-  showDivision(0);
 
   function setValues(nextValues, presetIndex = currentPreset) {
     currentPreset = presetIndex;
@@ -229,6 +221,6 @@ export function createPanel({ controls, presets, onControl, onPreset }) {
     updateCount();
     updateRegistration();
   }
-  setValues(presets[0].values, 0);
+  setValues(presets[initialPreset].values, initialPreset);
   return { setValues, setControl };
 }

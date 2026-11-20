@@ -1,5 +1,6 @@
-The JavaScript build of Oregana includes code emitted by Binaryen and routines
-from LLVM and WASI libc. Their notices and license texts follow.
+The browser builds of Oregana include routines from LLVM and WASI libc. The
+JavaScript build also includes code emitted by Binaryen. Their notices and
+license texts follow.
 
 Binaryen
 ========

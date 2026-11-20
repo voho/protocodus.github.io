@@ -1,0 +1,50 @@
+--- a/Source/DSP/OreganaInstrument.h
++++ b/Source/DSP/OreganaInstrument.h
+@@ -54,6 +54,7 @@
+         engine.Reset();
+         for (auto& source : held) source.fill(0);
+         for (auto& division : sent) division.fill(false);
++        for (auto& division : directKeys) division.fill(false);
+         lift.fill(64);
+         for (auto& channel : history) channel.fill(0.0f);
+         phase = 0;
+@@ -86,7 +87,22 @@
+         lift[static_cast<std::size_t>(note)] = static_cast<std::uint8_t>(Clamp(velocity, 1, 127));
+         Sync();
+     }
++    // The console can play any division while host keys follow Keyboard and
++    // Pedal Keys. A physical pallet rises only after both routes let go.
++    void SetDivisionKey(int division, int note, bool pressed, int velocity) {
++        if (division < 0 || division >= kDivisions || note < kFirstNote || note >= kFirstNote + kDivisionKeys[division]) return;
++        const auto d = static_cast<std::size_t>(division), n = static_cast<std::size_t>(note);
++        if (directKeys[d][n] == pressed) return;
++        directKeys[d][n] = pressed;
++        if (sent[d][n]) return;
++        if (pressed) engine.KeyDown(division, note, velocity);
++        else engine.KeyUp(division, note, velocity);
++    }
++
+     void AllKeysUp() {
++        for (int d = 0; d < kDivisions; ++d)
++            for (int note = kFirstNote; note < kFirstNote + kDivisionKeys[d]; ++note)
++                if (directKeys[d][note]) SetDivisionKey(d, note, false, 64);
+         for (auto& source : held) source.fill(0);
+         lift.fill(64);
+         Sync();
+@@ -199,6 +215,7 @@
+                 bool& is = sent[static_cast<std::size_t>(d)][static_cast<std::size_t>(note)];
+                 if (want == is) continue;
+                 is = want;
++                if (directKeys[static_cast<std::size_t>(d)][static_cast<std::size_t>(note)]) continue;
+                 if (want) engine.KeyDown(d, note, down);
+                 else engine.KeyUp(d, note, lift[static_cast<std::size_t>(note)]);
+             }
+@@ -239,6 +256,7 @@
+     Engine engine;
+     std::array<std::array<std::uint8_t, 128>, kSources> held {};    // each source's keys: the velocity it holds one with, or 0
+-    std::array<std::array<bool, 128>, kDivisions> sent {};
++    std::array<std::array<bool, 128>, kDivisions> sent {};        // routed host keys
++    std::array<std::array<bool, 128>, kDivisions> directKeys {};  // on-screen manuals and pedal
+     std::array<std::uint8_t, 128> lift {};   // the velocity each key was last let go with
+     std::uint32_t rate = kEngineRate;
+     bool direct = true;

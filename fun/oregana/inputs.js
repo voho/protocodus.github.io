@@ -7,9 +7,12 @@ const pitchNames = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A'
 const pitchName = note => pitchNames[note % 12] + (Math.floor(note / 12) - 1);
 const firstNote = 21;
 const lastNote = 108;
+const divisions = ['Hauptwerk', 'Positiv', 'Récit', 'Pedal'];
+const manualOrder = [2, 1, 0, 3];
+const routed = 4; // Computer and MIDI notes follow the host's manual and pedal controls.
 
 // Pointer, keyboard and device owners hold a shared pallet until the last one releases it.
-export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpression, setBend, panic }) {
+export function setupInputs({ startAudio, noteOn, noteOff, divisionNoteOn, divisionNoteOff, setWheel, setExpression, setBend, panic }) {
   const keyboard = document.getElementById('keyboard');
   const octaveDown = document.getElementById('octave-down');
   const octaveUp = document.getElementById('octave-up');
@@ -17,29 +20,57 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
   const midiButton = document.getElementById('midi-connect');
   const midiStatus = document.getElementById('midi-status');
   const held = new Map();
-  const owners = new Uint16Array(128);
+  const owners = Array.from({ length: 5 }, () => new Uint16Array(128));
   const pointers = new Set();
-  const keys = new Map();
+  const keybeds = divisions.map(() => new Map());
   let baseNote = 48;
+  let manual = 0;
+  let pedalMode = 1;
 
-  function release(owner, velocity = 64) {
-    const note = held.get(owner);
-    if (note === undefined) return;
-    held.delete(owner);
-    if (--owners[note] === 0) {
-      noteOff(note, velocity);
-      keys.get(note)?.setAttribute('aria-pressed', 'false');
+  function refreshLights() {
+    const routedNotes = owners[routed];
+    const lowest = pedalMode === 1 ? routedNotes.findIndex(count => count > 0) : -1;
+    for (const [division, keys] of keybeds.entries()) {
+      for (const [note, key] of keys) {
+        const split = pedalMode === 2 && note < 48;
+        const receives = division === 3 ? split || note === lowest : division === manual && !split;
+        const pressed = owners[division][note] > 0 || (receives && routedNotes[note] > 0);
+        if (key.getAttribute('aria-pressed') !== String(pressed)) key.setAttribute('aria-pressed', String(pressed));
+      }
     }
   }
 
-  function press(owner, note, velocity = 64) {
-    if (held.get(owner) === note) return;
+  function setRouting(selectedManual, selectedPedalMode) {
+    manual = selectedManual;
+    pedalMode = selectedPedalMode;
+    keyboard.querySelectorAll('.organ-deck-row').forEach(row => {
+      row.dataset.selected = String(Number(row.dataset.division) === manual);
+    });
+    refreshLights();
+  }
+
+  function release(owner, velocity = 64) {
+    const key = held.get(owner);
+    if (!key) return;
+    const { division, note } = key;
+    held.delete(owner);
+    if (--owners[division][note] === 0) {
+      if (division === routed) noteOff(note, velocity);
+      else divisionNoteOff(division, note, velocity);
+      refreshLights();
+    }
+  }
+
+  function press(owner, note, velocity = 64, division = routed) {
+    const previous = held.get(owner);
+    if (previous?.division === division && previous.note === note) return;
     release(owner);
     if (note < firstNote || note > lastNote) return;
-    held.set(owner, note);
-    if (owners[note]++ === 0) {
-      noteOn(note, velocity);
-      keys.get(note)?.setAttribute('aria-pressed', 'true');
+    held.set(owner, { division, note });
+    if (owners[division][note]++ === 0) {
+      if (division === routed) noteOn(note, velocity);
+      else divisionNoteOn(division, note, velocity);
+      refreshLights();
     }
   }
 
@@ -53,40 +84,66 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     panic();
   }
 
-  function drawKeys() {
-    const start = Math.max(firstNote, baseNote);
-    const end = Math.min(lastNote, baseNote + 24);
-    let whites = 0;
+  function drawManual(division, start, end) {
+    const row = document.createElement('div');
+    row.className = 'organ-deck-row';
+    row.dataset.division = division;
+    row.dataset.selected = String(division === manual);
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', divisions[division] + (division === 3 ? 'board' : ' manual'));
+
+    const label = document.createElement('div');
+    label.className = 'manual-plaque';
+    label.setAttribute('aria-hidden', 'true');
+    const numeral = document.createElement('b');
+    numeral.textContent = ['I', 'II', 'III', 'P'][division];
+    const name = document.createElement('span');
+    name.textContent = divisions[division];
+    label.append(numeral, name);
+
+    const bed = document.createElement('div');
+    bed.className = 'organ-keybed';
+    const keys = keybeds[division];
     keys.clear();
-    const fragment = document.createDocumentFragment();
+    let whites = 0;
     for (let note = start; note <= end; ++note) {
       const key = document.createElement('button');
       const natural = !pitchNames[note % 12].includes('♯');
-      const name = pitchName(note);
-      const binding = bindings[note - baseNote].replace(/^(Key|Digit)/, '');
+      const tone = pitchName(note);
       key.type = 'button';
       key.className = natural ? 'organ-key ivory' : 'organ-key ebony';
       key.dataset.note = note;
       key.style.setProperty('--key-position', whites);
       key.tabIndex = note === start ? 0 : -1;
-      key.setAttribute('aria-label', name + ', computer key ' + binding);
-      key.setAttribute('aria-pressed', String(owners[note] > 0));
-      const letter = document.createElement('span');
-      letter.className = 'key-binding';
-      letter.textContent = binding;
-      key.append(letter);
+      key.setAttribute('aria-label', divisions[division] + ' ' + tone);
+      key.setAttribute('aria-pressed', 'false');
+      if (division !== 3) {
+        const letter = document.createElement('span');
+        letter.className = 'key-binding';
+        letter.textContent = bindings[note - baseNote].replace(/^(Key|Digit)/, '');
+        key.append(letter);
+      }
       if (note % 12 === 0 || note === start) {
         const pitch = document.createElement('span');
         pitch.className = 'key-pitch';
-        pitch.textContent = name;
+        pitch.textContent = tone;
         key.append(pitch);
       }
       keys.set(note, key);
-      fragment.append(key);
+      bed.append(key);
       if (natural) whites++;
     }
-    keyboard.style.setProperty('--white-keys', whites);
-    keyboard.replaceChildren(fragment);
+    bed.style.setProperty('--white-keys', whites);
+    row.append(label, bed);
+    return row;
+  }
+
+  function drawKeys() {
+    const start = Math.max(firstNote, baseNote);
+    const end = Math.min(lastNote, baseNote + 24);
+    keyboard.replaceChildren(...manualOrder.map(division =>
+      division === 3 ? drawManual(3, 36, 67) : drawManual(division, start, end)));
+    refreshLights();
     keyboardRange.textContent = pitchName(start) + ' – ' + pitchName(end);
     octaveDown.disabled = baseNote <= 12;
     octaveUp.disabled = baseNote >= 84;
@@ -98,15 +155,26 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     const activeKey = document.activeElement?.closest('.organ-key');
     baseNote = next;
     drawKeys();
-    if (activeKey) keyboard.querySelector('[tabindex="0"]').focus({ preventScroll: true });
+    if (activeKey) {
+      const division = keyDivision(activeKey);
+      const keys = keybeds[division];
+      const note = Number(activeKey.dataset.note) + (division === 3 ? 0 : direction * 12);
+      (keys.get(note) || keys.values().next().value).focus({ preventScroll: true });
+    }
+  }
+
+  function keyDivision(key) {
+    return Number(key.closest('[data-division]').dataset.division);
+  }
+
+  function playKey(owner, key) {
+    press(owner, Number(key.dataset.note), 64, keyDivision(key));
   }
 
   function playPointer(event, key) {
-    if (key && keyboard.contains(key)) {
-      press('pointer:' + event.pointerId, Number(key.dataset.note));
-    } else {
-      release('pointer:' + event.pointerId);
-    }
+    const owner = 'pointer:' + event.pointerId;
+    if (key && keyboard.contains(key)) playKey(owner, key);
+    else release(owner);
   }
 
   keyboard.addEventListener('pointerdown', event => {
@@ -138,7 +206,7 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     if (event.detail !== 0 || !key) return;
     startAudio();
     const owner = Symbol();
-    press(owner, Number(key.dataset.note));
+    playKey(owner, key);
     window.setTimeout(() => release(owner), 300);
   });
 
@@ -148,7 +216,7 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
   keyboard.addEventListener('focusin', event => {
     const key = event.target.closest('.organ-key');
     if (!key) return;
-    keyboard.querySelector('[tabindex="0"]').tabIndex = -1;
+    key.parentElement.querySelector('[tabindex="0"]').tabIndex = -1;
     key.tabIndex = 0;
   });
 
@@ -157,11 +225,22 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     const target = event.target;
     if (target.isContentEditable || target.closest?.('select, textarea, input:not([type=range]):not([type=checkbox]):not([type=button])')) return;
     const key = target.closest?.('.organ-key');
-    if (key && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    if (key && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
       const note = Number(key.dataset.note);
-      const to = { ArrowLeft: note - 1, ArrowRight: note + 1, Home: Math.max(firstNote, baseNote), End: baseNote + 24 };
-      keys.get(to[event.key])?.focus({ preventScroll: true });
+      const division = keyDivision(key);
+      let keys = keybeds[division];
+      let to = note;
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        const next = manualOrder.indexOf(division) + (event.key === 'ArrowUp' ? -1 : 1);
+        if (manualOrder[next] === undefined) return;
+        keys = keybeds[manualOrder[next]];
+        to = Math.max(keys.keys().next().value, Math.min(note, keys.keys().next().value + keys.size - 1));
+      } else {
+        const first = keys.keys().next().value;
+        to = { ArrowLeft: note - 1, ArrowRight: note + 1, Home: first, End: first + keys.size - 1 }[event.key];
+      }
+      keys.get(to)?.focus({ preventScroll: true });
       return;
     }
     if (event.code === 'BracketLeft' || event.code === 'BracketRight') {
@@ -175,7 +254,8 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     event.preventDefault();
     if (!event.repeat) {
       startAudio();
-      press('key:' + event.code, activateKey ? Number(key.dataset.note) : baseNote + index);
+      if (activateKey) playKey('key:' + event.code, key);
+      else press('key:' + event.code, baseNote + index);
     }
   });
   window.addEventListener('keyup', event => {
@@ -295,5 +375,5 @@ export function setupInputs({ startAudio, noteOn, noteOff, setWheel, setExpressi
     midiStatus.textContent = 'Web MIDI unavailable in this browser';
   }
   drawKeys();
-  return { releaseAll };
+  return { releaseAll, setRouting };
 }

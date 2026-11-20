@@ -17,12 +17,12 @@
   <meta property="og:image" content="https://protocodus.cz/fun/oregana/oregana-card.webp">
   <meta property="og:image:width" content="880">
   <meta property="og:image:height" content="495">
-  <meta property="og:image:alt" content="The green and gold Oregana church organ and its playable console.">
+  <meta property="og:image:alt" content="Oregana’s three manuals and pedalboard surrounded by organ stops.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Oregana — Play the Church Organ | Protocodus">
   <meta name="twitter:description" content="Play Oregana, a physically modelled church organ with 51 stops, three manuals and pedal. Use your mouse, computer keyboard or MIDI keyboard.">
   <meta name="twitter:image" content="https://protocodus.cz/fun/oregana/oregana-card.webp">
-  <meta name="twitter:image:alt" content="The green and gold Oregana church organ and its playable console.">
+  <meta name="twitter:image:alt" content="Oregana’s three manuals and pedalboard surrounded by organ stops.">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./keys.css">
   <script type="application/ld+json">
@@ -43,84 +43,62 @@
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
   <a class="skip-link" href="#console">Skip to instrument</a>
   <header class="masthead">
-    <nav class="topbar wrap" aria-label="Site navigation">
-      <a class="brand" href="/"><img width="29" height="29" src="/assets/images/logo.svg" alt="">Protocodus</a>
-      <span class="slash" aria-hidden="true">/</span><a href="/fun/">Fun</a>
-      <a class="instrument-link" href="/product/oregana/">About the instrument <span class="link-arrow" aria-hidden="true"></span></a>
-    </nav>
-    <div class="hero wrap">
-      <div class="hero-title">
-        <p class="instrument-type">Physically modelled church organ</p>
-        <h1>Oregana</h1>
-        <p class="specs"><span>51 stops</span><span>3 manuals &amp; pedal</span><span>5,130 pipes</span></p>
-      </div>
-      <!-- Official Oregana shop artwork from Design/Shop/realistic/instrument.png. -->
-      <img class="organ-case" src="./organ-case.webp" width="870" height="580" alt="A gilded organ case with three fields of tin pipes">
+    <div class="topbar wrap">
+      <!-- The case is from Oregana’s official organ artwork. -->
+      <img class="organ-case" src="./organ-case.webp" width="870" height="580" alt="">
+      <div class="identity"><h1>Oregana</h1><p>Physically modelled church organ</p></div>
+      <nav aria-label="Site navigation">
+        <a class="brand" href="/"><img width="22" height="22" src="/assets/images/logo.svg" alt="">Protocodus</a>
+        <a href="/fun/">Fun</a>
+        <a href="/product/oregana/">Oregana for Reason</a>
+        <a href="https://www.reasonstudios.com/shop/browse/?developer=Protocodus">Rack Extension Store</a>
+      </nav>
     </div>
   </header>
   <main id="console" class="wrap">
-    <noscript><p class="no-script">Enable JavaScript to play the organ.</p></noscript>
+    <noscript><p>Enable JavaScript to play the organ.</p></noscript>
     <section class="console" aria-label="Playing console">
-      <div class="registration-bar">
-        <div class="preset-field">
-          <label class="caption" for="registration">Registration</label>
-          <div class="preset-picker">
-            <select id="registration" aria-label="Registration"></select>
-            <div class="step-buttons">
-              <button type="button" id="preset-prev" aria-label="Previous registration" title="Previous registration">‹</button>
-              <button type="button" id="preset-next" aria-label="Next registration" title="Next registration">›</button>
+      <div class="transport">
+        <div class="preset-readout">
+          <span class="caption">Registration</span>
+          <strong id="current-registration" aria-live="polite"></strong>
+          <span id="stop-count"></span>
+        </div>
+        <div id="performance-controls"></div>
+        <div class="connections">
+          <div><span id="midi-status" class="status" role="status"></span><button type="button" id="midi-connect">Connect MIDI</button></div>
+          <div><span id="audio-status" class="status" role="status">Sound off</span><button type="button" id="audio-start">Start audio</button></div>
+        </div>
+      </div>
+      <div class="playing-surface">
+        <section class="manuals" aria-label="Manuals and pedalboard">
+          <div class="key-tools">
+            <div id="manual-control"></div>
+            <div class="octave-controls">
+              <button type="button" id="octave-down" aria-label="Shift down one octave" title="Shift down one octave">−</button>
+              <span id="keyboard-range" aria-live="polite">C3–C5</span>
+              <button type="button" id="octave-up" aria-label="Shift up one octave" title="Shift up one octave">+</button>
             </div>
           </div>
-        </div>
-        <div id="volume-control" class="volume-control"></div>
-        <div class="audio-controls">
-          <span id="audio-status" class="status" role="status">Sound off</span>
-          <button type="button" id="audio-start" class="audio-button">Start audio</button>
-        </div>
-      </div>
-      <div class="key-deck">
-        <div class="manual-bar">
-          <div class="manual-controls">
-            <div class="manual-field" id="manual-control"></div>
-            <div class="pedal-field" id="pedal-control"></div>
+          <div id="keyboard" role="group" aria-label="On-screen manuals and pedalboard"></div>
+          <div class="key-footer">
+            <div id="pedal-control"></div>
+            <button type="button" id="panic">All notes off</button>
           </div>
-          <div class="octave-controls">
-            <button type="button" id="octave-down" aria-label="Shift down one octave" title="Shift down one octave">−</button>
-            <span id="keyboard-range" aria-live="polite">C3–C5</span>
-            <button type="button" id="octave-up" aria-label="Shift up one octave" title="Shift up one octave">+</button>
-          </div>
-        </div>
-        <div class="keybed"><div id="keyboard" role="group" aria-label="On-screen organ keyboard"></div></div>
-        <div class="key-footer">
-          <p>Click the keys or play the letters shown. <span class="shift-hint"><kbd>[</kbd> <kbd>]</kbd> shift octaves.</span></p>
-          <button type="button" id="panic" class="text-button">All notes off</button>
-        </div>
-      </div>
-      <div class="performance-controls">
-        <div class="performance-faders" id="expression-controls"></div>
-        <div class="midi-controls">
-          <button type="button" id="midi-connect" class="secondary-button">Connect MIDI</button>
-          <span id="midi-status" class="status" role="status"></span>
-        </div>
+          <p class="playing-hint">Click a key or play the letters shown. <kbd>[</kbd> and <kbd>]</kbd> shift octaves.</p>
+        </section>
+        <div class="jamb jamb-left" id="stops-left" aria-label="Hauptwerk and Positiv stops"></div>
+        <div class="jamb jamb-right" id="stops-right" aria-label="Récit and Pedal stops"></div>
       </div>
     </section>
-    <section class="stops" aria-labelledby="stops-heading">
-      <div class="section-heading">
-        <h2 id="stops-heading">Stops</h2>
-        <span id="stop-count" class="drawn-count"></span>
-        <label class="fine-toggle"><input id="fine-draw" type="checkbox"> Fine draw</label>
-      </div>
-      <div id="division-filters" role="group" aria-label="Show stops by division"></div>
-      <div id="stop-bank"></div>
-    </section>
-    <section class="settings" aria-labelledby="settings-heading">
-      <h2 id="settings-heading">Organ settings</h2>
-      <div id="settings-groups"></div>
+    <section id="settings-groups" aria-label="Organ settings"></section>
+    <section id="registration" aria-labelledby="registration-heading">
+      <h2 id="registration-heading">Registrations</h2>
+      <div id="preset-bank"></div>
     </section>
   </main>
   <footer class="credits wrap">
     <span>© 2026 Protocodus</span>
-    <a href="https://github.com/protocodus/virtual-instrument-oregana">Instrument source</a>
     <a href="./dsp/LICENSE">License</a>
     <a href="./dsp/THIRD_PARTY_NOTICES.md">Notices</a>
   </footer>

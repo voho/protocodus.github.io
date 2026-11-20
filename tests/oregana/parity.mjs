@@ -8,6 +8,39 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { controls } from '../../fun/oregana/metadata.js';
 import { OreganaDSP } from '../../fun/oregana/dsp/organ.mjs';
+import { SimdDSP } from '../../fun/oregana/dsp/simd.mjs';
+
+// For mixed inputs, spell out the MIDI the physical keys should send to the
+// native four-division engine. Overlapping owners produce no second attack or
+// premature release. This score is independent of the web adapter's routing.
+const expectNative = (web, ...native) => ({ web, native });
+const mixedScore = [
+  ['setControl', 'pedal_keys', 0], ['setControl', 'pos_gedackt_8', 1], ['setControl', 'rec_principal_8', 1],
+  ['divisionNoteOn', 0, 60, 32],
+  expectNative(['noteOn', 60, 110]),
+  ['divisionNoteOn', 1, 60, 90], ['divisionNoteOn', 2, 72, 65], ['divisionNoteOn', 3, 42, 70],
+  ['render', 19937],
+  expectNative(['divisionNoteOff', 0, 60, 94]), // The routed key still holds this Hauptwerk pipe.
+  ['render', 3145],
+  expectNative(['setControl', 'keyboard', 1], ['setControl', 'keyboard', 1], ['divisionNoteOff', 0, 60, 64]),
+  expectNative(['noteOff', 60, 96]), // A direct Positiv key already holds the routed destination.
+  ['render', 7293], ['divisionNoteOff', 1, 60, 29],
+  expectNative(['noteOn', 65, 31], ['divisionNoteOn', 1, 65, 31]),
+  expectNative(['divisionNoteOn', 1, 65, 50]), ['render', 4931],
+  // Full Swell changes the selected manual to Hauptwerk and enables lowest-key pedal.
+  expectNative(['setPreset', 15], ['setPreset', 15], ['divisionNoteOn', 0, 65, 31], ['divisionNoteOn', 3, 65, 31]),
+  expectNative(['divisionNoteOn', 3, 65, 60]), ['render', 10993],
+  expectNative(['noteOff', 65, 127], ['divisionNoteOff', 0, 65, 127]),
+  ['divisionNoteOff', 1, 65, 83], ['divisionNoteOff', 2, 72, 102], ['render', 5931],
+  // Panic releases the two directly-held pedal keys. A fresh routed bass/key
+  // and a directly-held pedal key can sound and release again immediately.
+  expectNative(['allSoundOff'], ['divisionNoteOff', 3, 42, 64], ['divisionNoteOff', 3, 65, 64], ['allSoundOff']),
+  ['render', 3569], ['divisionNoteOn', 3, 42, 28],
+  expectNative(['noteOn', 65, 75], ['divisionNoteOn', 0, 65, 75], ['divisionNoteOn', 3, 65, 75]),
+  ['render', 9351],
+  expectNative(['allKeysUp'], ['divisionNoteOff', 3, 42, 64], ['divisionNoteOff', 0, 65, 64], ['divisionNoteOff', 3, 65, 64]),
+  ['render', 13011],
+];
 
 const tests = [
   { name: 'Principal, half-drawn stop and repeated note', rate: 48000, blockSize: 251, score: [
@@ -33,15 +66,19 @@ const tests = [
     ['setControllers', 0, 0.21], ['render', 26513],
     ['allSoundOff'], ['render', 32004],
   ] },
+  { name: 'Routed keys and four independent MIDI divisions', rate: 48000, score: mixedScore },
+  { name: 'Routed keys and four independent MIDI divisions', rate: 44100, blockSize: 193, score: mixedScore },
 ];
 
-function runScore(oraclePath, { name, rate, blockSize = 128, score }) {
+function nativeRender(oraclePath, { rate, score }) {
   const reference = execFileSync(oraclePath, [String(rate)], {
-    input: score.map((event) => event.join(' ')).join('\n'),
+    input: score.flatMap((entry) => entry.native ?? [entry]).map((event) => event.join(' ')).join('\n'),
     maxBuffer: 4 * 1024 * 1024,
   });
-  const native = new Float32Array(reference.buffer, reference.byteOffset, reference.byteLength / 4);
-  const organ = new OreganaDSP(rate);
+  return new Float32Array(reference.buffer, reference.byteOffset, reference.byteLength / 4);
+}
+
+function runScore(organ, native, { name, rate, blockSize = 128, score }, backend) {
   let offset = 0;
   let different = 0;
   let maxError = 0;
@@ -50,7 +87,8 @@ function runScore(oraclePath, { name, rate, blockSize = 128, score }) {
   const left = new Float32Array(blockSize);
   const right = new Float32Array(blockSize);
 
-  for (const [command, ...args] of score) {
+  for (const entry of score) {
+    const [command, ...args] = entry.web ?? entry;
     if (command === 'setControl') {
       const index = controls.findIndex((entry) => entry.id === args[0]);
       assert.ok(index >= 0, 'Missing native control ' + args[0]);
@@ -89,9 +127,9 @@ function runScore(oraclePath, { name, rate, blockSize = 128, score }) {
     }
   }
   assert.equal(offset, native.length, name + ': sample count');
-  assert.equal(different, 0, name + ': ' + different + ' differing samples, peak error '
+  assert.equal(different, 0, backend + ' ' + name + ': ' + different + ' differing samples, peak error '
     + maxError + ', worst relative RMS error ' + worstRelative);
-  console.log(name + ' @ ' + rate + ' Hz: all ' + native.length + ' samples match the native render.');
+  console.log(backend + ' ' + name + ' @ ' + rate + ' Hz: all ' + native.length + ' samples match the native render.');
   if (steadyTuttiMs !== undefined) {
     console.log('One second of held four-note Tutti in 128-frame blocks: ' + steadyTuttiMs.toFixed(0) + ' ms');
   }
@@ -108,7 +146,12 @@ try {
   execFileSync(process.env.CXX || 'c++', ['-std=c++17', '-O2', '-ffp-contract=off',
     '-I', join(temp, 'Source'), fileURLToPath(new URL('./reference.cpp', import.meta.url)),
     join(temp, 'Source/DSP/OreganaEngine.cpp'), '-o', oracle], { stdio: 'inherit' });
-  for (const test of tests) runScore(oracle, test);
+  const module = await WebAssembly.compile(readFileSync(new URL('../../fun/oregana/dsp/organ-simd.wasm', import.meta.url)));
+  for (const test of tests) {
+    const native = nativeRender(oracle, test);
+    runScore(new OreganaDSP(test.rate), native, test, 'JavaScript');
+    runScore(new SimdDSP(test.rate, module), native, test, 'SIMD');
+  }
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

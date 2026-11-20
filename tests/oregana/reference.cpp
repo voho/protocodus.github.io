@@ -49,6 +49,15 @@ int main(int argc, char** argv) {
             if (!(std::cin >> note >> velocity)) return 1;
             if (command == "noteOn") organ->KeyDown(note, velocity);
             else organ->KeyUp(note, 0, velocity);
+        } else if (command == "divisionNoteOn" || command == "divisionNoteOff") {
+            int division, note, velocity;
+            if (!(std::cin >> division >> note >> velocity)) return 1;
+            const int status = command == "divisionNoteOn" ? 0x90 : 0x80;
+            const std::uint8_t midi[] { static_cast<std::uint8_t>(status | division),
+                static_cast<std::uint8_t>(note), static_cast<std::uint8_t>(velocity) };
+            // The Instrument exposes a const diagnostic view of its mutable engine.
+            // Inject actual native MIDI here and keep its host-rate resampler.
+            const_cast<Engine&>(organ->Organ()).Midi(midi, 3);
         } else if (command == "allSoundOff") {
             organ->AllSoundOff();
         } else if (command == "allKeysUp") {

@@ -4,8 +4,11 @@ import { setupInputs } from './inputs.js';
 
 const startButton = document.querySelector('#audio-start');
 const status = document.querySelector('#audio-status');
-let preset = 0;
+// This light factory registration has sounding stops on all four keybeds.
+let preset = presets.findIndex(registration => registration.name === 'Chapel Italian');
 const edits = new Map();
+const manualIndex = controls.findIndex(control => control.id === 'keyboard');
+const pedalIndex = controls.findIndex(control => control.id === 'pedal_keys');
 let wheel = 0, expression = 1, bend = 0;
 let session = null;
 
@@ -22,6 +25,7 @@ function send(event) {
 function stopAudio(message = 'Audio stopped') {
   const previous = session;
   session = null;
+  delete status.dataset.renderer;
   inputs.releaseAll();
   if (previous) {
     previous.context.onstatechange = null;
@@ -42,21 +46,54 @@ function updateState(current) {
   }
 }
 
-async function loadOrgan(current) {
+// A minimal module returning i8x16.splat(0) tests SIMD without fetching the engine.
+const simdProbe = Uint8Array.of(0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,8,1,6,0,65,0,253,15,11);
+let simdModule;
+
+async function compileAccelerator() {
+  if (!globalThis.WebAssembly?.validate(simdProbe)) return null;
+  if (simdModule) return simdModule;
+  const response = await fetch(new URL('./dsp/organ-simd.wasm', import.meta.url));
+  if (!response.ok) throw new Error('Could not load the accelerated organ');
+  simdModule = await WebAssembly.compile(await response.arrayBuffer());
+  return simdModule;
+}
+
+async function loadOrgan(current, tryAcceleration = true) {
   const context = current.context;
   try {
     if (!context.audioWorklet) throw new Error('AudioWorklet unavailable');
-    await context.audioWorklet.addModule(new URL('./processor.js', import.meta.url));
+    const module = tryAcceleration ? await compileAccelerator().catch(() => null) : null;
     if (session !== current) return;
-
-    const node = current.node = new AudioWorkletNode(context, 'oregana', {
-      numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2]
-    });
+    const entry = module ? './processor-simd.js' : './processor.js';
+    let node;
+    try {
+      await context.audioWorklet.addModule(new URL(entry, import.meta.url));
+      if (session !== current) return;
+      node = new AudioWorkletNode(context, module ? 'oregana-simd' : 'oregana', {
+        numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
+        processorOptions: module ? { module } : {}
+      });
+    } catch (error) {
+      // Some environments support SIMD on the page but cannot send a module to a worklet.
+      if (module) return loadOrgan(current, false);
+      throw error;
+    }
+    current.node = node;
     node.onprocessorerror = () => {
-      if (session === current) stopAudio('The audio engine stopped. Start audio to try again.');
+      if (session !== current || current.node !== node) return;
+      if (module && !current.ready) {
+        node.port.close();
+        node.disconnect();
+        current.node = null;
+        void loadOrgan(current, false);
+      } else {
+        stopAudio('The audio engine stopped. Start audio to try again.');
+      }
     };
     node.port.onmessage = ({ data }) => {
-      if (session !== current || data.type !== 'ready') return;
+      if (session !== current || current.node !== node || data.type !== 'ready') return;
+      status.dataset.renderer = data.renderer;
       // Preserve a quick first press and release across the worklet download.
       // Bound replay time so the console catches up promptly even on a slow link.
       const notes = current.notes;
@@ -117,25 +154,32 @@ function startAudio() {
   }
 }
 
-function play(type, note, velocity) {
-  if (type === 'noteOn' && (!session || session.context.state !== 'running')) startAudio();
+function play(type, note, velocity, division) {
+  if ((type === 'noteOn' || type === 'divisionNoteOn') && (!session || session.context.state !== 'running')) startAudio();
   if (!session) return;
-  const event = { type, note, velocity };
+  const event = division === undefined ? { type, note, velocity } : { type, division, note, velocity };
   if (session.ready) send(event);
   else session.notes.push({ ...event, time: performance.now() });
 }
 
+function updateRouting() {
+  const value = index => edits.get(index) ?? presets[preset].values[index];
+  inputs.setRouting(value(manualIndex), value(pedalIndex));
+}
+
 const panel = createPanel({
-  controls, presets,
+  controls, presets, initialPreset: preset,
   onPreset(index) {
     preset = index;
     edits.clear();
     panel.setValues(presets[index].values, index);
+    updateRouting();
     send({ type: 'preset', index });
   },
   onControl(index, value) {
     if (value === presets[preset].values[index]) edits.delete(index);
     else edits.set(index, value);
+    if (index === manualIndex || index === pedalIndex) updateRouting();
     send({ type: 'control', index, value });
   }
 });
@@ -144,6 +188,8 @@ const inputs = setupInputs({
   startAudio,
   noteOn: (note, velocity) => play('noteOn', note, velocity),
   noteOff: (note, velocity) => play('noteOff', note, velocity),
+  divisionNoteOn: (division, note, velocity) => play('divisionNoteOn', note, velocity, division),
+  divisionNoteOff: (division, note, velocity) => play('divisionNoteOff', note, velocity, division),
   setWheel(value) { wheel = value; send({ type: 'controllers', wheel, expression }); },
   setExpression(value) { expression = value; send({ type: 'controllers', wheel, expression }); },
   setBend(value) { bend = value; send({ type: 'bend', value }); },
@@ -152,6 +198,7 @@ const inputs = setupInputs({
     send({ type: 'panic' });
   }
 });
+updateRouting();
 
 startButton.addEventListener('click', () => {
   if (session?.ready && session.context.state === 'running') stopAudio();

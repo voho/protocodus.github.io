@@ -28,5 +28,6 @@ fun/tyran/tools/**
 **/AGENTS.md
 **/README.md
 docs/**
+scripts/oregana/**
 product/SCREENSHOTS.md
 wrangler.jsonc
