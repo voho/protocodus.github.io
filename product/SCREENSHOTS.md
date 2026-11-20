@@ -1,6 +1,29 @@
 # Product media and claim sources
 
-## Current verification — 18 November 2026
+## Current verification — 20 November 2026
+
+At the owner's request (the site shows the latest snapshot in each product
+repository, Fires left out), the live Shop and Rack `main` `1928031` were
+checked again. `catalog-live-check.mjs` found two new public listings: Remit
+0.4.0 (Shop date 20 November) and Respira 0.1.27 (18 November). Both moved into
+`products` in `STORE_SNAPSHOT.json` with their Shop galleries, converted at full
+size to WebP quality 92 with Pillow (libwebp 1.4.0, method 6), each cover PNG
+copied byte for byte; their accepted builds, 0.4.0f18 and 0.1.27f1, are the ones
+printed on the Shop rears. Both pages now use the published layout with buy
+links, and Respira leaves `unpublished`. The catalog holds twelve Shop products.
+
+Every page moved to the newest version on Rack `main`: Acukoto 0.25.22f2,
+Binaurel 0.1.0f4, Electry 2.5.1d2, Keyra 2.24.4f1, Oregana 0.12.3f1, Reboot
+0.5.2d1, Remit 0.4.2f3, Respira 0.7.2f1, Unrest 0.4.0d1 and YouKnow 1.4.11f4,
+each built to a U45 there. Their panels come from `dist/` (Reboot's from
+`Examples/Reboot/Design/previews/`, its new Broadcast Desk panel); images that
+convert byte-identically to the ones shown are kept. Retra's newest version,
+0.7.1d1, is source only: its page names it and keeps the 0.7.0f6 panels. Unrest's
+copy follows its 8U panel (Linear, Normal or Ahead; Iron, Tube or Opto; 16
+factory patches and Init), and Reboot's follows the Broadcast Desk layout.
+Fires is not added.
+
+## Earlier verification — 18 November 2026
 
 The public Reason Shop is authoritative for availability, published versions and
 the artwork presented on released product pages. Local Rack candidates remain

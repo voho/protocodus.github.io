@@ -2,19 +2,19 @@
  "product": "Reboot",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-18",
-  "build_version": "0.4.0d2 (source; latest build 0.2.3f1)",
-  "version_on_panel": "0.4.0d2",
+  "reviewed": "2026-11-20",
+  "build_version": "0.5.2d1",
+  "version_on_panel": "0.5.2d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
-  "note": "The 0.4.0d2 panel renders on Rack main (78328de7), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session. Reboot has no panels in dist/: 0.4.0d2 is source only, and the last build, 0.2.3f1, has the earlier four-machine panel.",
+  "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99",
+  "note": "The 0.5.2d1 Broadcast Desk panel renders on Rack main (19280312, Examples/Reboot/Design/previews/), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6). Reboot has no panels in dist/; the 0.5.2d1 U45 is built from these.",
   "assets": [
    {
     "file": "reboot-rack-front.webp",
-    "sha256": "673cc582eb659afd0543f573931057f0f250d180f295d85a8644474df5912317",
+    "sha256": "057835afb232e5eeedc79bc3542cd689768f69ee6ae2185c44a8c3a73c388df2",
     "source": "Examples/Reboot/Design/previews/front_2x.png",
-    "source_sha256": "8651fd26bb6f95ac0ca3e3d26a9420acd02f4be9e2c1375ae36dd2de7ae58094",
+    "source_sha256": "872ec911a71456da8f23ecb954cdbd2207a9f4d6544a9d8cfa94fe01b3490777",
     "pixels": [
      1508,
      1104
@@ -22,15 +22,20 @@
    },
    {
     "file": "reboot-rack-rear.webp",
-    "sha256": "03cbfba1300c1cb37dd6402fc9bd9303a46bd0ae961e7e0054c6ff35a3726d88",
+    "sha256": "5cc108a1e26ab94b0a1e716e4d8d4cb03398489651c4027940940feb06cdc00c",
     "source": "Examples/Reboot/Design/previews/back_2x.png",
-    "source_sha256": "e33c52e15847b2827453e9085bbce8a549188b1fe5841b81dd65e10ceec435b4",
+    "source_sha256": "995526449746056bb8fadb11e563f09f072b3e85d309b1b4b33ec0e3cebd901d",
     "pixels": [
      1508,
      1104
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "0.4.0d2 (source; latest build 0.2.3f1)",
+   "version_on_panel": "0.4.0d2",
+   "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947"
+  }
  },
  "cover": {
   "file": "Reboot_Thumbnail_800.png",

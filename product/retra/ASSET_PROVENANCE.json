@@ -33,7 +33,9 @@
   "earlier": {
    "version_on_panel": "0.7.0f4",
    "source_commit": "06c5cb732161be54923e9967d9f829e756b71367"
-  }
+  },
+  "latest_source_version": "0.7.1d1",
+  "latest_source_note": "0.7.1d1 on Rack main (19280312) is source only; dist/ panels are still 0.7.0f6’s, byte for byte."
  },
  "cover": {
   "file": "Retra_Thumbnail_800.png",

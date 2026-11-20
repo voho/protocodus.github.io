@@ -32,7 +32,7 @@
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "macOS, Windows",
   "softwareRequirements": "Reason 14 or later",
-  "softwareVersion": "0.4.0d2",
+  "softwareVersion": "0.5.2d1",
   "author": {
     "@type": "Organization",
     "name": "Protocodus",
@@ -133,13 +133,13 @@
               <span class="product-status">In development</span>
               <a href="#details" class="detail-link" data-analytics-cta="hero_details" data-analytics-action="view_details">Explore Reboot <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">Rack Extension in development. The current version is 0.4.0d2, which rebuilds Reboot around two machines and is not yet built; the latest build is 0.2.3f1, from 17 November 2026. Reboot is not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
+            <p class="availability-note">Rack Extension in development. The latest build is 0.5.2d1, a development build from 20 November 2026; Reboot is not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="reboot-rack-front.webp?v=673cc582eb65" aria-label="View the Reboot Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
-            <img src="reboot-rack-front.webp?v=673cc582eb65" width="1508" height="1104" fetchpriority="high" decoding="async" alt="Reboot Rack Extension front panel: the Handheld and the Console drawn as the machine selector with Model, Cart and Path keys, a screen drawing the chosen part’s pulse wave, the part and shape keys, the envelope, Level, Transpose, Fine and Mod knobs, the wheels with Mode, Glide, Bend, Arp rate, Velocity and Vibrato, and Double, Detune and Volume">
-            <span class="shot-caption">Front panel · 0.4.0d2 development source <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="reboot-rack-front.webp?v=057835afb232" aria-label="View the Reboot Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
+            <img src="reboot-rack-front.webp?v=057835afb232" width="1508" height="1104" fetchpriority="high" decoding="async" alt="Reboot Rack Extension Broadcast Desk front panel in walnut and brushed aluminium: a scope of the chosen part’s wave with the part and shape keys, Board, Model, Cart and Path keys, four vertical envelope faders, Level, Transpose, Fine and Mod knobs, Double, Detune and Volume, the vibrato knobs, and the wheels with Poly, Mono and Arp, Arp rate, Glide, Bend range and Velocity">
+            <span class="shot-caption">Front panel · 0.5.2d1 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -153,12 +153,12 @@
           <p class="lede">Each machine keeps its own pitch steps, volume steps and quirks. Reboot writes only what the chip accepts, at the times the chip allows, and pitch is always the chip’s own period setting, so every key plays as close to its pitch as that machine can.</p>
         </div>
         <ul class="features">
-          <li><h3>The Handheld and the Console</h3><p>Model picks the machine’s model, and Cart adds one of the Console’s five cartridge chips, expansions A to E. Exp ch sets how many channels expansion C runs, and Bias sets the Console’s DAC level, which shifts how its channels mix.</p></li>
+          <li><h3>The Handheld and the Console</h3><p>Model picks the machine’s model, and Cart adds one of the Console’s five cartridge chips, expansions A to E. On the back, Cart channels sets how many channels expansion C runs, and Bias sets the Console’s DAC level, which shifts how its channels mix.</p></li>
           <li><h3>Pin or Line</h3><p>Path hears the chips and their mixer alone (Pin) or the machine’s own output stage after them (Line).</p></li>
           <li><h3>Parts and shapes</h3><p>Part picks one of the machine’s channels: pulse, triangle, wave, noise and the cartridge’s. Shape picks its duty, wave or noise mode, and the screen draws one cycle of it as the chip makes it. Every part arrives at one loudness.</p></li>
-          <li><h3>An envelope the way a driver wrote it</h3><p>Attack, Decay and Release run from 0 to 5 seconds and Sustain sets the chip’s volume step. The chip is written once a frame, as a game’s driver wrote it. The triangle has no volume, so on it the envelope only starts and stops the note.</p></li>
+          <li><h3>An envelope the way a driver wrote it</h3><p>Four faders set the envelope: Attack, Decay and Release run from 0 to 5 seconds and Sustain sets the chip’s volume step. The chip is written once a frame, as a game’s driver wrote it. The triangle has no volume, so on it the envelope only starts and stops the note.</p></li>
           <li><h3>Poly, Mono or Arp</h3><p>Mono plays legato with Glide, and Arp steps through the held keys every few frames. Vibrato runs at the machine’s frame rate, and the mod wheel adds up to 50 cents of it.</p></li>
-          <li><h3>Up to eight machines, and Double</h3><p>Boards plays up to eight machines at once. Double runs a second set, Detune apart, with the first set on the left and the second on the right. The machines can run at 1x to 8x the session’s rate.</p></li>
+          <li><h3>Up to eight machines, and Double</h3><p>Boards, on the back, plays up to eight machines at once. Double runs a second set, Detune apart, with the first set on the left and the second on the right. The machines can run at 1x to 8x the session’s rate.</p></li>
         </ul>
       </div>
     </section>
@@ -168,13 +168,13 @@
         <div class="edition-copy">
           <span class="tag">In the rack</span>
           <h2 class="title">The machine’s audio path on the back.</h2>
-          <p class="lede">The 8U panel has four cards: Machine, Voice, Play and Output. A control the chosen machine does not hear is dimmed, not hidden, and still works. The back draws the chosen machine’s audio path, the stage Path switches, then the level trim, Volume and limiter.</p>
+          <p class="lede">The 8U Broadcast Desk panel, in walnut and brushed aluminium, has six sections: Machine, Envelope, Voice, Output, Vibrato and Performance. A control the chosen machine does not hear is dimmed, not hidden, and still works. The back draws the chosen machine’s signal path, the stage Path switches, then the level trim, Volume and limiter, beside the machine setup: Boards, Cart channels and Bias.</p>
           <p class="lede">Note and Gate CV inputs on the back let a Matrix or an RPG-8 play Reboot as a second player; the gate’s level sets the velocity.</p>
         </div>
         <figure class="shot">
-          <a class="screenshot-link" href="reboot-rack-rear.webp?v=03cbfba1300c" aria-label="View the Reboot Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
-            <img src="reboot-rack-rear.webp?v=03cbfba1300c" width="1508" height="1104" loading="lazy" decoding="async" alt="Reboot Rack Extension rear panel with a diagram of the chosen machine’s audio path, the audio outputs, the Note and Gate CV inputs and the Oversampling keys">
-            <span class="shot-caption">Rear panel · 0.4.0d2 development source <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="reboot-rack-rear.webp?v=5cc108a1e26a" aria-label="View the Reboot Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
+            <img src="reboot-rack-rear.webp?v=5cc108a1e26a" width="1508" height="1104" loading="lazy" decoding="async" alt="Reboot Rack Extension rear panel with a diagram of the chosen machine’s signal path, the Boards, Cart channels and Bias knobs, the Note and Gate CV inputs, the stereo outputs and the Oversampling keys">
+            <span class="shot-caption">Rear panel · 0.5.2d1 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -208,6 +208,11 @@
           <p class="lede">The Rack Extension is in development and not yet in the Reason Shop.</p>
         </div>
         <div class="version-history">
+          <article data-development-version="0.5.2d1">
+            <h3>0.5.2d1 <span>Development build · 20 November 2026 · built</span></h3>
+            <p>The Broadcast Desk panel, in walnut and brushed aluminium: four vertical faders for Attack, Decay, Sustain and Release, Pulse keys that show the chosen chip’s duties, and a scope of the current waveform. Boards, Cart channels and Bias move to the back (0.5.1d2).</p>
+            <p>Mono glides reach the lowest notes, Arp follows the last sounding pitch, held envelopes survive cartridge changes, and channels that match share their oversampling work, so the engine costs less (0.5.0 to 0.5.2).</p>
+          </article>
           <article data-development-version="0.4.0d2">
             <h3>0.4.0d2 <span>In development · 18 November 2026 · not yet built</span></h3>
             <p>The panel laid out again with balanced spacing. Path is a row of keys under Cart, and Oversampling has its own section on the back.</p>

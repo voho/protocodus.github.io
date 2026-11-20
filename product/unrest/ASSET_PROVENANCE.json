@@ -2,35 +2,40 @@
  "product": "Unrest",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-18",
-  "build_version": "0.1.0f2",
-  "version_on_panel": "0.1.0f2",
+  "reviewed": "2026-11-20",
+  "build_version": "0.4.0d1",
+  "version_on_panel": "0.4.0d1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947",
-  "note": "The panels in dist/ on Rack main (ebbfa1be), converted to WebP quality 92 at full size with Pillow (libwebp 1.6.0, method 6), as cwebp is not installed in this session.",
+  "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99",
+  "note": "The 0.4.0d1 panels in dist/ on Rack main (19280312), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6), as cwebp is not installed in this session. Unchanged panels convert byte-identically and are kept.",
   "assets": [
    {
     "file": "unrest-rack-front.webp",
-    "sha256": "b7f53b6c12951e02e74a833009dfe658392314d3361e027ef7b69b2e8a25aecf",
+    "sha256": "1d4a9053afa78758cccb5c568a9df44b3f990fc2cbedf158d592f5d9ccbe405c",
     "source": "dist/Unrest_Front.png",
-    "source_sha256": "8f9d56945f33da83bfa6931e319c1d325bad562827e856148956337289d15c8c",
+    "source_sha256": "9d39953f50552ff7cd786e075ed29e95a28f7f8351dbb4bbd51653beff381f54",
     "pixels": [
      1508,
-     828
+     1104
     ]
    },
    {
     "file": "unrest-rack-rear.webp",
-    "sha256": "d8f6faf09b386f65491083af1a1731553350010f999ad9bf678e620923f46fdf",
+    "sha256": "5a5dcb8ef1a5f2b33cfd8b60df08eafc24a75648315bf50df9ff9ee1e4be8277",
     "source": "dist/Unrest_Back.png",
-    "source_sha256": "c838711418e04957ee6964f02082919c7a07f1685a5f3458a5a81df8d51b6ca5",
+    "source_sha256": "53b1aca507b89109c9975802e3dc94c236bc991a51d0bb0a070c936dea43b729",
     "pixels": [
      1508,
-     828
+     1104
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "0.1.0f2",
+   "version_on_panel": "0.1.0f2",
+   "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947"
+  }
  },
  "cover": {
   "file": "Unrest_Thumbnail_800.png",

@@ -1,5 +1,5 @@
 {
-  "verified_at": "2026-11-18",
+  "verified_at": "2026-11-20",
   "developer_url": "https://www.reasonstudios.com/shop/browse/?developer=Protocodus",
   "products": [
     {
@@ -552,6 +552,126 @@
       "shop_page_published_on": "2026-11-05"
     },
     {
+      "product": "remit",
+      "title": "Remit Digital Reverberator",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/remit-digital-reverberator/",
+      "version": "0.4.0",
+      "release_date": "2026-11-20",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Remit/pictures/Remit_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Remit/pictures/Remit_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34797/Remit_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/remit/shop-front.webp",
+          "role": "front",
+          "sha256": "3fd9ae81feec89020babb131c0f8e55c5da32a312d72f208e8790417b619fc6e",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Remit/pictures/Remit_Front.png",
+          "source_sha256": "15534c602ee3f9c2d213b2e373d075c2aea36413dc4d8de3691652b4340fa051"
+        },
+        {
+          "file": "product/remit/shop-rear.webp",
+          "role": "rear",
+          "sha256": "875cf15ef177cbd426bec5776a0b31da4faf866fca14b13f07320eaff4f21217",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Remit/pictures/Remit_Back.png",
+          "source_sha256": "819e0fe665351a8064c7b7de0ef210606532024b08ceae156496e0c3526e6a86"
+        },
+        {
+          "file": "product/remit/shop-cover.webp",
+          "role": "cover",
+          "sha256": "43c9956c04044362afb6b80373014ce2a87309789548ec7d169fc4c47cfbf42c",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34797/Remit_Thumbnail_800.png",
+          "source_sha256": "4ddfbb32711310d86e7981975d159cd26e9910a8c008e7bd92c5525a1ad21717"
+        },
+        {
+          "file": "product/remit/shop-cover.png",
+          "role": "social",
+          "sha256": "4ddfbb32711310d86e7981975d159cd26e9910a8c008e7bd92c5525a1ad21717",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34797/Remit_Thumbnail_800.png",
+          "source_sha256": "4ddfbb32711310d86e7981975d159cd26e9910a8c008e7bd92c5525a1ad21717"
+        }
+      ],
+      "accepted_version": "0.4.0f18",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 0.4.0f18."
+    },
+    {
+      "product": "respira",
+      "title": "Respira Bellows Accordion",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
+      "version": "0.1.27",
+      "release_date": "2026-11-18",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Respira/pictures/Respira_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Respira/pictures/Respira_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34536/Respira_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/respira/shop-front.webp",
+          "role": "front",
+          "sha256": "49a208b4f6eac75dec85d59ccd71d01b8bab0a6f856cd15ea99ce91147ecfe74",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Respira/pictures/Respira_Front.png",
+          "source_sha256": "f0c2e8f999b9782febdeab855d112371fc32326dc0b24d5c9d64ebfd745cd281"
+        },
+        {
+          "file": "product/respira/shop-rear.webp",
+          "role": "rear",
+          "sha256": "d04c52080a56fe1e5ea65669d6dd794e2ad19f88356d42e764bcf5c1a2aeb74c",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Respira/pictures/Respira_Back.png",
+          "source_sha256": "54a532486dac7bf42e49dd967d151b94e309839da4156151103dd17379552736"
+        },
+        {
+          "file": "product/respira/shop-cover.webp",
+          "role": "cover",
+          "sha256": "0cf18e5c0a7e9eb4e686e9db0197d4d64748b90b8e3ec9bf9720dc65e9afa77a",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34536/Respira_Thumbnail_800.png",
+          "source_sha256": "32ea9b3d0294aa1880280d45d30f5ba1023f423aadd7b358c4728263a4f747e4"
+        },
+        {
+          "file": "product/respira/shop-cover.png",
+          "role": "social",
+          "sha256": "32ea9b3d0294aa1880280d45d30f5ba1023f423aadd7b358c4728263a4f747e4",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34536/Respira_Thumbnail_800.png",
+          "source_sha256": "32ea9b3d0294aa1880280d45d30f5ba1023f423aadd7b358c4728263a4f747e4"
+        }
+      ],
+      "accepted_version": "0.1.27f1",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 0.1.27f1."
+    },
+    {
       "product": "youknow",
       "title": "YouKnow Circuit-Modelled Synth",
       "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
@@ -611,15 +731,6 @@
       "accepted_version": "1.3.5f5"
     }
   ],
-  "unpublished": [
-    {
-      "product": "respira",
-      "status": "awaiting_device_acceptance",
-      "checked_url": "https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/",
-      "http_status": 404,
-      "submitted_version": "0.1.16d1",
-      "shop_page_status": "not_created"
-    }
-  ],
+  "unpublished": [],
   "release_date_note": "release_date preserves the Shop Released field, which may be the original product date. shop_page_published_on records the separately verified page publication date."
 }

@@ -2,18 +2,19 @@
  "product": "Oregana",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-18",
-  "build_version": "0.9.0f4",
+  "reviewed": "2026-11-20",
+  "build_version": "0.12.3f1",
+  "version_on_panel": "0.12.3f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
-  "note": "The 0.9.0f4 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session.",
+  "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99",
+  "note": "The 0.12.3f1 panels in dist/ on Rack main (19280312), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6), as cwebp is not installed in this session. Unchanged panels convert byte-identically and are kept.",
   "assets": [
    {
     "file": "oregana-rack-front.webp",
-    "sha256": "e34e14167163226e602b005192ba761ed405065bba1ca72ccdeb35085f966663",
+    "sha256": "70a748431e8d8367e580180760036f2d44d820b93400c1f06fc4b2b8c875dcf1",
     "source": "dist/Oregana_Front.png",
-    "source_sha256": "1efe5f739dd31cde6270b4278d7ec65de5ff25d286c5ba14d8dc5f5bea2d3385",
+    "source_sha256": "7f43e8fc01872b039985bee773da39e52989033837eb3c3246b6d3c5b75b152b",
     "pixels": [
      1508,
      1104
@@ -21,9 +22,9 @@
    },
    {
     "file": "oregana-rack-rear.webp",
-    "sha256": "e630caef15ec6cf42135dadd644a98a0c93c882641e21097855e29e02da576de",
+    "sha256": "e3429d69771225341c7423a4abe026491a5f49921a17ecf98340164939a08bb8",
     "source": "dist/Oregana_Back.png",
-    "source_sha256": "acc5000fb360c27b5c1ade185442115495ec812ba350ebc38900dd87c2b4942d",
+    "source_sha256": "6ac257493626b8b2c86ba1b710ad62c98da57fd8d0ae5136c5d7887667a1b917",
     "pixels": [
      1508,
      1104
@@ -31,9 +32,8 @@
    }
   ],
   "earlier": {
-   "build_version": "0.8.0f1",
-   "version_on_panel": "0.8.0f1",
-   "source_commit": "bb5f40c601db8a557e37dcf7512e2cc992386579"
+   "build_version": "0.9.0f4",
+   "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
   }
  },
  "cover": {

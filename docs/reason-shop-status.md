@@ -5,6 +5,15 @@ the public [Protocodus catalog](https://www.reasonstudios.com/shop/browse/?devel
 and each listing. A developer-portal “released” row alone does not establish
 that a Shop page is public.
 
+## Public check — 20 November 2026
+
+Checked the public listings only. Twelve products are public: the ten below and
+in the 18 November note, plus Remit 0.4.0 (Shop date 20 November, its Shop rear
+prints 0.4.0f18) and Respira 0.1.27 (Shop date 18 November, its Shop rear prints
+0.1.27f1). Respira's long-pending page is now live at
+`respira-bellows-accordion`; Remit's is `remit-digital-reverberator`. Nothing
+is pending in `STORE_SNAPSHOT.json`.
+
 ## Public check — 18 November 2026
 
 Checked the public listings only, without the developer portal. Ten products
