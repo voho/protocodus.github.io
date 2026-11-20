@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oregana — Play the Church Organ | Protocodus</title>
+  <meta name="description" content="Play Oregana, a physically modelled church organ with 51 stops, three manuals and pedal. Use your mouse, computer keyboard or MIDI keyboard.">
+  <meta name="theme-color" content="#172a25">
+  <link rel="canonical" href="https://protocodus.cz/fun/oregana/">
+  <link rel="icon" href="/assets/images/favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://protocodus.cz/fun/oregana/">
+  <meta property="og:title" content="Oregana — Play the Church Organ | Protocodus">
+  <meta property="og:description" content="Play Oregana, a physically modelled church organ with 51 stops, three manuals and pedal. Use your mouse, computer keyboard or MIDI keyboard.">
+  <meta property="og:image" content="https://protocodus.cz/fun/oregana/oregana-card.webp">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="The green and gold Oregana church organ and its playable console.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Oregana — Play the Church Organ | Protocodus">
+  <meta name="twitter:description" content="Play Oregana, a physically modelled church organ with 51 stops, three manuals and pedal. Use your mouse, computer keyboard or MIDI keyboard.">
+  <meta name="twitter:image" content="https://protocodus.cz/fun/oregana/oregana-card.webp">
+  <meta name="twitter:image:alt" content="The green and gold Oregana church organ and its playable console.">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./keys.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Oregana",
+    "url": "https://protocodus.cz/fun/oregana/",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web browser",
+    "description": "A physically modelled, playable church organ with 51 stops."
+  }
+  </script>
+  <script defer src="/assets/js/analytics.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <a class="skip-link" href="#console">Skip to instrument</a>
+  <header class="masthead">
+    <nav class="topbar wrap" aria-label="Site navigation">
+      <a class="brand" href="/"><img width="29" height="29" src="/assets/images/logo.svg" alt="">Protocodus</a>
+      <span class="slash" aria-hidden="true">/</span><a href="/fun/">Fun</a>
+      <a class="instrument-link" href="/product/oregana/">About the instrument <span class="link-arrow" aria-hidden="true"></span></a>
+    </nav>
+    <div class="hero wrap">
+      <div class="hero-title">
+        <p class="instrument-type">Physically modelled church organ</p>
+        <h1>Oregana</h1>
+        <p class="specs"><span>51 stops</span><span>3 manuals &amp; pedal</span><span>5,130 pipes</span></p>
+      </div>
+      <!-- Official Oregana shop artwork from Design/Shop/realistic/instrument.png. -->
+      <img class="organ-case" src="./organ-case.webp" width="870" height="580" alt="A gilded organ case with three fields of tin pipes">
+    </div>
+  </header>
+  <main id="console" class="wrap">
+    <noscript><p class="no-script">Enable JavaScript to play the organ.</p></noscript>
+    <section class="console" aria-label="Playing console">
+      <div class="registration-bar">
+        <div class="preset-field">
+          <label class="caption" for="registration">Registration</label>
+          <div class="preset-picker">
+            <select id="registration" aria-label="Registration"></select>
+            <div class="step-buttons">
+              <button type="button" id="preset-prev" aria-label="Previous registration" title="Previous registration">‹</button>
+              <button type="button" id="preset-next" aria-label="Next registration" title="Next registration">›</button>
+            </div>
+          </div>
+        </div>
+        <div id="volume-control" class="volume-control"></div>
+        <div class="audio-controls">
+          <span id="audio-status" class="status" role="status">Sound off</span>
+          <button type="button" id="audio-start" class="audio-button">Start audio</button>
+        </div>
+      </div>
+      <div class="key-deck">
+        <div class="manual-bar">
+          <div class="manual-controls">
+            <div class="manual-field" id="manual-control"></div>
+            <div class="pedal-field" id="pedal-control"></div>
+          </div>
+          <div class="octave-controls">
+            <button type="button" id="octave-down" aria-label="Shift down one octave" title="Shift down one octave">−</button>
+            <span id="keyboard-range" aria-live="polite">C3–C5</span>
+            <button type="button" id="octave-up" aria-label="Shift up one octave" title="Shift up one octave">+</button>
+          </div>
+        </div>
+        <div class="keybed"><div id="keyboard" role="group" aria-label="On-screen organ keyboard"></div></div>
+        <div class="key-footer">
+          <p>Click the keys or play the letters shown. <span class="shift-hint"><kbd>[</kbd> <kbd>]</kbd> shift octaves.</span></p>
+          <button type="button" id="panic" class="text-button">All notes off</button>
+        </div>
+      </div>
+      <div class="performance-controls">
+        <div class="performance-faders" id="expression-controls"></div>
+        <div class="midi-controls">
+          <button type="button" id="midi-connect" class="secondary-button">Connect MIDI</button>
+          <span id="midi-status" class="status" role="status"></span>
+        </div>
+      </div>
+    </section>
+    <section class="stops" aria-labelledby="stops-heading">
+      <div class="section-heading">
+        <h2 id="stops-heading">Stops</h2>
+        <span id="stop-count" class="drawn-count"></span>
+        <label class="fine-toggle"><input id="fine-draw" type="checkbox"> Fine draw</label>
+      </div>
+      <div id="division-filters" role="group" aria-label="Show stops by division"></div>
+      <div id="stop-bank"></div>
+    </section>
+    <section class="settings" aria-labelledby="settings-heading">
+      <h2 id="settings-heading">Organ settings</h2>
+      <div id="settings-groups"></div>
+    </section>
+  </main>
+  <footer class="credits wrap">
+    <span>© 2026 Protocodus</span>
+    <a href="https://github.com/protocodus/virtual-instrument-oregana">Instrument source</a>
+    <a href="./dsp/LICENSE">License</a>
+    <a href="./dsp/THIRD_PARTY_NOTICES.md">Notices</a>
+  </footer>
+</body>
+</html>

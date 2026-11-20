@@ -49,9 +49,10 @@
 - [Unrest — Resonance Suppressor](https://protocodus.cz/product/unrest/): Resonance suppressor Rack Extension (in development; latest build 0.1.0f2) that cuts only the narrow peaks that make a sound harsh, while they last, with Linear or Low-lat processing, L/R or M/S, an external sidechain, Delta listen and Iron, Tube or Tape colour.
 - [Reboot — Sound Chip Synth](https://protocodus.cz/product/reboot/): Sound chip synth Rack Extension (in development; version 0.4.0d2, not yet built; latest build 0.2.3f1) playing the emulated sound hardware of two 8-bit machines, the Handheld and the Console with cartridge expansions A to E, up to eight machines at once, and Double.
 
-## Playable Browser Games
+## Browser Games and Musical Instruments
 
-- [Protocodus Browser Games](https://protocodus.cz/fun/): Six self-contained HTML5/WebGL browser games playable with no installation, account, or advertisements.
+- [Protocodus Fun](https://protocodus.cz/fun/): Play the Oregana church organ and six browser games without installation or an account.
+- [Play Oregana](https://protocodus.cz/fun/oregana/): A modelled 51-stop church organ for mouse, computer keyboard or MIDI keyboard.
 - [Tyran](https://protocodus.cz/fun/tyran/): Arcade vertical space shooter across ten sectors with squadron formations, boss guardians, wing drones, and ship upgrades.
 - [Ashline](https://protocodus.cz/fun/ashline/): Sci-fi real-time strategy game with a ten-operation campaign and skirmish modes featuring Organics and AI Unity factions, base building, power logistics, and unit promotions.
 - [Alpen](https://protocodus.cz/fun/alpen/): Endless 3D alpine snowboarding game with changing weather, carving, grabs, flips, and score combos.

@@ -1,0 +1,86 @@
+#keyboard {
+  --white-keys: 15;
+  position: relative;
+  isolation: isolate;
+  height: clamp(100px, 14vw, 158px);
+  overflow: hidden;
+  border: 2px solid #231e1c;
+  border-radius: 3px 3px 5px 5px;
+  background: #282321;
+  box-shadow: 0 0 0 1px #766452, 0 3px 7px #0006;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#keyboard .organ-key {
+  position: absolute;
+  top: 0;
+  left: calc(var(--key-position) * 100% / var(--white-keys));
+  display: block;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+  font: 500 12px/1 ui-monospace, 'Courier New', monospace;
+  letter-spacing: normal;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#keyboard .ivory {
+  bottom: 0;
+  width: calc(100% / var(--white-keys));
+  border: 0;
+  border-right: 1px solid #887f70;
+  border-radius: 0 0 3px 3px;
+  color: #635f53;
+  background: linear-gradient(180deg, #b4ac9b, #ded7c6 7%, #f0ecdd 65%, #fffaea 96%, #c2b8a6 97%);
+  box-shadow: inset 1px 0 #fff9, inset -1px 0 #a1988644, inset 0 -2px #8c816a;
+}
+
+#keyboard .ebony {
+  z-index: 1;
+  width: calc(62% / var(--white-keys));
+  height: 62%;
+  transform: translateX(-50%);
+  border: 1px solid #171715;
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
+  color: #c1b8a8;
+  background: linear-gradient(90deg, #1c1c19, #393833 15%, #282924 80%, #131413);
+  box-shadow: inset 0 -5px #141513, inset 0 -6px #616156, 2px 3px 3px #28251f55;
+}
+
+#keyboard .ivory[aria-pressed="true"] {
+  color: #143e32;
+  background: linear-gradient(180deg, #a6a38d, #cacbb4 9%, #c6d8ba 85%, #adc5a3 99%);
+  box-shadow: inset 0 3px 8px #3c47374d, inset 0 -2px #878e77;
+}
+
+#keyboard .ebony[aria-pressed="true"] {
+  color: #e8f4da;
+  background: linear-gradient(90deg, #232f29, #516856 20%, #324c3b 80%, #1c2921);
+  box-shadow: inset 0 -2px #1a261c, inset 0 -3px #88957c, 1px 1px 1px #28251f55;
+}
+
+#keyboard .organ-key:focus-visible {
+  outline: 2px solid #537866;
+  outline-offset: -3px;
+}
+
+.key-binding, .key-pitch {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.ivory .key-binding { bottom: 22%; }
+.ebony .key-binding { bottom: 14%; }
+.key-pitch { bottom: 7%; font-size: 10px; }
+
+@media (max-width: 600px) {
+  #keyboard .organ-key { font-size: 10px; }
+  .key-pitch { font-size: 8px; }
+}
