@@ -4379,20 +4379,37 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           n64TriW *= n64TriW;
           n64TriW *= n64TriW;
           n64TriW /= max(n64TriW.x + n64TriW.y + n64TriW.z, 1e-4);
-          vec4 n64RockSample =
-              texture2DGradEXT(uRockTex, vWorld.zy * 0.055,
-                n64WorldDx.zy * 0.055, n64WorldDy.zy * 0.055) * n64TriW.x
-            + texture2DGradEXT(uRockTex, vWorld.xz * 0.055,
-                n64WorldDx.xz * 0.055, n64WorldDy.xz * 0.055) * n64TriW.y
-            + texture2DGradEXT(uRockTex, vWorld.xy * 0.055,
-                n64WorldDx.xy * 0.055, n64WorldDy.xy * 0.055) * n64TriW.z;
-          vec4 n64GraniteSample =
-              texture2DGradEXT(uSandstoneTex, vWorld.zy * 0.04,
-                n64WorldDx.zy * 0.04, n64WorldDy.zy * 0.04) * n64TriW.x
-            + texture2DGradEXT(uSandstoneTex, vWorld.xz * 0.04,
-                n64WorldDx.xz * 0.04, n64WorldDy.xz * 0.04) * n64TriW.y
-            + texture2DGradEXT(uSandstoneTex, vWorld.xy * 0.04,
-                n64WorldDx.xy * 0.04, n64WorldDy.xy * 0.04) * n64TriW.z;
+          float n64RockKind = clamp(vRockKind, 0.0, 1.0);
+          vec3 n64RockSample = vec3(0.0);
+          if (n64RockKind < 0.998) {
+            if (n64TriW.x > 0.002) {
+              n64RockSample += texture2DGradEXT(uRockTex, vWorld.zy * 0.055,
+                n64WorldDx.zy * 0.055, n64WorldDy.zy * 0.055).rgb * n64TriW.x;
+            }
+            if (n64TriW.y > 0.002) {
+              n64RockSample += texture2DGradEXT(uRockTex, vWorld.xz * 0.055,
+                n64WorldDx.xz * 0.055, n64WorldDy.xz * 0.055).rgb * n64TriW.y;
+            }
+            if (n64TriW.z > 0.002) {
+              n64RockSample += texture2DGradEXT(uRockTex, vWorld.xy * 0.055,
+                n64WorldDx.xy * 0.055, n64WorldDy.xy * 0.055).rgb * n64TriW.z;
+            }
+          }
+          vec3 n64GraniteSample = vec3(0.0);
+          if (n64RockKind > 0.002) {
+            if (n64TriW.x > 0.002) {
+              n64GraniteSample += texture2DGradEXT(uSandstoneTex, vWorld.zy * 0.04,
+                n64WorldDx.zy * 0.04, n64WorldDy.zy * 0.04).rgb * n64TriW.x;
+            }
+            if (n64TriW.y > 0.002) {
+              n64GraniteSample += texture2DGradEXT(uSandstoneTex, vWorld.xz * 0.04,
+                n64WorldDx.xz * 0.04, n64WorldDy.xz * 0.04).rgb * n64TriW.y;
+            }
+            if (n64TriW.z > 0.002) {
+              n64GraniteSample += texture2DGradEXT(uSandstoneTex, vWorld.xy * 0.04,
+                n64WorldDx.xy * 0.04, n64WorldDy.xy * 0.04).rgb * n64TriW.z;
+            }
+          }
           /* Both plates are decoded to linear on fetch (see colourSurface),
              and each is scaled back to the mean it had as an encoded value
              — slate 0.278 over a linear 0.076, granite 0.347 over 0.129 —
@@ -4400,8 +4417,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              keep their tuned meaning and only the contrast inside a plate
              changes. The two need separate factors because the two
              photographs are not equally bright. */
-          vec3 n64RockTexel = mix(n64RockSample.rgb * 3.66,
-            n64GraniteSample.rgb * 2.69, clamp(vRockKind, 0.0, 1.0));
+          vec3 n64RockTexel = mix(n64RockSample * 3.66,
+            n64GraniteSample * 2.69, n64RockKind);
           /* THE CONTACT. The vertex field says how much of this cell is
              rock; the plate says where on the face it breaks through. Snow
              settles in the plate's dark seams and the bright ribs shed it,
@@ -4444,16 +4461,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            ones already measured above, and the entire response disappears on
            snow through the explicit material channel. */
         // Gone at four pixels a period, like the beds they lean (see there).
-        float n64SlateLean = cos(mod(n64SlateC, 64.0) * 1.276272)
-          * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot));
-        float n64IronLean = cos(mod(n64IronC, 64.0) * 0.785398)
-          * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
-        vec3 n64SlateDir = normalize(vec3(-0.22, 0.0, -0.11));
-        vec3 n64IronDir = normalize(vec3(0.14, 0.0, -0.18));
-        vec3 n64RockLean = mix(n64SlateDir * n64SlateLean,
-          n64IronDir * n64IronLean, clamp(vRockKind, 0.0, 1.0));
-        normal = normalize(normal + mat3(viewMatrix) * n64RockLean
-          * vRock * 0.18);
+        if (vRock > 0.002) {
+          float n64SlateLean = cos(mod(n64SlateC, 64.0) * 1.276272)
+            * (1.0 - smoothstep(0.62, 1.23, n64SlateFoot));
+          float n64IronLean = cos(mod(n64IronC, 64.0) * 0.785398)
+            * (1.0 - smoothstep(1.0, 2.0, n64IronFoot));
+          vec3 n64SlateDir = normalize(vec3(-0.22, 0.0, -0.11));
+          vec3 n64IronDir = normalize(vec3(0.14, 0.0, -0.18));
+          vec3 n64RockLean = mix(n64SlateDir * n64SlateLean,
+            n64IronDir * n64IronLean, clamp(vRockKind, 0.0, 1.0));
+          normal = normalize(normal + mat3(viewMatrix) * n64RockLean
+            * vRock * 0.18);
+        }
         /* The plates' height, spent as light rather than geometry: its
            slope leans the smooth normal — powder sastrugi off-piste and
            machine ribs on it, at a scale the 75 cm mesh cannot carry. */

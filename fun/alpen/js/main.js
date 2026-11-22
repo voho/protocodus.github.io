@@ -2005,7 +2005,7 @@ function frame(now) {
     // view-space sun cannot lag a carve by one rendered frame.
     shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z), rider.pos);
     camera.getWorldDirection(canopyHeading);
-    canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
+    canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel, props.querySolids);
     /* THE BISECT, applied after every system that writes these, so a switch
        actually holds for the frame. Four things can change how a mountain
        looks between one frame and the next, and telling them apart by eye is
@@ -2153,7 +2153,7 @@ function frame(now) {
       let complete = false;
       try {
         // Where the rider is drawn, which between steps is not where they are.
-        riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+        riderShadow.update(scene, model.root, camera, sky.shadowLevel, sky.lights);
         sky.renderProbe(renderer);
         retro.render(scene, camera);
         complete = true;

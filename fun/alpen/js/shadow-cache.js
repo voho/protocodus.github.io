@@ -14,20 +14,40 @@ const halfBuffer = new ArrayBuffer(4);
 const halfFloat = new Float32Array(halfBuffer);
 const halfBits = new Uint32Array(halfBuffer);
 
-/* IEEE754 float32 to float16, with round-to-nearest. Horizon values are finite
-   and modest, but keeping the complete converter makes the worker payload an
-   ordinary reusable numeric format rather than a private fixed-point code. */
-export function toHalfFloat(value) {
-  halfFloat[0] = value;
-  const x = halfBits[0];
-  const sign = (x >>> 16) & 0x8000;
-  let mantissa = x & 0x007fffff;
-  let exponent = (x >>> 23) & 0xff;
+let rowScratchCap = 0;
+let rowSeen = null;
+let rowSeenRaised = null;
+let rowSeenF32 = null;
+let rowSeenU32 = null;
+let rowRaisedF32 = null;
+let rowRaisedU32 = null;
 
-  if (exponent === 0xff) {
+function ensureRowScratch(width) {
+  if (width <= rowScratchCap) return;
+  rowScratchCap = width;
+  rowSeen = new Float64Array(width);
+  rowSeenRaised = new Float64Array(width);
+  const f32Bytes = width * 4;
+  const seenBuf = new ArrayBuffer(f32Bytes);
+  const raisedBuf = new ArrayBuffer(f32Bytes);
+  rowSeenF32 = new Float32Array(seenBuf);
+  rowSeenU32 = new Uint32Array(seenBuf);
+  rowRaisedF32 = new Float32Array(raisedBuf);
+  rowRaisedU32 = new Uint32Array(raisedBuf);
+}
+
+function toHalfFloatBits(x) {
+  const sign = (x >>> 16) & 0x8000;
+  const expBits = (x >>> 23) & 0xff;
+  if (expBits >= 113 && expBits <= 142) {
+    return sign | (((expBits - 112) << 10) + (((x & 0x007fffff) + 0x00001000) >>> 13));
+  }
+
+  let mantissa = x & 0x007fffff;
+  if (expBits === 0xff) {
     return sign | (mantissa ? 0x7e00 : 0x7c00);
   }
-  exponent -= 127;
+  let exponent = expBits - 127;
   // -25, not -24: values just under 2^-24 still round up to the smallest
   // subnormal, and the shift below stays comfortably inside JS's 32-bit
   // shift range. Anything smaller genuinely is zero in half precision.
@@ -42,16 +62,15 @@ export function toHalfFloat(value) {
     mantissa = (mantissa | 0x00800000) >>> (-exponent - 14);
     return sign | ((mantissa + 0x00001000) >>> 13);
   }
-  if (exponent > 15) return sign | 0x7c00;
-  const rounded = mantissa + 0x00001000;
-  if (rounded & 0x00800000) {
-    exponent += 1;
-    mantissa = 0;
-    if (exponent > 15) return sign | 0x7c00;
-  } else {
-    mantissa = rounded;
-  }
-  return sign | ((exponent + 15) << 10) | (mantissa >>> 13);
+  return sign | 0x7c00;
+}
+
+/* IEEE754 float32 to float16, with round-to-nearest. Horizon values are finite
+   and modest, but keeping the complete converter makes the worker payload an
+   ordinary reusable numeric format rather than a private fixed-point code. */
+export function toHalfFloat(value) {
+  halfFloat[0] = value;
+  return toHalfFloatBits(halfBits[0]);
 }
 
 function buildOffsets(spec) {
@@ -166,53 +185,92 @@ export function buildShadowRegion(spec, heightAt) {
   }
 
   // Direction-major RG: horizon at the snow, then horizon `raise` metres up.
+  // Outer k, inner x sweeps keep heights[]/farHeights[] reads linear while
+  // preserving the exact bilinear ray sampling order per texel.
   const horizon = new Uint16Array(directions * width * height * 2);
   const stepCount = steps.length;
+  const farCount = farSteps.length;
   const inverseSteps = Float64Array.from(steps, (step) => 1 / step);
   const offsets = Int32Array.from(dx, (x, i) => dz[i] * guardWidth + x);
-  for (let direction = 0; direction < directions; direction++) {
-    const directionBase = direction * width * height * 2;
-    const offsetBase = direction * stepCount;
-    for (let z = 0; z < height; z++) {
-      const gz = z - minZ;
-      for (let x = 0; x < width; x++) {
-        const gx = x - minX;
-        const point = gz * guardWidth + gx;
-        const h = heights[point];
-        let seen = -4;
-        let seenRaised = -4;
-        for (let k = 0; k < stepCount; k++) {
-          // Bilinear samples stay on the actual ray. Rounding a short ray
-          // to a 3 m lattice cell gave it the wrong bearing and slope, and
-          // made adjacent sun bearings change shadow in visible steps.
-          const ray = offsetBase + k;
-          const p = point + offsets[ray];
-          const a = heights[p] + (heights[p + 1] - heights[p]) * fx[ray];
-          const b = heights[p + guardWidth]
-            + (heights[p + guardWidth + 1] - heights[p + guardWidth]) * fx[ray];
-          const rise = a + (b - a) * fz[ray] - h;
-          const slope = rise * inverseSteps[k];
-          const raisedSlope = (rise - raise) * inverseSteps[k];
-          if (slope > seen) seen = slope;
-          if (raisedSlope > seenRaised) seenRaised = raisedSlope;
+  ensureRowScratch(width);
+  const rowStride = width * height * 2;
+  for (let z = 0; z < height; z++) {
+    const gz = z - minZ;
+    const rowPoint = gz * guardWidth - minX;
+    for (let direction = 0; direction < directions; direction++) {
+      rowSeen.fill(-4, 0, width);
+      rowSeenRaised.fill(-4, 0, width);
+      const offsetBase = direction * stepCount;
+      for (let k = 0; k < stepCount; k++) {
+        // Bilinear samples stay on the actual ray. Rounding a short ray
+        // to a 3 m lattice cell gave it the wrong bearing and slope, and
+        // made adjacent sun bearings change shadow in visible steps.
+        const ray = offsetBase + k;
+        const srcP = rowPoint + offsets[ray];
+        const srcP1 = srcP + guardWidth;
+        const fxVal = fx[ray];
+        const fzVal = fz[ray];
+        const invStep = inverseSteps[k];
+        let a0 = heights[srcP];
+        let b0 = heights[srcP1];
+        for (let x = 0; x < width; x++) {
+          const x1 = x + 1;
+          const a1 = heights[srcP + x1];
+          const b1 = heights[srcP1 + x1];
+          const a = a0 + (a1 - a0) * fxVal;
+          const b = b0 + (b1 - b0) * fxVal;
+          a0 = a1;
+          b0 = b1;
+          const rise = a + (b - a) * fzVal - heights[rowPoint + x];
+          const slope = rise * invStep;
+          const raisedSlope = (rise - raise) * invStep;
+          if (slope > rowSeen[x]) rowSeen[x] = slope;
+          if (raisedSlope > rowSeenRaised[x]) rowSeenRaised[x] = raisedSlope;
         }
-        for (let k = 0; k < farSteps.length; k++) {
-          const ray = direction * farSteps.length + k;
-          const ix = ray * width + x;
+      }
+      if (farCount) {
+        const farRayBase = direction * farCount;
+        for (let k = 0; k < farCount; k++) {
+          const ray = farRayBase + k;
           const iz = ray * height + z;
-          const p = farX[ix] + farZ[iz];
-          const a = farHeights[p] + (farHeights[p + 1] - farHeights[p]) * farFX[ix];
-          const b = farHeights[p + farWidth]
-            + (farHeights[p + farWidth + 1] - farHeights[p + farWidth]) * farFX[ix];
-          const rise = a + (b - a) * farFZ[iz] - h;
-          const slope = rise * inverseFarSteps[k];
-          const raisedSlope = (rise - raise) * inverseFarSteps[k];
-          if (slope > seen) seen = slope;
-          if (raisedSlope > seenRaised) seenRaised = raisedSlope;
+          const zOff = farZ[iz];
+          const fzVal = farFZ[iz];
+          const invStep = inverseFarSteps[k];
+          const ixBase = ray * width;
+          for (let x = 0; x < width; x++) {
+            const ix = ixBase + x;
+            const p = farX[ix] + zOff;
+            const fxVal = farFX[ix];
+            const f0 = farHeights[p];
+            const a = f0 + (farHeights[p + 1] - f0) * fxVal;
+            const b0 = farHeights[p + farWidth];
+            const b = b0 + (farHeights[p + farWidth + 1] - b0) * fxVal;
+            const rise = a + (b - a) * fzVal - heights[rowPoint + x];
+            const slope = rise * invStep;
+            const raisedSlope = (rise - raise) * invStep;
+            if (slope > rowSeen[x]) rowSeen[x] = slope;
+            if (raisedSlope > rowSeenRaised[x]) rowSeenRaised[x] = raisedSlope;
+          }
         }
-        const p = directionBase + (z * width + x) * 2;
-        horizon[p] = toHalfFloat(seen);
-        horizon[p + 1] = toHalfFloat(seenRaised);
+      }
+      for (let x = 0; x < width; x++) {
+        rowSeenF32[x] = rowSeen[x];
+        rowRaisedF32[x] = rowSeenRaised[x];
+      }
+      let out = direction * rowStride + z * width * 2;
+      for (let x = 0; x < width; x++, out += 2) {
+        const bitsA = rowSeenU32[x];
+        const expA = (bitsA >>> 23) & 0xff;
+        horizon[out] = expA >= 113 && expA <= 142
+          ? ((bitsA >>> 16) & 0x8000)
+            | (((expA - 112) << 10) + (((bitsA & 0x007fffff) + 0x00001000) >>> 13))
+          : toHalfFloatBits(bitsA);
+        const bitsB = rowRaisedU32[x];
+        const expB = (bitsB >>> 23) & 0xff;
+        horizon[out + 1] = expB >= 113 && expB <= 142
+          ? ((bitsB >>> 16) & 0x8000)
+            | (((expB - 112) << 10) + (((bitsB & 0x007fffff) + 0x00001000) >>> 13))
+          : toHalfFloatBits(bitsB);
       }
     }
   }

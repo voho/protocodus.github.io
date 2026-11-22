@@ -51,10 +51,14 @@ const DEPTH = 0.5;
 const REACH = 1.45;
 // The share of the sky a rock hides from the snow at its foot.
 const CONTACT = 0.42;
+// Margin around the canopy Z window when querying `solidIndex`: exceeds max
+// crown reach (`6 * 1.45 = 8.7 m`) and rock contact halo (`edge + span - r <= 8 m`).
+const QUERY_PAD = 16;
 
 export function createCanopy(THREE, shading) {
   const data = new Uint8Array(SIZE * SIZE);
   const field = new Float32Array(SIZE * SIZE);
+  const shortlist = [];
   const texture = new THREE.DataTexture(data, SIZE, SIZE, THREE.RedFormat,
     THREE.UnsignedByteType);
   texture.colorSpace = THREE.NoColorSpace;
@@ -137,10 +141,11 @@ export function createCanopy(THREE, shading) {
       const inv = 1 / (rt * rt);
       for (let z = z0; z <= z1; z++) {
         const dz = z + 0.5 - cz;
+        const dz2 = dz * dz;
         const row = z * SIZE;
         for (let x = x0; x <= x1; x++) {
           const dx = x + 0.5 - cx;
-          const q = 1 - (dx * dx + dz * dz) * inv;
+          const q = 1 - (dx * dx + dz2) * inv;
           if (q <= 0) continue;
           field[row + x] *= 1 - depth * q * q;
         }
@@ -154,7 +159,7 @@ export function createCanopy(THREE, shading) {
 
   /* Once a frame. `forward` is the camera's heading; `shadowLevel` is how
      much of the sun's depth map is currently in force. */
-  function update(solids, riderPos, forward, shadowLevel) {
+  function update(solids, riderPos, forward, shadowLevel, querySolids = null) {
     let cx = riderPos.x;
     let cz = riderPos.z;
     const heading = Math.hypot(forward.x, forward.z);
@@ -178,7 +183,8 @@ export function createCanopy(THREE, shading) {
       seenCount = n;
       seenFirst = first;
       seenLast = lastSolid;
-      draw(solids, ox, oz);
+      const active = querySolids ? querySolids(oz - QUERY_PAD, oz + SPAN + QUERY_PAD, shortlist) : solids;
+      draw(active, ox, oz);
       win.x = ox;
       win.y = oz;
       win.z = 1 / SPAN;

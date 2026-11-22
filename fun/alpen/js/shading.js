@@ -665,9 +665,14 @@ const FRAG_SHADE_TINT = `
    the proportion the diffuse did. The fetch is at a fixed mip level because
    the terrain's fog exit has already happened by this point, and the window
    fades out over its last eight per cent so its edge is never a line. */
+const FRAG_VIEW_CACHE = `
+    vec3 n64WorldOff = vN64View * mat3(viewMatrix);
+    float n64ViewDist = length(vN64View);
+`;
+
 const FRAG_CANOPY = `
   {
-    vec3 n64CanW = cameraPosition + vN64View * mat3(viewMatrix);
+    vec3 n64CanW = cameraPosition + n64WorldOff;
     vec2 n64CanUv = (n64CanW.xz - uCanopyWin.xy) * uCanopyWin.z;
     vec2 n64CanEdge = min(n64CanUv, 1.0 - n64CanUv);
     float n64CanIn = smoothstep(0.0, 0.08, min(n64CanEdge.x, n64CanEdge.y));
@@ -739,14 +744,14 @@ float n64HutTerrace(vec3 p, vec3 lamp, float r) {
     - n64HutSpan(c.x, h, ${asFloat(HUT_LIGHT.terrace.x[0])}, ${asFloat(HUT_LIGHT.terrace.x[1])})
     * n64HutSpan(c.y, h, ${asFloat(HUT_LIGHT.terrace.z[0])}, ${asFloat(HUT_LIGHT.terrace.z[1])});
 }
-// The irradiance on a receiver at cameraPosition + view, facing nW
-vec3 n64HutLight(vec3 view, vec3 nW) {
+// The irradiance on a receiver at cameraPosition + viewWorld, facing nW
+vec3 n64HutLightAt(vec3 viewWorld, vec3 nW) {
   const vec3 room = ${hutVec3(HUT_LIGHT.room.at)};
   const vec3 lantern = ${hutVec3(HUT_LIGHT.lantern.at)};
   float e = 0.0;
   for (int i = 0; i < 3; i++) {
     if (uHutAt[i].w <= 0.0) continue;
-    vec3 d = (cameraPosition - uHutAt[i].xyz) + view;
+    vec3 d = (cameraPosition - uHutAt[i].xyz) + viewWorld;
     float r2 = dot(d.xz, d.xz);
     if (r2 > ${HUT_RANGE2}) continue;
     vec2 ax = uHutAxis[i];
@@ -808,13 +813,14 @@ vec3 n64HutLight(vec3 view, vec3 nW) {
   }
   return e * uHutWarm;
 }
+vec3 n64HutLight(vec3 viewWorld, vec3 nW) { return n64HutLightAt(viewWorld, nW); }
+vec3 n64HutLight(vec3 view, vec3 nW, vec3 viewWorld) { return n64HutLightAt(viewWorld, nW); }
 `;
 
 const FRAG_HUT_LIGHT = `
   if (uHutWarm.r > 0.0) {
     reflectedLight.directDiffuse += diffuseColor.rgb * RECIPROCAL_PI
-      * n64HutLight(vN64View * mat3(viewMatrix),
-        inverseTransformDirection(normal, viewMatrix));
+      * n64HutLight(vN64View, inverseTransformDirection(normal, viewMatrix), n64WorldOff);
   }`;
 
 /* Recover the light-loop shadow before adding the snow response. */
@@ -856,7 +862,7 @@ function lightPatch(sheen) {
    therefore untouched. */
 const FRAG_FOG = `
   {
-    float n64Dist = length(vN64View);
+    float n64Dist = n64ViewDist;
     // See FOG_CURVE_GLSL for the shape, and for why it is shared.
     float n64Clear = n64ClearAir(uSnowFresh);
     float n64Fog = n64FogCurve(n64Dist * uFogPull, uFogNear, uFogFar, n64Clear);
@@ -867,7 +873,7 @@ const FRAG_FOG = `
        and the corridor's dish fill with haze while every knoll and ridge
        crest punches clear. The distance ramp is what keeps it out of the
        rider's own snow — mist two metres of path away is no mist at all. */
-    vec3 n64Dir = vN64View * (1.0 / max(n64Dist, 1e-4)) * mat3(viewMatrix);
+    vec3 n64Dir = n64WorldOff * (1.0 / max(n64Dist, 1e-4));
     // n64:stream
     if (uMistLevel > 0.002) {
       float n64H = max(cameraPosition.y + n64Dir.y * n64Dist - uMistFloor, 0.0);
@@ -1066,9 +1072,7 @@ const FRAG_ALPHA_HASH = `
 const FRAG_SHADE_GRADIENTS = `
     #define N64_SUN_VIS
     float n64SunVis = 1.0;
-    float n64ShadeD = length(vN64View);
-    vec3 n64ShadeW = cameraPosition
-      + (vN64View * (1.0 / max(n64ShadeD, 1e-4)) * mat3(viewMatrix)) * n64ShadeD;
+    vec3 n64ShadeW = cameraPosition + n64WorldOff;
     vec2 n64CloudWorld = n64ShadeW.xz
       + uSunDir.xz * (95.0 / max(uSunDir.y, 0.16));
     vec2 n64CloudUv = n64CloudWorld * (1.0 / 560.0) - uCloudShadowOffset;
@@ -1178,20 +1182,23 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
      snow. Taken off the direct light like the sun's own map, and off the
      sun's visibility so the snow's reflected sun goes with it. */
   if (uRiderShadowLevel > 0.001) {
-    vec3 n64RiderS = (uRiderShadowMatrix * vec4(vN64View * mat3(viewMatrix)
-      + inverseTransformDirection(normal, viewMatrix) * 0.015, 1.0)).xyz;
-    if (n64RiderS.x > 0.0 && n64RiderS.x < 1.0
-      && n64RiderS.y > 0.0 && n64RiderS.y < 1.0 && n64RiderS.z < 1.0) {
-      float n64RiderLit = 0.0;
-      for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
-          n64RiderLit += step(n64RiderS.z - 0.00015, texture2DLodEXT(uRiderShadowMap,
-            n64RiderS.xy + vec2(float(i), float(j)) * ${asFloat(1.5 / RIDER_SHADOW_SIZE)}, 0.0).r);
+    vec3 n64FocusDelta = vN64View - uFocusView;
+    if (dot(uFocusView, uFocusView) >= 1e6 || dot(n64FocusDelta, n64FocusDelta) < 3600.0) {
+      vec3 n64RiderS = (uRiderShadowMatrix * vec4(n64WorldOff
+        + inverseTransformDirection(normal, viewMatrix) * 0.015, 1.0)).xyz;
+      if (n64RiderS.x > 0.0 && n64RiderS.x < 1.0
+        && n64RiderS.y > 0.0 && n64RiderS.y < 1.0 && n64RiderS.z < 1.0) {
+        float n64RiderLit = 0.0;
+        for (int i = -1; i <= 1; i++) {
+          for (int j = -1; j <= 1; j++) {
+            n64RiderLit += step(n64RiderS.z - 0.00015, texture2DLodEXT(uRiderShadowMap,
+              n64RiderS.xy + vec2(float(i), float(j)) * ${asFloat(1.5 / RIDER_SHADOW_SIZE)}, 0.0).r);
+          }
         }
+        float n64RiderK = 1.0 - (1.0 - n64RiderLit / 9.0) * uRiderShadowLevel;
+        reflectedLight.directDiffuse *= n64RiderK;
+        n64SunVis *= n64RiderK;
       }
-      float n64RiderK = 1.0 - (1.0 - n64RiderLit / 9.0) * uRiderShadowLevel;
-      reflectedLight.directDiffuse *= n64RiderK;
-      n64SunVis *= n64RiderK;
     }
   }`;
 
@@ -1364,33 +1371,36 @@ export function createShading(THREE) {
       if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
         frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
-      // Unlit materials have no light loop to shade, and the two anchors
-      // below are how that is detected rather than asserted.
-      if (wantShade && frag.indexOf(SHADE_ANCHOR) !== -1) {
-        frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE)
-          .replace(GRADIENT_ANCHOR, `${FRAG_SHADE_GRADIENTS}${GRADIENT_ANCHOR}`);
+      const hasClip = frag.indexOf(GRADIENT_ANCHOR) !== -1;
+      const useShade = wantShade && frag.indexOf(SHADE_ANCHOR) !== -1;
+      const useSheen = sheen > 0 && frag.indexOf(LIGHT_ANCHOR) !== -1;
+      const useCanopy = canopy && frag.indexOf(LIGHT_ANCHOR) !== -1;
+      const useHut = hutLight && frag.indexOf(HUT_ANCHOR) !== -1;
+      const useFog = wantFog && frag.indexOf(FOG_ANCHOR) !== -1;
+      if (hasClip && (useShade || useSheen || useCanopy || useHut || useFog)) {
+        frag = frag.replace(GRADIENT_ANCHOR,
+          `${FRAG_VIEW_CACHE}${useShade ? FRAG_SHADE_GRADIENTS : ''}${useSheen ? FRAG_SHEEN_GRADIENTS : ''}${GRADIENT_ANCHOR}`);
       }
+      if (useShade) frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE);
       // After everything that hangs off the end of the light loop: the snow
       // response below, and a material's own patch there, like the rider's
       // rig light. Each of those divides the sun's own shadow back out of the
       // direct light, and a lamp added ahead of them reads as the sun coming
       // out. Spliced in at the loop's end it landed ahead of the rider's.
-      if (hutLight && frag.indexOf(HUT_ANCHOR) !== -1) {
+      if (useHut) {
         frag = frag.replace(HUT_ANCHOR, `${FRAG_HUT_LIGHT}\n${HUT_ANCHOR}`);
       }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.
-      if (sheen > 0 && frag.indexOf(LIGHT_ANCHOR) !== -1) {
-        frag = frag.replace(LIGHT_ANCHOR,
-          `${LIGHT_ANCHOR}${lightPatch(true)}`)
-          .replace(GRADIENT_ANCHOR, `${FRAG_SHEEN_GRADIENTS}${GRADIENT_ANCHOR}`);
+      if (useSheen) {
+        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${lightPatch(true)}`);
       }
       // Inserted second so that it lands first, directly under the anchor
       // and ahead of the snow response — see FRAG_CANOPY for why.
-      if (canopy && frag.indexOf(LIGHT_ANCHOR) !== -1) {
+      if (useCanopy) {
         frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_CANOPY}`);
       }
-      if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
+      if (useFog) {
         frag = frag.replace(FOG_ANCHOR, FRAG_FOG
           .replace('// n64:stream', streamFade ? FRAG_STREAM : ''));
       }

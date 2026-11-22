@@ -507,23 +507,28 @@ uniform vec2 uAirWind;
 uniform vec2 uAirDrift;
 uniform float uSwayHeight;`;
 
+const AIR_ATTR_DECL = `${AIR_DECL}
+attribute float aSwayH;`;
+
 // The gust field's two wavelengths, in metres. `setAir` wraps the drift at
 // exactly these, and SWAY samples the field through `mod` of the same.
 const GUST_X = 64;
 const GUST_Z = 88;
 
-const SWAY = `#include <begin_vertex>
+function makeSway(heightExpr) {
+  return `#include <begin_vertex>
 #ifdef USE_INSTANCING
 {
   vec3 n64Rest = transformed;
+  float n64SwayH = ${heightExpr};
   vec3 n64Gust = (vec4(uAirWind.x, 0.0, uAirWind.y, 0.0) * instanceMatrix).xyz;
-  float n64Up = clamp(n64Rest.y / uSwayHeight, 0.0, 1.0);
+  float n64Up = clamp(n64Rest.y / n64SwayH, 0.0, 1.0);
   n64Up *= n64Up;
   vec2 n64At = instanceMatrix[3].xz - uAirDrift;
   float n64Cell = 0.5
     + 0.25 * sin(mod(n64At.x, ${GUST_X.toFixed(1)}) * ${(Math.PI * 2 / GUST_X).toFixed(7)})
     + 0.25 * sin(mod(n64At.y, ${GUST_Z.toFixed(1)}) * ${(Math.PI * 2 / GUST_Z).toFixed(7)} + 1.3);
-  float n64Tall = uSwayHeight * length(instanceMatrix[1].xyz);
+  float n64Tall = n64SwayH * length(instanceMatrix[1].xyz);
   float n64Rate = floor(190.0 * clamp(inversesqrt(max(n64Tall, 0.3) / 20.0), 0.6, 2.2) + 0.5) * 0.01;
   float n64Rate2 = floor(n64Rate * 195.0 + 0.5) * 0.01;
   float n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.0913, 0.0527))) * 6.2832;
@@ -531,12 +536,23 @@ const SWAY = `#include <begin_vertex>
     + 0.5 * sin(uAirTime * n64Rate2 + n64Ph * 1.7);
   transformed.xz += n64Gust.xz * (0.02 * n64Up
     * (0.65 * n64Cell + (0.35 + 0.65 * n64Cell) * 0.7 * n64Wave));
-  float n64Reach = length(n64Rest.xz) / (0.25 * uSwayHeight);
+  float n64Reach = length(n64Rest.xz) / (0.25 * n64SwayH);
   float n64Tip = min(n64Reach * n64Reach, 1.0);
-  transformed.y += n64Tip * n64Cell * min(length(uAirWind), 12.0) * 0.0006 * uSwayHeight
+  transformed.y += n64Tip * n64Cell * min(length(uAirWind), 12.0) * 0.0006 * n64SwayH
     * sin(uAirTime * 6.1 + dot(n64Rest.xz, vec2(3.1, 2.3)) + n64Rest.y * 1.7 + n64Ph);
 }
 #endif`;
+}
+const SWAY = makeSway('uSwayHeight');
+const SWAY_ATTR = makeSway('aSwayH');
+
+function withSwayHeight(THREE, geometry, height) {
+  const count = geometry.attributes.position.count;
+  const a = new Float32Array(count);
+  a.fill(height);
+  geometry.setAttribute('aSwayH', new THREE.BufferAttribute(a, 1));
+  return geometry;
+}
 
 /* The mask itself, built from the same array `compose` is about to eat.
 
@@ -829,6 +845,39 @@ export function treeImpostorGeometry(THREE, node, height) {
   return g;
 }
 
+function sharedImpostorGeometry(THREE) {
+  const ch = Math.floor(IMPOSTOR_PX[1] / IMPOSTOR_VIEWS);
+  const position = [];
+  const normal = [];
+  const uv = [];
+  const index = [];
+  for (let r = 0; r < IMPOSTOR_VIEWS; r++) {
+    const a = (r * Math.PI) / IMPOSTOR_VIEWS;
+    const nx = Math.sin(a);
+    const nz = Math.cos(a);
+    const rx = Math.cos(a);
+    const rz = -Math.sin(a);
+    const v0 = ((IMPOSTOR_VIEWS - 1 - r) * ch + 0.5) / IMPOSTOR_PX[1];
+    const v1 = ((IMPOSTOR_VIEWS - r) * ch - 0.5) / IMPOSTOR_PX[1];
+    const base = position.length / 3;
+    const l = Math.hypot(nx * 0.35, 0.65, nz * 0.35);
+    for (const [s, hBit, uBit, v] of [[-1, 0, 0, v0], [1, 0, 1, v0], [1, 1, 1, v1], [-1, 1, 0, v1]]) {
+      position.push(rx * s, hBit, rz * s);
+      normal.push((nx * 0.35) / l, 0.65 / l, (nz * 0.35) / l);
+      uv.push(uBit, v);
+    }
+    index.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(normal, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(position.length).fill(1), 3));
+  g.setIndex(index);
+  g.computeBoundingSphere();
+  return g;
+}
+
 /* Pool i's modelled tree: slot i % 12 of SPECIES, and from the second
    dozen on that slot's second tree — the same kind with its own history
    (trees.py builds two of each). An older file with one tree a slot
@@ -885,6 +934,7 @@ export function alpineTreeGeometry(THREE, node, height) {
   g.setAttribute('color', new THREE.BufferAttribute(color, 3));
   g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
   g.setIndex(new THREE.BufferAttribute(index, 1));
+  withSwayHeight(THREE, g, height);
   g.computeBoundingSphere();
   return g;
 }
@@ -2275,6 +2325,7 @@ function saplingCardGeometry(THREE, spec) {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(index);
+  withSwayHeight(THREE, g, H);
   g.computeBoundingSphere();
   return g;
 }
@@ -2307,10 +2358,11 @@ class Pool {
     this.s = new THREE.Vector3();
     this.up = new THREE.Vector3(0, 1, 0);
     this.tinted = tinted;
-    /* Tree pools fill this with the end of every nearest-first band ring.
-       The shadow pass can then choose a conservative prefix from the light's
-       actual frustum without rebuilding or sorting an instance buffer. */
+    /* Pools fill these with the end of every ahead and behind band ring so
+       shadow and frustum passes can draw tight prefixes without re-sorting. */
     this.shadowEnds = null;
+    this.aheadEnds = null;
+    this.behindEnds = null;
     this.full = 0;
     /* And the opposite trade for the sparse furniture: a pool marked cullable
        gets a real bounding sphere from its written instances in `end()` and
@@ -2759,16 +2811,16 @@ export function createProps(THREE, shading) {
      sway is measured against each sapling's own height (`spec.H`, which is
      what its card stands in the model's metres), so one material per kind,
      all on the one compiled program, as the forest pools do it. */
-  const saplingMat = (atlas, swayHeight = 1.3) => {
+  const saplingMat = (atlas) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas, alphaTest: 0.42, side: THREE.DoubleSide,
     });
     m.alphaToCoverage = true;
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: swayHeight } });
+      Object.assign(shader.uniforms, air);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${AIR_DECL}`)
-        .replace('#include <begin_vertex>', SWAY);
+        .replace('#include <common>', `#include <common>${AIR_ATTR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY_ATTR);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <map_fragment>', `#include <map_fragment>
         {
@@ -2859,6 +2911,8 @@ export function createProps(THREE, shading) {
        acceleration structure. It is rebuilt alongside the matrices, when
        those counts are already in hand, and costs no per-tree shadow test. */
     pool.shadowEnds = new Uint16Array(streamSpan + 1);
+    pool.aheadEnds = new Uint16Array(ahead + 1);
+    pool.behindEnds = new Uint16Array(behind + 1);
     treePools.push(pool);
     shadowPools.push(pool);
     group.add(pool.mesh);
@@ -2996,7 +3050,7 @@ export function createProps(THREE, shading) {
     if (vMapUv.x > ${SPRUCE_LAYOUT.bark.u1.toFixed(3)})
       diffuseColor.a *= smoothstep(0.006, 0.065,
         max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
-  const spruceMat = (height, atlas, opts = {}) => {
+  const spruceMat = (atlas, opts = {}) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas,
       vertexColors: true,
@@ -3007,7 +3061,7 @@ export function createProps(THREE, shading) {
     const frost = opts.frost === true;
     const lod = opts.lod === true;
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      Object.assign(shader.uniforms, air);
       if (lod) {
         // the far forest takes over from here — see TREE_RINGS
         shader.vertexShader = shader.vertexShader
@@ -3027,12 +3081,12 @@ export function createProps(THREE, shading) {
           #include <clipping_planes_fragment>`);
       }
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_ATTR_DECL}`)
         .replace('#include <color_vertex>', `#include <color_vertex>
         #if defined( USE_COLOR ) && defined( USE_INSTANCING_COLOR )
           vColor.rgb = mix( color, vColor.rgb, clamp( surfaceOwn, 0.0, 1.0 ) );
         #endif`)
-        .replace('#include <begin_vertex>', SWAY)
+        .replace('#include <begin_vertex>', SWAY_ATTR)
         .replace('#include <project_vertex>', `#include <project_vertex>
         vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );`);
       shader.fragmentShader = shader.fragmentShader
@@ -3112,6 +3166,7 @@ export function createProps(THREE, shading) {
      are, and drawn only where the near trees have dissolved — the vertices of
      every tree still inside the near distance are collapsed to nothing. */
   const impostorMat = (atlas) => {
+    const cw = Math.floor(IMPOSTOR_PX[0] / IMPOSTOR_COLS);
     const m = new THREE.MeshLambertMaterial({
       map: atlas, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide,
     });
@@ -3119,7 +3174,17 @@ export function createProps(THREE, shading) {
     m.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
+        attribute vec4 aImpostor;
         varying float vLodFar;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed = vec3(position.x * aImpostor.x, mix(aImpostor.y, aImpostor.z, position.y), position.z * aImpostor.x);
+        #ifdef USE_MAP
+        {
+          float n64Cw = ${cw.toFixed(1)};
+          float n64Pw = ${IMPOSTOR_PX[0].toFixed(1)};
+          vMapUv.x = mix((aImpostor.w * n64Cw + 0.5) / n64Pw, ((aImpostor.w + 1.0) * n64Cw - 0.5) / n64Pw, uv.x);
+        }
+        #endif`)
         .replace('#include <project_vertex>', `#include <project_vertex>
         vLodFar = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz);
         if (vLodFar < ${TREE_LOD[0].toFixed(1)}) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -3147,16 +3212,16 @@ export function createProps(THREE, shading) {
     return m;
   };
 
-  const spruceDepth = (height, atlas, alphaTest, colored = false) => {
+  const spruceDepth = (atlas, alphaTest, colored = false) => {
     const m = new THREE.MeshDepthMaterial({
       depthPacking: THREE.RGBADepthPacking, map: atlas, alphaTest,
       side: THREE.DoubleSide,
     });
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      Object.assign(shader.uniforms, air);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
-        .replace('#include <begin_vertex>', SWAY);
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_ATTR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY_ATTR);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`);
     };
@@ -3173,16 +3238,18 @@ export function createProps(THREE, shading) {
      `growConifers` for a connection too slow for that). */
   {
     const twig = createTwigAtlas(THREE);
+    const twigMat = spruceMat(twig.texture, { frost: true, alphaTest: 0.22 });
+    const twigDepth = spruceDepth(twig.texture, 0.22);
     for (let i = 0; i < treePools.length; i++) {
       const spec = SPECIES[i % SPECIES.length];
-      const g = weld(THREE, growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i],
-        twig.layout));
+      const g = withSwayHeight(THREE,
+        weld(THREE, growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i], twig.layout)),
+        treeHeights[i]);
       const old = treePools[i].mesh.geometry;
       treePools[i].mesh.geometry = g;
       old.dispose();
-      treePools[i].mesh.material = spruceMat(treeHeights[i], twig.texture,
-        { frost: true, alphaTest: 0.22 });
-      treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], twig.texture, 0.22);
+      treePools[i].mesh.material = twigMat;
+      treePools[i].mesh.customDepthMaterial = twigDepth;
     }
   }
 
@@ -3226,15 +3293,19 @@ export function createProps(THREE, shading) {
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
       t.anisotropy = 8;
+      const needleMat = spruceMat(t, { colored: true });
+      const needleDepth = spruceDepth(t, 0.36, true);
       for (let i = 0; i < treePools.length; i++) {
         if (treeBare[i]) continue;
         const spec = SPECIES[i % SPECIES.length];
-        const g = weld(THREE, growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]));
+        const g = withSwayHeight(THREE,
+          weld(THREE, growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i])),
+          treeHeights[i]);
         const old = treePools[i].mesh.geometry;
         treePools[i].mesh.geometry = g;
         old.dispose();
-        treePools[i].mesh.material = spruceMat(treeHeights[i], t, { colored: true });
-        treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], t, 0.36, true);
+        treePools[i].mesh.material = needleMat;
+        treePools[i].mesh.customDepthMaterial = needleDepth;
       }
     },
     undefined,
@@ -3266,7 +3337,63 @@ export function createProps(THREE, shading) {
      Both files or neither: until both arrive the forest is whatever stood
      before, and if either fails it becomes the card conifers above. */
   let forestLod = false;
-  const impostorMeshes = [];
+  let farForest = null;
+  let farAttr = null;
+  let speciesImpostor = null;
+  let farAheadEnd = 0;
+  function copyTreeSlices(p, fromIdx, toIdx, dstMat, dstCol, dstImp, impTuple, writeIdx, cap) {
+    const avail = toIdx - fromIdx;
+    const count = Math.min(avail, cap - writeIdx);
+    if (count <= 0) return writeIdx;
+    const srcMat = p.mesh.instanceMatrix.array;
+    const srcCol = p.mesh.instanceColor.array;
+    dstMat.set(srcMat.subarray(fromIdx * 16, (fromIdx + count) * 16), writeIdx * 16);
+    dstCol.set(srcCol.subarray(fromIdx * 3, (fromIdx + count) * 3), writeIdx * 3);
+    const a = impTuple[0], b = impTuple[1], c = impTuple[2], d = impTuple[3];
+    for (let k = 0; k < count; k++) {
+      const o = (writeIdx + k) * 4;
+      dstImp[o] = a; dstImp[o + 1] = b; dstImp[o + 2] = c; dstImp[o + 3] = d;
+    }
+    return writeIdx + count;
+  }
+  function fillFarForest() {
+    if (!farForest || !speciesImpostor) return;
+    let n = 0;
+    const dstMat = farForest.instanceMatrix.array;
+    const dstCol = farForest.instanceColor.array;
+    const dstImp = farAttr.array;
+    const cap = farForest.instanceMatrix.count;
+    const ring2 = Math.min(2, nearAheadRings);
+    for (let i = 0; i < treePools.length; i++) {
+      const p = treePools[i], imp = speciesImpostor[i];
+      if (nearAheadRings > 2) {
+        n = copyTreeSlices(p, p.aheadEnds[ring2], p.aheadEnds[nearAheadRings], dstMat, dstCol, dstImp, imp, n, cap);
+      }
+      if (p.n > p.behindEnds[behind]) {
+        n = copyTreeSlices(p, p.behindEnds[behind], p.n, dstMat, dstCol, dstImp, imp, n, cap);
+      }
+    }
+    farAheadEnd = n;
+    const behind2 = Math.min(2, behind);
+    if (behind > 2) {
+      for (let i = 0; i < treePools.length; i++) {
+        const p = treePools[i], imp = speciesImpostor[i];
+        n = copyTreeSlices(p, p.behindEnds[behind2], p.behindEnds[behind], dstMat, dstCol, dstImp, imp, n, cap);
+      }
+    }
+    farForest.count = n;
+    if (n > 0) {
+      farForest.instanceMatrix.clearUpdateRanges();
+      farForest.instanceMatrix.addUpdateRange(0, n * 16);
+      farForest.instanceMatrix.needsUpdate = true;
+      farForest.instanceColor.clearUpdateRanges();
+      farForest.instanceColor.addUpdateRange(0, n * 3);
+      farForest.instanceColor.needsUpdate = true;
+      farAttr.clearUpdateRanges();
+      farAttr.addUpdateRange(0, n * 4);
+      farAttr.needsUpdate = true;
+    }
+  }
   const adoptAlpineForest = (atlas, nodes, impostors) => {
     // Every pool's tree is built before any is swapped: a file missing one
     // species leaves the whole forest as it was rather than half of it.
@@ -3279,16 +3406,18 @@ export function createProps(THREE, shading) {
     atlas.colorSpace = THREE.SRGBColorSpace;
     atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping;
     atlas.anisotropy = 8;
+    const lodOn = !!impostors;
+    const bareMat = spruceMat(atlas, { colored: true, frost: true, alphaTest: 0.22, lod: lodOn });
+    const needleMat = spruceMat(atlas, { colored: true, frost: true, alphaTest: 0.36, lod: lodOn });
+    const bareDepth = spruceDepth(atlas, 0.22, true);
+    const needleDepth = spruceDepth(atlas, 0.36, true);
     built.forEach((g, i) => {
       const mesh = treePools[i].mesh;
       const old = mesh.geometry;
       mesh.geometry = g;
       old.dispose();
-      // Thin bare twigs keep the larch's lower cutout.
-      const cut = treeBare[i] ? 0.22 : 0.36;
-      mesh.material = spruceMat(treeHeights[i], atlas,
-        { colored: true, frost: true, alphaTest: cut, lod: !!impostors });
-      mesh.customDepthMaterial = spruceDepth(treeHeights[i], atlas, cut, true);
+      mesh.material = treeBare[i] ? bareMat : needleMat;
+      mesh.customDepthMaterial = treeBare[i] ? bareDepth : needleDepth;
       trunkReach[i] = reachByRung(g);
     });
     refit();
@@ -3296,31 +3425,47 @@ export function createProps(THREE, shading) {
     impostors.colorSpace = THREE.SRGBColorSpace;
     impostors.wrapS = impostors.wrapT = THREE.ClampToEdgeWrapping;
     impostors.anisotropy = 4;
-    const cardMaterial = impostorMat(impostors);
-    treePools.forEach((pool, i) => {
+    speciesImpostor = treePools.map((_, i) => {
       const node = alpineNode(nodes, i);
-      const cards = new THREE.InstancedMesh(
-        treeImpostorGeometry(THREE, node, treeHeights[i]), cardMaterial, pool.capacity);
-      // the same instances, read from the same buffers the pool writes
-      cards.instanceMatrix = pool.mesh.instanceMatrix;
-      cards.instanceColor = pool.mesh.instanceColor;
-      cards.count = pool.n;
-      cards.frustumCulled = false;
-      cards.castShadow = false;
-      cards.receiveShadow = false;
-      cards.userData.noShadow = true;
-      cards.name = 'far-forest';
-      group.add(cards);
-      impostorMeshes.push(cards);
+      const [col, R, bottom, top] = node.extras.impostor;
+      const k = treeHeights[i] / node.extras.height;
+      return [R * k, bottom * k, top * k, col];
     });
+    const farCapacity = Math.max(1, treePools.reduce((sum, p) => sum + p.capacity, 0));
+    const farGeo = sharedImpostorGeometry(THREE);
+    farAttr = new THREE.InstancedBufferAttribute(new Float32Array(farCapacity * 4), 4);
+    farAttr.setUsage(THREE.DynamicDrawUsage);
+    // Keep slot 0 valid for standalone clones before or between rebuilds.
+    farAttr.array.set(speciesImpostor[0], 0);
+    farGeo.setAttribute('aImpostor', farAttr);
+    farForest = new THREE.InstancedMesh(farGeo, impostorMat(impostors), farCapacity);
+    farForest.setColorAt(0, new THREE.Color(0xffffff));
+    farForest.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    farForest.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    farForest.count = 0;
+    farForest.frustumCulled = false;
+    farForest.castShadow = false;
+    farForest.receiveShadow = false;
+    farForest.userData.noShadow = true;
+    farForest.name = 'far-forest';
+    let farFull = 0;
+    farForest.onBeforeRender = function (renderer, scene, camera) {
+      farFull = this.count;
+      cameraBandWindow(renderer, camera);
+      if (cullLast !== Infinity && Math.max(0, Math.min(behind, cullLast - currentBand)) < 3) {
+        if (farAheadEnd < this.count) this.count = farAheadEnd;
+      }
+    };
+    farForest.onAfterRender = function () { this.count = farFull; };
+    group.add(farForest);
     forestLod = true;
+    fillFarForest();
     // The shader still handles the crossfade and any distant holes inside
     // the prefix; fully faded trailing trees need no vertex invocation.
-    for (const pool of treePools) bindDistancePrefix(pool.mesh, TREE_LOD[1]);
-    // and draw the near trees for the near rings only, from the next rebuild
-    treePools.forEach((p, i) => {
-      p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);
-    });
+    for (const pool of treePools) {
+      bindDistancePrefix(pool.mesh, TREE_LOD[1], (r, c) => frustumCap(pool, nearAheadRings, r, c));
+      pool.mesh.count = Math.min(pool.mesh.count, pool.behindEnds[behind]);
+    }
   };
   track(Promise.all([
     new Promise((resolve, reject) => texLoader.load(
@@ -3374,15 +3519,65 @@ export function createProps(THREE, shading) {
      metres outside the shadow volume: membership remains discrete and cheap,
      but its change is provably invisible. The interval is cached once per
      rendered shadow camera, not recomputed for all twelve tree variants. */
+  let currentBand = NaN;
+  const nearAheadRings = Math.min(TREE_RINGS, ahead);
+  const frustumCorner = new THREE.Vector3();
+  const invProjWorld = new THREE.Matrix4();
+  let cullFrame = -1;
+  let cullCameraId = -1;
+  let cullFirst = -Infinity;
+  let cullLast = Infinity;
+  function cameraBandWindow(renderer, camera) {
+    if (!camera || !Number.isFinite(currentBand)) { cullFirst = -Infinity; cullLast = Infinity; return; }
+    const frame = renderer.info.render.frame;
+    if (frame === cullFrame && camera.id === cullCameraId) return;
+    cullFrame = frame;
+    cullCameraId = camera.id;
+    invProjWorld.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (let sx = -1; sx <= 1; sx += 2) {
+      for (let sy = -1; sy <= 1; sy += 2) {
+        for (let sz = -1; sz <= 1; sz += 2) {
+          frustumCorner.set(sx, sy, sz).applyMatrix4(invProjWorld);
+          if (frustumCorner.z < minZ) minZ = frustumCorner.z;
+          if (frustumCorner.z > maxZ) maxZ = frustumCorner.z;
+        }
+      }
+    }
+    if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+      cullFirst = -Infinity;
+      cullLast = Infinity;
+      return;
+    }
+    cullFirst = Math.floor((minZ - 24) / band);
+    cullLast = Math.floor((maxZ + 24) / band);
+  }
+  function frustumCap(pool, maxAheadRing, renderer, camera) {
+    cameraBandWindow(renderer, camera);
+    if (cullLast === Infinity || !pool.aheadEnds || !pool.behindEnds) return pool.mesh.count;
+    const needBehind = Math.max(0, Math.min(behind, cullLast - currentBand));
+    if (needBehind === 0) {
+      const needAhead = Math.max(0, Math.min(maxAheadRing, currentBand - cullFirst));
+      return pool.aheadEnds[needAhead];
+    }
+    return pool.behindEnds[needBehind];
+  }
+
   const shadowCorner = new THREE.Vector3();
   let shadowFrame = -1;
   let shadowCameraId = -1;
-  let shadowBands = streamSpan;
+  let shadowAhead = ahead;
+  let shadowBehind = behind;
 
   function casterBands(renderer, shadowCamera) {
-    if (!shadowCamera || !Number.isFinite(currentBand)) return streamSpan;
+    if (!shadowCamera || !Number.isFinite(currentBand)) {
+      shadowAhead = ahead;
+      shadowBehind = behind;
+      return;
+    }
     const frame = renderer.info.render.frame;
-    if (frame === shadowFrame && shadowCamera.id === shadowCameraId) return shadowBands;
+    if (frame === shadowFrame && shadowCamera.id === shadowCameraId) return;
 
     shadowFrame = frame;
     shadowCameraId = shadowCamera.id;
@@ -3407,20 +3602,18 @@ export function createProps(THREE, shading) {
        without a branch touching the light frustum on the crossing frame. */
     const first = Math.floor(lo / band) - 2;
     const last = Math.floor(hi / band) + 2;
-    shadowBands = Math.min(streamSpan, Math.max(
-      0,
-      Math.abs(first - currentBand),
-      Math.abs(last - currentBand),
-    ));
-    return shadowBands;
+    shadowAhead = Math.max(0, Math.min(ahead, currentBand - first));
+    shadowBehind = Math.max(0, Math.min(behind, last - currentBand));
   }
 
   function bindShadowPrefix(pool) {
     const mesh = pool.mesh;
     mesh.onBeforeShadow = (renderer, object, camera, shadowCamera) => {
       pool.full = mesh.count;
-      const ring = casterBands(renderer, shadowCamera);
-      const near = pool.shadowEnds[ring];
+      casterBands(renderer, shadowCamera);
+      let near = mesh.count;
+      if (shadowBehind === 0 && shadowAhead <= nearAheadRings) near = pool.aheadEnds[shadowAhead];
+      else if (shadowAhead <= nearAheadRings) near = pool.behindEnds[shadowBehind];
       if (near < mesh.count) mesh.count = near;
     };
     mesh.onAfterShadow = () => {
@@ -3470,7 +3663,11 @@ export function createProps(THREE, shading) {
     Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
   ));
   const scrubPools = shrubPools.concat(plantPools);
-  for (const p of scrubPools) bindDistancePrefix(p.mesh, TREE_LOD[1] + 2.5);
+  for (const p of scrubPools) {
+    p.aheadEnds = new Uint16Array(ahead + 1);
+    p.behindEnds = new Uint16Array(behind + 1);
+    bindDistancePrefix(p.mesh, TREE_LOD[1] + 2.5, (r, c) => frustumCap(p, nearAheadRings, r, c));
+  }
 
   /* The trackside flora draws nothing until its file lands — an empty
      geometry is an InstancedMesh with nothing to submit — and is written by
@@ -3483,7 +3680,12 @@ export function createProps(THREE, shading) {
     (i < COVER_FIRST ? BIOMES.decorCandidates * DECOR_CLUMP_MAX
       : BIOMES.coverCandidates * COVER_CLUMP_MAX) * bands + 16,
   ));
-  for (const p of decorPools) bindDistancePrefix(p.mesh, DECOR_FADE[1] + 2.5);
+  const nearDecorRings = Math.min(DECOR_RINGS, ahead);
+  for (const p of decorPools) {
+    p.aheadEnds = new Uint16Array(ahead + 1);
+    p.behindEnds = new Uint16Array(behind + 1);
+    bindDistancePrefix(p.mesh, DECOR_FADE[1] + 2.5, (r, c) => frustumCap(p, nearDecorRings, r, c));
+  }
 
   /* The first two are the hazard families and stay first: the verge
      boulder picks between them by index. The three after them are granite,
@@ -3644,19 +3846,19 @@ export function createProps(THREE, shading) {
   // fragment, so a sapling is simply not there yet rather than a grey card.
   const clearTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
   clearTex.needsUpdate = true;
-  // A material per kind, each swaying about its own modelled height.
-  const saplingMaterials = SAPLINGS.map((spec) => saplingMat(clearTex, spec.H));
+  // All saplings share one compiled material; `aSwayH` carries each kind's height.
+  const saplingMaterial = saplingMat(clearTex);
   texLoader.load(
     new URL('../assets/textures/tree/sapling-impostors.webp', import.meta.url).href,
     (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
       t.anisotropy = 4;
-      for (const m of saplingMaterials) m.map = t;
+      saplingMaterial.map = t;
     },
   );
-  const saplingPools = SAPLINGS.map((spec, i) => {
-    const pool = new Pool(THREE, saplingCardGeometry(THREE, spec), saplingMaterials[i],
+  const saplingPools = SAPLINGS.map((spec) => {
+    const pool = new Pool(THREE, saplingCardGeometry(THREE, spec), saplingMaterial,
       Math.ceil(bands * YOUNG.candidates * 0.5) + 16, true);
     pool.mesh.name = `sapling-${spec.name}`;
     return pool;
@@ -3722,6 +3924,8 @@ export function createProps(THREE, shading) {
 
   for (const p of rockPools.concat(cragPools, saplingPools, logPools)) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
+    p.aheadEnds = new Uint16Array(ahead + 1);
+    p.behindEnds = new Uint16Array(behind + 1);
     shadowPools.push(p);
     bindShadowPrefix(p);
   }
@@ -3920,6 +4124,9 @@ export function createProps(THREE, shading) {
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
+  const prefixPools = shadowPools.concat(scrubPools, decorPools);
+  const isDecorPool = allPools.map((p) => decorPools.includes(p));
+  const isScrubPool = allPools.map((p) => scrubPools.includes(p));
 
   // --- collision -----------------------------------------------------------
   // Flat array of {x, z, r, kind, top}, rebuilt whenever the bands change.
@@ -4899,8 +5106,9 @@ export function createProps(THREE, shading) {
   // One reused map for the contact re-sharing below; never escapes a replay.
   const contactRemap = new Map();
 
-  function replayBand(rec) {
+  function replayBand(rec, wantDecor = true, wantScrub = true) {
     for (let i = 0; i < allPools.length; i++) {
+      if ((!wantDecor && isDecorPool[i]) || (!wantScrub && isScrubPool[i])) continue;
       const data = rec.pools[i];
       if (!data) continue;
       const pool = allPools[i];
@@ -5001,7 +5209,7 @@ export function createProps(THREE, shading) {
        - a tree struck once would never be struck again. And a gate's `taken`
        is recomputed from `takenGates` rather than restored, which is exactly
        what `place` does, so passing and re-opening gates behave as before. */
-    const placeRemembered = (b) => {
+    const placeRemembered = (b, wantDecor = true, wantScrub = true) => {
       let spacing = spacingByBand.get(b);
       if (spacing === undefined) {
         spacing = currentSpacing;
@@ -5009,7 +5217,7 @@ export function createProps(THREE, shading) {
       }
       const cached = bandCache.get(b);
       if (cached && cached.spacing === spacing) {
-        replayBand(cached);
+        replayBand(cached, wantDecor, wantScrub);
         return;
       }
       const startN = [];
@@ -5018,35 +5226,36 @@ export function createProps(THREE, shading) {
       const gateFrom = gates.length;
       place(b, spacing);
       bandCache.set(b, snapshotBand(spacing, startN, solidFrom, gateFrom));
-    };
-    placeRemembered(bi);
-    for (let i = 0; i < shadowPools.length; i++) {
-      shadowPools[i].shadowEnds[0] = shadowPools[i].n;
-    }
-    let decorEnds = null;
-    let scrubEnds = null;
-    for (let k = 1; k <= streamSpan; k++) {
-      if (k <= behind) placeRemembered(bi + k);
-      if (k <= ahead) placeRemembered(bi - k);
-      for (let i = 0; i < shadowPools.length; i++) {
-        shadowPools[i].shadowEnds[k] = shadowPools[i].n;
+      if (!wantDecor || !wantScrub) {
+        for (let i = 0; i < allPools.length; i++) {
+          if ((!wantDecor && isDecorPool[i]) || (!wantScrub && isScrubPool[i])) allPools[i].n = startN[i];
+        }
       }
-      if (k === DECOR_RINGS) decorEnds = decorPools.map((p) => p.n);
-      if (k === Math.min(TREE_RINGS, streamSpan)) scrubEnds = scrubPools.map((p) => p.n);
+    };
+    // Partition each pool into [near-ahead 0..nearAheadRings][behind 1..behind][far-ahead]
+    // so both camera frustum culling and shadow passes submit contiguous prefixes.
+    for (let k = 0; k <= nearAheadRings; k++) {
+      placeRemembered(bi - k, k <= DECOR_RINGS, true);
+      for (let i = 0; i < prefixPools.length; i++) prefixPools[i].aheadEnds[k] = prefixPools[i].n;
+    }
+    for (let i = 0; i < prefixPools.length; i++) prefixPools[i].behindEnds[0] = prefixPools[i].aheadEnds[nearAheadRings];
+    for (let k = 1; k <= behind; k++) {
+      placeRemembered(bi + k, k <= DECOR_RINGS, k <= TREE_RINGS);
+      for (let i = 0; i < prefixPools.length; i++) prefixPools[i].behindEnds[k] = prefixPools[i].n;
+    }
+    for (let k = nearAheadRings + 1; k <= ahead; k++) {
+      placeRemembered(bi - k, false, false);
     }
 
     allPools.forEach((p) => p.end());
-    // The trees past the nearest rings are drawn as the far forest (see TREE_RINGS).
+    // Near trees stop at the end of Section 2; far-forest impostors take rings >= 3 in one draw call.
     if (forestLod) {
-      treePools.forEach((p, i) => {
-        p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);
-        impostorMeshes[i].count = p.n;
-      });
+      for (let i = 0; i < treePools.length; i++) {
+        const p = treePools[i];
+        p.mesh.count = Math.min(p.mesh.count, p.behindEnds[behind]);
+      }
+      fillFarForest();
     }
-    // The flora past the nearest rings is placed but not drawn (see DECOR_RINGS).
-    if (decorEnds) decorPools.forEach((p, i) => { p.mesh.count = Math.min(p.mesh.count, decorEnds[i]); });
-    // …and the scrub past the near forest's (see `scrubMaterial`); its colliders stay.
-    if (scrubEnds) scrubPools.forEach((p, i) => { p.mesh.count = Math.min(p.mesh.count, scrubEnds[i]); });
 
     const first = bi - ahead;
     const last = bi + behind;
@@ -5061,8 +5270,6 @@ export function createProps(THREE, shading) {
     }
     solidIndex.rebuild();
   }
-
-  let currentBand = NaN;
 
   /* Where the dissolve before the streaming edge finishes — see FRAG_STREAM
      in shading.js. The nearest the far edge of the window can ever be is

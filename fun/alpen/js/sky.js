@@ -1652,7 +1652,7 @@ export function createSky(THREE) {
      has to follow those frame by frame — and so is a restored context, whose
      targets come back empty. Phones refresh at ten Hz; the same exceptions
      still force an immediate update. */
-  const PROBE_EVERY = 1 / (MOBILE_RENDER ? 10 : 20);
+  const PROBE_EVERY = 1 / (MOBILE_RENDER ? 6 : 12);
   let probeAge = Infinity;
   let probeForced = true;
   function refreshProbe() {

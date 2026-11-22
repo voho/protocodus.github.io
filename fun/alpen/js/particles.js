@@ -356,15 +356,13 @@ const VERT = `
   attribute float aStreak;
   attribute float aSeed;
   attribute float aTint;
-  varying float vAlpha;
-  varying float vDepth;
   varying float vStretch;
-  varying float vClip;
   varying float vSoft;
-  varying float vScatter;
-  varying float vGlint;
-  varying float vTint;
   varying vec2 vAxis;
+  varying vec3 vConstCol;
+  varying vec3 vSunCol;
+  varying float vAlphaScale;
+  varying float vAlphaFade;
   uniform float uScale;
   uniform float uWide;
   uniform float uLong;
@@ -381,69 +379,88 @@ const VERT = `
   uniform float uTime;
   uniform vec4 uLamp;      // the rider's headlamp: world position, level
   uniform vec4 uLampDir;   // its axis, and the cone's half-angle
-  varying float vLamp;
-  varying vec3 vHut;
+  uniform vec3 uColor;
+  uniform vec3 uFog;
+  uniform vec3 uSunTint;
+  uniform vec3 uSkyGlow;
+  uniform float uNear;
+  uniform float uFar;
+  uniform vec2 uDepthFade;
+  uniform vec3 uLampColor;
   #define N64_HUT_ISO
   ${HUT_LIGHT_GLSL}
+  ${FOG_CURVE_GLSL}
   void main() {
-    vScatter = 0.0;
-    vGlint = 0.0;
-    vLamp = 0.0;
-    vHut = vec3(0.0);
-    vTint = aTint;
-    /* Gusting. Two sine bands at incommensurate spacings, travelling with
-       the wind, so the field surges and lulls instead of falling evenly. It
-       is written to preserve its own mean — the lulls take out as much as
-       the gusts put back — because otherwise turning the weather up would
-       dim the snow. */
     float g = 1.0;
     if (uGust.x > 0.001) {
       float s = dot(position, uGustDir) * uGust.y + uGust.z;
       float band = (sin(s) * 0.5 + 0.5) * (sin(s * 0.41 + 1.7) * 0.5 + 0.5);
       g = max(0.0, 1.0 + uGust.x * (band * 2.6 - 0.65));
     }
-    vAlpha = aAlpha * g;
-
-    /* An idle particle leaves through the top of the clip volume rather than
-       being drawn transparent.
-
-       This is not a micro-optimisation, it is the reason the pool is allowed
-       to be bigger than the field. A point whose centre is clipped is never
-       rasterised; a point that reaches the fragment stage and discards there
-       has already cost every pixel it covered. Clear weather keeps two
-       thousand flakes on the shelf, and at the size cap each of them would
-       otherwise be paying a thousand discarded fragments a frame for the
-       privilege of being invisible. */
-    if (vAlpha <= 0.002) {
+    float alpha = aAlpha * g;
+    if (alpha <= 0.002) {
+      vAlphaFade = 0.0; vAlphaScale = 0.0; vStretch = 1.0; vSoft = 1.0; vAxis = vec2(1.0, 0.0);
+      vConstCol = vec3(0.0); vSunCol = vec3(0.0);
       gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
       gl_PointSize = 0.0;
       return;
     }
 
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vDepth = -mv.z;
+    float depth = -mv.z;
     vec4 clip = projectionMatrix * mv;
     gl_Position = clip;
 
-    /* Forward scatter. A flake between the eye and a low sun is backlit, and
-       backlit ice is brighter than frontlit ice — most of the light goes
-       straight through and out the near side. One dot of the view direction
-       against the sun, raised to the fourth so it is a lobe around the sun
-       rather than a wash over the sky, gated to a low sun because at noon the
-       same physics is happening but nobody can see it against the glare, and
-       scaled by the sun's level so a night sky does not backlight anything.
-       The uniforms are the shading module's own objects, shared by reference,
-       so this costs no copying and can never disagree with the terrain about
-       where the sun is. */
+    vec3 flowView = (viewMatrix * vec4(uFlow, 0.0)).xyz;
+    vec4 was = projectionMatrix * (mv + vec4(flowView * uExposure, 0.0));
+    vec2 a = clip.xy / max(clip.w, 0.02);
+    vec2 b = was.xy / max(was.w, 0.02);
+    vec2 d = (b - a) * uHalfRes;
+
+    float wide = aSize * uScale / max(depth, 0.01);
+    float reach = wide + length(d) * aStreak;
+    float w = min(wide, uWide);
+    float l = min(max(reach, w), uLong);
+    float clipFade = min(
+      min(1.0, uWide / max(wide, 0.01)),
+      min(1.0, (uLong * 1.4) / max(reach, 0.01)));
+    float depthFade = smoothstep(uDepthFade.x, uDepthFade.y, depth);
+    float fogT = n64FogCurve(depth, uNear, uFar, n64ClearAir(uSnowFresh));
+    vAlphaFade = clipFade * clipFade * depthFade * (1.0 - fogT);
+    if (vAlphaFade <= 0.002) {
+      vAlphaScale = 0.0; vStretch = 1.0; vSoft = 1.0; vAxis = vec2(1.0, 0.0);
+      vConstCol = vec3(0.0); vSunCol = vec3(0.0);
+      gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+      gl_PointSize = 0.0;
+      return;
+    }
+
+    gl_PointSize = max(l, 1.0);
+    vStretch = l / max(w, 0.01);
+    vSoft = mix(0.95, 2.8, smoothstep(2.5, 18.0, l));
+    vAxis = normalize(vec2(d.x, -d.y) + vec2(1e-5, 0.0));
+
     float sd = max(dot(normalize(mv.xyz), uSunView), 0.0);
     sd *= sd;
     float low = 1.0 - smoothstep(0.08, 0.42, uSunDir.y);
-    vScatter = sd * sd * low * min(uSunLevel, 1.3);
+    float scatter = sd * sd * low * min(uSunLevel, 1.3);
 
-    /* Flakes in the headlamp's beam. A head torch in falling snow is seen
-       in the snow it lights more than on the ground: every flake inside the
-       cone is a lit point, brightest close in. The same profile and inverse
-       square the lit snow uses — see POOL_FRAG in headlamp.js. */
+    float glint = 0.0;
+    if (uGlint > 0.5) {
+      float tw = fract(aSeed * 63.0 + uTime * (0.5 + aSeed * 0.4));
+      glint = (smoothstep(0.955, 0.975, tw) - smoothstep(0.975, 0.995, tw))
+        * (1.0 - smoothstep(3.5, 9.0, l))
+        * (1.0 - smoothstep(6.0, 16.0, depth))
+        * (1.0 - uSnowFresh) * min(uSunLevel, 1.0);
+      if (aTint < -0.5) {
+        float cw = fract(aSeed * 17.0 + uTime * (1.4 + aSeed * 2.2));
+        glint = (smoothstep(0.0, 0.06, cw) - smoothstep(0.08, 0.30, cw))
+          * (1.0 - smoothstep(10.0, 28.0, depth))
+          * (1.0 - uSnowFresh * 0.7) * min(uSunLevel, 1.0);
+      }
+    }
+
+    float lamp = 0.0;
     if (uLamp.w > 0.002) {
       vec3 toFlake = (modelMatrix * vec4(position, 1.0)).xyz - uLamp.xyz;
       float d2 = max(dot(toFlake, toFlake), 0.25);
@@ -451,168 +468,62 @@ const VERT = `
         / uLampDir.w;
       float profile = exp(-8.5 * x * x) * 1.75
         + exp(-2.2 * x * x) * (1.0 - smoothstep(0.65, 1.0, x));
-      vLamp = uLamp.w * profile * min(9.0 / d2, 4.0);
+      lamp = min(uLamp.w * profile * min(9.0 / d2, 4.0), 1.0);
     }
-    /* …and the huts' lamps. In a night snowfall a hut's light is seen in the
-       snow it falls through as much as on the ground: the flakes round the
-       lantern, and the ones crossing the light out of a window, which draws
-       the window's beam in the air. The same light the snow and the timber
-       get — see FRAG_HUT_LIGHT in shading.js. */
+
+    vec3 hut = vec3(0.0);
     if (uHutWarm.r > 0.0) {
-      vHut = n64HutLight((modelMatrix * vec4(position, 1.0)).xyz - cameraPosition,
+      hut = n64HutLight((modelMatrix * vec4(position, 1.0)).xyz - cameraPosition,
         vec3(0.0, 1.0, 0.0));
     }
 
-    vec3 flowView = (viewMatrix * vec4(uFlow, 0.0)).xyz;
-    vec4 was = projectionMatrix * (mv + vec4(flowView * uExposure, 0.0));
-    // A particle level with the eye divides by nothing. It is also outside
-    // the frustum, so the number it gets is only required to be finite.
-    vec2 a = clip.xy / max(clip.w, 0.02);
-    vec2 b = was.xy / max(was.w, 0.02);
-    vec2 d = (b - a) * uHalfRes;
-
-    // The two sizes: how wide this is on screen, and how far the smear
-    // reaches. Only the first is capped for being a blob.
-    float wide = aSize * uScale / max(vDepth, 0.01);
-    float reach = wide + length(d) * aStreak;
-    float w = min(wide, uWide);
-    /* min-after-max rather than clamp: GLSL's clamp is undefined when its
-       bounds cross, and on the one driver where the caps ever meet that
-       undefined result is exactly the oversize point this is preventing. */
-    float l = min(max(reach, w), uLong);
-    gl_PointSize = max(l, 1.0);
-    vStretch = l / max(w, 0.01);
-    /* Fade against both visual caps. Near-lens grains dissolve as their
-       width or motion smear outgrows the sprite, instead of collecting at
-       one fixed size. The length allowance preserves ordinary short smears. */
-    vClip = min(
-      min(1.0, uWide / max(wide, 0.01)),
-      min(1.0, (uLong * 1.4) / max(reach, 0.01)));
-    // Small sprites need every pixel they have and want a nearly flat top;
-    // a big one is a puff of air and must not have an edge anywhere on it.
-    vSoft = mix(0.95, 2.8, smoothstep(2.5, 18.0, l));
-    vAxis = normalize(vec2(d.x, -d.y) + vec2(1e-5, 0.0));
-
-    /* Ice glitter, spray only. A hard grain of thrown crust is a crystal, and
-       a crystal facet catching the sun is a flash, not a glow. Each particle
-       carries a random seed set when it was emitted, and a moving window over
-       fract(seed + time) lets a few per cent of the grains flash per second,
-       each at its own moment and its own rate. It is confined to the small
-       hard sprites — a big soft puff has no facets — and to the near field,
-       and a storm takes it away entirely: under a whiteout the sun that would
-       have made the flash is already gone. */
-    if (uGlint > 0.5) {
-      float tw = fract(aSeed * 63.0 + uTime * (0.5 + aSeed * 0.4));
-      vGlint = (smoothstep(0.955, 0.975, tw) - smoothstep(0.975, 0.995, tw))
-        * (1.0 - smoothstep(3.5, 9.0, l))
-        * (1.0 - smoothstep(6.0, 16.0, vDepth))
-        * (1.0 - uSnowFresh) * min(uSunLevel, 1.0);
-      /* The max-flow wake is loose ice crystals rather than crust, and a
-         crystal tumbling through the light flashes several times a second
-         instead of once in twenty. Its window is wide, its rate fast and
-         its own, and it keeps flashing at any size — the sprite is tiny by
-         construction — while still answering to the sun and the storm. */
-      if (aTint < -0.5) {
-        float cw = fract(aSeed * 17.0 + uTime * (1.4 + aSeed * 2.2));
-        vGlint = (smoothstep(0.0, 0.06, cw) - smoothstep(0.08, 0.30, cw))
-          * (1.0 - smoothstep(10.0, 28.0, vDepth))
-          * (1.0 - uSnowFresh * 0.7) * min(uSunLevel, 1.0);
-      }
-    }
+    // Fold vertex-invariant colour, scatter, glint, lamp, hut light and haze into two linear terms.
+    vAlphaScale = alpha * (1.0 + scatter * 0.35) * (1.0 + glint * 1.6)
+      * (1.0 + lamp * 1.5)
+      * (1.0 + min(dot(hut, vec3(0.068, 0.228, 0.023)), 1.0) * 1.5);
+    vec3 c0 = mix(
+      mix(uColor, uFog, max(aTint, 0.0) * 0.35),
+      mix(uColor, uSunTint, 0.55),
+      clamp(-aTint, 0.0, 1.0));
+    c0 = mix(c0, mix(uSunTint, uSkyGlow, 0.35), min(scatter * 0.7, 0.7));
+    float litGain = 0.36 * min(uSunLevel, 1.3);
+    float kG = glint * 0.85;
+    float kL = lamp * 0.85;
+    float fogMix = fogT * 0.8;
+    float keep = (1.0 - kG) * (1.0 - kL) * (1.0 - fogMix);
+    vec3 addCol = mix(mix(vec3(kG), uLampColor, kL) + hut * 0.3183, uFog, fogMix);
+    vSunCol = c0 * (litGain * keep);
+    vConstCol = c0 * ((1.0 - 0.5 * litGain) * keep) + addCol;
   }
 `;
 
 const FRAG = `
   precision mediump float;
-  uniform vec3 uColor;
-  uniform vec3 uFog;
-  uniform vec3 uSunTint;
-  uniform vec3 uSkyGlow;
-  /* Explicitly highp, because the vertex stage above is a highp shader and
-     declares these same two uniforms: a uniform whose precision differs
-     between the stages is a link error, not a warning, and it takes the
-     whole point cloud with it. */
   uniform highp vec3 uSunView;
-  uniform highp float uSunLevel;
-  uniform highp float uSnowFresh;
-  uniform float uNear;
-  uniform float uFar;
-  uniform vec2 uDepthFade;
-  uniform vec3 uLampColor;
-  varying float vAlpha;
-  varying float vDepth;
   varying float vStretch;
-  varying float vClip;
   varying float vSoft;
-  varying float vScatter;
-  varying float vGlint;
-  varying float vTint;
-  varying float vLamp;
-  varying vec3 vHut;
   varying vec2 vAxis;
-  ${FOG_CURVE_GLSL}
+  varying vec3 vConstCol;
+  varying vec3 vSunCol;
+  varying float vAlphaScale;
+  varying float vAlphaFade;
   void main() {
-    if (vAlpha <= 0.002) discard;
+    if (vAlphaFade <= 0.002) discard;
     vec2 d = gl_PointCoord - 0.5;
     vec2 across = vec2(-vAxis.y, vAxis.x);
     vec2 q = vec2(dot(d, vAxis), dot(d, across) * vStretch);
     float r = dot(q, q);
     if (r > 0.25) discard;
-    // One smooth peak rather than a disc with a rim. The rim is what read as
-    // a bubble; a falling exponent is what reads as powder.
+    // One smooth peak rather than a disc with a rim; Chebyshev cos(6 theta) avoids atan + trig.
     float k = max(1.0 - r * 4.0, 0.0001);
-    float hex = 1.0 + 0.12 * cos(atan(q.y, q.x) * 6.0)
+    float c2 = (q.x * q.x - q.y * q.y) / max(r, 1e-6);
+    float hex = 1.0 + 0.12 * c2 * (4.0 * c2 * c2 - 3.0)
       * smoothstep(0.02, 0.16, r) * (1.0 - smoothstep(1.3, 2.2, vStretch));
-    float a = vAlpha * pow(k, vSoft) * hex;
-    // A field of identical flakes reads as a pattern; each one leaning its
-    // own fixed step towards the haze reads as depth the field does not have.
-    // Below zero the tint runs towards the max-flow crystals instead — the
-    // same lerp continued, not a branch, so the whole field pays nothing for
-    // a feature only that wake uses. A crystal is lit ice, so it leans
-    // towards the key's own hue: white at noon, gold at dusk, cold under the
-    // moon. It was a fixed ember orange, the one colour on the mountain that
-    // no light on it could have made.
-    vec3 col = mix(
-      mix(uColor, uFog, max(vTint, 0.0) * 0.35),
-      mix(uColor, uSunTint, 0.55),
-      clamp(-vTint, 0.0, 1.0));
-    // The backlit lift: the sun's own hue folded into the flake, and a modest
-    // raise in coverage, strongest looking straight down the light. The mix
-    // is capped so a flake never becomes a lamp, only a lit flake.
-    col = mix(col, mix(uSunTint, uSkyGlow, 0.35), min(vScatter * 0.7, 0.7));
-    a *= 1.0 + vScatter * 0.35;
-    /* The front-lit half. Backscatter above only exists against a low sun;
-       under a high one a plume was a flat disc of haze colour. A puff is
-       roughly a ball, so its sprite gets a ball's normal — the point
-       coordinate lifted into view space, y flipped to match the axis
-       above — and a wrapped Lambert against the same sun the ground uses:
-       a lit side and a shaded side, faintly, because powder is translucent
-       and its dark side is only a little dark. Gone with the sun. */
+    float a = min(pow(k, vSoft) * hex * vAlphaScale, 1.0) * vAlphaFade;
     vec2 dn = d * 2.0;
     vec3 puff = vec3(dn.x, -dn.y, sqrt(max(0.0, 1.0 - dot(dn, dn))));
     float lit = 0.5 + 0.5 * dot(puff, uSunView);
-    col *= 1.0 + (lit - 0.5) * 0.36 * min(uSunLevel, 1.3);
-    // …and the glint, which is the one legal exception to "snow is never
-    // white": a facet flashing the sun back is a specular event, not a body
-    // colour, and it is brief, rare, near, and gone in a storm.
-    col = mix(col, vec3(1.0), vGlint * 0.85);
-    a = min(a * (1.0 + vGlint * 1.6), 1.0);
-    // …and the headlamp: a flake in the beam takes its colour and stands out.
-    float lamp = min(vLamp, 1.0);
-    col = mix(col, uLampColor, lamp * 0.85);
-    a = min(a * (1.0 + lamp * 1.5), 1.0);
-    // …and the huts' lamps, added as light on a white flake (albedo over pi),
-    // the brighter it is lit the more it stands out
-    col += vHut * 0.3183;
-    a = min(a * (1.0 + min(dot(vHut, vec3(0.068, 0.228, 0.023)), 1.0) * 1.5), 1.0);
-    // Anything the width cap is clipping is on its way to being a sheet
-    // across the lens, and dissolves at the rate it would have grown
-    a *= vClip * vClip;
-    // …and anything inside arm's reach of it has gone regardless
-    a *= smoothstep(uDepthFade.x, uDepthFade.y, vDepth);
-    // The surfaces' own haze, so a flake fades with the slope behind it
-    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
-    gl_FragColor = vec4(mix(col, uFog, f * 0.8), a * (1.0 - f));
+    gl_FragColor = vec4(vConstCol + vSunCol * lit, a);
   }
 `;
 

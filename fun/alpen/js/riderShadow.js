@@ -47,6 +47,7 @@ export function createRiderShadow(THREE, renderer, shading) {
   const chest = new THREE.Vector3(0, 0.9, 0);
   const up = new THREE.Vector3();
   const toCamera = new THREE.Matrix4();
+  const hidden = [];
   // NDC to texture space, as three builds its own shadow matrices
   const bias = new THREE.Matrix4().set(
     0.5, 0, 0, 0.5,
@@ -64,7 +65,7 @@ export function createRiderShadow(THREE, renderer, shading) {
      inverted rider by nearly two metres. `level` is how much the sun's
      shadow is worth right now; at zero the pass is skipped and the receivers
      ignore it. */
-  function update(scene, root, view, level) {
+  function update(scene, root, view, level, lights = null) {
     u.uRiderShadowLevel.value = level;
     if (level <= 0.001) return;
 
@@ -85,10 +86,23 @@ export function createRiderShadow(THREE, renderer, shading) {
     const autoClear = renderer.autoClear;
     const previous = renderer.getRenderTarget();
     /* Only the rider is drawn here, so only the rider's matrices have to be
-       current. Left to the render, this pass updated every matrix in the
-       scene a second time each frame; the frame's own render does that. */
+       current, and non-rider branches stay hidden so Three does not walk
+       every terrain/forest/backdrop object to test layer membership. Keep
+       `lights` visible so WebGLLights state matches the main pass. */
     const autoWorld = scene.matrixWorldAutoUpdate;
     root.updateMatrixWorld();
+    let branch = root;
+    while (branch && branch.parent !== scene) branch = branch.parent;
+    let lightsBranch = lights;
+    while (lightsBranch && lightsBranch.parent !== scene) lightsBranch = lightsBranch.parent;
+    const children = scene.children;
+    for (let i = 0; i < children.length; i++) {
+      const c = children[i];
+      if (c.visible && c !== branch && c !== lightsBranch && !c.isLight) {
+        c.visible = false;
+        hidden.push(c);
+      }
+    }
     scene.matrixWorldAutoUpdate = false;
     renderer.shadowMap.autoUpdate = false;
     renderer.shadowMap.needsUpdate = false;
@@ -96,13 +110,18 @@ export function createRiderShadow(THREE, renderer, shading) {
     scene.overrideMaterial = depth;
     renderer.setRenderTarget(target);
     renderer.clear(false, true, false);
-    renderer.render(scene, camera);
-    scene.overrideMaterial = null;
-    scene.matrixWorldAutoUpdate = autoWorld;
-    renderer.setRenderTarget(previous);
-    renderer.autoClear = autoClear;
-    renderer.shadowMap.autoUpdate = autoUpdate;
-    renderer.shadowMap.needsUpdate = needsUpdate;
+    try {
+      renderer.render(scene, camera);
+    } finally {
+      for (let i = 0; i < hidden.length; i++) hidden[i].visible = true;
+      hidden.length = 0;
+      scene.overrideMaterial = null;
+      scene.matrixWorldAutoUpdate = autoWorld;
+      renderer.setRenderTarget(previous);
+      renderer.autoClear = autoClear;
+      renderer.shadowMap.autoUpdate = autoUpdate;
+      renderer.shadowMap.needsUpdate = needsUpdate;
+    }
 
     // World offsets from the main camera in, box texture space out
     toCamera.makeTranslation(view.matrixWorld.elements[12],
