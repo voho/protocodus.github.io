@@ -2,3 +2,5 @@
 /fun/zipper/index.html /fun/puzzles/?game=zipper 301
 /fun/patcher/ /fun/puzzles/?game=patcher 301
 /fun/patcher/index.html /fun/puzzles/?game=patcher 301
+/fun/hedgerow/ /fun/ 301
+/fun/hedgerow/* /fun/ 301

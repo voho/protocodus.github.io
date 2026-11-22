@@ -96,12 +96,11 @@ only its numeric playlist index, never its title or creator metadata.
 Game starts come from the game state, rather than a Play-link click. Pausing does
 not start another attempt. Zipper/Patcher start at the first move and record
 difficulty, daily/puzzle mode, active solve time and hints used. Tyran reports each
-sector attempt, Meteora each mission attempt, Ashline each operation/skirmish,
-and Hedgerow each mission/checkpoint attempt. Ashline identifies campaign,
-training, relay, survival and skirmish, with authored mission, difficulty and
-displayed end score. Hedgerow includes normalized difficulty, fixed level,
-checkpoint and retry action. Alpen is endless: it reports drop-ins and restarts
-with the authored chapter, without inventing a win or loss.
+sector attempt, Meteora each mission attempt and Ashline each operation/skirmish.
+Ashline identifies campaign, training, relay, survival and skirmish, with
+authored mission, difficulty and displayed end score. Alpen is endless: it
+reports drop-ins and restarts with the authored chapter, without inventing a
+win or loss.
 
 The site cannot observe purchases completed on Reason Studios, download
 completion, or visitors who block analytics. `shop_click` is **not** a `purchase`,
