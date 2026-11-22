@@ -110,54 +110,121 @@ export const own=(s,t,type)=>{
 export const completed=(s,t,type)=>own(s,t,type).some(e=>e.kind==='building'&&e.progress>=1);
 export const definition=e=>e.kind==='building'?BUILDINGS[e.type]:UNITS[e.type];
 // Per-step spatial state is derived, never serialized. Ordering stays identical to entities.
-const spatialStates=new WeakMap(),SPATIAL_CELL=6;
+const spatialStates=new WeakMap(),spatialPool=new WeakMap(),SPATIAL_CELL=6,SPATIAL_PAD=16;
+let orderScratch=new Int32Array(512);
 // Integer keys for integer grid buckets; on-map coordinates stay far inside the 16-bit fields.
 export const bucketKey=(x,y)=>(y+64)*65536+x+64;
-const spatialKey=e=>{const p=center(e);return bucketKey(Math.floor(p.x/SPATIAL_CELL),Math.floor(p.y/SPATIAL_CELL));};
-const bumpVersion=(versions,key)=>versions.set(key,(versions.get(key)||0)+1);
+function getSpatialBuffer(s){
+  const gridW=Math.ceil(s.width/SPATIAL_CELL)+SPATIAL_PAD*2,gridH=Math.ceil(s.height/SPATIAL_CELL)+SPATIAL_PAD*2,size=gridW*gridH;
+  let pool=spatialPool.get(s);
+  if(!pool||pool.gridW!==gridW||pool.gridH!==gridH){
+    pool={gridW,gridH,buckets:new Array(size),versions:new Uint32Array(size),dirty:[],gen:1,entries:new Map(),list:[],queries:new Map(),overflowBuckets:null,overflowVersions:null};
+    spatialPool.set(s,pool);
+  }else{
+    const {buckets,dirty}=pool;
+    for(let i=0;i<dirty.length;i++)buckets[dirty[i]].length=0;
+    dirty.length=0;pool.gen++;
+    pool.entries.clear();pool.list.length=0;pool.queries.clear();
+    if(pool.overflowBuckets){pool.overflowBuckets.clear();pool.overflowVersions.clear();}
+  }
+  return pool;
+}
 function indexEntity(s,e){
   const spatial=spatialStates.get(s);if(!spatial)return;
-  const key=spatialKey(e),previous=spatial.entries.get(e.id);
-  if(previous?.key===key)return;
+  const p=center(e),gx=Math.floor(p.x/SPATIAL_CELL)+SPATIAL_PAD,gy=Math.floor(p.y/SPATIAL_CELL)+SPATIAL_PAD;
+  const inGrid=gx>=0&&gx<spatial.gridW&&gy>=0&&gy<spatial.gridH;
+  const key=inGrid?gy*spatial.gridW+gx:bucketKey(gx-SPATIAL_PAD,gy-SPATIAL_PAD);
+  const previous=spatial.entries.get(e.id);
+  if(previous&&previous.inGrid===inGrid&&previous.key===key)return;
   // Only the two touched buckets change membership; cached rectangles check their bucket versions.
   spatial.version++;
-  bumpVersion(spatial.versions,key);
-  if(previous){bumpVersion(spatial.versions,previous.key);const bucket=spatial.buckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);}
-  const entry={e,key,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);spatial.list[entry.index]=e;
+  if(inGrid){spatial.versions[key]++;}
+  else{spatial.overflowVersions??=new Map();spatial.overflowVersions.set(key,(spatial.overflowVersions.get(key)||0)+1);}
+  if(previous){
+    if(previous.inGrid){
+      spatial.versions[previous.key]++;
+      const bucket=spatial.buckets[previous.key];bucket.splice(bucket.indexOf(previous),1);
+    }else{
+      spatial.overflowVersions.set(previous.key,(spatial.overflowVersions.get(previous.key)||0)+1);
+      const bucket=spatial.overflowBuckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);
+    }
+  }
+  const entry={e,key,inGrid,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);spatial.list[entry.index]=e;
   if(!previous){
     const owned=spatial.owned[e.team];owned.all.push(e);
     const role=entityRole(e);
-    for(const type of e.type===role?[role]:[e.type,role]){
-      if(!owned.types.has(type))owned.types.set(type,[]);owned.types.get(type).push(e);
-    }
+    let list=owned.types.get(e.type);if(!list){list=[];owned.types.set(e.type,list);}list.push(e);
+    if(role!==e.type){list=owned.types.get(role);if(!list){list=[];owned.types.set(role,list);}list.push(e);}
   }
-  if(!spatial.buckets.has(key))spatial.buckets.set(key,[]);spatial.buckets.get(key).push(entry);
+  if(inGrid){
+    let bucket=spatial.buckets[key];
+    if(!bucket){bucket=[];spatial.buckets[key]=bucket;}
+    if(bucket.dirtyGen!==spatial.gen){bucket.dirtyGen=spatial.gen;spatial.dirty.push(key);}
+    bucket.push(entry);
+  }else{
+    spatial.overflowBuckets??=new Map();
+    let bucket=spatial.overflowBuckets.get(key);
+    if(!bucket){bucket=[];spatial.overflowBuckets.set(key,bucket);}
+    bucket.push(entry);
+  }
 }
 function beginSpatialStep(s){
-  spatialStates.set(s,{buckets:new Map(),versions:new Map(),version:0,entries:new Map(),list:[],queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
-  for(const e of s.entities)if(alive(e))indexEntity(s,e);
+  const pool=getSpatialBuffer(s);
+  pool.version=0;pool.owned=[{all:[],types:new Map()},{all:[],types:new Map()}];pool.nextIndex=0;pool.flock=createFlockSnapshot(s.entities);
+  spatialStates.set(s,pool);
+  const entities=s.entities;
+  for(let i=0;i<entities.length;i++){const e=entities[i];if(e.hp>0)indexEntity(s,e);}
 }
 function nearbyEntities(s,p,r){
   const spatial=spatialStates.get(s);if(!spatial)return s.entities;
   const left=Math.floor((p.x-r)/SPATIAL_CELL),right=Math.floor((p.x+r)/SPATIAL_CELL),top=Math.floor((p.y-r)/SPATIAL_CELL),bottom=Math.floor((p.y+r)/SPATIAL_CELL);
-  const {versions,queries}=spatial,key=((left+64)*1024+right+64)*1048576+(top+64)*1024+bottom+64,cached=queries.get(key);
+  const {gridW,gridH,buckets,versions,queries}=spatial,key=((left+64)*1024+right+64)*1048576+(top+64)*1024+bottom+64,cached=queries.get(key);
+  const cx0=left+SPATIAL_PAD,cx1=right+SPATIAL_PAD,cy0=top+SPATIAL_PAD,cy1=bottom+SPATIAL_PAD;
+  const fastBounds=cx0>=0&&cx1<gridW&&cy0>=0&&cy1<gridH;
   if(cached){
     if(cached.version===spatial.version)return cached.result;
-    let valid=true,n=0;
-    for(let y=top;y<=bottom&&valid;y++)for(let x=left;x<=right&&valid;x++)valid=(versions.get(bucketKey(x,y))||0)===cached.stamp[n++];
+    let valid=true,n=0;const stamp=cached.stamp;
+    if(fastBounds){
+      for(let gy=cy0;gy<=cy1;gy++){const row=gy*gridW;for(let gx=cx0;gx<=cx1;gx++)if(versions[row+gx]!==stamp[n++]){valid=false;break;}if(!valid)break;}
+    }else{
+      const ov=spatial.overflowVersions;
+      for(let y=top;y<=bottom&&valid;y++)for(let x=left;x<=right&&valid;x++){
+        const gx=x+SPATIAL_PAD,gy=y+SPATIAL_PAD;
+        const v=(gx>=0&&gx<gridW&&gy>=0&&gy<gridH)?versions[gy*gridW+gx]:(ov?.get(bucketKey(x,y))||0);
+        valid=v===stamp[n++];
+      }
+    }
     if(valid){cached.version=spatial.version;return cached.result;}
   }
-  const found=[],stamp=[];let count=0;
-  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
-    const k=bucketKey(x,y),bucket=spatial.buckets.get(k);stamp.push(versions.get(k)||0);
-    if(bucket){found.push(bucket);count+=bucket.length;}
+  const cellCount=(cx1-cx0+1)*(cy1-cy0+1),found=[],stamp=new Uint32Array(cellCount);let count=0,sn=0;
+  if(fastBounds){
+    for(let gy=cy0;gy<=cy1;gy++){
+      const row=gy*gridW;
+      for(let gx=cx0;gx<=cx1;gx++){
+        const idx=row+gx,bucket=buckets[idx];stamp[sn++]=versions[idx];
+        if(bucket&&bucket.length){found.push(bucket);count+=bucket.length;}
+      }
+    }
+  }else{
+    const ob=spatial.overflowBuckets,ov=spatial.overflowVersions;
+    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
+      const gx=x+SPATIAL_PAD,gy=y+SPATIAL_PAD;
+      if(gx>=0&&gx<gridW&&gy>=0&&gy<gridH){
+        const idx=gy*gridW+gx,bucket=buckets[idx];stamp[sn++]=versions[idx];
+        if(bucket&&bucket.length){found.push(bucket);count+=bucket.length;}
+      }else{
+        const k=bucketKey(x,y),bucket=ob?.get(k);stamp[sn++]=ov?.get(k)||0;
+        if(bucket&&bucket.length){found.push(bucket);count+=bucket.length;}
+      }
+    }
   }
   // Entry indices are unique integers; a plain numeric typed-array sort orders them without comparator calls.
-  const order=new Int32Array(count);let n=0;
-  for(const bucket of found)for(let i=0;i<bucket.length;i++)order[n++]=bucket[i].index;
-  order.sort();
-  const result=[],list=spatial.list;
-  for(let i=0;i<count;i++)result.push(list[order[i]]);
+  if(orderScratch.length<count)orderScratch=new Int32Array(Math.max(orderScratch.length*2,count));
+  let n=0;
+  for(let f=0;f<found.length;f++){const bucket=found[f];for(let i=0;i<bucket.length;i++)orderScratch[n++]=bucket[i].index;}
+  orderScratch.subarray(0,count).sort();
+  const result=new Array(count),list=spatial.list;
+  for(let i=0;i<count;i++)result[i]=list[orderScratch[i]];
   // Callers filter live positions; membership/order only changes on bucket moves
   // and births. Bound retained queries even for unusually scattered armies.
   if(queries.size>=256)queries.clear();
@@ -165,11 +232,14 @@ function nearbyEntities(s,p,r){
 }
 
 export function unitRank(e){return e?.kind==='unit'?Math.min(3,Math.floor(Math.max(0,e.kills||0)/5)):0;}
+// Scalar fast paths avoid allocating {rank,hp,...} stats objects on hot simulation ticks.
+function unitSpeed(e){const d=UNITS[e.type];return d.speed*(1+unitRank(e)*.05)*(d.armor!=='infantry'&&e.tech?.includes('mobility')?1.15:1);}
+const unitBaseRange=e=>UNITS[e.type].range;
 // Each rank adds 20% damage and maximum HP but only 5% speed, so veterans keep pace with their formation.
 export function unitStats(e){
   const d=UNITS[e?.type];if(!d)return null;
-  const rank=unitRank(e),bonus=1+rank*.2,tech=e.tech||[],infantry=d.armor==='infantry';
-  return{rank,hp:d.hp*bonus*(infantry&&tech.includes('infantryArmor')?1.2:1),damage:d.damage*bonus*(tech.includes(infantry?'infantryWeapons':'vehicleWeapons')?1.18:1)*(tech.includes('advancedBallistics')&&['rocket','artillery'].includes(entityRole(e))?1.1:1),speed:d.speed*(1+rank*.05)*(!infantry&&tech.includes('mobility')?1.15:1),range:d.range};
+  const rank=unitRank(e),bonus=1+rank*.2,tech=e.tech||[],infantry=d.armor==='infantry',role=entityRole(e);
+  return{rank,hp:d.hp*bonus*(infantry&&tech.includes('infantryArmor')?1.2:1),damage:d.damage*bonus*(tech.includes(infantry?'infantryWeapons':'vehicleWeapons')?1.18:1)*(tech.includes('advancedBallistics')&&(role==='rocket'||role==='artillery')?1.1:1),speed:d.speed*(1+rank*.05)*(!infantry&&tech.includes('mobility')?1.15:1),range:d.range};
 }
 // Firing range including a temporary ability bonus. Defend leashes keep the unit's base range.
 export function unitRange(s,u){return UNITS[u.type].range+abilityRange(s,u);}
@@ -727,7 +797,7 @@ export function issueOrder(s,ids,order){
   for(const group of groups.values()){
     const preserve=Number.isFinite(order.formationAngle),formation=preserve?{angle:order.formationAngle,offsets:order.formationOffsets,facing:order.facing}:undefined;
     const goals=movementDestinations(s,group.map(p=>p.u),group[0].x,group[0].y,formation);
-    const pace=preserve&&group.length>1?Math.min(...group.map(p=>unitStats(p.u).speed)):undefined;
+    const pace=preserve&&group.length>1?Math.min(...group.map(p=>unitSpeed(p.u))):undefined;
     const turnPace=preserve&&group.length>1?Math.min(...group.map(p=>movementTurnRate(p.u))):undefined;
     for(const p of group){const goal=goals.get(p.u.id);if(goal){p.x=goal.x;p.y=goal.y;p.formation=goal.formation;p.speedLimit=pace;p.turnRateLimit=turnPace;p.facing=preserve&&Number.isFinite(order.facing)?Math.atan2(Math.sin(order.facing),Math.cos(order.facing)):undefined;}else p.type=entityRole(p.u)==='harvester'?'harvest':'idle';}
   }
@@ -776,6 +846,12 @@ function updateFog(s){
 // A* searches static terrain/buildings. Units use local separation instead of blocking routes.
 // A fixed search budget spreads obstructed army orders across ticks; direct open routes bypass A*.
 let pathBudget=16,scratch={N:0};
+const PATH_DX=new Int8Array([-1,0,1,-1,1,-1,0,1]),PATH_DY=new Int8Array([-1,-1,-1,0,0,1,1,1]),PATH_DIAG=new Uint8Array([1,0,1,0,0,1,0,1]);
+function heapPush(cells,scores,size,i,f){
+  let p=size++;
+  while(p){const q=(p-1)>>1;if(scores[q]<=f)break;cells[p]=cells[q];scores[p]=scores[q];p=q;}
+  cells[p]=i;scores[p]=f;return size;
+}
 function findPath(s,u,tx,ty,stop=0){
   if(clearStep(s,u,tx,ty))return[{x:tx,y:ty}];
   if(pathBudget<=0)return null;pathBudget--;
@@ -786,43 +862,36 @@ function findPath(s,u,tx,ty,stop=0){
   // belong to this search only once it is opened with the current generation.
   if(scratch.generation===0xffffffff){scratch.opened.fill(0);scratch.closed.fill(0);scratch.generation=0;}
   const {costs,parent,heuristic,opened,closed,heapCells,heapScores}=scratch,generation=++scratch.generation;let heapSize=0;
-  // Reuse numeric heap storage instead of allocating two objects per insertion.
-  // Comparisons and left/right tie handling remain identical to the original A*.
-  const push=(i,f)=>{
-    let p=heapSize++;while(p){const q=(p-1)>>1;if(heapScores[q]<=f)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}
-    heapCells[p]=i;heapScores[p]=f;
-  };
-  const pop=()=>{
-    const out=heapCells[0],last=heapCells[--heapSize],score=heapScores[heapSize];
-    if(heapSize){let p=0;while(p*2+1<heapSize){let q=p*2+1;if(q+1<heapSize&&heapScores[q+1]<heapScores[q])q++;if(heapScores[q]>=score)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}heapCells[p]=last;heapScores[p]=score;}
-    return out;
-  };
   // insideMovementLeash, with the stance and range resolved once per search.
-  const leashAnchor=u.defendAnchor&&effectiveUnitStance(u)==='defend'?u.defendAnchor:null,leash=leashAnchor?unitStats(u).range+1e-8:0;
-  let best=start,bestH=Math.hypot(start%W+.5-tx,Math.floor(start/W)+.5-ty),count=0;
-  opened[start]=generation;costs[start]=0;parent[start]=-1;heuristic[start]=bestH;push(start,bestH);
+  const leashAnchor=u.defendAnchor&&effectiveUnitStance(u)==='defend'?u.defendAnchor:null,leash=leashAnchor?unitBaseRange(u)+1e-8:0;
+  const stopLimit=stop>=.2?Math.max(.75,stop):-1;
+  let best=start,bestH=Math.hypot(start%W+.5-tx,((start/W)|0)+.5-ty),count=0;
+  opened[start]=generation;costs[start]=0;parent[start]=-1;heuristic[start]=bestH;
+  heapSize=heapPush(heapCells,heapScores,heapSize,start,bestH);
   while(heapSize&&count++<N){
-    const cur=pop();if(closed[cur]===generation)continue;closed[cur]=generation;
+    const cur=heapCells[0],last=heapCells[--heapSize],score=heapScores[heapSize];
+    if(heapSize){let p=0;while(p*2+1<heapSize){let q=p*2+1;if(q+1<heapSize&&heapScores[q+1]<heapScores[q])q++;if(heapScores[q]>=score)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}heapCells[p]=last;heapScores[p]=score;}
+    if(closed[cur]===generation)continue;closed[cur]=generation;
     const h=heuristic[cur];if(h<bestH){best=cur;bestH=h;}
-    const x=cur%W,y=Math.floor(cur/W);if(stop>=.2&&h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
-    const cost=costs[cur];
-    for(let dy=-1;dy<=1;dy++){
-      const yy=y+dy;if(yy<0||yy>=H)continue;
-      for(let dx=-1;dx<=1;dx++){
-        const xx=x+dx;if(!dx&&!dy||xx<0||xx>=W)continue;
-        const next=yy*W+xx;if(blocked[next]||closed[next]===generation||(dx&&dy&&(blocked[y*W+xx]||blocked[yy*W+x])))continue;
-        if(leashAnchor&&!(Math.hypot(xx+.5-leashAnchor.x,yy+.5-leashAnchor.y)<=leash))continue;
-        const g=cost+(dx&&dy?1.4142:1),wasOpened=opened[next]===generation;if(wasOpened&&g>=costs[next])continue;
-        const estimate=wasOpened?heuristic[next]:Math.hypot(xx+.5-tx,yy+.5-ty);opened[next]=generation;costs[next]=g;parent[next]=cur;heuristic[next]=estimate;push(next,g+estimate);
-      }
+    const x=cur%W,y=(cur/W)|0;if(stopLimit>0&&h<=stopLimit||(x===goalX&&y===goalY)){best=cur;break;}
+    const cost=costs[cur],interior=x>0&&x+1<W&&y>0&&y+1<H;
+    for(let k=0;k<8;k++){
+      const dx=PATH_DX[k],dy=PATH_DY[k],xx=x+dx,yy=y+dy;
+      if(!interior&&(xx<0||xx>=W||yy<0||yy>=H))continue;
+      const next=yy*W+xx,diag=PATH_DIAG[k];
+      if(blocked[next]||closed[next]===generation||(diag&&(blocked[cur+dx]||blocked[cur+dy*W])))continue;
+      if(leashAnchor&&!(Math.hypot(xx+.5-leashAnchor.x,yy+.5-leashAnchor.y)<=leash))continue;
+      const g=cost+(diag?1.4142:1),wasOpened=opened[next]===generation;if(wasOpened&&g>=costs[next])continue;
+      const estimate=wasOpened?heuristic[next]:Math.hypot(xx+.5-tx,yy+.5-ty);opened[next]=generation;costs[next]=g;parent[next]=cur;heuristic[next]=estimate;
+      heapSize=heapPush(heapCells,heapScores,heapSize,next,g+estimate);
     }
   }
-  const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:Math.floor(at/W)+.5});path.reverse();
+  const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:((at/W)|0)+.5});path.reverse();
   if(stop<.2&&insideMovementLeash(u,tx,ty)&&clearStep(s,path.at(-1)||u,tx,ty))path.push({x:tx,y:ty});
   // Curved travel can stop off-center beside an inside corner. Grid A* starts
   // at the cell center, so explicitly reconnect the actual pose to that center.
   if(path.length&&!clearStep(s,u,path[0].x,path[0].y)){
-    const startCenter={x:start%W+.5,y:Math.floor(start/W)+.5};
+    const startCenter={x:start%W+.5,y:((start/W)|0)+.5};
     if(clearStep(s,u,startCenter.x,startCenter.y))path.unshift(startCenter);
   }
   // Long straight grid runs share one bend candidate, avoiding repeated long swept checks.
@@ -839,7 +908,7 @@ function findPath(s,u,tx,ty,stop=0){
   return route;
 }
 
-function insideMovementLeash(u,x,y){return !u.defendAnchor||effectiveUnitStance(u)!=='defend'||Math.hypot(x-u.defendAnchor.x,y-u.defendAnchor.y)<=unitStats(u).range+1e-8;}
+function insideMovementLeash(u,x,y){return !u.defendAnchor||effectiveUnitStance(u)!=='defend'||Math.hypot(x-u.defendAnchor.x,y-u.defendAnchor.y)<=unitBaseRange(u)+1e-8;}
 // True when the summed blocked-tile grid proves no blocked tile touches the rectangle.
 function clearRect(s,grid,left,top,right,bottom){
   if(!grid||!(left>=0&&top>=0&&right<s.width&&bottom<s.height))return false;
@@ -882,9 +951,13 @@ function committedRoute(o){
   return path[0]||o.yieldPoint||(isCommanded(o.order)?o.order:null);
 }
 // Live units other than u within r of it, in list order. Squared lengths settle every pair except
+const FLOCK_RADIUS=4,FLOCK_NEAR=FLOCK_RADIUS*FLOCK_RADIUS*(1-1e-5),FLOCK_FAR=FLOCK_RADIUS*FLOCK_RADIUS*(1+1e-5);
+const navNeighbors=[],navFlock=[];
+// Reuses the distance filter from nearbyEntities for unit-only calls, doing Math.hypot only for
 // those within rounding of r, which still take the exact Math.hypot comparison.
-function unitsNear(list,u,r){
-  const out=[],r2=r*r,near=r2*(1-1e-5),far=r2*(1+1e-5);
+function unitsNear(list,u,r,out=[]){
+  out.length=0;
+  const r2=r*r,near=r2*(1-1e-5),far=r2*(1+1e-5);
   for(let i=0;i<list.length;i++){
     const e=list[i];if(e===u)continue;
     // Position first: most of a bucket query lies outside the radius, and the position decides those cheaply.
@@ -900,7 +973,7 @@ function segmentDistance(a,b,p){
 }
 function trafficDetour(s,u,blocker,fx,fy){
   const side=u.steerUntil>s.time?u.steerSide:1;
-  let hasRoom=false;
+  let hasRoom=false,nearby=null;
   for(const margin of [.25,.03])for(const direction of [side,-side]){
     const spacing=(u.size+blocker.size)*.43+margin;
     const ox=blocker.x-u.x,oy=blocker.y-u.y;
@@ -914,8 +987,16 @@ function trafficDetour(s,u,blocker,fx,fy){
     const route=u.path.find(p=>!p.flock)||u.path.at(-1);
     if(route&&!clearStep(s,beyond,route.x,route.y))continue;
     hasRoom=true;
-    const occupied=nearbyEntities(s,u,4).some(other=>other!==u&&other.kind==='unit'&&alive(other)&&
-      segmentDistance(u,detour,other)<Math.min((u.size+other.size)*.43+.03,distance(u,other)-.001));
+    nearby??=nearbyEntities(s,u,4);
+    const minX=Math.min(u.x,detour.x),maxX=Math.max(u.x,detour.x),minY=Math.min(u.y,detour.y),maxY=Math.max(u.y,detour.y);
+    let occupied=false;
+    for(let i=0;i<nearby.length;i++){
+      const other=nearby[i];
+      if(other===u||other.kind!=='unit'||other.hp<=0)continue;
+      const pad=(u.size+other.size)*.43+.03;
+      if(other.x<minX-pad-1e-6||other.x>maxX+pad+1e-6||other.y<minY-pad-1e-6||other.y>maxY+pad+1e-6)continue;
+      if(segmentDistance(u,detour,other)<Math.min(pad,distance(u,other)-.001)){occupied=true;break;}
+    }
     if(occupied)continue;
     return{points:[detour,beyond],side:direction};
   }
@@ -963,7 +1044,7 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     const goal=movementDestinations(s,[u],tx,ty).get(u.id);if(!goal)return false;
     // Temporary retaliation and yield legs must not rewrite a retained parking
     // reservation. Only an explicit destination can adopt its reachable fallback.
-    if(['move','attackMove'].includes(u.order.type)&&u.order.x===tx&&u.order.y===ty){u.order.x=goal.x;u.order.y=goal.y;}
+    if(isCommanded(u.order)&&u.order.x===tx&&u.order.y===ty){u.order.x=goal.x;u.order.y=goal.y;}
     tx=goal.x;ty=goal.y;u.repath=0;
   }
   if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];u.moveSpeed=0;if(u.order.facing===undefined)u.turnVelocity=0;return true;}
@@ -985,10 +1066,26 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   // Boids neighbors lie within 4 tiles. When that whole expanded square is free of
   // static blockers, every swept clearStep to them succeeds; only the leash remains.
   const openArea=clearRect(s,clearanceGrids.get(s),u.x-4.2,u.y-4.2,u.x+4.2,u.y+4.2);
-  // Only a defending unit holding an anchor can lose neighbors to its leash; in the open every other one is kept as is.
-  let flock=spatialStates.get(s).flock(u);
-  if(!openArea)flock=flock.filter(other=>clearStep(s,u,other.x,other.y));
-  else if(u.defendAnchor&&effectiveUnitStance(u)==='defend')flock=flock.filter(other=>insideMovementLeash(u,other.x,other.y));
+  // Only a defending unit holding an anchor can lose neighbors to its leash; in the open flockSteering filters candidates directly.
+  const candidates=spatialStates.get(s).flock.candidates(u);
+  let flock=candidates;
+  if(!openArea){
+    navFlock.length=0;
+    for(let i=0;i<candidates.length;i++){
+      const other=candidates[i];
+      if(other.id===u.id)continue;
+      const ox=other.x-u.x,oy=other.y-u.y,oq=ox*ox+oy*oy;
+      if((oq<FLOCK_NEAR||oq<FLOCK_FAR&&Math.hypot(ox,oy)<FLOCK_RADIUS)&&clearStep(s,u,other.x,other.y))navFlock.push(other);
+    }
+    flock=navFlock;
+  }else if(u.defendAnchor&&effectiveUnitStance(u)==='defend'){
+    navFlock.length=0;
+    for(let i=0;i<candidates.length;i++){
+      const other=candidates[i];
+      if(other.id!==u.id&&insideMovementLeash(u,other.x,other.y))navFlock.push(other);
+    }
+    flock=navFlock;
+  }
   const steering=flockSteering(u,{x:tx,y:ty},flock,s.time,p);
   let heading=Math.atan2(dy,dx);
   if(steering&&!p.trafficId){
@@ -1000,8 +1097,8 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   // Drive along the actual body heading while turning. Slow for sharp bends so
   // vehicle inertia cannot make the body slide sideways or orbit a waypoint.
   const alignment=Math.max(0,Math.cos(headingError));
-  const baseSpeed=Math.min(unitStats(u).speed,u.order.speedLimit??Infinity)*abilitySpeed(s,u);
-  const fx=Math.cos(u.angle),fy=Math.sin(u.angle),neighbors=unitsNear(nearbyEntities(s,u,4),u,4);
+  const baseSpeed=Math.min(unitSpeed(u),u.order.speedLimit??Infinity)*abilitySpeed(s,u);
+  const fx=Math.cos(u.angle),fy=Math.sin(u.angle),neighbors=unitsNear(nearbyEntities(s,u,4),u,4,navNeighbors);
   let followingSpeed=baseSpeed;
   const formation=isCommanded(u.order)?u.order.formation:null;
   for(const other of neighbors){
@@ -1237,7 +1334,7 @@ function recordRetaliation(target,attacker){
 }
 
 function idleMilitary(s,u,dt,movement){
-  const range=unitStats(u).range,defend=effectiveUnitStance(u)==='defend';
+  const range=unitBaseRange(u),defend=effectiveUnitStance(u)==='defend';
   let attacker=null;
   if(defend){
     u.defendAnchor??={x:u.x,y:u.y};
@@ -1413,8 +1510,8 @@ function stepUnit(s,u,dt,movement,power){
     }
     return;
   }
-  if(role==='harvester'&&!['move','explore'].includes(u.order.type)){if(u.order.type!=='harvest')u.order={type:'harvest'};harvest(s,u,dt,movement,power);return;}
   const order=u.order;
+  if(role==='harvester'&&order.type!=='move'&&order.type!=='explore'){if(order.type!=='harvest')u.order={type:'harvest'};harvest(s,u,dt,movement,power);return;}
   if(order.type==='move'){
     if(role==='engineer'){u.repairActive=false;u.repairTargetId=null;}
     const arrived=navigate(s,u,order.x,order.y,dt,.08,movement)||wedged(s,u,order.x,order.y);
@@ -1431,7 +1528,7 @@ function stepUnit(s,u,dt,movement,power){
       if(u.repairActive){const c=center(target);turnUnit(u,Math.atan2(c.y-u.y,c.x-u.x),dt,true);return;}
     }
     if(order.type==='explore')explore(s,u,dt,movement);
-    else if(['attack','attackMove'].includes(order.type)&&(navigate(s,u,order.x,order.y,dt,.08,movement)||order.type==='attackMove'&&wedged(s,u,order.x,order.y)))finishMovement(u,dt,movement);
+    else if((order.type==='attack'||order.type==='attackMove')&&(navigate(s,u,order.x,order.y,dt,.08,movement)||order.type==='attackMove'&&wedged(s,u,order.x,order.y)))finishMovement(u,dt,movement);
     return;
   }
   if(order.type==='idle'&&militaryUnit(u)){idleMilitary(s,u,dt,movement);return;}
@@ -1485,27 +1582,77 @@ function deliverRefineryHauler(s,e){
   if(e.haulerPending&&e.progress>=1&&spawnAt(s,e,raceUnit(s,e.team,'harvester')))e.haulerPending=false;
 }
 
+const sepPool=new WeakMap(),SEP_PAD=16;
+const sepUnits=[],sepCandidates=[],sepNext=[],sepPending=new Set();
+function getSepBuffer(s,count){
+  const sepW=Math.ceil(s.width/2)+SEP_PAD*2,sepH=Math.ceil(s.height/2)+SEP_PAD*2,size=sepW*sepH;
+  let pool=sepPool.get(s);
+  if(!pool||pool.sepW!==sepW||pool.sepH!==sepH){
+    pool={sepW,sepH,buckets:new Array(size),dirty:[],gen:1,locations:new Int32Array(Math.max(count,64)),overflow:new Map(),overflowKeys:new Map()};
+    sepPool.set(s,pool);
+  }else{
+    const {buckets,dirty}=pool;
+    for(let i=0;i<dirty.length;i++)buckets[dirty[i]].length=0;
+    dirty.length=0;pool.gen++;
+    if(pool.overflow.size)pool.overflow.clear();
+    if(pool.overflowKeys.size)pool.overflowKeys.clear();
+    if(pool.locations.length<count)pool.locations=new Int32Array(Math.max(pool.locations.length*2,count));
+  }
+  pool.locations.fill(-1,0,count);
+  return pool;
+}
+
 function separateUnits(s,dt,movement){
-  const units=s.entities.filter(e=>e.kind==='unit'&&alive(e));
+  const units=sepUnits;units.length=0;
+  for(let i=0;i<s.entities.length;i++){const e=s.entities[i];if(e.kind==='unit'&&e.hp>0)units.push(e);}
+  const count=units.length;if(!count)return;
   // A deterministic spatial broad phase keeps large battles local. Candidate pairs retain entity order.
-  const buckets=new Map(),locations=new Array(units.length),key=u=>bucketKey(Math.floor(u.x/2),Math.floor(u.y/2));
+  const {sepW,sepH,buckets,dirty,gen,locations,overflow,overflowKeys}=getSepBuffer(s,count);
   const relocate=i=>{
-    const next=key(units[i]),previous=locations[i];if(previous===next)return false;
-    if(previous!==undefined){const list=buckets.get(previous);list.splice(list.indexOf(i),1);if(!list.length)buckets.delete(previous);}
-    if(!buckets.has(next))buckets.set(next,[]);buckets.get(next).push(i);locations[i]=next;return true;
-  };
-  for(let i=0;i<units.length;i++)relocate(i);
-  const neighbors=(i,after)=>{
-    const u=units[i],x=Math.floor(u.x/2),y=Math.floor(u.y/2),list=[];
-    let sorted=true,last=-1;
-    for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){
-      const bucket=buckets.get(bucketKey(xx,yy));
-      if(bucket)for(let k=0;k<bucket.length;k++){const j=bucket[k];if(j>after){if(j<last)sorted=false;last=j;list.push(j);}}
+    const u=units[i],gx=Math.floor(u.x/2)+SEP_PAD,gy=Math.floor(u.y/2)+SEP_PAD;
+    const inGrid=gx>=0&&gx<sepW&&gy>=0&&gy<sepH;
+    const next=inGrid?gy*sepW+gx:bucketKey(gx-SEP_PAD,gy-SEP_PAD);
+    const prevLoc=locations[i];
+    if(inGrid){if(prevLoc===next)return false;}
+    else if(prevLoc===-2&&overflowKeys.get(i)===next)return false;
+    if(prevLoc>=0){const list=buckets[prevLoc];list.splice(list.indexOf(i),1);}
+    else if(prevLoc===-2){const ok=overflowKeys.get(i),list=overflow.get(ok);list.splice(list.indexOf(i),1);if(!list.length)overflow.delete(ok);}
+    if(inGrid){
+      let list=buckets[next];if(!list){list=[];buckets[next]=list;}
+      if(list.dirtyGen!==gen){list.dirtyGen=gen;dirty.push(next);}
+      list.push(i);locations[i]=next;overflowKeys.delete(i);
+    }else{
+      let list=overflow.get(next);if(!list){list=[];overflow.set(next,list);}
+      list.push(i);locations[i]=-2;overflowKeys.set(i,next);
     }
-    return sorted?list:list.sort((a,b)=>a-b);
+    return true;
   };
-  for(let i=0;i<units.length;i++){
-    const candidates=neighbors(i,i);
+  for(let i=0;i<count;i++)relocate(i);
+  const neighbors=(i,after,out)=>{
+    out.length=0;
+    const u=units[i],gx=Math.floor(u.x/2)+SEP_PAD,gy=Math.floor(u.y/2)+SEP_PAD;
+    let sorted=true,last=-1;
+    if(gx>=1&&gx+1<sepW&&gy>=1&&gy+1<sepH){
+      for(let yy=gy-1;yy<=gy+1;yy++){
+        const row=yy*sepW;
+        for(let xx=gx-1;xx<=gx+1;xx++){
+          const bucket=buckets[row+xx];
+          if(bucket)for(let k=0;k<bucket.length;k++){const j=bucket[k];if(j>after){if(j<last)sorted=false;last=j;out.push(j);}}
+        }
+      }
+    }else{
+      const tx=gx-SEP_PAD,ty=gy-SEP_PAD;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const nx=gx+dx,ny=gy+dy;
+        const bucket=(nx>=0&&nx<sepW&&ny>=0&&ny<sepH)?buckets[ny*sepW+nx]:overflow.get(bucketKey(tx+dx,ty+dy));
+        if(bucket)for(let k=0;k<bucket.length;k++){const j=bucket[k];if(j>after){if(j<last)sorted=false;last=j;out.push(j);}}
+      }
+    }
+    if(!sorted)out.sort((a,b)=>a-b);
+    return out;
+  };
+  for(let i=0;i<count;i++){
+    const candidates=neighbors(i,i,sepCandidates);
     for(let index=0;index<candidates.length;index++){
     const j=candidates[index];
     const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y;
@@ -1530,13 +1677,16 @@ function separateUnits(s,dt,movement){
     const changed=relocate(i);relocate(j);
     if(changed){
       // Bodies still to visit; one already visited returns to the list when it comes back into range.
-      const pending=new Set(candidates.slice(index+1));
-      for(const next of neighbors(i,j))if(!pending.has(next)){candidates.push(next);pending.add(next);}
+      sepPending.clear();
+      for(let k=index+1;k<candidates.length;k++)sepPending.add(candidates[k]);
+      const extra=neighbors(i,j,sepNext);
+      for(let k=0;k<extra.length;k++){const next=extra[k];if(!sepPending.has(next)){candidates.push(next);sepPending.add(next);}}
       const tail=candidates.splice(index+1).sort((a,b)=>a-b);candidates.push(...tail);
     }
     }
   }
-  for(const u of units){
+  for(let i=0;i<count;i++){
+    const u=units[i];
     indexEntity(s,u);
     const intent=movement.get(u.id);
     u.moving=!!intent&&Math.hypot(u.x-intent.x,u.y-intent.y)>.008;
@@ -1549,6 +1699,7 @@ function separateUnits(s,dt,movement){
     // Only friendly spacing softens during a jam; static geometry stays solid.
     if(u.trafficWait>=.8-1e-8){u.passUntil=s.time+1.5;u.passTargetId=intent.passTargetId;u.trafficWait=0;}
   }
+  units.length=0;sepCandidates.length=0;sepNext.length=0;sepPending.clear();
 }
 
 export function queued(s,team,type){return own(s,team).reduce((sum,e)=>sum+(e.queue?.filter(q=>q.type===type||unitRole(q)===type).length||0),0);}
@@ -1559,8 +1710,10 @@ function step(s,dt){
   beginSpatialStep(s);
   s.fogClock-=dt;if(s.fogClock<=0){updateFog(s);s.fogClock=.2;}
   const powers=[advancePower(s,0,dt),advancePower(s,1,dt)],movement=new Map();
-  for(const e of [...s.entities]){
-    if(!alive(e))continue;
+  const entities=s.entities,entityCount=entities.length;
+  for(let i=0;i<entityCount;i++){
+    const e=entities[i];
+    if(e.hp<=0)continue;
     if(e.kind==='building'){
       const rate=powers[e.team].ratio,pace=productionRate(s,e.team,powers[e.team])*(e.upgrades?.speed?1.25:1);
       // Emergency construction retains 20% speed, allowing reactors to recover a collapsed grid.
@@ -1595,18 +1748,29 @@ function step(s,dt){
   separateUnits(s,dt,movement);
   finishFormationAssemblies(s);
   // Damaged vehicles can fall back to their nexus for slow paid repairs.
-  const repairCores=[0,1].map(team=>own(s,team,'core').filter(core=>core.progress>=1));
-  for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&e.hp<e.maxHp&&s.time-(e.lastHit??-99)>8&&s.teams[e.team].credits>1&&repairCores[e.team].some(core=>distance(e,center(core))<7)){const amount=Math.min(e.maxHp-e.hp,dt*5*powers[e.team].ratio,s.teams[e.team].credits*8);e.hp+=amount;s.teams[e.team].credits-=amount/8;tally(s,e.team,'spent',amount/8);}
-  for(const effect of s.effects){
+  let repairCores=null;
+  for(let i=0;i<s.entities.length;i++){
+    const e=s.entities[i];
+    if(e.hp<=0||e.kind!=='unit'||e.hp>=e.maxHp||!(s.time-(e.lastHit??-99)>8)||!(s.teams[e.team].credits>1))continue;
+    repairCores??=[0,1].map(team=>own(s,team,'core').filter(core=>core.progress>=1));
+    if(repairCores[e.team].some(core=>distance(e,center(core))<7)){const amount=Math.min(e.maxHp-e.hp,dt*5*powers[e.team].ratio,s.teams[e.team].credits*8);e.hp+=amount;s.teams[e.team].credits-=amount/8;tally(s,e.team,'spent',amount/8);}
+  }
+  let deadEffects=false;
+  const effects=s.effects;
+  for(let i=0;i<effects.length;i++){
+    const effect=effects[i];
     if(entityRole(effect)==='rocket'){
       const target=getEntity(s,effect.targetId);
       if(target&&seen(s,effect.team,target)){const c=center(target);effect.tx=c.x;effect.ty=c.y;}
     }
     effect.life-=dt;
-    if(entityRole(effect)==='rocket'&&effect.life<=1e-8){effect.life=0;if(s.status==='playing')rocketImpact(s,effect);}
+    if(effect.life<=0)deadEffects=true;
+    if(entityRole(effect)==='rocket'&&effect.life<=1e-8){effect.life=0;deadEffects=true;if(s.status==='playing')rocketImpact(s,effect);}
   }
-  s.effects=s.effects.filter(e=>e.life>0);
-  s.entities=s.entities.filter(alive);
+  if(deadEffects)s.effects=effects.filter(e=>e.life>0);
+  let hasDead=false;
+  for(let i=0;i<s.entities.length;i++)if(s.entities[i].hp<=0){hasDead=true;break;}
+  if(hasDead)s.entities=s.entities.filter(alive);
   spatialStates.delete(s);
   if(s.mission)updateMission(s);
   if(s.status==='playing')for(const team of s.aiTeams||[1])if(s.time>=aiState(s,team).nextThink)thinkAI(s,team);

@@ -1,5 +1,5 @@
 import { paintWhenDue } from './loading.js';
-import { drawSprite, drawSpriteShadow, drawSpriteOverlay, releaseSpriteOverlays, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
+import { drawSprite, drawSpriteShadow, drawSpriteOverlay, drawBattlefieldSprite, drawBattlefieldShadow, releaseZoomCache, releaseSpriteOverlays, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle, UNIT_DIRECTIONS } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, unitRank, unitRange, buildingRole, unitRole } from './sim.js';
 import { mapRoutes, mapLayout, PROFILE_RELIEF } from './terrain.js';
 import { environmentFor } from './environments.js';
@@ -146,6 +146,16 @@ const SCORCH = [0, '#0e161de0', .45, '#19202790', 1, '#19202700'];
 const BEACON = [0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00'];
 const TRAIL = [0, '#b8b3a5', .6, '#b8b3a5a0', 1, '#b8b3a500'];
 const COLUMN = [0, '#6d6a62b0', .55, '#5f5c5578', 1, '#5f5c5500'];
+const MINERAL_STAIN = [.06, '#93684b39', 1, '#93684b00'];
+const TREE_HALO = [.15, '#151b224e', 1, '#151b2200'];
+const CRATER_BOWL = [.08, '#1c252c77', 1, '#4a4c4900'];
+function dustSprite(directionIndex) {
+  return cachedSprite(`dust:${directionIndex}`, 48, (c, size) => {
+    const a = directionIndex * Math.PI * 2 / UNIT_DIRECTIONS;
+    c.fillStyle = '#bbaa92';
+    c.beginPath(); c.ellipse(size / 2, size / 2, 16, 10, a, 0, Math.PI * 2); c.fill();
+  });
+}
 // Text labels are rasterised once at twice their CSS size so they stay crisp on dense displays.
 function labelSprite(text, color, font = '600 10px monospace') {
   return cachedSprite(`label:${font}:${color}:${text}`, 0, null, () => {
@@ -763,6 +773,10 @@ export class Renderer {
     this.flights = []; this.flightLife = []; this.flightState = null; this.flightTime = NaN; this.landed = [];
     this.impacts = []; this.dying = []; this.held = new WeakSet(); this.impactAt = new WeakMap(); this.blastAt = new WeakMap();
     this.drawClock = 0;
+    this.fogVersion = 0; this.fogViewVersion = -1; this.fogViewZoom = null;
+    this.hasDecals = false; this.decalDirty = null; this.decalFullDirty = false;
+    this.oreCells = null; this.oreSource = null;
+    this.powerState = null; this.powerTime = NaN; this.powers = null;
   }
   // Props bucketed by tile row, so a frame visits only the rows on screen.
   propRowsFor(state) {
@@ -844,10 +858,10 @@ export class Renderer {
   releaseTerrain() {
     // Clearing a canvas releases its backing store immediately, including GPU
     // surfaces; dropping JS references alone can retain them until a later GC.
-    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles, this.grain, this.ground];
+    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.fogView, this.minimapBase, this.miniTiles, this.grain, this.ground];
     surfaces.push(...this.rankBadges.values()); this.rankBadges.clear();
     for (const surface of surfaces) if (surface) surface.width = surface.height = 0;
-    this.terrainSource = this.groundImage = this.groundZoom = null;
+    this.terrainSource = this.groundImage = this.groundZoom = this.fogViewZoom = this.fogView = null;
     this.fogTint = this.minimapBase = this.miniTiles = this.grain = this.grainPattern = null;
     this.knownOre = this.knownMineralTypes = this.fogNoise = null;
     this.oreState = this.oreGrid = this.oreTypes = this.fogImage = this.miniImage = this.minimapBounds = null;
@@ -856,7 +870,7 @@ export class Renderer {
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
     this.seenEffects = new WeakSet(); this.lastMinimap = -Infinity;
     this.resetFrameState();
-    releaseRenderSprites(); releaseSpriteOverlays(); releaseEnvironmentProps();
+    releaseRenderSprites(); releaseSpriteOverlays(); releaseEnvironmentProps(); releaseZoomCache();
   }
 
   createTerrain(state) {
@@ -928,8 +942,8 @@ export class Renderer {
     ctx.drawImage(base, 0, 0, width, height);
     // The fog tint is baked once; updateFog only re-shapes its alpha.
     this.fogTint = document.createElement('canvas'); this.fogTint.width = base.width; this.fogTint.height = base.height;
-    const tint = this.fogTint.getContext('2d').createImageData(base.width, base.height);
-    for (let i = 0; i < this.fogNoise.length; i++) { const n = this.fogNoise[i]; tint.data.set([10 + n * .65, 17 + n * .8, 24 + n, 255], i * 4); }
+    const tint = this.fogTint.getContext('2d').createImageData(base.width, base.height), tintData = tint.data;
+    for (let i = 0, p = 0; i < this.fogNoise.length; i++, p += 4) { const n = this.fogNoise[i]; tintData[p] = 10 + n * .65; tintData[p + 1] = 17 + n * .8; tintData[p + 2] = 24 + n; tintData[p + 3] = 255; }
     this.fogTint.getContext('2d').putImageData(tint, 0, 0);
     // Haul roads follow the generator's guaranteed routes for current maps and older saves; ruts only wear into open ground.
     const openTile = (x, y) => [0, 2, 5].includes(state.terrain[Math.floor(y) * state.width + Math.floor(x)]);
@@ -972,18 +986,22 @@ export class Renderer {
     yield* this.materialSteps(state, ctx, seed);
     yield { value: .5, label: 'Placing stones, vegetation and mineral fields' };
     const scatteredTrees = state.terrain.includes(4);
-    // Seventeen flecks per tile were most of the bake's canvas calls. A few pre-scattered tiles at the bake's
-    // own resolution, picked per tile, read the same and cost one blit each.
-    const grit = [environment.dust, '#111a2433'].map((light, set) => Array.from({ length: GRIT_VARIANTS }, (_, variant) => {
-      const tile = document.createElement('canvas'), g = tile.getContext('2d');
-      tile.width = tile.height = Math.ceil((TILE + 2) * this.terrainScale);
-      g.setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
-      for (let j = 0; j < 17; j++) {
-        const nx = noise(variant * 19 + j, set, seed), ny = noise(set, variant * 19 + j, seed);
-        rect(g, nx * TILE, ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 ? light : '#111a2433');
+    // Seventeen flecks per tile were most of the bake's canvas calls. Pack all variants into one
+    // texture atlas at the bake's resolution so every tile blit shares a single GPU texture binding.
+    const gw = Math.ceil((TILE + 2) * this.terrainScale), gwWorld = gw / this.terrainScale;
+    const gritAtlas = document.createElement('canvas');
+    gritAtlas.width = gw * GRIT_VARIANTS; gritAtlas.height = gw * 2;
+    {
+      const g = gritAtlas.getContext('2d'), colors = [environment.dust, '#111a2433'];
+      for (let set = 0; set < 2; set++) for (let variant = 0; variant < GRIT_VARIANTS; variant++) {
+        g.setTransform(this.terrainScale, 0, 0, this.terrainScale, variant * gw, set * gw);
+        for (let j = 0; j < 17; j++) {
+          const nx = noise(variant * 19 + j, set, seed), ny = noise(set, variant * 19 + j, seed);
+          rect(g, nx * TILE, ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 ? colors[set] : '#111a2433');
+        }
       }
-      return tile;
-    }));
+    }
+    const stainSprite = radialSprite(MINERAL_STAIN), haloSprite = radialSprite(TREE_HALO), craterSprite = radialSprite(CRATER_BOWL);
     for (let y = 0; y < state.height; y++) {
       yield { value: .5 + .5 * y / state.height, label: 'Placing stones, vegetation and mineral fields' };
       for (let x = 0; x < state.width; x++) {
@@ -1014,19 +1032,16 @@ export class Renderer {
         line(ctx, px + 19, py + 14, px + 28, py + 16, '#b0c1c825', 1);
       }
       // Irregular mineral stains remain when a field is exhausted.
-      if (state.minerals[i] > 0) {
-        const stain = ctx.createRadialGradient(px + 16, py + 18, 2, px + 16, py + 18, 33);
-        stain.addColorStop(0, '#93684b39'); stain.addColorStop(1, '#93684b00');
-        ellipse(ctx, px + 16, py + 18, 33, 26, stain);
-      }
+      if (state.minerals[i] > 0) stamp(ctx, stainSprite, px + 16, py + 18, 33, 26);
       // Rock plates carry their own grit; basalt takes only dark flecks.
       if (type !== 1) {
-        const tile = grit[type === 2 ? 1 : 0][Math.floor(noise(x * 19, y * 19, seed) * GRIT_VARIANTS)];
-        ctx.drawImage(tile, px, py, tile.width / this.terrainScale, tile.height / this.terrainScale);
+        const variant = Math.floor(noise(x * 19, y * 19, seed) * GRIT_VARIANTS);
+        ctx.drawImage(gritAtlas, variant * gw, (type === 2 ? 1 : 0) * gw, gw, gw, px, py, gwWorld, gwWorld);
       }
       if (type === 1 || type === 4) {
         const cx = px + 16 + (n - .5) * 9, cy = py + 20 + (noise(x, y, seed + 2) - .5) * 9;
-        const count = [[-1, 0], [1, 0], [0, -1], [0, 1]].filter(([dx, dy]) => state.terrain[(y + dy) * state.width + x + dx] === 1).length;
+        const count = (state.terrain[i - 1] === 1 ? 1 : 0) + (state.terrain[i + 1] === 1 ? 1 : 0)
+          + (state.terrain[i - state.width] === 1 ? 1 : 0) + (state.terrain[i + state.width] === 1 ? 1 : 0);
         const grove = smoothNoise(x / 6, y / 6, seed + 23);
         // New maps place individual trees in the simulation; old saves keep their rocky groves.
         const isTree = type === 4 || !scatteredTrees && grove > .48 && noise(x, y, seed + 41) < (count < 4 ? .44 : .25);
@@ -1035,11 +1050,7 @@ export class Renderer {
         const variant = Math.floor(noise(x, y, seed + 5) * (isTree ? 6 : 8));
         const treeSizes = environmentId === 'jungle' ? [82, 84, 58, 63, 38, 60] : environmentId === 'desert' ? [48, 45, 50, 46, 36, 50] : environmentId === 'tundra' ? [66, 58, 57, 45, 33, 54] : [54, 56, 48, 46, 31, 42];
         const size = isTree ? treeSizes[variant] * (.9 + noise(x, y, seed + 11) * .22) : 35 + n * 14 + count * 2;
-        if (isTree) {
-          const halo = ctx.createRadialGradient(cx, cy, 6, cx, cy, size * .8);
-          halo.addColorStop(0, '#151b224e'); halo.addColorStop(1, '#151b2200');
-          ellipse(ctx, cx, cy + 5, size * .8, size * .65, halo);
-        }
+        if (isTree) stamp(ctx, haloSprite, cx, cy + 5, size * .8, size * .65);
         this.rockProps.push({ kind: isTree ? 'tree' : 'rock', x: cx / TILE, y: cy / TILE, size, variant });
       } else if (type === 2) {
         if (!coherentBasalt(state, i, x, y)) continue;
@@ -1052,9 +1063,7 @@ export class Renderer {
         const r = 7 + noise(x, y, seed + 8) * 19;
         ellipse(ctx, px + 15, py + 18, r + 2, r * .62, '#bea98824');
         ellipse(ctx, px + 16, py + 16, r, r * .59, '#1c252c58');
-        const crater = ctx.createRadialGradient(px + 17, py + 17, 1, px + 17, py + 17, r);
-        crater.addColorStop(0, '#1c252c77'); crater.addColorStop(1, '#4a4c4900');
-        ellipse(ctx, px + 17, py + 17, r, r * .58, crater);
+        stamp(ctx, craterSprite, px + 17, py + 17, r, r * .58);
         ctx.beginPath(); ctx.ellipse(px + 15, py + 16, r, r * .62, 0, .05, Math.PI * .85);
         ctx.strokeStyle = '#d5bea435'; ctx.lineWidth = 1; ctx.stroke();
       } else if (n < .038) {
@@ -1074,7 +1083,7 @@ export class Renderer {
     }
     // The noise bake is only needed for the colours above; release its store now.
     base.width = base.height = 0;
-    for (const tile of grit.flat()) tile.width = tile.height = 0;
+    gritAtlas.width = gritAtlas.height = 0;
     this.groundZoom = null;
     yield { value: 1, label: 'Battlefield ready' };
   }
@@ -1205,11 +1214,24 @@ export class Renderer {
     } finally { for (const c of owned) c.width = c.height = 0; }
   }
 
+  markDecalDirty(x0, y0, x1, y1) {
+    this.hasDecals = true;
+    const d = this.decalDirty;
+    if (!d) { this.decalDirty = { x0, y0, x1, y1 }; return; }
+    if (x0 < d.x0) d.x0 = x0;
+    if (y0 < d.y0) d.y0 = y0;
+    if (x1 > d.x1) d.x1 = x1;
+    if (y1 > d.y1) d.y1 = y1;
+  }
+
   drawDecals(state, visible, time, clock = time) {
     const ctx = this.decals.getContext('2d');
     if (time - this.lastDecalFade > 8) {
-      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
-      rect(ctx, 0, 0, state.width * TILE, state.height * TILE, '#00000008'); ctx.restore();
+      if (this.hasDecals) {
+        ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+        rect(ctx, 0, 0, state.width * TILE, state.height * TILE, '#00000008'); ctx.restore();
+        this.decalFullDirty = true;
+      }
       this.lastDecalFade = time;
     }
     const currentlySeen = new Set();
@@ -1235,6 +1257,7 @@ export class Renderer {
               for (let step = 0; step < length; step += 3.5) line(ctx, -step, offset, -step, offset + 2.5, '#0a172420', .7);
           }
           ctx.restore();
+          this.markDecalDirty(Math.min(x, previous.x) - 16, Math.min(y, previous.y) - 16, Math.max(x, previous.x) + 16, Math.max(y, previous.y) + 16);
         }
         this.unitPositions.set(e.id, { x, y });
       } else if (!previous) this.unitPositions.set(e.id, { x, y });
@@ -1368,6 +1391,8 @@ export class Renderer {
       line(ctx, dx, dy, dx + Math.cos(a) * 6, dy + Math.sin(a) * 3, '#19202766', 1 + j % 3);
       if ((fx.size || 1) > 1) rect(ctx, dx, dy, 2 + j % 4, 1 + j % 3, '#292c2bcc');
     }
+    const reach = radius * 1.4 + 8;
+    this.markDecalDirty(x - reach, y - reach, x + reach, y + reach);
   }
 
   // A newly seen explosion: debris, staggered secondary bursts with a short smoke column for a destroyed
@@ -1464,6 +1489,8 @@ export class Renderer {
     ctx.filter = 'grayscale(1) brightness(.48) contrast(1.15)'; drawSprite(ctx, ghost, 0); ctx.filter = 'none';
     ctx.setTransform(matrix); ctx.globalAlpha = 1;
     if (built < 1) ctx.restore();
+    const pad = building ? body.size * TILE * .8 : 44;
+    this.markDecalDirty(x - pad, y - pad, x + pad, y + pad);
   }
 
   // Event-driven flourishes for things the player can see: field patches and promotions. A promotion also
@@ -1706,8 +1733,9 @@ export class Renderer {
     const M = GROUND_MARGIN, dpr = this.dpr, ground = this.ground ||= document.createElement('canvas');
     const w = Math.ceil((this.width + 2 * M) * dpr), h = Math.ceil((this.height + 2 * M) * dpr);
     if (ground.width !== w || ground.height !== h) { ground.width = w; ground.height = h; this.groundZoom = null; }
-    if (this.groundZoom !== zoom || Math.abs(left - this.groundLeft) > M || Math.abs(top - this.groundTop) > M) {
-      const g = ground.getContext('2d', { alpha: false }), scale = zoom / TILE, enlarged = scale / this.terrainScale;
+    const scale = zoom / TILE, enlarged = scale / this.terrainScale;
+    if (this.groundZoom !== zoom || Math.abs(left - this.groundLeft) > M || Math.abs(top - this.groundTop) > M || this.decalFullDirty) {
+      const g = ground.getContext('2d', { alpha: false });
       g.setTransform(dpr, 0, 0, dpr, M * dpr, M * dpr); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'low';
       rect(g, -M, -M, this.width + 2 * M, this.height + 2 * M, '#0e1720');
       g.drawImage(this.terrain, left, top, W * zoom, H * zoom);
@@ -1718,10 +1746,64 @@ export class Renderer {
         rect(g, left, top, W * zoom, H * zoom, this.grainPattern);
         g.globalAlpha = 1;
       }
+      if (this.hasDecals) g.drawImage(this.decals, left, top, W * zoom, H * zoom);
       this.groundZoom = zoom; this.groundLeft = left; this.groundTop = top;
+      this.decalDirty = null; this.decalFullDirty = false;
+    } else if (this.decalDirty) {
+      // Patch only the newly stamped decal bounds inside the cached ground surface.
+      const dirty = this.decalDirty, pad = 4 / scale;
+      const cx0 = Math.max(-M, this.groundLeft + Math.max(0, dirty.x0 - pad) * scale);
+      const cy0 = Math.max(-M, this.groundTop + Math.max(0, dirty.y0 - pad) * scale);
+      const cx1 = Math.min(this.width + M, this.groundLeft + Math.min(W * TILE, dirty.x1 + pad) * scale);
+      const cy1 = Math.min(this.height + M, this.groundTop + Math.min(H * TILE, dirty.y1 + pad) * scale);
+      if (cx1 > cx0 && cy1 > cy0) {
+        const g = ground.getContext('2d', { alpha: false });
+        g.setTransform(dpr, 0, 0, dpr, M * dpr, M * dpr);
+        g.save();
+        g.beginPath(); g.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); g.clip();
+        g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'low';
+        rect(g, cx0, cy0, cx1 - cx0, cy1 - cy0, '#0e1720');
+        g.drawImage(this.terrain, this.groundLeft, this.groundTop, W * zoom, H * zoom);
+        if (this.grainPattern && enlarged > 1.15) {
+          const k = GROUND_REPEAT / this.grain.width * scale;
+          this.grainPattern.setTransform(new DOMMatrix([k, 0, 0, k, this.groundLeft, this.groundTop]));
+          g.globalAlpha = Math.min(1, (enlarged - 1.15) / .85);
+          rect(g, cx0, cy0, cx1 - cx0, cy1 - cy0, this.grainPattern);
+          g.globalAlpha = 1;
+        }
+        g.drawImage(this.decals, this.groundLeft, this.groundTop, W * zoom, H * zoom);
+        g.restore();
+      }
+      this.decalDirty = null;
     }
     // Whole device pixels keep the copy unfiltered; the ground sits at most half a pixel off the bodies on it.
     ctx.drawImage(ground, Math.round((left - this.groundLeft - M) * dpr) / dpr, Math.round((top - this.groundTop - M) * dpr) / dpr, w / dpr, h / dpr);
+  }
+
+  drawFog(ctx, left, top, zoom, W, H, visible) {
+    // Skip fog compositing altogether when every tile inside the viewport + blur bleed is visible.
+    const tx0 = Math.max(0, Math.floor(-left / zoom) - 2), ty0 = Math.max(0, Math.floor(-top / zoom) - 2);
+    const tx1 = Math.min(W - 1, Math.ceil((this.width - left) / zoom) + 2), ty1 = Math.min(H - 1, Math.ceil((this.height - top) / zoom) + 2);
+    let allVisible = true;
+    for (let y = ty0; y <= ty1 && allVisible; y++) {
+      const row = y * W;
+      for (let x = tx0; x <= tx1; x++) if (!visible[row + x]) { allVisible = false; break; }
+    }
+    if (allVisible) return;
+    const M = GROUND_MARGIN, dpr = this.dpr, fogView = this.fogView ||= document.createElement('canvas');
+    const w = Math.ceil((this.width + 2 * M) * dpr), h = Math.ceil((this.height + 2 * M) * dpr);
+    if (fogView.width !== w || fogView.height !== h) { fogView.width = w; fogView.height = h; this.fogViewZoom = null; }
+    if (this.fogViewVersion !== this.fogVersion || this.fogViewZoom !== zoom
+        || Math.abs(left - this.fogViewLeft) > M || Math.abs(top - this.fogViewTop) > M) {
+      const f = fogView.getContext('2d');
+      f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, w, h);
+      f.setTransform(dpr, 0, 0, dpr, M * dpr, M * dpr);
+      f.imageSmoothingEnabled = true; f.imageSmoothingQuality = 'low';
+      f.drawImage(this.fog, left, top, W * zoom, H * zoom);
+      this.fogViewVersion = this.fogVersion; this.fogViewZoom = zoom;
+      this.fogViewLeft = left; this.fogViewTop = top;
+    }
+    ctx.drawImage(fogView, Math.round((left - this.fogViewLeft - M) * dpr) / dpr, Math.round((top - this.fogViewTop - M) * dpr) / dpr, w / dpr, h / dpr);
   }
 
   // In the live loop visibility changes only inside a simulation tick, so frames between ticks skip the
@@ -1752,6 +1834,7 @@ export class Renderer {
     ctx.imageSmoothingEnabled = true; ctx.filter = 'blur(1.5px)';
     ctx.drawImage(this.fogLow, -2, -2, this.fog.width + 4, this.fog.height + 4);
     ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
+    this.fogVersion = (this.fogVersion || 0) + 1;
     return true;
   }
 
@@ -1788,23 +1871,26 @@ export class Renderer {
       this.byIdSource = state.entities; this.byIdLength = state.entities.length;
     }
     if (visible && explored) this.updateFog(state, this.blending);
+    if (this.powerState !== state || this.powerTime !== time) {
+      this.powers = [powerStats(state, 0), powerStats(state, 1)];
+      this.powerState = state; this.powerTime = time;
+    }
+    const powers = this.powers;
     this.readEvents(state, visible);
     this.updateShake(view, clock);
     const left = this.width / 2 - view.x * zoom + this.shakeX, top = this.height / 2 - view.y * zoom + this.shakeY;
     const knownWalls = new Map();
     for (const e of this.rememberedBuildings.values()) if (BUILDINGS[e.type]?.role === 'wall' && !entityVisible(e)) knownWalls.set(wallKey(e), e);
-    for (const e of state.entities) if (e.hp > 0 && e.kind === 'building' && BUILDINGS[e.type]?.role === 'wall' && (e.team === 0 || entityVisible(e))) knownWalls.set(wallKey(e), e);
     const wallVisual = e => e.kind === 'building' && BUILDINGS[e.type]?.role === 'wall' ? { ...e, wallConnections: wallConnections(e, knownWalls) } : e;
     const x0 = Math.max(0, Math.floor(view.x - this.width / zoom / 2) - 2);
     const y0 = Math.max(0, Math.floor(view.y - this.height / zoom / 2) - 3);
     const x1 = Math.min(W, Math.ceil(view.x + this.width / zoom / 2) + 2);
     const y1 = Math.min(state.height, Math.ceil(view.y + this.height / zoom / 2) + 3);
-    // Sprites leave high-quality smoothing behind; the terrain blit keeps the context default.
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
-    this.drawGround(ctx, left, top, zoom, W, state.height);
+    // Decals bake into this.ground so frames pay one composite rather than a second full-map surface.
     this.trackFlights(state, time, clock);
     this.drawDecals(state, visible, time, clock);
-    ctx.drawImage(this.decals, left, top, W * zoom, state.height * zoom);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
+    this.drawGround(ctx, left, top, zoom, W, state.height);
     // World layers use one computed transform per body instead of a save/restore pair.
     const a = this.dpr * scale, ox = this.dpr * left, oy = this.dpr * top;
     const world = () => ctx.setTransform(a, 0, 0, a, ox, oy);
@@ -1812,12 +1898,16 @@ export class Renderer {
     world();
     // Drawable bodies: friendly or currently visible, posed once per frame for every layer.
     const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
-    const live = [], visibleUnits = [], rangeUnits = [];
+    const live = [], visibleUnits = [], rangeUnits = [], seenEnemyBuildings = [];
     const hasSelected = view.selected?.size > 0;
     const refreshBodies = state.time !== this.bodyTime || state !== this.bodyState;
     const bodies = refreshBodies ? [] : null;
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) {
       if (bodies && e.kind !== 'rock') bodies.push(e);
+      if (e.kind === 'building') {
+        if (BUILDINGS[e.type]?.role === 'wall') knownWalls.set(wallKey(e), e);
+        if (e.team === 1) seenEnemyBuildings.push(e);
+      }
       const p = e.kind === 'unit' && this.blending ? this.unitPose(e, visible) : e;
       // Off-screen orders still draw their visible route, but distant bodies do
       // not need depth sorting with the small portion of the map on screen.
@@ -1868,15 +1958,28 @@ export class Renderer {
     // Ground shadows cannot cover neighbouring roofs or disclose enemies hidden by fog.
     for (const e of live) {
       const n = e.kind === 'building' ? e.size / 2 : 0;
-      at((e.x + n) * TILE, (e.y + n) * TILE);
-      drawSpriteShadow(ctx, wallVisual(e), clock);
+      const wx = (e.x + n) * TILE, wy = (e.y + n) * TILE;
+      const visual = wallVisual(e);
+      if (!drawBattlefieldShadow(ctx, visual, clock, ox + a * wx, oy + a * wy, a)) {
+        at(wx, wy);
+        drawSpriteShadow(ctx, visual, clock);
+      }
     }
     world();
-    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport. In the live loop
-    // minerals and sensor coverage change only inside a simulation tick, so the sweep runs once per tick.
-    if (!(this.blending && state === this.oreState && time === this.oreTime && this.knownOre === this.oreGrid && this.knownMineralTypes === this.oreTypes)) {
-      for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
-        this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+    // Mineral knowledge refreshes wherever there is sensor coverage; scan only seeded mineral tiles.
+    if (this.oreSource !== state.minerals) {
+      this.oreCells = [];
+      const minerals = state.minerals, mineralTypes = state.mineralTypes;
+      for (let i = 0; i < minerals.length; i++) if (minerals[i] > 0) {
+        this.oreCells.push(i);
+        if (!visible || visible[i]) { this.knownOre[i] = minerals[i]; this.knownMineralTypes[i] = mineralTypes?.[i] || 1; }
+      }
+      this.oreSource = minerals; this.oreState = state; this.oreTime = time; this.oreGrid = this.knownOre; this.oreTypes = this.knownMineralTypes;
+    } else if (!(this.blending && state === this.oreState && time === this.oreTime && this.knownOre === this.oreGrid && this.knownMineralTypes === this.oreTypes)) {
+      const cells = this.oreCells, minerals = state.minerals, mineralTypes = state.mineralTypes;
+      for (let k = 0; k < cells.length; k++) {
+        const i = cells[k];
+        if (!visible || visible[i]) { this.knownOre[i] = minerals[i]; this.knownMineralTypes[i] = mineralTypes?.[i] || 1; }
       }
       this.oreState = state; this.oreTime = time; this.oreGrid = this.knownOre; this.oreTypes = this.knownMineralTypes;
     }
@@ -1914,8 +2017,7 @@ export class Renderer {
       rect(ctx, x + Math.sin(clock * .7) * 4 - 1, y - height - 1, 2, 2, '#fffaf0');
       ctx.globalAlpha = 1;
     }
-    const powers = [powerStats(state, 0), powerStats(state, 1)];
-    for (const e of state.entities) if (e.hp > 0 && e.team === 1 && e.kind === 'building' && entityVisible(e)) {
+    for (const e of seenEnemyBuildings) {
       this.rememberedBuildings.set(e.id, { ...wallVisual(e), queue: (e.queue || []).map(item => ({ ...item })), research: e.research ? { ...e.research } : null,
         upgrade: e.upgrade ? { ...e.upgrade } : null, upgrades: e.upgrades ? { ...e.upgrades } : undefined,
         powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status, rememberedAt: time });
@@ -1954,8 +2056,11 @@ export class Renderer {
         ctx.globalAlpha = 1; continue;
       }
       const isBuilding = e.kind === 'building', n = isBuilding ? e.size / 2 : 0;
-      at((e.x + n) * TILE, (e.y + n) * TILE);
+      const wx = (e.x + n) * TILE, wy = (e.y + n) * TILE;
+      let hasAt = false;
+      const ensureAt = () => { if (!hasAt) { at(wx, wy); hasAt = true; } };
       if (e.hp > 0 && view.selected?.has(e.id)) {
+        ensureAt();
         // Ground ring sized to the body so the sprite never hides it; width stays ~1 screen pixel at any zoom.
         const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[entityRole(e)] ?? 22;
         ctx.strokeStyle = '#b4e2e6'; ctx.lineWidth = 1.2 / scale;
@@ -1971,27 +2076,55 @@ export class Renderer {
       }
       const remembered = isBuilding && e.team === 1 && e.hp > 0 && !entityVisible(e);
       if (!isBuilding && e.abilityUntil > time && ABILITIES[unitRole(e)]?.holdsPosition) {
+        ensureAt();
         // Dig in: a low ring of sandbags (or braced plates) on the ground around the squad.
         const grow = Math.min(1, (clock - (e.abilityUntil - (ABILITIES.rifle.duration || 10))) / .5);
         ctx.globalAlpha = Math.max(0, grow) * .95; stamp(ctx, digInSprite(UNITS[e.type]?.race === 'aiUnity'), 0, 4, 23, 23); ctx.globalAlpha = 1;
       }
       const visual = isBuilding && !remembered ? { ...wallVisual(e), powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status } : e;
+      const bTime = isBuilding && remembered ? e.rememberedAt : clock;
       // Blink the actual target silhouette, following its live pose without
       // revealing a concealed unit or flashing a remembered structure.
       const targeted = attackPulse > 0 && view.commandMarker.targetId === e.id && !remembered;
-      if (targeted) { ctx.save(); ctx.filter = `brightness(${1 + attackPulse * 2})`; }
-      if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : clock); else unit(ctx, e, clock);
-      if (targeted) ctx.restore();
+      if (targeted) {
+        ensureAt();
+        ctx.save(); ctx.filter = `brightness(${1 + attackPulse * 2})`;
+        if (isBuilding) building(ctx, visual, bTime); else unit(ctx, e, clock);
+        ctx.restore();
+      } else {
+        const prevAlpha = ctx.globalAlpha;
+        if (isBuilding && visual.progress < 1) ctx.globalAlpha = prevAlpha * .24;
+        const drew = drawBattlefieldSprite(ctx, isBuilding ? visual : e, bTime, ox + a * wx, oy + a * wy, a);
+        ctx.globalAlpha = prevAlpha;
+        if (drew) {
+          hasAt = false;
+          if (isBuilding) {
+            ensureAt();
+            if (visual.progress < 1) construction(ctx, visual, bTime); else productionBay(ctx, visual);
+          }
+        } else {
+          ensureAt();
+          if (isBuilding) building(ctx, visual, bTime); else unit(ctx, e, clock);
+        }
+      }
       // Hit flash: a separate light silhouette over the frame; baked friendly pixels are never retinted.
       let hitAt = e.lastHit ?? -99;
       if (this.impacts.length && hitAt > clock - 1) hitAt = this.hitLanding(e, hitAt);
       const hit = remembered || (e.progress ?? 1) < 1 ? 0 : pulse(clock - hitAt, HIT_FLASH);
-      if (hit > 0) { ctx.globalAlpha = hit * (isBuilding ? .16 : .32); drawSpriteOverlay(ctx, visual, clock, '#fff2dc'); ctx.globalAlpha = 1; }
-      if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, clock, powers[e.team].ratio);
-      else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
+      if (hit > 0) { ensureAt(); ctx.globalAlpha = hit * (isBuilding ? .16 : .32); drawSpriteOverlay(ctx, visual, clock, '#fff2dc'); ctx.globalAlpha = 1; }
+      if (!remembered && (e.progress ?? 1) >= 1) {
+        if (isBuilding || e.hp < e.maxHp * .4 || (!isInfantry(e) && ((e.moving ?? e.path?.length > 0) || e.harvestPhase === 'gather'))
+            || e.abilityUntil > clock || (clock - (e.lastShot ?? -99)) < .14) {
+          ensureAt();
+          this.drawEntityActivity(ctx, visual, clock, powers[e.team].ratio);
+        }
+      } else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) {
+        ensureAt();
+        buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
+      }
       if (isBuilding) {
         // Fixed-screen badges: one compact warning per affected facility, never a global flicker, and the team plate.
-        const k = this.dpr, ex = ox + a * (e.x + n) * TILE, ey = oy + a * (e.y + n) * TILE;
+        const k = this.dpr, ex = ox + wx * a, ey = oy + wy * a;
         if (!remembered && e.progress >= 1 && powers[e.team].ratio < 1 && BUILDING_DEFS[e.type].power < 0) {
           ctx.setTransform(k, 0, 0, k, ex + a * e.size * TILE * .30, ey + a * e.size * TILE * .43);
           ellipse(ctx, 0, 0, 5, 5, '#171b20e8');
@@ -2001,9 +2134,10 @@ export class Renderer {
         ctx.setTransform(k, 0, 0, k, ex - a * e.size * TILE * .32, ey + a * e.size * TILE * .43);
         ellipse(ctx, 0, 0, wall ? 3.3 : 5.5, wall ? 3.3 : 5.5, '#0a151ddd');
         teamInsignia(ctx, e.team, 0, 0, wall ? 4.5 : 7);
-        at((e.x + n) * TILE, (e.y + n) * TILE);
+        hasAt = false;
       }
       if (e.hp > 0 && (view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || !remembered)) {
+        ensureAt();
         const w = isBuilding ? Math.min(44, e.size * TILE - 4) : isInfantry(e) ? (entityRole(e) === 'rocket' ? 16 : 13) : 25;
         const yy = isBuilding ? -e.size * TILE / 2 - 16 : -19;
         rect(ctx, -w / 2 - 1, yy - 1, w + 2, 5, '#0a1620ec');
@@ -2155,13 +2289,13 @@ export class Renderer {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.globalAlpha = 1;
     if (visible && explored) {
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.fog, left, top, W * zoom, state.height * zoom);
+      this.drawFog(ctx, left, top, zoom, W, state.height, visible);
     }
     this.drawAsh(ctx, view, clock, state, visible, left, top);
     // Screen-space overlays stay crisp at every camera zoom.
     this.drawMissionMarkers(state, view, clock);
     this.drawSiteLabels(state, view, explored);
-    for (const e of visibleUnits) this.drawUnitRank(e, view);
+    for (const e of live) if (e.kind === 'unit' && e.hp > 0) this.drawUnitRank(e, view);
     this.drawAbilityMarkers(state, view, clock, visibleUnits);
     for (const e of visibleUnits) {
       if (e.team !== 0 || !view.selected?.has(e.id) || !['move', 'attackMove'].includes(e.order?.type)) continue;
@@ -2311,22 +2445,24 @@ export class Renderer {
       const cos = Math.cos(angle), sin = Math.sin(angle), alpha = ctx.globalAlpha;
       if (moving && !isInfantry(e)) {
         const walker = UNITS[e.type]?.race === 'aiUnity' && unitRole(e) !== 'scout';
-        ctx.fillStyle = '#bbaa92';
+        const dIdx = Math.round(((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI / 4)) % UNIT_DIRECTIONS;
+        const puff = dustSprite(dIdx);
         for (let j = 0; j < 4; j++) {
           const age = (time * .9 + j * .25 + e.id * .17) % 1;
           const x = walker ? (j % 2 ? 8 : -8) - age * 2 : -13 - age * 19, y = walker ? (j < 2 ? -10 : 10) : Math.sin(j * 7) * 6;
+          const rx = walker ? 1.5 + age * 3 : 4 + age * 8;
           ctx.globalAlpha = alpha * (1 - age) * (walker ? .075 : .11);
-          ctx.beginPath(); ctx.ellipse(x * cos - y * sin, x * sin + y * cos, walker ? 1.5 + age * 3 : 4 + age * 8, walker ? 1 + age * 2 : 3 + age * 4, angle, 0, Math.PI * 2); ctx.fill();
+          stamp(ctx, puff, x * cos - y * sin, x * sin + y * cos, rx * 1.5);
         }
         ctx.globalAlpha = alpha;
       } else if (entityRole(e) === 'harvester' && e.order?.type === 'harvest' && e.harvestPhase === 'gather' && e.cargo > 0) {
-        ctx.save(); ctx.rotate(angle);
         for (let j = 0; j < 3; j++) {
           const age = (time * 1.5 + j / 3) % 1;
           ctx.globalAlpha = (1 - age) * .34;
-          ellipse(ctx, 18 + age * 9, (j - 1) * 5 - age * 5, 1 + age * 2, 1 + age, '#e5b577');
+          const lx = 18 + age * 9, ly = (j - 1) * 5 - age * 5;
+          ellipse(ctx, lx * cos - ly * sin, lx * sin + ly * cos, 1 + age * 2, 1 + age, '#e5b577');
         }
-        ctx.restore();
+        ctx.globalAlpha = alpha;
       }
       if (e.abilityUntil > time && ABILITIES[unitRole(e)]?.speed) {
         // Overdrive / Afterburner: a hot exhaust core and short heat puffs behind the chosen view.

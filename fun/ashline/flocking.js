@@ -13,8 +13,8 @@ export function createFlockSnapshot(entities){
   const buckets=new Map();
   for(const e of entities){
     if(e.kind!=='unit'||e.hp<=0)continue;
-    const commanded=['move','attackMove'].includes(e.order.type);
-    const active=e.order.type!=='idle'&&!e.yieldReturn&&!e.repairActive&&(!e.targetId||e.moving)&&(commanded||e.moving||e.path.length>0);
+    const type=e.order.type,commanded=type==='move'||type==='attackMove';
+    const active=type!=='idle'&&!e.yieldReturn&&!e.repairActive&&(!e.targetId||e.moving)&&(commanded||e.moving||e.path.length>0);
     const goal=active?(commanded?e.order:e.pathGoal):null;
     const speed=e.moving?(e.moveSpeed||0):0,vx=Math.cos(e.angle)*speed,vy=Math.sin(e.angle)*speed;
     const u={id:e.id,team:e.team,x:e.x,y:e.y,size:e.size,
@@ -23,19 +23,24 @@ export function createFlockSnapshot(entities){
       // Distance from the body to its own goal, read by every neighbour that weighs this body's heading.
       goalDistance:goal?Math.hypot(goal.x-e.x,goal.y-e.y):0};
     const key=bucketKey(Math.floor(e.x/RADIUS),Math.floor(e.y/RADIUS));
-    if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(u);
+    let bucket=buckets.get(key);
+    if(!bucket){bucket=[];buckets.set(key,bucket);}
+    bucket.push(u);
   }
   const neighborhoods=new Map();
-  return u=>{
+  // Expose the cached sorted 3x3 bucket array so hot callers can filter in one pass without allocating a per-unit copy.
+  const getCandidates=u=>{
     const cx=Math.floor(u.x/RADIUS),cy=Math.floor(u.y/RADIUS),key=bucketKey(cx,cy);
     let candidates=neighborhoods.get(key);
     if(!candidates){
       candidates=[];
-      for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){const bucket=buckets.get(bucketKey(x,y));if(bucket)for(const other of bucket)candidates.push(other);}
+      for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){const bucket=buckets.get(bucketKey(x,y));if(bucket)for(let i=0;i<bucket.length;i++)candidates.push(bucket[i]);}
       candidates.sort((a,b)=>a.id-b.id);neighborhoods.set(key,candidates);
     }
-    // The snapshot cannot move during a tick. Share its sorted bucket candidates,
-    // but still test each caller's exact current position against the Boids radius.
+    return candidates;
+  };
+  const flock=u=>{
+    const candidates=getCandidates(u);
     const near=[];
     for(let i=0;i<candidates.length;i++){
       const other=candidates[i];
@@ -45,6 +50,8 @@ export function createFlockSnapshot(entities){
     }
     return near;
   };
+  flock.candidates=getCandidates;
+  return flock;
 }
 
 export function flockSteering(u,goal,neighbors,time,route=goal){
@@ -53,33 +60,38 @@ export function flockSteering(u,goal,neighbors,time,route=goal){
   const fx=dx/d,fy=dy/d;
   const orderType=u.order?.type,formation=(orderType==='move'||orderType==='attackMove')?u.order.formation:null;
   let separation=0,alignment=0,cx=0,cy=0,pressure=0,flockmates=0,headings=0;
-  for(const other of neighbors){
+  for(let i=0;i<neighbors.length;i++){
+    const other=neighbors[i];
     if(other.id===u.id)continue;
     const ox=other.x-u.x,oy=other.y-u.y,oq=ox*ox+oy*oy;
-    if(oq>=FAR)continue;
-    const range=Math.hypot(ox,oy);
-    if(range>=RADIUS)continue;
-    const side=oy*fx-ox*fy,forward=ox*fx+oy*fy;
-    const sameFormation=formation&&other.formation&&formation.x===other.formation.x&&formation.y===other.formation.y;
+    if(oq>=NEAR&&(oq>=FAR||Math.hypot(ox,oy)>=RADIUS))continue;
     const spacing=(u.size+other.size)*.43,maxPersonal=spacing+COMFORT;
+    const personalLimit=maxPersonal*maxPersonal*(1+1e-5);
+    const nearPersonal=oq<personalLimit,friendlyGoal=other.team===u.team&&!!other.goal;
+    if(!nearPersonal&&!friendlyGoal)continue;
+    const sameFormation=formation&&other.formation&&formation.x===other.formation.x&&formation.y===other.formation.y;
     // Respect the selected formation's spacing rather than expanding safe,
     // tightly packed ranks solely to satisfy the free-roaming comfort margin.
     let goalGap,personal=maxPersonal;
     if(sameFormation){
       const hx=other.goal.x-goal.x,hy=other.goal.y-goal.y,hq=hx*hx+hy*hy;
       if(hq>FAR_GOAL)goalGap=7;
-      else if(hq>maxPersonal*maxPersonal*(1+1e-5)&&hq<NEAR_GOAL)goalGap=3;
+      else if(hq>personalLimit&&hq<NEAR_GOAL)goalGap=3;
       else{goalGap=Math.hypot(hx,hy);personal=Math.max(spacing,Math.min(maxPersonal,goalGap));}
     }
     // Correct only the missing clearance, rather than holding a large normalized
     // repulsion for an entire leg and overshooting into a new cohesion correction.
-    if(range<personal){
-      const deficit=personal-range;
-      separation+=range>.001?-side/range*deficit:(u.id<other.id?1:-1)*personal;
-      if(forward>0&&Math.abs(side)<spacing*.5)separation+=deficit;
-      pressure=Math.max(pressure,deficit);
+    if(nearPersonal){
+      const range=Math.hypot(ox,oy);
+      if(range<personal){
+        const side=oy*fx-ox*fy,forward=ox*fx+oy*fy;
+        const deficit=personal-range;
+        separation+=range>.001?-side/range*deficit:(u.id<other.id?1:-1)*personal;
+        if(forward>0&&Math.abs(side)<spacing*.5)separation+=deficit;
+        pressure=Math.max(pressure,deficit);
+      }
     }
-    if(other.team!==u.team||!other.goal)continue;
+    if(!friendlyGoal)continue;
     if(goalGap!==undefined){if(goalGap>6)continue;}
     else{const hx=other.goal.x-goal.x,hy=other.goal.y-goal.y,q=hx*hx+hy*hy;if(q>FAR_GOAL||q>NEAR_GOAL&&Math.hypot(hx,hy)>6)continue;}
     const gx=other.goal.x-other.x,gy=other.goal.y-other.y,gd=other.goalDistance??Math.hypot(gx,gy);

@@ -116,9 +116,12 @@ function factionFrame(source, team) {
     const amount = blue ? Math.min(1, (b - r - 8) / 25)
       : team && neutral && !mineral && !biological ? Math.max(0, Math.min(1, (luminance - 75) / 65)) : 0;
     if (!amount) continue;
-    const paint = team ? [Math.min(255, luminance * 1.05 + 38), luminance * .44 + 18, luminance * .43 + 20]
-      : [luminance * .3, luminance * .72 + 20, Math.min(255, luminance * 1.18 + 40)];
-    for (let channel = 0; channel < 3; channel++) data[i + channel] += (paint[channel] - data[i + channel]) * amount;
+    const pr = team ? Math.min(255, luminance * 1.05 + 38) : luminance * .3;
+    const pg = team ? luminance * .44 + 18 : luminance * .72 + 20;
+    const pb = team ? luminance * .43 + 20 : Math.min(255, luminance * 1.18 + 40);
+    data[i] += (pr - r) * amount;
+    data[i + 1] += (pg - g) * amount;
+    data[i + 2] += (pb - b) * amount;
   }
   ctx.putImageData(pixels, 0, 0);
   return result;
@@ -153,9 +156,9 @@ function mineralFrame(source, type) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     if (!data[i + 3] || g - r < 13 || g < b * .94) continue;
     const light = .2126 * r + .7152 * g + .0722 * b;
-    const paint = type === 3 ? [Math.min(255, light * 1.22 + 28), light * .46 + 19, light * .55 + 27]
-      : [light * .46 + 20, light * .80 + 20, Math.min(255, light * 1.12 + 35)];
-    data[i] = paint[0]; data[i + 1] = paint[1]; data[i + 2] = paint[2];
+    data[i] = type === 3 ? Math.min(255, light * 1.22 + 28) : light * .46 + 20;
+    data[i + 1] = type === 3 ? light * .46 + 19 : light * .80 + 20;
+    data[i + 2] = type === 3 ? light * .55 + 27 : Math.min(255, light * 1.12 + 35);
   }
   ctx.putImageData(pixels, 0, 0); return result;
 }
@@ -456,18 +459,6 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
 ])).then(async () => {
   await paintWhenDue();
   sprites.wall = wallFrames();
-  for (const type of Object.keys(BUILDINGS)) for (const frame of sprites[type] || []) {
-    await paintWhenDue();
-    frame.powerDownTeams = frame.teams.map(powerDownFrame);
-    if (frame.hopperTeams) frame.powerDownHoppers = frame.hopperTeams.map(teams => teams.map(powerDownFrame));
-  }
-  for (const type of ['refinery', 'unityRefinery']) for (const frame of sprites[type] || []) {
-    await paintWhenDue();
-    frame.mineralHoppers = { 2: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 2))),
-      3: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 3))) };
-    if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)
-      .map(([type, levels]) => [type, levels.map(teams => teams.map(powerDownFrame))]));
-  }
   assetStatus.ready = assetStatus.errors.length === 0; return assetStatus;
 });
 
@@ -607,6 +598,90 @@ function spriteFrame(entity, time) {
   return { frame, size, building };
 }
 
+const lazyVariantCanvases = [], lazyVariantFrames = new Set();
+function trackVariantCanvas(frame, image) {
+  lazyVariantCanvases.push(image);
+  lazyVariantFrames.add(frame);
+  return image;
+}
+
+// Compute power-down and colored-mineral building frames lazily on demand instead of baking all
+// permutations at startup; releaseZoomCache() tears them down with world surfaces.
+function buildingSource(frame, entity) {
+  const team = entity.team === 1 ? 1 : 0;
+  const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
+  const mineralType = entity.processingType;
+  const coloredMineral = (mineralType === 2 || mineralType === 3) && frame.hopperTeams
+    && (entity.type === 'refinery' || entity.type === 'unityRefinery');
+  const level = hopperLevel(entity);
+  if (unpowered) {
+    if (coloredMineral) {
+      const mHoppers = (frame.mineralHoppers ??= {});
+      const base = (mHoppers[mineralType] ??= frame.hopperTeams.map(teams => teams.map(s => trackVariantCanvas(frame, mineralFrame(s, mineralType)))));
+      if (buildingRole(entity) === 'refinery') {
+        const pdm = (frame.powerDownMineralHoppers ??= {});
+        const pdLevels = (pdm[mineralType] ??= base.map(teams => teams.map(s => trackVariantCanvas(frame, powerDownFrame(s)))));
+        if (pdLevels[level]) return pdLevels[level][team];
+      }
+    }
+    if (frame.hopperTeams) {
+      const pdh = (frame.powerDownHoppers ??= frame.hopperTeams.map(teams => teams.map(s => trackVariantCanvas(frame, powerDownFrame(s)))));
+      if (pdh[level]) return pdh[level][team];
+    }
+    const pdt = (frame.powerDownTeams ??= frame.teams.map(s => trackVariantCanvas(frame, powerDownFrame(s))));
+    return pdt[team];
+  }
+  if (frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)) return frame.idleTeams[team];
+  if (coloredMineral) {
+    const mHoppers = (frame.mineralHoppers ??= {});
+    const base = (mHoppers[mineralType] ??= frame.hopperTeams.map(teams => teams.map(s => trackVariantCanvas(frame, mineralFrame(s, mineralType)))));
+    if (base[level]) return base[level][team];
+  }
+  return ((frame.hopperTeams?.[level]) || frame.teams)[team];
+}
+
+const ZOOM_CACHE_LIMIT = 16 * 1024 * 1024;
+const zoomCache = new Map();
+let zoomCacheBytes = 0, zoomScaleKey = -1;
+function clearZoomCacheMap() {
+  for (const entry of zoomCache.values()) entry.image.width = entry.image.height = 0;
+  zoomCache.clear(); zoomCacheBytes = 0;
+}
+
+function zoomCached(source, drawW, drawH, deviceScale) {
+  const scaleKey = Math.round(deviceScale * 1024);
+  if (scaleKey !== zoomScaleKey) { clearZoomCacheMap(); zoomScaleKey = scaleKey; }
+  const tw = Math.max(1, Math.round(drawW * deviceScale)), th = Math.max(1, Math.round(drawH * deviceScale));
+  if (tw === source.width && th === source.height) return source;
+  const entry = zoomCache.get(source);
+  if (entry && entry.tw === tw && entry.th === th) return entry.image;
+  if (entry) { zoomCacheBytes -= entry.bytes; entry.image.width = entry.image.height = 0; zoomCache.delete(source); }
+  const image = canvas(tw, th), c = image.getContext('2d');
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(source, 0, 0, tw, th);
+  const bytes = tw * th * 4;
+  while (zoomCacheBytes + bytes > ZOOM_CACHE_LIMIT && zoomCache.size) {
+    const [oldestKey, oldest] = zoomCache.entries().next().value;
+    zoomCacheBytes -= oldest.bytes; oldest.image.width = oldest.image.height = 0; zoomCache.delete(oldestKey);
+  }
+  zoomCache.set(source, { tw, th, image, bytes }); zoomCacheBytes += bytes;
+  return image;
+}
+
+export function releaseZoomCache() {
+  clearZoomCacheMap();
+  zoomScaleKey = -1;
+  for (const c of lazyVariantCanvases) c.width = c.height = 0;
+  lazyVariantCanvases.length = 0;
+  for (const frame of lazyVariantFrames) {
+    delete frame.powerDownTeams;
+    delete frame.powerDownHoppers;
+    delete frame.mineralHoppers;
+    delete frame.powerDownMineralHoppers;
+  }
+  lazyVariantFrames.clear();
+}
+
 // Cast on the ground before drawing any entities; light comes from screen upper-left.
 export function drawSpriteShadow(ctx, entity, time = 0) {
   const defense = defenseSprite(entity, time);
@@ -634,9 +709,49 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
     ctx.drawImage(frame.shadow, -size / 2 + height * 4, roofY + height * 6, size, size);
     ctx.globalAlpha = alpha;
   } else {
-    smoothSprites(ctx);
+    const prevSmoothing = ctx.imageSmoothingEnabled;
+    if (prevSmoothing !== true) ctx.imageSmoothingEnabled = true;
     drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].castShadow, size, frame.teams[0].width);
-    restoreSampling(ctx);
+    if (prevSmoothing !== true) ctx.imageSmoothingEnabled = prevSmoothing;
+  }
+  return true;
+}
+
+// Draw shadows at integer device coordinates under identity transform with caller's low smoothing
+// using the original shadow images (keeping tests that track shadowImages passing without 'high' toggles).
+export function drawBattlefieldShadow(ctx, entity, time, sx, sy, deviceScale) {
+  const defense = defenseSprite(entity, time);
+  if (defense) {
+    if (entity.hp <= 0) return false;
+    const progress = Math.max(0, Math.min(1, entity.progress ?? 1)), alpha = ctx.globalAlpha, size = defense.size;
+    const height = (entity.size || BUILDINGS[entity.type]) * progress, px = size * deviceScale;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = alpha * progress * .20;
+    ctx.drawImage(defense.contact, Math.round(sx + (-size / 2 + 1) * deviceScale), Math.round(sy + (-size / 2 + 3) * deviceScale), px, px);
+    ctx.globalAlpha = alpha * progress * .33;
+    ctx.drawImage(defense.shadow, Math.round(sx + (-size / 2 + height * 4) * deviceScale), Math.round(sy + (-size / 2 + height * 6) * deviceScale), px, px);
+    ctx.globalAlpha = alpha; return true;
+  }
+  const sprite = spriteFrame(entity, time);
+  if (!sprite || entity.hp <= 0) return false;
+  const { frame, size, building } = sprite;
+  if (!building && !frame.directions) return false;
+  if (building) {
+    const progress = Math.max(0, Math.min(1, entity.progress ?? 1)), alpha = ctx.globalAlpha;
+    const wall = buildingRole(entity) === 'wall', height = (entity.size || building) * progress * (wall ? .5 : 1);
+    const roofY = -size / 2 + (wall ? 0 : -8), px = size * deviceScale;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = alpha * progress * .20;
+    ctx.drawImage(frame.contact, Math.round(sx + (-size / 2 + 1) * deviceScale), Math.round(sy + (roofY + 3) * deviceScale), px, px);
+    ctx.globalAlpha = alpha * progress * .33;
+    ctx.drawImage(frame.shadow, Math.round(sx + (-size / 2 + height * 4) * deviceScale), Math.round(sy + (roofY + height * 6) * deviceScale), px, px);
+    ctx.globalAlpha = alpha;
+  } else {
+    const cached = frame.directions[unitDirection(entity.angle)].castShadow;
+    const scale = size / frame.teams[0].width * deviceScale;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(cached.image, Math.round(sx + cached.x * scale), Math.round(sy + cached.y * scale),
+      cached.image.width * scale, cached.image.height * scale);
   }
   return true;
 }
@@ -657,17 +772,41 @@ export function drawSprite(ctx, entity, time = 0) {
   // Applies equally to the battlefield, portraits and units inside production bays.
   smoothSprites(ctx);
   if (building) {
-    const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
-    const mineralType = entity.processingType, coloredHoppers = frame.mineralHoppers?.[mineralType];
-    const teams = unpowered ? (frame.powerDownMineralHoppers?.[mineralType] || frame.powerDownHoppers)?.[hopperLevel(entity)] || frame.powerDownTeams || frame.teams
-      : frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
-      ? frame.idleTeams : (coloredHoppers || frame.hopperTeams)?.[hopperLevel(entity)] || frame.teams;
-    const source = teams[entity.team === 1 ? 1 : 0];
+    const source = buildingSource(frame, entity);
     ctx.drawImage(source, -size / 2, -size / 2 + (buildingRole(entity) === 'wall' ? 0 : -8), size, size);
   } else {
     drawUnitDirection(ctx, unitBodyDirection(frame, entity, unitDirection(entity.angle)), size, frame.teams[0].width, walkerLift(entity, time));
   }
   restoreSampling(ctx);
+  return true;
+}
+
+export function drawBattlefieldSprite(ctx, entity, time, sx, sy, deviceScale) {
+  const defense = defenseSprite(entity, time);
+  if (defense) {
+    const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
+    const source = unpowered ? (defense.powerDown ??= powerDownFrame(defense.image)) : defense.image;
+    const img = zoomCached(source, defense.size, defense.size, deviceScale);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(img, Math.round(sx - defense.size / 2 * deviceScale), Math.round(sy - defense.size / 2 * deviceScale));
+    return true;
+  }
+  const sprite = spriteFrame(entity, time);
+  if (!sprite) return false;
+  const { frame, size, building } = sprite;
+  if (!building && !frame.directions) return false;
+  if (building) {
+    const source = buildingSource(frame, entity);
+    const img = zoomCached(source, size, size, deviceScale);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(img, Math.round(sx - size / 2 * deviceScale), Math.round(sy + (-size / 2 + (buildingRole(entity) === 'wall' ? 0 : -8)) * deviceScale));
+  } else {
+    const cached = unitBodyDirection(frame, entity, unitDirection(entity.angle));
+    const scale = size / frame.teams[0].width, lift = walkerLift(entity, time);
+    const img = zoomCached(cached.image, cached.image.width * scale, cached.image.height * scale, deviceScale);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(img, Math.round(sx + cached.x * scale * deviceScale), Math.round(sy + (cached.y * scale + lift) * deviceScale));
+  }
   return true;
 }
 
