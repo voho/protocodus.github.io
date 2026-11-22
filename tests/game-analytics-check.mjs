@@ -7,8 +7,6 @@ import { createContext, runInContext } from 'node:vm';
 import { CAMPAIGN, MISSIONS, SKIRMISH_MODES } from '../fun/ashline/campaign.js';
 import { createGame } from '../fun/ashline/sim.js';
 import { matchReport } from '../fun/ashline/debrief.js';
-import { DIFFICULTY } from '../fun/hedgerow/js/config.js';
-import LEVEL from '../fun/hedgerow/js/levels/saint-clair.js';
 import { chapterNameAt } from '../fun/alpen/js/terrain.js';
 
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -59,44 +57,6 @@ assert.equal(ash.events[1].score, matchReport(ashline.game).score, 'Analytics ma
 assert.equal(ash.events[1].duration_seconds, 8, 'Restored play measures this attempt rather than saved elapsed time');
 assert.equal(ash.events[1].result, 'win');
 assert.equal('seed' in ash.events[0], false);
-
-// Hedgerow's difficulty is normalized against its real settings table and its
-// checkpoint is a bounded authored index. Exercise the real retry callback.
-const hedge = collector();
-const clearable = { clear: noop };
-const hedgerow = await functions('fun/hedgerow/js/main.js', ['analyticsAttemptContext', 'trackAttemptStart', 'trackAttemptEnd', 'cancelCompletionPresentation', 'retryCheckpoint'], {
-  ...hedge, LEVEL, DIFFICULTY, settings: { difficulty: 'veteran' },
-  mission: { checkpoint: 0, restoreCheckpoint: () => ({ spawn: LEVEL.start, inventory: null }) },
-  missionTime: 0, analyticsAttemptActive: false, analyticsAttemptStart: 0, deathSequence: 0, graphicsLost: false,
-  fade: { classList: { add: noop, remove: noop } }, explosives: clearable,
-  G: { debris: clearable, casings: clearable, chunks: clearable, steam: clearable, enemies: [] },
-  enemies: { resetLiving: noop }, player: { reset: noop, char: {} }, resetAcoustics: noop, resume: noop,
-  audio: { cancelActions: noop },
-  setTimeout: callback => callback(),
-});
-hedgerow.trackAttemptStart();
-assert.deepEqual(hedge.events[0], {
-  event: 'game_start', game_name: 'hedgerow', game_mode: 'mission', level: LEVEL.id,
-  difficulty: 'veteran', checkpoint: 0, action: 'mission_start',
-});
-hedgerow.missionTime = 20;
-hedgerow.trackAttemptEnd('loss', NaN);
-hedgerow.trackAttemptEnd('loss');
-assert.equal(hedge.events.length, 2, 'Repeated Hedgerow death cannot duplicate its outcome');
-assert.equal(hedge.events[1].duration_seconds, 20);
-assert.equal('score' in hedge.events[1], false, 'Non-finite scores are omitted');
-hedgerow.mission.checkpoint = 3;
-hedgerow.retryCheckpoint();
-assert.equal(hedge.events[2].action, 'checkpoint_retry');
-assert.equal(hedge.events[2].checkpoint, 3);
-hedgerow.missionTime = 27;
-hedgerow.trackAttemptEnd('win', 400);
-assert.equal(hedge.events[3].duration_seconds, 7, 'Checkpoint retry starts its own duration');
-assert.equal(hedge.events[3].score, 400);
-hedgerow.settings.difficulty = 'unexpected private setting';
-hedgerow.mission.checkpoint = LEVEL.checkpoints.length;
-assert.equal(hedgerow.analyticsAttemptContext().difficulty, 'regular');
-assert.equal(hedgerow.analyticsAttemptContext().checkpoint, 0, 'Out-of-range checkpoint is normalized');
 
 // Alpen has no finite levels or difficulty. Its authored chapter is the useful
 // context; pausing must not become a new drop-in and an explicit restart must.
@@ -175,10 +135,9 @@ meteora.trackMissionEnd();
 assert.equal(met.events.length, 2, 'Autopilot and benchmark runs do not emit player analytics');
 meteora.AUTOPILOT = false;
 
-for (const context of [ashline, hedgerow, alpen, tyran, meteora]) delete context.window.protocodusAnalytics;
+for (const context of [ashline, alpen, tyran, meteora]) delete context.window.protocodusAnalytics;
 assert.doesNotThrow(() => { ashline.analyticsStarted = false; ashline.game.status = 'playing'; ashline.trackOperationStart(); });
-assert.doesNotThrow(() => { hedgerow.trackAttemptStart(); hedgerow.trackAttemptEnd('win'); });
 assert.doesNotThrow(() => alpen.trackRunStart('restart'));
 assert.doesNotThrow(() => { tyran.analyticsFlight = null; tyran.trackFlightStart(); tyran.trackFlightEnd('loss'); });
 assert.doesNotThrow(() => { meteora.trackMissionStart(); meteora.trackMissionEnd(); });
-console.log('Game analytics checks passed: authored modes/levels, normalized difficulty/checkpoints, displayed score, deduplicated outcomes, retries and optional tracking.');
+console.log('Game analytics checks passed: authored modes/levels, normalized difficulty, displayed score, deduplicated outcomes, retries and optional tracking.');

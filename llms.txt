@@ -63,5 +63,4 @@
 - [Ashline](https://protocodus.cz/fun/ashline/): Sci-fi real-time strategy game with a ten-operation campaign and skirmish modes featuring Organics and AI Unity factions, base building, power logistics, and unit promotions.
 - [Alpen](https://protocodus.cz/fun/alpen/): Endless 3D alpine snowboarding game with changing weather, carving, grabs, flips, and score combos.
 - [Meteora](https://protocodus.cz/fun/meteora/): Story-driven 3D space combat game with ten campaign missions, tactical briefings, ship loadouts, and survival mode in the Meteora asteroid belt.
-- [Hedgerow](https://protocodus.cz/fun/hedgerow/): First-person World War II shooter with three operations set in the Normandy hedgerows in July 1944.
 - [Puzzle Box](https://protocodus.cz/fun/puzzles/): Two 3D logic puzzle games for kids and adults — Zipper (single-line pathing) and Patcher (board region cutting) — with daily puzzles and three difficulty sizes.
