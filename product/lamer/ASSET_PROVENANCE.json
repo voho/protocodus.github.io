@@ -1,328 +1,359 @@
 {
-  "product": "Lamer Degrader",
-  "source_version": "1.0.0f10",
-  "source_directory": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images",
-  "asset_origin": "Complete front and rear composites of the selected f10 runtime assets at their default control states, not host captures. Square thumbnail is the matching shop composition. Demo video and poster retained from approved f9 materials: f10 fixes the rear Bitrate Crossfade indicator without changing audio.",
-  "export_method": {
-    "png": "Byte-for-byte copy of the release shop asset.",
-    "webp": "Pillow lossless WebP export with lossless=True, quality=100, method=6; no resizing, retouching, or artwork changes.",
-    "pillow_version": "11.0.0"
-  },
-  "assets": [
-    {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Front.png",
-      "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
-      "dimensions": [
-        1600,
-        293
-      ],
-      "png": {
-        "file": "Lamer_Degrader_Front.png",
-        "sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
-        "bytes": 212170
-      },
-      "webp": {
-        "file": "lamer-panel.webp",
-        "sha256": "e0a24c0c2bbc6c1e885fb60f63812d452c436d1115c26bb00d6b7b9b96031a4e",
-        "bytes": 140870,
-        "dimensions": [
-          1600,
-          293
-        ],
-        "decoded_pixels_match_source": true
-      }
-    },
-    {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Back.png",
-      "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
-      "dimensions": [
-        1600,
-        293
-      ],
-      "png": {
-        "file": "Lamer_Degrader_Back.png",
-        "sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
-        "bytes": 225013
-      },
-      "webp": {
-        "file": "lamer-rear.webp",
-        "sha256": "e1270093932526c8ca9480a565246650359c3f16b3f0ca46d160824b4aeeb877",
-        "bytes": 146530,
-        "dimensions": [
-          1600,
-          293
-        ],
-        "decoded_pixels_match_source": true
-      }
-    },
-    {
-      "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Thumbnail_800.png",
-      "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
-      "dimensions": [
-        800,
-        800
-      ],
-      "png": {
-        "file": "Lamer_Degrader_Thumbnail_800.png",
-        "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
-        "bytes": 209605
-      },
-      "webp": {
-        "file": "lamer-card.webp",
-        "sha256": "4223421b713686271d19d71634492458adf3052854b5faa21437f6696e8cb983",
-        "bytes": 146220,
-        "dimensions": [
-          800,
-          800
-        ],
-        "decoded_pixels_match_source": true
-      }
-    }
-  ],
-  "demo_poster": {
-    "source_path": "/Users/vojta/Downloads/Lamer-YouTube-Upload/Lamer-Double-Trouble-1280x720.jpg",
-    "source_sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
-    "export_method": "Byte-for-byte copy of the approved 1280x720 JPEG.",
+ "product": "Lamer Degrader",
+ "source_version": "1.0.0f10",
+ "source_directory": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images",
+ "asset_origin": "Complete front and rear composites of the selected f10 runtime assets at their default control states, not host captures. Square thumbnail is the matching shop composition. Demo video and poster retained from approved f9 materials: f10 fixes the rear Bitrate Crossfade indicator without changing audio.",
+ "export_method": {
+  "png": "Byte-for-byte copy of the release shop asset.",
+  "webp": "Pillow lossless WebP export with lossless=True, quality=100, method=6; no resizing, retouching, or artwork changes.",
+  "pillow_version": "11.0.0"
+ },
+ "assets": [
+  {
+   "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Front.png",
+   "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
+   "dimensions": [
+    1600,
+    293
+   ],
+   "png": {
+    "file": "Lamer_Degrader_Front.png",
+    "sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
+    "bytes": 212170
+   },
+   "webp": {
+    "file": "lamer-panel.webp",
+    "sha256": "e0a24c0c2bbc6c1e885fb60f63812d452c436d1115c26bb00d6b7b9b96031a4e",
+    "bytes": 140870,
     "dimensions": [
-      1280,
-      720
+     1600,
+     293
     ],
-    "file": "lamer-demo-poster.jpg",
-    "sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
-    "bytes": 310714
+    "decoded_pixels_match_source": true
+   }
   },
-  "demo_video": {
-    "file": "lamer-demo.mp4",
-    "bytes": 8435229,
-    "sha256": "de6a4ed52886d234cc2587f74ecc6107ca06b0f8651d394cdfaedacda986c6a6",
-    "source_path": "/Users/vojta/Downloads/Lamer-Degrader-Video-v2/Lamer-Degrader-MP3-OGG-1-and-2-Passes-1080p30.mp4",
-    "source_sha256": "fcb25d0bce8bbc14885522f36522658daf932c07fdfee24a57ce8ad8027611c8",
-    "encoding": {
-      "video": "H.264/libx264, preset slow, CRF 22, yuv420p, Lanczos scale to 1280x720",
-      "audio": "AAC 256 kbps, stereo, 48 kHz",
-      "faststart": true,
-      "timeline_changes": "None. Original 96-second picture and audio timeline retained."
-    },
-    "probe": {
-      "programs": [],
-      "stream_groups": [],
-      "streams": [
-        {
-          "index": 0,
-          "codec_name": "h264",
-          "codec_type": "video",
-          "width": 1280,
-          "height": 720,
-          "start_time": "0.000000",
-          "duration": "96.000000",
-          "nb_read_frames": "2880"
-        },
-        {
-          "index": 1,
-          "codec_name": "aac",
-          "codec_type": "audio",
-          "sample_rate": "48000",
-          "channels": 2,
-          "start_time": "0.000000",
-          "duration": "96.000000",
-          "nb_read_frames": "4500"
-        }
-      ],
-      "format": {
-        "duration": "96.000000",
-        "size": "8435229"
-      }
-    },
-    "validation": {
-      "all_frames_decoded": true,
-      "frame_count": 2880,
-      "audio_frames_decoded": 4608000,
-      "sample_peak_dbfs": -1.2977142345360282,
-      "true_peak_4x_dbtp": -1.0432680572327322,
-      "nonfinite_audio_samples": 0,
-      "samples_at_or_above_full_scale": 0,
-      "chapter_alignment": [
-        {
-          "start_seconds": 0,
-          "offset_samples": 0,
-          "correlation_to_source": 0.9999492126412822
-        },
-        {
-          "start_seconds": 24,
-          "offset_samples": 0,
-          "correlation_to_source": 0.9999985970058237
-        },
-        {
-          "start_seconds": 48,
-          "offset_samples": 0,
-          "correlation_to_source": 0.9999927264262676
-        },
-        {
-          "start_seconds": 72,
-          "offset_samples": 0,
-          "correlation_to_source": 0.9999991680061383
-        }
-      ],
-      "mp4_atoms": [
-        {
-          "type": "ftyp",
-          "offset": 0,
-          "size": 32
-        },
-        {
-          "type": "moov",
-          "offset": 32,
-          "size": 106898
-        },
-        {
-          "type": "free",
-          "offset": 106930,
-          "size": 8
-        },
-        {
-          "type": "mdat",
-          "offset": 106938,
-          "size": 8328291
-        }
-      ]
-    }
+  {
+   "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Back.png",
+   "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
+   "dimensions": [
+    1600,
+    293
+   ],
+   "png": {
+    "file": "Lamer_Degrader_Back.png",
+    "sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
+    "bytes": 225013
+   },
+   "webp": {
+    "file": "lamer-rear.webp",
+    "sha256": "e1270093932526c8ca9480a565246650359c3f16b3f0ca46d160824b4aeeb877",
+    "bytes": 146530,
+    "dimensions": [
+     1600,
+     293
+    ],
+    "decoded_pixels_match_source": true
+   }
   },
-  "reviewed": "2026-10-27",
-  "availability": "published",
-  "source_selection": "Selected custom 1.0.0f10 release, overriding the superseded origin/main-only 1.0.1f1 candidate, as recorded in delivery-20261014/source-manifest.json.",
-  "feature_sources": [
-    "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/README.md",
-    "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/info.lua",
-    "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/source-manifest.json"
+  {
+   "source_path": "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/Lamer/1.0.0f10/images/Lamer_Degrader_Thumbnail_800.png",
+   "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+   "dimensions": [
+    800,
+    800
+   ],
+   "png": {
+    "file": "Lamer_Degrader_Thumbnail_800.png",
+    "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+    "bytes": 209605
+   },
+   "webp": {
+    "file": "lamer-card.webp",
+    "sha256": "4223421b713686271d19d71634492458adf3052854b5faa21437f6696e8cb983",
+    "bytes": 146220,
+    "dimensions": [
+     800,
+     800
+    ],
+    "decoded_pixels_match_source": true
+   }
+  }
+ ],
+ "demo_poster": {
+  "source_path": "/Users/vojta/Downloads/Lamer-YouTube-Upload/Lamer-Double-Trouble-1280x720.jpg",
+  "source_sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
+  "export_method": "Byte-for-byte copy of the approved 1280x720 JPEG.",
+  "dimensions": [
+   1280,
+   720
   ],
-  "artwork_source_reviewed": "2026-10-14",
+  "file": "lamer-demo-poster.jpg",
+  "sha256": "df1a0d8b880af256b437427421cd4971dd36f1dfaec74942b075807ac54633b3",
+  "bytes": 310714
+ },
+ "demo_video": {
+  "file": "lamer-demo.mp4",
+  "bytes": 8435229,
+  "sha256": "de6a4ed52886d234cc2587f74ecc6107ca06b0f8651d394cdfaedacda986c6a6",
+  "source_path": "/Users/vojta/Downloads/Lamer-Degrader-Video-v2/Lamer-Degrader-MP3-OGG-1-and-2-Passes-1080p30.mp4",
+  "source_sha256": "fcb25d0bce8bbc14885522f36522658daf932c07fdfee24a57ce8ad8027611c8",
+  "encoding": {
+   "video": "H.264/libx264, preset slow, CRF 22, yuv420p, Lanczos scale to 1280x720",
+   "audio": "AAC 256 kbps, stereo, 48 kHz",
+   "faststart": true,
+   "timeline_changes": "None. Original 96-second picture and audio timeline retained."
+  },
+  "probe": {
+   "programs": [],
+   "stream_groups": [],
+   "streams": [
+    {
+     "index": 0,
+     "codec_name": "h264",
+     "codec_type": "video",
+     "width": 1280,
+     "height": 720,
+     "start_time": "0.000000",
+     "duration": "96.000000",
+     "nb_read_frames": "2880"
+    },
+    {
+     "index": 1,
+     "codec_name": "aac",
+     "codec_type": "audio",
+     "sample_rate": "48000",
+     "channels": 2,
+     "start_time": "0.000000",
+     "duration": "96.000000",
+     "nb_read_frames": "4500"
+    }
+   ],
+   "format": {
+    "duration": "96.000000",
+    "size": "8435229"
+   }
+  },
+  "validation": {
+   "all_frames_decoded": true,
+   "frame_count": 2880,
+   "audio_frames_decoded": 4608000,
+   "sample_peak_dbfs": -1.2977142345360282,
+   "true_peak_4x_dbtp": -1.0432680572327322,
+   "nonfinite_audio_samples": 0,
+   "samples_at_or_above_full_scale": 0,
+   "chapter_alignment": [
+    {
+     "start_seconds": 0,
+     "offset_samples": 0,
+     "correlation_to_source": 0.9999492126412822
+    },
+    {
+     "start_seconds": 24,
+     "offset_samples": 0,
+     "correlation_to_source": 0.9999985970058237
+    },
+    {
+     "start_seconds": 48,
+     "offset_samples": 0,
+     "correlation_to_source": 0.9999927264262676
+    },
+    {
+     "start_seconds": 72,
+     "offset_samples": 0,
+     "correlation_to_source": 0.9999991680061383
+    }
+   ],
+   "mp4_atoms": [
+    {
+     "type": "ftyp",
+     "offset": 0,
+     "size": 32
+    },
+    {
+     "type": "moov",
+     "offset": 32,
+     "size": 106898
+    },
+    {
+     "type": "free",
+     "offset": 106930,
+     "size": 8
+    },
+    {
+     "type": "mdat",
+     "offset": 106938,
+     "size": 8328291
+    }
+   ]
+  }
+ },
+ "reviewed": "2026-10-27",
+ "availability": "published",
+ "source_selection": "Selected custom 1.0.0f10 release, overriding the superseded origin/main-only 1.0.1f1 candidate, as recorded in delivery-20261014/source-manifest.json.",
+ "feature_sources": [
+  "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/README.md",
+  "/Users/vojta/Dev/reason-rack-extension/main/Examples/Lamer/info.lua",
+  "/Users/vojta/Dev/reason-rack-extension/four-instrument-refresh-20261014/delivery-20261014/source-manifest.json"
+ ],
+ "artwork_source_reviewed": "2026-10-14",
+ "published_version": "1.0.0",
+ "published_on": "2026-10-21",
+ "shop_url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
+ "public_shop_verification": {
+  "checked_on": "2026-10-27",
+  "shop_url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
   "published_version": "1.0.0",
   "published_on": "2026-10-21",
-  "shop_url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
-  "public_shop_verification": {
-    "checked_on": "2026-10-27",
-    "shop_url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
-    "published_version": "1.0.0",
-    "published_on": "2026-10-21",
-    "method": "Downloaded the original PNGs identified by the live Reason Shop product gallery and thumbnail. Each original is byte-for-byte identical to the existing website PNG; every corresponding website WebP decodes to identical RGBA pixels. No image files were changed.",
-    "source_build_note": "The existing source_version 1.0.0f10 and source paths record the historical prepared artwork. The public Shop identifies its release as 1.0.0 without an internal build suffix; the downloaded public artwork independently verifies the website images.",
-    "assets": [
-      {
-        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png",
-        "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
-        "dimensions": [
-          1600,
-          293
-        ],
-        "local_png": "Lamer_Degrader_Front.png",
-        "local_png_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
-        "original_bytes_match": true,
-        "local_webp": "lamer-panel.webp",
-        "local_webp_sha256": "e0a24c0c2bbc6c1e885fb60f63812d452c436d1115c26bb00d6b7b9b96031a4e",
-        "webp_decoded_pixels_match": true
-      },
-      {
-        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png",
-        "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
-        "dimensions": [
-          1600,
-          293
-        ],
-        "local_png": "Lamer_Degrader_Back.png",
-        "local_png_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
-        "original_bytes_match": true,
-        "local_webp": "lamer-rear.webp",
-        "local_webp_sha256": "e1270093932526c8ca9480a565246650359c3f16b3f0ca46d160824b4aeeb877",
-        "webp_decoded_pixels_match": true
-      },
-      {
-        "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
-        "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
-        "dimensions": [
-          800,
-          800
-        ],
-        "local_png": "Lamer_Degrader_Thumbnail_800.png",
-        "local_png_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
-        "original_bytes_match": true,
-        "local_webp": "lamer-card.webp",
-        "local_webp_sha256": "4223421b713686271d19d71634492458adf3052854b5faa21437f6696e8cb983",
-        "webp_decoded_pixels_match": true
-      }
-    ]
-  },
-  "shop_cover_refresh": {
-    "date": "2026-11-04",
-    "file": "Lamer_Degrader_Thumbnail_800.png",
-    "source": "Examples/Lamer/Design/Shop/cover.png",
-    "source_sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
-    "sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
+  "method": "Downloaded the original PNGs identified by the live Reason Shop product gallery and thumbnail. Each original is byte-for-byte identical to the existing website PNG; every corresponding website WebP decodes to identical RGBA pixels. No image files were changed.",
+  "source_build_note": "The existing source_version 1.0.0f10 and source paths record the historical prepared artwork. The public Shop identifies its release as 1.0.0 without an internal build suffix; the downloaded public artwork independently verifies the website images.",
+  "assets": [
+   {
+    "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png",
+    "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
+    "dimensions": [
+     1600,
+     293
+    ],
+    "local_png": "Lamer_Degrader_Front.png",
+    "local_png_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198",
+    "original_bytes_match": true,
+    "local_webp": "lamer-panel.webp",
+    "local_webp_sha256": "e0a24c0c2bbc6c1e885fb60f63812d452c436d1115c26bb00d6b7b9b96031a4e",
+    "webp_decoded_pixels_match": true
+   },
+   {
+    "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png",
+    "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
+    "dimensions": [
+     1600,
+     293
+    ],
+    "local_png": "Lamer_Degrader_Back.png",
+    "local_png_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1",
+    "original_bytes_match": true,
+    "local_webp": "lamer-rear.webp",
+    "local_webp_sha256": "e1270093932526c8ca9480a565246650359c3f16b3f0ca46d160824b4aeeb877",
+    "webp_decoded_pixels_match": true
+   },
+   {
+    "source_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
+    "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+    "dimensions": [
+     800,
+     800
+    ],
+    "local_png": "Lamer_Degrader_Thumbnail_800.png",
+    "local_png_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+    "original_bytes_match": true,
+    "local_webp": "lamer-card.webp",
+    "local_webp_sha256": "4223421b713686271d19d71634492458adf3052854b5faa21437f6696e8cb983",
+    "webp_decoded_pixels_match": true
+   }
+  ]
+ },
+ "shop_cover_refresh": {
+  "date": "2026-11-04",
+  "file": "Lamer_Degrader_Thumbnail_800.png",
+  "source": "Examples/Lamer/Design/Shop/cover.png",
+  "source_sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
+  "sha256": "dd30992c865328d364b2169da15a41f10a880a643333ddb8013acaf06347849d",
+  "pixels": [
+   800,
+   800
+  ],
+  "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
+  "source_branch": "main",
+  "generator": "Tools/shop_covers/build_shop_covers.py",
+  "supersedes": "Earlier thumbnail records in this file describe the previous cover."
+ },
+ "current_shop_gallery": {
+  "checked_on": "2026-11-06",
+  "version": "1.0.0",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
+  "assets": [
+   {
+    "file": "product/lamer/shop-front.webp",
+    "role": "front",
+    "sha256": "0bd1f476b70bddf7697e5facffb21aeac58e6a916d8a63ea8492009d2228156a",
+    "dimensions": [
+     1600,
+     293
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png",
+    "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198"
+   },
+   {
+    "file": "product/lamer/shop-rear.webp",
+    "role": "rear",
+    "sha256": "2c578aba4de987e007ec3d21e0c3b0ccb2e8623a22180bd6c5d399d41dd6c0d7",
+    "dimensions": [
+     1600,
+     293
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png",
+    "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1"
+   },
+   {
+    "file": "product/lamer/shop-cover.webp",
+    "role": "cover",
+    "sha256": "e520f1911413528323c24e9341221cba0e604e37d6bf816e13fe0b7dc22a1d7f",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
+    "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
+   },
+   {
+    "file": "product/lamer/shop-cover.png",
+    "role": "social",
+    "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
+    "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
+   }
+  ],
+  "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+ },
+ "public_release": {
+  "version": "1.0.0",
+  "accepted_version": "1.0.0f10",
+  "shop_release_date_field": "2026-10-21",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
+  "verified_on": "2026-11-06"
+ },
+ "development_panels": {
+  "reviewed": "2026-11-22",
+  "build_version": "1.0.1f3",
+  "version_on_panel": "1.0.1f3",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
+  "note": "The 1.0.1f3 previews in Examples/Lamer/Design/previews/ on Rack origin/main (487a12e5b), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6).",
+  "assets": [
+   {
+    "file": "lamer-rack-front.webp",
+    "sha256": "6cce071f4219d693e601368cc9e42548603756e08cc0516825132053a48e4a36",
+    "source": "Examples/Lamer/Design/previews/front_ogg_preview.png",
+    "source_sha256": "d4176dbfa3161dd65c72ef49ff2c405f6103cd21cf60091302d967a8e800d5ab",
     "pixels": [
-      800,
-      800
-    ],
-    "source_commit": "3bfd809460f125717f39d96c047a0d471fdf33ec",
-    "source_branch": "main",
-    "generator": "Tools/shop_covers/build_shop_covers.py",
-    "supersedes": "Earlier thumbnail records in this file describe the previous cover."
-  },
-  "current_shop_gallery": {
-    "checked_on": "2026-11-06",
-    "version": "1.0.0",
-    "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
-    "assets": [
-      {
-        "file": "product/lamer/shop-front.webp",
-        "role": "front",
-        "sha256": "0bd1f476b70bddf7697e5facffb21aeac58e6a916d8a63ea8492009d2228156a",
-        "dimensions": [
-          1600,
-          293
-        ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Front.png",
-        "source_sha256": "6465ba9fdce149ec609829f30bf3f6c8f78bc4beb814271f9de3edfadee8d198"
-      },
-      {
-        "file": "product/lamer/shop-rear.webp",
-        "role": "rear",
-        "sha256": "2c578aba4de987e007ec3d21e0c3b0ccb2e8623a22180bd6c5d399d41dd6c0d7",
-        "dimensions": [
-          1600,
-          293
-        ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Lamer/pictures/Lamer_Degrader_Back.png",
-        "source_sha256": "83730960013ed787e7799aa5b776ab7899f8e77c6f01b90e63d83a5bf31a1fd1"
-      },
-      {
-        "file": "product/lamer/shop-cover.webp",
-        "role": "cover",
-        "sha256": "e520f1911413528323c24e9341221cba0e604e37d6bf816e13fe0b7dc22a1d7f",
-        "dimensions": [
-          800,
-          800
-        ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
-        "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
-      },
-      {
-        "file": "product/lamer/shop-cover.png",
-        "role": "social",
-        "sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5",
-        "dimensions": [
-          800,
-          800
-        ],
-        "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/33846/Lamer_Degrader_Thumbnail_800.png",
-        "source_sha256": "a9e2950f81f3c8c851eec02df3bda458642f0bf57a579c8b4b150051d1fdf4f5"
-      }
-    ],
-    "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
-  },
-  "public_release": {
-    "version": "1.0.0",
-    "accepted_version": "1.0.0f10",
-    "shop_release_date_field": "2026-10-21",
-    "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
-    "verified_on": "2026-11-06"
-  }
+     1508,
+     276
+    ]
+   },
+   {
+    "file": "lamer-rack-rear.webp",
+    "sha256": "30a2a47a32670ea7e3d4d7ea2d9faef334ce4ae33a8f097b7e125031812695c8",
+    "source": "Examples/Lamer/Design/previews/back_preview.png",
+    "source_sha256": "a0b85277b50111957ef9b6ff8a303055f86170d232c4abe3a12e0e0726edbab4",
+    "pixels": [
+     1508,
+     276
+    ]
+   }
+  ]
+ }
 }

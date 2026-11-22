@@ -38,8 +38,15 @@
  },
  "cover": {
   "file": "Electry_Thumbnail_800.png",
-  "sha256": "ca820f5302c59c38bda53212c393269f3a656593ac638cd80722eb917dbd04d0",
-  "source": "dist/Electry_Thumbnail_800.png"
+  "sha256": "694d297f71b33d91da516bd5e3aae0351331abe4c9f41e2140a6d68fe97355be",
+  "source": "dist/Electry_Thumbnail_800.png",
+  "source_sha256": "694d297f71b33d91da516bd5e3aae0351331abe4c9f41e2140a6d68fe97355be",
+  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "Copied byte for byte from dist/Electry_Thumbnail_800.png on Rack origin/main (487a12e5b)."
  },
  "feature_sources": [
   "dist/Electry-SHOP.md",

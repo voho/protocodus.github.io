@@ -1,258 +1,269 @@
 {
-  "checked_on": "2026-11-16",
-  "product": "Rill desktop music workstation",
-  "source_repository": "https://github.com/protocodus/rill-daw",
-  "source_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
-  "source_version": "0.1.0",
-  "licence": "MIT",
-  "basis": "The arranger and R1 Drums screenshots were captured on 16 November 2026. Night ferry is an original six-bar, sixteen-track session at 116 BPM with synthesized audio and MIDI. The R1 Drums Sample page shows eight assigned pads, with Low kick selected. The other eight device panels are native screenshots from the 15 November R1 workspace redesign. The piano roll, audio editor, mixer, automation editor and assistant show the 9 November Glass Current session described in capture.",
-  "derivatives": "WebP images preserve the native source dimensions and RGB pixels. The November 16 derivatives use Pillow 11.0.0, lossless WebP, method 6. The social cover is an optimized JPEG at native size, quality 86, from Compact in light appearance, flattened against its light window colour. Earlier workflow screenshots used Pillow 12.3.0, lossless WebP, method 6.",
-  "downloads": {
-    "service": "nightly.link",
-    "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
-    "branch": "main",
-    "note": "Each link serves the latest successful main build’s artifact; artifacts are kept for 14 days. These are rolling development builds.",
-    "artifacts": [
-      "rill-aarch64-apple-darwin",
-      "rill-x86_64-apple-darwin",
-      "rill-x86_64-pc-windows-msvc",
-      "rill-x86_64-unknown-linux-gnu",
-      "rill-aarch64-unknown-linux-gnu"
-    ],
-    "label": "Alpha: the page links rolling main-branch builds, not a stable release."
+ "checked_on": "2026-11-22",
+ "product": "Rill desktop music workstation",
+ "source_repository": "https://github.com/protocodus/rill-daw",
+ "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+ "source_version": "0.1.0",
+ "licence": "MIT",
+ "basis": "The arranger and R1 Drums/device screenshots: Night ferry is an original six-bar, sixteen-track session at 116 BPM. All ten R1 device panels (R1 Mini, R1 Sampler, R1 Drums, R1 Filter, R1 Equalizer, R1 Saturator, R1 Compressor, R1 Modulator, R1 Spacer, and R1 Strip) are native screenshots from rill-daw origin/main (04de60f, 2026-11-21) with unified page tabs. The piano roll, audio editor, mixer, automation editor and assistant show the 9 November Glass Current session described in capture.",
+ "derivatives": "WebP images preserve the native source dimensions and RGB pixels. The November 22 R1 device derivatives and November 16 arranger derivatives use Pillow 11.0.0, lossless WebP, method 6. The social cover is an optimized JPEG at native size, quality 86, from Compact in light appearance.",
+ "downloads": {
+  "service": "nightly.link",
+  "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
+  "branch": "main",
+  "note": "Each link serves the latest successful main build’s artifact; artifacts are kept for 14 days. These are rolling development builds.",
+  "artifacts": [
+   "rill-aarch64-apple-darwin",
+   "rill-x86_64-apple-darwin",
+   "rill-x86_64-pc-windows-msvc",
+   "rill-x86_64-unknown-linux-gnu",
+   "rill-aarch64-unknown-linux-gnu"
+  ],
+  "label": "Alpha: the page links rolling main-branch builds, not a stable release."
+ },
+ "assets": {
+  "rill-arrangement.webp": {
+   "source": "artifacts/readme-arrangement-overview-dark.png",
+   "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
+   "source_sha256": "60a004601b146d7d4a77ea7ee64949da1d46432d3119810cf6f026929f03d3bd",
+   "sha256": "9038d99e70f456e112fe8974fbaec4aece256b053dff533f75c9c03dbf339462",
+   "bytes": 149186,
+   "dimensions": [
+    1480,
+    960
+   ]
   },
-  "assets": {
-    "rill-arrangement.webp": {
-      "source": "artifacts/readme-arrangement-overview-dark.png",
-      "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
-      "source_sha256": "60a004601b146d7d4a77ea7ee64949da1d46432d3119810cf6f026929f03d3bd",
-      "sha256": "9038d99e70f456e112fe8974fbaec4aece256b053dff533f75c9c03dbf339462",
-      "bytes": 149186,
-      "dimensions": [
-        1480,
-        960
-      ]
-    },
-    "rill-arrangement.jpg": {
-      "source": "artifacts/readme-arrangement-light.png",
-      "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
-      "source_sha256": "15db258f01164d850be98d009e62b1dabc58c063292bd22824de19c05bd8b5e8",
-      "sha256": "5ba81e3c33cf3b6ebcd546fd00c35b6b040509ca71070dd5d9aa77e5c5828dda",
-      "bytes": 223336,
-      "dimensions": [
-        1480,
-        960
-      ]
-    },
-    "rill-arrangement-compact.webp": {
-      "source": "artifacts/readme-arrangement.png",
-      "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
-      "source_sha256": "89785706403493788f68806c58968bcced158c10ae92d0b6fc342da94248f331",
-      "sha256": "839d13c562ee09882c779a455eb4f18ef53caa1987258b8a39a87bb85790bdc4",
-      "bytes": 163702,
-      "dimensions": [
-        1480,
-        960
-      ]
-    },
-    "rill-arrangement-overview-light.webp": {
-      "source": "artifacts/readme-arrangement-overview-light.png",
-      "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
-      "source_sha256": "b842e06bf90ee63a4a52fc0fcb94fa479b735351221d5d1f4bc4d7f608b400f6",
-      "sha256": "27192112a824e465419344de7a299e26c8f0b60e4bb02d7cc01d396d70c407c6",
-      "bytes": 157554,
-      "dimensions": [
-        1480,
-        960
-      ]
-    },
-    "rill-piano-roll.webp": {
-      "source": "artifacts/readme-piano-roll.png",
-      "source_sha256": "b7e74402aa19e93a634ff360d6394a5899555fc5a7d28aeb70deb77f774bb658",
-      "sha256": "ac56c738a45a0b33297a6813bd80660e82ceb31e0902dbf54abf33ec558a2d82",
-      "bytes": 105522,
-      "dimensions": [
-        2000,
-        1250
-      ]
-    },
-    "rill-audio-editor.webp": {
-      "source": "artifacts/readme-audio-editor.png",
-      "source_sha256": "3e0af828a9e4db812f7734e47b7bcc36853fe67152bbcea19445dac889c0607a",
-      "sha256": "385980ab541e6a64a9a695f0b27d68096b24815c18e13b35d049f5c730794297",
-      "bytes": 447980,
-      "dimensions": [
-        2000,
-        1250
-      ]
-    },
-    "rill-mixer.webp": {
-      "source": "artifacts/readme-mixer.png",
-      "source_sha256": "a6a376bc68296f62c2c4172af9940c72245e3422a72475c26e3fca803b07534a",
-      "sha256": "a8fd0d0578078044fa20529a50e2bda3ab05207492a74acc3a48592ec53ccde0",
-      "bytes": 267288,
-      "dimensions": [
-        2400,
-        1250
-      ]
-    },
-    "rill-ai-assistant.webp": {
-      "source": "artifacts/readme-ai-assistant.png",
-      "source_sha256": "39ad316a3c9623d6d77f59c6b944048a352c557b22bd66c4978ea4bdd73207a1",
-      "sha256": "5394f066e631601106867229f2a5dcbf1f55ebc9eccdf8b319de7a938fbf1b97",
-      "bytes": 241992,
-      "dimensions": [
-        2000,
-        1250
-      ]
-    },
-    "rill-automation.webp": {
-      "source": "artifacts/readme-automation.png",
-      "source_sha256": "01010c6aecfb9c204ed565b89ca9f42536923587f9bc80e7ec65266cda0b7020",
-      "sha256": "a4fff37486f8f1f737109c4790d65d46fa8c03bac882b4e3fdc22011bc6d47a1",
-      "bytes": 130266,
-      "dimensions": [
-        2000,
-        1250
-      ]
-    },
-    "rill-logo.svg": {
-      "source": "crates/daw-ui/assets/brand/rill-logo-dark.svg",
-      "sha256": "e233558ab7476de53423727cad656e20d4f043cb166691094a00ba962f8bb671",
-      "bytes": 76716,
-      "dimensions": [
-        669.924,
-        208
-      ]
-    },
-    "rill-r1-mini.webp": {
-      "source": "artifacts/readme-r1-mini.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "b5d4c2f5bd7d69615ed924120acaec50689a4a79410a78581d703918749aedd4",
-      "sha256": "8d762e54bb44165938dd508b5e1eea32ab81266b6b18ecf5bf47182b332244a2",
-      "bytes": 37776,
-      "dimensions": [
-        1019,
-        618
-      ]
-    },
-    "rill-r1-sampler.webp": {
-      "source": "artifacts/readme-r1-sampler.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "4f5c9131080038a2ac6a14657d5da1b35a25f089b1dc7f0a3eb99e8e40a27cf3",
-      "sha256": "b8b897093ca86031015f0652c9f73c3c3cf26fb20c923aae590f940f98dca524",
-      "bytes": 44396,
-      "dimensions": [
-        1019,
-        618
-      ]
-    },
-    "rill-r1-drums.webp": {
-      "source": "artifacts/readme-r1-drums.png",
-      "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
-      "source_sha256": "e273d763800bc6625a4609acf7f54cf3c76a7f693e6f09175216491f594dbca9",
-      "sha256": "0f295bd98aeb10e8393b76cad6b441d12351e79f7a7fefd09861006906536eb2",
-      "bytes": 61614,
-      "dimensions": [
-        1019,
-        618
-      ]
-    },
-    "rill-r1-filter.webp": {
-      "source": "artifacts/readme-r1-filter.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "391ee3d6415e7030abb6c6ef3f9398f19fb5c9f31f53718987132487fca4bece",
-      "sha256": "b034514ad99d7b8a863ae658cc4ea8eb235720eb186365358835214dd25626b3",
-      "bytes": 29208,
-      "dimensions": [
-        1019,
-        521
-      ]
-    },
-    "rill-r1-equalizer.webp": {
-      "source": "artifacts/readme-r1-equalizer.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "5ab102b9a7d7c9664fde65f33c4b3bed5c7bf541d6b9f8ceb7f9498f140081ff",
-      "sha256": "62e1514099eadf13bcd859d5c02a0c942cf85b19a49ee5e5e8fa8ebcbf014bac",
-      "bytes": 27604,
-      "dimensions": [
-        1019,
-        572
-      ]
-    },
-    "rill-r1-saturator.webp": {
-      "source": "artifacts/readme-r1-saturator.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "9596238c3ec43260ead2bd3984e4d5abd45aeeaaae711709b6a8c6813e37ab20",
-      "sha256": "b3cf6954c63ab01af744d2ae2be663916a06c2b4a1852e4cad214ce6952d44c7",
-      "bytes": 26740,
-      "dimensions": [
-        1019,
-        452
-      ]
-    },
-    "rill-r1-compressor.webp": {
-      "source": "artifacts/readme-r1-compressor.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "ed047556954ee2fc40dc16268374eef760d0981b385470d5dc6471b87dea0011",
-      "sha256": "270e7da2104c072ae63c2db1b2afe506cd2c30dc1584237ed6a5a18731b055d1",
-      "bytes": 35100,
-      "dimensions": [
-        1019,
-        561
-      ]
-    },
-    "rill-r1-modulator.webp": {
-      "source": "artifacts/readme-r1-modulator.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "b4fa984321e8e859671556009705b5d3299aa24b75a8f023a2990f301e60da16",
-      "sha256": "85ae0897c46d2a9c94bc2fc402e0774ff1332a41bde09646eb5a19d0373f3316",
-      "bytes": 37866,
-      "dimensions": [
-        1019,
-        562
-      ]
-    },
-    "rill-r1-spacer.webp": {
-      "source": "artifacts/readme-r1-spacer.png",
-      "source_commit": "34e361d01626e6696857551f32c21378d0338fe1",
-      "source_sha256": "4105ac8f21c4eda4d021674802b1654a5909c024066f8c4b15fb07bfeaabe8a7",
-      "sha256": "f1a16f4977b59c2536a140da7d4ba4c0f204cb97eb632cc60a64c6e69567ee18",
-      "bytes": 41952,
-      "dimensions": [
-        1019,
-        581
-      ]
-    }
+  "rill-arrangement.jpg": {
+   "source": "artifacts/readme-arrangement-light.png",
+   "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
+   "source_sha256": "15db258f01164d850be98d009e62b1dabc58c063292bd22824de19c05bd8b5e8",
+   "sha256": "5ba81e3c33cf3b6ebcd546fd00c35b6b040509ca71070dd5d9aa77e5c5828dda",
+   "bytes": 223336,
+   "dimensions": [
+    1480,
+    960
+   ]
   },
-  "capture": {
-    "date": "2026-11-09",
-    "code_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
-    "method": "Unpatched RILL binary on Linux under Xvfb with software rendering, dark appearance, at 1.25 pixels per point. The X11 window was resized and the views were reached with real pointer and keyboard input (xdotool); the frames are X11 grabs of the complete window. No UI elements were composited or retouched.",
-    "source_dimensions": [
-      2000,
-      1250
-    ],
-    "mixer_source_dimensions": [
-      2400,
-      1250
-    ],
-    "demo": "Glass Current: original synthesized audio, four audio tracks, four MIDI tracks, two buses and an Atmosphere volume automation lane; 32 bars at 120 BPM.",
-    "instrument": "No VST3 instrument is assigned in this capture: the MIDI tracks show RILL's real unassigned state (Choose instrument… in the piano roll, MIDI · None in the mixer). The 8 November capture used Surge XT 1.3.4.",
-    "setup": "Pointer input fits the timelines, opens the Glass chords / Opening · glass chords clip, sets the editor key to D, opens the Kick clip with the Cursor tool, opens the Atmosphere · Volume automation editor and the Mixer, and types an unsent request into the assistant. No provider credentials, AI request, generated reply or AI song edit is used; Connect AI remains visible.",
-    "harness": "Not used for this capture; scripts/rill-capture/capture-harness.patch targets the 8 November revision.",
-    "demo_generator": "scripts/rill-capture/make_demo.py",
-    "reproduction_notes": "scripts/rill-capture/README.md"
+  "rill-arrangement-compact.webp": {
+   "source": "artifacts/readme-arrangement.png",
+   "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
+   "source_sha256": "89785706403493788f68806c58968bcced158c10ae92d0b6fc342da94248f331",
+   "sha256": "839d13c562ee09882c779a455eb4f18ef53caa1987258b8a39a87bb85790bdc4",
+   "bytes": 163702,
+   "dimensions": [
+    1480,
+    960
+   ]
   },
-  "previous_capture": {
-    "source_commit": "ced4d553f4453b1f5dadbc2ee497ac4fa4f79a07",
-    "checked_on": "2026-11-08",
-    "basis": "Complete native captures of RILL code revision 451b7dcc1a34e755751c825d81d4880019cb9023 on 8 November 2026, using the original 32-bar Glass Current session. The source commit records these exact PNGs and the updated README. Only the documented capture harness changes startup/view setup; production rendering and controls are unchanged. Downloads remain rolling alpha builds."
+  "rill-arrangement-overview-light.webp": {
+   "source": "artifacts/readme-arrangement-overview-light.png",
+   "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
+   "source_sha256": "b842e06bf90ee63a4a52fc0fcb94fa479b735351221d5d1f4bc4d7f608b400f6",
+   "sha256": "27192112a824e465419344de7a299e26c8f0b60e4bb02d7cc01d396d70c407c6",
+   "bytes": 157554,
+   "dimensions": [
+    1480,
+    960
+   ]
   },
-  "arranger_capture": {
-    "date": "2026-11-16",
-    "code_commit": "30d65b390f58b0eb6b1267c121853d3cfed44e8e",
-    "method": "Native macOS release build. The same Night ferry session was opened in Compact and Overview, in light and dark appearance.",
-    "demo": "Night ferry contains eight audio tracks and eight MIDI tracks, with Intro, Pulse and Lift markers."
+  "rill-piano-roll.webp": {
+   "source": "artifacts/readme-piano-roll.png",
+   "source_sha256": "b7e74402aa19e93a634ff360d6394a5899555fc5a7d28aeb70deb77f774bb658",
+   "sha256": "ac56c738a45a0b33297a6813bd80660e82ceb31e0902dbf54abf33ec558a2d82",
+   "bytes": 105522,
+   "dimensions": [
+    2000,
+    1250
+   ]
+  },
+  "rill-audio-editor.webp": {
+   "source": "artifacts/readme-audio-editor.png",
+   "source_sha256": "3e0af828a9e4db812f7734e47b7bcc36853fe67152bbcea19445dac889c0607a",
+   "sha256": "385980ab541e6a64a9a695f0b27d68096b24815c18e13b35d049f5c730794297",
+   "bytes": 447980,
+   "dimensions": [
+    2000,
+    1250
+   ]
+  },
+  "rill-mixer.webp": {
+   "source": "artifacts/readme-mixer.png",
+   "source_sha256": "a6a376bc68296f62c2c4172af9940c72245e3422a72475c26e3fca803b07534a",
+   "sha256": "a8fd0d0578078044fa20529a50e2bda3ab05207492a74acc3a48592ec53ccde0",
+   "bytes": 267288,
+   "dimensions": [
+    2400,
+    1250
+   ]
+  },
+  "rill-ai-assistant.webp": {
+   "source": "artifacts/readme-ai-assistant.png",
+   "source_sha256": "39ad316a3c9623d6d77f59c6b944048a352c557b22bd66c4978ea4bdd73207a1",
+   "sha256": "5394f066e631601106867229f2a5dcbf1f55ebc9eccdf8b319de7a938fbf1b97",
+   "bytes": 241992,
+   "dimensions": [
+    2000,
+    1250
+   ]
+  },
+  "rill-automation.webp": {
+   "source": "artifacts/readme-automation.png",
+   "source_sha256": "01010c6aecfb9c204ed565b89ca9f42536923587f9bc80e7ec65266cda0b7020",
+   "sha256": "a4fff37486f8f1f737109c4790d65d46fa8c03bac882b4e3fdc22011bc6d47a1",
+   "bytes": 130266,
+   "dimensions": [
+    2000,
+    1250
+   ]
+  },
+  "rill-logo.svg": {
+   "source": "crates/daw-ui/assets/brand/rill-logo-dark.svg",
+   "sha256": "e233558ab7476de53423727cad656e20d4f043cb166691094a00ba962f8bb671",
+   "bytes": 76716,
+   "dimensions": [
+    669.924,
+    208
+   ]
+  },
+  "rill-r1-mini.webp": {
+   "source": "artifacts/readme-r1-mini.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "322ae40d73a011cd722580e631b9405866f4e40fbc5214d5405e7eeb2931ed18",
+   "sha256": "5ab91c0885f249966b45ca45d4993b5e16af05a42597910b56304145115e2163",
+   "bytes": 28112,
+   "dimensions": [
+    1015,
+    483
+   ]
+  },
+  "rill-r1-sampler.webp": {
+   "source": "artifacts/readme-r1-sampler.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "e8e852a72f2d7abfbc451a36f9d54d55f982b29e00ec398d76c94cdcefdcc556",
+   "sha256": "edcb0b37378c51cd60a87cc302d3166a83581f00eef83dc0467e9a8762c3ff7a",
+   "bytes": 35364,
+   "dimensions": [
+    1015,
+    618
+   ]
+  },
+  "rill-r1-drums.webp": {
+   "source": "artifacts/readme-r1-drums.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "b36ede41ccdc4d9f9a5266a330c233ef1d467bf962535627af6ef52318eb344c",
+   "sha256": "b4992aaf4aa6f86588fe78f3351853cf4f1d2de0d9677845256ffd871f82f5ac",
+   "bytes": 42484,
+   "dimensions": [
+    1015,
+    597
+   ]
+  },
+  "rill-r1-filter.webp": {
+   "source": "artifacts/readme-r1-filter.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "c638ca1aea7760d94406fa555706a91812c40348a39a9c23133ece0c0e51a697",
+   "sha256": "d5aae1a9340b07123929e97a56ec0074745f70c0e66e948777b55f0961dcad97",
+   "bytes": 33948,
+   "dimensions": [
+    1015,
+    586
+   ]
+  },
+  "rill-r1-equalizer.webp": {
+   "source": "artifacts/readme-r1-equalizer.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "dc37f15be76be919d7cd7f3cdc6a86567ea73a35921e1ec0d371a9b3da120f13",
+   "sha256": "97c287e5d3c1ac80743fcdd964d3fd5bc9ad2be41c9ff0886d43245cac163eef",
+   "bytes": 32468,
+   "dimensions": [
+    1015,
+    542
+   ]
+  },
+  "rill-r1-saturator.webp": {
+   "source": "artifacts/readme-r1-saturator.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "111fe8d307351724ec1460dd4eeb151b3834b37233406a005f94e8e674981ff3",
+   "sha256": "b35aeb27ea5f6bce6e6b1b526081a0b52e423ef99d12667755841926e64efd51",
+   "bytes": 24340,
+   "dimensions": [
+    1015,
+    459
+   ]
+  },
+  "rill-r1-compressor.webp": {
+   "source": "artifacts/readme-r1-compressor.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "f347a837563c604e8dabbe111258555bcb26e6a663398751453efcb179ee47d5",
+   "sha256": "9fac4722ea28105e74dd4de830f1b2b26cf3981b74da3630554c6b9ee55e9fa2",
+   "bytes": 34004,
+   "dimensions": [
+    1015,
+    482
+   ]
+  },
+  "rill-r1-modulator.webp": {
+   "source": "artifacts/readme-r1-modulator.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "31486f29973e5df836b73992b02381076c2bd9acd610c221baee1d6fb615f407",
+   "sha256": "b306278c8929010c6bcd81557d4cf9e95dc0fd6cc407c71455a83be4d06e0c1e",
+   "bytes": 36562,
+   "dimensions": [
+    1015,
+    482
+   ]
+  },
+  "rill-r1-spacer.webp": {
+   "source": "artifacts/readme-r1-spacer.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "8fd65670a07e08c42da2149a877cfd8e2357aa8e5e2112e8b6abf053928bdfd3",
+   "sha256": "fe3fc60db8417d9e20a506a47abecc9269e0d94f81ae44f2e98b1ab554e6c327",
+   "bytes": 40678,
+   "dimensions": [
+    1015,
+    606
+   ]
+  },
+  "rill-r1-strip.webp": {
+   "source": "artifacts/readme-r1-strip.png",
+   "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
+   "source_sha256": "0145d888249c58d5de6e796fa699d92b0b88d1682ba3b0d935145657716c9a1f",
+   "sha256": "8bbff1955b7ec4c5156374173beb0360b015190dd3ecda5b958c964b3c76ab86",
+   "bytes": 41010,
+   "dimensions": [
+    1015,
+    567
+   ]
   }
+ },
+ "capture": {
+  "date": "2026-11-09",
+  "code_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
+  "method": "Unpatched RILL binary on Linux under Xvfb with software rendering, dark appearance, at 1.25 pixels per point. The X11 window was resized and the views were reached with real pointer and keyboard input (xdotool); the frames are X11 grabs of the complete window. No UI elements were composited or retouched.",
+  "source_dimensions": [
+   2000,
+   1250
+  ],
+  "mixer_source_dimensions": [
+   2400,
+   1250
+  ],
+  "demo": "Glass Current: original synthesized audio, four audio tracks, four MIDI tracks, two buses and an Atmosphere volume automation lane; 32 bars at 120 BPM.",
+  "instrument": "No VST3 instrument is assigned in this capture: the MIDI tracks show RILL's real unassigned state (Choose instrument… in the piano roll, MIDI · None in the mixer). The 8 November capture used Surge XT 1.3.4.",
+  "setup": "Pointer input fits the timelines, opens the Glass chords / Opening · glass chords clip, sets the editor key to D, opens the Kick clip with the Cursor tool, opens the Atmosphere · Volume automation editor and the Mixer, and types an unsent request into the assistant. No provider credentials, AI request, generated reply or AI song edit is used; Connect AI remains visible.",
+  "harness": "Not used for this capture; scripts/rill-capture/capture-harness.patch targets the 8 November revision.",
+  "demo_generator": "scripts/rill-capture/make_demo.py",
+  "reproduction_notes": "scripts/rill-capture/README.md"
+ },
+ "previous_capture": {
+  "source_commit": "ced4d553f4453b1f5dadbc2ee497ac4fa4f79a07",
+  "checked_on": "2026-11-08",
+  "basis": "Complete native captures of RILL code revision 451b7dcc1a34e755751c825d81d4880019cb9023 on 8 November 2026, using the original 32-bar Glass Current session. The source commit records these exact PNGs and the updated README. Only the documented capture harness changes startup/view setup; production rendering and controls are unchanged. Downloads remain rolling alpha builds."
+ },
+ "arranger_capture": {
+  "date": "2026-11-16",
+  "code_commit": "30d65b390f58b0eb6b1267c121853d3cfed44e8e",
+  "method": "Native macOS release build. The same Night ferry session was opened in Compact and Overview, in light and dark appearance.",
+  "demo": "Night ferry contains eight audio tracks and eight MIDI tracks, with Intro, Pulse and Lift markers."
+ }
 }

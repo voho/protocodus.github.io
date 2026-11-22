@@ -379,6 +379,9 @@
    "build_version": "1.9.50d1",
    "version_on_panel": "1.9.50d1",
    "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69"
-  }
+  },
+  "latest_source_version": "1.9.63f5",
+  "latest_source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
+  "latest_source_note": "1.9.63f5 on Rack origin/main (487a12e5b) converts the front Quality and Detune readouts to editable Remote displays; panel appearance is unchanged from 1.9.63f4."
  }
 }

@@ -1,8 +1,43 @@
 {
-  "verified_at": "2026-11-11",
+  "verified_at": "2026-11-22",
   "youtube_channel": "https://www.youtube.com/@protocodus",
   "soundcloud_profile": "https://soundcloud.com/protocodus",
   "videos": [
+    {
+      "id": "JEvOyQ_5Q2E",
+      "title": "Protocodus Oregana – one organ, from a chapel positive to a cathedral grand chœur",
+      "product": "oregana",
+      "url": "https://www.youtube.com/watch?v=JEvOyQ_5Q2E",
+      "kind": "video"
+    },
+    {
+      "id": "TxTU_i6M1JE",
+      "title": "Bach's Toccata in D minor, the opening, on 5,130 modelled pipes · Protocodus Oregana",
+      "product": "oregana",
+      "url": "https://www.youtube.com/watch?v=TxTU_i6M1JE",
+      "kind": "video"
+    },
+    {
+      "id": "wVjUOdJ9s8E",
+      "title": "Protocodus Oregana: Physically modelled church organ for Reason",
+      "product": "oregana",
+      "url": "https://www.youtube.com/watch?v=wVjUOdJ9s8E",
+      "kind": "short"
+    },
+    {
+      "id": "PaVVmDOACO4",
+      "title": "Protocodus Remit | A vintage digital reverb (simulated, no IR)",
+      "product": "remit",
+      "url": "https://www.youtube.com/watch?v=PaVVmDOACO4",
+      "kind": "video"
+    },
+    {
+      "id": "SHkkdnzm5TQ",
+      "title": "Protocodus Keyra plays Chopin & Liszt | Fantaisie-Impromptu and La campanella",
+      "product": "keyra",
+      "url": "https://www.youtube.com/watch?v=SHkkdnzm5TQ",
+      "kind": "video"
+    },
     {
       "id": "2Br1qIwNDgw",
       "title": "We ran a 1910 rag through 8 old machines: tape, vinyl, radio, Ogg (Protocodus Retra for Reason)",

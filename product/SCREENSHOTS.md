@@ -1,5 +1,14 @@
 # Product media and claim sources
 
+## Current verification — 22 November 2026
+
+Verified live Reason Shop (`node scripts/catalog-live-check.mjs`), YouTube uploads, and committed repository snapshots (`reason-rack-extension` `origin/main` `487a12e5b`, `protocodus/rill-daw` `origin/main` `04de60f`, `protocodus/virtual-instrument-youknow` `origin/main` v1.4.11; Fires omitted per `origin/main` removal `2b8f1b03f`):
+
+- **Live Shop & Media**: All 12 published Reason Shop listings (`acukoto`, `aculele`, `aculyre`, `acustra`, `binaurel`, `ceres`, `lamer`, `maremba`, `press78`, `remit`, `respira`, `youknow`) and 6 SoundCloud playlists showed zero drift (`verified_at: 2026-11-22`). Added five newly published YouTube demos (`JEvOyQ_5Q2E`, `TxTU_i6M1JE`, `wVjUOdJ9s8E` Short, `PaVVmDOACO4`, `SHkkdnzm5TQ`) to `product/MEDIA.json` (total 31 videos, 6 playlists across 15 product pages). Noted all five `nightly.link` RILL artifact URLs returned HTTP 404 due to recent `rill-daw` CI failures.
+- **Rack Extension Panels & Covers**: Updated `unrest-rack-front/rear.webp` (`1.0.0f2`), `oregana-rack-front/rear.webp` (`0.12.5f1`), `respira-rack-rear.webp` (`0.8.0f2`), `retra-rack-front/rear.webp` (`0.7.1f2`), `lamer-rack-front/rear.webp` (`1.0.1f3` from `Design/previews/`), and `Electry_Thumbnail_800.png` (`2.5.1d2`). Documented source-only Remote updates for `Acustra` (`1.9.63f5`) and `YouKnow` (`1.4.11f5`), and native YouKnow core `1.4.11`.
+- **RILL Screenshots**: Updated all nine existing `rill-r1-*.webp` panel screenshots and added `rill-r1-strip.webp` (`1015x567`, R1 Strip) from `rill-daw` `04de60f` (`18` screenshots in JSON-LD matching `ASSET_PROVENANCE.json`).
+- **Catalog Organization & Page Consistency**: Reorganized `index.html` and `llms.txt` with RILL flagship first, followed by Acoustic & modelled instruments, Synthesizers, Effects & utilities, and Tools (Podcare last), sorted most recent first within each category. Unified navigation (`Fun`), shared stylesheets, hero/section structure, and reduced text length across every product page.
+
 ## Current verification — 20 November 2026
 
 At the owner's request (the site shows the latest snapshot in each product

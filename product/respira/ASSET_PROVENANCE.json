@@ -134,13 +134,14 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-20",
-  "build_version": "0.7.2f1",
-  "version_on_panel": "0.7.2f1",
+  "reviewed": "2026-11-22",
+  "build_version": "0.8.0f1",
+  "source_version": "0.8.0f2",
+  "version_on_panel": "0.8.0f2",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99",
-  "note": "The 0.7.2f1 panels in dist/ on Rack main (19280312), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6), as cwebp is not installed in this session. Unchanged panels convert byte-identically and are kept.",
+  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
+  "note": "Front panel stays byte-identical to dist/Respira_Front.png (0.7.2f1/0.8.0); rear panel comes from Examples/Respira/Docs/screenshots/back-2x.png (0.8.0f2 source, showing Room removed from the back) on Rack origin/main (487a12e5b), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6).",
   "assets": [
    {
     "file": "respira-rack-front.webp",
@@ -154,9 +155,9 @@
    },
    {
     "file": "respira-rack-rear.webp",
-    "sha256": "654935f0664d3368a65eb4019afc6caaf02f9b6a43620371b7eb46b4b4a50359",
-    "source": "dist/Respira_Back.png",
-    "source_sha256": "b76b9087d96dccc140b81871094351d496bde3bc7e4a74d9c41cdd12a5a25689",
+    "sha256": "6afb6ac12455f0700ccb2525bdc151857e651e481acdd1e80933acad2b52e637",
+    "source": "Examples/Respira/Docs/screenshots/back-2x.png",
+    "source_sha256": "f1836d8d70c9f55da56bf26d8a070fc17dbc624a7f1fbef4de52440f0aabc5e4",
     "pixels": [
      1508,
      828
@@ -164,8 +165,8 @@
    }
   ],
   "earlier": {
-   "build_version": "0.1.27f4",
-   "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
+   "build_version": "0.7.2f1",
+   "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99"
   }
  },
  "public_release": {

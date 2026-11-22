@@ -751,6 +751,9 @@
    "build_version": "1.4.11f2",
    "version_on_panel": "1.4.11f1",
    "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
-  }
+  },
+  "latest_source_version": "1.4.11f5",
+  "latest_source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
+  "latest_source_note": "1.4.11f5 on Rack origin/main (487a12e5b) converts the eight front setting readouts to editable Remote displays; panel appearance is unchanged from 1.4.11f4."
  }
 }
