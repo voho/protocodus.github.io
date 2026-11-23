@@ -134,48 +134,6 @@
         "processor": "passed",
         "dynamic_clap_midi_state": "passed"
       }
-    },
-    {
-      "product": "Septum",
-      "version": "0.9.0",
-      "source_revision": "39b24e5ab723e3cb1b306f31987552504079df89",
-      "built_utc_date": "2026-10-06",
-      "platform": "Linux-x64",
-      "status": "development",
-      "formats": [
-        "VST3",
-        "standalone"
-      ],
-      "compiler": "14.2.0",
-      "runtime_minimum_symbols": {
-        "GLIBC": "2.38",
-        "GLIBCXX": "3.4.32"
-      },
-      "required_shared_libraries": [
-        "ld-linux-x86-64.so.2",
-        "libasound.so.2",
-        "libc.so.6",
-        "libfontconfig.so.1",
-        "libfreetype.so.6",
-        "libgcc_s.so.1",
-        "libm.so.6",
-        "libstdc++.so.6"
-      ],
-      "known_issue": null,
-      "binaries": {
-        "Standalone/Septum": "55dee3d440b31ee5977b8b30ba14b1aebecf6999589a9756d7fef80b6ac3e5e8",
-        "VST3/Septum.vst3/Contents/x86_64-linux/Septum.so": "e77ea7c67752e7d119db4df49bcf97a514360a9a3865c83f504e40a0bca0c5f3"
-      },
-      "archive": "Septum-0.9.0-39b24e5a-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "c172add6b515e467961e88aa8baee267654b55311cd7983e67224f70d2a37fa1",
-      "archive_bytes": 5419010,
-      "checks": {
-        "build": "passed",
-        "dynamic_vst3_midi_state": "passed",
-        "standalone_window": "passed",
-        "archive_contents_and_checksums": "passed",
-        "processor": "passed"
-      }
     }
   ],
   "rack": {
