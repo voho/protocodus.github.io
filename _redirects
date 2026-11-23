@@ -4,3 +4,5 @@
 /fun/patcher/index.html /fun/puzzles/?game=patcher 301
 /fun/hedgerow/ /fun/ 301
 /fun/hedgerow/* /fun/ 301
+/product/rill/ /product/riffle/ 301
+/product/rill/* /product/riffle/ 301

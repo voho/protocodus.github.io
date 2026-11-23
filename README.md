@@ -6,7 +6,7 @@
 
 ## Website checks and catalog updates
 
-The homepage leads with RILL, followed by Reason instruments and effects,
+The homepage leads with Riffle, followed by Reason instruments and effects,
 Podcare, and games. Released versions and current Shop artwork are recorded in
 [`product/STORE_SNAPSHOT.json`](product/STORE_SNAPSHOT.json); development
 candidates are identified separately. All channel videos and SoundCloud
@@ -27,7 +27,7 @@ stub third-party traffic, and save responsive screenshots to
 `test-results/site-qa/`. Set `CHROMIUM_PATH` only to override that browser.
 `Website QA` runs on pull requests and main. The weekly/manual `Public catalog freshness`
 workflow checks public store versions and imagery, new YouTube uploads,
-playlist embeds, and all five rolling RILL downloads. Run it locally with
+and playlist embeds. Run it locally with
 `node scripts/catalog-live-check.mjs`; it reports drift without editing content.
 
 ## Analytics

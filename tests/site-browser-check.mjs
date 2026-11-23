@@ -40,11 +40,11 @@ for (const entry of directories) {
   if (!entry.isDirectory()) continue;
   if (await stat(resolve(root, 'product', entry.name, 'index.html')).catch(() => null)) productRoutes.push(`/product/${entry.name}/`);
 }
-assert.ok(productRoutes.includes('/product/rill/'), 'RILL must be a published product route');
+assert.ok(productRoutes.includes('/product/riffle/'), 'Riffle must be a published product route');
 const allRoutes = ['/', ...productRoutes.sort()];
 const cases = [
   ...[390, 1440].flatMap(width => allRoutes.map(route => ({ width, route }))),
-  ...[320, 768].flatMap(width => ['/', '/product/rill/', '/product/acustra/'].map(route => ({ width, route }))),
+  ...[320, 768].flatMap(width => ['/', '/product/riffle/', '/product/acustra/'].map(route => ({ width, route }))),
 ];
 const issues = [], reports = [], externalRequests = new Set();
 let browser, page, current = 'startup';
@@ -112,7 +112,7 @@ try {
       check(frame.width >= 200 && frame.height >= 200, `${frame.provider} player is only ${frame.width}×${frame.height}`);
       check(frame.left >= -1 && frame.right <= width + 1, `${frame.provider} player escapes the viewport`);
     }
-    if (route === '/') check(report.firstProduct?.includes('p-rill'), 'RILL must be the first product in the catalog');
+    if (route === '/') check(report.firstProduct?.includes('p-riffle'), 'Riffle must be the first product in the catalog');
     const menu = page.locator('.menu-toggle');
     if (await menu.isVisible()) {
       await menu.click();
@@ -130,32 +130,25 @@ try {
       const after = await page.evaluate(id => window.dataLayer.filter(row => row.event === 'protocodus.shop_click' && row.analytics?.cta_id === id).length, cta);
       check(after === before + 1, 'shop CTA must produce exactly one semantic event');
     }
-    if (route === '/product/rill/') {
+    if (route === '/product/riffle/') {
       await page.locator('[data-analytics-cta="hero_download"]').click();
-      check(new URL(page.url()).hash === '#download', 'RILL hero CTA must reach the download choices');
-      const downloads = page.locator('#download a[data-analytics-action="download_native"]');
-      check(await downloads.count() === 5, 'RILL must expose all five platform/architecture downloads');
-      for (const link of await downloads.all()) {
-        const cta = await link.getAttribute('data-analytics-cta');
-        await link.click();
-        const events = await page.evaluate(id => window.dataLayer.filter(row => row.event === 'protocodus.file_download' && row.analytics?.cta_id === id), cta);
-        check(events.length === 1 && events[0].analytics.product_id === 'rill', `${cta} must report one RILL download intent`);
-      }
+      check(new URL(page.url()).hash === '#download', 'Riffle hero CTA must reach the availability section');
+      check(await page.locator('#download a[href*="github.com"], #download a[data-analytics-action="download_native"]').count() === 0, 'Riffle offers no downloads or repository links until it is available');
     }
     await page.evaluate(() => scrollTo(0, 0));
-    if (['/', '/product/rill/'].includes(route) || (route === '/product/acustra/' && [390, 1440].includes(width))) {
+    if (['/', '/product/riffle/'].includes(route) || (route === '/product/acustra/' && [390, 1440].includes(width))) {
       const slug = route === '/' ? 'home' : route.split('/').filter(Boolean).join('-');
       await page.screenshot({ path: resolve(output, `${slug}-${width}.png`), fullPage: true, animations: 'disabled' });
     }
     reports.push({ route, width, ...report });
   }
-  current = 'Homepage → RILL navigation';
+  current = 'Homepage → Riffle navigation';
   await page.goto(origin + '/');
-  await page.locator('[data-analytics-cta="product_rill_details"]').click();
-  check(new URL(page.url()).pathname === '/product/rill/', 'the featured RILL card must open its product page');
+  await page.locator('[data-analytics-cta="product_riffle_details"]').click();
+  check(new URL(page.url()).pathname === '/product/riffle/', 'the featured Riffle card must open its product page');
   await writeFile(resolve(output, 'report.json'), JSON.stringify({ cases: reports, externalOriginsStubbed: [...externalRequests], issues }, null, 2));
   assert.deepEqual(issues, [], 'Responsive website checks failed (see test-results/site-qa/report.json)');
-  console.log(`Website browser checks passed: ${cases.length} page/viewport cases, decoded imagery, media dimensions, keyboard menus, RILL navigation and five download CTAs; all third-party requests stubbed.`);
+  console.log(`Website browser checks passed: ${cases.length} page/viewport cases, decoded imagery, media dimensions, keyboard menus, Riffle navigation and availability; all third-party requests stubbed.`);
 } catch (error) {
   if (page) await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true, animations: 'disabled' }).catch(() => {});
   await writeFile(resolve(output, 'report.json'), JSON.stringify({ cases: reports, externalOriginsStubbed: [...externalRequests], issues, error: String(error), current }, null, 2));

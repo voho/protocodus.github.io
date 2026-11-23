@@ -10,7 +10,7 @@ const home = read('index.html');
 const pages = ['index.html', ...readdirSync(new URL('product/', root), { withFileTypes: true }).filter(e => e.isDirectory() && existsSync(new URL(`product/${e.name}/index.html`, root))).map(e => `product/${e.name}/index.html`)];
 const decode = text => text.replaceAll('&amp;', '&');
 const cards = [...home.matchAll(/<article\b[^>]*class="product-card p-([a-z0-9]+)\b/g)].map(m => m[1]);
-assert.equal(cards[0], 'rill', 'RILL leads Products');
+assert.equal(cards[0], 'riffle', 'Riffle leads Products');
 assert.equal(cards.at(-1), 'podcare', 'Podcare follows all instruments and effects');
 assert.ok(home.indexOf('id="fun"') > home.indexOf('p-podcare'), 'Games follow Podcare');
 assert.equal((home.match(/id="software"/g) || []).length, 1, 'Software navigation retains a single destination');
@@ -155,39 +155,36 @@ for (const path of pages) {
 assert.deepEqual(actualVideos, expectedVideos, 'All verified YouTube uploads are embedded');
 assert.deepEqual(actualPlaylists, expectedPlaylists, 'All verified SoundCloud playlists are embedded');
 assert.ok(commerceLinks >= catalog.products.length * 3, 'Shop CTAs carry campaign and placement tags');
-const rill = read('product/rill/index.html');
-const rillProvenance = JSON.parse(read('product/rill/ASSET_PROVENANCE.json'));
-const rillApplication = JSON.parse(rill.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
-const rillScreenshots = [];
-for (const [name, asset] of Object.entries(rillProvenance.assets)) {
-  const bytes = readFileSync(new URL(`product/rill/${name}`, root));
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256, `RILL ${name}: image matches its provenance`);
-  assert.equal(bytes.length, asset.bytes, `RILL ${name}: recorded file size matches`);
+const riffle = read('product/riffle/index.html');
+const riffleProvenance = JSON.parse(read('product/riffle/ASSET_PROVENANCE.json'));
+const riffleApplication = JSON.parse(riffle.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+const riffleScreenshots = [];
+for (const [name, asset] of Object.entries(riffleProvenance.assets)) {
+  const bytes = readFileSync(new URL(`product/riffle/${name}`, root));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256, `Riffle ${name}: image matches its provenance`);
+  assert.equal(bytes.length, asset.bytes, `Riffle ${name}: recorded file size matches`);
   if (!/\.(webp|jpg)$/.test(name)) continue;
   const versioned = `${name}?v=${asset.sha256.slice(0, 12)}`;
-  const references = [...`${rill}\n${home}`.matchAll(new RegExp(name.replaceAll('.', '\\.') + '(?:\\?v=[a-f0-9]+)?', 'g'))];
-  assert.ok(references.length, `RILL ${name}: image is used`);
-  for (const reference of references) assert.equal(reference[0], versioned, `RILL ${name}: every reference uses the current image`);
-  const url = `https://protocodus.cz/product/rill/${versioned}`;
+  const references = [...`${riffle}\n${home}`.matchAll(new RegExp(name.replaceAll('.', '\\.') + '(?:\\?v=[a-f0-9]+)?', 'g'))];
+  assert.ok(references.length, `Riffle ${name}: image is used`);
+  for (const reference of references) assert.equal(reference[0], versioned, `Riffle ${name}: every reference uses the current image`);
+  const url = `https://protocodus.cz/product/riffle/${versioned}`;
   if (name.endsWith('.webp')) {
-    rillScreenshots.push(url);
-    const image = rill.match(new RegExp(`<img[^>]+src="${versioned.replace(/[.?]/g, '\\$&')}"[^>]*>`))?.[0];
-    assert.ok(image?.includes(`width="${asset.dimensions[0]}" height="${asset.dimensions[1]}"`), `RILL ${name}: intrinsic dimensions match provenance`);
+    riffleScreenshots.push(url);
+    const image = riffle.match(new RegExp(`<img[^>]+src="${versioned.replace(/[.?]/g, '\\$&')}"[^>]*>`))?.[0];
+    assert.ok(image?.includes(`width="${asset.dimensions[0]}" height="${asset.dimensions[1]}"`), `Riffle ${name}: intrinsic dimensions match provenance`);
   } else {
-    assert.equal(rillApplication.image, url, 'RILL structured data uses the current social cover');
-    for (const html of [rill, home]) {
-      assert.ok(html.includes(`<meta property="og:image" content="${url}">`), 'RILL and homepage Open Graph cover agree');
-      assert.ok(html.includes(`<meta name="twitter:image" content="${url}">`), 'RILL and homepage Twitter cover agree');
+    assert.equal(riffleApplication.image, url, 'Riffle structured data uses the current social cover');
+    for (const html of [riffle, home]) {
+      assert.ok(html.includes(`<meta property="og:image" content="${url}">`), 'Riffle and homepage Open Graph cover agree');
+      assert.ok(html.includes(`<meta name="twitter:image" content="${url}">`), 'Riffle and homepage Twitter cover agree');
       assert.ok(html.includes(`<meta property="og:image:width" content="${asset.dimensions[0]}">`));
       assert.ok(html.includes(`<meta property="og:image:height" content="${asset.dimensions[1]}">`));
     }
   }
 }
-assert.deepEqual(rillApplication.screenshot, rillScreenshots, 'RILL structured data lists the current screenshots');
-const downloads = [...rill.matchAll(/href="(https:\/\/nightly\.link\/protocodus\/rill-daw\/workflows\/ci\/main\/[^"?]+\.zip)"/g)];
-assert.equal(downloads.length, 5, 'RILL provides all five rolling platform artifacts');
-assert.equal(new Set(downloads.map(m => m[1])).size, 5);
-assert.match(rill, /ALPHA/);
-assert.match(rill, /unsigned/);
-assert.match(rill, /not notarized/);
-console.log(`Catalog checks passed: ${catalog.products.length} Shop releases, ${actualVideos.size} videos, ${actualPlaylists.size} playlists, ${commerceLinks} tagged Shop links, RILL first and five alpha downloads.`);
+assert.deepEqual(riffleApplication.screenshot, riffleScreenshots, 'Riffle structured data lists the current screenshots');
+assert.doesNotMatch(`${riffle}\n${home}`, /nightly\.link|github\.com\/protocodus\/(?:rill|riffle)/, 'Riffle links no builds or source repository');
+assert.match(riffle, /ALPHA/);
+assert.match(riffle, /available soon/i);
+console.log(`Catalog checks passed: ${catalog.products.length} Shop releases, ${actualVideos.size} videos, ${actualPlaylists.size} playlists, ${commerceLinks} tagged Shop links, Riffle first and available soon.`);

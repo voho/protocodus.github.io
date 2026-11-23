@@ -1,0 +1,101 @@
+/* Riffle: an editorial product story, built around real application captures. */
+.p-riffle { --bg: #101615; --bg-well: #131c19; --line: #d5eee015; --fg: #edf2eb; --fg-muted: #b0bdb4; }
+.p-riffle .site-header { background: #101615f2; }
+.riffle-subnav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-block: .7rem; border-bottom: 1px solid var(--line); }
+.riffle-subnav nav { display: flex; gap: 1.8rem; font-size: .8rem; color: var(--fg-muted); }
+.riffle-subnav nav a { padding-block: .8rem; }
+.riffle-hero { padding-top: clamp(3.5rem, 7vw, 7rem); overflow: clip; background: radial-gradient(ellipse at 50% 85%, #28483780, transparent 65%); }
+.riffle-hero-copy { max-width: 1000px; margin-inline: auto; text-align: center; }
+.riffle-identity { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.8rem; }
+.riffle-identity img { width: 197px; height: auto; }
+.riffle-alpha { display: inline-block; padding: .25rem .6rem; border: 1px solid #f6d15555; border-radius: 4px; color: #f6d155; font-size: .65rem; font-weight: 600; letter-spacing: .12em; white-space: nowrap; }
+.riffle-eyebrow { font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; color: var(--fg-muted); }
+.riffle-hero h1 { font-size: clamp(4rem, 8.7vw, 7.5rem); font-weight: 500; letter-spacing: -.075em; line-height: 1.05; margin-top: 1rem; }
+.riffle-hero h1 em { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; color: var(--accent); letter-spacing: -.07em; }
+.riffle-intro { max-width: 47ch; margin: 1.6rem auto 0; font-size: clamp(1.1rem, 1.7vw, 1.25rem); color: var(--fg-muted); line-height: 1.7; }
+.riffle-hero .hero-actions { justify-content: center; margin-top: 2rem; }
+.p-riffle .btn-primary { border-radius: 6px; box-shadow: 0 4px 16px #0002; }
+.riffle-tour-link { font-size: .9rem; padding: .8rem; }
+.riffle-platform-line { display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap; margin-top: 1.3rem; font-size: .72rem; color: var(--fg-muted); }
+.riffle-platform-line span { color: #7e998a; }
+.riffle-hero-shot { max-width: 1140px; margin: 4rem auto 0; padding: clamp(.35rem, 1vw, .75rem); border: 1px solid #a6d0b830; border-bottom: 0; border-radius: 16px 16px 0 0; background: #ffffff05; }
+.p-riffle .shot img { border-radius: 8px; border-color: #bbdac72c; box-shadow: 0 25px 70px #0004; }
+.riffle-hero-shot .shot-caption { padding-inline: .5rem; }
+.riffle-spec-strip { border-block: 1px solid var(--line); }
+.riffle-spec-strip .wrap { display: flex; justify-content: space-between; gap: 1rem; padding-block: 1.5rem; font-size: .8rem; color: var(--fg-muted); }
+.p-riffle .band { padding-block: clamp(4.5rem, 8vw, 8rem); }
+.p-riffle .title { font-size: clamp(2.2rem, 4.8vw, 4.3rem); line-height: 1.1; letter-spacing: -.055em; font-weight: 500; }
+.p-riffle .tag { margin-bottom: 1.5rem; color: #95bba5; font-size: .7rem; letter-spacing: .1em; }
+.riffle-section-head { display: grid; grid-template-columns: 1.15fr 1fr; gap: 0 4rem; align-items: end; }
+.riffle-section-head .tag { grid-column: 1/-1; }
+.riffle-section-head .lede { max-width: 46ch; margin-top: 0; }
+.riffle-arranger-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 2rem; margin-top: 3rem; }
+.riffle-principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3rem; margin-top: 4rem; }
+.riffle-principles article { border-top: 1px solid #d5eee02a; padding-top: 1.5rem; }
+.riffle-principles article > span { color: var(--accent); font-size: .75rem; }
+.riffle-principles h3 { font-size: 1.2rem; font-weight: 500; margin-block: 1.2rem .7rem; letter-spacing: -.025em; }
+.riffle-principles p { color: var(--fg-muted); font-size: .93rem; }
+.riffle-editorial { display: grid; grid-template-columns: .8fr 1.2fr; gap: clamp(2rem, 6vw, 5rem); align-items: center; }
+.riffle-editorial-reverse { grid-template-columns: 1.2fr .8fr; }
+.riffle-editorial-reverse .riffle-editorial-copy { order: 2; }
+.riffle-editorial .lede { font-size: 1rem; }
+.riffle-feature-list { margin-top: 2rem; border-top: 1px solid var(--line); }
+.riffle-feature-list li { border-bottom: 1px solid var(--line); padding-block: .75rem; font-size: .8rem; color: var(--fg-muted); }
+.riffle-feature-list li::before { content: '↗'; color: var(--accent); margin-right: .8rem; }
+.riffle-ai { background: #dce9dd; color: #172b21; --fg: #172b21; --fg-muted: #40594a; --fg-faint: #48614e; --line: #172b2120; --signal: #234b35; --accent: #234b35; }
+.riffle-ai .tag { color: #42694e; }
+.riffle-ai blockquote { font-size: 1.25rem; font-weight: 500; line-height: 1.5; letter-spacing: -.025em; margin-top: 1.5rem; padding-left: 1rem; border-left: 2px solid #42694e; }
+.riffle-ai-note { font-size: .75rem; color: var(--fg-muted); margin-top: .8rem; }
+.riffle-disclosure { border-block-end: 1px solid var(--line); padding-block: 1rem; }
+.riffle-disclosure summary { cursor: pointer; font-size: .86rem; font-weight: 500; padding-block: .25rem; }
+.riffle-disclosure p { font-size: .86rem; color: var(--fg-muted); margin: .8rem 0; }
+.riffle-disclosure .text-link { font-size: .8rem; }
+.riffle-ai .riffle-disclosure { margin-top: 1.2rem; }
+.riffle-mixer-shot { margin-top: 3rem; }
+.riffle-device-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5rem 2rem; align-items: start; margin-top: 4rem; }
+.riffle-device-grid figcaption { margin-top: 1rem; color: var(--fg-muted); font-size: .9rem; line-height: 1.6; max-width: 60ch; }
+.riffle-download { background: #18241d; }
+.riffle-download-head { display: grid; grid-template-columns: 1.15fr 1fr; gap: 3rem; align-items: center; }
+.riffle-download-head .lede { font-size: 1rem; }
+.riffle-download-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 3rem; }
+.riffle-platform { display: flex; flex-direction: column; align-items: stretch; padding: clamp(1.2rem, 2.5vw, 2rem); border: 1px solid #abc9b330; border-radius: 10px; background: #0e171180; }
+.riffle-os-icon { font-size: 2rem; line-height: 1; color: #9bc6a8; }
+.riffle-platform h3 { margin-top: 1.5rem; font-size: 1.55rem; font-weight: 500; }
+.riffle-platform p { font-size: .82rem; color: var(--fg-muted); margin: .5rem 0 1.5rem; }
+.riffle-platform .btn { font-size: .82rem; padding-inline: .8rem; justify-content: space-between; }
+.riffle-alt-download { padding-block: .85rem; font-size: .8rem; text-align: center; text-decoration: underline; text-underline-offset: 4px; }
+.riffle-platform small { margin-top: auto; padding-top: 1rem; font-size: .72rem; color: var(--fg-muted); }
+.riffle-install { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; }
+.riffle-resource-row { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin-top: 2rem; font-size: .85rem; color: var(--accent); }
+.riffle-support { text-align: center; }
+.riffle-support .lede { max-width: 55ch; margin-inline: auto; }
+.riffle-support .text-link { display: inline-block; margin-top: 1.5rem; }
+@media (max-width: 900px) {
+  .riffle-editorial, .riffle-editorial-reverse { grid-template-columns: 1fr; }
+  .riffle-editorial-copy { max-width: 600px; }
+  .riffle-editorial-reverse .riffle-editorial-copy { order: 0; }
+  .riffle-section-head { gap: 0 2rem; }
+  .riffle-download-grid { gap: .6rem; }
+  .riffle-device-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 650px) {
+  .riffle-subnav nav { gap: 1rem; }
+  .riffle-subnav nav a:first-child { display: none; }
+  .riffle-subnav .back-link { font-size: .75rem; }
+  .riffle-identity { margin-bottom: 1.5rem; }
+  .riffle-hero h1 { font-size: clamp(3.6rem, 14vw, 5.4rem); }
+  .riffle-eyebrow { font-size: .65rem; }
+  .riffle-hero-shot { margin-top: 2.5rem; }
+  .riffle-platform-line { gap: .4rem 1rem; }
+  .riffle-spec-strip .wrap { display: grid; grid-template-columns: 1fr 1fr; font-size: .7rem; }
+  .riffle-device-grid { grid-template-columns: 1fr; margin-top: 2.5rem; }
+  .riffle-section-head, .riffle-download-head, .riffle-principles, .riffle-download-grid, .riffle-install { grid-template-columns: 1fr; }
+  .riffle-section-head .lede { margin-top: 1.5rem; }
+  .riffle-principles { gap: 1.5rem; margin-top: 2.5rem; }
+  .riffle-download-head { gap: 1.5rem; }
+  .riffle-download-grid { gap: 1rem; }
+  .riffle-platform { padding: 1.5rem; }
+  .riffle-platform .btn { min-height: 48px; }
+  .riffle-install { gap: 0; }
+  .p-riffle .shot-caption { font-size: .7rem; }
+}

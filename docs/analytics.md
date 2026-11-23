@@ -141,8 +141,7 @@ routing/privacy without contacting Google.
 
 Reason Shop links also carry `utm_source=protocodus.cz`, `utm_medium=website`,
 `utm_campaign=rack_extensions` and the fixed CTA ID as `utm_content`. Internal
-links never carry UTMs, so they do not overwrite acquisition. RILL artifact
-URLs remain unchanged; the collector records their product and platform CTA.
+links never carry UTMs, so they do not overwrite acquisition.
 
 ## Data boundaries and controls
 
@@ -185,8 +184,7 @@ node fun/shared/tests/shell-check.mjs
 `npm ci && npx playwright install chromium && npm test` runs the complete suite.
 The analytics browser check verifies the shared loader on every public page,
 Web Vitals and native video playback. The responsive browser check verifies
-product images, mobile layout, keyboard menus, media size, RILL navigation and
-all five download CTAs. Playwright uses its bundled Chromium by default;
+product images, mobile layout, keyboard menus, media size and Riffle navigation. Playwright uses its bundled Chromium by default;
 `CHROMIUM_PATH` is an optional override. Third-party requests are stubbed, so QA
 does not send events to Google. CI retains responsive screenshots and reports.
 
@@ -228,7 +226,7 @@ the homepage (`Organization` with registered entity/Prague address/ARES/Reason S
 all 15 product pages (`SoftwareApplication` and `BreadcrumbList`), the games hub (`CollectionPage` with `ItemList` and `BreadcrumbList`),
 and all six browser game pages (`VideoGame` and `BreadcrumbList`). Released Reason Shop products include `InStock` offers and `sameAs` store links;
 unpublished products omit `datePublished` and `InStock` offers while documenting their verified device version;
-RILL describes its free, MIT-licensed alpha. `node tests/site-content-check.mjs` verifies that
+Riffle omits offers until it is available. `node tests/site-content-check.mjs` verifies that
 `sitemap.xml` and `llms.txt` stay in sync with the published site.
 
 The domain property `sc-domain:protocodus.cz` was verified in Search Console on

@@ -1,6 +1,6 @@
 // Read-only public-source monitor. Run: node scripts/catalog-live-check.mjs
 // Exit 1: confirmed catalog/media drift. Exit 2: verification unavailable.
-// It never changes snapshots, publishes content, or downloads RILL archives.
+// It never changes snapshots or publishes content.
 import { readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -202,10 +202,9 @@ async function youtubeDiscovery(media) {
 }
 
 async function main() {
-  const [store, media, rill] = await Promise.all([
+  const [store, media] = await Promise.all([
     readFile(new URL('product/STORE_SNAPSHOT.json', root), 'utf8').then(JSON.parse),
     readFile(new URL('product/MEDIA.json', root), 'utf8').then(JSON.parse),
-    readFile(new URL('product/rill/index.html', root), 'utf8'),
   ]);
   if (!store.products?.length || !media.videos?.length || !media.playlists?.length) {
     throw new VerificationError('Store or media snapshot is empty; cannot run the monitor.');
@@ -255,27 +254,12 @@ async function main() {
     }
   }));
   tasks.push(() => check('New YouTube uploads', () => youtubeDiscovery(media)));
-  const downloads = [...new Set([...rill.matchAll(/<a\b[^>]*>/gi)].map(([tag]) => attributes(tag).href)
-    .filter(url => url?.startsWith('https://nightly.link/protocodus/rill-daw/workflows/ci/main/')))];
-  if (!downloads.length) unavailable.push('RILL: no current main-build download links found in the page.');
-  for (const url of downloads) tasks.push(() => check(`RILL ${new URL(url).pathname.split('/').at(-1)}`, async () => {
-    const response = await request(url, { probe: true });
-    if ([404, 410].includes(response.status)) { drift.push(`RILL: rolling build is unavailable or expired: ${url}`); return; }
-    if (![200, 206].includes(response.status)) throw new VerificationError(`Download probe returned HTTP ${response.status}.`);
-    if (!/application\/(?:zip|octet-stream|x-zip(?:-compressed)?)/i.test(response.headers.get('content-type') || '')) {
-      throw new VerificationError('Download endpoint returned a non-archive content type.');
-    }
-    if (response.status === 206 && !/^bytes 0-0\/[1-9]\d*$/i.test(response.headers.get('content-range') || '')) {
-      throw new VerificationError('Download endpoint returned an unexpected byte range.');
-    }
-    if (response.status === 200) notes.push('A RILL server ignored Range; only archive headers were verified and its body was cancelled.');
-  }));
   await pool(tasks);
   for (const note of new Set(notes)) console.log(`NOTE: ${note}`);
   for (const failure of drift) console.error(`DRIFT: ${failure}`);
   for (const failure of unavailable) console.error(`UNAVAILABLE: ${failure}`);
   console.log(`${verified.length} source checks completed; ${drift.length} drift findings; ${unavailable.length} unavailable checks.`);
-  console.log(`Compared ${store.products.length} Shop releases, ${media.videos.length} videos, ${media.playlists.length} playlists and ${downloads.length} RILL downloads. Snapshots: ${store.verified_at} / ${media.verified_at}.`);
+  console.log(`Compared ${store.products.length} Shop releases, ${media.videos.length} videos and ${media.playlists.length} playlists. Snapshots: ${store.verified_at} / ${media.verified_at}.`);
   if (unavailable.length) process.exitCode = 2;
   else if (drift.length) process.exitCode = 1;
 }

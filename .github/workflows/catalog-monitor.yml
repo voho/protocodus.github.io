@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   live-sources:
-    name: Store releases, demo media and RILL downloads
+    name: Store releases and demo media
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
