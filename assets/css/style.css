@@ -124,10 +124,8 @@ p { text-wrap: pretty; }
 .hero-social .btn { padding-inline: 0.875rem; }
 .social-icon { flex: none; width: 20px; height: 20px; }
 .life { position: absolute; inset: var(--header-height) 0 auto; width: 100%; height: 540px; z-index: 0; opacity: 0.85; pointer-events: none; mask-image: linear-gradient(90deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55) 45%, #000 75%); }
-.experience-strip { position: relative; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: 1.4rem; background: var(--bg); }
-.experience-inner, .experience-logos { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem 2.1rem; }
-.experience-inner { justify-content: space-between; }
-.experience-label { font-size: 0.875rem; }
+.experience-logos { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem 2.1rem; }
+.experience-label { display: block; margin-bottom: 0.4rem; color: var(--fg-muted); font-size: 0.875rem; }
 .experience-item { color: var(--fg-muted); font-size: 1rem; font-weight: 500; white-space: nowrap; text-underline-offset: 5px; }
 .experience-item:is(:hover, :focus-visible) { color: var(--accent); text-decoration: underline; }
 .band { position: relative; border-top: 1px solid var(--line); padding-block: clamp(3.5rem, 6vw, 5.5rem); }
@@ -247,6 +245,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .detail-note { color: var(--fg-muted); font-size: 0.875rem; }
 .founder-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: clamp(1.5rem, 4vw, 3rem); }
 .founder-photo { width: clamp(7rem, 12vw, 10rem); height: auto; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--line-lift); background: var(--bg); }
+.founder-experience { margin-top: 1rem; }
 .founder-links { display: flex; flex-wrap: wrap; gap: 0 1.5rem; margin-top: 0.75rem; }
 .band-contact { background: var(--bg); }
 .contact-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: clamp(2rem, 5vw, 4rem); }
@@ -301,7 +300,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   .product-body p { max-width: 58ch; }
   .product-body .product-facts { margin-top: 0.9rem; }
   .product-more { margin-top: 1rem; }
-  .experience-inner { align-items: flex-start; flex-direction: column; }
   .experience-logos { gap: 0.6rem 1.5rem; }
 }
 @media (max-width: 560px) {
