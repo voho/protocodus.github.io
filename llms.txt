@@ -1,6 +1,6 @@
 # Protocodus
 
-> Protocodus s.r.o. is an independent software and audio engineering studio based in Prague, Czech Republic, founded by Vojtěch Hordějčuk on March 5, 2026. Protocodus develops RILL (a free, open-source desktop music workstation), Reason Rack Extensions (physically modelled acoustic instruments, circuit-modelled synthesizers, and audio effects for the Reason Studios Rack), command-line audio tools, and ad-free browser games.
+> Protocodus s.r.o. is an independent software and audio engineering studio based in Prague, Czech Republic, founded by Vojtěch Hordějčuk on March 5, 2026. Protocodus develops Riffle (a desktop music workstation, available soon), Reason Rack Extensions (physically modelled acoustic instruments, circuit-modelled synthesizers, and audio effects for the Reason Studios Rack), command-line audio tools, and ad-free browser games.
 
 ## Studio & Entity Information
 
@@ -20,7 +20,7 @@
 
 ## Flagship Software
 
-- [RILL — Free, Open-Source Music Workstation](https://protocodus.cz/product/rill/): Free native DAW for macOS, Linux, and Windows (v0.1.0 Alpha, MIT License). Audio and MIDI recording, take comping, piano roll, non-destructive audio editing, three built-in R1 instruments (`R1 Mini`, `R1 Sampler`, `R1 Drums`) and seven R1 effects (`R1 Filter`, `R1 Equalizer`, `R1 Saturator`, `R1 Compressor`, `R1 Modulator`, `R1 Spacer`, `R1 Strip`), isolated VST3, CLAP, LV2 (Linux) and Audio Unit (macOS) plug-ins, buses/sends/sidechains, automation, reversible Freeze, self-contained projects, and optional scoped OpenAI/Anthropic or MCP AI assistance. [GitHub](https://github.com/protocodus/rill-daw)
+- [Riffle — Desktop Music Workstation](https://protocodus.cz/product/riffle/): Native DAW for macOS, Linux, and Windows, available soon. Audio and MIDI recording, take comping, piano roll, non-destructive audio editing, three built-in R1 instruments (`R1 Mini`, `R1 Sampler`, `R1 Drums`) and seven R1 effects (`R1 Filter`, `R1 Equalizer`, `R1 Saturator`, `R1 Compressor`, `R1 Modulator`, `R1 Spacer`, `R1 Strip`), isolated VST3, CLAP, LV2 (Linux) and Audio Unit (macOS) plug-ins, buses/sends/sidechains, automation, reversible Freeze, self-contained projects, and optional scoped OpenAI/Anthropic or MCP AI assistance.
 
 ## Acoustic & Modelled Instruments (Newest First)
 

@@ -1,28 +1,13 @@
 {
  "checked_on": "2026-11-22",
- "product": "Rill desktop music workstation",
+ "product": "Riffle desktop music workstation (renamed from RILL; the screenshots predate the rename)",
  "source_repository": "https://github.com/protocodus/rill-daw",
  "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
  "source_version": "0.1.0",
- "licence": "MIT",
  "basis": "The arranger and R1 Drums/device screenshots: Night ferry is an original six-bar, sixteen-track session at 116 BPM. All ten R1 device panels (R1 Mini, R1 Sampler, R1 Drums, R1 Filter, R1 Equalizer, R1 Saturator, R1 Compressor, R1 Modulator, R1 Spacer, and R1 Strip) are native screenshots from rill-daw origin/main (04de60f, 2026-11-21) with unified page tabs. The piano roll, audio editor, mixer, automation editor and assistant show the 9 November Glass Current session described in capture.",
  "derivatives": "WebP images preserve the native source dimensions and RGB pixels. The November 22 R1 device derivatives and November 16 arranger derivatives use Pillow 11.0.0, lossless WebP, method 6. The social cover is an optimized JPEG at native size, quality 86, from Compact in light appearance.",
- "downloads": {
-  "service": "nightly.link",
-  "workflow": "https://github.com/protocodus/rill-daw/actions/workflows/ci.yml",
-  "branch": "main",
-  "note": "Each link serves the latest successful main build’s artifact; artifacts are kept for 14 days. These are rolling development builds.",
-  "artifacts": [
-   "rill-aarch64-apple-darwin",
-   "rill-x86_64-apple-darwin",
-   "rill-x86_64-pc-windows-msvc",
-   "rill-x86_64-unknown-linux-gnu",
-   "rill-aarch64-unknown-linux-gnu"
-  ],
-  "label": "Alpha: the page links rolling main-branch builds, not a stable release."
- },
  "assets": {
-  "rill-arrangement.webp": {
+  "riffle-arrangement.webp": {
    "source": "artifacts/readme-arrangement-overview-dark.png",
    "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
    "source_sha256": "60a004601b146d7d4a77ea7ee64949da1d46432d3119810cf6f026929f03d3bd",
@@ -33,7 +18,7 @@
     960
    ]
   },
-  "rill-arrangement.jpg": {
+  "riffle-arrangement.jpg": {
    "source": "artifacts/readme-arrangement-light.png",
    "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
    "source_sha256": "15db258f01164d850be98d009e62b1dabc58c063292bd22824de19c05bd8b5e8",
@@ -44,7 +29,7 @@
     960
    ]
   },
-  "rill-arrangement-compact.webp": {
+  "riffle-arrangement-compact.webp": {
    "source": "artifacts/readme-arrangement.png",
    "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
    "source_sha256": "89785706403493788f68806c58968bcced158c10ae92d0b6fc342da94248f331",
@@ -55,7 +40,7 @@
     960
    ]
   },
-  "rill-arrangement-overview-light.webp": {
+  "riffle-arrangement-overview-light.webp": {
    "source": "artifacts/readme-arrangement-overview-light.png",
    "source_commit": "9bcf3c5aed2a4de8438ca7301a0a41cd6814826c",
    "source_sha256": "b842e06bf90ee63a4a52fc0fcb94fa479b735351221d5d1f4bc4d7f608b400f6",
@@ -66,7 +51,7 @@
     960
    ]
   },
-  "rill-piano-roll.webp": {
+  "riffle-piano-roll.webp": {
    "source": "artifacts/readme-piano-roll.png",
    "source_sha256": "b7e74402aa19e93a634ff360d6394a5899555fc5a7d28aeb70deb77f774bb658",
    "sha256": "ac56c738a45a0b33297a6813bd80660e82ceb31e0902dbf54abf33ec558a2d82",
@@ -76,7 +61,7 @@
     1250
    ]
   },
-  "rill-audio-editor.webp": {
+  "riffle-audio-editor.webp": {
    "source": "artifacts/readme-audio-editor.png",
    "source_sha256": "3e0af828a9e4db812f7734e47b7bcc36853fe67152bbcea19445dac889c0607a",
    "sha256": "385980ab541e6a64a9a695f0b27d68096b24815c18e13b35d049f5c730794297",
@@ -86,7 +71,7 @@
     1250
    ]
   },
-  "rill-mixer.webp": {
+  "riffle-mixer.webp": {
    "source": "artifacts/readme-mixer.png",
    "source_sha256": "a6a376bc68296f62c2c4172af9940c72245e3422a72475c26e3fca803b07534a",
    "sha256": "a8fd0d0578078044fa20529a50e2bda3ab05207492a74acc3a48592ec53ccde0",
@@ -96,7 +81,7 @@
     1250
    ]
   },
-  "rill-ai-assistant.webp": {
+  "riffle-ai-assistant.webp": {
    "source": "artifacts/readme-ai-assistant.png",
    "source_sha256": "39ad316a3c9623d6d77f59c6b944048a352c557b22bd66c4978ea4bdd73207a1",
    "sha256": "5394f066e631601106867229f2a5dcbf1f55ebc9eccdf8b319de7a938fbf1b97",
@@ -106,7 +91,7 @@
     1250
    ]
   },
-  "rill-automation.webp": {
+  "riffle-automation.webp": {
    "source": "artifacts/readme-automation.png",
    "source_sha256": "01010c6aecfb9c204ed565b89ca9f42536923587f9bc80e7ec65266cda0b7020",
    "sha256": "a4fff37486f8f1f737109c4790d65d46fa8c03bac882b4e3fdc22011bc6d47a1",
@@ -116,16 +101,16 @@
     1250
    ]
   },
-  "rill-logo.svg": {
-   "source": "crates/daw-ui/assets/brand/rill-logo-dark.svg",
-   "sha256": "e233558ab7476de53423727cad656e20d4f043cb166691094a00ba962f8bb671",
-   "bytes": 76716,
+  "riffle-logo.svg": {
+   "source": "crates/daw-ui/assets/brand/riffle-logo-dark.svg (protocodus/riffle)",
+   "sha256": "802c371441cf8cb6fc02f858bae96649f362693df7e404727bf2e95be50f186a",
+   "bytes": 16665,
    "dimensions": [
-    669.924,
+    912.492,
     208
    ]
   },
-  "rill-r1-mini.webp": {
+  "riffle-r1-mini.webp": {
    "source": "artifacts/readme-r1-mini.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "322ae40d73a011cd722580e631b9405866f4e40fbc5214d5405e7eeb2931ed18",
@@ -136,7 +121,7 @@
     483
    ]
   },
-  "rill-r1-sampler.webp": {
+  "riffle-r1-sampler.webp": {
    "source": "artifacts/readme-r1-sampler.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "e8e852a72f2d7abfbc451a36f9d54d55f982b29e00ec398d76c94cdcefdcc556",
@@ -147,7 +132,7 @@
     618
    ]
   },
-  "rill-r1-drums.webp": {
+  "riffle-r1-drums.webp": {
    "source": "artifacts/readme-r1-drums.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "b36ede41ccdc4d9f9a5266a330c233ef1d467bf962535627af6ef52318eb344c",
@@ -158,7 +143,7 @@
     597
    ]
   },
-  "rill-r1-filter.webp": {
+  "riffle-r1-filter.webp": {
    "source": "artifacts/readme-r1-filter.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "c638ca1aea7760d94406fa555706a91812c40348a39a9c23133ece0c0e51a697",
@@ -169,7 +154,7 @@
     586
    ]
   },
-  "rill-r1-equalizer.webp": {
+  "riffle-r1-equalizer.webp": {
    "source": "artifacts/readme-r1-equalizer.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "dc37f15be76be919d7cd7f3cdc6a86567ea73a35921e1ec0d371a9b3da120f13",
@@ -180,7 +165,7 @@
     542
    ]
   },
-  "rill-r1-saturator.webp": {
+  "riffle-r1-saturator.webp": {
    "source": "artifacts/readme-r1-saturator.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "111fe8d307351724ec1460dd4eeb151b3834b37233406a005f94e8e674981ff3",
@@ -191,7 +176,7 @@
     459
    ]
   },
-  "rill-r1-compressor.webp": {
+  "riffle-r1-compressor.webp": {
    "source": "artifacts/readme-r1-compressor.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "f347a837563c604e8dabbe111258555bcb26e6a663398751453efcb179ee47d5",
@@ -202,7 +187,7 @@
     482
    ]
   },
-  "rill-r1-modulator.webp": {
+  "riffle-r1-modulator.webp": {
    "source": "artifacts/readme-r1-modulator.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "31486f29973e5df836b73992b02381076c2bd9acd610c221baee1d6fb615f407",
@@ -213,7 +198,7 @@
     482
    ]
   },
-  "rill-r1-spacer.webp": {
+  "riffle-r1-spacer.webp": {
    "source": "artifacts/readme-r1-spacer.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "8fd65670a07e08c42da2149a877cfd8e2357aa8e5e2112e8b6abf053928bdfd3",
@@ -224,7 +209,7 @@
     606
    ]
   },
-  "rill-r1-strip.webp": {
+  "riffle-r1-strip.webp": {
    "source": "artifacts/readme-r1-strip.png",
    "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
    "source_sha256": "0145d888249c58d5de6e796fa699d92b0b88d1682ba3b0d935145657716c9a1f",
