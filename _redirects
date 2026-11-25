@@ -6,3 +6,4 @@
 /fun/hedgerow/* /fun/ 301
 /product/rill/ /product/riffle/ 301
 /product/rill/* /product/riffle/ 301
+/scripts/rill-capture/* /scripts/riffle-capture/:splat 301

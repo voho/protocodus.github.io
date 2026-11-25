@@ -122,7 +122,7 @@ const debugLocal = browser('http://localhost:8000/', { debug: true });
 assert.equal(debugLocal.gaEvents('page_view').length, 1, 'Explicit debug mode enables local diagnostics');
 for (const url of [
   'https://626ee9dc-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
-  'https://codex-premium-rill-store-20261105-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
+  'https://codex-premium-riffle-store-20261105-protocodus-github-io.vojtech-hordejcuk.workers.dev/',
   'https://preview.protocodus.cz/',
   'https://protocodus.cz.example.test/',
   'http://127.0.0.1:8776/',

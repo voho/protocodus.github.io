@@ -1,10 +1,10 @@
 {
  "checked_on": "2026-11-22",
- "product": "Riffle desktop music workstation (renamed from RILL; the screenshots predate the rename)",
- "source_repository": "https://github.com/protocodus/rill-daw",
+ "product": "Riffle desktop music workstation (the screenshots and source commits predate the current repository history)",
+ "source_repository": "protocodus/riffle (private)",
  "source_commit": "04de60fada80087e8f53112b88aa25fff07ca84d",
  "source_version": "0.1.0",
- "basis": "The arranger and R1 Drums/device screenshots: Night ferry is an original six-bar, sixteen-track session at 116 BPM. All ten R1 device panels (R1 Mini, R1 Sampler, R1 Drums, R1 Filter, R1 Equalizer, R1 Saturator, R1 Compressor, R1 Modulator, R1 Spacer, and R1 Strip) are native screenshots from rill-daw origin/main (04de60f, 2026-11-21) with unified page tabs. The piano roll, audio editor, mixer, automation editor and assistant show the 9 November Glass Current session described in capture.",
+ "basis": "The arranger and R1 Drums/device screenshots: Night ferry is an original six-bar, sixteen-track session at 116 BPM. All ten R1 device panels (R1 Mini, R1 Sampler, R1 Drums, R1 Filter, R1 Equalizer, R1 Saturator, R1 Compressor, R1 Modulator, R1 Spacer, and R1 Strip) are native screenshots from Riffle origin/main (04de60f, 2026-11-21) with unified page tabs. The piano roll, audio editor, mixer, automation editor and assistant show the 9 November Glass Current session described in capture.",
  "derivatives": "WebP images preserve the native source dimensions and RGB pixels. The November 22 R1 device derivatives and November 16 arranger derivatives use Pillow 11.0.0, lossless WebP, method 6. The social cover is an optimized JPEG at native size, quality 86, from Compact in light appearance.",
  "assets": {
   "riffle-arrangement.webp": {
@@ -224,7 +224,7 @@
  "capture": {
   "date": "2026-11-09",
   "code_commit": "70c416f09bc931500af660b8f5e32633821c14d6",
-  "method": "Unpatched RILL binary on Linux under Xvfb with software rendering, dark appearance, at 1.25 pixels per point. The X11 window was resized and the views were reached with real pointer and keyboard input (xdotool); the frames are X11 grabs of the complete window. No UI elements were composited or retouched.",
+  "method": "Unpatched Riffle binary on Linux under Xvfb with software rendering, dark appearance, at 1.25 pixels per point. The X11 window was resized and the views were reached with real pointer and keyboard input (xdotool); the frames are X11 grabs of the complete window. No UI elements were composited or retouched.",
   "source_dimensions": [
    2000,
    1250
@@ -234,16 +234,16 @@
    1250
   ],
   "demo": "Glass Current: original synthesized audio, four audio tracks, four MIDI tracks, two buses and an Atmosphere volume automation lane; 32 bars at 120 BPM.",
-  "instrument": "No VST3 instrument is assigned in this capture: the MIDI tracks show RILL's real unassigned state (Choose instrument… in the piano roll, MIDI · None in the mixer). The 8 November capture used Surge XT 1.3.4.",
+  "instrument": "No VST3 instrument is assigned in this capture: the MIDI tracks show Riffle's real unassigned state (Choose instrument… in the piano roll, MIDI · None in the mixer). The 8 November capture used Surge XT 1.3.4.",
   "setup": "Pointer input fits the timelines, opens the Glass chords / Opening · glass chords clip, sets the editor key to D, opens the Kick clip with the Cursor tool, opens the Atmosphere · Volume automation editor and the Mixer, and types an unsent request into the assistant. No provider credentials, AI request, generated reply or AI song edit is used; Connect AI remains visible.",
-  "harness": "Not used for this capture; scripts/rill-capture/capture-harness.patch targets the 8 November revision.",
-  "demo_generator": "scripts/rill-capture/make_demo.py",
-  "reproduction_notes": "scripts/rill-capture/README.md"
+  "harness": "Not used for this capture; scripts/riffle-capture/capture-harness.patch targets the 8 November revision.",
+  "demo_generator": "scripts/riffle-capture/make_demo.py",
+  "reproduction_notes": "scripts/riffle-capture/README.md"
  },
  "previous_capture": {
   "source_commit": "ced4d553f4453b1f5dadbc2ee497ac4fa4f79a07",
   "checked_on": "2026-11-08",
-  "basis": "Complete native captures of RILL code revision 451b7dcc1a34e755751c825d81d4880019cb9023 on 8 November 2026, using the original 32-bar Glass Current session. The source commit records these exact PNGs and the updated README. Only the documented capture harness changes startup/view setup; production rendering and controls are unchanged. Downloads remain rolling alpha builds."
+  "basis": "Complete native captures of Riffle code revision 451b7dcc1a34e755751c825d81d4880019cb9023 on 8 November 2026, using the original 32-bar Glass Current session. The source commit records these exact PNGs and the updated README. Only the documented capture harness changes startup/view setup; production rendering and controls are unchanged. Downloads remain rolling alpha builds."
  },
  "arranger_capture": {
   "date": "2026-11-16",
