@@ -66,6 +66,16 @@ const tests = [
     ['setControllers', 0, 0.21], ['render', 26513],
     ['allSoundOff'], ['render', 32004],
   ] },
+  { name: 'Half-drawn harmonic flute and treble reed at minimum pressure', rate: 48000, score: [
+    ['setControl', 'pressure', 0.6], ['setControl', 'rec_flute_harmonique_8', 0.5],
+    ['divisionNoteOn', 2, 72, 80], ['render', 48000], ['setControl', 'pos_vox_humana_8', 1],
+    ['divisionNoteOn', 1, 84, 95], ['render', 24000], ['divisionNoteOff', 2, 72, 30],
+    ['divisionNoteOff', 1, 84, 110], ['render', 12000],
+  ] },
+  { name: 'Sticking Hauptwerk pallet closes after the last key lifts', rate: 48000, quietTail: true, score: [
+    ['setControl', 'room', 0], ['setControl', 'action', 0], ['setControl', 'blower', 0], ['setControl', 'ciphers', 1],
+    ['divisionNoteOn', 0, 73, 80], ['render', 12000], ['divisionNoteOff', 0, 73, 64], ['render', 144000],
+  ] },
   { name: 'Routed keys and four independent MIDI divisions', rate: 48000, score: mixedScore },
   { name: 'Routed keys and four independent MIDI divisions', rate: 44100, blockSize: 193, score: mixedScore },
 ];
@@ -149,6 +159,7 @@ try {
   const module = await WebAssembly.compile(readFileSync(new URL('../../fun/oregana/dsp/organ-simd.wasm', import.meta.url)));
   for (const test of tests) {
     const native = nativeRender(oracle, test);
+    if (test.quietTail) assert.ok(native.subarray(-8192).every(x => Math.abs(x) < 1e-5), 'Native cipher did not settle shut');
     runScore(new OreganaDSP(test.rate), native, test, 'JavaScript');
     runScore(new SimdDSP(test.rate, module), native, test, 'SIMD');
   }

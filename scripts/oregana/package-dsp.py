@@ -10,8 +10,8 @@ import sys
 # The module is ordinary, correct JS on browsers without asm.js acceleration.
 # Match the audited generated bodies independently of Binaryen’s function numbers.
 PIPE_KERNELS = {
-    "986111d4d585b9cf34235ea7eab957578916f6ab3478aaac6701a390ee6a44d9": "renderFlue",
-    "2a0787161a8b135ba78cbcfd6a51a8569ea1f6dc96b92fe71847c97b6dbfe4d4": "renderReed",
+    "505b9e771d22beb268f6ed1baab00dee03f6b750f65955adfa2dda2ee06c7360": "renderFlue",
+    "a0fa0eb11f342d7e6a515b7d99c64c97f8c9cecc0704b43c4ac9228157d253f1": "renderReed",
 }
 
 

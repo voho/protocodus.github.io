@@ -26,7 +26,7 @@
 
 - [Oregana — Modelled Church Organ](https://protocodus.cz/product/oregana/): Physically modelled 51-stop church organ Rack Extension across three manuals and pedal (in development, latest build `0.12.5f1`, 2026-11-22) with shared winding, sagging bellows, variable church acoustics, 77 patches, and a [playable browser edition](https://protocodus.cz/fun/oregana/).
 - [Respira — Modelled Accordion](https://protocodus.cz/product/respira/): Physically modelled bellows accordion Rack Extension (Shop release `0.1.27`, 2026-11-18; latest build `0.8.0f1` / source `0.8.0f2`, 2026-11-21) with eight registers, Stradella bass, auto/manual mod-wheel bellows, and four accordion types in 0.8.0. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/respira-bellows-accordion/)
-- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (in development, latest build `2.24.4f1`, 2026-11-20) featuring four grands and an upright, five calibrated microphones, three pedals, sympathetic resonance, and 13 patches.
+- [Keyra — Modelled Grand Piano](https://protocodus.cz/product/keyra/): Physically modelled piano Rack Extension (in development, latest build `2.24.4f1`, 2026-11-20) featuring four grands and an upright, five calibrated microphones, three pedals, sympathetic resonance, 13 patches, and a [playable browser edition](https://protocodus.cz/fun/keyra/).
 - [Electry — Modelled Electric Guitar](https://protocodus.cz/product/electry/): Physically modelled six-string electric guitar Rack Extension (in development, latest build `2.5.1d2`, 2026-11-19) with three single-coil pickups, five-way switch, floating tremolo bridge, 15 keyswitches, and string-solo keys.
 - [Acukoto — Modelled Koto](https://protocodus.cz/product/acukoto/): Physically modelled 13-string paulownia koto Rack Extension (Shop release `0.25.16`, 2026-11-12; latest build `0.25.22f2`, 2026-11-18) with movable bridges, Hirajoshi/Chromatic tunings, left-hand bends, and mic/piezo outs. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/)
 - [Aculele — Modelled Ukulele](https://protocodus.cz/product/aculele/): Physically modelled ukulele Rack Extension (Shop release `0.4.64`, 2026-11-17; latest build `0.4.70f3`, 2026-11-17) with soprano, concert, and tenor bodies, nylon/fluorocarbon strings, chord strumming, and mic/piezo outs. [Reason Shop](https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/)
@@ -57,7 +57,8 @@
 
 ## Browser Games and Musical Instruments
 
-- [Protocodus Fun](https://protocodus.cz/fun/): Play the Oregana church organ and seven browser games without installation or an account.
+- [Protocodus Fun](https://protocodus.cz/fun/): Play the Oregana church organ, Keyra piano and seven browser games without installation or an account.
+- [Play Keyra](https://protocodus.cz/fun/keyra/): Play five modelled acoustic pianos with mouse, touch, computer keyboard or MIDI.
 - [Play Oregana](https://protocodus.cz/fun/oregana/): A modelled 51-stop church organ for mouse, computer keyboard or MIDI keyboard.
 - [Tyran](https://protocodus.cz/fun/tyran/): Arcade vertical space shooter across ten sectors with squadron formations, boss guardians, wing drones, and ship upgrades.
 - [Ashline](https://protocodus.cz/fun/ashline/): Sci-fi real-time strategy game with a ten-operation campaign and skirmish modes featuring Organics and AI Unity factions, base building, power logistics, and unit promotions.
