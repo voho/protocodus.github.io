@@ -11,6 +11,8 @@ import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
 const $ = (selector) => document.querySelector(selector);
 const canvas = $('#stage');
 const ctx = canvas.getContext('2d');
+const labelCanvas = $('[data-labels]');
+const labelCtx = labelCanvas.getContext('2d');
 const sound = createSound();
 const toastEl = $('[data-toast]');
 const status = $('[data-status]');
@@ -427,6 +429,10 @@ function resize() {
   canvas.width = Math.round(innerWidth * ratio);
   canvas.height = Math.round(innerHeight * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  labelCanvas.width = Math.round(innerWidth * ratio);
+  labelCanvas.height = Math.round(innerHeight * ratio);
+  labelCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (!mission) return;
   const top = $('.hud-top').getBoundingClientRect().bottom + 6;
   const bottom = innerHeight - $('.hud-bottom').getBoundingClientRect().top + 6;
@@ -449,7 +455,7 @@ function frame(now) {
       hover.label = `${MATERIALS[hover.beam.mat].name} · ${Math.round(hover.beam.usage * 100)}%`;
       hover.color = stressColor(hover.beam.usage);
     }
-    draw(ctx, {
+    draw(ctx, labelCtx, {
       mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
       hover: hover?.beam?.broken ? null : hover,
       peakOf: (m) => peaks.get(peakKey(m)),

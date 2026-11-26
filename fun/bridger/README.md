@@ -75,11 +75,16 @@ it. Players can still try one.
 
 ## Looks
 
-[`js/scenery.js`](js/scenery.js) draws faceted low-poly scenery from the seed. Each river
-gets one of four worlds from its seed (Meadow, Sunset, Alpine or Canyon); `?theme=`
-previews one on any river. Distant hills fade into the sky's haze so the bridge and its
-stress colours stay in front, and the river is a translucent body that darkens with depth
-and reflects the bridge.
+Bridger is hand-painted, high-resolution 2D art. Backdrops are 3840 px wide (4K) and
+simply stretch on bigger screens; the game draws at the screen's full pixel density.
+
+Each river gets one of eight worlds from its seed: Valley, Mesa, Snow, Night, Forest,
+Sandstone, Night desert or Night city. `?theme=` previews one on any river. The
+backdrops, rock textures and vehicle sprites in [`assets/`](assets/CREDITS.md) were
+generated for the game. All scenery stays in cool, muted blues and violets, so the
+green-to-red stress colours, the materials and the vehicles always stand out.
+[`js/scenery.js`](js/scenery.js) fills the physics ground line with the rock texture and
+draws the river, which darkens with depth and reflects the bridge.
 
 ## Checks
 
