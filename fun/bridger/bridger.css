@@ -148,8 +148,6 @@ kbd { display: inline-block; min-width: 20px; padding: 0 6px; border: 1px solid 
 .card-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .win-cost { font-size: 3.4rem !important; font-weight: 600; line-height: 1; letter-spacing: -0.04em; color: var(--accent) !important; font-variant-numeric: tabular-nums; }
 
-.mat.mirror { margin-left: 4px; border-style: dashed; border-color: var(--line-lift); }
-.mat.mirror[aria-pressed="true"] { border-style: solid; border-color: var(--accent); color: var(--accent); }
 .ideas-title { margin-top: 20px; font-size: 1rem; font-weight: 600; }
 .ideas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
 .ideas figure { padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
@@ -222,8 +220,6 @@ body.ready.busy .loading { opacity: 0.85; visibility: visible; background: rgba(
 
 /* ---------- looks ---------- */
 body[data-theme="sunset"] { --accent: #ffb86b; background: #2a1f4a; }
-body[data-theme="blueprint"] { --accent: #8fd3ff; background: #0f3a66; }
-body[data-theme="blueprint"] .hud .glass, body[data-theme="blueprint"] .segmented, body[data-theme="blueprint"] .icon-btn, body[data-theme="blueprint"] .toolbar, body[data-theme="blueprint"] .materials, body[data-theme="blueprint"] .budget, body[data-theme="blueprint"] .legend { background: rgba(10, 40, 75, 0.7); border-color: rgba(170, 215, 255, 0.4); border-style: dashed; }
 body[data-ui="light"] {
   --paper: #1d2530;
   --muted: rgba(29, 37, 48, 0.74);
@@ -234,8 +230,8 @@ body[data-ui="light"] {
   --glass-strong: rgba(255, 255, 255, 0.95);
 }
 body[data-ui="light"] .wordmark h1, body[data-ui="light"] .mission-chip { text-shadow: 0 1px 10px rgba(255, 255, 255, 0.8); }
-body[data-ui="light"] .btn, body[data-ui="light"] .mat { background: rgba(29, 37, 48, 0.05); }
-body[data-ui="light"] .btn:hover, body[data-ui="light"] .mat:hover { background: rgba(29, 37, 48, 0.1); }
+body[data-ui="light"] .btn:not(.btn-primary), body[data-ui="light"] .mat { background: rgba(29, 37, 48, 0.05); }
+body[data-ui="light"] .btn:not(.btn-primary):hover, body[data-ui="light"] .mat:hover { background: rgba(29, 37, 48, 0.1); }
 body[data-ui="light"] .meter { background: rgba(29, 37, 48, 0.12); }
 body[data-ui="light"] .card { background: linear-gradient(165deg, #ffffff, #f1f4f7); color: var(--paper); }
 body[data-ui="light"] dialog::backdrop { background: rgba(200, 215, 230, 0.45); }

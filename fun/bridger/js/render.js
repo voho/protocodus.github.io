@@ -58,14 +58,21 @@ function anchors(ctx, view, mission) {
   const s = Math.max(7, view.scale * 0.42);
   for (const [gx, gy] of mission.anchors) {
     const x = view.sx(gx * CELL), y = view.sy(gy * CELL);
-    ctx.fillStyle = '#e2533f';
+    ctx.fillStyle = 'rgba(10, 18, 30, 0.22)';
+    ctx.beginPath();
+    ctx.roundRect(x - s + s * 0.15, y - s + s * 0.25, s * 2, s * 2, s * 0.4);
+    ctx.fill();
+    const plate = ctx.createLinearGradient(0, y - s, 0, y + s);
+    plate.addColorStop(0, '#ef6a52');
+    plate.addColorStop(1, '#c7402f');
+    ctx.fillStyle = plate;
     ctx.strokeStyle = '#ffd2c4';
-    ctx.lineWidth = Math.max(1.5, s * 0.22);
+    ctx.lineWidth = Math.max(1.5, s * 0.2);
     ctx.beginPath();
     ctx.roundRect(x - s, y - s, s * 2, s * 2, s * 0.4);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#ffd2c4';
+    ctx.fillStyle = '#ffe3d9';
     ctx.beginPath();
     ctx.arc(x, y, s * 0.35, 0, Math.PI * 2);
     ctx.fill();
@@ -102,16 +109,31 @@ function beam(ctx, view, ax, ay, bx, by, mat, stress, overlay) {
   }
 }
 
+/* A soft offset shadow under every member, so the bridge lifts off the scenery. */
+function shadows(ctx, view, lines) {
+  const d = Math.max(1.5, view.scale * 0.1);
+  ctx.strokeStyle = 'rgba(10, 18, 30, 0.2)';
+  ctx.lineCap = 'round';
+  for (const [ax, ay, bx, by, mat] of lines) {
+    ctx.lineWidth = Math.max(mat === 'cable' ? 1.6 : 3, WIDTH[mat] * view.scale) + d;
+    ctx.beginPath(); ctx.moveTo(ax + d * 0.6, ay + d); ctx.lineTo(bx + d * 0.6, by + d); ctx.stroke();
+  }
+}
+
 function joints(ctx, view, points) {
   const r = Math.max(2.5, view.scale * 0.16);
-  ctx.fillStyle = '#f7f7f2';
-  ctx.strokeStyle = '#2a2f36';
-  ctx.lineWidth = Math.max(1, r * 0.45);
+  ctx.lineWidth = Math.max(1, r * 0.4);
   for (const [x, y] of points) {
+    ctx.fillStyle = '#f4f5f1';
+    ctx.strokeStyle = '#262b33';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle = '#9aa3ad';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.38, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -157,6 +179,12 @@ function vehicle(ctx, view, car) {
       box(-1.25, 0.75, d + 1.25, 2.6, '#7c4dbd', 0.2);
       box(-1.25, 1.4, d + 1.25, 1.6, '#c9a6f2', 0);
     }
+    // Shade the lower half of the body so it reads as rounded, not flat.
+    const [bx0, by0, bx1, by1] = { car: [-0.85, 0.3, d + 0.85, 1.25], truck: [-0.9, 0.6, d + 1.2, 1.8], loco: [-1.1, 0.7, d + 1.5, 1.9], wagon: [-1.25, 0.75, d + 1.25, 1.7] }[kind];
+    const shade = ctx.createLinearGradient(0, by0, 0, by1);
+    shade.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
+    shade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    box(bx0, by0, bx1, by1, shade, 0.2);
     for (const x of [0, d]) {
       ctx.fillStyle = '#22262c';
       ctx.beginPath(); ctx.arc(x, wheel, wheel, 0, Math.PI * 2); ctx.fill();
@@ -194,47 +222,38 @@ export function draw(ctx, state) {
   drawGround(ctx, view, mission, state.scenery, theme);
   if (state.mode === 'build') grid(ctx, view, mission, state.focus, theme);
 
-  const points = new Map();
-  if (state.mode === 'build') {
-    for (const m of state.members) {
-      const ax = view.sx(m.a[0] * CELL), ay = view.sy(m.a[1] * CELL);
-      const bx = view.sx(m.b[0] * CELL), by = view.sy(m.b[1] * CELL);
-      const peak = state.peakOf?.(m);
-      const hot = state.hover?.member === m;
-      beam(ctx, view, ax, ay, bx, by, m.mat, null, peak != null ? stressColor(peak) : hot ? 'rgba(255, 255, 255, 0.6)' : null);
-      points.set(`${m.a}`, [ax, ay]);
-      points.set(`${m.b}`, [bx, by]);
+  // The bridge and vehicle are drawn twice: once for real and once mirrored
+  // in the river, without hover highlights.
+  const structure = (reflection) => {
+    const lines = [], points = new Map();
+    if (state.mode === 'build') {
+      for (const m of state.members) {
+        const ax = view.sx(m.a[0] * CELL), ay = view.sy(m.a[1] * CELL);
+        const bx = view.sx(m.b[0] * CELL), by = view.sy(m.b[1] * CELL);
+        const peak = state.peakOf?.(m);
+        const hot = !reflection && state.hover?.member === m;
+        lines.push([ax, ay, bx, by, m.mat, null, peak != null ? stressColor(peak) : hot ? 'rgba(255, 255, 255, 0.6)' : null]);
+        points.set(`${m.a}`, [ax, ay]);
+        points.set(`${m.b}`, [bx, by]);
+      }
+    } else if (state.sim) {
+      const { nodes, beams } = state.sim;
+      for (const b of beams) {
+        if (b.broken) continue;
+        const na = nodes[b.a], nb = nodes[b.b];
+        lines.push([view.sx(na.x), view.sy(na.y), view.sx(nb.x), view.sy(nb.y), b.mat, stressColor(b.usage), null]);
+        for (const n of [na, nb]) if (!n.fixed) points.set(n, [view.sx(n.x), view.sy(n.y)]);
+      }
     }
-  } else if (state.sim) {
-    const { nodes, beams } = state.sim;
-    for (const b of beams) {
-      if (b.broken) continue;
-      const na = nodes[b.a], nb = nodes[b.b];
-      beam(ctx, view, view.sx(na.x), view.sy(na.y), view.sx(nb.x), view.sy(nb.y), b.mat, stressColor(b.usage));
-    }
-    for (const b of beams) {
-      if (b.broken) continue;
-      for (const n of [nodes[b.a], nodes[b.b]]) if (!n.fixed) points.set(n, [view.sx(n.x), view.sy(n.y)]);
-    }
-  }
-  joints(ctx, view, points.values());
-  anchors(ctx, view, mission);
+    if (!reflection) shadows(ctx, view, lines);
+    for (const l of lines) beam(ctx, view, ...l);
+    joints(ctx, view, points.values());
+    if (!reflection) anchors(ctx, view, mission);
+    vehicle(ctx, view, state.sim && state.mode === 'test' ? state.sim.car : state.parked);
+  };
+  structure(false);
+  drawWater(ctx, view, mission, theme, time, () => structure(true));
 
-  if (state.sim && state.mode === 'test') vehicle(ctx, view, state.sim.car);
-  else vehicle(ctx, view, state.parked);
-  drawWater(ctx, view, mission, theme, time);
-
-  if (state.mirrorX != null && state.mode === 'build') {
-    // A faint centre line while mirror building is on.
-    ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 7]);
-    ctx.beginPath();
-    ctx.moveTo(view.sx(state.mirrorX), view.sy(mission.bounds.maxY * CELL + 0.5));
-    ctx.lineTo(view.sx(state.mirrorX), view.sy(mission.water));
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
   if (state.drag) {
     const { from, to, ok, mat, plan } = state.drag;
     const ax = view.sx(from[0] * CELL), ay = view.sy(from[1] * CELL);
@@ -267,6 +286,12 @@ export function draw(ctx, state) {
     else { ctx.beginPath(); ctx.arc(view.sx(p.x), view.sy(p.y), r, 0, Math.PI * 2); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
+
+  const v = ctx.createRadialGradient(view.width / 2, view.height * 0.55, Math.min(view.width, view.height) * 0.35, view.width / 2, view.height * 0.55, Math.hypot(view.width, view.height) * 0.62);
+  v.addColorStop(0, 'rgba(8, 14, 24, 0)');
+  v.addColorStop(1, 'rgba(8, 14, 24, 0.22)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, view.width, view.height);
 
   if (state.hover?.label) label(ctx, state.hover.px, state.hover.py - 6, state.hover.label, state.hover.color);
 }

@@ -79,6 +79,10 @@ export function createTerrain(rng) {
 
 /* ---------- building rules ---------- */
 
+/* The road is always laid flat from bank to bank in 2 m pieces: every mission
+   starts with it, and the player builds what holds it up. */
+export const roadDeck = (mission) => Array.from({ length: mission.span }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
+
 export function isAnchor(mission, p) {
   return mission.anchors.some((a) => a[0] === p[0] && a[1] === p[1]);
 }

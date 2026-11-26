@@ -1,7 +1,7 @@
 # Bridger
 
 [Play Bridger](index.html) is a 2D bridge-building game for children and grown-ups.
-Build a bridge over a river from road, wood, steel and cable, press **Go!**, and watch
+Hold up a road across a river with wood, steel and cable, press **Go!**, and watch
 a car, truck or train drive across it in a real physics test. Every member glows from
 green to red with the force it carries, and the worst moment of the last test stays
 on the drawing while you rebuild.
@@ -15,19 +15,19 @@ on the drawing while you rebuild.
 
   | Material | Cost | Longest | Strength | Notes |
   | --- | --- | --- | --- | --- |
-  | Road | $30/m | 4 m | 80 kN | The only thing wheels roll on; heavy and stiff. |
+  | Road | $30/m | 2 m pieces | 80 kN | Laid for you; heavy and stiff. Wheels roll only on road. |
   | Wood | $10/m | 6 m | 40 kN | Cheap and light. |
   | Steel | $25/m | 8 m | 110 kN | Strong and long. |
   | Cable | $12/m | 20 m | 90 kN | Light; pulls but goes slack when pushed. |
 
 - **Vehicles.** A 1.5 t car, a 6 t three-axle truck, or a 12 t locomotive with two
   wagons. Heavier vehicles get narrower rivers.
-- **Drawing.** Drag from a bolt or joint. Road is laid in 2 m pieces, so one swipe
-  crosses the river. A beam drawn through existing joints joins them. **Mirror** (on by
-  default) copies every beam, swap and erase to the other side of the centre line where
-  it fits. Tap a beam with a material to swap it, or with Erase to remove it.
-- **Rules.** Joints stay out of the rock and at least 1 m above the water; road can't be
-  steeper than 1 in 2.
+- **Road.** Every river starts with a flat road laid from bank to bank in 2 m pieces; its
+  cost counts toward the budget. It can't be erased or swapped, so the job is to hold it
+  up. Every proven design keeps the road flat too.
+- **Drawing.** Drag from a bolt or joint. A beam drawn through existing joints joins
+  them. Tap a beam with a material to swap it, or with Erase to remove it.
+- **Rules.** Joints stay out of the rock and at least 1 m above the water.
 - **Bridge ideas.** The help card sketches a beam on a pier, a truss, an arch and a
   cable-stayed bridge. Any bridge that carries the vehicle across within the budget
   wins; one that crosses over budget is reported with how much it went over.
@@ -65,9 +65,11 @@ it. Players can still try one.
 
 ## Looks
 
-[`js/scenery.js`](js/scenery.js) draws faceted low-poly scenery from the seed. Five looks
-can be previewed with `?theme=meadow|sunset|alpine|canyon|blueprint`; Meadow is the
-default.
+[`js/scenery.js`](js/scenery.js) draws faceted low-poly scenery from the seed. Each river
+gets one of four worlds from its seed (Meadow, Sunset, Alpine or Canyon); `?theme=`
+previews one on any river. Distant hills fade into the sky's haze so the bridge and its
+stress colours stay in front, and the river is a translucent body that darkens with depth
+and reflects the bridge.
 
 ## Checks
 

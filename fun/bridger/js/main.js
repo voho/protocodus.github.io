@@ -1,12 +1,12 @@
 /* Bridger: build a bridge on the grid, then test it with the real
    simulation. Build mode edits a list of members; test mode runs a sim of a
    copy of it and colours every member by how close it is to breaking. */
-import { randomSeed } from '../../shared/rng.js';
+import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
-import { createMission, memberProblem, pairKey, isAnchor, randomSolution, DESIGN_NAMES } from './mission.js';
+import { createMission, memberProblem, pairKey, isAnchor, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
 import { createView, draw, stressColor } from './render.js';
 import { createSound } from './sound.js';
-import { THEMES, buildScenery } from './scenery.js';
+import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $('#stage');
@@ -19,7 +19,7 @@ const win = $('[data-dialog="win"]');
 const undoButton = $('[data-action="undo"]');
 const testLabel = $('[data-test-label]');
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
-const TOOLS = ['road', 'wood', 'steel', 'cable', 'erase'];
+const TOOLS = ['wood', 'steel', 'cable', 'erase'];
 const money = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
 const read = (name) => { try { return localStorage.getItem(`bridger-${name}`); } catch { return null; } };
 const store = (name, value) => { try { localStorage.setItem(`bridger-${name}`, value); } catch { /* private mode */ } };
@@ -28,15 +28,13 @@ const track = (event, fields = {}) => window.protocodusAnalytics?.track(event, {
 });
 
 let difficulty = 'medium', seed = '', mission = null, view = null, parked = null, scenery = null;
-const themeId = THEMES[new URLSearchParams(location.search).get('theme')] ? new URLSearchParams(location.search).get('theme') : 'meadow';
-const theme = THEMES[themeId];
-document.body.dataset.theme = themeId;
-document.body.dataset.ui = theme.ui;
-let members = [], undoStack = [], tool = 'road';
+// Each river has its own world, picked from its seed; ?theme= previews one.
+const themeOverride = THEMES[new URLSearchParams(location.search).get('theme')] ? new URLSearchParams(location.search).get('theme') : null;
+let theme = null;
+let members = [], undoStack = [], tool = 'wood';
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
-let mirrorOn = read('mirror') !== 'off';
 let toastTimer = 0, last = performance.now(), time = 0;
 
 const peakKey = (m) => `${pairKey(m)}:${m.mat}`;
@@ -70,13 +68,17 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     if (!keepBridge) {
       let saved = null;
       try { saved = JSON.parse(read(`bridge-${seed}`) || 'null'); } catch { /* broken save */ }
-      members = Array.isArray(saved) ? saved.filter((m) => m && MATERIALS[m.mat] && !memberProblem(mission, [], m)) : [];
+      members = [...roadDeck(mission), ...(Array.isArray(saved) ? saved.filter((m) => m && MATERIALS[m.mat] && m.mat !== 'road' && !memberProblem(mission, [], m)) : [])];
       undoStack = [];
       peaks = new Map();
       solutionShown = false;
       started = false;
     }
     parked = createSim(mission, []).car;
+    const themeId = themeOverride || THEME_IDS[hashSeed(`${seed}:world`) % THEME_IDS.length];
+    theme = THEMES[themeId];
+    document.body.dataset.theme = themeId;
+    document.body.dataset.ui = theme.ui;
     scenery = buildScenery(mission, theme);
     stopTest();
     if (win.open) win.close();
@@ -161,8 +163,7 @@ function jointNear(px, py) {
   const [sx, sy] = screenOf(g);
   return Math.hypot(px - sx, py - sy) < Math.max(18, view.scale * CELL * 0.45) && isJoint(g) ? g : null;
 }
-/* Road is laid in 2 m pieces, so it can be dragged right across the river. */
-const reach = (mat) => (mat === 'road' ? 40 : MATERIALS[mat].maxLength);
+const reach = (mat) => MATERIALS[mat].maxLength;
 /* The grid point under the pointer, pulled in to the longest beam allowed. */
 function reachTarget(from, px, py, mat) {
   let target = gridAt(px, py);
@@ -183,23 +184,20 @@ function reachTarget(from, px, py, mat) {
 
 /* ---------- building ---------- */
 
-/* Road splits into a piece per grid point so it bends at every joint; any
-   other beam splits only where it runs through an existing joint, so a line
-   drawn across the bridge joins everything it touches. */
+/* A beam splits where it runs through an existing joint, so a line drawn
+   across the bridge joins everything it touches. */
 function pieces(from, to, mat, existing) {
   const dx = to[0] - from[0], dy = to[1] - from[1];
   const steps = gcd(Math.abs(dx), Math.abs(dy));
   const cuts = [from];
   for (let k = 1; k < steps; k++) {
     const p = [from[0] + dx / steps * k, from[1] + dy / steps * k];
-    if (mat === 'road' || isAnchor(mission, p) || existing.some((m) => key(m.a) === key(p) || key(m.b) === key(p))) cuts.push(p);
+    if (isAnchor(mission, p) || existing.some((m) => key(m.a) === key(p) || key(m.b) === key(p))) cuts.push(p);
   }
   cuts.push(to);
   return cuts.slice(1).map((b, i) => ({ a: cuts[i], b, mat }));
 }
 const gcd = (a, b) => (b ? gcd(b, a % b) : a);
-const mirror = (p) => [mission.span - p[0], p[1]];
-const mirrorMember = (m) => ({ a: mirror(m.a), b: mirror(m.b), mat: m.mat });
 
 /* What a drag from one point to another would build: { add, problem }. */
 function plan(from, to, mat) {
@@ -212,17 +210,11 @@ function plan(from, to, mat) {
   }
   if (problem) return { add: [], problem };
   if (!add.length) return { add, problem: 'exists' };
-  if (mirrorOn && (isJoint(mirror(from)) || add.some((m) => key(m.a) === key(mirror(from)) || key(m.b) === key(mirror(from))))) {
-    // The mirror image is a bonus: wherever it doesn't fit, it is left out.
-    const extra = [];
-    for (const piece of pieces(mirror(from), mirror(to), mat, [...members, ...add])) {
-      if (!memberProblem(mission, [...members, ...add, ...extra], piece)) extra.push(piece);
-    }
-    add.push(...extra);
-  }
   return { add, problem: null };
 }
 
+
+const ROAD_STAYS = 'The road stays flat. Build under or over it to hold it up.';
 
 function setTool(next) {
   tool = next;
@@ -232,28 +224,24 @@ function setTool(next) {
 function erase(px, py) {
   const joint = jointNear(px, py);
   if (joint && !isAnchor(mission, joint)) {
-    const k = key(joint), twin = mirrorOn ? key(mirror(joint)) : k;
-    const next = members.filter((m) => ![k, twin].includes(key(m.a)) && ![k, twin].includes(key(m.b)));
+    const k = key(joint);
+    const next = members.filter((m) => m.mat === 'road' || (key(m.a) !== k && key(m.b) !== k));
     if (next.length !== members.length) { commit(next); sound.erase(); return; }
   }
   const m = memberNear(px, py);
   if (!m) return;
-  const twin = mirrorOn ? pairKey(mirrorMember(m)) : null;
-  commit(members.filter((o) => o !== m && pairKey(o) !== twin));
+  if (m.mat === 'road') { toast(ROAD_STAYS); sound.buzz(); return; }
+  commit(members.filter((o) => o !== m));
   sound.erase();
 }
 
 function swapMaterial(m) {
   if (m.mat === tool) return;
+  if (m.mat === 'road') { toast(ROAD_STAYS); sound.buzz(); return; }
   const swapped = { ...m, mat: tool };
   const problem = memberProblem(mission, members.filter((o) => o !== m), swapped);
   if (problem) { toast(PROBLEMS[problem]?.(tool) || 'That doesn\'t fit there.', true); sound.buzz(); return; }
-  const twin = mirrorOn ? pairKey(mirrorMember(m)) : null;
-  commit(members.map((o) => {
-    if (o === m) return swapped;
-    if (pairKey(o) === twin && !memberProblem(mission, [], { ...o, mat: tool })) return { ...o, mat: tool };
-    return o;
-  }));
+  commit(members.map((o) => (o === m ? swapped : o)));
   sound.place(tool);
 }
 
@@ -338,11 +326,6 @@ function cancelDrag() { drag = null; focus = null; pointer = null; }
 /* ---------- testing ---------- */
 
 function startTest() {
-  if (!members.some((m) => m.mat === 'road')) {
-    toast('Lay some road first: wheels only roll on road.', true);
-    sound.buzz();
-    return;
-  }
   cancelDrag();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
   sim = createSim(mission, members);
@@ -467,7 +450,7 @@ function frame(now) {
       hover.color = stressColor(hover.beam.usage);
     }
     draw(ctx, {
-      mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus, mirrorX: mirrorOn ? mission.span * CELL / 2 : null,
+      mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
       hover: hover?.beam?.broken ? null : hover,
       peakOf: (m) => peaks.get(peakKey(m)),
     });
@@ -499,14 +482,8 @@ function showSolution() {
 const actions = {
   test: () => (mode === 'build' ? startTest() : stopTest()),
   undo: () => { if (mode === 'build' && undoStack.length) { members = undoStack.pop(); updateBudget(); sound.erase(); } },
-  clear: () => { if (members.length) { commit([]); peaks = new Map(); sound.erase(); } },
+  clear: () => { if (members.some((m) => m.mat !== 'road')) { commit(roadDeck(mission)); peaks = new Map(); sound.erase(); } },
   solution: showSolution,
-  mirror: () => {
-    mirrorOn = !mirrorOn;
-    store('mirror', mirrorOn ? 'on' : 'off');
-    $('[data-action="mirror"]').setAttribute('aria-pressed', String(mirrorOn));
-    toast(mirrorOn ? 'Mirror on: each beam is copied to the other side.' : 'Mirror off.');
-  },
   new: newMission,
   next: () => { win.close(); newMission(); },
   improve: () => { win.close(); stopTest(); },
@@ -548,11 +525,10 @@ document.addEventListener('keydown', (event) => {
   if (event.target.closest?.('input, dialog[open]') || event.metaKey || event.ctrlKey || event.altKey) return;
   const k = event.key.toLowerCase();
   if (k === ' ' || k === 'enter') { event.preventDefault(); actions.test(); }
-  else if (k >= '1' && k <= '5') setTool(TOOLS[Number(k) - 1]);
+  else if (k >= '1' && k <= '4') setTool(TOOLS[Number(k) - 1]);
   else if (k === 'u' || k === 'backspace') actions.undo();
   else if (k === 'n') newMission();
   else if (k === 'm') actions.sound();
-  else if (k === 'r') actions.mirror();
   else if (k === 'escape') cancelDrag();
 });
 help.addEventListener('close', () => store('seen-help', '1'));
@@ -561,7 +537,6 @@ for (const [mat, def] of Object.entries(MATERIALS)) {
   const price = document.querySelector(`[data-price="${mat}"]`);
   if (price) price.textContent = `$${def.cost}/m`;
 }
-$('[data-action="mirror"]').setAttribute('aria-pressed', String(mirrorOn));
 if (!sound.enabled) { const b = $('[data-action="sound"]'); b.classList.add('off'); b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Sound off'); }
 resize();
 const initial = fromHash();

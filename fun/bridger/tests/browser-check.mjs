@@ -1,6 +1,6 @@
 // Run with: node fun/bridger/tests/browser-check.mjs
-// Plays Bridger in Chromium the way a child would: one swipe of road across
-// the river, mirrored triangles, a failed test, Show solution and a crossing,
+// Plays Bridger in Chromium the way a child would: the road is already laid,
+// a beam from a bolt, a failed test, Show solution and a crossing,
 // on a desktop and a phone. Screenshots land in test-results/bridger/.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -52,11 +52,13 @@ try {
     const count = () => page.evaluate(() => bridger.members.length);
     const span = await page.evaluate(() => bridger.mission.span);
 
-    await drag([0, 0], [span, 0]);
-    assert.equal(await count(), span, `${device.name}: one swipe lays road across in 2 m pieces`);
+    assert.equal(await count(), span, `${device.name}: the road is laid across in 2 m pieces`);
     await page.click('[data-tool="wood"]');
     await drag([0, 0], [1, 1]);
-    assert.equal(await count(), span + 2, `${device.name}: Mirror copies a beam to the other bank`);
+    assert.equal(await count(), span + 1, `${device.name}: a drag from a bolt adds one beam`);
+    await page.click('[data-tool="erase"]');
+    await page.mouse.click(...(await at(0.5, 0)));
+    assert.equal(await count(), span + 1, `${device.name}: the road can't be erased`);
     await page.screenshot({ path: `${output}/${device.name}-build.png` });
 
     // A bare road fails; the peak stress stays on the drawing afterwards.
@@ -83,7 +85,7 @@ try {
     assert.deepEqual(errors, [], `${device.name}: no page errors`);
     await context.close();
   }
-  console.log(`Bridger browser checks passed: road swipe, mirror, failed and passing tests, Show solution, desktop and phone. Screenshots in ${output}.`);
+  console.log(`Bridger browser checks passed: laid road, drawing, failed and passing tests, Show solution, desktop and phone. Screenshots in ${output}.`);
 } finally {
   await browser.close();
   server.close();
