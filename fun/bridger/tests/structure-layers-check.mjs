@@ -68,4 +68,54 @@ export async function checkStructureLayers(page) {
     assert.equal(both.behindReflection, car.behindReflection, `${name}: the reflected car is painted first`);
     assert.notEqual(both.reflected, car.reflected, `${name}: the reflected piece covers the car`);
   }
+  await checkBuildEdits(page);
+}
+
+// A warmed editor should produce the same frame as a freshly opened copy
+// of each design, including the reflection and the focused drawing grid.
+async function checkBuildEdits(page) {
+  const checks = await page.evaluate(async () => {
+    const { createView, draw } = await import('./js/render.js');
+    const { createSim } = await import('./js/physics.js');
+    const { buildScenery, THEMES } = await import('./js/scenery.js');
+    const mission = bridger.mission;
+    const makeView = () => createView(mission, 500, 360, 12, 20);
+    const view = makeView();
+    const wood = { a: [1, 0], b: [2, 1], mat: 'wood' };
+    const steel = { a: [2, 1], b: [3, 0], mat: 'steel' };
+    const initial = [wood];
+    const state = {
+      mission, members: initial, mode: 'build', time: 0, parked: createSim(mission, initial, 'car').car,
+      scenery: buildScenery(mission), theme: THEMES.valley, peaks: new Map(), particles: [],
+      peakOf: member => state.peaks.get(member),
+    };
+    const frame = (view, ratio) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = view.width * ratio; canvas.height = view.height * ratio;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.scale(ratio, ratio);
+      draw(ctx, document.createElement('canvas').getContext('2d'), { ...state, view });
+      return new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+    };
+    const same = (a, b) => a.length === b.length && a.every((value, i) => value === b[i]);
+    const cases = [];
+    let previous = frame(view, 1);
+    const verify = (name, changes, ratio = 1) => {
+      Object.assign(state, changes);
+      const warm = frame(view, ratio), cold = frame(makeView(), ratio);
+      cases.push({ name, matches: same(warm, cold), changed: !same(previous, warm) });
+      previous = warm;
+    };
+    verify('member hover', { hover: { member: wood } });
+    verify('stress after a test', { peaks: new Map([[wood, 0.8]]) });
+    verify('clear stress and add steel', { members: [wood, steel], hover: null, peaks: new Map() });
+    verify('drag focus', { focus: [2, 1, 3] });
+    verify('undo and cancel drag', { members: initial, focus: null });
+    verify('device pixel ratio', {}, 2);
+    return cases;
+  });
+  for (const { name, matches, changed } of checks) {
+    assert.ok(matches, `${name}: warm and cold frames match`);
+    assert.ok(changed, `${name}: the edit is visible`);
+  }
 }

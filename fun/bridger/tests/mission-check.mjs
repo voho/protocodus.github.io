@@ -2,7 +2,7 @@
 // Every mission must come with a bridge that the real simulation carries
 // across, and a budget within the difficulty's margin of that bridge's cost.
 import assert from 'node:assert/strict';
-import { createMission, randomSolution, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
+import { createMission, restoreMission, randomSolution, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
 import { createSim, bridgeCost, MATERIALS, WHEEL } from '../js/physics.js';
 import { createRng } from '../../shared/rng.js';
 
@@ -75,6 +75,10 @@ assert.deepEqual(tourSolutions(), tourSolutions(), 'The same river and solution 
 
 for (const [seed, kind] of [['v2-check0', 'channel'], ['v2-check4', 'ceiling'], ['v2-check2', null]]) {
   const easy = createMission('easy', seed), hard = createMission('hard', seed);
+  const { ground, ...fields } = easy;
+  const restored = restoreMission(structuredClone(fields));
+  for (let x = easy.left - 5; x <= easy.right + 5; x += 0.125) assert.equal(restored.ground(x), ground(x));
+  assert.equal(strip(restored), strip(easy), 'The river received from the survey worker keeps its build rules and proof');
   assert.equal(easy.clearance?.kind ?? null, kind);
   assert.deepEqual(easy.clearance, hard.clearance, 'Changing difficulty keeps the clearance');
   assert.deepEqual(easy.reference, hard.reference);
@@ -160,6 +164,7 @@ for (const vehicle of ['car', 'truck', 'train']) {
     for (const a of sim.car.axles) highest = Math.max(highest, a.y);
   }
   assert.equal(splashes, sim.waterEntry ? 1 : 0, 'A wreck entering the water makes one splash');
+  assert.equal(sim.settled, true, 'The display can stop scheduling simulation frames after the wreck settles');
   assert.ok(sim.car.bodies, `${vehicle}: the vehicle falls as a body`);
   assert.ok(sim.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)), `${vehicle}: the wreck stays finite`);
   assert.ok(highest < 3, `${vehicle}: nothing is flung into the air (highest axle ${highest.toFixed(1)} m)`);

@@ -2,17 +2,8 @@
    ground profile the bridge and vehicles stand on. */
 import { createRng } from '../../shared/rng.js';
 
-// Images load on first use, so a river only fetches its own world.
-const images = new Map();
-const image = (name) => {
-  if (!images.has(name)) {
-    const img = new Image();
-    img.src = new URL(`../assets/${name}.webp`, import.meta.url).href;
-    images.set(name, img);
-  }
-  return images.get(name);
-};
-const ready = (img) => img.complete && img.naturalWidth > 0;
+import { image, ready } from './art.js';
+
 const ROCK_TILE = 7; // metres of bank one rock texture tile covers
 
 /* Each river gets one of these worlds from its seed. */
@@ -156,26 +147,64 @@ function rockFill(ctx, view, theme) {
   return theme.pattern;
 }
 
-export function drawBackdrop(ctx, view, scenery, theme) {
-  const { width, height } = view;
-  ctx.fillStyle = theme.skyTop;
-  ctx.fillRect(0, 0, width, height);
-  const sky = image(theme.sky);
-  if (!ready(sky)) return;
-  // Frame the distant ridgeline against the road. Stretching a panorama to
-  // the riverbed would bury its lower landscape behind the playable banks.
-  const floor = view.sy(scenery.backdropFloor) + 2;
-  const deck = view.sy(0);
-  const narrow = Math.max(0, Math.min(1, 2 - width / deck));
+/* Raster once in device pixels. All three layers only live as long as the
+   current view, and only cover the rows where their paint is visible. */
+function rasterCache(ctx, view, scenery, theme) {
+  const { width, height } = ctx.canvas;
+  let cache = scenery.raster;
+  if (!cache || cache.view !== view || cache.theme !== theme || cache.width !== width || cache.height !== height) {
+    cache = { view, theme, width, height, ratio: ctx.getTransform().a, quality: ctx.imageSmoothingQuality };
+    scenery.raster = cache;
+  }
+  return cache;
+}
+
+function makeLayer(cache, top, bottom) {
+  const y = Math.max(0, Math.floor(top * cache.ratio));
+  const canvas = document.createElement('canvas');
+  canvas.width = cache.width;
+  canvas.height = Math.max(1, Math.min(cache.height, Math.ceil(bottom * cache.ratio)) - y);
+  const c = canvas.getContext('2d');
+  c.setTransform(cache.ratio, 0, 0, cache.ratio, 0, -y);
+  c.imageSmoothingQuality = cache.quality;
+  return { canvas, ctx: c, y: y / cache.ratio, w: canvas.width / cache.ratio, h: canvas.height / cache.ratio };
+}
+
+function blit(ctx, layer) {
+  ctx.drawImage(layer.canvas, 0, layer.y, layer.w, layer.h);
+}
+
+/* Position the undistorted ridge against the road, keeping the painted
+   landmark visible in the narrower portrait crop. */
+export function backdropBounds(view, scenery, theme, aspect) {
+  const floor = view.sy(scenery.backdropFloor) + 2, deck = view.sy(0);
+  const narrow = Math.max(0, Math.min(1, 2 - view.width / deck));
   const [panorama, portrait] = theme.skyline;
   const ridge = panorama + (portrait - panorama) * narrow;
-  const horizon = deck * 0.54;
-  const aspect = sky.naturalWidth / sky.naturalHeight;
-  const h = Math.max(floor, width / aspect, (floor - horizon) / (1 - ridge));
+  const h = Math.max(floor, view.width / aspect, (floor - deck * 0.54) / (1 - ridge));
   const w = h * aspect;
-  // Cover the entire visible sky with a single undistorted painting. City
-  // towers, desert cacti and other off-centre landmarks guide the phone crop.
-  ctx.drawImage(sky, (width - w) * theme.skyAlign, floor - h, w, h);
+  return { x: (view.width - w) * theme.skyAlign, y: floor - h, w, h };
+}
+
+export function drawBackdrop(ctx, view, scenery, theme) {
+  const { width, height } = view;
+  const sky = image(theme.sky);
+  ctx.fillStyle = theme.skyTop;
+  if (!ready(sky)) {
+    ctx.fillRect(0, 0, width, height);
+    return;
+  }
+  const cache = rasterCache(ctx, view, scenery, theme);
+  if (!cache.sky) {
+    const { x, y, w, h } = backdropBounds(view, scenery, theme, sky.naturalWidth / sky.naturalHeight);
+    const layer = makeLayer(cache, 0, y + h);
+    layer.ctx.fillStyle = theme.skyTop;
+    layer.ctx.fillRect(0, 0, layer.w, layer.h);
+    layer.ctx.drawImage(sky, x, y, w, h);
+    cache.sky = layer;
+  }
+  ctx.fillRect(0, cache.sky.h, width, height - cache.sky.h);
+  blit(ctx, cache.sky);
 }
 
 /* ---------- life in the background ---------- */
@@ -407,10 +436,13 @@ function bankPaths(view, mission, scenery) {
   ground.moveTo(view.sx(x0), edge);
   far.moveTo(view.sx(x0), edge);
   gorge.moveTo(view.sx(mission.left), -5);
-  let prevX, prevY;
+  let prevX, prevY, topFar = Infinity, topNear = Infinity, bottomNear = -Infinity;
   for (let i = Math.round(x0 * 10); i <= Math.round(x1 * 10); i++) {
     const x = i / 10, sx = view.sx(x), sy = view.sy(mission.ground(x));
     const farY = view.sy(scenery.farBank(x));
+    topFar = Math.min(topFar, farY);
+    topNear = Math.min(topNear, sy);
+    bottomNear = Math.max(bottomNear, sy);
     ground.lineTo(sx, sy);
     far.lineTo(sx, farY);
     if (prevX == null) {
@@ -432,36 +464,26 @@ function bankPaths(view, mission, scenery) {
   ground.lineTo(view.sx(x1), edge); ground.closePath();
   far.lineTo(view.sx(x1), edge); far.closePath();
   gorge.lineTo(view.sx(mission.right), -5); gorge.closePath();
-  scenery.paths = { view, ground, rim, ledges, far, farRim, roads, gorge };
+  scenery.paths = { view, ground, rim, ledges, far, farRim, roads, gorge, topFar, topNear, bottomNear };
   return scenery.paths;
 }
 
-export function drawGround(ctx, view, mission, scenery, theme, time) {
-  const { ground, rim, ledges, far, farRim, roads } = bankPaths(view, mission, scenery);
-  const top = view.sy(0);
-  ctx.fillStyle = rockFill(ctx, view, theme);
-  ctx.fill(far);
-  ctx.fillStyle = rgba(theme.depth, 0.62);
-  ctx.fill(far);
-  ctx.strokeStyle = rgba(theme.surface[1], 0.8);
-  ctx.lineWidth = 2;
-  ctx.stroke(farRim);
+function paintBanks(cache, paths, view, theme) {
+  const { far, farRim, ground, rim, ledges, roads } = paths;
+  const roadWidth = Math.max(4, view.scale * 0.32);
+  const back = makeLayer(cache, paths.topFar - 3, paths.bottomNear + 4);
+  const front = makeLayer(cache, paths.topNear - roadWidth - 4, view.height);
+  const rock = rockFill(back.ctx, view, theme);
+  back.ctx.fillStyle = rock;
+  back.ctx.fill(far);
+  back.ctx.fillStyle = rgba(theme.depth, 0.62);
+  back.ctx.fill(far);
+  back.ctx.strokeStyle = rgba(theme.surface[1], 0.8);
+  back.ctx.lineWidth = 2;
+  back.ctx.stroke(farRim);
 
-  // Thin wisps of river mist move behind the piers and in front of the
-  // opposite bank. Offset their cycles so the whole river never pulses.
-  const t = still.matches ? 0 : time;
-  const left = view.sx(mission.left), span = view.sx(mission.right) - left;
-  const mist = cloudSprite(theme, 0);
-  for (let i = 0; i < 4; i++) {
-    const phase = (i * 0.29 + scenery.phase + t * (0.022 + i * 0.003)) % 1;
-    const x = left + span * phase, y = view.sy(mission.water + 0.45 + i * 0.16);
-    const w = span * (0.28 + i * 0.04), h = Math.max(8, w * 0.12);
-    ctx.globalAlpha = 0.28 * Math.sin(phase * Math.PI);
-    ctx.drawImage(mist, x - w / 2, y - h / 2, w, h);
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = rockFill(ctx, view, theme);
+  const ctx = front.ctx, top = view.sy(0);
+  ctx.fillStyle = rock;
   ctx.fill(ground);
   const shade = ctx.createLinearGradient(0, top, 0, Math.max(top + 1, view.height));
   shade.addColorStop(0, rgba(theme.depth, 0));
@@ -481,57 +503,91 @@ export function drawGround(ctx, view, mission, scenery, theme, time) {
   ctx.stroke(ledges);
   ctx.restore();
 
-  const h = Math.max(4, view.scale * 0.32);
   ctx.lineCap = 'butt';
   ctx.strokeStyle = '#141620';
-  ctx.lineWidth = h + 3;
+  ctx.lineWidth = roadWidth + 3;
   ctx.stroke(roads);
   ctx.strokeStyle = theme.road;
-  ctx.lineWidth = h;
+  ctx.lineWidth = roadWidth;
   ctx.stroke(roads);
   ctx.save();
-  ctx.translate(0, -h / 2 + 0.75);
+  ctx.translate(0, -roadWidth / 2 + 0.75);
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
   ctx.lineWidth = 1.5;
   ctx.stroke(roads);
   ctx.restore();
+  return { back, front };
+}
+
+export function drawGround(ctx, view, mission, scenery, theme, time) {
+  const cache = rasterCache(ctx, view, scenery, theme);
+  const textured = ready(image(theme.rock));
+  if (!cache.banks || cache.textured !== textured) {
+    cache.banks = paintBanks(cache, bankPaths(view, mission, scenery), view, theme);
+    cache.textured = textured;
+  }
+  blit(ctx, cache.banks.back);
+  // Thin wisps of river mist move behind the piers and in front of the
+  // opposite bank. Offset their cycles so the whole river never pulses.
+  const t = still.matches ? 0 : time;
+  const left = view.sx(mission.left), span = view.sx(mission.right) - left;
+  const mist = cloudSprite(theme, 0);
+  for (let i = 0; i < 4; i++) {
+    const phase = (i * 0.29 + scenery.phase + t * (0.022 + i * 0.003)) % 1;
+    const x = left + span * phase, y = view.sy(mission.water + 0.45 + i * 0.16);
+    const w = span * (0.28 + i * 0.04), h = Math.max(8, w * 0.12);
+    ctx.globalAlpha = 0.28 * Math.sin(phase * Math.PI);
+    ctx.drawImage(mist, x - w / 2, y - h / 2, w, h);
+  }
+  ctx.globalAlpha = 1;
+
+  blit(ctx, cache.banks.front);
+}
+
+function waterPaint(ctx, view, mission, theme) {
+  const { surface, deep, glint } = theme.water;
+  const level = view.sy(mission.water);
+  const body = ctx.createLinearGradient(0, level, 0, Math.min(view.height + 10, level + view.scale * 9));
+  body.addColorStop(0, rgba(surface, 0.72));
+  body.addColorStop(0.35, rgba(mix(surface, deep, 0.5), 0.86));
+  body.addColorStop(1, rgba(deep, 0.97));
+  const fade = ctx.createLinearGradient(0, level, 0, level + view.scale * 6);
+  fade.addColorStop(0, rgba(deep, 0));
+  fade.addColorStop(1, rgba(deep, 0.6));
+  return { body, fade, shimmer: rgba(glint, 0.28), crest: rgba(glint, 0.75) };
 }
 
 export function drawWater(ctx, view, mission, scenery, theme, time, reflect) {
+  const cache = rasterCache(ctx, view, scenery, theme);
+  cache.water ??= waterPaint(ctx, view, mission, theme);
   ctx.save();
   ctx.clip(bankPaths(view, mission, scenery).gorge);
-  surfaceWater(ctx, view, mission, theme, still.matches ? 0 : time, reflect);
+  surfaceWater(ctx, view, mission, cache.water, still.matches ? 0 : time, reflect);
   ctx.restore();
 }
 
-function surfaceWater(ctx, view, mission, theme, time, reflect) {
-  const { surface, deep, glint } = theme.water;
+function surfaceWater(ctx, view, mission, paint, time, reflect) {
   const x0 = view.sx(mission.left), x1 = view.sx(mission.right);
   const level = view.sy(mission.water);
   const bottom = view.height + 10;
   const amp = Math.max(0.8, view.scale * 0.05);
   const wave = (px) => level + Math.sin(px * 0.045 + time * 1.6) * amp + Math.sin(px * 0.11 - time * 2.3) * amp * 0.45;
-
-  const outline = () => {
-    ctx.beginPath();
-    ctx.moveTo(x0, bottom);
-    for (let px = x0; px < x1; px += 4) ctx.lineTo(px, wave(px));
-    ctx.lineTo(x1, wave(x1));
-    ctx.lineTo(x1, bottom);
-    ctx.closePath();
-  };
-  const body = ctx.createLinearGradient(0, level, 0, Math.min(bottom, level + view.scale * 9));
-  body.addColorStop(0, rgba(surface, 0.72));
-  body.addColorStop(0.35, rgba(mix(surface, deep, 0.5), 0.86));
-  body.addColorStop(1, rgba(deep, 0.97));
-  outline();
-  ctx.fillStyle = body;
-  ctx.fill();
+  // Reuse this frame's exact wave shape for the fill, reflection clip and
+  // depth shading. Trace the lit crest with the same sampled positions.
+  const crest = new Path2D();
+  crest.moveTo(x0, wave(x0));
+  for (let px = x0 + 4; px <= x1; px += 4) crest.lineTo(px, wave(px));
+  const outline = new Path2D(crest);
+  outline.lineTo(x1, wave(x1));
+  outline.lineTo(x1, bottom);
+  outline.lineTo(x0, bottom);
+  outline.closePath();
+  ctx.fillStyle = paint.body;
+  ctx.fill(outline);
 
   if (reflect) {
     ctx.save();
-    outline();
-    ctx.clip();
+    ctx.clip(outline);
     // Mirror about the water line, squashed a little the way ripples do.
     ctx.translate(0, level);
     ctx.scale(1, -0.9);
@@ -540,16 +596,12 @@ function surfaceWater(ctx, view, mission, theme, time, reflect) {
     reflect();
     ctx.restore();
     // Reflections fade with depth.
-    const fade = ctx.createLinearGradient(0, level, 0, level + view.scale * 6);
-    fade.addColorStop(0, rgba(deep, 0));
-    fade.addColorStop(1, rgba(deep, 0.6));
-    outline();
-    ctx.fillStyle = fade;
-    ctx.fill();
+    ctx.fillStyle = paint.fade;
+    ctx.fill(outline);
   }
 
   // Long, slow glints just below the surface.
-  ctx.strokeStyle = rgba(glint, 0.28);
+  ctx.strokeStyle = paint.shimmer;
   ctx.lineWidth = Math.max(1, view.scale * 0.06);
   ctx.lineCap = 'round';
   const span = x1 - x0;
@@ -568,8 +620,6 @@ function surfaceWater(ctx, view, mission, theme, time, reflect) {
 
   // The surface line, brightest where a ripple faces the light.
   ctx.lineWidth = Math.max(1.2, view.scale * 0.07);
-  ctx.strokeStyle = rgba(glint, 0.75);
-  ctx.beginPath();
-  for (let px = x0; px <= x1; px += 4) px === x0 ? ctx.moveTo(px, wave(px)) : ctx.lineTo(px, wave(px));
-  ctx.stroke();
+  ctx.strokeStyle = paint.crest;
+  ctx.stroke(crest);
 }

@@ -355,7 +355,7 @@ function design(mission, rng, family) {
 
 /* Test a design and strengthen its weak members until it carries the
    vehicle with a little to spare, then try lighter members where it can. */
-function strengthen(mission, members) {
+function testDesign(mission, members) {
   let current = members.map((m) => ({ ...m }));
   for (let round = 0; round < 5; round++) {
     const sim = createSim(mission, current, mission.vehicle, { abortOnBreak: true });
@@ -376,6 +376,20 @@ function strengthen(mission, members) {
   return null;
 }
 
+// Several randomized families can produce exactly the same draft. Include
+// endpoint direction and member order because the solver projects in order.
+const testedDrafts = new WeakMap();
+function strengthen(mission, members) {
+  let cache = testedDrafts.get(mission);
+  if (!cache) { cache = new Map(); testedDrafts.set(mission, cache); }
+  const id = members.map((m) => `${m.mat}:${m.a}>${m.b}`).join('|');
+  if (cache.has(id)) return cache.get(id);
+  const result = testDesign(mission, members);
+  if (cache.size === 64) cache.delete(cache.keys().next().value);
+  cache.set(id, result);
+  return result;
+}
+
 function lighten(mission, members, sim) {
   const lighter = members.map((m, i) => (m.mat === 'steel' && sim.beams[i].peak < 0.28 && memberLength(m) <= MATERIALS.wood.maxLength ? { ...m, mat: 'wood' } : m));
   if (lighter.every((m, i) => m.mat === members[i].mat)) return members;
@@ -383,15 +397,32 @@ function lighten(mission, members, sim) {
   return check.run() && check.peakUsage() < 0.95 ? lighter : members;
 }
 
+// Strengthening changes only wood and steel. Even if every eligible steel
+// member could become wood, an already over-budget design cannot be a hint.
+function cheapestMaterials(members) {
+  let cost = 0;
+  for (const m of members) {
+    const length = memberLength(m);
+    const mat = m.mat === 'steel' && length <= MATERIALS.wood.maxLength ? MATERIALS.wood : MATERIALS[m.mat];
+    cost += Math.round(length * mat.cost);
+  }
+  return cost;
+}
+
 /* Several strengthened designs; the cheapest becomes the mission's proof. */
-export function solve(mission, rng, attempts = 10, varied = false) {
+export function solve(mission, rng, attempts = 10, varied = false, margin = Infinity) {
   const found = [];
+  let ceiling = Infinity;
   const families = varied ? rng.shuffle(['warren', 'bowstring', 'fan', null, null]) : [];
   for (let i = 0; i < attempts; i++) {
     const draft = design(mission, rng, families[i]);
-    if (!draft) continue;
+    if (!draft || (ceiling < Infinity && cheapestMaterials(draft.members) > ceiling)) continue;
     const solution = strengthen(mission, draft.members);
-    if (solution) found.push({ members: solution, cost: bridgeCost(solution), kind: draft.kind });
+    if (solution) {
+      const cost = bridgeCost(solution);
+      found.push({ members: solution, cost, kind: draft.kind });
+      ceiling = Math.min(ceiling, cost * (1 + margin));
+    }
   }
   found.sort((a, b) => a.cost - b.cost);
   return found;
@@ -414,23 +445,33 @@ function remember(pool, members, kind) {
   if (!pool.some((candidate) => difference(edges, candidate.edges) === 0)) pool.push({ members, kind, edges });
 }
 
+const surveyRng = (seed, tries) => createRng(`${seed}:${tries}`);
+
+// The ground closure cannot cross a worker boundary. Recreate only the
+// sampled terrain from its survey seed, alongside the already proven design.
+export function restoreMission(fields) {
+  const { ground } = createTerrain(surveyRng(fields.seed, fields.tries));
+  return { ...fields, ground };
+}
+
 export function createMission(difficulty, seed) {
   const margin = MARGINS[difficulty] ?? MARGINS.medium;
   const varied = typeof seed === 'string' && seed.startsWith('v2-');
   const reservation = varied ? createRng(`${seed}:clearance`).pick(['channel', 'ceiling', null]) : null;
   // A valley with no bridge we can prove is thrown away for the next one.
   for (let tries = 0; tries < 40; tries++) {
-    const rng = createRng(`${seed}:${tries}`);
+    const rng = surveyRng(seed, tries);
     const terrain = createTerrain(rng);
     if (varied) {
       terrain.clearance = chooseClearance(terrain, reservation, rng);
       if (reservation && !terrain.clearance) continue;
     }
-    const solutions = solve(terrain, rng, 10, varied);
+    const solutions = solve(terrain, rng, 10, varied, margin);
     if (!solutions.length) continue;
     const best = solutions[0];
     const budget = Math.floor(best.cost * (1 + margin) / 10) * 10;
     const mission = { ...terrain, seed, difficulty, margin, budget: Math.max(budget, best.cost), reference: best.members, referenceKind: best.kind, tries };
+    testedDrafts.set(mission, testedDrafts.get(terrain));
     const pool = [];
     for (const s of solutions) if (s.cost <= mission.budget) remember(pool, s.members, s.kind);
     verified.set(mission, pool);
@@ -452,7 +493,7 @@ export function randomSolution(mission, random = Math.random, timeLimitMs = 600,
   for (const family of families) {
     if (pool.length >= 32 || Date.now() - started >= timeLimitMs) break;
     const draft = design(mission, rng, family);
-    if (!draft) continue;
+    if (!draft || cheapestMaterials(draft.members) > mission.budget) continue;
     const edges = geometry(draft.members);
     if (pool.some((s) => difference(edges, s.edges) === 0)) continue;
     const solution = strengthen(mission, draft.members);
