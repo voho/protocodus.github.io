@@ -1,0 +1,22 @@
+name: Check deployed Keyra JavaScript fingerprint
+on:
+  push:
+    branches: [qa/keyra-live-preset-values-20261126]
+    paths: [.github/workflows/keyra-public-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  fingerprint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Wait for the public app's JavaScript backend and verify its Git blob
+        run: |
+          for attempt in $(seq 1 24); do
+            curl -fsSL --compressed 'https://protocodus.cz/fun/keyra/dsp/core.mjs' -o /tmp/keyra-core.mjs
+            oid=$(git hash-object /tmp/keyra-core.mjs)
+            echo "Public Keyra JS blob: $oid, $(wc -c </tmp/keyra-core.mjs) bytes"
+            if test "$oid" = 9b887e95ebd5115d9621361ad4c5c34cb43aa985; then exit 0; fi
+            sleep 10
+          done
+          exit 1
