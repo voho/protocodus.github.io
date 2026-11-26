@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build both browser renderers and the catalog from one pinned native tree.
+# Build the browser renderers and the catalog from one pinned native tree.
 set -euo pipefail
 site=$(cd "$(dirname "$0")/../.." && pwd)
 tools="$site/scripts/keyra"
@@ -23,6 +23,7 @@ compile() {
         "$build/Source/DSP/KeyraEngine.cpp" "$tools/bridge.cpp" -o "$output"
 }
 compile "$build/scalar.wasm" -O2 -DKEYRA_FORCE_SCALAR -fno-unroll-loops -fno-vectorize -fno-slp-vectorize
+install -m 644 "$build/scalar.wasm" "$target/dsp/keyra-scalar.wasm"
 wasm2js "$build/scalar.wasm" -O2 -o "$build/module.js"
 python3 "$tools/package-dsp.py" "$build/module.js" "$target/dsp/core.mjs"
 compile "$build/simd.wasm" -O3 -msimd128 -flto -Wl,--strip-all
