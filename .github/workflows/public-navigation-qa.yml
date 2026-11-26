@@ -1,0 +1,37 @@
+name: Verify public instrument navigation
+on:
+  push:
+    branches: [qa/live-web-player-navigation-20261126]
+permissions:
+  contents: read
+jobs:
+  browser:
+    name: Public navigation (${{ matrix.form }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - form: desktop
+            engine: chromium
+          - form: mobile
+            engine: webkit
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
+      - name: Wait for live homepage release
+        shell: bash
+        run: |
+          for attempt in {1..25}; do
+            if curl -fsS https://protocodus.cz/ -o "$RUNNER_TEMP/home.html" && grep -q 'data-analytics-cta="product_keyra_play"' "$RUNNER_TEMP/home.html" && grep -q 'data-analytics-cta="product_oregana_play"' "$RUNNER_TEMP/home.html"; then exit 0; fi
+            sleep 20
+          done
+          exit 1
+      - run: node tests/public-navigation-qa.mjs ${{ matrix.form }}
