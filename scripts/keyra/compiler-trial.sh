@@ -55,15 +55,18 @@ run_candidate() {
 echo "::group::shipped"
 measure shipped
 echo "::endgroup::"
+# Optimize for dispatch size; the shipping callback compiles to 84,622 V8 bytecodes,
+# above TurboFan's normal limit. These compiler settings change no floating-point flags.
+compile_scalar size -Oz
+run_candidate size O2
+run_candidate size O1
+compile_scalar optone -O1
+run_candidate optone O2
+compile_scalar limited -O2 -mllvm -inline-threshold=0 -mllvm -inlinehint-threshold=0
+run_candidate limited O2
 compile_scalar regular
-run_candidate regular O1
-run_candidate regular O0
-compile_scalar small -mllvm -inline-threshold=12
-run_candidate small O2
-run_candidate small O1
-compile_scalar noinline -fno-inline-functions
-run_candidate noinline O2
-run_candidate noinline O1
-run_candidate regular O2
-echo 'Summary of identical scores (everyone ran on the same worker):'
+if timeout 150 wasm-opt "$sandbox/regular.wasm" --outlining -o "$sandbox/outlined.wasm"; then
+  run_candidate outlined O2
+fi
+echo 'Same-worker report:'
 for report in results/*.time; do echo "$report"; grep 'callbacks:' "$report"; done
