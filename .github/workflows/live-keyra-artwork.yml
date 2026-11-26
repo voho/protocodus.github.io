@@ -7,7 +7,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -17,4 +17,38 @@ jobs:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
+      - name: Wait for both public Keyra Fun images to reference the player screenshot
+        run: |
+          python3 - <<'PY'
+          import time, urllib.request
+          from html.parser import HTMLParser
+          from urllib.parse import urlsplit
+          class Tile(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.keyra = False
+                  self.image = None
+              def handle_starttag(self, tag, attrs):
+                  attributes = dict(attrs)
+                  if tag == 'a':
+                      self.keyra = attributes.get('data-analytics-cta') == 'instrument_keyra'
+                  if tag == 'img' and self.keyra:
+                      self.image = urlsplit(attributes.get('src', '')).path
+              def handle_endtag(self, tag):
+                  if tag == 'a':
+                      self.keyra = False
+          for attempt in range(24):
+              sources = []
+              for url in ('https://protocodus.cz/', 'https://protocodus.cz/fun/'):
+                  tile = Tile()
+                  with urllib.request.urlopen(url, timeout=15) as response:
+                      tile.feed(response.read().decode())
+                      sources.append(tile.image)
+              print(attempt, sources, flush=True)
+              if all(source == '/fun/keyra/keyra-card.webp' for source in sources):
+                  break
+              time.sleep(20)
+          else:
+              raise SystemExit('The new Fun card has not reached both production pages')
+          PY
       - run: node tests/live-keyra-artwork.mjs

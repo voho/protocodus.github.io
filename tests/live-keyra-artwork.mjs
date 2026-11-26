@@ -40,7 +40,8 @@ try {
     await page.waitForURL(base + '/fun/keyra/');
     await page.waitForFunction(()=>document.querySelectorAll('#presets button').length===13 && document.querySelectorAll('#keyboard [data-note]').length===88);
     console.log('NAVIGATED',path,page.url(), '13 presets, 88 piano keys');
-    if (shot.blob !== expected || shot.intrinsic[0] !== 880 || shot.intrinsic[1] !== 495) issues.push(path);
+    if (new URL(shot.src).pathname !== '/fun/keyra/keyra-card.webp' || shot.blob !== expected || shot.intrinsic[0] !== 880 || shot.intrinsic[1] !== 495) issues.push(path);
   }
-  console.log('ARTWORK_MISMATCH',JSON.stringify(issues));
+  assert.deepEqual(issues, [], 'Both placements must show the designated live player screenshot');
+  console.log('BOTH_PUBLIC_PLACEMENTS_VERIFIED');
 } finally { await browser.close(); }
