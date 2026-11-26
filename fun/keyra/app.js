@@ -12,16 +12,17 @@ const { startAudio, perform, send } = createInstrumentAudio({
 });
 
 function midi(status, data1, data2) {
-  const channel = (status & 15) + 1;
-  switch (status & 240) {
-    case 128:
-    case 144:
-      perform({ type: (status & 240) === 144 && data2 > 0 ? 'noteOn' : 'noteOff', channel, note: data1, velocity: data2 });
+  const channel = (status & 0x0f) + 1;
+  const command = status & 0xf0;
+  switch (command) {
+    case 0x80:
+    case 0x90:
+      perform({ type: command === 0x90 && data2 > 0 ? 'noteOn' : 'noteOff', channel, note: data1, velocity: data2 });
       break;
-    case 176:
+    case 0xb0:
       perform({ type: 'controlChange', channel, cc: data1, value: data2 });
       break;
-    case 224: {
+    case 0xe0: {
       const centered = ((data2 << 7) | data1) - 8192;
       perform({ type: 'pitchBend', channel, semitones: 2 * centered / (centered < 0 ? 8192 : 8191) });
       break;
