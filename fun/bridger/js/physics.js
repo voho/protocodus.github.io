@@ -272,9 +272,9 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
   }
 
   function step() {
+    sim.events.length = 0;
     if (sim.result && sim.time > sim.resultAt + (sim.result === 'win' ? 3 : 8)) return;
     sim.time += STEP;
-    sim.events.length = 0;
     if (car.state === 'waiting' && sim.time >= settle) car.state = 'driving';
     if (car.state === 'driving') {
       car.front += vehicle.speed * STEP;
@@ -393,7 +393,13 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     if (!sim.result && sim.time > 60) finish('timeout');
     if (car.bodies) {
       followBodies();
-      if (!sim.splashed && car.axles.some((a) => a.y < mission.water)) { sim.splashed = true; sim.events.push('splash'); }
+      if (!sim.waterEntry) {
+        const contact = nodes.find(n => n.body && n.y - n.radius <= mission.water);
+        if (contact) {
+          sim.waterEntry = { x: contact.x, speed: Math.max(0, -contact.vy) };
+          sim.events.push('splash');
+        }
+      }
     }
   }
 

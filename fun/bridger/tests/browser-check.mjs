@@ -8,7 +8,10 @@ import { readFile, mkdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
-import { checkAmbience } from './ambience-check.mjs';
+import { checkStructureLayers } from './structure-layers-check.mjs';
+import { checkSplash } from './splash-check.mjs';
+import { checkSkies } from './sky-check.mjs';
+import { checkClearance } from './clearance-check.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const output = resolve(root, 'test-results/bridger');
@@ -232,11 +235,31 @@ try {
     await context.close();
   }
   const preview = await browser.newPage({ viewport: { width: 640, height: 480 }, reducedMotion: 'reduce' });
+  const idleAudioRequests = [];
+  preview.on('request', (req) => {
+    if (req.resourceType() === 'media' || /\.(mp3|ogg|wav|m4a)(\?|$)/i.test(req.url())) idleAudioRequests.push(req.url());
+  });
+  await preview.addInitScript(() => {
+    window.startedSounds = 0;
+    for (const node of [AudioBufferSourceNode, OscillatorNode]) {
+      const start = node.prototype.start;
+      node.prototype.start = function (...args) { window.startedSounds++; return start.apply(this, args); };
+    }
+  });
   await preview.route('**/*', (route) => route.request().url().startsWith(origin) ? route.continue() : route.abort());
   for (const theme of ['valley', 'mesa', 'snow', 'night', 'forest', 'sandstone', 'dunes', 'city', 'desert', 'meadow', 'tropical-island', 'jungle', 'canadian-forest']) {
     await preview.goto(`${origin}/fun/bridger/?theme=${theme}#easy-browsercheck`);
     await preview.waitForFunction(() => document.body.classList.contains('ready'));
     assert.equal(await preview.evaluate(() => document.body.dataset.theme), theme);
+    if (theme === 'valley') await preview.click('[data-dialog="help"] button');
+    await preview.click('[data-tool="steel"]');
+    if (theme === 'mesa') {
+      const sound = preview.locator('[data-action="sound"]');
+      await sound.click();
+      assert.equal(await sound.getAttribute('aria-pressed'), 'false');
+      await sound.click();
+      assert.equal(await sound.getAttribute('aria-pressed'), 'true');
+    }
     await preview.evaluate(async (id) => {
       const { THEMES } = await import('./js/scenery.js');
       await Promise.all([THEMES[id].sky, THEMES[id].rock].map((name) => {
@@ -245,7 +268,9 @@ try {
         return img.decode();
       }));
     }, theme);
+    assert.equal(await preview.evaluate(() => window.startedSounds), 0, `${theme}: the builder stays silent between actions`);
   }
+  assert.deepEqual(idleAudioRequests, [], 'visiting worlds with sound enabled does not load background audio');
   // Reduced motion freezes both the ambience and the water. With motion
   // enabled, the same two timestamps must produce visibly different frames.
   const framesDiffer = () => preview.evaluate(async () => {
@@ -267,9 +292,12 @@ try {
   await preview.emulateMedia({ reducedMotion: 'no-preference' });
   assert.equal(await framesDiffer(), true, 'background and water animate during building');
   await checkWheelRendering(preview);
+  await checkStructureLayers(preview);
+  await checkSkies(preview);
+  await checkSplash(preview);
+  await checkClearance(preview, origin);
   await preview.close();
-  await checkAmbience(browser, origin);
-  console.log(`Bridger browser checks passed: drawing, simulation, wheel rendering, world previews, reduced motion and ambience, desktop and phone. Screenshots in ${output}.`);
+  console.log(`Bridger browser checks passed: drawing, simulation, wheel rendering, world previews, reduced motion and sound controls on desktop and phone. Screenshots in ${output}.`);
 } finally {
   await browser.close();
   server.close();

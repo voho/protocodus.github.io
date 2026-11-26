@@ -121,8 +121,50 @@ export function isAnchor(mission, p) {
   return mission.anchors.some((a) => a[0] === p[0] && a[1] === p[1]);
 }
 
+// Build-space reservations are stored in world metres. A shipping lane
+// spans a continuous stretch of open water, clear of islands and piers.
+function chooseClearance(mission, kind, rng) {
+  if (kind === 'ceiling') return {
+    kind, x0: mission.bounds.minX * CELL, x1: mission.bounds.maxX * CELL, y0: mission.deck + 4, y1: mission.bounds.maxY * CELL,
+  };
+  if (kind !== 'channel') return null;
+  const width = (mission.span >= 8 && rng.chance(0.5) ? 3 : 2) * CELL;
+  const starts = [];
+  for (let x = mission.left + CELL; x + width <= mission.right - CELL; x += CELL) {
+    let open = true;
+    for (let at = x; at <= x + width; at += 0.25) if (mission.ground(at) > mission.water - 0.25) { open = false; break; }
+    if (open) starts.push(x);
+  }
+  if (!starts.length) return null;
+  const x0 = rng.pick(starts);
+  return { kind, x0, x1: x0 + width, y0: mission.water, y1: mission.deck - 0.5 };
+}
+
+function clearanceProblem(mission, p, q = p) {
+  const zone = mission.clearance;
+  if (!zone) return null;
+  const epsilon = 1e-6;
+  if (zone.kind === 'ceiling') return Math.max(p[1], q[1]) * CELL > zone.y0 + epsilon ? 'ceiling' : null;
+  // Clip the entire member against the open rectangle. Both endpoints may
+  // lie outside a channel even when the member cuts across its middle.
+  let enter = 0, leave = 1;
+  for (const [axis, lower, upper] of [[0, zone.x0, zone.x1], [1, zone.y0, zone.y1]]) {
+    const a = p[axis] * CELL, delta = (q[axis] - p[axis]) * CELL;
+    if (!delta) {
+      if (a <= lower + epsilon || a >= upper - epsilon) return null;
+      continue;
+    }
+    const t0 = (lower + epsilon - a) / delta, t1 = (upper - epsilon - a) / delta;
+    enter = Math.max(enter, Math.min(t0, t1));
+    leave = Math.min(leave, Math.max(t0, t1));
+    if (enter > leave) return null;
+  }
+  return 'channel';
+}
+
 export function jointAllowed(mission, p) {
   if (isAnchor(mission, p)) return true;
+  if (clearanceProblem(mission, p)) return false;
   const { minX, maxX, minY, maxY } = mission.bounds;
   if (p[0] < minX || p[0] > maxX || p[1] < minY || p[1] > maxY) return false;
   const x = p[0] * CELL, y = p[1] * CELL;
@@ -133,6 +175,8 @@ export function jointAllowed(mission, p) {
 /* Why a member can't be built, or null when it can. */
 export function memberProblem(mission, members, m) {
   if (m.a[0] === m.b[0] && m.a[1] === m.b[1]) return 'same';
+  const reserved = clearanceProblem(mission, m.a, m.b);
+  if (reserved) return reserved;
   if (!jointAllowed(mission, m.a) || !jointAllowed(mission, m.b)) return 'ground';
   if (memberLength(m) > MATERIALS[m.mat].maxLength + 1e-6) return 'long';
   if (isAnchor(mission, m.a) && isAnchor(mission, m.b)) return 'anchors';
@@ -173,11 +217,12 @@ export const pairKey = (m) => {
 export const DESIGN_NAMES = {
   below: 'deck truss', above: 'through truss', both: 'deep truss', arch: 'arch',
   stayed: 'cable-stayed bridge', beam: 'beam bridge on piers',
+  warren: 'Warren truss', bowstring: 'bowstring truss', fan: 'single-tower cable-stayed bridge',
 };
 
 /* One of the classic bridge families with random proportions. Returns
    { members, kind } with every member legal but not yet tested. */
-function design(mission, rng) {
+function design(mission, rng, family) {
   const n = mission.span;
   const supports = mission.supports;
   const maxDepth = Math.min(3, Math.floor(-mission.bounds.minY));
@@ -189,7 +234,7 @@ function design(mission, rng) {
   if (maxDepth >= 1) kinds.push('below', 'both');
   if (lowerL && lowerR) kinds.push('arch', 'arch');
   if (supports.length) kinds.push('beam', 'beam');
-  const kind = rng.pick(kinds);
+  const kind = family ?? rng.pick(kinds);
   const members = [];
   const add = (a, b, mat) => {
     const m = { a, b, mat };
@@ -247,7 +292,45 @@ function design(mission, rng) {
     }
   };
 
-  if (kind === 'below' || kind === 'both') {
+  if (kind === 'warren') {
+    // Each top joint spans two road panels. The triangles alternate across
+    // the river, with a hanger for the deck joint between each pair of feet.
+    const height = rng.range(mission.vehicle === 'car' ? 1 : 2, 3);
+    const hanger = rng.pick(['wood', 'cable']);
+    let previous;
+    for (let i = 1; i < n; i += 2) {
+      const top = [i, height];
+      if (i > 1) add(previous, top, 'wood');
+      add(deck(i - 1), top, 'wood');
+      add(top, deck(i), hanger);
+      add(top, deck(i + 1), 'wood');
+      previous = top;
+    }
+    if (n % 2) add(previous, deck(n), 'wood');
+    posts();
+  } else if (kind === 'bowstring') {
+    // A polygonal upper arch meets the deck tie at both banks. Hangers
+    // suspend each deck joint, with diagonal webs to resist uneven loading.
+    const rise = rng.range(2, Math.min(4, Math.ceil(n / 2)));
+    const hanger = rng.pick(['wood', 'cable']);
+    const rib = (i) => [i, Math.round(rise * 4 * i * (n - i) / (n * n))];
+    for (let i = 0; i < n; i++) {
+      add(rib(i), rib(i + 1), 'wood');
+      if (i) add(deck(i), rib(i), hanger);
+      if (i > 0 && i < n - 1) {
+        if (i < n / 2) add(rib(i), deck(i + 1), 'wood');
+        else add(rib(i + 1), deck(i), 'wood');
+      }
+    }
+    posts();
+  } else if (kind === 'fan') {
+    const bank = rng.pick([0, n]), inland = bank === 0 ? -2 : n + 2;
+    const height = rng.range(2, 4), top = [bank, height];
+    add(deck(bank), top, 'steel');
+    add(deck(inland), top, 'cable');
+    for (let i = 1; i < n; i++) add(top, deck(i), 'cable');
+    posts();
+  } else if (kind === 'below' || kind === 'both') {
     truss(belowProfile(rng.range(1, maxDepth), 0, 0), -1);
     if (kind === 'both') truss(aboveProfile(rng.range(1, 2)), 1);
   } else if (kind === 'arch') {
@@ -301,10 +384,11 @@ function lighten(mission, members, sim) {
 }
 
 /* Several strengthened designs; the cheapest becomes the mission's proof. */
-export function solve(mission, rng, attempts = 10) {
+export function solve(mission, rng, attempts = 10, varied = false) {
   const found = [];
+  const families = varied ? rng.shuffle(['warren', 'bowstring', 'fan', null, null]) : [];
   for (let i = 0; i < attempts; i++) {
-    const draft = design(mission, rng);
+    const draft = design(mission, rng, families[i]);
     if (!draft) continue;
     const solution = strengthen(mission, draft.members);
     if (solution) found.push({ members: solution, cost: bridgeCost(solution), kind: draft.kind });
@@ -313,31 +397,78 @@ export function solve(mission, rng, attempts = 10) {
   return found;
 }
 
+// Cache designs the solver has already driven across this particular
+// river, including the original survey candidates that fit the budget.
+const verified = new WeakMap();
+function geometry(members) {
+  return new Set(members.filter((m) => m.mat !== 'road').map(pairKey));
+}
+function difference(a, b) {
+  let shared = 0;
+  for (const member of a) if (b.has(member)) shared++;
+  const total = a.size + b.size - shared;
+  return total ? 1 - shared / total : 0;
+}
+function remember(pool, members, kind) {
+  const edges = geometry(members);
+  if (!pool.some((candidate) => difference(edges, candidate.edges) === 0)) pool.push({ members, kind, edges });
+}
+
 export function createMission(difficulty, seed) {
   const margin = MARGINS[difficulty] ?? MARGINS.medium;
+  const varied = typeof seed === 'string' && seed.startsWith('v2-');
+  const reservation = varied ? createRng(`${seed}:clearance`).pick(['channel', 'ceiling', null]) : null;
   // A valley with no bridge we can prove is thrown away for the next one.
   for (let tries = 0; tries < 40; tries++) {
     const rng = createRng(`${seed}:${tries}`);
     const terrain = createTerrain(rng);
-    const solutions = solve(terrain, rng);
+    if (varied) {
+      terrain.clearance = chooseClearance(terrain, reservation, rng);
+      if (reservation && !terrain.clearance) continue;
+    }
+    const solutions = solve(terrain, rng, 10, varied);
     if (!solutions.length) continue;
     const best = solutions[0];
     const budget = Math.floor(best.cost * (1 + margin) / 10) * 10;
-    return { ...terrain, seed, difficulty, margin, budget: Math.max(budget, best.cost), reference: best.members, referenceKind: best.kind, tries };
+    const mission = { ...terrain, seed, difficulty, margin, budget: Math.max(budget, best.cost), reference: best.members, referenceKind: best.kind, tries };
+    const pool = [];
+    for (const s of solutions) if (s.cost <= mission.budget) remember(pool, s.members, s.kind);
+    verified.set(mission, pool);
+    return mission;
   }
   throw new Error(`No solvable valley for seed ${seed}`);
 }
 
-/* A fresh design for "Show solution": a random family and proportions,
-   within budget, always one the simulation has seen carry the vehicle across. */
-export function randomSolution(mission, random = Math.random, timeLimitMs = 1500) {
+/* Try several new shapes, then choose among all the proven options. The
+   recent drawings come from the editor and are compared by their members'
+   endpoints, so a material swap alone cannot count as a new shape. */
+export function randomSolution(mission, random = Math.random, timeLimitMs = 600, recent = []) {
   const rng = createRng(Math.floor(random() * 2 ** 32));
+  const pool = verified.get(mission) ?? [];
+  if (!pool.length) remember(pool, mission.reference, mission.referenceKind);
+  verified.set(mission, pool);
+  const families = rng.shuffle(['warren', 'bowstring', 'fan', null, null, null]);
   const started = Date.now();
-  while (Date.now() - started < timeLimitMs) {
-    const draft = design(mission, rng);
+  for (const family of families) {
+    if (pool.length >= 32 || Date.now() - started >= timeLimitMs) break;
+    const draft = design(mission, rng, family);
     if (!draft) continue;
+    const edges = geometry(draft.members);
+    if (pool.some((s) => difference(edges, s.edges) === 0)) continue;
     const solution = strengthen(mission, draft.members);
-    if (solution && bridgeCost(solution) <= mission.budget) return { members: solution, kind: draft.kind };
+    if (solution && bridgeCost(solution) <= mission.budget) remember(pool, solution, draft.kind);
   }
-  return { members: mission.reference.map((m) => ({ ...m })), kind: mission.referenceKind };
+  let choices = pool;
+  if (recent.length) {
+    const history = recent.map(geometry), previous = history.at(-1);
+    const distances = pool.map((s) => difference(previous, s.edges));
+    const farthest = Math.max(...distances);
+    // Prefer a visibly changed web. If all known options are close, take
+    // the most different one, including a small change on a tight budget.
+    choices = pool.filter((s, i) => distances[i] >= Math.min(0.55, farthest));
+    const unseen = choices.filter((s) => history.every((edges) => difference(edges, s.edges) > 0));
+    if (unseen.length) choices = unseen;
+  }
+  const pick = rng.pick(choices);
+  return { members: pick.members.map((m) => ({ ...m })), kind: pick.kind };
 }

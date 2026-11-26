@@ -38,3 +38,10 @@ side-on, wheel-less bodies with transparent backgrounds. The independent
 
 The game card shows a frame from a simulated truck crossing in the Sandstone
 world on the river with seed `sunset`.
+
+## Water impact
+
+`splash.mp3` is Fission9's stereo recording of a rock hitting a creek. Bridger
+adjusts the playback rate and level to the vehicle and its entry into the water.
+[Original recording](https://freesound.org/people/Fission9/sounds/583348/) ·
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)

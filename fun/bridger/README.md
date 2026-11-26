@@ -71,18 +71,28 @@ that holds behaves exactly as it did before.
 (`#medium-abc123`): span, vehicle, bank faces and slopes, water level, and
 sometimes a rock pier or a low island. The paved approaches undulate between the
 bolts. Rounded slopes and seeded ripples shape the banks, rocks and riverbed. The
-renderer and the simulation use the same ground heights. The solver designs bridges from the classic
-families (deck truss, through truss, deep truss, arch on the cliff bolts, beam on piers,
-cable-stayed), each with random proportions and one of the Pratt, Howe, Warren or X
-patterns. Each design runs in the same simulation; members above 85% of their strength
+renderer and the simulation use the same ground heights. The survey tries deck,
+through and deep trusses, arches on cliff bolts, beams on piers and cable-stayed
+bridges. Trusses can use Pratt, Howe, alternating or X bracing. Each design runs
+in the same simulation. Members above 85% of their strength
 become steel, very lightly loaded steel goes back to wood, and the design counts only
 when it carries the vehicle with every member under 95%. A river with no such
 bridge is thrown away and the next one is tried.
 
+New river links have a versioned seed, such as `#easy-v2-check0`. Some rivers
+reserve a shipping channel below the road. Others have a 4 m building height
+limit or an unrestricted span. The survey also tries wide-panel, bowstring and
+single-tower designs on these rivers. Both the survey and the editor enforce
+the marked clearance. Older links and their saved bridges keep their original
+river, budget and building rules.
+
 The cheapest proven design sets the budget: **Easy** gives 50% more than it costs,
 **Medium** 25% and **Hard** 10%. The river depends only on the seed, so changing
-difficulty keeps the river and changes the budget. **Solution** designs a fresh random
-bridge that passes the same test within the budget, falling back to the proof bridge.
+difficulty keeps the river and changes the budget. **Solution** also tries Warren
+trusses with alternating two-panel triangles, bowstring trusses with arched ribs
+and hangers, and cable fans from a single bank tower. Each click compares the
+affordable designs that have crossed and favors a different arrangement of
+members from the last few drawings. The survey's proof bridge is always available.
 
 Suspension bridges are not among the generated designs: on a 2 m grid the main
 cable can't be shaped tall and smooth enough to hold a stiff road without stretching
@@ -111,16 +121,14 @@ respect the system's reduced-motion setting.
 
 ## Sound
 
-[`js/sound.js`](js/sound.js) uses Web Audio to synthesize the sounds locally.
+[`js/sound.js`](js/sound.js) uses Web Audio for the construction and vehicle sounds.
 Wood takes a short double knock, steel rings after the bolt seats, and a cable
-twangs as it pulls taut. Longer members have a lower pitch. A straining joint
+makes a soft, short pluck. Longer members have a lower pitch. A straining joint
 creaks before it gives way. The car and diesel truck change engine tone on a
 slope, the locomotive chuffs, and each axle sounds as it rolls onto a new deck
 piece. The vehicle moves across the stereo field, with a short echo from each bank.
-
-Each world has its own field recording. The first sound gesture loads that world's
-MP3, and mute or a hidden tab pauses the ambience. The [recording credits](assets/ambience/CREDITS.md)
-list the recordists, sources and license.
+When a vehicle hits the water, a stereo splash plays at the point of impact.
+Its pitch and level follow the vehicle's mass and entry speed. [Recording credit](assets/CREDITS.md#water-impact)
 
 ## Checks
 

@@ -39,6 +39,7 @@ let members = [], undoStack = [], tool = 'wood';
 let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
+let recentSolutions = [];
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
 let toastTimer = 0, last = performance.now(), time = 0;
 
@@ -47,7 +48,7 @@ const peakKey = (m) => `${pairKey(m)}:${m.mat}`;
 /* ---------- missions ---------- */
 
 function fromHash() {
-  const match = /^#(easy|medium|hard)-([a-z0-9]{3,16})$/i.exec(location.hash);
+  const match = /^#(easy|medium|hard)-((?:v2-)?[a-z0-9]{3,16})$/i.exec(location.hash);
   return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
 }
 
@@ -60,6 +61,7 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
       difficulty = DIFFICULTIES.includes(nextDifficulty) ? nextDifficulty : 'medium';
       seed = nextSeed;
       mission = createMission(difficulty, seed);
+      recentSolutions = [];
     } catch (error) {
       $('[data-loading]').classList.add('failed');
       $('[data-loading-text]').textContent = 'This river could not be surveyed. Try a new one.';
@@ -71,6 +73,12 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     $('[data-seed]').textContent = seed;
     $('[data-vehicle-name]').textContent = VEHICLES[mission.vehicle].name;
     $('[data-river-width]').textContent = `${mission.right - mission.left} m river`;
+    const rule = mission.clearance;
+    const note = $('[data-clearance-note]');
+    note.hidden = !rule;
+    note.textContent = !rule ? '' : rule.kind === 'channel'
+      ? 'Keep the marked channel clear for boats.'
+      : `Build no higher than ${rule.y0 - mission.deck} m above the road.`;
     if (!keepBridge) {
       let saved = null;
       try { saved = JSON.parse(read(`bridge-${seed}`) || 'null'); } catch { /* broken save */ }
@@ -94,7 +102,6 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     const themeId = themeOverride || THEME_IDS[hashSeed(`${seed}:world`) % THEME_IDS.length];
     theme = THEMES[themeId];
     document.body.dataset.theme = themeId;
-    sound.setWorld(themeId);
     document.body.dataset.ui = theme.ui;
     scenery = buildScenery(mission);
     stopTest();
@@ -103,7 +110,7 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     updateBudget();
     document.body.classList.remove('busy');
     document.body.classList.add('ready');
-    say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.`);
+    say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.${rule ? ` ${note.textContent}` : ''}`);
   }, 30);
 }
 
@@ -152,6 +159,8 @@ const PROBLEMS = {
   long: (mat) => `${MATERIALS[mat].name} can only be ${MATERIALS[mat].maxLength.toFixed(0)} m long.`,
   ground: () => 'You can\'t build in the rock or the water.',
   anchors: () => 'Those two bolts are already fixed to the ground.',
+  channel: () => 'Leave the marked shipping channel clear for boats.',
+  ceiling: () => 'Keep the bridge at or below the marked height limit.',
   steep: () => 'Road that steep would be too hard to drive up.',
   exists: () => 'There is already a beam there.',
 };
@@ -399,6 +408,7 @@ function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = nul
 
 function startTest() {
   cancelDrag();
+  sound.prepareSplash();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
   sim = createSim(mission, members);
   simClock = 0;
@@ -436,9 +446,11 @@ function stepTest(dt) {
     sim.step();
     for (const event of sim.events) {
       if (event === 'splash') {
-        sound.splash();
-        const a = sim.car.axles[0];
-        burst(a.x, mission.water, '#e3f4ff', 40, 5);
+        const { x, speed } = sim.waterEntry;
+        const mass = sim.car.axles.reduce((sum, axle) => sum + axle.mass, 0);
+        const pan = Math.max(-0.8, Math.min(0.8, 2 * view.sx(x) / view.width - 1));
+        sound.splash(mass, speed, pan);
+        burst(x, mission.water, '#e3f4ff', 40, 5);
       }
       if (event === 'fall') sound.engine(false);
       if (event.startsWith('impact:') && sim.car.axles[0].y > mission.water) sound.thud(Number(event.slice(7)));
@@ -545,14 +557,15 @@ function frame(now) {
 /* ---------- controls ---------- */
 
 function newMission() {
-  load(difficulty, randomSeed());
+  load(difficulty, `v2-${randomSeed()}`);
 }
 
 function showSolution() {
   document.body.classList.add('busy');
   $('[data-loading-text]').textContent = 'Designing a bridge';
   setTimeout(() => {
-    const { members: solution, kind } = randomSolution(mission);
+    const { members: solution, kind } = randomSolution(mission, Math.random, 600, recentSolutions);
+    recentSolutions = [...recentSolutions.slice(-7), solution];
     commit(solution);
     solutionShown = true;
     peaks = new Map();
@@ -594,6 +607,7 @@ const actions = {
   help: () => help.showModal(),
   sound: () => {
     const on = sound.toggle();
+    if (on && mode === 'test') sound.prepareSplash();
     const button = $('[data-action="sound"]');
     button.classList.toggle('off', !on);
     button.setAttribute('aria-pressed', String(on));
@@ -621,7 +635,7 @@ canvas.addEventListener('pointerup', onUp);
 canvas.addEventListener('pointercancel', (event) => { if (pointer?.id === event.pointerId) cancelDrag(); });
 canvas.addEventListener('pointerleave', (event) => { if (!pointer) hover = null; else onMove(event); });
 window.addEventListener('resize', resize);
-document.addEventListener('visibilitychange', () => sound.setVisible(!document.hidden));
+document.addEventListener('visibilitychange', () => { if (document.hidden) sound.engine(false); });
 window.addEventListener('hashchange', () => {
   const target = fromHash();
   if (target && (target.seed !== seed || target.difficulty !== difficulty)) load(target.difficulty, target.seed);
@@ -646,7 +660,7 @@ for (const [mat, def] of Object.entries(MATERIALS)) {
 if (!sound.enabled) { const b = $('[data-action="sound"]'); b.classList.add('off'); b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Sound off'); }
 resize();
 const initial = fromHash();
-load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || randomSeed());
+load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || `v2-${randomSeed()}`);
 if (!read('seen-help')) help.showModal();
 requestAnimationFrame(frame);
 

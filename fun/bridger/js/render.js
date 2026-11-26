@@ -54,6 +54,43 @@ function grid(ctx, view, mission, focus, theme) {
   }
 }
 
+/* The hatch is on the reserved side of the boundary. A ceiling needs only
+   a short band above the line, leaving the rest of the sky unobstructed. */
+function clearanceMarker(ctx, view, zone, theme) {
+  const channel = zone.kind === 'channel';
+  const left = Math.max(-2, view.sx(zone.x0)), right = Math.min(view.width + 2, view.sx(zone.x1));
+  const bottom = view.sy(zone.y0);
+  const top = Math.max(view.sy(zone.y1), channel ? 0 : bottom - Math.max(7, view.scale * 0.28));
+  const height = bottom - top;
+  if (right <= left || height <= 0) return;
+  const dark = theme.ui === 'dark';
+  ctx.save();
+  ctx.beginPath(); ctx.rect(left, top, right - left, height); ctx.clip();
+  ctx.fillStyle = dark ? 'rgba(255, 215, 159, 0.10)' : 'rgba(119, 60, 34, 0.09)';
+  ctx.fillRect(left, top, right - left, height);
+  ctx.strokeStyle = dark ? 'rgba(255, 226, 182, 0.52)' : 'rgba(101, 52, 33, 0.42)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = left - height; x < right; x += 12) {
+    ctx.moveTo(x, bottom); ctx.lineTo(x + height, top);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  if (channel) ctx.rect(left, top, right - left, height);
+  else { ctx.moveTo(left, bottom); ctx.lineTo(right, bottom); }
+  ctx.strokeStyle = 'rgba(255, 241, 212, 0.76)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.strokeStyle = '#795343';
+  ctx.lineWidth = 1.35;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function anchors(ctx, view, mission) {
   const s = Math.max(7, view.scale * 0.42);
   for (const [gx, gy] of mission.anchors) {
@@ -270,7 +307,10 @@ export function draw(ctx, labelCtx, state) {
   drawBackdrop(ctx, view, state.scenery, theme, time);
   drawAmbient(ctx, view, state.scenery, theme, time);
   drawGround(ctx, view, mission, state.scenery, theme, time);
-  if (state.mode === 'build') grid(ctx, view, mission, state.focus, theme);
+  if (state.mode === 'build') {
+    if (mission.clearance) clearanceMarker(ctx, view, mission.clearance, theme);
+    grid(ctx, view, mission, state.focus, theme);
+  }
 
   // The bridge and vehicle are drawn twice: once for real and once mirrored
   // in the river, without hover highlights.

@@ -2,7 +2,7 @@
 // Every mission must come with a bridge that the real simulation carries
 // across, and a budget within the difficulty's margin of that bridge's cost.
 import assert from 'node:assert/strict';
-import { createMission, randomSolution, memberProblem, MARGINS, DESIGN_NAMES } from '../js/mission.js';
+import { createMission, randomSolution, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
 import { createSim, bridgeCost, MATERIALS, WHEEL } from '../js/physics.js';
 import { createRng } from '../../shared/rng.js';
 
@@ -45,9 +45,64 @@ for (const seed of seeds) {
   assert.equal(strip(createMission('medium', seed)), strip(createMission('medium', seed)), `${seed}: missions are reproducible`);
 }
 
+// This river supports several visibly different, affordable designs. Replay
+// the editor's selection history, counting geometry independently of material.
+function tourSolutions() {
+  const valley = createMission('easy', 'check6'), rng = createRng('shapes');
+  const history = [], shapes = [], families = new Set();
+  for (let i = 0; i < 5; i++) {
+    const solution = randomSolution(valley, rng.next, Infinity, history);
+    assert.ok(bridgeCost(solution.members) <= valley.budget && createSim(valley, solution.members).run());
+    for (const member of solution.members) assert.equal(memberProblem(valley, [], member), null);
+    families.add(solution.kind);
+    const shape = solution.members.filter((m) => m.mat !== 'road').map(pairKey).sort();
+    if (shapes.length) {
+      const previous = shapes.at(-1);
+      const common = shape.filter((edge) => previous.includes(edge)).length;
+      assert.ok(common / (shape.length + previous.length - common) < 0.55, 'Successive solutions change the visible support layout');
+    }
+    shapes.push(shape); history.push(solution.members);
+  }
+  assert.ok(families.has('warren') && families.has('bowstring'), 'The wider triangular panels and arched ribs both cross');
+  assert.equal(new Set(shapes.map((s) => s.join('/'))).size, shapes.length);
+  // Even with the search time exhausted, choose a different proven option.
+  const cached = randomSolution(valley, rng.next, 0, history);
+  assert.notDeepEqual(cached.members.filter((m) => m.mat !== 'road').map(pairKey).sort(), shapes.at(-1));
+  assert.deepEqual(randomSolution({ ...valley }, rng.next, 0, history).members, valley.reference);
+  return shapes;
+}
+assert.deepEqual(tourSolutions(), tourSolutions(), 'The same river and solution choices replay the same designs');
+
+for (const [seed, kind] of [['v2-check0', 'channel'], ['v2-check4', 'ceiling'], ['v2-check2', null]]) {
+  const easy = createMission('easy', seed), hard = createMission('hard', seed);
+  assert.equal(easy.clearance?.kind ?? null, kind);
+  assert.deepEqual(easy.clearance, hard.clearance, 'Changing difficulty keeps the clearance');
+  assert.deepEqual(easy.reference, hard.reference);
+  assert.ok(easy.budget >= hard.budget);
+  for (const m of [easy, hard]) {
+    const solution = randomSolution(m, createRng(seed).next, Infinity);
+    for (const members of [m.reference, solution.members]) {
+      for (const piece of members) assert.equal(memberProblem(m, [], piece), null);
+      assert.ok(bridgeCost(members) <= m.budget && createSim(m, members).run(), `${seed}: a legal design crosses on ${m.difficulty}`);
+    }
+  }
+  if (kind === 'channel') {
+    const { x0, x1, y0, y1 } = easy.clearance;
+    for (let x = x0; x <= x1; x += 0.25) assert.ok(easy.ground(x) < y0, 'The marked shipping channel lies over water');
+    const beam = (ax, ay, bx, by) => ({ a: [ax / 2, ay / 2], b: [bx / 2, by / 2], mat: 'steel' });
+    assert.equal(memberProblem(easy, [], beam(x0 - 0.5, y1 - 0.5, x1 + 0.5, y1 - 0.5)), 'channel', 'A crossing is blocked even with both ends outside');
+    assert.equal(memberProblem(easy, [], beam(x0, y1, x1, y1)), null, 'The line above the channel can carry a beam');
+    assert.equal(memberProblem(easy, [], beam(x0 - 1, y1 - 1, x0 + 1, y1 + 1)), null, 'A member can touch the corner');
+  } else if (kind === 'ceiling') {
+    assert.equal(memberProblem(easy, [], { a: [1, 1], b: [2, 2.5], mat: 'wood' }), 'ceiling');
+    assert.equal(memberProblem(easy, [], { a: [1, 2], b: [2, 2], mat: 'wood' }), null, 'A horizontal beam can sit on the ceiling boundary');
+  }
+}
+
 // Rules a player meets: road can't climb walls, nothing grows into rock or
 // water, and lengths are capped per material.
 const mission = createMission('medium', 'rules');
+assert.equal(mission.clearance, undefined, 'An unversioned river retains its original unrestricted rules');
 assert.equal(memberProblem(mission, [], { a: [0, 0], b: [1, 1], mat: 'road' }), 'steep');
 assert.equal(memberProblem(mission, [], { a: [0, 0], b: [4, 0], mat: 'wood' }), 'long');
 assert.equal(memberProblem(mission, [], { a: [-1, 0], b: [-1, -1], mat: 'wood' }), 'ground');
@@ -98,10 +153,13 @@ for (const [vehicle, roof] of [['car', 0.75], ['truck', 1], ['train', 1.5]]) {
 for (const vehicle of ['car', 'truck', 'train']) {
   const sim = createSim({ ...mission, vehicle }, road);
   let highest = -Infinity;
+  let splashes = 0;
   for (let frame = 0; frame < 60 * 12; frame++) {
     sim.step();
+    if (sim.events.includes('splash')) splashes++;
     for (const a of sim.car.axles) highest = Math.max(highest, a.y);
   }
+  assert.equal(splashes, sim.waterEntry ? 1 : 0, 'A wreck entering the water makes one splash');
   assert.ok(sim.car.bodies, `${vehicle}: the vehicle falls as a body`);
   assert.ok(sim.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)), `${vehicle}: the wreck stays finite`);
   assert.ok(highest < 3, `${vehicle}: nothing is flung into the air (highest axle ${highest.toFixed(1)} m)`);

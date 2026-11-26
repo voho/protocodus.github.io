@@ -1,11 +1,10 @@
-/* Construction foley and vehicle engines, synthesised locally with Web Audio. */
+/* Construction foley, vehicle engines and a recorded water impact. */
 export function createSound() {
   const key = 'bridger-sound';
   let context = null, mix = null, master = null, noiseBuffer = null, engine = null;
+  let splashBuffer = null, splashLoad = null;
   const lastBreak = new Map();
   let enabled = true;
-  let world = null, fieldRecording = null, fieldSource = null;
-  let visible = !document.hidden;
   try { enabled = localStorage.getItem(key) !== 'off'; } catch { /* private mode */ }
 
   const ensure = () => {
@@ -165,39 +164,20 @@ export function createSound() {
     engine.rolling.stop(now + 0.2);
     engine = null;
   }
-  function stopAmbience() {
-    if (!fieldSource) return;
-    const now = context.currentTime;
-    fieldSource.volume.gain.setTargetAtTime(0, now, 0.06);
-    fieldSource.source.stop(now + 0.4);
-    fieldSource = null;
-  }
-  async function playAmbience() {
-    if (!world || !enabled || !visible || !context || fieldSource) return;
-    if (!fieldRecording) {
-      const record = { controller: new AbortController(), buffer: null };
-      fieldRecording = record;
-      try {
-        const url = new URL(`../assets/ambience/${world}.mp3`, import.meta.url);
-        const response = await fetch(url, { signal: record.controller.signal });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        record.buffer = await context.decodeAudioData(await response.arrayBuffer());
-      } catch {
-        if (fieldRecording === record) fieldRecording = null;
-        return;
-      }
-      if (fieldRecording !== record || !visible || !enabled) return;
+  // Start loading when a crossing begins. An impact never waits for a download.
+  async function prepareSplash() {
+    const c = enabled && ensure();
+    if (!c || splashBuffer) return;
+    if (!splashLoad) {
+      splashLoad = (async () => {
+        try {
+          const response = await fetch(new URL('../assets/splash.mp3', import.meta.url));
+          if (response.ok) splashBuffer = await c.decodeAudioData(await response.arrayBuffer());
+        } catch { /* Use the water-noise fallback on this crossing. */ }
+        finally { splashLoad = null; }
+      })();
     }
-    if (!fieldRecording.buffer) return;
-    const source = context.createBufferSource();
-    source.buffer = fieldRecording.buffer;
-    source.loop = true;
-    const volume = context.createGain();
-    volume.gain.value = 0;
-    volume.gain.setTargetAtTime(0.22, context.currentTime, 0.3);
-    source.connect(volume).connect(mix);
-    source.start();
-    fieldSource = { source, volume };
+    await splashLoad;
   }
   const tap = (pattern) => { try { navigator.vibrate?.(pattern); } catch { /* not allowed */ } };
 
@@ -206,25 +186,13 @@ export function createSound() {
     toggle() {
       enabled = !enabled;
       try { localStorage.setItem(key, enabled ? 'on' : 'off'); } catch { /* private mode */ }
-      if (enabled) { ensure(); playAmbience(); }
-      else { stopEngine(); stopAmbience(); }
+      if (enabled) ensure();
+      else stopEngine();
       if (master) master.gain.setTargetAtTime(enabled ? 0.74 : 0, context.currentTime, 0.008);
       return enabled;
     },
-    unlock() { if (enabled) { ensure(); playAmbience(); } },
-    setWorld(id) {
-      if (id === world) return;
-      stopAmbience();
-      fieldRecording?.controller.abort();
-      fieldRecording = null;
-      world = id;
-      playAmbience();
-    },
-    setVisible(next) {
-      visible = next;
-      if (next) playAmbience();
-      else { stopEngine(); stopAmbience(); }
-    },
+    unlock() { if (enabled) ensure(); },
+    prepareSplash,
     /* A plank knocked into place, a girder bolted on, a cable pulled taut. */
     place(mat, length = 3) {
       const pitch = Math.max(0.65, Math.min(1.45, Math.sqrt(3 / length)));
@@ -233,8 +201,8 @@ export function createSound() {
         strike({ partials: STEEL, decay: 0.11, gain: 0.09, click: 4600, pitch });
         strike({ partials: STEEL, decay: 0.85, gain: 0.23, click: 3300, pitch, at: 0.063 });
       } else if (mat === 'cable') {
-        pluck((135 + Math.random() * 8) * pitch, 1.2, 0.95, 0.8);
-        strike({ partials: STEEL, decay: 0.075, gain: 0.09, click: 4200, at: 0.012 });
+        pluck((115 + Math.random() * 5) * pitch, 0.29, 0.18, 0.985);
+        noise({ duration: 0.025, gain: 0.045, filter: 1050, type: 'bandpass', q: 0.8 });
       } else if (mat === 'road') {
         noise({ duration: 0.15, filter: 1700, to: 230, gain: 0.45 });
         tone({ freq: 116, to: 57, duration: 0.18, gain: 0.27 });
@@ -265,8 +233,8 @@ export function createSound() {
         strike({ partials: STEEL, decay: 1.2, gain: 0.14, click: 4000 });
         tone({ freq: 90, to: 45, duration: 0.4, gain: 0.25 });
       } else if (mat === 'cable') {
-        pluck(89, 0.65, 1.05, 2.2);
-        noise({ duration: 0.25, gain: 0.2, filter: 6000, to: 800, type: 'bandpass', q: 2 });
+        pluck(95, 0.32, 0.35, 1.22);
+        noise({ duration: 0.12, gain: 0.13, filter: 2600, to: 700, type: 'bandpass', q: 1 });
       } else {
         for (let i = 0; i < 6; i++) noise({ duration: 0.04 + Math.random() * 0.05, gain: 0.25, filter: 1500 + Math.random() * 2500, type: 'bandpass', q: 2, at: i * (0.015 + Math.random() * 0.03) });
         tone({ freq: 120, to: 55, duration: 0.3, gain: 0.25 });
@@ -277,7 +245,7 @@ export function createSound() {
     creak(level, mat) {
       const start = 115 + Math.random() * 30;
       if (mat === 'cable') {
-        pluck(start, 0.48, 0.32 * level, 1.18);
+        pluck(start, 0.22, 0.1 * level, 1.025);
         return;
       }
       for (let i = 0; i < 5; i++) {
@@ -287,14 +255,25 @@ export function createSound() {
         noise({ filter: mat === 'steel' ? 2100 : 960, q: 2.5, type: 'bandpass', duration: 0.06, gain: 0.17 * level, at });
       }
     },
-    splash() {
-      noise({ duration: 1.3, gain: 0.45, filter: 2400, to: 300 });
-      noise({ duration: 0.5, gain: 0.15, filter: 4000, type: 'highpass', at: 0.04 });
-      tone({ freq: 70, to: 35, duration: 0.5, gain: 0.3 });
-      for (let i = 0; i < 9; i++) {
-        const f = 400 + Math.random() * 900;
-        tone({ freq: f, to: f * 2.2, duration: 0.06 + Math.random() * 0.06, gain: 0.04, at: 0.25 + Math.random() * 0.9 });
+    splash(massKg = 1500, speed = 5, pan = 0) {
+      const c = enabled && ensure();
+      if (!c) return;
+      const weight = Math.max(0, Math.min(1, Math.log2(massKg / 1500) / 3));
+      const impact = Math.max(0.4, Math.min(1, speed / 7));
+      if (!splashBuffer) {
+        noise({ duration: 0.27, gain: 0.65 * impact, filter: 680, to: 150, attack: 0.008 });
+        noise({ duration: 0.75, gain: 0.32 * impact, filter: 3600, to: 570, attack: 0.04, at: 0.025 });
+        return;
       }
+      const source = c.createBufferSource();
+      source.buffer = splashBuffer;
+      source.playbackRate.value = 0.94 - 0.22 * weight;
+      const volume = c.createGain();
+      volume.gain.value = (0.63 + 0.15 * weight) * impact;
+      const position = c.createStereoPanner();
+      position.pan.value = pan;
+      source.connect(volume).connect(position).connect(mix);
+      source.start();
     },
     /* A wreck hitting the ground or the river bed. */
     thud(strength = 1) {
