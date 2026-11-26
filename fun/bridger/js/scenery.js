@@ -14,6 +14,7 @@ export const THEMES = {
     ambient: ['clouds', 'raptors'],
     name: 'Valley', ui: 'light', sky: 'sky-valley', skyline: [0.46, 0.46], skyAlign: 0.1, skyTop: '#549ce9', rock: 'rock-valley',
     rockColor: '#929185', tint: '#9f9a7457', surface: ['#b7ba91', '#858a72'], depth: '#364a4d',
+    subsoil: '#b58c5f', bedrock: '#30454b',
     water: { surface: '#79a8b2', deep: '#285261', glint: '#f2f5dc' },
     road: '#42464a', grid: 'rgba(37, 55, 68, 0.55)',
   },
@@ -21,6 +22,7 @@ export const THEMES = {
     ambient: ['stars', 'dust'],
     name: 'Mesa', ui: 'dark', sky: 'sky-mesa', skyline: [0.52, 0.57], skyAlign: 0.98, skyTop: '#2a2c63', rock: 'rock-mesa',
     rockColor: '#916775', tint: '#725e795c', surface: ['#daaa96', '#997b86'], depth: '#3c3047',
+    subsoil: '#bd765e', bedrock: '#382d46',
     water: { surface: '#a98f9c', deep: '#443a57', glint: '#ffe0c9' },
     road: '#443b47', grid: 'rgba(249, 238, 227, 0.57)',
   },
@@ -28,6 +30,7 @@ export const THEMES = {
     ambient: ['clouds', 'snow'],
     name: 'Snow', ui: 'light', sky: 'sky-snow', skyline: [0.41, 0.39], skyAlign: 0.05, skyTop: '#5e8fe2', rock: 'rock-snow',
     rockColor: '#90aab2', tint: '#b8d7df49', surface: ['#fff9e9', '#cadce0'], depth: '#314758',
+    subsoil: '#9cc1cc', bedrock: '#293e57',
     water: { surface: '#8fbfc8', deep: '#2e5068', glint: '#fff9e9' },
     road: '#454e56', grid: 'rgba(32, 55, 77, 0.55)',
   },
@@ -35,6 +38,7 @@ export const THEMES = {
     ambient: ['stars', 'shooting', 'fireflies'],
     name: 'Night', ui: 'dark', sky: 'sky-night', skyline: [0.46, 0.48], skyAlign: 0.91, skyTop: '#002c42', rock: 'rock-night',
     rockColor: '#495569', tint: '#42616d5c', surface: ['#91a6b0', '#596e7a'], depth: '#142333',
+    subsoil: '#667494', bedrock: '#212437',
     water: { surface: '#557b8c', deep: '#172b41', glint: '#e4eedf' },
     road: '#293540', grid: 'rgba(221, 239, 240, 0.54)',
   },
@@ -42,6 +46,7 @@ export const THEMES = {
     ambient: ['birds', 'leaves'],
     name: 'Forest', ui: 'light', sky: 'sky-forest', skyline: [0.44, 0.41], skyAlign: 0.11, skyTop: '#6893ab', rock: 'rock-forest',
     rockColor: '#6f7a62', tint: '#82936460', surface: ['#b1b480', '#788864'], depth: '#273d3b',
+    subsoil: '#9b7350', bedrock: '#273d3e',
     water: { surface: '#76a598', deep: '#274a4a', glint: '#eef5d4' },
     road: '#3c4542', grid: 'rgba(30, 52, 56, 0.55)',
   },
@@ -49,6 +54,7 @@ export const THEMES = {
     ambient: ['clouds', 'raptors'],
     name: 'Sandstone', ui: 'light', sky: 'sky-sandstone', skyline: [0.38, 0.35], skyAlign: 0.035, skyTop: '#6aa7f1', rock: 'rock-sandstone',
     rockColor: '#b17967', tint: '#cbab915e', surface: ['#eec6a5', '#b78873'], depth: '#563f44',
+    subsoil: '#c67c57', bedrock: '#633e42',
     water: { surface: '#80b0ad', deep: '#365c64', glint: '#fff0d5' },
     road: '#4c4242', grid: 'rgba(66, 45, 55, 0.55)',
   },
@@ -56,6 +62,7 @@ export const THEMES = {
     ambient: ['stars', 'shooting', 'dust'],
     name: 'Night desert', ui: 'dark', sky: 'sky-dunes', skyline: [0.51, 0.52], skyAlign: 0.23, skyTop: '#002d4c', rock: 'rock-dunes',
     rockColor: '#706077', tint: '#38476b92', surface: ['#b1a5b8', '#796c87'], depth: '#302d49',
+    subsoil: '#927395', bedrock: '#333046',
     water: { surface: '#777c9f', deep: '#30334f', glint: '#f5e6d8' },
     road: '#363343', grid: 'rgba(235, 232, 250, 0.55)',
   },
@@ -63,6 +70,7 @@ export const THEMES = {
     ambient: ['stars', 'plane'],
     name: 'Night city', ui: 'dark', sky: 'sky-city', skyline: [0.52, 0.51], skyAlign: 0.93, skyTop: '#072455', rock: 'rock-city',
     rockColor: '#50596a', tint: '#273c5c91', surface: ['#9baab4', '#64778b'], depth: '#172335',
+    subsoil: '#947a69', bedrock: '#2a3547',
     water: { surface: '#697b95', deep: '#213047', glint: '#ffd6a8' },
     road: '#333e4b', grid: 'rgba(232, 237, 247, 0.55)',
   },
@@ -70,6 +78,7 @@ export const THEMES = {
     ambient: ['birds', 'dust'],
     name: 'Desert', ui: 'light', sky: 'sky-desert', skyline: [0.43, 0.42], skyAlign: 0.97, skyTop: '#67dde3', rock: 'rock-dunes',
     rockColor: '#ad8a70', tint: '#edb17e52', surface: ['#eed0a4', '#b89879'], depth: '#55454e',
+    subsoil: '#cc904d', bedrock: '#573e42',
     water: { surface: '#72a6a9', deep: '#23495a', glint: '#fff1da' },
     road: '#4b4244', grid: 'rgba(58, 44, 49, 0.55)',
   },
@@ -77,6 +86,7 @@ export const THEMES = {
     ambient: ['clouds', 'butterflies'],
     name: 'Meadow', ui: 'light', sky: 'sky-meadow', skyline: [0.49, 0.49], skyAlign: 0.03, skyTop: '#51a6f9', rock: 'rock-forest',
     rockColor: '#647759', tint: '#8a9b6b4d', surface: ['#a9be7b', '#71855c'], depth: '#263d40',
+    subsoil: '#a17b4f', bedrock: '#374347',
     water: { surface: '#77aba5', deep: '#244a56', glint: '#fffbe0' },
     road: '#454844', grid: 'rgba(34, 61, 68, 0.55)',
   },
@@ -84,6 +94,7 @@ export const THEMES = {
     ambient: ['clouds', 'birds'],
     name: 'Tropical Island', ui: 'light', sky: 'sky-island', skyline: [0.49, 0.44], skyAlign: 0.95, skyTop: '#47a5fc', rock: 'rock-snow',
     rockColor: '#b8a58b', tint: '#edd7ad7a', surface: ['#f4dfaf', '#b4a389'], depth: '#2c4c58',
+    subsoil: '#d1a584', bedrock: '#31464e',
     water: { surface: '#52c7bb', deep: '#195b70', glint: '#f2fff6' },
     road: '#454b51', grid: 'rgba(32, 57, 65, 0.55)',
   },
@@ -91,6 +102,7 @@ export const THEMES = {
     ambient: ['fireflies'],
     name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.14, skyTop: '#c3efdd', rock: 'rock-forest',
     rockColor: '#556350', tint: '#637f415e', surface: ['#899d64', '#627454'], depth: '#1c3533',
+    subsoil: '#a47353', bedrock: '#283c38',
     water: { surface: '#688e77', deep: '#1f4544', glint: '#e5efd0' },
     road: '#363f39', grid: 'rgba(25, 55, 54, 0.57)',
   },
@@ -98,6 +110,7 @@ export const THEMES = {
     ambient: ['birds', 'leaves'],
     name: 'Canadian Forest with a Lake', ui: 'light', sky: 'sky-lake', skyline: [0.45, 0.47], skyAlign: 0.88, skyTop: '#6da8fa', rock: 'rock-valley',
     rockColor: '#838b8a', tint: '#89958b42', surface: ['#b2b9a2', '#889483'], depth: '#243a46',
+    subsoil: '#a98a87', bedrock: '#394752',
     water: { surface: '#7aa2b3', deep: '#224555', glint: '#f0f8f7' },
     road: '#41464b', grid: 'rgba(31, 50, 63, 0.55)',
   },
@@ -471,7 +484,47 @@ function bankPaths(view, mission, scenery) {
   return scenery.paths;
 }
 
-function paintBanks(cache, paths, view, theme) {
+function paintGeology(ctx, view, mission, phase, theme, ground) {
+  const depth = mission.deck - mission.bed;
+  const shade = ctx.createLinearGradient(0, view.sy(mission.deck), 0, view.sy(mission.bed));
+  shade.addColorStop(0, rgba(theme.surface[0], 0.12));
+  shade.addColorStop(0.14, rgba(theme.subsoil, 0.48));
+  shade.addColorStop(0.38, rgba(theme.subsoil, 0.56));
+  shade.addColorStop(0.70, rgba(mix(theme.subsoil, theme.bedrock, 0.72), 0.65));
+  shade.addColorStop(1, rgba(theme.bedrock, 0.73));
+  ctx.fillStyle = shade;
+  ctx.fill(ground);
+
+  // Thin mineral beds pinch out, dip and reappear along a cliff. Sample at
+  // fixed metre intervals so the same seams survive a change of camera.
+  const start = Math.floor(view.wx(0) * 2), end = Math.ceil(view.wx(view.width) * 2);
+  ctx.save();
+  ctx.clip(ground);
+  for (const [level, thickness, color, opacity] of [
+    [0.15, 0.030, theme.subsoil, 0.29], [0.33, 0.017, theme.surface[0], 0.23],
+    [0.51, 0.043, theme.bedrock, 0.19], [0.72, 0.025, theme.subsoil, 0.29],
+    [0.92, 0.016, theme.surface[1], 0.22], [1.18, 0.041, theme.bedrock, 0.28],
+  ]) {
+    const path = new Path2D(), lower = [];
+    for (let i = start; i <= end; i++) {
+      const x = i / 2, along = x * 0.3 + phase + level * 3;
+      const dip = 0.35 * Math.sin(x * 0.25 + phase) + 0.18 * Math.sin(along * 1.7) + 0.07 * Math.sin(along * 5);
+      const y = mission.deck - level * depth + dip;
+      const width = depth * thickness * Math.max(0, 0.46 + 0.65 * Math.sin(along) + 0.20 * Math.sin(along * 3.2) + 0.12 * Math.sin(x * 3 + phase));
+      path.lineTo(view.sx(x), view.sy(y));
+      lower.push(view.sy(y - width));
+    }
+    for (let i = end; i >= start; i--) path.lineTo(view.sx(i / 2), lower[i - start]);
+    path.closePath();
+    ctx.fillStyle = rgba(color, opacity);
+    ctx.fill(path);
+  }
+  ctx.restore();
+}
+
+function paintBanks(cache, mission, scenery, theme) {
+  const { view } = cache;
+  const paths = bankPaths(view, mission, scenery);
   const { far, farRim, ground, rim, ledges, roads } = paths;
   const roadWidth = Math.max(4, view.scale * 0.32);
   const back = makeLayer(cache, paths.topFar - 3, paths.bottomNear + 4);
@@ -485,14 +538,10 @@ function paintBanks(cache, paths, view, theme) {
   back.ctx.lineWidth = 2;
   back.ctx.stroke(farRim);
 
-  const ctx = front.ctx, top = view.sy(0);
+  const ctx = front.ctx;
   ctx.fillStyle = rock;
   ctx.fill(ground);
-  const shade = ctx.createLinearGradient(0, top, 0, Math.max(top + 1, view.height));
-  shade.addColorStop(0, rgba(theme.depth, 0));
-  shade.addColorStop(1, rgba(theme.depth, 0.6));
-  ctx.fillStyle = shade;
-  ctx.fill(ground);
+  paintGeology(ctx, view, mission, scenery.phase, theme, ground);
   ctx.strokeStyle = theme.depth;
   ctx.lineWidth = 3;
   ctx.lineJoin = 'round';
@@ -526,7 +575,7 @@ export function drawGround(ctx, view, mission, scenery, theme, time) {
   const cache = rasterCache(ctx, view, scenery, theme);
   const textured = ready(image(theme.rock));
   if (!cache.banks || cache.textured !== textured) {
-    cache.banks = paintBanks(cache, bankPaths(view, mission, scenery), view, theme);
+    cache.banks = paintBanks(cache, mission, scenery, theme);
     cache.textured = textured;
   }
   blit(ctx, cache.banks.back);

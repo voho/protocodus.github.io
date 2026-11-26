@@ -131,6 +131,29 @@ assert.equal(rolling.car.state, 'driving');
 const spins = rolling.car.axles.map((a) => a.angle);
 assert.ok(Math.max(...spins) - Math.min(...spins) > 0.01, 'The three tyres can roll and coast independently on a crest');
 
+// Let a road panel give way once the truck has driven onto it. Either
+// back tyre can carry the tandem's load, but losing both tips the truck.
+const truckDeck = Array.from({ length: 8 }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
+const truckRiver = {
+  vehicle: 'truck', left: 0, right: 16, deck: 0, water: -4,
+  ground: (x) => x <= 0 || x >= 16 ? 0 : -8, anchors: [...truckDeck.map((m) => m.a), truckDeck.at(-1).b],
+};
+for (const [unsupported, at, outcome] of [[2, 5.5, 'win'], [1, 4.1, 'fall']]) {
+  const sim = createSim(truckRiver, truckDeck);
+  while (!sim.result && sim.car.axles[unsupported].x < at) sim.step();
+  assert.equal(sim.result, null);
+  sim.beams[2].broken = true; // the panel between 4 and 6 m
+  sim.step();
+  const { axles } = sim.car;
+  assert.equal(sim.car.state, 'driving');
+  assert.equal(axles[unsupported].load, 0);
+  assert.ok(axles.every((a) => a.load >= 0));
+  assert.equal(axles.reduce((sum, a) => sum + a.load, 0), 6000);
+  assert.ok(Math.abs(axles.reduce((sum, a) => sum + (a.load - a.mass) * a.offset, 0)) < 1e-8);
+  sim.run();
+  assert.equal(sim.result, outcome);
+}
+
 // Level members cross the traffic lane. A supported vehicle can hit its
 // roof while every wheel still has road underneath it. Side braces flank it.
 for (const [vehicle, roof] of [['car', 0.75], ['truck', 1], ['train', 1.5]]) {

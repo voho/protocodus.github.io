@@ -203,7 +203,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     id: vehicleId, def: vehicle,
     front: startX + vehicle.length,
     axles: vehicle.axles.map(([offset, mass]) => ({
-      offset, mass, load: mass, x: 0, y: mission.deck, supportY: mission.deck, beam: -1, t: 0,
+      offset, mass, load: mass, x: 0, y: mission.deck, supportY: mission.deck, supported: false, beam: -1, t: 0,
       angle: 0, worldAngle: 0, angularSpeed: 0,
     })),
     state: 'waiting', // waiting, driving, falling, crossed
@@ -244,25 +244,30 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       axle.x = car.front - axle.offset;
       axle.load = axle.mass;
       const s = support(axle.x, axle.supportY);
+      axle.supported = !!s;
       if (!s) { axle.beam = -1; supported = false; continue; }
       axle.y = axle.supportY = s.y; axle.beam = s.beam; axle.t = s.t;
     }
-    // If a crest picks up the middle tyre, the truck pivots about its front
-    // and middle axles (its centre of mass lies between them).
+    // The truck's centre of mass lies between the front and either back
+    // axle. That pair can support it across a crest or a missing panel.
     if (vehicleId === 'truck') {
       const [front, middle, rear] = car.axles;
-      const projected = front.y + (middle.y - front.y) * (rear.offset - front.offset) / (middle.offset - front.offset);
-      const lifted = projected > rear.y ? rear : middle;
-      const pivot = lifted === rear ? middle : rear;
+      if (!front.supported || (!middle.supported && !rear.supported)) return false;
+      const rearProjection = front.y + (middle.y - front.y) * (rear.offset - front.offset) / (middle.offset - front.offset);
+      const onMiddle = middle.supported && (!rear.supported || rearProjection > rear.y);
+      const lifted = onMiddle ? rear : middle;
+      const pivot = onMiddle ? middle : rear;
       const t = (lifted.offset - front.offset) / (pivot.offset - front.offset);
       lifted.y = front.y + (pivot.y - front.y) * t;
       // Once the suspension travel is used up, transfer that axle's load
       // to the other two while conserving the weight and its moment.
-      if (lifted.y > lifted.supportY + 0.08) {
+      if (!lifted.supported || lifted.y > lifted.supportY + 0.08) {
         front.load += lifted.mass * (1 - t);
         pivot.load += lifted.mass * t;
         lifted.load = 0;
       }
+      if (!lifted.supported) lifted.supportY = lifted.y;
+      return true;
     }
     return supported;
   }
@@ -282,9 +287,8 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
             dx -= (a.vx * (1 - axle.t) + b.vx * axle.t) * STEP;
             dy -= (a.vy * (1 - axle.t) + b.vy * axle.t) * STEP;
           }
-          const supported = axle.load > 0 && (axle.beam >= 0 || axle.x <= mission.left || axle.x >= mission.right);
           const travel = Math.sign(dx * c + dy * s) * Math.hypot(dx, dy);
-          rollWheel(axle, supported ? travel : null, radius, STEP);
+          rollWheel(axle, axle.supported && axle.load > 0 ? travel : null, radius, STEP);
         }
         axle.centerX = x; axle.centerY = y;
         axle.angle = axle.worldAngle + heading;

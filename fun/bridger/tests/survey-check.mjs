@@ -17,6 +17,36 @@ export async function checkSurvey(browser, origin) {
     await page.goto(origin + '/fun/bridger/#medium-v2-6g77gh');
     await page.waitForFunction(() => window.bridger?.view && window.stageDraws);
     assert.ok(page.workers().some((worker) => worker.url().endsWith('/survey-worker.js')));
+    await page.focus('[data-action="help"]');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('[data-dialog="help"]').evaluate((dialog) => dialog.open), true);
+    assert.equal(await page.evaluate(() => bridger.sim), null);
+    await page.keyboard.press('Escape');
+    async function assertTool(tool) {
+      const group = await page.locator('[data-tool]').evaluateAll((buttons) => ({
+        checked: buttons.filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.dataset.tool),
+        tabStops: buttons.filter((b) => b.tabIndex === 0).map((b) => b.dataset.tool),
+      }));
+      assert.deepEqual(group, { checked: [tool], tabStops: [tool] });
+    }
+    await assertTool('wood');
+    await page.focus('[data-tool="wood"]');
+    await page.keyboard.press('ArrowLeft');
+    await assertTool('erase');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.tool), 'erase');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Space');
+    await assertTool('wood');
+    assert.equal(await page.evaluate(() => bridger.sim), null, 'Space on a material selects it');
+    for (const focus of ['#stage', '[data-action="test"]']) {
+      await page.focus(focus);
+      await page.keyboard.down('Enter');
+      await page.keyboard.down('Enter');
+      await page.keyboard.up('Enter');
+      assert.equal(await page.evaluate(() => !!bridger.sim), true, 'Holding Enter starts one test');
+      await page.keyboard.press('Enter');
+      assert.equal(await page.evaluate(() => bridger.sim), null);
+    }
     // A hash change supersedes any hint in flight for the old river.
     await page.evaluate(() => {
       document.querySelector('[data-action="solution"]').click();
@@ -31,6 +61,24 @@ export async function checkSurvey(browser, origin) {
     assert.ok(fromWorker.roadOnly, 'leaving during a hint keeps the new road intact');
     await page.click('[data-action="solution"]');
     await page.waitForFunction(() => bridger.members.some((m) => m.mat !== 'road'));
+    const savedBridge = () => page.evaluate(() => JSON.stringify(bridger.members));
+    const saved = await savedBridge();
+    await page.evaluate(() => { location.hash = '#medium-v2-check4'; });
+    await page.waitForFunction(() => bridger.mission.difficulty === 'medium');
+    assert.equal(await savedBridge(), saved);
+    assert.ok(await page.locator('[data-action="undo"]').isEnabled(), 'Changing difficulty in the URL preserves undo history');
+    await page.click('[data-action="new"]');
+    await page.click('[data-confirm-ok]');
+    await page.waitForFunction(() => bridger.mission.seed !== 'v2-check4');
+    const next = await page.evaluate(() => bridger.mission.seed);
+    await page.goBack();
+    await page.waitForFunction(() => window.bridger?.mission?.seed === 'v2-check4');
+    assert.equal(await savedBridge(), saved, 'Back restores the bridge you left');
+    await page.goForward();
+    await page.waitForFunction((seed) => window.bridger?.mission?.seed === seed, next);
+    assert.ok((await fields()).roadOnly, 'Forward restores the next river');
+    await page.goBack();
+    await page.waitForFunction(() => window.bridger?.mission?.seed === 'v2-check4');
     await page.click('[data-action="clear"]');
     assert.equal(await page.locator('[data-dialog="confirm"]').evaluate((dialog) => dialog.open), true);
     await page.evaluate(() => { location.hash = '#medium-u7k7es'; });

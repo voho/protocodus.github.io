@@ -32,7 +32,8 @@ on the drawing while you rebuild.
   on any bridge piece to remove it. Erasing a joint removes the pieces attached to it.
   Undo restores one edit, and Clear restores the starting deck.
 - **Asking first.** New river (top right, away from Go!), Clear and Solution ask before
-  they replace a bridge you built. With nothing built they just go ahead.
+  they replace a bridge you built. With nothing built they just go ahead. Use your
+  browser's Back and Forward buttons to revisit rivers and their saved bridges.
 - **Rules.** Joints stay out of the rock and at least 1 m above the water.
 - **Bridge ideas.** The help card sketches a beam on a pier, a truss, an arch and a
   cable-stayed bridge. Any bridge that carries the vehicle across within the budget
@@ -46,12 +47,13 @@ with compliance `L / EA`, carries half its own weight on each joint, and breaks 
 its force (smoothed over 40 ms) passes its strength. Vehicles roll at a steady speed
 along road members; each axle adds its mass to the two joints of the road piece under
 it, so the bridge feels the weight and its inertia. The three-axle truck can lift a
-tyre over a crest and transfer its load onto the other axles. The bumper, roof and
-underside of each moving body can hit the terrain, a buckled road or loose pieces.
+rear tyre over a crest or a missing panel and transfer its load onto the other two
+axles. The bumper, roof and underside of each moving body can hit the terrain, a
+buckled road or loose pieces.
 Keep level beams and cables above the deck high enough to clear the vehicle.
 Diagonal and upright side braces run alongside the traffic lane.
 
-When a wheel loses the road or the vehicle strikes an obstruction, each body (the car,
+When a vehicle loses support or strikes an obstruction, each body (the car,
 the truck, the locomotive and each wagon) becomes a rigid shape. The solver uses
 the same sprite outline and tyre sizes as the moving vehicle, puts contact points
 every 30 cm around the body and keeps the carriages coupled. Each body collides
@@ -118,6 +120,11 @@ Dust devils turn over the desert floor,
 butterflies flutter above the meadow and fireflies blink in the jungle. Other
 worlds have clouds, flocks, stars and meteors. The scenery and water animations
 respect the system's reduced-motion setting.
+
+The exposed banks show layers of soil and rock that deepen toward the riverbed.
+After a crossing, two lights travel along the bridge from opposite banks. When they
+meet, the deck and its supports glow gold and launch confetti and curling streamers.
+With reduced motion enabled, the bridge gets a steady gold highlight.
 
 ## Sound
 

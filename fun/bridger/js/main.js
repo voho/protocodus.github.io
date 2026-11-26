@@ -3,11 +3,12 @@
    copy of it and colours every member by how close it is to breaking. */
 import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
-import { memberProblem, pairKey, jointAllowed, attachmentPoints, roadDeck, DESIGN_NAMES } from './mission.js';
-import { createView, draw, stressColor } from './render.js';
+import { memberProblem, pairKey, isAnchor, jointAllowed, attachmentPoints, roadDeck, DESIGN_NAMES } from './mission.js';
+import { createView, draw, stressColor, anchorHalfSize, jointRadius, beamWidth } from './render.js';
 import { openSurvey } from './survey.js';
 import { createSound } from './sound.js';
 import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
+import { createCelebration, CELEBRATION_LENGTH } from './celebration.js';
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $('#stage');
@@ -39,6 +40,7 @@ let theme = null, survey = null, busy = false;
 let members = [], undoStack = [], tool = 'wood';
 let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
+let celebration = null;
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
 let recentSolutions = [];
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
@@ -54,7 +56,7 @@ function fromHash() {
   return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
 }
 
-async function load(nextDifficulty, nextSeed, keepBridge = false) {
+async function load(nextDifficulty, nextSeed, pushRiver = false) {
   cancelDrag();
   if (sim) stopTest();
   if (confirmDialog.open) confirmDialog.close('cancel');
@@ -67,12 +69,19 @@ async function load(nextDifficulty, nextSeed, keepBridge = false) {
   try {
     const nextMission = await current.mission();
     if (survey !== current || !nextMission) return;
+    clearTimeout(toastTimer);
+    toastEl.classList.remove('on');
+    const keepBridge = mission && nextSeed === seed;
     mission = nextMission;
     difficulty = current.difficulty;
     seed = nextSeed;
     recentSolutions = [];
     store('difficulty', difficulty);
-    history.replaceState(null, '', `#${difficulty}-${seed}`);
+    const hash = `#${difficulty}-${seed}`;
+    if (location.hash !== hash) {
+      if (pushRiver) history.pushState(null, '', hash);
+      else history.replaceState(null, '', hash);
+    }
     document.querySelectorAll('input[name="difficulty"]').forEach((r) => { r.checked = r.value === difficulty; });
     $('[data-seed]').textContent = seed;
     $('[data-vehicle-name]').textContent = VEHICLES[mission.vehicle].name;
@@ -132,6 +141,7 @@ async function load(nextDifficulty, nextSeed, keepBridge = false) {
 }
 
 function updateBudget() {
+  hover = null;
   requestFrame();
   const points = new Map(mission.anchors.map((p) => [key(p), p]));
   for (const m of members) {
@@ -152,6 +162,7 @@ function updateBudget() {
   box.classList.toggle('over', ratio > 1);
   box.classList.toggle('close', ratio > 0.9 && ratio <= 1);
   undoButton.disabled = undoStack.length === 0;
+  $('[data-action="clear"]').disabled = !built();
   store(`bridge-${seed}`, JSON.stringify({ members: members.map(({ a, b, mat }) => ({ a, b, mat })) }));
 }
 
@@ -199,22 +210,32 @@ function gridAt(px, py) {
 }
 const screenOf = (p) => [view.sx(p[0] * CELL), view.sy(p[1] * CELL)];
 function nearestSite(px, py, options, radius) {
-  let best = null, shortest = radius;
+  let best = null, plate = null, shortest = radius;
+  const half = anchorHalfSize(view);
   for (const p of options) {
     const [sx, sy] = screenOf(p);
     const d = Math.hypot(sx - px, sy - py);
     if (d < shortest) { shortest = d; best = p; }
+    if (Math.abs(sx - px) <= half && Math.abs(sy - py) <= half && isAnchor(mission, p)) plate = p;
   }
-  return best;
+  return best || plate;
 }
-const snapRadius = () => Math.max(9, Math.min(20, view.scale * CELL * 0.4));
-function memberNear(px, py, existing = members) {
+const snapRadius = () => Math.max(9, jointRadius(view), Math.min(20, view.scale * CELL * 0.4));
+function memberNear(px, py, existing = members, nodes = null) {
   let best = null, bestD = 14;
-  for (const m of existing) {
-    const [ax, ay] = screenOf(m.a), [bx, by] = screenOf(m.b);
-    const dx = bx - ax, dy = by - ay;
-    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  // Walk the paint order backwards so a tap on crossing strokes picks the visible beam.
+  for (let i = existing.length - 1; i >= 0; i--) {
+    const m = existing[i];
+    if (nodes && m.broken) continue;
+    const ax = view.sx(nodes ? nodes[m.a].x : m.a[0] * CELL);
+    const ay = view.sy(nodes ? nodes[m.a].y : m.a[1] * CELL);
+    const dx = view.sx(nodes ? nodes[m.b].x : m.b[0] * CELL) - ax;
+    const dy = view.sy(nodes ? nodes[m.b].y : m.b[1] * CELL) - ay;
+    const length2 = dx * dx + dy * dy;
+    if (!length2) continue;
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length2));
     const d = Math.hypot(px - ax - dx * t, py - ay - dy * t);
+    if (d <= beamWidth(view, m.mat) / 2 + 1) return m;
     if (d < bestD) { bestD = d; best = m; }
   }
   return best;
@@ -290,15 +311,20 @@ function build(planned) {
   return [...members.flatMap((m) => m.mat === 'road' ? [m] : pieces(m, points)), ...planned.add];
 }
 
-function setTool(next) {
+function setTool(next, moveFocus = false) {
   cancelDrag();
   hover = null;
   tool = next;
-  document.querySelectorAll('[data-tool]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.tool === tool)));
+  document.querySelectorAll('[data-tool]').forEach((b) => {
+    const selected = b.dataset.tool === tool;
+    b.setAttribute('aria-checked', String(selected));
+    b.tabIndex = selected ? 0 : -1;
+    if (selected && moveFocus) b.focus();
+  });
 }
 
 function erase(px, py, replaceLastEdit) {
-  const joint = nearestSite(px, py, joints, Math.max(5, Math.min(10, view.scale * CELL * 0.22)));
+  const joint = nearestSite(px, py, joints, Math.max(5, jointRadius(view), Math.min(10, view.scale * CELL * 0.22)));
   const source = replaceLastEdit ? undoStack[undoStack.length - 1] : members;
   let next = joint ? source.filter((m) => key(m.a) !== key(joint) && key(m.b) !== key(joint)) : source;
   if (next.length === source.length) {
@@ -381,15 +407,7 @@ function updateHover(px, py) {
       color: peak != null ? stressColor(peak) : '#fff',
     };
   } else if (sim) {
-    let best = null, bestD = 14;
-    for (const b of sim.beams) {
-      if (b.broken) continue;
-      const na = sim.nodes[b.a], nb = sim.nodes[b.b];
-      const ax = view.sx(na.x), ay = view.sy(na.y), dx = view.sx(nb.x) - ax, dy = view.sy(nb.y) - ay;
-      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
-      const d = Math.hypot(px - ax - dx * t, py - ay - dy * t);
-      if (d < bestD) { bestD = d; best = b; }
-    }
+    const best = memberNear(px, py, sim.beams, sim.nodes);
     if (best) hover = { beam: best, px, py };
   }
 }
@@ -429,6 +447,8 @@ function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = nul
 
 function startTest() {
   last = performance.now();
+  clearTimeout(toastTimer);
+  toastEl.classList.remove('on');
   cancelDrag();
   sound.prepareSplash();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
@@ -453,6 +473,8 @@ function stopTest() {
     members.forEach((m, i) => { const b = sim.beams[i]; if (b) peaks.set(peakKey(m), b.broken ? 1 : b.peak); });
   }
   sim = null;
+  celebration = null;
+  particles = [];
   mode = 'build';
   sound.engine(false);
   document.body.classList.remove('testing');
@@ -505,25 +527,18 @@ function finishTest(result) {
   const cost = bridgeCost(members);
   if (result === 'win') {
     const broken = sim.brokeCount;
+    celebration = createCelebration(mission, sim, reducedMotion.matches);
+    celebration.showCard = cost <= mission.budget;
+    sound.win();
     if (cost > mission.budget) {
       toast(`It works! But it costs ${money(cost)}, which is ${money(cost - mission.budget)} over budget. Try a cheaper shape.`, true, 5200);
-      sound.win();
       return;
     }
-    sound.win();
-    for (let i = 0; i < 70; i++) {
-      const colors = ['#ffd23f', '#ff5a4a', '#3ccf6e', '#5fb4ea', '#c9a6f2'];
-      particles.push({ x: mission.right + 2 + Math.random() * 6, y: 4 + Math.random() * 4, vx: (Math.random() - 0.5) * 8, vy: Math.random() * 6, life: 1.6 + Math.random(), color: colors[i % 5], size: 0.12, square: true });
-    }
     track('game_end', { result: 'win', score: mission.budget - cost, duration_seconds: Math.round((performance.now() - startedAt) / 1000), hints_used: solutionShown ? 1 : 0 });
-    setTimeout(() => {
-      if (sim !== finishedSim) return;
-      $('[data-win-cost]').textContent = money(cost);
-      const saved = mission.budget - cost;
-      $('[data-win-title]').textContent = broken ? 'Wobbly, but across!' : 'Safe across!';
-      $('[data-win-note]').textContent = `${saved > 0 ? `${money(saved)} left over from ${money(mission.budget)}.` : `Right on the budget of ${money(mission.budget)}.`}${solutionShown ? ' Now try one of your own.' : ' Can you build it cheaper?'}`;
-      win.showModal();
-    }, 1100);
+    $('[data-win-cost]').textContent = money(cost);
+    const saved = mission.budget - cost;
+    $('[data-win-title]').textContent = broken ? 'Wobbly, but across!' : 'Safe across!';
+    $('[data-win-note]').textContent = `${saved > 0 ? `${money(saved)} left over from ${money(mission.budget)}.` : `Right on the budget of ${money(mission.budget)}.`}${solutionShown ? ' Now try one of your own.' : ' Can you build it cheaper?'}`;
   } else {
     sound.fail();
     testLabel.textContent = 'Fix it';
@@ -562,8 +577,16 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   time += dt;
+  const paused = help.open || confirmDialog.open;
   if (mission && view) {
-    if (mode === 'test' && sim && !sim.settled) stepTest(dt);
+    if (!paused && mode === 'test' && sim && !sim.settled) stepTest(dt);
+    if (celebration && !paused) {
+      celebration.elapsed += dt;
+      if (celebration.elapsed >= (reducedMotion.matches ? 0.4 : CELEBRATION_LENGTH)) {
+        if (celebration.showCard) win.showModal();
+        celebration = null;
+      }
+    }
     for (const p of particles) {
       p.vy -= 9.81 * dt * (p.square ? 0.5 : 1);
       p.x += p.vx * dt; p.y += p.vy * dt;
@@ -576,17 +599,18 @@ function frame(now) {
     }
     draw(ctx, labelCtx, {
       mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
+      celebration, reducedMotion: reducedMotion.matches,
       hover: hover?.beam?.broken ? null : hover,
       peaks, peakOf: (m) => peaks.get(peakKey(m)),
     });
   }
-  if (!reducedMotion.matches || (sim && !sim.settled) || particles.length) requestFrame();
+  if (!reducedMotion.matches || (!paused && (celebration || (sim && !sim.settled))) || particles.length) requestFrame();
 }
 
 /* ---------- controls ---------- */
 
 function newMission() {
-  load(difficulty, `v2-${randomSeed()}`);
+  load(difficulty, `v2-${randomSeed()}`, true);
 }
 
 async function showSolution() {
@@ -629,6 +653,7 @@ function confirmThen(title, text, ok, run) {
   const current = survey;
   confirmDialog.returnValue = '';
   confirmDialog.onclose = () => { if (confirmDialog.returnValue === 'ok' && current === survey && !busy) run(); };
+  sound.engine(false);
   confirmDialog.showModal();
 }
 
@@ -646,7 +671,7 @@ const actions = {
   new: () => confirmThen('Start a new river?', 'Your bridge here stays saved, but you leave this river. Its link takes you back.', 'New river', newMission),
   next: () => { win.close(); newMission(); },
   improve: () => { win.close(); stopTest(); },
-  help: () => help.showModal(),
+  help: () => { sound.engine(false); help.showModal(); },
   sound: () => {
     const on = sound.toggle();
     if (on && mode === 'test') sound.prepareSplash();
@@ -671,12 +696,15 @@ document.addEventListener('click', (event) => {
 });
 document.querySelectorAll('input[name="difficulty"]').forEach((radio) => radio.addEventListener('change', () => {
   // Same river, a different budget.
-  if (radio.checked && survey) load(radio.value, survey.seed, survey.seed === seed);
+  if (radio.checked && survey) load(radio.value, survey.seed);
 }));
 canvas.addEventListener('pointerdown', onDown);
 canvas.addEventListener('pointermove', onMove);
 canvas.addEventListener('pointerup', onUp);
-canvas.addEventListener('pointercancel', (event) => { if (pointer?.id === event.pointerId) cancelDrag(); });
+for (const name of ['pointercancel', 'lostpointercapture']) {
+  canvas.addEventListener(name, (event) => { if (pointer?.id === event.pointerId) cancelDrag(); });
+}
+window.addEventListener('blur', cancelDrag);
 canvas.addEventListener('pointerleave', (event) => { if (!pointer) { hover = null; requestFrame(); } else onMove(event); });
 window.addEventListener('resize', resize);
 window.addEventListener('bridger-art-load', requestFrame);
@@ -696,18 +724,36 @@ window.addEventListener('hashchange', () => {
   if (target && (target.seed !== survey?.seed || target.difficulty !== survey?.difficulty)) load(target.difficulty, target.seed);
 });
 document.addEventListener('keydown', (event) => {
-  if (busy || event.target.closest?.('input, dialog[open]') || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (busy || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.target.isContentEditable || event.target.closest?.('input, textarea, select, dialog[open]')) return;
   const k = event.key.toLowerCase();
   if (!mission && k !== 'n' && k !== 'm') return;
-  if (k === ' ' || k === 'enter') { event.preventDefault(); sound.unlock(); actions.test(); }
-  else if (k >= '1' && k <= '4') setTool(TOOLS[Number(k) - 1]);
-  else if (k === 'u' || k === 'backspace') actions.undo();
+  const material = event.target.closest?.('[data-tool]');
+  if (material && ['arrowleft', 'arrowup', 'arrowright', 'arrowdown'].includes(k)) {
+    event.preventDefault();
+    const step = k === 'arrowleft' || k === 'arrowup' ? -1 : 1;
+    setTool(TOOLS[(TOOLS.indexOf(material.dataset.tool) + step + TOOLS.length) % TOOLS.length], true);
+    return;
+  }
+  if (k === ' ' || k === 'enter') {
+    if (event.repeat) { event.preventDefault(); return; }
+    if (event.target.closest?.('button, a[href], summary')) return;
+    event.preventDefault(); sound.unlock(); actions.test();
+    return;
+  }
+  if (event.repeat) return;
+  if (/^[1-4]$/.test(k)) setTool(TOOLS[Number(k) - 1], !!material);
+  else if (k === 'u' || k === 'backspace') { event.preventDefault(); actions.undo(); }
   else if (k === 'n') actions.new();
   else if (k === 'm') actions.sound();
   else if (k === 'escape') cancelDrag();
 });
 help.addEventListener('click', () => sound.unlock(), { once: true });
 help.addEventListener('close', () => store('seen-help', '1'));
+for (const dialog of [help, confirmDialog]) dialog.addEventListener('close', () => {
+  last = performance.now();
+  requestFrame();
+});
 
 for (const [mat, def] of Object.entries(MATERIALS)) {
   const price = document.querySelector(`[data-price="${mat}"]`);

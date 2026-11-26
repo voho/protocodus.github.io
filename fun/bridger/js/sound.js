@@ -1,17 +1,25 @@
 /* Construction foley, vehicle engines and a recorded water impact. */
+import { BURST_AT } from './celebration.js';
+
 export function createSound() {
   const key = 'bridger-sound';
   let context = null, mix = null, master = null, noiseBuffer = null, engine = null;
   let splashBuffer = null, splashLoad = null;
   const lastBreak = new Map();
   let enabled = true;
+  let deviceUnavailable = false;
   try { enabled = localStorage.getItem(key) !== 'off'; } catch { /* private mode */ }
 
   const ensure = () => {
     if (!context) {
       const Context = window.AudioContext || window.webkitAudioContext;
-      if (!Context) return null;
-      context = new Context();
+      if (!Context || deviceUnavailable) return null;
+      try { context = new Context(); }
+      catch {
+        // Audio device allocation can fail. Retry on the next user gesture.
+        deviceUnavailable = true;
+        return null;
+      }
       mix = context.createGain();
       const limiter = context.createDynamicsCompressor();
       limiter.threshold.value = -10;
@@ -35,6 +43,12 @@ export function createSound() {
     }
     if (context.state === 'suspended') context.resume().catch(() => {});
     return context;
+  };
+  const unlock = () => {
+    if (enabled) {
+      deviceUnavailable = false;
+      ensure();
+    }
   };
   const getNoise = (c) => {
     if (!noiseBuffer) {
@@ -186,12 +200,12 @@ export function createSound() {
     toggle() {
       enabled = !enabled;
       try { localStorage.setItem(key, enabled ? 'on' : 'off'); } catch { /* private mode */ }
-      if (enabled) ensure();
+      if (enabled) unlock();
       else stopEngine();
       if (master) master.gain.setTargetAtTime(enabled ? 0.74 : 0, context.currentTime, 0.008);
       return enabled;
     },
-    unlock() { if (enabled) ensure(); },
+    unlock,
     prepareSplash,
     /* A plank knocked into place, a girder bolted on, a cable pulled taut. */
     place(mat, length = 3) {
@@ -335,13 +349,15 @@ export function createSound() {
       });
     },
     win() {
-      // A bright bell arpeggio over a warm chord.
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-        tone({ freq, duration: 1.4, gain: 0.1, at: i * 0.11 });
-        tone({ freq: freq * 2.76, duration: 0.5, gain: 0.025, at: i * 0.11 });
-      });
-      [261.63, 329.63, 392].forEach((freq) => tone({ type: 'triangle', freq, duration: 1.8, gain: 0.05, at: 0.42, attack: 0.15 }));
-      tap([30, 50, 30, 50, 60]);
+      // Small bell attacks follow the light across the span. The high note
+      // and a soft paper pop land together when the two banks' lights meet.
+      for (const [at, freq] of [[0, 523.25], [0.16, 659.25], [0.35, 783.99], [BURST_AT, 1046.5]]) {
+        tone({ freq, duration: 1.1, gain: 0.085, at });
+        tone({ freq: freq * 2.76, duration: 0.35, gain: 0.018, at });
+      }
+      noise({ duration: 0.16, gain: 0.12, filter: 2100, to: 480, at: BURST_AT });
+      [261.63, 392, 493.88, 659.25].forEach((freq) => tone({ type: 'triangle', freq, duration: 1.55, gain: 0.045, at: BURST_AT, attack: 0.06 }));
+      tap([14, BURST_AT * 1000 - 14, 32]);
     },
     fail() {
       [392, 349.23, 293.66, 246.94].forEach((freq, i) => tone({ type: 'triangle', freq, to: freq * 0.97, duration: 0.45, gain: 0.08, at: 0.3 + i * 0.17 }));

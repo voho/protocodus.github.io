@@ -9,8 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 import { checkStructureLayers } from './structure-layers-check.mjs';
+import { checkCelebration } from './celebration-check.mjs';
 import { checkSplash } from './splash-check.mjs';
+import { checkMediaRecovery } from './media-recovery-check.mjs';
 import { checkSkies } from './sky-check.mjs';
+import { checkTerrainPaint } from './terrain-paint-check.mjs';
 import { checkSurvey } from './survey-check.mjs';
 import { checkClearance } from './clearance-check.mjs';
 
@@ -138,6 +141,24 @@ try {
     const span = await page.evaluate(() => bridger.mission.span);
 
     assert.equal(await count(), span, `${device.name}: the road is laid across in 2 m pieces`);
+    assert.equal(await page.locator('[data-action="clear"]').isDisabled(), true,
+      `${device.name}: clearing an untouched bridge cannot create an empty undo step`);
+    if (device.hasTouch) {
+      const { minX, maxX } = await page.evaluate(() => bridger.mission.bounds);
+      for (const [anchor, edge] of [[-2, minX], [span + 2, maxX]]) {
+        const [x, y] = await at(edge, 1);
+        assert.ok(x >= 5 && x <= device.viewport.width - 5, 'The outer build joint is fully onscreen');
+        await drag([anchor, 0], [edge, 1]);
+        assert.equal(await count(), span + 1, 'A brace can be attached at the edge of the phone build area');
+        await page.mouse.move(x, y);
+        await page.waitForFunction(() => {
+          const canvas = document.querySelector('[data-labels]'), ctx = canvas.getContext('2d');
+          const ink = (x, w) => ctx.getImageData(x, 0, w, canvas.height).data.some((v, i) => i % 4 === 3 && v);
+          return ink(2, canvas.width - 4) && !ink(0, 1) && !ink(canvas.width - 1, 1);
+        }, null, { timeout: 3000 });
+        await page.click('[data-action="undo"]');
+      }
+    }
     const doubleTap = async (point) => {
       const [x, y] = await at(...point);
       if (device.hasTouch) {
@@ -149,6 +170,47 @@ try {
       await page.reload();
       await page.waitForFunction(() => document.body.classList.contains('ready'));
     };
+
+    if (!device.hasTouch) {
+      await page.setViewportSize({ width: 1920, height: 1440 });
+      await page.waitForFunction(() => bridger.view.width === innerWidth);
+      // Near the corner of the painted bank plate, well away from its centre.
+      await drag([-0.16, 0.16], [1, 1]);
+      assert.equal(await count(), span + 1, 'a drag from the visible bank plate starts at its bolt');
+      await doubleTap([-0.16, 0.16]);
+      assert.equal(await count(), span - 1, 'erasing the bank plate removes both attached members');
+      await page.click('[data-action="undo"]');
+      await page.click('[data-action="undo"]');
+      await doubleTap([2.5, 0.115]);
+      assert.equal(await count(), span - 1, 'the painted edge of a large road piece can be erased');
+      await page.click('[data-action="undo"]');
+
+      await drag([1, 0], [3, 1]);
+      await page.click('[data-tool="steel"]');
+      await drag([3, 0], [2, 2]);
+      await page.click('[data-tool="erase"]');
+      // Inside both painted strokes, slightly nearer the older wooden centreline.
+      const [crossX, crossY] = await at(2.6, 0.8);
+      await page.mouse.click(crossX + 2, crossY - 1);
+      assert.deepEqual(await page.evaluate(() => bridger.members.filter(m => m.mat !== 'road').map(m => m.mat)),
+        ['wood'], 'erasing a crossing selects the beam painted on top');
+      for (let i = 0; i < 3; i++) await page.click('[data-action="undo"]');
+      await page.click('[data-tool="wood"]');
+
+      const start = await at(0, 0), end = await at(1, 1);
+      await page.mouse.move(...start);
+      await page.mouse.down();
+      await page.evaluate(() => {
+        const canvas = document.querySelector('#stage');
+        canvas.addEventListener('pointermove', (event) => canvas.releasePointerCapture(event.pointerId), { once: true });
+      });
+      await page.mouse.move(start[0] + 2, start[1]);
+      await page.mouse.move(...end);
+      await page.mouse.up();
+      assert.equal(await count(), span, 'a drag interrupted by losing pointer capture leaves the bridge untouched');
+      await page.setViewportSize(device.viewport);
+      await page.waitForFunction(() => bridger.view.width === innerWidth);
+    }
 
     await doubleTap([2.5, 0]);
     assert.equal(await count(), span - 1, `${device.name}: double-click or double-tap removes a road piece`);
@@ -300,8 +362,11 @@ try {
   assert.equal(await framesDiffer(), true, 'background and water animate during building');
   await checkWheelRendering(preview);
   await checkStructureLayers(preview);
+  await checkCelebration(preview);
   await checkSkies(preview);
+  await checkTerrainPaint(preview);
   await checkSplash(preview);
+  await checkMediaRecovery(browser, origin);
   await checkClearance(preview, origin);
   await preview.close();
   await checkSurvey(browser, origin);
