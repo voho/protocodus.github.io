@@ -26,7 +26,12 @@ on the drawing while you rebuild.
   cost counts toward the budget. It can't be erased or swapped, so the job is to hold it
   up. Every proven design keeps the road flat too.
 - **Drawing.** Drag from a bolt or joint. A beam drawn through existing joints joins
-  them. Tap a beam with a material to swap it, or with Erase to remove it.
+  them, and a beam that ends or crosses partway along another, on a grid point, splits
+  it there and joins it; while you drag, white dots mark those points. Tap a beam with a
+  material to swap it, or with Erase to remove it. A double click or double tap erases a
+  beam or joint with any tool.
+- **Asking first.** New river (top right, away from Go!), Clear and Solution ask before
+  they replace a bridge you built. With nothing built they just go ahead.
 - **Rules.** Joints stay out of the rock and at least 1 m above the water.
 - **Bridge ideas.** The help card sketches a beam on a pier, a truss, an arch and a
   cable-stayed bridge. Any bridge that carries the vehicle across within the budget
@@ -43,8 +48,12 @@ it, so the bridge feels the weight and its inertia. A wheel with no road under i
 falls.
 
 Once a wheel loses the road, the vehicle stops being scripted: each body (the car, the
-truck, the locomotive and each wagon) becomes wheel and hull points held rigid, with the
-train's couplings between them. A member that snaps splits into two halves that stay
+truck, the locomotive and each wagon) becomes a rigid shape, its outline traced from
+its sprite and lined with contact points every 30 cm, plus its two wheels, held rigid
+by shape matching, with the train's couplings between them. The whole body collides,
+not just the wheels: its outline with the terrain and the members, and any joint,
+snapped piece or other body that gets inside it is pushed back out. While driving, the
+wheels turn with the distance travelled. A member that snaps splits into two halves that stay
 pinned to their own joints, so they dangle and swing. Fallen vehicles, loose joints and
 snapped pieces collide with the terrain (along its slope, with friction) and with every
 member they touch, and both sides of a contact move by their mass, so a truck landing
@@ -56,7 +65,8 @@ that holds behaves exactly as it did before.
 
 [`js/mission.js`](js/mission.js) builds a river from the seed in the URL
 (`#medium-abc123`): span, vehicle, bank faces and slopes, water level, and
-sometimes a rock pier or a low island. It then designs bridges from the classic
+sometimes a rock pier or a low island. Slopes, rocks and the river bed get natural
+roughness from a few sine waves, faded out at the cliff tops and the bolts. It then designs bridges from the classic
 families (deck truss, through truss, deep truss, arch on the cliff bolts, beam on piers,
 cable-stayed), each with random proportions and one of the Pratt, Howe, Warren or X
 patterns. Each design runs in the same simulation; members above 85% of their strength
@@ -84,7 +94,19 @@ backdrops, rock textures and vehicle sprites in [`assets/`](assets/CREDITS.md) w
 generated for the game. All scenery stays in cool, muted blues and violets, so the
 green-to-red stress colours, the materials and the vehicles always stand out.
 [`js/scenery.js`](js/scenery.js) fills the physics ground line with the rock texture and
-draws the river, which darkens with depth and reflects the bridge.
+draws the river, which fills the gorge, darkens with depth and reflects the bridge.
+The sky stays alive: drifting clouds and passing birds by day, twinkling stars,
+shooting stars and a passing plane by night, and snow falling in the Snow world. It
+all stops when the system asks for reduced motion.
+
+## Sound
+
+[`js/sound.js`](js/sound.js) synthesises everything, so there is nothing to download.
+Placing wood or steel is a modal strike (a few inharmonic partials ringing down, like
+a knocked plank or a struck girder), a cable twangs taut, and breaks splinter, bang or
+whip by material. The engine is two detuned saws and a sub through a lowpass with road
+or rail noise, and a train chugs. A bridge near its limit creaks, a wreck thuds when it
+lands, and everything goes through a small room reverb.
 
 ## Checks
 

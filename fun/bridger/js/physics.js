@@ -32,14 +32,17 @@ export const VEHICLES = {
 /* Vehicle bodies, each on a pair of axles: [front axle, rear axle, kind]. */
 export const BODIES = { car: [[0, 1, 'car']], truck: [[0, 2, 'truck']], train: [[0, 1, 'loco'], [2, 3, 'wagon'], [4, 5, 'wagon']] };
 export const WHEEL = { car: 0.42, truck: 0.5, loco: 0.5, wagon: 0.5 };
-/* Hull corners in body metres (rear axle on the road at the origin, x
-   forward, y up), d apart axles: rear bumper, front bumper, rear and front roof. */
-const HULL = {
-  car: (d) => [[-0.85, 0.8], [d + 0.85, 0.8], [0.15, 1.85], [d - 0.4, 1.85]],
-  truck: (d) => [[-0.9, 1], [d + 1.2, 1], [-0.9, 3.1], [d + 1.2, 2.7]],
-  loco: (d) => [[-1.1, 1], [d + 1.5, 1], [-1.1, 3.6], [d + 1.5, 2.8]],
-  wagon: (d) => [[-1.25, 1], [d + 1.25, 1], [-1.25, 2.6], [d + 1.25, 2.6]],
+/* Body outlines traced from the sprites (convex, above the axles), in body
+   metres for each kind's own wheelbase: rear axle on the road at the origin,
+   x forward, y up. Wheels are circles of their own below them. */
+const OUTLINE = {
+  car: { base: 2.6, points: [[-0.67, 0.44], [3.38, 0.44], [3.46, 0.61], [3.33, 0.91], [1.66, 1.6], [1.29, 1.65], [0.12, 1.64], [-0.13, 1.57], [-0.63, 1.1], [-0.77, 0.63]] },
+  truck: { base: 5.4, points: [[-1.81, 0.77], [-1.65, 0.57], [-0.58, 0.53], [5.93, 0.53], [6.99, 0.55], [6.95, 1.85], [6.57, 2.57], [5.96, 3.21], [4.51, 3.66], [-1.69, 3.66]] },
+  loco: { base: 4, points: [[-1.56, 0.69], [-1.05, 0.54], [5.06, 0.54], [5.6, 0.98], [5.1, 1.91], [4.28, 2.58], [0.98, 2.83], [-0.53, 2.83], [-0.8, 2.69], [-1.59, 1.02]] },
+  wagon: { base: 4, points: [[-1.39, 0.66], [-0.92, 0.54], [4.38, 0.53], [5.33, 0.63], [5.38, 0.89], [4.99, 2.07], [4.78, 2.21], [-0.81, 2.2], [-1.01, 2.01], [-1.39, 0.87]] },
 };
+/* Spacing of the contact points along a body's outline (m). */
+const OUTLINE_STEP = 0.3;
 /* How close wreckage gets to a member's centre line before it touches. */
 const THICKNESS = { road: 0.06, wood: 0.1, steel: 0.1, cable: 0.04 };
 /* The most a contact pushes in one substep (m): deep overlaps resolve over a
@@ -92,7 +95,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     state: 'waiting', // waiting, driving, falling, crossed
     bodies: null,
   };
-  // Stiff links that hold each fallen vehicle body together; never drawn.
+  // Stiff links between the bodies of a fallen train; never drawn.
   const links = [];
   // Nodes that bump into members: vehicle bodies after a fall, and joints
   // and pieces set loose by a break. An intact bridge never collides with
@@ -202,10 +205,17 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
         nb.x -= wb * k * dx; nb.y -= wb * k * dy;
       }
       for (const i of colliders) collide(i);
+      if (car.bodies) {
+        for (const body of car.bodies) {
+          for (let i = body.first; i < body.first + body.rest.length; i++) if (nodes[i].y - nodes[i].radius < 0.05) touchGround(nodes[i]);
+          keepOut(body);
+          holdShape(body);
+        }
+      }
       for (const n of nodes) {
         if (n.fixed) continue;
         // Wreckage lands on the banks and the river bed instead of falling through.
-        if (n.y - n.radius < 0.05) touchGround(n);
+        if (!n.body && n.y - n.radius < 0.05) touchGround(n);
         n.vx = (n.x - n.px) / h; n.vy = (n.y - n.py) / h;
         if (n.y < mission.water) {
           // Water drag: pieces sink at a metre or two a second.
@@ -245,6 +255,12 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     // depth is vertical; the distance to the slope's tangent is depth * ny.
     n.x += nx * depth * ny; n.y += ny * depth * ny;
     slide(n, nx, ny, n.grip);
+    // A wreck landing hard, for the sound.
+    const hit = -(n.vx * nx + n.vy * ny);
+    if (n.body && hit > 3 && sim.time - (sim.impactAt ?? -1) > 0.3) {
+      sim.impactAt = sim.time;
+      sim.events.push(`impact:${Math.min(1, hit / 10).toFixed(2)}`);
+    }
   }
 
   /* Friction: cancel part of this substep's sliding along the surface. */
@@ -304,8 +320,9 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     }
   }
 
-  /* The vehicle leaves the road: each body becomes wheels and hull corners
-     held rigid, moving at driving speed, and from now on it is physics. */
+  /* The vehicle leaves the road: each body becomes a rigid shape, its two
+     wheels plus contact points all along its outline, moving at driving
+     speed, and from now on it is physics. */
   function releaseVehicle() {
     car.bodies = BODIES[vehicleId].map(([fi, ri, kind]) => {
       const f = car.axles[fi], r = car.axles[ri];
@@ -314,27 +331,93 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       const w = WHEEL[kind];
       // Wheels sit just clear of the road's surface so they don't start inside it.
       const lift = w + THICKNESS.road + 0.01;
-      const local = [[0, lift], [d, lift], ...HULL[kind](d)];
+      const { base, points } = OUTLINE[kind];
+      const outline = points.map(([x, y]) => [x * d / base, y * d / base + lift - w]);
+      const local = [[0, lift], [d, lift], ...outline];
+      outline.forEach(([x0, y0], i) => {
+        const [x1, y1] = outline[(i + 1) % outline.length];
+        const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / OUTLINE_STEP);
+        for (let k = 1; k < steps; k++) local.push([x0 + (x1 - x0) * k / steps, y0 + (y1 - y0) * k / steps]);
+      });
       const mass = car.axles.slice(fi, ri + 1).reduce((sum, a) => sum + a.mass, 0);
       const first = nodes.length;
-      for (const [lx, ly] of local) {
+      for (const [i, [lx, ly]] of local.entries()) {
         nodes.push({
           x: r.x + ux * lx - uy * ly, y: r.y + uy * lx + ux * ly, px: 0, py: 0,
           vx: ux * vehicle.speed, vy: uy * vehicle.speed,
           mass: mass / local.length, extra: 0, fixed: false, body: true,
-          radius: nodes.length - first < 2 ? w : 0.15, grip: nodes.length - first < 2 ? 0.04 : 0.35,
+          radius: i < 2 ? w : 0.08, grip: i < 2 ? 0.04 : 0.35,
         });
+        colliders.add(first + i);
       }
-      for (let i = first; i < nodes.length; i++) {
-        colliders.add(i);
-        for (let j = i + 1; j < nodes.length; j++) links.push({ a: i, b: j, length: Math.hypot(nodes[j].x - nodes[i].x, nodes[j].y - nodes[i].y) });
-      }
-      return { fi, ri, first, d, w: lift };
+      const cx = local.reduce((sum, p) => sum + p[0], 0) / local.length;
+      const cy = local.reduce((sum, p) => sum + p[1], 0) / local.length;
+      const xs = outline.map((p) => p[0]);
+      return {
+        fi, ri, first, d, w: lift,
+        rest: local.map(([x, y]) => [x - cx, y - cy]),
+        outline: outline.map((_, i) => first + 2 + i),
+        rear: first + 2 + xs.indexOf(Math.min(...xs)), front: first + 2 + xs.indexOf(Math.max(...xs)),
+      };
     });
-    // Train couplings: rear bumper of one body to the front bumper of the next.
+    // Train couplings: rear of one body to the front of the next.
     for (let k = 0; k + 1 < car.bodies.length; k++) {
-      const a = car.bodies[k].first + 2, b = car.bodies[k + 1].first + 3;
+      const a = car.bodies[k].rear, b = car.bodies[k + 1].front;
       links.push({ a, b, length: Math.hypot(nodes[b].x - nodes[a].x, nodes[b].y - nodes[a].y) });
+    }
+  }
+
+  /* Shape matching: put a body's points back on its rest shape at the
+     position and angle that best fit where they have been pushed. */
+  function holdShape(body) {
+    const { first, rest } = body;
+    let cx = 0, cy = 0;
+    for (let i = 0; i < rest.length; i++) { cx += nodes[first + i].x; cy += nodes[first + i].y; }
+    cx /= rest.length; cy /= rest.length;
+    let dot = 0, cross = 0;
+    for (let i = 0; i < rest.length; i++) {
+      const qx = nodes[first + i].x - cx, qy = nodes[first + i].y - cy;
+      dot += rest[i][0] * qx + rest[i][1] * qy;
+      cross += rest[i][0] * qy - rest[i][1] * qx;
+    }
+    const len = Math.hypot(dot, cross) || 1;
+    const c = dot / len, s = cross / len;
+    for (let i = 0; i < rest.length; i++) {
+      const [rx, ry] = rest[i];
+      nodes[first + i].x = cx + c * rx - s * ry;
+      nodes[first + i].y = cy + s * rx + c * ry;
+    }
+  }
+
+  /* Joints, loose pieces and other vehicle bodies can't get inside a body:
+     a point found inside its outline is pushed out through the nearest side. */
+  function keepOut(body) {
+    const ring = body.outline.map((i) => nodes[i]);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const v of ring) { x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+    const end = body.first + body.rest.length;
+    for (let j = 0; j < nodes.length; j++) {
+      if (j >= body.first && j < end) continue;
+      const p = nodes[j];
+      if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+      let depth = Infinity, edge = -1, nx = 0, ny = 0;
+      for (let k = 0; k < ring.length; k++) {
+        const a = ring[k], b = ring[(k + 1) % ring.length];
+        const ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey) || 1e-9;
+        // The outline runs anticlockwise, so its outward normal is (ey, -ex).
+        const out = ((p.x - a.x) * ey - (p.y - a.y) * ex) / len;
+        if (out >= 0) { edge = -1; break; }
+        if (-out < depth) { depth = -out; edge = k; nx = ey / len; ny = -ex / len; }
+      }
+      if (edge < 0) continue;
+      const a = ring[edge], b = ring[(edge + 1) % ring.length];
+      const ex = b.x - a.x, ey = b.y - a.y;
+      const t = Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / (ex * ex + ey * ey || 1e-9)));
+      const wp = p.fixed ? 0 : 1 / (p.mass + p.extra), wa = 1 / a.mass, wb = 1 / b.mass;
+      const lambda = Math.min(depth, PUSH) / (wp + wa * (1 - t) ** 2 + wb * t * t);
+      p.x += wp * lambda * nx; p.y += wp * lambda * ny;
+      a.x -= wa * (1 - t) * lambda * nx; a.y -= wa * (1 - t) * lambda * ny;
+      b.x -= wb * t * lambda * nx; b.y -= wb * t * lambda * ny;
     }
   }
 

@@ -59,6 +59,18 @@ try {
     await page.click('[data-tool="erase"]');
     await page.mouse.click(...(await at(0.5, 0)));
     assert.equal(await count(), span + 1, `${device.name}: the road can't be erased`);
+
+    // A beam ending partway along another joins it there: that beam splits in two.
+    await page.click('[data-tool="steel"]');
+    await page.waitForTimeout(400); // not a double tap with the click before
+    await drag([1, 0], [3, 2]);
+    assert.equal(await count(), span + 2, `${device.name}: a second beam is built`);
+    await drag([2, 0], [2, 1]);
+    assert.equal(await count(), span + 4, `${device.name}: a beam ending on another splits it and joins`);
+    assert.ok(await page.evaluate(() => bridger.members.some((m) => m.a.join() === '2,1' || m.b.join() === '2,1') && !bridger.members.some((m) => m.a.join() === '1,0' && m.b.join() === '3,2')), `${device.name}: the split beam meets the new joint`);
+    // A double click erases with any tool.
+    await page.mouse.dblclick(...(await at(2, 0.5)));
+    assert.equal(await count(), span + 3, `${device.name}: a double click erases a beam`);
     await page.screenshot({ path: `${output}/${device.name}-build.png` });
 
     // A bare road fails; the peak stress stays on the drawing afterwards.
@@ -69,7 +81,13 @@ try {
     await page.click('[data-action="test"]');
     assert.notEqual(failed, 'win', `${device.name}: road alone does not carry the vehicle`);
 
+    // Replacing what the player built asks first.
     await page.click('[data-action="solution"]');
+    assert.ok(await page.locator('[data-dialog="confirm"]').evaluate((d) => d.open), `${device.name}: Solution asks before replacing the bridge`);
+    await page.click('[data-dialog="confirm"] button[value="cancel"]');
+    assert.equal(await count(), span + 3, `${device.name}: cancelling keeps the bridge`);
+    await page.click('[data-action="solution"]');
+    await page.click('[data-dialog="confirm"] button[value="ok"]');
     await page.waitForFunction(() => !document.body.classList.contains('busy'));
     const cost = await page.evaluate(() => Number(document.querySelector('[data-cost]').textContent.replace(/\D/g, '')));
     const budget = await page.evaluate(() => bridger.mission.budget);

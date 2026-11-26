@@ -61,9 +61,23 @@ export function createTerrain(rng) {
     const shoulder = feature.kind === 'pier' ? 0.9 : 1.2, foot = feature.kind === 'pier' ? 2.4 : 4.5;
     rock = [[a - foot, bed], [a - shoulder, top - 0.3], [a - shoulder * 0.4, top], [b + shoulder * 0.4, top], [b + shoulder, top - 0.3], [b + foot, bed]];
   }
+  // Natural roughness so no slope or bed is a ruled line: a few sine waves at
+  // unrelated frequencies, faded out at the cliff tops and the rock's bolts so
+  // those stay where the bolts are.
+  const waves = Array.from({ length: 4 }, (_, i) => [0.6 * 2.3 ** i, rng.next() * Math.PI * 2, 0.75 / 1.8 ** i]);
+  const rough = (x) => waves.reduce((sum, [f, phase, amp]) => sum + Math.sin(x * f + phase) * amp, 0);
+  const fade = (d, width) => Math.max(0, Math.min(1, d / width));
   const ground = (x) => {
     if (x <= left || x >= right) return 0;
-    return Math.max(bed, along(bank, x), rock ? along(rock, x) : -Infinity);
+    const edge = fade(Math.min(x - left - 0.02, right - 0.02 - x), 1.2);
+    const bankY = along(bank, x) + rough(x) * edge;
+    const bedY = bed + rough(x * 1.3 + 7) * 0.8;
+    let rockY = -Infinity;
+    if (rock) {
+      const bolt = fade(Math.min(...feature.bolts.map(([bx]) => Math.abs(x - bx * CELL))) - 0.5, 1);
+      rockY = along(rock, x) + rough(x + 3) * bolt;
+    }
+    return Math.max(bedY, bankY, rockY);
   };
   const anchors = [[leftG, 0], [rightG, 0], [leftG - 2, 0], [rightG + 2, 0]];
   const lowerL = -faceL / CELL, lowerR = -faceR / CELL;
@@ -113,6 +127,14 @@ export function memberProblem(mission, members, m) {
   if (members.some((o) => pairKey(o) === k)) return 'exists';
   return null;
 }
+
+/* Grid points a member passes through between its two ends. */
+export function innerPoints(m) {
+  const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1];
+  const steps = gcd(Math.abs(dx), Math.abs(dy));
+  return Array.from({ length: Math.max(0, steps - 1) }, (_, k) => [m.a[0] + dx / steps * (k + 1), m.a[1] + dy / steps * (k + 1)]);
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 
 export const pairKey = (m) => {
   const a = key(m.a), b = key(m.b);

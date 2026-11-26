@@ -3,7 +3,7 @@
    copy of it and colours every member by how close it is to breaking. */
 import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
-import { createMission, memberProblem, pairKey, isAnchor, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
+import { createMission, memberProblem, pairKey, isAnchor, innerPoints, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
 import { createView, draw, stressColor } from './render.js';
 import { createSound } from './sound.js';
 import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
@@ -18,6 +18,7 @@ const toastEl = $('[data-toast]');
 const status = $('[data-status]');
 const help = $('[data-dialog="help"]');
 const win = $('[data-dialog="win"]');
+const confirmDialog = $('[data-dialog="confirm"]');
 const undoButton = $('[data-action="undo"]');
 const testLabel = $('[data-test-label]');
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -147,7 +148,20 @@ function gridAt(px, py) {
 }
 const screenOf = (p) => [view.sx(p[0] * CELL), view.sy(p[1] * CELL)];
 function isJoint(p) {
-  return isAnchor(mission, p) || members.some((m) => key(m.a) === key(p) || key(m.b) === key(p));
+  return isAnchor(mission, p) || connectable(p, members);
+}
+/* Points partway along members, in reach of a drag, where a new beam can join. */
+function midJoints(from, mat) {
+  const seen = new Set(), out = [];
+  for (const m of members) {
+    if (m.mat === 'road') continue;
+    for (const p of innerPoints(m)) {
+      if (seen.has(key(p)) || Math.hypot(p[0] - from[0], p[1] - from[1]) * CELL > reach(mat) + 1e-6) continue;
+      seen.add(key(p));
+      out.push(p);
+    }
+  }
+  return out;
 }
 function memberNear(px, py, radius = 14) {
   let best = null, bestD = radius;
@@ -160,10 +174,10 @@ function memberNear(px, py, radius = 14) {
   }
   return best;
 }
-function jointNear(px, py) {
+function jointNear(px, py, share = 0.45) {
   const g = gridAt(px, py);
   const [sx, sy] = screenOf(g);
-  return Math.hypot(px - sx, py - sy) < Math.max(18, view.scale * CELL * 0.45) && isJoint(g) ? g : null;
+  return Math.hypot(px - sx, py - sy) < Math.max(18 * share / 0.45, view.scale * CELL * share) && isJoint(g) ? g : null;
 }
 const reach = (mat) => MATERIALS[mat].maxLength;
 /* The grid point under the pointer, pulled in to the longest beam allowed. */
@@ -189,19 +203,18 @@ function reachTarget(from, px, py, mat) {
 /* A beam splits where it runs through an existing joint, so a line drawn
    across the bridge joins everything it touches. */
 function pieces(from, to, mat, existing) {
-  const dx = to[0] - from[0], dy = to[1] - from[1];
-  const steps = gcd(Math.abs(dx), Math.abs(dy));
   const cuts = [from];
-  for (let k = 1; k < steps; k++) {
-    const p = [from[0] + dx / steps * k, from[1] + dy / steps * k];
-    if (isAnchor(mission, p) || existing.some((m) => key(m.a) === key(p) || key(m.b) === key(p))) cuts.push(p);
-  }
+  for (const p of innerPoints({ a: from, b: to })) if (isAnchor(mission, p) || connectable(p, existing)) cuts.push(p);
   cuts.push(to);
   return cuts.slice(1).map((b, i) => ({ a: cuts[i], b, mat }));
 }
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const onMember = (m, p) => innerPoints(m).some((q) => q[0] === p[0] && q[1] === p[1]);
+/* An existing joint, or a grid point partway along a member, which then
+   splits there to take the new beam. */
+const connectable = (p, existing) => existing.some((m) => key(m.a) === key(p) || key(m.b) === key(p) || (m.mat !== 'road' && onMember(m, p)));
 
-/* What a drag from one point to another would build: { add, problem }. */
+/* What a drag from one point to another would build:
+   { add, split: members cut in two where the new beam joins them, problem }. */
 function plan(from, to, mat) {
   const add = [];
   let problem = null;
@@ -210,11 +223,25 @@ function plan(from, to, mat) {
     if (!p) add.push(piece);
     else if (p !== 'exists') problem = problem || p;
   }
-  if (problem) return { add: [], problem };
-  if (!add.length) return { add, problem: 'exists' };
-  return { add, problem: null };
+  if (problem) return { add: [], split: [], problem };
+  if (!add.length) return { add, split: [], problem: 'exists' };
+  const ends = add.flatMap((m) => [m.a, m.b]);
+  const split = members.filter((m) => m.mat !== 'road' && ends.some((p) => onMember(m, p)));
+  return { add, split, problem: null };
 }
 
+/* The members after a plan is built: split members become their pieces. */
+function build(planned) {
+  const ends = planned.add.flatMap((m) => [m.a, m.b]);
+  const next = [];
+  for (const m of members) {
+    if (!planned.split.includes(m)) { next.push(m); continue; }
+    for (const piece of pieces(m.a, m.b, m.mat, ends.map((p) => ({ a: p, b: p })))) {
+      if (!next.some((o) => pairKey(o) === pairKey(piece))) next.push(piece);
+    }
+  }
+  return [...next, ...planned.add.filter((m) => !next.some((o) => pairKey(o) === pairKey(m)))];
+}
 
 const ROAD_STAYS = 'The road stays flat. Build under or over it to hold it up.';
 
@@ -224,7 +251,8 @@ function setTool(next) {
 }
 
 function erase(px, py) {
-  const joint = jointNear(px, py);
+  // A tighter reach than drawing uses, so a short beam can still be hit between its joints.
+  const joint = jointNear(px, py, 0.25);
   if (joint && !isAnchor(mission, joint)) {
     const k = key(joint);
     const next = members.filter((m) => m.mat === 'road' || (key(m.a) !== k && key(m.b) !== k));
@@ -247,15 +275,35 @@ function swapMaterial(m) {
   sound.place(tool);
 }
 
+/* A double click or double tap erases whatever is under it, with any tool. */
+const DOUBLE_TAP_MS = 350;
+let lastTap = null;
+
 function onDown(event) {
   sound.unlock();
   if (!mission || mode !== 'build' || event.button > 0) return;
+  const x = event.offsetX, y = event.offsetY, now = performance.now();
+  if (lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(x - lastTap.x, y - lastTap.y) < 12) {
+    // The first tap may have swapped the beam's material; take that back first.
+    if (lastTap.changed && undoStack.length) members = undoStack.pop();
+    lastTap = null;
+    cancelDrag();
+    erase(x, y);
+    return;
+  }
+  lastTap = { at: now, x, y, changed: false };
   canvas.setPointerCapture?.(event.pointerId);
-  pointer = { id: event.pointerId, x: event.offsetX, y: event.offsetY, moved: false };
-  if (tool === 'erase') { erase(pointer.x, pointer.y); pointer = null; return; }
+  pointer = { id: event.pointerId, x, y, moved: false };
+  if (tool === 'erase') {
+    const before = members;
+    erase(x, y);
+    lastTap.changed = members !== before;
+    pointer = null;
+    return;
+  }
   const from = jointNear(pointer.x, pointer.y);
   if (from) {
-    drag = { from, to: null, ok: false, mat: tool };
+    drag = { from, to: null, ok: false, mat: tool, targets: midJoints(from, tool) };
     focus = [...from, reach(tool) / CELL];
   } else {
     pointer.member = memberNear(pointer.x, pointer.y);
@@ -305,9 +353,10 @@ function updateHover(px, py) {
 
 function onUp(event) {
   if (!pointer || pointer.id !== event.pointerId) return;
+  const before = members;
   if (drag) {
     if (drag.to && drag.ok) {
-      commit([...members, ...drag.plan.add]);
+      commit(build(drag.plan));
       sound.place(drag.mat);
     } else if (drag.to) {
       toast(PROBLEMS[drag.plan.problem]?.(drag.mat) || 'That beam doesn\'t fit there.', true);
@@ -320,6 +369,8 @@ function onUp(event) {
     if (pointer.member) swapMaterial(pointer.member);
     else toast('Start a beam from a red bolt or a joint.');
   }
+  if (lastTap) lastTap.changed = members !== before && !pointer.moved;
+  if (pointer.moved) lastTap = null;
   drag = null; focus = null; pointer = null;
 }
 
@@ -371,6 +422,7 @@ function stepTest(dt) {
         burst(a.x, mission.water, '#e3f4ff', 40, 5);
       }
       if (event === 'fall') sound.engine(false);
+      if (event.startsWith('impact:') && sim.car.axles[0].y > mission.water) sound.thud(Number(event.slice(7)));
     }
   }
   sim.beams.forEach((b, i) => {
@@ -382,7 +434,10 @@ function stepTest(dt) {
     }
   });
   const driving = sim.car.state === 'driving';
-  sound.engine(driving, 1 + 0.1 * Math.sin(time * 3));
+  sound.engine(driving, 1 + 0.1 * Math.sin(time * 3), mission.vehicle);
+  // A bridge near its limit groans now and then.
+  const strain = sim.beams.reduce((max, b) => (b.broken || b.piece ? max : Math.max(max, b.usage)), 0);
+  if (strain > 0.6 && Math.random() < dt * (strain - 0.5) * 4) sound.creak(strain);
   if (sim.result && !resultShown) {
     resultShown = true;
     finishTest(sim.result);
@@ -485,12 +540,27 @@ function showSolution() {
   }, 30);
 }
 
+/* Anything that throws away the player's bridge asks first. Nothing built
+   yet means nothing to lose, so it just goes ahead. */
+const built = () => members.some((m) => m.mat !== 'road');
+function confirmThen(title, text, ok, run) {
+  if (!built()) { run(); return; }
+  $('[data-confirm-title]').textContent = title;
+  $('[data-confirm-text]').textContent = text;
+  $('[data-confirm-ok]').textContent = ok;
+  confirmDialog.returnValue = '';
+  confirmDialog.onclose = () => { if (confirmDialog.returnValue === 'ok') run(); };
+  confirmDialog.showModal();
+}
+
 const actions = {
   test: () => (mode === 'build' ? startTest() : stopTest()),
   undo: () => { if (mode === 'build' && undoStack.length) { members = undoStack.pop(); updateBudget(); sound.erase(); } },
-  clear: () => { if (members.some((m) => m.mat !== 'road')) { commit(roadDeck(mission)); peaks = new Map(); sound.erase(); } },
-  solution: showSolution,
-  new: newMission,
+  clear: () => confirmThen('Clear the bridge?', 'Every beam you built comes off. The road stays.', 'Clear', () => {
+    commit(roadDeck(mission)); peaks = new Map(); sound.erase();
+  }),
+  solution: () => confirmThen('Show a solution?', 'It replaces the bridge you built. Undo brings yours back.', 'Show solution', showSolution),
+  new: () => confirmThen('Start a new river?', 'Your bridge here stays saved, but you leave this river. Its link takes you back.', 'New river', newMission),
   next: () => { win.close(); newMission(); },
   improve: () => { win.close(); stopTest(); },
   help: () => help.showModal(),
@@ -533,7 +603,7 @@ document.addEventListener('keydown', (event) => {
   if (k === ' ' || k === 'enter') { event.preventDefault(); actions.test(); }
   else if (k >= '1' && k <= '4') setTool(TOOLS[Number(k) - 1]);
   else if (k === 'u' || k === 'backspace') actions.undo();
-  else if (k === 'n') newMission();
+  else if (k === 'n') actions.new();
   else if (k === 'm') actions.sound();
   else if (k === 'escape') cancelDrag();
 });

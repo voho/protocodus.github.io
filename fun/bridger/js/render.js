@@ -2,7 +2,7 @@
    units are metres with y up; the view maps them onto the canvas. */
 import { CELL, MATERIALS, BODIES, WHEEL } from './physics.js';
 import { jointAllowed } from './mission.js';
-import { drawBackdrop, drawGround, drawWater } from './scenery.js';
+import { drawBackdrop, drawAmbient, drawWeather, drawGround, drawWater } from './scenery.js';
 
 const WIDTH = { road: 0.5, wood: 0.3, steel: 0.28, cable: 0.09 };
 const COLOR = { road: '#3a3f48', wood: '#c98b4f', steel: '#c3d0dc', cable: '#1c2128' };
@@ -146,18 +146,33 @@ function joints(ctx, view, points) {
 }
 
 
-/* Vehicle art: where the rear and front wheel centres sit in each
-   sprite and the row the tyres touch, so the art lines up with the axles. */
-const sprite = (name, rear, front, ground) => {
+/* Vehicle art: where the rear and front wheel centres sit in each sprite,
+   the row the tyres touch and the wheel radius (sprite pixels), so the art
+   lines up with the axles. Each wheel is cut out of the sprite once it loads
+   and drawn again on top, turning as the vehicle rolls. */
+const sprite = (name, rear, front, ground, wheel) => {
   const img = new Image();
+  const art = { img, rear, front, ground, wheel, tyre: null };
+  img.onload = () => {
+    // A little inside the tyre's edge, so the spinning disc never shows the body behind it.
+    const r = Math.ceil(wheel * 0.92);
+    const tyre = document.createElement('canvas');
+    tyre.width = tyre.height = r * 2;
+    const c = tyre.getContext('2d');
+    c.beginPath();
+    c.arc(r, r, r, 0, Math.PI * 2);
+    c.clip();
+    c.drawImage(img, rear - r, ground - wheel - r, r * 2, r * 2, 0, 0, r * 2, r * 2);
+    art.tyre = tyre;
+  };
   img.src = new URL(`../assets/${name}.webp`, import.meta.url).href;
-  return { img, rear, front, ground };
+  return art;
 };
 const SPRITES = {
-  car: sprite('car', 164.2, 716, 351),
-  truck: sprite('truck', 241.8, 732, 371),
-  loco: sprite('loco', 200, 699.5, 353),
-  wagon: sprite('wagon', 184.8, 715.2, 293),
+  car: sprite('car', 164.2, 716, 351, 77),
+  truck: sprite('truck', 184, 732, 371, 56.5),
+  loco: sprite('loco', 200, 699.5, 353, 69),
+  wagon: sprite('wagon', 184.8, 715.2, 293, 54),
 };
 
 function vehicle(ctx, view, car) {
@@ -174,6 +189,18 @@ function vehicle(ctx, view, car) {
       const m = d / (art.front - art.rear); // metres per sprite pixel
       ctx.scale(1, -1);
       ctx.drawImage(art.img, -art.rear * m, -art.ground * m, art.img.naturalWidth * m, art.img.naturalHeight * m);
+      if (art.tyre) {
+        const radius = art.wheel * m, size = art.tyre.width * m;
+        for (let i = fi; i <= ri; i++) {
+          const along = car.axles[ri].offset - car.axles[i].offset;
+          ctx.save();
+          ctx.translate(along, -radius);
+          // Rolling without slipping: the wheel turns by the distance travelled over its radius.
+          ctx.rotate(car.axles[i].x / radius);
+          ctx.drawImage(art.tyre, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        }
+      }
       ctx.restore();
       continue;
     }
@@ -248,6 +275,7 @@ export function draw(ctx, labelCtx, state) {
   const { mission, view, time, theme } = state;
   labelCtx.clearRect(0, 0, view.width, view.height);
   drawBackdrop(ctx, view, state.scenery, theme, time);
+  drawAmbient(ctx, view, state.scenery, theme, time);
   drawGround(ctx, view, mission, state.scenery, theme);
   if (state.mode === 'build') grid(ctx, view, mission, state.focus, theme);
 
@@ -286,8 +314,19 @@ export function draw(ctx, labelCtx, state) {
   drawWater(ctx, view, mission, theme, time, () => structure(true));
 
   if (state.drag) {
-    const { from, to, ok, mat, plan } = state.drag;
+    const { from, to, ok, mat, plan, targets } = state.drag;
     const ax = view.sx(from[0] * CELL), ay = view.sy(from[1] * CELL);
+    // Points along existing beams where the new one can join them.
+    const r = Math.max(2.5, view.scale * 0.12);
+    for (const [gx, gy] of targets) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(view.sx(gx * CELL), view.sy(gy * CELL), r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     if (mat !== 'road') {
       ctx.strokeStyle = theme.grid;
       ctx.lineWidth = 1.5;
@@ -309,6 +348,7 @@ export function draw(ctx, labelCtx, state) {
     }
   }
 
+  drawWeather(ctx, view, theme, time);
   for (const p of state.particles) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
     ctx.fillStyle = p.color;
