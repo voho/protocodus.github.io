@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { createMission, randomSolution, memberProblem, MARGINS, DESIGN_NAMES } from '../js/mission.js';
 import { createSim, bridgeCost, MATERIALS } from '../js/physics.js';
+import { createRng } from '../../shared/rng.js';
 
 const strip = (mission) => JSON.stringify({ ...mission, ground: undefined });
 const seeds = Array.from({ length: 12 }, (_, i) => `check${i}`);
@@ -24,7 +25,8 @@ for (const seed of seeds) {
     assert.ok(mission.budget <= cost * (1 + MARGINS[difficulty]) + 1e-9, `${seed}/${difficulty}: budget ${mission.budget} is within ${MARGINS[difficulty] * 100}% of ${cost}`);
     for (const m of mission.reference) assert.equal(memberProblem(mission, [], m), null, `${seed}: proof members follow the building rules`);
 
-    const { members, kind } = randomSolution(mission, Math.random, 600);
+    // Seeded, so a failure here can be replayed.
+    const { members, kind } = randomSolution(mission, createRng(`${seed}:${difficulty}`).next, 600);
     kinds.add(kind);
     assert.ok(DESIGN_NAMES[kind], `${seed}: the solution names its bridge family`);
     assert.ok(bridgeCost(members) <= mission.budget, `${seed}/${difficulty}: Show solution stays within budget`);
