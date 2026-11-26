@@ -7,7 +7,7 @@ let preset = 0;
 const edits = new Map();
 const { startAudio, perform, send } = createInstrumentAudio({
   baseUrl: import.meta.url, processor: 'keyra', instrument: 'piano', accelerator: './dsp/keyra-simd.wasm',
-  minimumRate: 8000, releaseAll: () => inputs.releaseAll(),
+  scalarAccelerator: './dsp/keyra-scalar.wasm', minimumRate: 8000, releaseAll: () => inputs.releaseAll(),
   configure: events => ({ type: 'configure', preset, controls: Object.fromEntries(edits), events })
 });
 

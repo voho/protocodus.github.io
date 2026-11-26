@@ -9,6 +9,7 @@ import { chromium } from 'playwright';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.woff2': 'font/woff2' };
 const simdPath = '/fun/keyra/dsp/keyra-simd.wasm';
+const scalarPath = '/fun/keyra/dsp/keyra-scalar.wasm';
 const javascriptPath = '/fun/keyra/dsp/core.mjs';
 // AudioWorklet module fetches may bypass the page's request observer. Record
 // successful responses at the static server instead, per fresh browser context.
@@ -195,17 +196,23 @@ async function exercise(browser) {
   await context.close();
 }
 
-async function fallback(browser, rejectFetch) {
+async function fallback(browser, renderer, rejectFetch = false) {
   const context = await browser.newContext({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
-  if (!rejectFetch) await context.addInitScript(() => {
-    WebAssembly.validate = () => false;
-  });
+  if (!rejectFetch) await context.addInitScript(renderer => {
+    const validate = WebAssembly.validate.bind(WebAssembly);
+    // The minimal eight-byte WebAssembly module has no SIMD instructions.
+    WebAssembly.validate = bytes => renderer === 'scalar' && bytes.byteLength === 8 && validate(bytes);
+  }, renderer);
   const page = await load(context, false);
-  let rejected = false;
-  if (rejectFetch) await page.route('**' + simdPath, route => {
-    rejected = true;
-    return route.abort('failed');
-  });
+  const rejected = [];
+  if (rejectFetch) {
+    for (const path of [simdPath, scalarPath]) {
+      await page.route('**' + path, route => {
+        rejected.push(path);
+        return route.abort('failed');
+      });
+    }
+  }
   assert.equal(await page.locator('#midi-connect').isDisabled(), true);
   const contact = await point(page, 60);
   const touch = await context.newCDPSession(page);
@@ -214,9 +221,11 @@ async function fallback(browser, rejectFetch) {
   assert.equal(await pressed(page, 60), 'true');
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.equal(await pressed(page, 60), 'false');
-  assert.equal(await page.locator('#audio-status').getAttribute('data-renderer'), 'javascript');
-  assert.equal(rejected, rejectFetch);
-  assert.ok(servedPaths.has(javascriptPath) && !servedPaths.has(simdPath));
+  assert.equal(await page.locator('#audio-status').getAttribute('data-renderer'), renderer);
+  assert.deepEqual(rejected, rejectFetch ? [simdPath, scalarPath] : []);
+  assert.equal(servedPaths.has(javascriptPath), renderer === 'javascript');
+  assert.equal(servedPaths.has(scalarPath), renderer === 'scalar');
+  assert.equal(servedPaths.has(simdPath), false);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await context.close();
 }
@@ -225,10 +234,11 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH });
   await exercise(browser);
-  await fallback(browser, false);
-  await fallback(browser, true);
+  await fallback(browser, 'scalar');
+  await fallback(browser, 'javascript');
+  await fallback(browser, 'javascript', true);
   assert.deepEqual(errors, []);
-  console.log('Keyra studio passed desktop, mobile, stereo SIMD/JavaScript playback, presets, three pedals and MIDI.');
+  console.log('Keyra studio passed desktop, mobile, stereo SIMD, scalar WebAssembly and JavaScript playback, presets, three pedals and MIDI.');
 } finally {
   await browser?.close();
   server.close();

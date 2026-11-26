@@ -1,4 +1,4 @@
-export function createInstrumentAudio({ baseUrl, processor, instrument, accelerator, minimumRate, preferredRate, configure, releaseAll }) {
+export function createInstrumentAudio({ baseUrl, processor, instrument, accelerator, scalarAccelerator, minimumRate, preferredRate, configure, releaseAll }) {
   const startButton = document.querySelector('#audio-start');
   const status = document.querySelector('#audio-status');
   let session = null;
@@ -39,45 +39,46 @@ export function createInstrumentAudio({ baseUrl, processor, instrument, accelera
 
   // A minimal module returning i8x16.splat(0) tests SIMD without fetching the engine.
   const simdProbe = Uint8Array.of(0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,8,1,6,0,65,0,253,15,11);
-  let simdModule;
+  const wasmProbe = Uint8Array.of(0,97,115,109,1,0,0,0);
+  const renderers = [
+    { suffix: '-simd', path: accelerator, probe: simdProbe },
+    ...(scalarAccelerator ? [{ suffix: '-scalar', path: scalarAccelerator, probe: wasmProbe }] : []),
+    { suffix: '' }
+  ];
 
-  async function compileAccelerator() {
-    if (!globalThis.WebAssembly?.validate(simdProbe)) return null;
-    if (simdModule) return simdModule;
-    const response = await fetch(new URL(accelerator, baseUrl));
-    if (!response.ok) throw new Error('Could not load the audio accelerator');
-    simdModule = await WebAssembly.compile(await response.arrayBuffer());
-    return simdModule;
-  }
-
-  async function loadProcessor(current, tryAcceleration = true) {
+  async function loadProcessor(current, index = 0) {
+    if (session !== current) return;
     const context = current.context;
+    const renderer = renderers[index];
     try {
       if (!context.audioWorklet) throw new Error('AudioWorklet unavailable');
-      const module = tryAcceleration ? await compileAccelerator().catch(() => null) : null;
-      if (session !== current) return;
-      const entry = module ? './processor-simd.js' : './processor.js';
       let node;
       try {
-        await context.audioWorklet.addModule(new URL(entry, baseUrl));
+        if (renderer.path && !renderer.module) {
+          if (!globalThis.WebAssembly?.validate(renderer.probe)) return loadProcessor(current, index + 1);
+          const response = await fetch(new URL(renderer.path, baseUrl));
+          if (!response.ok) throw new Error('Could not load the audio accelerator');
+          renderer.module = await WebAssembly.compile(await response.arrayBuffer());
+        }
         if (session !== current) return;
-        node = new AudioWorkletNode(context, module ? processor + '-simd' : processor, {
+        await context.audioWorklet.addModule(new URL('./processor' + renderer.suffix + '.js', baseUrl));
+        if (session !== current) return;
+        node = new AudioWorkletNode(context, processor + renderer.suffix, {
           numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-          processorOptions: module ? { module } : {}
+          processorOptions: renderer.module ? { module: renderer.module } : {}
         });
       } catch (error) {
-        // Some environments support SIMD on the page but cannot send a module to a worklet.
-        if (module) return loadProcessor(current, false);
+        if (renderer.path) return loadProcessor(current, index + 1);
         throw error;
       }
       current.node = node;
       node.onprocessorerror = () => {
         if (session !== current || current.node !== node) return;
-        if (module && !current.ready) {
+        if (renderer.path && !current.ready) {
           node.port.close();
           node.disconnect();
           current.node = null;
-          void loadProcessor(current, false);
+          void loadProcessor(current, index + 1);
         } else {
           stopAudio('The audio engine stopped. Start audio to try again.');
         }

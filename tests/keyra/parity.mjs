@@ -1,5 +1,5 @@
 // node tests/keyra/parity.mjs /path/to/pinned/virtual-instrument-keyra
-// Feed the exact same timed events to both shipped engines and a native oracle.
+// Feed the exact same timed events to all shipped engines and a native oracle.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { KeyraDSP } from '../../fun/keyra/dsp/piano.mjs';
-import { SimdDSP } from '../../fun/keyra/dsp/simd.mjs';
+import { SimdDSP as WasmPiano } from '../../fun/keyra/dsp/simd.mjs';
 
 const tests = [
   { name: 'Concert, channel ownership, repeated strikes and damper', rate: 48000, block: 128, score: [
@@ -81,14 +81,16 @@ try {
   execFileSync(process.env.CXX || 'c++', ['-std=c++17', '-O2', '-ffp-contract=off', '-I', join(source, 'Source'),
     fileURLToPath(new URL('./reference.cpp', import.meta.url)), join(source, 'Source/DSP/KeyraEngine.cpp'),
     join(source, 'Source/DSP/PianoModel.cpp'), '-o', oracle], { stdio: 'inherit' });
-  const simd = await WebAssembly.compile(readFileSync(new URL('../../fun/keyra/dsp/keyra-simd.wasm', import.meta.url)));
+  const compile = name => WebAssembly.compile(readFileSync(new URL('../../fun/keyra/dsp/' + name, import.meta.url)));
+  const [simd, scalar] = await Promise.all([compile('keyra-simd.wasm'), compile('keyra-scalar.wasm')]);
   for (const test of tests) {
     const output = execFileSync(oracle, [String(test.rate), String(test.block)], {
       input: test.score.map(event => event.join(' ')).join('\n'), maxBuffer: 4 * 1024 * 1024
     });
     const native = new Float32Array(output.buffer, output.byteOffset, output.byteLength / 4);
     compare(new KeyraDSP(test.rate), native, test, 'JavaScript');
-    compare(new SimdDSP(test.rate, simd), native, test, 'SIMD');
+    compare(new WasmPiano(test.rate, simd), native, test, 'SIMD');
+    compare(new WasmPiano(test.rate, scalar), native, test, 'scalar WebAssembly');
   }
 } finally {
   rmSync(temp, { recursive: true, force: true });

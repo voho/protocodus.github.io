@@ -31,16 +31,17 @@ function play(piano, rounds) {
   return times;
 }
 
-for (const backend of ['JavaScript', 'SIMD']) {
+for (const backend of ['JavaScript', 'SIMD', 'scalar WebAssembly']) {
   const load = performance.now();
   let create;
   if (backend === 'JavaScript') {
     const { KeyraDSP } = await import('../../fun/keyra/dsp/piano.mjs');
     create = () => new KeyraDSP(rate);
   } else {
-    const { SimdDSP } = await import('../../fun/keyra/dsp/simd.mjs');
-    const module = await WebAssembly.compile(readFileSync(new URL('../../fun/keyra/dsp/keyra-simd.wasm', import.meta.url)));
-    create = () => new SimdDSP(rate, module);
+    const { SimdDSP: WasmPiano } = await import('../../fun/keyra/dsp/simd.mjs');
+    const name = backend === 'SIMD' ? 'keyra-simd.wasm' : 'keyra-scalar.wasm';
+    const module = await WebAssembly.compile(readFileSync(new URL('../../fun/keyra/dsp/' + name, import.meta.url)));
+    create = () => new WasmPiano(rate, module);
   }
   const loaded = performance.now();
   const piano = create();
