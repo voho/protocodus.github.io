@@ -1,4 +1,4 @@
-name: Check deployed Keyra JavaScript fingerprint
+name: Verify public Keyra optimization after deployment
 on:
   push:
     branches: [qa/keyra-live-preset-values-20261126]
@@ -6,14 +6,25 @@ on:
 permissions:
   contents: read
 jobs:
-  origin:
+  verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 18
     steps:
-      - name: Compare standard, cache-busted, and statically hosted public URLs
+      - name: Verify custom-domain JavaScript blob after the production rebuild
         run: |
-          for url in "https://protocodus.cz/fun/keyra/dsp/core.mjs" "https://protocodus.cz/fun/keyra/dsp/core.mjs?deployment-check=60e54c6-$(date +%s)" "https://voho.github.io/fun/keyra/dsp/core.mjs?deployment-check=60e54c6"; do
-            curl -fsSL --compressed --max-time 30 -D /tmp/response -w 'served URL %{url_effective}\n' "$url" -o /tmp/keyra-core.mjs
-            grep -Ei '^(HTTP/|cache-control:|cf-cache-status:|cf-ray:|last-modified:|age:|etag:|server:|location:|date:|via:|x-cache:|x-served-by:)' /tmp/response || true
-            echo "PUBLIC_BLOB $(git hash-object /tmp/keyra-core.mjs) $(wc -c < /tmp/keyra-core.mjs) $url"
+          expected=9b887e95ebd5115d9621361ad4c5c34cb43aa985
+          canonical=https://protocodus.cz/fun/keyra/dsp/core.mjs
+          for attempt in $(seq 1 30); do
+            matched=0
+            for url in "$canonical" "$canonical?release=d032447-$(date +%s)"; do
+              if curl --retry 2 --retry-delay 1 -fsSL --compressed --max-time 18 -D /tmp/headers "$url" -o /tmp/core; then
+                oid=$(git hash-object /tmp/core)
+                echo "PUBLIC_BLOB $oid $(wc -c </tmp/core) $url"
+                grep -Ei '^(cf-cache-status|cache-control|last-modified|etag|age):' /tmp/headers || true
+                if test "$oid" = "$expected"; then matched=$((matched+1)); fi
+              fi
+            done
+            if test "$matched" = 2; then exit 0; fi
+            sleep 25
           done
+          exit 1
