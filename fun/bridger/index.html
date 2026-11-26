@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Bridger — Bridge-Building Physics Game | Protocodus</title>
+  <meta name="description"
+    content="Build a bridge from road, wood, steel and cable, then watch a car, truck or train cross it in a real physics test. Every river is new, every mission is proven solvable, and stressed beams glow red.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="Bridger — Bridge-Building Physics Game | Protocodus">
+  <meta property="og:description" content="Build bridges from road, wood, steel and cable, then test them with a car, truck or train. Endless solvable rivers and live stress colours on every beam.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://protocodus.cz/fun/bridger/">
+  <meta property="og:image" content="https://protocodus.cz/fun/bridger/bridger-card.webp">
+  <meta property="og:image:width" content="880">
+  <meta property="og:image:height" content="495">
+  <meta property="og:image:alt" content="Bridger: a truck crossing a truss bridge over a river, its beams coloured by stress">
+  <link rel="canonical" href="https://protocodus.cz/fun/bridger/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./bridger.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoGame",
+        "name": "Bridger",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Web browser",
+        "playMode": "SinglePlayer",
+        "genre": ["Puzzle", "Simulation", "Family"],
+        "url": "https://protocodus.cz/fun/bridger/",
+        "image": "https://protocodus.cz/fun/bridger/bridger-card.webp",
+        "description": "Build a bridge from road, wood, steel and cable, then watch a car, truck or train cross it in a real physics test. Every river is new, every mission is proven solvable, and stressed beams glow red.",
+        "author": { "@type": "Organization", "name": "Protocodus", "url": "https://protocodus.cz/" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Protocodus", "item": "https://protocodus.cz/" },
+          { "@type": "ListItem", "position": 2, "name": "Browser Games", "item": "https://protocodus.cz/fun/" },
+          { "@type": "ListItem", "position": 3, "name": "Bridger", "item": "https://protocodus.cz/fun/bridger/" }
+        ]
+      }
+    ]
+  }
+  </script>
+  <script defer src="/assets/js/analytics.js"></script>
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Bridger — Bridge-Building Physics Game | Protocodus">
+  <meta name="twitter:description" content="Build bridges from road, wood, steel and cable, then test them with a car, truck or train. Endless solvable rivers and live stress colours on every beam.">
+  <meta name="twitter:image" content="https://protocodus.cz/fun/bridger/bridger-card.webp">
+  <meta name="twitter:image:alt" content="Bridger: a truck crossing a truss bridge over a river, its beams coloured by stress">
+</head>
+
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+
+  <canvas id="stage" tabindex="0" aria-label="River valley where you build the bridge"></canvas>
+  <p class="sr-only" data-status aria-live="polite"></p>
+
+  <div class="hud">
+    <header class="hud-top">
+      <div class="hud-brand">
+        <a class="back icon-btn" href="/fun/" aria-label="All games" data-analytics-cta="hud_back_games" data-analytics-action="exit_game"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 9v10.5a1 1 0 0 0 1 1H10v-5a2 2 0 0 1 4 0v5h3.5a1 1 0 0 0 1-1V9" fill="currentColor" fill-opacity="0.18"/><path d="M3.5 10.2 12 3.5l8.5 6.7"/></svg></a>
+        <div class="wordmark">
+          <h1>Bridger</h1>
+          <p class="mission-chip"><span data-vehicle-name>Truck</span><span class="sep" data-river-width>14 m river</span></p>
+        </div>
+      </div>
+      <div class="hud-tools">
+        <fieldset class="segmented stars" aria-label="Difficulty">
+          <label title="Easy: 50% extra budget"><input type="radio" name="difficulty" value="easy" data-analytics-cta="hud_difficulty_easy" data-analytics-action="select_difficulty"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><b class="sr-only">Easy</b></span></label>
+          <label title="Medium: 25% extra budget"><input type="radio" name="difficulty" value="medium" data-analytics-cta="hud_difficulty_medium" data-analytics-action="select_difficulty" checked><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><b class="sr-only">Medium</b></span></label>
+          <label title="Hard: 10% extra budget"><input type="radio" name="difficulty" value="hard" data-analytics-cta="hud_difficulty_hard" data-analytics-action="select_difficulty"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg><b class="sr-only">Hard</b></span></label>
+        </fieldset>
+        <button type="button" class="icon-btn" data-action="sound" aria-pressed="true" aria-label="Sound on" data-analytics-cta="hud_sound" data-analytics-action="sound"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3l4.5-4v13L7 14.5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z" fill="currentColor" fill-opacity="0.18"/><path class="waves" d="M15.5 9a4.2 4.2 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/><path class="mute" d="m16 9.5 5 5m0-5-5 5"/></svg></button>
+        <button type="button" class="icon-btn" data-action="help" aria-label="How to play" data-analytics-cta="hud_help" data-analytics-action="help"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8.5-2v13.5c3.9-.3 6.7.4 8.5 2 1.8-1.6 4.6-2.3 8.5-2V5c-3.9-.3-6.7.4-8.5 2z" fill="currentColor" fill-opacity="0.18"/><path d="M12 7v13.5"/></svg></button>
+      </div>
+    </header>
+
+    <div class="hud-bottom">
+      <div class="budget" data-budget>
+        <div class="budget-line"><span>Cost</span><output data-cost>$0</output><span class="of">of <b data-limit>$0</b></span></div>
+        <div class="meter"><i data-meter></i></div>
+        <button type="button" class="seed" data-action="share" title="Copy a link to this river" aria-label="Copy mission link" data-analytics-cta="hud_share_mission" data-analytics-action="share">River <b data-seed>—</b> <span aria-hidden="true">↗</span></button>
+      </div>
+
+      <div class="materials" role="radiogroup" aria-label="Building material" data-build-only>
+        <button type="button" class="mat" role="radio" aria-checked="true" data-tool="road" data-analytics-ignore><i class="swatch road"></i><span>Road</span><small data-price="road"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="wood" data-analytics-ignore><i class="swatch wood"></i><span>Wood</span><small data-price="wood"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="steel" data-analytics-ignore><i class="swatch steel"></i><span>Steel</span><small data-price="steel"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="cable" data-analytics-ignore><i class="swatch cable"></i><span>Cable</span><small data-price="cable"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="erase" data-analytics-ignore><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 19"/><path d="M22 21H7M5 11l9 9"/></svg><span>Erase</span></button>
+        <button type="button" class="mat mirror" data-action="mirror" aria-pressed="true" aria-label="Mirror building" title="Copy every beam to the other side of the river" data-analytics-ignore><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 3"/><path d="M9 7 4 17h5z" fill="currentColor" fill-opacity="0.25"/><path d="m15 7 5 10h-5z" fill="currentColor" fill-opacity="0.25"/></svg><span>Mirror</span></button>
+      </div>
+
+      <div class="legend" data-test-only hidden aria-hidden="true">
+        <span>Relaxed</span><i></i><span>Breaking</span>
+      </div>
+
+      <div class="toolbar" role="group" aria-label="Bridge actions">
+        <button type="button" class="btn tool" data-action="undo" aria-label="Undo" disabled data-analytics-ignore data-build-only><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Undo</span></button>
+        <button type="button" class="btn tool" data-action="clear" aria-label="Clear the bridge" data-analytics-cta="hud_clear" data-analytics-action="reset" data-build-only><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button>
+        <button type="button" class="btn tool" data-action="solution" aria-label="Show a solution" data-analytics-cta="hud_solution" data-analytics-action="hint" data-build-only><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z" fill="currentColor" fill-opacity="0.18"/></svg><span>Solution</span></button>
+        <button type="button" class="btn tool" data-action="new" aria-label="New river" data-analytics-cta="hud_new_mission" data-analytics-action="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New</span></button>
+        <button type="button" class="btn btn-primary tool go" data-action="test" aria-label="Test the bridge" data-analytics-ignore><svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg><svg class="stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg><span data-test-label>Go!</span></button>
+      </div>
+    </div>
+  </div>
+  <p class="toast" data-toast role="status"></p>
+
+  <dialog data-dialog="help" aria-labelledby="help-title">
+    <form method="dialog" class="card">
+      <p class="eyebrow">How to play</p>
+      <h2 id="help-title">Build a bridge, then press Go!</h2>
+      <ul class="rules">
+        <li><span class="glyph"><i class="swatch anchor"></i></span><div><b>Start at a red bolt</b>Drag from a bolt or a joint to draw a beam. Beams join wherever they meet, and Mirror copies them to the other side.</div></li>
+        <li><span class="glyph"><i class="swatch road"></i></span><div><b>Road is what wheels roll on</b>Drag road from one bank to the other in one go. Road alone sags, so hold it up.</div></li>
+        <li><span class="glyph"><i class="swatch wood"></i></span><div><b>Triangles are strong</b>Wood is cheap, steel is strong and long. Cables are light and only pull, like a rope.</div></li>
+        <li><span class="glyph"><i class="swatch stress"></i></span><div><b>Watch the colours</b>Green beams are relaxed, red ones are close to snapping. Make the red ones stronger.</div></li>
+        <li><span class="glyph">$</span><div><b>Stay under the budget</b>Every river can be crossed for the money you get. Stuck? Press Solution.</div></li>
+      </ul>
+      <h3 class="ideas-title">Bridge ideas</h3>
+      <div class="ideas">
+        <figure><svg viewBox="0 0 120 60" aria-hidden="true"><path class="i-ground" d="M0 30h18v30H0zM102 30h18v30h-18zM52 46h16l4 14H48z"/><path class="i-road" d="M18 30h84"/><path class="i-wood" d="M60 46 60 30M60 46 46 30M60 46 74 30"/></svg><figcaption>Beam on a pier<small>Rest the road on rock in the river.</small></figcaption></figure>
+        <figure><svg viewBox="0 0 120 60" aria-hidden="true"><path class="i-ground" d="M0 30h18v30H0zM102 30h18v30h-18z"/><path class="i-road" d="M18 30h84"/><path class="i-wood" d="M18 30 32 14h56l14 16M32 14v16M46 14v16M60 14v16M74 14v16M88 14v16M32 30 46 14M46 30 60 14M74 14 88 30M60 14 74 30"/></svg><figcaption>Truss<small>Triangles above or below the road.</small></figcaption></figure>
+        <figure><svg viewBox="0 0 120 60" aria-hidden="true"><path class="i-ground" d="M0 30h18v30H0zM102 30h18v30h-18z"/><path class="i-road" d="M18 30h84"/><path class="i-wood" d="M18 44 32 36 46 32h28l14 4 14 8M32 36v-6M46 32v-2M74 32v-2M88 36v-6"/></svg><figcaption>Arch<small>Push into low bolts on the cliffs.</small></figcaption></figure>
+        <figure><svg viewBox="0 0 120 60" aria-hidden="true"><path class="i-ground" d="M0 30h18v30H0zM102 30h18v30h-18z"/><path class="i-road" d="M18 30h84"/><path class="i-steel" d="M18 30V6M4 30 18 6M102 30V6M116 30 102 6"/><path class="i-cable" d="M18 6 32 30M18 6 46 30M18 6 60 30M102 6 88 30M102 6 74 30"/></svg><figcaption>Cable-stayed<small>Tall masts hold the road on cables.</small></figcaption></figure>
+      </div>
+      <details class="keys"><summary>For grown-ups</summary>Grid points are 2 m apart. Tap a beam with another material to swap it, or with Erase to remove it; erasing a joint removes its beams. Mirror copies every beam you draw, swap or erase to the other side of the river's centre line, where it fits. A beam drawn through existing joints joins them. Joints must stay 1 m above the water and out of the rock. Each material has a longest beam: road 4 m, wood 6 m, steel 8 m, cable 20 m. A member breaks when its force passes its strength; the colour shows that force as a share of the strength, and the last test's peak stays on the beams while you build. The physics is a position-based (XPBD) truss with self-weight, so bridges sag, sway and fall for real. Every river is generated from its seed and tested with a design the game built and drove across; Easy gives 50% more money than that design costs, Medium 25% and Hard 10%. Solution builds a fresh random design that has passed the same test within your budget. <kbd>Space</kbd> test · <kbd>1</kbd>–<kbd>5</kbd> tools · <kbd>R</kbd> mirror · <kbd>U</kbd> undo · <kbd>N</kbd> new river · <kbd>M</kbd> sound.</details>
+      <div class="card-actions">
+        <button class="btn btn-primary" value="close" data-analytics-cta="help_close" data-analytics-action="close_help">Let's build</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog data-dialog="win" aria-labelledby="win-title">
+    <div class="card">
+      <p class="eyebrow" data-win-eyebrow>It made it</p>
+      <h2 id="win-title" data-win-title>Safe across!</h2>
+      <p class="win-cost" data-win-cost>$0</p>
+      <p data-win-note></p>
+      <div class="card-actions">
+        <button type="button" class="btn btn-primary" data-action="next" data-analytics-cta="win_next_mission" data-analytics-action="new">Next river</button>
+        <button type="button" class="btn btn-ghost" data-action="improve" data-analytics-cta="win_improve" data-analytics-action="replay">Make it cheaper</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="loading" data-loading><p><i></i><span data-loading-text>Surveying the river</span></p></div>
+  <noscript>
+    <div class="loading failed"><p>Bridger needs JavaScript to run.</p></div>
+  </noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>

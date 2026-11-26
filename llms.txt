@@ -57,10 +57,11 @@
 
 ## Browser Games and Musical Instruments
 
-- [Protocodus Fun](https://protocodus.cz/fun/): Play the Oregana church organ and six browser games without installation or an account.
+- [Protocodus Fun](https://protocodus.cz/fun/): Play the Oregana church organ and seven browser games without installation or an account.
 - [Play Oregana](https://protocodus.cz/fun/oregana/): A modelled 51-stop church organ for mouse, computer keyboard or MIDI keyboard.
 - [Tyran](https://protocodus.cz/fun/tyran/): Arcade vertical space shooter across ten sectors with squadron formations, boss guardians, wing drones, and ship upgrades.
 - [Ashline](https://protocodus.cz/fun/ashline/): Sci-fi real-time strategy game with a ten-operation campaign and skirmish modes featuring Organics and AI Unity factions, base building, power logistics, and unit promotions.
 - [Alpen](https://protocodus.cz/fun/alpen/): Endless 3D alpine snowboarding game with changing weather, carving, grabs, flips, and score combos.
 - [Meteora](https://protocodus.cz/fun/meteora/): Story-driven 3D space combat game with ten campaign missions, tactical briefings, ship loadouts, and survival mode in the Meteora asteroid belt.
+- [Bridger](https://protocodus.cz/fun/bridger/): 2D bridge-building physics game for kids and adults: build from road, wood, steel and cable, test with a car, truck or train, and watch live stress colours. Every generated river is proven solvable within its budget.
 - [Puzzle Box](https://protocodus.cz/fun/puzzles/): Two 3D logic puzzle games for kids and adults — Zipper (single-line pathing) and Patcher (board region cutting) — with daily puzzles and three difficulty sizes.
