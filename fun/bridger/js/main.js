@@ -425,21 +425,18 @@ function finishTest(result) {
 /* ---------- loop ---------- */
 
 function resize() {
-  // The game is drawn at a low resolution and scaled up with hard edges, so
-  // every part of it shares the same chunky 16-bit pixels.
-  const pixel = Math.max(2, Math.round(innerHeight / 280));
-  canvas.width = Math.ceil(innerWidth / pixel);
-  canvas.height = Math.ceil(innerHeight / pixel);
-  ctx.setTransform(1 / pixel, 0, 0, 1 / pixel, 0, 0);
-  ctx.imageSmoothingEnabled = false;
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * ratio);
+  canvas.height = Math.round(innerHeight * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
   labelCanvas.width = Math.round(innerWidth * ratio);
   labelCanvas.height = Math.round(innerHeight * ratio);
   labelCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (!mission) return;
   const top = $('.hud-top').getBoundingClientRect().bottom + 6;
   const bottom = innerHeight - $('.hud-bottom').getBoundingClientRect().top + 6;
-  view = { ...createView(mission, innerWidth, innerHeight, top, bottom), pixel };
+  view = createView(mission, innerWidth, innerHeight, top, bottom);
 }
 
 function frame(now) {

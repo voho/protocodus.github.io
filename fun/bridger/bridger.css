@@ -41,8 +41,8 @@ body {
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; image-rendering: pixelated; }
-/* Labels are drawn sharp on their own canvas, over the chunky pixels. */
+#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+/* Labels have their own canvas, so the river's reflection never mirrors them. */
 .labels { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -223,6 +223,12 @@ body.ready.busy .loading { opacity: 0.85; visibility: visible; background: rgba(
 /* ---------- looks ---------- */
 body[data-theme="mesa"] { background: #1f1d5c; }
 body[data-theme="night"] { background: #0c1230; }
+body[data-theme="dunes"] { background: #0f1a3d; }
+body[data-theme="city"] { background: #0c1530; }
+body[data-theme="forest"] { --accent: #3f7fa8; background: #a9c0d6; }
+body[data-theme="sandstone"] { --accent: #7d5f9e; background: #b9c4d8; }
+body[data-theme="forest"] .btn-primary, body[data-theme="forest"] .segmented input:checked + span,
+body[data-theme="sandstone"] .btn-primary, body[data-theme="sandstone"] .segmented input:checked + span { color: #fff; }
 body[data-ui="light"] {
   --paper: #1d2530;
   --muted: rgba(29, 37, 48, 0.74);

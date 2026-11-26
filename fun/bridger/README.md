@@ -75,17 +75,16 @@ it. Players can still try one.
 
 ## Looks
 
-Bridger is 16-bit pixel art. The whole game is drawn on a canvas a few times smaller
-than the screen and scaled up with hard edges, so the bridge, the scenery and the
-vehicles share the same chunky pixels; labels are drawn sharp on a second canvas.
+Bridger is hand-painted, high-resolution 2D art. Backdrops are 3840 px wide (4K) and
+simply stretch on bigger screens; the game draws at the screen's full pixel density.
 
-Each river gets one of four worlds from its seed (Valley, Mesa, Snow or Night); `?theme=`
-previews one on any river. The backdrops, rock textures and vehicle sprites in
-[`assets/`](assets/CREDITS.md) were generated for the game and snapped to a pixel grid.
-All scenery stays in cool, muted blues and violets, so the green-to-red stress colours,
-the materials and the bright vehicles always stand out. [`js/scenery.js`](js/scenery.js)
-fills the physics ground line with the rock texture and draws the river, which darkens
-with depth and reflects the bridge.
+Each river gets one of eight worlds from its seed: Valley, Mesa, Snow, Night, Forest,
+Sandstone, Night desert or Night city. `?theme=` previews one on any river. The
+backdrops, rock textures and vehicle sprites in [`assets/`](assets/CREDITS.md) were
+generated for the game. All scenery stays in cool, muted blues and violets, so the
+green-to-red stress colours, the materials and the vehicles always stand out.
+[`js/scenery.js`](js/scenery.js) fills the physics ground line with the rock texture and
+draws the river, which darkens with depth and reflects the bridge.
 
 ## Checks
 

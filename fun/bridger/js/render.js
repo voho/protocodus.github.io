@@ -40,7 +40,7 @@ export function createView(mission, width, height, top, bottom) {
 
 function grid(ctx, view, mission, focus, theme) {
   const { minX, maxX, minY, maxY } = mission.bounds;
-  const r = Math.max(view.pixel || 1.2, view.scale * 0.09);
+  const r = Math.max(1.2, view.scale * 0.09);
   for (let gx = minX; gx <= maxX; gx++) {
     for (let gy = minY; gy <= maxY; gy++) {
       if (!jointAllowed(mission, [gx, gy])) continue;
@@ -82,10 +82,10 @@ function anchors(ctx, view, mission) {
 
 /* One member as a thick line in its material, or in its stress colour. */
 function beam(ctx, view, ax, ay, bx, by, mat, stress, overlay) {
-  const px = view.pixel || 1;
+  const px = 1.5; // the smallest line that still reads on a phone
   const w = Math.max(mat === 'cable' ? px : px * 2, WIDTH[mat] * view.scale);
   ctx.lineCap = 'round';
-  // A dark pixel outline keeps every member readable on any scenery.
+  // A dark outline keeps every member readable on any scenery.
   if (mat !== 'cable') {
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = w + px * 2;
@@ -129,7 +129,7 @@ function shadows(ctx, view, lines) {
 }
 
 function joints(ctx, view, points) {
-  const r = Math.max((view.pixel || 1) * 1.5, view.scale * 0.16);
+  const r = Math.max(2.5, view.scale * 0.16);
   ctx.lineWidth = Math.max(1, r * 0.4);
   for (const [x, y] of points) {
     ctx.fillStyle = '#f4f5f1';
@@ -146,18 +146,18 @@ function joints(ctx, view, points) {
 }
 
 
-/* Pixel-art vehicles: where the rear and front wheel centres sit in each
+/* Vehicle art: where the rear and front wheel centres sit in each
    sprite and the row the tyres touch, so the art lines up with the axles. */
 const sprite = (name, rear, front, ground) => {
   const img = new Image();
-  img.src = new URL(`../assets/${name}.png`, import.meta.url).href;
+  img.src = new URL(`../assets/${name}.webp`, import.meta.url).href;
   return { img, rear, front, ground };
 };
 const SPRITES = {
-  car: sprite('car', 12.4, 54, 28),
-  truck: sprite('truck', 27.1, 113.5, 60),
-  loco: sprite('loco', 24.8, 88.8, 47),
-  wagon: sprite('wagon', 21.3, 85.3, 35),
+  car: sprite('car', 164.2, 716, 351),
+  truck: sprite('truck', 241.8, 732, 371),
+  loco: sprite('loco', 200, 699.5, 353),
+  wagon: sprite('wagon', 184.8, 715.2, 293),
 };
 
 function vehicle(ctx, view, car) {
