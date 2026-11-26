@@ -468,11 +468,13 @@ function bankPaths(view, mission, scenery) {
   if (scenery.paths?.view === view) return scenery.paths;
   const ground = new Path2D(), rim = new Path2D(), ledges = new Path2D();
   const far = new Path2D(), farRim = new Path2D(), roads = new Path2D(), gorge = new Path2D();
+  const exposed = new Path2D();
   const x0 = Math.min(mission.left, Math.floor(view.wx(-8) * 10) / 10);
   const x1 = Math.max(mission.right, Math.ceil(view.wx(view.width + 8) * 10) / 10);
   const edge = view.height + 4;
   ground.moveTo(view.sx(x0), edge);
   far.moveTo(view.sx(x0), edge);
+  exposed.moveTo(view.sx(x0), -5);
   gorge.moveTo(view.sx(mission.left), -5);
   let prevX, prevY, topFar = Infinity, topNear = Infinity, bottomNear = -Infinity;
   for (let i = Math.round(x0 * 10); i <= Math.round(x1 * 10); i++) {
@@ -483,6 +485,9 @@ function bankPaths(view, mission, scenery) {
     bottomNear = Math.max(bottomNear, sy);
     ground.lineTo(sx, sy);
     far.lineTo(sx, farY);
+    // The opaque near bank covers everything below this line. Leave two
+    // pixels of overlap for antialiasing where the two shores meet.
+    exposed.lineTo(sx, sy + 2);
     if (prevX == null) {
       rim.moveTo(sx, sy);
       farRim.moveTo(sx, farY);
@@ -501,8 +506,9 @@ function bankPaths(view, mission, scenery) {
   }
   ground.lineTo(view.sx(x1), edge); ground.closePath();
   far.lineTo(view.sx(x1), edge); far.closePath();
+  exposed.lineTo(view.sx(x1), -5); exposed.closePath();
   gorge.lineTo(view.sx(mission.right), -5); gorge.closePath();
-  scenery.paths = { view, ground, rim, ledges, far, farRim, roads, gorge, topFar, topNear, bottomNear };
+  scenery.paths = { view, ground, rim, ledges, far, farRim, exposed, roads, gorge, topFar, topNear, bottomNear };
   return scenery.paths;
 }
 
@@ -547,11 +553,12 @@ function paintGeology(ctx, view, mission, phase, theme, ground) {
 function paintBanks(cache, mission, scenery, theme) {
   const { view } = cache;
   const paths = bankPaths(view, mission, scenery);
-  const { far, farRim, ground, rim, ledges, roads } = paths;
+  const { far, farRim, exposed, ground, rim, ledges, roads } = paths;
   const roadWidth = Math.max(4, view.scale * 0.32);
   const back = makeLayer(cache, paths.topFar - 3, paths.bottomNear + 4);
   const front = makeLayer(cache, paths.topNear - roadWidth - 4, view.height);
   const rock = rockFill(back.ctx, view, theme);
+  back.ctx.clip(exposed);
   back.ctx.fillStyle = rock;
   back.ctx.fill(far);
   back.ctx.fillStyle = rgba(theme.depth, 0.62);
