@@ -28,9 +28,8 @@ export async function checkSplash(page) {
       window.AudioContext = function () { return offline; };
       const sound = createSound();
       if (!sound.enabled) sound.toggle();
+      await Promise.all([sound.preload(), sound.preload()]);
       sound.unlock();
-      await sound.prepareSplash();
-      await sound.prepareSplash();
       const silentPreparation = starts.length === 0;
       sound.splash();
       sound.splash(12000);
@@ -55,7 +54,52 @@ export async function checkSplash(page) {
   assert.ok(result.audible, 'The splash reaches the mixer output');
   const fallback = await render(true);
   assert.ok(fallback.audible && !fallback.loops, 'An unavailable recording still produces a finite splash');
+  await checkPreparedBuffers(page);
   await checkDeparture(page);
+}
+
+async function checkPreparedBuffers(page) {
+  const buffers = await page.evaluate(async () => {
+    const { createSound } = await import('./js/sound.js');
+    const live = window.AudioContext, Offline = window.OfflineAudioContext;
+    const saved = localStorage.getItem('bridger-sound');
+    const staging = new Offline(1, 1, 44100), playback = new Offline(2, 48000, 48000);
+    const starts = [], reused = new Set();
+    const createBuffer = staging.createBuffer.bind(staging);
+    staging.createBuffer = (...args) => { const buffer = createBuffer(...args); reused.add(buffer); return buffer; };
+    const decode = staging.decodeAudioData.bind(staging);
+    staging.decodeAudioData = async (...args) => { const buffer = await decode(...args); reused.add(buffer); return buffer; };
+    const createSource = playback.createBufferSource.bind(playback);
+    playback.createBufferSource = () => {
+      const node = createSource(), start = node.start.bind(node);
+      node.start = (...args) => { starts.push(node.buffer); return start(...args); };
+      return node;
+    };
+    let devices = 0;
+    try {
+      window.OfflineAudioContext = function () { return staging; };
+      window.AudioContext = function () { devices++; return playback; };
+      localStorage.setItem('bridger-sound', 'off');
+      const sound = createSound();
+      await sound.preload();
+      const devicesAtStartup = devices;
+      sound.toggle();
+      for (const kind of ['car', 'truck', 'train']) {
+        sound.engine(true, { id: kind, axles: [4, 2, 0].map(x => ({ x, y: 0, beam: -1 })) });
+        sound.engine(false);
+      }
+      for (const length of [1, 5, 10]) sound.place('cable', length);
+      sound.creak(0.9, 'cable');
+      sound.snap('cable');
+      sound.splash();
+      return { devicesAtStartup, reused: starts.every(buffer => reused.has(buffer)), count: new Set(starts).size };
+    } finally {
+      window.AudioContext = live; window.OfflineAudioContext = Offline;
+      if (saved === null) localStorage.removeItem('bridger-sound'); else localStorage.setItem('bridger-sound', saved);
+    }
+  });
+  assert.equal(buffers.devicesAtStartup, 0, 'Preparing a muted game leaves the output device closed');
+  assert.ok(buffers.reused && buffers.count >= 9, 'All engines, cable lengths, noise and recorded splash use buffers prepared before sound was enabled');
 }
 
 async function checkDeparture(page) {
@@ -77,6 +121,7 @@ async function checkDeparture(page) {
       window.AudioContext = function () { return offline; };
       localStorage.setItem('bridger-sound', 'on');
       const sound = createSound();
+      await sound.preload();
       const car = { id: 'car', axles: [{ x: 4, y: 0, beam: -1 }, { x: 1, y: 0, beam: -1 }] };
       const drive = (pan, gain) => sound.engine(true, car, pan, gain);
       drive(-0.7, 1);

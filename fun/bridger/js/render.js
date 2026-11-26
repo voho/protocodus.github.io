@@ -360,13 +360,15 @@ function buildGeometry(state) {
   for (const [gx, gy] of mission.anchors) include(view.sx(gx * CELL), view.sy(gy * CELL));
   const pad = Math.max(14, view.scale);
   const bounds = { left: left - pad, right: right + pad, top: top - pad, bottom: bottom + pad };
-  bridge = { mission, members, peaks, lines, joints: Array.from(points.values()), bounds };
+  // Keep the two draw surfaces when an edit replaces the geometry.
+  const canvases = bridge?.canvases ?? {};
+  bridge = { mission, members, peaks, lines, joints: Array.from(points.values()), bounds, canvases };
   buildViews.set(view, bridge);
   return bridge;
 }
 
 const testBridges = new WeakMap();
-function testGeometry(view, sim) {
+export function projectTestBridge(view, sim) {
   let bridge = testBridges.get(sim);
   if (!bridge) {
     bridge = { lines: [], joints: [], projected: [], seen: new Uint8Array(0) };
@@ -428,10 +430,11 @@ function paintBuildLayer(ctx, view, mission, bridge, reflection, hot) {
     const y = Math.max(0, Math.floor(d * (d < 0 ? box.bottom : box.top) + f));
     const w = Math.min(width, Math.ceil(a * box.right + e)) - x;
     const h = Math.min(height, Math.ceil(d * (d < 0 ? box.top : box.bottom) + f)) - y;
-    const canvas = layer?.canvas || document.createElement('canvas');
-    layer = { a, d, e, f, hot, alpha, width, height, x, y, canvas };
+    layer = { a, d, e, f, hot, alpha, width, height, x, y, canvas: null };
     bridge[key] = layer;
     if (w > 0 && h > 0) {
+      const canvas = bridge.canvases[key] ??= document.createElement('canvas');
+      layer.canvas = canvas;
       const paint = canvas.getContext('2d');
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       else { paint.resetTransform(); paint.clearRect(0, 0, w, h); }
@@ -439,7 +442,7 @@ function paintBuildLayer(ctx, view, mission, bridge, reflection, hot) {
       paint.globalAlpha = alpha;
       paint.lineCap = 'round';
       paintBridge(paint, view, mission, bridge, reflection, hot);
-    } else layer.canvas = null;
+    }
   }
   if (layer.canvas) {
     ctx.save();
@@ -464,24 +467,24 @@ export function draw(ctx, labelCtx, state) {
   }
 
   const building = state.mode === 'build';
-  const bridge = building ? buildGeometry(state) : state.sim ? testGeometry(view, state.sim) : { lines: [], joints: [] };
+  const bridge = building ? buildGeometry(state) : state.sim ? projectTestBridge(view, state.sim) : { lines: [], joints: [] };
   const car = !building && state.sim ? state.sim.car : state.parked;
-  const structure = (reflection) => {
-    if (!state.vehicleGone) drawVehicle(ctx, view, car);
+  const structure = (reflection, target) => {
+    if (!state.vehicleGone) drawVehicle(target, view, car);
     const hot = reflection ? null : state.hover?.member;
-    if (building) paintBuildLayer(ctx, view, mission, bridge, reflection, hot);
+    if (building) paintBuildLayer(target, view, mission, bridge, reflection, hot);
     else {
       // A high truss often reflects entirely below the viewport. Allow for
       // stroke widths and joint caps on pieces that cross the last pixel.
-      const transform = reflection && ctx.getTransform();
+      const transform = reflection && target.getTransform();
       const minY = transform && transform.d < 0 && !transform.b
-        ? (ctx.canvas.height - transform.f) / transform.d - Math.max(10, view.scale * 0.5) : -Infinity;
-      paintBridge(ctx, view, mission, bridge, reflection, hot, minY);
-      if (state.celebration) drawVictoryGlow(ctx, view, mission, state.sim, state.celebration, state.reducedMotion);
+        ? (target.canvas.height - transform.f) / transform.d - Math.max(10, view.scale * 0.5) : -Infinity;
+      paintBridge(target, view, mission, bridge, reflection, hot, minY);
+      if (state.celebration) drawVictoryGlow(target, view, mission, state.sim, state.celebration, state.reducedMotion);
     }
   };
-  structure(false);
-  drawWater(ctx, view, mission, state.scenery, theme, time, () => structure(true));
+  structure(false, ctx);
+  drawWater(ctx, view, mission, state.scenery, theme, time, (target) => structure(true, target), building ? bridge : undefined, state.sim);
 
   if (state.drag) {
     const { from, to, ok, mat, plan } = state.drag;
@@ -531,9 +534,14 @@ export function draw(ctx, labelCtx, state) {
   for (const p of state.particles) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
     ctx.fillStyle = p.color;
-    const r = Math.max(1.5, p.size * view.scale);
+    const r = Math.max(p.square ? 1.5 : 0.65, p.size * view.scale);
     if (p.square) ctx.fillRect(view.sx(p.x) - r, view.sy(p.y) - r, r * 2, r * 1.2);
-    else { ctx.beginPath(); ctx.arc(view.sx(p.x), view.sy(p.y), r, 0, Math.PI * 2); ctx.fill(); }
+    else {
+      const stretch = 1 + Math.min(1.9, Math.hypot(p.vx, p.vy) * 0.24);
+      ctx.beginPath();
+      ctx.ellipse(view.sx(p.x), view.sy(p.y), r * stretch, r, Math.atan2(-p.vy, p.vx), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 

@@ -67,7 +67,7 @@
   <canvas class="labels" data-labels aria-hidden="true"></canvas>
   <p class="sr-only" data-status aria-live="polite"></p>
 
-  <div class="hud">
+  <div class="hud" inert>
     <header class="hud-top">
       <div class="hud-brand">
         <a class="back icon-btn" href="/fun/" aria-label="All games" data-analytics-cta="hud_back_games" data-analytics-action="exit_game"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 9v10.5a1 1 0 0 0 1 1H10v-5a2 2 0 0 1 4 0v5h3.5a1 1 0 0 0 1-1V9" fill="currentColor" fill-opacity="0.18"/><path d="M3.5 10.2 12 3.5l8.5 6.7"/></svg></a>
@@ -162,7 +162,10 @@
     </form>
   </dialog>
 
-  <div class="loading" data-loading><p><i></i><span data-loading-text>Surveying the river</span></p></div>
+  <div class="loading" data-loading>
+    <p role="status"><i aria-hidden="true"></i><span data-loading-text>Preparing Bridger</span></p>
+    <button type="button" class="btn" data-retry data-analytics-ignore hidden>Try again</button>
+  </div>
   <noscript>
     <div class="loading failed"><p>Bridger needs JavaScript to run.</p></div>
   </noscript>

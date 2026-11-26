@@ -50,9 +50,10 @@ export async function checkSkies(page) {
     ]) {
       await page.setViewportSize({ width, height });
       await page.evaluate((value) => { location.hash = value; }, hash);
-      await page.waitForFunction(([w, h, seed]) => bridger.view.width === w && bridger.view.height === h && bridger.mission.seed === seed, [width, height, hash.split('-')[1]]);
+      await page.waitForFunction(([w, h, seed]) => window.bridger?.view?.width === w && bridger.view.height === h && bridger.mission.seed === seed, [width, height, hash.slice(hash.indexOf('-') + 1)]);
       await checkCamera(page);
       const results = await page.evaluate(async ({ ridges, pixelRatio }) => {
+        const { image } = await import('./js/art.js');
         const { backdropBounds, buildScenery, drawBackdrop, drawGround, THEMES } = await import('./js/scenery.js');
         const { mission, view } = bridger, scenery = buildScenery(mission);
         const canvas = document.createElement('canvas');
@@ -74,10 +75,8 @@ export async function checkSkies(page) {
         const results = [];
         for (const [id, theme] of Object.entries(THEMES)) {
           drawBackdrop(ctx, view, scenery, theme);
-          const img = new Image();
-          img.src = `assets/${theme.sky}.webp`;
-          await img.decode();
-          const aspect = img.naturalWidth / img.naturalHeight;
+          const img = image(theme.sky);
+          const aspect = img.width / img.height;
           const paint = backdropBounds(view, scenery, theme, img, pixelRatio);
           drawBackdrop(ctx, view, scenery, theme);
           const back = sampleAboveRoad();
@@ -103,7 +102,7 @@ export async function checkSkies(page) {
           const mark = landmarks[id];
           const inFrame = !mark || (paint.x + mark[0] * paint.w >= 0 && paint.x + mark[0] * paint.w <= view.width
             && paint.y + mark[1] * paint.h >= 0 && paint.y + mark[1] * paint.h < deck);
-          const enlargement = paint.w * pixelRatio / img.naturalWidth;
+          const enlargement = paint.w * pixelRatio / img.width;
           results.push({ id, ...paint, aspect, error, enlargement, inFrame, variation, visible: visible / 4096, bottom: view.sy(scenery.backdropFloor) });
         }
         return results;
@@ -129,5 +128,6 @@ export async function checkSkies(page) {
   } finally {
     await page.evaluate((value) => { location.hash = value; }, original.hash);
     await page.setViewportSize(original.size);
+    await page.waitForFunction(hash => window.bridger?.mission?.seed === hash.slice(hash.indexOf('-') + 1), original.hash);
   }
 }

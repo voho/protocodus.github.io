@@ -4,10 +4,11 @@
 import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
 import { memberProblem, pairKey, isAnchor, jointAllowed, attachmentPoints, roadDeck, DESIGN_NAMES } from './mission.js';
-import { createView, draw, stressColor, anchorHalfSize, jointRadius, beamWidth } from './render.js';
-import { openSurvey } from './survey.js';
+import { createView, draw, stressColor, anchorHalfSize, jointRadius, beamWidth, projectTestBridge } from './render.js';
+import { openSurvey, hasSurvey, newRiverSeed } from './survey.js';
 import { createSound } from './sound.js';
-import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
+import { THEMES, THEME_IDS, buildScenery, prepareSceneryArt } from './scenery.js';
+import { preloadArt } from './art.js';
 import { createCelebration, CELEBRATION_LENGTH } from './celebration.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -33,10 +34,11 @@ const track = (event, fields = {}) => window.protocodusAnalytics?.track(event, {
 });
 
 let difficulty = 'medium', seed = '', mission = null, view = null, parked = null, scenery = null;
+let preparedSim = null, assetsPromise = null;
 // Each river has its own world, picked from its seed; ?theme= previews one.
 const requestedTheme = new URLSearchParams(location.search).get('theme');
 const themeOverride = THEME_IDS.includes(requestedTheme) ? requestedTheme : null;
-let theme = null, survey = null, busy = false;
+let theme = null, survey = null, pendingSurvey = null, busy = false;
 let members = [], undoStack = [], tool = 'wood';
 let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
@@ -51,8 +53,22 @@ const peakKey = (m) => `${pairKey(m)}:${m.mat}`;
 
 /* ---------- missions ---------- */
 
+function prepareAssets() {
+  if (!assetsPromise) {
+    assetsPromise = Promise.all([
+      preloadArt(Object.values(THEMES)).then(() => prepareSceneryArt(ctx)),
+      sound.preload(),
+      document.fonts.ready,
+    ]).catch(error => {
+      assetsPromise = null;
+      throw error;
+    });
+  }
+  return assetsPromise;
+}
+
 function fromHash() {
-  const match = /^#(easy|medium|hard)-((?:v2-)?[a-z0-9]{3,16})$/i.exec(location.hash);
+  const match = /^#(easy|medium|hard)-((?:v[23]-)?[a-z0-9]{3,16})$/i.exec(location.hash);
   return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
 }
 
@@ -60,15 +76,16 @@ async function load(nextDifficulty, nextSeed, pushRiver = false) {
   cancelDrag();
   if (sim) stopTest();
   if (confirmDialog.open) confirmDialog.close('cancel');
-  survey?.close();
+  pendingSurvey?.close();
+  const previousMission = mission;
   const current = openSurvey(DIFFICULTIES.includes(nextDifficulty) ? nextDifficulty : 'medium', nextSeed);
-  survey = current;
+  pendingSurvey = current;
   busy = true;
-  document.body.classList.add('busy');
-  $('[data-loading-text]').textContent = 'Surveying the river';
+  $('[data-retry]').hidden = true;
+  $('[data-loading-text]').textContent = 'Preparing Bridger';
   try {
-    const nextMission = await current.mission();
-    if (survey !== current || !nextMission) return;
+    const [nextMission] = await Promise.all([current.mission(), prepareAssets()]);
+    if (pendingSurvey !== current || !nextMission) return;
     clearTimeout(toastTimer);
     toastEl.classList.remove('on');
     const keepBridge = mission && nextSeed === seed;
@@ -111,36 +128,47 @@ async function load(nextDifficulty, nextSeed, pushRiver = false) {
       solutionShown = false;
       started = false;
     }
-    parked = createSim(mission, []).car;
     const themeId = themeOverride || THEME_IDS[hashSeed(`${seed}:world`) % THEME_IDS.length];
     theme = THEMES[themeId];
     document.body.dataset.theme = themeId;
     document.body.dataset.ui = theme.ui;
-    scenery = buildScenery(mission);
     stopTest();
     if (win.open) win.close();
-    resize();
+    if (!keepBridge || !view) {
+      scenery = buildScenery(mission);
+      resize();
+    }
     updateBudget();
+    paintFrame();
+    survey?.close();
+    survey = current;
+    if (!document.body.classList.contains('ready') && !read('seen-help')) help.showModal();
+    $('.hud').inert = false;
     document.body.classList.add('ready');
     say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.${rule ? ` ${note.textContent}` : ''}`);
   } catch (error) {
-    if (survey !== current) return;
+    if (pendingSurvey !== current) return;
     current.close();
-    // Keep the displayed bridge playable if surveying a replacement failed.
-    survey = mission ? openSurvey(difficulty, seed) : null;
-    if (mission) {
+    if (survey && mission === previousMission) {
       history.replaceState(null, '', `#${difficulty}-${seed}`);
       document.querySelector(`input[name="difficulty"][value="${difficulty}"]`).checked = true;
+      toast('This river could not be surveyed. Try New river.', true, 5000);
+    } else {
+      survey?.close();
+      survey = mission = null;
+      $('.hud').inert = true;
+      document.body.classList.remove('ready');
+      $('[data-loading-text]').textContent = 'Bridger couldn’t finish loading.';
+      $('[data-retry]').hidden = false;
     }
-    document.body.classList.add('ready');
-    toast('This river could not be surveyed. Try New river.', true, 5000);
     console.error(error);
   }
+  pendingSurvey = null;
   busy = false;
-  document.body.classList.remove('busy');
 }
 
 function updateBudget() {
+  prepareTest();
   hover = null;
   requestFrame();
   const points = new Map(mission.anchors.map((p) => [key(p), p]));
@@ -194,11 +222,25 @@ const PROBLEMS = {
   exists: () => 'There is already a beam there.',
 };
 
-function burst(x, y, color, count, spread = 3, square = false) {
-  for (let i = 0; i < count; i++) {
+function breakDebris(x, y, color) {
+  for (let i = 0; i < 10; i++) {
     particles.push({
-      x, y, vx: (Math.random() - 0.5) * spread * 2, vy: Math.random() * spread * 1.4,
-      life: 0.7 + Math.random() * 0.8, color, size: 0.08 + Math.random() * 0.12, square,
+      x, y, vx: (Math.random() - 0.5) * 5, vy: Math.random() * 3.5,
+      life: 0.7 + Math.random() * 0.8, color, size: 0.08 + Math.random() * 0.12, square: true,
+    });
+  }
+}
+
+function splashSpray(x, y, speed) {
+  if (reducedMotion.matches) return;
+  const lift = Math.min(6, 2.3 + speed * 0.5);
+  for (let i = 0; i < 34; i++) {
+    const side = i % 2 ? 1 : -1;
+    const vx = side * (0.25 + Math.random() * 0.7) * lift;
+    const vy = lift * (0.35 + Math.random() * 0.85);
+    particles.push({
+      x: x + side * Math.random() * 0.34, y, vx, vy, life: 2 * vy / 9.81,
+      size: 0.021 + Math.random() * 0.036, color: i % 3 ? '#e2f4efb8' : '#a8d9debd',
     });
   }
 }
@@ -353,8 +395,8 @@ const DOUBLE_TAP_MS = 450;
 let lastTap = null;
 
 function onDown(event) {
+  if (busy || !survey || mode !== 'build' || event.button !== 0 || !event.isPrimary || pointer) return;
   sound.unlock();
-  if (busy || !mission || mode !== 'build' || event.button !== 0 || !event.isPrimary || pointer) return;
   requestFrame();
   const x = event.offsetX, y = event.offsetY;
   const previous = lastTap && lastTap.members === members && lastTap.tool === tool &&
@@ -445,14 +487,20 @@ function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = nul
 
 /* ---------- testing ---------- */
 
+function prepareTest() {
+  preparedSim = createSim(mission, members);
+  parked = preparedSim.car;
+  if (view) projectTestBridge(view, preparedSim);
+}
+
 function startTest() {
   last = performance.now();
   clearTimeout(toastTimer);
   toastEl.classList.remove('on');
   cancelDrag();
-  sound.prepareSplash();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
-  sim = createSim(mission, members);
+  sim = preparedSim;
+  preparedSim = null;
   simClock = 0;
   resultShown = false;
   drawnBroken = new Set();
@@ -470,6 +518,7 @@ function stopTest() {
     // Keep every member's worst moment on the drawing so weak spots stay visible.
     peaks = new Map();
     members.forEach((m, i) => { const b = sim.beams[i]; if (b) peaks.set(peakKey(m), b.broken ? 1 : b.peak); });
+    prepareTest();
   }
   sim = null;
   celebration = null;
@@ -496,7 +545,7 @@ function stepTest(dt) {
         const mass = sim.car.axles.reduce((sum, axle) => sum + axle.mass, 0);
         const pan = Math.max(-0.8, Math.min(0.8, 2 * view.sx(x) / view.width - 1));
         sound.splash(mass, speed, pan);
-        burst(x, mission.water, '#e3f4ff', 40, 5);
+        splashSpray(x, mission.water, speed);
       }
       if (event === 'fall') sound.engine(false);
       if (event.startsWith('impact:') && sim.car.axles[0].y > mission.water) sound.thud(Number(event.slice(7)));
@@ -507,7 +556,7 @@ function stepTest(dt) {
       drawnBroken.add(i);
       const na = sim.nodes[b.a], nb = sim.nodes[b.b];
       sound.snap(b.mat);
-      burst((na.x + nb.x) / 2, (na.y + nb.y) / 2, b.mat === 'wood' ? '#c98b4f' : b.mat === 'road' ? '#555b64' : '#b9c8d8', 10, 2.5, true);
+      breakDebris((na.x + nb.x) / 2, (na.y + nb.y) / 2, b.mat === 'wood' ? '#c98b4f' : b.mat === 'road' ? '#555b64' : '#b9c8d8');
     }
   });
   if (sim.car.state !== 'crossed') {
@@ -574,12 +623,11 @@ function finishTest(result) {
 let measuredInTest = false;
 function resize() {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(innerWidth * ratio);
-  canvas.height = Math.round(innerHeight * ratio);
+  const width = Math.round(innerWidth * ratio), height = Math.round(innerHeight * ratio);
+  if (canvas.width !== width) canvas.width = labelCanvas.width = width;
+  if (canvas.height !== height) canvas.height = labelCanvas.height = height;
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.imageSmoothingQuality = 'high';
-  labelCanvas.width = Math.round(innerWidth * ratio);
-  labelCanvas.height = Math.round(innerHeight * ratio);
   labelCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (!mission) return;
   const footer = $('.hud-bottom');
@@ -595,6 +643,17 @@ function resize() {
 
 function requestFrame() {
   if (frameId === null && !document.hidden && mission && view) frameId = requestAnimationFrame(frame);
+}
+
+function paintFrame() {
+  const effectLength = reducedMotion.matches ? 0.4 : CELEBRATION_LENGTH;
+  draw(ctx, labelCtx, {
+    mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
+    celebration: celebration && celebration.elapsed < effectLength ? celebration : null,
+    vehicleGone, reducedMotion: reducedMotion.matches,
+    hover: hover?.beam?.broken ? null : hover,
+    peaks, peakOf: (m) => peaks.get(peakKey(m)),
+  });
 }
 
 function frame(now) {
@@ -624,13 +683,7 @@ function frame(now) {
       hover.label = `${MATERIALS[hover.beam.mat].name} · ${Math.round(hover.beam.usage * 100)}%`;
       hover.color = stressColor(hover.beam.usage);
     }
-    draw(ctx, labelCtx, {
-      mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
-      celebration: celebration && celebration.elapsed < effectLength ? celebration : null,
-      vehicleGone, reducedMotion: reducedMotion.matches,
-      hover: hover?.beam?.broken ? null : hover,
-      peaks, peakOf: (m) => peaks.get(peakKey(m)),
-    });
+    paintFrame();
   }
   if (!reducedMotion.matches || (!paused && (celebration || (sim && !sim.settled))) || particles.length) requestFrame();
 }
@@ -638,35 +691,18 @@ function frame(now) {
 /* ---------- controls ---------- */
 
 function newMission() {
-  load(difficulty, `v2-${randomSeed()}`, true);
+  load(difficulty, newRiverSeed(), true);
 }
 
-async function showSolution() {
+function showSolution() {
   if (busy || !mission) return;
-  const current = survey;
-  busy = true;
-  document.body.classList.add('busy');
-  $('[data-loading-text]').textContent = 'Designing a bridge';
-  try {
-    const design = await current.solution(recentSolutions);
-    if (survey !== current || !design) return;
-    const { members: solution, kind } = design;
-    recentSolutions = [...recentSolutions.slice(-7), solution];
-    commit(solution);
-    solutionShown = true;
-    peaks = new Map();
-    sound.place('steel');
-    toast(`Here is ${/^[aeiou]/.test(DESIGN_NAMES[kind]) ? 'an' : 'a'} ${DESIGN_NAMES[kind]} that works, for ${money(bridgeCost(solution))}. Press Go! to watch it.`, false, 4200);
-  } catch (error) {
-    if (survey === current) toast('Could not design a bridge. Try Solution again.', true);
-    console.error(error);
-  } finally {
-    if (survey === current) {
-      busy = false;
-      document.body.classList.remove('busy');
-      $('[data-loading-text]').textContent = 'Surveying the river';
-    }
-  }
+  const { members: solution, kind } = survey.solution(recentSolutions);
+  recentSolutions = [...recentSolutions.slice(-7), solution];
+  peaks = new Map();
+  commit(solution);
+  solutionShown = true;
+  sound.place('steel');
+  toast(`Here is ${/^[aeiou]/.test(DESIGN_NAMES[kind]) ? 'an' : 'a'} ${DESIGN_NAMES[kind]} that works, for ${money(bridgeCost(solution))}. Press Go! to watch it.`, false, 4200);
 }
 
 /* Anything that throws away the player's bridge asks first. Nothing built
@@ -702,7 +738,6 @@ const actions = {
   help: () => { sound.engine(false); help.showModal(); },
   sound: () => {
     const on = sound.toggle();
-    if (on && mode === 'test') sound.prepareSplash();
     const button = $('[data-action="sound"]');
     button.classList.toggle('off', !on);
     button.setAttribute('aria-pressed', String(on));
@@ -716,8 +751,7 @@ const actions = {
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action], [data-tool]');
   if (!button) return;
-  const { action } = button.dataset;
-  if (action !== 'sound' && action !== 'help' && (busy || (!mission && action !== 'new'))) return;
+  if (busy || !survey) return;
   sound.unlock();
   if (button.dataset.tool) setTool(button.dataset.tool);
   else actions[button.dataset.action]?.();
@@ -735,7 +769,6 @@ for (const name of ['pointercancel', 'lostpointercapture']) {
 window.addEventListener('blur', cancelDrag);
 canvas.addEventListener('pointerleave', (event) => { if (!pointer) { hover = null; requestFrame(); } else onMove(event); });
 window.addEventListener('resize', resize);
-window.addEventListener('bridger-art-load', requestFrame);
 reducedMotion.addEventListener('change', requestFrame);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
@@ -749,13 +782,17 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('hashchange', () => {
   const target = fromHash();
-  if (target && (target.seed !== survey?.seed || target.difficulty !== survey?.difficulty)) load(target.difficulty, target.seed);
+  const selected = pendingSurvey || survey;
+  if (!target || (target.seed === selected?.seed && target.difficulty === selected?.difficulty)) return;
+  // An externally opened, unsurveyed legacy link gets its own startup.
+  // New rivers, difficulty changes and revisits have their proofs in memory.
+  if (mission && !hasSurvey(target.seed)) location.reload();
+  else load(target.difficulty, target.seed);
 });
 document.addEventListener('keydown', (event) => {
-  if (busy || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (busy || !survey || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target.isContentEditable || event.target.closest?.('input, textarea, select, dialog[open]')) return;
   const k = event.key.toLowerCase();
-  if (!mission && k !== 'n' && k !== 'm') return;
   const material = event.target.closest?.('[data-tool]');
   if (material && ['arrowleft', 'arrowup', 'arrowright', 'arrowdown'].includes(k)) {
     event.preventDefault();
@@ -789,9 +826,13 @@ for (const [mat, def] of Object.entries(MATERIALS)) {
 }
 if (!sound.enabled) { const b = $('[data-action="sound"]'); b.classList.add('off'); b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Sound off'); }
 resize();
-const initial = fromHash();
-load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || `v2-${randomSeed()}`);
-if (!read('seen-help')) help.showModal();
+const firstRiver = fromHash() ?? { difficulty: read('difficulty') || 'medium', seed: `v2-${randomSeed()}` };
+function startGame() {
+  const target = fromHash() ?? firstRiver;
+  load(target.difficulty, target.seed);
+}
+$('[data-retry]').addEventListener('click', startGame);
+startGame();
 
 // Read-only handles for the browser checks in tests/.
 window.bridger = { get mission() { return mission; }, get view() { return view; }, get members() { return members; }, get sim() { return sim; } };

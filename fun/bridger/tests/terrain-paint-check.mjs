@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 
 export async function checkTerrainPaint(page) {
   const results = await page.evaluate(async () => {
-    const { image } = await import('./js/art.js');
     const { THEMES, buildScenery, drawBackdrop, drawGround, drawWater } = await import('./js/scenery.js');
     const mission = bridger.mission;
     const frame = (height, theme) => {
@@ -36,7 +35,6 @@ export async function checkTerrainPaint(page) {
     };
     const results = [];
     for (const [id, theme] of Object.entries(THEMES)) {
-      await Promise.all([image(theme.rock).decode(), image(theme.sky).decode()]);
       const normal = frame(300, theme), tall = frame(390, theme);
       const altered = frame(300, { ...theme, subsoil: '#0aff93', bedrock: '#fd25b6' });
       results.push({ id, ...normal, tall: tall.colors, altered: altered.colors });

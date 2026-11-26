@@ -4,61 +4,57 @@ import { BURST_AT } from './celebration.js';
 export function createSound() {
   const key = 'bridger-sound';
   let context = null, mix = null, master = null, noiseBuffer = null, engine = null;
-  let splashBuffer = null, splashLoad = null;
+  let splashBuffer = null, preparation = null;
   const lastBreak = new Map();
   let enabled = true;
   let deviceUnavailable = false;
   try { enabled = localStorage.getItem(key) !== 'off'; } catch { /* private mode */ }
 
-  const ensure = () => {
+  const ensure = (resume = true) => {
     if (!context) {
       const Context = window.AudioContext || window.webkitAudioContext;
       if (!Context || deviceUnavailable) return null;
-      try { context = new Context(); }
-      catch {
-        // Audio device allocation can fail. Retry on the next user gesture.
+      try {
+        context = new Context();
+        configureOutput();
+      } catch {
+        context?.close?.().catch(() => {});
+        context = mix = master = null;
         deviceUnavailable = true;
         return null;
       }
-      mix = context.createGain();
-      const limiter = context.createDynamicsCompressor();
-      limiter.threshold.value = -10;
-      limiter.knee.value = 8;
-      limiter.ratio.value = 8;
-      master = context.createGain();
-      master.gain.value = 0.74;
-      mix.connect(limiter).connect(master).connect(context.destination);
-      // Two quiet, dark reflections from the banks leave the hammer attack clear.
-      for (const [seconds, level, pan] of [[0.078, 0.13, -0.65], [0.143, 0.08, 0.7]]) {
-        const echo = context.createDelay();
-        echo.delayTime.value = seconds;
-        const air = context.createBiquadFilter();
-        air.frequency.value = 1700;
-        const amount = context.createGain();
-        amount.gain.value = level;
-        const side = context.createStereoPanner();
-        side.pan.value = pan;
-        mix.connect(echo).connect(air).connect(amount).connect(side).connect(limiter);
-      }
     }
-    if (context.state === 'suspended') context.resume().catch(() => {});
+    if (resume && context.state === 'suspended') context.resume().catch(() => {});
     return context;
   };
+  function configureOutput() {
+    mix = context.createGain();
+    const limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 8;
+    limiter.ratio.value = 8;
+    master = context.createGain();
+    master.gain.value = 0.74;
+    mix.connect(limiter).connect(master).connect(context.destination);
+    // Two quiet, dark reflections from the banks leave the hammer attack clear.
+    for (const [seconds, level, pan] of [[0.078, 0.13, -0.65], [0.143, 0.08, 0.7]]) {
+      const echo = context.createDelay();
+      echo.delayTime.value = seconds;
+      const air = context.createBiquadFilter();
+      air.frequency.value = 1700;
+      const amount = context.createGain();
+      amount.gain.value = level;
+      const side = context.createStereoPanner();
+      side.pan.value = pan;
+      mix.connect(echo).connect(air).connect(amount).connect(side).connect(limiter);
+    }
+  }
   const unlock = () => {
     if (enabled) {
       deviceUnavailable = false;
       ensure();
     }
   };
-  const getNoise = (c) => {
-    if (!noiseBuffer) {
-      noiseBuffer = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    }
-    return noiseBuffer;
-  };
-
   /* One decaying partial. */
   const tone = ({ type = 'sine', freq = 440, to = null, duration = 0.1, gain = 0.2, at = 0, attack = 0.004, output }) => {
     const c = enabled && ensure();
@@ -80,10 +76,10 @@ export function createSound() {
   /* Filtered noise with an optional sweep of the filter. */
   const noise = ({ duration = 0.1, gain = 0.2, filter = 2000, to = null, q = 1, type = 'lowpass', at = 0, attack = 0.002, output }) => {
     const c = enabled && ensure();
-    if (!c) return;
+    if (!c || !noiseBuffer) return;
     const t0 = c.currentTime + at;
     const source = c.createBufferSource();
-    source.buffer = getNoise(c);
+    source.buffer = noiseBuffer;
     source.playbackRate.value = 0.9 + Math.random() * 0.2;
     const biquad = c.createBiquadFilter();
     biquad.type = type;
@@ -110,10 +106,14 @@ export function createSound() {
   };
   const WOOD = [[175, 0.8], [382, 0.5], [917, 0.32], [1570, 0.1]];
   const STEEL = [[233, 0.65], [536, 0.35], [859, 0.47], [872, 0.24], [2180, 0.22], [3270, 0.1]];
-  // Karplus–Strong string. Each trip around the cable absorbs some treble.
-  const pluck = (pitch, duration, gain, bend = 1) => {
-    const c = enabled && ensure();
-    if (!c) return;
+  // Sample the Karplus–Strong string at a few tensions up front. Playback
+  // tunes the nearest note to the actual cable length.
+  const cables = {
+    place: { pitches: [75, 91, 110, 133, 160, 175], duration: 0.29 },
+    snap: { pitches: [95], duration: 0.32 },
+    creak: { pitches: [115, 130, 145], duration: 0.22 },
+  };
+  function makeString(c, pitch, duration) {
     const period = Math.round(c.sampleRate / pitch);
     const buffer = c.createBuffer(1, Math.ceil(c.sampleRate * duration), c.sampleRate);
     const data = buffer.getChannelData(0);
@@ -127,10 +127,18 @@ export function createSound() {
         data[i] = loss * 0.5 * (data[i - period] + data[i - period + 1]);
       }
     }
+    return buffer;
+  }
+  const pluck = (effect, pitch, gain, bend) => {
+    const c = enabled && ensure();
+    const notes = cables[effect].samples;
+    if (!c || !notes) return;
+    const note = notes.reduce((best, n) => Math.abs(n.pitch - pitch) < Math.abs(best.pitch - pitch) ? n : best);
     const source = c.createBufferSource();
-    source.buffer = buffer;
-    source.playbackRate.setValueAtTime(bend, c.currentTime);
-    source.playbackRate.setTargetAtTime(1, c.currentTime, 0.07);
+    source.buffer = note.buffer;
+    const tuning = pitch / note.pitch;
+    source.playbackRate.setValueAtTime(tuning * bend, c.currentTime);
+    source.playbackRate.setTargetAtTime(tuning, c.currentTime, 0.07);
     const volume = c.createGain();
     volume.gain.value = gain;
     source.connect(volume).connect(mix);
@@ -140,8 +148,7 @@ export function createSound() {
   // Road engines fire uneven exhaust pulses over a four-stroke cycle. A
   // steam engine has four separate bursts of exhaust per wheel revolution.
   const motors = new Map();
-  function motorBuffer(c, kind) {
-    if (motors.has(kind)) return motors.get(kind);
+  function makeMotor(c, kind) {
     const steam = kind === 'train', diesel = kind === 'truck';
     const pulses = diesel ? 6 : 4;
     const cycles = steam ? 3 : 12;
@@ -167,7 +174,6 @@ export function createSound() {
         data[i] = envelope * (exhaust + (diesel ? 0.78 : 0.28) * breath) + 0.1 * crank;
       }
     }
-    motors.set(kind, buffer);
     return buffer;
   }
   function stopEngine() {
@@ -180,20 +186,34 @@ export function createSound() {
     engine.rolling.stop(now + 0.2);
     engine = null;
   }
-  // Start loading when a crossing begins. An impact never waits for a download.
-  async function prepareSplash() {
-    const c = enabled && ensure();
-    if (!c || splashBuffer) return;
-    if (!splashLoad) {
-      splashLoad = (async () => {
-        try {
-          const response = await fetch(new URL('../assets/splash.mp3', import.meta.url));
-          if (response.ok) splashBuffer = await c.decodeAudioData(await response.arrayBuffer());
-        } catch { /* Use the water-noise fallback on this crossing. */ }
-        finally { splashLoad = null; }
-      })();
+  // A muted game or refused output device can prepare its buffers offline.
+  // They can be played by a different AudioContext when sound is unlocked.
+  async function prepareAudio() {
+    let c = enabled && ensure(false);
+    if (!c) {
+      const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!Offline) return;
+      try { c = new Offline(1, 1, 44100); } catch { return; }
     }
-    await splashLoad;
+    noiseBuffer = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    for (const kind of ['car', 'truck', 'train']) motors.set(kind, makeMotor(c, kind));
+    for (const cable of Object.values(cables)) {
+      cable.samples = cable.pitches.map(pitch => ({ pitch, buffer: makeString(c, pitch, cable.duration) }));
+    }
+    const url = new URL('../assets/splash.mp3', import.meta.url);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Splash unavailable');
+        splashBuffer = await c.decodeAudioData(await response.arrayBuffer());
+        return;
+      } catch {
+        if (!navigator.onLine) break;
+        // The prepared noise envelope supplies the impact if the recording fails.
+      }
+    }
   }
   const tap = (pattern) => { try { navigator.vibrate?.(pattern); } catch { /* not allowed */ } };
 
@@ -208,7 +228,10 @@ export function createSound() {
       return enabled;
     },
     unlock,
-    prepareSplash,
+    preload() {
+      // Playback is optional when a device refuses sound buffers.
+      return preparation ??= prepareAudio().catch(() => {});
+    },
     /* A plank knocked into place, a girder bolted on, a cable pulled taut. */
     place(mat, length = 3) {
       const pitch = Math.max(0.65, Math.min(1.45, Math.sqrt(3 / length)));
@@ -217,7 +240,7 @@ export function createSound() {
         strike({ partials: STEEL, decay: 0.11, gain: 0.09, click: 4600, pitch });
         strike({ partials: STEEL, decay: 0.85, gain: 0.23, click: 3300, pitch, at: 0.063 });
       } else if (mat === 'cable') {
-        pluck((115 + Math.random() * 5) * pitch, 0.29, 0.18, 0.985);
+        pluck('place', (115 + Math.random() * 5) * pitch, 0.18, 0.985);
         noise({ duration: 0.025, gain: 0.045, filter: 1050, type: 'bandpass', q: 0.8 });
       } else if (mat === 'road') {
         noise({ duration: 0.15, filter: 1700, to: 230, gain: 0.45 });
@@ -249,7 +272,7 @@ export function createSound() {
         strike({ partials: STEEL, decay: 1.2, gain: 0.14, click: 4000 });
         tone({ freq: 90, to: 45, duration: 0.4, gain: 0.25 });
       } else if (mat === 'cable') {
-        pluck(95, 0.32, 0.35, 1.22);
+        pluck('snap', 95, 0.35, 1.22);
         noise({ duration: 0.12, gain: 0.13, filter: 2600, to: 700, type: 'bandpass', q: 1 });
       } else {
         for (let i = 0; i < 6; i++) noise({ duration: 0.04 + Math.random() * 0.05, gain: 0.25, filter: 1500 + Math.random() * 2500, type: 'bandpass', q: 2, at: i * (0.015 + Math.random() * 0.03) });
@@ -261,7 +284,7 @@ export function createSound() {
     creak(level, mat) {
       const start = 115 + Math.random() * 30;
       if (mat === 'cable') {
-        pluck(start, 0.22, 0.1 * level, 1.025);
+        pluck('creak', start, 0.1 * level, 1.025);
         return;
       }
       for (let i = 0; i < 5; i++) {
@@ -301,7 +324,7 @@ export function createSound() {
        load. The wheels mark each actual deck joint as an axle crosses it. */
     engine(on, car, pan = 0, level = 1) {
       level = Math.max(0, Math.min(1, level));
-      const c = on && enabled && level > 0 && ensure();
+      const c = on && enabled && level > 0 && motors.has(car.id) && ensure();
       if (!c) { stopEngine(); return; }
       const kind = car.id;
       const train = kind === 'train';
@@ -317,14 +340,14 @@ export function createSound() {
         motorGain.connect(gain);
 
         const motor = c.createBufferSource();
-        motor.buffer = motorBuffer(c, kind);
+        motor.buffer = motors.get(kind);
         motor.loop = true;
         const exhaust = c.createBiquadFilter();
         exhaust.frequency.value = train ? 2300 : 820;
         exhaust.Q.value = 0.65;
         motor.connect(exhaust).connect(motorGain);
         const rolling = c.createBufferSource();
-        rolling.buffer = getNoise(c);
+        rolling.buffer = noiseBuffer;
         rolling.loop = true;
         const surface = c.createBiquadFilter();
         surface.type = 'bandpass';

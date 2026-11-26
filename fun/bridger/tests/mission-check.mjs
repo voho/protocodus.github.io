@@ -2,7 +2,7 @@
 // Every mission must come with a bridge that the real simulation carries
 // across, and a budget within the difficulty's margin of that bridge's cost.
 import assert from 'node:assert/strict';
-import { createMission, restoreMission, randomSolution, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
+import { createMission, restoreMission, randomSolution, choosePreparedSolution, riverSlot, V3_RIVERS, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
 import { createSim, bridgeCost, MATERIALS, WHEEL } from '../js/physics.js';
 import { createRng } from '../../shared/rng.js';
 
@@ -10,6 +10,27 @@ const strip = (mission) => JSON.stringify({ ...mission, ground: undefined });
 const seeds = Array.from({ length: 12 }, (_, i) => `check${i}`);
 const vehicles = new Set(), features = new Set(), kinds = new Set();
 let slowest = 0;
+
+// Exercise every shipped layout through an actual shareable seed and its
+// selected waterline. Tight budgets still have a second, distinct proof.
+const testedSlots = new Set();
+for (let i = 0; testedSlots.size < V3_RIVERS; i++) {
+  const seed = `v3-qa${i}`, slot = riverSlot(seed);
+  if (testedSlots.has(slot)) continue;
+  testedSlots.add(slot);
+  const river = createMission('hard', seed);
+  const hint = choosePreparedSolution(river, [river.reference]);
+  assert.notDeepEqual(hint.members.map(pairKey), river.reference.map(pairKey));
+  for (const bridge of [river.reference, hint.members]) {
+    assert.ok(bridgeCost(bridge) <= river.budget && createSim(river, bridge).run(), `${seed}: ready-to-play hard crossing`);
+    for (const member of bridge) assert.equal(memberProblem(river, [], member), null);
+  }
+  const { ground, ...fields } = river;
+  assert.equal(restoreMission(fields).ground(river.left + 1), ground(river.left + 1));
+}
+const published = createMission('hard', 'v3-qa2');
+assert.deepEqual([riverSlot(published.seed), published.vehicle, published.span, published.budget, published.referenceKind],
+  [73, 'truck', 9, 1660, 'below'], 'A published v3 seed keeps its layout and budget');
 
 for (const seed of seeds) {
   for (const difficulty of Object.keys(MARGINS)) {

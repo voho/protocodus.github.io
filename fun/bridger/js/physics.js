@@ -452,7 +452,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       if (!sim.waterEntry) {
         const contact = nodes.find(n => n.body && n.y - n.radius <= mission.water);
         if (contact) {
-          sim.waterEntry = { x: contact.x, speed: Math.max(0, -contact.vy) };
+          sim.waterEntry = { x: contact.x, time: sim.time, speed: Math.max(0, -contact.vy) };
           sim.events.push('splash');
         }
       }

@@ -81,16 +81,23 @@ become steel, very lightly loaded steel goes back to wood, and the design counts
 when it carries the vehicle with every member under 95%. A river with no such
 bridge is thrown away and the next one is tried.
 
-New river links have a versioned seed, such as `#easy-v2-check0`. Some rivers
-reserve a shipping channel below the road. Others have a 4 m building height
+Some rivers reserve a shipping channel below the road. Others have a 4 m building height
 limit or an unrestricted span. The survey also tries wide-panel, bowstring and
 single-tower designs on these rivers. Both the survey and the editor enforce
-the marked clearance. Older links and their saved bridges keep their original
-river, budget and building rules.
+the marked clearance.
+
+The first visit surveys a fresh procedural river during startup. Original
+links, including `#easy-v2-check0`, keep the same river, budget and building
+rules. **New river** draws from 192 pre-surveyed layouts and generates a fresh
+v3 seed for its water level, build depth and scenery. The browser prepares the
+whole collection before play. Every layout includes at least two different
+designs affordable on Hard. [The catalog generator](tools/bake-rivers.mjs)
+drives each design across the river at its highest waterline. Run
+`node fun/bridger/tools/bake-rivers.mjs` to reproduce the shipped collection.
 
 The cheapest proven design sets the budget: **Easy** gives 50% more than it costs,
 **Medium** 25% and **Hard** 10%. The river depends only on the seed, so changing
-difficulty keeps the river and changes the budget. **Solution** also tries Warren
+difficulty keeps the river and changes the budget. The prepared designs include Warren
 trusses with alternating two-panel triangles, bowstring trusses with arched ribs
 and hangers, and cable fans from a single bank tower. Each click compares the
 affordable designs that have crossed and favors a different arrangement of
@@ -121,6 +128,12 @@ butterflies flutter above the meadow and fireflies blink in the jungle. Other
 worlds have clouds, flocks, stars and meteors. The scenery and water animations
 respect the system's reduced-motion setting.
 
+Each river reflects its own landscape, the bridge and the passing vehicle.
+Ripples break up the reflection near the surface, and the riverbed shows
+through the shallows. A falling vehicle sends waves out from its point of impact.
+The game loads the artwork for every world, prepares the sounds and paints
+the first river before opening the editor.
+
 The exposed banks show layers of soil and rock that deepen toward the riverbed.
 After a crossing, two lights travel along the bridge from opposite banks. When they
 meet, the deck and its supports glow gold and launch confetti and curling streamers.
@@ -142,7 +155,7 @@ Its pitch and level follow the vehicle's mass and entry speed. [Recording credit
 ## Checks
 
 ```sh
-node fun/bridger/tests/mission-check.mjs   # 36 missions: proof crosses, budget margin, Show solution, rules
+node fun/bridger/tests/mission-check.mjs   # legacy missions and all 192 pre-surveyed layouts
 node fun/bridger/tests/browser-check.mjs   # plays it in Chromium on a desktop and a phone
 ```
 

@@ -4,7 +4,7 @@
 // on a desktop and a phone. Screenshots land in test-results/bridger/.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFile, mkdir, stat } from 'node:fs/promises';
+import { readFile, readdir, mkdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
@@ -14,11 +14,14 @@ import { checkSplash } from './splash-check.mjs';
 import { checkMediaRecovery } from './media-recovery-check.mjs';
 import { checkSkies } from './sky-check.mjs';
 import { checkTerrainPaint } from './terrain-paint-check.mjs';
+import { checkWater } from './water-check.mjs';
 import { checkSurvey } from './survey-check.mjs';
+import { checkReadiness } from './readiness-check.mjs';
 import { checkClearance } from './clearance-check.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const output = resolve(root, 'test-results/bridger');
+const mediaFiles = (await readdir(resolve(root, 'fun/bridger/assets'))).filter(name => /\.(webp|mp3)$/.test(name)).sort();
 await mkdir(output, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.webp': 'image/webp', '.mp3': 'audio/mpeg' };
 const server = createServer(async (req, res) => {
@@ -39,7 +42,7 @@ async function checkWheelRendering(page) {
     const { drawVehicle } = await import('./js/render.js');
     const { BODIES, VEHICLES, WHEEL } = await import('./js/physics.js');
     const { image } = await import('./js/art.js');
-    await Promise.all(['car', 'truck', 'loco', 'wagon', 'wheel-road', 'wheel-rail'].map(name => image(name).decode()));
+    const wheelImages = new Set([image('wheel-road'), image('wheel-rail')]);
 
     const scale = 64, view = { scale, sx: (x) => (x + 2.5) * scale, sy: (y) => (4.5 - y) * scale };
     const results = [];
@@ -54,7 +57,7 @@ async function checkWheelRendering(page) {
         if (layer) {
           const paint = ctx.drawImage.bind(ctx);
           ctx.drawImage = (img, ...args) => {
-            const wheel = /\/wheel-(road|rail)\.webp$/.test(img.src);
+            const wheel = wheelImages.has(img);
             if (wheel === (layer === 'wheels')) paint(img, ...args);
           };
         }
@@ -114,16 +117,11 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${origin}/fun/bridger/#easy-browsercheck`);
-    await page.waitForFunction(() => document.body.classList.contains('ready') && !document.body.classList.contains('busy'));
-    const sprites = await page.waitForFunction(() => {
-      const id = bridger.mission.vehicle;
-      const expected = id === 'train' ? ['loco', 'wagon', 'wheel-rail'] : [id, 'wheel-road'];
-      const files = performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname.split('/').pop());
-      const fetched = files.filter(name => /^(car|truck|loco|wagon|wheel-road|wheel-rail)\.webp$/.test(name));
-      return expected.every(name => fetched.includes(name + '.webp')) && { expected: expected.length, fetched };
-    });
-    const { fetched, expected } = await sprites.jsonValue();
-    assert.equal(fetched.length, expected, `${device.name}: load only the active vehicle's painted layers`);
+    await page.waitForSelector('body.ready');
+    const fetched = await page.evaluate(() => performance.getEntriesByType('resource')
+      .map(entry => new URL(entry.name).pathname).filter(path => path.includes('/fun/bridger/assets/'))
+      .map(path => path.split('/').pop()).sort());
+    assert.deepEqual(fetched, mediaFiles, `${device.name}: all game media are loaded once before play`);
     // The first visit opens How to play.
     assert.ok(await page.locator('[data-dialog="help"]').evaluate((d) => d.open), `${device.name}: help opens on the first visit`);
     await page.screenshot({ path: `${output}/${device.name}-help.png` });
@@ -287,8 +285,7 @@ try {
     assert.equal(await count(), span + 3, `${device.name}: cancelling keeps the bridge`);
     await page.click('[data-action="solution"]');
     await page.click('[data-dialog="confirm"] button[value="ok"]');
-    await page.waitForFunction(() => !document.body.classList.contains('busy') &&
-      document.querySelector('[data-toast]').textContent.startsWith('Here is '));
+    await page.waitForFunction(() => document.querySelector('[data-toast]').textContent.startsWith('Here is '));
     const cost = await page.evaluate(() => Number(document.querySelector('[data-cost]').textContent.replace(/\D/g, '')));
     const budget = await page.evaluate(() => bridger.mission.budget);
     assert.ok(cost > 0 && cost <= budget, `${device.name}: Show solution builds within budget`);
@@ -329,17 +326,16 @@ try {
       await sound.click();
       assert.equal(await sound.getAttribute('aria-pressed'), 'true');
     }
-    await preview.evaluate(async (id) => {
+    const painted = await preview.evaluate(async (id) => {
       const { THEMES } = await import('./js/scenery.js');
-      await Promise.all([THEMES[id].sky, THEMES[id].rock].map((name) => {
-        const img = new Image();
-        img.src = `assets/${name}.webp`;
-        return img.decode();
-      }));
+      const { image, ready } = await import('./js/art.js');
+      return [THEMES[id].sky, THEMES[id].rock].every(name => ready(image(name)));
     }, theme);
+    assert.ok(painted, `${theme}: scenery already has its decoded artwork`);
     assert.equal(await preview.evaluate(() => window.startedSounds), 0, `${theme}: the builder stays silent between actions`);
   }
-  assert.deepEqual(idleAudioRequests, [], 'visiting worlds with sound enabled does not load background audio');
+  assert.ok(idleAudioRequests.length && idleAudioRequests.every(url => new URL(url).pathname.endsWith('/splash.mp3')),
+    'the water impact is the only audio file loaded');
   // Reduced motion freezes both the ambience and the water. With motion
   // enabled, the same two timestamps must produce visibly different frames.
   const framesDiffer = () => preview.evaluate(async () => {
@@ -365,11 +361,13 @@ try {
   await checkCelebration(preview);
   await checkSkies(preview);
   await checkTerrainPaint(preview);
+  await checkWater(preview);
   await checkSplash(preview);
   await checkMediaRecovery(browser, origin);
   await checkClearance(preview, origin);
   await preview.close();
   await checkSurvey(browser, origin);
+  await checkReadiness(browser, origin);
   console.log(`Bridger browser checks passed: drawing, simulation, wheel rendering, world previews, reduced motion and sound controls on desktop and phone. Screenshots in ${output}.`);
 } finally {
   await browser.close();

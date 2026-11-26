@@ -140,14 +140,14 @@ export function buildScenery(mission) {
 
 /* The rock texture as a pattern pinned to the world, so it doesn't slide
    when the screen is resized. */
-function rockFill(ctx, view, theme) {
+function rockPattern(ctx, theme) {
   const rock = image(theme.rock);
-  if (!ready(rock)) return theme.rockColor;
+  if (!ready(rock)) return null;
   if (!theme.pattern) {
     let tile = rock;
     if (theme.tint) {
       tile = document.createElement('canvas');
-      tile.width = rock.naturalWidth; tile.height = rock.naturalHeight;
+      tile.width = rock.width; tile.height = rock.height;
       const c = tile.getContext('2d');
       c.drawImage(rock, 0, 0);
       c.fillStyle = theme.tint;
@@ -155,9 +155,15 @@ function rockFill(ctx, view, theme) {
     }
     theme.pattern = ctx.createPattern(tile, 'repeat');
   }
-  const k = ROCK_TILE * view.scale / rock.naturalWidth;
-  theme.pattern.setTransform(new DOMMatrix().translate(view.sx(0), view.sy(0)).scale(k));
   return theme.pattern;
+}
+
+function rockFill(ctx, view, theme) {
+  const pattern = rockPattern(ctx, theme);
+  if (!pattern) return theme.rockColor;
+  const k = ROCK_TILE * view.scale / image(theme.rock).width;
+  pattern.setTransform(new DOMMatrix().translate(view.sx(0), view.sy(0)).scale(k));
+  return pattern;
 }
 
 /* Raster once in device pixels. All three layers only live as long as the
@@ -190,7 +196,7 @@ function blit(ctx, layer) {
 /* Position the undistorted ridge against the road, keeping the painted
    landmark visible in the narrower portrait crop. */
 export function backdropBounds(view, scenery, theme, sky, pixelRatio = 1) {
-  const aspect = sky.naturalWidth / sky.naturalHeight;
+  const aspect = sky.width / sky.height;
   const floor = view.sy(scenery.backdropFloor) + 2, deck = view.sy(0);
   const narrow = Math.max(0, Math.min(1, 2 - view.width / deck));
   const [panorama, portrait] = theme.skyline;
@@ -201,7 +207,7 @@ export function backdropBounds(view, scenery, theme, sky, pixelRatio = 1) {
   const cover = Math.max(view.width / aspect, floor);
   // A tall portrait sky shows more of the painting vertically. Keep its
   // detail sharp instead of enlarging the whole forest to place one ridge.
-  const detailHeight = sky.naturalHeight * (0.55 + 0.45 / pixelRatio);
+  const detailHeight = sky.height * (0.55 + 0.45 / pixelRatio);
   const h = Math.min(Math.max(cover, detailHeight), Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge)));
   const w = h * aspect;
   const y = Math.max(floor - h, Math.min(0, horizon - h * ridge));
@@ -240,9 +246,10 @@ const R = Array.from({ length: 512 }, (_, i) => {
 
 /* Long, feathered wisps sit lightly over the painted clouds. They double
    as mist when compressed against the opposite bank. */
+const cloudSprites = { light: [], dark: [] };
 function cloudSprite(theme, index) {
-  theme.clouds ||= [];
-  if (theme.clouds[index]) return theme.clouds[index];
+  const sprites = cloudSprites[theme.ui];
+  if (sprites[index]) return sprites[index];
   const canvas = document.createElement('canvas');
   canvas.width = 420; canvas.height = 100;
   const c = canvas.getContext('2d');
@@ -260,8 +267,17 @@ function cloudSprite(theme, index) {
     c.fillRect(-1, -1, 2, 2);
     c.restore();
   }
-  theme.clouds[index] = canvas;
+  sprites[index] = canvas;
   return canvas;
+}
+
+export function prepareSceneryArt(ctx) {
+  for (const theme of Object.values(THEMES)) {
+    rockPattern(ctx, theme);
+    // All rivers use the first wisp for mist. Cloudy skies use four more.
+    const count = theme.ambient.includes('clouds') ? 5 : 1;
+    for (let i = 0; i < count; i++) cloudSprite(theme, i);
+  }
 }
 
 /* Behind the bridge: clouds and birds by day, stars, shooting stars and
@@ -602,82 +618,178 @@ export function drawGround(ctx, view, mission, scenery, theme, time) {
   blit(ctx, cache.banks.front);
 }
 
-function waterPaint(ctx, view, mission, theme) {
+/* The reflection is softer than the source painting. Keep one river-sized
+   surface, including a little overscan for waves moving its edges. */
+function waterPaint(ctx, view, mission, theme, paths) {
   const { surface, deep, glint } = theme.water;
   const level = view.sy(mission.water);
-  const body = ctx.createLinearGradient(0, level, 0, Math.min(view.height + 10, level + view.scale * 9));
-  body.addColorStop(0, rgba(surface, 0.72));
-  body.addColorStop(0.35, rgba(mix(surface, deep, 0.5), 0.86));
-  body.addColorStop(1, rgba(deep, 0.97));
-  const fade = ctx.createLinearGradient(0, level, 0, level + view.scale * 6);
-  fade.addColorStop(0, rgba(deep, 0));
-  fade.addColorStop(1, rgba(deep, 0.6));
-  return { body, fade, shimmer: rgba(glint, 0.28), crest: rgba(glint, 0.75) };
+  const bottom = Math.min(view.height, Math.ceil(paths.bottomNear) + 2);
+  const depth = Math.max(view.scale, bottom - level);
+  const body = ctx.createLinearGradient(0, level, 0, level + depth);
+  body.addColorStop(0, rgba(mix(surface, glint, 0.15), 0.77));
+  body.addColorStop(0.22, rgba(mix(surface, deep, 0.25), 0.82));
+  body.addColorStop(0.65, rgba(mix(surface, deep, 0.72), 0.87));
+  body.addColorStop(1, rgba(deep, 0.89));
+
+  const shallows = ctx.createLinearGradient(0, level, 0, level + depth);
+  const shoreLight = mix(surface, glint, 0.36);
+  shallows.addColorStop(0, rgba(shoreLight, 0.34));
+  shallows.addColorStop(0.6, rgba(shoreLight, 0.12));
+  shallows.addColorStop(1, rgba(shoreLight, 0.045));
+
+  const x0 = view.sx(mission.left), x1 = view.sx(mission.right);
+  const pad = Math.ceil(Math.max(8, view.scale * 0.5));
+  const left = Math.floor(x0) - pad, top = Math.floor(level) - pad;
+  const mirror = document.createElement('canvas');
+  // One sample per CSS pixel is sufficient for the refracted, moving image.
+  mirror.width = Math.max(1, Math.ceil(x1) + pad - left);
+  mirror.height = Math.max(1, bottom + pad - top);
+  const landscape = document.createElement('canvas');
+  landscape.width = mirror.width; landscape.height = mirror.height;
+  const reflected = mirror.getContext('2d');
+  reflected.imageSmoothingQuality = 'low';
+  return { body, mirror, landscape, reflected, left, top, level, bottom, x0, x1,
+    shallows, glint: rgba(glint, 0.47),
+    shade: rgba(deep, 0.17), edge: rgba(glint, 0.34) };
 }
 
-export function drawWater(ctx, view, mission, scenery, theme, time, reflect) {
+/* Paint the landscape, vehicle and structure once. The water then samples
+   this undistorted image in narrow moving bands. An unchanged drawing on
+   the build screen reuses the same reflection. */
+function paintWaterLandscape(water, view, scenery, theme, sky) {
+  const c = water.landscape.getContext('2d');
+  c.save();
+  c.translate(-water.left, water.level - water.top);
+  const bounds = backdropBounds(view, scenery, theme, sky, scenery.raster.ratio);
+  // At a grazing angle the opposite landscape fills the surface; toward
+  // the viewer the reflected ray rises into the sky.
+  const shore = view.sy(0) * 0.54 + bounds.h * 0.09;
+  c.scale(1, -0.62);
+  c.drawImage(sky, bounds.x, bounds.y - shore, bounds.w, bounds.h);
+  c.restore();
+}
+
+function paintReflection(water, reflect) {
+  const { reflected: c, left, top, landscape, level } = water;
+  c.save();
+  c.globalCompositeOperation = 'copy';
+  c.drawImage(landscape, 0, 0);
+  c.globalCompositeOperation = 'source-over';
+  c.translate(-left, level - top);
+  c.scale(1, -0.84);
+  c.translate(0, -level);
+  reflect?.(c);
+  c.restore();
+}
+
+export function drawWater(ctx, view, mission, scenery, theme, time, reflect, drawing, sim) {
   const cache = rasterCache(ctx, view, scenery, theme);
-  cache.water ??= waterPaint(ctx, view, mission, theme);
+  const paths = bankPaths(view, mission, scenery);
+  const water = cache.water ??= waterPaint(ctx, view, mission, theme, paths);
+  const sky = image(theme.sky);
+  const painted = ready(sky);
+  if (painted && !water.painted) paintWaterLandscape(water, view, scenery, theme, sky);
+  const key = reflect ? drawing : scenery;
+  if (key === undefined || key !== water.drawing || painted !== water.painted) {
+    paintReflection(water, reflect);
+    water.drawing = key;
+    water.painted = painted;
+  }
+  const t = still.matches ? 0 : time;
+  const hit = still.matches ? null : sim?.waterEntry;
+  const age = hit ? sim.time - hit.time : Infinity;
   ctx.save();
-  ctx.clip(bankPaths(view, mission, scenery).gorge);
-  surfaceWater(ctx, view, mission, cache.water, still.matches ? 0 : time, reflect);
+  ctx.clip(paths.gorge);
+  surfaceWater(ctx, view, scenery.phase, water, paths.rim, t, age < 2.8 ? hit : null, age);
   ctx.restore();
 }
 
-function surfaceWater(ctx, view, mission, paint, time, reflect) {
-  const x0 = view.sx(mission.left), x1 = view.sx(mission.right);
-  const level = view.sy(mission.water);
-  const bottom = view.height + 10;
-  const amp = Math.max(0.8, view.scale * 0.05);
-  const wave = (px) => level + Math.sin(px * 0.045 + time * 1.6) * amp + Math.sin(px * 0.11 - time * 2.3) * amp * 0.45;
-  // Reuse this frame's exact wave shape for the fill, reflection clip and
-  // depth shading. Trace the lit crest with the same sampled positions.
-  const crest = new Path2D();
-  crest.moveTo(x0, wave(x0));
-  for (let px = x0 + 4; px <= x1; px += 4) crest.lineTo(px, wave(px));
-  const outline = new Path2D(crest);
-  outline.lineTo(x1, wave(x1));
-  outline.lineTo(x1, bottom);
-  outline.lineTo(x0, bottom);
-  outline.closePath();
-  ctx.fillStyle = paint.body;
-  ctx.fill(outline);
-
-  if (reflect) {
-    ctx.save();
-    ctx.clip(outline);
-    // Mirror about the water line, squashed a little the way ripples do.
-    ctx.translate(0, level);
-    ctx.scale(1, -0.9);
-    ctx.translate(0, -level);
-    ctx.globalAlpha = 0.16;
-    reflect();
-    ctx.restore();
-    // Reflections fade with depth.
-    ctx.fillStyle = paint.fade;
-    ctx.fill(outline);
+function surfaceWater(ctx, view, phase, water, rim, time, hit, age) {
+  const { x0, x1, level, bottom, mirror, left, top } = water;
+  if (bottom <= level) return;
+  const scale = view.scale, span = x1 - x0;
+  const crest = new Path2D(), glints = new Path2D();
+  const amplitude = Math.max(0.65, scale * 0.047);
+  // A displacement in metres keeps the same current and wavelength through
+  // a resize. Two wave packets travel away from an actual water impact.
+  const wave = (px) => {
+    const x = (px - x0) / scale;
+    let dy = amplitude * (Math.sin(3.2 * x - time * 1.9 + phase) +
+      0.42 * Math.sin(6.8 * x + time * 2.3) + 0.27 * Math.sin(1.3 * x - time * 0.74));
+    if (hit) {
+      const distance = Math.abs(px - view.sx(hit.x)) / scale - age * 2.8;
+      dy -= scale * Math.min(0.33, 0.13 + 0.027 * hit.speed) * Math.cos(distance * 7) *
+        Math.exp(-distance * distance * 2.8 - age * 1.25);
+    }
+    return level + dy;
+  };
+  let y = wave(x0);
+  crest.moveTo(x0, y);
+  const step = Math.max(2, scale * 0.13);
+  for (let px = x0; px < x1; px += step) {
+    const next = Math.min(x1, px + step), ny = wave(next);
+    crest.lineTo(next, ny);
+    if (ny - y < -amplitude * 0.15) {
+      glints.moveTo(px, y);
+      glints.lineTo(next, ny);
+    }
+    y = ny;
   }
+  const outline = new Path2D(crest);
+  outline.lineTo(x1, bottom); outline.lineTo(x0, bottom); outline.closePath();
+  ctx.save();
+  ctx.clip(outline);
+  ctx.fillStyle = water.body;
+  ctx.fillRect(x0, level - scale, span, bottom - level + scale);
 
-  // Long, slow glints just below the surface.
-  ctx.strokeStyle = paint.shimmer;
-  ctx.lineWidth = Math.max(1, view.scale * 0.06);
-  ctx.lineCap = 'round';
-  const span = x1 - x0;
-  for (let i = 0; i < 9; i++) {
-    const depth = ((i * 0.37) % 1) * view.scale * 2.4 + view.scale * 0.35;
-    const length = view.scale * (0.6 + (i % 3) * 0.5);
-    const px = x0 + (((i * 0.61 + time * (0.012 + (i % 4) * 0.004)) % 1) * (span + length)) - length;
-    const shimmer = 0.5 + 0.5 * Math.sin(time * 1.3 + i * 2.1);
-    ctx.globalAlpha = shimmer;
-    ctx.beginPath();
-    ctx.moveTo(Math.max(x0, px), level + depth);
-    ctx.lineTo(Math.min(x1, px + length), level + depth);
-    ctx.stroke();
+  // Short ripples reflect different parts of the shore. Their images get
+  // wider breaks and lose contrast farther down in the water column.
+  const depth = bottom - level, start = Math.max(top, Math.floor(level - scale * 0.42));
+  for (let row = start; row < bottom;) {
+    const d = Math.max(0, row - level) / scale;
+    const h = Math.min(bottom - row, Math.max(2, Math.round(scale * (0.082 + 0.022 * d))));
+    const wave1 = Math.sin(d * 5.7 - time * 1.4 + phase), wave2 = Math.sin(d * 12 + time + phase);
+    const weight = Math.min(1, (row - level) / depth);
+    const dx = (wave1 + wave2 * 0.45) * Math.min(scale * 0.18, 1.0 + d * scale * 0.04);
+    const dy = (wave2 * 0.9 + wave1 * 0.4) * Math.min(h, 0.8 + d * 0.65);
+    ctx.globalAlpha = (0.08 + 0.47 * (1 - Math.max(0, weight)) ** 1.4) * (0.88 + 0.12 * wave1);
+    ctx.drawImage(mirror, x0 - left - dx, row - top + dy, span, h, x0, row, span, h);
+    row += h;
   }
   ctx.globalAlpha = 1;
+  // Light scattered by the submerged bank discloses the changing depth.
+  ctx.strokeStyle = water.shallows;
+  ctx.globalAlpha = 0.36;
+  ctx.lineWidth = Math.max(3, scale * 0.80);
+  ctx.stroke(rim);
+  ctx.globalAlpha = 0.62;
+  ctx.lineWidth = Math.max(2, scale * 0.34);
+  ctx.stroke(rim);
+  ctx.globalAlpha = 1;
 
-  // The surface line, brightest where a ripple faces the light.
-  ctx.lineWidth = Math.max(1.2, view.scale * 0.07);
-  ctx.strokeStyle = paint.crest;
+  const ripples = new Path2D(), troughs = new Path2D();
+  const count = Math.ceil(span / scale * 4);
+  for (let i = 0; i < count; i++) {
+    const d = R[i + 300] ** 1.8;
+    const length = scale * (0.13 + 0.82 * R[i + 180]) * (0.55 + d);
+    const speed = 0.18 + 0.24 * d;
+    const x = x0 + ((R[i + 70] * (span + length) + time * speed * scale) % (span + length)) - length;
+    const shimmer = Math.sin(phase + i * 2.2 + time * (0.65 + R[i]));
+    const py = level + 1.5 + d * Math.min(depth, scale * 3.5) + shimmer * amplitude * 0.38;
+    const width = length * (0.70 + 0.30 * shimmer);
+    const path = i % 3 ? ripples : troughs;
+    const height = (0.6 + 0.032 * scale) * (0.6 + d) * (0.55 + 0.45 * shimmer);
+    path.moveTo(x, py);
+    path.quadraticCurveTo(x + width * 0.52, py - height * 1.5, x + width, py - height * 0.3);
+    path.quadraticCurveTo(x + width * 0.54, py + height * 0.5, x, py);
+  }
+  ctx.fillStyle = water.glint; ctx.fill(ripples);
+  ctx.fillStyle = water.shade; ctx.fill(troughs);
+  ctx.restore();
+  ctx.strokeStyle = water.edge;
+  ctx.lineWidth = Math.max(0.9, scale * 0.038);
   ctx.stroke(crest);
+  ctx.strokeStyle = water.glint;
+  ctx.lineWidth = Math.max(1.1, scale * 0.06);
+  ctx.stroke(glints);
 }

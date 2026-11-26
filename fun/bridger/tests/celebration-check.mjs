@@ -127,8 +127,6 @@ export async function checkCelebration(page) {
     await game.waitForFunction((edge) => bridger.view.wx(bridger.view.width) > edge + 4, oldEdge);
     const departure = await game.evaluateHandle(async () => {
       const { drawVehicle } = await import('./js/render.js');
-      const { image } = await import('./js/art.js');
-      await Promise.all(['loco', 'wagon', 'wheel-rail'].map((name) => image(name).decode()));
       const dialog = document.querySelector('[data-dialog="win"]');
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
