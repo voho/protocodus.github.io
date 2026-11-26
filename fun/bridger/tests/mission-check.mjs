@@ -3,7 +3,7 @@
 // across, and a budget within the difficulty's margin of that bridge's cost.
 import assert from 'node:assert/strict';
 import { createMission, randomSolution, memberProblem, MARGINS, DESIGN_NAMES } from '../js/mission.js';
-import { createSim, bridgeCost, MATERIALS } from '../js/physics.js';
+import { createSim, bridgeCost, MATERIALS, WHEEL } from '../js/physics.js';
 import { createRng } from '../../shared/rng.js';
 
 const strip = (mission) => JSON.stringify({ ...mission, ground: undefined });
@@ -18,6 +18,11 @@ for (const seed of seeds) {
     slowest = Math.max(slowest, performance.now() - started);
     vehicles.add(mission.vehicle);
     features.add(mission.feature?.kind || 'none');
+    for (const [bank, outward] of [[mission.left, -1], [mission.right, 1]]) {
+      assert.ok(Math.abs(mission.ground(bank)) < 1e-6, `${seed}: approach meets the road deck`);
+      assert.ok(Math.abs(mission.ground(bank + outward * 4)) < 1e-6, `${seed}: the land bolt sits on the approach`);
+      assert.ok(mission.ground(bank + outward * 2) < -0.01, `${seed}: the approach curves between its bolts`);
+    }
 
     const cost = bridgeCost(mission.reference);
     assert.ok(createSim(mission, mission.reference).run(), `${seed}/${difficulty}: the proof bridge crosses`);
@@ -53,6 +58,40 @@ assert.equal(memberProblem(mission, [], { a: [0, 0], b: [mission.span, 0], mat: 
 const truck = { ...mission, vehicle: 'truck' };
 const road = Array.from({ length: mission.span }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
 assert.equal(createSim(truck, road).run(), false, 'A bare road drops the truck');
+
+const flat = createSim({ ...truck, ground: () => 0 }, []);
+const parkedX = flat.car.axles.map((a) => a.x);
+assert.ok(flat.car.axles.every((a) => a.angle === 0), 'Parked wheels begin at rest');
+for (let frame = 0; frame < 78; frame++) flat.step();
+flat.car.axles.forEach((a, i) => {
+  assert.ok(Math.abs(a.angle * WHEEL.truck - (a.x - parkedX[i])) < 1e-8, 'Each tyre rolls one circumference per revolution');
+});
+const rolling = createSim({ ...truck, ground: (x) => 0.13 * (Math.sin(x * 1.3) - 1) }, []);
+for (let frame = 0; frame < 78; frame++) rolling.step();
+assert.equal(rolling.car.state, 'driving');
+const spins = rolling.car.axles.map((a) => a.angle);
+assert.ok(Math.max(...spins) - Math.min(...spins) > 0.01, 'The three tyres can roll and coast independently on a crest');
+
+// Level members cross the traffic lane. A supported vehicle can hit its
+// roof while every wheel still has road underneath it. Side braces flank it.
+for (const [vehicle, roof] of [['car', 0.75], ['truck', 1], ['train', 1.5]]) {
+  const deck = Array.from({ length: 8 }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
+  const runWith = (member) => {
+    const ground = (x) => x <= 0 || x >= 16 ? 0 : -8;
+    const anchors = [...deck.map((m) => m.a), deck.at(-1).b, member.a, member.b];
+    const sim = createSim({ vehicle, ground, left: 0, right: 16, deck: 0, water: -4, anchors }, [...deck, member]);
+    sim.run();
+    return sim;
+  };
+  for (const mat of ['wood', 'steel', 'cable']) {
+    const hit = runWith({ a: [3, roof], b: [5, roof], mat });
+    assert.equal(hit.result, 'collision', `${vehicle}: low ${mat} catches the body above the wheels`);
+    assert.ok(hit.car.bodies && hit.car.axles[0].beam >= 0, `${vehicle}: roof contact releases a still-supported vehicle`);
+  }
+  const clearance = { car: 1, truck: 1.5, train: 1.75 }[vehicle];
+  assert.equal(runWith({ a: [3, clearance], b: [5, clearance], mat: 'wood' }).result, 'win', `${vehicle}: the vehicle clears a beam just above its own roof`);
+  assert.equal(runWith({ a: [3, 0], b: [5, 2], mat: 'steel' }).result, 'win', `${vehicle}: diagonal truss sides leave the lane open`);
+}
 
 // A fall is physics, not a script: the wreck stays finite, never flies off,
 // and never ends up inside the ground.

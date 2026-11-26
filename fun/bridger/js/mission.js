@@ -39,19 +39,34 @@ export function createTerrain(rng) {
   const feature = riverFeature(rng, span, water);
   // An island always stands clear of the water, so lower the river around it.
   if (feature?.kind === 'island') water = Math.min(water, feature.top * CELL - 1.1 - rng.next() * 0.8);
-  // A vertical rock face under each bank edge, as deep as its lower bolt.
+  // Keep a steep face where a lower bolt is exposed. Elsewhere the bank
+  // can roll into the gorge over a much wider shoulder.
   const faceL = rng.range(1, 3) * CELL, faceR = rng.range(1, 3) * CELL;
-  const slopeL = rng.range(3, 7), slopeR = rng.range(3, 7);
+  const maxSlope = (right - left) * 0.46;
+  const slopeL = Math.min(rng.range(3, 7), maxSlope), slopeR = Math.min(rng.range(3, 7), maxSlope);
+  const lipL = -faceL > water + CLEARANCE ? 0.06 : slopeL * 0.34;
+  const lipR = -faceR > water + CLEARANCE ? 0.06 : slopeR * 0.34;
   const bumps = Array.from({ length: 4 }, () => (rng.next() - 0.5) * 1.6);
+  // A short shelf partway down an exposed bluff breaks up even a tall face.
+  const shelf = (x, dir, lip, face, noise) => {
+    if (lip < 0.1) return [];
+    const depth = face * (0.42 + noise * 0.15);
+    return [[x + dir * lip * 0.36, -depth], [x + dir * lip * 0.62, -depth - face * 0.05]];
+  };
   const bank = [
-    [left, 0], [left + 0.02, -faceL], [left + slopeL * 0.5, (-faceL + bed) / 2 + bumps[0]], [left + slopeL, bed + 0.6 + bumps[1] * 0.4],
-    [right - slopeR, bed + 0.6 + bumps[2] * 0.4], [right - slopeR * 0.5, (-faceR + bed) / 2 + bumps[3]], [right - 0.02, -faceR], [right, 0],
+    [left, 0], ...shelf(left, 1, lipL, faceL, bumps[0]), [left + lipL, -faceL],
+    [left + slopeL * 0.6, (-faceL + bed) / 2 + bumps[0]], [left + slopeL, bed + 0.6 + bumps[1] * 0.4],
+    [right - slopeR, bed + 0.6 + bumps[2] * 0.4], [right - slopeR * 0.6, (-faceR + bed) / 2 + bumps[3]],
+    [right - lipR, -faceR], ...shelf(right, -1, lipR, faceR, bumps[3]).reverse(), [right, 0],
   ];
   const along = (points, x) => {
     if (x <= points[0][0] || x >= points[points.length - 1][0]) return -Infinity;
     for (let i = 1; i < points.length; i++) {
       const [x0, y0] = points[i - 1], [x1, y1] = points[i];
-      if (x <= x1) return y0 + (y1 - y0) * (x - x0) / Math.max(1e-6, x1 - x0);
+      if (x <= x1) {
+        const t = (x - x0) / (x1 - x0);
+        return y0 + (y1 - y0) * t * t * (3 - 2 * t);
+      }
     }
     return -Infinity;
   };
@@ -68,13 +83,18 @@ export function createTerrain(rng) {
   const rough = (x) => waves.reduce((sum, [f, phase, amp]) => sum + Math.sin(x * f + phase) * amp, 0);
   const fade = (d, width) => Math.max(0, Math.min(1, d / width));
   const ground = (x) => {
-    if (x <= left || x >= right) return 0;
-    const edge = fade(Math.min(x - left - 0.02, right - 0.02 - x), 1.2);
+    if (x <= left || x >= right) {
+      const d = Math.max(left - x, x - right);
+      const boltDistance = Math.min(d, Math.abs(d - 2 * CELL));
+      const blend = fade(boltDistance, 2);
+      return -(0.27 + 0.18 * Math.sin(x * 0.51 + waves[0][1]) + 0.07 * Math.sin(x * 0.89 + waves[1][1])) * blend * blend * (3 - 2 * blend);
+    }
+    const edge = fade(Math.min(x - left, right - x), 1.2);
     const bankY = along(bank, x) + rough(x) * edge;
     const bedY = bed + rough(x * 1.3 + 7) * 0.8;
     let rockY = -Infinity;
     if (rock) {
-      const bolt = fade(Math.min(...feature.bolts.map(([bx]) => Math.abs(x - bx * CELL))) - 0.5, 1);
+      const bolt = fade(Math.min(...feature.bolts.map(([bx]) => Math.abs(x - bx * CELL))), 1);
       rockY = along(rock, x) + rough(x + 3) * bolt;
     }
     return Math.max(bedY, bankY, rockY);
@@ -128,13 +148,20 @@ export function memberProblem(mission, members, m) {
   return null;
 }
 
-/* Grid points a member passes through between its two ends. */
-export function innerPoints(m) {
+/* Put a socket at each metre along the dominant axis. A sloping member
+   can take a brace between grid lines as well as at a grid intersection. */
+export function attachmentPoints(m) {
+  if (m.mat === 'road') return [];
   const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1];
-  const steps = gcd(Math.abs(dx), Math.abs(dy));
-  return Array.from({ length: Math.max(0, steps - 1) }, (_, k) => [m.a[0] + dx / steps * (k + 1), m.a[1] + dy / steps * (k + 1)]);
+  const axis = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
+  const a = m.a[axis], b = m.b[axis], points = [];
+  const round = (v) => Math.round(v * 1e6) / 1e6;
+  for (let tick = Math.floor(Math.min(a, b) * CELL) + 1; tick < Math.max(a, b) * CELL; tick++) {
+    const t = (tick / CELL - a) / (b - a);
+    points.push([round(m.a[0] + t * dx), round(m.a[1] + t * dy)]);
+  }
+  return points;
 }
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 
 export const pairKey = (m) => {
   const a = key(m.a), b = key(m.b);
@@ -259,8 +286,9 @@ function strengthen(mission, members) {
         changed = true;
       }
     });
-    if (passed && sim.peakUsage() < 0.95) return lighten(mission, current, sim);
-    if (!changed) return null;
+    // An upgrade changes the load and the clearance. Accept only the
+    // exact set of members that just completed the crossing.
+    if (!changed) return passed && sim.peakUsage() < 0.95 ? lighten(mission, current, sim) : null;
   }
   return null;
 }

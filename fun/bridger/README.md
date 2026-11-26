@@ -8,7 +8,8 @@ on the drawing while you rebuild.
 
 ## How it plays
 
-- **Grid and bolts.** Joints sit on a 2 m grid. Red bolts are fixed to the ground: the
+- **Grid and bolts.** Free endpoints snap to a 2 m grid. You can also join a member
+  at one of its marked connection points. Red bolts are fixed to the ground: the
   two road ends, a bolt on the land behind each bank, a lower bolt on each cliff face
   when it is above the water, and bolts on top of rock piers and islands.
 - **Materials.**
@@ -22,14 +23,14 @@ on the drawing while you rebuild.
 
 - **Vehicles.** A 1.5 t car, a 6 t three-axle truck, or a 12 t locomotive with two
   wagons. Heavier vehicles get narrower rivers.
-- **Road.** Every river starts with a flat road laid from bank to bank in 2 m pieces; its
-  cost counts toward the budget. It can't be erased or swapped, so the job is to hold it
-  up. Every proven design keeps the road flat too.
-- **Drawing.** Drag from a bolt or joint. A beam drawn through existing joints joins
-  them, and a beam that ends or crosses partway along another, on a grid point, splits
-  it there and joins it; while you drag, white dots mark those points. Tap a beam with a
-  material to swap it, or with Erase to remove it. A double click or double tap erases a
-  beam or joint with any tool.
+- **Road.** Each river starts with a flat road laid from bank to bank in 2 m pieces.
+  Its cost counts toward the budget. Drag along the deck to replace missing road pieces.
+- **Drawing.** Drag from a bolt, joint or gold dot. Gold dots along wood, steel and cable
+  show where braces can attach, including between grid points on diagonal members.
+  Connecting there splits the original member and the pieces share a physical joint.
+  Tap a support with another material to swap it. Double-click, double-tap or use Erase
+  on any bridge piece to remove it. Erasing a joint removes the pieces attached to it.
+  Undo restores one edit, and Clear restores the starting deck.
 - **Asking first.** New river (top right, away from Go!), Clear and Solution ask before
   they replace a bridge you built. With nothing built they just go ahead.
 - **Rules.** Joints stay out of the rock and at least 1 m above the water.
@@ -44,16 +45,19 @@ of 1/60 s, one projection per member per substep. Every member is an axial sprin
 with compliance `L / EA`, carries half its own weight on each joint, and breaks when
 its force (smoothed over 40 ms) passes its strength. Vehicles roll at a steady speed
 along road members; each axle adds its mass to the two joints of the road piece under
-it, so the bridge feels the weight and its inertia. A wheel with no road under it
-falls.
+it, so the bridge feels the weight and its inertia. The three-axle truck can lift a
+tyre over a crest and transfer its load onto the other axles. The bumper, roof and
+underside of each moving body can hit the terrain, a buckled road or loose pieces.
+Keep level beams and cables above the deck high enough to clear the vehicle.
+Diagonal and upright side braces run alongside the traffic lane.
 
-Once a wheel loses the road, the vehicle stops being scripted: each body (the car, the
-truck, the locomotive and each wagon) becomes a rigid shape, its outline traced from
-its sprite and lined with contact points every 30 cm, plus its two wheels, held rigid
-by shape matching, with the train's couplings between them. The whole body collides,
-not just the wheels: its outline with the terrain and the members, and any joint,
-snapped piece or other body that gets inside it is pushed back out. While driving, the
-wheels turn with the distance travelled. A member that snaps splits into two halves that stay
+When a wheel loses the road or the vehicle strikes an obstruction, each body (the car,
+the truck, the locomotive and each wagon) becomes a rigid shape. The solver uses
+the same sprite outline and tyre sizes as the moving vehicle, puts contact points
+every 30 cm around the body and keeps the carriages coupled. Each body collides
+with the terrain and bridge members, and pushes out any joint, snapped piece or
+other body that gets inside its outline. Each wheel turns according to its own travel
+along the surface and coasts when airborne. A member that snaps splits into two halves that stay
 pinned to their own joints, so they dangle and swing. Fallen vehicles, loose joints and
 snapped pieces collide with the terrain (along its slope, with friction) and with every
 member they touch, and both sides of a contact move by their mass, so a truck landing
@@ -65,8 +69,9 @@ that holds behaves exactly as it did before.
 
 [`js/mission.js`](js/mission.js) builds a river from the seed in the URL
 (`#medium-abc123`): span, vehicle, bank faces and slopes, water level, and
-sometimes a rock pier or a low island. Slopes, rocks and the river bed get natural
-roughness from a few sine waves, faded out at the cliff tops and the bolts. It then designs bridges from the classic
+sometimes a rock pier or a low island. The paved approaches undulate between the
+bolts. Rounded slopes and seeded ripples shape the banks, rocks and riverbed. The
+renderer and the simulation use the same ground heights. The solver designs bridges from the classic
 families (deck truss, through truss, deep truss, arch on the cliff bolts, beam on piers,
 cable-stayed), each with random proportions and one of the Pratt, Howe, Warren or X
 patterns. Each design runs in the same simulation; members above 85% of their strength
@@ -85,28 +90,37 @@ it. Players can still try one.
 
 ## Looks
 
-Bridger is hand-painted, high-resolution 2D art. Backdrops are 3840 px wide (4K) and
-simply stretch on bigger screens; the game draws at the screen's full pixel density.
+Each river's seed selects one of thirteen gouache landscapes. Valley, Mesa, Snow,
+Night, Forest, Sandstone, Night desert and Night city each have a new panorama and
+painted terrain. Five more landscapes are available:
 
-Each river gets one of eight worlds from its seed: Valley, Mesa, Snow, Night, Forest,
-Sandstone, Night desert or Night city. `?theme=` previews one on any river. The
-backdrops, rock textures and vehicle sprites in [`assets/`](assets/CREDITS.md) were
-generated for the game. All scenery stays in cool, muted blues and violets, so the
-green-to-red stress colours, the materials and the vehicles always stand out.
-[`js/scenery.js`](js/scenery.js) fills the physics ground line with the rock texture and
-draws the river, which fills the gorge, darkens with depth and reflects the bridge.
-The sky stays alive: drifting clouds and passing birds by day, twinkling stars,
-shooting stars and a passing plane by night, and snow falling in the Snow world. It
-all stops when the system asks for reduced motion.
+| World | Preview on the same river |
+| --- | --- |
+| Desert | [Sunlit mesas and cacti](index.html?theme=desert#easy-browsercheck) |
+| Meadow | [Rolling wildflower fields](index.html?theme=meadow#easy-browsercheck) |
+| Tropical Island | [Palm-lined coast](index.html?theme=tropical-island#easy-browsercheck) |
+| Jungle | [Tropical canopy](index.html?theme=jungle#easy-browsercheck) |
+| Canadian Forest with a Lake | [Boreal lakeshore](index.html?theme=canadian-forest#easy-browsercheck) |
+
+River mist drifts between the banks. Hawks circle the valley, leaves fall in
+the forests, snow blows across the glacier and a plane crosses the city skyline.
+Dust devils turn over the desert floor,
+butterflies flutter above the meadow and fireflies blink in the jungle. Other
+worlds have clouds, flocks, stars and meteors. The scenery and water animations
+respect the system's reduced-motion setting.
 
 ## Sound
 
-[`js/sound.js`](js/sound.js) synthesises everything, so there is nothing to download.
-Placing wood or steel is a modal strike (a few inharmonic partials ringing down, like
-a knocked plank or a struck girder), a cable twangs taut, and breaks splinter, bang or
-whip by material. The engine is two detuned saws and a sub through a lowpass with road
-or rail noise, and a train chugs. A bridge near its limit creaks, a wreck thuds when it
-lands, and everything goes through a small room reverb.
+[`js/sound.js`](js/sound.js) uses Web Audio to synthesize the sounds locally.
+Wood takes a short double knock, steel rings after the bolt seats, and a cable
+twangs as it pulls taut. Longer members have a lower pitch. A straining joint
+creaks before it gives way. The car and diesel truck change engine tone on a
+slope, the locomotive chuffs, and each axle sounds as it rolls onto a new deck
+piece. The vehicle moves across the stereo field, with a short echo from each bank.
+
+Each world has its own field recording. The first sound gesture loads that world's
+MP3, and mute or a hidden tab pauses the ambience. The [recording credits](assets/ambience/CREDITS.md)
+list the recordists, sources and license.
 
 ## Checks
 
