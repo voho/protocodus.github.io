@@ -40,6 +40,14 @@ for (const relative of [...products.map(product => `product/${product}/index.htm
   const page = browser(href, undefined, { setup: dom => parseBody(html, dom) });
   const main = page.document.querySelector('main');
   assert.ok(main, `${relative}: the public page has main content`);
+  if (relative === 'index.html' || relative === 'fun/index.html') {
+    for (const slug of ['keyra', 'oregana']) {
+      const tile = main.querySelector(`[data-analytics-cta="instrument_${slug}"]`);
+      const preview = tile?.querySelector('img.game-shot')?.getAttribute('src');
+      assert.ok(preview, `${relative}: ${slug} Fun card has a preview`);
+      assert.equal(new URL(preview, href).pathname, `/fun/${slug}/${slug}-card.webp`, `${relative}: ${slug} Fun card shows the player`);
+    }
+  }
   if (relative === 'index.html') {
     for (const slug of ['keyra', 'oregana']) {
       const card = main.querySelector(`.product-card.p-${slug}`);
