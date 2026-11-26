@@ -22127,6 +22127,355 @@ function asmFunc(imports) {
   return 117544;
  }
 
+ function renderSympatheticStrings($6_1, $59_1, $13_1, $0_1) {
+  var $1_1 = 0, $2_1 = 0, $3_1 = 0, $4_1 = 0, $5_1 = 0, $7_1 = 0, $8_1 = 0, $10_1 = 0, $11_1 = 0.0, $12_1 = 0, $14_1 = Math_fround(0), $16_1 = 0, $17_1 = 0, $21_1 = Math_fround(0), $22_1 = 0, $23_1 = 0, $24_1 = 0, $26_1 = 0, $28_1 = Math_fround(0), $29_1 = Math_fround(0), $30_1 = 0.0, $31_1 = Math_fround(0), $32_1 = 0.0, $33_1 = Math_fround(0), $35_1 = 0, $36_1 = Math_fround(0), $38_1 = 0.0, $43_1 = Math_fround(0), $44_1 = Math_fround(0), $45_1 = Math_fround(0), $53_1 = 0, $54_1 = 0, $55_1 = 0, $56_1 = 0, $58_1 = Math_fround(0), $60_1 = 0, $64_1 = Math_fround(0), $68_1 = 0, $71_1 = Math_fround(0), $72_1 = Math_fround(0), $73_1 = Math_fround(0), $74_1 = 0, $76_1 = Math_fround(0), $82_1 = 0, $83_1 = Math_fround(0), $87_1 = Math_fround(0), $88_1 = Math_fround(0), $89_1 = Math_fround(0), $90_1 = Math_fround(0), $91_1 = Math_fround(0), $92_1 = Math_fround(0), $93_1 = Math_fround(0), $94_1 = Math_fround(0), $95_1 = Math_fround(0), $96_1 = Math_fround(0), $97_1 = Math_fround(0), $98_1 = Math_fround(0), $99_1 = Math_fround(0), $100_1 = 0, $101_1 = 0, $102_1 = 0, $103_1 = Math_fround(0), $104_1 = 0, $105 = Math_fround(0), $106 = Math_fround(0), $107 = Math_fround(0), $108 = Math_fround(0), $109 = Math_fround(0), $110 = Math_fround(0), $111 = Math_fround(0), $112 = Math_fround(0), $113 = Math_fround(0), $114 = Math_fround(0), $115 = Math_fround(0), $116 = Math_fround(0), $117 = Math_fround(0), $118 = Math_fround(0), $119 = Math_fround(0), $120 = Math_fround(0), $121 = Math_fround(0), $122 = Math_fround(0), $123 = Math_fround(0), $124 = Math_fround(0), $125 = Math_fround(0), $126 = Math_fround(0), $127 = Math_fround(0), $128 = Math_fround(0), $129 = Math_fround(0), $130 = Math_fround(0), $131 = Math_fround(0), $132 = Math_fround(0), $133 = Math_fround(0), $134 = Math_fround(0), $135 = Math_fround(0), $136 = Math_fround(0), $137 = Math_fround(0), $138 = Math_fround(0), $139 = Math_fround(0), $140 = Math_fround(0), $141 = Math_fround(0), $146 = Math_fround(0), $147 = Math_fround(0), $148 = Math_fround(0), $149 = Math_fround(0), $150 = Math_fround(0), $151 = Math_fround(0), $152 = Math_fround(0), $153 = Math_fround(0), $154 = Math_fround(0), $155 = Math_fround(0), $156 = Math_fround(0), $157 = Math_fround(0), $158 = Math_fround(0), $159 = Math_fround(0), $160 = Math_fround(0), $161 = Math_fround(0), $162 = Math_fround(0), $163 = Math_fround(0), $164 = Math_fround(0), $165 = Math_fround(0), $166 = Math_fround(0), $167 = Math_fround(0), $168 = Math_fround(0), $169 = Math_fround(0), $170 = Math_fround(0), $171 = Math_fround(0), $172 = Math_fround(0), $173 = Math_fround(0), $174 = Math_fround(0), $175 = Math_fround(0), $176 = Math_fround(0), $177 = Math_fround(0), $178 = Math_fround(0), $179 = Math_fround(0), $180 = Math_fround(0), $181 = Math_fround(0), $182 = Math_fround(0);
+  $53_1 = $6_1 + 2270048 | 0;
+  $60_1 = $6_1 + 2271420 | 0;
+  $54_1 = $6_1 + 2271068 | 0;
+  $23_1 = $6_1 + 2268552 | 0;
+  $74_1 = $6_1 + 2264328 | 0;
+  $100_1 = $6_1 + 2251656 | 0;
+  $68_1 = $6_1 + 2234760 | 0;
+  $101_1 = $6_1 + 2230536 | 0;
+  $82_1 = $6_1 + 2269256 | 0;
+  $102_1 = $6_1 + 2269960 | 0;
+  $56_1 = $6_1 + 2247432 | 0;
+  $55_1 = $6_1 + 2268904 | 0;
+  $12_1 = 0;
+  $16_1 = $6_1;
+  $1_1 = $6_1;
+  while (1) {
+   $35_1 = $12_1 << 2;
+   $83_1 = HEAPF32[$35_1 + $55_1 >> 2];
+   $26_1 = Math_imul($12_1, 48);
+   $22_1 = $56_1 + $26_1 | 0;
+   label$267 : {
+    label$268 : {
+     if (HEAPF32[$22_1 + 40 >> 2] != Math_fround(0.0)) {
+      break label$268
+     }
+     if ($83_1 < Math_fround(1.0)) {
+      break label$268
+     }
+     if (HEAPF32[$22_1 + 44 >> 2] != Math_fround(0.0)) {
+      break label$268
+     }
+     if (HEAPU8[$12_1 + $102_1 | 0] != 1) {
+      break label$267
+     }
+    }
+    $8_1 = $35_1 + $82_1 | 0;
+    if ($83_1 != HEAPF32[$8_1 >> 2]) {
+     $3_1 = 0;
+     $5_1 = 0;
+     while (1) {
+      $4_1 = $1_1 + $3_1 | 0;
+      $14_1 = HEAPF32[$4_1 + 2255880 >> 2];
+      if ($5_1 >>> 0 <= 9) {
+       $14_1 = Math_fround($14_1 + Math_fround($83_1 * Math_fround(HEAPF32[$4_1 + 2260104 >> 2] - $14_1)))
+      }
+      HEAPF32[$4_1 + 2230536 >> 2] = $14_1 * HEAPF32[$4_1 + 2238984 >> 2];
+      HEAPF32[$4_1 + 2234760 >> 2] = $14_1 * HEAPF32[$4_1 + 2243208 >> 2];
+      $5_1 = $5_1 + 1 | 0;
+      $3_1 = $3_1 + 4 | 0;
+      if (($3_1 | 0) != 48) {
+       continue
+      }
+      break;
+     };
+     $32_1 = 0.0;
+     $3_1 = 0;
+     while (1) {
+      $4_1 = $1_1 + $3_1 | 0;
+      $11_1 = +HEAPF32[$4_1 + 2234760 >> 2];
+      $38_1 = $11_1 * +Math_fround(HEAPF32[$4_1 + 2251656 >> 2] * HEAPF32[$4_1 + 2264328 >> 2]);
+      $30_1 = +Math_fround(Math_fround(1.0) - HEAPF32[$4_1 + 2230536 >> 2]);
+      $11_1 = $30_1 * $30_1 + $11_1 * $11_1;
+      $32_1 = $32_1 + $38_1 / ($11_1 > 1.0e-30 ? $11_1 : 1.0e-30);
+      $3_1 = $3_1 + 4 | 0;
+      if (($3_1 | 0) != 40) {
+       continue
+      }
+      break;
+     };
+     HEAPF32[$8_1 >> 2] = $83_1;
+     HEAPF32[$23_1 + $35_1 >> 2] = $32_1;
+    }
+    $17_1 = $26_1 + $74_1 | 0;
+    $10_1 = $26_1 + $68_1 | 0;
+    $103_1 = HEAPF32[$35_1 + $60_1 >> 2];
+    $8_1 = HEAP32[$35_1 + $54_1 >> 2];
+    $24_1 = HEAPU8[(Math_imul($12_1, 17528) + $59_1 | 0) + 3632 | 0];
+    $4_1 = 0;
+    while (1) {
+     $3_1 = $4_1 + $1_1 | 0;
+     $2_1 = $3_1 + 2222096 | 0;
+     $104_1 = HEAP32[$2_1 >> 2];
+     $7_1 = HEAP32[$2_1 + 4 >> 2];
+     $5_1 = $4_1 + ($13_1 + 16 | 0) | 0;
+     $2_1 = $5_1 + 8 | 0;
+     HEAP32[$2_1 >> 2] = $104_1;
+     HEAP32[$2_1 + 4 >> 2] = $7_1;
+     $2_1 = $3_1 + 2222088 | 0;
+     $7_1 = HEAP32[$2_1 >> 2];
+     $2_1 = HEAP32[$2_1 + 4 >> 2];
+     HEAP32[$5_1 >> 2] = $7_1;
+     HEAP32[$5_1 + 4 >> 2] = $2_1;
+     $2_1 = $3_1 + 2226320 | 0;
+     $104_1 = HEAP32[$2_1 >> 2];
+     $7_1 = HEAP32[$2_1 + 4 >> 2];
+     $5_1 = $4_1 + ($13_1 + 144 | 0) | 0;
+     $2_1 = $5_1 + 8 | 0;
+     HEAP32[$2_1 >> 2] = $104_1;
+     HEAP32[$2_1 + 4 >> 2] = $7_1;
+     $2_1 = $3_1 + 2226312 | 0;
+     $7_1 = HEAP32[$2_1 >> 2];
+     $2_1 = HEAP32[$2_1 + 4 >> 2];
+     HEAP32[$5_1 >> 2] = $7_1;
+     HEAP32[$5_1 + 4 >> 2] = $2_1;
+     $4_1 = $4_1 + 16 | 0;
+     if (($4_1 | 0) != 48) {
+      continue
+     }
+     break;
+    };
+    label$274 : {
+     if (($0_1 | 0) <= 0) {
+      $87_1 = Math_fround(0.0);
+      break label$274;
+     }
+     $115 = Math_fround(Math_fround(1.0) - $103_1);
+     $146 = HEAPF32[$23_1 + $35_1 >> 2];
+     $4_1 = $8_1 << 7;
+     $8_1 = $4_1 + ($13_1 + 4e3 | 0) | 0;
+     $2_1 = $4_1 + ($13_1 + 192 | 0) | 0;
+     $4_1 = $26_1 + $100_1 | 0;
+     $147 = HEAPF32[$4_1 + 44 >> 2];
+     $148 = HEAPF32[$4_1 + 40 >> 2];
+     $149 = HEAPF32[$4_1 + 36 >> 2];
+     $150 = HEAPF32[$4_1 + 32 >> 2];
+     $151 = HEAPF32[$22_1 + 44 >> 2];
+     $152 = HEAPF32[$22_1 + 40 >> 2];
+     $153 = HEAPF32[$22_1 + 36 >> 2];
+     $154 = HEAPF32[$22_1 + 32 >> 2];
+     $3_1 = $26_1 + $101_1 | 0;
+     $116 = HEAPF32[$3_1 + 44 >> 2];
+     $117 = HEAPF32[$3_1 + 40 >> 2];
+     $118 = HEAPF32[$3_1 + 36 >> 2];
+     $119 = HEAPF32[$3_1 + 32 >> 2];
+     $155 = HEAPF32[$4_1 + 28 >> 2];
+     $156 = HEAPF32[$4_1 + 24 >> 2];
+     $157 = HEAPF32[$4_1 + 20 >> 2];
+     $158 = HEAPF32[$4_1 + 16 >> 2];
+     $159 = HEAPF32[$22_1 + 28 >> 2];
+     $160 = HEAPF32[$22_1 + 24 >> 2];
+     $161 = HEAPF32[$22_1 + 20 >> 2];
+     $162 = HEAPF32[$22_1 + 16 >> 2];
+     $120 = HEAPF32[$3_1 + 28 >> 2];
+     $121 = HEAPF32[$3_1 + 24 >> 2];
+     $122 = HEAPF32[$3_1 + 20 >> 2];
+     $123 = HEAPF32[$3_1 + 16 >> 2];
+     $163 = HEAPF32[$4_1 + 12 >> 2];
+     $164 = HEAPF32[$4_1 + 8 >> 2];
+     $165 = HEAPF32[$4_1 + 4 >> 2];
+     $166 = HEAPF32[$4_1 >> 2];
+     $167 = HEAPF32[$22_1 + 12 >> 2];
+     $168 = HEAPF32[$22_1 + 8 >> 2];
+     $169 = HEAPF32[$22_1 + 4 >> 2];
+     $170 = HEAPF32[$22_1 >> 2];
+     $124 = HEAPF32[$3_1 + 12 >> 2];
+     $125 = HEAPF32[$3_1 + 8 >> 2];
+     $126 = HEAPF32[$3_1 + 4 >> 2];
+     $127 = HEAPF32[$3_1 >> 2];
+     $171 = HEAPF32[$17_1 + 44 >> 2];
+     $172 = HEAPF32[$17_1 + 40 >> 2];
+     $173 = HEAPF32[$17_1 + 36 >> 2];
+     $174 = HEAPF32[$17_1 + 32 >> 2];
+     $128 = HEAPF32[$10_1 + 44 >> 2];
+     $129 = HEAPF32[$10_1 + 40 >> 2];
+     $130 = HEAPF32[$10_1 + 36 >> 2];
+     $131 = HEAPF32[$10_1 + 32 >> 2];
+     $175 = HEAPF32[$17_1 + 28 >> 2];
+     $176 = HEAPF32[$17_1 + 24 >> 2];
+     $177 = HEAPF32[$17_1 + 20 >> 2];
+     $178 = HEAPF32[$17_1 + 16 >> 2];
+     $132 = HEAPF32[$10_1 + 28 >> 2];
+     $133 = HEAPF32[$10_1 + 24 >> 2];
+     $134 = HEAPF32[$10_1 + 20 >> 2];
+     $135 = HEAPF32[$10_1 + 16 >> 2];
+     $179 = HEAPF32[$17_1 + 12 >> 2];
+     $180 = HEAPF32[$17_1 + 8 >> 2];
+     $181 = HEAPF32[$17_1 + 4 >> 2];
+     $182 = HEAPF32[$17_1 >> 2];
+     $136 = HEAPF32[$10_1 + 12 >> 2];
+     $137 = HEAPF32[$10_1 + 8 >> 2];
+     $138 = HEAPF32[$10_1 + 4 >> 2];
+     $139 = HEAPF32[$10_1 >> 2];
+     $87_1 = Math_fround(0.0);
+     $4_1 = 0;
+     $105 = HEAPF32[$13_1 + 188 >> 2];
+     $106 = HEAPF32[$13_1 + 184 >> 2];
+     $107 = HEAPF32[$13_1 + 180 >> 2];
+     $108 = HEAPF32[$13_1 + 176 >> 2];
+     $58_1 = HEAPF32[$13_1 + 60 >> 2];
+     $76_1 = HEAPF32[$13_1 + 56 >> 2];
+     $88_1 = HEAPF32[$13_1 + 52 >> 2];
+     $89_1 = HEAPF32[$13_1 + 48 >> 2];
+     $109 = HEAPF32[$13_1 + 172 >> 2];
+     $110 = HEAPF32[$13_1 + 168 >> 2];
+     $111 = HEAPF32[$13_1 + 164 >> 2];
+     $112 = HEAPF32[$13_1 + 160 >> 2];
+     $90_1 = HEAPF32[$13_1 + 44 >> 2];
+     $91_1 = HEAPF32[$13_1 + 40 >> 2];
+     $92_1 = HEAPF32[$13_1 + 36 >> 2];
+     $93_1 = HEAPF32[$13_1 + 32 >> 2];
+     $113 = HEAPF32[$13_1 + 156 >> 2];
+     $114 = HEAPF32[$13_1 + 152 >> 2];
+     $94_1 = HEAPF32[$13_1 + 148 >> 2];
+     $95_1 = HEAPF32[$13_1 + 144 >> 2];
+     $96_1 = HEAPF32[$13_1 + 28 >> 2];
+     $97_1 = HEAPF32[$13_1 + 24 >> 2];
+     $98_1 = HEAPF32[$13_1 + 20 >> 2];
+     $99_1 = HEAPF32[$13_1 + 16 >> 2];
+     $22_1 = $24_1 & 1;
+     $5_1 = $0_1;
+     while (1) {
+      $3_1 = $4_1 + $2_1 | 0;
+      $31_1 = Math_fround(Math_fround($115 * HEAPF32[$3_1 >> 2]) + Math_fround($103_1 * HEAPF32[$3_1 + 128 >> 2]));
+      $36_1 = Math_fround(0.0);
+      $14_1 = Math_fround(0.0);
+      if ($83_1 < Math_fround(1.0)) {
+       $36_1 = $31_1;
+       $14_1 = HEAPF32[$4_1 + ($13_1 + 1216 | 0) >> 2];
+       if ($22_1) {
+        $3_1 = $4_1 + $16_1 | 0;
+        $36_1 = Math_fround($31_1 - HEAPF32[$3_1 + 2271928 >> 2]);
+        $29_1 = HEAPF32[$3_1 + 2272056 >> 2];
+       } else {
+        $29_1 = Math_fround(0.0)
+       }
+       $14_1 = Math_fround($14_1 - $29_1);
+      }
+      $3_1 = $4_1 + $8_1 | 0;
+      $140 = Math_fround(Math_fround($139 * $99_1) + Math_fround($127 * $95_1));
+      $141 = Math_fround(Math_fround($138 * $98_1) + Math_fround($126 * $94_1));
+      $21_1 = Math_fround(Math_fround($137 * $97_1) + Math_fround($125 * $114));
+      $33_1 = Math_fround(Math_fround($136 * $96_1) + Math_fround($124 * $113));
+      $45_1 = Math_fround(Math_fround($135 * $93_1) + Math_fround($123 * $112));
+      $71_1 = Math_fround(Math_fround($134 * $92_1) + Math_fround($122 * $111));
+      $72_1 = Math_fround(Math_fround($133 * $91_1) + Math_fround($121 * $110));
+      $28_1 = Math_fround(Math_fround($132 * $90_1) + Math_fround($120 * $109));
+      $29_1 = Math_fround(Math_fround($131 * $89_1) + Math_fround($119 * $108));
+      $64_1 = Math_fround(Math_fround($130 * $88_1) + Math_fround($118 * $107));
+      $73_1 = Math_fround(Math_fround($129 * $76_1) + Math_fround($117 * $106));
+      $43_1 = Math_fround(Math_fround($128 * $58_1) + Math_fround($116 * $105));
+      $44_1 = Math_fround(Math_fround(Math_fround(Math_fround(Math_fround(Math_fround(Math_fround($140 * $166) + Math_fround(0.0)) + Math_fround(Math_fround($141 * $165) + Math_fround(0.0))) + Math_fround(Math_fround(Math_fround($21_1 * $164) + Math_fround(0.0)) + Math_fround(Math_fround($33_1 * $163) + Math_fround(0.0)))) + Math_fround(Math_fround(Math_fround(Math_fround($45_1 * $158) + Math_fround(0.0)) + Math_fround(Math_fround($71_1 * $157) + Math_fround(0.0))) + Math_fround(Math_fround(Math_fround($72_1 * $156) + Math_fround(0.0)) + Math_fround(Math_fround($28_1 * $155) + Math_fround(0.0))))) + Math_fround(Math_fround(Math_fround(Math_fround(Math_fround($29_1 * $150) + Math_fround(0.0)) + Math_fround($64_1 * $149)) + Math_fround($73_1 * $148)) + Math_fround($43_1 * $147))) - Math_fround($146 * $14_1));
+      HEAPF32[$3_1 >> 2] = HEAPF32[$3_1 >> 2] + Math_fround($115 * $44_1);
+      $3_1 = $3_1 + 128 | 0;
+      HEAPF32[$3_1 >> 2] = HEAPF32[$3_1 >> 2] + Math_fround($103_1 * $44_1);
+      $87_1 = Math_fround($87_1 + Math_fround($44_1 * $44_1));
+      $58_1 = Math_fround(Math_fround(Math_fround(Math_fround($116 * $58_1) - Math_fround($128 * $105)) + Math_fround($151 * $31_1)) + Math_fround($14_1 * $171));
+      $76_1 = Math_fround(Math_fround(Math_fround(Math_fround($117 * $76_1) - Math_fround($129 * $106)) + Math_fround($152 * $31_1)) + Math_fround($14_1 * $172));
+      $88_1 = Math_fround(Math_fround(Math_fround(Math_fround($118 * $88_1) - Math_fround($130 * $107)) + Math_fround($153 * $36_1)) + Math_fround($14_1 * $173));
+      $89_1 = Math_fround(Math_fround(Math_fround(Math_fround($119 * $89_1) - Math_fround($131 * $108)) + Math_fround($154 * $36_1)) + Math_fround($14_1 * $174));
+      $90_1 = Math_fround(Math_fround(Math_fround(Math_fround($120 * $90_1) - Math_fround($132 * $109)) + Math_fround($159 * $36_1)) + Math_fround($14_1 * $175));
+      $91_1 = Math_fround(Math_fround(Math_fround(Math_fround($121 * $91_1) - Math_fround($133 * $110)) + Math_fround($160 * $36_1)) + Math_fround($14_1 * $176));
+      $92_1 = Math_fround(Math_fround(Math_fround(Math_fround($122 * $92_1) - Math_fround($134 * $111)) + Math_fround($161 * $36_1)) + Math_fround($14_1 * $177));
+      $93_1 = Math_fround(Math_fround(Math_fround(Math_fround($123 * $93_1) - Math_fround($135 * $112)) + Math_fround($162 * $36_1)) + Math_fround($14_1 * $178));
+      $96_1 = Math_fround(Math_fround(Math_fround(Math_fround($124 * $96_1) - Math_fround($136 * $113)) + Math_fround($167 * $36_1)) + Math_fround($14_1 * $179));
+      $97_1 = Math_fround(Math_fround(Math_fround(Math_fround($125 * $97_1) - Math_fround($137 * $114)) + Math_fround($168 * $36_1)) + Math_fround($14_1 * $180));
+      $98_1 = Math_fround(Math_fround(Math_fround(Math_fround($126 * $98_1) - Math_fround($138 * $94_1)) + Math_fround($169 * $36_1)) + Math_fround($14_1 * $181));
+      $99_1 = Math_fround(Math_fround(Math_fround(Math_fround($127 * $99_1) - Math_fround($139 * $95_1)) + Math_fround($170 * $36_1)) + Math_fround($14_1 * $182));
+      $4_1 = $4_1 + 4 | 0;
+      $105 = $43_1;
+      $106 = $73_1;
+      $107 = $64_1;
+      $108 = $29_1;
+      $109 = $28_1;
+      $110 = $72_1;
+      $111 = $71_1;
+      $112 = $45_1;
+      $113 = $33_1;
+      $114 = $21_1;
+      $94_1 = $141;
+      $95_1 = $140;
+      $5_1 = $5_1 - 1 | 0;
+      if ($5_1) {
+       continue
+      }
+      break;
+     };
+     HEAPF32[$13_1 + 28 >> 2] = $96_1;
+     HEAPF32[$13_1 + 24 >> 2] = $97_1;
+     HEAPF32[$13_1 + 20 >> 2] = $98_1;
+     HEAPF32[$13_1 + 16 >> 2] = $99_1;
+     HEAPF32[$13_1 + 156 >> 2] = $33_1;
+     HEAPF32[$13_1 + 152 >> 2] = $21_1;
+     HEAPF32[$13_1 + 148 >> 2] = $94_1;
+     HEAPF32[$13_1 + 144 >> 2] = $95_1;
+     HEAPF32[$13_1 + 44 >> 2] = $90_1;
+     HEAPF32[$13_1 + 40 >> 2] = $91_1;
+     HEAPF32[$13_1 + 36 >> 2] = $92_1;
+     HEAPF32[$13_1 + 32 >> 2] = $93_1;
+     HEAPF32[$13_1 + 172 >> 2] = $28_1;
+     HEAPF32[$13_1 + 168 >> 2] = $72_1;
+     HEAPF32[$13_1 + 164 >> 2] = $71_1;
+     HEAPF32[$13_1 + 160 >> 2] = $45_1;
+     HEAPF32[$13_1 + 60 >> 2] = $58_1;
+     HEAPF32[$13_1 + 56 >> 2] = $76_1;
+     HEAPF32[$13_1 + 52 >> 2] = $88_1;
+     HEAPF32[$13_1 + 48 >> 2] = $89_1;
+     HEAPF32[$13_1 + 188 >> 2] = $43_1;
+     HEAPF32[$13_1 + 184 >> 2] = $73_1;
+     HEAPF32[$13_1 + 180 >> 2] = $64_1;
+     HEAPF32[$13_1 + 176 >> 2] = $29_1;
+    }
+    $4_1 = 0;
+    while (1) {
+     $5_1 = $4_1 + ($13_1 + 16 | 0) | 0;
+     $8_1 = HEAP32[$5_1 >> 2];
+     $7_1 = HEAP32[$5_1 + 4 >> 2];
+     $3_1 = $4_1 + $1_1 | 0;
+     $2_1 = $3_1 + 2222088 | 0;
+     HEAP32[$2_1 >> 2] = $8_1;
+     HEAP32[$2_1 + 4 >> 2] = $7_1;
+     $8_1 = $4_1 + ($13_1 + 144 | 0) | 0;
+     $10_1 = HEAP32[$8_1 >> 2];
+     $2_1 = HEAP32[$8_1 + 4 >> 2];
+     $7_1 = $3_1 + 2226312 | 0;
+     HEAP32[$7_1 >> 2] = $10_1;
+     HEAP32[$7_1 + 4 >> 2] = $2_1;
+     $2_1 = $5_1 + 8 | 0;
+     $5_1 = HEAP32[$2_1 >> 2];
+     $7_1 = HEAP32[$2_1 + 4 >> 2];
+     $2_1 = $3_1 + 2222096 | 0;
+     HEAP32[$2_1 >> 2] = $5_1;
+     HEAP32[$2_1 + 4 >> 2] = $7_1;
+     $2_1 = $8_1 + 8 | 0;
+     $5_1 = HEAP32[$2_1 >> 2];
+     $2_1 = HEAP32[$2_1 + 4 >> 2];
+     $7_1 = $3_1 + 2226320 | 0;
+     HEAP32[$7_1 >> 2] = $5_1;
+     HEAP32[$7_1 + 4 >> 2] = $2_1;
+     $4_1 = $4_1 + 16 | 0;
+     if (($4_1 | 0) != 48) {
+      continue
+     }
+     break;
+    };
+    $4_1 = $35_1 + $53_1 | 0;
+    HEAPF32[$4_1 >> 2] = $87_1 + HEAPF32[$4_1 >> 2];
+   }
+   $16_1 = $16_1 + 328 | 0;
+   $1_1 = $1_1 + 48 | 0;
+   $12_1 = $12_1 + 1 | 0;
+   if (($12_1 | 0) != 88) {
+    continue
+   }
+   break;
+  };
+ }
+
  function $59($0_1) {
   $0_1 = $0_1 | 0;
   var $1_1 = 0, $2_1 = 0, $3_1 = 0, $4_1 = 0, $5_1 = 0, $6_1 = 0, $7_1 = 0, $8_1 = 0, $9_1 = 0, $10_1 = 0, $11_1 = 0.0, $12_1 = 0, $13_1 = 0, $14_1 = Math_fround(0), $15_1 = 0.0, $16_1 = 0, $17_1 = 0, $18_1 = 0, $19_1 = 0, $20_1 = 0, $21_1 = Math_fround(0), $22_1 = 0, $23_1 = 0, $24_1 = 0, $25_1 = 0.0, $26_1 = 0, $27_1 = 0.0, $28_1 = Math_fround(0), $29_1 = Math_fround(0), $30_1 = 0.0, $31_1 = Math_fround(0), $32_1 = 0.0, $33_1 = Math_fround(0), $34_1 = 0.0, $35_1 = 0, $36_1 = Math_fround(0), $37_1 = 0, $38_1 = 0.0, $39_1 = 0.0, $40_1 = 0.0, $41_1 = 0, $42_1 = 0.0, $43_1 = Math_fround(0), $44_1 = Math_fround(0), $45_1 = Math_fround(0), $46_1 = 0, $47_1 = 0, $48_1 = 0, $49_1 = 0, $50_1 = 0, $51_1 = 0, $52_1 = 0.0, $53_1 = 0, $54_1 = 0, $55_1 = 0, $56_1 = 0, $57_1 = 0.0, $58_1 = Math_fround(0), $59_1 = 0, $60_1 = 0, $61_1 = 0.0, $62_1 = 0.0, $63_1 = 0, $64_1 = Math_fround(0), $65_1 = 0.0, $66_1 = 0.0, $67_1 = 0, $68_1 = 0, $69_1 = 0.0, $70_1 = 0, $71_1 = Math_fround(0), $72_1 = Math_fround(0), $73_1 = Math_fround(0), $74_1 = 0, $75_1 = 0.0, $76_1 = Math_fround(0), $77_1 = 0, $78_1 = 0, $79_1 = 0, $80_1 = 0.0, $81_1 = 0.0, $82_1 = 0, $83_1 = Math_fround(0), $84_1 = 0, $85_1 = 0, $86_1 = 0, $87_1 = Math_fround(0), $88_1 = Math_fround(0), $89_1 = Math_fround(0), $90_1 = Math_fround(0), $91_1 = Math_fround(0), $92_1 = Math_fround(0), $93_1 = Math_fround(0), $94_1 = Math_fround(0), $95_1 = Math_fround(0), $96_1 = Math_fround(0), $97_1 = Math_fround(0), $98_1 = Math_fround(0), $99_1 = Math_fround(0), $100_1 = 0, $101_1 = 0, $102_1 = 0, $103_1 = Math_fround(0), $104_1 = 0, $105 = Math_fround(0), $106 = Math_fround(0), $107 = Math_fround(0), $108 = Math_fround(0), $109 = Math_fround(0), $110 = Math_fround(0), $111 = Math_fround(0), $112 = Math_fround(0), $113 = Math_fround(0), $114 = Math_fround(0), $115 = Math_fround(0), $116 = Math_fround(0), $117 = Math_fround(0), $118 = Math_fround(0), $119 = Math_fround(0), $120 = Math_fround(0), $121 = Math_fround(0), $122 = Math_fround(0), $123 = Math_fround(0), $124 = Math_fround(0), $125 = Math_fround(0), $126 = Math_fround(0), $127 = Math_fround(0), $128 = Math_fround(0), $129 = Math_fround(0), $130 = Math_fround(0), $131 = Math_fround(0), $132 = Math_fround(0), $133 = Math_fround(0), $134 = Math_fround(0), $135 = Math_fround(0), $136 = Math_fround(0), $137 = Math_fround(0), $138 = Math_fround(0), $139 = Math_fround(0), $140 = Math_fround(0), $141 = Math_fround(0), $142 = 0, $143 = 0, $144 = 0, $145 = 0, $146 = Math_fround(0), $147 = Math_fround(0), $148 = Math_fround(0), $149 = Math_fround(0), $150 = Math_fround(0), $151 = Math_fround(0), $152 = Math_fround(0), $153 = Math_fround(0), $154 = Math_fround(0), $155 = Math_fround(0), $156 = Math_fround(0), $157 = Math_fround(0), $158 = Math_fround(0), $159 = Math_fround(0), $160 = Math_fround(0), $161 = Math_fround(0), $162 = Math_fround(0), $163 = Math_fround(0), $164 = Math_fround(0), $165 = Math_fround(0), $166 = Math_fround(0), $167 = Math_fround(0), $168 = Math_fround(0), $169 = Math_fround(0), $170 = Math_fround(0), $171 = Math_fround(0), $172 = Math_fround(0), $173 = Math_fround(0), $174 = Math_fround(0), $175 = Math_fround(0), $176 = Math_fround(0), $177 = Math_fround(0), $178 = Math_fround(0), $179 = Math_fround(0), $180 = Math_fround(0), $181 = Math_fround(0), $182 = Math_fround(0), wasm2js_f64$0 = 0.0, wasm2js_f64$1 = 0.0, wasm2js_i32$0 = 0;
@@ -25095,351 +25444,7 @@ function asmFunc(imports) {
         }
         break;
        };
-       $53_1 = $6_1 + 2270048 | 0;
-       $60_1 = $6_1 + 2271420 | 0;
-       $54_1 = $6_1 + 2271068 | 0;
-       $23_1 = $6_1 + 2268552 | 0;
-       $74_1 = $6_1 + 2264328 | 0;
-       $100_1 = $6_1 + 2251656 | 0;
-       $68_1 = $6_1 + 2234760 | 0;
-       $101_1 = $6_1 + 2230536 | 0;
-       $82_1 = $6_1 + 2269256 | 0;
-       $102_1 = $6_1 + 2269960 | 0;
-       $56_1 = $6_1 + 2247432 | 0;
-       $55_1 = $6_1 + 2268904 | 0;
-       $12_1 = 0;
-       $16_1 = $6_1;
-       $1_1 = $6_1;
-       while (1) {
-        $35_1 = $12_1 << 2;
-        $83_1 = HEAPF32[$35_1 + $55_1 >> 2];
-        $26_1 = Math_imul($12_1, 48);
-        $22_1 = $56_1 + $26_1 | 0;
-        label$267 : {
-         label$268 : {
-          if (HEAPF32[$22_1 + 40 >> 2] != Math_fround(0.0)) {
-           break label$268
-          }
-          if ($83_1 < Math_fround(1.0)) {
-           break label$268
-          }
-          if (HEAPF32[$22_1 + 44 >> 2] != Math_fround(0.0)) {
-           break label$268
-          }
-          if (HEAPU8[$12_1 + $102_1 | 0] != 1) {
-           break label$267
-          }
-         }
-         $8_1 = $35_1 + $82_1 | 0;
-         if ($83_1 != HEAPF32[$8_1 >> 2]) {
-          $3_1 = 0;
-          $5_1 = 0;
-          while (1) {
-           $4_1 = $1_1 + $3_1 | 0;
-           $14_1 = HEAPF32[$4_1 + 2255880 >> 2];
-           if ($5_1 >>> 0 <= 9) {
-            $14_1 = Math_fround($14_1 + Math_fround($83_1 * Math_fround(HEAPF32[$4_1 + 2260104 >> 2] - $14_1)))
-           }
-           HEAPF32[$4_1 + 2230536 >> 2] = $14_1 * HEAPF32[$4_1 + 2238984 >> 2];
-           HEAPF32[$4_1 + 2234760 >> 2] = $14_1 * HEAPF32[$4_1 + 2243208 >> 2];
-           $5_1 = $5_1 + 1 | 0;
-           $3_1 = $3_1 + 4 | 0;
-           if (($3_1 | 0) != 48) {
-            continue
-           }
-           break;
-          };
-          $32_1 = 0.0;
-          $3_1 = 0;
-          while (1) {
-           $4_1 = $1_1 + $3_1 | 0;
-           $11_1 = +HEAPF32[$4_1 + 2234760 >> 2];
-           $38_1 = $11_1 * +Math_fround(HEAPF32[$4_1 + 2251656 >> 2] * HEAPF32[$4_1 + 2264328 >> 2]);
-           $30_1 = +Math_fround(Math_fround(1.0) - HEAPF32[$4_1 + 2230536 >> 2]);
-           $11_1 = $30_1 * $30_1 + $11_1 * $11_1;
-           $32_1 = $32_1 + $38_1 / ($11_1 > 1.0e-30 ? $11_1 : 1.0e-30);
-           $3_1 = $3_1 + 4 | 0;
-           if (($3_1 | 0) != 40) {
-            continue
-           }
-           break;
-          };
-          HEAPF32[$8_1 >> 2] = $83_1;
-          HEAPF32[$23_1 + $35_1 >> 2] = $32_1;
-         }
-         $17_1 = $26_1 + $74_1 | 0;
-         $10_1 = $26_1 + $68_1 | 0;
-         $103_1 = HEAPF32[$35_1 + $60_1 >> 2];
-         $8_1 = HEAP32[$35_1 + $54_1 >> 2];
-         $24_1 = HEAPU8[(Math_imul($12_1, 17528) + $59_1 | 0) + 3632 | 0];
-         $4_1 = 0;
-         while (1) {
-          $3_1 = $4_1 + $1_1 | 0;
-          $2_1 = $3_1 + 2222096 | 0;
-          $104_1 = HEAP32[$2_1 >> 2];
-          $7_1 = HEAP32[$2_1 + 4 >> 2];
-          $5_1 = $4_1 + ($13_1 + 16 | 0) | 0;
-          $2_1 = $5_1 + 8 | 0;
-          HEAP32[$2_1 >> 2] = $104_1;
-          HEAP32[$2_1 + 4 >> 2] = $7_1;
-          $2_1 = $3_1 + 2222088 | 0;
-          $7_1 = HEAP32[$2_1 >> 2];
-          $2_1 = HEAP32[$2_1 + 4 >> 2];
-          HEAP32[$5_1 >> 2] = $7_1;
-          HEAP32[$5_1 + 4 >> 2] = $2_1;
-          $2_1 = $3_1 + 2226320 | 0;
-          $104_1 = HEAP32[$2_1 >> 2];
-          $7_1 = HEAP32[$2_1 + 4 >> 2];
-          $5_1 = $4_1 + ($13_1 + 144 | 0) | 0;
-          $2_1 = $5_1 + 8 | 0;
-          HEAP32[$2_1 >> 2] = $104_1;
-          HEAP32[$2_1 + 4 >> 2] = $7_1;
-          $2_1 = $3_1 + 2226312 | 0;
-          $7_1 = HEAP32[$2_1 >> 2];
-          $2_1 = HEAP32[$2_1 + 4 >> 2];
-          HEAP32[$5_1 >> 2] = $7_1;
-          HEAP32[$5_1 + 4 >> 2] = $2_1;
-          $4_1 = $4_1 + 16 | 0;
-          if (($4_1 | 0) != 48) {
-           continue
-          }
-          break;
-         };
-         label$274 : {
-          if (($0_1 | 0) <= 0) {
-           $87_1 = Math_fround(0.0);
-           break label$274;
-          }
-          $115 = Math_fround(Math_fround(1.0) - $103_1);
-          $146 = HEAPF32[$23_1 + $35_1 >> 2];
-          $4_1 = $8_1 << 7;
-          $8_1 = $4_1 + ($13_1 + 4e3 | 0) | 0;
-          $2_1 = $4_1 + ($13_1 + 192 | 0) | 0;
-          $4_1 = $26_1 + $100_1 | 0;
-          $147 = HEAPF32[$4_1 + 44 >> 2];
-          $148 = HEAPF32[$4_1 + 40 >> 2];
-          $149 = HEAPF32[$4_1 + 36 >> 2];
-          $150 = HEAPF32[$4_1 + 32 >> 2];
-          $151 = HEAPF32[$22_1 + 44 >> 2];
-          $152 = HEAPF32[$22_1 + 40 >> 2];
-          $153 = HEAPF32[$22_1 + 36 >> 2];
-          $154 = HEAPF32[$22_1 + 32 >> 2];
-          $3_1 = $26_1 + $101_1 | 0;
-          $116 = HEAPF32[$3_1 + 44 >> 2];
-          $117 = HEAPF32[$3_1 + 40 >> 2];
-          $118 = HEAPF32[$3_1 + 36 >> 2];
-          $119 = HEAPF32[$3_1 + 32 >> 2];
-          $155 = HEAPF32[$4_1 + 28 >> 2];
-          $156 = HEAPF32[$4_1 + 24 >> 2];
-          $157 = HEAPF32[$4_1 + 20 >> 2];
-          $158 = HEAPF32[$4_1 + 16 >> 2];
-          $159 = HEAPF32[$22_1 + 28 >> 2];
-          $160 = HEAPF32[$22_1 + 24 >> 2];
-          $161 = HEAPF32[$22_1 + 20 >> 2];
-          $162 = HEAPF32[$22_1 + 16 >> 2];
-          $120 = HEAPF32[$3_1 + 28 >> 2];
-          $121 = HEAPF32[$3_1 + 24 >> 2];
-          $122 = HEAPF32[$3_1 + 20 >> 2];
-          $123 = HEAPF32[$3_1 + 16 >> 2];
-          $163 = HEAPF32[$4_1 + 12 >> 2];
-          $164 = HEAPF32[$4_1 + 8 >> 2];
-          $165 = HEAPF32[$4_1 + 4 >> 2];
-          $166 = HEAPF32[$4_1 >> 2];
-          $167 = HEAPF32[$22_1 + 12 >> 2];
-          $168 = HEAPF32[$22_1 + 8 >> 2];
-          $169 = HEAPF32[$22_1 + 4 >> 2];
-          $170 = HEAPF32[$22_1 >> 2];
-          $124 = HEAPF32[$3_1 + 12 >> 2];
-          $125 = HEAPF32[$3_1 + 8 >> 2];
-          $126 = HEAPF32[$3_1 + 4 >> 2];
-          $127 = HEAPF32[$3_1 >> 2];
-          $171 = HEAPF32[$17_1 + 44 >> 2];
-          $172 = HEAPF32[$17_1 + 40 >> 2];
-          $173 = HEAPF32[$17_1 + 36 >> 2];
-          $174 = HEAPF32[$17_1 + 32 >> 2];
-          $128 = HEAPF32[$10_1 + 44 >> 2];
-          $129 = HEAPF32[$10_1 + 40 >> 2];
-          $130 = HEAPF32[$10_1 + 36 >> 2];
-          $131 = HEAPF32[$10_1 + 32 >> 2];
-          $175 = HEAPF32[$17_1 + 28 >> 2];
-          $176 = HEAPF32[$17_1 + 24 >> 2];
-          $177 = HEAPF32[$17_1 + 20 >> 2];
-          $178 = HEAPF32[$17_1 + 16 >> 2];
-          $132 = HEAPF32[$10_1 + 28 >> 2];
-          $133 = HEAPF32[$10_1 + 24 >> 2];
-          $134 = HEAPF32[$10_1 + 20 >> 2];
-          $135 = HEAPF32[$10_1 + 16 >> 2];
-          $179 = HEAPF32[$17_1 + 12 >> 2];
-          $180 = HEAPF32[$17_1 + 8 >> 2];
-          $181 = HEAPF32[$17_1 + 4 >> 2];
-          $182 = HEAPF32[$17_1 >> 2];
-          $136 = HEAPF32[$10_1 + 12 >> 2];
-          $137 = HEAPF32[$10_1 + 8 >> 2];
-          $138 = HEAPF32[$10_1 + 4 >> 2];
-          $139 = HEAPF32[$10_1 >> 2];
-          $87_1 = Math_fround(0.0);
-          $4_1 = 0;
-          $105 = HEAPF32[$13_1 + 188 >> 2];
-          $106 = HEAPF32[$13_1 + 184 >> 2];
-          $107 = HEAPF32[$13_1 + 180 >> 2];
-          $108 = HEAPF32[$13_1 + 176 >> 2];
-          $58_1 = HEAPF32[$13_1 + 60 >> 2];
-          $76_1 = HEAPF32[$13_1 + 56 >> 2];
-          $88_1 = HEAPF32[$13_1 + 52 >> 2];
-          $89_1 = HEAPF32[$13_1 + 48 >> 2];
-          $109 = HEAPF32[$13_1 + 172 >> 2];
-          $110 = HEAPF32[$13_1 + 168 >> 2];
-          $111 = HEAPF32[$13_1 + 164 >> 2];
-          $112 = HEAPF32[$13_1 + 160 >> 2];
-          $90_1 = HEAPF32[$13_1 + 44 >> 2];
-          $91_1 = HEAPF32[$13_1 + 40 >> 2];
-          $92_1 = HEAPF32[$13_1 + 36 >> 2];
-          $93_1 = HEAPF32[$13_1 + 32 >> 2];
-          $113 = HEAPF32[$13_1 + 156 >> 2];
-          $114 = HEAPF32[$13_1 + 152 >> 2];
-          $94_1 = HEAPF32[$13_1 + 148 >> 2];
-          $95_1 = HEAPF32[$13_1 + 144 >> 2];
-          $96_1 = HEAPF32[$13_1 + 28 >> 2];
-          $97_1 = HEAPF32[$13_1 + 24 >> 2];
-          $98_1 = HEAPF32[$13_1 + 20 >> 2];
-          $99_1 = HEAPF32[$13_1 + 16 >> 2];
-          $22_1 = $24_1 & 1;
-          $5_1 = $0_1;
-          while (1) {
-           $3_1 = $4_1 + $2_1 | 0;
-           $31_1 = Math_fround(Math_fround($115 * HEAPF32[$3_1 >> 2]) + Math_fround($103_1 * HEAPF32[$3_1 + 128 >> 2]));
-           $36_1 = Math_fround(0.0);
-           $14_1 = Math_fround(0.0);
-           if ($83_1 < Math_fround(1.0)) {
-            $36_1 = $31_1;
-            $14_1 = HEAPF32[$4_1 + ($13_1 + 1216 | 0) >> 2];
-            if ($22_1) {
-             $3_1 = $4_1 + $16_1 | 0;
-             $36_1 = Math_fround($31_1 - HEAPF32[$3_1 + 2271928 >> 2]);
-             $29_1 = HEAPF32[$3_1 + 2272056 >> 2];
-            } else {
-             $29_1 = Math_fround(0.0)
-            }
-            $14_1 = Math_fround($14_1 - $29_1);
-           }
-           $3_1 = $4_1 + $8_1 | 0;
-           $140 = Math_fround(Math_fround($139 * $99_1) + Math_fround($127 * $95_1));
-           $141 = Math_fround(Math_fround($138 * $98_1) + Math_fround($126 * $94_1));
-           $21_1 = Math_fround(Math_fround($137 * $97_1) + Math_fround($125 * $114));
-           $33_1 = Math_fround(Math_fround($136 * $96_1) + Math_fround($124 * $113));
-           $45_1 = Math_fround(Math_fround($135 * $93_1) + Math_fround($123 * $112));
-           $71_1 = Math_fround(Math_fround($134 * $92_1) + Math_fround($122 * $111));
-           $72_1 = Math_fround(Math_fround($133 * $91_1) + Math_fround($121 * $110));
-           $28_1 = Math_fround(Math_fround($132 * $90_1) + Math_fround($120 * $109));
-           $29_1 = Math_fround(Math_fround($131 * $89_1) + Math_fround($119 * $108));
-           $64_1 = Math_fround(Math_fround($130 * $88_1) + Math_fround($118 * $107));
-           $73_1 = Math_fround(Math_fround($129 * $76_1) + Math_fround($117 * $106));
-           $43_1 = Math_fround(Math_fround($128 * $58_1) + Math_fround($116 * $105));
-           $44_1 = Math_fround(Math_fround(Math_fround(Math_fround(Math_fround(Math_fround(Math_fround($140 * $166) + Math_fround(0.0)) + Math_fround(Math_fround($141 * $165) + Math_fround(0.0))) + Math_fround(Math_fround(Math_fround($21_1 * $164) + Math_fround(0.0)) + Math_fround(Math_fround($33_1 * $163) + Math_fround(0.0)))) + Math_fround(Math_fround(Math_fround(Math_fround($45_1 * $158) + Math_fround(0.0)) + Math_fround(Math_fround($71_1 * $157) + Math_fround(0.0))) + Math_fround(Math_fround(Math_fround($72_1 * $156) + Math_fround(0.0)) + Math_fround(Math_fround($28_1 * $155) + Math_fround(0.0))))) + Math_fround(Math_fround(Math_fround(Math_fround(Math_fround($29_1 * $150) + Math_fround(0.0)) + Math_fround($64_1 * $149)) + Math_fround($73_1 * $148)) + Math_fround($43_1 * $147))) - Math_fround($146 * $14_1));
-           HEAPF32[$3_1 >> 2] = HEAPF32[$3_1 >> 2] + Math_fround($115 * $44_1);
-           $3_1 = $3_1 + 128 | 0;
-           HEAPF32[$3_1 >> 2] = HEAPF32[$3_1 >> 2] + Math_fround($103_1 * $44_1);
-           $87_1 = Math_fround($87_1 + Math_fround($44_1 * $44_1));
-           $58_1 = Math_fround(Math_fround(Math_fround(Math_fround($116 * $58_1) - Math_fround($128 * $105)) + Math_fround($151 * $31_1)) + Math_fround($14_1 * $171));
-           $76_1 = Math_fround(Math_fround(Math_fround(Math_fround($117 * $76_1) - Math_fround($129 * $106)) + Math_fround($152 * $31_1)) + Math_fround($14_1 * $172));
-           $88_1 = Math_fround(Math_fround(Math_fround(Math_fround($118 * $88_1) - Math_fround($130 * $107)) + Math_fround($153 * $36_1)) + Math_fround($14_1 * $173));
-           $89_1 = Math_fround(Math_fround(Math_fround(Math_fround($119 * $89_1) - Math_fround($131 * $108)) + Math_fround($154 * $36_1)) + Math_fround($14_1 * $174));
-           $90_1 = Math_fround(Math_fround(Math_fround(Math_fround($120 * $90_1) - Math_fround($132 * $109)) + Math_fround($159 * $36_1)) + Math_fround($14_1 * $175));
-           $91_1 = Math_fround(Math_fround(Math_fround(Math_fround($121 * $91_1) - Math_fround($133 * $110)) + Math_fround($160 * $36_1)) + Math_fround($14_1 * $176));
-           $92_1 = Math_fround(Math_fround(Math_fround(Math_fround($122 * $92_1) - Math_fround($134 * $111)) + Math_fround($161 * $36_1)) + Math_fround($14_1 * $177));
-           $93_1 = Math_fround(Math_fround(Math_fround(Math_fround($123 * $93_1) - Math_fround($135 * $112)) + Math_fround($162 * $36_1)) + Math_fround($14_1 * $178));
-           $96_1 = Math_fround(Math_fround(Math_fround(Math_fround($124 * $96_1) - Math_fround($136 * $113)) + Math_fround($167 * $36_1)) + Math_fround($14_1 * $179));
-           $97_1 = Math_fround(Math_fround(Math_fround(Math_fround($125 * $97_1) - Math_fround($137 * $114)) + Math_fround($168 * $36_1)) + Math_fround($14_1 * $180));
-           $98_1 = Math_fround(Math_fround(Math_fround(Math_fround($126 * $98_1) - Math_fround($138 * $94_1)) + Math_fround($169 * $36_1)) + Math_fround($14_1 * $181));
-           $99_1 = Math_fround(Math_fround(Math_fround(Math_fround($127 * $99_1) - Math_fround($139 * $95_1)) + Math_fround($170 * $36_1)) + Math_fround($14_1 * $182));
-           $4_1 = $4_1 + 4 | 0;
-           $105 = $43_1;
-           $106 = $73_1;
-           $107 = $64_1;
-           $108 = $29_1;
-           $109 = $28_1;
-           $110 = $72_1;
-           $111 = $71_1;
-           $112 = $45_1;
-           $113 = $33_1;
-           $114 = $21_1;
-           $94_1 = $141;
-           $95_1 = $140;
-           $5_1 = $5_1 - 1 | 0;
-           if ($5_1) {
-            continue
-           }
-           break;
-          };
-          HEAPF32[$13_1 + 28 >> 2] = $96_1;
-          HEAPF32[$13_1 + 24 >> 2] = $97_1;
-          HEAPF32[$13_1 + 20 >> 2] = $98_1;
-          HEAPF32[$13_1 + 16 >> 2] = $99_1;
-          HEAPF32[$13_1 + 156 >> 2] = $33_1;
-          HEAPF32[$13_1 + 152 >> 2] = $21_1;
-          HEAPF32[$13_1 + 148 >> 2] = $94_1;
-          HEAPF32[$13_1 + 144 >> 2] = $95_1;
-          HEAPF32[$13_1 + 44 >> 2] = $90_1;
-          HEAPF32[$13_1 + 40 >> 2] = $91_1;
-          HEAPF32[$13_1 + 36 >> 2] = $92_1;
-          HEAPF32[$13_1 + 32 >> 2] = $93_1;
-          HEAPF32[$13_1 + 172 >> 2] = $28_1;
-          HEAPF32[$13_1 + 168 >> 2] = $72_1;
-          HEAPF32[$13_1 + 164 >> 2] = $71_1;
-          HEAPF32[$13_1 + 160 >> 2] = $45_1;
-          HEAPF32[$13_1 + 60 >> 2] = $58_1;
-          HEAPF32[$13_1 + 56 >> 2] = $76_1;
-          HEAPF32[$13_1 + 52 >> 2] = $88_1;
-          HEAPF32[$13_1 + 48 >> 2] = $89_1;
-          HEAPF32[$13_1 + 188 >> 2] = $43_1;
-          HEAPF32[$13_1 + 184 >> 2] = $73_1;
-          HEAPF32[$13_1 + 180 >> 2] = $64_1;
-          HEAPF32[$13_1 + 176 >> 2] = $29_1;
-         }
-         $4_1 = 0;
-         while (1) {
-          $5_1 = $4_1 + ($13_1 + 16 | 0) | 0;
-          $8_1 = HEAP32[$5_1 >> 2];
-          $7_1 = HEAP32[$5_1 + 4 >> 2];
-          $3_1 = $4_1 + $1_1 | 0;
-          $2_1 = $3_1 + 2222088 | 0;
-          HEAP32[$2_1 >> 2] = $8_1;
-          HEAP32[$2_1 + 4 >> 2] = $7_1;
-          $8_1 = $4_1 + ($13_1 + 144 | 0) | 0;
-          $10_1 = HEAP32[$8_1 >> 2];
-          $2_1 = HEAP32[$8_1 + 4 >> 2];
-          $7_1 = $3_1 + 2226312 | 0;
-          HEAP32[$7_1 >> 2] = $10_1;
-          HEAP32[$7_1 + 4 >> 2] = $2_1;
-          $2_1 = $5_1 + 8 | 0;
-          $5_1 = HEAP32[$2_1 >> 2];
-          $7_1 = HEAP32[$2_1 + 4 >> 2];
-          $2_1 = $3_1 + 2222096 | 0;
-          HEAP32[$2_1 >> 2] = $5_1;
-          HEAP32[$2_1 + 4 >> 2] = $7_1;
-          $2_1 = $8_1 + 8 | 0;
-          $5_1 = HEAP32[$2_1 >> 2];
-          $2_1 = HEAP32[$2_1 + 4 >> 2];
-          $7_1 = $3_1 + 2226320 | 0;
-          HEAP32[$7_1 >> 2] = $5_1;
-          HEAP32[$7_1 + 4 >> 2] = $2_1;
-          $4_1 = $4_1 + 16 | 0;
-          if (($4_1 | 0) != 48) {
-           continue
-          }
-          break;
-         };
-         $4_1 = $35_1 + $53_1 | 0;
-         HEAPF32[$4_1 >> 2] = $87_1 + HEAPF32[$4_1 >> 2];
-        }
-        $16_1 = $16_1 + 328 | 0;
-        $1_1 = $1_1 + 48 | 0;
-        $12_1 = $12_1 + 1 | 0;
-        if (($12_1 | 0) != 88) {
-         continue
-        }
-        break;
-       };
+       renderSympatheticStrings($6_1, $59_1, $13_1, $0_1);
        $21($6_1, $47_1, 0, 5, $13_1 + 6048 | 0, $13_1 + 4e3 | 0, $13_1 + 2496 | 0, $46_1, $13_1 + 12219 | 0, $0_1);
        $22_1 = $6_1 + 8207080 | 0;
        $4_1 = 0;
