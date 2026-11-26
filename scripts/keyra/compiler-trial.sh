@@ -55,18 +55,13 @@ run_candidate() {
 echo "::group::shipped"
 measure shipped
 echo "::endgroup::"
-# Optimize for dispatch size; the shipping callback compiles to 84,622 V8 bytecodes,
-# above TurboFan's normal limit. These compiler settings change no floating-point flags.
-compile_scalar size -Oz
-run_candidate size O2
-run_candidate size O1
-compile_scalar optone -O1
-run_candidate optone O2
-compile_scalar limited -O2 -mllvm -inline-threshold=0 -mllvm -inlinehint-threshold=0
-run_candidate limited O2
-compile_scalar regular
-if timeout 150 wasm-opt "$sandbox/regular.wasm" --outlining -o "$sandbox/outlined.wasm"; then
-  run_candidate outlined O2
-fi
+# The compiler can legalize the native four-float vector type to scalar
+# instructions without WebAssembly SIMD. No model source is edited.
+compile_scalar veclanes -UKEYRA_FORCE_SCALAR -mno-simd128
+run_candidate veclanes O2
+compile_scalar vecsize -Oz -UKEYRA_FORCE_SCALAR -mno-simd128
+run_candidate vecsize O2
+compile_scalar noforcedunroll -mllvm -pragma-unroll-threshold=1 -mllvm -unroll-full-max-count=1
+run_candidate noforcedunroll O2
 echo 'Same-worker report:'
 for report in results/*.time; do echo "$report"; grep 'callbacks:' "$report"; done
