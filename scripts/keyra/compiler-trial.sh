@@ -43,7 +43,7 @@ measure() {
 run_candidate() {
   local stem=$1 level=$2 name="$1-$2"
   echo "::group::$name"
-  if wasm2js "$sandbox/$stem.wasm" "-$level" -o "$sandbox/$name.js" && \
+  if wasm2js "$sandbox/$stem.wasm" "-$level" --one-caller-inline-max-function-size=24 --flexible-inline-max-function-size=16 --always-inline-max-function-size=4 -o "$sandbox/$name.js" && \
      python3 scripts/keyra/package-dsp.py "$sandbox/$name.js" fun/keyra/dsp/core.mjs; then
     measure "$name"
   else
@@ -72,14 +72,14 @@ head=prefix+"  void renderChunk(float* left,float* right,float* const* mics,int 
 two=wrap(one,"    for(int i=0;i<keyCount;++i){Voice& v=voices[i];","    if(frameRings){std::memset(rim,0,sizeof(rim));","playVoices")
 (work/"twostage.cpp").write_text(head+two)
 PY
-model_source="$sandbox/bank.cpp"
-compile_scalar bank
-run_candidate bank O2
 model_source="$sandbox/twostage.cpp"
-compile_scalar twostage
-run_candidate twostage O2
-compile_scalar twostage-size -Oz
-run_candidate twostage-size O2
-# Use the known shipped baseline for relative throughput on this host.
-git show HEAD:fun/keyra/dsp/core.mjs > fun/keyra/dsp/core.mjs
+compile_scalar stagecapped
+run_candidate stagecapped O2
+model_source="$sandbox/bank.cpp"
+compile_scalar bankcapped
+run_candidate bankcapped O2
+model_source="$native/Source/DSP/PianoModel.cpp"
+compile_scalar plaincapped
+run_candidate plaincapped O2
+git -c safe.directory="$(pwd)" show HEAD:fun/keyra/dsp/core.mjs > fun/keyra/dsp/core.mjs
 measure shipped
