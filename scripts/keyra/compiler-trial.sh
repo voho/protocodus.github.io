@@ -22,7 +22,7 @@ compile_scalar() {
   clang++-19 --target=wasm32-wasi --sysroot=/usr -mexec-model=reactor -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off \
     -Wl,--initial-memory=67108864 -Wl,--max-memory=67108864 -Wl,-z,stack-size=2097152 \
     -O2 -DKEYRA_FORCE_SCALAR -fno-unroll-loops -fno-vectorize -fno-slp-vectorize "$@" \
-    -I"$native/Source/DSP" "$native/Source/DSP/PianoModel.cpp" "$native/Source/DSP/KeyraEngine.cpp" \
+    -I"$native/Source/DSP" "$model_source" "$native/Source/DSP/KeyraEngine.cpp" \
     scripts/keyra/bridge.cpp -o "$sandbox/$stem.wasm"
 }
 
@@ -52,16 +52,34 @@ run_candidate() {
   echo "::endgroup::"
 }
 
-echo "::group::shipped"
+# The compiler-only trials keep all source files byte-for-byte unchanged.
+# This separate experiment tests a single ABI boundary around unchanged model loops.
+# Only a temporary compiler input gets the annotation; parity always builds from
+# the unmodified pinned C++.
+python3 - "$native/Source/DSP/PianoModel.cpp" "$sandbox" <<'PY'
+from pathlib import Path
+import sys
+origin, work = Path(sys.argv[1]), Path(sys.argv[2])
+src = origin.read_text()
+prefix,chunk=src.split("  void renderChunk(float* left,float* right,float* const* mics,int frames) noexcept {")
+def wrap(block, first, after, name):
+    start=block.index(first)
+    end=block.index(after,start)
+    return block[:start] + "    auto "+name+"=[&]() __attribute__((noinline)) {\n" + block[start:end] + "    }; "+name+"();\n" + block[end:]
+one=wrap(chunk,"    for(int i=0;i<keyCount;++i){\n      const int o=i*bankSlots;","    boardPressure(mixRadiation,0,micCount","playBank")
+head=prefix+"  void renderChunk(float* left,float* right,float* const* mics,int frames) noexcept {"
+(work/"bank.cpp").write_text(head+one)
+two=wrap(one,"    for(int i=0;i<keyCount;++i){Voice& v=voices[i];","    if(frameRings){std::memset(rim,0,sizeof(rim));","playVoices")
+(work/"twostage.cpp").write_text(head+two)
+PY
+model_source="$sandbox/bank.cpp"
+compile_scalar bank
+run_candidate bank O2
+model_source="$sandbox/twostage.cpp"
+compile_scalar twostage
+run_candidate twostage O2
+compile_scalar twostage-size -Oz
+run_candidate twostage-size O2
+# Use the known shipped baseline for relative throughput on this host.
+git show HEAD:fun/keyra/dsp/core.mjs > fun/keyra/dsp/core.mjs
 measure shipped
-echo "::endgroup::"
-# The compiler can legalize the native four-float vector type to scalar
-# instructions without WebAssembly SIMD. No model source is edited.
-compile_scalar veclanes -UKEYRA_FORCE_SCALAR -mno-simd128
-run_candidate veclanes O2
-compile_scalar vecsize -Oz -UKEYRA_FORCE_SCALAR -mno-simd128
-run_candidate vecsize O2
-compile_scalar noforcedunroll -mllvm -pragma-unroll-threshold=1 -mllvm -unroll-full-max-count=1
-run_candidate noforcedunroll O2
-echo 'Same-worker report:'
-for report in results/*.time; do echo "$report"; grep 'callbacks:' "$report"; done
