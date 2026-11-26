@@ -9,6 +9,10 @@ export const STEP = 1 / 60;
 const SUBSTEPS = 24;
 const DAMPING = 1.2; // 1/s, bleeds off ringing so a bridge settles
 const FORCE_SMOOTHING = 0.04; // s, a member breaks on a sustained force, not one noisy substep
+const h = STEP / SUBSTEPS;
+const h2 = h * h;
+const damp = Math.exp(-DAMPING * h);
+const blend = 1 - Math.exp(-h / FORCE_SMOOTHING);
 
 /* Strength is the force a member carries before it snaps (newtons), the
    same in tension and compression, except a cable, which only pulls. */
@@ -97,6 +101,68 @@ export const memberCost = (m) => Math.round(memberLength(m) * MATERIALS[m.mat].c
 export const bridgeCost = (members) => members.reduce((sum, m) => sum + memberCost(m), 0);
 export const key = (p) => `${p[0]},${p[1]}`;
 
+// All candidate bridges on a river use the same fixed ground profile.
+const terrainSamples = new WeakMap();
+function sampleTerrain(mission) {
+  const g0 = mission.left - 60;
+  const length = Math.ceil((mission.right - mission.left + 120) * 10) + 1;
+  const cached = terrainSamples.get(mission.ground);
+  if (cached && cached.g0 === g0 && cached.groundTable.length === length) return cached;
+  const groundTable = new Float64Array(length);
+  let highestGround = -Infinity;
+  for (let i = 0; i < length; i++) {
+    groundTable[i] = mission.ground(g0 + i / 10);
+    highestGround = Math.max(highestGround, groundTable[i]);
+  }
+  const profile = { g0, groundTable, highestGround };
+  terrainSamples.set(mission.ground, profile);
+  return profile;
+}
+
+function makeNode(x, y, mass, fixed = false) {
+  return {
+    x, y, mass, fixed, px: 0, py: 0, vx: 0, vy: 0, extra: 0, invMass: fixed ? 0 : 1 / mass,
+    radius: 0, grip: 0.4, body: false, tyre: null, rolling: false,
+    normalX: 0, normalY: 0, surfaceVx: 0, surfaceVy: 0,
+  };
+}
+
+function makeBeam(a, b, mat, length, compliance, strength, inLane, piece = false) {
+  return {
+    a, b, mat, length, compliance, strength, inLane, piece, road: mat === 'road' && !piece,
+    tensionOnly: !!MATERIALS[mat].tensionOnly, thickness: THICKNESS[mat], alpha: compliance / h2,
+    denominator: 0, force: 0, smooth: 0, usage: 0, peak: 0, broken: false,
+  };
+}
+
+// Every intact member is projected once per substep. Remember any breaks
+// until all contacts have been solved, preserving the order of the solver.
+function projectMembers(activeBeams, nodes) {
+  let overloaded = null;
+  for (const beam of activeBeams) {
+    const na = nodes[beam.a], nb = nodes[beam.b];
+    const wa = na.invMass, wb = nb.invMass;
+    const dx = nb.x - na.x, dy = nb.y - na.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 1e-9;
+    const c = d - beam.length;
+    let tension = 0;
+    if (!(beam.tensionOnly && c < 0) && beam.denominator > 0) {
+      const lambda = -c / beam.denominator;
+      const ux = dx / d, uy = dy / d;
+      na.x -= wa * lambda * ux; na.y -= wa * lambda * uy;
+      nb.x += wb * lambda * ux; nb.y += wb * lambda * uy;
+      tension = -lambda / h2;
+    }
+    beam.smooth += (tension - beam.smooth) * blend;
+    beam.force = tension;
+    if (beam.piece) continue;
+    beam.usage = Math.abs(beam.smooth) / beam.strength;
+    if (beam.usage > beam.peak) beam.peak = Math.min(beam.usage, 1);
+    if (beam.usage > 1) (overloaded ??= []).push(beam);
+  }
+  return overloaded;
+}
+
 /* mission: { left, right (m, bank edges), deck (m), anchors, ground(x), water }
    members: [{ a: [gx, gy], b: [gx, gy], mat }] */
 export function createSim(mission, members, vehicleId = mission.vehicle, { abortOnBreak = false } = {}) {
@@ -107,7 +173,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     const k = key(p);
     if (!index.has(k)) {
       index.set(k, nodes.length);
-      nodes.push({ x: p[0] * CELL, y: p[1] * CELL, vx: 0, vy: 0, px: 0, py: 0, mass: 4, extra: 0, fixed: anchorKeys.has(k), radius: 0, grip: 0.4 });
+      nodes.push(makeNode(p[0] * CELL, p[1] * CELL, 4, anchorKeys.has(k)));
     }
     return index.get(k);
   };
@@ -120,13 +186,11 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     // In side view the upright and diagonal braces flank the lane. A level
     // chord above the deck spans the vehicle's clearance envelope.
     const inLane = m.mat === 'road' || (m.a[1] === m.b[1] && m.a[1] * CELL > mission.deck);
-    return { a, b, mat: m.mat, tensionOnly: !!mat.tensionOnly, length, compliance: length / mat.ea, strength: mat.strength, force: 0, smooth: 0, usage: 0, peak: 0, broken: false, road: m.mat === 'road', inLane };
+    return makeBeam(a, b, m.mat, length, length / mat.ea, mat.strength, inLane);
   });
 
   // The ground line sampled every 10 cm: the solver asks for it every substep.
-  const g0 = mission.left - 60;
-  const groundTable = Float64Array.from({ length: Math.ceil((mission.right - mission.left + 120) * 10) + 1 }, (_, i) => mission.ground(g0 + i / 10));
-  const highestGround = groundTable.reduce((highest, y) => Math.max(highest, y), -Infinity);
+  const { g0, groundTable, highestGround } = sampleTerrain(mission);
   const groundAt = (x) => {
     const f = (x - g0) * 10;
     const i = Math.max(0, Math.min(groundTable.length - 2, Math.floor(f)));
@@ -151,7 +215,9 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
   // and pieces set loose by a break. An intact bridge never collides with
   // itself, so a bridge that holds behaves exactly as before.
   const colliders = new Set();
-  const sim = { nodes, beams, car, time: 0, result: null, brokeCount: 0, events: [] };
+  const contactGroups = [];
+  let activeBeams = beams;
+  const sim = { nodes, beams, car, time: 0, result: null, settled: false, brokeCount: 0, events: [] };
   const settle = 1;
 
   function support(x, previousY) {
@@ -271,9 +337,16 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     return false;
   }
 
+  function setWeights() {
+    for (const beam of activeBeams) {
+      const weights = nodes[beam.a].invMass + nodes[beam.b].invMass;
+      beam.denominator = weights > 0 ? weights + beam.alpha : 0;
+    }
+  }
+
   function step() {
     sim.events.length = 0;
-    if (sim.result && sim.time > sim.resultAt + (sim.result === 'win' ? 3 : 8)) return;
+    if (sim.result && sim.time > sim.resultAt + (sim.result === 'win' ? 3 : 8)) { sim.settled = true; return; }
     sim.time += STEP;
     if (car.state === 'waiting' && sim.time >= settle) car.state = 'driving';
     if (car.state === 'driving') {
@@ -311,10 +384,8 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       }
     }
 
-    const h = STEP / SUBSTEPS;
-    const h2 = h * h;
-    const damp = Math.exp(-DAMPING * h);
-    const blend = 1 - Math.exp(-h / FORCE_SMOOTHING);
+    for (const n of nodes) n.invMass = n.fixed ? 0 : 1 / (n.mass + n.extra);
+    setWeights();
     for (const beam of beams) beam.force = 0;
     for (let s = 0; s < SUBSTEPS; s++) {
       for (const n of nodes) {
@@ -325,25 +396,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
         n.px = n.x; n.py = n.y;
         n.x += n.vx * h; n.y += n.vy * h;
       }
-      for (const beam of beams) {
-        if (beam.broken) continue;
-        const na = nodes[beam.a], nb = nodes[beam.b];
-        const wa = na.fixed ? 0 : 1 / (na.mass + na.extra);
-        const wb = nb.fixed ? 0 : 1 / (nb.mass + nb.extra);
-        const dx = nb.x - na.x, dy = nb.y - na.y;
-        const d = Math.sqrt(dx * dx + dy * dy) || 1e-9;
-        const c = d - beam.length;
-        let tension = 0;
-        if (!(beam.tensionOnly && c < 0) && wa + wb > 0) {
-          const lambda = -c / (wa + wb + beam.compliance / h2);
-          const ux = dx / d, uy = dy / d;
-          na.x -= wa * lambda * ux; na.y -= wa * lambda * uy;
-          nb.x += wb * lambda * ux; nb.y += wb * lambda * uy;
-          tension = -lambda / h2;
-        }
-        beam.smooth += (tension - beam.smooth) * blend;
-        beam.force = tension;
-      }
+      const overloaded = projectMembers(activeBeams, nodes);
       for (const link of links) {
         const na = nodes[link.a], nb = nodes[link.b];
         const wa = 1 / na.mass, wb = 1 / nb.mass;
@@ -353,7 +406,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
         na.x += wa * k * dx; na.y += wa * k * dy;
         nb.x -= wb * k * dx; nb.y -= wb * k * dy;
       }
-      for (const i of colliders) collide(i);
+      for (const group of contactGroups) collideGroup(group);
       if (car.bodies) {
         for (const body of car.bodies) {
           for (let i = body.first; i < body.first + body.rest.length; i++) if (nodes[i].y - nodes[i].radius <= highestGround) touchGround(nodes[i]);
@@ -378,16 +431,15 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
           if (n.body) n.vy += GRAVITY * h * 0.6;
         }
       }
-      for (const beam of beams) {
-        if (beam.broken || beam.piece) continue;
-        beam.usage = Math.abs(beam.smooth) / beam.strength;
-        if (beam.usage > beam.peak) beam.peak = Math.min(beam.usage, 1);
-        if (beam.usage > 1) {
+      if (overloaded) {
+        for (const beam of overloaded) {
           snap(beam);
           sim.brokeCount++;
           sim.events.push('break');
           if (abortOnBreak && !sim.result) finish('break');
         }
+        activeBeams = beams.filter((beam) => !beam.broken);
+        setWeights();
       }
     }
     if (!sim.result && sim.time > 60) finish('timeout');
@@ -436,16 +488,36 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     n.surfaceVx = vx; n.surfaceVy = vy;
   }
 
+  /* Consecutive outline samples often all miss the bridge. Reject their
+     combined box first. If any member is close, retain the original contact
+     order so forces can pass through a shared joint within this substep. */
+  function collideGroup({ first, end }) {
+    if (end === first + 1) { collide(first); return; }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = first; i < end; i++) {
+      const n = nodes[i];
+      x0 = Math.min(x0, n.x - n.radius); x1 = Math.max(x1, n.x + n.radius);
+      y0 = Math.min(y0, n.y - n.radius); y1 = Math.max(y1, n.y + n.radius);
+    }
+    for (const beam of activeBeams) {
+      const a = nodes[beam.a], b = nodes[beam.b], t = beam.thickness;
+      if (Math.max(a.x, b.x) + t < x0 || Math.min(a.x, b.x) - t > x1 ||
+          Math.max(a.y, b.y) + t < y0 || Math.min(a.y, b.y) - t > y1) continue;
+      for (let i = first; i < end; i++) collide(i);
+      return;
+    }
+  }
+
   /* A collider against every member it isn't part of; both sides move by
      their inverse mass, so a falling truck really lands on the bridge. */
   function collide(i) {
     const n = nodes[i];
-    for (const beam of beams) {
-      if (beam.broken || beam.a === i || beam.b === i) continue;
+    for (const beam of activeBeams) {
+      if (beam.a === i || beam.b === i) continue;
       const na = nodes[beam.a], nb = nodes[beam.b];
       // Axle placement uses the road line as the running surface. Keep a
       // released tyre tangent there so switching solvers adds no impulse.
-      const reach = n.radius + (n.tyre && beam.road ? 0 : THICKNESS[beam.mat]);
+      const reach = n.radius + (n.tyre && beam.road ? 0 : beam.thickness);
       if (n.x < Math.min(na.x, nb.x) - reach || n.x > Math.max(na.x, nb.x) + reach || n.y < Math.min(na.y, nb.y) - reach || n.y > Math.max(na.y, nb.y) + reach) continue;
       const dx = nb.x - na.x, dy = nb.y - na.y;
       const len2 = dx * dx + dy * dy || 1e-9;
@@ -458,7 +530,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       const side = (n.px - na.x) * -dy + (n.py - na.y) * dx >= 0 ? 1 : -1;
       const nx = d > 1e-6 ? ex / d : side * -dy / len, ny = d > 1e-6 ? ey / d : side * dx / len;
       const wn = 1 / n.mass;
-      const wa = na.fixed ? 0 : 1 / (na.mass + na.extra), wb = nb.fixed ? 0 : 1 / (nb.mass + nb.extra);
+      const wa = na.invMass, wb = nb.invMass;
       const lambda = Math.min(reach - d, PUSH) / (wn + wa * (1 - t) ** 2 + wb * t * t);
       n.x += wn * lambda * nx; n.y += wn * lambda * ny;
       na.x -= wa * (1 - t) * lambda * nx; na.y -= wa * (1 - t) * lambda * ny;
@@ -475,17 +547,18 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     const half = MATERIALS[beam.mat].kgPerM * beam.length / 2;
     for (const [end, other] of [[beam.a, beam.b], [beam.b, beam.a]]) {
       const e = nodes[end], o = nodes[other];
-      if (!e.fixed) e.mass -= half / 2;
-      const tip = nodes.push({
-        x: e.x + (o.x - e.x) * 0.47, y: e.y + (o.y - e.y) * 0.47, vx: e.vx, vy: e.vy, px: 0, py: 0,
-        mass: half / 2, extra: 0, fixed: false, radius: 0, grip: 0.4,
-      }) - 1;
-      beams.push({
-        a: end, b: tip, mat: beam.mat, tensionOnly: beam.tensionOnly, length: Math.hypot(o.x - e.x, o.y - e.y) * 0.47,
-        compliance: beam.compliance / 2, strength: Infinity, force: 0, smooth: 0, usage: 0, peak: 0, broken: false, road: false, piece: true,
-      });
+      if (!e.fixed) { e.mass -= half / 2; e.invMass = 1 / (e.mass + e.extra); }
+      const fragment = makeNode(e.x + (o.x - e.x) * 0.47, e.y + (o.y - e.y) * 0.47, half / 2);
+      fragment.vx = e.vx; fragment.vy = e.vy;
+      const tip = nodes.push(fragment) - 1;
+      const length = Math.hypot(o.x - e.x, o.y - e.y) * 0.47;
+      beams.push(makeBeam(end, tip, beam.mat, length, beam.compliance / 2, Infinity, false, true));
       colliders.add(tip);
-      if (!e.fixed) colliders.add(end);
+      contactGroups.push({ first: tip, end: tip + 1 });
+      if (!e.fixed && !colliders.has(end)) {
+        colliders.add(end);
+        contactGroups.push({ first: end, end: end + 1 });
+      }
     }
   }
 
@@ -517,14 +590,13 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
       const mass = car.axles.slice(fi, ri + 1).reduce((sum, a) => sum + a.mass, 0);
       const first = nodes.length;
       for (const [i, [lx, ly]] of local.entries()) {
-        nodes.push({
-          x: r.x + ux * lx - uy * ly, y: r.y + uy * lx + ux * ly, px: 0, py: 0,
-          vx: ux * vehicle.speed, vy: uy * vehicle.speed,
-          mass: mass / local.length, extra: 0, fixed: false, body: true,
-          tyre: tyres[i], radius: i < wheels.length ? w : 0.08, grip: i < wheels.length ? 0.04 : 0.35,
-        });
-        colliders.add(first + i);
+        const point = makeNode(r.x + ux * lx - uy * ly, r.y + uy * lx + ux * ly, mass / local.length);
+        point.vx = ux * vehicle.speed; point.vy = uy * vehicle.speed;
+        point.body = true; point.tyre = tyres[i] ?? null;
+        point.radius = point.tyre ? w : 0.08; point.grip = point.tyre ? 0.04 : 0.35;
+        nodes.push(point);
       }
+      for (let start = first; start < nodes.length; start += 8) contactGroups.push({ first: start, end: Math.min(start + 8, nodes.length) });
       const cx = local.reduce((sum, p) => sum + p[0], 0) / local.length;
       const cy = local.reduce((sum, p) => sum + p[1], 0) / local.length;
       const xs = outline.map((p) => p[0]);

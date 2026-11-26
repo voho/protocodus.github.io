@@ -26,7 +26,7 @@ export async function checkSkies(page) {
       await page.evaluate((value) => { location.hash = value; }, hash);
       await page.waitForFunction(([w, h, seed]) => bridger.view.width === w && bridger.view.height === h && bridger.mission.seed === seed, [width, height, hash.split('-')[1]]);
       const results = await page.evaluate(async (ridges) => {
-        const { buildScenery, drawBackdrop, drawGround, THEMES } = await import('./js/scenery.js');
+        const { backdropBounds, buildScenery, drawBackdrop, drawGround, THEMES } = await import('./js/scenery.js');
         const { mission, view } = bridger, scenery = buildScenery(mission);
         const canvas = document.createElement('canvas');
         canvas.width = view.width; canvas.height = view.height;
@@ -41,15 +41,6 @@ export async function checkSkies(page) {
         };
         // The far wall and raised banks can cover scenery even when the
         // painting itself has a good crop. Count its surviving pixels.
-        const drawImage = ctx.drawImage.bind(ctx);
-        let paint;
-        ctx.drawImage = (img, ...args) => {
-          if (img.src?.includes('/sky-')) {
-            const [x, y, w, h] = args;
-            paint = { x, y, w, h, aspect: img.naturalWidth / img.naturalHeight };
-          }
-          drawImage(img, ...args);
-        };
         const landmarks = { city: [0.91, 0.59], 'canadian-forest': [0.85, 0.82], jungle: [0.10, 0.43],
           'tropical-island': [0.92, 0.49], sandstone: [0.12, 0.59] };
         const results = [];
@@ -58,9 +49,16 @@ export async function checkSkies(page) {
           const img = new Image();
           img.src = `assets/${theme.sky}.webp`;
           await img.decode();
-          paint = null;
+          const aspect = img.naturalWidth / img.naturalHeight;
+          const paint = backdropBounds(view, scenery, theme, aspect);
           drawBackdrop(ctx, view, scenery, theme);
           const back = sampleAboveRoad();
+          // Compare the composited backdrop with the original painting at
+          // the expected camera position, including after a resize.
+          ctx.drawImage(img, paint.x, paint.y, paint.w, paint.h);
+          const direct = sampleAboveRoad();
+          const error = direct.reduce((sum, v, i) => sum + Math.abs(v - back[i]), 0) / direct.length;
+          drawBackdrop(ctx, view, scenery, theme);
           drawGround(ctx, view, mission, scenery, theme, 0);
           const scene = sampleAboveRoad(), ridge = ridges[id];
           let visible = 0, variation = 0;
@@ -77,14 +75,15 @@ export async function checkSkies(page) {
           const mark = landmarks[id];
           const inFrame = !mark || (paint.x + mark[0] * paint.w >= 0 && paint.x + mark[0] * paint.w <= view.width
             && paint.y + mark[1] * paint.h >= 0 && paint.y + mark[1] * paint.h < deck);
-          results.push({ id, ...paint, inFrame, variation, visible: visible / 4096, bottom: view.sy(scenery.backdropFloor) });
+          results.push({ id, ...paint, aspect, error, inFrame, variation, visible: visible / 4096, bottom: view.sy(scenery.backdropFloor) });
         }
         return results;
       }, ridges);
-      for (const { id, x, y, w, h, aspect, bottom, inFrame, variation, visible } of results) {
+      for (const { id, x, y, w, h, aspect, bottom, error, inFrame, variation, visible } of results) {
         const label = `${id} ${hash} at ${width}×${height}`;
         assert.ok(x <= 1 && y <= 1 && x + w >= width - 1 && y + h >= bottom - 1, `${label}: the painting covers the sky to the far bank`);
         assert.ok(Math.abs(w / h - aspect) < 0.001, `${label}: sky and landmarks retain their proportions`);
+        assert.ok(error < 1, `${label}: cached sky matches the freshly painted frame`);
         assert.ok(variation > 2, `${label}: the upper sky contains visible brushwork`);
         assert.ok(inFrame, `${label}: the landmark remains above the road and in frame`);
         assert.ok(visible >= 0.34 && visible <= 0.55, `${label}: landscape takes ${Math.round(visible * 100)}% of the space above the road`);

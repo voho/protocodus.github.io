@@ -11,6 +11,7 @@ import { chromium } from 'playwright';
 import { checkStructureLayers } from './structure-layers-check.mjs';
 import { checkSplash } from './splash-check.mjs';
 import { checkSkies } from './sky-check.mjs';
+import { checkSurvey } from './survey-check.mjs';
 import { checkClearance } from './clearance-check.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -34,11 +35,8 @@ async function checkWheelRendering(page) {
   const results = await page.evaluate(async () => {
     const { drawVehicle } = await import('./js/render.js');
     const { BODIES, VEHICLES, WHEEL } = await import('./js/physics.js');
-    await Promise.all(['car', 'truck', 'loco', 'wagon', 'wheel-road', 'wheel-rail'].map(async (name) => {
-      const img = new Image();
-      img.src = `assets/${name}.webp`;
-      await img.decode();
-    }));
+    const { image } = await import('./js/art.js');
+    await Promise.all(['car', 'truck', 'loco', 'wagon', 'wheel-road', 'wheel-rail'].map(name => image(name).decode()));
 
     const scale = 64, view = { scale, sx: (x) => (x + 2.5) * scale, sy: (y) => (4.5 - y) * scale };
     const results = [];
@@ -114,6 +112,15 @@ try {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${origin}/fun/bridger/#easy-browsercheck`);
     await page.waitForFunction(() => document.body.classList.contains('ready') && !document.body.classList.contains('busy'));
+    const sprites = await page.waitForFunction(() => {
+      const id = bridger.mission.vehicle;
+      const expected = id === 'train' ? ['loco', 'wagon', 'wheel-rail'] : [id, 'wheel-road'];
+      const files = performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname.split('/').pop());
+      const fetched = files.filter(name => /^(car|truck|loco|wagon|wheel-road|wheel-rail)\.webp$/.test(name));
+      return expected.every(name => fetched.includes(name + '.webp')) && { expected: expected.length, fetched };
+    });
+    const { fetched, expected } = await sprites.jsonValue();
+    assert.equal(fetched.length, expected, `${device.name}: load only the active vehicle's painted layers`);
     // The first visit opens How to play.
     assert.ok(await page.locator('[data-dialog="help"]').evaluate((d) => d.open), `${device.name}: help opens on the first visit`);
     await page.screenshot({ path: `${output}/${device.name}-help.png` });
@@ -297,6 +304,7 @@ try {
   await checkSplash(preview);
   await checkClearance(preview, origin);
   await preview.close();
+  await checkSurvey(browser, origin);
   console.log(`Bridger browser checks passed: drawing, simulation, wheel rendering, world previews, reduced motion and sound controls on desktop and phone. Screenshots in ${output}.`);
 } finally {
   await browser.close();

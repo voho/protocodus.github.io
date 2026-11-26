@@ -3,8 +3,9 @@
    copy of it and colours every member by how close it is to breaking. */
 import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
-import { createMission, memberProblem, pairKey, jointAllowed, attachmentPoints, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
+import { memberProblem, pairKey, jointAllowed, attachmentPoints, roadDeck, DESIGN_NAMES } from './mission.js';
 import { createView, draw, stressColor } from './render.js';
+import { openSurvey } from './survey.js';
 import { createSound } from './sound.js';
 import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
 
@@ -34,14 +35,15 @@ let difficulty = 'medium', seed = '', mission = null, view = null, parked = null
 // Each river has its own world, picked from its seed; ?theme= previews one.
 const requestedTheme = new URLSearchParams(location.search).get('theme');
 const themeOverride = THEME_IDS.includes(requestedTheme) ? requestedTheme : null;
-let theme = null;
+let theme = null, survey = null, busy = false;
 let members = [], undoStack = [], tool = 'wood';
 let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
 let recentSolutions = [];
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
-let toastTimer = 0, last = performance.now(), time = 0;
+let toastTimer = 0, last = performance.now(), time = 0, frameId = null;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 const peakKey = (m) => `${pairKey(m)}:${m.mat}`;
 
@@ -52,21 +54,23 @@ function fromHash() {
   return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
 }
 
-function load(nextDifficulty, nextSeed, keepBridge = false) {
+async function load(nextDifficulty, nextSeed, keepBridge = false) {
   cancelDrag();
+  if (sim) stopTest();
+  if (confirmDialog.open) confirmDialog.close('cancel');
+  survey?.close();
+  const current = openSurvey(DIFFICULTIES.includes(nextDifficulty) ? nextDifficulty : 'medium', nextSeed);
+  survey = current;
+  busy = true;
   document.body.classList.add('busy');
-  // Let the "surveying" curtain paint before the solver takes the thread.
-  setTimeout(() => {
-    try {
-      difficulty = DIFFICULTIES.includes(nextDifficulty) ? nextDifficulty : 'medium';
-      seed = nextSeed;
-      mission = createMission(difficulty, seed);
-      recentSolutions = [];
-    } catch (error) {
-      $('[data-loading]').classList.add('failed');
-      $('[data-loading-text]').textContent = 'This river could not be surveyed. Try a new one.';
-      throw error;
-    }
+  $('[data-loading-text]').textContent = 'Surveying the river';
+  try {
+    const nextMission = await current.mission();
+    if (survey !== current || !nextMission) return;
+    mission = nextMission;
+    difficulty = current.difficulty;
+    seed = nextSeed;
+    recentSolutions = [];
     store('difficulty', difficulty);
     history.replaceState(null, '', `#${difficulty}-${seed}`);
     document.querySelectorAll('input[name="difficulty"]').forEach((r) => { r.checked = r.value === difficulty; });
@@ -108,13 +112,27 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     if (win.open) win.close();
     resize();
     updateBudget();
-    document.body.classList.remove('busy');
     document.body.classList.add('ready');
     say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.${rule ? ` ${note.textContent}` : ''}`);
-  }, 30);
+  } catch (error) {
+    if (survey !== current) return;
+    current.close();
+    // Keep the displayed bridge playable if surveying a replacement failed.
+    survey = mission ? openSurvey(difficulty, seed) : null;
+    if (mission) {
+      history.replaceState(null, '', `#${difficulty}-${seed}`);
+      document.querySelector(`input[name="difficulty"][value="${difficulty}"]`).checked = true;
+    }
+    document.body.classList.add('ready');
+    toast('This river could not be surveyed. Try New river.', true, 5000);
+    console.error(error);
+  }
+  busy = false;
+  document.body.classList.remove('busy');
 }
 
 function updateBudget() {
+  requestFrame();
   const points = new Map(mission.anchors.map((p) => [key(p), p]));
   for (const m of members) {
     points.set(key(m.a), m.a);
@@ -310,7 +328,8 @@ let lastTap = null;
 
 function onDown(event) {
   sound.unlock();
-  if (!mission || mode !== 'build' || event.button !== 0 || !event.isPrimary || pointer) return;
+  if (busy || !mission || mode !== 'build' || event.button !== 0 || !event.isPrimary || pointer) return;
+  requestFrame();
   const x = event.offsetX, y = event.offsetY;
   const previous = lastTap && lastTap.members === members && lastTap.tool === tool &&
     lastTap.type === event.pointerType && performance.now() - lastTap.at < DOUBLE_TAP_MS &&
@@ -343,6 +362,7 @@ function updateDrag(px, py) {
 
 function onMove(event) {
   if (!mission || !event.isPrimary || (pointer && pointer.id !== event.pointerId)) return;
+  requestFrame();
   const px = event.offsetX, py = event.offsetY;
   if (pointer && Math.hypot(px - pointer.x, py - pointer.y) > 6) pointer.moved = true;
   if (drag) { if (pointer.moved) updateDrag(px, py); }
@@ -376,6 +396,7 @@ function updateHover(px, py) {
 
 function onUp(event) {
   if (!pointer || pointer.id !== event.pointerId) return;
+  requestFrame();
   const { x, y, previous } = pointer;
   if (Math.hypot(event.offsetX - x, event.offsetY - y) > 6) pointer.moved = true;
   if (!pointer.moved) {
@@ -402,11 +423,12 @@ function onUp(event) {
   drag = null; focus = null; pointer = null;
 }
 
-function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = null; }
+function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = null; requestFrame(); }
 
 /* ---------- testing ---------- */
 
 function startTest() {
+  last = performance.now();
   cancelDrag();
   sound.prepareSplash();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
@@ -424,6 +446,7 @@ function startTest() {
 }
 
 function stopTest() {
+  requestFrame();
   if (sim) {
     // Keep every member's worst moment on the drawing so weak spots stay visible.
     peaks = new Map();
@@ -527,20 +550,26 @@ function resize() {
   const top = $('.hud-top').getBoundingClientRect().bottom + 6;
   const bottom = innerHeight - $('.hud-bottom').getBoundingClientRect().top + 6;
   view = createView(mission, innerWidth, innerHeight, top, bottom);
+  requestFrame();
+}
+
+function requestFrame() {
+  if (frameId === null && !document.hidden && mission && view) frameId = requestAnimationFrame(frame);
 }
 
 function frame(now) {
+  frameId = null;
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   time += dt;
   if (mission && view) {
-    if (mode === 'test' && sim) stepTest(dt);
+    if (mode === 'test' && sim && !sim.settled) stepTest(dt);
     for (const p of particles) {
       p.vy -= 9.81 * dt * (p.square ? 0.5 : 1);
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.life -= dt;
     }
-    particles = particles.filter((p) => p.life > 0);
+    if (particles.length) particles = particles.filter((p) => p.life > 0);
     if (hover?.beam) {
       hover.label = `${MATERIALS[hover.beam.mat].name} · ${Math.round(hover.beam.usage * 100)}%`;
       hover.color = stressColor(hover.beam.usage);
@@ -548,10 +577,10 @@ function frame(now) {
     draw(ctx, labelCtx, {
       mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
       hover: hover?.beam?.broken ? null : hover,
-      peakOf: (m) => peaks.get(peakKey(m)),
+      peaks, peakOf: (m) => peaks.get(peakKey(m)),
     });
   }
-  requestAnimationFrame(frame);
+  if (!reducedMotion.matches || (sim && !sim.settled) || particles.length) requestFrame();
 }
 
 /* ---------- controls ---------- */
@@ -560,20 +589,32 @@ function newMission() {
   load(difficulty, `v2-${randomSeed()}`);
 }
 
-function showSolution() {
+async function showSolution() {
+  if (busy || !mission) return;
+  const current = survey;
+  busy = true;
   document.body.classList.add('busy');
   $('[data-loading-text]').textContent = 'Designing a bridge';
-  setTimeout(() => {
-    const { members: solution, kind } = randomSolution(mission, Math.random, 600, recentSolutions);
+  try {
+    const design = await current.solution(recentSolutions);
+    if (survey !== current || !design) return;
+    const { members: solution, kind } = design;
     recentSolutions = [...recentSolutions.slice(-7), solution];
     commit(solution);
     solutionShown = true;
     peaks = new Map();
-    document.body.classList.remove('busy');
-    $('[data-loading-text]').textContent = 'Surveying the river';
     sound.place('steel');
     toast(`Here is ${/^[aeiou]/.test(DESIGN_NAMES[kind]) ? 'an' : 'a'} ${DESIGN_NAMES[kind]} that works, for ${money(bridgeCost(solution))}. Press Go! to watch it.`, false, 4200);
-  }, 30);
+  } catch (error) {
+    if (survey === current) toast('Could not design a bridge. Try Solution again.', true);
+    console.error(error);
+  } finally {
+    if (survey === current) {
+      busy = false;
+      document.body.classList.remove('busy');
+      $('[data-loading-text]').textContent = 'Surveying the river';
+    }
+  }
 }
 
 /* Anything that throws away the player's bridge asks first. Nothing built
@@ -585,8 +626,9 @@ function confirmThen(title, text, ok, run) {
   $('[data-confirm-title]').textContent = title;
   $('[data-confirm-text]').textContent = text;
   $('[data-confirm-ok]').textContent = ok;
+  const current = survey;
   confirmDialog.returnValue = '';
-  confirmDialog.onclose = () => { if (confirmDialog.returnValue === 'ok') run(); };
+  confirmDialog.onclose = () => { if (confirmDialog.returnValue === 'ok' && current === survey && !busy) run(); };
   confirmDialog.showModal();
 }
 
@@ -621,28 +663,42 @@ const actions = {
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action], [data-tool]');
   if (!button) return;
+  const { action } = button.dataset;
+  if (action !== 'sound' && action !== 'help' && (busy || (!mission && action !== 'new'))) return;
   sound.unlock();
   if (button.dataset.tool) setTool(button.dataset.tool);
   else actions[button.dataset.action]?.();
 });
 document.querySelectorAll('input[name="difficulty"]').forEach((radio) => radio.addEventListener('change', () => {
   // Same river, a different budget.
-  if (radio.checked) load(radio.value, seed, true);
+  if (radio.checked && survey) load(radio.value, survey.seed, survey.seed === seed);
 }));
 canvas.addEventListener('pointerdown', onDown);
 canvas.addEventListener('pointermove', onMove);
 canvas.addEventListener('pointerup', onUp);
 canvas.addEventListener('pointercancel', (event) => { if (pointer?.id === event.pointerId) cancelDrag(); });
-canvas.addEventListener('pointerleave', (event) => { if (!pointer) hover = null; else onMove(event); });
+canvas.addEventListener('pointerleave', (event) => { if (!pointer) { hover = null; requestFrame(); } else onMove(event); });
 window.addEventListener('resize', resize);
-document.addEventListener('visibilitychange', () => { if (document.hidden) sound.engine(false); });
+window.addEventListener('bridger-art-load', requestFrame);
+reducedMotion.addEventListener('change', requestFrame);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelAnimationFrame(frameId);
+    frameId = null;
+    sound.engine(false);
+  } else {
+    last = performance.now();
+    requestFrame();
+  }
+});
 window.addEventListener('hashchange', () => {
   const target = fromHash();
-  if (target && (target.seed !== seed || target.difficulty !== difficulty)) load(target.difficulty, target.seed);
+  if (target && (target.seed !== survey?.seed || target.difficulty !== survey?.difficulty)) load(target.difficulty, target.seed);
 });
 document.addEventListener('keydown', (event) => {
-  if (event.target.closest?.('input, dialog[open]') || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (busy || event.target.closest?.('input, dialog[open]') || event.metaKey || event.ctrlKey || event.altKey) return;
   const k = event.key.toLowerCase();
+  if (!mission && k !== 'n' && k !== 'm') return;
   if (k === ' ' || k === 'enter') { event.preventDefault(); sound.unlock(); actions.test(); }
   else if (k >= '1' && k <= '4') setTool(TOOLS[Number(k) - 1]);
   else if (k === 'u' || k === 'backspace') actions.undo();
@@ -662,7 +718,6 @@ resize();
 const initial = fromHash();
 load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || `v2-${randomSeed()}`);
 if (!read('seen-help')) help.showModal();
-requestAnimationFrame(frame);
 
 // Read-only handles for the browser checks in tests/.
 window.bridger = { get mission() { return mission; }, get view() { return view; }, get members() { return members; }, get sim() { return sim; } };
