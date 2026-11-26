@@ -5,8 +5,11 @@ using Codex image generation in November 2026, then prepared as WebP assets.
 
 ## Painted worlds
 
-The thirteen 2172 × 724 panoramas share a gouache treatment and a quiet central
-area behind the bridge. The subject of each landscape prompt is listed below.
+Each world has a native 1774 × 887 gouache painting. The original panoramas
+served as composition and palette references. The new paintings use defined
+silhouettes, fine pencil accents and clear middle-distance detail. The WebP
+files preserve the generator’s native dimensions. Each camera crop follows the
+painted skyline and keeps a landmark visible on narrow screens.
 
 | File | Prompt subject |
 | --- | --- |

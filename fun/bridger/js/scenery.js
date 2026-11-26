@@ -12,91 +12,91 @@ export const THEMES = {
   // and for its narrow landmark crop. skyAlign selects that landmark.
   valley: {
     ambient: ['clouds', 'raptors'],
-    name: 'Valley', ui: 'light', sky: 'sky-valley', skyline: [0.54, 0.54], skyAlign: 0.1, skyTop: '#6ba9e7', rock: 'rock-valley',
+    name: 'Valley', ui: 'light', sky: 'sky-valley', skyline: [0.46, 0.46], skyAlign: 0.1, skyTop: '#549ce9', rock: 'rock-valley',
     rockColor: '#929185', tint: '#9f9a7457', surface: ['#b7ba91', '#858a72'], depth: '#364a4d',
     water: { surface: '#79a8b2', deep: '#285261', glint: '#f2f5dc' },
     road: '#42464a', grid: 'rgba(37, 55, 68, 0.55)',
   },
   mesa: {
     ambient: ['stars', 'dust'],
-    name: 'Mesa', ui: 'dark', sky: 'sky-mesa', skyline: [0.79, 0.76], skyAlign: 0.98, skyTop: '#2d2d64', rock: 'rock-mesa',
+    name: 'Mesa', ui: 'dark', sky: 'sky-mesa', skyline: [0.52, 0.57], skyAlign: 0.98, skyTop: '#2a2c63', rock: 'rock-mesa',
     rockColor: '#916775', tint: '#725e795c', surface: ['#daaa96', '#997b86'], depth: '#3c3047',
     water: { surface: '#a98f9c', deep: '#443a57', glint: '#ffe0c9' },
     road: '#443b47', grid: 'rgba(249, 238, 227, 0.57)',
   },
   snow: {
     ambient: ['clouds', 'snow'],
-    name: 'Snow', ui: 'light', sky: 'sky-snow', skyline: [0.59, 0.57], skyAlign: 0.05, skyTop: '#6491d9', rock: 'rock-snow',
+    name: 'Snow', ui: 'light', sky: 'sky-snow', skyline: [0.41, 0.39], skyAlign: 0.05, skyTop: '#5e8fe2', rock: 'rock-snow',
     rockColor: '#90aab2', tint: '#b8d7df49', surface: ['#fff9e9', '#cadce0'], depth: '#314758',
     water: { surface: '#8fbfc8', deep: '#2e5068', glint: '#fff9e9' },
     road: '#454e56', grid: 'rgba(32, 55, 77, 0.55)',
   },
   night: {
     ambient: ['stars', 'shooting', 'fireflies'],
-    name: 'Night', ui: 'dark', sky: 'sky-night', skyline: [0.65, 0.61], skyAlign: 0.91, skyTop: '#083349', rock: 'rock-night',
+    name: 'Night', ui: 'dark', sky: 'sky-night', skyline: [0.46, 0.48], skyAlign: 0.91, skyTop: '#002c42', rock: 'rock-night',
     rockColor: '#495569', tint: '#42616d5c', surface: ['#91a6b0', '#596e7a'], depth: '#142333',
     water: { surface: '#557b8c', deep: '#172b41', glint: '#e4eedf' },
     road: '#293540', grid: 'rgba(221, 239, 240, 0.54)',
   },
   forest: {
     ambient: ['birds', 'leaves'],
-    name: 'Forest', ui: 'light', sky: 'sky-forest', skyline: [0.6, 0.54], skyAlign: 0.11, skyTop: '#8aa6ae', rock: 'rock-forest',
+    name: 'Forest', ui: 'light', sky: 'sky-forest', skyline: [0.44, 0.41], skyAlign: 0.11, skyTop: '#6893ab', rock: 'rock-forest',
     rockColor: '#6f7a62', tint: '#82936460', surface: ['#b1b480', '#788864'], depth: '#273d3b',
     water: { surface: '#76a598', deep: '#274a4a', glint: '#eef5d4' },
     road: '#3c4542', grid: 'rgba(30, 52, 56, 0.55)',
   },
   sandstone: {
     ambient: ['clouds', 'raptors'],
-    name: 'Sandstone', ui: 'light', sky: 'sky-sandstone', skyline: [0.62, 0.52], skyAlign: 0.035, skyTop: '#82a8e4', rock: 'rock-sandstone',
+    name: 'Sandstone', ui: 'light', sky: 'sky-sandstone', skyline: [0.38, 0.35], skyAlign: 0.035, skyTop: '#6aa7f1', rock: 'rock-sandstone',
     rockColor: '#b17967', tint: '#cbab915e', surface: ['#eec6a5', '#b78873'], depth: '#563f44',
     water: { surface: '#80b0ad', deep: '#365c64', glint: '#fff0d5' },
     road: '#4c4242', grid: 'rgba(66, 45, 55, 0.55)',
   },
   dunes: {
     ambient: ['stars', 'shooting', 'dust'],
-    name: 'Night desert', ui: 'dark', sky: 'sky-dunes', skyline: [0.775, 0.76], skyAlign: 0.23, skyTop: '#0f3355', rock: 'rock-dunes',
+    name: 'Night desert', ui: 'dark', sky: 'sky-dunes', skyline: [0.51, 0.52], skyAlign: 0.23, skyTop: '#002d4c', rock: 'rock-dunes',
     rockColor: '#706077', tint: '#38476b92', surface: ['#b1a5b8', '#796c87'], depth: '#302d49',
     water: { surface: '#777c9f', deep: '#30334f', glint: '#f5e6d8' },
     road: '#363343', grid: 'rgba(235, 232, 250, 0.55)',
   },
   city: {
     ambient: ['stars', 'plane'],
-    name: 'Night city', ui: 'dark', sky: 'sky-city', skyline: [0.71, 0.66], skyAlign: 0.93, skyTop: '#0e254c', rock: 'rock-city',
+    name: 'Night city', ui: 'dark', sky: 'sky-city', skyline: [0.52, 0.51], skyAlign: 0.93, skyTop: '#072455', rock: 'rock-city',
     rockColor: '#50596a', tint: '#273c5c91', surface: ['#9baab4', '#64778b'], depth: '#172335',
     water: { surface: '#697b95', deep: '#213047', glint: '#ffd6a8' },
     road: '#333e4b', grid: 'rgba(232, 237, 247, 0.55)',
   },
   desert: {
     ambient: ['birds', 'dust'],
-    name: 'Desert', ui: 'light', sky: 'sky-desert', skyline: [0.65, 0.59], skyAlign: 0.97, skyTop: '#77d4d6', rock: 'rock-dunes',
+    name: 'Desert', ui: 'light', sky: 'sky-desert', skyline: [0.43, 0.42], skyAlign: 0.97, skyTop: '#67dde3', rock: 'rock-dunes',
     rockColor: '#ad8a70', tint: '#edb17e52', surface: ['#eed0a4', '#b89879'], depth: '#55454e',
     water: { surface: '#72a6a9', deep: '#23495a', glint: '#fff1da' },
     road: '#4b4244', grid: 'rgba(58, 44, 49, 0.55)',
   },
   meadow: {
     ambient: ['clouds', 'butterflies'],
-    name: 'Meadow', ui: 'light', sky: 'sky-meadow', skyline: [0.63, 0.61], skyAlign: 0.03, skyTop: '#6db0f5', rock: 'rock-forest',
+    name: 'Meadow', ui: 'light', sky: 'sky-meadow', skyline: [0.49, 0.49], skyAlign: 0.03, skyTop: '#51a6f9', rock: 'rock-forest',
     rockColor: '#647759', tint: '#8a9b6b4d', surface: ['#a9be7b', '#71855c'], depth: '#263d40',
     water: { surface: '#77aba5', deep: '#244a56', glint: '#fffbe0' },
     road: '#454844', grid: 'rgba(34, 61, 68, 0.55)',
   },
   'tropical-island': {
     ambient: ['clouds', 'birds'],
-    name: 'Tropical Island', ui: 'light', sky: 'sky-island', skyline: [0.675, 0.68], skyAlign: 0.95, skyTop: '#87c7fc', rock: 'rock-snow',
+    name: 'Tropical Island', ui: 'light', sky: 'sky-island', skyline: [0.49, 0.44], skyAlign: 0.95, skyTop: '#47a5fc', rock: 'rock-snow',
     rockColor: '#b8a58b', tint: '#edd7ad7a', surface: ['#f4dfaf', '#b4a389'], depth: '#2c4c58',
     water: { surface: '#52c7bb', deep: '#195b70', glint: '#f2fff6' },
     road: '#454b51', grid: 'rgba(32, 57, 65, 0.55)',
   },
   jungle: {
     ambient: ['fireflies'],
-    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.6, 0.52], skyAlign: 0.055, skyTop: '#d6f0df', rock: 'rock-forest',
+    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.14, skyTop: '#c3efdd', rock: 'rock-forest',
     rockColor: '#556350', tint: '#637f415e', surface: ['#899d64', '#627454'], depth: '#1c3533',
     water: { surface: '#688e77', deep: '#1f4544', glint: '#e5efd0' },
     road: '#363f39', grid: 'rgba(25, 55, 54, 0.57)',
   },
   'canadian-forest': {
     ambient: ['birds', 'leaves'],
-    name: 'Canadian Forest with a Lake', ui: 'light', sky: 'sky-lake', skyline: [0.6, 0.54], skyAlign: 0.88, skyTop: '#8ebdfc', rock: 'rock-valley',
+    name: 'Canadian Forest with a Lake', ui: 'light', sky: 'sky-lake', skyline: [0.45, 0.47], skyAlign: 0.88, skyTop: '#6da8fa', rock: 'rock-valley',
     rockColor: '#838b8a', tint: '#89958b42', surface: ['#b2b9a2', '#889483'], depth: '#243a46',
     water: { surface: '#7aa2b3', deep: '#224555', glint: '#f0f8f7' },
     road: '#41464b', grid: 'rgba(31, 50, 63, 0.55)',
@@ -181,9 +181,12 @@ export function backdropBounds(view, scenery, theme, aspect) {
   const narrow = Math.max(0, Math.min(1, 2 - view.width / deck));
   const [panorama, portrait] = theme.skyline;
   const ridge = panorama + (portrait - panorama) * narrow;
-  const h = Math.max(floor, view.width / aspect, (floor - deck * 0.54) / (1 - ridge));
+  const horizon = deck * 0.54;
+  // Cover the width, the sky above the ridge, and the strip down to the
+  // far bank. Extra painted foreground can extend behind the playable land.
+  const h = Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge));
   const w = h * aspect;
-  return { x: (view.width - w) * theme.skyAlign, y: floor - h, w, h };
+  return { x: (view.width - w) * theme.skyAlign, y: horizon - h * ridge, w, h };
 }
 
 export function drawBackdrop(ctx, view, scenery, theme) {
@@ -197,7 +200,7 @@ export function drawBackdrop(ctx, view, scenery, theme) {
   const cache = rasterCache(ctx, view, scenery, theme);
   if (!cache.sky) {
     const { x, y, w, h } = backdropBounds(view, scenery, theme, sky.naturalWidth / sky.naturalHeight);
-    const layer = makeLayer(cache, 0, y + h);
+    const layer = makeLayer(cache, 0, view.sy(scenery.backdropFloor) + 2);
     layer.ctx.fillStyle = theme.skyTop;
     layer.ctx.fillRect(0, 0, layer.w, layer.h);
     layer.ctx.drawImage(sky, x, y, w, h);
