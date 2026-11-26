@@ -121,16 +121,20 @@ try {
     for (let round = 0; round < 3; round++) {
       for (const version of round % 2 ? ['updated', 'original'] : ['original', 'updated']) {
         const result = await page.evaluate(measure, { ...profile, version, rate, warmup, sustained, fallback });
-        if (runs.original.length) assert.deepEqual(result.hashes, runs.original[0].hashes, profile.name + ': PCM differs');
+        if (runs[version].length) assert.deepEqual(result.hashes, runs[version][0].hashes, profile.name + ': nondeterministic ' + version + ' PCM');
         runs[version].push(result);
       }
     }
+    // A historical timing baseline may use different pipe models and voicing.
+    // Check today's two renderers against one another on the entire score.
+    const other = await page.evaluate(measure, { ...profile, version: 'updated', rate, warmup, sustained, fallback: !fallback });
+    assert.deepEqual(other.hashes, runs.updated[0].hashes, profile.name + ': current renderers differ');
     const timings = Object.entries(runs).map(([version, data]) => {
       const warm = median(data.map(run => run.warmMs));
       const steady = median(data.map(run => run.sustainedMs));
       return version + ' ' + warm.toFixed(0) + ' ms warmup, ' + steady.toFixed(1) + ' ms/audio s';
     });
-    console.log(profile.name + ' — ' + timings.join(' | ') + ' | identical stereo PCM');
+    console.log(profile.name + ' — ' + timings.join(' | ') + ' | current renderers have identical stereo PCM');
   }
 } finally {
   await browser?.close();
