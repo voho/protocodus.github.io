@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyra — Play the Acoustic Piano | Protocodus</title>
+  <meta name="description" content="Play five physically modelled acoustic pianos with your mouse, computer keyboard or MIDI controller. Blend five microphones and shape each of Keyra’s 13 factory presets.">
+  <meta name="theme-color" content="#201f1a">
+  <link rel="canonical" href="https://protocodus.cz/fun/keyra/">
+  <link rel="icon" href="/assets/images/favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Protocodus">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://protocodus.cz/fun/keyra/">
+  <meta property="og:title" content="Keyra — Play the Acoustic Piano | Protocodus">
+  <meta property="og:description" content="Play five physically modelled acoustic pianos with your mouse, computer keyboard or MIDI controller. Blend five microphones and shape each of Keyra’s 13 factory presets.">
+  <meta property="og:image" content="https://protocodus.cz/product/keyra/Keyra_Thumbnail_800.png">
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="800">
+  <meta property="og:image:alt" content="Keyra’s lidless grand piano on matched walnut burl in a gilt frame.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Keyra — Play the Acoustic Piano | Protocodus">
+  <meta name="twitter:description" content="Play five physically modelled acoustic pianos with your mouse, computer keyboard or MIDI controller. Blend five microphones and shape each of Keyra’s 13 factory presets.">
+  <meta name="twitter:image" content="https://protocodus.cz/product/keyra/Keyra_Thumbnail_800.png">
+  <meta name="twitter:image:alt" content="Keyra’s lidless grand piano on matched walnut burl in a gilt frame.">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./keys.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Keyra",
+    "url": "https://protocodus.cz/fun/keyra/",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web browser",
+    "description": "Play five physically modelled acoustic pianos with your mouse, computer keyboard or MIDI controller. Blend five microphones and shape each of Keyra’s 13 factory presets."
+  }
+  </script>
+  <script defer src="/assets/js/analytics.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TZZVDH4B" height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+  <a class="skip-link" href="#piano">Skip to piano</a>
+  <header class="masthead">
+    <div class="wrap topbar">
+      <img class="cover" src="/product/keyra/Keyra_Thumbnail_800.png" width="800" height="800" alt="">
+      <div class="identity"><h1>Keyra</h1><p>Physically modelled acoustic piano</p></div>
+      <nav aria-label="Site navigation">
+        <a class="brand" href="/"><img src="/assets/images/logo.svg" width="24" height="24" alt="">Protocodus</a>
+        <a href="/fun/">Fun</a>
+        <a href="/product/keyra/">About Keyra</a>
+      </nav>
+    </div>
+  </header>
+  <main id="piano" class="wrap">
+    <noscript><p>Enable JavaScript to play Keyra.</p></noscript>
+    <section class="instrument" aria-label="Piano console">
+      <div class="control-bar">
+        <div class="loaded"><span class="caption">Factory preset</span><strong id="current-preset" aria-live="polite">Concert Grand</strong></div>
+        <div id="master" class="master"></div>
+        <div class="connection"><span id="midi-status" class="status" role="status"></span><button id="midi-connect" type="button">Connect MIDI</button></div>
+        <div class="connection"><span id="audio-status" class="status" role="status">Sound off</span><button id="audio-start" type="button" aria-pressed="false">Start audio</button></div>
+      </div>
+      <div class="choices">
+        <section class="body-bank" aria-labelledby="body-heading"><h2 id="body-heading">Piano body</h2><div id="body-choices"></div></section>
+        <section class="preset-bank" aria-labelledby="preset-heading"><h2 id="preset-heading">Factory presets</h2><div id="presets" class="pistons"></div></section>
+      </div>
+      <div class="studio">
+        <section class="strip" aria-labelledby="action-heading"><h2 id="action-heading">Hammers &amp; strings</h2><div id="voicing" class="rows"></div></section>
+        <section class="strip" aria-labelledby="case-heading"><h2 id="case-heading">Body &amp; resonance</h2><div id="cabinet" class="rows"></div></section>
+        <section class="strip mixer" aria-labelledby="mics-heading"><h2 id="mics-heading">Microphone mix</h2><div id="microphones"></div></section>
+      </div>
+      <section class="key-deck" aria-label="Keys and pedals">
+        <div class="keyboard-rail">
+          <p>Play <kbd>Z–M</kbd> and <kbd>Q–I</kbd>, or click the keys. <kbd>Space</kbd> holds the damper.</p>
+          <div class="octave"><span class="octave-label">Computer keys</span><button id="octave-down" type="button" title="Octave down ([)" aria-label="Shift computer keys down one octave">−</button><span id="keyboard-range" aria-live="polite"></span><button id="octave-up" type="button" title="Octave up (])" aria-label="Shift computer keys up one octave">+</button></div>
+        </div>
+        <div class="key-frame"><div id="keyboard" role="group" aria-label="Piano keyboard"></div></div>
+        <div class="pedal-rail">
+          <div class="pedals" role="group" aria-label="Pedals and continuous pedal positions">
+            <div class="pedal"><button id="pedal-soft" type="button" aria-pressed="false">Una corda</button><div id="position-soft"></div></div>
+            <div class="pedal"><button id="pedal-sostenuto" type="button" aria-pressed="false">Sostenuto</button><div id="position-sostenuto"></div></div>
+            <div class="pedal"><button id="pedal-sustain" type="button" aria-pressed="false">Damper</button><div id="position-sustain"></div></div>
+          </div>
+          <button class="panic" id="panic" type="button">All notes off</button>
+        </div>
+      </section>
+    </section>
+  </main>
+  <footer class="wrap credits">
+    <span>© 2026 Protocodus</span>
+    <a href="https://www.reasonstudios.com/shop/browse/?developer=Protocodus">Rack Extension Store</a>
+    <a href="./dsp/LICENSE">License</a>
+    <a href="./dsp/THIRD_PARTY_NOTICES.md">Notices</a>
+  </footer>
+</body>
+</html>
