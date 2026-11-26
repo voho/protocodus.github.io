@@ -1,0 +1,33 @@
+name: Keyra JavaScript compiler trial
+on:
+  push:
+    branches: [test/keyra-js-compiler-20261126]
+    paths: ['.github/workflows/keyra-js-compiler.yml', 'scripts/keyra/compiler-trial.sh']
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    container: debian:trixie
+    steps:
+      - name: Install the published toolchain
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates clang-19 lld-19 wasi-libc libc++-19-dev-wasm32 libc++abi-19-dev-wasm32 libclang-rt-19-dev-wasm32 binaryen g++ python3
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Compare callbacks and reference PCM
+        shell: bash
+        run: bash scripts/keyra/compiler-trial.sh
+      - name: Save measured JavaScript and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyra-js-candidates
+          path: results/
+          retention-days: 3
