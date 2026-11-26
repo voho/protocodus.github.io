@@ -1,0 +1,44 @@
+name: Verify Keyra factory recall on the public piano
+on:
+  push:
+    branches: [qa/keyra-live-preset-values-20261126]
+    paths: [.github/workflows/keyra-live-preset-audit.yml, tests/keyra/live-preset-audit.mjs, tests/keyra/live-preset-native.cpp]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/keyra
+            tests/keyra
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+      - name: Compile a field-by-field factory reference from the pinned instrument
+        run: |
+          read -r native_rev < scripts/keyra/revision.txt
+          git init -q /tmp/keyra-source
+          git -C /tmp/keyra-source fetch -q --depth=1 https://github.com/protocodus/virtual-instrument-keyra.git "$native_rev"
+          git -C /tmp/keyra-source checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/keyra-source rev-parse HEAD)" = "$native_rev"
+          g++ -std=c++17 -I/tmp/keyra-source/Source/DSP tests/keyra/live-preset-native.cpp -o /tmp/native-patches
+          /tmp/native-patches > oracle.tsv
+      - name: Install the site's test browsers
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium webkit
+      - name: Test desktop Chromium and narrow WebKit on production
+        run: node tests/keyra/live-preset-audit.mjs
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: keyra-native-live-preset-screens
+          path: |
+            audit-images
+            oracle.tsv
+          retention-days: 3
