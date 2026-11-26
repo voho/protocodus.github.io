@@ -11,6 +11,8 @@ import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
 const $ = (selector) => document.querySelector(selector);
 const canvas = $('#stage');
 const ctx = canvas.getContext('2d');
+const labelCanvas = $('[data-labels]');
+const labelCtx = labelCanvas.getContext('2d');
 const sound = createSound();
 const toastEl = $('[data-toast]');
 const status = $('[data-status]');
@@ -423,14 +425,21 @@ function finishTest(result) {
 /* ---------- loop ---------- */
 
 function resize() {
+  // The game is drawn at a low resolution and scaled up with hard edges, so
+  // every part of it shares the same chunky 16-bit pixels.
+  const pixel = Math.max(2, Math.round(innerHeight / 280));
+  canvas.width = Math.ceil(innerWidth / pixel);
+  canvas.height = Math.ceil(innerHeight / pixel);
+  ctx.setTransform(1 / pixel, 0, 0, 1 / pixel, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(innerWidth * ratio);
-  canvas.height = Math.round(innerHeight * ratio);
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  labelCanvas.width = Math.round(innerWidth * ratio);
+  labelCanvas.height = Math.round(innerHeight * ratio);
+  labelCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (!mission) return;
   const top = $('.hud-top').getBoundingClientRect().bottom + 6;
   const bottom = innerHeight - $('.hud-bottom').getBoundingClientRect().top + 6;
-  view = createView(mission, innerWidth, innerHeight, top, bottom);
+  view = { ...createView(mission, innerWidth, innerHeight, top, bottom), pixel };
 }
 
 function frame(now) {
@@ -449,7 +458,7 @@ function frame(now) {
       hover.label = `${MATERIALS[hover.beam.mat].name} · ${Math.round(hover.beam.usage * 100)}%`;
       hover.color = stressColor(hover.beam.usage);
     }
-    draw(ctx, {
+    draw(ctx, labelCtx, {
       mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
       hover: hover?.beam?.broken ? null : hover,
       peakOf: (m) => peaks.get(peakKey(m)),

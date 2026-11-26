@@ -5,7 +5,8 @@ import { jointAllowed } from './mission.js';
 import { drawBackdrop, drawGround, drawWater } from './scenery.js';
 
 const WIDTH = { road: 0.5, wood: 0.3, steel: 0.28, cable: 0.09 };
-const COLOR = { road: '#3a3f48', wood: '#c98b4f', steel: '#8aa3bd', cable: '#1c2128' };
+const COLOR = { road: '#3a3f48', wood: '#c98b4f', steel: '#c3d0dc', cable: '#1c2128' };
+const OUTLINE = '#141620';
 
 /* Green while relaxed, yellow past half, red as it nears its strength. */
 export function stressColor(u) {
@@ -39,7 +40,7 @@ export function createView(mission, width, height, top, bottom) {
 
 function grid(ctx, view, mission, focus, theme) {
   const { minX, maxX, minY, maxY } = mission.bounds;
-  const r = Math.max(1.2, view.scale * 0.09);
+  const r = Math.max(view.pixel || 1.2, view.scale * 0.09);
   for (let gx = minX; gx <= maxX; gx++) {
     for (let gy = minY; gy <= maxY; gy++) {
       if (!jointAllowed(mission, [gx, gy])) continue;
@@ -81,15 +82,22 @@ function anchors(ctx, view, mission) {
 
 /* One member as a thick line in its material, or in its stress colour. */
 function beam(ctx, view, ax, ay, bx, by, mat, stress, overlay) {
-  const w = Math.max(mat === 'cable' ? 1.6 : 3, WIDTH[mat] * view.scale);
+  const px = view.pixel || 1;
+  const w = Math.max(mat === 'cable' ? px : px * 2, WIDTH[mat] * view.scale);
   ctx.lineCap = 'round';
+  // A dark pixel outline keeps every member readable on any scenery.
+  if (mat !== 'cable') {
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = w + px * 2;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
   if (mat === 'road') {
     ctx.strokeStyle = stress == null ? COLOR.road : stress;
     ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     ctx.strokeStyle = stress == null ? '#f2c94c' : 'rgba(30, 34, 40, 0.55)';
-    ctx.lineWidth = Math.max(1, w * 0.14);
-    ctx.setLineDash([w * 0.9, w * 0.9]);
+    ctx.lineWidth = Math.max(px, w * 0.14);
+    ctx.setLineDash([Math.max(px * 3, w * 0.9), Math.max(px * 3, w * 0.9)]);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     ctx.setLineDash([]);
   } else {
@@ -121,7 +129,7 @@ function shadows(ctx, view, lines) {
 }
 
 function joints(ctx, view, points) {
-  const r = Math.max(2.5, view.scale * 0.16);
+  const r = Math.max((view.pixel || 1) * 1.5, view.scale * 0.16);
   ctx.lineWidth = Math.max(1, r * 0.4);
   for (const [x, y] of points) {
     ctx.fillStyle = '#f4f5f1';
@@ -138,6 +146,20 @@ function joints(ctx, view, points) {
 }
 
 
+/* Pixel-art vehicles: where the rear and front wheel centres sit in each
+   sprite and the row the tyres touch, so the art lines up with the axles. */
+const sprite = (name, rear, front, ground) => {
+  const img = new Image();
+  img.src = new URL(`../assets/${name}.png`, import.meta.url).href;
+  return { img, rear, front, ground };
+};
+const SPRITES = {
+  car: sprite('car', 12.4, 54, 28),
+  truck: sprite('truck', 27.1, 113.5, 60),
+  loco: sprite('loco', 24.8, 88.8, 47),
+  wagon: sprite('wagon', 21.3, 85.3, 35),
+};
+
 function vehicle(ctx, view, car) {
   const s = view.scale;
   for (const [fi, ri, kind] of BODIES[car.id]) {
@@ -147,6 +169,14 @@ function vehicle(ctx, view, car) {
     ctx.translate(view.sx(r.x), view.sy(r.y));
     ctx.rotate(-Math.atan2(f.y - r.y, f.x - r.x));
     ctx.scale(s, -s); // local metres, y up, rear axle at the origin
+    const art = SPRITES[kind];
+    if (art.img.complete && art.img.naturalWidth && art.front > art.rear) {
+      const m = d / (art.front - art.rear); // metres per sprite pixel
+      ctx.scale(1, -1);
+      ctx.drawImage(art.img, -art.rear * m, -art.ground * m, art.img.naturalWidth * m, art.img.naturalHeight * m);
+      ctx.restore();
+      continue;
+    }
     const wheel = WHEEL[kind];
     const box = (x0, y0, x1, y1, fill, radius = 0.25) => {
       ctx.fillStyle = fill;
@@ -214,8 +244,9 @@ function label(ctx, x, y, text, color = '#fff') {
 }
 
 /* state: { mission, view, time, theme, scenery, mode, members, sim, peakOf, parked, hover, drag, particles, focus } */
-export function draw(ctx, state) {
+export function draw(ctx, labelCtx, state) {
   const { mission, view, time, theme } = state;
+  labelCtx.clearRect(0, 0, view.width, view.height);
   drawBackdrop(ctx, view, state.scenery, theme, time);
   drawGround(ctx, view, mission, state.scenery, theme);
   if (state.mode === 'build') grid(ctx, view, mission, state.focus, theme);
@@ -274,7 +305,7 @@ export function draw(ctx, state) {
       ctx.globalAlpha = 1;
       const length = Math.hypot(to[0] - from[0], to[1] - from[1]) * CELL;
       const cost = ok ? plan.add.reduce((sum, m) => sum + Math.round(Math.hypot(m.b[0] - m.a[0], m.b[1] - m.a[1]) * CELL * MATERIALS[mat].cost), 0) : Math.round(length * MATERIALS[mat].cost);
-      label(ctx, bx, by - 8, `${length.toFixed(1)} m · $${cost}`, ok ? '#fff' : '#ff9b8f');
+      label(labelCtx, bx, by - 8, `${length.toFixed(1)} m · $${cost}`, ok ? '#fff' : '#ff9b8f');
     }
   }
 
@@ -287,11 +318,5 @@ export function draw(ctx, state) {
   }
   ctx.globalAlpha = 1;
 
-  const v = ctx.createRadialGradient(view.width / 2, view.height * 0.55, Math.min(view.width, view.height) * 0.35, view.width / 2, view.height * 0.55, Math.hypot(view.width, view.height) * 0.62);
-  v.addColorStop(0, 'rgba(8, 14, 24, 0)');
-  v.addColorStop(1, 'rgba(8, 14, 24, 0.22)');
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, view.width, view.height);
-
-  if (state.hover?.label) label(ctx, state.hover.px, state.hover.py - 6, state.hover.label, state.hover.color);
+  if (state.hover?.label) label(labelCtx, state.hover.px, state.hover.py - 6, state.hover.label, state.hover.color);
 }

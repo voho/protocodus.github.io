@@ -1,49 +1,43 @@
-/* Low-poly scenery: faceted hills and rock built once per river from its
-   seed, drawn quietly behind the bridge. Everything far away fades into the
-   sky's haze so the bridge, the vehicle and the stress colours stay in front.
-   Only the ground line has to match the physics; the rest is decoration. */
-import { createRng } from '../../shared/rng.js';
+/* Scenery in 16-bit pixel art: a painted backdrop per world, rock that
+   follows the river's ground line, and a living river. Every colour sits in
+   cool, muted blues and violets, so the bridge's green-to-red stress
+   colours, the materials and the bright vehicles always stand out. The art
+   was generated for this game (see ../assets/CREDITS.md) and snapped to a
+   pixel grid. Only the ground line has to match the physics. */
 
-/* Each river gets one of these worlds from its seed. The scenery stays in
-   quiet, low-chroma greys so none of it competes with what matters: the
-   stress colours (green, yellow, red), the materials (wood brown, steel blue,
-   red bolts) and the brightly painted vehicles. */
+const image = (name) => {
+  const img = new Image();
+  img.src = new URL(`../assets/${name}.png`, import.meta.url).href;
+  return img;
+};
+const ready = (img) => img.complete && img.naturalWidth > 0;
+
+/* Each river gets one of these worlds from its seed. */
 export const THEMES = {
-  meadow: {
-    name: 'Meadow', ui: 'dark',
-    sky: ['#aebfca', '#e4eaed'], sun: '#fbf8ee', cloud: '#ffffff',
-    far: '#bcc8ce', near: '#a5b3b6',
-    grass: '#a3ada4', rock: ['#9a9a95', '#5d6062'],
-    water: { surface: '#7f98a3', deep: '#2b3b45', glint: '#f2f6f8' },
-    tree: ['#8b978f', '#7a867f', '#6a6560'], trees: 'round',
-    road: '#4a4e55', grid: 'rgba(255, 255, 255, 0.6)',
+  // skyTop is the colour of each backdrop's top row, to fill the sky above it.
+  valley: {
+    name: 'Valley', ui: 'light', sky: image('sky-valley'), skyTop: '#a7bde1', rock: image('rock-valley'),
+    rockColor: '#6c7596', surface: ['#c9d1e6', '#8a93b3'], depth: '#1c2236',
+    water: { surface: '#7d93c4', deep: '#1f2a4d', glint: '#eef2ff' },
+    road: '#3d4152', grid: 'rgba(30, 36, 64, 0.5)',
   },
-  sunset: {
-    name: 'Sunset', ui: 'dark',
-    sky: ['#8f8c9c', '#ddd5cf'], sun: '#fbf1e2', cloud: '#f4ece8',
-    far: '#b6afb3', near: '#9c969d',
-    grass: '#9d968e', rock: ['#958c85', '#4d494c'],
-    water: { surface: '#8a8c9a', deep: '#2b2c3a', glint: '#f6efe8' },
-    tree: ['#7f7a80', '#6e6a71', '#5d5759'], trees: 'pine',
-    road: '#45434a', grid: 'rgba(255, 250, 245, 0.6)',
+  mesa: {
+    name: 'Mesa', ui: 'dark', sky: image('sky-mesa'), skyTop: '#232877', rock: image('rock-mesa'),
+    rockColor: '#5d4f86', surface: ['#a294c9', '#6b5d97'], depth: '#16122e',
+    water: { surface: '#6c62a8', deep: '#191438', glint: '#e8e2ff' },
+    road: '#2e2a40', grid: 'rgba(240, 236, 255, 0.55)',
   },
-  alpine: {
-    name: 'Alpine', ui: 'light',
-    sky: ['#c3cfd8', '#f0f3f5'], sun: '#ffffff', cloud: '#ffffff',
-    far: '#d1d8de', near: '#b8c1c8', snow: '#fbfcfd',
-    grass: '#e3e8eb', rock: ['#a2a8ad', '#5d6369'],
-    water: { surface: '#8aa1ac', deep: '#2a3a45', glint: '#ffffff' },
-    tree: ['#8c9893', '#7b8782', '#6b6662'], trees: 'pine',
-    road: '#4d5258', grid: 'rgba(40, 55, 70, 0.42)',
+  snow: {
+    name: 'Snow', ui: 'light', sky: image('sky-snow'), skyTop: '#abd6fd', rock: image('rock-snow'),
+    rockColor: '#7f93ad', surface: ['#f4f8ff', '#b9c8dc'], depth: '#1f2d45',
+    water: { surface: '#7fb0d8', deep: '#1a3352', glint: '#ffffff' },
+    road: '#3e4554', grid: 'rgba(25, 45, 75, 0.5)',
   },
-  canyon: {
-    name: 'Canyon', ui: 'light',
-    sky: ['#c9ced1', '#eee9e2'], sun: '#fdf9f0', cloud: '#ffffff',
-    far: '#d6cdc4', near: '#c1b5aa', mesa: true,
-    grass: '#c9bdae', rock: ['#b2a698', '#685f58'],
-    water: { surface: '#8ea2a1', deep: '#2c4140', glint: '#f4faf9' },
-    tree: ['#949a8f', '#858b80', '#949a8f'], trees: 'cactus',
-    road: '#55504c', grid: 'rgba(70, 55, 45, 0.42)',
+  night: {
+    name: 'Night', ui: 'dark', sky: image('sky-night'), skyTop: '#0d214c', rock: image('rock-night'),
+    rockColor: '#3b4466', surface: ['#7c88b4', '#46507a'], depth: '#090c1c',
+    water: { surface: '#3d4f8c', deep: '#0a1028', glint: '#d8e2ff' },
+    road: '#2a2e3d', grid: 'rgba(220, 230, 255, 0.5)',
   },
 };
 export const THEME_IDS = Object.keys(THEMES);
@@ -53,196 +47,100 @@ const mix = (a, b, t) => {
   const pa = parse(a), pb = parse(b);
   return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
 };
-const shade = (c, k) => `#${parse(c).map((v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0')).join('')}`;
 const rgba = (c, a) => `rgba(${parse(c).join(',')},${a})`;
 
-/* Triangles in world metres: { pts: [x0, y0, x1, y1, x2, y2], color }. */
+/* Nothing to precompute any more beyond the world itself; kept so a river
+   builds its scenery in one place. */
 export function buildScenery(mission, theme) {
-  const rng = createRng(`${mission.seed}:scenery`);
-  const { left, right, ground } = mission;
-  const haze = theme.sky[1];
-
-  // Rock: columns of quads down from the ground line, gently jittered and
-  // darkening with depth, with only a few percent of shade between facets.
-  const xs = new Set();
-  for (let x = left - 90; x <= right + 90; x += 3.4) xs.add(Math.round(x * 100) / 100);
-  for (let x = left; x <= right; x += 1.3) xs.add(Math.round(x * 100) / 100);
-  for (const x of [left, left + 0.02, right - 0.02, right]) xs.add(x);
-  if (mission.feature) {
-    for (let x = mission.feature.x0 * 2 - 5; x <= mission.feature.x1 * 2 + 5; x += 0.5) xs.add(Math.round(x * 100) / 100);
-  }
-  const columns = [...xs].sort((a, b) => a - b);
-  const depths = [0, 0.5, 2.6, 5.5, 9.5, 15, 200];
-  const jitter = columns.map(() => depths.map((d, k) => (k >= 2 ? (rng.next() - 0.5) * 1.4 : 0)));
-  const vertex = (c, k) => [columns[c], ground(columns[c]) - depths[k] + jitter[c][k]];
-  const terrain = [];
-  for (let c = 0; c < columns.length - 1; c++) {
-    const midX = (columns[c] + columns[c + 1]) / 2;
-    const top = Math.min(ground(columns[c]), ground(columns[c + 1]));
-    const onTop = top > -0.05 || (mission.feature && Math.abs(top - mission.feature.top * 2) < 0.05 && midX > left && midX < right);
-    for (let k = 0; k < depths.length - 1; k++) {
-      const a = vertex(c, k), b = vertex(c + 1, k), d = vertex(c, k + 1), e = vertex(c + 1, k + 1);
-      let base = mix(theme.rock[0], theme.rock[1], Math.min(1, depths[k] / 16));
-      if (k === 0) base = onTop ? theme.grass : shade(theme.rock[0], 0.82);
-      const facet = () => 0.96 + rng.next() * 0.08;
-      terrain.push({ pts: [...a, ...b, ...d], color: shade(base, facet() * 1.02) });
-      terrain.push({ pts: [...b, ...e, ...d], color: shade(base, facet() * 0.97) });
-    }
-  }
-
-  // Two ridges of hills, washed towards the horizon colour.
-  const ridges = [];
-  for (const [layer, height, step, wash] of [[0, 8, 13, 0.55], [1, 4.2, 9, 0.3]]) {
-    const color = mix(theme[layer ? 'near' : 'far'], haze, wash);
-    let x = left - 120;
-    let prev = [x, 0];
-    while (x < right + 120) {
-      x += step * (0.75 + rng.next() * 0.6);
-      const peak = [x - step * 0.45, height * (0.5 + rng.next() * 0.6)];
-      const valley = [x, height * 0.15 * rng.next()];
-      // Lit face on the left of every peak, a touch darker on the right.
-      ridges.push({ pts: [...prev, ...peak, peak[0], 0], color: shade(color, 1.03), layer, peak });
-      ridges.push({ pts: [peak[0], 0, ...peak, ...valley], color: shade(color, 0.95), layer });
-      ridges.push({ pts: [...prev, peak[0], 0, ...valley], color: shade(color, 0.95), layer });
-      prev = valley;
-    }
-  }
-
-  // The far wall of the gorge: one soft plane, so the space under the
-  // bridge reads as depth rather than empty sky.
-  const wall = [];
-  for (let x = left - 1; x <= right + 1.01; x += 1.6) wall.push([x, -0.2 - rng.next() * 0.5]);
-
-  const trees = [];
-  const plant = (x, y, scale) => trees.push({ x, y, s: scale * (0.75 + rng.next() * 0.4), lean: (rng.next() - 0.5) * 0.1, far: rng.chance(0.5) });
-  for (let i = 0; i < 6; i++) {
-    plant(left - 11 - rng.next() * 40, 0, 1);
-    plant(right + 11 + rng.next() * 40, 0, 1);
-  }
-  if (mission.feature?.kind === 'island' && mission.feature.x1 - mission.feature.x0 >= 2) {
-    plant((mission.feature.x0 + mission.feature.x1) + 0.4, mission.feature.top * 2, 0.6);
-  }
-
-  const clouds = Array.from({ length: 4 }, (_, i) => ({ x: rng.next(), y: 0.06 + rng.next() * 0.2, s: 0.6 + rng.next() * 0.6, speed: 2 + i * 0.9 }));
-  return { terrain, ridges, wall, trees, clouds, sunX: 0.64 + rng.next() * 0.22 };
+  return { theme };
 }
 
-function poly(ctx, view, pts, color) {
-  ctx.beginPath();
-  ctx.moveTo(view.sx(pts[0]), view.sy(pts[1]));
-  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(view.sx(pts[i]), view.sy(pts[i + 1]));
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-  // Hairline seams between facets show through without this.
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 0.75;
-  ctx.stroke();
+/* The rock texture as a pattern with one texel per game pixel. */
+function rockFill(ctx, view, theme) {
+  if (!ready(theme.rock)) return theme.rockColor;
+  theme.pattern ||= ctx.createPattern(theme.rock, 'repeat');
+  theme.pattern.setTransform(new DOMMatrix().scale(view.pixel || 1));
+  return theme.pattern;
 }
 
-export function drawBackdrop(ctx, view, scenery, theme, time) {
+export function drawBackdrop(ctx, view, scenery, theme) {
   const { width, height } = view;
-  const horizon = view.sy(0);
-  const g = ctx.createLinearGradient(0, 0, 0, horizon);
-  g.addColorStop(0, theme.sky[0]);
-  g.addColorStop(1, theme.sky[1]);
-  ctx.fillStyle = g;
+  ctx.fillStyle = theme.skyTop;
   ctx.fillRect(0, 0, width, height);
-
-  // A soft sun: a glow, then a small disc.
-  const r = Math.min(width, height) * 0.035;
-  const sx = width * scenery.sunX, sy = theme.name === 'Sunset' ? horizon - r * 3 : height * 0.17;
-  const glow = ctx.createRadialGradient(sx, sy, r * 0.5, sx, sy, r * 7);
-  glow.addColorStop(0, rgba(theme.sun, 0.4));
-  glow.addColorStop(1, rgba(theme.sun, 0));
-  ctx.fillStyle = glow;
-  ctx.fillRect(sx - r * 7, sy - r * 7, r * 14, r * 14);
-  ctx.fillStyle = theme.sun;
-  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
-
-  ctx.fillStyle = rgba(theme.cloud, 0.4);
-  for (const c of scenery.clouds) {
-    const s = r * 1.4 * c.s;
-    const cx = ((c.x * (width + 300)) + time * c.speed) % (width + 300) - 150;
-    const cy = height * c.y;
-    ctx.beginPath();
-    ctx.moveTo(cx - s * 2.2, cy + s * 0.4);
-    ctx.lineTo(cx - s * 1.3, cy - s * 0.3);
-    ctx.lineTo(cx - s * 0.3, cy - s * 0.85);
-    ctx.lineTo(cx + s * 0.8, cy - s * 0.55);
-    ctx.lineTo(cx + s * 1.5, cy - s * 0.1);
-    ctx.lineTo(cx + s * 2.3, cy + s * 0.4);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  for (const t of scenery.ridges) {
-    let pts = t.pts;
-    if (theme.mesa && t.peak) {
-      // Canyon country: flat-topped mesas instead of peaks.
-      pts = [pts[0], pts[1], pts[2] - 2, pts[3] * 0.82, pts[2] + 1.5, pts[3] * 0.82, pts[4], pts[5]];
-    }
-    poly(ctx, view, pts, t.color);
-    if (theme.snow && t.peak && t.layer === 0 && t.peak[1] > 6) {
-      const [px, py] = t.peak;
-      poly(ctx, view, [px, py, px - 1.6, py - 1.7, px + 1.3, py - 1.9], mix(theme.snow, theme.sky[1], 0.25));
-    }
-  }
-  // Haze where the hills meet the land.
-  const mist = ctx.createLinearGradient(0, horizon - view.scale * 3, 0, horizon);
-  mist.addColorStop(0, rgba(theme.sky[1], 0));
-  mist.addColorStop(1, rgba(theme.sky[1], 0.55));
-  ctx.fillStyle = mist;
-  ctx.fillRect(0, horizon - view.scale * 3, width, view.scale * 3);
+  if (!ready(theme.sky)) return;
+  // Whole game pixels only: one backdrop pixel is one (or a few) screen pixels.
+  const px = view.pixel || 1;
+  const k = px * Math.max(1, Math.ceil(width / (theme.sky.naturalWidth * px)));
+  const w = theme.sky.naturalWidth * k, h = theme.sky.naturalHeight * k;
+  const bottom = view.sy(0) + px * 2;
+  ctx.drawImage(theme.sky, Math.round((width - w) / 2), Math.round(bottom - h), w, h);
 }
 
 export function drawGround(ctx, view, mission, scenery, theme) {
-  // Far wall of the gorge, fading down into shadow.
+  const px = view.pixel || 1;
   const top = view.sy(0), bottom = view.sy(mission.water);
-  const wall = ctx.createLinearGradient(0, top, 0, bottom);
-  wall.addColorStop(0, mix(theme.rock[0], theme.sky[1], 0.45));
-  wall.addColorStop(1, mix(theme.rock[1], theme.sky[1], 0.25));
-  ctx.fillStyle = wall;
-  ctx.beginPath();
-  ctx.moveTo(view.sx(scenery.wall[0][0]), bottom + 4);
-  for (const [x, y] of scenery.wall) ctx.lineTo(view.sx(x), view.sy(y));
-  ctx.lineTo(view.sx(scenery.wall[scenery.wall.length - 1][0]), bottom + 4);
+  // The far wall of the gorge: the same rock, in shadow.
+  ctx.fillStyle = rockFill(ctx, view, theme);
+  ctx.fillRect(view.sx(mission.left), top, view.sx(mission.right) - view.sx(mission.left), view.height - top);
+  ctx.fillStyle = rgba(theme.depth, 0.7);
+  ctx.fillRect(view.sx(mission.left), top, view.sx(mission.right) - view.sx(mission.left), view.height - top);
+
+  // The ground itself, traced from the physics' ground line.
+  const x0 = view.wx(-px * 4), x1 = view.wx(view.width + px * 4);
+  const line = [];
+  for (let x = x0; x <= x1 + 0.25; x += 0.25) line.push([view.sx(x), view.sy(mission.ground(x))]);
+  const trace = () => {
+    ctx.beginPath();
+    ctx.moveTo(line[0][0], view.height + px);
+    for (const [sx, sy] of line) ctx.lineTo(sx, sy);
+    ctx.lineTo(line[line.length - 1][0], view.height + px);
+    ctx.closePath();
+  };
+  trace();
+  ctx.fillStyle = rockFill(ctx, view, theme);
+  ctx.fill();
+  // Deeper rock is darker.
+  const shade = ctx.createLinearGradient(0, top, 0, Math.max(top + 1, view.height));
+  shade.addColorStop(0, rgba(theme.depth, 0));
+  shade.addColorStop(1, rgba(theme.depth, 0.6));
+  trace();
+  ctx.fillStyle = shade;
   ctx.fill();
 
-  for (const tree of scenery.trees) if (tree.far) drawTree(ctx, view, tree, theme, true);
-  for (const t of scenery.terrain) poly(ctx, view, t.pts, t.color);
-  // The road on both banks, with a lit top edge.
-  const h = Math.max(3, view.scale * 0.32);
-  for (const [x0, x1] of [[-10, view.sx(mission.left)], [view.sx(mission.right), view.width + 10]]) {
-    ctx.fillStyle = theme.road;
-    ctx.fillRect(x0, top - h, x1 - x0, h);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
-    ctx.fillRect(x0, top - h, x1 - x0, Math.max(1, h * 0.18));
-  }
-  for (const tree of scenery.trees) if (!tree.far) drawTree(ctx, view, tree, theme, false);
-}
-
-function drawTree(ctx, view, { x, y, s, lean }, theme, far) {
-  let [a, b, trunk] = theme.tree;
-  if (far) { a = mix(a, theme.sky[1], 0.45); b = mix(b, theme.sky[1], 0.45); trunk = mix(trunk, theme.sky[1], 0.45); s *= 0.8; }
-  const P = (dx, dy) => [x + dx * s + dy * lean, y + dy * s];
-  const tri = (p, q, r, color) => poly(ctx, view, [...p, ...q, ...r], color);
-  if (theme.trees === 'cactus') {
-    poly(ctx, view, [...P(-0.28, 0), ...P(0.28, 0), ...P(0.28, 3), ...P(-0.28, 3)], a);
-    poly(ctx, view, [...P(0.28, 1.3), ...P(0.95, 1.3), ...P(0.95, 2.3), ...P(0.7, 2.3), ...P(0.7, 1.7), ...P(0.28, 1.7)], b);
-    poly(ctx, view, [...P(-0.28, 1.7), ...P(-0.85, 1.7), ...P(-0.85, 2.6), ...P(-0.6, 2.6), ...P(-0.6, 2.1), ...P(-0.28, 2.1)], b);
-    return;
-  }
-  poly(ctx, view, [...P(-0.13, 0), ...P(0.13, 0), ...P(0.13, 1), ...P(-0.13, 1)], trunk);
-  if (theme.trees === 'pine') {
-    for (const [base, top, w] of [[0.8, 3, 1.2], [1.8, 3.8, 0.95], [2.8, 4.6, 0.7]]) {
-      tri(P(-w, base), P(0, top), P(0, base), a);
-      tri(P(0, base), P(0, top), P(w, base), b);
+  // A lit top edge on ground you could stand on (not on cliff faces): two
+  // pixels of surface over one of shadow.
+  const ledge = (offset, color) => {
+    ctx.beginPath();
+    for (let i = 1; i < line.length; i++) {
+      const [ax, ay] = line[i - 1], [bx, by] = line[i];
+      if (Math.abs(by - ay) > Math.abs(bx - ax)) continue;
+      ctx.moveTo(ax, ay + offset);
+      ctx.lineTo(bx, by + offset);
     }
-  } else {
-    const c = P(0, 2.1);
-    const pts = Array.from({ length: 7 }, (_, i) => P(Math.cos(i * Math.PI * 2 / 7 + 0.3) * 1.15, 2.1 + Math.sin(i * Math.PI * 2 / 7 + 0.3) * 1.15));
-    for (let i = 0; i < 7; i++) tri(c, pts[i], pts[(i + 1) % 7], i < 3 || i === 6 ? a : b);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = px * 2;
+    ctx.stroke();
+  };
+  // A dark outline separates near rock from the shadowed far wall.
+  ctx.beginPath();
+  line.forEach(([sx, sy], i) => (i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy)));
+  ctx.strokeStyle = theme.depth;
+  ctx.lineWidth = px * 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.lineCap = 'square';
+  ledge(px * 2.5, theme.surface[1]);
+  ledge(px, theme.surface[0]);
+
+  // The road on both banks.
+  const h = Math.max(px * 3, view.scale * 0.32);
+  for (const [a, b] of [[-10, view.sx(mission.left)], [view.sx(mission.right), view.width + 10]]) {
+    ctx.fillStyle = '#141620';
+    ctx.fillRect(a, top - h - px, b - a, h + px * 2);
+    ctx.fillStyle = theme.road;
+    ctx.fillRect(a, top - h, b - a, h);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(a, top - h, b - a, px);
   }
 }
 
@@ -294,8 +192,8 @@ export function drawWater(ctx, view, mission, theme, time, reflect) {
 
   // Long, slow glints just below the surface.
   ctx.strokeStyle = rgba(glint, 0.28);
-  ctx.lineWidth = Math.max(1, view.scale * 0.06);
-  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(view.pixel || 1, view.scale * 0.06);
+  ctx.lineCap = 'butt';
   const span = x1 - x0;
   for (let i = 0; i < 9; i++) {
     const depth = ((i * 0.37) % 1) * view.scale * 2.4 + view.scale * 0.35;
@@ -311,7 +209,7 @@ export function drawWater(ctx, view, mission, theme, time, reflect) {
   ctx.globalAlpha = 1;
 
   // The surface line, brightest where a ripple faces the light.
-  ctx.lineWidth = Math.max(1.2, view.scale * 0.07);
+  ctx.lineWidth = Math.max(view.pixel || 1, view.scale * 0.07);
   ctx.strokeStyle = rgba(glint, 0.75);
   ctx.beginPath();
   for (let px = x0; px <= x1; px += 4) px === x0 ? ctx.moveTo(px, wave(px)) : ctx.lineTo(px, wave(px));
