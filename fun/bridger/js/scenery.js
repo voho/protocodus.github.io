@@ -100,7 +100,7 @@ export const THEMES = {
   },
   jungle: {
     ambient: ['fireflies'],
-    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.14, skyTop: '#c3efdd', rock: 'rock-forest',
+    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.16, skyTop: '#c3efdd', rock: 'rock-forest',
     rockColor: '#556350', tint: '#637f415e', surface: ['#899d64', '#627454'], depth: '#1c3533',
     subsoil: '#a47353', bedrock: '#283c38',
     water: { surface: '#688e77', deep: '#1f4544', glint: '#e5efd0' },
@@ -189,7 +189,8 @@ function blit(ctx, layer) {
 
 /* Position the undistorted ridge against the road, keeping the painted
    landmark visible in the narrower portrait crop. */
-export function backdropBounds(view, scenery, theme, aspect) {
+export function backdropBounds(view, scenery, theme, sky, pixelRatio = 1) {
+  const aspect = sky.naturalWidth / sky.naturalHeight;
   const floor = view.sy(scenery.backdropFloor) + 2, deck = view.sy(0);
   const narrow = Math.max(0, Math.min(1, 2 - view.width / deck));
   const [panorama, portrait] = theme.skyline;
@@ -197,9 +198,14 @@ export function backdropBounds(view, scenery, theme, aspect) {
   const horizon = deck * 0.54;
   // Cover the width, the sky above the ridge, and the strip down to the
   // far bank. Extra painted foreground can extend behind the playable land.
-  const h = Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge));
+  const cover = Math.max(view.width / aspect, floor);
+  // A tall portrait sky shows more of the painting vertically. Keep its
+  // detail sharp instead of enlarging the whole forest to place one ridge.
+  const detailHeight = sky.naturalHeight * (0.55 + 0.45 / pixelRatio);
+  const h = Math.min(Math.max(cover, detailHeight), Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge)));
   const w = h * aspect;
-  return { x: (view.width - w) * theme.skyAlign, y: horizon - h * ridge, w, h };
+  const y = Math.max(floor - h, Math.min(0, horizon - h * ridge));
+  return { x: (view.width - w) * theme.skyAlign, y, w, h };
 }
 
 export function drawBackdrop(ctx, view, scenery, theme) {
@@ -212,7 +218,7 @@ export function drawBackdrop(ctx, view, scenery, theme) {
   }
   const cache = rasterCache(ctx, view, scenery, theme);
   if (!cache.sky) {
-    const { x, y, w, h } = backdropBounds(view, scenery, theme, sky.naturalWidth / sky.naturalHeight);
+    const { x, y, w, h } = backdropBounds(view, scenery, theme, sky, cache.ratio);
     const layer = makeLayer(cache, 0, view.sy(scenery.backdropFloor) + 2);
     layer.ctx.fillStyle = theme.skyTop;
     layer.ctx.fillRect(0, 0, layer.w, layer.h);

@@ -40,7 +40,7 @@ let theme = null, survey = null, busy = false;
 let members = [], undoStack = [], tool = 'wood';
 let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
-let celebration = null;
+let celebration = null, vehicleGone = false;
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
 let recentSolutions = [];
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
@@ -459,7 +459,6 @@ function startTest() {
   mode = 'test';
   hover = null;
   document.body.classList.add('testing');
-  document.querySelector('[data-test-only]').hidden = false;
   testLabel.textContent = 'Stop';
   $('[data-action="test"]').setAttribute('aria-label', 'Stop the test');
   say(`The ${VEHICLES[mission.vehicle].name.toLowerCase()} is driving onto your bridge.`);
@@ -474,14 +473,16 @@ function stopTest() {
   }
   sim = null;
   celebration = null;
+  vehicleGone = false;
   particles = [];
   mode = 'build';
   sound.engine(false);
   document.body.classList.remove('testing');
-  document.querySelector('[data-test-only]').hidden = true;
   testLabel.textContent = 'Go!';
   $('[data-action="test"]').setAttribute('aria-label', 'Test the bridge');
   hover = null;
+  // A rotation during the drive measured the smaller test toolbar.
+  if (measuredInTest) resize();
 }
 
 function stepTest(dt) {
@@ -509,9 +510,9 @@ function stepTest(dt) {
       burst((na.x + nb.x) / 2, (na.y + nb.y) / 2, b.mat === 'wood' ? '#c98b4f' : b.mat === 'road' ? '#555b64' : '#b9c8d8', 10, 2.5, true);
     }
   });
-  const driving = sim.car.state === 'driving';
-  const pan = Math.max(-0.75, Math.min(0.75, 1.5 * (view.sx(sim.car.axles[0].x) / view.width - 0.5)));
-  sound.engine(driving && !document.hidden, sim.car, pan);
+  if (sim.car.state !== 'crossed') {
+    sound.engine(sim.car.state === 'driving' && !document.hidden, sim.car, vehiclePan());
+  }
   const strained = sim.beams.reduce((worst, b) =>
     !b.broken && !b.piece && b.usage > (worst?.usage ?? 0.6) ? b : worst, null);
   if (strained && Math.random() < dt * (strained.usage - 0.5) * 4) sound.creak(strained.usage, strained.mat);
@@ -519,6 +520,22 @@ function stepTest(dt) {
     resultShown = true;
     finishTest(sim.result);
   }
+}
+
+function vehiclePan() {
+  return Math.max(-1, Math.min(1, 1.5 * (view.sx(sim.car.axles[0].x) / view.width - 0.5)));
+}
+
+function driveAway(dt) {
+  sim.advanceRunout(dt);
+  const rear = sim.runoutRearX(), edge = view.wx(view.width + 2);
+  vehicleGone = rear >= edge;
+  const distance = Math.max(0.01, edge - celebration.startRear);
+  const progress = Math.max(0, Math.min(1, (rear - celebration.startRear) / distance));
+  // A wider window can extend the drive, but the receding engine stays quiet.
+  const gain = 1 - progress * progress * (3 - 2 * progress);
+  celebration.gain = Math.min(celebration.gain, gain);
+  sound.engine(!vehicleGone && !document.hidden, sim.car, vehiclePan(), celebration.gain);
 }
 
 function finishTest(result) {
@@ -529,6 +546,8 @@ function finishTest(result) {
     const broken = sim.brokeCount;
     celebration = createCelebration(mission, sim, reducedMotion.matches);
     celebration.showCard = cost <= mission.budget;
+    celebration.startRear = sim.runoutRearX();
+    celebration.gain = 1;
     sound.win();
     if (cost > mission.budget) {
       toast(`It works! But it costs ${money(cost)}, which is ${money(cost - mission.budget)} over budget. Try a cheaper shape.`, true, 5200);
@@ -552,6 +571,7 @@ function finishTest(result) {
 
 /* ---------- loop ---------- */
 
+let measuredInTest = false;
 function resize() {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(innerWidth * ratio);
@@ -562,9 +582,14 @@ function resize() {
   labelCanvas.height = Math.round(innerHeight * ratio);
   labelCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (!mission) return;
-  const top = $('.hud-top').getBoundingClientRect().bottom + 6;
-  const bottom = innerHeight - $('.hud-bottom').getBoundingClientRect().top + 6;
-  view = createView(mission, innerWidth, innerHeight, top, bottom);
+  const footer = $('.hud-bottom');
+  const splitControls = getComputedStyle(footer).display === 'contents';
+  let upperEdge = $('.hud-top').getBoundingClientRect().bottom;
+  if (splitControls) upperEdge = Math.max(upperEdge,
+    $('.budget').getBoundingClientRect().bottom, $('.materials').getBoundingClientRect().bottom);
+  const lowerEdge = (splitControls ? $('.toolbar') : footer).getBoundingClientRect().top;
+  measuredInTest = mode === 'test';
+  view = createView(mission, innerWidth, innerHeight, upperEdge + 6, innerHeight - lowerEdge + 6);
   requestFrame();
 }
 
@@ -580,9 +605,11 @@ function frame(now) {
   const paused = help.open || confirmDialog.open;
   if (mission && view) {
     if (!paused && mode === 'test' && sim && !sim.settled) stepTest(dt);
+    const effectLength = reducedMotion.matches ? 0.4 : CELEBRATION_LENGTH;
     if (celebration && !paused) {
       celebration.elapsed += dt;
-      if (celebration.elapsed >= (reducedMotion.matches ? 0.4 : CELEBRATION_LENGTH)) {
+      driveAway(dt);
+      if (vehicleGone && celebration.elapsed >= effectLength) {
         if (celebration.showCard) win.showModal();
         celebration = null;
       }
@@ -599,7 +626,8 @@ function frame(now) {
     }
     draw(ctx, labelCtx, {
       mission, view, time, theme, scenery, mode, members, sim, parked, particles, drag, focus,
-      celebration, reducedMotion: reducedMotion.matches,
+      celebration: celebration && celebration.elapsed < effectLength ? celebration : null,
+      vehicleGone, reducedMotion: reducedMotion.matches,
       hover: hover?.beam?.broken ? null : hover,
       peaks, peakOf: (m) => peaks.get(peakKey(m)),
     });

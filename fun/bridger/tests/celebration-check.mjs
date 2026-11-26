@@ -75,9 +75,9 @@ export async function checkCelebration(page) {
     assert.ok(c.frozen, `${c.vehicle}: the reduced-motion highlight stays still`);
   }
 
-  const game = await page.context().browser().newPage({ reducedMotion: 'no-preference' });
+  const game = await page.context().browser().newPage({ viewport: { width: 960, height: 600 }, reducedMotion: 'no-preference' });
   try {
-    const river = new URL('./#easy-check3', page.url());
+    const river = new URL('./#easy-check2', page.url());
     await game.route('**/*', (route) => route.request().url().startsWith(river.origin) ? route.continue() : route.abort());
     await game.addInitScript(() => {
       localStorage.setItem('bridger-seen-help', '1');
@@ -96,8 +96,13 @@ export async function checkCelebration(page) {
     assert.equal(await game.evaluate(() => bridger.sim.time), paused, 'Help pauses a crossing');
     await game.click('[data-dialog="help"] button');
     await game.waitForFunction((time) => bridger.sim.time > time, paused);
-    assert.ok(await game.evaluate(() => bridger.sim.run()));
+    const axlesAtWin = await game.evaluate(() => {
+      if (!bridger.sim.run()) throw new Error('The train failed to cross');
+      return bridger.sim.car.axles.map(({ x, angle }) => ({ x, angle }));
+    });
     await game.waitForFunction(() => document.querySelector('[data-win-note]').textContent);
+    await game.waitForFunction((axles) => bridger.sim.car.axles.every((axle, i) =>
+      axle.x > axles[i].x + 0.25 && axle.angle > axles[i].angle + 0.1), axlesAtWin, { timeout: 5000 });
     const card = game.locator('[data-dialog="win"]');
     assert.equal(await card.evaluate((dialog) => dialog.open), false, 'The animation plays before the win card');
     await go.click();
@@ -117,8 +122,56 @@ export async function checkCelebration(page) {
     await game.locator('[data-dialog="help"]').waitFor({ state: 'visible' });
     await game.waitForTimeout(650);
     assert.equal(await card.evaluate((dialog) => dialog.open), false, 'Help also pauses the win card countdown');
+    const oldEdge = await game.evaluate(() => bridger.view.wx(bridger.view.width));
+    await game.setViewportSize({ width: 1440, height: 600 });
+    await game.waitForFunction((edge) => bridger.view.wx(bridger.view.width) > edge + 4, oldEdge);
+    const departure = await game.evaluateHandle(async () => {
+      const { drawVehicle } = await import('./js/render.js');
+      const { image } = await import('./js/art.js');
+      await Promise.all(['loco', 'wagon', 'wheel-rail'].map((name) => image(name).decode()));
+      const dialog = document.querySelector('[data-dialog="win"]');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      function paint(compareWithStage = false) {
+        const { sim, view } = bridger;
+        canvas.width = view.width; canvas.height = view.height;
+        ctx.imageSmoothingQuality = 'high';
+        const { id, def, axles } = sim.car;
+        drawVehicle(ctx, view, { id, def, axles });
+        const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const stage = compareWithStage && document.querySelector('#stage').getContext('2d')
+          .getImageData(0, 0, canvas.width, canvas.height).data;
+        let visible = 0, opaque = 0, matching = 0;
+        for (let i = 0; i < rgba.length; i += 4) {
+          if (rgba[i + 3] > 5) visible++;
+          if (!stage || rgba[i + 3] < 250) continue;
+          opaque++;
+          if ([0, 1, 2].every((c) => Math.abs(stage[i + c] - rgba[i + c]) <= 6)) matching++;
+        }
+        return { visible, opaque, matching };
+      }
+      // Sample the game's exact pose when the card opens, before the next frame can advance.
+      const pixelsAtOpen = new Promise((resolve) => {
+        const observer = new MutationObserver(() => {
+          if (!dialog.open) return;
+          observer.disconnect();
+          resolve(paint().visible);
+        });
+        observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+      });
+      return { paint, pixelsAtOpen, angles: bridger.sim.car.axles.map((axle) => axle.angle) };
+    });
     await game.click('[data-dialog="help"] button');
-    await card.waitFor({ state: 'visible' });
+    await game.waitForFunction((edge) => document.querySelector('[data-dialog="win"]').open ||
+      bridger.sim.car.axles.at(-1).x > edge + 2, oldEdge, { timeout: 15000 });
+    assert.equal(await card.evaluate((dialog) => dialog.open), false, 'the widened view keeps the win card waiting');
+    const { opaque, matching } = await departure.evaluate((d) => d.paint(true));
+    assert.ok(opaque > 20 && matching > opaque / 2, 'the last wagon remains painted on the game canvas in the wider viewport');
+    assert.ok(await departure.evaluate((d) => bridger.sim.car.axles.every((axle, i) => axle.angle > d.angles[i] + 1)),
+      'all train wheels keep rolling under reduced motion');
+    await card.waitFor({ state: 'visible', timeout: 15000 });
+    assert.equal(await departure.evaluate((d) => d.pixelsAtOpen), 0, 'even the last painted wagon buffer has left before the card opens');
+    await departure.dispose();
     await game.click('[data-action="improve"]');
     assert.equal(await game.evaluate(() => bridger.sim), null, 'A replay victory returns to the builder');
   } finally {

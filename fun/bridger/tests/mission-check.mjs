@@ -154,6 +154,40 @@ for (const [unsupported, at, outcome] of [[2, 5.5, 'win'], [1, 4.1, 'fall']]) {
   assert.equal(sim.result, outcome);
 }
 
+// Finishing the proof and driving the on-screen vehicle off the bank use
+// separate clocks. The exit can last longer than the bridge needs to settle.
+for (const vehicle of ['car', 'truck', 'train']) {
+  const farSlope = truckRiver.right + 40;
+  const ground = (x) => x >= farSlope ? (x - farSlope) * 0.06 : truckRiver.ground(x);
+  const sim = createSim({ ...truckRiver, vehicle, ground }, truckDeck);
+  const initial = sim.car.front;
+  sim.advanceRunout(1);
+  assert.equal(sim.car.front, initial, 'A parked vehicle cannot begin its exit');
+  assert.ok(sim.run());
+  const finish = sim.car.front;
+  for (let i = 0; i < 200; i++) sim.step();
+  assert.ok(sim.settled);
+  assert.equal(sim.car.front, finish, 'Headless bridge settling has no runout work');
+  const time = sim.time, { axles, def } = sim.car;
+  const edge = sim.runoutRearX();
+  const rearOverhang = axles.at(-1).x - edge;
+  assert.ok(rearOverhang > 0.75 && rearOverhang < 1.75, 'The rear bumper extends behind the last axle');
+  const angles = axles.map((a) => a.worldAngle);
+  for (const dt of [0.05, 0.20, 0.50, 0.25]) sim.advanceRunout(dt);
+  assert.ok(Math.abs(sim.car.front - finish - def.speed) < 1e-8);
+  assert.ok(Math.abs(sim.runoutRearX() - edge - def.speed) < 1e-8);
+  axles.forEach((axle, i) => {
+    const radius = vehicle === 'train' ? (i < 2 ? WHEEL.loco : WHEEL.wagon) : WHEEL[vehicle];
+    assert.ok(Math.abs((axle.worldAngle - angles[i]) * radius - def.speed) < 1e-8, 'Each exit tyre rolls its own distance');
+    assert.ok(Math.abs(axle.angularSpeed * radius - def.speed) < 1e-8, 'Wheel speed is independent of frame length');
+  });
+  for (let i = 0; i < 120; i++) sim.advanceRunout(0.1);
+  assert.ok(axles.every((a) => a.x > farSlope && Math.abs(a.y - ground(a.x)) < 1e-8), 'Every carriage follows the far approach');
+  assert.ok(axles.at(-1).x - sim.runoutRearX() > rearOverhang, 'The uphill chassis projects farther behind the last axle');
+  assert.equal(sim.time, time, 'The vehicle can leave after the solver is asleep');
+  assert.equal(sim.result, 'win');
+}
+
 // Level members cross the traffic lane. A supported vehicle can hit its
 // roof while every wheel still has road underneath it. Side braces flank it.
 for (const [vehicle, roof] of [['car', 0.75], ['truck', 1], ['train', 1.5]]) {

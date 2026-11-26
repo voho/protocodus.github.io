@@ -60,7 +60,7 @@ export function createSound() {
   };
 
   /* One decaying partial. */
-  const tone = ({ type = 'sine', freq = 440, to = null, duration = 0.1, gain = 0.2, at = 0, attack = 0.004 }) => {
+  const tone = ({ type = 'sine', freq = 440, to = null, duration = 0.1, gain = 0.2, at = 0, attack = 0.004, output }) => {
     const c = enabled && ensure();
     if (!c) return;
     const t0 = c.currentTime + at;
@@ -73,12 +73,12 @@ export function createSound() {
     env.gain.linearRampToValueAtTime(gain, t0 + attack);
     env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(env);
-    env.connect(mix);
+    env.connect(output || mix);
     osc.start(t0);
     osc.stop(t0 + duration + 0.05);
   };
   /* Filtered noise with an optional sweep of the filter. */
-  const noise = ({ duration = 0.1, gain = 0.2, filter = 2000, to = null, q = 1, type = 'lowpass', at = 0, attack = 0.002 }) => {
+  const noise = ({ duration = 0.1, gain = 0.2, filter = 2000, to = null, q = 1, type = 'lowpass', at = 0, attack = 0.002, output }) => {
     const c = enabled && ensure();
     if (!c) return;
     const t0 = c.currentTime + at;
@@ -95,7 +95,7 @@ export function createSound() {
     env.gain.linearRampToValueAtTime(gain, t0 + attack);
     env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     source.connect(biquad).connect(env);
-    env.connect(mix);
+    env.connect(output || mix);
     source.start(t0, Math.random());
     source.stop(t0 + duration + 0.05);
   };
@@ -173,7 +173,9 @@ export function createSound() {
   function stopEngine() {
     if (!engine) return;
     const now = context.currentTime;
-    engine.gain.gain.setTargetAtTime(0, now, 0.035);
+    // Release even when a player presses Stop at full volume. Ten time
+    // constants take the waveform below -86 dB before the sources end.
+    engine.gain.gain.setTargetAtTime(0, now, 0.02);
     engine.motor.stop(now + 0.2);
     engine.rolling.stop(now + 0.2);
     engine = null;
@@ -297,8 +299,9 @@ export function createSound() {
     },
     /* Match the motor and rolling sounds to the vehicle's position and
        load. The wheels mark each actual deck joint as an axle crosses it. */
-    engine(on, car, pan = 0) {
-      const c = on && enabled && ensure();
+    engine(on, car, pan = 0, level = 1) {
+      level = Math.max(0, Math.min(1, level));
+      const c = on && enabled && level > 0 && ensure();
       if (!c) { stopEngine(); return; }
       const kind = car.id;
       const train = kind === 'train';
@@ -309,6 +312,9 @@ export function createSound() {
         const position = c.createStereoPanner();
         position.pan.value = pan;
         gain.connect(position).connect(mix);
+        const motorGain = c.createGain();
+        motorGain.gain.value = train ? 0.42 : 0.28;
+        motorGain.connect(gain);
 
         const motor = c.createBufferSource();
         motor.buffer = motorBuffer(c, kind);
@@ -316,7 +322,7 @@ export function createSound() {
         const exhaust = c.createBiquadFilter();
         exhaust.frequency.value = train ? 2300 : 820;
         exhaust.Q.value = 0.65;
-        motor.connect(exhaust).connect(gain);
+        motor.connect(exhaust).connect(motorGain);
         const rolling = c.createBufferSource();
         rolling.buffer = getNoise(c);
         rolling.loop = true;
@@ -326,7 +332,7 @@ export function createSound() {
         surface.Q.value = 0.7;
         const rollingGain = c.createGain();
         rollingGain.gain.value = 0.15;
-        rolling.connect(surface).connect(rollingGain).connect(gain);
+        rolling.connect(surface).connect(rollingGain).connect(motorGain);
         motor.start();
         rolling.start();
         engine = { gain, position, motor, exhaust, rolling, rollingGain, started: now, beams: car.axles.map(a => a.beam) };
@@ -336,14 +342,15 @@ export function createSound() {
       const load = Math.max(-0.3, Math.min(0.45, grade));
       const throttle = Math.min(1, (now - engine.started) / 0.85);
       engine.motor.playbackRate.setTargetAtTime(train ? 1 : 0.78 + throttle * 0.24 + load * 0.5, now, 0.09);
-      engine.exhaust.frequency.setTargetAtTime(train ? 2200 : (kind === 'truck' ? 820 : 1100) * (1 + load), now, 0.09);
+      const cutoff = train ? 2200 : (kind === 'truck' ? 820 : 1100) * (1 + load);
+      engine.exhaust.frequency.setTargetAtTime(cutoff * (0.65 + 0.35 * level), now, 0.09);
       engine.position.pan.setTargetAtTime(pan, now, 0.06);
-      engine.gain.gain.setTargetAtTime(train ? 0.42 : 0.28, now, 0.07);
+      engine.gain.gain.setTargetAtTime(level, now, 0.07);
       engine.rollingGain.gain.setTargetAtTime(front.beam < 0 ? 0.23 : 0.11, now, 0.06);
       car.axles.forEach((axle, i) => {
         if (axle.beam >= 0 && axle.beam !== engine.beams[i]) {
-          tone({ freq: train ? 420 : 97, to: train ? 365 : 64, gain: train ? 0.075 : 0.06, duration: 0.052 });
-          noise({ filter: train ? 2900 : 870, to: 620, type: 'bandpass', duration: 0.045, gain: train ? 0.19 : 0.11 });
+          tone({ freq: train ? 420 : 97, to: train ? 365 : 64, gain: train ? 0.075 : 0.06, duration: 0.052, output: engine.gain });
+          noise({ filter: train ? 2900 : 870, to: 620, type: 'bandpass', duration: 0.045, gain: train ? 0.19 : 0.11, output: engine.gain });
         }
         engine.beams[i] = axle.beam;
       });

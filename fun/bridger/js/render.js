@@ -27,11 +27,21 @@ export function stressColor(u) {
 export function createView(mission, width, height, top, bottom) {
   // Keep edge joints visible and reachable, including on narrow phones.
   const x0 = (mission.bounds.minX - 0.4) * CELL, x1 = (mission.bounds.maxX + 0.4) * CELL;
-  const y0 = mission.water - 2.5, y1 = mission.bounds.maxY * CELL + 1;
-  const avail = Math.max(120, height - top - bottom);
-  const scale = Math.min(width / (x1 - x0), avail / (y1 - y0));
+  // Use the same 10 cm samples as the near-bank outline, including the
+  // seeded ridges underneath the water. The nominal bed can be much higher.
+  let bed = Infinity;
+  for (let i = Math.round(mission.left * 10); i <= Math.round(mission.right * 10); i++) {
+    bed = Math.min(bed, mission.ground(i / 10));
+  }
+  const topY = mission.bounds.maxY * CELL + 1;
+  // Leave a strip of bedrock below the river. Stacked phone controls need
+  // more room; the deepest point still sits visibly above their top edge.
+  const bedY = height - Math.max(Math.min(76, height * 0.20), bottom + 4);
+  const available = Math.max(1, bedY - top);
+  // Keep the road in the lower part of the playfield even in a deep gorge.
+  const scale = Math.min(width / (x1 - x0), available / (topY - bed), available * 0.4 / (mission.deck - bed));
   const ox = (width - (x1 - x0) * scale) / 2 - x0 * scale;
-  const oy = top + (avail - (y1 - y0) * scale) / 2 + y1 * scale;
+  const oy = bedY + bed * scale;
   return {
     scale, ox, oy, width, height,
     sx: (x) => ox + x * scale,
@@ -457,7 +467,7 @@ export function draw(ctx, labelCtx, state) {
   const bridge = building ? buildGeometry(state) : state.sim ? testGeometry(view, state.sim) : { lines: [], joints: [] };
   const car = !building && state.sim ? state.sim.car : state.parked;
   const structure = (reflection) => {
-    drawVehicle(ctx, view, car);
+    if (!state.vehicleGone) drawVehicle(ctx, view, car);
     const hot = reflection ? null : state.hover?.member;
     if (building) paintBuildLayer(ctx, view, mission, bridge, reflection, hot);
     else {

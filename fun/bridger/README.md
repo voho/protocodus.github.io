@@ -124,7 +124,9 @@ respect the system's reduced-motion setting.
 The exposed banks show layers of soil and rock that deepen toward the riverbed.
 After a crossing, two lights travel along the bridge from opposite banks. When they
 meet, the deck and its supports glow gold and launch confetti and curling streamers.
-With reduced motion enabled, the bridge gets a steady gold highlight.
+The vehicle keeps driving up the far bank as its engine fades. The results card
+opens once the rear bumper or last wagon has left the screen. With reduced motion
+enabled, the bridge gets a steady gold highlight.
 
 ## Sound
 

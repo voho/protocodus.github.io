@@ -271,7 +271,7 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
     }
     return supported;
   }
-  function rollOnRoad() {
+  function rollOnRoad(dt = STEP) {
     for (const [fi, ri, kind] of BODIES[vehicleId]) {
       const f = car.axles[fi], r = car.axles[ri], base = OUTLINE[kind].base;
       const c = (f.x - r.x) / base, s = (f.y - r.y) / base;
@@ -284,11 +284,11 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
           let dx = x - axle.centerX, dy = y - axle.centerY;
           if (axle.beam >= 0) {
             const beam = beams[axle.beam], a = nodes[beam.a], b = nodes[beam.b];
-            dx -= (a.vx * (1 - axle.t) + b.vx * axle.t) * STEP;
-            dy -= (a.vy * (1 - axle.t) + b.vy * axle.t) * STEP;
+            dx -= (a.vx * (1 - axle.t) + b.vx * axle.t) * dt;
+            dy -= (a.vy * (1 - axle.t) + b.vy * axle.t) * dt;
           }
           const travel = Math.sign(dx * c + dy * s) * Math.hypot(dx, dy);
-          rollWheel(axle, axle.supported && axle.load > 0 ? travel : null, radius, STEP);
+          rollWheel(axle, axle.supported && axle.load > 0 ? travel : null, radius, dt);
         }
         axle.centerX = x; axle.centerY = y;
         axle.angle = axle.worldAngle + heading;
@@ -703,6 +703,28 @@ export function createSim(mission, members, vehicleId = mission.vehicle, { abort
   }
 
   sim.step = step;
+  // Only the displayed winner needs a drive off the far bank. Its axles
+  // already cleared the bridge, so the bridge can finish settling separately.
+  sim.advanceRunout = (dt) => {
+    if (car.state !== 'crossed' || !(dt > 0)) return;
+    car.front += vehicle.speed * dt;
+    placeVehicle();
+    rollOnRoad(dt);
+  };
+  sim.runoutRearX = () => {
+    let left = Infinity;
+    for (const [fi, ri, kind] of BODIES[vehicleId]) {
+      const f = car.axles[fi], r = car.axles[ri];
+      const [rearPixel, frontPixel, groundPixel, tyrePixel] = SPRITE_AXLES[kind];
+      const c = (f.x - r.x) / (frontPixel - rearPixel), s = (f.y - r.y) / (frontPixel - rearPixel);
+      // The chassis is drawn above its tyre contact line. On an uphill
+      // approach its top-left pixel projects farther back than its bumper.
+      const chassisLeft = r.x - c * rearPixel - Math.max(0, s * groundPixel);
+      const tyreLeft = r.centerX - tyrePixel * Math.hypot(c, s);
+      left = Math.min(left, chassisLeft, tyreLeft);
+    }
+    return left;
+  };
   /* Run to the end with no drawing: true when the vehicle crosses. */
   sim.run = (limit = 60) => {
     while (!sim.result && sim.time < limit) step();
