@@ -40,6 +40,17 @@ for (const relative of [...products.map(product => `product/${product}/index.htm
   const page = browser(href, undefined, { setup: dom => parseBody(html, dom) });
   const main = page.document.querySelector('main');
   assert.ok(main, `${relative}: the public page has main content`);
+  if (relative === 'index.html') {
+    for (const slug of ['keyra', 'oregana']) {
+      const card = main.querySelector(`.product-card.p-${slug}`);
+      assert.ok(card, `The catalog includes ${slug}`);
+      for (const placement of ['image', 'title', 'play']) {
+        const link = card.querySelector(`[data-analytics-cta="product_${slug}_${placement}"]`);
+        assert.equal(link?.getAttribute('href'), `/fun/${slug}/`, `${slug} ${placement} opens its player`);
+      }
+      assert.ok(card.querySelector(`a[href="/product/${slug}/"]`), `${slug} retains a product details link`);
+    }
+  }
   const anchors = page.document.querySelectorAll('a[href]');
   assert.ok(anchors.length > 0, `${relative}: discover page links`);
   const ids = new Set();
