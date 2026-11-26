@@ -1,11 +1,10 @@
 /* Canvas drawing: sky, valley, river, the bridge and the vehicle. World
    units are metres with y up; the view maps them onto the canvas. */
-import { CELL, MATERIALS, BODIES, WHEEL } from './physics.js';
+import { CELL, MATERIALS, BODIES, SPRITE_AXLES, BODY_COUPLERS } from './physics.js';
 import { jointAllowed } from './mission.js';
 import { drawBackdrop, drawAmbient, drawWeather, drawGround, drawWater } from './scenery.js';
 
 const WIDTH = { road: 0.5, wood: 0.3, steel: 0.28, cable: 0.09 };
-const COLOR = { road: '#3a3f48', wood: '#c98b4f', steel: '#c3d0dc', cable: '#1c2128' };
 const OUTLINE = '#141620';
 
 /* Green while relaxed, yellow past half, red as it nears its strength. */
@@ -55,66 +54,152 @@ function grid(ctx, view, mission, focus, theme) {
   }
 }
 
+/* The hatch is on the reserved side of the boundary. A ceiling needs only
+   a short band above the line, leaving the rest of the sky unobstructed. */
+function clearanceMarker(ctx, view, zone, theme) {
+  const channel = zone.kind === 'channel';
+  const left = Math.max(-2, view.sx(zone.x0)), right = Math.min(view.width + 2, view.sx(zone.x1));
+  const bottom = view.sy(zone.y0);
+  const top = Math.max(view.sy(zone.y1), channel ? 0 : bottom - Math.max(7, view.scale * 0.28));
+  const height = bottom - top;
+  if (right <= left || height <= 0) return;
+  const dark = theme.ui === 'dark';
+  ctx.save();
+  ctx.beginPath(); ctx.rect(left, top, right - left, height); ctx.clip();
+  ctx.fillStyle = dark ? 'rgba(255, 215, 159, 0.10)' : 'rgba(119, 60, 34, 0.09)';
+  ctx.fillRect(left, top, right - left, height);
+  ctx.strokeStyle = dark ? 'rgba(255, 226, 182, 0.52)' : 'rgba(101, 52, 33, 0.42)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = left - height; x < right; x += 12) {
+    ctx.moveTo(x, bottom); ctx.lineTo(x + height, top);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  if (channel) ctx.rect(left, top, right - left, height);
+  else { ctx.moveTo(left, bottom); ctx.lineTo(right, bottom); }
+  ctx.strokeStyle = 'rgba(255, 241, 212, 0.76)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.strokeStyle = '#795343';
+  ctx.lineWidth = 1.35;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function anchors(ctx, view, mission) {
   const s = Math.max(7, view.scale * 0.42);
   for (const [gx, gy] of mission.anchors) {
     const x = view.sx(gx * CELL), y = view.sy(gy * CELL);
-    ctx.fillStyle = 'rgba(10, 18, 30, 0.22)';
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(47, 31, 23, 0.38)';
     ctx.beginPath();
-    ctx.roundRect(x - s + s * 0.15, y - s + s * 0.25, s * 2, s * 2, s * 0.4);
+    ctx.roundRect(-s + s * 0.15, -s + s * 0.24, s * 2, s * 2, s * 0.25);
     ctx.fill();
-    const plate = ctx.createLinearGradient(0, y - s, 0, y + s);
-    plate.addColorStop(0, '#ef6a52');
-    plate.addColorStop(1, '#c7402f');
+
+    const plate = ctx.createLinearGradient(-s, -s, s * 0.5, s);
+    plate.addColorStop(0, '#fa9674');
+    plate.addColorStop(0.32, '#c96047');
+    plate.addColorStop(1, '#a44632');
     ctx.fillStyle = plate;
-    ctx.strokeStyle = '#ffd2c4';
-    ctx.lineWidth = Math.max(1.5, s * 0.2);
+    ctx.strokeStyle = '#674331';
+    ctx.lineWidth = Math.max(1.1, s * 0.12);
     ctx.beginPath();
-    ctx.roundRect(x - s, y - s, s * 2, s * 2, s * 0.4);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#ffe3d9';
+    ctx.roundRect(-s, -s, s * 2, s * 2, s * 0.23);
+    ctx.fill(); ctx.stroke();
+    if (s > 9) {
+      ctx.fillStyle = '#824532';
+      ctx.fillRect(-s * 0.76, -s * 0.71, s * 0.21, s * 0.12);
+      ctx.fillRect(s * 0.52, s * 0.63, s * 0.24, s * 0.13);
+    }
+    // A hex nut and a recessed stud at the centre of the bolted plate.
+    const radius = s * 0.54;
+    ctx.fillStyle = '#e4c8a3';
+    ctx.strokeStyle = '#734f3b';
     ctx.beginPath();
-    ctx.arc(x, y, s * 0.35, 0, Math.PI * 2);
-    ctx.fill();
+    for (let i = 0; i < 6; i++) {
+      const angle = i * Math.PI / 3;
+      ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#846d55';
+    ctx.beginPath(); ctx.arc(0, s * 0.035, radius * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 }
 
-/* One member as a thick line in its material, or in its stress colour. */
+/* Paint in the member's own coordinates. Fine grain and wire twists drop
+   out when they would be smaller than a pixel. */
 function beam(ctx, view, ax, ay, bx, by, mat, stress, overlay) {
-  const px = 1.5; // the smallest line that still reads on a phone
-  const w = Math.max(mat === 'cable' ? px : px * 2, WIDTH[mat] * view.scale);
+  const length = Math.hypot(bx - ax, by - ay);
+  if (!length) return;
+  const w = Math.max(mat === 'cable' ? 1.9 : 3, WIDTH[mat] * view.scale);
+  const reverse = bx < ax || (ax === bx && by < ay);
+  ctx.save();
+  ctx.translate(reverse ? bx : ax, reverse ? by : ay);
+  ctx.rotate(Math.atan2(reverse ? ay - by : by - ay, reverse ? ax - bx : bx - ax));
   ctx.lineCap = 'round';
-  // A dark outline keeps every member readable on any scenery.
-  if (mat !== 'cable') {
-    ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = w + px * 2;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-  }
-  if (mat === 'road') {
-    ctx.strokeStyle = stress == null ? COLOR.road : stress;
-    ctx.lineWidth = w;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.strokeStyle = stress == null ? '#f2c94c' : 'rgba(30, 34, 40, 0.55)';
-    ctx.lineWidth = Math.max(px, w * 0.14);
-    ctx.setLineDash([Math.max(px * 3, w * 0.9), Math.max(px * 3, w * 0.9)]);
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.setLineDash([]);
+  const band = (color, width, y = 0) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(length, y); ctx.stroke();
+  };
+
+  if (stress) {
+    band('#38423d', w + 1.5);
+    band(stress, w);
+  } else if (mat === 'wood') {
+    const timber = ctx.createLinearGradient(0, -w * 0.5, 0, w * 0.5);
+    timber.addColorStop(0, '#ddaa70'); timber.addColorStop(0.53, '#bd834b'); timber.addColorStop(1, '#a16c40');
+    band('#64462e', w + 1.7);
+    band(timber, w);
+    band('#e3b47b', Math.max(0.85, w * 0.16), -w * 0.33);
+    if (w >= 5 && length > 15) {
+      ctx.strokeStyle = '#94623c'; ctx.lineWidth = Math.max(0.65, w * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(length * 0.08, w * 0.16);
+      ctx.bezierCurveTo(length * 0.36, w * 0.17, length * 0.47, -w * 0.18, length * 0.72, w * 0.04);
+      ctx.moveTo(length * 0.55, w * 0.22);
+      ctx.quadraticCurveTo(length * 0.72, w * 0.1, length * 0.91, w * 0.23);
+      ctx.stroke();
+    }
+  } else if (mat === 'steel') {
+    band('#3e5456', w + 1.8);
+    band('#809a9c', w);
+    band('#cfdbd4', Math.max(0.9, w * 0.22), -w * 0.35);
+    band('#546a71', Math.max(0.8, w * 0.20), w * 0.35);
+  } else if (mat === 'cable') {
+    band('#344440', w + 0.85);
+    band('#84938d', Math.max(0.8, w * 0.49), -w * 0.16);
+    if (w >= 2.4) {
+      ctx.strokeStyle = '#ccd0bd'; ctx.lineWidth = Math.max(0.8, w * 0.29);
+      ctx.beginPath();
+      for (let x = w; x < length - w; x += w * 2.25) {
+        ctx.moveTo(x, w * 0.20); ctx.lineTo(x + w * 0.58, -w * 0.29);
+      }
+      ctx.stroke();
+    }
   } else {
-    ctx.strokeStyle = stress == null ? COLOR[mat] : stress;
-    ctx.lineWidth = w;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    if (stress == null && mat === 'steel') {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.lineWidth = Math.max(1, w * 0.25);
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    // A cut edge of asphalt over the aggregate deck, seen from the side.
+    band('#434640', w + 1.7);
+    band('#8b8474', w);
+    band('#424847', Math.max(1.5, w * 0.36), -w * 0.29);
+    band('#a4a18c', Math.max(0.8, w * 0.10), -w * 0.08);
+    if (w >= 5) {
+      for (let x = w * 0.41, i = 1; x < length - 2; i++) {
+        const scatter = (i * 0.618034) % 1;
+        ctx.fillStyle = i % 3 ? '#a39b87' : '#707469';
+        ctx.fillRect(x, w * (scatter * 0.29 - 0.02), w * (0.10 + scatter * 0.10), Math.max(0.65, w * 0.075));
+        x += w * (0.37 + scatter * 0.52);
+      }
     }
   }
-  if (overlay) {
-    ctx.strokeStyle = overlay;
-    ctx.lineWidth = Math.max(1.5, w * 0.36);
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-  }
+  if (overlay) band(overlay, Math.max(1.5, w * 0.36));
+  ctx.restore();
 }
 
 /* A soft offset shadow under every member, so the bridge lifts off the scenery. */
@@ -129,130 +214,75 @@ function shadows(ctx, view, lines) {
 }
 
 function joints(ctx, view, points) {
-  const r = Math.max(2.5, view.scale * 0.16);
-  ctx.lineWidth = Math.max(1, r * 0.4);
+  const r = Math.max(2.65, view.scale * 0.16);
+  ctx.lineWidth = Math.max(0.9, r * 0.23);
   for (const [x, y] of points) {
-    ctx.fillStyle = '#f4f5f1';
-    ctx.strokeStyle = '#262b33';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#9aa3ad';
-    ctx.beginPath();
-    ctx.arc(x, y, r * 0.38, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = '#778079';
+    ctx.strokeStyle = '#394039';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#d8d8bd';
+    ctx.beginPath(); ctx.arc(x - r * 0.10, y - r * 0.15, r * 0.68, 0, Math.PI * 2); ctx.fill();
+    if (r > 3.1) {
+      ctx.strokeStyle = '#737a6e';
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.30, y + r * 0.12); ctx.lineTo(x + r * 0.20, y - r * 0.25);
+      ctx.stroke();
+    }
   }
 }
 
-
-/* Vehicle art: where the rear and front wheel centres sit in each sprite,
-   the row the tyres touch and the wheel radius (sprite pixels), so the art
-   lines up with the axles. Each wheel is cut out of the sprite once it loads
-   and drawn again on top, turning as the vehicle rolls. */
-const sprite = (name, rear, front, ground, wheel) => {
+/* Wheel-less bodies are painted last so the fenders and the carriage sill
+   cover the turning wheels, including the pair under the truck's mudguard. */
+function sprite(name) {
   const img = new Image();
-  const art = { img, rear, front, ground, wheel, tyre: null };
-  img.onload = () => {
-    // A little inside the tyre's edge, so the spinning disc never shows the body behind it.
-    const r = Math.ceil(wheel * 0.92);
-    const tyre = document.createElement('canvas');
-    tyre.width = tyre.height = r * 2;
-    const c = tyre.getContext('2d');
-    c.beginPath();
-    c.arc(r, r, r, 0, Math.PI * 2);
-    c.clip();
-    c.drawImage(img, rear - r, ground - wheel - r, r * 2, r * 2, 0, 0, r * 2, r * 2);
-    art.tyre = tyre;
-  };
   img.src = new URL(`../assets/${name}.webp`, import.meta.url).href;
-  return art;
-};
-const SPRITES = {
-  car: sprite('car', 164.2, 716, 351, 77),
-  truck: sprite('truck', 184, 732, 371, 56.5),
-  loco: sprite('loco', 200, 699.5, 353, 69),
-  wagon: sprite('wagon', 184.8, 715.2, 293, 54),
-};
+  return img;
+}
+const bodies = Object.fromEntries(Object.keys(SPRITE_AXLES).map(kind => [kind, sprite(kind)]));
+const roadWheel = sprite('wheel-road'), railWheel = sprite('wheel-rail');
+const loaded = (img) => img.complete && img.naturalWidth > 0;
 
-function vehicle(ctx, view, car) {
-  const s = view.scale;
+function drawTrainCouplings(ctx, view, car) {
+  ctx.save();
+  ctx.strokeStyle = '#3b3531';
+  ctx.lineWidth = Math.max(1.4, view.scale * 0.11);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  let previous = null;
+  for (const [fi, ri, kind] of BODIES.train) {
+    const f = car.axles[fi], r = car.axles[ri], base = r.offset - f.offset;
+    const c = (f.x - r.x) / base, s = (f.y - r.y) / base;
+    const at = ([x, y]) => [view.sx(r.x + c * x - s * y), view.sy(r.y + s * x + c * y)];
+    if (previous) { ctx.moveTo(...previous); ctx.lineTo(...at(BODY_COUPLERS[kind].front)); }
+    previous = at(BODY_COUPLERS[kind].rear);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawVehicle(ctx, view, car) {
+  if (car.id === 'train') drawTrainCouplings(ctx, view, car);
   for (const [fi, ri, kind] of BODIES[car.id]) {
-    const f = car.axles[fi], r = car.axles[ri];
-    const d = Math.hypot(f.x - r.x, f.y - r.y);
+    const front = car.axles[fi], rear = car.axles[ri];
+    const [rearPixel, frontPixel, groundPixel, wheelPixel] = SPRITE_AXLES[kind];
+    const wheelbase = Math.hypot(front.x - rear.x, front.y - rear.y);
+    const scale = view.scale * wheelbase / (frontPixel - rearPixel);
+    const wheel = car.id === 'train' ? railWheel : roadWheel;
     ctx.save();
-    ctx.translate(view.sx(r.x), view.sy(r.y));
-    ctx.rotate(-Math.atan2(f.y - r.y, f.x - r.x));
-    ctx.scale(s, -s); // local metres, y up, rear axle at the origin
-    const art = SPRITES[kind];
-    if (art.img.complete && art.img.naturalWidth && art.front > art.rear) {
-      const m = d / (art.front - art.rear); // metres per sprite pixel
-      ctx.scale(1, -1);
-      ctx.drawImage(art.img, -art.rear * m, -art.ground * m, art.img.naturalWidth * m, art.img.naturalHeight * m);
-      if (art.tyre) {
-        const radius = art.wheel * m, size = art.tyre.width * m;
-        for (let i = fi; i <= ri; i++) {
-          const along = car.axles[ri].offset - car.axles[i].offset;
-          ctx.save();
-          ctx.translate(along, -radius);
-          // Rolling without slipping: the wheel turns by the distance travelled over its radius.
-          ctx.rotate(car.axles[i].x / radius);
-          ctx.drawImage(art.tyre, -size / 2, -size / 2, size, size);
-          ctx.restore();
-        }
-      }
+    ctx.translate(view.sx(rear.x), view.sy(rear.y));
+    ctx.rotate(-Math.atan2(front.y - rear.y, front.x - rear.x));
+    ctx.scale(scale, scale);
+    for (let i = fi; i <= ri; i++) {
+      const axle = car.axles[i];
+      const x = (rear.offset - axle.offset) / (rear.offset - front.offset) * (frontPixel - rearPixel);
+      ctx.save();
+      ctx.translate(x, -wheelPixel);
+      ctx.rotate(axle.angle);
+      if (loaded(wheel)) ctx.drawImage(wheel, -wheelPixel, -wheelPixel, wheelPixel * 2, wheelPixel * 2);
       ctx.restore();
-      continue;
     }
-    const wheel = WHEEL[kind];
-    const box = (x0, y0, x1, y1, fill, radius = 0.25) => {
-      ctx.fillStyle = fill;
-      ctx.beginPath();
-      ctx.roundRect(x0, y0, x1 - x0, y1 - y0, radius);
-      ctx.fill();
-    };
-    if (kind === 'car') {
-      box(-0.85, wheel * 0.7, d + 0.85, 1.25, '#e8473b', 0.35);
-      box(0.15, 1.1, d - 0.4, 1.85, '#e8473b', 0.4);
-      box(0.4, 1.25, d * 0.5 - 0.05, 1.72, '#bfe4ff', 0.15);
-      box(d * 0.5 + 0.1, 1.25, d - 0.65, 1.72, '#bfe4ff', 0.15);
-      box(d + 0.55, 0.75, d + 0.85, 0.95, '#fff6c4', 0.08);
-    } else if (kind === 'truck') {
-      box(-0.9, 0.9, d - 1.6, 3.1, '#f6a623', 0.15);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-      for (let x = -0.5; x < d - 1.8; x += 0.7) ctx.fillRect(x, 1.05, 0.08, 1.9);
-      box(d - 1.45, 0.75, d + 1.2, 2.7, '#2f80d1', 0.3);
-      box(d - 0.2, 1.7, d + 0.95, 2.45, '#bfe4ff', 0.12);
-      box(-0.9, 0.6, d + 1.2, 0.9, '#30353d', 0.1);
-    } else if (kind === 'loco') {
-      box(-1.1, 0.7, d + 1.5, 2.8, '#2a6fd6', 0.3);
-      box(-1.1, 2.6, 1.6, 3.6, '#2a6fd6', 0.2);
-      box(-0.7, 2.75, 1.2, 3.35, '#bfe4ff', 0.1);
-      box(d + 0.4, 2.8, d + 0.8, 3.7, '#30353d', 0.08);
-      box(-1.1, 1.35, d + 1.5, 1.6, '#ffd23f', 0);
-    } else {
-      box(-1.25, 0.75, d + 1.25, 2.6, '#7c4dbd', 0.2);
-      box(-1.25, 1.4, d + 1.25, 1.6, '#c9a6f2', 0);
-    }
-    // Shade the lower half of the body so it reads as rounded, not flat.
-    const [bx0, by0, bx1, by1] = { car: [-0.85, 0.3, d + 0.85, 1.25], truck: [-0.9, 0.6, d + 1.2, 1.8], loco: [-1.1, 0.7, d + 1.5, 1.9], wagon: [-1.25, 0.75, d + 1.25, 1.7] }[kind];
-    const shade = ctx.createLinearGradient(0, by0, 0, by1);
-    shade.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
-    shade.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    box(bx0, by0, bx1, by1, shade, 0.2);
-    for (const x of [0, d]) {
-      ctx.fillStyle = '#22262c';
-      ctx.beginPath(); ctx.arc(x, wheel, wheel, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#c9ced6';
-      ctx.beginPath(); ctx.arc(x, wheel, wheel * 0.45, 0, Math.PI * 2); ctx.fill();
-    }
-    if (kind === 'truck') {
-      // The truck's middle axle, between the two drawn wheels.
-      const m = car.axles[1];
-      const u = Math.hypot(m.x - r.x, m.y - r.y);
-      ctx.fillStyle = '#22262c';
-      ctx.beginPath(); ctx.arc(u, wheel, wheel, 0, Math.PI * 2); ctx.fill();
-    }
+    const body = bodies[kind];
+    if (loaded(body)) ctx.drawImage(body, -rearPixel, -groundPixel);
     ctx.restore();
   }
 }
@@ -276,8 +306,11 @@ export function draw(ctx, labelCtx, state) {
   labelCtx.clearRect(0, 0, view.width, view.height);
   drawBackdrop(ctx, view, state.scenery, theme, time);
   drawAmbient(ctx, view, state.scenery, theme, time);
-  drawGround(ctx, view, mission, state.scenery, theme);
-  if (state.mode === 'build') grid(ctx, view, mission, state.focus, theme);
+  drawGround(ctx, view, mission, state.scenery, theme, time);
+  if (state.mode === 'build') {
+    if (mission.clearance) clearanceMarker(ctx, view, mission.clearance, theme);
+    grid(ctx, view, mission, state.focus, theme);
+  }
 
   // The bridge and vehicle are drawn twice: once for real and once mirrored
   // in the river, without hover highlights.
@@ -304,29 +337,18 @@ export function draw(ctx, labelCtx, state) {
         if (!nb.fixed && !b.piece) points.set(nb, [view.sx(nb.x), view.sy(nb.y)]);
       }
     }
+    drawVehicle(ctx, view, state.sim && state.mode === 'test' ? state.sim.car : state.parked);
     if (!reflection) shadows(ctx, view, lines);
     for (const l of lines) beam(ctx, view, ...l);
     joints(ctx, view, points.values());
     if (!reflection) anchors(ctx, view, mission);
-    vehicle(ctx, view, state.sim && state.mode === 'test' ? state.sim.car : state.parked);
   };
   structure(false);
-  drawWater(ctx, view, mission, theme, time, () => structure(true));
+  drawWater(ctx, view, mission, state.scenery, theme, time, () => structure(true));
 
   if (state.drag) {
-    const { from, to, ok, mat, plan, targets } = state.drag;
+    const { from, to, ok, mat, plan } = state.drag;
     const ax = view.sx(from[0] * CELL), ay = view.sy(from[1] * CELL);
-    // Points along existing beams where the new one can join them.
-    const r = Math.max(2.5, view.scale * 0.12);
-    for (const [gx, gy] of targets) {
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = OUTLINE;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(view.sx(gx * CELL), view.sy(gy * CELL), r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
     if (mat !== 'road') {
       ctx.strokeStyle = theme.grid;
       ctx.lineWidth = 1.5;
@@ -340,11 +362,31 @@ export function draw(ctx, labelCtx, state) {
       const bx = view.sx(to[0] * CELL), by = view.sy(to[1] * CELL);
       const shown = ok ? plan.add : [{ a: from, b: to, mat }];
       ctx.globalAlpha = 0.85;
-      for (const m of shown) beam(ctx, view, view.sx(m.a[0] * CELL), view.sy(m.a[1] * CELL), view.sx(m.b[0] * CELL), view.sy(m.b[1] * CELL), mat, ok ? null : '#ff5a4a');
+      for (const m of shown) beam(ctx, view, view.sx(m.a[0] * CELL), view.sy(m.a[1] * CELL), view.sx(m.b[0] * CELL), view.sy(m.b[1] * CELL), m.mat, ok ? null : '#ff5a4a');
       ctx.globalAlpha = 1;
       const length = Math.hypot(to[0] - from[0], to[1] - from[1]) * CELL;
-      const cost = ok ? plan.add.reduce((sum, m) => sum + Math.round(Math.hypot(m.b[0] - m.a[0], m.b[1] - m.a[1]) * CELL * MATERIALS[mat].cost), 0) : Math.round(length * MATERIALS[mat].cost);
+      const cost = ok ? state.drag.cost : Math.round(length * MATERIALS[mat].cost);
       label(labelCtx, bx, by - 8, `${length.toFixed(1)} m · $${cost}`, ok ? '#fff' : '#ff9b8f');
+    }
+  }
+
+  // Paint sockets over the moving beam so the selected connection remains visible.
+  const targets = state.drag?.targets || state.hover?.targets || [];
+  for (const p of targets) {
+    const x = view.sx(p[0] * CELL), y = view.sy(p[1] * CELL);
+    const selected = state.drag?.to === p;
+    const r = Math.max(3.4, view.scale * 0.15) + (selected ? 1.8 : 0);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = OUTLINE;
+    ctx.fillStyle = selected ? '#fff' : '#ffd469';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    if (selected) {
+      ctx.strokeStyle = '#ffd469';
+      ctx.beginPath();
+      ctx.arc(x, y, r + 2.6, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 

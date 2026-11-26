@@ -3,7 +3,7 @@
    copy of it and colours every member by how close it is to breaking. */
 import { randomSeed, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, VEHICLES, STEP, createSim, bridgeCost, memberLength, key } from './physics.js';
-import { createMission, memberProblem, pairKey, isAnchor, innerPoints, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
+import { createMission, memberProblem, pairKey, jointAllowed, attachmentPoints, randomSolution, roadDeck, DESIGN_NAMES } from './mission.js';
 import { createView, draw, stressColor } from './render.js';
 import { createSound } from './sound.js';
 import { THEMES, THEME_IDS, buildScenery } from './scenery.js';
@@ -32,11 +32,14 @@ const track = (event, fields = {}) => window.protocodusAnalytics?.track(event, {
 
 let difficulty = 'medium', seed = '', mission = null, view = null, parked = null, scenery = null;
 // Each river has its own world, picked from its seed; ?theme= previews one.
-const themeOverride = THEMES[new URLSearchParams(location.search).get('theme')] ? new URLSearchParams(location.search).get('theme') : null;
+const requestedTheme = new URLSearchParams(location.search).get('theme');
+const themeOverride = THEME_IDS.includes(requestedTheme) ? requestedTheme : null;
 let theme = null;
 let members = [], undoStack = [], tool = 'wood';
+let joints = [], sites = [];
 let mode = 'build', sim = null, simClock = 0, resultShown = false, drawnBroken = new Set();
 let peaks = new Map(), solutionShown = false, started = false, startedAt = 0;
+let recentSolutions = [];
 let pointer = null, hover = null, drag = null, focus = null, particles = [];
 let toastTimer = 0, last = performance.now(), time = 0;
 
@@ -45,11 +48,12 @@ const peakKey = (m) => `${pairKey(m)}:${m.mat}`;
 /* ---------- missions ---------- */
 
 function fromHash() {
-  const match = /^#(easy|medium|hard)-([a-z0-9]{3,16})$/i.exec(location.hash);
+  const match = /^#(easy|medium|hard)-((?:v2-)?[a-z0-9]{3,16})$/i.exec(location.hash);
   return match ? { difficulty: match[1].toLowerCase(), seed: match[2].toLowerCase() } : null;
 }
 
 function load(nextDifficulty, nextSeed, keepBridge = false) {
+  cancelDrag();
   document.body.classList.add('busy');
   // Let the "surveying" curtain paint before the solver takes the thread.
   setTimeout(() => {
@@ -57,6 +61,7 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
       difficulty = DIFFICULTIES.includes(nextDifficulty) ? nextDifficulty : 'medium';
       seed = nextSeed;
       mission = createMission(difficulty, seed);
+      recentSolutions = [];
     } catch (error) {
       $('[data-loading]').classList.add('failed');
       $('[data-loading-text]').textContent = 'This river could not be surveyed. Try a new one.';
@@ -68,10 +73,26 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     $('[data-seed]').textContent = seed;
     $('[data-vehicle-name]').textContent = VEHICLES[mission.vehicle].name;
     $('[data-river-width]').textContent = `${mission.right - mission.left} m river`;
+    const rule = mission.clearance;
+    const note = $('[data-clearance-note]');
+    note.hidden = !rule;
+    note.textContent = !rule ? '' : rule.kind === 'channel'
+      ? 'Keep the marked channel clear for boats.'
+      : `Build no higher than ${rule.y0 - mission.deck} m above the road.`;
     if (!keepBridge) {
       let saved = null;
       try { saved = JSON.parse(read(`bridge-${seed}`) || 'null'); } catch { /* broken save */ }
-      members = [...roadDeck(mission), ...(Array.isArray(saved) ? saved.filter((m) => m && MATERIALS[m.mat] && m.mat !== 'road' && !memberProblem(mission, [], m)) : [])];
+      const deck = roadDeck(mission);
+      // Older saves always contained the original road. New saves also record gaps.
+      const roads = new Set(deck.map(pairKey));
+      const savedMembers = Array.isArray(saved) ? saved : saved?.members;
+      members = Array.isArray(saved) || !Array.isArray(savedMembers) ? [...deck] : [];
+      for (const m of Array.isArray(savedMembers) ? savedMembers : []) {
+        if (!m || !Object.hasOwn(MATERIALS, m.mat) ||
+            ![m.a, m.b].every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))) continue;
+        if (m.mat === 'road' && !roads.has(pairKey(m))) continue;
+        if (!memberProblem(mission, members, m)) members.push(m);
+      }
       undoStack = [];
       peaks = new Map();
       solutionShown = false;
@@ -82,18 +103,28 @@ function load(nextDifficulty, nextSeed, keepBridge = false) {
     theme = THEMES[themeId];
     document.body.dataset.theme = themeId;
     document.body.dataset.ui = theme.ui;
-    scenery = buildScenery(mission, theme);
+    scenery = buildScenery(mission);
     stopTest();
     if (win.open) win.close();
     resize();
     updateBudget();
     document.body.classList.remove('busy');
     document.body.classList.add('ready');
-    say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.`);
+    say(`${VEHICLES[mission.vehicle].name} needs to cross a ${mission.right - mission.left} metre river. Budget ${money(mission.budget)}.${rule ? ` ${note.textContent}` : ''}`);
   }, 30);
 }
 
 function updateBudget() {
+  const points = new Map(mission.anchors.map((p) => [key(p), p]));
+  for (const m of members) {
+    points.set(key(m.a), m.a);
+    points.set(key(m.b), m.b);
+  }
+  joints = [...points.values()];
+  for (const m of members) {
+    for (const p of attachmentPoints(m)) if (jointAllowed(mission, p)) points.set(key(p), p);
+  }
+  sites = [...points.values()];
   const cost = bridgeCost(members);
   $('[data-cost]').textContent = money(cost);
   $('[data-limit]').textContent = money(mission.budget);
@@ -103,7 +134,7 @@ function updateBudget() {
   box.classList.toggle('over', ratio > 1);
   box.classList.toggle('close', ratio > 0.9 && ratio <= 1);
   undoButton.disabled = undoStack.length === 0;
-  store(`bridge-${seed}`, JSON.stringify(members.map(({ a, b, mat }) => ({ a, b, mat }))));
+  store(`bridge-${seed}`, JSON.stringify({ members: members.map(({ a, b, mat }) => ({ a, b, mat })) }));
 }
 
 function commit(next) {
@@ -128,6 +159,8 @@ const PROBLEMS = {
   long: (mat) => `${MATERIALS[mat].name} can only be ${MATERIALS[mat].maxLength.toFixed(0)} m long.`,
   ground: () => 'You can\'t build in the rock or the water.',
   anchors: () => 'Those two bolts are already fixed to the ground.',
+  channel: () => 'Leave the marked shipping channel clear for boats.',
+  ceiling: () => 'Keep the bridge at or below the marked height limit.',
   steep: () => 'Road that steep would be too hard to drive up.',
   exists: () => 'There is already a beam there.',
 };
@@ -147,25 +180,19 @@ function gridAt(px, py) {
   return [Math.round(view.wx(px) / CELL), Math.round(view.wy(py) / CELL)];
 }
 const screenOf = (p) => [view.sx(p[0] * CELL), view.sy(p[1] * CELL)];
-function isJoint(p) {
-  return isAnchor(mission, p) || connectable(p, members);
-}
-/* Points partway along members, in reach of a drag, where a new beam can join. */
-function midJoints(from, mat) {
-  const seen = new Set(), out = [];
-  for (const m of members) {
-    if (m.mat === 'road') continue;
-    for (const p of innerPoints(m)) {
-      if (seen.has(key(p)) || Math.hypot(p[0] - from[0], p[1] - from[1]) * CELL > reach(mat) + 1e-6) continue;
-      seen.add(key(p));
-      out.push(p);
-    }
+function nearestSite(px, py, options, radius) {
+  let best = null, shortest = radius;
+  for (const p of options) {
+    const [sx, sy] = screenOf(p);
+    const d = Math.hypot(sx - px, sy - py);
+    if (d < shortest) { shortest = d; best = p; }
   }
-  return out;
+  return best;
 }
-function memberNear(px, py, radius = 14) {
-  let best = null, bestD = radius;
-  for (const m of members) {
+const snapRadius = () => Math.max(9, Math.min(20, view.scale * CELL * 0.4));
+function memberNear(px, py, existing = members) {
+  let best = null, bestD = 14;
+  for (const m of existing) {
     const [ax, ay] = screenOf(m.a), [bx, by] = screenOf(m.b);
     const dx = bx - ax, dy = by - ay;
     const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
@@ -174,25 +201,21 @@ function memberNear(px, py, radius = 14) {
   }
   return best;
 }
-function jointNear(px, py, share = 0.45) {
-  const g = gridAt(px, py);
-  const [sx, sy] = screenOf(g);
-  return Math.hypot(px - sx, py - sy) < Math.max(18 * share / 0.45, view.scale * CELL * share) && isJoint(g) ? g : null;
-}
 const reach = (mat) => MATERIALS[mat].maxLength;
-/* The grid point under the pointer, pulled in to the longest beam allowed. */
-function reachTarget(from, px, py, mat) {
-  let target = gridAt(px, py);
-  const max = reach(mat);
-  if (Math.hypot(target[0] - from[0], target[1] - from[1]) * CELL <= max + 1e-6) return target;
+function reachTarget(drag, px, py) {
+  const { from, mat, targets } = drag;
+  const snap = nearestSite(px, py, targets, snapRadius());
+  if (snap) return snap;
+  const target = gridAt(px, py);
+  const max = reach(mat) / CELL;
+  if (Math.hypot(target[0] - from[0], target[1] - from[1]) <= max + 1e-6) return target;
   const wx = view.wx(px) / CELL, wy = view.wy(py) / CELL;
   let best = from, bestD = Infinity;
-  const r = Math.ceil(max / CELL);
-  for (let dx = -r; dx <= r; dx++) {
-    for (let dy = -r; dy <= r; dy++) {
-      if (Math.hypot(dx, dy) * CELL > max + 1e-6) continue;
-      const d = Math.hypot(from[0] + dx - wx, from[1] + dy - wy);
-      if (d < bestD) { bestD = d; best = [from[0] + dx, from[1] + dy]; }
+  for (let x = Math.ceil(from[0] - max); x <= from[0] + max; x++) {
+    for (let y = Math.ceil(from[1] - max); y <= from[1] + max; y++) {
+      if (Math.hypot(x - from[0], y - from[1]) > max + 1e-6) continue;
+      const d = Math.hypot(x - wx, y - wy);
+      if (d < bestD) { bestD = d; best = [x, y]; }
     }
   }
   return best;
@@ -200,130 +223,130 @@ function reachTarget(from, px, py, mat) {
 
 /* ---------- building ---------- */
 
-/* A beam splits where it runs through an existing joint, so a line drawn
-   across the bridge joins everything it touches. */
-function pieces(from, to, mat, existing) {
-  const cuts = [from];
-  for (const p of innerPoints({ a: from, b: to })) if (isAnchor(mission, p) || connectable(p, existing)) cuts.push(p);
-  cuts.push(to);
-  return cuts.slice(1).map((b, i) => ({ a: cuts[i], b, mat }));
+// Projection onto the member, allowing for rounding a displayed socket to 6 decimals.
+function along(m, p) {
+  const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1];
+  const x = p[0] - m.a[0], y = p[1] - m.a[1];
+  if (Math.abs(x * dy - y * dx) > 2e-6 * Math.hypot(dx, dy)) return -1;
+  return (x * dx + y * dy) / (dx * dx + dy * dy);
 }
-const onMember = (m, p) => innerPoints(m).some((q) => q[0] === p[0] && q[1] === p[1]);
-/* An existing joint, or a grid point partway along a member, which then
-   splits there to take the new beam. */
-const connectable = (p, existing) => existing.some((m) => key(m.a) === key(p) || key(m.b) === key(p) || (m.mat !== 'road' && onMember(m, p)));
+function pieces(m, points) {
+  const inside = points.map((p) => ({ p, t: along(m, p) }))
+    .filter(({ t }) => t > 1e-6 && t < 1 - 1e-6)
+    .sort((a, b) => a.t - b.t);
+  if (!inside.length) return [m];
+  const cuts = [m.a];
+  for (const { p } of inside) {
+    const prev = cuts[cuts.length - 1];
+    if (Math.hypot(p[0] - prev[0], p[1] - prev[1]) > 2e-6) cuts.push(p);
+  }
+  cuts.push(m.b);
+  return cuts.slice(1).map((b, i) => ({ a: cuts[i], b, mat: m.mat }));
+}
 
-/* What a drag from one point to another would build:
-   { add, split: members cut in two where the new beam joins them, problem }. */
 function plan(from, to, mat) {
   const add = [];
-  let problem = null;
-  for (const piece of pieces(from, to, mat, members)) {
-    const p = memberProblem(mission, [...members, ...add], piece);
-    if (!p) add.push(piece);
-    else if (p !== 'exists') problem = problem || p;
+  const onDeck = (p) => p[1] === 0 && Number.isInteger(p[0]) && p[0] >= 0 && p[0] <= mission.span;
+  // Drawing across a gap in the deck reinstalls its original road pieces.
+  const repair = onDeck(from) && onDeck(to);
+  const proposed = repair
+    ? roadDeck(mission).slice(Math.min(from[0], to[0]), Math.max(from[0], to[0]))
+    : pieces({ a: from, b: to, mat }, sites);
+  for (const piece of proposed) {
+    // A drag may follow an existing beam for part of its length.
+    if (members.some((m) => [piece.a, piece.b].every((p) => {
+      const t = along(m, p);
+      return t >= -1e-6 && t <= 1 + 1e-6;
+    }))) continue;
+    const problem = memberProblem(mission, members, piece);
+    if (problem) return { add: [], problem };
+    add.push(piece);
   }
-  if (problem) return { add: [], split: [], problem };
-  if (!add.length) return { add, split: [], problem: 'exists' };
-  const ends = add.flatMap((m) => [m.a, m.b]);
-  const split = members.filter((m) => m.mat !== 'road' && ends.some((p) => onMember(m, p)));
-  return { add, split, problem: null };
+  return { add, problem: add.length ? null : 'exists' };
 }
 
-/* The members after a plan is built: split members become their pieces. */
 function build(planned) {
-  const ends = planned.add.flatMap((m) => [m.a, m.b]);
-  const next = [];
-  for (const m of members) {
-    if (!planned.split.includes(m)) { next.push(m); continue; }
-    for (const piece of pieces(m.a, m.b, m.mat, ends.map((p) => ({ a: p, b: p })))) {
-      if (!next.some((o) => pairKey(o) === pairKey(piece))) next.push(piece);
-    }
-  }
-  return [...next, ...planned.add.filter((m) => !next.some((o) => pairKey(o) === pairKey(m)))];
+  const ends = new Map();
+  for (const m of planned.add) { ends.set(key(m.a), m.a); ends.set(key(m.b), m.b); }
+  const points = [...ends.values()];
+  return [...members.flatMap((m) => m.mat === 'road' ? [m] : pieces(m, points)), ...planned.add];
 }
-
-const ROAD_STAYS = 'The road stays flat. Build under or over it to hold it up.';
 
 function setTool(next) {
+  cancelDrag();
+  hover = null;
   tool = next;
   document.querySelectorAll('[data-tool]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.tool === tool)));
 }
 
-function erase(px, py) {
-  // A tighter reach than drawing uses, so a short beam can still be hit between its joints.
-  const joint = jointNear(px, py, 0.25);
-  if (joint && !isAnchor(mission, joint)) {
-    const k = key(joint);
-    const next = members.filter((m) => m.mat === 'road' || (key(m.a) !== k && key(m.b) !== k));
-    if (next.length !== members.length) { commit(next); sound.erase(); return; }
+function erase(px, py, replaceLastEdit) {
+  const joint = nearestSite(px, py, joints, Math.max(5, Math.min(10, view.scale * CELL * 0.22)));
+  const source = replaceLastEdit ? undoStack[undoStack.length - 1] : members;
+  let next = joint ? source.filter((m) => key(m.a) !== key(joint) && key(m.b) !== key(joint)) : source;
+  if (next.length === source.length) {
+    const member = memberNear(px, py, source);
+    if (!member) return;
+    next = source.filter((m) => m !== member);
   }
-  const m = memberNear(px, py);
-  if (!m) return;
-  if (m.mat === 'road') { toast(ROAD_STAYS); sound.buzz(); return; }
-  commit(members.filter((o) => o !== m));
+  // A first click may have swapped the material. Undo the entire double-click as one edit.
+  if (replaceLastEdit) { members = next; updateBudget(); }
+  else commit(next);
+  hover = null;
   sound.erase();
 }
 
 function swapMaterial(m) {
-  if (m.mat === tool) return;
-  if (m.mat === 'road') { toast(ROAD_STAYS); sound.buzz(); return; }
+  if (m.mat === tool || m.mat === 'road') return;
   const swapped = { ...m, mat: tool };
   const problem = memberProblem(mission, members.filter((o) => o !== m), swapped);
   if (problem) { toast(PROBLEMS[problem]?.(tool) || 'That doesn\'t fit there.', true); sound.buzz(); return; }
   commit(members.map((o) => (o === m ? swapped : o)));
-  sound.place(tool);
+  sound.place(tool, memberLength(m));
 }
 
 /* A double click or double tap erases whatever is under it, with any tool. */
-const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_MS = 450;
 let lastTap = null;
 
 function onDown(event) {
   sound.unlock();
-  if (!mission || mode !== 'build' || event.button > 0) return;
-  const x = event.offsetX, y = event.offsetY, now = performance.now();
-  if (lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(x - lastTap.x, y - lastTap.y) < 12) {
-    // The first tap may have swapped the beam's material; take that back first.
-    if (lastTap.changed && undoStack.length) members = undoStack.pop();
-    lastTap = null;
-    cancelDrag();
-    erase(x, y);
-    return;
-  }
-  lastTap = { at: now, x, y, changed: false };
+  if (!mission || mode !== 'build' || event.button !== 0 || !event.isPrimary || pointer) return;
+  const x = event.offsetX, y = event.offsetY;
+  const previous = lastTap && lastTap.members === members && lastTap.tool === tool &&
+    lastTap.type === event.pointerType && performance.now() - lastTap.at < DOUBLE_TAP_MS &&
+    Math.hypot(x - lastTap.x, y - lastTap.y) < Math.min(12, view.scale * CELL * 0.35) ? lastTap : null;
+  lastTap = null;
+  hover = null;
   canvas.setPointerCapture?.(event.pointerId);
-  pointer = { id: event.pointerId, x, y, moved: false };
-  if (tool === 'erase') {
-    const before = members;
-    erase(x, y);
-    lastTap.changed = members !== before;
-    pointer = null;
-    return;
+  pointer = { id: event.pointerId, x, y, moved: false, previous };
+  if (tool === 'erase') return;
+  const from = nearestSite(x, y, sites, snapRadius());
+  if (!from) return;
+  const targets = sites.filter((p) => key(p) !== key(from) &&
+    memberLength({ a: from, b: p }) <= reach(tool) + 1e-6 && !plan(from, p, tool).problem);
+  drag = { from, to: null, ok: false, mat: tool, targets };
+  focus = [...from, reach(tool) / CELL];
+}
+
+function updateDrag(px, py) {
+  const to = reachTarget(drag, px, py);
+  if (drag.to && key(to) === key(drag.to)) return;
+  drag.to = key(to) === key(drag.from) ? null : to;
+  drag.plan = drag.to ? plan(drag.from, to, drag.mat) : null;
+  drag.ok = !!drag.plan && !drag.plan.problem;
+  if (drag.ok) {
+    drag.next = build(drag.plan);
+    drag.cost = bridgeCost(drag.next) - bridgeCost(members);
   }
-  const from = jointNear(pointer.x, pointer.y);
-  if (from) {
-    drag = { from, to: null, ok: false, mat: tool, targets: midJoints(from, tool) };
-    focus = [...from, reach(tool) / CELL];
-  } else {
-    pointer.member = memberNear(pointer.x, pointer.y);
-  }
+  hover = null;
 }
 
 function onMove(event) {
-  if (!mission) return;
+  if (!mission || !event.isPrimary || (pointer && pointer.id !== event.pointerId)) return;
   const px = event.offsetX, py = event.offsetY;
-  if (pointer && pointer.id === event.pointerId && Math.hypot(px - pointer.x, py - pointer.y) > 6) pointer.moved = true;
-  if (drag) {
-    const to = reachTarget(drag.from, px, py, drag.mat);
-    const same = to[0] === drag.from[0] && to[1] === drag.from[1];
-    drag.to = same ? null : to;
-    drag.plan = same ? null : plan(drag.from, to, drag.mat);
-    drag.ok = !!drag.plan && !drag.plan.problem;
-    hover = null;
-    return;
-  }
-  updateHover(px, py);
+  if (pointer && Math.hypot(px - pointer.x, py - pointer.y) > 6) pointer.moved = true;
+  if (drag) { if (pointer.moved) updateDrag(px, py); }
+  else updateHover(px, py);
 }
 
 function updateHover(px, py) {
@@ -333,7 +356,7 @@ function updateHover(px, py) {
     if (!m) return;
     const peak = peaks.get(peakKey(m));
     hover = {
-      member: m, px, py,
+      member: m, px, py, targets: tool === 'erase' ? [] : attachmentPoints(m).filter((p) => jointAllowed(mission, p)),
       label: `${MATERIALS[m.mat].name} · ${memberLength(m).toFixed(1)} m${peak != null ? ` · ${Math.round(peak * 100)}% last test` : ''}`,
       color: peak != null ? stressColor(peak) : '#fff',
     };
@@ -353,33 +376,39 @@ function updateHover(px, py) {
 
 function onUp(event) {
   if (!pointer || pointer.id !== event.pointerId) return;
-  const before = members;
-  if (drag) {
-    if (drag.to && drag.ok) {
-      commit(build(drag.plan));
-      sound.place(drag.mat);
+  const { x, y, previous } = pointer;
+  if (Math.hypot(event.offsetX - x, event.offsetY - y) > 6) pointer.moved = true;
+  if (!pointer.moved) {
+    const before = members;
+    if (previous) {
+      if (tool !== 'erase') erase(previous.x, previous.y, previous.changed);
+    } else {
+      const m = memberNear(x, y);
+      if (tool === 'erase') erase(x, y, false);
+      else if (m) swapMaterial(m);
+      else if (!drag) toast('Drag from a bolt, joint or marked spot on a beam.');
+      lastTap = { x, y, at: performance.now(), type: event.pointerType, tool, members, changed: before !== members };
+    }
+  } else if (drag) {
+    updateDrag(event.offsetX, event.offsetY);
+    if (drag.ok) {
+      commit(drag.next);
+      sound.place(drag.plan.add[0].mat, memberLength({ a: drag.from, b: drag.to }));
     } else if (drag.to) {
       toast(PROBLEMS[drag.plan.problem]?.(drag.mat) || 'That beam doesn\'t fit there.', true);
       sound.buzz();
-    } else if (!pointer.moved) {
-      const m = memberNear(pointer.x, pointer.y, 10);
-      if (m) swapMaterial(m);
     }
-  } else if (!pointer.moved) {
-    if (pointer.member) swapMaterial(pointer.member);
-    else toast('Start a beam from a red bolt or a joint.');
   }
-  if (lastTap) lastTap.changed = members !== before && !pointer.moved;
-  if (pointer.moved) lastTap = null;
   drag = null; focus = null; pointer = null;
 }
 
-function cancelDrag() { drag = null; focus = null; pointer = null; }
+function cancelDrag() { drag = null; focus = null; pointer = null; lastTap = null; }
 
 /* ---------- testing ---------- */
 
 function startTest() {
   cancelDrag();
+  sound.prepareSplash();
   if (!started) { started = true; startedAt = performance.now(); track('game_start', { action: 'test' }); }
   sim = createSim(mission, members);
   simClock = 0;
@@ -417,9 +446,11 @@ function stepTest(dt) {
     sim.step();
     for (const event of sim.events) {
       if (event === 'splash') {
-        sound.splash();
-        const a = sim.car.axles[0];
-        burst(a.x, mission.water, '#e3f4ff', 40, 5);
+        const { x, speed } = sim.waterEntry;
+        const mass = sim.car.axles.reduce((sum, axle) => sum + axle.mass, 0);
+        const pan = Math.max(-0.8, Math.min(0.8, 2 * view.sx(x) / view.width - 1));
+        sound.splash(mass, speed, pan);
+        burst(x, mission.water, '#e3f4ff', 40, 5);
       }
       if (event === 'fall') sound.engine(false);
       if (event.startsWith('impact:') && sim.car.axles[0].y > mission.water) sound.thud(Number(event.slice(7)));
@@ -434,10 +465,11 @@ function stepTest(dt) {
     }
   });
   const driving = sim.car.state === 'driving';
-  sound.engine(driving, 1 + 0.1 * Math.sin(time * 3), mission.vehicle);
-  // A bridge near its limit groans now and then.
-  const strain = sim.beams.reduce((max, b) => (b.broken || b.piece ? max : Math.max(max, b.usage)), 0);
-  if (strain > 0.6 && Math.random() < dt * (strain - 0.5) * 4) sound.creak(strain);
+  const pan = Math.max(-0.75, Math.min(0.75, 1.5 * (view.sx(sim.car.axles[0].x) / view.width - 0.5)));
+  sound.engine(driving && !document.hidden, sim.car, pan);
+  const strained = sim.beams.reduce((worst, b) =>
+    !b.broken && !b.piece && b.usage > (worst?.usage ?? 0.6) ? b : worst, null);
+  if (strained && Math.random() < dt * (strained.usage - 0.5) * 4) sound.creak(strained.usage, strained.mat);
   if (sim.result && !resultShown) {
     resultShown = true;
     finishTest(sim.result);
@@ -445,6 +477,7 @@ function stepTest(dt) {
 }
 
 function finishTest(result) {
+  const finishedSim = sim;
   const name = VEHICLES[mission.vehicle].name.toLowerCase();
   const cost = bridgeCost(members);
   if (result === 'win') {
@@ -461,7 +494,7 @@ function finishTest(result) {
     }
     track('game_end', { result: 'win', score: mission.budget - cost, duration_seconds: Math.round((performance.now() - startedAt) / 1000), hints_used: solutionShown ? 1 : 0 });
     setTimeout(() => {
-      if (mode !== 'test') return;
+      if (sim !== finishedSim) return;
       $('[data-win-cost]').textContent = money(cost);
       const saved = mission.budget - cost;
       $('[data-win-title]').textContent = broken ? 'Wobbly, but across!' : 'Safe across!';
@@ -472,7 +505,9 @@ function finishTest(result) {
     sound.fail();
     testLabel.textContent = 'Fix it';
     setTimeout(() => {
-      if (mode === 'test') toast(`Splash! Red beams were close to breaking. Make them stronger or add triangles.`, true, 4600);
+      if (sim === finishedSim) toast(result === 'collision'
+        ? `The ${name} hit an obstacle. Check for low beams or fallen pieces in its path.`
+        : 'The road gave way. Look for red beams and try bracing them with triangles.', true, 4600);
     }, 900);
   }
 }
@@ -522,14 +557,15 @@ function frame(now) {
 /* ---------- controls ---------- */
 
 function newMission() {
-  load(difficulty, randomSeed());
+  load(difficulty, `v2-${randomSeed()}`);
 }
 
 function showSolution() {
   document.body.classList.add('busy');
   $('[data-loading-text]').textContent = 'Designing a bridge';
   setTimeout(() => {
-    const { members: solution, kind } = randomSolution(mission);
+    const { members: solution, kind } = randomSolution(mission, Math.random, 600, recentSolutions);
+    recentSolutions = [...recentSolutions.slice(-7), solution];
     commit(solution);
     solutionShown = true;
     peaks = new Map();
@@ -542,8 +578,9 @@ function showSolution() {
 
 /* Anything that throws away the player's bridge asks first. Nothing built
    yet means nothing to lose, so it just goes ahead. */
-const built = () => members.some((m) => m.mat !== 'road');
+const built = () => mission && (members.length !== mission.span || members.some((m) => m.mat !== 'road'));
 function confirmThen(title, text, ok, run) {
+  cancelDrag();
   if (!built()) { run(); return; }
   $('[data-confirm-title]').textContent = title;
   $('[data-confirm-text]').textContent = text;
@@ -555,8 +592,12 @@ function confirmThen(title, text, ok, run) {
 
 const actions = {
   test: () => (mode === 'build' ? startTest() : stopTest()),
-  undo: () => { if (mode === 'build' && undoStack.length) { members = undoStack.pop(); updateBudget(); sound.erase(); } },
-  clear: () => confirmThen('Clear the bridge?', 'Every beam you built comes off. The road stays.', 'Clear', () => {
+  undo: () => {
+    if (mode !== 'build' || !undoStack.length) return;
+    cancelDrag();
+    members = undoStack.pop(); updateBudget(); sound.erase();
+  },
+  clear: () => confirmThen('Clear the bridge?', 'This removes your supports and restores the full road.', 'Clear', () => {
     commit(roadDeck(mission)); peaks = new Map(); sound.erase();
   }),
   solution: () => confirmThen('Show a solution?', 'It replaces the bridge you built. Undo brings yours back.', 'Show solution', showSolution),
@@ -566,6 +607,7 @@ const actions = {
   help: () => help.showModal(),
   sound: () => {
     const on = sound.toggle();
+    if (on && mode === 'test') sound.prepareSplash();
     const button = $('[data-action="sound"]');
     button.classList.toggle('off', !on);
     button.setAttribute('aria-pressed', String(on));
@@ -590,9 +632,10 @@ document.querySelectorAll('input[name="difficulty"]').forEach((radio) => radio.a
 canvas.addEventListener('pointerdown', onDown);
 canvas.addEventListener('pointermove', onMove);
 canvas.addEventListener('pointerup', onUp);
-canvas.addEventListener('pointercancel', cancelDrag);
+canvas.addEventListener('pointercancel', (event) => { if (pointer?.id === event.pointerId) cancelDrag(); });
 canvas.addEventListener('pointerleave', (event) => { if (!pointer) hover = null; else onMove(event); });
 window.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => { if (document.hidden) sound.engine(false); });
 window.addEventListener('hashchange', () => {
   const target = fromHash();
   if (target && (target.seed !== seed || target.difficulty !== difficulty)) load(target.difficulty, target.seed);
@@ -600,13 +643,14 @@ window.addEventListener('hashchange', () => {
 document.addEventListener('keydown', (event) => {
   if (event.target.closest?.('input, dialog[open]') || event.metaKey || event.ctrlKey || event.altKey) return;
   const k = event.key.toLowerCase();
-  if (k === ' ' || k === 'enter') { event.preventDefault(); actions.test(); }
+  if (k === ' ' || k === 'enter') { event.preventDefault(); sound.unlock(); actions.test(); }
   else if (k >= '1' && k <= '4') setTool(TOOLS[Number(k) - 1]);
   else if (k === 'u' || k === 'backspace') actions.undo();
   else if (k === 'n') actions.new();
   else if (k === 'm') actions.sound();
   else if (k === 'escape') cancelDrag();
 });
+help.addEventListener('click', () => sound.unlock(), { once: true });
 help.addEventListener('close', () => store('seen-help', '1'));
 
 for (const [mat, def] of Object.entries(MATERIALS)) {
@@ -616,7 +660,7 @@ for (const [mat, def] of Object.entries(MATERIALS)) {
 if (!sound.enabled) { const b = $('[data-action="sound"]'); b.classList.add('off'); b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Sound off'); }
 resize();
 const initial = fromHash();
-load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || randomSeed());
+load(initial?.difficulty || read('difficulty') || 'medium', initial?.seed || `v2-${randomSeed()}`);
 if (!read('seen-help')) help.showModal();
 requestAnimationFrame(frame);
 
