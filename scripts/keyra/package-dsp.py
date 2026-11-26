@@ -1,6 +1,35 @@
 """Make Binaryen 120's generated JavaScript an isolated synchronous factory."""
+import hashlib
 from pathlib import Path
+import re
 import sys
+from textwrap import dedent, indent
+
+def outline_sympathetic_bank(module):
+    """Keep the 88-key sympathetic bank small enough for a browser JIT to optimize."""
+    # The ranges and four live-in locals below come from PianoModel::renderChunk.
+    # All results of the traversal go to its existing heap. Verify the compiler
+    # output before moving this block so a rebuild cannot silently change liveness.
+    digest = hashlib.sha256(module.encode()).hexdigest()
+    if digest != "b98ef68895943fa0532f3c647a31f938f73c151e73f8cd8bdbf3a8ddb13b92f2":
+        raise ValueError("Review the sympathetic-bank extraction for this wasm2js output.")
+
+    lines = module.splitlines()
+    render = lines[22129]
+    declarations = lines[22131].removeprefix("  var ").removesuffix(";").split(", ")
+    bank = "\n".join(lines[25097:25442])
+    arguments = ["$6_1", "$59_1", "$13_1", "$0_1"]
+    local_names = set(re.findall(r"\$\d+(?:_1)?\b", bank)).difference(arguments)
+    locals_used = [declaration for declaration in declarations
+                   if declaration.partition(" = ")[0] in local_names]
+    signature = "renderSympatheticStrings(" + ", ".join(arguments) + ")"
+    helper = (
+        " function " + signature + " {\n"
+        "  var " + ", ".join(locals_used) + ";\n"
+        + indent(dedent(bank), "  ") + "\n }\n\n"
+    )
+    return module.replace(bank, "       " + signature + ";", 1).replace(render, helper + render, 1)
+
 
 source, destination = map(Path, sys.argv[1:])
 module = source.read_text()
@@ -18,4 +47,5 @@ import { runtimeImports } from './runtime.mjs';
 export function createCore() {
 """
 text = header + body + "\n  return asmFunc(runtimeImports);\n}\n"
-destination.write_text("\n".join(line.rstrip() for line in text.splitlines()) + "\n")
+normalized = "\n".join(line.rstrip() for line in text.splitlines()) + "\n"
+destination.write_text(outline_sympathetic_bank(normalized))
