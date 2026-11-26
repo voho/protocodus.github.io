@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the original Glass Current session used in RILL screenshots.
+"""Generate the original Glass Current session used in Riffle screenshots.
 
 No downloaded music or presets are included. The PCM is synthesized below with
 Python's standard library; the MIDI arrangement is original and deterministic.

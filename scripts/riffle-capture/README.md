@@ -1,8 +1,10 @@
-# Native RILL captures
+# Native Riffle captures
 
-The 8 November 2026 images use RILL commit `451b7dc`, built on Linux. They are
+The 8 November 2026 images use Riffle commit `451b7dc`, built on Linux. They are
 complete native eframe screenshots, without compositing, painted-over UI, or
-simulated assistant replies.
+simulated assistant replies. That commit predates the current Riffle repository
+history, so `capture-harness.patch` does not apply to today's source. The
+9 November captures used an unpatched build and no harness.
 
 `make_demo.py` creates the original Glass Current session and audio assets.
 `capture-harness.patch` changes capture setup only: window size, fitted timelines,
@@ -14,20 +16,20 @@ previews during capture. Production rendering and interaction code are unchanged
 Apply the patch in a detached worktree, not in the shipping checkout:
 
 ```sh
-git -C /path/to/rill-daw worktree add --detach /tmp/rill-capture 451b7dc
-git -C /tmp/rill-capture apply /path/to/website/scripts/rill-capture/capture-harness.patch
-cd /tmp/rill-capture
-CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo build --locked -p daw-app --bin rill
-python3 /path/to/website/scripts/rill-capture/make_demo.py /tmp/rill-demo \
+git -C /path/to/riffle worktree add --detach /tmp/riffle-capture 451b7dc
+git -C /tmp/riffle-capture apply /path/to/website/scripts/riffle-capture/capture-harness.patch
+cd /tmp/riffle-capture
+CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 cargo build --locked -p daw-app --bin riffle
+python3 /path/to/website/scripts/riffle-capture/make_demo.py /tmp/riffle-demo \
   --instrument-path "/path/to/Surge XT.vst3"
-/path/to/website/scripts/rill-capture/capture.sh target/debug/rill /tmp/rill-demo /tmp/rill-images
+/path/to/website/scripts/riffle-capture/capture.sh target/debug/riffle /tmp/riffle-demo /tmp/riffle-images
 ```
 
 The capture script needs Python 3, `libX11.so.6`, `Xvfb` and `xvfb-run` on
 `PATH`, plus the native app's shared library dependencies. An actual installed
 VST3 instrument is required; none is bundled. `WINIT_X11_SCALE_FACTOR=1.25` renders 1600 × 1000 logical
 windows at 2000 × 1250 pixels; Mixer uses 1920 × 1000, yielding 2400 × 1250.
-Set `RILL_CAPTURE_AUTOMATION_TRACK="Atmosphere · Volume"` to capture the demo
+Set `RIFFLE_CAPTURE_AUTOMATION_TRACK="Atmosphere · Volume"` to capture the demo
 automation editor as well. `capture_window.py` parks the X11 pointer outside the
 window so native hover tooltips do not cover the music. Use a separate Cargo target directory, or preserve and
 restore the production executable when sharing build artifacts.

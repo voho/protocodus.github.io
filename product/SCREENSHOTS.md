@@ -2,12 +2,12 @@
 
 ## Current verification — 22 November 2026
 
-Verified live Reason Shop (`node scripts/catalog-live-check.mjs`), YouTube uploads, and committed repository snapshots (`reason-rack-extension` `origin/main` `487a12e5b`, `protocodus/rill-daw` `origin/main` `04de60f`, `protocodus/virtual-instrument-youknow` `origin/main` v1.4.11; Fires omitted per `origin/main` removal `2b8f1b03f`):
+Verified live Reason Shop (`node scripts/catalog-live-check.mjs`), YouTube uploads, and committed repository snapshots (`reason-rack-extension` `origin/main` `487a12e5b`, `protocodus/riffle` (then under its earlier name) `origin/main` `04de60f`, `protocodus/virtual-instrument-youknow` `origin/main` v1.4.11; Fires omitted per `origin/main` removal `2b8f1b03f`):
 
-- **Live Shop & Media**: All 12 published Reason Shop listings (`acukoto`, `aculele`, `aculyre`, `acustra`, `binaurel`, `ceres`, `lamer`, `maremba`, `press78`, `remit`, `respira`, `youknow`) and 6 SoundCloud playlists showed zero drift (`verified_at: 2026-11-22`). Added five newly published YouTube demos (`JEvOyQ_5Q2E`, `TxTU_i6M1JE`, `wVjUOdJ9s8E` Short, `PaVVmDOACO4`, `SHkkdnzm5TQ`) to `product/MEDIA.json` (total 31 videos, 6 playlists across 15 product pages). Noted all five `nightly.link` RILL artifact URLs returned HTTP 404 due to recent `rill-daw` CI failures.
+- **Live Shop & Media**: All 12 published Reason Shop listings (`acukoto`, `aculele`, `aculyre`, `acustra`, `binaurel`, `ceres`, `lamer`, `maremba`, `press78`, `remit`, `respira`, `youknow`) and 6 SoundCloud playlists showed zero drift (`verified_at: 2026-11-22`). Added five newly published YouTube demos (`JEvOyQ_5Q2E`, `TxTU_i6M1JE`, `wVjUOdJ9s8E` Short, `PaVVmDOACO4`, `SHkkdnzm5TQ`) to `product/MEDIA.json` (total 31 videos, 6 playlists across 15 product pages). Noted all five `nightly.link` Riffle artifact URLs returned HTTP 404 due to recent Riffle CI failures.
 - **Rack Extension Panels & Covers**: Updated `unrest-rack-front/rear.webp` (`1.0.0f2`), `oregana-rack-front/rear.webp` (`0.12.5f1`), `respira-rack-rear.webp` (`0.8.0f2`), `retra-rack-front/rear.webp` (`0.7.1f2`), `lamer-rack-front/rear.webp` (`1.0.1f3` from `Design/previews/`), and `Electry_Thumbnail_800.png` (`2.5.1d2`). Documented source-only Remote updates for `Acustra` (`1.9.63f5`) and `YouKnow` (`1.4.11f5`), and native YouKnow core `1.4.11`.
-- **RILL Screenshots**: Updated all nine existing `rill-r1-*.webp` panel screenshots and added `rill-r1-strip.webp` (`1015x567`, R1 Strip) from `rill-daw` `04de60f` (`18` screenshots in JSON-LD matching `ASSET_PROVENANCE.json`).
-- **Catalog Organization & Page Consistency**: Reorganized `index.html` and `llms.txt` with RILL flagship first, followed by Acoustic & modelled instruments, Synthesizers, Effects & utilities, and Tools (Podcare last), sorted most recent first within each category. Unified navigation (`Fun`), shared stylesheets, hero/section structure, and reduced text length across every product page.
+- **Riffle Screenshots**: Updated all nine existing `riffle-r1-*.webp` panel screenshots and added `riffle-r1-strip.webp` (`1015x567`, R1 Strip) from Riffle `04de60f` (`18` screenshots in JSON-LD matching `ASSET_PROVENANCE.json`).
+- **Catalog Organization & Page Consistency**: Reorganized `index.html` and `llms.txt` with Riffle flagship first, followed by Acoustic & modelled instruments, Synthesizers, Effects & utilities, and Tools (Podcare last), sorted most recent first within each category. Unified navigation (`Fun`), shared stylesheets, hero/section structure, and reduced text length across every product page.
 
 ## Current verification — 20 November 2026
 
@@ -175,15 +175,14 @@ Rack cover builder and the two machines from its panel kit. Panels were
 converted with Pillow (libwebp 1.6.0, method 6, quality 92). Fires is not
 added.
 
-RILL is a free, MIT-licensed development alpha. The site serves native
-screenshots from the [RILL repository](https://github.com/protocodus/rill-daw).
+Riffle is a private development alpha, marked as available soon. The site
+serves native screenshots from its private repository and links no builds or source.
 The 16 November update shows the original sixteen-track *Night ferry* session
 in Compact and Overview, in both appearances. The R1 gallery shows the current
 device panels, including an eight-piece kit in R1 Drums. The other workflow
 views show the 32-bar *Glass Current* session captured on 9 November. The
-[source manifest](rill/ASSET_PROVENANCE.json) records revisions, capture details
-and SHA-256 hashes. The five platform downloads follow the latest successful
-main build. Podcare retains its existing illustration.
+[source manifest](riffle/ASSET_PROVENANCE.json) records revisions, capture details
+and SHA-256 hashes. Podcare retains its existing illustration.
 
 ## Video and audio inventory
 
@@ -195,7 +194,7 @@ videos and older YouKnow V1 recordings are labelled. Run
 `node scripts/render-media.mjs` to regenerate the crawlable HTML.
 
 `scripts/catalog-live-check.mjs` checks public availability, published versions,
-gallery changes, new YouTube uploads, playlist embeds and RILL download links.
+gallery changes, new YouTube uploads, and playlist embeds.
 It runs weekly and on demand, reports confirmed drift separately from network
 failures, and never updates content automatically.
 
