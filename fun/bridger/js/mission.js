@@ -229,7 +229,8 @@ function strengthen(mission, members) {
     const sim = createSim(mission, current, mission.vehicle, { abortOnBreak: true });
     const passed = sim.run();
     let changed = false;
-    sim.beams.forEach((beam, i) => {
+    current.forEach((m, i) => {
+      const beam = sim.beams[i];
       const used = beam.broken ? 1.2 : beam.peak;
       if (used > 0.85 && current[i].mat === 'wood' && memberLength(current[i]) <= MATERIALS.steel.maxLength) {
         current[i].mat = 'steel';

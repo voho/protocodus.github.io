@@ -40,7 +40,17 @@ with compliance `L / EA`, carries half its own weight on each joint, and breaks 
 its force (smoothed over 40 ms) passes its strength. Vehicles roll at a steady speed
 along road members; each axle adds its mass to the two joints of the road piece under
 it, so the bridge feels the weight and its inertia. A wheel with no road under it
-falls. Wreckage lands on the banks and slows in the water.
+falls.
+
+Once a wheel loses the road, the vehicle stops being scripted: each body (the car, the
+truck, the locomotive and each wagon) becomes wheel and hull points held rigid, with the
+train's couplings between them. A member that snaps splits into two halves that stay
+pinned to their own joints, so they dangle and swing. Fallen vehicles, loose joints and
+snapped pieces collide with the terrain (along its slope, with friction) and with every
+member they touch, and both sides of a contact move by their mass, so a truck landing
+on the lower chord loads it and can break it too. Water slows everything down and
+lets a vehicle sink slowly. An intact bridge never collides with itself, so a bridge
+that holds behaves exactly as it did before.
 
 ## Missions
 

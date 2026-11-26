@@ -4,43 +4,46 @@
    Only the ground line has to match the physics; the rest is decoration. */
 import { createRng } from '../../shared/rng.js';
 
-/* Each river gets one of these worlds from its seed. */
+/* Each river gets one of these worlds from its seed. The scenery stays in
+   quiet, low-chroma greys so none of it competes with what matters: the
+   stress colours (green, yellow, red), the materials (wood brown, steel blue,
+   red bolts) and the brightly painted vehicles. */
 export const THEMES = {
   meadow: {
     name: 'Meadow', ui: 'dark',
-    sky: ['#6fb3e3', '#d7eef6'], sun: '#fff6d6', cloud: '#ffffff',
-    far: '#9ccbb9', near: '#86bf8c',
-    grass: '#6dbb6b', rock: ['#a98a68', '#5e4a3a'],
-    water: { surface: '#4fa3c8', deep: '#123f63', glint: '#ecfbff' },
-    tree: ['#4e9e5e', '#3f8a50', '#6b4a2e'], trees: 'round',
-    road: '#454a53', grid: 'rgba(255, 255, 255, 0.55)',
+    sky: ['#aebfca', '#e4eaed'], sun: '#fbf8ee', cloud: '#ffffff',
+    far: '#bcc8ce', near: '#a5b3b6',
+    grass: '#a3ada4', rock: ['#9a9a95', '#5d6062'],
+    water: { surface: '#7f98a3', deep: '#2b3b45', glint: '#f2f6f8' },
+    tree: ['#8b978f', '#7a867f', '#6a6560'], trees: 'round',
+    road: '#4a4e55', grid: 'rgba(255, 255, 255, 0.6)',
   },
   sunset: {
     name: 'Sunset', ui: 'dark',
-    sky: ['#4b3f7a', '#f7b08a'], sun: '#ffe1a6', cloud: '#ffc7a8',
-    far: '#b0819c', near: '#7c5a82',
-    grass: '#8c7448', rock: ['#9a6a58', '#3e2a36'],
-    water: { surface: '#c98a86', deep: '#2b2048', glint: '#ffe6c9' },
-    tree: ['#4a3557', '#3a2847', '#3a2847'], trees: 'pine',
-    road: '#3c3442', grid: 'rgba(255, 236, 220, 0.55)',
+    sky: ['#8f8c9c', '#ddd5cf'], sun: '#fbf1e2', cloud: '#f4ece8',
+    far: '#b6afb3', near: '#9c969d',
+    grass: '#9d968e', rock: ['#958c85', '#4d494c'],
+    water: { surface: '#8a8c9a', deep: '#2b2c3a', glint: '#f6efe8' },
+    tree: ['#7f7a80', '#6e6a71', '#5d5759'], trees: 'pine',
+    road: '#45434a', grid: 'rgba(255, 250, 245, 0.6)',
   },
   alpine: {
     name: 'Alpine', ui: 'light',
-    sky: ['#a7d2ee', '#f2f8fb'], sun: '#ffffff', cloud: '#ffffff',
-    far: '#c9d8e5', near: '#a9bccb', snow: '#ffffff',
-    grass: '#eaf2f7', rock: ['#97a2ad', '#4a5561'],
-    water: { surface: '#6fb8d2', deep: '#173e5c', glint: '#ffffff' },
-    tree: ['#3f7564', '#326456', '#5b4636'], trees: 'pine',
-    road: '#4b5159', grid: 'rgba(30, 60, 90, 0.42)',
+    sky: ['#c3cfd8', '#f0f3f5'], sun: '#ffffff', cloud: '#ffffff',
+    far: '#d1d8de', near: '#b8c1c8', snow: '#fbfcfd',
+    grass: '#e3e8eb', rock: ['#a2a8ad', '#5d6369'],
+    water: { surface: '#8aa1ac', deep: '#2a3a45', glint: '#ffffff' },
+    tree: ['#8c9893', '#7b8782', '#6b6662'], trees: 'pine',
+    road: '#4d5258', grid: 'rgba(40, 55, 70, 0.42)',
   },
   canyon: {
     name: 'Canyon', ui: 'light',
-    sky: ['#8cc6e6', '#f7ead3'], sun: '#fff5d8', cloud: '#ffffff',
-    far: '#e6b893', near: '#d2906a', mesa: true,
-    grass: '#e2b47c', rock: ['#cf8459', '#6a3424'],
-    water: { surface: '#4fb3a8', deep: '#14505a', glint: '#eafffb' },
-    tree: ['#6c9e58', '#5a8a48', '#6c9e58'], trees: 'cactus',
-    road: '#574b46', grid: 'rgba(90, 40, 20, 0.42)',
+    sky: ['#c9ced1', '#eee9e2'], sun: '#fdf9f0', cloud: '#ffffff',
+    far: '#d6cdc4', near: '#c1b5aa', mesa: true,
+    grass: '#c9bdae', rock: ['#b2a698', '#685f58'],
+    water: { surface: '#8ea2a1', deep: '#2c4140', glint: '#f4faf9' },
+    tree: ['#949a8f', '#858b80', '#949a8f'], trees: 'cactus',
+    road: '#55504c', grid: 'rgba(70, 55, 45, 0.42)',
   },
 };
 export const THEME_IDS = Object.keys(THEMES);
@@ -150,14 +153,14 @@ export function drawBackdrop(ctx, view, scenery, theme, time) {
   const r = Math.min(width, height) * 0.035;
   const sx = width * scenery.sunX, sy = theme.name === 'Sunset' ? horizon - r * 3 : height * 0.17;
   const glow = ctx.createRadialGradient(sx, sy, r * 0.5, sx, sy, r * 7);
-  glow.addColorStop(0, rgba(theme.sun, 0.55));
+  glow.addColorStop(0, rgba(theme.sun, 0.4));
   glow.addColorStop(1, rgba(theme.sun, 0));
   ctx.fillStyle = glow;
   ctx.fillRect(sx - r * 7, sy - r * 7, r * 14, r * 14);
   ctx.fillStyle = theme.sun;
   ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
 
-  ctx.fillStyle = rgba(theme.cloud, 0.55);
+  ctx.fillStyle = rgba(theme.cloud, 0.4);
   for (const c of scenery.clouds) {
     const s = r * 1.4 * c.s;
     const cx = ((c.x * (width + 300)) + time * c.speed) % (width + 300) - 150;

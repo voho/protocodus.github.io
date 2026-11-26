@@ -54,4 +54,19 @@ const truck = { ...mission, vehicle: 'truck' };
 const road = Array.from({ length: mission.span }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
 assert.equal(createSim(truck, road).run(), false, 'A bare road drops the truck');
 
+// A fall is physics, not a script: the wreck stays finite, never flies off,
+// and never ends up inside the ground.
+for (const vehicle of ['car', 'truck', 'train']) {
+  const sim = createSim({ ...mission, vehicle }, road);
+  let highest = -Infinity;
+  for (let frame = 0; frame < 60 * 12; frame++) {
+    sim.step();
+    for (const a of sim.car.axles) highest = Math.max(highest, a.y);
+  }
+  assert.ok(sim.car.bodies, `${vehicle}: the vehicle falls as a body`);
+  assert.ok(sim.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)), `${vehicle}: the wreck stays finite`);
+  assert.ok(highest < 3, `${vehicle}: nothing is flung into the air (highest axle ${highest.toFixed(1)} m)`);
+  assert.ok(sim.nodes.every((n) => n.fixed || n.y > mission.ground(n.x) - 0.3), `${vehicle}: nothing ends up inside the ground`);
+}
+
 console.log(`Bridger missions passed: ${seeds.length * 3} missions (${[...vehicles].join(', ')}; ${[...features].join(', ')}), solutions: ${[...kinds].join(', ')}; slowest ${Math.round(slowest)} ms.`);

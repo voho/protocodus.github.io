@@ -1,6 +1,6 @@
 /* Canvas drawing: sky, valley, river, the bridge and the vehicle. World
    units are metres with y up; the view maps them onto the canvas. */
-import { CELL, MATERIALS } from './physics.js';
+import { CELL, MATERIALS, BODIES, WHEEL } from './physics.js';
 import { jointAllowed } from './mission.js';
 import { drawBackdrop, drawGround, drawWater } from './scenery.js';
 
@@ -137,8 +137,6 @@ function joints(ctx, view, points) {
   }
 }
 
-/* Bodies sit on pairs of axles: [front axle, rear axle, kind]. */
-const BODIES = { car: [[0, 1, 'car']], truck: [[0, 2, 'truck']], train: [[0, 1, 'loco'], [2, 3, 'wagon'], [4, 5, 'wagon']] };
 
 function vehicle(ctx, view, car) {
   const s = view.scale;
@@ -147,9 +145,9 @@ function vehicle(ctx, view, car) {
     const d = Math.hypot(f.x - r.x, f.y - r.y);
     ctx.save();
     ctx.translate(view.sx(r.x), view.sy(r.y));
-    ctx.rotate(-Math.atan2(f.y - r.y, f.x - r.x) + car.tilt * (kind === 'wagon' ? 0.6 : 1));
+    ctx.rotate(-Math.atan2(f.y - r.y, f.x - r.x));
     ctx.scale(s, -s); // local metres, y up, rear axle at the origin
-    const wheel = kind === 'car' ? 0.42 : 0.5;
+    const wheel = WHEEL[kind];
     const box = (x0, y0, x1, y1, fill, radius = 0.25) => {
       ctx.fillStyle = fill;
       ctx.beginPath();
@@ -196,7 +194,7 @@ function vehicle(ctx, view, car) {
       const m = car.axles[1];
       const u = Math.hypot(m.x - r.x, m.y - r.y);
       ctx.fillStyle = '#22262c';
-      ctx.beginPath(); ctx.arc(d - u, wheel, wheel, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(u, wheel, wheel, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -241,8 +239,10 @@ export function draw(ctx, state) {
       for (const b of beams) {
         if (b.broken) continue;
         const na = nodes[b.a], nb = nodes[b.b];
-        lines.push([view.sx(na.x), view.sy(na.y), view.sx(nb.x), view.sy(nb.y), b.mat, stressColor(b.usage), null]);
-        for (const n of [na, nb]) if (!n.fixed) points.set(n, [view.sx(n.x), view.sy(n.y)]);
+        // Snapped-off pieces carry nothing, so they keep their material colour.
+        lines.push([view.sx(na.x), view.sy(na.y), view.sx(nb.x), view.sy(nb.y), b.mat, b.piece ? null : stressColor(b.usage), null]);
+        if (!na.fixed) points.set(na, [view.sx(na.x), view.sy(na.y)]);
+        if (!nb.fixed && !b.piece) points.set(nb, [view.sx(nb.x), view.sy(nb.y)]);
       }
     }
     if (!reflection) shadows(ctx, view, lines);
