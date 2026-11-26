@@ -68,7 +68,9 @@ function compare(piano, reference, test, renderer) {
   assert.ok(peak > 0.003 && stereo > 0, label + ': silent/mono oracle');
   // Native libm and the WebAssembly runtime may round transcendental functions
   // differently. Check individual phrases and releases, including quiet tails.
-  assert.ok(peakError < 0.0005 && worstRelative < 0.002, label + ': PCM exceeds agreement bounds');
+  // x86-64 measurements are <6e-8 peak and <1.3e-7 relative RMS. Leave
+  // room for native compiler/libm differences while catching waveform drift.
+  assert.ok(peakError < 1e-6 && worstRelative < 2e-6, label + ': PCM exceeds agreement bounds');
 }
 
 const source = process.argv[2] ? resolve(process.argv[2])
