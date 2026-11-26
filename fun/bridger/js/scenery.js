@@ -14,6 +14,7 @@ export const THEMES = {
     ambient: ['clouds', 'raptors'],
     name: 'Valley', ui: 'light', sky: 'sky-valley', skyline: [0.46, 0.46], skyAlign: 0.1, skyTop: '#549ce9', rock: 'rock-valley',
     rockColor: '#929185', tint: '#9f9a7457', surface: ['#b7ba91', '#858a72'], depth: '#364a4d',
+    subsoil: '#b58c5f', bedrock: '#30454b',
     water: { surface: '#79a8b2', deep: '#285261', glint: '#f2f5dc' },
     road: '#42464a', grid: 'rgba(37, 55, 68, 0.55)',
   },
@@ -21,6 +22,7 @@ export const THEMES = {
     ambient: ['stars', 'dust'],
     name: 'Mesa', ui: 'dark', sky: 'sky-mesa', skyline: [0.52, 0.57], skyAlign: 0.98, skyTop: '#2a2c63', rock: 'rock-mesa',
     rockColor: '#916775', tint: '#725e795c', surface: ['#daaa96', '#997b86'], depth: '#3c3047',
+    subsoil: '#bd765e', bedrock: '#382d46',
     water: { surface: '#a98f9c', deep: '#443a57', glint: '#ffe0c9' },
     road: '#443b47', grid: 'rgba(249, 238, 227, 0.57)',
   },
@@ -28,6 +30,7 @@ export const THEMES = {
     ambient: ['clouds', 'snow'],
     name: 'Snow', ui: 'light', sky: 'sky-snow', skyline: [0.41, 0.39], skyAlign: 0.05, skyTop: '#5e8fe2', rock: 'rock-snow',
     rockColor: '#90aab2', tint: '#b8d7df49', surface: ['#fff9e9', '#cadce0'], depth: '#314758',
+    subsoil: '#9cc1cc', bedrock: '#293e57',
     water: { surface: '#8fbfc8', deep: '#2e5068', glint: '#fff9e9' },
     road: '#454e56', grid: 'rgba(32, 55, 77, 0.55)',
   },
@@ -35,6 +38,7 @@ export const THEMES = {
     ambient: ['stars', 'shooting', 'fireflies'],
     name: 'Night', ui: 'dark', sky: 'sky-night', skyline: [0.46, 0.48], skyAlign: 0.91, skyTop: '#002c42', rock: 'rock-night',
     rockColor: '#495569', tint: '#42616d5c', surface: ['#91a6b0', '#596e7a'], depth: '#142333',
+    subsoil: '#667494', bedrock: '#212437',
     water: { surface: '#557b8c', deep: '#172b41', glint: '#e4eedf' },
     road: '#293540', grid: 'rgba(221, 239, 240, 0.54)',
   },
@@ -42,6 +46,7 @@ export const THEMES = {
     ambient: ['birds', 'leaves'],
     name: 'Forest', ui: 'light', sky: 'sky-forest', skyline: [0.44, 0.41], skyAlign: 0.11, skyTop: '#6893ab', rock: 'rock-forest',
     rockColor: '#6f7a62', tint: '#82936460', surface: ['#b1b480', '#788864'], depth: '#273d3b',
+    subsoil: '#9b7350', bedrock: '#273d3e',
     water: { surface: '#76a598', deep: '#274a4a', glint: '#eef5d4' },
     road: '#3c4542', grid: 'rgba(30, 52, 56, 0.55)',
   },
@@ -49,6 +54,7 @@ export const THEMES = {
     ambient: ['clouds', 'raptors'],
     name: 'Sandstone', ui: 'light', sky: 'sky-sandstone', skyline: [0.38, 0.35], skyAlign: 0.035, skyTop: '#6aa7f1', rock: 'rock-sandstone',
     rockColor: '#b17967', tint: '#cbab915e', surface: ['#eec6a5', '#b78873'], depth: '#563f44',
+    subsoil: '#c67c57', bedrock: '#633e42',
     water: { surface: '#80b0ad', deep: '#365c64', glint: '#fff0d5' },
     road: '#4c4242', grid: 'rgba(66, 45, 55, 0.55)',
   },
@@ -56,6 +62,7 @@ export const THEMES = {
     ambient: ['stars', 'shooting', 'dust'],
     name: 'Night desert', ui: 'dark', sky: 'sky-dunes', skyline: [0.51, 0.52], skyAlign: 0.23, skyTop: '#002d4c', rock: 'rock-dunes',
     rockColor: '#706077', tint: '#38476b92', surface: ['#b1a5b8', '#796c87'], depth: '#302d49',
+    subsoil: '#927395', bedrock: '#333046',
     water: { surface: '#777c9f', deep: '#30334f', glint: '#f5e6d8' },
     road: '#363343', grid: 'rgba(235, 232, 250, 0.55)',
   },
@@ -63,6 +70,7 @@ export const THEMES = {
     ambient: ['stars', 'plane'],
     name: 'Night city', ui: 'dark', sky: 'sky-city', skyline: [0.52, 0.51], skyAlign: 0.93, skyTop: '#072455', rock: 'rock-city',
     rockColor: '#50596a', tint: '#273c5c91', surface: ['#9baab4', '#64778b'], depth: '#172335',
+    subsoil: '#947a69', bedrock: '#2a3547',
     water: { surface: '#697b95', deep: '#213047', glint: '#ffd6a8' },
     road: '#333e4b', grid: 'rgba(232, 237, 247, 0.55)',
   },
@@ -70,6 +78,7 @@ export const THEMES = {
     ambient: ['birds', 'dust'],
     name: 'Desert', ui: 'light', sky: 'sky-desert', skyline: [0.43, 0.42], skyAlign: 0.97, skyTop: '#67dde3', rock: 'rock-dunes',
     rockColor: '#ad8a70', tint: '#edb17e52', surface: ['#eed0a4', '#b89879'], depth: '#55454e',
+    subsoil: '#cc904d', bedrock: '#573e42',
     water: { surface: '#72a6a9', deep: '#23495a', glint: '#fff1da' },
     road: '#4b4244', grid: 'rgba(58, 44, 49, 0.55)',
   },
@@ -77,6 +86,7 @@ export const THEMES = {
     ambient: ['clouds', 'butterflies'],
     name: 'Meadow', ui: 'light', sky: 'sky-meadow', skyline: [0.49, 0.49], skyAlign: 0.03, skyTop: '#51a6f9', rock: 'rock-forest',
     rockColor: '#647759', tint: '#8a9b6b4d', surface: ['#a9be7b', '#71855c'], depth: '#263d40',
+    subsoil: '#a17b4f', bedrock: '#374347',
     water: { surface: '#77aba5', deep: '#244a56', glint: '#fffbe0' },
     road: '#454844', grid: 'rgba(34, 61, 68, 0.55)',
   },
@@ -84,13 +94,15 @@ export const THEMES = {
     ambient: ['clouds', 'birds'],
     name: 'Tropical Island', ui: 'light', sky: 'sky-island', skyline: [0.49, 0.44], skyAlign: 0.95, skyTop: '#47a5fc', rock: 'rock-snow',
     rockColor: '#b8a58b', tint: '#edd7ad7a', surface: ['#f4dfaf', '#b4a389'], depth: '#2c4c58',
+    subsoil: '#d1a584', bedrock: '#31464e',
     water: { surface: '#52c7bb', deep: '#195b70', glint: '#f2fff6' },
     road: '#454b51', grid: 'rgba(32, 57, 65, 0.55)',
   },
   jungle: {
     ambient: ['fireflies'],
-    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.14, skyTop: '#c3efdd', rock: 'rock-forest',
+    name: 'Jungle', ui: 'light', sky: 'sky-jungle', skyline: [0.38, 0.40], skyAlign: 0.16, skyTop: '#c3efdd', rock: 'rock-forest',
     rockColor: '#556350', tint: '#637f415e', surface: ['#899d64', '#627454'], depth: '#1c3533',
+    subsoil: '#a47353', bedrock: '#283c38',
     water: { surface: '#688e77', deep: '#1f4544', glint: '#e5efd0' },
     road: '#363f39', grid: 'rgba(25, 55, 54, 0.57)',
   },
@@ -98,6 +110,7 @@ export const THEMES = {
     ambient: ['birds', 'leaves'],
     name: 'Canadian Forest with a Lake', ui: 'light', sky: 'sky-lake', skyline: [0.45, 0.47], skyAlign: 0.88, skyTop: '#6da8fa', rock: 'rock-valley',
     rockColor: '#838b8a', tint: '#89958b42', surface: ['#b2b9a2', '#889483'], depth: '#243a46',
+    subsoil: '#a98a87', bedrock: '#394752',
     water: { surface: '#7aa2b3', deep: '#224555', glint: '#f0f8f7' },
     road: '#41464b', grid: 'rgba(31, 50, 63, 0.55)',
   },
@@ -127,14 +140,14 @@ export function buildScenery(mission) {
 
 /* The rock texture as a pattern pinned to the world, so it doesn't slide
    when the screen is resized. */
-function rockFill(ctx, view, theme) {
+function rockPattern(ctx, theme) {
   const rock = image(theme.rock);
-  if (!ready(rock)) return theme.rockColor;
+  if (!ready(rock)) return null;
   if (!theme.pattern) {
     let tile = rock;
     if (theme.tint) {
       tile = document.createElement('canvas');
-      tile.width = rock.naturalWidth; tile.height = rock.naturalHeight;
+      tile.width = rock.width; tile.height = rock.height;
       const c = tile.getContext('2d');
       c.drawImage(rock, 0, 0);
       c.fillStyle = theme.tint;
@@ -142,9 +155,15 @@ function rockFill(ctx, view, theme) {
     }
     theme.pattern = ctx.createPattern(tile, 'repeat');
   }
-  const k = ROCK_TILE * view.scale / rock.naturalWidth;
-  theme.pattern.setTransform(new DOMMatrix().translate(view.sx(0), view.sy(0)).scale(k));
   return theme.pattern;
+}
+
+function rockFill(ctx, view, theme) {
+  const pattern = rockPattern(ctx, theme);
+  if (!pattern) return theme.rockColor;
+  const k = ROCK_TILE * view.scale / image(theme.rock).width;
+  pattern.setTransform(new DOMMatrix().translate(view.sx(0), view.sy(0)).scale(k));
+  return pattern;
 }
 
 /* Raster once in device pixels. All three layers only live as long as the
@@ -176,7 +195,8 @@ function blit(ctx, layer) {
 
 /* Position the undistorted ridge against the road, keeping the painted
    landmark visible in the narrower portrait crop. */
-export function backdropBounds(view, scenery, theme, aspect) {
+export function backdropBounds(view, scenery, theme, sky, pixelRatio = 1) {
+  const aspect = sky.width / sky.height;
   const floor = view.sy(scenery.backdropFloor) + 2, deck = view.sy(0);
   const narrow = Math.max(0, Math.min(1, 2 - view.width / deck));
   const [panorama, portrait] = theme.skyline;
@@ -184,9 +204,14 @@ export function backdropBounds(view, scenery, theme, aspect) {
   const horizon = deck * 0.54;
   // Cover the width, the sky above the ridge, and the strip down to the
   // far bank. Extra painted foreground can extend behind the playable land.
-  const h = Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge));
+  const cover = Math.max(view.width / aspect, floor);
+  // A tall portrait sky shows more of the painting vertically. Keep its
+  // detail sharp instead of enlarging the whole forest to place one ridge.
+  const detailHeight = sky.height * (0.55 + 0.45 / pixelRatio);
+  const h = Math.min(Math.max(cover, detailHeight), Math.max(view.width / aspect, horizon / ridge, (floor - horizon) / (1 - ridge)));
   const w = h * aspect;
-  return { x: (view.width - w) * theme.skyAlign, y: horizon - h * ridge, w, h };
+  const y = Math.max(floor - h, Math.min(0, horizon - h * ridge));
+  return { x: (view.width - w) * theme.skyAlign, y, w, h };
 }
 
 export function drawBackdrop(ctx, view, scenery, theme) {
@@ -199,7 +224,7 @@ export function drawBackdrop(ctx, view, scenery, theme) {
   }
   const cache = rasterCache(ctx, view, scenery, theme);
   if (!cache.sky) {
-    const { x, y, w, h } = backdropBounds(view, scenery, theme, sky.naturalWidth / sky.naturalHeight);
+    const { x, y, w, h } = backdropBounds(view, scenery, theme, sky, cache.ratio);
     const layer = makeLayer(cache, 0, view.sy(scenery.backdropFloor) + 2);
     layer.ctx.fillStyle = theme.skyTop;
     layer.ctx.fillRect(0, 0, layer.w, layer.h);
@@ -221,9 +246,10 @@ const R = Array.from({ length: 512 }, (_, i) => {
 
 /* Long, feathered wisps sit lightly over the painted clouds. They double
    as mist when compressed against the opposite bank. */
+const cloudSprites = { light: [], dark: [] };
 function cloudSprite(theme, index) {
-  theme.clouds ||= [];
-  if (theme.clouds[index]) return theme.clouds[index];
+  const sprites = cloudSprites[theme.ui];
+  if (sprites[index]) return sprites[index];
   const canvas = document.createElement('canvas');
   canvas.width = 420; canvas.height = 100;
   const c = canvas.getContext('2d');
@@ -241,8 +267,17 @@ function cloudSprite(theme, index) {
     c.fillRect(-1, -1, 2, 2);
     c.restore();
   }
-  theme.clouds[index] = canvas;
+  sprites[index] = canvas;
   return canvas;
+}
+
+export function prepareSceneryArt(ctx) {
+  for (const theme of Object.values(THEMES)) {
+    rockPattern(ctx, theme);
+    // All rivers use the first wisp for mist. Cloudy skies use four more.
+    const count = theme.ambient.includes('clouds') ? 5 : 1;
+    for (let i = 0; i < count; i++) cloudSprite(theme, i);
+  }
 }
 
 /* Behind the bridge: clouds and birds by day, stars, shooting stars and
@@ -433,11 +468,13 @@ function bankPaths(view, mission, scenery) {
   if (scenery.paths?.view === view) return scenery.paths;
   const ground = new Path2D(), rim = new Path2D(), ledges = new Path2D();
   const far = new Path2D(), farRim = new Path2D(), roads = new Path2D(), gorge = new Path2D();
+  const exposed = new Path2D();
   const x0 = Math.min(mission.left, Math.floor(view.wx(-8) * 10) / 10);
   const x1 = Math.max(mission.right, Math.ceil(view.wx(view.width + 8) * 10) / 10);
   const edge = view.height + 4;
   ground.moveTo(view.sx(x0), edge);
   far.moveTo(view.sx(x0), edge);
+  exposed.moveTo(view.sx(x0), -5);
   gorge.moveTo(view.sx(mission.left), -5);
   let prevX, prevY, topFar = Infinity, topNear = Infinity, bottomNear = -Infinity;
   for (let i = Math.round(x0 * 10); i <= Math.round(x1 * 10); i++) {
@@ -448,6 +485,9 @@ function bankPaths(view, mission, scenery) {
     bottomNear = Math.max(bottomNear, sy);
     ground.lineTo(sx, sy);
     far.lineTo(sx, farY);
+    // The opaque near bank covers everything below this line. Leave two
+    // pixels of overlap for antialiasing where the two shores meet.
+    exposed.lineTo(sx, sy + 2);
     if (prevX == null) {
       rim.moveTo(sx, sy);
       farRim.moveTo(sx, farY);
@@ -466,17 +506,59 @@ function bankPaths(view, mission, scenery) {
   }
   ground.lineTo(view.sx(x1), edge); ground.closePath();
   far.lineTo(view.sx(x1), edge); far.closePath();
+  exposed.lineTo(view.sx(x1), -5); exposed.closePath();
   gorge.lineTo(view.sx(mission.right), -5); gorge.closePath();
-  scenery.paths = { view, ground, rim, ledges, far, farRim, roads, gorge, topFar, topNear, bottomNear };
+  scenery.paths = { view, ground, rim, ledges, far, farRim, exposed, roads, gorge, topFar, topNear, bottomNear };
   return scenery.paths;
 }
 
-function paintBanks(cache, paths, view, theme) {
-  const { far, farRim, ground, rim, ledges, roads } = paths;
+function paintGeology(ctx, view, mission, phase, theme, ground) {
+  const depth = mission.deck - mission.bed;
+  const shade = ctx.createLinearGradient(0, view.sy(mission.deck), 0, view.sy(mission.bed));
+  shade.addColorStop(0, rgba(theme.surface[0], 0.12));
+  shade.addColorStop(0.14, rgba(theme.subsoil, 0.48));
+  shade.addColorStop(0.38, rgba(theme.subsoil, 0.56));
+  shade.addColorStop(0.70, rgba(mix(theme.subsoil, theme.bedrock, 0.72), 0.65));
+  shade.addColorStop(1, rgba(theme.bedrock, 0.73));
+  ctx.fillStyle = shade;
+  ctx.fill(ground);
+
+  // Thin mineral beds pinch out, dip and reappear along a cliff. Sample at
+  // fixed metre intervals so the same seams survive a change of camera.
+  const start = Math.floor(view.wx(0) * 2), end = Math.ceil(view.wx(view.width) * 2);
+  ctx.save();
+  ctx.clip(ground);
+  for (const [level, thickness, color, opacity] of [
+    [0.15, 0.030, theme.subsoil, 0.29], [0.33, 0.017, theme.surface[0], 0.23],
+    [0.51, 0.043, theme.bedrock, 0.19], [0.72, 0.025, theme.subsoil, 0.29],
+    [0.92, 0.016, theme.surface[1], 0.22], [1.18, 0.041, theme.bedrock, 0.28],
+  ]) {
+    const path = new Path2D(), lower = [];
+    for (let i = start; i <= end; i++) {
+      const x = i / 2, along = x * 0.3 + phase + level * 3;
+      const dip = 0.35 * Math.sin(x * 0.25 + phase) + 0.18 * Math.sin(along * 1.7) + 0.07 * Math.sin(along * 5);
+      const y = mission.deck - level * depth + dip;
+      const width = depth * thickness * Math.max(0, 0.46 + 0.65 * Math.sin(along) + 0.20 * Math.sin(along * 3.2) + 0.12 * Math.sin(x * 3 + phase));
+      path.lineTo(view.sx(x), view.sy(y));
+      lower.push(view.sy(y - width));
+    }
+    for (let i = end; i >= start; i--) path.lineTo(view.sx(i / 2), lower[i - start]);
+    path.closePath();
+    ctx.fillStyle = rgba(color, opacity);
+    ctx.fill(path);
+  }
+  ctx.restore();
+}
+
+function paintBanks(cache, mission, scenery, theme) {
+  const { view } = cache;
+  const paths = bankPaths(view, mission, scenery);
+  const { far, farRim, exposed, ground, rim, ledges, roads } = paths;
   const roadWidth = Math.max(4, view.scale * 0.32);
   const back = makeLayer(cache, paths.topFar - 3, paths.bottomNear + 4);
   const front = makeLayer(cache, paths.topNear - roadWidth - 4, view.height);
   const rock = rockFill(back.ctx, view, theme);
+  back.ctx.clip(exposed);
   back.ctx.fillStyle = rock;
   back.ctx.fill(far);
   back.ctx.fillStyle = rgba(theme.depth, 0.62);
@@ -485,14 +567,10 @@ function paintBanks(cache, paths, view, theme) {
   back.ctx.lineWidth = 2;
   back.ctx.stroke(farRim);
 
-  const ctx = front.ctx, top = view.sy(0);
+  const ctx = front.ctx;
   ctx.fillStyle = rock;
   ctx.fill(ground);
-  const shade = ctx.createLinearGradient(0, top, 0, Math.max(top + 1, view.height));
-  shade.addColorStop(0, rgba(theme.depth, 0));
-  shade.addColorStop(1, rgba(theme.depth, 0.6));
-  ctx.fillStyle = shade;
-  ctx.fill(ground);
+  paintGeology(ctx, view, mission, scenery.phase, theme, ground);
   ctx.strokeStyle = theme.depth;
   ctx.lineWidth = 3;
   ctx.lineJoin = 'round';
@@ -526,7 +604,7 @@ export function drawGround(ctx, view, mission, scenery, theme, time) {
   const cache = rasterCache(ctx, view, scenery, theme);
   const textured = ready(image(theme.rock));
   if (!cache.banks || cache.textured !== textured) {
-    cache.banks = paintBanks(cache, bankPaths(view, mission, scenery), view, theme);
+    cache.banks = paintBanks(cache, mission, scenery, theme);
     cache.textured = textured;
   }
   blit(ctx, cache.banks.back);
@@ -547,82 +625,178 @@ export function drawGround(ctx, view, mission, scenery, theme, time) {
   blit(ctx, cache.banks.front);
 }
 
-function waterPaint(ctx, view, mission, theme) {
+/* The reflection is softer than the source painting. Keep one river-sized
+   surface, including a little overscan for waves moving its edges. */
+function waterPaint(ctx, view, mission, theme, paths) {
   const { surface, deep, glint } = theme.water;
   const level = view.sy(mission.water);
-  const body = ctx.createLinearGradient(0, level, 0, Math.min(view.height + 10, level + view.scale * 9));
-  body.addColorStop(0, rgba(surface, 0.72));
-  body.addColorStop(0.35, rgba(mix(surface, deep, 0.5), 0.86));
-  body.addColorStop(1, rgba(deep, 0.97));
-  const fade = ctx.createLinearGradient(0, level, 0, level + view.scale * 6);
-  fade.addColorStop(0, rgba(deep, 0));
-  fade.addColorStop(1, rgba(deep, 0.6));
-  return { body, fade, shimmer: rgba(glint, 0.28), crest: rgba(glint, 0.75) };
+  const bottom = Math.min(view.height, Math.ceil(paths.bottomNear) + 2);
+  const depth = Math.max(view.scale, bottom - level);
+  const body = ctx.createLinearGradient(0, level, 0, level + depth);
+  body.addColorStop(0, rgba(mix(surface, glint, 0.15), 0.77));
+  body.addColorStop(0.22, rgba(mix(surface, deep, 0.25), 0.82));
+  body.addColorStop(0.65, rgba(mix(surface, deep, 0.72), 0.87));
+  body.addColorStop(1, rgba(deep, 0.89));
+
+  const shallows = ctx.createLinearGradient(0, level, 0, level + depth);
+  const shoreLight = mix(surface, glint, 0.36);
+  shallows.addColorStop(0, rgba(shoreLight, 0.34));
+  shallows.addColorStop(0.6, rgba(shoreLight, 0.12));
+  shallows.addColorStop(1, rgba(shoreLight, 0.045));
+
+  const x0 = view.sx(mission.left), x1 = view.sx(mission.right);
+  const pad = Math.ceil(Math.max(8, view.scale * 0.5));
+  const left = Math.floor(x0) - pad, top = Math.floor(level) - pad;
+  const mirror = document.createElement('canvas');
+  // One sample per CSS pixel is sufficient for the refracted, moving image.
+  mirror.width = Math.max(1, Math.ceil(x1) + pad - left);
+  mirror.height = Math.max(1, bottom + pad - top);
+  const landscape = document.createElement('canvas');
+  landscape.width = mirror.width; landscape.height = mirror.height;
+  const reflected = mirror.getContext('2d');
+  reflected.imageSmoothingQuality = 'low';
+  return { body, mirror, landscape, reflected, left, top, level, bottom, x0, x1,
+    shallows, glint: rgba(glint, 0.47),
+    shade: rgba(deep, 0.17), edge: rgba(glint, 0.34) };
 }
 
-export function drawWater(ctx, view, mission, scenery, theme, time, reflect) {
+/* Paint the landscape, vehicle and structure once. The water then samples
+   this undistorted image in narrow moving bands. An unchanged drawing on
+   the build screen reuses the same reflection. */
+function paintWaterLandscape(water, view, scenery, theme, sky) {
+  const c = water.landscape.getContext('2d');
+  c.save();
+  c.translate(-water.left, water.level - water.top);
+  const bounds = backdropBounds(view, scenery, theme, sky, scenery.raster.ratio);
+  // At a grazing angle the opposite landscape fills the surface; toward
+  // the viewer the reflected ray rises into the sky.
+  const shore = view.sy(0) * 0.54 + bounds.h * 0.09;
+  c.scale(1, -0.62);
+  c.drawImage(sky, bounds.x, bounds.y - shore, bounds.w, bounds.h);
+  c.restore();
+}
+
+function paintReflection(water, reflect) {
+  const { reflected: c, left, top, landscape, level } = water;
+  c.save();
+  c.globalCompositeOperation = 'copy';
+  c.drawImage(landscape, 0, 0);
+  c.globalCompositeOperation = 'source-over';
+  c.translate(-left, level - top);
+  c.scale(1, -0.84);
+  c.translate(0, -level);
+  reflect?.(c);
+  c.restore();
+}
+
+export function drawWater(ctx, view, mission, scenery, theme, time, reflect, drawing, sim) {
   const cache = rasterCache(ctx, view, scenery, theme);
-  cache.water ??= waterPaint(ctx, view, mission, theme);
+  const paths = bankPaths(view, mission, scenery);
+  const water = cache.water ??= waterPaint(ctx, view, mission, theme, paths);
+  const sky = image(theme.sky);
+  const painted = ready(sky);
+  if (painted && !water.painted) paintWaterLandscape(water, view, scenery, theme, sky);
+  const key = reflect ? drawing : scenery;
+  if (key === undefined || key !== water.drawing || painted !== water.painted) {
+    paintReflection(water, reflect);
+    water.drawing = key;
+    water.painted = painted;
+  }
+  const t = still.matches ? 0 : time;
+  const hit = still.matches ? null : sim?.waterEntry;
+  const age = hit ? sim.time - hit.time : Infinity;
   ctx.save();
-  ctx.clip(bankPaths(view, mission, scenery).gorge);
-  surfaceWater(ctx, view, mission, cache.water, still.matches ? 0 : time, reflect);
+  ctx.clip(paths.gorge);
+  surfaceWater(ctx, view, scenery.phase, water, paths.rim, t, age < 2.8 ? hit : null, age);
   ctx.restore();
 }
 
-function surfaceWater(ctx, view, mission, paint, time, reflect) {
-  const x0 = view.sx(mission.left), x1 = view.sx(mission.right);
-  const level = view.sy(mission.water);
-  const bottom = view.height + 10;
-  const amp = Math.max(0.8, view.scale * 0.05);
-  const wave = (px) => level + Math.sin(px * 0.045 + time * 1.6) * amp + Math.sin(px * 0.11 - time * 2.3) * amp * 0.45;
-  // Reuse this frame's exact wave shape for the fill, reflection clip and
-  // depth shading. Trace the lit crest with the same sampled positions.
-  const crest = new Path2D();
-  crest.moveTo(x0, wave(x0));
-  for (let px = x0 + 4; px <= x1; px += 4) crest.lineTo(px, wave(px));
-  const outline = new Path2D(crest);
-  outline.lineTo(x1, wave(x1));
-  outline.lineTo(x1, bottom);
-  outline.lineTo(x0, bottom);
-  outline.closePath();
-  ctx.fillStyle = paint.body;
-  ctx.fill(outline);
-
-  if (reflect) {
-    ctx.save();
-    ctx.clip(outline);
-    // Mirror about the water line, squashed a little the way ripples do.
-    ctx.translate(0, level);
-    ctx.scale(1, -0.9);
-    ctx.translate(0, -level);
-    ctx.globalAlpha = 0.16;
-    reflect();
-    ctx.restore();
-    // Reflections fade with depth.
-    ctx.fillStyle = paint.fade;
-    ctx.fill(outline);
+function surfaceWater(ctx, view, phase, water, rim, time, hit, age) {
+  const { x0, x1, level, bottom, mirror, left, top } = water;
+  if (bottom <= level) return;
+  const scale = view.scale, span = x1 - x0;
+  const crest = new Path2D(), glints = new Path2D();
+  const amplitude = Math.max(0.65, scale * 0.047);
+  // A displacement in metres keeps the same current and wavelength through
+  // a resize. Two wave packets travel away from an actual water impact.
+  const wave = (px) => {
+    const x = (px - x0) / scale;
+    let dy = amplitude * (Math.sin(3.2 * x - time * 1.9 + phase) +
+      0.42 * Math.sin(6.8 * x + time * 2.3) + 0.27 * Math.sin(1.3 * x - time * 0.74));
+    if (hit) {
+      const distance = Math.abs(px - view.sx(hit.x)) / scale - age * 2.8;
+      dy -= scale * Math.min(0.33, 0.13 + 0.027 * hit.speed) * Math.cos(distance * 7) *
+        Math.exp(-distance * distance * 2.8 - age * 1.25);
+    }
+    return level + dy;
+  };
+  let y = wave(x0);
+  crest.moveTo(x0, y);
+  const step = Math.max(2, scale * 0.13);
+  for (let px = x0; px < x1; px += step) {
+    const next = Math.min(x1, px + step), ny = wave(next);
+    crest.lineTo(next, ny);
+    if (ny - y < -amplitude * 0.15) {
+      glints.moveTo(px, y);
+      glints.lineTo(next, ny);
+    }
+    y = ny;
   }
+  const outline = new Path2D(crest);
+  outline.lineTo(x1, bottom); outline.lineTo(x0, bottom); outline.closePath();
+  ctx.save();
+  ctx.clip(outline);
+  ctx.fillStyle = water.body;
+  ctx.fillRect(x0, level - scale, span, bottom - level + scale);
 
-  // Long, slow glints just below the surface.
-  ctx.strokeStyle = paint.shimmer;
-  ctx.lineWidth = Math.max(1, view.scale * 0.06);
-  ctx.lineCap = 'round';
-  const span = x1 - x0;
-  for (let i = 0; i < 9; i++) {
-    const depth = ((i * 0.37) % 1) * view.scale * 2.4 + view.scale * 0.35;
-    const length = view.scale * (0.6 + (i % 3) * 0.5);
-    const px = x0 + (((i * 0.61 + time * (0.012 + (i % 4) * 0.004)) % 1) * (span + length)) - length;
-    const shimmer = 0.5 + 0.5 * Math.sin(time * 1.3 + i * 2.1);
-    ctx.globalAlpha = shimmer;
-    ctx.beginPath();
-    ctx.moveTo(Math.max(x0, px), level + depth);
-    ctx.lineTo(Math.min(x1, px + length), level + depth);
-    ctx.stroke();
+  // Short ripples reflect different parts of the shore. Their images get
+  // wider breaks and lose contrast farther down in the water column.
+  const depth = bottom - level, start = Math.max(top, Math.floor(level - scale * 0.42));
+  for (let row = start; row < bottom;) {
+    const d = Math.max(0, row - level) / scale;
+    const h = Math.min(bottom - row, Math.max(2, Math.round(scale * (0.082 + 0.022 * d))));
+    const wave1 = Math.sin(d * 5.7 - time * 1.4 + phase), wave2 = Math.sin(d * 12 + time + phase);
+    const weight = Math.min(1, (row - level) / depth);
+    const dx = (wave1 + wave2 * 0.45) * Math.min(scale * 0.18, 1.0 + d * scale * 0.04);
+    const dy = (wave2 * 0.9 + wave1 * 0.4) * Math.min(h, 0.8 + d * 0.65);
+    ctx.globalAlpha = (0.08 + 0.47 * (1 - Math.max(0, weight)) ** 1.4) * (0.88 + 0.12 * wave1);
+    ctx.drawImage(mirror, x0 - left - dx, row - top + dy, span, h, x0, row, span, h);
+    row += h;
   }
   ctx.globalAlpha = 1;
+  // Light scattered by the submerged bank discloses the changing depth.
+  ctx.strokeStyle = water.shallows;
+  ctx.globalAlpha = 0.36;
+  ctx.lineWidth = Math.max(3, scale * 0.80);
+  ctx.stroke(rim);
+  ctx.globalAlpha = 0.62;
+  ctx.lineWidth = Math.max(2, scale * 0.34);
+  ctx.stroke(rim);
+  ctx.globalAlpha = 1;
 
-  // The surface line, brightest where a ripple faces the light.
-  ctx.lineWidth = Math.max(1.2, view.scale * 0.07);
-  ctx.strokeStyle = paint.crest;
+  const ripples = new Path2D(), troughs = new Path2D();
+  const count = Math.ceil(span / scale * 4);
+  for (let i = 0; i < count; i++) {
+    const d = R[i + 300] ** 1.8;
+    const length = scale * (0.13 + 0.82 * R[i + 180]) * (0.55 + d);
+    const speed = 0.18 + 0.24 * d;
+    const x = x0 + ((R[i + 70] * (span + length) + time * speed * scale) % (span + length)) - length;
+    const shimmer = Math.sin(phase + i * 2.2 + time * (0.65 + R[i]));
+    const py = level + 1.5 + d * Math.min(depth, scale * 3.5) + shimmer * amplitude * 0.38;
+    const width = length * (0.70 + 0.30 * shimmer);
+    const path = i % 3 ? ripples : troughs;
+    const height = (0.6 + 0.032 * scale) * (0.6 + d) * (0.55 + 0.45 * shimmer);
+    path.moveTo(x, py);
+    path.quadraticCurveTo(x + width * 0.52, py - height * 1.5, x + width, py - height * 0.3);
+    path.quadraticCurveTo(x + width * 0.54, py + height * 0.5, x, py);
+  }
+  ctx.fillStyle = water.glint; ctx.fill(ripples);
+  ctx.fillStyle = water.shade; ctx.fill(troughs);
+  ctx.restore();
+  ctx.strokeStyle = water.edge;
+  ctx.lineWidth = Math.max(0.9, scale * 0.038);
   ctx.stroke(crest);
+  ctx.strokeStyle = water.glint;
+  ctx.lineWidth = Math.max(1.1, scale * 0.06);
+  ctx.stroke(glints);
 }

@@ -3,8 +3,9 @@
    real simulation. A mission is only handed out once one of its designs has
    carried the vehicle across, and its budget is that design's cost plus the
    difficulty's margin. */
-import { createRng } from '../../shared/rng.js';
+import { createRng, hashSeed } from '../../shared/rng.js';
 import { CELL, MATERIALS, createSim, bridgeCost, memberLength, key } from './physics.js';
+import catalogRows from './river-catalog.js';
 
 export const MARGINS = { easy: 0.5, medium: 0.25, hard: 0.1 };
 const CLEARANCE = 1; // metres a joint must stay above the water
@@ -446,31 +447,42 @@ function remember(pool, members, kind) {
 }
 
 const surveyRng = (seed, tries) => createRng(`${seed}:${tries}`);
+const isCatalogSeed = seed => typeof seed === 'string' && seed.startsWith('v3-');
+
+function terrainForSurvey(seed, tries) {
+  const rng = surveyRng(seed, tries);
+  const terrain = createTerrain(rng);
+  const varied = typeof seed === 'string' && seed.startsWith('v2-');
+  const reservation = varied ? createRng(`${seed}:clearance`).pick(['channel', 'ceiling', null]) : null;
+  if (varied) terrain.clearance = chooseClearance(terrain, reservation, rng);
+  return { terrain, rng, suitable: !reservation || !!terrain.clearance };
+}
+
+function budgetFor(cost, margin) {
+  return Math.max(cost, Math.floor(cost * (1 + margin) / 10) * 10);
+}
 
 // The ground closure cannot cross a worker boundary. Recreate only the
 // sampled terrain from its survey seed, alongside the already proven design.
 export function restoreMission(fields) {
+  if (isCatalogSeed(fields.seed)) return { ...fields, ground: catalogRiver(fields.seed).terrain.ground };
   const { ground } = createTerrain(surveyRng(fields.seed, fields.tries));
   return { ...fields, ground };
 }
 
 export function createMission(difficulty, seed) {
+  if (isCatalogSeed(seed)) return missionFromRiver(catalogRiver(seed), difficulty, seed);
   const margin = MARGINS[difficulty] ?? MARGINS.medium;
   const varied = typeof seed === 'string' && seed.startsWith('v2-');
-  const reservation = varied ? createRng(`${seed}:clearance`).pick(['channel', 'ceiling', null]) : null;
   // A valley with no bridge we can prove is thrown away for the next one.
   for (let tries = 0; tries < 40; tries++) {
-    const rng = surveyRng(seed, tries);
-    const terrain = createTerrain(rng);
-    if (varied) {
-      terrain.clearance = chooseClearance(terrain, reservation, rng);
-      if (reservation && !terrain.clearance) continue;
-    }
+    const { terrain, rng, suitable } = terrainForSurvey(seed, tries);
+    if (!suitable) continue;
     const solutions = solve(terrain, rng, 10, varied, margin);
     if (!solutions.length) continue;
     const best = solutions[0];
-    const budget = Math.floor(best.cost * (1 + margin) / 10) * 10;
-    const mission = { ...terrain, seed, difficulty, margin, budget: Math.max(budget, best.cost), reference: best.members, referenceKind: best.kind, tries };
+    const budget = budgetFor(best.cost, margin);
+    const mission = { ...terrain, seed, difficulty, margin, budget, reference: best.members, referenceKind: best.kind, tries };
     testedDrafts.set(mission, testedDrafts.get(terrain));
     const pool = [];
     for (const s of solutions) if (s.cost <= mission.budget) remember(pool, s.members, s.kind);
@@ -478,6 +490,79 @@ export function createMission(difficulty, seed) {
     return mission;
   }
   throw new Error(`No solvable valley for seed ${seed}`);
+}
+
+// Prepare alternate hints before handing control to the editor. Only the
+// legacy first river needs a survey; catalog rivers carry their proofs.
+export function prepareRiver(seed, rounds = 4) {
+  const mission = createMission('easy', seed);
+  const rng = createRng(`${seed}:hints`);
+  for (let i = 0; i < rounds; i++) randomSolution(mission, rng.next, Infinity);
+  const candidates = verified.get(mission);
+  const designs = [{ members: mission.reference, kind: mission.referenceKind }];
+  for (const { members, kind } of candidates) if (members !== mission.reference) designs.push({ members, kind });
+  return { seed, tries: mission.tries, designs };
+}
+
+export function restoreRiver({ seed, tries, designs }) {
+  const { terrain } = terrainForSurvey(seed, tries);
+  const pool = designs.map(({ members, kind }) => preparedDesign(members, kind));
+  return { terrain, tries, pool };
+}
+
+function preparedDesign(members, kind) {
+  return { members, kind, cost: bridgeCost(members), edges: geometry(members) };
+}
+
+// The 192 slots and their order are part of the v3 URL format. A new
+// collection requires a new seed version so shared/saved rivers stay put.
+export const V3_RIVERS = 192;
+const materials = ['wood', 'steel', 'cable'];
+function unpackRiver([seed, tries, packed]) {
+  const { terrain } = terrainForSurvey(seed, tries);
+  const deck = roadDeck(terrain);
+  const designs = packed.map(([kind, supports]) => {
+    const members = [...deck];
+    for (let i = 0; i < supports.length; i += 5) {
+      members.push({ a: [supports[i], supports[i + 1]], b: [supports[i + 2], supports[i + 3]], mat: materials[supports[i + 4]] });
+    }
+    return preparedDesign(members, kind);
+  });
+  let drawdown = 1.7;
+  const channel = terrain.clearance;
+  if (channel?.kind === 'channel') {
+    for (let x = channel.x0; x <= channel.x1; x += 0.25) {
+      drawdown = Math.min(drawdown, terrain.water - terrain.ground(x) - 0.25);
+    }
+  }
+  return { terrain, tries, pool: designs, drawdown: Math.max(0, drawdown) };
+}
+
+let catalog;
+export function preloadRiverCatalog() {
+  catalog ??= catalogRows.map(unpackRiver);
+  return catalog;
+}
+
+export const riverSlot = seed => hashSeed(`${seed}:layout`) % V3_RIVERS;
+function catalogRiver(seed) {
+  return preloadRiverCatalog()[riverSlot(seed)];
+}
+
+export function missionFromRiver(river, difficulty, seed) {
+  const { terrain, tries, pool } = river;
+  const best = pool[0], margin = MARGINS[difficulty] ?? MARGINS.medium;
+  const budget = budgetFor(best.cost, margin);
+  const mission = { ...terrain, seed, difficulty, tries, margin, budget, reference: best.members, referenceKind: best.kind };
+  if (isCatalogSeed(seed)) {
+    // The baked crossings stay above the highest waterline. Lowering it
+    // changes the under-deck build space without changing any proof forces.
+    mission.water -= river.drawdown * createRng(`${seed}:water`).next();
+    mission.bounds = { ...terrain.bounds, minY: Math.ceil((mission.water + CLEARANCE) / CELL) };
+    if (terrain.clearance?.kind === 'channel') mission.clearance = { ...terrain.clearance, y0: mission.water };
+  }
+  verified.set(mission, pool.filter(candidate => candidate.cost <= budget));
+  return mission;
 }
 
 /* Try several new shapes, then choose among all the proven options. The
@@ -499,6 +584,14 @@ export function randomSolution(mission, random = Math.random, timeLimitMs = 600,
     const solution = strengthen(mission, draft.members);
     if (solution && bridgeCost(solution) <= mission.budget) remember(pool, solution, draft.kind);
   }
+  return chooseDesign(pool, rng.next, recent);
+}
+
+export function choosePreparedSolution(mission, recent) {
+  return chooseDesign(verified.get(mission), Math.random, recent);
+}
+
+function chooseDesign(pool, random, recent) {
   let choices = pool;
   if (recent.length) {
     const history = recent.map(geometry), previous = history.at(-1);
@@ -510,6 +603,6 @@ export function randomSolution(mission, random = Math.random, timeLimitMs = 600,
     const unseen = choices.filter((s) => history.every((edges) => difference(edges, s.edges) > 0));
     if (unseen.length) choices = unseen;
   }
-  const pick = rng.pick(choices);
+  const pick = choices[Math.floor(random() * choices.length)];
   return { members: pick.members.map((m) => ({ ...m })), kind: pick.kind };
 }

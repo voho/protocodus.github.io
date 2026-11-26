@@ -7,11 +7,6 @@ export async function checkStructureLayers(page) {
     const { createView, draw } = await import('./js/render.js');
     const { createSim } = await import('./js/physics.js');
     const { buildScenery, THEMES } = await import('./js/scenery.js');
-    await Promise.all(['car', 'wheel-road'].map((name) => {
-      const image = new Image();
-      image.src = `assets/${name}.webp`;
-      return image.decode();
-    }));
 
     const mission = { ...bridger.mission, left: 0, right: 14, span: 7, water: -1.5, ground: () => -7, anchors: [] };
     const view = createView(mission, 640, 480, 0, 0);
@@ -30,18 +25,16 @@ export async function checkStructureLayers(page) {
       const canvas = document.createElement('canvas');
       canvas.width = view.width; canvas.height = view.height;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const reflection = () => ctx.getImageData(x, belowWater, 1, view.height - belowWater).data.join();
-      let behindReflection;
-      const paint = ctx.drawImage.bind(ctx);
-      ctx.drawImage = (image, ...args) => {
-        if (image.src?.endsWith('/car.webp') && ctx.getTransform().d < 0) behindReflection = reflection();
-        paint(image, ...args);
-      };
       draw(ctx, document.createElement('canvas').getContext('2d'), {
         mode, mission: scene, members, view, scenery, theme: THEMES.valley, time: 0, particles: [],
         parked: mode === 'build' ? sim.car : null, sim: mode === 'test' ? sim : null,
       });
-      return { main: ctx.getImageData(x, y, 1, 1).data.join(), reflected: reflection(), behindReflection };
+      const water = scenery.raster.water;
+      const mirrorX = Math.round(x - water.left);
+      const mirrorY = Math.round(water.level + 0.84 * (water.level - y) - water.top);
+      return { main: ctx.getImageData(x, y, 1, 1).data.join(),
+        reflected: ctx.getImageData(x, belowWater, 1, view.height - belowWater).data.join(),
+        mirror: water.reflected.getImageData(mirrorX, mirrorY, 1, 1).data.join() };
     };
 
     const results = [];
@@ -61,11 +54,10 @@ export async function checkStructureLayers(page) {
     assert.notEqual(structure.main, empty.main, `${name}: the piece covers the sample`);
     assert.equal(both.main, structure.main, `${name}: the piece is in front of the vehicle`);
     if (part === 'anchor') continue;
-    // The river composites translucent layers. Observe its actual contents
-    // just before the car is painted and again after the bridge is painted.
+    // Compare the mirror sources before their pixels are bent by the waves.
     assert.notEqual(car.reflected, empty.reflected, `${name}: the vehicle is reflected`);
-    assert.ok(both.behindReflection, `${name}: the car is drawn during the reflection pass`);
-    assert.equal(both.behindReflection, car.behindReflection, `${name}: the reflected car is painted first`);
+    assert.notEqual(car.mirror, structure.mirror, `${name}: the reflected piece is distinguishable from the car`);
+    assert.equal(both.mirror, structure.mirror, `${name}: the reflected vehicle is behind the piece`);
     assert.notEqual(both.reflected, car.reflected, `${name}: the reflected piece covers the car`);
   }
   await checkBuildEdits(page);

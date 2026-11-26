@@ -1,52 +1,62 @@
 /* Construction foley, vehicle engines and a recorded water impact. */
+import { BURST_AT } from './celebration.js';
+
 export function createSound() {
   const key = 'bridger-sound';
   let context = null, mix = null, master = null, noiseBuffer = null, engine = null;
-  let splashBuffer = null, splashLoad = null;
+  let splashBuffer = null, preparation = null;
   const lastBreak = new Map();
   let enabled = true;
+  let deviceUnavailable = false;
   try { enabled = localStorage.getItem(key) !== 'off'; } catch { /* private mode */ }
 
-  const ensure = () => {
+  const ensure = (resume = true) => {
     if (!context) {
       const Context = window.AudioContext || window.webkitAudioContext;
-      if (!Context) return null;
-      context = new Context();
-      mix = context.createGain();
-      const limiter = context.createDynamicsCompressor();
-      limiter.threshold.value = -10;
-      limiter.knee.value = 8;
-      limiter.ratio.value = 8;
-      master = context.createGain();
-      master.gain.value = 0.74;
-      mix.connect(limiter).connect(master).connect(context.destination);
-      // Two quiet, dark reflections from the banks leave the hammer attack clear.
-      for (const [seconds, level, pan] of [[0.078, 0.13, -0.65], [0.143, 0.08, 0.7]]) {
-        const echo = context.createDelay();
-        echo.delayTime.value = seconds;
-        const air = context.createBiquadFilter();
-        air.frequency.value = 1700;
-        const amount = context.createGain();
-        amount.gain.value = level;
-        const side = context.createStereoPanner();
-        side.pan.value = pan;
-        mix.connect(echo).connect(air).connect(amount).connect(side).connect(limiter);
+      if (!Context || deviceUnavailable) return null;
+      try {
+        context = new Context();
+        configureOutput();
+      } catch {
+        context?.close?.().catch(() => {});
+        context = mix = master = null;
+        deviceUnavailable = true;
+        return null;
       }
     }
-    if (context.state === 'suspended') context.resume().catch(() => {});
+    if (resume && context.state === 'suspended') context.resume().catch(() => {});
     return context;
   };
-  const getNoise = (c) => {
-    if (!noiseBuffer) {
-      noiseBuffer = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  function configureOutput() {
+    mix = context.createGain();
+    const limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 8;
+    limiter.ratio.value = 8;
+    master = context.createGain();
+    master.gain.value = 0.74;
+    mix.connect(limiter).connect(master).connect(context.destination);
+    // Two quiet, dark reflections from the banks leave the hammer attack clear.
+    for (const [seconds, level, pan] of [[0.078, 0.13, -0.65], [0.143, 0.08, 0.7]]) {
+      const echo = context.createDelay();
+      echo.delayTime.value = seconds;
+      const air = context.createBiquadFilter();
+      air.frequency.value = 1700;
+      const amount = context.createGain();
+      amount.gain.value = level;
+      const side = context.createStereoPanner();
+      side.pan.value = pan;
+      mix.connect(echo).connect(air).connect(amount).connect(side).connect(limiter);
     }
-    return noiseBuffer;
+  }
+  const unlock = () => {
+    if (enabled) {
+      deviceUnavailable = false;
+      ensure();
+    }
   };
-
   /* One decaying partial. */
-  const tone = ({ type = 'sine', freq = 440, to = null, duration = 0.1, gain = 0.2, at = 0, attack = 0.004 }) => {
+  const tone = ({ type = 'sine', freq = 440, to = null, duration = 0.1, gain = 0.2, at = 0, attack = 0.004, output }) => {
     const c = enabled && ensure();
     if (!c) return;
     const t0 = c.currentTime + at;
@@ -59,17 +69,17 @@ export function createSound() {
     env.gain.linearRampToValueAtTime(gain, t0 + attack);
     env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(env);
-    env.connect(mix);
+    env.connect(output || mix);
     osc.start(t0);
     osc.stop(t0 + duration + 0.05);
   };
   /* Filtered noise with an optional sweep of the filter. */
-  const noise = ({ duration = 0.1, gain = 0.2, filter = 2000, to = null, q = 1, type = 'lowpass', at = 0, attack = 0.002 }) => {
+  const noise = ({ duration = 0.1, gain = 0.2, filter = 2000, to = null, q = 1, type = 'lowpass', at = 0, attack = 0.002, output }) => {
     const c = enabled && ensure();
-    if (!c) return;
+    if (!c || !noiseBuffer) return;
     const t0 = c.currentTime + at;
     const source = c.createBufferSource();
-    source.buffer = getNoise(c);
+    source.buffer = noiseBuffer;
     source.playbackRate.value = 0.9 + Math.random() * 0.2;
     const biquad = c.createBiquadFilter();
     biquad.type = type;
@@ -81,7 +91,7 @@ export function createSound() {
     env.gain.linearRampToValueAtTime(gain, t0 + attack);
     env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     source.connect(biquad).connect(env);
-    env.connect(mix);
+    env.connect(output || mix);
     source.start(t0, Math.random());
     source.stop(t0 + duration + 0.05);
   };
@@ -96,10 +106,14 @@ export function createSound() {
   };
   const WOOD = [[175, 0.8], [382, 0.5], [917, 0.32], [1570, 0.1]];
   const STEEL = [[233, 0.65], [536, 0.35], [859, 0.47], [872, 0.24], [2180, 0.22], [3270, 0.1]];
-  // Karplus–Strong string. Each trip around the cable absorbs some treble.
-  const pluck = (pitch, duration, gain, bend = 1) => {
-    const c = enabled && ensure();
-    if (!c) return;
+  // Sample the Karplus–Strong string at a few tensions up front. Playback
+  // tunes the nearest note to the actual cable length.
+  const cables = {
+    place: { pitches: [75, 91, 110, 133, 160, 175], duration: 0.29 },
+    snap: { pitches: [95], duration: 0.32 },
+    creak: { pitches: [115, 130, 145], duration: 0.22 },
+  };
+  function makeString(c, pitch, duration) {
     const period = Math.round(c.sampleRate / pitch);
     const buffer = c.createBuffer(1, Math.ceil(c.sampleRate * duration), c.sampleRate);
     const data = buffer.getChannelData(0);
@@ -113,10 +127,18 @@ export function createSound() {
         data[i] = loss * 0.5 * (data[i - period] + data[i - period + 1]);
       }
     }
+    return buffer;
+  }
+  const pluck = (effect, pitch, gain, bend) => {
+    const c = enabled && ensure();
+    const notes = cables[effect].samples;
+    if (!c || !notes) return;
+    const note = notes.reduce((best, n) => Math.abs(n.pitch - pitch) < Math.abs(best.pitch - pitch) ? n : best);
     const source = c.createBufferSource();
-    source.buffer = buffer;
-    source.playbackRate.setValueAtTime(bend, c.currentTime);
-    source.playbackRate.setTargetAtTime(1, c.currentTime, 0.07);
+    source.buffer = note.buffer;
+    const tuning = pitch / note.pitch;
+    source.playbackRate.setValueAtTime(tuning * bend, c.currentTime);
+    source.playbackRate.setTargetAtTime(tuning, c.currentTime, 0.07);
     const volume = c.createGain();
     volume.gain.value = gain;
     source.connect(volume).connect(mix);
@@ -126,8 +148,7 @@ export function createSound() {
   // Road engines fire uneven exhaust pulses over a four-stroke cycle. A
   // steam engine has four separate bursts of exhaust per wheel revolution.
   const motors = new Map();
-  function motorBuffer(c, kind) {
-    if (motors.has(kind)) return motors.get(kind);
+  function makeMotor(c, kind) {
     const steam = kind === 'train', diesel = kind === 'truck';
     const pulses = diesel ? 6 : 4;
     const cycles = steam ? 3 : 12;
@@ -153,31 +174,46 @@ export function createSound() {
         data[i] = envelope * (exhaust + (diesel ? 0.78 : 0.28) * breath) + 0.1 * crank;
       }
     }
-    motors.set(kind, buffer);
     return buffer;
   }
   function stopEngine() {
     if (!engine) return;
     const now = context.currentTime;
-    engine.gain.gain.setTargetAtTime(0, now, 0.035);
+    // Release even when a player presses Stop at full volume. Ten time
+    // constants take the waveform below -86 dB before the sources end.
+    engine.gain.gain.setTargetAtTime(0, now, 0.02);
     engine.motor.stop(now + 0.2);
     engine.rolling.stop(now + 0.2);
     engine = null;
   }
-  // Start loading when a crossing begins. An impact never waits for a download.
-  async function prepareSplash() {
-    const c = enabled && ensure();
-    if (!c || splashBuffer) return;
-    if (!splashLoad) {
-      splashLoad = (async () => {
-        try {
-          const response = await fetch(new URL('../assets/splash.mp3', import.meta.url));
-          if (response.ok) splashBuffer = await c.decodeAudioData(await response.arrayBuffer());
-        } catch { /* Use the water-noise fallback on this crossing. */ }
-        finally { splashLoad = null; }
-      })();
+  // A muted game or refused output device can prepare its buffers offline.
+  // They can be played by a different AudioContext when sound is unlocked.
+  async function prepareAudio() {
+    let c = enabled && ensure(false);
+    if (!c) {
+      const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!Offline) return;
+      try { c = new Offline(1, 1, 44100); } catch { return; }
     }
-    await splashLoad;
+    noiseBuffer = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    for (const kind of ['car', 'truck', 'train']) motors.set(kind, makeMotor(c, kind));
+    for (const cable of Object.values(cables)) {
+      cable.samples = cable.pitches.map(pitch => ({ pitch, buffer: makeString(c, pitch, cable.duration) }));
+    }
+    const url = new URL('../assets/splash.mp3', import.meta.url);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Splash unavailable');
+        splashBuffer = await c.decodeAudioData(await response.arrayBuffer());
+        return;
+      } catch {
+        if (!navigator.onLine) break;
+        // The prepared noise envelope supplies the impact if the recording fails.
+      }
+    }
   }
   const tap = (pattern) => { try { navigator.vibrate?.(pattern); } catch { /* not allowed */ } };
 
@@ -186,13 +222,16 @@ export function createSound() {
     toggle() {
       enabled = !enabled;
       try { localStorage.setItem(key, enabled ? 'on' : 'off'); } catch { /* private mode */ }
-      if (enabled) ensure();
+      if (enabled) unlock();
       else stopEngine();
       if (master) master.gain.setTargetAtTime(enabled ? 0.74 : 0, context.currentTime, 0.008);
       return enabled;
     },
-    unlock() { if (enabled) ensure(); },
-    prepareSplash,
+    unlock,
+    preload() {
+      // Playback is optional when a device refuses sound buffers.
+      return preparation ??= prepareAudio().catch(() => {});
+    },
     /* A plank knocked into place, a girder bolted on, a cable pulled taut. */
     place(mat, length = 3) {
       const pitch = Math.max(0.65, Math.min(1.45, Math.sqrt(3 / length)));
@@ -201,7 +240,7 @@ export function createSound() {
         strike({ partials: STEEL, decay: 0.11, gain: 0.09, click: 4600, pitch });
         strike({ partials: STEEL, decay: 0.85, gain: 0.23, click: 3300, pitch, at: 0.063 });
       } else if (mat === 'cable') {
-        pluck((115 + Math.random() * 5) * pitch, 0.29, 0.18, 0.985);
+        pluck('place', (115 + Math.random() * 5) * pitch, 0.18, 0.985);
         noise({ duration: 0.025, gain: 0.045, filter: 1050, type: 'bandpass', q: 0.8 });
       } else if (mat === 'road') {
         noise({ duration: 0.15, filter: 1700, to: 230, gain: 0.45 });
@@ -233,7 +272,7 @@ export function createSound() {
         strike({ partials: STEEL, decay: 1.2, gain: 0.14, click: 4000 });
         tone({ freq: 90, to: 45, duration: 0.4, gain: 0.25 });
       } else if (mat === 'cable') {
-        pluck(95, 0.32, 0.35, 1.22);
+        pluck('snap', 95, 0.35, 1.22);
         noise({ duration: 0.12, gain: 0.13, filter: 2600, to: 700, type: 'bandpass', q: 1 });
       } else {
         for (let i = 0; i < 6; i++) noise({ duration: 0.04 + Math.random() * 0.05, gain: 0.25, filter: 1500 + Math.random() * 2500, type: 'bandpass', q: 2, at: i * (0.015 + Math.random() * 0.03) });
@@ -245,7 +284,7 @@ export function createSound() {
     creak(level, mat) {
       const start = 115 + Math.random() * 30;
       if (mat === 'cable') {
-        pluck(start, 0.22, 0.1 * level, 1.025);
+        pluck('creak', start, 0.1 * level, 1.025);
         return;
       }
       for (let i = 0; i < 5; i++) {
@@ -283,8 +322,9 @@ export function createSound() {
     },
     /* Match the motor and rolling sounds to the vehicle's position and
        load. The wheels mark each actual deck joint as an axle crosses it. */
-    engine(on, car, pan = 0) {
-      const c = on && enabled && ensure();
+    engine(on, car, pan = 0, level = 1) {
+      level = Math.max(0, Math.min(1, level));
+      const c = on && enabled && level > 0 && motors.has(car.id) && ensure();
       if (!c) { stopEngine(); return; }
       const kind = car.id;
       const train = kind === 'train';
@@ -295,16 +335,19 @@ export function createSound() {
         const position = c.createStereoPanner();
         position.pan.value = pan;
         gain.connect(position).connect(mix);
+        const motorGain = c.createGain();
+        motorGain.gain.value = train ? 0.42 : 0.28;
+        motorGain.connect(gain);
 
         const motor = c.createBufferSource();
-        motor.buffer = motorBuffer(c, kind);
+        motor.buffer = motors.get(kind);
         motor.loop = true;
         const exhaust = c.createBiquadFilter();
         exhaust.frequency.value = train ? 2300 : 820;
         exhaust.Q.value = 0.65;
-        motor.connect(exhaust).connect(gain);
+        motor.connect(exhaust).connect(motorGain);
         const rolling = c.createBufferSource();
-        rolling.buffer = getNoise(c);
+        rolling.buffer = noiseBuffer;
         rolling.loop = true;
         const surface = c.createBiquadFilter();
         surface.type = 'bandpass';
@@ -312,7 +355,7 @@ export function createSound() {
         surface.Q.value = 0.7;
         const rollingGain = c.createGain();
         rollingGain.gain.value = 0.15;
-        rolling.connect(surface).connect(rollingGain).connect(gain);
+        rolling.connect(surface).connect(rollingGain).connect(motorGain);
         motor.start();
         rolling.start();
         engine = { gain, position, motor, exhaust, rolling, rollingGain, started: now, beams: car.axles.map(a => a.beam) };
@@ -322,26 +365,29 @@ export function createSound() {
       const load = Math.max(-0.3, Math.min(0.45, grade));
       const throttle = Math.min(1, (now - engine.started) / 0.85);
       engine.motor.playbackRate.setTargetAtTime(train ? 1 : 0.78 + throttle * 0.24 + load * 0.5, now, 0.09);
-      engine.exhaust.frequency.setTargetAtTime(train ? 2200 : (kind === 'truck' ? 820 : 1100) * (1 + load), now, 0.09);
+      const cutoff = train ? 2200 : (kind === 'truck' ? 820 : 1100) * (1 + load);
+      engine.exhaust.frequency.setTargetAtTime(cutoff * (0.65 + 0.35 * level), now, 0.09);
       engine.position.pan.setTargetAtTime(pan, now, 0.06);
-      engine.gain.gain.setTargetAtTime(train ? 0.42 : 0.28, now, 0.07);
+      engine.gain.gain.setTargetAtTime(level, now, 0.07);
       engine.rollingGain.gain.setTargetAtTime(front.beam < 0 ? 0.23 : 0.11, now, 0.06);
       car.axles.forEach((axle, i) => {
         if (axle.beam >= 0 && axle.beam !== engine.beams[i]) {
-          tone({ freq: train ? 420 : 97, to: train ? 365 : 64, gain: train ? 0.075 : 0.06, duration: 0.052 });
-          noise({ filter: train ? 2900 : 870, to: 620, type: 'bandpass', duration: 0.045, gain: train ? 0.19 : 0.11 });
+          tone({ freq: train ? 420 : 97, to: train ? 365 : 64, gain: train ? 0.075 : 0.06, duration: 0.052, output: engine.gain });
+          noise({ filter: train ? 2900 : 870, to: 620, type: 'bandpass', duration: 0.045, gain: train ? 0.19 : 0.11, output: engine.gain });
         }
         engine.beams[i] = axle.beam;
       });
     },
     win() {
-      // A bright bell arpeggio over a warm chord.
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-        tone({ freq, duration: 1.4, gain: 0.1, at: i * 0.11 });
-        tone({ freq: freq * 2.76, duration: 0.5, gain: 0.025, at: i * 0.11 });
-      });
-      [261.63, 329.63, 392].forEach((freq) => tone({ type: 'triangle', freq, duration: 1.8, gain: 0.05, at: 0.42, attack: 0.15 }));
-      tap([30, 50, 30, 50, 60]);
+      // Small bell attacks follow the light across the span. The high note
+      // and a soft paper pop land together when the two banks' lights meet.
+      for (const [at, freq] of [[0, 523.25], [0.16, 659.25], [0.35, 783.99], [BURST_AT, 1046.5]]) {
+        tone({ freq, duration: 1.1, gain: 0.085, at });
+        tone({ freq: freq * 2.76, duration: 0.35, gain: 0.018, at });
+      }
+      noise({ duration: 0.16, gain: 0.12, filter: 2100, to: 480, at: BURST_AT });
+      [261.63, 392, 493.88, 659.25].forEach((freq) => tone({ type: 'triangle', freq, duration: 1.55, gain: 0.045, at: BURST_AT, attack: 0.06 }));
+      tap([14, BURST_AT * 1000 - 14, 32]);
     },
     fail() {
       [392, 349.23, 293.66, 246.94].forEach((freq, i) => tone({ type: 'triangle', freq, to: freq * 0.97, duration: 0.45, gain: 0.08, at: 0.3 + i * 0.17 }));

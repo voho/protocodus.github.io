@@ -32,7 +32,8 @@ on the drawing while you rebuild.
   on any bridge piece to remove it. Erasing a joint removes the pieces attached to it.
   Undo restores one edit, and Clear restores the starting deck.
 - **Asking first.** New river (top right, away from Go!), Clear and Solution ask before
-  they replace a bridge you built. With nothing built they just go ahead.
+  they replace a bridge you built. With nothing built they just go ahead. Use your
+  browser's Back and Forward buttons to revisit rivers and their saved bridges.
 - **Rules.** Joints stay out of the rock and at least 1 m above the water.
 - **Bridge ideas.** The help card sketches a beam on a pier, a truss, an arch and a
   cable-stayed bridge. Any bridge that carries the vehicle across within the budget
@@ -46,12 +47,13 @@ with compliance `L / EA`, carries half its own weight on each joint, and breaks 
 its force (smoothed over 40 ms) passes its strength. Vehicles roll at a steady speed
 along road members; each axle adds its mass to the two joints of the road piece under
 it, so the bridge feels the weight and its inertia. The three-axle truck can lift a
-tyre over a crest and transfer its load onto the other axles. The bumper, roof and
-underside of each moving body can hit the terrain, a buckled road or loose pieces.
+rear tyre over a crest or a missing panel and transfer its load onto the other two
+axles. The bumper, roof and underside of each moving body can hit the terrain, a
+buckled road or loose pieces.
 Keep level beams and cables above the deck high enough to clear the vehicle.
 Diagonal and upright side braces run alongside the traffic lane.
 
-When a wheel loses the road or the vehicle strikes an obstruction, each body (the car,
+When a vehicle loses support or strikes an obstruction, each body (the car,
 the truck, the locomotive and each wagon) becomes a rigid shape. The solver uses
 the same sprite outline and tyre sizes as the moving vehicle, puts contact points
 every 30 cm around the body and keeps the carriages coupled. Each body collides
@@ -79,16 +81,23 @@ become steel, very lightly loaded steel goes back to wood, and the design counts
 when it carries the vehicle with every member under 95%. A river with no such
 bridge is thrown away and the next one is tried.
 
-New river links have a versioned seed, such as `#easy-v2-check0`. Some rivers
-reserve a shipping channel below the road. Others have a 4 m building height
+Some rivers reserve a shipping channel below the road. Others have a 4 m building height
 limit or an unrestricted span. The survey also tries wide-panel, bowstring and
 single-tower designs on these rivers. Both the survey and the editor enforce
-the marked clearance. Older links and their saved bridges keep their original
-river, budget and building rules.
+the marked clearance.
+
+The first visit surveys a fresh procedural river during startup. Original
+links, including `#easy-v2-check0`, keep the same river, budget and building
+rules. **New river** draws from 192 pre-surveyed layouts and generates a fresh
+v3 seed for its water level, build depth and scenery. The browser prepares the
+whole collection before play. Every layout includes at least two different
+designs affordable on Hard. [The catalog generator](tools/bake-rivers.mjs)
+drives each design across the river at its highest waterline. Run
+`node fun/bridger/tools/bake-rivers.mjs` to reproduce the shipped collection.
 
 The cheapest proven design sets the budget: **Easy** gives 50% more than it costs,
 **Medium** 25% and **Hard** 10%. The river depends only on the seed, so changing
-difficulty keeps the river and changes the budget. **Solution** also tries Warren
+difficulty keeps the river and changes the budget. The prepared designs include Warren
 trusses with alternating two-panel triangles, bowstring trusses with arched ribs
 and hangers, and cable fans from a single bank tower. Each click compares the
 affordable designs that have crossed and favors a different arrangement of
@@ -119,6 +128,19 @@ butterflies flutter above the meadow and fireflies blink in the jungle. Other
 worlds have clouds, flocks, stars and meteors. The scenery and water animations
 respect the system's reduced-motion setting.
 
+Each river reflects its own landscape, the bridge and the passing vehicle.
+Ripples break up the reflection near the surface, and the riverbed shows
+through the shallows. A falling vehicle sends waves out from its point of impact.
+The game loads the artwork for every world, prepares the sounds and paints
+the first river before opening the editor.
+
+The exposed banks show layers of soil and rock that deepen toward the riverbed.
+After a crossing, two lights travel along the bridge from opposite banks. When they
+meet, the deck and its supports glow gold and launch confetti and curling streamers.
+The vehicle keeps driving up the far bank as its engine fades. The results card
+opens once the rear bumper or last wagon has left the screen. With reduced motion
+enabled, the bridge gets a steady gold highlight.
+
 ## Sound
 
 [`js/sound.js`](js/sound.js) uses Web Audio for the construction and vehicle sounds.
@@ -133,7 +155,7 @@ Its pitch and level follow the vehicle's mass and entry speed. [Recording credit
 ## Checks
 
 ```sh
-node fun/bridger/tests/mission-check.mjs   # 36 missions: proof crosses, budget margin, Show solution, rules
+node fun/bridger/tests/mission-check.mjs   # legacy missions and all 192 pre-surveyed layouts
 node fun/bridger/tests/browser-check.mjs   # plays it in Chromium on a desktop and a phone
 ```
 

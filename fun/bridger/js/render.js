@@ -4,9 +4,13 @@ import { CELL, MATERIALS, BODIES, SPRITE_AXLES, BODY_COUPLERS } from './physics.
 import { image, ready } from './art.js';
 import { jointAllowed } from './mission.js';
 import { drawBackdrop, drawAmbient, drawWeather, drawGround, drawWater } from './scenery.js';
+import { drawVictoryLight, drawVictoryGlow, drawConfetti } from './celebration.js';
 
 const WIDTH = { road: 0.5, wood: 0.3, steel: 0.28, cable: 0.09 };
 const OUTLINE = '#141620';
+export const beamWidth = (view, mat) => Math.max(mat === 'cable' ? 1.9 : 3, WIDTH[mat] * view.scale);
+export const anchorHalfSize = (view) => Math.max(7, view.scale * 0.42);
+export const jointRadius = (view) => Math.max(2.65, view.scale * 0.16);
 
 /* Green while relaxed, yellow past half, red as it nears its strength. */
 export function stressColor(u) {
@@ -21,14 +25,23 @@ export function stressColor(u) {
 }
 
 export function createView(mission, width, height, top, bottom) {
-  // Frame the river and its bolts; extra land and river bed show only when
-  // the screen has room, so a phone held upright still gets big joints.
-  const x0 = -2.7 * CELL, x1 = (mission.span + 2.7) * CELL;
-  const y0 = mission.water - 2.5, y1 = mission.bounds.maxY * CELL + 1;
-  const avail = Math.max(120, height - top - bottom);
-  const scale = Math.min(width / (x1 - x0), avail / (y1 - y0));
+  // Keep edge joints visible and reachable, including on narrow phones.
+  const x0 = (mission.bounds.minX - 0.4) * CELL, x1 = (mission.bounds.maxX + 0.4) * CELL;
+  // Use the same 10 cm samples as the near-bank outline, including the
+  // seeded ridges underneath the water. The nominal bed can be much higher.
+  let bed = Infinity;
+  for (let i = Math.round(mission.left * 10); i <= Math.round(mission.right * 10); i++) {
+    bed = Math.min(bed, mission.ground(i / 10));
+  }
+  const topY = mission.bounds.maxY * CELL + 1;
+  // Leave a strip of bedrock below the river. Stacked phone controls need
+  // more room; the deepest point still sits visibly above their top edge.
+  const bedY = height - Math.max(Math.min(76, height * 0.20), bottom + 4);
+  const available = Math.max(1, bedY - top);
+  // Keep the road in the lower part of the playfield even in a deep gorge.
+  const scale = Math.min(width / (x1 - x0), available / (topY - bed), available * 0.4 / (mission.deck - bed));
   const ox = (width - (x1 - x0) * scale) / 2 - x0 * scale;
-  const oy = top + (avail - (y1 - y0) * scale) / 2 + y1 * scale;
+  const oy = bedY + bed * scale;
   return {
     scale, ox, oy, width, height,
     sx: (x) => ox + x * scale,
@@ -112,7 +125,7 @@ function clearanceMarker(ctx, view, zone, theme) {
 }
 
 function anchors(ctx, view, mission) {
-  const s = Math.max(7, view.scale * 0.42);
+  const s = anchorHalfSize(view);
   for (const [gx, gy] of mission.anchors) {
     const x = view.sx(gx * CELL), y = view.sy(gy * CELL);
     ctx.save();
@@ -156,7 +169,7 @@ function anchors(ctx, view, mission) {
 /* Paint in the member's own coordinates. Fine grain and wire twists drop
    out when they would be smaller than a pixel. */
 function beam(ctx, view, ax, ay, bx, by, mat, stress, overlay) {
-  const w = Math.max(mat === 'cable' ? 1.9 : 3, WIDTH[mat] * view.scale);
+  const w = beamWidth(view, mat);
   if (stress) {
     // A loaded member has two concentric strokes; both use the same path.
     // Neither the material grain nor a rotated coordinate system is needed.
@@ -241,7 +254,7 @@ function shadows(ctx, view, lines) {
 }
 
 function joints(ctx, view, points, minY = -Infinity) {
-  const r = Math.max(2.65, view.scale * 0.16);
+  const r = jointRadius(view);
   ctx.lineWidth = Math.max(0.9, r * 0.23);
   for (const [x, y] of points) {
     if (y < minY) continue;
@@ -305,17 +318,19 @@ export function drawVehicle(ctx, view, car) {
   }
 }
 
-function label(ctx, x, y, text, color = '#fff') {
+function label(ctx, view, x, y, text, color = '#fff') {
   ctx.font = '600 13px "Space Grotesk", system-ui, sans-serif';
   const w = ctx.measureText(text).width + 14;
+  const cx = Math.max(w / 2 + 2, Math.min(view.width - w / 2 - 2, x));
+  const top = Math.max(2, Math.min(view.height - 23, y - 26));
   ctx.fillStyle = 'rgba(12, 16, 22, 0.86)';
   ctx.beginPath();
-  ctx.roundRect(x - w / 2, y - 26, w, 21, 10);
+  ctx.roundRect(cx - w / 2, top, w, 21, 10);
   ctx.fill();
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y - 15.5);
+  ctx.fillText(text, cx, top + 10.5);
 }
 
 // The editor replaces the member array on each edit and the peak map on
@@ -345,13 +360,15 @@ function buildGeometry(state) {
   for (const [gx, gy] of mission.anchors) include(view.sx(gx * CELL), view.sy(gy * CELL));
   const pad = Math.max(14, view.scale);
   const bounds = { left: left - pad, right: right + pad, top: top - pad, bottom: bottom + pad };
-  bridge = { mission, members, peaks, lines, joints: Array.from(points.values()), bounds };
+  // Keep the two draw surfaces when an edit replaces the geometry.
+  const canvases = bridge?.canvases ?? {};
+  bridge = { mission, members, peaks, lines, joints: Array.from(points.values()), bounds, canvases };
   buildViews.set(view, bridge);
   return bridge;
 }
 
 const testBridges = new WeakMap();
-function testGeometry(view, sim) {
+export function projectTestBridge(view, sim) {
   let bridge = testBridges.get(sim);
   if (!bridge) {
     bridge = { lines: [], joints: [], projected: [], seen: new Uint8Array(0) };
@@ -413,10 +430,11 @@ function paintBuildLayer(ctx, view, mission, bridge, reflection, hot) {
     const y = Math.max(0, Math.floor(d * (d < 0 ? box.bottom : box.top) + f));
     const w = Math.min(width, Math.ceil(a * box.right + e)) - x;
     const h = Math.min(height, Math.ceil(d * (d < 0 ? box.top : box.bottom) + f)) - y;
-    const canvas = layer?.canvas || document.createElement('canvas');
-    layer = { a, d, e, f, hot, alpha, width, height, x, y, canvas };
+    layer = { a, d, e, f, hot, alpha, width, height, x, y, canvas: null };
     bridge[key] = layer;
     if (w > 0 && h > 0) {
+      const canvas = bridge.canvases[key] ??= document.createElement('canvas');
+      layer.canvas = canvas;
       const paint = canvas.getContext('2d');
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       else { paint.resetTransform(); paint.clearRect(0, 0, w, h); }
@@ -424,7 +442,7 @@ function paintBuildLayer(ctx, view, mission, bridge, reflection, hot) {
       paint.globalAlpha = alpha;
       paint.lineCap = 'round';
       paintBridge(paint, view, mission, bridge, reflection, hot);
-    } else layer.canvas = null;
+    }
   }
   if (layer.canvas) {
     ctx.save();
@@ -442,29 +460,31 @@ export function draw(ctx, labelCtx, state) {
   drawBackdrop(ctx, view, state.scenery, theme, time);
   drawAmbient(ctx, view, state.scenery, theme, time);
   drawGround(ctx, view, mission, state.scenery, theme, time);
+  if (state.celebration && !state.reducedMotion) drawVictoryLight(ctx, view, mission, state.celebration);
   if (state.mode === 'build') {
     if (mission.clearance) clearanceMarker(ctx, view, mission.clearance, theme);
     grid(ctx, view, mission, state.focus, theme);
   }
 
   const building = state.mode === 'build';
-  const bridge = building ? buildGeometry(state) : state.sim ? testGeometry(view, state.sim) : { lines: [], joints: [] };
+  const bridge = building ? buildGeometry(state) : state.sim ? projectTestBridge(view, state.sim) : { lines: [], joints: [] };
   const car = !building && state.sim ? state.sim.car : state.parked;
-  const structure = (reflection) => {
-    drawVehicle(ctx, view, car);
+  const structure = (reflection, target) => {
+    if (!state.vehicleGone) drawVehicle(target, view, car);
     const hot = reflection ? null : state.hover?.member;
-    if (building) paintBuildLayer(ctx, view, mission, bridge, reflection, hot);
+    if (building) paintBuildLayer(target, view, mission, bridge, reflection, hot);
     else {
       // A high truss often reflects entirely below the viewport. Allow for
       // stroke widths and joint caps on pieces that cross the last pixel.
-      const transform = reflection && ctx.getTransform();
+      const transform = reflection && target.getTransform();
       const minY = transform && transform.d < 0 && !transform.b
-        ? (ctx.canvas.height - transform.f) / transform.d - Math.max(10, view.scale * 0.5) : -Infinity;
-      paintBridge(ctx, view, mission, bridge, reflection, hot, minY);
+        ? (target.canvas.height - transform.f) / transform.d - Math.max(10, view.scale * 0.5) : -Infinity;
+      paintBridge(target, view, mission, bridge, reflection, hot, minY);
+      if (state.celebration) drawVictoryGlow(target, view, mission, state.sim, state.celebration, state.reducedMotion);
     }
   };
-  structure(false);
-  drawWater(ctx, view, mission, state.scenery, theme, time, () => structure(true));
+  structure(false, ctx);
+  drawWater(ctx, view, mission, state.scenery, theme, time, (target) => structure(true, target), building ? bridge : undefined, state.sim);
 
   if (state.drag) {
     const { from, to, ok, mat, plan } = state.drag;
@@ -486,7 +506,7 @@ export function draw(ctx, labelCtx, state) {
       ctx.globalAlpha = 1;
       const length = Math.hypot(to[0] - from[0], to[1] - from[1]) * CELL;
       const cost = ok ? state.drag.cost : Math.round(length * MATERIALS[mat].cost);
-      label(labelCtx, bx, by - 8, `${length.toFixed(1)} m · $${cost}`, ok ? '#fff' : '#ff9b8f');
+      label(labelCtx, view, bx, by - 8, `${length.toFixed(1)} m · $${cost}`, ok ? '#fff' : '#ff9b8f');
     }
   }
 
@@ -514,11 +534,17 @@ export function draw(ctx, labelCtx, state) {
   for (const p of state.particles) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
     ctx.fillStyle = p.color;
-    const r = Math.max(1.5, p.size * view.scale);
+    const r = Math.max(p.square ? 1.5 : 0.65, p.size * view.scale);
     if (p.square) ctx.fillRect(view.sx(p.x) - r, view.sy(p.y) - r, r * 2, r * 1.2);
-    else { ctx.beginPath(); ctx.arc(view.sx(p.x), view.sy(p.y), r, 0, Math.PI * 2); ctx.fill(); }
+    else {
+      const stretch = 1 + Math.min(1.9, Math.hypot(p.vx, p.vy) * 0.24);
+      ctx.beginPath();
+      ctx.ellipse(view.sx(p.x), view.sy(p.y), r * stretch, r, Math.atan2(-p.vy, p.vx), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 
-  if (state.hover?.label) label(labelCtx, state.hover.px, state.hover.py - 6, state.hover.label, state.hover.color);
+  if (state.celebration && !state.reducedMotion) drawConfetti(ctx, view, state.celebration);
+  if (state.hover?.label) label(labelCtx, view, state.hover.px, state.hover.py - 6, state.hover.label, state.hover.color);
 }

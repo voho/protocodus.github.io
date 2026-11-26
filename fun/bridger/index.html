@@ -67,7 +67,7 @@
   <canvas class="labels" data-labels aria-hidden="true"></canvas>
   <p class="sr-only" data-status aria-live="polite"></p>
 
-  <div class="hud">
+  <div class="hud" inert>
     <header class="hud-top">
       <div class="hud-brand">
         <a class="back icon-btn" href="/fun/" aria-label="All games" data-analytics-cta="hud_back_games" data-analytics-action="exit_game"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 9v10.5a1 1 0 0 0 1 1H10v-5a2 2 0 0 1 4 0v5h3.5a1 1 0 0 0 1-1V9" fill="currentColor" fill-opacity="0.18"/><path d="M3.5 10.2 12 3.5l8.5 6.7"/></svg></a>
@@ -98,13 +98,9 @@
 
       <div class="materials" role="radiogroup" aria-label="Building material" data-build-only>
         <button type="button" class="mat" role="radio" aria-checked="true" data-tool="wood" data-analytics-ignore><i class="swatch wood"></i><span>Wood</span><small data-price="wood"></small></button>
-        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="steel" data-analytics-ignore><i class="swatch steel"></i><span>Steel</span><small data-price="steel"></small></button>
-        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="cable" data-analytics-ignore><i class="swatch cable"></i><span>Cable</span><small data-price="cable"></small></button>
-        <button type="button" class="mat" role="radio" aria-checked="false" data-tool="erase" data-analytics-ignore><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 19"/><path d="M22 21H7M5 11l9 9"/></svg><span>Erase</span></button>
-      </div>
-
-      <div class="legend" data-test-only hidden aria-hidden="true">
-        <span>Relaxed</span><i></i><span>Breaking</span>
+        <button type="button" class="mat" role="radio" aria-checked="false" tabindex="-1" data-tool="steel" data-analytics-ignore><i class="swatch steel"></i><span>Steel</span><small data-price="steel"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" tabindex="-1" data-tool="cable" data-analytics-ignore><i class="swatch cable"></i><span>Cable</span><small data-price="cable"></small></button>
+        <button type="button" class="mat" role="radio" aria-checked="false" tabindex="-1" data-tool="erase" data-analytics-ignore><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 19"/><path d="M22 21H7M5 11l9 9"/></svg><span>Erase</span></button>
       </div>
 
       <div class="toolbar" role="group" aria-label="Bridge actions">
@@ -166,7 +162,10 @@
     </form>
   </dialog>
 
-  <div class="loading" data-loading><p><i></i><span data-loading-text>Surveying the river</span></p></div>
+  <div class="loading" data-loading>
+    <p role="status"><i aria-hidden="true"></i><span data-loading-text>Preparing Bridger</span></p>
+    <button type="button" class="btn" data-retry data-analytics-ignore hidden>Try again</button>
+  </div>
   <noscript>
     <div class="loading failed"><p>Bridger needs JavaScript to run.</p></div>
   </noscript>

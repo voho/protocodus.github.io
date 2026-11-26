@@ -1,17 +1,7 @@
-import { createMission, randomSolution } from './mission.js';
+import { prepareRiver } from './mission.js';
 
-// Keep the verified designs with the river so repeated hints reuse their proofs.
-let mission;
-self.onmessage = ({ data: { difficulty, seed, recent } }) => {
-  try {
-    mission ??= createMission(difficulty, seed);
-    if (recent) {
-      self.postMessage(randomSolution(mission, Math.random, 600, recent));
-    } else {
-      const { ground, ...fields } = mission;
-      self.postMessage(fields);
-    }
-  } catch (error) {
-    self.postMessage({ error: error.message });
-  }
+// Solve an incoming procedural link and its alternative hints before play.
+self.onmessage = ({ data: seed }) => {
+  try { self.postMessage(prepareRiver(seed)); }
+  catch (error) { self.postMessage({ error: error.message }); }
 };

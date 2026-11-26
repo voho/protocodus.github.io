@@ -2,7 +2,7 @@
 // Every mission must come with a bridge that the real simulation carries
 // across, and a budget within the difficulty's margin of that bridge's cost.
 import assert from 'node:assert/strict';
-import { createMission, restoreMission, randomSolution, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
+import { createMission, restoreMission, randomSolution, choosePreparedSolution, riverSlot, V3_RIVERS, memberProblem, pairKey, MARGINS, DESIGN_NAMES } from '../js/mission.js';
 import { createSim, bridgeCost, MATERIALS, WHEEL } from '../js/physics.js';
 import { createRng } from '../../shared/rng.js';
 
@@ -10,6 +10,27 @@ const strip = (mission) => JSON.stringify({ ...mission, ground: undefined });
 const seeds = Array.from({ length: 12 }, (_, i) => `check${i}`);
 const vehicles = new Set(), features = new Set(), kinds = new Set();
 let slowest = 0;
+
+// Exercise every shipped layout through an actual shareable seed and its
+// selected waterline. Tight budgets still have a second, distinct proof.
+const testedSlots = new Set();
+for (let i = 0; testedSlots.size < V3_RIVERS; i++) {
+  const seed = `v3-qa${i}`, slot = riverSlot(seed);
+  if (testedSlots.has(slot)) continue;
+  testedSlots.add(slot);
+  const river = createMission('hard', seed);
+  const hint = choosePreparedSolution(river, [river.reference]);
+  assert.notDeepEqual(hint.members.map(pairKey), river.reference.map(pairKey));
+  for (const bridge of [river.reference, hint.members]) {
+    assert.ok(bridgeCost(bridge) <= river.budget && createSim(river, bridge).run(), `${seed}: ready-to-play hard crossing`);
+    for (const member of bridge) assert.equal(memberProblem(river, [], member), null);
+  }
+  const { ground, ...fields } = river;
+  assert.equal(restoreMission(fields).ground(river.left + 1), ground(river.left + 1));
+}
+const published = createMission('hard', 'v3-qa2');
+assert.deepEqual([riverSlot(published.seed), published.vehicle, published.span, published.budget, published.referenceKind],
+  [73, 'truck', 9, 1660, 'below'], 'A published v3 seed keeps its layout and budget');
 
 for (const seed of seeds) {
   for (const difficulty of Object.keys(MARGINS)) {
@@ -130,6 +151,63 @@ for (let frame = 0; frame < 78; frame++) rolling.step();
 assert.equal(rolling.car.state, 'driving');
 const spins = rolling.car.axles.map((a) => a.angle);
 assert.ok(Math.max(...spins) - Math.min(...spins) > 0.01, 'The three tyres can roll and coast independently on a crest');
+
+// Let a road panel give way once the truck has driven onto it. Either
+// back tyre can carry the tandem's load, but losing both tips the truck.
+const truckDeck = Array.from({ length: 8 }, (_, i) => ({ a: [i, 0], b: [i + 1, 0], mat: 'road' }));
+const truckRiver = {
+  vehicle: 'truck', left: 0, right: 16, deck: 0, water: -4,
+  ground: (x) => x <= 0 || x >= 16 ? 0 : -8, anchors: [...truckDeck.map((m) => m.a), truckDeck.at(-1).b],
+};
+for (const [unsupported, at, outcome] of [[2, 5.5, 'win'], [1, 4.1, 'fall']]) {
+  const sim = createSim(truckRiver, truckDeck);
+  while (!sim.result && sim.car.axles[unsupported].x < at) sim.step();
+  assert.equal(sim.result, null);
+  sim.beams[2].broken = true; // the panel between 4 and 6 m
+  sim.step();
+  const { axles } = sim.car;
+  assert.equal(sim.car.state, 'driving');
+  assert.equal(axles[unsupported].load, 0);
+  assert.ok(axles.every((a) => a.load >= 0));
+  assert.equal(axles.reduce((sum, a) => sum + a.load, 0), 6000);
+  assert.ok(Math.abs(axles.reduce((sum, a) => sum + (a.load - a.mass) * a.offset, 0)) < 1e-8);
+  sim.run();
+  assert.equal(sim.result, outcome);
+}
+
+// Finishing the proof and driving the on-screen vehicle off the bank use
+// separate clocks. The exit can last longer than the bridge needs to settle.
+for (const vehicle of ['car', 'truck', 'train']) {
+  const farSlope = truckRiver.right + 40;
+  const ground = (x) => x >= farSlope ? (x - farSlope) * 0.06 : truckRiver.ground(x);
+  const sim = createSim({ ...truckRiver, vehicle, ground }, truckDeck);
+  const initial = sim.car.front;
+  sim.advanceRunout(1);
+  assert.equal(sim.car.front, initial, 'A parked vehicle cannot begin its exit');
+  assert.ok(sim.run());
+  const finish = sim.car.front;
+  for (let i = 0; i < 200; i++) sim.step();
+  assert.ok(sim.settled);
+  assert.equal(sim.car.front, finish, 'Headless bridge settling has no runout work');
+  const time = sim.time, { axles, def } = sim.car;
+  const edge = sim.runoutRearX();
+  const rearOverhang = axles.at(-1).x - edge;
+  assert.ok(rearOverhang > 0.75 && rearOverhang < 1.75, 'The rear bumper extends behind the last axle');
+  const angles = axles.map((a) => a.worldAngle);
+  for (const dt of [0.05, 0.20, 0.50, 0.25]) sim.advanceRunout(dt);
+  assert.ok(Math.abs(sim.car.front - finish - def.speed) < 1e-8);
+  assert.ok(Math.abs(sim.runoutRearX() - edge - def.speed) < 1e-8);
+  axles.forEach((axle, i) => {
+    const radius = vehicle === 'train' ? (i < 2 ? WHEEL.loco : WHEEL.wagon) : WHEEL[vehicle];
+    assert.ok(Math.abs((axle.worldAngle - angles[i]) * radius - def.speed) < 1e-8, 'Each exit tyre rolls its own distance');
+    assert.ok(Math.abs(axle.angularSpeed * radius - def.speed) < 1e-8, 'Wheel speed is independent of frame length');
+  });
+  for (let i = 0; i < 120; i++) sim.advanceRunout(0.1);
+  assert.ok(axles.every((a) => a.x > farSlope && Math.abs(a.y - ground(a.x)) < 1e-8), 'Every carriage follows the far approach');
+  assert.ok(axles.at(-1).x - sim.runoutRearX() > rearOverhang, 'The uphill chassis projects farther behind the last axle');
+  assert.equal(sim.time, time, 'The vehicle can leave after the solver is asleep');
+  assert.equal(sim.result, 'win');
+}
 
 // Level members cross the traffic lane. A supported vehicle can hit its
 // roof while every wheel still has road underneath it. Side braces flank it.

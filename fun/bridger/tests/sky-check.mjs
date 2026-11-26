@@ -18,6 +18,29 @@ const ridges = {
   'canadian-forest': [0.34, 0.35, 0.49, 0.48, 0.46, 0.49, 0.50, 0.48, 0.50, 0.28, 0.39],
 };
 
+async function checkCamera(page) {
+  const frame = await page.evaluate(() => {
+    const { mission, view } = bridger;
+    let bed = Infinity;
+    for (let i = Math.round(mission.left * 10); i <= Math.round(mission.right * 10); i++) {
+      bed = Math.min(bed, mission.ground(i / 10));
+    }
+    const panels = [...document.querySelectorAll('.hud-top > *, .hud-bottom > *')]
+      .map(el => el.getBoundingClientRect()).filter(r => r.width && r.height);
+    const upper = Math.max(...panels.filter(r => r.y < view.height / 2).map(r => r.bottom));
+    const lower = Math.min(...panels.filter(r => r.y >= view.height / 2).map(r => r.top));
+    return { width: view.width, height: view.height, bed: view.sy(bed), deck: view.sy(mission.deck), upper, lower,
+      topJoint: view.sy(mission.bounds.maxY * 2), lowJoint: view.sy(mission.bounds.minY * 2),
+      left: view.sx(mission.bounds.minX * 2), right: view.sx(mission.bounds.maxX * 2) };
+  });
+  const target = Math.min(frame.height - Math.min(76, frame.height * 0.20), frame.lower - 10);
+  const name = `${frame.width}×${frame.height}`;
+  assert.ok(Math.abs(frame.bed - target) <= 2, `${name}: the deepest painted bed has a visible margin above the bottom controls`);
+  assert.ok(frame.deck >= frame.upper + 0.60 * (frame.bed - frame.upper), `${name}: the bridge sits in the lower part of the usable field`);
+  assert.ok(frame.left > 0 && frame.right < frame.width && frame.topJoint > frame.upper && frame.lowJoint < frame.lower - 5,
+    `${name}: the full build grid clears the controls`);
+}
+
 export async function checkSkies(page) {
   const original = { size: page.viewportSize(), hash: await page.evaluate(() => location.hash) };
   try {
@@ -27,8 +50,10 @@ export async function checkSkies(page) {
     ]) {
       await page.setViewportSize({ width, height });
       await page.evaluate((value) => { location.hash = value; }, hash);
-      await page.waitForFunction(([w, h, seed]) => bridger.view.width === w && bridger.view.height === h && bridger.mission.seed === seed, [width, height, hash.split('-')[1]]);
+      await page.waitForFunction(([w, h, seed]) => window.bridger?.view?.width === w && bridger.view.height === h && bridger.mission.seed === seed, [width, height, hash.slice(hash.indexOf('-') + 1)]);
+      await checkCamera(page);
       const results = await page.evaluate(async ({ ridges, pixelRatio }) => {
+        const { image } = await import('./js/art.js');
         const { backdropBounds, buildScenery, drawBackdrop, drawGround, THEMES } = await import('./js/scenery.js');
         const { mission, view } = bridger, scenery = buildScenery(mission);
         const canvas = document.createElement('canvas');
@@ -50,11 +75,9 @@ export async function checkSkies(page) {
         const results = [];
         for (const [id, theme] of Object.entries(THEMES)) {
           drawBackdrop(ctx, view, scenery, theme);
-          const img = new Image();
-          img.src = `assets/${theme.sky}.webp`;
-          await img.decode();
-          const aspect = img.naturalWidth / img.naturalHeight;
-          const paint = backdropBounds(view, scenery, theme, aspect);
+          const img = image(theme.sky);
+          const aspect = img.width / img.height;
+          const paint = backdropBounds(view, scenery, theme, img, pixelRatio);
           drawBackdrop(ctx, view, scenery, theme);
           const back = sampleAboveRoad();
           // Compare the composited backdrop with the original painting at
@@ -79,7 +102,7 @@ export async function checkSkies(page) {
           const mark = landmarks[id];
           const inFrame = !mark || (paint.x + mark[0] * paint.w >= 0 && paint.x + mark[0] * paint.w <= view.width
             && paint.y + mark[1] * paint.h >= 0 && paint.y + mark[1] * paint.h < deck);
-          const enlargement = paint.w * pixelRatio / img.naturalWidth;
+          const enlargement = paint.w * pixelRatio / img.width;
           results.push({ id, ...paint, aspect, error, enlargement, inFrame, variation, visible: visible / 4096, bottom: view.sy(scenery.backdropFloor) });
         }
         return results;
@@ -92,11 +115,19 @@ export async function checkSkies(page) {
         assert.ok(error < 1, `${label}: cached sky matches the freshly painted frame`);
         assert.ok(variation > 2, `${label}: the upper sky contains visible brushwork`);
         assert.ok(inFrame, `${label}: the landmark remains above the road and in frame`);
-        assert.ok(visible >= 0.34 && visible <= 0.55, `${label}: landscape takes ${Math.round(visible * 100)}% of the space above the road`);
+        // On tall phones the lower road reveals a taller slice of the same
+        // painting. Retain at least 35% sky without enlarging the brushwork.
+        assert.ok(visible >= 0.34 && visible <= (width < height ? 0.65 : 0.55), `${label}: landscape takes ${Math.round(visible * 100)}% of the space above the road`);
       }
+    }
+    for (const [width, height] of [[1000, 680], [667, 375]]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForFunction(([w, h]) => bridger.view.width === w && bridger.view.height === h, [width, height]);
+      await checkCamera(page);
     }
   } finally {
     await page.evaluate((value) => { location.hash = value; }, original.hash);
     await page.setViewportSize(original.size);
+    await page.waitForFunction(hash => window.bridger?.mission?.seed === hash.slice(hash.indexOf('-') + 1), original.hash);
   }
 }
