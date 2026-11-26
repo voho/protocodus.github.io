@@ -67,6 +67,19 @@ for (const vehicle of ['car', 'truck', 'train']) {
   assert.ok(sim.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)), `${vehicle}: the wreck stays finite`);
   assert.ok(highest < 3, `${vehicle}: nothing is flung into the air (highest axle ${highest.toFixed(1)} m)`);
   assert.ok(sim.nodes.every((n) => n.fixed || n.y > mission.ground(n.x) - 0.3), `${vehicle}: nothing ends up inside the ground`);
+  // The whole body is solid and rigid, not just its wheels.
+  for (const body of sim.car.bodies) {
+    const a = sim.nodes[body.rear], b = sim.nodes[body.front];
+    const [ra, rb] = [body.rear, body.front].map((i) => body.rest[i - body.first]);
+    const drift = Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - Math.hypot(rb[0] - ra[0], rb[1] - ra[1]));
+    assert.ok(drift < 1e-6, `${vehicle}: a fallen body keeps its shape (drift ${drift})`);
+    const ring = body.outline.map((i) => sim.nodes[i]);
+    const inside = sim.nodes.filter((p, j) => (j < body.first || j >= body.first + body.rest.length) && ring.every((v, k) => {
+      const w = ring[(k + 1) % ring.length];
+      return (p.x - v.x) * (w.y - v.y) - (p.y - v.y) * (w.x - v.x) < -0.1 * Math.hypot(w.x - v.x, w.y - v.y);
+    }));
+    assert.equal(inside.length, 0, `${vehicle}: no joint ends up inside a vehicle body`);
+  }
 }
 
 console.log(`Bridger missions passed: ${seeds.length * 3} missions (${[...vehicles].join(', ')}; ${[...features].join(', ')}), solutions: ${[...kinds].join(', ')}; slowest ${Math.round(slowest)} ms.`);
