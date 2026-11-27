@@ -275,11 +275,11 @@ button:disabled { cursor: default; }
 .panel-heading > .icon { color: #d9b271; width: .96rem; height: .96rem; }
 .panel-heading h3 { margin: 0; color: #f2e4c6; font: 700 .95rem/1.15 var(--display); letter-spacing: .015em; }
 
-.ammo-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .39rem; }
+.ammo-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: .39rem; }
 .ammo {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0,1fr);
   grid-template-rows: minmax(0,1fr) auto auto;
   justify-items: center;
   align-items: end;
@@ -314,13 +314,14 @@ button:disabled { cursor: default; }
   width: 3rem;
   height: 2.08rem;
   max-height: 100%;
+  max-width: 100%;
   align-self: center;
   object-fit: contain;
   -webkit-user-drag: none;
   filter: drop-shadow(0 2px 2px #090d0c9e);
 }
 .ammo:nth-child(2n) .ammo-art { width: 4rem; height: 2.5rem; }
-.ammo-name { color: #f0ebdb; font-size: .73rem; font-weight: 630; line-height: 1.22; white-space: nowrap; }
+.ammo-name { color: #f0ebdb; font-size: .73rem; font-weight: 630; line-height: 1.22; white-space: normal; text-align: center; }
 .cost { display: inline-flex; align-items: center; gap: .22rem; color: #eacc8c; font: 650 .64rem/1.27 var(--mono); }
 .coin {
   display: inline-block;
@@ -510,9 +511,9 @@ dialog li { padding-left: .12rem; }
   .panel-heading { margin: 0 0 .24rem; gap: .31rem; }
   .panel-heading h3 { font-size: .75rem; }
   .panel-heading .icon { width: .76rem; height: .76rem; }
-  .ammo-grid { gap: .35rem; }
+  .ammo-grid { gap: .23rem; }
   .ammo { height: 3.77rem; padding-block: .12rem .18rem; }
-  .ammo-art { width: 2.4rem; height: 1.53rem; }
+  .ammo-art { max-width: 100%; width: 2.4rem; height: 1.53rem; }
   .ammo:nth-child(2n) .ammo-art { width: 3.1rem; height: 1.9rem; }
   .shortcut { font-size: .48rem; }
   .cost { font-size: .56rem; }
@@ -531,6 +532,7 @@ dialog li { padding-left: .12rem; }
   .dialog-inner { padding: 1.24rem; }
 }
 @media (max-width: 350px) {
+  .ammo-name { font-size: .575rem; }
   .brand p { display: none; }
   .tools .icon-button, .tools .nav-button { width: 1.82rem; }
   .stat { padding-inline: .35rem; }

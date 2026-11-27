@@ -11,7 +11,9 @@ const descriptions = [
   'A light, inexpensive stone for taking out a support.',
   'A heavy stone with enough momentum to punch through masonry.',
   'A compact blast for breaking clustered supports.',
-  'A wide blast that can bring down several rooms at once.',
+  'A wide blast that can excavate the ground beneath a tower.',
+  'A magical burst that sets timber and exposed powder stores alight.',
+  'The heaviest charge. Click the field after launch to detonate it in flight or on the ground.',
 ];
 const rollSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
 const validSize = (value) => DIFFICULTIES.some(({ id }) => id === value);
@@ -69,7 +71,7 @@ const bests = Object.fromEntries(
     )
     .slice(-200),
 );
-let soundOn = stored('sound', false) === true;
+let soundOn = stored('sound', true) === true;
 let clock = 0;
 let previousFrame = null;
 let reportAt = Infinity;
@@ -81,6 +83,7 @@ const ammoButtons = [];
 function selectAmmo(index) {
   settings.ammo = AMMO[index].id;
   ammoButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(index === i)));
+  if (ready) syncHud();
 }
 for (const [i, ammo] of AMMO.entries()) {
   const button = document.createElement('button');
@@ -151,7 +154,9 @@ function track(event, extra) {
 }
 function syncHud() {
   const s = sim.stats;
-  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared].join('/');
+  const remote = s.remoteBombs > 0 && s.orcsRemaining > 0;
+  const trigger = remote && settings.ammo === 'siege-bomb';
+  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote, trigger].join('/');
   if (key === lastStats) return;
   lastStats = key;
   $('orcs').textContent = s.orcsRemaining + ' / ' + s.orcsTotal;
@@ -161,12 +166,12 @@ function syncHud() {
   state.toggleAttribute('data-busy', !s.ready && !s.cleared);
   state.toggleAttribute('data-won', s.orcsRemaining === 0);
   state.querySelector('span').textContent =
-    s.orcsRemaining === 0 ? 'Fortress cleared' : s.ready ? 'Ready to fire' : 'Reloading';
+    s.orcsRemaining === 0 ? 'Fortress cleared' : remote ? 'Click field to detonate' : s.ready ? 'Ready to fire' : 'Reloading';
   const fireButton = $('fire-button');
-  fireButton.disabled = !s.ready && !s.cleared;
+  fireButton.disabled = !s.ready && !s.cleared && !trigger;
   fireButton.querySelector('span').textContent = s.cleared
     ? 'Siege report'
-    : s.ready
+    : trigger ? 'Detonate bomb' : s.ready
       ? 'Fire catapult'
       : 'Reloading';
   if (s.orcsRemaining !== lastAnnouncedOrcs) {
@@ -187,13 +192,22 @@ function fire() {
   if (sim.shots === 1) track('game_start', { action: 'fire' });
   syncHud();
 }
-$('fire-button').addEventListener('click', fire);
+function triggerBomb() {
+  if (!ready || overlay.open || !sim.orcsRemaining || !sim.detonateSiegeBomb()) return false;
+  syncHud();
+  return true;
+}
+function primaryFire() {
+  if (settings.ammo === 'siege-bomb' && triggerBomb()) return;
+  fire();
+}
+$('fire-button').addEventListener('click', primaryFire);
 
 function aimAt(event) {
   if (!ready || !sim.stats.orcsRemaining || camera.dragged() || event.button !== 0) return;
   const { x, y } = camera.target(event.clientX, event.clientY);
   camera.focusAt(x);
-  if (x < WORLD.release.x + 30 || y > WORLD.ground + 10) return;
+  if (x < WORLD.release.x + 30 || x > WORLD.width || y > sim.terrainHeight(x) + 10) return;
   let best = Infinity,
     angle = settings.angle,
     power = settings.power;
@@ -219,26 +233,30 @@ function aimAt(event) {
   updateSliders();
 }
 const field = $('battlefield');
-field.addEventListener('click', aimAt);
-field.addEventListener('dblclick', (event) => {
-  if (event.button !== 0 || camera.dragged()) return;
-  event.preventDefault();
-  if (sim.stats.orcsRemaining) fire();
-});
 let previousTap = null;
+let lastTouch = -Infinity;
+let consumedClick = false;
+field.addEventListener('click', (event) => {
+  if (event.button !== 0 || camera.dragged() || event.timeStamp - lastTouch < 500) return;
+  if (event.detail <= 1) consumedClick = triggerBomb();
+  if (!consumedClick) aimAt(event);
+});
+field.addEventListener('dblclick', (event) => {
+  if (event.button !== 0 || camera.dragged() || consumedClick || event.timeStamp - lastTouch < 500) return;
+  event.preventDefault();
+  if (sim.orcsRemaining) fire();
+});
 field.addEventListener('pointerup', (event) => {
-  if (event.pointerType !== 'touch' || camera.dragged()) {
+  if (event.pointerType !== 'touch') return;
+  lastTouch = event.timeStamp;
+  if (camera.dragged() || triggerBomb()) {
     previousTap = null;
     return;
   }
+  aimAt(event);
   const point = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-  if (
-    previousTap &&
-    point.t - previousTap.t < 340 &&
-    Math.hypot(point.x - previousTap.x, point.y - previousTap.y) < 24
-  ) {
-    aimAt(event);
-    if (sim.stats.orcsRemaining) fire();
+  if (previousTap && point.t - previousTap.t < 340 && Math.hypot(point.x - previousTap.x, point.y - previousTap.y) < 24) {
+    if (sim.orcsRemaining) fire();
     previousTap = null;
   } else previousTap = point;
 });
@@ -269,6 +287,8 @@ function enterFortress(size, seed, alreadyLoaded = false) {
   reportAt = Infinity;
   recordSet = false;
   previousTap = null;
+  consumedClick = false;
+  lastTouch = -Infinity;
   angles.value = level.aim?.angle ?? 38;
   powers.value = level.aim?.power ?? 75;
   updateSliders();
@@ -294,13 +314,17 @@ $('fold-controls').addEventListener('click', () => {
   camera.invalidate();
 });
 
-function dialogContent(kicker, symbol, title, html) {
-  $('dialog-body').innerHTML =
-    '<div class="modal-kicker">' + icon(symbol) + kicker + '</div><h2 id="dialog-title">' + title + '</h2>' + html;
-  if (!overlay.open) overlay.showModal();
-  music.pause(true);
+function syncMusicPause() {
+  music.pause(document.hidden || (overlay.open && overlay.dataset.panel === 'help'));
 }
-overlay.addEventListener('close', () => music.pause(document.hidden));
+function dialogContent(kicker, panel, title, html) {
+  overlay.dataset.panel = panel;
+  $('dialog-body').innerHTML =
+    '<div class="modal-kicker">' + icon(panel === 'help' ? 'help' : 'trophy') + kicker + '</div><h2 id="dialog-title">' + title + '</h2>' + html;
+  if (!overlay.open) overlay.showModal();
+  syncMusicPause();
+}
+overlay.addEventListener('close', syncMusicPause);
 $('close-dialog').addEventListener('click', () => overlay.close());
 overlay.addEventListener('click', (event) => {
   if (event.target !== overlay) return;
@@ -314,7 +338,7 @@ function showHelp() {
     'help',
     'How to play',
     '<p>Defeat every orc for the least gold. Choose Small, Medium or Large to generate a fortress. Restart keeps its layout so you can beat your score.</p>' +
-      '<ol><li><b>Choose a shot.</b> Small stones reload fast enough for a volley. Heavy stones and bombs take longer. Bombs can hit several rooms or trigger powder barrels.</li><li><b>Click to aim. Double-click to fire.</b> You can also set the angle and power yourself and launch with Space. The camera follows your volley into the impact. Between shots you can zoom and drag to inspect the towers.</li><li><b>Use the terrain.</b> Lob a shot over a hill, or bring down a tower onto the guards below. Timber touching a lit torch can catch fire. A falling torch goes out. Wind bends the shot path, especially on high arcs.</li></ol>' +
+      '<ol><li><b>Choose a shot.</b> Small stones reload fast enough for a volley. Heavy stones and bombs take longer. Bombs dig craters and can undermine a tower. Fireballs ignite timber and powder. The Siege bomb stays armed on impact. Click the field or press its Detonate button to trigger it.</li><li><b>Click to aim. Double-click to fire.</b> You can also set the angle and power yourself and launch with Space. The camera makes room for high or wide shots. Between shots you can zoom and drag to inspect the towers.</li><li><b>Use the terrain.</b> Lob a shot over a hill, or bring down a tower onto the guards below. Burning timber weakens under load, and fire can spread to powder barrels. A falling torch goes out. Wind bends the shot path, especially on high arcs.</li></ol>' +
       '<button class="primary-button" data-dismiss>Back to the siege</button>',
   );
   overlay.querySelector('[data-dismiss]').addEventListener('click', () => overlay.close());
@@ -327,7 +351,7 @@ function showReport() {
   const more = 'New fortress';
   dialogContent(
     'Siege complete',
-    'trophy',
+    'victory',
     level.name + ' has fallen',
     '<p>All ' +
       s.orcsTotal +
@@ -382,7 +406,7 @@ document.addEventListener('keydown', (event) => {
     showHelp();
     return;
   }
-  if (/^[1-4]$/.test(event.key)) {
+  if (/^[1-9]$/.test(event.key) && +event.key <= AMMO.length) {
     event.preventDefault();
     selectAmmo(+event.key - 1);
     $('battlefield').focus({ preventScroll: true });
@@ -392,7 +416,7 @@ document.addEventListener('keydown', (event) => {
   if (event.code === 'Space') {
     if (event.target.closest('button,a') && event.target !== $('fire-button')) return;
     event.preventDefault();
-    if (!event.repeat) fire();
+    if (!event.repeat) primaryFire();
     return;
   }
   const arrows = {
@@ -416,7 +440,8 @@ function tick(now) {
     clock += dt;
     sim.update(dt);
     const events = sim.drainEvents();
-    audio.play(events);
+    const view = camera.update(sim, events, dt, reduced.matches);
+    audio.play(events, sim, view);
     if (events.some((e) => e.type === 'clear')) {
       const key = scoreKey(),
         { spent } = sim.stats;
@@ -426,14 +451,14 @@ function tick(now) {
         store('siege-bests', Object.fromEntries(Object.entries(bests).slice(-200)));
       }
       track('game_end', { result: 'win', score: spent, duration_seconds: Math.round(sim.time) });
-      reportAt = clock + 0.4;
+      reportAt = clock + 1.5;
     }
     renderer.draw(sim, {
       ...settings,
       time: clock,
       events,
       reducedMotion: reduced.matches,
-      view: camera.update(sim, events, dt, reduced.matches),
+      view,
       scenery: landscapes[sim.themeIndex],
     });
     syncHud();
@@ -443,7 +468,7 @@ function tick(now) {
 }
 document.addEventListener('visibilitychange', () => {
   previousFrame = null;
-  music.pause(document.hidden || overlay.open);
+  syncMusicPause();
 });
 window.addEventListener('hashchange', () => {
   if (!ready) return;
@@ -455,10 +480,10 @@ function activateSound(event) {
   if (!ready || !soundOn || overlay.open || event.target.closest?.('#sound-button')) return;
   audio.unlock();
   music.activate();
-  window.removeEventListener('pointerdown', activateSound);
+  window.removeEventListener('pointerup', activateSound);
   window.removeEventListener('keydown', activateSound);
 }
-window.addEventListener('pointerdown', activateSound);
+window.addEventListener('pointerup', activateSound);
 window.addEventListener('keydown', activateSound);
 
 async function boot() {

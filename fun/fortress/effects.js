@@ -8,6 +8,10 @@ const FLAME_W = 180;
 const FLAME_H = 144;
 const FLAME_HEIGHT = 128;
 const clamp = (n, a, b) => Math.max(a, Math.min(n, b));
+function fade(t) {
+  t = clamp(t, 0, 1);
+  return t * t * (3 - 2 * t);
+}
 const phases = { day: 0.23, dawn: 0.58, dusk: 0.74, night: 1 };
 const fragmentColors = {
   stone: ['#a99c80', '#807967', '#d6c9ac'],
@@ -87,8 +91,75 @@ function flameAtlas() {
   return canvas;
 }
 
+// Domain-warped noise folds the bright flame front back through the cooler gas.
+// Baking a handful of independent plumes keeps these curls stable as the camera zooms.
+function plumeAtlas() {
+  const w = 112,
+    h = 144,
+    variants = 6;
+  const canvas = document.createElement('canvas');
+  canvas.width = w * variants;
+  canvas.height = h * 2;
+  const ctx = canvas.getContext('2d');
+  const raster = ctx.createImageData(canvas.width, canvas.height);
+  const values = new Float32Array(64 * 64);
+  let seed = 964701;
+  for (let i = 0; i < values.length; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    values[i] = seed / 4294967296;
+  }
+  function noise(x, y) {
+    const ix = Math.floor(x),
+      iy = Math.floor(y);
+    let sx = x - ix,
+      sy = y - iy;
+    sx *= sx * (3 - 2 * sx);
+    sy *= sy * (3 - 2 * sy);
+    const l = ix & 63,
+      r = (ix + 1) & 63,
+      t = (iy & 63) * 64,
+      b = ((iy + 1) & 63) * 64;
+    const top = values[t + l] + sx * (values[t + r] - values[t + l]);
+    const bottom = values[b + l] + sx * (values[b + r] - values[b + l]);
+    return top + (bottom - top) * sy;
+  }
+  for (let k = 0; k < variants; k++)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const rise = 1 - y / (h - 1),
+          side = (2 * x) / (w - 1) - 1;
+        const bend = (noise(rise * 2.9 + k * 4.1, k + 1) - 0.5) * (0.19 + 0.66 * rise);
+        const nx = side * 3.1 + k * 9.3,
+          ny = rise * 3.9 + k * 7.1;
+        const wx = nx + (noise(nx + 13, ny + 7) - 0.5) * 2.35;
+        const wy = ny + (noise(nx - 4, ny + 18) - 0.5) * 2.4;
+        const fold =
+          0.68 * noise(wx, wy) + 0.24 * noise(wx * 2.4, wy * 2.4) + 0.08 * noise(wx * 5.5, wy * 5.5);
+        const width = 0.53 + 0.16 * Math.sin(rise * Math.PI);
+        const shape = 1 - Math.hypot((side - bend) / width, (rise - 0.39) / 0.59);
+        const edge = shape + (fold - 0.5) * 1.05;
+        const alpha = clamp(edge * 4, 0, 1) * clamp(rise * 13, 0, 1) * clamp((1 - rise) * 12, 0, 1);
+        if (alpha <= 0) continue;
+        const ridge = 1 - Math.abs(fold - 0.52) * 4.8;
+        const heat = clamp(shape * 0.55 + (fold - 0.33) * 1.7 + ridge ** 3 * 0.23 - rise * 0.18, 0, 1);
+        const index = 4 * (y * canvas.width + k * w + x);
+        raster.data[index] = 243 + heat * 12;
+        raster.data[index + 1] = 79 + heat * 173;
+        raster.data[index + 2] = 20 + heat * heat * 169;
+        raster.data[index + 3] = 240 * alpha;
+        const powder = index + h * canvas.width * 4;
+        raster.data[powder] = 152 + Math.min(103, heat * 169);
+        raster.data[powder + 1] = 70 + heat * 184;
+        raster.data[powder + 2] = 41 + heat * heat * 192;
+        raster.data[powder + 3] = 240 * alpha;
+      }
+  ctx.putImageData(raster, 0, 0);
+  return { canvas, w, h, variants };
+}
+
 export function createEffects() {
   const flames = flameAtlas();
+  const plumes = plumeAtlas();
   function flame(ctx, x, y, height, clock, seed) {
     const sway = windLean + Math.sin(clock * 7.6 + seed) * 0.17;
     const frame = Math.round(((sway / FLAME_SWAY + 1) * (FLAME_STEPS - 1)) / 2);
@@ -135,6 +206,23 @@ export function createEffects() {
     ],
     true,
   );
+  const soot = lightSprite(
+    [
+      [0, '#494040a6'],
+      [0.48, '#68544ea6'],
+      [0.79, '#826f6166'],
+      [1, '#8e796800'],
+    ],
+    true,
+  );
+  const char = lightSprite(
+    [
+      [0, '#261d1ada'],
+      [0.6, '#49312882'],
+      [1, '#513b2b00'],
+    ],
+    true,
+  );
   const magic = lightSprite([
     [0, '#efffcddb'],
     [0.26, '#c1ecc782'],
@@ -145,10 +233,19 @@ export function createEffects() {
   const trails = new Map(),
     torches = [],
     fires = [];
+  // Keep cast light and pressure fronts visible when crumbling masonry fills the debris pool.
+  const flashes = Array.from({ length: 8 }, () => ({ end: -1 }));
+  const scorchMarks = Array.from({ length: 24 }, () => ({ active: false }));
   let particleStart = 0,
-    particleCount = 0;
-  let strength = 0,
+    particleCount = 0,
+    nextFlash = 0,
+    nextMark = 0;
+  const shake = { x: 0, y: 0 };
+  let shakePower = 0,
+    shakeStart = 0,
+    shakeDirection = 1,
     time = 0,
+    physicsTime = 0,
     previous = null,
     reduced = false,
     phase = 'day',
@@ -177,6 +274,13 @@ export function createEffects() {
     p.age = 0;
     p.roll = random() * TAU;
     p.spin = (random() - 0.5) * 8;
+    if (kind === 'billow') {
+      p.plume = Math.floor(random() * plumes.variants);
+      p.powder = false;
+      p.roll = Math.atan2(vx, Math.max(13, -vy)) * 0.74 + (random() - 0.5) * 0.44;
+      p.spin *= 0.18;
+    }
+    return p;
   }
   function puff(x, y, scale, soot = false) {
     particle(
@@ -189,10 +293,150 @@ export function createEffects() {
       0.65 + random() * 0.75,
     );
   }
+
+  function kick(power, x) {
+    if (reduced || power < shakePower * Math.exp((shakeStart - time) * 9)) return;
+    shakePower = Math.min(6.2, power);
+    shakeDirection = x >= 600 ? -1 : 1;
+    shakeStart = time;
+  }
+
+  function eruption(e, magical) {
+    const radius = clamp(e.radius ?? 95, 38, 215);
+    const flash = flashes[nextFlash];
+    nextFlash = (nextFlash + 1) % flashes.length;
+    flash.x = e.x;
+    flash.y = e.y;
+    flash.radius = radius;
+    flash.magical = magical;
+    flash.start = time;
+    flash.end = time + (magical ? 0.68 : 0.55);
+    kick(magical ? 1.6 : 2.2 + radius / 39, e.x);
+    const surface = surfaceY(e.x);
+    const nearGround = Math.abs(surface - e.y) < radius * 0.3;
+    const lobes = reduced ? 3 : magical ? 13 : 11;
+    for (let i = 0; i < lobes; i++) {
+      const a = random() * TAU;
+      const radial = radius * (0.05 + random() ** 1.4 * 0.43);
+      const dx = Math.cos(a),
+        dy = nearGround ? -Math.abs(Math.sin(a)) : Math.sin(a);
+      const x = e.x + dx * radial * 0.32,
+        y = e.y + dy * radial * 0.2;
+      const speed = radial * (magical ? 3.2 : 2.4);
+      particle(
+        'soot',
+        x,
+        y,
+        dx * speed * 0.46,
+        dy * speed * 0.35 - 22,
+        13 + radial * 0.4,
+        0.72 + random() * 0.78,
+      );
+      const lobe = particle(
+        'billow',
+        x,
+        y,
+        dx * speed,
+        dy * speed * 0.67 - 11,
+        (10 + random() * 17 + radial * 0.08) * (magical ? 1 : 1.12),
+        0.26 + random() * (magical ? 0.36 : 0.21),
+      );
+      lobe.powder = !magical;
+    }
+    const core = particle('billow', e.x, e.y + 4, wind * 0.22, -17, radius * 0.23, magical ? 0.57 : 0.37);
+    core.powder = !magical;
+    if (magical && Math.abs(surface - e.y) <= 32) {
+      const mark = scorchMarks[nextMark];
+      nextMark = (nextMark + 1) % scorchMarks.length;
+      mark.active = true;
+      mark.x = e.x;
+      mark.y = surface;
+      mark.size = radius * 0.38;
+      for (let i = 0; i < (reduced ? 3 : 9); i++) {
+        const x = e.x + (random() - 0.5) * radius * 0.98;
+        particle('lick', x, surfaceY(x), 0, 0, 7 + random() * 12, 0.6 + random());
+      }
+    }
+    const sparks = reduced ? 3 : magical ? 22 : 31;
+    for (let i = 0; i < sparks; i++) {
+      const a = random() * TAU;
+      const speed = radius * (0.57 + random() * 1.2);
+      const splinter = !magical && e.material === 'barrel' && i % 5 === 1;
+      particle(
+        splinter ? 'wood' : 'spark',
+        e.x,
+        e.y,
+        Math.cos(a) * speed,
+        Math.sin(a) * speed - 16,
+        0.9 + random() * 2.2,
+        0.33 + random() * 0.72,
+        splinter ? fragmentColors.wood[i % 3] : fragmentColors.steel[i % 3],
+      );
+    }
+  }
+
+  function earthBurst(e) {
+    const count = reduced ? 3 : 14;
+    for (let i = 0; i < count; i++) {
+      const lateral = ((i + random()) / count) * 2 - 1;
+      const x = e.x + lateral * e.radius * 0.79;
+      const y = Math.min(e.y + 3, surfaceY(x));
+      const vx = lateral * (26 + e.depth * 1.3),
+        vy = -(21 + random() * 46 + e.depth * 0.55) * (1 - Math.abs(lateral) * 0.5);
+      particle(
+        'stone',
+        x,
+        y,
+        vx,
+        vy,
+        1.2 + random() * 2.1,
+        0.68 + random() * 0.7,
+        fragmentColors.stone[i % 3],
+      );
+      if (i % 2 === 0) particle('dust', x, y, vx, vy * 0.32, 12 + random() * 14, 0.73 + random() * 0.51);
+    }
+  }
+
   function burst(e) {
     const energy = clamp(e.strength ?? 0.6, 0.1, 1);
-    const blast = e.type === 'explosion';
     const material = e.material in fragmentColors ? e.material : 'stone';
+    if (e.type === 'explosion' || e.type === 'fireburst') {
+      eruption(e, e.type === 'fireburst');
+      return;
+    }
+    if (e.type === 'crater') {
+      earthBurst(e);
+      return;
+    }
+    if (e.type === 'stone-dust') {
+      // The smallest chips leave a short pale wisp as the last grit disperses.
+      particle('dust', e.x, e.y, wind * 0.3, -3, clamp(e.width * 0.55, 3, 8), 0.85);
+      return;
+    }
+    if (e.type === 'burnout') {
+      const c = Math.cos(e.angle), s = Math.sin(e.angle);
+      const count = reduced ? 3 : clamp(Math.ceil(Math.max(e.width, e.height) / 7), 5, 16);
+      for (let i = 0; i < count; i++) {
+        // Release ash along the timber's last silhouette, including tilted and upright timbers.
+        const along = (i + random()) / count - 0.5, across = (random() - 0.5) * 0.75;
+        const dx = (e.width >= e.height ? along : across) * e.width;
+        const dy = (e.height > e.width ? along : across) * e.height;
+        const x = e.x + dx * c - dy * s, y = e.y + dx * s + dy * c;
+        const vx = wind * 0.5 + (random() - 0.5) * 16;
+        particle('ash', x, y, vx, -3 - random() * 9, 0.65 + random() * 0.9,
+          0.65 + random() * 0.8, i % 3 === 0 ? '#b8b2a5' : '#565450');
+        if (i % 3 === 0) particle('smoke', x, y, vx, -7, 5 + random() * 5, 0.8 + random() * 0.4);
+      }
+      return;
+    }
+    if (e.type === 'ignite') {
+      particle('billow', e.x, e.y, wind * 0.35, -18, 8 + energy * 6, 0.32);
+      if (!reduced) {
+        puff(e.x, e.y - 4, 7, true);
+        particle('ember', e.x, e.y - 3, wind * 0.62 + 7, -27, 1.5, 0.73, '#ffdca3');
+      }
+      return;
+    }
     if (e.type === 'faint') {
       particle('poof', e.x, e.y - 4, 0, -8, 16, 0.48);
       for (let i = 0; i < (reduced ? 2 : 8); i++) {
@@ -211,6 +455,7 @@ export function createEffects() {
       return;
     }
     if (e.type === 'extinguish') {
+      particle('wick', e.x, e.y + 2, wind * 0.05, -2, 6.7, 0.32);
       for (let i = 0; i < (reduced ? 1 : 4); i++) puff(e.x + random() * 3, e.y - i, 5 + i, true);
       return;
     }
@@ -219,32 +464,15 @@ export function createEffects() {
         for (let i = 0; i < 5; i++) puff(e.x - 30 + random() * 40, 385 - random() * 3, 6 + random() * 6);
       return;
     }
-    if (e.type !== 'fracture' && e.type !== 'impact' && !blast) return;
-    if (!reduced)
-      strength = Math.max(strength, blast ? 3.5 + energy : e.type === 'impact' ? energy * 1.8 : energy * 0.8);
-    if (blast) {
-      particle('blast', e.x, e.y, 0, 0, 37 + energy * 69, reduced ? 0.25 : 0.55);
-      for (let i = 0; i < (reduced ? 2 : 9); i++) {
-        const a = (TAU * i) / 9,
-          v = 25 + random() * 37;
-        particle(
-          'fireball',
-          e.x,
-          e.y,
-          Math.cos(a) * v,
-          Math.sin(a) * v - 18,
-          10 + random() * 14,
-          0.22 + random() * 0.2,
-        );
-        puff(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 7, 11 + random() * 12, true);
-      }
-    }
-    const count = reduced ? 2 : blast ? 29 : e.type === 'fracture' ? 11 : 6;
+    if (e.type !== 'fracture' && e.type !== 'impact') return;
+    const weight = material === 'glass' ? 0.45 : material === 'wood' ? 0.72 : 1;
+    kick(energy * weight * (e.type === 'impact' ? 2.05 : 1.25), e.x);
+    const count = reduced ? 2 : e.type === 'fracture' ? 11 : 6;
     for (let i = 0; i < count; i++) {
       const a = random() * TAU,
-        speed = (blast ? 62 + random() * 130 : 18 + random() * 56) * (0.4 + energy * 0.6);
-      const kind = blast ? 'spark' : material === 'steel' ? 'spark' : material;
-      const colors = fragmentColors[blast ? 'steel' : material];
+        speed = (18 + random() * 56) * (0.4 + energy * 0.6);
+      const kind = material === 'steel' ? 'spark' : material;
+      const colors = fragmentColors[material];
       particle(
         kind,
         e.x + (random() - 0.5) * 4,
@@ -255,17 +483,22 @@ export function createEffects() {
         0.35 + random() * 0.62,
         colors[i % colors.length],
       );
-      if (!blast && (material === 'stone' || material === 'wood') && i % 4 === 0) puff(e.x, e.y, 6 + energy * 9);
+      if ((material === 'stone' || material === 'wood') && i % 4 === 0) puff(e.x, e.y, 6 + energy * 9);
     }
   }
 
   function surfaceY(x) {
-    for (let i = 1; i < floor.length; i++) {
-      const a = floor[i - 1],
-        b = floor[i];
-      if (x >= a.x && x <= b.x && b.x > a.x) return a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+    if (!floor.length) return 389;
+    let l = 0,
+      r = floor.length - 1;
+    while (r - l > 1) {
+      const m = (l + r) >> 1;
+      if (floor[m].x < x) l = m;
+      else r = m;
     }
-    return 389;
+    const a = floor[l],
+      b = floor[r];
+    return a.y + (b.y - a.y) * clamp((x - a.x) / (b.x - a.x || 1), 0, 1);
   }
   function update(
     events,
@@ -277,35 +510,71 @@ export function createEffects() {
     missionPhase = 'day',
     terrain = [],
     windForce = 0,
+    simulationTime = now,
   ) {
     const newFrame = previous !== now;
     previous = now;
     time = now;
+    physicsTime = simulationTime;
     reduced = reducedMotion;
     phase = missionPhase;
     level = levelIndex;
     floor = terrain;
     wind = windForce;
     windLean = clamp(wind / 24, -1, 1) * 0.39;
-    strength *= Math.exp(-dt * 10.5);
     torches.length = 0;
     fires.length = 0;
     for (const body of bodies) {
       if (body.kind === 'torch' && body.lit) torches.push(body);
       if (body.burning) fires.push(body);
+      if (newFrame && !reduced && body.dustProgress > 0 && random() < dt * 3) {
+        particle('dust', body.x, body.y, wind * 0.32, -4, 2.6, 0.7);
+      }
       if (body.kind !== 'projectile' || reduced) continue;
-      const trail = trails.get(body.id) || { points: [], bomb: body.material.endsWith('bomb') };
-      if (!trail.points.length || time - trail.points.at(-1).t >= 0.015) {
+      const trail = trails.get(body.id) || {
+        points: [],
+        bomb: body.material.endsWith('bomb'),
+        fire: body.material === 'fireball',
+        lastEmber: now,
+      };
+      const last = trail.points.at(-1);
+      if (!last || time - last.t >= 0.015) {
+        if (
+          trail.fire &&
+          last &&
+          now - trail.lastEmber >= 0.045 &&
+          Math.hypot(body.x - last.x, body.y - last.y) > 1.5
+        ) {
+          puff(last.x, last.y, 6 + random() * 4, true);
+          particle(
+            'ember',
+            last.x,
+            last.y,
+            wind * 0.42 + (random() - 0.5) * 19,
+            -11 - random() * 14,
+            1.25,
+            0.45 + random() * 0.25,
+            '#ffc277',
+          );
+          trail.lastEmber = now;
+        }
         const point = trail.points.length === 18 ? trail.points.shift() : {};
         point.x = body.x;
         point.y = body.y;
         point.t = time;
+        if (trail.fire) {
+          const dx = last ? point.x - last.x : 1,
+            dy = last ? point.y - last.y : 0;
+          const length = Math.hypot(dx, dy) || 1;
+          point.nx = -dy / length;
+          point.ny = dx / length;
+        }
         trail.points.push(point);
       }
       trail.lastSeen = now;
       trails.set(body.id, trail);
     }
-    for (const [id, trail] of trails) if (trail.lastSeen !== now) trails.delete(id);
+    for (const [id, trail] of trails) if (now - trail.lastSeen > (trail.fire ? 0.17 : 0.25)) trails.delete(id);
     collectLights();
     for (const event of events) burst(event);
     if (!newFrame) return;
@@ -332,11 +601,19 @@ export function createEffects() {
           p.vx *= 0.7;
         }
       }
-      if (p.kind === 'dust' || p.kind === 'smoke') {
+      if (p.kind === 'dust' || p.kind === 'smoke' || p.kind === 'soot') {
         p.vx = p.vx * airDrag + wind * 1.8 * (1 - airDrag);
-        p.vy -= dt * 4;
-      } else if (p.kind === 'fireball' || p.kind === 'ember') {
+        p.vy -= dt * (p.kind === 'soot' ? 12 : 4);
+      } else if (p.kind === 'ash') {
+        p.vx = wind + (p.vx - wind) * airDrag;
+        p.vy = Math.min(14, p.vy + dt * 20);
+        p.y = Math.min(surfaceY(p.x), p.y);
+      } else if (p.kind === 'billow' || p.kind === 'ember') {
         p.vx += wind * dt;
+        if (p.kind === 'billow') {
+          p.vx *= airDrag;
+          p.vy = p.vy * airDrag - dt * 20;
+        }
       }
     }
     particleCount = kept;
@@ -391,6 +668,10 @@ export function createEffects() {
     );
   }
 
+  function fireIntensity(body) {
+    const lit = body.ignitedAt === undefined ? 1 : fade((physicsTime - body.ignitedAt) / 0.46);
+    return body.kind === 'barrel' ? lit : lit * fade((1 - body.burn) / 0.34);
+  }
   function collectLights() {
     lightCount = 0;
     const exposure = phases[phase] ?? phases.day;
@@ -409,22 +690,88 @@ export function createEffects() {
       entry.y = y;
       entry.radius = (isTorch ? 36 : 43) * (0.48 + exposure * 0.6) * flicker;
       entry.image = images[isTorch ? 1 : 0];
+      entry.intensity = isTorch ? fade(time / 0.35) : fireIntensity(body);
       lightCount++;
     }
   }
 
   function lights(ctx, front) {
-    if (!lightCount) return;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = front ? 0.27 * (phases[phase] ?? phases.day) : 1;
+    const exposure = phases[phase] ?? phases.day;
+    const intensity = front ? 0.27 * exposure : 1;
     for (let i = 0; i < lightCount; i++) {
       const entry = lightPoints[i];
       if (visible(entry.x, entry.y, entry.radius)) {
+        ctx.globalAlpha = intensity * entry.intensity;
         glow(ctx, front ? firelight : entry.image, entry.x, entry.y, entry.radius);
       }
     }
+    for (const light of flashes) {
+      if (light.end < time || !visible(light.x, light.y, light.radius * 1.5)) continue;
+      const age = (time - light.start) / (light.end - light.start);
+      const flashOpacity = fade(age / 0.055) * (1 - age) ** (light.magical ? 1.5 : 2.8);
+      const reach = light.radius * (0.94 + Math.sqrt(age) * 0.58);
+      ctx.globalAlpha = flashOpacity * (0.48 + exposure * 0.35) * (front ? 0.77 : 1) * (reduced ? 0.44 : 1);
+      glow(ctx, firelight, light.x, light.y - age * 7, reach);
+      if (!front) {
+        const ground = surfaceY(light.x);
+        const land = clamp(1 - Math.abs(ground - light.y) / reach, 0, 1);
+        if (land > 0.12) {
+          ctx.globalAlpha *= land;
+          glow(ctx, hot, light.x, ground + 1, reach * 0.78, reach * 0.095);
+        }
+      }
+    }
     ctx.restore();
+  }
+
+  function drawFronts(ctx) {
+    for (const light of flashes) {
+      if (light.end < time || !visible(light.x, light.y, light.radius * 1.2)) continue;
+      const age = (time - light.start) / (light.end - light.start);
+      if (!light.magical && !reduced) {
+        const r = Math.max(0.1, light.radius * (0.07 + (1 - (1 - age) ** 3) * 0.92));
+        ctx.globalAlpha = (1 - age) ** 2.4 * 0.7;
+        ctx.strokeStyle = '#ffedae';
+        ctx.lineWidth = 0.6 + (1 - age) * 1.75;
+        ctx.beginPath();
+        ctx.arc(light.x, light.y, r, 0, TAU);
+        ctx.stroke();
+        if (age > 0.1 && age < 0.66) {
+          ctx.globalAlpha *= 0.44;
+          ctx.lineWidth *= 0.64;
+          ctx.beginPath();
+          ctx.arc(light.x, light.y, r * 0.84, 3.4, 5.96);
+          ctx.stroke();
+        }
+      }
+      if (age < 0.4) {
+        ctx.globalAlpha = fade(age / 0.05) * (1 - age / 0.4) * (reduced ? 0.38 : 0.92);
+        glow(ctx, hot, light.x, light.y, light.radius * (light.magical ? 0.31 : 0.38));
+      }
+    }
+  }
+
+  function ribbon(ctx, points, duration, width, color) {
+    let first = points.length - 1;
+    while (first > 0 && points[first - 1].t > time - duration) first--;
+    if (first === points.length - 1) return;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = first; i < points.length; i++) {
+      const p = points[i];
+      const size = i === first ? 0 : width * Math.max(0, 1 - (time - p.t) / duration);
+      if (i === first) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x + p.nx * size, p.y + p.ny * size);
+    }
+    for (let i = points.length - 1; i > first; i--) {
+      const p = points[i];
+      const size = width * Math.max(0, 1 - (time - p.t) / duration);
+      ctx.lineTo(p.x - p.nx * size, p.y - p.ny * size);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
 
   function drawBehind(ctx) {
@@ -433,6 +780,28 @@ export function createEffects() {
     visibleRight = (ctx.canvas.width - t.e) / t.a;
     visibleTop = -t.f / t.d;
     visibleBottom = (ctx.canvas.height - t.f) / t.d;
+    ctx.save();
+    // A following blast takes away the scorched surface along with its soil.
+    for (const mark of scorchMarks) {
+      if (!mark.active || !visible(mark.x, mark.y, mark.size)) continue;
+      if (Math.abs(surfaceY(mark.x) - mark.y) > 4) {
+        mark.active = false;
+        continue;
+      }
+      ctx.globalAlpha = 0.86;
+      for (let i = -2; i <= 2; i++) {
+        const x = mark.x + i * mark.size * 0.32;
+        glow(
+          ctx,
+          char,
+          x,
+          surfaceY(x) + 1.2,
+          mark.size * (0.69 - Math.abs(i) * 0.14),
+          4 - Math.abs(i) * 0.56,
+        );
+      }
+    }
+    ctx.restore();
     lights(ctx, false);
     ctx.save();
     // Spindrift over the snowy pass, embers in the volcanic basin, and evening fireflies.
@@ -455,12 +824,21 @@ export function createEffects() {
         ctx.fill();
       }
     }
-    for (const { points, bomb } of trails.values()) {
+    for (const { points, bomb, fire } of trails.values()) {
+      if (fire) {
+        if (points.length && visible(points.at(-1).x, points.at(-1).y, 115)) {
+          ctx.globalAlpha = 1;
+          ribbon(ctx, points, 0.17, 5.0, '#f56b2f9e');
+          ribbon(ctx, points, 0.115, 3.1, '#ffae45da');
+          ribbon(ctx, points, 0.065, 1.45, '#fff6b3eb');
+        }
+        continue;
+      }
       for (let i = 1; i < points.length; i++) {
         const a = points[i - 1],
           b = points[i];
         const f = (b.t + 0.25 - time) / 0.25;
-        if (f <= 0 || Math.hypot(b.x - a.x, b.y - a.y) < 1.5) continue;
+        if (f <= 0 || !visible(b.x, b.y, 35) || Math.hypot(b.x - a.x, b.y - a.y) < 1.5) continue;
         ctx.globalAlpha = f * (bomb ? 0.37 : 0.31);
         ctx.strokeStyle = bomb ? '#e9c69a' : '#ffeacc';
         ctx.lineWidth = 1 + f * (bomb ? 2 : 1.1);
@@ -480,12 +858,23 @@ export function createEffects() {
   function drawFront(ctx) {
     lights(ctx, true);
     const clock = reduced ? 0.3 : time;
+    ctx.save();
+    ctx.globalAlpha = fade(time / 0.35);
     for (const torch of torches) {
       if (!visible(torch.flameX, torch.flameY, 10)) continue;
-      flame(ctx, torch.flameX, torch.flameY + 2, 6.7 + Math.sin(clock * 8 + torch.id) * 1.15, clock, torch.id);
+      flame(
+        ctx,
+        torch.flameX,
+        torch.flameY + 2,
+        6.7 + Math.sin(clock * 8 + torch.id) * 1.15,
+        clock,
+        torch.id,
+      );
     }
     for (const body of fires) {
       if (!visible(body.x, body.y, 48)) continue;
+      const fuel = fireIntensity(body);
+      ctx.globalAlpha = fuel;
       const half = Math.min(28, body.width * 0.44);
       const count = Math.min(5, Math.max(2, Math.ceil(body.width / 17)));
       const y = -Math.min(body.height * 0.35, 6);
@@ -497,32 +886,59 @@ export function createEffects() {
           ctx,
           body.x + x * c - y * s,
           body.y + x * s + y * c,
-          7 + 5 * (body.burn || 0.2) + 3 * Math.sin(clock * 7 + j + body.id),
+          (7 + 5 * (body.burn || 0.2) + 3 * Math.sin(clock * 7 + j + body.id)) * (0.25 + 0.75 * fuel),
           clock,
           body.id + j,
         );
       }
     }
+    ctx.restore();
     ctx.save();
+    drawFronts(ctx);
     for (let i = 0; i < particleCount; i++) {
       const p = particles[(particleStart + i) % MAX_PARTICLES];
       if (!visible(p.x, p.y, p.size * 1.8 + 8)) continue;
       const age = p.age / p.life,
-        fade = clamp((1 - age) * 2, 0, 1);
-      ctx.globalAlpha = fade;
-      if (p.kind === 'blast') {
-        const radius = p.size * (1 - (1 - age) ** 3);
-        ctx.globalAlpha = (1 - age) ** 1.8 * 0.8;
-        ctx.strokeStyle = '#f9deac';
-        ctx.lineWidth = 1 + (1 - age) * 2.5;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(1, radius), 0, TAU);
-        ctx.stroke();
-        ctx.globalAlpha = Math.max(0, 1 - age * 2.4) * 0.9;
-        glow(ctx, firelight, p.x, p.y, Math.max(7, p.size * 1.3));
-      } else if (p.kind === 'dust' || p.kind === 'smoke' || p.kind === 'poof' || p.kind === 'fireball') {
-        const sprite = p.kind === 'dust' ? dust : p.kind === 'smoke' ? smoke : p.kind === 'poof' ? magic : hot;
-        ctx.globalAlpha = (1 - age) * (p.kind === 'dust' || p.kind === 'smoke' ? 0.64 : 1);
+        opacity = clamp((1 - age) * 2, 0, 1);
+      ctx.globalAlpha = opacity;
+      if (p.kind === 'wick') {
+        const residual = fade(1 - age);
+        ctx.globalAlpha = residual * 0.55;
+        glow(ctx, firelight, p.x, p.y - 2, 24 * residual);
+        ctx.globalAlpha = residual;
+        flame(ctx, p.x, p.y, p.size * residual, clock, p.roll);
+      } else if (p.kind === 'lick') {
+        ctx.globalAlpha = fade(age / 0.1) * fade((1 - age) / 0.32);
+        if (Math.abs(surfaceY(p.x) - p.y) <= 4) {
+          flame(ctx, p.x, p.y, p.size * (0.4 + Math.sin(Math.PI * age) * 0.85), clock, p.roll);
+        }
+      } else if (p.kind === 'billow') {
+        const size = p.size * (0.62 + Math.sqrt(age) * 1.03);
+        const width = size * (p.powder ? 2.4 : 1.9);
+        const height = size * (p.powder ? 1.83 : 2.42);
+        ctx.globalAlpha = fade(age / 0.14) * fade((1 - age) / 0.59);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.roll);
+        ctx.drawImage(
+          plumes.canvas,
+          p.plume * plumes.w,
+          p.powder ? plumes.h : 0,
+          plumes.w,
+          plumes.h,
+          -width * 0.5,
+          -height * 0.74,
+          width,
+          height,
+        );
+        ctx.restore();
+      } else if (p.kind === 'soot') {
+        const size = p.size * (0.5 + Math.sqrt(age) * 1.15);
+        ctx.globalAlpha = Math.min(age * 4, 1) * (1 - age) * 0.81;
+        glow(ctx, soot, p.x, p.y, size, size * 1.05);
+      } else if (p.kind === 'dust' || p.kind === 'smoke' || p.kind === 'poof') {
+        const sprite = p.kind === 'dust' ? dust : p.kind === 'smoke' ? smoke : magic;
+        ctx.globalAlpha = fade(age / 0.16) * (1 - age) * (p.kind === 'poof' ? 1 : 0.64);
         const size = p.size * (0.48 + Math.sqrt(age) * 1.05);
         glow(ctx, sprite, p.x, p.y, size, size * (p.kind === 'poof' ? 1 : 0.86));
       } else if (p.kind === 'spark' || p.kind === 'ember') {
@@ -576,15 +992,19 @@ export function createEffects() {
     drawFront,
     roomBreak,
     getShake() {
-      return reduced
-        ? { x: 0, y: 0 }
-        : { x: Math.sin(time * 88) * strength, y: Math.cos(time * 104) * strength * 0.56 };
+      const age = time - shakeStart;
+      const envelope = reduced ? 0 : shakePower * Math.exp(-age * 9);
+      shake.x = envelope * shakeDirection * (Math.cos(age * 47) * 0.72 + Math.cos(age * 81) * 0.28);
+      shake.y = envelope * (Math.sin(age * 55 - 0.8) * 0.49 + Math.sin(age * 32) * 0.22);
+      return shake;
     },
     reset() {
       particleStart = particleCount = 0;
       trails.clear();
       fires.length = torches.length = lightCount = 0;
-      strength = 0;
+      for (const light of flashes) light.end = -1;
+      for (const mark of scorchMarks) mark.active = false;
+      nextFlash = nextMark = shakePower = shakeStart = 0;
       time = 0;
       previous = null;
     },

@@ -66,6 +66,9 @@ The built-in ImageGen tool produced seven transparent hand-painted sprite sheets
 
 The built-in ImageGen tool created a transparent two-by-two inventory sheet. The prompt requested an isolated chipped olive-gray river stone, a larger angular blue-gray granite boulder with fracture veins, a small cast-iron bomb with a brass collar and a lit curved wick, and a heavy iron bomb with a riveted vermilion band. All four used painterly upper-left lighting without lettering or a background. The trimmed cutouts are `ammo-small-stone.webp`, `ammo-big-stone.webp`, `ammo-small-bomb.webp` and `ammo-big-bomb.webp`. The HUD portrait `orc-portrait.webp` is cut from the original orc illustration.
 
+The built-in image generator created `ammo-fireball.webp` from the prompt “a compact magical fireball with a molten golden center, scarlet-orange flames sweeping upward-left and a few sparks, in a hand-painted storybook style on a transparent background.” The game uses a trimmed WebP version with its original alpha channel.
+
+The Siege bomb inventory illustration is a generated transparent cutout of a dwarven iron orb with bronze bands and an emerald rune. The HUD and battlefield share the same optimized WebP.
 
 ## Soundtrack
 

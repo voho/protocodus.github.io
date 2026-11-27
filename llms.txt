@@ -65,5 +65,5 @@
 - [Alpen](https://protocodus.cz/fun/alpen/): Endless 3D alpine snowboarding game with changing weather, carving, grabs, flips, and score combos.
 - [Meteora](https://protocodus.cz/fun/meteora/): Story-driven 3D space combat game with ten campaign missions, tactical briefings, ship loadouts, and survival mode in the Meteora asteroid belt.
 - [Bridger](https://protocodus.cz/fun/bridger/): 2D bridge-building physics game for kids and adults: build from road, wood, steel and cable, test with a car, truck or train, and watch live stress colours. Every generated river is proven solvable within its budget.
-- [Fortress](https://protocodus.cz/fun/fortress/): A 2D catapult physics game. Choose a small, medium or large randomly generated hill fort in one of five realms. Collapse its towers with stones or bombs and defeat its orc defenders for the lowest ammunition cost.
+- [Fortress](https://protocodus.cz/fun/fortress/): A 2D catapult physics game. Choose a small, medium or large randomly generated hill fort in one of five realms. Use stones, bombs and fireballs to undermine or burn its towers and defeat its orc defenders for the lowest ammunition cost.
 - [Puzzle Box](https://protocodus.cz/fun/puzzles/): Two 3D logic puzzle games for kids and adults — Zipper (single-line pathing) and Patcher (board region cutting) — with daily puzzles and three difficulty sizes.

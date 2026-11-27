@@ -19,6 +19,9 @@ export function createView(field, panorama, source, dock) {
   const skyExtension = document.createElement('canvas');
   const soilExtension = document.createElement('canvas');
   const shotCamera = createShotCamera();
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let zoomFrom = null,
+    zoomTime = 0;
   const minus = document.getElementById('zoom-out'),
     plus = document.getElementById('zoom-in');
   const fit = document.getElementById('zoom-fit');
@@ -67,7 +70,7 @@ export function createView(field, panorama, source, dock) {
     screenGround = floorY;
     base = { x, y: GROUND - floorY / scale - lift, width: w, height: h };
     center = x + w / 2;
-    view = base;
+    view = zoomFrom || base;
     geometryDirty = false;
     artDirty ||= changed || lastPaintW !== width || lastPaintH !== height;
     needsPresent = true;
@@ -107,22 +110,22 @@ export function createView(field, panorama, source, dock) {
       // Paint this atmospheric layer once per backdrop change. The ground is
       // sampled separately so close-up timber, rock and characters stay crisp.
       ctx.save();
-      ctx.filter = 'saturate(.87) blur(' + Math.min(1.45, pixelWidth / 2300).toFixed(2) + 'px)';
+      ctx.filter = 'saturate(.69) contrast(.88) blur(' + Math.min(2.4, pixelWidth / 1450).toFixed(2) + 'px)';
       ctx.drawImage(source, cropX, shelf - cropH, cropW, cropH, -1, -1, width + 2, gy + 2);
       ctx.restore();
       const mist = {
-        day: [181, 202, 199],
-        dawn: [201, 187, 186],
-        dusk: [168, 169, 188],
-        night: [100, 129, 152],
+        day: [183, 202, 208],
+        dawn: [201, 190, 190],
+        dusk: [170, 167, 185],
+        night: [100, 129, 149],
       }[phase] || [181, 202, 199];
       const haze = ctx.createLinearGradient(0, 0, 0, gy);
       for (const [at, opacity] of [
         [0, 0.07],
-        [0.34, 0.18],
-        [0.66, 0.38],
-        [0.88, 0.31],
-        [1, 0.23],
+        [0.34, 0.23],
+        [0.64, 0.48],
+        [0.86, 0.48],
+        [1, 0.38],
       ]) {
         haze.addColorStop(at, 'rgba(' + mist.join(',') + ',' + opacity + ')');
       }
@@ -225,8 +228,25 @@ export function createView(field, panorama, source, dock) {
     }
     if (sim) {
       if (events.some((e) => e.type === 'launch')) manualDuringShot = false;
+      let manualView = base;
+      const easingZoom = zoomFrom && !reduced;
+      if (easingZoom) {
+        zoomTime = Math.min(1, zoomTime + dt / 0.52);
+        const t = zoomTime * zoomTime * (3 - 2 * zoomTime);
+        const w = zoomFrom.width * Math.pow(base.width / zoomFrom.width, t);
+        const h = (w * height) / width;
+        const x0 = zoomFrom.x + zoomFrom.width / 2,
+          y0 = zoomFrom.y + zoomFrom.height / 2;
+        manualView = {
+          x: x0 + (base.x + base.width / 2 - x0) * t - w / 2,
+          y: y0 + (base.y + base.height / 2 - y0) * t - h / 2,
+          width: w,
+          height: h,
+        };
+      }
+      if (reduced || zoomTime === 1) zoomFrom = null;
       const next = shotCamera.update(
-        base,
+        manualView,
         { width, height, top: safeTop, bottom: safeBottom, fitScale },
         sim,
         events,
@@ -234,7 +254,7 @@ export function createView(field, panorama, source, dock) {
         reduced || manualDuringShot,
       );
       const percent = Math.round((width / (next.width * fitScale)) * 20) * 5;
-      if (percent !== readout) {
+      if (!easingZoom && percent !== readout) {
         readout = percent;
         fit.textContent = percent + '%';
       }
@@ -258,7 +278,9 @@ export function createView(field, panorama, source, dock) {
     const next = clamp(index, 0, stops.length - 1);
     if (next === zoom) return;
     const position = clamp((about - view.x) / view.width, 0, 1);
-    const newWidth = (view.width * stops[zoom]) / stops[next];
+    zoomFrom = reducedMotion.matches ? null : view;
+    zoomTime = 0;
+    const newWidth = width / (fitScale * stops[next]);
     center = about + (0.5 - position) * newWidth;
     zoom = next;
     if (!zoom) {
@@ -291,6 +313,7 @@ export function createView(field, panorama, source, dock) {
     if (!p) return;
     if (Math.hypot(e.clientX - p.originX, e.clientY - p.originY) > 6) moved = true;
     if (zoom && moved && pointers.size === 1) {
+      zoomFrom = null;
       center -= ((e.clientX - p.x) * view.width) / width;
       lift = clamp(lift + ((e.clientY - p.y) * view.height) / height, -140, 120);
       geometryDirty = true;
@@ -320,6 +343,7 @@ export function createView(field, panorama, source, dock) {
         source = image;
       }
       shotCamera.reset();
+      zoomFrom = null;
       manualDuringShot = false;
       focusX = WIDTH * 0.68;
       phase = phaseName;

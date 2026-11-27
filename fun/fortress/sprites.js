@@ -78,8 +78,10 @@ export function prepareSprites(phase, scale) {
   prepared.set(key, source);
 }
 
+let loaded = false;
 export function spriteReady() {
-  return atlas.complete && atlas.naturalWidth > 0;
+  if (!loaded) loaded = atlas.complete && atlas.naturalWidth > 0;
+  return loaded;
 }
 
 export function sprite(ctx, name, x, y, width, height) {

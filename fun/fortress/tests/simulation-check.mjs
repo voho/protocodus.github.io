@@ -42,6 +42,7 @@ const replays = [
       ['small-stone', 35, 50],
       ['small-stone', 40, 93],
       ['small-bomb', 20, 78],
+      ['small-stone', 70, 94],
     ],
     [
       ['small-stone', 50, 86],
@@ -52,6 +53,7 @@ const replays = [
       ['small-stone', 50, 50],
       ['small-stone', 20, 33],
       ['small-stone', 50, 100],
+      ['small-bomb', 70, 35],
     ],
   ],
 ];
@@ -95,6 +97,18 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     const initial = sim.bodies.map((b) => [b, b.x, b.y]);
     const lit = sim.torches.length;
     assert.ok(lit > 0);
+    if (size.id === 'large') {
+      assert.ok(lit >= 10, 'The large fortress has sconces across its wards');
+      for (const { left, width } of generated.walls) {
+        assert.ok(
+          sim.torches.some((t) => {
+            const x = sim.entities.get(t.hostId).home.x;
+            return x >= left && x <= left + width;
+          }),
+          'The outer wall has a mounted torch',
+        );
+      }
+    }
     assert.deepEqual(generateLevel(size.id, seed), generated);
 
     // Check both sides of each terrain segment against the actual collision mesh.
@@ -147,7 +161,7 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     events.push(...sim.drainEvents());
     assert.equal(sim.stats.spent, cost);
     assert.ok(cost <= sim.level.par, size.name + ' clears within par');
-    assert.equal(sim.stats.orcsRemaining, 0);
+    assert.equal(sim.stats.orcsRemaining, 0, size.name + ' seed ' + seed);
     assert.equal(sim.stats.cleared, true, size.name);
     assert.equal(sim.bodies.filter((e) => e.kind === 'orc').length, 0);
     assert.equal(events.filter((e) => e.type === 'faint').length, sim.stats.orcsTotal);
@@ -187,6 +201,22 @@ console.log(
   samples[570].toFixed(2),
   'ms p95 physics per frame.',
 );
+
+// Skipping dormant solver steps must preserve the next collision, including
+// its cached contacts, sleep-counter phase and seeded debris sequence.
+const dormant = new FortressSimulation('small', 1);
+const continuous = new FortressSimulation('small', 1);
+continuous.canRest = () => false;
+for (const s of [dormant, continuous]) {
+  s.fire('small-stone', 75, 25);
+  s.remove([...s.projectiles][0]);
+  advance(s, 728);
+  assert.ok(s.fire('small-stone', 50, 86));
+  advance(s, 180);
+}
+const poses = (s) => s.bodies.map((e) => [e.id, e.x, e.y, e.angle, e.damage, e.burn, e.body.sleepCounter]);
+assert.deepEqual(poses(dormant), poses(continuous));
+assert.deepEqual(dormant.events, continuous.events);
 
 const miss = new FortressSimulation('small', 1);
 miss.fire('small-stone', 20, 25);
@@ -305,6 +335,43 @@ assert.ok(second.burning, 'Heat crosses a touching wood joint');
 advance(fire.sim, 540);
 assert.ok(!fire.sim.entities.has(first.id) && !fire.sim.entities.has(second.id), 'Burned timbers fail');
 
+const consumed = lab();
+const plinth = consumed.add('block', 'wood', 340, 374, 34, 30, 'beam');
+const cap = consumed.add('block', 'stone', 340, 349, 18, 20, 'masonry');
+advance(consumed, 240);
+consumed.ignite(plinth);
+advance(consumed, 240);
+assert.ok(plinth.burn > 0.45 && plinth.burn < 0.65 && Math.abs(cap.y - 349) < 1);
+advance(consumed, 260);
+const ash = consumed.events.filter((e) => e.type === 'burnout' && e.id === plinth.id);
+assert.ok(ash.length === 1 && ash[0].width === 34 && ash[0].height === 30);
+assert.ok(!consumed.entities.has(plinth.id) && cap.y > 375, 'Ash no longer supports the capstone');
+
+const splinters = lab();
+const timber = splinters.add('block', 'wood', 345, 379, 48, 20, 'beam');
+splinters.ignite(timber);
+advance(splinters, 180);
+splinters.fracture(timber);
+const halves = splinters.bodies.filter((e) => e.kind === 'fragment' && e.material === 'wood');
+assert.equal(halves.length, 2);
+assert.ok(halves.every((e) => e.burning && e.ignitedAt === timber.ignitedAt && e.burn === timber.burn));
+advance(splinters, 300);
+assert.ok(halves.every((e) => !splinters.entities.has(e.id)));
+assert.equal(splinters.events.filter((e) => e.type === 'burnout').length, 2);
+
+const pebbles = lab();
+const pebble = pebbles.add('block', 'stone', 320, 375, 9, 8, 'masonry');
+pebbles.fracture(pebble);
+const chips = pebbles.bodies.filter((e) => e.kind === 'fragment');
+const rubble = pebbles.add('fragment', 'stone', 360, 369, 15, 12, 'debris');
+const tinyBlock = pebbles.add('block', 'stone', 390, 387, 6, 4, 'masonry');
+advance(pebbles, 180);
+assert.ok(chips.length === 4 && chips.every((e) => e.dustProgress > 0.35 && e.dustProgress < 0.55));
+advance(pebbles, 100);
+assert.ok(chips.every((e) => !pebbles.entities.has(e.id)));
+assert.equal(pebbles.events.filter((e) => e.type === 'stone-dust').length, 4);
+assert.ok(pebbles.entities.has(rubble.id) && pebbles.entities.has(tinyBlock.id));
+
 const moved = torchLab();
 Matter.Body.translate(moved.host.body, { x: 7, y: 0 });
 advance(moved.sim, 5);
@@ -317,10 +384,11 @@ const liveFire = new FortressSimulation('medium', 8);
 liveFire.fire('small-stone', 45, 83);
 advance(liveFire, 240);
 const ember = liveFire.bodies.find((e) => e.material === 'wood' && e.burning);
+assert.ok(ember, 'A falling timber ignites');
 const sconce = liveFire.torches
   .filter((t) => t.lit)
   .sort((a, b) => Math.hypot(a.x - ember.x, a.y - ember.y) - Math.hypot(b.x - ember.x, b.y - ember.y))[0];
-assert.ok(ember && sconce);
+assert.ok(sconce);
 const initialBurn = ember.burn;
 advance(liveFire, 120);
 assert.ok(
@@ -328,10 +396,137 @@ assert.ok(
 );
 assert.ok(liveFire.events.some((e) => e.type === 'ignite' && e.material === 'barrel'));
 
+// The load stays safely below the cold beam's capacity. Charring reduces the
+// section carrying that load and snaps the beam well before it burns through.
+for (const burning of [false, true]) {
+  const sim = lab();
+  sim.add('block', 'stone', 300, 369, 18, 40, 'masonry');
+  sim.add('block', 'stone', 405, 369, 18, 40, 'masonry');
+  const girder = sim.add('block', 'wood', 352.5, 344, 119, 10, 'beam');
+  const stone = sim.add('block', 'stone', 352.5, 304, 35, 70, 'masonry');
+  if (burning) sim.ignite(girder);
+  advance(sim, 420);
+  if (burning) {
+    assert.ok(girder.damage === 1 && girder.burn > 0.1 && girder.burn < 0.6);
+    assert.ok(stone.y > stone.home.y + 28, 'Load drops through the burning span');
+  } else assert.ok(girder.damage === 0 && Math.abs(stone.y - stone.home.y) < 1);
+}
+
+function openGroundShot(ammo) {
+  const sim = new FortressSimulation('small', 1),
+    initial = sim.terrain;
+  const pristine = JSON.stringify(initial);
+  const distant = sim.hills.at(-2);
+  sim.fire(ammo, 35, 35);
+  const shot = [...sim.projectiles][0];
+  assert.ok(shot.flightPath.length > 8 && shot.flightPath[0].x === 160);
+  advance(sim, 150);
+  assert.equal(JSON.stringify(sim.level.terrain), pristine);
+  assert.ok(sim.hills.includes(distant), 'Remote ground contacts remain intact');
+  return sim;
+}
+const smallCrater = openGroundShot('small-bomb'),
+  bigCrater = openGroundShot('big-bomb');
+const smallCut = smallCrater.events.find((e) => e.type === 'crater'),
+  bigCut = bigCrater.events.find((e) => e.type === 'crater');
+assert.ok(bigCut.depth > smallCut.depth * 1.3 && bigCut.radius > smallCut.radius * 1.25);
+assert.equal(bigCrater.terrainVersion, 1);
+for (let x = bigCut.x - bigCut.radius + 0.4; x < bigCut.x + bigCut.radius; x += 3) {
+  const y = bigCrater.terrainHeight(x);
+  assert.equal(Matter.Query.point(bigCrater.hills, { x, y: y - 0.3 }).length, 0);
+  assert.ok(Matter.Query.point(bigCrater.hills, { x, y: y + 0.3 }).length > 0);
+}
+assert.equal(openGroundShot('small-stone').terrainVersion, 0);
+const cleanFire = openGroundShot('fireball');
+assert.equal(cleanFire.events.filter((e) => e.type === 'fireburst').length, 1);
+assert.equal(cleanFire.terrainVersion, 0, 'The fireball trades excavation for sustained heat');
+bigCrater.loadLevel('small', 1);
+assert.ok(bigCrater.terrainVersion === 0 && bigCrater.terrain === bigCrater.level.terrain);
+
+const undermined = lab();
+const pier = undermined.add('block', 'stone', 348, 379, 24, 20, 'masonry');
+advance(undermined, 150);
+const oldHeight = undermined.terrainHeight(348);
+undermined.excavate({ x: 348, y: oldHeight - 100 }, 158);
+assert.equal(undermined.terrainVersion, 0, 'A high airburst leaves the earth intact');
+undermined.excavate({ x: 348, y: oldHeight - 9 }, 158);
+advance(undermined, 120);
+assert.ok(pier.y > pier.home.y + 25, 'Unsupported sleeping masonry falls into the hole');
+for (let i = 0; i < 90; i++) {
+  const x = 210 + (i % 25) * 15;
+  undermined.excavate({ x, y: undermined.terrainHeight(x) - 7 }, 158);
+}
+for (let x = 220; x < 550; x += 9)
+  assert.ok(undermined.terrainHeight(x) > 425, 'Overlapping blasts leave a continuous trench');
+assert.ok(undermined.terrain.length <= undermined.level.terrain.length + 151);
+assert.ok(
+  undermined.terrain.every(
+    (p, i) => Number.isFinite(p.y) && p.y <= 465 && (!i || p.x > undermined.terrain[i - 1].x),
+  ),
+);
+
+// A masonry shield covers the central portion of this shelf. A shot lands
+// on its protruding tip, where the contact must ignite this exact timber.
+const shelf = lab();
+const timberShelf = shelf.add('block', 'wood', 360, 328, 150, 10, 'beam', { isStatic: true });
+shelf.add('block', 'stone', 320, 305, 24, 36, 'masonry', { isStatic: true });
+advance(shelf, 30);
+assert.ok(shelf.fire('fireball', 40, 60));
+const spark = [...shelf.projectiles][0];
+Matter.Body.setPosition(spark.body, { x: 294, y: 286 });
+Matter.Body.setVelocity(spark.body, { x: 0, y: 5 });
+advance(shelf, 35);
+assert.ok(timberShelf.burning && timberShelf.ignitedAt < 0.85);
+assert.equal(shelf.events.filter((e) => e.type === 'ignite' && e.id === timberShelf.id).length, 1);
+
+const remote = new FortressSimulation('small', 1);
+assert.equal(remote.detonateSiegeBomb(), false);
+assert.ok(remote.fire('siege-bomb', 70, 35));
+advance(remote, 24);
+assert.ok(remote.detonateSiegeBomb(), 'Remote detonation fires in mid-air');
+assert.equal(remote.terrainVersion, 0);
+assert.equal(remote.events.filter((e) => e.type === 'explosion' && e.material === 'siege-bomb').length, 1);
+advance(remote, 145);
+assert.ok(remote.fire('siege-bomb', 22, 28));
+const firstRemote = [...remote.remoteBombs][0];
+advance(remote, 970);
+assert.ok(remote.entities.has(firstRemote.id) && firstRemote.body.isSleeping, 'A landed remote survives cleanup');
+assert.ok(remote.fire('siege-bomb', 22, 28));
+const secondRemote = [...remote.remoteBombs][1];
+advance(remote, 190);
+assert.equal(remote.stats.remoteBombs, 2);
+assert.ok(remote.detonateSiegeBomb());
+advance(remote, 40);
+assert.ok(!remote.entities.has(firstRemote.id) && remote.entities.has(secondRemote.id));
+assert.equal(remote.stats.remoteBombs, 1, 'A nearby remote blast leaves the second bomb armed');
+assert.ok(remote.terrainVersion > 0 && remote.detonateSiegeBomb());
+assert.equal(remote.stats.remoteBombs, 0);
+assert.equal(remote.stats.spent, 270);
+
+const magic = new FortressSimulation('small', 1);
+magic.fire('fireball', 40, 93);
+advance(magic, 320);
+assert.ok(magic.events.some((e) => e.type === 'ignite' && e.material === 'wood'));
+assert.ok(magic.events.some((e) => e.type === 'ignite' && e.material === 'barrel'));
+assert.ok(magic.events.some((e) => e.type === 'explosion' && e.material === 'barrel'));
+assert.equal(magic.events.filter((e) => e.type === 'fireburst').length, 1);
+const chain = lab();
+const primed = chain.add('barrel', 'barrel', 285, 373, 20, 32, 'powder');
+chain.add('block', 'wood', 311, 378, 12, 22, 'beam');
+chain.add('barrel', 'barrel', 329, 373, 20, 32, 'powder');
+chain.explode(primed);
+advance(chain, 90);
+assert.ok(
+  chain.events.some((e) => e.type === 'ignite' && e.material === 'wood'),
+  'Blast heat lights exposed timber',
+);
+assert.equal(chain.events.filter((e) => e.type === 'explosion' && e.material === 'barrel').length, 2);
+assert.ok(chain.terrainVersion > 0);
+
 const powder = torchLab();
 powder.sim.add('barrel', 'barrel', 357, 374, 22, 30, 'powder');
 advance(powder.sim, 110);
 assert.ok(powder.sim.events.some((e) => e.type === 'explosion' && e.material === 'barrel'));
 console.log(
-  'Fortress passed seeded generation, six par replays, two-minute stability, smooth terrain, windy ballistics, reload, fracture and fire checks.',
+  'Fortress passed seeded generation, six par replays, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure and fireball chains.',
 );

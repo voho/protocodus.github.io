@@ -5,6 +5,8 @@ const cues = {
   // Render length, minimum retrigger interval, playback priority.
   launch: [0.63, 0.12, 3],
   impact: [0.46, 0.07, 1],
+  'earth-hit': [0.34, 0.09, 1],
+  'stone-hit': [0.37, 0.075, 1],
   'wood-hit': [0.3, 0.075, 1],
   'steel-hit': [0.68, 0.09, 1],
   'glass-hit': [0.48, 0.09, 1],
@@ -12,8 +14,12 @@ const cues = {
   wood: [0.53, 0.075, 0],
   glass: [0.85, 0.12, 0],
   steel: [0.92, 0.13, 0],
+  burnout: [0.56, 0.14, 0],
+  'stone-dust': [0.46, 0.14, 0],
   explosion: [1.18, 0.095, 3],
   barrel: [1.1, 0.095, 3],
+  fireburst: [0.95, 0.08, 3],
+  crackle: [0.85, 0.4, 0],
   ignite: [1.42, 0.3, 1],
   extinguish: [0.48, 0.2, 1],
   faint: [0.5, 0.16, 2],
@@ -21,6 +27,7 @@ const cues = {
 };
 const materials = new Set(['stone', 'wood', 'glass', 'steel']);
 const variation = (amount) => 1 + (Math.random() * 2 - 1) * amount;
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
 function synthesize(sound) {
   const data = new Float32Array(Math.ceil(cues[sound][0] * RATE));
@@ -107,6 +114,17 @@ function synthesize(sound) {
       grit(0, 0.22, 0.86, 85, 2300, 0.001, 440);
       tumble(0.11, 0.105, 3, 0.32, 345, 2200);
       break;
+    case 'earth-hit':
+      ring(0, 0.24, 0.63, 107, 44);
+      grit(0.002, 0.23, 1.65, 65, 920, 0.003, 280);
+      tumble(0.046, 0.073, 3, 0.19, 180, 1280);
+      break;
+    case 'stone-hit':
+      grit(0, 0.06, 1.15, 520, 3050);
+      ring(0, 0.16, 0.61, 265, 134);
+      ring(0.004, 0.11, 0.22, 626, 464);
+      tumble(0.065, 0.082, 3, 0.32, 402, 3300);
+      break;
     case 'wood-hit':
       for (const [at, hz, volume] of [
         [0, 155, 0.54],
@@ -176,6 +194,14 @@ function synthesize(sound) {
       ring(0.123, 0.73, 0.22, 605, 600);
       ring(0.123, 0.43, 0.12, 1618);
       break;
+    case 'burnout':
+      grit(0, 0.42, 0.56, 350, 4400, 0.042, 520);
+      tumble(0.035, 0.086, 4, 0.27, 318, 3920);
+      break;
+    case 'stone-dust':
+      grit(0.005, 0.32, 0.75, 170, 2460, 0.014, 510);
+      tumble(0.018, 0.091, 5, 0.29, 380, 3050);
+      break;
     case 'explosion':
     case 'barrel':
       ring(0.004, 0.63, 0.91, sound === 'barrel' ? 144 : 122, 34);
@@ -187,6 +213,17 @@ function synthesize(sound) {
         cord(0.058, 192, 0.34, 0.21);
         tumble(0.101, 0.155, 5, 0.65, 308, 4200);
       } else tumble(0.208, 0.2, 5, 0.51, 355, 2900);
+      break;
+    case 'fireburst':
+      grit(0, 0.56, 1.05, 170, 4800, 0.026, 580);
+      ring(0.012, 0.26, 0.3, 296, 108);
+      grit(0.14, 0.7, 0.62, 690, 6900, 0.08, 1800);
+      break;
+    case 'crackle':
+      grit(0, 0.8, 0.28, 140, 1400, 0.065, 680);
+      for (const at of [0.06, 0.22, 0.29, 0.51, 0.68]) {
+        grit(at * variation(0.12), 0.03, 0.32 * variation(0.4), 1300, 6500);
+      }
       break;
     case 'ignite':
       grit(0, 0.61, 0.9, 190, 3150, 0.056, 1150);
@@ -220,7 +257,10 @@ function synthesize(sound) {
 
 function effect({ type, material }) {
   if (type === 'fracture') return materials.has(material) ? material : 'stone';
-  if (type === 'impact' && materials.has(material) && material !== 'stone') return material + '-hit';
+  if (type === 'impact' || type === 'damage') {
+    if (materials.has(material)) return material + '-hit';
+    return material === 'earth' ? 'earth-hit' : 'impact';
+  }
   if (type === 'explosion' && material === 'barrel') return 'barrel';
   return Object.hasOwn(cues, type) ? type : null;
 }
@@ -342,23 +382,60 @@ export function createAudio() {
     }
   }
 
-  function play(events) {
-    if (!events?.length || !enabled || !context || context.state === 'closed') return;
+  let nextFireCheck = 0;
+  function play(events, sim, view) {
+    if (!enabled || !context || context.state === 'closed' || context.state === 'interrupted') return;
     const now = context.currentTime;
-    const selected = new Map();
-    // Simultaneous hits on neighboring blocks share the loudest instance of
-    // each sound. Fire and falling debris leave voices available for the shot.
-    for (const event of events) {
-      const sound = effect(event);
-      if (
-        sound &&
-        (nextTime.get(sound) || 0) <= now &&
-        (!selected.has(sound) || event.strength > selected.get(sound).strength)
-      )
-        selected.set(sound, event);
+    let crackle;
+    if (sim && now >= nextFireCheck) {
+      let sumX = 0,
+        pieces = 0;
+      for (const body of sim.entities.values()) {
+        if (body.burning) {
+          sumX += body.x;
+          pieces++;
+        }
+      }
+      nextFireCheck = now + (pieces ? 0.54 + Math.random() * 0.26 : 0.35);
+      if (pieces) crackle = { type: 'crackle', x: sumX / pieces, strength: Math.min(0.75, 0.08 + pieces * 0.1) };
     }
-    const ordered = [...selected].sort(([a], [b]) => cues[b][2] - cues[a][2]);
-    for (const [sound, event] of ordered) {
+    if (!events?.length && !crackle) return;
+    const selected = new Map();
+    const left = view?.x ?? 0;
+    const width = view?.width ?? 1200;
+    function consider(event) {
+      const sound = effect(event);
+      if (!sound) return;
+      const isContact = event.type === 'impact' || event.type === 'damage' || event.type === 'fracture' ||
+        event.type === 'burnout' || event.type === 'stone-dust';
+      const offset = sound === 'clear' ? 0 : (2 * ((event.x ?? left + width / 2) - left)) / width - 1;
+      const pan = clamp(offset * 0.94, -0.9, 0.9);
+      // Adjacent blocks share their loudest hit. Separate parts of a collapse
+      // can still sound simultaneously on opposite sides of the listener.
+      const key = isContact ? sound + '/' + Math.round(pan * 1.4) : sound;
+      if ((nextTime.get(key) || 0) > now) return;
+      const strength = clamp(event.strength ?? 0.6, 0, 1);
+      let gain = 0.28 + strength * 0.64;
+      let pitch = 1.055 * (1 - 0.11 * strength);
+      if (isContact) {
+        const size = clamp(Math.sqrt((event.size ?? 24) / 36), 0.34, 1.65);
+        const severity = event.type === 'damage' ? 0.72 * (event.damage ?? strength) + 0.28 * strength : strength;
+        gain = Math.min(1.45, (0.025 + 0.96 * severity ** 1.3) * size);
+        pitch = clamp(1.12 / Math.sqrt(size) - 0.12 * severity, 0.64, 1.65);
+      } else if (sound === 'launch' || event.type === 'explosion') {
+        const size = sound === 'launch' ? (event.size ?? 22) / 22 : (event.radius ?? 125) / 125;
+        gain *= Math.sqrt(size);
+        pitch /= size ** 0.42;
+      }
+      gain /= 1 + Math.max(0, Math.abs(offset) - 1) * 0.48;
+      if (!selected.has(key) || selected.get(key).gain < gain)
+        selected.set(key, { sound, event, gain, pitch, pan });
+    }
+    if (crackle) consider(crackle);
+    for (const event of events ?? []) consider(event);
+    const ordered = [...selected].sort(([, a], [, b]) => cues[b.sound][2] - cues[a.sound][2] || b.gain - a.gain);
+    for (const [key, voice] of ordered) {
+      const { sound, event } = voice;
       const [, cooldown, priority] = cues[sound];
       if (active.size >= 10 && priority < 2) continue;
       if (active.size >= 12) {
@@ -372,18 +449,15 @@ export function createAudio() {
       const variant = materials.has(sound) ? Math.floor(Math.random() * 3) : 0;
       const source = context.createBufferSource();
       source.buffer = sampleFor(sound, variant);
-      const strength = Math.max(0, Math.min(1, event.strength ?? 0.6));
-      const heavy = sound === 'launch' && event.material?.startsWith('big-');
-      source.playbackRate.value =
-        sound === 'clear' ? 1 : (heavy ? 0.86 : 1.055) * (1 - 0.11 * strength) * variation(0.04);
+      source.playbackRate.value = sound === 'clear' ? 1 : voice.pitch * variation(0.04);
       const gain = context.createGain();
-      gain.gain.value = (heavy ? 0.45 : 0.28) + strength * 0.64;
+      gain.gain.value = voice.gain;
       source.connect(gain);
       const pan = context.createStereoPanner?.();
       if (pan) {
-        const start = sound === 'clear' ? 0 : Math.max(-0.62, Math.min(0.62, ((event.x ?? 600) - 600) / 800));
+        const start = voice.pan;
         pan.pan.setValueAtTime(start, now);
-        if (sound === 'launch') pan.pan.linearRampToValueAtTime(Math.min(0.55, start + 0.48), now + 0.38);
+        if (sound === 'launch') pan.pan.linearRampToValueAtTime(Math.min(0.9, start + 0.48), now + 0.38);
         gain.connect(pan).connect(mix);
       } else gain.connect(mix);
       active.set(source, { priority, gain });
@@ -393,7 +467,7 @@ export function createAudio() {
         gain.disconnect();
         pan?.disconnect();
       };
-      nextTime.set(sound, now + cooldown);
+      nextTime.set(key, now + cooldown);
       // The leading impact stays sharp; the secondary fracture follows just
       // behind it, even if both events arrived in the same simulation tick.
       source.start(now + (event.type === 'fracture' && ordered.length > 1 ? 0.018 + Math.random() * 0.012 : 0));

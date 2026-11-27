@@ -3,11 +3,25 @@ import Matter from './vendor/matter.min.js';
 const { Bodies, Body, Composite, Engine, Events, Sleeping, Vertices } = Matter;
 
 export const WORLD = { width: 1200, height: 480, ground: 389, release: { x: 160, y: 326 } };
+const terrainStart = { x: -1000, y: WORLD.ground };
+const terrainEnd = { x: 2200, y: WORLD.ground };
+
 export const AMMO = [
   { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012, reload: 0.3 },
   { id: 'big-stone', name: 'Big stone', cost: 22, radius: 15, density: 0.013, reload: 0.75 },
   { id: 'small-bomb', name: 'Small bomb', cost: 35, radius: 10, density: 0.009, blast: 103, reload: 1.2 },
   { id: 'big-bomb', name: 'Big bomb', cost: 60, radius: 15, density: 0.012, blast: 158, reload: 1.85 },
+  { id: 'fireball', name: 'Fireball', cost: 45, radius: 11, density: 0.0027, flameRadius: 112, reload: 1.4 },
+  {
+    id: 'siege-bomb',
+    name: 'Siege bomb',
+    cost: 90,
+    radius: 19,
+    density: 0.012,
+    blast: 205,
+    reload: 2.6,
+    remote: true,
+  },
 ];
 
 export const DIFFICULTIES = [
@@ -230,6 +244,14 @@ function pointVelocity(body, point) {
 // Clip a blast ray against a convex collision polygon. A wall between powder
 // and a guard takes the shock first, even when both are inside the blast radius.
 function shieldsBlast(body, start, end) {
+  const bounds = body.bounds;
+  if (
+    (start.x < bounds.min.x && end.x < bounds.min.x) ||
+    (start.x > bounds.max.x && end.x > bounds.max.x) ||
+    (start.y < bounds.min.y && end.y < bounds.min.y) ||
+    (start.y > bounds.max.y && end.y > bounds.max.y)
+  )
+    return false;
   let enter = 0,
     exit = 1;
   const dx = end.x - start.x,
@@ -289,6 +311,8 @@ export class FortressSimulation {
     const level = (this.level = generateLevel(difficulty, this.seed));
     this.themeIndex = level.themeIndex;
     this.terrain = level.terrain;
+    this.terrainVersion = 0;
+    this.hills = [];
     this.engine = Engine.create({
       enableSleeping: true,
       positionIterations: difficulty === 'large' ? 14 : 9,
@@ -297,6 +321,7 @@ export class FortressSimulation {
     });
     this.entities = new Map();
     this.projectiles = new Set();
+    this.remoteBombs = new Set();
     this.events = [];
     this.work = new Set();
     this.totalWeight = 0;
@@ -304,6 +329,8 @@ export class FortressSimulation {
     this.accumulator = 0;
     this.time = 0;
     this.ticks = 0;
+    this.resting = false;
+    this.idleSteps = 0;
     this.wokenColumns = new Set();
     this.nextId = 1;
     this.debrisSeed = this.seed ^ 91463;
@@ -342,6 +369,7 @@ export class FortressSimulation {
   }
 
   add(kind, material, x, y, width, height, detail, options = {}, customBody) {
+    this.resumePhysics();
     const props = MATERIALS[material];
     const settings = {
       density: props?.density || 0.0014,
@@ -382,6 +410,10 @@ export class FortressSimulation {
     body.plugin.fortress = e;
     Composite.add(this.engine.world, body);
     this.entities.set(e.id, e);
+    if (kind === 'fragment' && material === 'stone' && body.area <= 30) {
+      e.dustAt = this.time + 2.5;
+      e.dustProgress = 0;
+    }
     if (kind === 'block') {
       e.weight = Math.sqrt(width * height);
       this.totalWeight += e.weight;
@@ -391,21 +423,38 @@ export class FortressSimulation {
 
   terrainHeight(x) {
     const points = this.terrain;
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1],
-        b = points[i];
-      if (x <= b.x) return a.y + (b.y - a.y) * clamp((x - a.x) / (b.x - a.x), 0, 1);
+    let lo = 1,
+      hi = points.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (points[mid].x < x) lo = mid + 1;
+      else hi = mid;
     }
-    return points.at(-1).y;
+    const a = points[lo - 1],
+      b = points[lo];
+    if (x > b.x) return b.y;
+    return a.y + (b.y - a.y) * clamp((x - a.x) / (b.x - a.x), 0, 1);
   }
 
   buildTerrain() {
-    const points = [{ x: -1000, y: WORLD.ground }, ...this.terrain, { x: 2200, y: WORLD.ground }];
-    this.hills = [];
+    const points = [terrainStart, ...this.terrain, terrainEnd];
+    // The two sorted meshes share point objects outside the cut. Keep those
+    // bodies and their cached support contacts, rebuilding only changed edges.
+    const previous = this.hills,
+      removed = [],
+      hills = [];
+    let old = 0;
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1],
-        b = points[i],
-        bottom = WORLD.height + 120;
+        b = points[i];
+      while (old < previous.length && previous[old].plugin.start.x < a.x) removed.push(previous[old++]);
+      const candidate = previous[old];
+      if (candidate && candidate.plugin.start === a && candidate.plugin.end === b) {
+        hills.push(candidate);
+        old++;
+        continue;
+      }
+      const bottom = WORLD.height + 120;
       const shape = [a, b, { x: b.x, y: bottom }, { x: a.x, y: bottom }];
       const center = Vertices.centre(shape);
       const body = Bodies.fromVertices(center.x, center.y, [shape], {
@@ -413,9 +462,63 @@ export class FortressSimulation {
         friction: 0.94,
         sleepThreshold: 0,
       });
+      body.plugin.start = a;
+      body.plugin.end = b;
       Composite.add(this.engine.world, body);
-      this.hills.push(body);
+      hills.push(body);
     }
+    while (old < previous.length) removed.push(previous[old++]);
+    if (removed.length) Composite.remove(this.engine.world, removed);
+    this.hills = hills;
+  }
+
+  excavate(origin, blastRadius) {
+    const reach = blastRadius * 0.54,
+      verticalReach = blastRadius * 0.53,
+      grid = 8;
+    const left = Math.max(0, Math.floor((origin.x - reach) / grid) * grid);
+    const right = Math.min(WORLD.width, Math.ceil((origin.x + reach) / grid) * grid);
+    if (right <= left) return;
+    const original = this.terrain;
+    const inside = original.filter((p) => p.x >= left && p.x <= right);
+    // Use a shared grid for all blasts, preserving the original breakpoints.
+    // Repeated impacts can deepen bedrock scars without growing the mesh forever.
+    for (let x = left; x <= right; x += grid) {
+      if (!inside.some((p) => Math.abs(p.x - x) < 1)) inside.push({ x, y: this.terrainHeight(x) });
+    }
+    inside.sort((a, b) => a.x - b.x);
+    let depth = 0,
+      first = -1,
+      last = -1;
+    const cut = inside.map((p, i) => {
+      const dx = (p.x - origin.x) / reach,
+        air = Math.max(0, p.y - origin.y) / verticalReach;
+      const exposure = Math.max(0, 1 - dx * dx - air * air);
+      const delta = Math.min(WORLD.height - 15 - p.y, blastRadius * 0.29 * exposure ** 1.35);
+      if (delta < 0.1) return p;
+      if (first < 0) first = i;
+      last = i;
+      depth = Math.max(depth, delta);
+      return { x: p.x, y: p.y + delta };
+    });
+    if (depth < 0.8) return;
+    const scarLeft = inside[Math.max(0, first - 1)].x,
+      scarRight = inside[Math.min(inside.length - 1, last + 1)].x;
+    const x = (scarLeft + scarRight) / 2,
+      y = this.terrainHeight(x);
+    this.terrain = [...original.filter((p) => p.x < left), ...cut, ...original.filter((p) => p.x > right)];
+    this.terrainVersion++;
+    this.buildTerrain();
+    this.wakeWard(x);
+    this.events.push({
+      type: 'crater',
+      x,
+      y,
+      radius: (scarRight - scarLeft) / 2,
+      depth,
+      material: 'earth',
+      strength: clamp(depth / 45, 0, 1),
+    });
   }
 
   buildWall({ left, width, base, rows }) {
@@ -565,35 +668,51 @@ export class FortressSimulation {
 
   mountTorches() {
     const bodies = this.bodies;
-    for (const section of this.level.sections) {
-      const right = section.left + section.spans.reduce((sum, n) => sum + n, 0);
-      const mounts = bodies.filter(
+    const mount = (left, right, count, pattern, minHeight) => {
+      const hosts = bodies.filter(
         (e) =>
           e.kind === 'block' &&
-          ['stone', 'steel'].includes(e.material) &&
-          e.home.x >= section.left - 2 &&
+          (e.material === 'stone' || e.material === 'steel') &&
+          e.home.x >= left - 2 &&
           e.home.x <= right + 2 &&
-          e.height >= 13,
+          e.height >= minHeight,
       );
-      const count = section.style === 'keep' && this.difficulty !== 'small' ? 2 : 1;
       let placed = 0;
-      for (let i = 0; i < mounts.length && placed < count; i++) {
-        const host = mounts[(i + section.pattern) % mounts.length];
+      for (let i = 0; i < hosts.length && placed < count; i++) {
+        const host = hosts[(i + pattern) % hosts.length];
         for (const side of [1, -1]) {
           const offset = side * (host.width / 2 + 4);
           const p = pointOnBody(host.body, offset, 2);
+          const flame = { x: p.x, y: p.y - 8 };
+          if (this.torches.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < 47)) continue;
           const clear = bodies.every(
             (e) =>
               e === host ||
               Math.hypot(e.x - p.x, e.y - p.y) > 135 ||
-              distanceToBody(e, { x: p.x, y: p.y - 8 }) > (e.material === 'wood' || e.kind === 'barrel' ? 13 : 3),
+              distanceToBody(e, flame) > (e.material === 'wood' || e.kind === 'barrel' ? 13 : 3),
           );
-          if (!clear || this.torches.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < 47)) continue;
+          if (!clear) continue;
           this.attachTorch(host, offset);
           placed++;
           break;
         }
       }
+    };
+    for (const section of this.level.sections) {
+      const right = section.left + section.spans.reduce((sum, n) => sum + n, 0);
+      const large = this.difficulty === 'large';
+      const count = large
+        ? section.style === 'keep'
+          ? 4
+          : 3
+        : section.style === 'keep' && this.difficulty !== 'small'
+          ? 2
+          : 1;
+      // Large towers are built of shorter courses than the smaller towers.
+      mount(section.left, right, count, section.pattern, large ? 6 : 13);
+    }
+    if (this.difficulty === 'large') {
+      for (const wall of this.level.walls) mount(wall.left, wall.left + wall.width, 1, 0, 6);
     }
   }
 
@@ -607,6 +726,7 @@ export class FortressSimulation {
 
   extinguish(torch) {
     if (!torch.lit) return;
+    this.resumePhysics();
     this.emit('extinguish', torch, 0.6, { x: torch.flameX, y: torch.flameY });
     torch.lit = false;
     const host = this.entities.get(torch.hostId);
@@ -638,12 +758,21 @@ export class FortressSimulation {
       }
       const p = pointOnBody(host.body, torch.mountOffset, 2);
       const turn = host.body.angle - host.home.angle;
-      Body.setPosition(torch.body, p);
-      Body.setAngle(torch.body, turn);
+      if (p.x !== torch.body.position.x || p.y !== torch.body.position.y) Body.setPosition(torch.body, p);
+      if (turn !== torch.body.angle) Body.setAngle(torch.body, turn);
       torch.flameX = p.x + 8 * Math.sin(turn);
       torch.flameY = p.y - 8 * Math.cos(turn);
       if (Math.hypot(p.x - torch.home.x, p.y - torch.home.y) > 3 || Math.abs(turn) > 0.065) this.extinguish(torch);
     }
+  }
+
+  ignite(e) {
+    if (e.burning) return;
+    this.resumePhysics();
+    e.burning = true;
+    e.ignitedAt = this.time;
+    this.emit('ignite', e, 0.7).id = e.id;
+    if (e.kind === 'barrel') e.fuse = Math.min(e.fuse, this.time + 0.6);
   }
 
   heatMaterials() {
@@ -654,22 +783,27 @@ export class FortressSimulation {
       if (e.material !== 'wood' && e.kind !== 'barrel') continue;
       if (!e.burning) {
         const heated =
-          flames.some((flame) => distanceToBody(e, { x: flame.flameX, y: flame.flameY }) < 6) ||
-          embers.some((source) => source !== e && touchingHeatSource(source, e));
+          flames.some((flame) => {
+            const reach = (e.width + e.height) / 2 + 6,
+              p = e.body.position;
+            return (
+              Math.abs(p.x - flame.flameX) < reach &&
+              Math.abs(p.y - flame.flameY) < reach &&
+              distanceToBody(e, { x: flame.flameX, y: flame.flameY }) < 6
+            );
+          }) || embers.some((source) => source !== e && touchingHeatSource(source, e));
         // A grazing contact cannot set a plank alight. Heat bleeds away when
         // it rolls clear; sustained contact heats a timber or powder barrel.
         e.heat = clamp(e.heat + (heated ? 0.1 : -0.16), 0, 1);
         if (e.heat < 0.69) continue;
-        e.burning = true;
-        this.emit('ignite', e, 0.6);
-        if (e.kind === 'barrel') e.fuse = Math.min(e.fuse, this.time + 0.45);
+        this.ignite(e);
       }
       e.burn = Math.min(1, e.burn + 0.014);
+      if (e.kind === 'block' && this.ticks % 48 === 0) this.wakeWard(e.body.position.x);
       if (e.burn === 1) {
-        if (e.kind === 'block') {
-          e.damage = 1;
-          this.work.add(e);
-        } else if (e.kind === 'fragment') this.remove(e);
+        // A timber can break early under load. Once fully consumed, only ash
+        // remains and anything it was supporting must be free to fall.
+        this.disintegrate(e, 'burnout');
       }
     }
   }
@@ -685,6 +819,7 @@ export class FortressSimulation {
       themeIndex: this.themeIndex,
       spent: this.spent,
       shots: this.shots,
+      remoteBombs: this.remoteBombs.size,
       orcsRemaining: this.orcsRemaining,
       orcsTotal: this.orcsTotal,
       destruction: Math.min(100, Math.round((100 * this.lostWeight) / this.totalWeight)),
@@ -699,7 +834,10 @@ export class FortressSimulation {
   }
 
   emit(type, e, strength, point = e.body.position) {
-    this.events.push({ type, x: point.x, y: point.y, material: e.material, strength: clamp(strength, 0, 1) });
+    const event = { type, x: point.x, y: point.y, material: e.material, strength: clamp(strength, 0, 1) };
+    if (e.radius || e.weight) event.size = e.radius ? e.radius * 2 : e.weight;
+    this.events.push(event);
+    return event;
   }
 
   heightAt(ammoId, angle, power, x) {
@@ -763,6 +901,9 @@ export class FortressSimulation {
     });
     const e = this.add('projectile', ammo.id, x, y, r * 2, r * 2, 'shot', { radius: r }, body);
     e.blast = ammo.blast;
+    if (ammo.remote) this.remoteBombs.add(e);
+    e.flameRadius = ammo.flameRadius;
+    e.flightPath = this.trajectory(ammoId, angle, power);
     e.contacts = new Set();
     this.projectiles.add(e);
     Body.setVelocity(body, { x: v.x / 60, y: v.y / 60 });
@@ -774,13 +915,52 @@ export class FortressSimulation {
     return true;
   }
 
+  detonateSiegeBomb() {
+    const oldest = this.remoteBombs.values().next().value;
+    if (!oldest) return false;
+    this.explode(oldest);
+    return true;
+  }
+
+  resumePhysics() {
+    if (!this.resting) return;
+    // Matter increments each sleeping body's counter until twice its threshold
+    // at this timestep, then resets it. Restore that phase on the first wake.
+    for (const { body } of this.entities.values()) {
+      if (body.isSleeping && body.sleepThreshold > 0)
+        body.sleepCounter =
+          body.sleepThreshold + ((body.sleepCounter - body.sleepThreshold + this.idleSteps) % body.sleepThreshold);
+    }
+    this.resting = false;
+    this.idleSteps = 0;
+  }
+
+  canRest() {
+    if (
+      this.projectiles.size !== this.remoteBombs.size ||
+      this.work.size ||
+      (!this.orcsRemaining && !this.cleared)
+    )
+      return false;
+    for (const e of this.entities.values()) {
+      if (!e.body.isSleeping || e.heat || e.burning || e.dustAt !== undefined || e.fuse !== Infinity) return false;
+    }
+    return !this.engine.pairs.list.some((pair) => pair.isActive);
+  }
+
   update(seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0 || !this.shots) return;
+    const wasResting = this.resting;
     this.accumulator += Math.min(seconds, 0.125);
     while (this.accumulator + 1e-10 >= STEP) {
       this.accumulator -= STEP;
       this.time += STEP;
       this.ticks++;
+      if (this.resting) {
+        this.engine.timing.timestamp += STEP * 1000;
+        this.idleSteps++;
+        continue;
+      }
       this.wokenColumns.clear();
       for (const shot of this.projectiles) {
         if (!shot.body.isSleeping && !shot.contacts.size)
@@ -797,9 +977,12 @@ export class FortressSimulation {
         if (e.body.position.y > WORLD.height + 100 || e.body.position.x < -70 || e.body.position.x > 1320) {
           if (e.kind === 'orc') this.faint(e);
           this.remove(e);
+        } else if (e.dustAt !== undefined && this.time >= e.dustAt) {
+          e.dustProgress = Math.min(1, (this.time - e.dustAt) / 1.15);
+          if (e.dustProgress === 1) this.disintegrate(e, 'stone-dust');
         } else if (e.fuse <= this.time) this.explode(e);
         else if (e.kind === 'projectile') {
-          if (this.time - e.born > 14 && e.body.speed < 0.25) this.remove(e);
+          if (this.time - e.born > 14 && e.body.speed < 0.25 && !this.remoteBombs.has(e)) this.remove(e);
           else if (!e.body.isSleeping && e.body.bounds.max.y >= this.terrainHeight(e.body.position.x) - 0.1) {
             // The turf absorbs rolling energy after a shot lands.
             const velocity = Body.getVelocity(e.body);
@@ -808,8 +991,9 @@ export class FortressSimulation {
           }
         } else if (e.kind === 'block' && !e.destroyed) {
           const p = e.body.position;
-          if (Math.abs(e.body.angle - e.home.angle) > 0.55 || Math.hypot(p.x - e.home.x, p.y - e.home.y) > 23)
-            this.markDestroyed(e);
+          const dx = p.x - e.home.x,
+            dy = p.y - e.home.y;
+          if (Math.abs(e.body.angle - e.home.angle) > 0.55 || dx * dx + dy * dy > 23 * 23) this.markDestroyed(e);
         }
       }
       if (this.orcsRemaining === 0 && !this.cleared) {
@@ -818,8 +1002,9 @@ export class FortressSimulation {
           this.events.push({ type: 'clear', x: 900, y: 280, strength: 0.8 });
         }
       }
+      if (this.ticks % 12 === 0) this.resting = this.canRest();
     }
-    for (const e of this.entities.values()) this.sync(e);
+    if (!wasResting) for (const e of this.entities.values()) this.sync(e);
   }
 
   sync(e) {
@@ -829,6 +1014,7 @@ export class FortressSimulation {
   }
 
   wakeWard(x) {
+    this.resumePhysics();
     // A disturbed pier wakes the entire height and width of its ward. Leave
     // distant, disconnected stacks sleeping during a local shower of debris.
     const column = Math.floor(x / 84);
@@ -861,6 +1047,14 @@ export class FortressSimulation {
       }
       ea?.contacts?.add(pair);
       eb?.contacts?.add(pair);
+      if (ea?.flameRadius || eb?.flameRadius) {
+        const shot = ea?.flameRadius ? ea : eb,
+          target = shot === ea ? eb : ea;
+        shot.fuse = this.time;
+        // A long plank's center can stand behind a shield even when its
+        // exposed tip receives a direct hit. Contact always lights that piece.
+        if (target && (target.material === 'wood' || target.kind === 'barrel')) this.ignite(target);
+      }
       if (ea && eb && (speed >= 1.4 || ea.kind === 'projectile' || eb.kind === 'projectile'))
         this.wakeWard(contact.x);
       if (speed < 0.9) continue;
@@ -877,11 +1071,16 @@ export class FortressSimulation {
           (speed > 3.8 || (energy > 3 && (other?.kind === 'block' || other?.kind === 'projectile')))
         ) {
           this.faint(e);
-        } else if ((e.kind === 'barrel' && (energy > 4 || other?.kind === 'projectile')) || e.blast) {
+        } else if (
+          (e.kind === 'barrel' && (energy > 4 || other?.kind === 'projectile')) ||
+          (e.blast && !this.remoteBombs.has(e))
+        ) {
           e.fuse = Math.min(e.fuse, this.time + (e.blast ? 0.025 : 0.13));
         }
         if (speed > 2.5 && e.kind === 'projectile' && this.time - e.lastImpact > 0.18) {
-          this.emit('impact', other || e, speed / 10, contact);
+          const impact = this.emit('impact', other || e, speed / 10, contact);
+          impact.size = e.radius * 2;
+          if (!other) impact.material = 'earth';
           e.lastImpact = this.time;
         }
       }
@@ -891,12 +1090,24 @@ export class FortressSimulation {
   hit(e, energy, point) {
     const threshold = MATERIALS[e.material].toughness * (1 - 0.68 * e.burn);
     if (energy < threshold * 0.32) return;
-    e.damage = Math.min(1, e.damage + (energy / threshold - 0.28) * 1.12);
+    this.damageBlock(e, (energy / threshold - 0.28) * 1.12, point);
     if (e.material === 'steel' && !e.bend && e.damage > 0.25 && e.damage < 1) {
       e.bend = (point.x < e.body.position.x ? -1 : 1) * clamp(e.damage, 0.28, 0.85);
       this.work.add(e);
     }
     if (e.damage >= 1) this.work.add(e);
+  }
+
+  damageBlock(e, amount, point) {
+    this.resumePhysics();
+    const previous = e.damage;
+    e.damage = Math.min(1, previous + amount);
+    const delta = e.damage - previous;
+    if (e.damage < 1 && delta >= 0.15) {
+      const event = this.emit('damage', e, delta, point);
+      event.damage = delta;
+      event.size = e.weight;
+    }
   }
 
   checkLoads() {
@@ -916,25 +1127,39 @@ export class FortressSimulation {
       links.push({ e: lower.plugin.fortress, x });
       supports.set(up.id, links);
     }
-    const byHeight = this.bodies.sort((a, b) => a.body.position.y - b.body.position.y);
+    if (!supports.size) return;
+    const byHeight = [];
+    for (const e of this.entities.values()) if (supports.has(e.id)) byHeight.push(e);
+    byHeight.sort((a, b) => a.body.position.y - b.body.position.y);
     for (const e of byHeight) {
       const load = carried.get(e.id) || 0,
-        base = supports.get(e.id) || [];
+        base = supports.get(e.id);
       for (const support of base) {
         if (support.e)
           carried.set(support.e.id, (carried.get(support.e.id) || 0) + (e.body.mass + load) / base.length);
       }
       if (!load || !base.length) continue;
       if (e.kind === 'orc' && load > e.body.mass * 2.2) this.faint(e);
-      if (e.kind !== 'block' || !['wood', 'steel'].includes(e.material) || e.width < 2 * e.height) continue;
+      if (e.kind !== 'block' || !['wood', 'steel'].includes(e.material)) continue;
+      const section = (1 - 0.84 * e.burn) ** 2;
+      if (e.width < 2 * e.height) {
+        if (e.burning && e.height > e.width && load > ((3.5 * e.width ** 2) / e.height) * section) {
+          this.damageBlock(e, 0.16, e.body.position);
+          if (e.damage >= 1) this.work.add(e);
+        }
+        continue;
+      }
       const middle = e.body.position.x;
       const left = Math.min(...base.map((p) => p.x)),
         right = Math.max(...base.map((p) => p.x));
       const eccentricity = Math.max(0, left - middle, middle - right);
       const moment = load * (e.width * 0.09 + eccentricity);
-      const capacity = e.height ** 2 * (e.material === 'steel' ? 2.25 : 1.05);
+      const capacity = e.height ** 2 * (e.material === 'steel' ? 2.25 : 1.05) * section;
       if (moment > capacity)
-        this.hit(e, (0.33 + 0.12 * Math.min(3, moment / capacity)) * MATERIALS[e.material].toughness, { x: left });
+        this.hit(e, (0.33 + 0.12 * Math.min(3, moment / capacity)) * MATERIALS[e.material].toughness, {
+          x: left,
+          y: e.body.position.y,
+        });
     }
   }
 
@@ -979,6 +1204,14 @@ export class FortressSimulation {
     this.remove(e);
   }
 
+  disintegrate(e, type) {
+    this.wakeWard(e.body.position.x);
+    const size = Math.sqrt(e.width * e.height);
+    const dust = this.emit(type, e, clamp(size / 36, 0.2, 1));
+    Object.assign(dust, { id: e.id, size, width: e.width, height: e.height, angle: e.body.angle });
+    this.remove(e);
+  }
+
   markDestroyed(e) {
     if (e.kind !== 'block' || e.destroyed) return;
     e.destroyed = true;
@@ -986,8 +1219,12 @@ export class FortressSimulation {
   }
 
   remove(e) {
+    this.resumePhysics();
     if (e.kind === 'torch') e.lit = false;
-    if (e.kind === 'projectile') this.projectiles.delete(e);
+    if (e.kind === 'projectile') {
+      this.projectiles.delete(e);
+      this.remoteBombs.delete(e);
+    }
     this.markDestroyed(e);
     Composite.remove(this.engine.world, e.body);
     this.entities.delete(e.id);
@@ -996,8 +1233,15 @@ export class FortressSimulation {
   explode(source) {
     this.wakeWard(source.body.position.x);
     const origin = { ...source.body.position },
-      radius = source.blast || 125;
-    this.emit('explosion', source, radius / 158);
+      fireball = Boolean(source.flameRadius);
+    const radius = source.flameRadius || source.blast || 125;
+    this.events.push({
+      type: fireball ? 'fireburst' : 'explosion',
+      ...origin,
+      radius,
+      material: source.material,
+      strength: fireball ? 1 : radius / 158,
+    });
     this.remove(source);
     const walls = this.bodies.filter(
       (e) => e.kind === 'block' && (e.material === 'stone' || e.material === 'steel'),
@@ -1008,28 +1252,42 @@ export class FortressSimulation {
       const nearestY = clamp(origin.y, body.bounds.min.y, body.bounds.max.y);
       const distance = Math.hypot(origin.x - nearestX, origin.y - nearestY);
       if (distance >= radius) continue;
-      let strength = 1 - distance / radius;
+      let strength = 1 - distance / radius,
+        heatTransmission = 1;
       if (this.hills.some((hill) => shieldsBlast(hill, origin, body.position))) strength *= 0.25;
       for (const wall of walls) {
-        if (wall !== e && shieldsBlast(wall.body, origin, body.position)) strength *= 0.65;
+        if (wall !== e && shieldsBlast(wall.body, origin, body.position)) {
+          strength *= 0.65;
+          heatTransmission *= 0.45;
+        }
       }
       if (e.kind === 'torch' && e.lit) {
+        if (fireball) continue;
         this.extinguish(e);
         body = e.body;
+      }
+      if (e.material === 'wood' || e.kind === 'barrel') {
+        e.heat = Math.min(1, e.heat + strength * heatTransmission * (fireball ? 1.65 : 1.05));
+        if (e.heat >= 0.69) this.ignite(e);
       }
       const dx = body.position.x - origin.x,
         dy = body.position.y - origin.y;
       const len = Math.hypot(dx, dy) || 1,
-        kick = (strength * (radius / 11)) / (1 + body.mass * 0.12);
+        kick = (strength * (fireball ? 1.1 : radius / 11)) / (1 + body.mass * 0.12);
       const velocity = Body.getVelocity(body);
       Body.setVelocity(body, { x: velocity.x + (kick * dx) / len, y: velocity.y + kick * (dy / len - 0.3) });
-      Body.setAngularVelocity(body, Body.getAngularVelocity(body) + (this.random() - 0.5) * strength * 0.35);
+      Body.setAngularVelocity(
+        body,
+        Body.getAngularVelocity(body) + (this.random() - 0.5) * strength * (fireball ? 0.03 : 0.35),
+      );
+      if (fireball) continue;
       if (e.kind === 'block') this.hit(e, strength * radius * 0.17, origin);
       else if (e.kind === 'orc' && strength > 0.29) this.faint(e);
       else if (e.kind === 'barrel' && strength > 0.1)
         e.fuse = Math.min(e.fuse, this.time + 0.1 + 0.18 * (1 - strength));
-      else if (e.blast) e.fuse = Math.min(e.fuse, this.time + 0.07);
+      else if (e.blast && !this.remoteBombs.has(e)) e.fuse = Math.min(e.fuse, this.time + 0.07);
     }
+    if (!fireball) this.excavate(origin, radius);
   }
 
   fracture(e) {
@@ -1069,7 +1327,9 @@ export class FortressSimulation {
         [D, A, hub],
       ];
     }
-    this.emit('fracture', e, Math.min(1, 0.35 + e.weight / 65));
+    const event = this.emit('fracture', e, Math.min(1, 0.35 + e.weight / 65));
+    event.size = e.weight;
+    event.damage = e.damage;
     this.remove(e);
     for (const shape of shapes) {
       const center = Vertices.centre(shape),
@@ -1096,6 +1356,7 @@ export class FortressSimulation {
       fragment.vertices = local;
       fragment.burning = e.burning;
       fragment.burn = e.burn;
+      fragment.ignitedAt = e.ignitedAt;
     }
   }
 }
