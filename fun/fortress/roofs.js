@@ -74,6 +74,24 @@ export function prepareRoofArt() {
         path(x - (x - apex) * (bottom-top) / bottom, top, x, bottom - 5); ctx.stroke();
       }
     }
+    if (type === 'tile') {
+      // The end wall under the terracotta ridge has exposed oak braces
+      // and a recessed attic vent. Both read as one gable at battle scale.
+      path(apex, 1, w, h, ridge, h);
+      ctx.fillStyle = '#ae845c'; ctx.fill();
+      const ventX = apex + (w + ridge - 2 * apex) * 0.38;
+      path(ventX - 10, h * 0.83, ventX - 10, h * 0.65, ventX - 4, h * 0.59,
+        ventX + 5, h * 0.69, ventX + 6, h * 0.83);
+      ctx.fillStyle = '#453a32'; ctx.fill();
+      ctx.strokeStyle = '#62452f'; ctx.lineWidth = 5;
+      path(apex, 3, apex + (w - apex) * 0.66, h); ctx.stroke();
+      path(ridge - (ridge - apex) * 0.17, h * 0.83, w - (w - apex) * 0.17, h * 0.83); ctx.stroke();
+    } else if (type === 'copper') {
+      ctx.strokeStyle = glint; ctx.lineWidth = 2.6;
+      for (const fraction of [0.21, 0.46, 0.74]) {
+        path(apex, 0, ridge * fraction, h); ctx.stroke();
+      }
+    }
     ctx.lineJoin = 'round'; ctx.strokeStyle = dark; ctx.lineWidth = 7;
     path(0, h - 1, apex, 1, w, h - 1); ctx.stroke();
     ctx.strokeStyle = trim; ctx.lineWidth = 3.7;
