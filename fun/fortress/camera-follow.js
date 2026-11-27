@@ -40,7 +40,7 @@ export function createShotCamera() {
     const now = sim.time;
     while (impacts.length && now - impacts[0].time > 2.5) impacts.shift();
     for (const e of events) {
-      if (e.type === 'impact' || e.type === 'explosion' || e.type === 'fireburst')
+      if (e.type === 'impact' || e.type === 'explosion' || e.type === 'fireburst' || e.type === 'implosion')
         impacts.push({ x: e.x, y: e.y, time: now });
     }
     if (!sim.projectiles.size && !impacts.length && !pose) return base;

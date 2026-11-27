@@ -16,8 +16,7 @@ export function createView(field, panorama, source, dock) {
   const painting = document.createElement('canvas');
   const ctx = painting.getContext('2d', { alpha: false });
   const display = panorama.getContext('2d', { alpha: false });
-  const skyExtension = document.createElement('canvas');
-  const soilExtension = document.createElement('canvas');
+  const atmosphericSkies = new WeakMap();
   const shotCamera = createShotCamera();
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let zoomFrom = null,
@@ -34,7 +33,8 @@ export function createView(field, panorama, source, dock) {
     readout = 0;
   let safeTop = 0,
     safeBottom = 1,
-    fitScale = 1;
+    fitScale = 1,
+    crestRise = 335;
   let phase = 'day',
     seed = 1,
     geometryDirty = true,
@@ -58,11 +58,12 @@ export function createView(field, panorama, source, dock) {
     const preferred = height - bottom;
     const floorY = Math.min(height * 0.81, Math.max(height * 0.48, preferred));
     const minTop = height < 510 ? 60 : 115;
-    fitScale = Math.min(width / WIDTH, Math.max(0.3, (floorY - minTop) / 335));
-    const scale = fitScale * stops[zoom];
     const briefing = document.querySelector('.briefing').getBoundingClientRect();
     safeTop = Math.min(height * 0.48, briefing.bottom + 12);
     safeBottom = Math.max(safeTop + 30, topOfDock - 13);
+    const top = Math.max(minTop, safeTop);
+    fitScale = Math.min(width / WIDTH, Math.max(0.04, (floorY - top) / crestRise));
+    const scale = fitScale * stops[zoom];
     const w = width / scale,
       h = height / scale;
     const x = w >= WIDTH ? (WIDTH - w) / 2 : clamp(center - w / 2, 0, WIDTH - w);
@@ -107,12 +108,10 @@ export function createView(field, panorama, source, dock) {
         cropH = gy / skyScale;
       const centerRatio = 0.5;
       const cropX = (iw - cropW) * centerRatio;
-      // Paint this atmospheric layer once per backdrop change. The ground is
-      // sampled separately so close-up timber, rock and characters stay crisp.
-      ctx.save();
-      ctx.filter = 'saturate(.69) contrast(.88) blur(' + Math.min(2.4, pixelWidth / 1450).toFixed(2) + 'px)';
-      ctx.drawImage(source, cropX, shelf - cropH, cropW, cropH, -1, -1, width + 2, gy + 2);
-      ctx.restore();
+      const sky = atmosphericSkies.get(source);
+      const sx = sky ? sky.width / iw : 1;
+      const sy = sky ? sky.height / shelf : 1;
+      ctx.drawImage(sky || source, cropX * sx, (shelf - cropH) * sy, cropW * sx, cropH * sy, -1, -1, width + 2, gy + 2);
       const mist = {
         day: [183, 202, 208],
         dawn: [201, 190, 190],
@@ -170,24 +169,15 @@ export function createView(field, panorama, source, dock) {
     edge.addColorStop(1, '#070b0b9e');
     ctx.fillStyle = edge;
     ctx.fillRect(0, 0, width, height);
-    // Continue the painted top/bottom edges when a high arc needs more sky.
-    // This leaves mountains, the sun, and the ground at their painted aspect ratio.
-    for (const [strip, sky] of [
-      [skyExtension, true],
-      [soilExtension, false],
-    ]) {
-      strip.width = 256;
-      strip.height = 64;
-      const c = strip.getContext('2d');
-      const y = sky ? 0 : painting.height - 1;
-      c.drawImage(painting, 0, y, painting.width, 1, 0, 0, strip.width, strip.height);
-      const grad = c.createLinearGradient(0, sky ? strip.height : 0, 0, sky ? 0 : strip.height);
-      grad.addColorStop(0, 'transparent');
-      grad.addColorStop(1, sky ? (phase === 'night' ? '#162134' : '#445973') : '#11181a');
-      c.fillStyle = grad;
-      c.fillRect(0, 0, strip.width, strip.height);
-    }
     artDirty = false;
+  }
+  function extendEdge(start, cropW, y, h, sky) {
+    display.drawImage(painting, start, sky ? 0 : painting.height - 1, cropW, 1, 0, y, panorama.width, h);
+    const shade = display.createLinearGradient(0, sky ? y + h : y, 0, sky ? y : y + h);
+    shade.addColorStop(0, 'transparent');
+    shade.addColorStop(1, sky ? (phase === 'night' ? '#162134' : '#445973') : '#11181a');
+    display.fillStyle = shade;
+    display.fillRect(0, y, panorama.width, h);
   }
   // Grade the panorama once. Camera motion projects its sky and foreground
   // shelf from that cached painting, including shots above the skyline.
@@ -204,15 +194,14 @@ export function createView(field, panorama, source, dock) {
     const skyHeight = shelf * foregroundScale;
     const soilHeight = (ih - shelf) * foregroundScale;
     const skyY = horizon - skyHeight;
-    if (skyY > 0)
-      display.drawImage(skyExtension, (start / iw) * 256, 0, (cropW / iw) * 256, 64, 0, 0, iw, skyY + 1);
+    if (skyY > 0) extendEdge(start, cropW, 0, skyY + 1, true);
     if (horizon > 0 && skyY < ih)
       display.drawImage(painting, start, 0, cropW, shelf, 0, skyY, iw, skyHeight + 0.4);
     if (horizon < ih && horizon + soilHeight > 0)
       display.drawImage(painting, start, shelf, cropW, ih - shelf, 0, horizon, iw, soilHeight + 0.4);
     if (horizon + soilHeight < ih) {
       const y = horizon + soilHeight;
-      display.drawImage(soilExtension, (start / iw) * 256, 0, (cropW / iw) * 256, 64, 0, y, iw, ih - y);
+      extendEdge(start, cropW, y, ih - y, false);
     }
     needsPresent = false;
   }
@@ -315,7 +304,8 @@ export function createView(field, panorama, source, dock) {
     if (zoom && moved && pointers.size === 1) {
       zoomFrom = null;
       center -= ((e.clientX - p.x) * view.width) / width;
-      lift = clamp(lift + ((e.clientY - p.y) * view.height) / height, -140, 120);
+      const roofLift = crestRise - (screenGround - safeTop) / (fitScale * stops[zoom]) + 24;
+      lift = clamp(lift + ((e.clientY - p.y) * view.height) / height, -140, Math.max(120, roofLift));
       geometryDirty = true;
     }
     p.x = e.clientX;
@@ -335,7 +325,28 @@ export function createView(field, panorama, source, dock) {
     update,
     target,
     dragged: () => moved,
-    frame(phaseName, variant, image) {
+    async prepareSkies(images) {
+      // The blurred, desaturated sky is shared by every phase and seed. Bake it
+      // during preflight so changing fortresses never filters a 4K image on the play thread.
+      const density = devicePixelRatio || 1;
+      const pixelsWide = Math.min(3840, Math.max(innerWidth, screen.width) * density);
+      const pixelsHigh = Math.min(2560, Math.max(innerHeight, screen.height) * density);
+      for (const image of images) {
+        const iw = image.naturalWidth;
+        const shelf = image.naturalHeight * GROUND_FRACTION;
+        const scale = Math.min(1, 2560 / iw, Math.max(pixelsWide / iw, pixelsHigh * 0.81 / shelf));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(iw * scale);
+        canvas.height = Math.round(shelf * scale);
+        const c = canvas.getContext('2d', { alpha: false });
+        c.filter = 'saturate(.69) contrast(.88) blur(' + Math.min(2.4, pixelsWide / 1450).toFixed(2) + 'px)';
+        c.drawImage(image, 0, 0, iw, shelf, -1, -1, canvas.width + 2, canvas.height + 2);
+        // Snapshot flushes the deferred filters before controls become interactive.
+        const sky = typeof createImageBitmap === 'function' ? await createImageBitmap(canvas).catch(() => canvas) : canvas;
+        atmosphericSkies.set(image, sky);
+      }
+    },
+    frame(phaseName, variant, image, sections) {
       if (source !== image) {
         image.hidden = true;
         image.id = 'scenery';
@@ -348,6 +359,8 @@ export function createView(field, panorama, source, dock) {
       focusX = WIDTH * 0.68;
       phase = phaseName;
       seed = variant;
+      crestRise = Math.max(335, ...sections.map((ward) =>
+        GROUND - ward.base + Math.max(...ward.heights) * ward.storey + 45));
       zoom = 0;
       lift = 0;
       center = WIDTH / 2;

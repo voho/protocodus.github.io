@@ -4,6 +4,7 @@ const RATE = 32000;
 const cues = {
   // Render length, minimum retrigger interval, playback priority.
   launch: [0.63, 0.12, 3],
+  'guard-shot': [0.33, 0.12, 2],
   impact: [0.46, 0.07, 1],
   'earth-hit': [0.34, 0.09, 1],
   'stone-hit': [0.37, 0.075, 1],
@@ -19,6 +20,7 @@ const cues = {
   explosion: [1.18, 0.095, 3],
   barrel: [1.1, 0.095, 3],
   fireburst: [0.95, 0.08, 3],
+  implosion: [0.82, 0.12, 3],
   crackle: [0.85, 0.4, 0],
   ignite: [1.42, 0.3, 1],
   extinguish: [0.48, 0.2, 1],
@@ -99,6 +101,11 @@ function synthesize(sound) {
   }
 
   switch (sound) {
+    case 'guard-shot':
+      grit(0, 0.045, 0.82, 650, 6200);
+      ring(0.012, 0.13, 0.34, 225, 80);
+      grit(0.04, 0.18, 0.25, 250, 2100);
+      break;
     case 'launch':
       grit(0, 0.09, 0.57, 540, 3100);
       ring(0.014, 0.22, 0.46, 172, 79);
@@ -214,6 +221,23 @@ function synthesize(sound) {
         tumble(0.101, 0.155, 5, 0.65, 308, 4200);
       } else tumble(0.208, 0.2, 5, 0.51, 355, 2900);
       break;
+    case 'implosion': {
+      // Shrinking harmonic intervals and a rising envelope lead into the instant of collapse.
+      const duration = Math.round(0.36 * RATE);
+      let phase = 0, overtone = 0;
+      for (let i = 0; i < duration; i++) {
+        const t = i / duration;
+        const hz = 83 + 290 * t * t;
+        phase += 2 * Math.PI * hz / RATE;
+        overtone += 2 * Math.PI * hz * (2.24 - 0.24 * t) / RATE;
+        const gain = 0.4 * t * (1 - Math.max(0, (t - 0.95) / 0.05));
+        data[i] += gain * (Math.sin(phase) + 0.28 * Math.sin(overtone));
+      }
+      grit(0.347, 0.06, 0.67, 1200, 6600, 0.002, 1900);
+      ring(0.35, 0.42, 0.49, 165, 49);
+      ring(0.353, 0.36, 0.27, 1120, 954);
+      break;
+    }
     case 'fireburst':
       grit(0, 0.56, 1.05, 170, 4800, 0.026, 580);
       ring(0.012, 0.26, 0.3, 296, 108);

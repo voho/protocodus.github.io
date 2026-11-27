@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createShotCamera } from '../camera-follow.js';
-import { FortressSimulation } from '../simulation.js';
+import { FortressSimulation, generateLevel, WORLD } from '../simulation.js';
 
 const dt = 1 / 60;
 const roomyScreen = { width: 1200, height: 675, top: 90, bottom: 590, fitScale: 1 };
@@ -73,7 +73,10 @@ for (const [width, height, top, bottom] of [
   [390, 844, 155, 560],
   [812, 375, 90, 215],
 ]) {
-  const fitScale = Math.min(width / 1200, (bottom - top) / 335);
+  const wards = generateLevel('large', 6).sections;
+  const crestRise = Math.max(...wards.map((ward) =>
+    WORLD.ground - ward.base + Math.max(...ward.heights) * ward.storey + 45));
+  const fitScale = Math.min(width / WORLD.width, (bottom - top) / crestRise);
   const screen = { width, height, top, bottom, fitScale };
   const base = {
     x: (1200 - width / fitScale) / 2,
@@ -99,7 +102,10 @@ for (const [width, height, top, bottom] of [
       );
     }
     for (let frame = 0; frame < 900; frame++) {
-      if ([0, 24, 48].includes(frame)) assert.ok(sim.fire('small-stone', frame === 24 ? 25 : 70, 100));
+      // The two high arcs use the extended draw. The middle shot lands on the
+      // approach and gives the camera a visible impact while the others fly.
+      if (frame === 0 || frame === 20) assert.ok(sim.fire('small-stone', 70, 100));
+      if (frame === 10) assert.ok(sim.fire('small-stone', 25, 55));
       sim.update(dt);
       const events = sim.drainEvents();
       const previous = view;

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { AMMO, DIFFICULTIES, FortressSimulation, generateLevel, THEMES } from '../simulation.js';
 import Matter from '../vendor/matter.min.js';
+import './guard-check.mjs';
 
 function advance(sim, frames) {
   for (let i = 0; i < frames; i++) sim.update(1 / 60);
@@ -11,52 +12,45 @@ function advance(sim, frames) {
 const replays = [
   [
     [
-      ['small-stone', 50, 86],
-      ['small-stone', 25, 59],
+      ['small-stone', 25, 97],
+      ['small-stone', 25, 62],
+      ['small-stone', 60, 94],
+      ['small-stone', 75, 100],
+      ['small-stone', 60, 97],
     ],
     [
-      ['small-stone', 70, 99],
-      ['small-stone', 55, 100],
-      ['small-stone', 50, 100],
-      ['small-stone', 20, 86],
-      ['small-stone', 20, 54],
-    ],
-    [
-      ['small-stone', 45, 90],
-      ['small-stone', 25, 31],
-      ['small-stone', 60, 53],
-      ['small-stone', 20, 39],
       ['small-stone', 50, 99],
-      ['small-stone', 50, 100],
-      ['small-bomb', 70, 98],
-      // The front guard can survive the collapse on x64. Target him before
-      // the final shot at the distant keep.
-      ['small-stone', 65, 36],
-      ['small-stone', 30, 98],
+      ['small-stone', 40, 71],
+      ['small-stone', 55, 99],
+      ['small-stone', 60, 81],
+      ['small-stone', 30, 57],
+      ['small-stone', 40, 97],
+      ['small-bomb', 65, 84],
+    ],
+    [
+      ['small-bomb', 70, 28],
+      ['big-bomb', 25, 32],
+      ['small-bomb', 75, 90],
+      ['small-bomb', 75, 87],
     ],
   ],
   [
     [
-      ['small-stone', 55, 94],
-      ['small-stone', 25, 60],
-      ['small-bomb', 25, 92],
+      ['small-stone', 25, 59],
+      ['small-stone', 60, 99],
+      ['small-stone', 50, 78],
+      ['small-stone', 50, 78],
     ],
     [
-      ['small-stone', 35, 50],
-      ['small-stone', 40, 93],
-      ['small-bomb', 20, 78],
-      ['small-stone', 70, 94],
+      ['small-stone', 20, 73],
+      ['small-stone', 30, 88],
+      ['small-stone', 50, 91],
+      ['big-bomb', 50, 65],
     ],
     [
-      ['small-stone', 50, 86],
-      ['small-stone', 60, 67],
-      ['small-stone', 20, 34],
-      ['small-stone', 65, 87],
-      ['small-stone', 40, 100],
-      ['small-stone', 50, 50],
-      ['small-stone', 20, 33],
-      ['small-stone', 50, 100],
-      ['small-bomb', 70, 35],
+      ['small-stone', 75, 91],
+      ['small-stone', 75, 99],
+      ['small-bomb', 22, 45],
     ],
   ],
 ];
@@ -84,7 +78,13 @@ for (const [index, size] of DIFFICULTIES.entries()) {
       );
     }
     profiles.add(JSON.stringify(level.sections.map((s) => [s.heights, s.spans, s.orcs, s.barrels, s.pattern])));
-    assert.ok(level.sections.length >= 2);
+    assert.equal(level.sections.length, [2, 3, 5][index]);
+    if (size.id === 'large') {
+      for (const section of level.sections) {
+        const peak = Math.max(...section.heights);
+        assert.ok(section.style === 'keep' ? peak >= 10 && peak <= 12 : peak >= 8 && peak <= 10);
+      }
+    }
     assert.ok(level.sections.at(-1).base < level.sections[0].base);
     assert.ok(level.terrain.slice(1).every((p, j) => p.x > level.terrain[j].x));
     for (const s of level.sections) {
@@ -121,7 +121,8 @@ for (const [index, size] of DIFFICULTIES.entries()) {
       assert.ok(Matter.Query.point(sim.hills, { x, y: y + 0.3 }).length > 0);
     }
     const blockCount = sim.bodies.filter((e) => e.kind === 'block').length;
-    assert.ok(blockCount >= [30, 65, 185][index]);
+    assert.ok(blockCount >= [30, 75, 275][index]);
+    if (size.id !== 'small') assert.ok(sim.bodies.some((e) => e.detail === 'buttress'));
     const last = sim.level.sections.at(-1);
     const backWall = last.left + last.spans.reduce((sum, width) => sum + width, 0);
     const target = last.base - last.storey;
@@ -131,6 +132,17 @@ for (const [index, size] of DIFFICULTIES.entries()) {
         miss = Math.min(miss, Math.abs(target - sim.heightAt('small-stone', angle, power, backWall)));
       }
     assert.ok(miss < 9, 'Even in a headwind the far gallery is within ballistic reach');
+    if (size.id === 'large') {
+      const top = last.base - Math.max(...last.heights) * last.storey;
+      const crest = sim.bodies.filter((b) => b.kind === 'block' && b.x >= last.left);
+      assert.ok(Math.min(...crest.map((b) => b.body.bounds.min.y)) < top + 5,
+        'The rear keep stands at its designed height after settling');
+      let roofMiss = Infinity;
+      for (let angle = 35; angle <= 75; angle++)
+        for (let power = 75; power <= 100; power++)
+          roofMiss = Math.min(roofMiss, Math.abs(top - sim.heightAt('small-stone', angle, power, backWall)));
+      assert.ok(roofMiss < 9, 'A full draw can reach the far parapet');
+    }
     // Remove the shot before it touches a pier. Run the full two minutes with
     // no rolling projectile that could invalidate the stability measurement.
     sim.fire('small-stone', 75, 25);
@@ -166,6 +178,7 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     assert.ok(cost <= sim.level.par, size.name + ' clears within par');
     assert.equal(sim.stats.orcsRemaining, 0, size.name + ' seed ' + seed);
     assert.equal(sim.stats.cleared, true, size.name);
+    assert.equal(sim.stats.winningCost, cost, 'The final shot clears the last guard');
     assert.equal(sim.bodies.filter((e) => e.kind === 'orc').length, 0);
     assert.equal(events.filter((e) => e.type === 'faint').length, sim.stats.orcsTotal);
     assert.equal(events.filter((e) => e.type === 'clear').length, 1);
@@ -177,6 +190,23 @@ assert.deepEqual(phases, new Set(['day', 'dusk', 'night', 'dawn']));
 
 // A sustained salvo loads the busiest physics path: fragment creation, many
 // colliding bodies, powder chains, fire and sleeping/waking separate wards.
+// Remove the entire foundation from one tall ward. Even the sleeping storeys
+// whose original contact pairs have expired must fall into the empty space.
+const unsupportedWard = new FortressSimulation('large', 47);
+const inner = unsupportedWard.level.sections[1];
+const farEdge = inner.left + inner.spans.reduce((sum, span) => sum + span, 0);
+const inWard = (b) => b.x > inner.left - 24 && b.x < farEdge + 24;
+const upstairs = unsupportedWard.bodies.filter((b) => inWard(b) && b.kind === 'block' &&
+  b.y < inner.base - inner.storey - 5).map((b) => [b, b.y]);
+unsupportedWard.fire('small-stone', 75, 25);
+unsupportedWard.remove([...unsupportedWard.projectiles][0]);
+for (const b of unsupportedWard.bodies) {
+  if ((inWard(b) && b.y >= inner.base - inner.storey - 5 && !b.body.isStatic) || b.detail === 'bridge')
+    unsupportedWard.remove(b);
+}
+advance(unsupportedWard, 420);
+assert.ok(upstairs.length > 30 && upstairs.every(([b, y]) => !unsupportedWard.entities.has(b.id) || b.y > y + 12));
+
 const barrage = new FortressSimulation('large', 6);
 const intact = barrage.bodies.length;
 const samples = [];
@@ -190,6 +220,9 @@ for (let frame = 0; frame < 600; frame++) {
   if (frame === 119) assert.ok(barrage.orcsRemaining > 0, 'Separate outer wards survive one bomb');
 }
 assert.ok(peak > intact + 60, 'Benchmark must exercise actual fragmentation');
+assert.ok(barrage.events.some((e) => e.type === 'fracture' && e.secondary), 'Falling rubble fractures during the siege');
+assert.ok(barrage.events.some((e) => e.type === 'stone-dust'));
+assert.ok(barrage.bodies.some((e) => e.kind === 'fragment' && e.material === 'stone' && e.body.area > 130));
 assert.ok(
   samples.reduce((sum, ms) => sum + ms, 0) < 10000,
   'The solver sustains the ten-second physics sequence in real time',
@@ -276,12 +309,24 @@ for (const ammo of AMMO) {
 
 const finish = new FortressSimulation('small', 1);
 finish.fire('small-stone', 75, 25);
+advance(finish, 24);
 for (const orc of finish.bodies.filter((b) => b.kind === 'orc')) finish.faint(orc);
 assert.equal(finish.stats.destruction, 0);
-assert.equal(finish.stats.ready, false, 'Last guard immediately locks launching');
+assert.equal(finish.stats.winningCost, 10, 'The last guard fixes the winning score immediately');
 assert.equal(finish.bodies.filter((b) => b.kind === 'orc').length, 0);
-advance(finish, 48);
+assert.ok(finish.fire('big-bomb', finish.level.aim.angle, finish.level.aim.power));
+assert.equal(finish.stats.ready, false, 'Post-victory shots still reload');
+advance(finish, 180);
 assert.equal(finish.stats.cleared, true, 'Only the garrison is required for victory');
+assert.ok(finish.stats.destruction > 0, 'Shooting after the last guard can bring down the surviving tower');
+assert.ok(finish.fire('siege-bomb', 55, 65));
+advance(finish, 15);
+assert.ok(finish.detonateSiegeBomb());
+assert.equal(finish.stats.spent, 160);
+assert.equal(finish.stats.winningCost, 10, 'Further ammunition leaves the winning score intact');
+assert.equal(finish.events.filter((e) => e.type === 'clear').length, 1);
+finish.loadLevel();
+assert.equal(finish.stats.winningCost, null);
 
 function lab() {
   const sim = new FortressSimulation('small', 1);
@@ -375,6 +420,66 @@ assert.ok(chips.every((e) => !pebbles.entities.has(e.id)));
 assert.equal(pebbles.events.filter((e) => e.type === 'stone-dust').length, 4);
 assert.ok(pebbles.entities.has(rubble.id) && pebbles.entities.has(tinyBlock.id));
 
+const grip = lab();
+const slider = grip.add('fragment', 'stone', 310, grip.terrainHeight(310) - 7.2, 24, 14, 'debris');
+Matter.Body.setVelocity(slider.body, { x: 0.34, y: 0 });
+Matter.Body.setAngularVelocity(slider.body, 0.006);
+advance(grip, 45);
+assert.ok(slider.body.isSleeping && Math.abs(slider.x - 310) < 2, 'Loose stone comes to rest on almost-flat terrain');
+const settledX = slider.x;
+advance(grip, 120);
+assert.equal(slider.x, settledX, 'Settled rubble stays put');
+assert.ok(grip.fire('small-stone', 30, 50));
+const [nudge] = grip.projectiles;
+Matter.Body.setPosition(nudge.body, { x: slider.x - 21.2, y: slider.y - 6 });
+Matter.Body.setVelocity(nudge.body, { x: 3, y: 0 });
+Matter.Body.setAngularVelocity(nudge.body, 0);
+advance(grip, 8);
+assert.ok(grip.entities.has(slider.id) && !slider.body.isSleeping && slider.x > settledX + 4,
+  'A fresh impact wakes and pushes settled rubble');
+
+// Use a triangular chip broken from masonry, including its irregular collision
+// hull. Drop it from two different heights onto the same stretch of flat ground.
+function dropMasonryChunk(height) {
+  const sim = lab();
+  const parent = sim.add('block', 'stone', 300, 260, 54, 48, 'masonry');
+  sim.fracture(parent);
+  const [chunk, ...others] = sim.bodies;
+  for (const other of others) sim.remove(other);
+  const body = chunk.body;
+  Matter.Body.setAngle(body, 0.35);
+  const y = body.position.y + sim.terrainHeight(300) - body.bounds.max.y - height;
+  Matter.Body.setPosition(body, { x: 300, y });
+  Matter.Body.setVelocity(body, { x: 0, y: 0 });
+  Matter.Body.setAngularVelocity(body, 0);
+  sim.drainEvents();
+  return { sim, chunk };
+}
+const restingChunk = dropMasonryChunk(2);
+advance(restingChunk.sim, 300);
+assert.ok(
+  restingChunk.sim.entities.has(restingChunk.chunk.id) && restingChunk.chunk.body.isSleeping,
+  'A gentle landing leaves a permanent stone chunk',
+);
+const { sim: drop, chunk } = dropMasonryChunk(210);
+const destroyedWeight = drop.lostWeight;
+for (let step = 0; step < 360 && drop.entities.has(chunk.id); step++) drop.update(1 / 120);
+assert.ok(!drop.entities.has(chunk.id), 'A hard impact splits an existing chunk');
+const gravel = drop.bodies;
+assert.ok(gravel.length >= 2 && gravel.length <= 4);
+for (const piece of gravel) {
+  assert.equal(piece.kind, 'fragment');
+  assert.ok(piece.body.area > 0 && piece.body.area < chunk.body.area);
+  // Each physical child must fit inside the irregular parent immediately after splitting.
+  assert.ok(piece.body.vertices.every((p) => Matter.Vertices.contains(chunk.body.vertices, p)));
+}
+const solidArea = gravel.reduce((area, piece) => area + piece.body.area, 0);
+assert.ok(solidArea >= chunk.body.area * 0.75 && solidArea <= chunk.body.area * 1.01);
+assert.equal(drop.lostWeight, destroyedWeight, 'Breaking rubble does not score the same stone again');
+assert.ok(drop.events.some((e) => e.type === 'fracture' && e.material === 'stone' && e.secondary));
+advance(drop, 420);
+assert.ok(drop.bodies.some((e) => e.kind === 'fragment' && e.body.area > 30 && e.body.isSleeping));
+
 const moved = torchLab();
 Matter.Body.translate(moved.host.body, { x: 7, y: 0 });
 advance(moved.sim, 5);
@@ -382,10 +487,10 @@ assert.equal(moved.torch.lit, false);
 assert.equal(moved.torch.body.isStatic, false);
 assert.equal(moved.sim.events.filter((e) => e.type === 'extinguish').length, 1);
 
-// A real shot sends wood against a sconce inside the generated medium fort.
-const liveFire = new FortressSimulation('medium', 8);
-liveFire.fire('small-stone', 45, 83);
-advance(liveFire, 240);
+// A real shot sends wood against a sconce inside a generated fortress.
+const liveFire = new FortressSimulation('small', 29);
+liveFire.fire('small-stone', 65, 74);
+advance(liveFire, 315);
 const ember = liveFire.bodies.find((e) => e.material === 'wood' && e.burning);
 assert.ok(ember, 'A falling timber ignites');
 const sconce = liveFire.torches
@@ -420,7 +525,8 @@ function openGroundShot(ammo) {
     initial = sim.terrain;
   const pristine = JSON.stringify(initial);
   const distant = sim.hills.at(-2);
-  sim.fire(ammo, 35, 35);
+  // Land on the flat approach, beyond the reach of the first powder store.
+  sim.fire(ammo, 67, 25);
   const shot = [...sim.projectiles][0];
   assert.ok(shot.flightPath.length > 8 && shot.flightPath[0].x === 160);
   advance(sim, 150);
@@ -430,6 +536,22 @@ function openGroundShot(ammo) {
 }
 const smallCrater = openGroundShot('small-bomb'),
   bigCrater = openGroundShot('big-bomb');
+
+function successiveBlasts() {
+  const sim = lab();
+  const impulses = [];
+  for (let i = 0; i < 3; i++) {
+    const chip = sim.add('fragment', 'wood', 370, 130, 12, 10, 'debris');
+    const barrel = sim.add('barrel', 'barrel', 300, 130, 16, 20, 'powder');
+    sim.explode(barrel);
+    impulses.push(chip.body.velocity.x);
+    sim.remove(chip);
+  }
+  return impulses;
+}
+const impulses = successiveBlasts();
+assert.ok(Math.max(...impulses) - Math.min(...impulses) > 0.05, 'Successive blasts vary in the same room');
+assert.deepEqual(successiveBlasts(), impulses, 'A seeded restart reproduces the pressure variation');
 const smallCut = smallCrater.events.find((e) => e.type === 'crater'),
   bigCut = bigCrater.events.find((e) => e.type === 'crater');
 assert.ok(bigCut.depth > smallCut.depth * 1.3 && bigCut.radius > smallCut.radius * 1.25);
@@ -440,6 +562,26 @@ for (let x = bigCut.x - bigCut.radius + 0.4; x < bigCut.x + bigCut.radius; x += 
   assert.ok(Matter.Query.point(bigCrater.hills, { x, y: y + 0.3 }).length > 0);
 }
 assert.equal(openGroundShot('small-stone').terrainVersion, 0);
+const impactImplosion = openGroundShot('magic-bomb');
+assert.equal(impactImplosion.events.filter((e) => e.type === 'implosion').length, 1);
+assert.equal(impactImplosion.terrainVersion, 0);
+assert.ok(!impactImplosion.events.some((e) => e.type === 'fireburst' || e.type === 'explosion'));
+
+const well = lab();
+advance(well, 12);
+const pullLeft = well.add('fragment', 'wood', 225, 150, 12, 8, 'debris');
+const pullRight = well.add('fragment', 'wood', 375, 150, 12, 8, 'debris');
+const outside = well.add('fragment', 'wood', 480, 150, 12, 8, 'debris');
+assert.ok(well.fire('magic-bomb', 40, 65));
+const orb = [...well.projectiles][0];
+Matter.Body.setPosition(orb.body, { x: 300, y: 150 });
+well.explode(orb);
+advance(well, 8);
+assert.ok(pullLeft.x > 225 && pullRight.x < 375, 'The implosion draws pieces in from both sides');
+assert.equal(outside.x, 480, 'Distant rubble is outside the pull');
+advance(well, 35);
+assert.equal(well.implosions.length, 0, 'The pull expires after its core collapses');
+assert.ok(!pullLeft.burning && !pullRight.burning);
 const cleanFire = openGroundShot('fireball');
 assert.equal(cleanFire.events.filter((e) => e.type === 'fireburst').length, 1);
 assert.equal(cleanFire.terrainVersion, 0, 'The fireball trades excavation for sustained heat');
@@ -531,5 +673,5 @@ powder.sim.add('barrel', 'barrel', 357, 374, 22, 30, 'powder');
 advance(powder.sim, 110);
 assert.ok(powder.sim.events.some((e) => e.type === 'explosion' && e.material === 'barrel'));
 console.log(
-  'Fortress passed seeded generation, six par replays, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure and fireball chains.',
+  'Fortress passed seeded generation, six par replays, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure, falling rubble, fireball chains and post-victory destruction.',
 );

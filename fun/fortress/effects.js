@@ -20,6 +20,14 @@ const fragmentColors = {
   steel: ['#fff2b4', '#ffc75f', '#ec7d41'],
 };
 
+// Momentum along the wave and the width of its spray vary with what broke.
+const blastDebris = {
+  stone: { kind: 'stone', speed: 77, spread: 0.56, size: 1.8, life: 0.7 },
+  wood: { kind: 'wood', speed: 100, spread: 0.36, size: 1.5, life: 0.64 },
+  glass: { kind: 'glass', speed: 129, spread: 0.76, size: 1.15, life: 0.53 },
+  steel: { kind: 'spark', speed: 119, spread: 0.43, size: 1.38, life: 0.25 },
+};
+
 function lightSprite(colors, smoke = false) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
@@ -229,6 +237,9 @@ export function createEffects() {
     [0.68, '#89bfc136'],
     [1, '#9adbd000'],
   ]);
+  const violet = lightSprite([[0, '#f2dcff'], [0.14, '#c897ffdf'], [0.43, '#9453dd6b'], [1, '#623eaa00']]);
+  const vortices = Array.from({ length: 4 }, () => ({ end: -1 }));
+  let nextVortex = 0;
   const particles = Array.from({ length: MAX_PARTICLES }, () => ({}));
   const trails = new Map(),
     torches = [],
@@ -397,11 +408,63 @@ export function createEffects() {
     }
   }
 
+  let blastChipBudget = 0;
+  let blastFractureBudget = 0;
+  function blastBreak(e, material, energy) {
+    const fractured = e.type === 'fracture';
+    const count = Math.min(fractured ? blastFractureBudget : blastChipBudget,
+      reduced ? 2 : fractured ? 5 + Math.round(energy * 3) : 2);
+    if (fractured) blastFractureBudget -= count;
+    else blastChipBudget -= count;
+    const debris = blastDebris[material], colors = fragmentColors[material];
+    for (let i = 0; i < count; i++) {
+      const speed = debris.speed * (0.36 + 0.64 * energy) * (0.5 + random() * 0.8);
+      const fan = (random() * 2 - 1) * debris.spread;
+      const vx = (e.outX - e.outY * fan) * speed;
+      const vy = (e.outY + e.outX * fan) * speed;
+      if (material === 'stone' && i % 3 === 0) {
+        particle('dust', e.x, e.y, vx * 0.48, vy * 0.48 - 8,
+          (fractured ? 7 : 3) + energy * 8 + random() * 3, 0.64 + random() * 0.43);
+      } else {
+        const size = debris.size * (0.65 + random() * 0.83) * (fractured ? 1 : 0.74);
+        particle(debris.kind, e.x, e.y, vx, vy - 9, size, debris.life * (0.75 + random() * 0.53),
+          colors[Math.floor(random() * colors.length)]);
+      }
+    }
+  }
+
   function burst(e) {
     const energy = clamp(e.strength ?? 0.6, 0.1, 1);
     const material = e.material in fragmentColors ? e.material : 'stone';
+    if (e.type === 'implosion') {
+      const vortex = vortices[nextVortex];
+      nextVortex = (nextVortex + 1) % vortices.length;
+      Object.assign(vortex, { x: e.x, y: e.y, radius: e.radius, turn: random() * TAU, start: time, end: time + 0.52 });
+      return;
+    }
     if (e.type === 'explosion' || e.type === 'fireburst') {
       eruption(e, e.type === 'fireburst');
+      return;
+    }
+    if (e.type === 'guard-shot') {
+      const streak = particle('tracer', e.x, e.y, 0, 0, 1.1, reduced ? 0.075 : 0.12);
+      streak.endX = e.endX;
+      streak.endY = e.endY;
+      if (!reduced) puff(e.x, e.y, 4.5, true);
+      return;
+    }
+    if (e.blast && (e.type === 'damage' || e.type === 'fracture')) {
+      blastBreak(e, material, energy);
+      return;
+    }
+    if (e.secondary && e.material === 'stone') {
+      const size = clamp(e.size * 0.55, 5, 15);
+      const count = reduced ? 1 : 3;
+      for (let i = 0; i < count; i++) {
+        const side = i - (count - 1) / 2;
+        particle('dust', e.x, e.y, side * (12 + 10 * energy), -6 - random() * 11,
+          size + random() * 3, 0.68 + random() * 0.45);
+      }
       return;
     }
     if (e.type === 'crater') {
@@ -576,6 +639,9 @@ export function createEffects() {
     }
     for (const [id, trail] of trails) if (now - trail.lastSeen > (trail.fire ? 0.17 : 0.25)) trails.delete(id);
     collectLights();
+    // Keep the explosion plume visible even when an entire wall breaks in one frame.
+    blastChipBudget = reduced ? 4 : 14;
+    blastFractureBudget = reduced ? 12 : 64;
     for (const event of events) burst(event);
     if (!newFrame) return;
     const airDrag = Math.exp(-dt * 1.4);
@@ -895,13 +961,55 @@ export function createEffects() {
     ctx.restore();
     ctx.save();
     drawFronts(ctx);
+    for (const v of vortices) {
+      if (time > v.end || !visible(v.x, v.y, v.radius)) continue;
+      const age = time - v.start;
+      const pull = clamp(age / 0.36, 0, 1);
+      const radius = v.radius * (1 - pull * pull);
+      const fadeIn = fade(age / 0.065);
+      ctx.save();
+      ctx.translate(v.x, v.y);
+      ctx.globalCompositeOperation = 'screen';
+      if (pull < 1) {
+        ctx.globalAlpha = fadeIn * (0.62 - 0.3 * pull) * (reduced ? 0.55 : 1);
+        ctx.strokeStyle = '#cfafff';
+        ctx.lineWidth = 0.7 + 1.5 * pull;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, TAU);
+        ctx.stroke();
+        const count = reduced ? 5 : 16;
+        ctx.beginPath();
+        for (let i = 0; i < count; i++) {
+          const angle = v.turn + i * 2.4 + 1.6 * pull;
+          const reach = radius * (0.55 + 0.45 * ((i * 13) % 17) / 16);
+          const x = Math.cos(angle) * reach, y = Math.sin(angle) * reach;
+          ctx.moveTo(x, y);
+          ctx.quadraticCurveTo(x * 0.89 - y * 0.045, y * 0.89 + x * 0.045,
+            x * 0.75 - y * 0.07, y * 0.75 + x * 0.07);
+        }
+        ctx.stroke();
+      }
+      const after = clamp((age - 0.36) / 0.16, 0, 1);
+      ctx.globalAlpha = fadeIn * (0.15 + 0.82 * pull) * (1 - fade(after)) * (reduced ? 0.58 : 1);
+      glow(ctx, violet, 0, 0, v.radius * (0.07 + 0.18 * pull + 0.04 * after));
+      ctx.restore();
+    }
     for (let i = 0; i < particleCount; i++) {
       const p = particles[(particleStart + i) % MAX_PARTICLES];
-      if (!visible(p.x, p.y, p.size * 1.8 + 8)) continue;
+      if (p.kind !== 'tracer' && !visible(p.x, p.y, p.size * 1.8 + 8)) continue;
       const age = p.age / p.life,
         opacity = clamp((1 - age) * 2, 0, 1);
       ctx.globalAlpha = opacity;
-      if (p.kind === 'wick') {
+      if (p.kind === 'tracer') {
+        ctx.globalAlpha = 1 - age;
+        ctx.strokeStyle = '#ffdc82';
+        ctx.lineWidth = 0.95;
+        ctx.beginPath();
+        ctx.moveTo(p.x + (p.endX - p.x) * age, p.y + (p.endY - p.y) * age);
+        ctx.lineTo(p.endX, p.endY);
+        ctx.stroke();
+        glow(ctx, hot, p.x, p.y, 5 * (1 - age));
+      } else if (p.kind === 'wick') {
         const residual = fade(1 - age);
         ctx.globalAlpha = residual * 0.55;
         glow(ctx, firelight, p.x, p.y - 2, 24 * residual);
@@ -1003,6 +1111,7 @@ export function createEffects() {
       trails.clear();
       fires.length = torches.length = lightCount = 0;
       for (const light of flashes) light.end = -1;
+      for (const vortex of vortices) vortex.end = -1;
       for (const mark of scorchMarks) mark.active = false;
       nextFlash = nextMark = shakePower = shakeStart = 0;
       time = 0;

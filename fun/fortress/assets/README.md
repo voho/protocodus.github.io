@@ -70,6 +70,8 @@ The built-in image generator created `ammo-fireball.webp` from the prompt “a c
 
 The Siege bomb inventory illustration is a generated transparent cutout of a dwarven iron orb with bronze bands and an emerald rune. The HUD and battlefield share the same optimized WebP.
 
+The Magic bomb uses a generated illustration of a faceted amethyst orb in engraved silver bands. The inventory and projectile share the transparent `ammo-magic-bomb.webp` cutout.
+
 ## Soundtrack
 
 The supplied recordings are *Fingers of Grey*, *Blood on the Rampart*, and *Before the Iron Gate*, in playlist order. The game versions in `music/` use 112 kbps stereo MP3 with a constant gain adjustment to approximately −30 LUFS integrated. This preserves their dynamics at a quiet level on mobile devices that lock media-element volume to the system setting. All three compressed tracks are buffered at startup and streamed from memory by the browser's media player.

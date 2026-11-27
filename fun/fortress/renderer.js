@@ -1,6 +1,6 @@
 import { createEffects } from './effects.js';
 import { AMMO } from './simulation.js';
-import { sprite, sampleSprite, spriteReady, prepareSprites } from './sprites.js';
+import { sprite, sampleSprite, sampleGuard, spriteReady, prepareSprites } from './sprites.js';
 import { paintTerrain } from './terrain.js';
 
 // All scene art uses world pixels, including the moving bodies and their fracture pieces.
@@ -132,7 +132,7 @@ function bomb(ctx, r, big, t = 0) {
 }
 
 const ammunition = new Map(
-  ['small-stone', 'big-stone', 'small-bomb', 'big-bomb', 'siege-bomb'].map((id) => {
+  ['small-stone', 'big-stone', 'small-bomb', 'big-bomb', 'siege-bomb', 'magic-bomb'].map((id) => {
     const image = new Image();
     image.src = new URL('./assets/ammo-' + id + '.webp', import.meta.url).href;
     return [id, image];
@@ -195,6 +195,25 @@ siegeFuseLight.width = siegeFuseLight.height = 128;
   rect(ctx, glow, 0, 0, 128, 128);
 }
 function drawAmmo(ctx, id, radius, time, live = false) {
+  if (id === 'magic-bomb') {
+    const orb = ammunition.get(id);
+    if (orb.complete && orb.naturalWidth) {
+      const width = radius * 2.22;
+      const height = width * orb.naturalHeight / orb.naturalWidth;
+      ctx.drawImage(orb, -width / 2, -height / 2, width, height);
+    } else ellipse(ctx, '#ae83e5', 0, 0, radius, radius);
+    if (live) {
+      ctx.save();
+      ctx.rotate(time * 1.8);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 1.28, radius * 0.69, 0, Math.PI * 0.08, Math.PI * 0.92);
+      ctx.lineWidth = radius * 0.083;
+      ctx.strokeStyle = '#e4c8fcbd';
+      ctx.stroke();
+      ctx.restore();
+    }
+    return;
+  }
   if (live && id === 'siege-bomb') {
     const halo = radius * (1.52 + 0.15 * Math.sin(time * 3.2));
     ctx.drawImage(siegeFuseLight, -halo, -halo, 2 * halo, 2 * halo);
@@ -340,7 +359,7 @@ function tapestry(ctx, x, y, time, royal, wind) {
 }
 
 function prepareRooms(sim, bodies) {
-  const roofs = bodies.filter((b) => b.kind === 'block' && b.width > 42 && b.height < 21);
+  const roofs = bodies.filter((b) => b.kind === 'block' && b.detail !== 'bridge' && b.width > 42 && b.height < 21);
   const posts = bodies.filter(
     (b) => b.kind === 'block' && b.width < 35 && ['masonry', 'beam', 'pane', 'girder'].includes(b.detail),
   );
@@ -353,9 +372,11 @@ function prepareRooms(sim, bodies) {
         cx = x + width / 2;
       for (let row = 0; row < section.heights[bay]; row++) {
         const top = section.base - (row + 1) * section.storey;
-        const roof = roofs.find(
-          (b) => Math.abs(home(b).x - cx) < 13 && Math.abs(home(b).y - top - b.height / 2) < 4,
-        );
+        const roof = roofs.find((b) => {
+          if (Math.abs(home(b).y - top - b.height / 2) >= 4) return false;
+          if (b.detail === 'tie-beam') return Math.abs(home(b).x - cx) + width / 2 <= b.width / 2 + 1;
+          return Math.abs(home(b).x - cx) < 13;
+        });
         if (!roof) continue;
         const supportStack = (px) =>
           posts
@@ -673,40 +694,63 @@ function drawMasonry(ctx, b) {
   }
 }
 
+const scarPaths = new WeakMap();
+const fractureInk = { glass: '#dffffa', stone: '#514a40', wood: '#503123', steel: '#42505a' };
+const fractureRim = { glass: '#438780', stone: '#cabba7', wood: '#d6a46a', steel: '#c3ced1' };
+
+function makeScar(b, growth) {
+  const path = new Path2D();
+  const random = randomSequence(b.id + 43);
+  const origin = (random() - 0.5) * 0.3;
+  // Work along the length of each member so splits follow upright posts as well as beams.
+  const upright = b.height > b.width;
+  function trace(...coords) {
+    for (let i = 0; i < coords.length; i += 2) {
+      const x = (upright ? coords[i + 1] : coords[i]) * b.width;
+      const y = (upright ? coords[i] : coords[i + 1]) * b.height;
+      if (i === 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+  }
+  if (b.material === 'glass') {
+    const turn = random();
+    for (let i = 0; i < 6; i++) {
+      const angle = turn + (i + random() * 0.35) * TAU / 6;
+      const dx = Math.cos(angle) * growth * 0.32, dy = Math.sin(angle) * growth * 0.48;
+      trace(origin, 0, origin + dx * 0.56, dy * 0.36, origin + dx, dy);
+    }
+  } else if (b.material === 'wood') {
+    trace(-0.49, origin, -0.49 + growth * 0.35, origin + 0.08, -0.49 + growth * 0.91, origin + 0.03);
+    if (growth > 0.58) trace(-0.49 + growth * 0.35, origin + 0.08, -0.49 + growth * 0.65, origin + 0.21);
+  } else if (b.material === 'steel') {
+    // Short creases on the compressed flange follow the metal as the girder buckles.
+    const edge = b.bend < 0 ? -0.47 : 0.47;
+    for (let i = 0; i < 3; i++) {
+      const x = origin + i * 0.042;
+      trace(x, edge, x + 0.027, edge * (1 - growth * 0.58), x + 0.032, edge * (1 - growth));
+    }
+  } else {
+    trace(origin, -0.49, origin - 0.04, -0.49 + 0.25 * growth, origin + 0.04, -0.49 + 0.47 * growth,
+      origin - 0.06, -0.49 + 0.72 * growth, origin - 0.03, -0.49 + 0.96 * growth);
+    if (growth > 0.58) trace(origin + 0.04, -0.49 + 0.47 * growth, origin + 0.17, -0.49 + growth * 0.62);
+  }
+  return path;
+}
+
 function scar(ctx, b) {
-  const w = b.width,
-    h = b.height;
-  const rand = randomSequence(b.id + 43);
-  const x = (rand() - 0.5) * w * 0.45,
-    extent = (0.25 + b.damage * 0.65) * h;
-  const sign = rand() > 0.5 ? 1 : -1,
-    top = -h / 2;
-  const path = [
-    x,
-    top,
-    x - 2 * sign,
-    top + 0.24 * extent,
-    x + 2.5 * sign,
-    top + 0.42 * extent,
-    x - 3.3 * sign,
-    top + 0.67 * extent,
-    x - 1 * sign,
-    top + extent,
-  ];
-  line(ctx, 'rgba(215,201,178,.65)', 1.1, ...path.map((v, i) => (i % 2 ? v : v + 0.55)));
-  line(ctx, b.material === 'glass' ? '#e4fbf7' : '#483e37', b.material === 'glass' ? 0.75 : 1.1, ...path);
-  if (b.damage > 0.58)
-    line(
-      ctx,
-      '#50483d',
-      0.65,
-      path[4],
-      path[5],
-      x + 7 * sign,
-      top + extent * 0.41,
-      x + 11 * sign,
-      top + extent * 0.52,
-    );
+  const stage = Math.round(b.damage * 16);
+  let cached = scarPaths.get(b);
+  if (!cached || cached.stage !== stage) {
+    cached = { stage, path: makeScar(b, 0.25 + 0.75 * stage / 16) };
+    scarPaths.set(b, cached);
+  }
+  ctx.lineJoin = 'bevel';
+  ctx.lineWidth = b.material === 'glass' ? 1.1 : 1.8;
+  ctx.strokeStyle = fractureRim[b.material];
+  ctx.stroke(cached.path);
+  ctx.lineWidth = b.material === 'glass' ? 0.65 : 0.95;
+  ctx.strokeStyle = fractureInk[b.material];
+  ctx.stroke(cached.path);
 }
 
 // Every coal plate follows the timber grain. Bake the advancing scorch and
@@ -792,6 +836,37 @@ function drawCharcoal(ctx, b, x, y, w, h) {
   } else ctx.drawImage(charcoal, sx, sy, COAL_W, COAL_H, x, y, w, h);
 }
 
+const bridgePaths = new WeakMap();
+function drawBridge(ctx, b) {
+  const w = b.width, h = b.height, left = -w / 2, top = -h / 2;
+  let paths = bridgePaths.get(b);
+  if (!paths) {
+    const braces = new Path2D(), rail = new Path2D();
+    const bays = Math.max(2, Math.round(w / 13)), bay = w / bays;
+    for (let i = 0; i <= bays; i++) {
+      const x = left + bay * i;
+      braces.lineTo(x, i % 2 ? top + 1.7 : h / 2 - 1);
+      if (i === 0 || i === bays || i % 2 === 0) {
+        rail.moveTo(x, top);
+        rail.lineTo(x, top - 6);
+      }
+    }
+    rail.moveTo(left, top - 6);
+    rail.lineTo(w / 2, top - 6);
+    paths = { braces, rail };
+    bridgePaths.set(b, paths);
+  }
+  const steel = b.material === 'steel';
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = steel ? '#697e85' : '#725038';
+  ctx.stroke(paths.rail);
+  ctx.lineWidth = 2.8;
+  ctx.strokeStyle = steel ? '#9da9a7' : '#a67a48';
+  ctx.stroke(paths.braces);
+  sprite(ctx, b.material, left, top, w, 2.8);
+  sprite(ctx, b.material, left, h / 2 - 2.4, w, 2.4);
+}
+
 function drawBlock(ctx, b, time, wind) {
   const w = b.width,
     h = b.height;
@@ -806,7 +881,8 @@ function drawBlock(ctx, b, time, wind) {
       w,
       h,
     );
-  } else if (b.material === 'stone') drawMasonry(ctx, b);
+  } else if (b.detail === 'bridge') drawBridge(ctx, b);
+  else if (b.material === 'stone') drawMasonry(ctx, b);
   else {
     const upright = h > w;
     ctx.save();
@@ -926,7 +1002,7 @@ function drawFragment(ctx, b) {
     w * 1.2,
     h * 1.2,
   );
-  ctx.strokeStyle = 'rgba(249,226,185,.57)';
+  ctx.strokeStyle = fractureRim[b.material];
   ctx.lineWidth = 0.8;
   ctx.lineCap = 'butt';
   ctx.stroke(paths.edge);
@@ -1045,16 +1121,45 @@ function drawTrajectory(ctx, points) {
   ctx.globalAlpha = 1;
 }
 
-function drawGuard(ctx, b, t, launchAge, reduced) {
+function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime) {
   const reaction = 0.2 + Math.max(0, b.x - 500) * 0.00045 + (b.id % 3) * 0.03;
   const alerted = !reduced && launchAge > reaction && launchAge < reaction + 1.35;
   const gesture = !reduced && (t + b.id * 0.74) % 5.7 < 0.67;
   const pose = alerted ? 'guard-action' : gesture ? 'guard-idle' : 'guard';
-  const size = alerted ? 0.87 : 1;
-  const h = b.height * size * 1.16,
-    w = b.width * 1.2;
-  if (!sprite(ctx, pose, -w * 0.5, b.height * 0.5 - h, w, h))
-    sprite(ctx, 'guard', -w * 0.5, b.height * 0.5 - h, w, h);
+  const overview = clamp((61 - b.height * screenScale) / 23, 0, 1);
+  const tiny = clamp((38 - b.height * screenScale) / 28, 0, 1);
+  const w = b.width * (1.21 + 0.43 * tiny);
+  const h = b.height * (1.16 + 0.32 * tiny) * (alerted ? 0.91 : 1);
+  const foot = b.rig ? 19.5 : b.height / 2;
+  if (b.rig && !b.rig.resting) {
+    const c = Math.cos(b.angle), s = Math.sin(b.angle);
+    for (let i = 0; i < 2; i++) {
+      const leg = b.rig.legs[i].body;
+      const dx = leg.position.x - b.x, dy = leg.position.y - b.y;
+      ctx.save();
+      ctx.translate(c * dx + s * dy, c * dy - s * dx);
+      ctx.rotate(leg.angle - b.angle);
+      const side = i ? 1 : -1;
+      sampleGuard(ctx, pose, overview, i * 0.5, 0.67, 0.5, 0.33,
+        side * (w * 0.25 - 6.2) - w * 0.25, -5.85, w * 0.5, 11.35);
+      ctx.restore();
+    }
+    sampleGuard(ctx, pose, overview, 0, 0, 1, 0.71, -w / 2, foot - h, w, h * 0.71);
+  } else sampleGuard(ctx, pose, overview, 0, 0, 1, 1, -w / 2, foot - h, w, h);
+
+  const age = shotTime - (b.firedAt ?? -Infinity);
+  const firing = age >= 0 && age < 0.72;
+  const aiming = firing || (b.aimingUntil !== undefined && shotTime <= b.aimingUntil);
+  const direction = aiming ? b.gunAngle : Math.PI * 0.78;
+  const side = Math.cos(direction) < 0 ? -1 : 1;
+  ctx.save();
+  ctx.translate(side * 8.2, aiming ? -2.1 : 1);
+  ctx.rotate(aiming ? direction - b.angle : direction);
+  if (firing && !reduced) ctx.translate(-2 * Math.exp(-age * 17), 0);
+  line(ctx, '#352c25', 3.5, -1.7, 0, 6.6, 0);
+  line(ctx, '#c8bc90', 1.3, -1.4, -0.65, 6.5, -0.65);
+  line(ctx, '#594637', 2.3, -1, 0, -1.9, -2.9 * side);
+  ctx.restore();
 }
 
 const DEFAULT_VIEW = { x: 0, y: 0, width: WIDTH, height: HEIGHT };
@@ -1183,7 +1288,7 @@ export function createRenderer(canvas) {
       reducedMotion,
       state.shadows.contact,
     );
-    if (stats.ready && !stats.cleared) {
+    if (stats.ready) {
       const key = [ammo, angle, power].join('/');
       if (state.aimKey !== key) {
         state.aimKey = key;
@@ -1214,17 +1319,17 @@ export function createRenderer(canvas) {
         ctx.drawImage(
           state.shadows.contact,
           -b.width * 0.62,
-          b.height * 0.41,
+          b.rig ? 17.5 : b.height * 0.41,
           b.width * 1.38,
           b.height * 0.18,
         );
       }
-      if (b.kind === 'orc') drawGuard(ctx, b, ambientTime, age, reducedMotion);
+      if (b.kind === 'orc') drawGuard(ctx, b, ambientTime, age, reducedMotion, cssW / view.width, sim.time);
       else if (b.kind === 'barrel')
         sprite(ctx, 'keg', -b.width * 0.53, -b.height * 0.69, b.width * 1.06, b.height * 1.19);
       else if (b.kind === 'torch') drawTorch(ctx, b);
-      else if (b.kind === 'projectile') drawAmmo(ctx, b.material, b.radius || b.width / 2, ambientTime, true);
-      else if (b.kind === 'fragment') drawFragment(ctx, b);
+      else if (b.kind === 'projectile' && !b.vertices) drawAmmo(ctx, b.material, b.radius || b.width / 2, ambientTime, true);
+      else if (b.kind === 'fragment' || b.detail === 'split-shot') drawFragment(ctx, b);
       else drawBlock(ctx, b, ambientTime, sim.level?.wind ?? 0);
     }
     ctx.restore();

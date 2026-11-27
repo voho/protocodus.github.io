@@ -9,11 +9,12 @@ import { whenSpritesReady } from './sprites.js';
 const $ = (id) => document.getElementById(id);
 const descriptions = [
   'A light, inexpensive stone for taking out a support.',
-  'A heavy stone with enough momentum to punch through masonry.',
+  'A heavy stone for shoving piers and toppling towers.',
   'A compact blast for breaking clustered supports.',
   'A wide blast that can excavate the ground beneath a tower.',
   'A magical burst that sets timber and exposed powder stores alight.',
-  'The heaviest charge. Click the field after launch to detonate it in flight or on the ground.',
+  'A slow, heavy charge. Click the field to detonate it. An orc can set it off in flight.',
+  'Implodes on impact, pulling loose pieces and supports into a crushing knot.',
 ];
 const rollSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
 const validSize = (value) => DIFFICULTIES.some(({ id }) => id === value);
@@ -33,7 +34,7 @@ function readFortress() {
   return { size: validSize(preferred) ? preferred : 'small', seed: rollSeed() };
 }
 const initial = readFortress();
-const sim = new FortressSimulation(initial.size, initial.seed);
+let sim = new FortressSimulation(initial.size, initial.seed);
 const camera = createView($('battlefield'), $('panorama'), $('scenery'), $('game-dock'));
 const renderer = createRenderer($('battlefield'));
 const audio = createAudio();
@@ -74,11 +75,12 @@ const bests = Object.fromEntries(
 let soundOn = stored('sound', true) === true;
 let clock = 0;
 let previousFrame = null;
-let reportAt = Infinity;
-let recordSet = false;
+let victoryRecorded = false;
 let lastStats = '';
 let lastAnnouncedOrcs = sim.stats.orcsRemaining;
+let inputMode = matchMedia('(pointer: coarse)').matches ? 'touch' : 'mouse';
 const ammoButtons = [];
+const czechAmmoKeys = ['+', 'ě', 'š', 'č', 'ř', 'ž', 'ý'];
 
 function selectAmmo(index) {
   settings.ammo = AMMO[index].id;
@@ -154,26 +156,29 @@ function track(event, extra) {
 }
 function syncHud() {
   const s = sim.stats;
-  const remote = s.remoteBombs > 0 && s.orcsRemaining > 0;
+  const remote = s.remoteBombs > 0;
   const trigger = remote && settings.ammo === 'siege-bomb';
-  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote, trigger].join('/');
+  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote, trigger, inputMode].join('/');
   if (key === lastStats) return;
   lastStats = key;
   $('orcs').textContent = s.orcsRemaining + ' / ' + s.orcsTotal;
   $('destruction').textContent = s.destruction + '%';
   $('spent').textContent = String(s.spent);
   const state = $('state');
-  state.toggleAttribute('data-busy', !s.ready && !s.cleared);
+  const touch = inputMode === 'touch', keyboard = inputMode === 'keyboard';
+  const action = keyboard ? 'Space to fire' : touch ? 'Double-tap to fire' : 'Double-click to fire';
+  const detonate = touch ? 'Tap to detonate' : 'Click to detonate';
+  $('aim-hint').textContent = keyboard
+    ? '← → Power · ↑ ↓ Angle · ' + (trigger ? 'Space to detonate' : action)
+    : remote ? detonate : action;
+  state.toggleAttribute('data-busy', !s.ready);
   state.toggleAttribute('data-won', s.orcsRemaining === 0);
   state.querySelector('span').textContent =
-    s.orcsRemaining === 0 ? 'Fortress cleared' : remote ? 'Click field to detonate' : s.ready ? 'Ready to fire' : 'Reloading';
+    remote ? (keyboard && trigger ? 'Space to detonate' : touch ? 'Tap field to detonate' : 'Click field to detonate')
+      : s.ready ? 'Ready to fire' : 'Reloading';
   const fireButton = $('fire-button');
-  fireButton.disabled = !s.ready && !s.cleared && !trigger;
-  fireButton.querySelector('span').textContent = s.cleared
-    ? 'Siege report'
-    : trigger ? 'Detonate bomb' : s.ready
-      ? 'Fire catapult'
-      : 'Reloading';
+  fireButton.disabled = !s.ready && !trigger;
+  fireButton.querySelector('span').textContent = trigger ? 'Detonate bomb' : s.ready ? 'Fire catapult' : 'Reloading';
   if (s.orcsRemaining !== lastAnnouncedOrcs) {
     $('announcement').textContent = s.orcsRemaining + ' orcs left. ' + s.destruction + '% of the fort destroyed.';
     lastAnnouncedOrcs = s.orcsRemaining;
@@ -182,10 +187,6 @@ function syncHud() {
 
 function fire() {
   if (!ready || overlay.open) return;
-  if (sim.stats.cleared) {
-    showReport();
-    return;
-  }
   if (!sim.fire(settings.ammo, settings.angle, settings.power)) return;
   audio.unlock();
   if (soundOn) music.activate();
@@ -193,7 +194,7 @@ function fire() {
   syncHud();
 }
 function triggerBomb() {
-  if (!ready || overlay.open || !sim.orcsRemaining || !sim.detonateSiegeBomb()) return false;
+  if (!ready || overlay.open || !sim.detonateSiegeBomb()) return false;
   syncHud();
   return true;
 }
@@ -203,39 +204,45 @@ function primaryFire() {
 }
 $('fire-button').addEventListener('click', primaryFire);
 
+// Measure from the sling in world coordinates so zooming or panning preserves the shot.
+const fullPowerDistance = 320;
 function aimAt(event) {
-  if (!ready || !sim.stats.orcsRemaining || camera.dragged() || event.button !== 0) return;
+  if (!ready || overlay.open) return false;
   const { x, y } = camera.target(event.clientX, event.clientY);
+  const dx = x - WORLD.release.x;
+  const up = WORLD.release.y - y;
+  if (dx < 0) return false;
   camera.focusAt(x);
-  if (x < WORLD.release.x + 30 || x > WORLD.width || y > sim.terrainHeight(x) + 10) return;
-  let best = Infinity,
-    angle = settings.angle,
-    power = settings.power;
-  for (let candidate = +angles.min; candidate <= +angles.max; candidate++) {
-    // At a fixed angle, higher power passes higher over the same point.
-    let low = +powers.min;
-    let high = +powers.max;
-    while (low <= high) {
-      const strength = Math.floor((low + high) / 2);
-      const height = sim.heightAt(settings.ammo, candidate, strength, x);
-      const miss = Math.abs(height - y) + Math.abs(candidate - settings.angle) * 0.22;
-      if (miss < best) {
-        best = miss;
-        angle = candidate;
-        power = strength;
-      }
-      if (height > y) low = strength + 1;
-      else high = strength - 1;
-    }
+  const bearing = Math.round((Math.atan2(up, dx) * 180) / Math.PI);
+  const strength = Math.round((100 * Math.hypot(dx, up)) / fullPowerDistance);
+  const angle = Math.min(+angles.max, Math.max(+angles.min, bearing));
+  const power = Math.min(+powers.max, Math.max(+powers.min, strength));
+  if (angle !== settings.angle || power !== settings.power) {
+    angles.value = angle;
+    powers.value = power;
+    updateSliders();
   }
-  angles.value = angle;
-  powers.value = power;
-  updateSliders();
+  return true;
 }
 const field = $('battlefield');
 let previousTap = null;
 let lastTouch = -Infinity;
 let consumedClick = false;
+let mouseX, mouseY;
+function useInput(mode) {
+  if (inputMode === mode) return;
+  inputMode = mode;
+  if (ready) syncHud();
+}
+document.addEventListener('pointerdown', (event) => useInput(event.pointerType === 'touch' ? 'touch' : 'mouse'));
+document.addEventListener('pointermove', (event) => {
+  if (event.pointerType === 'touch') return;
+  if (event.clientX === mouseX && event.clientY === mouseY) return;
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+  useInput('mouse');
+  if (event.target === field && !event.buttons) aimAt(event);
+});
 field.addEventListener('click', (event) => {
   if (event.button !== 0 || camera.dragged() || event.timeStamp - lastTouch < 500) return;
   if (event.detail <= 1) consumedClick = triggerBomb();
@@ -244,25 +251,38 @@ field.addEventListener('click', (event) => {
 field.addEventListener('dblclick', (event) => {
   if (event.button !== 0 || camera.dragged() || consumedClick || event.timeStamp - lastTouch < 500) return;
   event.preventDefault();
-  if (sim.orcsRemaining) fire();
+  if (aimAt(event)) fire();
 });
 field.addEventListener('pointerup', (event) => {
   if (event.pointerType !== 'touch') return;
   lastTouch = event.timeStamp;
-  if (camera.dragged() || triggerBomb()) {
+  if (camera.dragged() || triggerBomb() || !aimAt(event)) {
     previousTap = null;
     return;
   }
-  aimAt(event);
   const point = { x: event.clientX, y: event.clientY, t: event.timeStamp };
   if (previousTap && point.t - previousTap.t < 340 && Math.hypot(point.x - previousTap.x, point.y - previousTap.y) < 24) {
-    if (sim.orcsRemaining) fire();
+    fire();
     previousTap = null;
   } else previousTap = point;
 });
 
-function enterFortress(size, seed, alreadyLoaded = false) {
-  if (!alreadyLoaded) sim.loadLevel(size, seed);
+let nextFort = null;
+let idleTicket = 0;
+const main = document.querySelector('main');
+const idle = window.requestIdleCallback?.bind(window) ||
+  ((work) => setTimeout(() => work({ timeRemaining: () => 3, didTimeout: false }), 0));
+const cancelIdle = window.cancelIdleCallback?.bind(window) || clearTimeout;
+
+function reserve(size, seed) {
+  if (idleTicket) cancelIdle(idleTicket);
+  idleTicket = 0;
+  nextFort = { size, seed, steps: FortressSimulation.prepareLevel(size, seed), world: null, requested: false };
+}
+
+function enterFortress(world) {
+  sim = world;
+  const { difficulty: size, seed } = sim;
   renderer.reset();
   const level = sim.level;
   $('fort-size').value = size;
@@ -278,14 +298,15 @@ function enterFortress(size, seed, alreadyLoaded = false) {
   const best = bests[scoreKey()];
   $('objective').textContent = best ? 'Best siege · ' + best + ' gold' : 'Defeat every orc for the least gold.';
   document.body.dataset.phase = level.phase;
-  camera.frame(level.phase, seed, landscapes[sim.themeIndex]);
+  camera.frame(level.phase, seed, landscapes[sim.themeIndex], level.sections);
   renderer.prepare(sim, landscapes[sim.themeIndex]);
   $('announcement').textContent = level.name + ', ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
   lastAnnouncedOrcs = sim.stats.orcsRemaining;
   lastStats = '';
   clock = 0;
-  reportAt = Infinity;
-  recordSet = false;
+  victoryRecorded = false;
+  $('victory-report').hidden = true;
+  $('mission').hidden = false;
   previousTap = null;
   consumedClick = false;
   lastTouch = -Infinity;
@@ -297,14 +318,56 @@ function enterFortress(size, seed, alreadyLoaded = false) {
   if (overlay.open) overlay.close();
   const hash = '#' + size + '/' + seed.toString(36);
   if (hash !== location.hash) history.replaceState(null, '', hash);
+  main.removeAttribute('aria-busy');
+  reserve(size, rollSeed());
+}
+
+function prepareNextFort() {
+  const job = nextFort;
+  if (!job || job.world || idleTicket || document.hidden) return;
+  if (!job.requested && battleInProgress()) return;
+  idleTicket = idle((deadline) => {
+    idleTicket = 0;
+    if (nextFort !== job || document.hidden || (!job.requested && battleInProgress())) return;
+    const budget = deadline.didTimeout && job.requested ? 4 : deadline.timeRemaining() - 1;
+    if (budget < 1) return;
+    const end = performance.now() + Math.min(budget, job.requested ? 5 : 2.5);
+    do {
+      const step = job.steps.next();
+      if (step.done) {
+        job.steps = null;
+        job.world = step.value;
+        if (job.requested && job.fromHash === location.hash) enterFortress(job.world);
+        return;
+      }
+    } while (performance.now() < end);
+  }, { timeout: job.requested ? 8 : 100 });
+}
+
+function battleInProgress() {
+  // A speculative fort uses spare time before firing or once the rubble sleeps.
+  return sim.shots > 0 && !sim.resting && !overlay.open;
+}
+
+function requestFortress(size, seed) {
+  if (!nextFort || nextFort.size !== size || nextFort.seed !== seed) reserve(size, seed);
+  if (nextFort.world) {
+    enterFortress(nextFort.world);
+    return;
+  }
+  nextFort.requested = true;
+  nextFort.fromHash = location.hash;
+  main.setAttribute('aria-busy', 'true');
+  prepareNextFort();
 }
 function newFortress(size) {
   store('size', size);
-  enterFortress(size, rollSeed());
+  const seed = nextFort?.size === size && !nextFort.requested ? nextFort.seed : rollSeed();
+  requestFortress(size, seed);
 }
 $('fort-size').addEventListener('change', (event) => newFortress(event.target.value));
-$('restart-button').addEventListener('click', () => enterFortress(sim.difficulty, sim.seed));
-$('new-button').addEventListener('click', () => newFortress(sim.difficulty));
+$('restart-button').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed));
+$('new-button').addEventListener('click', () => newFortress($('fort-size').value));
 $('fold-controls').addEventListener('click', () => {
   const folded = document.body.classList.toggle('controls-folded');
   const button = $('fold-controls');
@@ -315,14 +378,7 @@ $('fold-controls').addEventListener('click', () => {
 });
 
 function syncMusicPause() {
-  music.pause(document.hidden || (overlay.open && overlay.dataset.panel === 'help'));
-}
-function dialogContent(kicker, panel, title, html) {
-  overlay.dataset.panel = panel;
-  $('dialog-body').innerHTML =
-    '<div class="modal-kicker">' + icon(panel === 'help' ? 'help' : 'trophy') + kicker + '</div><h2 id="dialog-title">' + title + '</h2>' + html;
-  if (!overlay.open) overlay.showModal();
-  syncMusicPause();
+  music.pause(document.hidden || overlay.open);
 }
 overlay.addEventListener('close', syncMusicPause);
 $('close-dialog').addEventListener('click', () => overlay.close());
@@ -333,49 +389,43 @@ overlay.addEventListener('click', (event) => {
     overlay.close();
 });
 function showHelp() {
-  dialogContent(
-    'Field guide',
-    'help',
-    'How to play',
-    '<p>Defeat every orc for the least gold. Choose Small, Medium or Large to generate a fortress. Restart keeps its layout so you can beat your score.</p>' +
-      '<ol><li><b>Choose a shot.</b> Small stones reload fast enough for a volley. Heavy stones and bombs take longer. Bombs dig craters and can undermine a tower. Fireballs ignite timber and powder. The Siege bomb stays armed on impact. Click the field or press its Detonate button to trigger it.</li><li><b>Click to aim. Double-click to fire.</b> You can also set the angle and power yourself and launch with Space. The camera makes room for high or wide shots. Between shots you can zoom and drag to inspect the towers.</li><li><b>Use the terrain.</b> Lob a shot over a hill, or bring down a tower onto the guards below. Burning timber weakens under load, and fire can spread to powder barrels. A falling torch goes out. Wind bends the shot path, especially on high arcs.</li></ol>' +
-      '<button class="primary-button" data-dismiss>Back to the siege</button>',
-  );
+  $('dialog-body').innerHTML =
+    '<div class="modal-kicker">' + icon('help') + 'Field guide</div><h2 id="dialog-title">How to play</h2>' +
+    '<p>Defeat every orc for the least gold. Your score locks when the last orc falls. Keep firing, restart to beat your score, or generate another fortress.</p>' +
+      '<ol><li><b>Choose a shot.</b> Small stones reload fast enough for a volley. Heavy stones and bombs take longer. Bombs dig craters and can undermine a tower. Fireballs ignite timber and powder. The Magic bomb pulls nearby pieces inward. The Siege bomb rolls like a boulder until you click to detonate it. Watch the armed guards. A countershot can deflect or split a stone, or set a bomb off early.</li><li><b>Point to aim. Double-click to fire.</b> Point up and to the right of the catapult sling. Its direction sets the launch angle, and moving farther from the sling increases power. On touchscreens, tap to aim and double-tap to fire. On a keyboard, use ← and → for power, ↑ and ↓ for angle, and Space to fire. Select ammunition with the first seven number-row keys (1–7 or +ěščřžý on a Czech keyboard). The camera makes room for high or wide shots. Between shots you can zoom and drag to inspect the towers.</li><li><b>Use the terrain.</b> Lob a shot over a hill or break a support. Glass shatters, stone chunks can split again on landing, and steel bends under load. Timber weakens as it burns, and fire spreads to powder barrels. A falling torch goes out. Wind bends the shot path, especially on high arcs.</li></ol>' +
+      '<button class="primary-button" data-dismiss>Back to the siege</button>';
+  overlay.showModal();
+  syncMusicPause();
   overlay.querySelector('[data-dismiss]').addEventListener('click', () => overlay.close());
 }
 $('help-button').addEventListener('click', showHelp);
 function showReport() {
-  reportAt = Infinity;
-  const s = sim.stats,
-    level = sim.level;
-  const more = 'New fortress';
-  dialogContent(
-    'Siege complete',
-    'victory',
-    level.name + ' has fallen',
-    '<p>All ' +
-      s.orcsTotal +
-      ' orcs fainted. You destroyed ' +
-      s.destruction +
-      '% of the fort in ' +
-      s.shots +
-      (s.shots === 1 ? ' shot.' : ' shots.') +
-      '</p>' +
-      '<div class="result-score"><i class="coin"></i><strong>' +
-      s.spent +
-      ' gold</strong></div>' +
-      '<p style="margin-top:12px">' +
-      (recordSet ? 'Personal best.' : 'Personal best is ' + bests[scoreKey()] + ' gold.') +
-      ' The target for this fortress is ' +
-      level.par +
-      ' gold.</p>' +
-      '<div class="dialog-actions"><button class="primary-button" data-next>' +
-      more +
-      '</button><button class="secondary-button" data-replay>Try for less gold</button></div>',
-  );
-  overlay.querySelector('[data-next]').addEventListener('click', () => newFortress(sim.difficulty));
-  overlay.querySelector('[data-replay]').addEventListener('click', () => enterFortress(sim.difficulty, sim.seed));
+  victoryRecorded = true;
+  const cost = sim.winningCost;
+  const key = scoreKey();
+  const record = !bests[key] || cost < bests[key];
+  if (record) {
+    bests[key] = cost;
+    store('siege-bests', Object.fromEntries(Object.entries(bests).slice(-200)));
+  }
+  track('game_end', { result: 'win', score: cost, duration_seconds: Math.round(sim.time) });
+  const title = sim.level.name + ' has fallen';
+  $('victory-title').textContent = title;
+  $('victory-cost').textContent = cost + ' gold';
+  $('victory-par').textContent = 'Par ' + sim.level.par;
+  $('victory-best').textContent = record ? 'New best' : 'Best ' + bests[key];
+  $('mission').hidden = true;
+  $('victory-report').hidden = false;
+  $('objective').textContent = 'Siege won for ' + cost + ' gold. Keep firing or start a new fortress.';
+  $('announcement').textContent = title + '. Winning cost ' + cost + ' gold. You can keep firing.';
+  camera.invalidate();
 }
+$('dismiss-victory').addEventListener('click', () => {
+  $('victory-report').hidden = true;
+  $('mission').hidden = false;
+  camera.invalidate();
+  $('battlefield').focus({ preventScroll: true });
+});
 
 const fullscreen = $('fullscreen-button');
 if (!document.fullscreenEnabled) fullscreen.hidden = true;
@@ -406,28 +456,36 @@ document.addEventListener('keydown', (event) => {
     showHelp();
     return;
   }
-  if (/^[1-9]$/.test(event.key) && +event.key <= AMMO.length) {
+  const physicalAmmo = /^(?:Digit|Numpad)([1-7])$/.exec(event.code);
+  let ammo = physicalAmmo ? +physicalAmmo[1] : 0;
+  if (!ammo && /^[1-7]$/.test(event.key)) ammo = +event.key;
+  // Some virtual keyboards omit a physical code. Czech top-row keys are unshifted.
+  if (!ammo && (!event.code || event.code === 'Unidentified')) ammo = czechAmmoKeys.indexOf(event.key) + 1;
+  if (ammo && ammo <= AMMO.length) {
     event.preventDefault();
-    selectAmmo(+event.key - 1);
+    useInput('keyboard');
+    selectAmmo(ammo - 1);
     $('battlefield').focus({ preventScroll: true });
     return;
   }
-  if (event.target.tagName === 'INPUT' && event.code !== 'Space') return;
   if (event.code === 'Space') {
     if (event.target.closest('button,a') && event.target !== $('fire-button')) return;
     event.preventDefault();
+    useInput('keyboard');
     if (!event.repeat) primaryFire();
     return;
   }
   const arrows = {
-    ArrowLeft: [angles, -1],
-    ArrowRight: [angles, 1],
-    ArrowDown: [powers, -1],
-    ArrowUp: [powers, 1],
+    ArrowLeft: [powers, -1],
+    ArrowRight: [powers, 1],
+    ArrowDown: [angles, -1],
+    ArrowUp: [angles, 1],
   };
   const instruction = arrows[event.key];
   if (!instruction) return;
   event.preventDefault();
+  useInput('keyboard');
+  field.focus({ preventScroll: true });
   const [control, delta] = instruction;
   control.value = +control.value + delta;
   updateSliders();
@@ -442,17 +500,6 @@ function tick(now) {
     const events = sim.drainEvents();
     const view = camera.update(sim, events, dt, reduced.matches);
     audio.play(events, sim, view);
-    if (events.some((e) => e.type === 'clear')) {
-      const key = scoreKey(),
-        { spent } = sim.stats;
-      recordSet = !bests[key] || spent < bests[key];
-      if (recordSet) {
-        bests[key] = spent;
-        store('siege-bests', Object.fromEntries(Object.entries(bests).slice(-200)));
-      }
-      track('game_end', { result: 'win', score: spent, duration_seconds: Math.round(sim.time) });
-      reportAt = clock + 1.5;
-    }
     renderer.draw(sim, {
       ...settings,
       time: clock,
@@ -462,8 +509,9 @@ function tick(now) {
       scenery: landscapes[sim.themeIndex],
     });
     syncHud();
-    if (clock >= reportAt) showReport();
+    if (!victoryRecorded && sim.winningCost !== null) showReport();
   }
+  prepareNextFort();
   requestAnimationFrame(tick);
 }
 document.addEventListener('visibilitychange', () => {
@@ -473,7 +521,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('hashchange', () => {
   if (!ready) return;
   const next = readFortress();
-  enterFortress(next.size, next.seed);
+  requestFortress(next.size, next.seed);
 });
 
 function activateSound(event) {
@@ -509,8 +557,10 @@ async function boot() {
         progress.value = count / total;
       },
     );
+    await camera.prepareSkies(landscapes);
     const entry = location.hash && location.hash !== initialHash ? readFortress() : initial;
-    enterFortress(entry.size, entry.seed, entry === initial);
+    if (entry !== initial) sim.loadLevel(entry.size, entry.seed);
+    enterFortress(sim);
     ready = true;
     document.querySelector('main').inert = false;
     document.querySelector('header').inert = false;

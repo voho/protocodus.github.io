@@ -1,4 +1,6 @@
 import Matter from './vendor/matter.min.js';
+import { createGuardDefense, splitShot } from './guard-fire.js';
+import { addGuardRig, balanceGuards, removeGuardRig, wakeGuardRig } from './guard-rig.js';
 
 const { Bodies, Body, Composite, Engine, Events, Sleeping, Vertices } = Matter;
 
@@ -7,21 +9,23 @@ const terrainStart = { x: -1000, y: WORLD.ground };
 const terrainEnd = { x: 2200, y: WORLD.ground };
 
 export const AMMO = [
-  { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012, reload: 0.3 },
-  { id: 'big-stone', name: 'Big stone', cost: 22, radius: 15, density: 0.013, reload: 0.75 },
-  { id: 'small-bomb', name: 'Small bomb', cost: 35, radius: 10, density: 0.009, blast: 103, reload: 1.2 },
-  { id: 'big-bomb', name: 'Big bomb', cost: 60, radius: 15, density: 0.012, blast: 158, reload: 1.85 },
-  { id: 'fireball', name: 'Fireball', cost: 45, radius: 11, density: 0.0027, flameRadius: 112, reload: 1.4 },
+  { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012, reload: 0.15 },
+  { id: 'big-stone', name: 'Big stone', cost: 22, radius: 15, density: 0.013, reload: 0.375 },
+  { id: 'small-bomb', name: 'Small bomb', cost: 35, radius: 10, density: 0.009, blast: 103, reload: 0.6 },
+  { id: 'big-bomb', name: 'Big bomb', cost: 60, radius: 15, density: 0.012, blast: 158, reload: 0.925 },
+  { id: 'fireball', name: 'Fireball', cost: 45, radius: 11, density: 0.0027, flameRadius: 112, reload: 0.7 },
   {
     id: 'siege-bomb',
     name: 'Siege bomb',
     cost: 90,
     radius: 19,
     density: 0.012,
+    launchScale: 0.74,
     blast: 205,
-    reload: 2.6,
+    reload: 1.3,
     remote: true,
   },
+  { id: 'magic-bomb', name: 'Magic bomb', cost: 75, radius: 13, density: 0.006, implosionRadius: 168, reload: 1.05 },
 ];
 
 export const DIFFICULTIES = [
@@ -76,12 +80,13 @@ export function generateLevel(difficulty, seed) {
   const wind = (weather() < 0.5 ? -1 : 1) * (8 + Math.floor(weather() * 17));
   const random = seededRandom(seed ^ Math.imul(index + 1, 0x85ebca6b));
   const integer = (lo, hi) => lo + Math.floor(random() * (hi - lo + 1));
-  const count = small ? 2 : large ? 4 : 3;
-  const first = (small ? 649 : large ? 418 : 537) + integer(-12, 12);
+  const count = small ? 2 : large ? 5 : 3;
+  const first = (small ? 649 : large ? 380 : 537) + integer(-12, 12);
   const last = (small ? 978 : large ? 1066 : 1034) + integer(-13, 13);
   const centers = Array.from(
     { length: count },
-    (_, i) => Math.round(first + ((last - first) * i) / (count - 1)) + (i && i < count - 1 ? integer(-14, 14) : 0),
+    (_, i) => Math.round(first + ((last - first) * i) / (count - 1)) +
+      (i && i < count - 1 ? (large ? integer(-6, 6) : integer(-14, 14)) : 0),
   );
   const sections = [],
     walls = [],
@@ -91,7 +96,7 @@ export function generateLevel(difficulty, seed) {
     const keep = i === count - 1,
       front = i === 0;
     const spacing = Math.min(center - (centers[i - 1] ?? -1000), (centers[i + 1] ?? 2200) - center);
-    const maxWidth = Math.min(spacing - (large ? 50 : 55), 2 * (1164 - center));
+    const maxWidth = Math.min(spacing - (large ? 43 : 55), 2 * (1164 - center));
     const maxBays = Math.min(keep || large ? 3 : 2, Math.max(1, Math.floor(maxWidth / 53)));
     const bays =
       keep || !small ? integer(Math.min(2, maxBays), maxBays) : front && small ? 1 : integer(1, maxBays);
@@ -100,8 +105,8 @@ export function generateLevel(difficulty, seed) {
       left = center - Math.round(width / 2);
     const peak = large
       ? keep
-        ? integer(4, 5)
-        : integer(3, 4)
+        ? integer(5, 6)
+        : integer(4, 5)
       : keep
         ? small
           ? 3
@@ -109,11 +114,12 @@ export function generateLevel(difficulty, seed) {
         : small
           ? 2
           : integer(2, 3);
-    const heights = Array.from({ length: bays }, () => integer(large ? 2 : 1, Math.max(1, peak - 1)));
+    const heights = Array.from({ length: bays }, () => integer(large ? 3 : 1, Math.max(1, peak - 1)));
     const tower = integer(0, bays - 1);
     heights[tower] = peak;
     if (bays === 3 && tower !== 1 && !small) heights[2 - tower] = integer(2, peak - 1);
     if (large && !front && bays > 1) heights[(tower + 1) % bays] = Math.max(3, heights[(tower + 1) % bays]);
+    if (large) for (let bay = 0; bay < heights.length; bay++) heights[bay] *= 2;
     const storey = large ? integer(47, 51) : keep ? integer(49, 57) : integer(small ? 44 : 46, 54);
     const targetBase = Math.round(
       WORLD.ground - (front ? integer(0, 9) : ((16 + index * 12 + integer(0, 11)) * i) / (count - 1)),
@@ -122,7 +128,8 @@ export function generateLevel(difficulty, seed) {
       wall;
     const gap = hillLeft - previousRight;
     if ((front || gap > (large ? 63 : 87)) && (front || large || random() < 0.78)) {
-      const width = integer(32, Math.min(63, Math.floor(gap * 0.55)));
+      const maxWall = large && front ? Math.min(68, hillLeft - 225) : 63;
+      const width = integer(large && front ? Math.min(48, maxWall) : 32, Math.min(maxWall, Math.floor(gap * 0.55)));
       const wallLeft = hillLeft - width - integer(5, 11);
       wall = { left: wallLeft, width, rows: integer(large ? 3 : small ? 1 : 2, large ? 4 : small ? 2 : 3) };
       hillLeft = wallLeft - 3;
@@ -170,7 +177,8 @@ export function generateLevel(difficulty, seed) {
   }
   terrainShoulder(terrain, previousRight, WORLD.width, WORLD.ground);
   const guards = sections.reduce((sum, section) => sum + section.orcs.length, 0);
-  const par = 5 * Math.round((count * 14 + guards * 9 + index * 2) / 5);
+  const rooms = sections.reduce((sum, s) => sum + s.heights.reduce((n, h) => n + h, 0), 0);
+  const par = 5 * Math.round((count * 14 + guards * 9 + index * 2 + rooms * (large ? 2 : small ? 0 : 0.8)) / 5);
   const ward = sections[0],
     angle = large ? 24 : 38;
   const dx = ward.left - WORLD.release.x,
@@ -178,7 +186,7 @@ export function generateLevel(difficulty, seed) {
   const aim = { angle, power: 25 };
   let closest = Infinity;
   for (let p = 25; p <= 100; p++) {
-    const v = launchVelocity(angle, p),
+    const v = launchVelocity(angle, p, undefined, large),
       t = flightTime(dx, v.x, wind);
     const miss = Math.abs(v.y * t + 0.5 * GRAVITY * t * (t + STEP) - dy);
     if (miss < closest) {
@@ -206,18 +214,56 @@ const STEP = 1 / 120;
 const TURF_ROLL = Math.exp(-2.4 * STEP);
 const GRAVITY = 680;
 const ROOF = 13;
+const BRIDGE_LEDGE = 10;
+const MIN_BREAKABLE_RUBBLE_AREA = 65;
+const MAX_RUBBLE_GENERATION = 2;
 const MATERIALS = {
-  stone: { density: 0.0028, toughness: 9, friction: 0.76 },
-  wood: { density: 0.0011, toughness: 6.2, friction: 0.83 },
-  glass: { density: 0.0016, toughness: 2.8, friction: 0.66 },
-  steel: { density: 0.0038, toughness: 15, friction: 0.7 },
+  stone: { density: 0.0028, toughness: 10, bluntDamage: 0.7, friction: 0.76 },
+  wood: { density: 0.0011, toughness: 6.2, bluntDamage: 0.86, friction: 0.83 },
+  glass: { density: 0.0016, toughness: 2.8, bluntDamage: 1.22, friction: 0.66 },
+  steel: { density: 0.0038, toughness: 15, bluntDamage: 0.58, friction: 0.7 },
 };
 const clamp = (v, min, max) => Math.max(min, Math.min(v, max));
 const ammoById = new Map(AMMO.map((ammo) => [ammo.id, ammo]));
 
-function launchVelocity(angle, power) {
+function planBridges(level) {
+  if (level.difficulty === 'small') return [];
+  const random = seededRandom(level.seed ^ 0xa746c3);
+  return level.sections.slice(1).map((right, index) => {
+    const left = level.sections[index];
+    const highWard = level.difficulty === 'large';
+    const leftHeight = highWard ? Math.max(...left.heights) : left.heights.at(-1);
+    const rightHeight = highWard ? Math.max(...right.heights) : right.heights[0];
+    const wanted = 1 + Math.floor(random() * Math.min(leftHeight, rightHeight, highWard ? 9 : 5));
+    let best = Infinity, leftFloor = 1, rightFloor = 1;
+    for (let a = 1; a <= leftHeight; a++) {
+      for (let b = 1; b <= rightHeight; b++) {
+        const rise = Math.abs(left.base - a * left.storey - (right.base - b * right.storey));
+        // In tightly packed wards, alternate a low crossing with a longer
+        // skybridge between setback towers, clear of the roofs below.
+        const setback = a > left.heights.at(-1) || b > right.heights[0];
+        const cost = rise + Math.abs(a - wanted) * 11 + Math.abs(b - wanted) * 11 -
+          (highWard && index % 2 === 0 && setback ? 170 : 0);
+        if (cost < best) {
+          best = cost;
+          leftFloor = a;
+          rightFloor = b;
+        }
+      }
+    }
+    const leftBay = left.heights.findLastIndex((height) => height >= leftFloor);
+    const rightBay = right.heights.findIndex((height) => height >= rightFloor);
+    return { leftFloor, rightFloor, leftBay, rightBay, material: random() < 0.3 ? 'steel' : 'wood' };
+  });
+}
+
+function launchVelocity(angle, power, ammo, large = false) {
   const radians = (clamp(angle, 5, 85) * Math.PI) / 180;
-  const speed = 250 + 6.1 * clamp(power, 1, 100);
+  const draw = clamp(power, 1, 100);
+  // The large-fortress engine has a longer draw for clearing the rear keep.
+  // A progressive boost at full extension preserves short, precise low shots.
+  const reserve = large ? 270 * (Math.max(0, draw - 70) / 30) ** 2 : 0;
+  const speed = (250 + 6.1 * draw + reserve) * (ammo?.launchScale ?? 1);
   return { x: Math.cos(radians) * speed, y: -Math.sin(radians) * speed };
 }
 
@@ -239,6 +285,40 @@ function pointVelocity(body, point) {
   const v = Body.getVelocity(body),
     spin = Body.getAngularVelocity(body);
   return { x: v.x - spin * (point.y - body.position.y), y: v.y + spin * (point.x - body.position.x) };
+}
+
+// Split across the longest edge, offset toward the end that took the hit.
+// Clipping the existing convex outline keeps even slender, rotating shards
+// inside their parent and leaves one rough chip and one larger stone.
+function splitStone(vertices, hit) {
+  let edgeX = 0, edgeY = 0, longest = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i], b = vertices[(i + 1) % vertices.length];
+    const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
+    if (length > longest) {
+      longest = length;
+      edgeX = dx;
+      edgeY = dy;
+    }
+  }
+  const distances = vertices.map((p) => p.x * edgeX + p.y * edgeY);
+  const min = Math.min(...distances), max = Math.max(...distances);
+  const nearMin = hit.x * edgeX + hit.y * edgeY < (min + max) / 2;
+  const cut = min + (max - min) * (nearMin ? 0.35 : 0.65);
+  const halves = [[], []];
+  for (let i = 0; i < vertices.length; i++) {
+    const j = (i + 1) % vertices.length;
+    const a = vertices[i], b = vertices[j], da = distances[i] - cut, db = distances[j] - cut;
+    if (da <= 0) halves[0].push(a);
+    if (da >= 0) halves[1].push(a);
+    if (da * db < 0) {
+      const t = da / (da - db);
+      const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      halves[0].push(p);
+      halves[1].push(p);
+    }
+  }
+  return halves;
 }
 
 // Clip a blast ray against a convex collision polygon. A wall between powder
@@ -283,6 +363,30 @@ function distanceToBody(e, point) {
   return Math.hypot(x, y);
 }
 
+// Find the exposed face on a rotated plank or an irregular rubble outline.
+// A bounding box alone can put the hit in empty air beside a leaning beam.
+function blastContact(body, origin) {
+  const vertices = body.vertices;
+  let x = origin.x, y = origin.y, best = Infinity;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i], b = vertices[(i + 1) % vertices.length];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const t = clamp(((origin.x - a.x) * dx + (origin.y - a.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    const px = a.x + t * dx, py = a.y + t * dy;
+    const d = (px - origin.x) ** 2 + (py - origin.y) ** 2;
+    if (d < best) { best = d; x = px; y = py; }
+  }
+  const inside = Vertices.contains(vertices, origin);
+  let dx = inside ? body.position.x - origin.x : x - origin.x;
+  let dy = inside ? body.position.y - origin.y : y - origin.y;
+  let length = Math.hypot(dx, dy);
+  if (length < 0.001) {
+    dx = body.position.x - x; dy = body.position.y - y;
+    length = Math.hypot(dx, dy) || 1;
+  }
+  return { x, y, distance: inside ? 0 : Math.sqrt(best), blast: true, outX: dx / length, outY: dy / length };
+}
+
 function touchingHeatSource(a, b) {
   const ab = a.body.bounds,
     bb = b.body.bounds;
@@ -300,6 +404,20 @@ export class FortressSimulation {
   }
 
   loadLevel(difficulty = this.difficulty, seed = difficulty === this.difficulty ? this.seed : newSeed()) {
+    const builder = this.buildLevel(difficulty, seed);
+    let step;
+    do step = builder.next(); while (!step.done);
+    return step.value;
+  }
+
+  // Drive the identical generator a few steps per idle frame when preparing a
+  // new siege. A separate simulation owns all collision pairs and callbacks.
+  static *prepareLevel(difficulty, seed) {
+    const sim = Object.create(FortressSimulation.prototype);
+    if (yield* sim.buildLevel(difficulty, seed)) return sim;
+  }
+
+  *buildLevel(difficulty, seed) {
     if (!DIFFICULTIES.some((size) => size.id === difficulty)) return false;
     if (this.engine) {
       Events.off(this.engine);
@@ -320,8 +438,11 @@ export class FortressSimulation {
       gravity: { x: 0, y: 1, scale: GRAVITY / 1e6 },
     });
     this.entities = new Map();
+    this.guards = new Set();
+    Events.on(this.engine, 'beforeUpdate', () => balanceGuards(this));
     this.projectiles = new Set();
     this.remoteBombs = new Set();
+    this.implosions = [];
     this.events = [];
     this.work = new Set();
     this.totalWeight = 0;
@@ -334,30 +455,66 @@ export class FortressSimulation {
     this.wokenColumns = new Set();
     this.nextId = 1;
     this.debrisSeed = this.seed ^ 91463;
+    this.blastRandom = seededRandom(this.seed ^ 0xb1a574);
     this.shots = 0;
     this.spent = 0;
+    this.winningCost = null;
     this.reloadTick = 0;
     this.clearAt = Infinity;
     this.cleared = false;
     this.buildTerrain();
-    for (const section of level.sections) this.buildFort(section);
+    const bridges = planBridges(level);
+    for (const [index, section] of level.sections.entries()) {
+      this.buildFort(section, bridges[index - 1], bridges[index]);
+      yield;
+    }
     for (const wall of level.walls) this.buildWall(wall);
+    for (const crossing of bridges) this.buildBridge(crossing);
     // Settle the mortar-free stacks before measuring displacement for scoring.
-    for (let i = 0; i < (difficulty === 'large' ? 300 : difficulty === 'medium' ? 230 : 90); i++)
+    for (let i = 0; i < (difficulty === 'large' ? 300 : difficulty === 'medium' ? 230 : 90); i++) {
       Engine.update(this.engine, STEP * 1000);
+      yield;
+    }
     for (const e of this.entities.values()) {
+      // The large keep is pre-settled before play. Its undisturbed wards can
+      // sleep until an impact, a removed support, or a fire wakes them.
+      if (difficulty === 'large') Sleeping.set(e.body, true);
       e.home = { ...e.body.position, angle: e.body.angle };
       this.sync(e);
     }
+    if (difficulty === 'large') {
+      // Keep the initial bearing contacts, including pairs the solver has put
+      // to sleep. A departing pier must wake its ceiling even after that pair expires.
+      const pieces = this.bodies.filter((e) => e.kind !== 'torch');
+      for (const lower of pieces) {
+        if (lower.kind !== 'block') continue;
+        const base = lower.body.bounds;
+        lower.carried = pieces.filter((upper) => {
+          const top = upper.body.bounds;
+          return upper !== lower && Math.abs(top.max.y - base.min.y) < 2.5 &&
+            Math.min(base.max.x, top.max.x) - Math.max(base.min.x, top.min.x) > 1;
+        });
+        for (const deck of lower.supportedDecks || []) {
+          if (!lower.carried.includes(deck)) lower.carried.push(deck);
+        }
+      }
+    }
     this.torches = [];
     this.mountTorches();
+    this.defend = createGuardDefense(this, shieldsBlast);
     this.orcsTotal = level.sections.reduce((sum, section) => sum + section.orcs.length, 0);
     this.orcsRemaining = this.orcsTotal;
     Events.on(this.engine, 'collisionStart', (event) => this.collisions(event.pairs));
     Events.on(this.engine, 'collisionEnd', ({ pairs }) => {
       for (const pair of pairs) {
-        pair.collision.parentA.plugin.fortress?.contacts?.delete(pair);
-        pair.collision.parentB.plugin.fortress?.contacts?.delete(pair);
+        const { parentA, parentB, normal } = pair.collision;
+        parentA.plugin.fortress?.contacts?.delete(pair);
+        parentB.plugin.fortress?.contacts?.delete(pair);
+        if (difficulty === 'large' && !pair.isSensor && Math.abs(normal.y) > 0.58) {
+          const lower = normal.y < 0 ? parentB : parentA;
+          const upper = lower === parentB ? parentA : parentB;
+          if (upper.isSleeping && !lower.isStatic && lower.speed > 0.18) Sleeping.set(upper, false);
+        }
       }
     });
     return true;
@@ -510,6 +667,13 @@ export class FortressSimulation {
     this.terrainVersion++;
     this.buildTerrain();
     this.wakeWard(x);
+    if (this.difficulty === 'large') {
+      for (const e of this.entities.values()) {
+        const bounds = e.body.bounds;
+        if (bounds.max.x >= scarLeft && bounds.min.x <= scarRight && bounds.max.y >= y - 30 && !e.body.isStatic)
+          Sleeping.set(e.body, false);
+      }
+    }
     this.events.push({
       type: 'crater',
       x,
@@ -554,7 +718,23 @@ export class FortressSimulation {
     }
   }
 
-  buildFort(level) {
+  buildBridge({ leftSeat, rightSeat, material }) {
+    const left = pointOnBody(leftSeat.body, leftSeat.width / 2 - BRIDGE_LEDGE * 0.72, -leftSeat.height / 2);
+    const right = pointOnBody(rightSeat.body, -rightSeat.width / 2 + BRIDGE_LEDGE * 0.72, -rightSeat.height / 2);
+    const dx = right.x - left.x, dy = right.y - left.y;
+    const width = Math.hypot(dx, dy), angle = Math.atan2(dy, dx);
+    const height = material === 'steel' ? 8 : 9;
+    // Locate the lower face on the two projecting lintels. Nothing pins the
+    // span to the world: it can slide, burn or drop away with either bearing.
+    const x = (left.x + right.x + Math.sin(angle) * height) / 2;
+    const y = (left.y + right.y - Math.cos(angle) * height) / 2 - Math.abs(Math.sin(angle)) * BRIDGE_LEDGE;
+    const deck = this.add('block', material, x, y, width, height, 'bridge', {
+      angle, density: material === 'steel' ? 0.0011 : 0.00072,
+    });
+    for (const seat of [leftSeat, rightSeat]) (seat.supportedDecks ??= []).push(deck);
+  }
+
+  buildFort(level, bridgeToLeft, bridgeToRight) {
     const { heights, spans, left, storey, pattern } = level;
     const columns = [left];
     for (const span of spans) columns.push(columns.at(-1) + span);
@@ -584,17 +764,17 @@ export class FortressSimulation {
         }
         const h = storey - ROOF;
         if (material === 'stone') {
-          // Independent courses can shear, rock or fracture under the lintel.
-          const courses = stage === 4 ? 4 : stage === 2 ? 3 : 2;
+          // Large towers use coursed foundations and full-height upper piers.
+          // Tall stacks of thin, loose courses would settle unevenly under their own weight.
+          const courses = stage === 4 ? (row < 3 ? 2 : 1) : stage === 2 ? 3 : 2;
           for (let course = 0; course < courses; course++) {
             const width = course === 0 ? 28 : course === courses - 1 && stage ? 29 : 25;
             block('stone', columns[c], base - ((course + 0.5) * h) / courses, width, h / courses, 'masonry');
           }
         } else {
-          // In a larger ward each load-bearing post sits on a broad sill. The
-          // socket can slip independently of the timber or glazing it carries.
-          const sill = stage === 4 ? 7 : stage && row === 0 ? 6 : 0;
-          const capital = stage === 4 ? 5 : 0;
+          // At the foundation, a broad sill can slip independently of the post it carries.
+          const sill = stage && row === 0 ? 6 : 0;
+          const capital = stage === 4 && row === 0 ? 5 : 0;
           if (sill) block('stone', columns[c], base - sill / 2, 27, sill, 'masonry');
           if (capital) block('stone', columns[c], base - h + capital / 2, 26, capital, 'masonry');
           block(
@@ -609,11 +789,41 @@ export class FortressSimulation {
       }
       for (let c = 0; c < spans.length; c++) {
         if (heights[c] <= row) continue;
-        const leftEnd = columns[c] - (heights[c - 1] > row ? -0.35 : 15);
-        const rightEnd = columns[c + 1] + (heights[c + 1] > row ? -0.35 : 15);
-        const material =
+        const leftSeat = c === bridgeToLeft?.rightBay && row + 1 === bridgeToLeft.rightFloor;
+        const leftEnd = columns[c] - (heights[c - 1] > row ? -0.35 : 15) - (leftSeat ? BRIDGE_LEDGE : 0);
+        const tieRow = pattern % 2;
+        const tieBay = pattern % Math.max(1, spans.length - 1);
+        const tied = stage === 4 && row % 3 === tieRow && heights[tieBay] > row && heights[tieBay + 1] > row &&
+          (c === tieBay || c === tieBay + 1);
+        const endBay = tied ? tieBay + 1 : c;
+        const rightSeat = endBay === bridgeToRight?.leftBay && row + 1 === bridgeToRight.leftFloor;
+        const rightEnd = columns[endBay + 1] + (heights[endBay + 1] > row ? -0.35 : 15) + (rightSeat ? BRIDGE_LEDGE : 0);
+        let material =
           stage >= 2 && (c + row + pattern) % 5 === 0 ? 'steel' : (c + row + pattern) % 3 === 0 ? 'stone' : 'wood';
-        block(
+        if (stage === 4 && heights[c] - row >= 3) material = 'stone';
+        // Deep galleries have a second load path from their lintels to the
+        // floor. Leave occupied cells and the upper timberwork open.
+        if (row < (stage === 4 ? 4 : stage === 2 ? 1 : 0) &&
+            !level.orcs.some(([bay, floor]) => bay === c && floor === row) &&
+            !level.barrels.some(([bay, floor]) => bay === c && floor === row)) {
+          const cx = (columns[c] + columns[c + 1]) / 2;
+          const h = storey - ROOF;
+          if (stage === 4 && row === 0 && (c + pattern) % 2 === 0) {
+            const width = spans[c] - 32, course = h / 3;
+            block('stone', cx, base - course * 0.5, width, course, 'brickwork');
+            for (const side of [-1, 1])
+              block('stone', cx + side * width / 4, base - course * 1.5, width / 2 - 0.3, course, 'brickwork');
+            block('stone', cx, base - course * 2.5, width, course, 'brickwork');
+          } else {
+            block('stone', cx, base - h * 0.25, 16, h * 0.5, 'buttress');
+            block('stone', cx, base - h * 0.75, 13, h * 0.5, 'buttress');
+          }
+          if (stage === 4 && material === 'wood') material = 'steel';
+        }
+        let roof;
+        if (tied && c === tieBay) {
+          roof = block('steel', (leftEnd + rightEnd) / 2, roofY, rightEnd - leftEnd, ROOF, 'tie-beam');
+        } else if (!tied) roof = block(
           material,
           (leftEnd + rightEnd) / 2,
           roofY,
@@ -627,6 +837,8 @@ export class FortressSimulation {
                 : 'masonry'
               : 'beam',
         );
+        if (roof && leftSeat) bridgeToLeft.rightSeat = roof;
+        if (roof && rightSeat) bridgeToRight.leftSeat = roof;
         if (heights[c] !== row + 1) continue;
         const top = base - storey;
         const occupied =
@@ -647,10 +859,7 @@ export class FortressSimulation {
       }
     }
     for (const [c, row] of level.orcs) {
-      this.add('orc', 'orc', (columns[c] + columns[c + 1]) / 2, level.base - row * storey - 15, 24, 30, 'guard', {
-        density: 0.0012,
-        chamfer: { radius: 4 },
-      });
+      addGuardRig(this, (columns[c] + columns[c + 1]) / 2, level.base - row * storey);
     }
     for (const [c, row] of level.barrels) {
       this.add(
@@ -799,7 +1008,10 @@ export class FortressSimulation {
         this.ignite(e);
       }
       e.burn = Math.min(1, e.burn + 0.014);
-      if (e.kind === 'block' && this.ticks % 48 === 0) this.wakeWard(e.body.position.x);
+      if (e.kind === 'block' && this.ticks % 48 === 0) {
+        this.wakeWard(e.body.position.x);
+        if (this.difficulty === 'large' && e.body.isSleeping) Sleeping.set(e.body, false);
+      }
       if (e.burn === 1) {
         // A timber can break early under load. Once fully consumed, only ash
         // remains and anything it was supporting must be free to fall.
@@ -818,6 +1030,7 @@ export class FortressSimulation {
       difficulty: this.difficulty,
       themeIndex: this.themeIndex,
       spent: this.spent,
+      winningCost: this.winningCost,
       shots: this.shots,
       remoteBombs: this.remoteBombs.size,
       orcsRemaining: this.orcsRemaining,
@@ -825,7 +1038,7 @@ export class FortressSimulation {
       destruction: Math.min(100, Math.round((100 * this.lostWeight) / this.totalWeight)),
       cleared: this.cleared,
       reloadRemaining,
-      ready: reloadRemaining === 0 && this.clearAt === Infinity && !this.cleared,
+      ready: reloadRemaining === 0,
     };
   }
 
@@ -835,6 +1048,7 @@ export class FortressSimulation {
 
   emit(type, e, strength, point = e.body.position) {
     const event = { type, x: point.x, y: point.y, material: e.material, strength: clamp(strength, 0, 1) };
+    if (point.blast) Object.assign(event, { blast: true, outX: point.outX, outY: point.outY });
     if (e.radius || e.weight) event.size = e.radius ? e.radius * 2 : e.weight;
     this.events.push(event);
     return event;
@@ -851,7 +1065,7 @@ export class FortressSimulation {
       x > WORLD.width
     )
       return Infinity;
-    const v = launchVelocity(angle, power),
+    const v = launchVelocity(angle, power, ammo, this.difficulty === 'large'),
       origin = WORLD.release;
     const height = (px) => {
       const t = flightTime(px - origin.x, v.x, this.level.wind);
@@ -872,7 +1086,7 @@ export class FortressSimulation {
   trajectory(ammoId, angle, power) {
     const ammo = ammoById.get(ammoId);
     if (!ammo || !Number.isFinite(angle) || !Number.isFinite(power)) return [];
-    const v = launchVelocity(angle, power),
+    const v = launchVelocity(angle, power, ammo, this.difficulty === 'large'),
       origin = WORLD.release;
     const points = [];
     // Semi-implicit integration adds half a step of acceleration to the
@@ -892,7 +1106,7 @@ export class FortressSimulation {
     if (!ammo || !this.stats.ready || !Number.isFinite(angle) || !Number.isFinite(power)) return false;
     const { x, y } = WORLD.release,
       r = ammo.radius,
-      v = launchVelocity(angle, power);
+      v = launchVelocity(angle, power, ammo, this.difficulty === 'large');
     const body = Bodies.circle(x, y, r, {
       density: ammo.density,
       frictionAir: 0,
@@ -903,6 +1117,7 @@ export class FortressSimulation {
     e.blast = ammo.blast;
     if (ammo.remote) this.remoteBombs.add(e);
     e.flameRadius = ammo.flameRadius;
+    e.implosionRadius = ammo.implosionRadius;
     e.flightPath = this.trajectory(ammoId, angle, power);
     e.contacts = new Set();
     this.projectiles.add(e);
@@ -938,12 +1153,13 @@ export class FortressSimulation {
   canRest() {
     if (
       this.projectiles.size !== this.remoteBombs.size ||
+      this.implosions.length ||
       this.work.size ||
       (!this.orcsRemaining && !this.cleared)
     )
       return false;
     for (const e of this.entities.values()) {
-      if (!e.body.isSleeping || e.heat || e.burning || e.dustAt !== undefined || e.fuse !== Infinity) return false;
+      if (!e.body.isSleeping || (e.rig && !e.rig.resting) || e.heat || e.burning || e.dustAt !== undefined || e.fuse !== Infinity) return false;
     }
     return !this.engine.pairs.list.some((pair) => pair.isActive);
   }
@@ -962,12 +1178,14 @@ export class FortressSimulation {
         continue;
       }
       this.wokenColumns.clear();
+      if (this.implosions.length) this.pullInward();
       for (const shot of this.projectiles) {
         if (!shot.body.isSleeping && !shot.contacts.size)
           shot.body.force.x += (shot.body.mass * this.level.wind) / 1e6;
       }
       Engine.update(this.engine, STEP * 1000);
       this.resolveDamage();
+      this.defend();
       this.updateTorches();
       if (this.ticks % 12 === 0) {
         this.checkLoads();
@@ -993,6 +1211,8 @@ export class FortressSimulation {
           const p = e.body.position;
           const dx = p.x - e.home.x,
             dy = p.y - e.home.y;
+          if (e.carried && (dx * dx + dy * dy > 3 || Math.abs(e.body.angle - e.home.angle) > 0.045))
+            this.wakeBearings(e);
           if (Math.abs(e.body.angle - e.home.angle) > 0.55 || dx * dx + dy * dy > 23 * 23) this.markDestroyed(e);
         }
       }
@@ -1013,8 +1233,22 @@ export class FortressSimulation {
     e.angle = e.body.angle;
   }
 
+  wakeBearings(e) {
+    const carried = e.carried;
+    e.carried = null;
+    for (const upper of carried) {
+      if (!this.entities.has(upper.id)) continue;
+      if (upper.body.isSleeping) Sleeping.set(upper.body, false);
+      if (upper.rig && this.guards.has(upper)) wakeGuardRig(this, upper);
+      if (upper.carried) this.wakeBearings(upper);
+    }
+  }
+
   wakeWard(x) {
     this.resumePhysics();
+    // In a high-rise, activate bodies at the contact, the charge or the removed
+    // support. A lateral window that covers the whole height wakes unrelated towers.
+    if (this.difficulty === 'large') return;
     // A disturbed pier wakes the entire height and width of its ward. Leave
     // distant, disconnected stacks sleeping during a local shower of debris.
     const column = Math.floor(x / 84);
@@ -1022,7 +1256,9 @@ export class FortressSimulation {
     this.wokenColumns.add(column);
     const middle = (column + 0.5) * 84;
     for (const e of this.entities.values()) {
-      if (e.body.sleepCounter && Math.abs(e.body.position.x - middle) <= 210) Sleeping.set(e.body, false);
+      if (Math.abs(e.body.position.x - middle) > 210) continue;
+      if (e.body.sleepCounter) Sleeping.set(e.body, false);
+      if (e.rig) wakeGuardRig(this, e);
     }
   }
 
@@ -1047,6 +1283,8 @@ export class FortressSimulation {
       }
       ea?.contacts?.add(pair);
       eb?.contacts?.add(pair);
+      if (ea?.implosionRadius) ea.fuse = this.time;
+      if (eb?.implosionRadius) eb.fuse = this.time;
       if (ea?.flameRadius || eb?.flameRadius) {
         const shot = ea?.flameRadius ? ea : eb,
           target = shot === ea ? eb : ea;
@@ -1055,8 +1293,13 @@ export class FortressSimulation {
         // exposed tip receives a direct hit. Contact always lights that piece.
         if (target && (target.material === 'wood' || target.kind === 'barrel')) this.ignite(target);
       }
-      if (ea && eb && (speed >= 1.4 || ea.kind === 'projectile' || eb.kind === 'projectile'))
+      if (ea && eb && (speed >= 1.4 || ea.kind === 'projectile' || eb.kind === 'projectile')) {
         this.wakeWard(contact.x);
+        if (this.difficulty === 'large') {
+          if (a.isSleeping) Sleeping.set(a, false);
+          if (b.isSleeping) Sleeping.set(b, false);
+        }
+      }
       if (speed < 0.9) continue;
       for (const [e, other, otherBody] of [
         [ea, eb, b],
@@ -1065,7 +1308,12 @@ export class FortressSimulation {
         if (!e) continue;
         const energy = speed * Math.sqrt(Math.min(otherBody.mass, 12) / Math.max(0.38, e.body.mass));
         if (e.kind === 'block') {
-          this.hit(e, energy, contact);
+          // The solver transfers the projectile's full momentum. A rounded shot
+          // pushes a whole support more readily than it cuts through the stone.
+          const bluntShot = other?.kind === 'projectile' && (!other.blast || this.remoteBombs.has(other));
+          this.hit(e, energy * (bluntShot ? MATERIALS[e.material].bluntDamage : 1), contact);
+        } else if (e.kind === 'fragment' && e.material === 'stone') {
+          this.hitStoneFragment(e, other, otherBody, speed, contact);
         } else if (
           e.kind === 'orc' &&
           (speed > 3.8 || (energy > 3 && (other?.kind === 'block' || other?.kind === 'projectile')))
@@ -1087,6 +1335,25 @@ export class FortressSimulation {
     }
   }
 
+  hitStoneFragment(e, other, otherBody, speed, point) {
+    if (this.time - e.born < 0.075) return;
+    // Only the closing speed and the collision partner's effective mass can
+    // drive a crack. A soft plank or a pebble yields under the same blow.
+    const hardness = !other ? 0.88 : other.material === 'steel' || other.material === 'stone' ||
+      other.kind === 'projectile' ? 1 : 0.59;
+    const massShare = otherBody.isStatic ? 1 : otherBody.mass / (e.body.mass + otherBody.mass);
+    this.crackStone(e, speed * Math.sqrt(massShare) * hardness, point);
+  }
+
+  crackStone(e, shock, point) {
+    if (e.body.area < MIN_BREAKABLE_RUBBLE_AREA || (e.generation || 0) >= MAX_RUBBLE_GENERATION ||
+        shock < 2.8 + 5 / Math.sqrt(e.body.area) || (e.rockHit && e.rockHit.shock >= shock)) return;
+    const dx = point.x - e.body.position.x, dy = point.y - e.body.position.y;
+    const c = Math.cos(e.body.angle), s = Math.sin(e.body.angle);
+    e.rockHit = { x: dx * c + dy * s, y: dy * c - dx * s, shock, contact: point.blast ? point : null };
+    this.work.add(e);
+  }
+
   hit(e, energy, point) {
     const threshold = MATERIALS[e.material].toughness * (1 - 0.68 * e.burn);
     if (energy < threshold * 0.32) return;
@@ -1095,7 +1362,10 @@ export class FortressSimulation {
       e.bend = (point.x < e.body.position.x ? -1 : 1) * clamp(e.damage, 0.28, 0.85);
       this.work.add(e);
     }
-    if (e.damage >= 1) this.work.add(e);
+    if (e.damage >= 1) {
+      if (point.blast) e.blastContact = point;
+      this.work.add(e);
+    }
   }
 
   damageBlock(e, amount, point) {
@@ -1122,6 +1392,22 @@ export class FortressSimulation {
       const lower = upper === a ? b : a;
       const up = upper.plugin.fortress;
       if (!up) continue;
+      // Rolling resistance matters at the end of a slide. Apply it once per
+      // sample, only while loose debris is bearing on an already steady surface.
+      if ((lower.isStatic || lower.isSleeping) && Math.abs(pair.collision.normal.y) > 0.94 &&
+          !upper.isSleeping && !up.rig && (up.kind !== 'block' || up.destroyed) &&
+          (up.kind !== 'torch' || !up.lit) && upper.speed < 0.48 &&
+          Math.abs(upper.angularVelocity) * Math.max(up.width, up.height) < 0.8 &&
+          up.gripTick !== this.ticks) {
+        const tick = this.ticks;
+        const quiet = upper.speed < 0.085 && Math.abs(upper.angularVelocity) * Math.max(up.width, up.height) < 0.12;
+        up.quietSamples = quiet ? (up.gripTick === tick - 12 ? up.quietSamples + 1 : 1) : 0;
+        up.gripTick = tick;
+        const v = Body.getVelocity(upper);
+        Body.setVelocity(upper, { x: v.x * 0.86, y: v.y });
+        Body.setAngularVelocity(upper, Body.getAngularVelocity(upper) * 0.82);
+        if (up.quietSamples >= 5) Sleeping.set(upper, true);
+      }
       const links = supports.get(up.id) || [];
       const x = supportCount === 2 ? (contacts[0].x + contacts[1].x) / 2 : contacts[0].x;
       links.push({ e: lower.plugin.fortress, x });
@@ -1139,6 +1425,7 @@ export class FortressSimulation {
           carried.set(support.e.id, (carried.get(support.e.id) || 0) + (e.body.mass + load) / base.length);
       }
       if (!load || !base.length) continue;
+      if (e.body.isSleeping && !e.burning) continue;
       if (e.kind === 'orc' && load > e.body.mass * 2.2) this.faint(e);
       if (e.kind !== 'block' || !['wood', 'steel'].includes(e.material)) continue;
       const section = (1 - 0.84 * e.burn) ** 2;
@@ -1153,7 +1440,13 @@ export class FortressSimulation {
       const left = Math.min(...base.map((p) => p.x)),
         right = Math.max(...base.map((p) => p.x));
       const eccentricity = Math.max(0, left - middle, middle - right);
-      const moment = load * (e.width * 0.09 + eccentricity);
+      let span = e.width;
+      if (this.difficulty === 'large' && base.length > 1) {
+        const seats = base.map((seat) => seat.x).sort((a, b) => a - b);
+        span = Math.max(seats[0] - (middle - e.width / 2), middle + e.width / 2 - seats.at(-1));
+        for (let i = 1; i < seats.length; i++) span = Math.max(span, seats[i] - seats[i - 1]);
+      }
+      const moment = load * (0.09 * span * span / e.width + eccentricity);
       const capacity = e.height ** 2 * (e.material === 'steel' ? 2.25 : 1.05) * section;
       if (moment > capacity)
         this.hit(e, (0.33 + 0.12 * Math.min(3, moment / capacity)) * MATERIALS[e.material].toughness, {
@@ -1166,7 +1459,8 @@ export class FortressSimulation {
   resolveDamage() {
     for (const e of this.work) {
       if (!this.entities.has(e.id)) continue;
-      if (e.damage >= 1) this.fracture(e);
+      if (e.rockHit) this.fractureStone(e);
+      else if (e.damage >= 1) this.fracture(e);
       else if (e.bend) this.bendGirder(e);
     }
     this.work.clear();
@@ -1199,7 +1493,10 @@ export class FortressSimulation {
     e.fainted = true;
     this.orcsRemaining--;
     this.emit('faint', e, 0.6);
-    if (!this.orcsRemaining) this.clearAt = this.time + 0.7;
+    if (!this.orcsRemaining) {
+      this.winningCost = this.spent;
+      this.clearAt = this.time + 0.7;
+    }
     e.body.collisionFilter.mask = 0;
     this.remove(e);
   }
@@ -1220,6 +1517,24 @@ export class FortressSimulation {
 
   remove(e) {
     this.resumePhysics();
+    if (e.supportedDecks) for (const deck of e.supportedDecks) {
+      if (this.entities.has(deck.id)) Sleeping.set(deck.body, false);
+    }
+    if (e.rig && this.guards.has(e)) removeGuardRig(this, e);
+    if (e.kind === 'block' || e.kind === 'fragment') {
+      if (e.carried) this.wakeBearings(e);
+      if (this.difficulty === 'large') {
+        const removed = e.body.bounds;
+        for (const other of this.entities.values()) {
+          if (!other.body.isSleeping || other.body.isStatic) continue;
+          const b = other.body.bounds;
+          if (b.max.x < removed.min.x - 1 || b.min.x > removed.max.x + 1 ||
+              b.min.y > removed.max.y + 1 || b.max.y < removed.min.y - 1) continue;
+          Sleeping.set(other.body, false);
+        }
+      }
+      for (const guard of this.guards) if (guard.rig.resting && guard.rig.support === e.body) wakeGuardRig(this, guard);
+    }
     if (e.kind === 'torch') e.lit = false;
     if (e.kind === 'projectile') {
       this.projectiles.delete(e);
@@ -1234,6 +1549,14 @@ export class FortressSimulation {
     this.wakeWard(source.body.position.x);
     const origin = { ...source.body.position },
       fireball = Boolean(source.flameRadius);
+    if (source.implosionRadius) {
+      this.remove(source);
+      const radius = source.implosionRadius;
+      const twist = (this.blastRandom() - 0.5) * 0.16;
+      this.implosions.push({ ...origin, radius, twist, start: this.ticks, crushed: new Set() });
+      this.events.push({ type: 'implosion', ...origin, material: source.material, radius, strength: 1 });
+      return;
+    }
     const radius = source.flameRadius || source.blast || 125;
     this.events.push({
       type: fireball ? 'fireburst' : 'explosion',
@@ -1243,21 +1566,30 @@ export class FortressSimulation {
       strength: fireball ? 1 : radius / 158,
     });
     this.remove(source);
-    const walls = this.bodies.filter(
-      (e) => e.kind === 'block' && (e.material === 'stone' || e.material === 'steel'),
-    );
-    for (const e of this.entities.values()) {
+    // Snapshot what the wave can reach. A new fragment only meets a second wave
+    // if another charge goes off. Nearby cover still protects the far side while it breaks.
+    const targets = this.bodies.filter(({ body: { bounds } }) =>
+      bounds.max.x >= origin.x - radius && bounds.min.x <= origin.x + radius &&
+      bounds.max.y >= origin.y - radius && bounds.min.y <= origin.y + radius);
+    const walls = targets.filter((e) => e.kind === 'block' && (e.material === 'stone' || e.material === 'steel'));
+    const waveAngle = this.blastRandom() * 2 * Math.PI;
+    const ripple = this.blastRandom() * 2 * Math.PI;
+    for (const e of targets) {
       let body = e.body;
       const nearestX = clamp(origin.x, body.bounds.min.x, body.bounds.max.x);
       const nearestY = clamp(origin.y, body.bounds.min.y, body.bounds.max.y);
       const distance = Math.hypot(origin.x - nearestX, origin.y - nearestY);
       if (distance >= radius) continue;
-      let strength = 1 - distance / radius,
+      const contact = fireball ? body.position : blastContact(body, origin);
+      if (!fireball && contact.distance >= radius) continue;
+      const angle = fireball ? 0 : Math.atan2(contact.outY, contact.outX);
+      const variation = fireball ? 1 : 1 + 0.065 * Math.cos(3 * angle + waveAngle) + 0.035 * Math.sin(5 * angle + ripple);
+      let strength = (1 - (fireball ? distance : contact.distance) / radius) * variation,
         heatTransmission = 1;
-      if (this.hills.some((hill) => shieldsBlast(hill, origin, body.position))) strength *= 0.25;
+      if (this.hills.some((hill) => shieldsBlast(hill, origin, contact))) strength *= 0.25;
       for (const wall of walls) {
-        if (wall !== e && shieldsBlast(wall.body, origin, body.position)) {
-          strength *= 0.65;
+        if (wall !== e && shieldsBlast(wall.body, origin, contact)) {
+          strength *= fireball ? 0.65 : 0.55;
           heatTransmission *= 0.45;
         }
       }
@@ -1275,19 +1607,75 @@ export class FortressSimulation {
       const len = Math.hypot(dx, dy) || 1,
         kick = (strength * (fireball ? 1.1 : radius / 11)) / (1 + body.mass * 0.12);
       const velocity = Body.getVelocity(body);
-      Body.setVelocity(body, { x: velocity.x + (kick * dx) / len, y: velocity.y + kick * (dy / len - 0.3) });
-      Body.setAngularVelocity(
-        body,
-        Body.getAngularVelocity(body) + (this.random() - 0.5) * strength * (fireball ? 0.03 : 0.35),
-      );
+      const pushX = fireball ? dx / len : contact.outX, pushY = fireball ? dy / len : contact.outY;
+      if (!body.isStatic) {
+        if (this.difficulty === 'large' && body.isSleeping && kick > 0.025) Sleeping.set(body, false);
+        Body.setVelocity(body, { x: velocity.x + kick * pushX, y: velocity.y + kick * (pushY - 0.3) });
+        const lever = (contact.x - body.position.x) * pushY - (contact.y - body.position.y) * pushX;
+        const turn = fireball ? 0 : clamp(lever * kick * body.inverseInertia * body.mass, -0.35, 0.35);
+        Body.setAngularVelocity(
+          body,
+          Body.getAngularVelocity(body) + turn + (this.random() - 0.5) * strength * (fireball ? 0.03 : 0.1),
+        );
+      }
       if (fireball) continue;
-      if (e.kind === 'block') this.hit(e, strength * radius * 0.17, origin);
-      else if (e.kind === 'orc' && strength > 0.29) this.faint(e);
+      const core = strength * strength * strength;
+      if (e.kind === 'block') {
+        const damageScale = source.kind === 'projectile' ? 0.13 : 0.17;
+        this.hit(e, radius * (strength * damageScale + core * 0.065), contact);
+      } else if (e.kind === 'fragment' && e.material === 'stone') {
+        this.crackStone(e, radius * 0.095 * core, contact);
+      } else if (e.kind === 'projectile' && (e.material === 'small-stone' || e.material === 'big-stone') &&
+                 radius * core > e.radius * 3.1) {
+        this.emit('fracture', e, strength, contact).material = 'stone';
+        splitShot(this, e);
+      } else if (e.kind === 'orc' && strength > 0.29) this.faint(e);
       else if (e.kind === 'barrel' && strength > 0.1)
         e.fuse = Math.min(e.fuse, this.time + 0.1 + 0.18 * (1 - strength));
-      else if (e.blast && !this.remoteBombs.has(e)) e.fuse = Math.min(e.fuse, this.time + 0.07);
+      else if ((e.blast || e.implosionRadius) && !this.remoteBombs.has(e)) e.fuse = Math.min(e.fuse, this.time + 0.07);
     }
     if (!fireball) this.excavate(origin, radius);
+  }
+
+  pullInward() {
+    // Sample the short-lived field at 40 Hz. Newly broken pieces join the pull,
+    // and their actual collisions carry the collapse into neighboring rooms.
+    for (let i = this.implosions.length - 1; i >= 0; i--) {
+      const field = this.implosions[i], age = this.ticks - field.start;
+      if (age > 42) { this.implosions.splice(i, 1); continue; }
+      if (age % 3 !== 1) continue;
+      const pulse = Math.sin(Math.PI * (age + 2) / 45);
+      for (const e of this.entities.values()) {
+        const body = e.body;
+        const dx = field.x - body.position.x, dy = field.y - body.position.y;
+        if (Math.abs(dx) >= field.radius || Math.abs(dy) >= field.radius) continue;
+        const distance = Math.hypot(dx, dy);
+        if (distance >= field.radius) continue;
+        if (e.kind === 'torch' && e.lit) this.extinguish(e);
+        const pulled = e.body;
+        if (pulled.isStatic) continue;
+        if (pulled.isSleeping) Sleeping.set(pulled, false);
+        const falloff = 1 - distance / field.radius;
+        const speed = 2 * pulse * falloff / (1 + pulled.mass * 0.075);
+        const soften = Math.max(distance, 14);
+        const drag = 1 - pulse * falloff * 0.18;
+        const v = Body.getVelocity(pulled);
+        Body.setVelocity(pulled, {
+          x: v.x * drag + (dx - dy * field.twist) * speed / soften,
+          y: v.y * drag + (dy + dx * field.twist) * speed / soften,
+        });
+        if (age < 16 || falloff < 0.58 || field.crushed.has(e.id)) continue;
+        field.crushed.add(e.id);
+        if (e.kind === 'orc' && falloff > 0.82) this.faint(e);
+        else if (e.kind === 'block' || (e.kind === 'fragment' && e.material === 'stone')) {
+          const point = blastContact(pulled, field);
+          point.outX = -point.outX;
+          point.outY = -point.outY;
+          if (e.kind === 'block') this.hit(e, 21 * falloff * falloff, point);
+          else this.crackStone(e, 9 * falloff * falloff, point);
+        }
+      }
+    }
   }
 
   fracture(e) {
@@ -1327,14 +1715,36 @@ export class FortressSimulation {
         [D, A, hub],
       ];
     }
-    const event = this.emit('fracture', e, Math.min(1, 0.35 + e.weight / 65));
+    const event = this.emit('fracture', e, Math.min(1, 0.35 + e.weight / 65), e.blastContact);
     event.size = e.weight;
     event.damage = e.damage;
+    this.makeFragments(e, shapes, 0);
+  }
+
+  fractureStone(e) {
+    const hit = e.rockHit;
+    const body = e.body;
+    const c = Math.cos(body.angle), s = Math.sin(body.angle);
+    const vertices = e.vertices || body.vertices.map((p) => {
+      const dx = p.x - body.position.x, dy = p.y - body.position.y;
+      return { x: dx * c + dy * s, y: dy * c - dx * s };
+    });
+    const shapes = splitStone(vertices, hit);
+    const point = hit.contact || pointOnBody(body, hit.x, hit.y);
+    const event = this.emit('fracture', e, Math.min(1, hit.shock / 12), point);
+    Object.assign(event, { secondary: true, id: e.id, size: Math.sqrt(body.area), damage: 1 });
+    this.wakeWard(body.position.x);
+    this.makeFragments(e, shapes, (e.generation || 0) + 1);
+  }
+
+  makeFragments(e, shapes, generation) {
+    const body = e.body;
+    const inset = generation ? 0.985 : 0.96;
     this.remove(e);
     for (const shape of shapes) {
       const center = Vertices.centre(shape),
         p = pointOnBody(body, center.x, center.y);
-      const local = shape.map((q) => ({ x: (q.x - center.x) * 0.96, y: (q.y - center.y) * 0.96 }));
+      const local = shape.map((q) => ({ x: (q.x - center.x) * inset, y: (q.y - center.y) * inset }));
       const props = MATERIALS[e.material];
       const piece = Bodies.fromVertices(p.x, p.y, [local], {
         density: props.density,
@@ -1349,11 +1759,12 @@ export class FortressSimulation {
         x: v.x + (p.x - body.position.x) * spread,
         y: v.y + (p.y - body.position.y) * spread,
       });
-      Body.setAngularVelocity(piece, Body.getAngularVelocity(body) + (this.random() - 0.5) * 0.09);
+      Body.setAngularVelocity(piece, Body.getAngularVelocity(body) + (generation ? 0 : (this.random() - 0.5) * 0.09));
       const width = Math.max(...local.map((q) => q.x)) - Math.min(...local.map((q) => q.x));
       const height = Math.max(...local.map((q) => q.y)) - Math.min(...local.map((q) => q.y));
       const fragment = this.add('fragment', e.material, p.x, p.y, width, height, 'debris', {}, piece);
       fragment.vertices = local;
+      fragment.generation = generation;
       fragment.burning = e.burning;
       fragment.burn = e.burn;
       fragment.ignitedAt = e.ignitedAt;

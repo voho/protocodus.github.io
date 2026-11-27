@@ -48,6 +48,10 @@ try {
   const battlefield = page.locator('#battlefield');
   const sound = page.locator('#sound-button');
   const player = page.locator('#soundtrack');
+  async function switchFortress(button) {
+    await page.locator(button).click();
+    await page.locator('main[aria-busy="true"]').waitFor({ state: 'detached' });
+  }
   async function prepared() {
     await page.locator('#preflight').waitFor({ state: 'hidden' });
   }
@@ -57,6 +61,51 @@ try {
   assert.equal(await sound.getAttribute('aria-pressed'), 'true');
   assert.ok(await player.evaluate((p) => p.paused));
   assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width: 1440, height: 900 });
+
+  async function aimFromSling(angle, radius, expectedPower) {
+    const point = await battlefield.evaluate((canvas, { angle, radius }) => {
+      const radians = angle * Math.PI / 180;
+      const world = new DOMPoint(160 + radius * Math.cos(radians), 326 - radius * Math.sin(radians));
+      const pixel = world.matrixTransform(canvas.getContext('2d').getTransform());
+      const rect = canvas.getBoundingClientRect();
+      return { x: rect.x + pixel.x * rect.width / canvas.width, y: rect.y + pixel.y * rect.height / canvas.height };
+    }, { angle, radius });
+    await page.mouse.move(point.x, point.y);
+    assert.equal(await page.locator('#angle').inputValue(), String(angle));
+    assert.equal(await page.locator('#power').inputValue(), String(expectedPower));
+  }
+  await aimFromSling(32, 160, 50);
+  await aimFromSling(32, 256, 80);
+  await aimFromSling(52, 256, 80);
+  const hint = page.locator('#aim-hint');
+  assert.equal(await hint.textContent(), 'Double-click to fire');
+  await page.keyboard.press('ArrowLeft');
+  assert.deepEqual([await page.locator('#angle').inputValue(), await page.locator('#power').inputValue()], ['52', '79']);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
+  assert.deepEqual([await page.locator('#angle').inputValue(), await page.locator('#power').inputValue()], ['52', '80']);
+  assert.match(await hint.textContent(), /← → Power.*↑ ↓ Angle.*Space to fire/);
+  for (const physical of [true, false]) {
+    for (const [i, key] of Array.from('+ěščřžý').entries()) {
+      const code = physical ? 'Digit' + (i + 1) : 'Unidentified';
+      await battlefield.dispatchEvent('keydown', { key, code, bubbles: true });
+      assert.equal(await page.locator('.ammo').nth(i).getAttribute('aria-pressed'), 'true');
+    }
+  }
+  await page.keyboard.press('Numpad2');
+  assert.equal(await page.locator('.ammo').nth(1).getAttribute('aria-pressed'), 'true');
+  await page.keyboard.press('1');
+  assert.equal(await spent.textContent(), '0', 'Ammunition shortcuts select without firing');
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.match(await hint.textContent(), /Space to fire/);
+  await aimFromSling(47, 224, 70);
+  assert.equal(await hint.textContent(), 'Double-click to fire');
+  await page.locator('#zoom-in').click();
+  await page.waitForFunction(() => document.getElementById('zoom-fit').textContent === '135%');
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await aimFromSling(32, 160, 50);
+  await page.locator('#zoom-fit').click();
 
   // The rest of this siege, its soundtrack and fresh forts in other realms must
   // work from the prepared session even with the network completely disconnected.
@@ -96,7 +145,7 @@ try {
   assert.equal(await spent.textContent(), '10', 'A double-click fires exactly one small stone');
   await page.locator('#fire-button').click();
   assert.equal(await spent.textContent(), '20');
-  await page.locator('#restart-button').click();
+  await switchFortress('#restart-button');
   assert.match(page.url(), /#small\/7$/);
   assert.equal(await spent.textContent(), '0');
 
@@ -104,17 +153,18 @@ try {
   await battlefield.dblclick({ position: { x: 800, y: 450 } });
   assert.equal(await spent.textContent(), '90', 'Double-click launches one siege bomb');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  assert.equal(await hint.textContent(), 'Click to detonate');
   await battlefield.click({ position: { x: 510, y: 360 } });
   await page.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
   assert.equal(await spent.textContent(), '90', 'Remote detonation costs no additional gold');
-  await page.locator('#restart-button').click();
+  await switchFortress('#restart-button');
   const fireball = page.getByRole('button', { name: 'Fireball, 45 gold' });
-  assert.equal(await page.locator('.ammo').count(), 6);
+  assert.equal(await page.locator('.ammo').count(), 7);
   await page.keyboard.press('5');
   assert.equal(await fireball.getAttribute('aria-pressed'), 'true');
   await page.keyboard.press('Space');
   assert.equal(await spent.textContent(), '45');
-  await page.locator('#restart-button').click();
+  await switchFortress('#restart-button');
 
   const size = page.getByRole('combobox', { name: 'Fortress size' });
   for (const choice of ['medium', 'large', 'small']) {
@@ -126,12 +176,17 @@ try {
     );
     assert.equal(await spent.textContent(), '0');
     const first = page.url();
-    await page.locator('#new-button').click();
+    await switchFortress('#new-button');
     assert.notEqual(page.url(), first);
     const second = page.url();
-    await page.locator('#restart-button').click();
+    await switchFortress('#restart-button');
     assert.equal(page.url(), second);
   }
+  // A late idle slice from a superseded size must never replace the requested seed.
+  await size.selectOption('large');
+  await page.evaluate(() => { location.hash = 'medium/6'; });
+  await page.waitForFunction(() => location.hash === '#medium/6' &&
+    document.querySelector('#size-label').textContent === 'Medium fortress' && !document.querySelector('main[aria-busy]'));
   assert.deepEqual(
     requests,
     [],
@@ -151,21 +206,15 @@ try {
   await page.waitForFunction(() =>
     document.querySelector('#wind-label').textContent.includes('Strong headwind'),
   );
-  const shots = [
-    [50, 86],
-    [25, 59],
-  ];
-  for (const [angle, power] of shots) {
+  // Hit the far gallery, then the front pier. These two blasts reach all three
+  // guards even when browser scheduling shifts the second shot by several frames.
+  await page.keyboard.press('4');
+  const shots = [[60, 93], [23, 63]];
+  for (const [i, [angle, power]] of shots.entries()) {
     await page.locator('#angle').fill(String(angle));
     await page.locator('#power').fill(String(power));
     await page.locator('#fire-button').click();
-    if (angle === 50) {
-      await page.waitForFunction(
-        () => +document.querySelector('#destruction').textContent.replace('%', '') > 0,
-      );
-      // Let the first tower collapse before sending the shot beneath it.
-      await page.waitForTimeout(4000);
-    }
+    if (i < shots.length - 1) await page.waitForTimeout(4000);
   }
   await page.getByRole('heading', { name: /has fallen/i }).waitFor({ timeout: 16000 });
   const victoryTrack = await player.evaluate((p) => {
@@ -179,13 +228,27 @@ try {
   }, victoryTrack);
   const nextTrack = await player.evaluate((p) => p.currentSrc);
   const winningCost = +(await spent.textContent());
-  assert.equal(winningCost, 20);
-  assert.equal(await page.locator('.result-score').textContent(), winningCost + ' gold');
+  assert.equal(winningCost, 120);
+  const report = page.locator('#victory-report');
+  assert.equal(await report.locator('#victory-cost').textContent(), winningCost + ' gold');
+  assert.ok(await report.isVisible());
+  assert.ok((await report.boundingBox()).y < 160);
+  assert.equal(await page.locator('dialog[open]').count(), 0);
+  await page.keyboard.press('6');
+  await page.keyboard.press('Space');
+  assert.equal(+(await spent.textContent()), winningCost + 90);
+  await page.getByRole('button', {name: 'Detonate bomb'}).waitFor();
+  await battlefield.click({ position: { x: 620, y: 440 } });
+  assert.equal(await report.locator('#victory-cost').textContent(), winningCost + ' gold');
+  assert.ok(await report.isVisible(), 'Further demolition leaves the victory report visible');
+  await page.getByRole('button', {name: 'Dismiss victory report'}).click();
+  assert.ok(await report.isHidden());
+
   assert.match(await page.locator('#orcs').textContent(), /^0 \/ /);
-  await page.locator('[data-replay]').click();
+  await switchFortress('#restart-button');
   assert.deepEqual(await player.evaluate((p) => [p.currentSrc, p.paused]), [nextTrack, false]);
   assert.match(await page.locator('#objective').textContent(), new RegExp('Best siege.*' + winningCost));
-  await page.locator('#new-button').click();
+  await switchFortress('#new-button');
   assert.deepEqual(await player.evaluate((p) => [p.currentSrc, p.paused]), [nextTrack, false]);
   await page.evaluate(() => {
     location.hash = 'small/1';
@@ -197,7 +260,7 @@ try {
   await page.reload();
   await prepared();
   assert.match(await page.locator('#objective').textContent(), new RegExp('Best siege.*' + winningCost));
-  await page.locator('#new-button').click();
+  await switchFortress('#new-button');
   assert.doesNotMatch(page.url(), /#small\/1$/);
   assert.doesNotMatch(await page.locator('#objective').textContent(), /Best siege/);
 
@@ -206,6 +269,8 @@ try {
   await page.locator('#zoom-fit').click();
   await page.locator('#fold-controls').click();
   assert.equal(await page.locator('#siege-console').isVisible(), false);
+  assert.equal(await hint.isVisible(), true);
+  assert.equal(await hint.textContent(), 'Double-click to fire');
   await page.locator('#fold-controls').click();
   for (const [width, height] of [
     [320, 700],
@@ -224,6 +289,14 @@ try {
     );
     assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width, height });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width);
+    assert.ok(await page.locator('.tools').evaluate((nav) => {
+      const score = document.querySelector('.briefing').getBoundingClientRect();
+      const buttons = Array.from(nav.querySelectorAll('select, button')).filter((button) => !button.hidden);
+      const boxes = buttons.map((button) => button.getBoundingClientRect());
+      return boxes.every((rect, i) => rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth &&
+        rect.bottom <= score.top && boxes.every((other, j) => i === j || rect.right <= other.left ||
+          rect.left >= other.right || rect.bottom <= other.top || rect.top >= other.bottom));
+    }), 'Every top toolbar control fits above the score and has its own hit area');
     assert.ok(
       await page.locator('.ammo').evaluateAll((cards) =>
         cards.every((card) => {
@@ -232,10 +305,13 @@ try {
           return name.left >= rect.left && name.right <= rect.right;
         }),
       ),
-      'All six ammunition names fit their controls',
+      'All seven ammunition names fit their controls',
     );
     const button = await page.locator('#fire-button').boundingBox();
     assert.ok(button.x >= 0 && button.x + button.width <= width + 1 && button.y + button.height <= height);
+    const state = await page.locator('#state').boundingBox();
+    assert.ok(state.y + state.height <= button.y + 1 && Math.abs(state.x + state.width / 2 - button.x - button.width / 2) < 2,
+      'Readiness is centered above the fire button');
     if (width === 3840) {
       await page.waitForFunction(() => document.getElementById('scenery').naturalWidth === 3840);
       assert.equal(await page.locator('#panorama').evaluate((c) => c.height), 2160);
@@ -248,10 +324,12 @@ try {
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await phone.goto(origin + '/fun/fortress/#large/6');
   await phone.locator('#preflight').waitFor({ state: 'hidden' });
+  assert.equal(await phone.locator('#aim-hint').textContent(), 'Double-tap to fire');
   await phone.getByRole('button', { name: 'Siege bomb, 90 gold' }).tap();
   await phone.touchscreen.tap(240, 320);
   await phone.touchscreen.tap(240, 320);
   await phone.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to detonate');
   assert.equal(await phone.locator('#spent').textContent(), '90');
   await phone.touchscreen.tap(220, 320);
   await phone.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));

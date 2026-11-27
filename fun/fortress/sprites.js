@@ -40,11 +40,87 @@ atlas.src = new URL('./assets/fortress-atlas.webp', import.meta.url).href;
 let source = atlas;
 let mip = 1;
 const prepared = new Map();
+const distantGuards = new Map();
+const scaledAtlases = new Map();
 const tints = {
   dawn: 'rgba(218,158,117,.055)',
   dusk: 'rgba(109,72,109,.12)',
   night: 'rgba(44,63,102,.22)',
 };
+
+// Downsample each overview pose once with larger areas of skin, red leather and a
+// light-facing contour. The close view still draws the original painted artwork.
+function prepareDistantGuards() {
+  for (const name of ['guard', 'guard-idle', 'guard-action']) {
+    const [sx, sy, sw, sh] = frames[name];
+    const image = document.createElement('canvas');
+    image.height = 144;
+    image.width = Math.round((image.height * sw) / sh);
+    const ctx = image.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(atlas, sx, sy, sw, sh, 0, 0, image.width, image.height);
+    const pixels = ctx.getImageData(0, 0, image.width, image.height);
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const p = pixels.data, r = p[i], g = p[i + 1], b = p[i + 2];
+      if (!p[i + 3]) continue;
+      const skin = Math.min(1, Math.max(0, (g - r + 5) / 28)) * Math.min(1, Math.max(0, (g - b - 17) / 45));
+      const row = Math.floor(i / (4 * image.width)) / image.height;
+      const leather = row > 0.43 && row < 0.75 && r > g * 1.29 && g > b * 1.05;
+      p[i] = r * (leather ? 1.13 : 1.05) + 5 - 35 * skin;
+      p[i + 1] = g * (leather ? 0.77 : 1.06) + 5 + 39 * skin;
+      p[i + 2] = b * 1.04 + 5 + (leather ? 8 : 0) + 13 * skin;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    const rim = document.createElement('canvas');
+    rim.width = image.width;
+    rim.height = image.height;
+    const rc = rim.getContext('2d');
+    rc.drawImage(image, 0, 0);
+    rc.globalCompositeOperation = 'source-in';
+    const light = rc.createLinearGradient(0, 0, image.width * 0.5, image.height);
+    light.addColorStop(0, '#fff3be');
+    light.addColorStop(0.52, '#dfd5a7');
+    light.addColorStop(1, '#736944');
+    rc.fillStyle = light;
+    rc.fillRect(0, 0, rim.width, rim.height);
+    ctx.globalCompositeOperation = 'destination-over';
+    for (const [dx, dy] of [[-3.6, -3.2], [2.3, -2.7], [-2.8, 1.5], [2, 1.8]]) ctx.drawImage(rim, dx, dy);
+    ctx.globalCompositeOperation = 'source-over';
+    distantGuards.set(name, image);
+  }
+}
+function scaleAtlas(scale) {
+  if (scale === 1) return atlas;
+  if (scaledAtlases.has(scale)) return scaledAtlases.get(scale);
+  const image = document.createElement('canvas');
+  image.width = Math.ceil(atlas.naturalWidth * scale);
+  image.height = Math.ceil(atlas.naturalHeight * scale);
+  const ctx = image.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(atlas, 0, 0, image.width, image.height);
+  // Recover a little local contrast after minification. Skip transparent edges
+  // so mortar, wood grain and steel bevels stay clear without bright fringes.
+  const frame = ctx.getImageData(0, 0, image.width, image.height);
+  const p = frame.data, stride = image.width * 4;
+  const luma = new Uint8Array(image.width * image.height);
+  for (let i = 0; i < luma.length; i++) {
+    const j = i * 4;
+    luma[i] = (p[j] * 54 + p[j + 1] * 183 + p[j + 2] * 19) / 256;
+  }
+  for (let i = image.width + 1; i < luma.length - image.width - 1; i++) {
+    const j = i * 4;
+    if (p[j + 3] < 248 || p[j - 1] < 248 || p[j + 7] < 248 ||
+      p[j + 3 - stride] < 248 || p[j + 3 + stride] < 248) continue;
+    const neighbor = (luma[i - 1] + luma[i + 1] + luma[i - image.width] + luma[i + image.width]) * 0.25;
+    const detail = Math.max(-12, Math.min(12, (luma[i] - neighbor) * 0.43));
+    p[j] += detail;
+    p[j + 1] += detail;
+    p[j + 2] += detail;
+  }
+  ctx.putImageData(frame, 0, 0);
+  scaledAtlases.set(scale, image);
+  return image;
+}
 
 // A prepared palette is reused when another castle or zoom has the same light
 // and pixel density. The menu can prime it before exposing the battlefield.
@@ -55,24 +131,21 @@ export async function whenSpritesReady(phase = 'day', scale = 1) {
 
 export function prepareSprites(phase, scale) {
   if (!spriteReady()) return;
+  if (!distantGuards.size) prepareDistantGuards();
   mip = scale < 1.65 ? 0.25 : scale < 3 ? 0.5 : 1;
   const key = phase + '/' + mip;
   source = prepared.get(key);
   if (source) return;
-  if (mip === 1 && !tints[phase]) {
-    source = atlas;
-  } else {
+  source = scaleAtlas(mip);
+  if (tints[phase]) {
     const surface = document.createElement('canvas');
-    surface.width = Math.ceil(atlas.naturalWidth * mip);
-    surface.height = Math.ceil(atlas.naturalHeight * mip);
+    surface.width = source.width;
+    surface.height = source.height;
     const ctx = surface.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(atlas, 0, 0, atlas.naturalWidth * mip, atlas.naturalHeight * mip);
-    if (tints[phase]) {
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.fillStyle = tints[phase];
-      ctx.fillRect(0, 0, surface.width, surface.height);
-    }
+    ctx.drawImage(source, 0, 0);
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = tints[phase];
+    ctx.fillRect(0, 0, surface.width, surface.height);
     source = surface;
   }
   prepared.set(key, source);
@@ -109,4 +182,15 @@ export function sampleSprite(ctx, name, left, top, w, h, x, y, width, height) {
     height,
   );
   return true;
+}
+
+export function sampleGuard(ctx, pose, overview, left, top, w, h, x, y, width, height) {
+  if (overview < 1) sampleSprite(ctx, pose, left, top, w, h, x, y, width, height);
+  if (!overview) return;
+  const image = distantGuards.get(pose);
+  if (!image) return;
+  const alpha = ctx.globalAlpha;
+  ctx.globalAlpha = alpha * overview;
+  ctx.drawImage(image, left * image.width, top * image.height, w * image.width, h * image.height, x, y, width, height);
+  ctx.globalAlpha = alpha;
 }
