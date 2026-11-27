@@ -1,4 +1,5 @@
 import { createEffects } from './effects.js';
+import { AMMO } from './simulation.js';
 import { sprite, sampleSprite, spriteReady, prepareSprites } from './sprites.js';
 import { paintTerrain } from './terrain.js';
 
@@ -568,9 +569,9 @@ function drawTorch(ctx, b) {
   line(ctx, '#b9a684', 0.8, x - 2.3, y + 1, x + 2.1, y + 1);
 }
 
-function drawCatapult(ctx, ammo, time, launchAge, sim, reduced) {
+function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced) {
   const recoil =
-    !reduced && launchAge < 0.54 ? Math.sin((Math.PI * launchAge) / 0.54) * (1 - launchAge / 0.54) * 2.7 : 0;
+    !reduced && recovery < 0.54 ? Math.sin((Math.PI * recovery) / 0.54) * (1 - recovery / 0.54) * 2.7 : 0;
   ctx.save();
   ctx.translate(-recoil, 0);
   ellipse(ctx, 'rgba(46,38,28,.25)', 108, GROUND + 0.4, 78, 2.8);
@@ -587,11 +588,9 @@ function drawCatapult(ctx, ammo, time, launchAge, sim, reduced) {
     cupY = -armH * 0.222;
   const rest = Math.atan2(326 - pivotY, 160 - pivotX) - Math.atan2(cupY, cupX);
   const flick =
-    launchAge < 0.16
-      ? -Math.sin(((launchAge / 0.16) * Math.PI) / 2) * 1.15
-      : launchAge < 1
-        ? -Math.pow(1 - (launchAge - 0.16) / 0.84, 2) * 1.15
-        : 0;
+    recovery < 0.16
+      ? -Math.sin(((recovery / 0.16) * Math.PI) / 2) * 1.15
+      : -Math.pow((1 - recovery) / 0.84, 2) * 1.15;
   const theta = rest + flick;
   const slingX = pivotX + cupX * Math.cos(theta) - cupY * Math.sin(theta);
   const slingY = pivotY + cupX * Math.sin(theta) + cupY * Math.cos(theta);
@@ -604,7 +603,7 @@ function drawCatapult(ctx, ammo, time, launchAge, sim, reduced) {
   ellipse(ctx, '#93723e', 0, 0, 2.0, 2);
   ellipse(ctx, '#ecce8c', -0.55, -0.6, 0.85, 0.8);
   ctx.restore();
-  if (sim.stats.ready && launchAge > 0.46) {
+  if (ready) {
     ctx.save();
     ctx.translate(slingX, slingY - 0.7);
     drawAmmo(ctx, ammo, ammo.startsWith('big') ? 9.2 : 7, time);
@@ -621,14 +620,9 @@ function drawCatapult(ctx, ammo, time, launchAge, sim, reduced) {
     ctx.restore();
   }
   ctx.restore();
-  const role =
-    (sim.themeIndex ?? sim.levelIndex) === 1
-      ? 'gnome'
-      : (sim.themeIndex ?? sim.levelIndex) === 4
-        ? 'elf'
-        : 'dwarf';
+  const role = theme === 1 ? 'gnome' : theme === 4 ? 'elf' : 'dwarf';
   const gesture = !reduced && (time + 0.7) % 5.2 < 0.95 ? '-idle' : '';
-  const pose = !reduced && launchAge < 0.82 ? '-action' : gesture;
+  const pose = !reduced && recovery < 0.82 ? '-action' : gesture;
   const height = role === 'elf' ? 33 : role === 'gnome' ? 29 : 30;
   const width = role === 'dwarf' ? 24 : 20.5;
   ellipse(ctx, 'rgba(43,40,27,.25)', 198, GROUND + 0.2, width * 0.46, 1.3);
@@ -692,6 +686,7 @@ export function createRenderer(canvas) {
     terrainSource: null,
     terrainLayout: null,
     launchTime: -10,
+    reloadDuration: AMMO[0].reload,
     lastTime: null,
     aim: [],
     aimKey: '',
@@ -701,6 +696,7 @@ export function createRenderer(canvas) {
     state.terrain = null;
     state.terrainLayout = null;
     state.launchTime = -10;
+    state.reloadDuration = AMMO[0].reload;
     state.lastTime = null;
     state.aimKey = '';
     effects.reset();
@@ -732,7 +728,11 @@ export function createRenderer(canvas) {
     const phase = sim.level?.phase || 'day';
     prepareSprites(phase, w / view.width);
     const events = options.events || [];
-    if (events.some((e) => e.type === 'launch')) state.launchTime = t;
+    for (const event of events) {
+      if (event.type !== 'launch') continue;
+      state.launchTime = t;
+      state.reloadDuration = AMMO.find((shot) => shot.id === event.material)?.reload ?? state.reloadDuration;
+    }
     const bodies = sim.bodies;
     effects.update(
       events,
@@ -767,8 +767,10 @@ export function createRenderer(canvas) {
     ambient(ctx, ambientTime, sim.themeIndex ?? sim.levelIndex);
     effects.drawBehind(ctx);
     const age = t - state.launchTime;
-    drawCatapult(ctx, ammo, ambientTime, age, sim, reducedMotion);
-    if (sim.stats.ready && !sim.stats.cleared) {
+    const stats = sim.stats;
+    const recovery = clamp(1 - stats.reloadRemaining / state.reloadDuration, 0, 1);
+    drawCatapult(ctx, ammo, ambientTime, recovery, stats.ready, sim.themeIndex ?? sim.levelIndex, reducedMotion);
+    if (stats.ready && !stats.cleared) {
       const key = [ammo, angle, power].join('/');
       if (state.aimKey !== key) {
         state.aimKey = key;
