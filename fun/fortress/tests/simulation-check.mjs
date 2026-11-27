@@ -29,6 +29,9 @@ const replays = [
       ['small-stone', 50, 99],
       ['small-stone', 50, 100],
       ['small-bomb', 70, 98],
+      // The front guard can survive the collapse on x64. Target him before
+      // the final shot at the distant keep.
+      ['small-stone', 65, 36],
       ['small-stone', 30, 98],
     ],
   ],
