@@ -22,7 +22,7 @@
   <meta name="twitter:image" content="https://protocodus.cz/fun/fortress/fortress-card.webp">
   <meta name="twitter:image:alt" content="A dwarf catapult crew faces an orc fortress across a mountain valley.">
   <link rel="canonical" href="https://protocodus.cz/fun/fortress/">
-  <link rel="icon" href="./assets/crest.svg" type="image/svg+xml">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 36'%3E%3Cpath fill='%23794130' stroke='%23eac685' stroke-width='2' d='M2 3 16 1l14 2v16q0 9-14 16Q2 28 2 19Z'/%3E%3Cpath fill='%23f4d79a' d='M6 10h3v3h3v-3h2V7h4v3h2v3h3v-3h3v7h-2v8h-6v-4a2 2 0 0 0-4 0v4H8v-8H6z'/%3E%3C/svg%3E">
   <link rel="preload" href="./assets/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fortress-atlas.webp" as="image" type="image/webp">
   <link rel="stylesheet" href="./fortress.css">
@@ -81,10 +81,13 @@
 
   <main inert>
     <section class="briefing" aria-label="Fortress and score">
-      <div id="mission" class="mission"><div class="eyebrow"><svg class="icon"><use href="#icon-flag"/></svg><span id="size-label">Small fortress</span><i></i><span id="phase-label">Day</span><i></i><span id="wind-label"></span></div><h2 id="level-name">Bramblewatch Outpost</h2><p id="objective">Defeat every orc for the least gold.</p></div>
+      <div id="mission" class="mission"><div class="eyebrow"><svg class="icon"><use href="#icon-flag"/></svg><span id="size-label">Small fortress</span><i></i><span id="phase-label">Day</span><span id="weather-label">Clear</span><i></i><span id="wind-label"></span></div><h2 id="level-name">Bramblewatch Outpost</h2><p id="objective">Defeat every orc for the least gold.</p></div>
       <section class="mission victory-report" id="victory-report" aria-label="Victory report" hidden>
         <div class="eyebrow"><svg class="icon" aria-hidden="true"><use href="#icon-trophy"/></svg><strong id="victory-cost"></strong><i></i><span id="victory-par"></span><i></i><span id="victory-best"></span></div>
-        <h2 id="victory-title"></h2>
+        <div class="victory-next"><h2 id="victory-title"></h2>
+          <div class="victory-actions"><button id="victory-new" type="button" data-analytics-cta="victory_new_fortress" data-analytics-action="new_mission"><svg class="icon" aria-hidden="true"><use href="#icon-map"/></svg>New fortress</button>
+            <button id="victory-retry" type="button" data-analytics-cta="victory_retry" data-analytics-action="restart"><svg class="icon" aria-hidden="true"><use href="#icon-restart"/></svg>Try cheaper</button></div>
+        </div>
         <button id="dismiss-victory" class="icon-button" aria-label="Dismiss victory report" data-analytics-ignore><svg class="icon"><use href="#icon-close"/></svg></button>
       </section>
       <div class="stats" aria-label="Siege statistics">
@@ -98,7 +101,8 @@
       <div class="world" id="world">
         <img id="scenery" alt="" hidden>
         <canvas id="panorama" aria-hidden="true"></canvas>
-        <canvas id="battlefield" width="1200" height="480" tabindex="0" aria-label="Siege battlefield. Point from the catapult sling to set the launch angle. Aim farther away for more power. Use left and right arrows for power, up and down for angle." aria-describedby="aim-hint"></canvas>
+        <div id="weather-sky" aria-hidden="true"></div>
+        <canvas id="battlefield" width="1200" height="480" tabindex="0" aria-label="Siege battlefield. Each half aims its own catapult. Double-click to fire. On a keyboard, A selects the left crew and D the right. Use left and right arrows for power, up and down for angle, and Space to fire." aria-describedby="aim-hint"></canvas>
       </div>
     </section>
     <p class="aim-hint" id="aim-hint">Double-click to fire</p>
@@ -123,7 +127,7 @@
       </section>
     </div>
     <footer class="shortcuts">
-      <span><kbd>1</kbd>–<kbd>7</kbd> Select ammo</span><span><kbd>←</kbd><kbd>→</kbd> Power</span><span><kbd>↑</kbd><kbd>↓</kbd> Angle</span><span><kbd>Space</kbd> Fire</span>
+      <span><kbd>1</kbd>–<kbd>7</kbd> Select ammo</span><span><kbd>A</kbd><kbd>D</kbd> Left/right crew</span><span><kbd>←</kbd><kbd>→</kbd> Power</span><span><kbd>↑</kbd><kbd>↓</kbd> Angle</span><span><kbd>Space</kbd> Fire</span>
       <a href="/fun/" data-analytics-cta="hud_back_games" data-analytics-action="exit_game">All games <span aria-hidden="true">↗</span></a>
     </footer>
     </div>

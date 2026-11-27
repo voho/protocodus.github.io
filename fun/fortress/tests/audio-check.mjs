@@ -16,13 +16,17 @@ export async function checkFortressAudio(page) {
         return 'running';
       }
     };
-    async function render(properties) {
+    async function render(properties, weather) {
       const audio = createAudio();
       audio.unlock();
       const event = {
         type: 'damage', material: 'wood', size: 28, damage: 0.6, strength: 0.65, x: 900, ...properties,
       };
-      audio.play([event], null, { x: 700, width: 400 });
+      if (weather) {
+        const sim = { level: { weather: weather.condition }, wind: weather.wind, seed: 2, entities: new Map() };
+        audio.play([], sim, { x: 700, width: 400 }, 0);
+        if (weather.pause) audio.pauseWeather();
+      } else audio.play([event], null, { x: 700, width: 400 });
       const wave = await offline.startRendering();
       const rms = [];
       let energy = 0, change = 0, tail = 0;
@@ -52,6 +56,9 @@ export async function checkFortressAudio(page) {
         glass: await render({ type: 'impact', material: 'glass' }),
         stone: await render({ type: 'impact', material: 'stone' }),
         earth: await render({ type: 'impact', material: 'earth' }),
+        rain: await render({}, { condition: 'rain', wind: 5 }),
+        gust: await render({}, { condition: 'clear', wind: 75 }),
+        paused: await render({}, { condition: 'rain', wind: 5, pause: true }),
       };
     } finally {
       window.AudioContext = liveContext;
@@ -64,4 +71,7 @@ export async function checkFortressAudio(page) {
   assert.ok(sounds.glass.brightness > 1.5 * sounds.wood.brightness, 'Glass rings brighter than a wooden knock');
   assert.ok(sounds.steel.tail > 2 * sounds.wood.tail, 'Steel rings longer than timber');
   assert.ok(sounds.stone.brightness > 1.25 * sounds.earth.brightness, 'Stone has a sharper contact than earth');
+  assert.ok(sounds.rain.rms[0] > 0.001 && sounds.gust.rms[0] > 0.001);
+  assert.ok(sounds.rain.brightness > 2 * sounds.gust.brightness, 'Rain and wind use distinct frequency bands');
+  assert.ok(sounds.paused.rms[0] < sounds.rain.rms[0] * 0.1, 'Paused weather fades out');
 }

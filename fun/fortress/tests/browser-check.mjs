@@ -62,22 +62,31 @@ try {
   assert.ok(await player.evaluate((p) => p.paused));
   assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width: 1440, height: 900 });
 
-  async function aimFromSling(angle, radius, expectedPower) {
-    const point = await battlefield.evaluate((canvas, { angle, radius }) => {
+  async function aimFromSling(angle, radius, expectedPower, side = 'left') {
+    const point = await battlefield.evaluate(async (canvas, { angle, radius, side }) => {
+      const { WORLD } = await import('./simulation.js');
+      const origin = side === 'left' ? WORLD.release : WORLD.rightRelease;
+      const direction = side === 'left' ? 1 : -1;
       const radians = angle * Math.PI / 180;
-      const world = new DOMPoint(160 + radius * Math.cos(radians), 326 - radius * Math.sin(radians));
+      const world = new DOMPoint(origin.x + direction * radius * Math.cos(radians), origin.y - radius * Math.sin(radians));
       const pixel = world.matrixTransform(canvas.getContext('2d').getTransform());
       const rect = canvas.getBoundingClientRect();
       return { x: rect.x + pixel.x * rect.width / canvas.width, y: rect.y + pixel.y * rect.height / canvas.height };
-    }, { angle, radius });
+    }, { angle, radius, side });
     await page.mouse.move(point.x, point.y);
+    assert.equal(await battlefield.getAttribute('data-side'), side);
     assert.equal(await page.locator('#angle').inputValue(), String(angle));
     assert.equal(await page.locator('#power').inputValue(), String(expectedPower));
   }
   await aimFromSling(32, 160, 50);
+  await aimFromSling(32, 160, 50, 'right');
+  await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'right');
+  assert.ok((await page.locator('#aim-hint').boundingBox()).x > 720, 'The mouse firing hint follows the right crew');
   await aimFromSling(32, 256, 80);
   await aimFromSling(52, 256, 80);
   const hint = page.locator('#aim-hint');
+  await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'left');
+  assert.ok((await hint.boundingBox()).x < 320, 'The mouse firing hint returns to the left crew');
   assert.equal(await hint.textContent(), 'Double-click to fire');
   await page.keyboard.press('ArrowLeft');
   assert.deepEqual([await page.locator('#angle').inputValue(), await page.locator('#power').inputValue()], ['52', '79']);
@@ -158,6 +167,25 @@ try {
   await page.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
   assert.equal(await spent.textContent(), '90', 'Remote detonation costs no additional gold');
   await switchFortress('#restart-button');
+  await page.keyboard.press('7');
+  await page.keyboard.press('KeyD');
+  assert.equal(await battlefield.getAttribute('data-side'), 'right');
+  await page.keyboard.press('Space');
+  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
+  await page.keyboard.press('KeyA');
+  await page.keyboard.press('6');
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  await page.keyboard.press('Space');
+  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  await page.keyboard.press('7');
+  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
+  await battlefield.click({ position: { x: 510, y: 360 } });
+  assert.equal(await page.getByRole('button', { name: 'Activate implosion' }).count(), 0);
+  await page.keyboard.press('6');
+  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  await page.keyboard.press('Space');
+  assert.equal(await spent.textContent(), '165', 'Both crews launched; each remote activated once for free');
+  await switchFortress('#restart-button');
   const fireball = page.getByRole('button', { name: 'Fireball, 45 gold' });
   assert.equal(await page.locator('.ammo').count(), 7);
   await page.keyboard.press('5');
@@ -187,6 +215,12 @@ try {
   await page.evaluate(() => { location.hash = 'medium/6'; });
   await page.waitForFunction(() => location.hash === '#medium/6' &&
     document.querySelector('#size-label').textContent === 'Medium fortress' && !document.querySelector('main[aria-busy]'));
+  for (const [seed, weather] of [['e', 'storm'], ['9', 'snow'], ['b', 'rain']]) {
+    await page.evaluate((seed) => { location.hash = 'large/' + seed; }, seed);
+    await page.waitForFunction((weather) =>
+      document.body.dataset.weather === weather && document.querySelector('#weather-label').textContent === weather &&
+      !document.querySelector('main[aria-busy]'), weather);
+  }
   assert.deepEqual(
     requests,
     [],
@@ -206,17 +240,16 @@ try {
   await page.waitForFunction(() =>
     document.querySelector('#wind-label').textContent.includes('Strong headwind'),
   );
-  // Hit the far gallery, then the front pier. These two blasts reach all three
-  // guards even when browser scheduling shifts the second shot by several frames.
-  await page.keyboard.press('4');
-  const shots = [[60, 93], [23, 63]];
-  for (const [i, [angle, power]] of shots.entries()) {
-    await page.locator('#angle').fill(String(angle));
-    await page.locator('#power').fill(String(power));
+  // A low shot through the keep sets off its powder stores and clears the garrison.
+  async function clearSmallKeep() {
+    await page.keyboard.press('a');
+    await page.keyboard.press('4');
+    await page.locator('#angle').fill('30');
+    await page.locator('#power').fill('94');
     await page.locator('#fire-button').click();
-    if (i < shots.length - 1) await page.waitForTimeout(4000);
+    await page.getByRole('heading', { name: /has fallen/i }).waitFor({ timeout: 16000 });
   }
-  await page.getByRole('heading', { name: /has fallen/i }).waitFor({ timeout: 16000 });
+  await clearSmallKeep();
   const victoryTrack = await player.evaluate((p) => {
     if (p.paused) throw new Error('The soundtrack stopped at victory');
     p.currentTime = p.duration - 0.09;
@@ -228,11 +261,19 @@ try {
   }, victoryTrack);
   const nextTrack = await player.evaluate((p) => p.currentSrc);
   const winningCost = +(await spent.textContent());
-  assert.equal(winningCost, 120);
+  assert.equal(winningCost, 60);
   const report = page.locator('#victory-report');
   assert.equal(await report.locator('#victory-cost').textContent(), winningCost + ' gold');
   assert.ok(await report.isVisible());
   assert.ok((await report.boundingBox()).y < 160);
+  for (const name of ['New fortress', 'Try cheaper']) {
+    const action = report.getByRole('button', { name });
+    assert.ok(await action.isVisible());
+    assert.ok(await action.evaluate((button) => {
+      const r = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+    }), 'The victory actions accept clicks beside the report');
+  }
   assert.equal(await page.locator('dialog[open]').count(), 0);
   await page.keyboard.press('6');
   await page.keyboard.press('Space');
@@ -248,7 +289,14 @@ try {
   await switchFortress('#restart-button');
   assert.deepEqual(await player.evaluate((p) => [p.currentSrc, p.paused]), [nextTrack, false]);
   assert.match(await page.locator('#objective').textContent(), new RegExp('Best siege.*' + winningCost));
-  await switchFortress('#new-button');
+  await clearSmallKeep();
+  await switchFortress('#victory-retry');
+  assert.match(page.url(), /#small\/1$/);
+  assert.equal(await spent.textContent(), '0');
+  assert.match(await page.locator('#objective').textContent(), new RegExp('Best siege.*' + winningCost));
+  await clearSmallKeep();
+  await switchFortress('#victory-new');
+  assert.doesNotMatch(page.url(), /#small\/1$/);
   assert.deepEqual(await player.evaluate((p) => [p.currentSrc, p.paused]), [nextTrack, false]);
   await page.evaluate(() => {
     location.hash = 'small/1';
@@ -288,6 +336,13 @@ try {
       [width, height],
     );
     assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width, height });
+    assert.ok(await battlefield.evaluate(async (canvas) => {
+      const { WORLD } = await import('./simulation.js');
+      const transform = canvas.getContext('2d').getTransform();
+      const left = new DOMPoint(WORLD.release.x - 136, WORLD.ground).matrixTransform(transform);
+      const right = new DOMPoint(WORLD.rightRelease.x + 136, WORLD.ground).matrixTransform(transform);
+      return left.x >= 0 && right.x <= canvas.width && left.y > 0 && left.y < canvas.height;
+    }), 'The overview includes both catapult crews');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width);
     assert.ok(await page.locator('.tools').evaluate((nav) => {
       const score = document.querySelector('.briefing').getBoundingClientRect();
@@ -320,6 +375,7 @@ try {
   assert.deepEqual(errors, []);
   await checkFortressAudio(page);
   await checkFallenTorch(page);
+  await checkFlankTerrain(page);
   await checkFireTransitions(page);
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await phone.goto(origin + '/fun/fortress/#large/6');
@@ -329,6 +385,7 @@ try {
   await phone.touchscreen.tap(240, 320);
   await phone.touchscreen.tap(240, 320);
   await phone.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  await phone.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'right');
   assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to detonate');
   assert.equal(await phone.locator('#spent').textContent(), '90');
   await phone.touchscreen.tap(220, 320);
@@ -408,6 +465,36 @@ async function checkFallenTorch(page) {
     bounds.top >= 260 && bounds.bottom <= 270,
     'Fallen fixture rotates in place after losing its flame',
   );
+}
+
+async function checkFlankTerrain(page) {
+  const samples = await page.evaluate(async () => {
+    const { FortressSimulation, WORLD } = await import('./simulation.js');
+    const { paintTerrain } = await import('./terrain.js');
+    const sim = new FortressSimulation('small', 11);
+    const image = document.getElementById('scenery');
+    const probes = [-40, 1340, 1515];
+    const original = paintTerrain(sim.terrain, image, sim.level.phase);
+    function sample(paint, x, y) {
+      const px = Math.round((x - paint.left) * paint.canvas.width / paint.width);
+      const py = Math.round((y - paint.top) * paint.canvas.height / paint.height);
+      return [...paint.canvas.getContext('2d').getImageData(px, py, 1, 1).data];
+    }
+    const turf = probes.map((x) => sample(original, x, WORLD.ground + 2));
+    for (const x of probes) sim.excavate({ x, y: sim.terrainHeight(x) - 3 }, 120);
+    const cut = paintTerrain(sim.terrain, image, sim.level.phase, original, sim.level.terrain);
+    return probes.map((x, i) => ({
+      turf: turf[i],
+      lip: sample(cut, x, WORLD.ground + 4),
+      bedrock: sample(cut, x, WORLD.ground + 21),
+      depth: sim.terrainHeight(x) - WORLD.ground,
+    }));
+  });
+  for (const { turf, lip, bedrock, depth } of samples) {
+    assert.ok(turf[3] > 225 && depth > 25, 'Both flanks have solid turf that bombs can excavate');
+    assert.ok(lip[3] > 235 && bedrock[3] > 235, 'Earth and rock textures cover the flank crater');
+    assert.notDeepEqual(lip.slice(0, 3), bedrock.slice(0, 3));
+  }
 }
 
 async function checkFireTransitions(page) {

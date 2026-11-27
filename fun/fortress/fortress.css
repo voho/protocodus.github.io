@@ -82,6 +82,12 @@ button:disabled { cursor: default; }
   height: 100%;
 }
 #panorama { pointer-events: none; }
+#weather-sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#weather-sky[data-weather='storm'] { background-color: #25374940; }
+#weather-sky canvas { display: block; max-width: none; will-change: transform; }
+#weather-sky[data-weather='clear'] { display: none; }
+#weather-sky[data-weather='rain'] canvas { opacity: 0.65; }
+#weather-sky[data-weather='snow'] canvas { opacity: 0.43; }
 #battlefield {
   touch-action: none;
   cursor: crosshair;
@@ -183,6 +189,8 @@ button:disabled { cursor: default; }
 .eyebrow .icon { width: .76rem; height: .76rem; }
 .eyebrow i { display: block; width: .18rem; height: .18rem; rotate: 45deg; background: #b7a27b; }
 #phase-label { color: #fff0c6; }
+#weather-label { color: #e4decb; }
+body:is([data-weather="rain"], [data-weather="storm"], [data-weather="snow"]) #weather-label { color: #c0dfef; }
 .mission h2 {
   margin: .21rem 0 0;
   color: #fff4da;
@@ -248,6 +256,22 @@ button:disabled { cursor: default; }
   line-height: 1.35;
   pointer-events: none;
 }
+.aim-hint:not([data-mode="keyboard"]) {
+  top: var(--launcher-y);
+  bottom: auto;
+  left: max(var(--gutter), var(--launcher-x, var(--gutter)));
+  transform: translateY(-100%);
+  border: 1px solid #dfc5949e;
+  border-radius: .25rem;
+  box-shadow: 0 2px 6px #14171462;
+  background: #19221edb;
+  white-space: nowrap;
+}
+.aim-hint:not([data-mode="keyboard"])[data-side="right"] {
+  left: auto;
+  right: max(var(--gutter), calc(100% - var(--launcher-x)));
+}
+.aim-hint:not([data-mode="keyboard"])[data-outside] { visibility: hidden; }
 .view-tools .view-btn { width: 1.83rem; height: 1.74rem; color: #f0cf94; font: 600 1.2rem/1 var(--sans); }
 .view-tools .view-btn:disabled { opacity: .4; }
 .zoom-readout { min-width: 3.05rem; height: 1.4rem; padding: 0 .32rem; border-inline: 1px solid var(--line); border-radius: 0; font: 600 .63rem/1 var(--mono); }
@@ -439,6 +463,18 @@ dialog li { padding-left: .12rem; }
 .victory-report .eyebrow { flex-wrap: wrap; row-gap: .15rem; }
 .mission.victory-report { padding-right: 2.35rem; }
 .mission.victory-report h2 { font-size: clamp(1rem, 2vw, 1.8rem); }
+.victory-next, .victory-actions { display: flex; align-items: center; flex-wrap: wrap; }
+.victory-next { gap: .32rem .85rem; }
+.victory-actions { gap: .35rem; }
+.victory-actions button {
+  display: inline-flex; align-items: center; gap: .27rem; padding: .3rem .49rem;
+  border: 1px solid #b99b66; border-radius: .24rem;
+  background: #30392d; color: #fff1d2; font: 650 .72rem/1.25 var(--sans);
+  pointer-events: auto;
+}
+.victory-actions button:first-child { background: #ddbf88; color: #29291f; }
+.victory-actions button:hover { filter: brightness(1.13); }
+.victory-actions .icon { width: .83rem; height: .83rem; }
 
 @media (min-width: 2000px) and (min-height: 900px) {
   :root { font-size: clamp(19px, 1vw - 1px, 34px); }
@@ -489,6 +525,7 @@ dialog li { padding-left: .12rem; }
 }
 @media (max-width: 540px) {
   :root { --gutter: .57rem; --safe-bottom: max(.35rem, env(safe-area-inset-bottom)); }
+  .aim-hint:not([data-mode="keyboard"]) { padding: .2rem .4rem; font-size: .66rem; }
   .masthead::before { bottom: -5.2rem; }
   .tools .nav-button { min-height: 2.15rem; width: 2.08rem; padding: 0; }
   .tools .nav-button span, .tool-divider { display: none; }

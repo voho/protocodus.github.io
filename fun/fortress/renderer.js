@@ -1,5 +1,5 @@
 import { createEffects } from './effects.js';
-import { AMMO } from './simulation.js';
+import { createWeatherEffects } from './weather-effects.js';
 import { sprite, sampleSprite, sampleGuard, spriteReady, prepareSprites } from './sprites.js';
 import { paintTerrain } from './terrain.js';
 
@@ -7,6 +7,7 @@ import { paintTerrain } from './terrain.js';
 const WIDTH = 1200;
 const HEIGHT = 480;
 const GROUND = 389;
+const launcherSides = ['left', 'right'];
 const TAU = Math.PI * 2;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -359,9 +360,9 @@ function tapestry(ctx, x, y, time, royal, wind) {
 }
 
 function prepareRooms(sim, bodies) {
-  const roofs = bodies.filter((b) => b.kind === 'block' && b.detail !== 'bridge' && b.width > 42 && b.height < 21);
+  const roofs = bodies.filter((b) => b.kind === 'block' && b.width > 42 && b.height < 21);
   const posts = bodies.filter(
-    (b) => b.kind === 'block' && b.width < 35 && ['masonry', 'beam', 'pane', 'girder'].includes(b.detail),
+    (b) => b.kind === 'block' && b.width < 35 && ['masonry', 'column', 'beam', 'pane', 'girder'].includes(b.detail),
   );
   const home = (b) => b.home || b;
   const rooms = [];
@@ -625,7 +626,7 @@ function drawGroundShadows(ctx, sim, bodies, shadows, rooms, view, minGround) {
   ctx.globalAlpha = 1;
 }
 
-function drawRooms(ctx, state, sim, bodies, time) {
+function drawRooms(ctx, state, sim, bodies, time, wind) {
   if (!state.rooms) state.rooms = prepareRooms(sim, bodies);
   for (const room of state.rooms) {
     if (room.broken) continue;
@@ -659,12 +660,61 @@ function drawRooms(ctx, state, sim, bodies, time) {
     );
     sprite(ctx, room.style, leftEdge - 1, top - 2, width + 2, height + 2);
     ctx.drawImage(state.shadows.overhang, leftEdge, top, width, Math.min(16, height * 0.42));
-    if (room.tapestry) tapestry(ctx, leftEdge + width * 0.23, top, time, room.royal, sim.level?.wind ?? 0);
+    if (room.tapestry) tapestry(ctx, leftEdge + width * 0.23, top, time, room.royal, wind);
     ctx.restore();
   }
 }
 
 const stones = ['limestone', 'stone', 'graystone', 'limestone', 'repaired', 'limestone', 'graystone'];
+
+// Paint once at high resolution. Each flight is fastened to its own floor slab.
+function paintStairs() {
+  const image = document.createElement('canvas');
+  image.width = 320;
+  image.height = 216;
+  const c = image.getContext('2d');
+  c.scale(4, 4);
+  const gradient = c.createLinearGradient(0, 3, 0, 53);
+  gradient.addColorStop(0, '#987e59');
+  gradient.addColorStop(1, '#574a3a');
+  c.fillStyle = gradient;
+  c.beginPath();
+  c.moveTo(0, 51);
+  for (let i = 0; i < 10; i++) {
+    const top = 48 - i * 4.8;
+    c.lineTo(i * 8, top);
+    c.lineTo((i + 1) * 8, top);
+  }
+  c.lineTo(80, 10);
+  c.lineTo(7, 54);
+  c.lineTo(0, 54);
+  c.fill();
+  for (let i = 0; i < 10; i++) {
+    const top = 48 - i * 4.8;
+    c.fillStyle = '#c9b995';
+    c.fillRect(i * 8, top, 8.6, 1.3);
+    c.fillStyle = '#4a423b';
+    c.fillRect(i * 8, top + 1.3, 1.2, 3.3);
+  }
+  c.strokeStyle = '#453a32';
+  c.lineWidth = 1.7;
+  c.beginPath();
+  for (let i = 0; i <= 3; i++) {
+    const x = 5 + i * 20, y = 47 - i * 12;
+    c.moveTo(x, y);
+    c.lineTo(x, y - 8);
+  }
+  c.moveTo(2, 40.8);
+  c.lineTo(68, 1.2);
+  c.stroke();
+  c.strokeStyle = '#b19b72';
+  c.lineWidth = 0.8;
+  c.beginPath();
+  c.moveTo(2, 39.8);
+  c.lineTo(68, 0.2);
+  c.stroke();
+  return image;
+}
 
 function drawMasonry(ctx, b) {
   const w = b.width,
@@ -672,6 +722,17 @@ function drawMasonry(ctx, b) {
     x = -w / 2,
     y = -h / 2;
   const pick = (n) => stones[(b.id * 11 + n * 3) % stones.length];
+  if (b.detail === 'column') {
+    const collar = h * 0.13, inset = w * 0.075;
+    sprite(ctx, 'limestone', x + inset, y + collar, w - inset * 2, h - collar * 2);
+    ctx.fillStyle = '#3a39364a';
+    ctx.fillRect(x + w * 0.68, y + collar, w * 0.06, h - collar * 2);
+    ctx.fillStyle = '#fff1c943';
+    ctx.fillRect(x + w * 0.21, y + collar, w * 0.045, h - collar * 2);
+    sprite(ctx, pick(1), x, y, w, collar + 0.25);
+    sprite(ctx, pick(2), x, y + h - collar, w, collar);
+    return;
+  }
   if (b.detail === 'curtain' || b.detail === 'battlement' || b.detail === 'banner' || b.detail === 'watch') {
     sprite(ctx, pick(0), x, y, w, h);
     return;
@@ -836,37 +897,6 @@ function drawCharcoal(ctx, b, x, y, w, h) {
   } else ctx.drawImage(charcoal, sx, sy, COAL_W, COAL_H, x, y, w, h);
 }
 
-const bridgePaths = new WeakMap();
-function drawBridge(ctx, b) {
-  const w = b.width, h = b.height, left = -w / 2, top = -h / 2;
-  let paths = bridgePaths.get(b);
-  if (!paths) {
-    const braces = new Path2D(), rail = new Path2D();
-    const bays = Math.max(2, Math.round(w / 13)), bay = w / bays;
-    for (let i = 0; i <= bays; i++) {
-      const x = left + bay * i;
-      braces.lineTo(x, i % 2 ? top + 1.7 : h / 2 - 1);
-      if (i === 0 || i === bays || i % 2 === 0) {
-        rail.moveTo(x, top);
-        rail.lineTo(x, top - 6);
-      }
-    }
-    rail.moveTo(left, top - 6);
-    rail.lineTo(w / 2, top - 6);
-    paths = { braces, rail };
-    bridgePaths.set(b, paths);
-  }
-  const steel = b.material === 'steel';
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = steel ? '#697e85' : '#725038';
-  ctx.stroke(paths.rail);
-  ctx.lineWidth = 2.8;
-  ctx.strokeStyle = steel ? '#9da9a7' : '#a67a48';
-  ctx.stroke(paths.braces);
-  sprite(ctx, b.material, left, top, w, 2.8);
-  sprite(ctx, b.material, left, h / 2 - 2.4, w, 2.4);
-}
-
 function drawBlock(ctx, b, time, wind) {
   const w = b.width,
     h = b.height;
@@ -881,8 +911,7 @@ function drawBlock(ctx, b, time, wind) {
       w,
       h,
     );
-  } else if (b.detail === 'bridge') drawBridge(ctx, b);
-  else if (b.material === 'stone') drawMasonry(ctx, b);
+  } else if (b.material === 'stone') drawMasonry(ctx, b);
   else {
     const upright = h > w;
     ctx.save();
@@ -1167,27 +1196,30 @@ const DEFAULT_VIEW = { x: 0, y: 0, width: WIDTH, height: HEIGHT };
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
   const effects = createEffects();
+  const weather = createWeatherEffects(canvas.parentElement?.querySelector('#weather-sky'));
   charcoal ||= paintCharcoal();
   const backdrop = document.getElementById('scenery');
   const state = {
     effects,
     shadows: buildShadows(),
     rooms: null,
+    stairArt: paintStairs(),
+    stairFloors: null,
     terrain: null,
     terrainSource: null,
     terrainLayout: null,
     launchTime: -10,
-    reloadDuration: AMMO[0].reload,
     lastTime: null,
     aim: [],
     aimKey: '',
   };
   function reset() {
+    weather.reset();
     state.rooms = null;
+    state.stairFloors = null;
     state.terrain = null;
     state.terrainLayout = null;
     state.launchTime = -10;
-    state.reloadDuration = AMMO[0].reload;
     state.lastTime = null;
     state.aimKey = '';
     effects.reset();
@@ -1239,9 +1271,9 @@ export function createRenderer(canvas) {
     for (const event of events) {
       if (event.type !== 'launch') continue;
       state.launchTime = t;
-      state.reloadDuration = AMMO.find((shot) => shot.id === event.material)?.reload ?? state.reloadDuration;
     }
     const bodies = sim.bodies;
+    const wind = sim.wind ?? sim.level?.wind ?? 0;
     effects.update(
       events,
       bodies,
@@ -1251,8 +1283,9 @@ export function createRenderer(canvas) {
       sim.themeIndex ?? sim.levelIndex,
       phase,
       sim.terrain,
-      sim.level?.wind ?? 0,
+      wind,
       sim.time,
+      sim.level?.weather,
     );
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -1268,6 +1301,8 @@ export function createRenderer(canvas) {
     const ambientTime = reducedMotion ? 0 : t;
     const scenery = options.scenery || backdrop;
     prepare(sim, scenery, bodies);
+    weather.drawSky(ctx, sim, view, t, reducedMotion, dt, wind);
+    weather.drawAir(ctx, sim, bodies, view, t, reducedMotion, wind, cssW, false);
     if (state.terrain) {
       const g = state.terrain;
       ctx.drawImage(g.canvas, g.left, g.top, g.width, g.height);
@@ -1277,26 +1312,42 @@ export function createRenderer(canvas) {
     effects.drawBehind(ctx);
     const age = t - state.launchTime;
     const stats = sim.stats;
-    const recovery = clamp(1 - stats.reloadRemaining / state.reloadDuration, 0, 1);
-    drawCatapult(
-      ctx,
-      ammo,
-      ambientTime,
-      recovery,
-      stats.ready,
-      sim.themeIndex ?? sim.levelIndex,
-      reducedMotion,
-      state.shadows.contact,
-    );
+    for (const side of launcherSides) {
+      const sling = sim.level?.catapults?.[side];
+      if (!sling || sling.x + 155 < view.x || sling.x - 155 > view.x + view.width) continue;
+      const recovery = sim.recovery(side);
+      ctx.save();
+      ctx.translate(sling.x, sling.y);
+      if (side === 'right') ctx.scale(-1, 1);
+      // The cached chassis, arm and crew artwork share this local cup position.
+      ctx.translate(-160, -326);
+      drawCatapult(ctx, ammo, ambientTime, recovery, recovery === 1,
+        sim.themeIndex ?? sim.levelIndex, reducedMotion, state.shadows.contact);
+      ctx.restore();
+    }
     if (stats.ready) {
-      const key = [ammo, angle, power].join('/');
+      // A gust changes the upcoming arc even while the pointer stays still.
+      const windFrame = sim.level?.gust ? Math.floor(sim.weatherTick / 6) : 0;
+      const key = [sim.side, ammo, angle, power, windFrame].join('/');
       if (state.aimKey !== key) {
         state.aimKey = key;
         state.aim = sim.trajectory(ammo, angle, power);
       }
       drawTrajectory(ctx, state.aim);
     }
-    drawRooms(ctx, state, sim, bodies, ambientTime);
+    drawRooms(ctx, state, sim, bodies, ambientTime, wind);
+    state.stairFloors ||= bodies.filter((b) => b.stairs);
+    for (const floor of state.stairFloors) {
+      if (!sim.entities.has(floor.id)) continue;
+      const width = floor.width - 9;
+      const rise = sim.level.sections[0].storey - floor.height + 1;
+      ctx.save();
+      ctx.translate(floor.x, floor.y);
+      ctx.rotate(floor.angle);
+      if (floor.stairs === 'left') ctx.scale(-1, 1);
+      ctx.drawImage(state.stairArt, -width / 2, -floor.height / 2 - rise, width, rise + 1);
+      ctx.restore();
+    }
     // One transform per piece avoids pushing the entire canvas drawing state for each body.
     ctx.save();
     const cameraX = shake.x - view.x,
@@ -1330,9 +1381,10 @@ export function createRenderer(canvas) {
       else if (b.kind === 'torch') drawTorch(ctx, b);
       else if (b.kind === 'projectile' && !b.vertices) drawAmmo(ctx, b.material, b.radius || b.width / 2, ambientTime, true);
       else if (b.kind === 'fragment' || b.detail === 'split-shot') drawFragment(ctx, b);
-      else drawBlock(ctx, b, ambientTime, sim.level?.wind ?? 0);
+      else drawBlock(ctx, b, ambientTime, wind);
     }
     ctx.restore();
+    weather.drawAir(ctx, sim, bodies, view, t, reducedMotion, wind, cssW, true);
     effects.drawFront(ctx);
     ctx.restore();
   }

@@ -43,6 +43,10 @@ assert.equal(glance.sim.projectiles.size, 1);
 const premature = intercept(1, 'siege-bomb');
 assert.ok(premature.flash && premature.sim.events.some((e) => e.type === 'explosion'));
 assert.equal(premature.sim.remoteBombs.size, 0);
+const warded = intercept(1, 'magic-bomb');
+assert.ok(warded.flash && warded.shot.flightPath === null);
+assert.equal(warded.sim.armedBomb('magic-bomb'), warded.shot, 'An intercepted Magic bomb stays armed');
+assert.ok(!warded.sim.events.some((e) => e.type === 'implosion'));
 const covered = intercept(1, 'big-stone', { wall: true });
 assert.ok(!covered.flash && covered.shot.flightPath);
 const miss = intercept(47, 'small-stone', { range: 300 });
@@ -126,38 +130,25 @@ const shotMass = [...powder.projectiles].reduce((sum, shard) => sum + shard.body
 assert.ok(Math.abs(shotMass - boulder.body.mass) < 0.001);
 assert.equal(powder.spent, 22, 'Split projectile pieces carry no additional charge');
 
-// Both ends must actually overlap a tower bearing. The bridge uses normal
-// contacts so it tips into the courtyard when an adjoining floor is removed.
-for (const [size, count] of [['small', 0], ['medium', 2], ['large', 4]]) {
-  const siege = new FortressSimulation(size, 1);
-  const decks = siege.bodies.filter((e) => e.detail === 'bridge');
-  assert.equal(decks.length, count);
-  for (const deck of decks) {
-    const seats = siege.bodies.filter((e) => e.supportedDecks?.includes(deck));
-    assert.equal(seats.length, 2);
-    assert.ok(!deck.body.isStatic && deck.y < siege.terrainHeight(deck.x) - 29);
-    for (const [i, seat] of seats.entries()) {
-      const foot = Matter.Vector.rotate({ x: (i - 0.5) * deck.width, y: deck.height / 2 }, deck.angle);
-      assert.ok(deck.x + foot.x >= seat.body.bounds.min.x - 1 && deck.x + foot.x <= seat.body.bounds.max.x + 1);
-      assert.ok(Math.abs(deck.y + foot.y - seat.body.bounds.min.y) < 8, 'End rests on a real floor beam');
-    }
+// The ground floor carries shared upper galleries on destructible piers and courses.
+for (const size of ['small', 'medium', 'large']) {
+  const keep = new FortressSimulation(size, 1);
+  const [plan] = keep.level.sections;
+  const blocks = keep.bodies.filter((e) => e.kind === 'block');
+  const bricks = blocks.filter((e) => e.detail === 'brickwork');
+  assert.ok(bricks.length >= (plan.spans.length - 1) * 3);
+  assert.ok(bricks.every((e) => !e.body.isStatic && e.material === 'stone' &&
+    e.y < plan.base && e.y > plan.base - plan.storey), 'The foundation uses real courses of masonry');
+  assert.ok(blocks.some((e) => e.detail === 'column' && e.material === 'stone' &&
+    e.height > e.width && !e.body.isStatic), 'A solid stone pier carries the upper gallery');
+  const stairs = blocks.filter((e) => e.stairs).sort((a, b) => b.y - a.y);
+  assert.equal(stairs.length, Math.max(...plan.heights) - 1);
+  for (const [i, flight] of stairs.entries()) {
+    assert.ok(!flight.body.isStatic && flight.width > flight.height);
+    assert.equal(flight.stairs, i % 2 ? 'left' : 'right');
+    if (i) assert.ok(Math.abs(stairs[i - 1].y - flight.y - plan.storey) < 2,
+      'Each flight starts one floor above the previous one');
   }
-  if (!count) continue;
-  const deck = decks[0], start = deck.y;
-  siege.fire('small-stone', 75, 25);
-  siege.remove([...siege.projectiles][0]);
-  const rightSeat = siege.bodies.find((e) => e.x > deck.x && e.supportedDecks?.includes(deck));
-  siege.remove(rightSeat);
-  for (let i = 0; i < 300; i++) siege.update(1 / 60);
-  assert.ok(!siege.entities.has(deck.id) || deck.y > start + 12, 'A bridge falls after losing a bearing');
-  const bombarded = new FortressSimulation(size, 1);
-  const second = bombarded.bodies.find((e) => e.detail === 'bridge');
-  bombarded.fire('big-bomb', 35, 75);
-  const charge = [...bombarded.projectiles][0];
-  Body.setPosition(charge.body, { x: second.x, y: second.y - 6 });
-  bombarded.explode(charge);
-  bombarded.resolveDamage();
-  assert.ok(!bombarded.entities.has(second.id), 'An exposed bridge can be destroyed directly');
 }
 
 const speeds = ['big-stone', 'siege-bomb'].map((id) => {

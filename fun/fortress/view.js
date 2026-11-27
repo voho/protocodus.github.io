@@ -1,8 +1,10 @@
 import { createShotCamera } from './camera-follow.js';
+import { WORLD } from './simulation.js';
 
 // The camera and the pointer share a projection. The physics world stays the same size at every zoom.
-const WIDTH = 1200,
-  GROUND = 389,
+const WIDTH = WORLD.maxX - WORLD.minX,
+  MIDFIELD = (WORLD.maxX + WORLD.minX) / 2,
+  GROUND = WORLD.ground,
   GROUND_FRACTION = GROUND / 480;
 const stops = [1, 1.35, 1.8, 2.5];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -24,10 +26,11 @@ export function createView(field, panorama, source, dock) {
   const minus = document.getElementById('zoom-out'),
     plus = document.getElementById('zoom-in');
   const fit = document.getElementById('zoom-fit');
+  const hint = document.getElementById('aim-hint');
   let zoom = 0,
-    center = WIDTH / 2,
+    center = MIDFIELD,
     lift = 0,
-    view = { x: 0, y: 0, width: WIDTH, height: 480 };
+    view = { x: WORLD.minX, y: 0, width: WIDTH, height: 480 };
   let base = view;
   let manualDuringShot = false,
     readout = 0;
@@ -48,7 +51,7 @@ export function createView(field, panorama, source, dock) {
     lastPaintH = 0;
   let pointers = new Map(),
     moved = false,
-    focusX = WIDTH * 0.68;
+    focusX = MIDFIELD;
 
   function measure() {
     width = field.clientWidth || 1;
@@ -66,7 +69,7 @@ export function createView(field, panorama, source, dock) {
     const scale = fitScale * stops[zoom];
     const w = width / scale,
       h = height / scale;
-    const x = w >= WIDTH ? (WIDTH - w) / 2 : clamp(center - w / 2, 0, WIDTH - w);
+    const x = w >= WIDTH ? MIDFIELD - w / 2 : clamp(center - w / 2, WORLD.minX, WORLD.maxX - w);
     const changed = screenGround !== floorY;
     screenGround = floorY;
     base = { x, y: GROUND - floorY / scale - lift, width: w, height: h };
@@ -188,7 +191,7 @@ export function createView(field, panorama, source, dock) {
     const shelf = clamp((screenGround / height) * ih, 1, ih - 1);
     const scale = width / (view.width * fitScale);
     const cropW = iw / clamp(1 + (scale - 1) * 0.16, 1, 1.45);
-    const cx = clamp((view.x + view.width / 2) / WIDTH, 0, 1);
+    const cx = clamp((view.x + view.width / 2 - WORLD.minX) / WIDTH, 0, 1);
     const start = (iw - cropW) * cx;
     const foregroundScale = iw / cropW;
     const skyHeight = shelf * foregroundScale;
@@ -247,8 +250,19 @@ export function createView(field, panorama, source, dock) {
         readout = percent;
         fit.textContent = percent + '%';
       }
-      needsPresent ||= next.x !== view.x || next.y !== view.y || next.width !== view.width;
+      const moved = next.x !== view.x || next.y !== view.y || next.width !== view.width;
+      needsPresent ||= moved;
       view = next;
+      const side = sim.side || 'left';
+      if (moved || needsPresent || hint.dataset.side !== side) {
+        const sling = sim.level.catapults[side], direction = side === 'right' ? -1 : 1;
+        const x = (sling.x - direction * 75 - view.x) * width / view.width;
+        const y = (sling.y - 49 - view.y) * height / view.height;
+        hint.dataset.side = side;
+        hint.style.setProperty('--launcher-x', x.toFixed(1) + 'px');
+        hint.style.setProperty('--launcher-y', (y - 4).toFixed(1) + 'px');
+        hint.toggleAttribute('data-outside', x < 0 || x > width || y < safeTop + 16 || y > safeBottom);
+      }
     }
     if (needsPresent) present();
     return view;
@@ -273,7 +287,7 @@ export function createView(field, panorama, source, dock) {
     center = about + (0.5 - position) * newWidth;
     zoom = next;
     if (!zoom) {
-      center = WIDTH / 2;
+      center = MIDFIELD;
       lift = 0;
     }
     geometryDirty = true;
@@ -356,19 +370,19 @@ export function createView(field, panorama, source, dock) {
       shotCamera.reset();
       zoomFrom = null;
       manualDuringShot = false;
-      focusX = WIDTH * 0.68;
+      focusX = sections[0].center;
       phase = phaseName;
       seed = variant;
       crestRise = Math.max(335, ...sections.map((ward) =>
         GROUND - ward.base + Math.max(...ward.heights) * ward.storey + 45));
       zoom = 0;
       lift = 0;
-      center = WIDTH / 2;
+      center = MIDFIELD;
       geometryDirty = artDirty = true;
       update();
     },
     focusAt(x) {
-      focusX = clamp(x, 0, WIDTH);
+      focusX = clamp(x, WORLD.minX, WORLD.maxX);
     },
     invalidate() {
       geometryDirty = true;

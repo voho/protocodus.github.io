@@ -260,6 +260,7 @@ export function createEffects() {
     previous = null,
     reduced = false,
     phase = 'day',
+    weather = 'clear',
     level = 0,
     wind = 0,
     windLean = 0,
@@ -518,7 +519,7 @@ export function createEffects() {
       return;
     }
     if (e.type === 'extinguish') {
-      particle('wick', e.x, e.y + 2, wind * 0.05, -2, 6.7, 0.32);
+      if (!e.rain) particle('wick', e.x, e.y + 2, wind * 0.05, -2, 6.7, 0.32);
       for (let i = 0; i < (reduced ? 1 : 4); i++) puff(e.x + random() * 3, e.y - i, 5 + i, true);
       return;
     }
@@ -574,6 +575,7 @@ export function createEffects() {
     terrain = [],
     windForce = 0,
     simulationTime = now,
+    weatherCondition = 'clear',
   ) {
     const newFrame = previous !== now;
     previous = now;
@@ -581,6 +583,7 @@ export function createEffects() {
     physicsTime = simulationTime;
     reduced = reducedMotion;
     phase = missionPhase;
+    weather = weatherCondition;
     level = levelIndex;
     floor = terrain;
     wind = windForce;
@@ -735,7 +738,7 @@ export function createEffects() {
   }
 
   function fireIntensity(body) {
-    const lit = body.ignitedAt === undefined ? 1 : fade((physicsTime - body.ignitedAt) / 0.46);
+    const lit = (body.ignitedAt === undefined ? 1 : fade((physicsTime - body.ignitedAt) / 0.46)) * (1 - (body.wet || 0));
     return body.kind === 'barrel' ? lit : lit * fade((1 - body.burn) / 0.34);
   }
   function collectLights() {
@@ -756,7 +759,7 @@ export function createEffects() {
       entry.y = y;
       entry.radius = (isTorch ? 36 : 43) * (0.48 + exposure * 0.6) * flicker;
       entry.image = images[isTorch ? 1 : 0];
-      entry.intensity = isTorch ? fade(time / 0.35) : fireIntensity(body);
+      entry.intensity = isTorch ? fade(time / 0.35) * (1 - (body.wet || 0)) : fireIntensity(body);
       lightCount++;
     }
   }
@@ -871,7 +874,7 @@ export function createEffects() {
     lights(ctx, false);
     ctx.save();
     // Spindrift over the snowy pass, embers in the volcanic basin, and evening fireflies.
-    if (!reduced && (level === 2 || level === 3 || phase === 'night' || phase === 'dusk')) {
+    if (!reduced && weather === 'clear' && (level === 2 || level === 3 || phase === 'night' || phase === 'dusk')) {
       const airborne = level === 3 || level === 2;
       const n = level === 3 ? 34 : 18;
       const drift = wind && airborne ? wind * (level === 3 ? 0.62 : 0.92) : level === 3 ? 11 : 2.7;
@@ -925,14 +928,15 @@ export function createEffects() {
     lights(ctx, true);
     const clock = reduced ? 0.3 : time;
     ctx.save();
-    ctx.globalAlpha = fade(time / 0.35);
     for (const torch of torches) {
       if (!visible(torch.flameX, torch.flameY, 10)) continue;
+      const dryness = 1 - (torch.wet || 0);
+      ctx.globalAlpha = fade(time / 0.35) * dryness;
       flame(
         ctx,
         torch.flameX,
         torch.flameY + 2,
-        6.7 + Math.sin(clock * 8 + torch.id) * 1.15,
+        (6.7 + Math.sin(clock * 8 + torch.id) * 1.15) * (0.35 + 0.65 * dryness),
         clock,
         torch.id,
       );

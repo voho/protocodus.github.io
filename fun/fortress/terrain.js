@@ -89,6 +89,27 @@ function belowShelf(points) {
   return pits;
 }
 
+// Mirror the painting at its edges so expanded flanks meet the original
+// soil seamlessly. The same world coordinate always samples the same rock.
+function drawStrata(ctx, image, sx, sourceY, sourceH, left, width, top, height) {
+  const right = left + width;
+  for (let x = left; x < right;) {
+    const tile = Math.floor(x / WORLD.width);
+    const stop = Math.min(right, (tile + 1) * WORLD.width);
+    const span = stop - x, offset = x - tile * WORLD.width;
+    if (tile & 1) {
+      ctx.save();
+      ctx.translate(stop, top);
+      ctx.scale(-1, 1);
+      ctx.drawImage(image, (WORLD.width - offset - span) * sx, sourceY, span * sx, sourceH, 0, 0, span, height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(image, offset * sx, sourceY, span * sx, sourceH, x, top, span, height);
+    }
+    x = stop;
+  }
+}
+
 // The panorama contains an unbroken soil cross-section. Inside a hole paint
 // the distant bank across that old shelf. A darker back wall descends from
 // the bank to the actual foreground rim. Everything moves with the terrain.
@@ -99,8 +120,6 @@ function paintPit(ctx, rim, image, sx, sy) {
   if (width < 0.15) return;
   const lowest = Math.max(...rim.map((p) => p.y));
   const depth = lowest - BASE;
-  const srcX = left * sx,
-    srcW = width * sx;
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(left, BASE - 1);
@@ -108,21 +127,11 @@ function paintPit(ctx, rim, image, sx, sy) {
   for (let i = rim.length - 1; i >= 0; i--) ctx.lineTo(rim[i].x, rim[i].y + 1);
   ctx.closePath();
   ctx.clip();
-  ctx.drawImage(
-    image,
-    srcX,
-    (BASE - 21) * sy,
-    srcW,
-    19 * sy,
-    left,
-    BASE - 1.1,
-    width,
-    Math.max(2.5, depth * 0.34),
-  );
+  drawStrata(ctx, image, sx, (BASE - 21) * sy, 19 * sy, left, width, BASE - 1.1, Math.max(2.5, depth * 0.34));
   const back = rim.map((p) => ({ x: p.x, y: BASE - 0.8 + (p.y - BASE) * 0.18 }));
   traceFace(ctx, back, lowest + 2);
   ctx.clip();
-  ctx.drawImage(image, srcX, (BASE + 16) * sy, srcW, 63 * sy, left, BASE - 1, width, Math.max(3, depth + 4));
+  drawStrata(ctx, image, sx, (BASE + 16) * sy, 63 * sy, left, width, BASE - 1, Math.max(3, depth + 4));
   const shade = ctx.createLinearGradient(0, BASE - 1, 0, lowest + 1);
   shade.addColorStop(0, 'rgba(27,28,31,.46)');
   shade.addColorStop(0.46, 'rgba(30,27,31,.57)');
@@ -186,28 +195,9 @@ export function paintTerrain(points, image, phase, previous, original = points) 
   // Strata run horizontally through the hill. Their texture stays anchored
   // to the original bedrock when an explosion cuts through the hilltop.
   const oldBottom = BASE + 54;
-  ctx.drawImage(
-    image,
-    left * sx,
-    shelf + substrate * 0.15,
-    width * sx,
-    substrate * 0.84,
-    left,
-    minY,
-    width,
-    oldBottom - minY,
-  );
-  ctx.drawImage(
-    image,
-    left * sx,
-    shelf + substrate * 0.46,
-    width * sx,
-    substrate * 0.53,
-    left,
-    oldBottom - 0.1,
-    width,
-    BOTTOM - oldBottom + 0.2,
-  );
+  drawStrata(ctx, image, sx, shelf + substrate * 0.15, substrate * 0.84, left, width, minY, oldBottom - minY);
+  drawStrata(ctx, image, sx, shelf + substrate * 0.46, substrate * 0.53, left, width,
+    oldBottom - 0.1, BOTTOM - oldBottom + 0.2);
 
   for (let i = 1; i < points.length; i++) {
     const p = points[i - 1],
@@ -238,7 +228,9 @@ export function paintTerrain(points, image, phase, previous, original = points) 
     const coverage = clamp((1.2 - steep) / 0.55, 0, 1);
     if (!cut && coverage <= 0) continue;
     const sampleW = Math.min(image.naturalWidth, span * sx);
-    const capX = clamp(center * sx - sampleW / 2, 0, image.naturalWidth - sampleW);
+    const tile = Math.floor(center / WORLD.width);
+    const offset = center - tile * WORLD.width;
+    const capX = clamp((tile & 1 ? WORLD.width - offset : offset) * sx - sampleW / 2, 0, image.naturalWidth - sampleW);
     ctx.save();
     ctx.translate(p.x, p.y - 0.35);
     ctx.rotate(angle);

@@ -14,8 +14,9 @@ const descriptions = [
   'A wide blast that can excavate the ground beneath a tower.',
   'A magical burst that sets timber and exposed powder stores alight.',
   'A slow, heavy charge. Click the field to detonate it. An orc can set it off in flight.',
-  'Implodes on impact, pulling loose pieces and supports into a crushing knot.',
+  'Stays armed after landing. Activate it to pull nearby pieces and supports inward.',
 ];
+const remoteAmmo = new Set(AMMO.filter((ammo) => ammo.remote).map((ammo) => ammo.id));
 const rollSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
 const validSize = (value) => DIFFICULTIES.some(({ id }) => id === value);
 function readFortress() {
@@ -64,7 +65,9 @@ function store(key, value) {
 }
 
 const scoreKey = () => sim.difficulty + '.' + sim.seed.toString(36);
-const savedBests = stored('siege-bests', {});
+// A seed from the earlier tower-chain generator represented a different battlefield.
+const scoreTable = 'keep-siege-bests';
+const savedBests = stored(scoreTable, {});
 const bests = Object.fromEntries(
   Object.entries(savedBests && typeof savedBests === 'object' ? savedBests : {})
     .filter(
@@ -77,6 +80,7 @@ let clock = 0;
 let previousFrame = null;
 let victoryRecorded = false;
 let lastStats = '';
+let windBand = 0;
 let lastAnnouncedOrcs = sim.stats.orcsRemaining;
 let inputMode = matchMedia('(pointer: coarse)').matches ? 'touch' : 'mouse';
 const ammoButtons = [];
@@ -156,9 +160,10 @@ function track(event, extra) {
 }
 function syncHud() {
   const s = sim.stats;
-  const remote = s.remoteBombs > 0;
-  const trigger = remote && settings.ammo === 'siege-bomb';
-  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote, trigger, inputMode].join('/');
+  const selectedRemote = remoteAmmo.has(settings.ammo);
+  const remote = sim.armedBomb(selectedRemote ? settings.ammo : undefined);
+  const trigger = remote && selectedRemote;
+  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote?.material, !!trigger, sim.side, inputMode].join('/');
   if (key === lastStats) return;
   lastStats = key;
   $('orcs').textContent = s.orcsRemaining + ' / ' + s.orcsTotal;
@@ -166,19 +171,22 @@ function syncHud() {
   $('spent').textContent = String(s.spent);
   const state = $('state');
   const touch = inputMode === 'touch', keyboard = inputMode === 'keyboard';
-  const action = keyboard ? 'Space to fire' : touch ? 'Double-tap to fire' : 'Double-click to fire';
-  const detonate = touch ? 'Tap to detonate' : 'Click to detonate';
+  $('aim-hint').dataset.mode = inputMode;
+  const action = !s.ready ? 'Reloading' : keyboard ? 'Space to fire' : touch ? 'Double-tap to fire' : 'Double-click to fire';
+  const verb = remote?.implosionRadius ? 'implode' : 'detonate';
+  const detonate = (touch ? 'Tap to ' : 'Click to ') + verb;
   $('aim-hint').textContent = keyboard
-    ? '← → Power · ↑ ↓ Angle · ' + (trigger ? 'Space to detonate' : action)
+    ? (sim.side === 'left' ? 'Left crew' : 'Right crew') + ' · ← → Power · ↑ ↓ Angle · ' + (trigger ? 'Space to ' + verb : action)
     : remote ? detonate : action;
   state.toggleAttribute('data-busy', !s.ready);
   state.toggleAttribute('data-won', s.orcsRemaining === 0);
   state.querySelector('span').textContent =
-    remote ? (keyboard && trigger ? 'Space to detonate' : touch ? 'Tap field to detonate' : 'Click field to detonate')
+    remote ? (keyboard && trigger ? 'Space to ' : touch ? 'Tap field to ' : 'Click field to ') + verb
       : s.ready ? 'Ready to fire' : 'Reloading';
   const fireButton = $('fire-button');
   fireButton.disabled = !s.ready && !trigger;
-  fireButton.querySelector('span').textContent = trigger ? 'Detonate bomb' : s.ready ? 'Fire catapult' : 'Reloading';
+  fireButton.querySelector('span').textContent = trigger ? (remote.implosionRadius ? 'Activate implosion' : 'Detonate bomb')
+    : s.ready ? 'Fire catapult' : 'Reloading';
   if (s.orcsRemaining !== lastAnnouncedOrcs) {
     $('announcement').textContent = s.orcsRemaining + ' orcs left. ' + s.destruction + '% of the fort destroyed.';
     lastAnnouncedOrcs = s.orcsRemaining;
@@ -194,24 +202,33 @@ function fire() {
   syncHud();
 }
 function triggerBomb() {
-  if (!ready || overlay.open || !sim.detonateSiegeBomb()) return false;
+  if (!ready || overlay.open || !sim.detonateRemote(remoteAmmo.has(settings.ammo) ? settings.ammo : undefined)) return false;
   syncHud();
   return true;
 }
 function primaryFire() {
-  if (settings.ammo === 'siege-bomb' && triggerBomb()) return;
+  if (remoteAmmo.has(settings.ammo) && triggerBomb()) return;
   fire();
 }
 $('fire-button').addEventListener('click', primaryFire);
 
 // Measure from the sling in world coordinates so zooming or panning preserves the shot.
 const fullPowerDistance = 320;
+function chooseSide(side) {
+  if (sim.side === side) return;
+  sim.selectSide(side);
+  field.dataset.side = side;
+  windBand = 0;
+  updateWind(sim.wind);
+  syncHud();
+}
 function aimAt(event) {
   if (!ready || overlay.open) return false;
+  const fieldBounds = field.getBoundingClientRect();
+  chooseSide(event.clientX < fieldBounds.left + fieldBounds.width / 2 ? 'left' : 'right');
   const { x, y } = camera.target(event.clientX, event.clientY);
-  const dx = x - WORLD.release.x;
-  const up = WORLD.release.y - y;
-  if (dx < 0) return false;
+  const dx = Math.max(0, (x - sim.release.x) * (sim.side === 'left' ? 1 : -1));
+  const up = sim.release.y - y;
   camera.focusAt(x);
   const bearing = Math.round((Math.atan2(up, dx) * 180) / Math.PI);
   const strength = Math.round((100 * Math.hypot(dx, up)) / fullPowerDistance);
@@ -280,8 +297,22 @@ function reserve(size, seed) {
   nextFort = { size, seed, steps: FortressSimulation.prepareLevel(size, seed), world: null, requested: false };
 }
 
+function updateWind(wind) {
+  const speed = Math.abs(wind);
+  const band = (wind < 0 ? -1 : 1) * (speed < 14 ? 1 : speed < 20 ? 2 : speed < 39 ? 3 : 4);
+  if (band === windBand) return;
+  windBand = band;
+  const strength = ['Light', 'Moderate', 'Strong', 'Gale'][Math.abs(band) - 1];
+  const headwind = sim.side === 'left' ? band < 0 : band > 0;
+  const windText = strength + (headwind ? ' headwind' : ' tailwind');
+  $('wind-label').textContent = (band < 0 ? '← ' : '→ ') + windText;
+  $('wind-label').title = windText + (band < 0 ? ' blowing left' : ' blowing right');
+}
+
 function enterFortress(world) {
   sim = world;
+  field.dataset.side = sim.side;
+  windBand = 0;
   const { difficulty: size, seed } = sim;
   renderer.reset();
   const level = sim.level;
@@ -290,17 +321,16 @@ function enterFortress(world) {
   $('size-label').textContent = sizeName + ' fortress';
   $('level-name').textContent = level.name;
   $('phase-label').textContent = level.phase;
-  const wind = level.wind || 0;
-  const strength = Math.abs(wind) < 14 ? 'Light' : Math.abs(wind) < 20 ? 'Moderate' : 'Strong';
-  const windText = strength + (wind < 0 ? ' headwind' : ' tailwind');
-  $('wind-label').textContent = (wind < 0 ? '← ' : '→ ') + windText;
-  $('wind-label').title = windText + (wind < 0 ? ' blows toward the catapult' : ' blows toward the fortress');
+  const weather = level.weather || 'clear';
+  $('weather-label').textContent = weather;
+  document.body.dataset.weather = weather;
+  updateWind(sim.wind ?? level.wind ?? 0);
   const best = bests[scoreKey()];
   $('objective').textContent = best ? 'Best siege · ' + best + ' gold' : 'Defeat every orc for the least gold.';
   document.body.dataset.phase = level.phase;
   camera.frame(level.phase, seed, landscapes[sim.themeIndex], level.sections);
   renderer.prepare(sim, landscapes[sim.themeIndex]);
-  $('announcement').textContent = level.name + ', ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
+  $('announcement').textContent = level.name + ', ' + weather + ' at ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
   lastAnnouncedOrcs = sim.stats.orcsRemaining;
   lastStats = '';
   clock = 0;
@@ -378,7 +408,9 @@ $('fold-controls').addEventListener('click', () => {
 });
 
 function syncMusicPause() {
-  music.pause(document.hidden || overlay.open);
+  const paused = document.hidden || overlay.open;
+  music.pause(paused);
+  if (paused) audio.pauseWeather();
 }
 overlay.addEventListener('close', syncMusicPause);
 $('close-dialog').addEventListener('click', () => overlay.close());
@@ -392,13 +424,26 @@ function showHelp() {
   $('dialog-body').innerHTML =
     '<div class="modal-kicker">' + icon('help') + 'Field guide</div><h2 id="dialog-title">How to play</h2>' +
     '<p>Defeat every orc for the least gold. Your score locks when the last orc falls. Keep firing, restart to beat your score, or generate another fortress.</p>' +
-      '<ol><li><b>Choose a shot.</b> Small stones reload fast enough for a volley. Heavy stones and bombs take longer. Bombs dig craters and can undermine a tower. Fireballs ignite timber and powder. The Magic bomb pulls nearby pieces inward. The Siege bomb rolls like a boulder until you click to detonate it. Watch the armed guards. A countershot can deflect or split a stone, or set a bomb off early.</li><li><b>Point to aim. Double-click to fire.</b> Point up and to the right of the catapult sling. Its direction sets the launch angle, and moving farther from the sling increases power. On touchscreens, tap to aim and double-tap to fire. On a keyboard, use ← and → for power, ↑ and ↓ for angle, and Space to fire. Select ammunition with the first seven number-row keys (1–7 or +ěščřžý on a Czech keyboard). The camera makes room for high or wide shots. Between shots you can zoom and drag to inspect the towers.</li><li><b>Use the terrain.</b> Lob a shot over a hill or break a support. Glass shatters, stone chunks can split again on landing, and steel bends under load. Timber weakens as it burns, and fire spreads to powder barrels. A falling torch goes out. Wind bends the shot path, especially on high arcs.</li></ol>' +
-      '<button class="primary-button" data-dismiss>Back to the siege</button>';
+    '<ol><li><b>Choose a shot.</b> Small stones reload quickly enough for a volley. Heavy stones and bombs take longer. ' +
+    'Bombs dig craters. Fireballs ignite timber and powder. Siege and Magic bombs stay armed after landing. ' +
+    'Click the field or press Space with the charge selected. A Siege bomb blasts outward. A Magic bomb pulls nearby pieces inward. ' +
+    'Guard countershots can split stones and set off explosive charges early.</li>' +
+    '<li><b>Point to aim. Double-click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
+    'Aim up and inward from the sling. Distance sets power. The two crews reload independently. On touchscreens, tap to aim and double-tap to fire. ' +
+    'Use A or D to choose a crew, ← and → for power, ↑ and ↓ for angle, and Space to fire. ' +
+    'The first seven number-row keys select ammunition (1–7 or +ěščřžý on a Czech keyboard). Zoom and drag to inspect the keep.</li>' +
+    '<li><b>Use the terrain and weather.</b> Lob a shot over the hill or break a support. Glass shatters, fallen stone can break again, ' +
+    'and steel bends under load. Burning timber weakens and can ignite powder barrels. A fallen torch goes out. ' +
+    'Rain puts out exposed fires. A roof can shelter burning timber. Check the wind before a high shot. ' +
+    'Strong gusts can push a cracked support over.</li></ol>' +
+    '<button class="primary-button" data-dismiss>Back to the siege</button>';
   overlay.showModal();
   syncMusicPause();
   overlay.querySelector('[data-dismiss]').addEventListener('click', () => overlay.close());
 }
 $('help-button').addEventListener('click', showHelp);
+$('victory-new').addEventListener('click', () => newFortress(sim.difficulty));
+$('victory-retry').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed));
 function showReport() {
   victoryRecorded = true;
   const cost = sim.winningCost;
@@ -406,7 +451,7 @@ function showReport() {
   const record = !bests[key] || cost < bests[key];
   if (record) {
     bests[key] = cost;
-    store('siege-bests', Object.fromEntries(Object.entries(bests).slice(-200)));
+    store(scoreTable, Object.fromEntries(Object.entries(bests).slice(-200)));
   }
   track('game_end', { result: 'win', score: cost, duration_seconds: Math.round(sim.time) });
   const title = sim.level.name + ' has fallen';
@@ -456,6 +501,13 @@ document.addEventListener('keydown', (event) => {
     showHelp();
     return;
   }
+  if (event.code === 'KeyA' || event.code === 'KeyD') {
+    event.preventDefault();
+    useInput('keyboard');
+    chooseSide(event.code === 'KeyA' ? 'left' : 'right');
+    field.focus({ preventScroll: true });
+    return;
+  }
   const physicalAmmo = /^(?:Digit|Numpad)([1-7])$/.exec(event.code);
   let ammo = physicalAmmo ? +physicalAmmo[1] : 0;
   if (!ammo && /^[1-7]$/.test(event.key)) ammo = +event.key;
@@ -497,9 +549,10 @@ function tick(now) {
   if (!document.hidden && !overlay.open) {
     clock += dt;
     sim.update(dt);
+    if (sim.level.gust) updateWind(sim.wind);
     const events = sim.drainEvents();
     const view = camera.update(sim, events, dt, reduced.matches);
-    audio.play(events, sim, view);
+    audio.play(events, sim, view, clock);
     renderer.draw(sim, {
       ...settings,
       time: clock,

@@ -1,3 +1,5 @@
+import { stormStrikeTime } from './weather-effects.js';
+
 // The simulation supplies contact material, impact strength, and position. The
 // sound bank is generated locally and uses one playback voice per event.
 const RATE = 32000;
@@ -21,6 +23,8 @@ const cues = {
   barrel: [1.1, 0.095, 3],
   fireburst: [0.95, 0.08, 3],
   implosion: [0.82, 0.12, 3],
+  thunder: [2.4, 2, 1],
+  'weather-noise': [1.8, 0, 0],
   crackle: [0.85, 0.4, 0],
   ignite: [1.42, 0.3, 1],
   extinguish: [0.48, 0.2, 1],
@@ -101,6 +105,14 @@ function synthesize(sound) {
   }
 
   switch (sound) {
+    case 'weather-noise':
+      for (let i = 0; i < data.length; i++) data[i] = 2 * Math.random() - 1;
+      break;
+    case 'thunder':
+      grit(0, 1.8, 1, 32, 290, 0.11, 100);
+      grit(0.24, 1.9, 0.65, 22, 185, 0.17, 65);
+      ring(0.12, 1.5, 0.21, 69, 35, 0.15);
+      break;
     case 'guard-shot':
       grit(0, 0.045, 0.82, 650, 6200);
       ring(0.012, 0.13, 0.34, 225, 80);
@@ -298,6 +310,7 @@ export function createAudio() {
   const samples = new Map(),
     nextTime = new Map(),
     active = new Map();
+  let ambience = null, nextWeatherCheck = 0, weatherScene = null, lastStrike = -Infinity;
 
   // Standalone AudioBuffers can be filled before the first user gesture.
   // Older browsers retain PCM and copy it into a playback buffer on first use.
@@ -401,15 +414,69 @@ export function createAudio() {
     const now = context.currentTime;
     master.gain.setTargetAtTime(enabled ? 0.55 : 0, now, 0.008);
     if (!enabled) {
+      pauseWeather();
       for (const source of active.keys()) source.stop(now + 0.025);
       nextTime.clear();
     }
   }
 
+  function pauseWeather() {
+    if (!ambience) return;
+    const { source, breeze, drops } = ambience;
+    const now = context.currentTime;
+    breeze.gain.setTargetAtTime(0, now, 0.035);
+    drops.gain.setTargetAtTime(0, now, 0.035);
+    source.stop(now + 0.2);
+    ambience = null;
+    nextWeatherCheck = 0;
+  }
+
+  function weatherAudio(sim, clock, now) {
+    if (weatherScene !== sim) {
+      weatherScene = sim;
+      lastStrike = -Infinity;
+      nextWeatherCheck = 0;
+    }
+    if (!sim.level.weather || now < nextWeatherCheck) return;
+    nextWeatherCheck = now + 0.22;
+    const weather = sim.level.weather, wind = Math.abs(sim.wind ?? sim.level.wind ?? 0);
+    const breezeLevel = Math.min(0.19, 0.0022 * Math.max(0, wind - 11));
+    const rainLevel = weather === 'storm' ? 0.088 : weather === 'rain' ? 0.052 : 0;
+    if (!breezeLevel && !rainLevel && !ambience) return;
+    if (!ambience) {
+      // One precomputed noise loop feeds a low wind band and the finer hiss of rain.
+      const source = context.createBufferSource();
+      source.buffer = sampleFor('weather-noise', 0);
+      source.loop = true;
+      const low = context.createBiquadFilter(), high = context.createBiquadFilter();
+      low.type = 'lowpass';
+      high.type = 'highpass';
+      high.frequency.value = 2400;
+      const breeze = context.createGain(), drops = context.createGain();
+      breeze.gain.value = drops.gain.value = 0;
+      source.connect(low).connect(breeze).connect(mix);
+      source.connect(high).connect(drops).connect(mix);
+      source.onended = () => { for (const node of [source, low, high, breeze, drops]) node.disconnect(); };
+      source.start();
+      ambience = { source, low, breeze, drops };
+    }
+    ambience.low.frequency.setTargetAtTime(160 + 6 * wind, now, 0.38);
+    ambience.breeze.gain.setTargetAtTime(breezeLevel, now, 0.44);
+    ambience.drops.gain.setTargetAtTime(rainLevel, now, 0.34);
+    if (weather === 'storm') {
+      const strike = stormStrikeTime(sim.seed, clock), age = clock - strike;
+      if (age >= 1.1 && age < 1.8 && strike !== lastStrike) {
+        lastStrike = strike;
+        return { type: 'thunder', strength: 0.54 };
+      }
+    }
+  }
+
   let nextFireCheck = 0;
-  function play(events, sim, view) {
+  function play(events, sim, view, clock = sim?.time ?? 0) {
     if (!enabled || !context || context.state === 'closed' || context.state === 'interrupted') return;
     const now = context.currentTime;
+    const thunder = sim?.level && weatherAudio(sim, clock, now);
     let crackle;
     if (sim && now >= nextFireCheck) {
       let sumX = 0,
@@ -423,7 +490,7 @@ export function createAudio() {
       nextFireCheck = now + (pieces ? 0.54 + Math.random() * 0.26 : 0.35);
       if (pieces) crackle = { type: 'crackle', x: sumX / pieces, strength: Math.min(0.75, 0.08 + pieces * 0.1) };
     }
-    if (!events?.length && !crackle) return;
+    if (!events?.length && !crackle && !thunder) return;
     const selected = new Map();
     const left = view?.x ?? 0;
     const width = view?.width ?? 1200;
@@ -456,6 +523,7 @@ export function createAudio() {
         selected.set(key, { sound, event, gain, pitch, pan });
     }
     if (crackle) consider(crackle);
+    if (thunder) consider(thunder);
     for (const event of events ?? []) consider(event);
     const ordered = [...selected].sort(([, a], [, b]) => cues[b.sound][2] - cues[a.sound][2] || b.gain - a.gain);
     for (const [key, voice] of ordered) {
@@ -497,5 +565,5 @@ export function createAudio() {
       source.start(now + (event.type === 'fracture' && ordered.length > 1 ? 0.018 + Math.random() * 0.012 : 0));
     }
   }
-  return { prepare, unlock, setEnabled, play };
+  return { prepare, unlock, setEnabled, play, pauseWeather };
 }

@@ -87,12 +87,12 @@ export function createGuardDefense(sim, blocksRay) {
     event.endX = line.muzzle.x + range * Math.cos(angle);
     event.endY = line.muzzle.y + range * Math.sin(angle);
     if (!hit) return;
-    if (shot.blast || shot.flameRadius || shot.implosionRadius) {
+    if (shot.blast || shot.flameRadius) {
       sim.explode(shot);
       return;
     }
-    sim.emit('impact', shot, 0.43).material = 'stone';
-    if (random() < 0.46) splitShot(sim, shot);
+    sim.emit('impact', shot, 0.43).material = shot.implosionRadius ? 'steel' : 'stone';
+    if (!shot.implosionRadius && random() < 0.46) splitShot(sim, shot);
     else {
       const v = Body.getVelocity(shot.body);
       const turn = (random() < 0.5 ? -1 : 1) * (0.13 + random() * 0.15);
