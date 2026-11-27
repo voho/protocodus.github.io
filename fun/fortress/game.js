@@ -1,4 +1,5 @@
 import { AMMO, DIFFICULTIES, LAYOUT_VERSION, WORLD, FortressSimulation } from './simulation.js';
+import { FORTRESS_STYLES } from './architecture.js';
 import { createRenderer } from './renderer.js';
 import { createView } from './view.js';
 import { createAudio } from './audio.js';
@@ -29,6 +30,9 @@ function readFortress() {
   if (size && parseSeed(parts[0])) {
     if (parts.length === 1) return { size, seed: parseSeed(parts[0]), version: 1 };
     if (parts.length === 2 && parts[1] === 'v2') return { size, seed: parseSeed(parts[0]), version: 2 };
+    if (parts.length === 3 && parts[1] === 'v2' && FORTRESS_STYLES.includes(parts[2])) {
+      return { size, seed: parseSeed(parts[0]), version: 2, style: parts[2] };
+    }
   }
   // Earlier prototype links carried five seeds. Use the seed of the selected fort.
   if (/^[1-5]$/.test(id) && parts.length === 5 && parseSeed(parts[+id - 1])) {
@@ -38,8 +42,8 @@ function readFortress() {
   return { size: validSize(preferred) ? preferred : 'small', seed: rollSeed(), version: LAYOUT_VERSION };
 }
 const initial = readFortress();
-let sim = new FortressSimulation(initial.size, initial.seed, initial.version);
-const camera = createView($('battlefield'), $('panorama'), $('scenery'), $('game-dock'));
+let sim = new FortressSimulation(initial.size, initial.seed, initial.version, initial.style);
+const camera = createView($('battlefield'), $('panorama'), $('scenery'), $('hud'));
 const renderer = createRenderer($('battlefield'));
 const audio = createAudio();
 const music = createMusic($('soundtrack'));
@@ -67,14 +71,20 @@ function store(key, value) {
   }
 }
 
-const scoreKey = () => sim.difficulty + '.' + sim.seed.toString(36) + (sim.level.version === 1 ? '' : '.v' + sim.level.version);
+function fortressKey(separator) {
+  const parts = [sim.difficulty, sim.seed.toString(36)];
+  if (sim.level.version > 1) parts.push('v' + sim.level.version);
+  if (sim.styleChoice !== 'random') parts.push(sim.styleChoice);
+  return parts.join(separator);
+}
 // A seed from the earlier tower-chain generator represented a different battlefield.
 const scoreTable = 'keep-siege-bests';
 const savedBests = stored(scoreTable, {});
 const bests = Object.fromEntries(
   Object.entries(savedBests && typeof savedBests === 'object' ? savedBests : {})
     .filter(
-      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}(\.v2)?$/.test(key) && Number.isInteger(value) && value > 0,
+      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}(\.v2(\.[a-z-]+)?)?$/.test(key) &&
+        Number.isInteger(value) && value > 0,
     )
     .slice(-200),
 );
@@ -124,21 +134,24 @@ function updateSliders() {
   for (const input of [angles, powers]) {
     const suffix = input === angles ? '°' : '%';
     settings[input.id] = +input.value;
-    $(input.id + '-value').value = input.value + suffix;
-    input.setAttribute('aria-valuetext', input.value + (input === angles ? ' degrees' : ' percent'));
+    $(input.id + '-value').value = Math.round(input.value) + suffix;
+    input.setAttribute('aria-valuetext', Math.round(input.value) + (input === angles ? ' degrees' : ' percent'));
     input.style.setProperty('--value', (100 * (input.value - input.min)) / (input.max - input.min) + '%');
   }
 }
-angles.addEventListener('input', updateSliders);
-powers.addEventListener('input', updateSliders);
+for (const input of [angles, powers]) input.addEventListener('input', () => {
+  clearPointerAim();
+  updateSliders();
+});
 updateSliders();
 
 function updateSound() {
   audio.setEnabled(soundOn);
   music.enable(soundOn);
   const button = $('sound-button');
-  button.innerHTML = icon(soundOn ? 'sound' : 'mute');
+  button.querySelector('use').setAttribute('href', soundOn ? '#icon-sound' : '#icon-mute');
   button.title = soundOn ? 'Mute sound' : 'Enable sound';
+  button.querySelector('span').textContent = button.title;
   button.setAttribute('aria-label', button.title);
   button.setAttribute('aria-pressed', String(soundOn));
 }
@@ -208,38 +221,46 @@ function primaryFire() {
 }
 $('fire-button').addEventListener('click', primaryFire);
 
-// Measure from the sling in world coordinates so zooming or panning preserves the shot.
-const fullPowerDistance = 320;
 function chooseSide(side) {
   if (sim.side === side) return;
   sim.selectSide(side);
+  camera.selectCrew(sim.release.x);
   field.dataset.side = side;
   windBand = 0;
   updateWind(sim.wind);
   syncHud();
 }
-function aimAt(event) {
-  if (!ready || overlay.open) return false;
-  const fieldBounds = field.getBoundingClientRect();
-  chooseSide(event.clientX < fieldBounds.left + fieldBounds.width / 2 ? 'left' : 'right');
-  const { x, y } = camera.target(event.clientX, event.clientY);
-  const dx = Math.max(0, (x - sim.release.x) * (sim.side === 'left' ? 1 : -1));
-  const up = sim.release.y - y;
+let heldPointer, lastAim;
+function clearPointerAim() {
+  heldPointer = lastAim = undefined;
+  settings.aimTargetX = undefined;
+}
+function aimThrough(clientX, clientY, windTick) {
+  const { x, y } = camera.target(clientX, clientY);
+  if (lastAim && lastAim.x === x && lastAim.y === y && lastAim.windTick === windTick &&
+      lastAim.ammo === settings.ammo && lastAim.side === sim.side && lastAim.world === sim) return;
+  lastAim = { x, y, windTick, ammo: settings.ammo, side: sim.side, world: sim };
+  const { angle, power } = sim.aimForPoint(settings.ammo, x, y);
   camera.focusAt(x);
-  const bearing = Math.round((Math.atan2(up, dx) * 180) / Math.PI);
-  const strength = Math.round((100 * Math.hypot(dx, up)) / fullPowerDistance);
-  const angle = Math.min(+angles.max, Math.max(+angles.min, bearing));
-  const power = Math.min(+powers.max, Math.max(+powers.min, strength));
+  settings.aimTargetX = x;
   if (angle !== settings.angle || power !== settings.power) {
     angles.value = angle;
     powers.value = power;
     updateSliders();
   }
+}
+function aimAt(event) {
+  if (!ready || overlay.open) return false;
+  const fieldBounds = field.getBoundingClientRect();
+  chooseSide(event.clientX < fieldBounds.left + fieldBounds.width / 2 ? 'left' : 'right');
+  aimThrough(event.clientX, event.clientY, sim.level.gust ? sim.weatherTick : 0);
+  if (event.pointerType !== 'touch') heldPointer = { x: event.clientX, y: event.clientY };
   return true;
 }
 const field = $('battlefield');
 let mouseX, mouseY;
 function useInput(mode) {
+  if (mode === 'keyboard') clearPointerAim();
   if (inputMode === mode) return;
   inputMode = mode;
   if (ready) syncHud();
@@ -253,6 +274,8 @@ document.addEventListener('pointermove', (event) => {
   useInput('mouse');
   if (event.target === field && !event.buttons) aimAt(event);
 });
+field.addEventListener('pointerleave', () => { heldPointer = undefined; });
+field.addEventListener('pointerdown', () => { heldPointer = undefined; });
 field.addEventListener('click', (event) => {
   if (event.button !== 0 || camera.dragged() || !aimAt(event)) return;
   primaryFire();
@@ -265,10 +288,11 @@ const idle = window.requestIdleCallback?.bind(window) ||
   ((work) => setTimeout(() => work({ timeRemaining: () => 3, didTimeout: false }), 0));
 const cancelIdle = window.cancelIdleCallback?.bind(window) || clearTimeout;
 
-function reserve(size, seed, version = LAYOUT_VERSION) {
+function reserve(size, seed, version, style) {
   if (idleTicket) cancelIdle(idleTicket);
   idleTicket = 0;
-  nextFort = { size, seed, version, steps: FortressSimulation.prepareLevel(size, seed, version), world: null, requested: false };
+  nextFort = { size, seed, version, style, steps: FortressSimulation.prepareLevel(size, seed, version, style),
+    world: null, requested: false };
 }
 
 function updateWind(wind) {
@@ -284,6 +308,7 @@ function updateWind(wind) {
 }
 
 function enterFortress(world) {
+  clearPointerAim();
   sim = world;
   field.dataset.side = sim.side;
   windBand = 0;
@@ -291,22 +316,22 @@ function enterFortress(world) {
   renderer.reset();
   const level = sim.level;
   $('fort-size').value = size;
+  $('fort-style').value = sim.styleChoice;
   const sizeName = DIFFICULTIES.find((item) => item.id === size).name;
   const architecture = level.sections[0].style;
   const layoutName = architecture === 'keep' ? 'fortress' : architecture.replaceAll('-', ' ');
-  $('size-label').textContent = sizeName + ' ' + layoutName;
-  $('level-name').textContent = level.name;
   $('phase-label').textContent = level.phase;
   const weather = level.weather || 'clear';
   $('weather-label').textContent = weather;
   document.body.dataset.weather = weather;
   updateWind(sim.wind ?? level.wind ?? 0);
-  const best = bests[scoreKey()];
-  $('objective').textContent = best ? 'Best siege · ' + best + ' gold' : 'Defeat every orc for the least gold.';
+  const best = bests[fortressKey('.')];
+  $('objective').hidden = !best;
+  $('objective').textContent = best ? 'Best siege · ' + best + ' gold' : '';
   document.body.dataset.phase = level.phase;
   camera.frame(level.phase, seed, landscapes[sim.themeIndex], level.sections);
   renderer.prepare(sim, landscapes[sim.themeIndex]);
-  $('announcement').textContent = level.name + ', ' + sizeName.toLowerCase() + ' ' + layoutName +
+  $('announcement').textContent = sizeName + ' ' + layoutName +
     ', ' + weather + ' at ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
   lastAnnouncedOrcs = sim.stats.orcsRemaining;
   lastStats = '';
@@ -320,10 +345,10 @@ function enterFortress(world) {
   selectAmmo(0);
   syncHud();
   if (overlay.open) overlay.close();
-  const hash = '#' + size + '/' + seed.toString(36) + (level.version === 1 ? '' : '/v' + level.version);
+  const hash = '#' + fortressKey('/');
   if (hash !== location.hash) history.replaceState(null, '', hash);
   main.removeAttribute('aria-busy');
-  reserve(size, rollSeed());
+  reserve(size, rollSeed(), LAYOUT_VERSION, sim.styleChoice);
 }
 
 function prepareNextFort() {
@@ -353,8 +378,10 @@ function battleInProgress() {
   return sim.shots > 0 && !sim.resting && !overlay.open;
 }
 
-function requestFortress(size, seed, version = LAYOUT_VERSION) {
-  if (!nextFort || nextFort.size !== size || nextFort.seed !== seed || nextFort.version !== version) reserve(size, seed, version);
+function requestFortress(size, seed, version = LAYOUT_VERSION, style = 'random') {
+  if (!nextFort || nextFort.size !== size || nextFort.seed !== seed || nextFort.version !== version || nextFort.style !== style) {
+    reserve(size, seed, version, style);
+  }
   if (nextFort.world) {
     enterFortress(nextFort.world);
     return;
@@ -364,21 +391,49 @@ function requestFortress(size, seed, version = LAYOUT_VERSION) {
   main.setAttribute('aria-busy', 'true');
   prepareNextFort();
 }
-function newFortress(size) {
+function newFortress(size, style = $('fort-style').value) {
   store('size', size);
-  const seed = nextFort?.size === size && !nextFort.requested ? nextFort.seed : rollSeed();
-  requestFortress(size, seed);
+  const seed = nextFort?.size === size && nextFort.style === style && !nextFort.requested ? nextFort.seed : rollSeed();
+  requestFortress(size, seed, LAYOUT_VERSION, style);
+}
+for (const style of FORTRESS_STYLES) {
+  const name = (style[0].toUpperCase() + style.slice(1)).replaceAll('-', ' ');
+  $('fort-style').add(new Option(name, style));
 }
 $('fort-size').addEventListener('change', (event) => newFortress(event.target.value));
-$('restart-button').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed, sim.level.version));
+$('fort-style').addEventListener('change', () => newFortress($('fort-size').value));
+function restartFortress() {
+  requestFortress(sim.difficulty, sim.seed, sim.level.version, sim.styleChoice);
+}
+$('restart-button').addEventListener('click', restartFortress);
 $('new-button').addEventListener('click', () => newFortress($('fort-size').value));
 $('fold-controls').addEventListener('click', () => {
-  const folded = document.body.classList.toggle('controls-folded');
+  const folded = !$('siege-console').hidden;
+  $('siege-console').hidden = folded;
   const button = $('fold-controls');
   button.setAttribute('aria-expanded', String(!folded));
-  button.title = folded ? 'Show controls' : 'Hide controls';
+  button.title = folded ? 'Show siege controls' : 'Hide siege controls';
   button.setAttribute('aria-label', button.title);
   camera.invalidate();
+});
+
+const gameToggle = $('game-toggle'), gameOptions = $('game-options');
+function setGameMenu(open) {
+  gameOptions.hidden = !open;
+  gameToggle.setAttribute('aria-expanded', String(open));
+}
+gameToggle.addEventListener('click', () => setGameMenu(gameOptions.hidden));
+document.addEventListener('pointerdown', (event) => {
+  if (!gameOptions.hidden && !event.target.closest('.game-disclosure')) setGameMenu(false);
+});
+document.addEventListener('focusin', (event) => {
+  if (!gameOptions.hidden && !event.target.closest('.game-disclosure')) setGameMenu(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !gameOptions.hidden && !overlay.open) {
+    setGameMenu(false);
+    gameToggle.focus();
+  }
 });
 
 function syncMusicPause() {
@@ -395,6 +450,10 @@ overlay.addEventListener('click', (event) => {
     overlay.close();
 });
 function showHelp() {
+  if (!gameOptions.hidden) {
+    setGameMenu(false);
+    gameToggle.focus();
+  }
   $('dialog-body').innerHTML =
     '<div class="modal-kicker">' + icon('help') + 'Field guide</div><h2 id="dialog-title">How to play</h2>' +
     '<p>Defeat every orc for the least gold. Your score locks when the last orc falls. Keep firing, restart to beat your score, or generate another fortress.</p>' +
@@ -402,9 +461,9 @@ function showHelp() {
     'Bombs dig craters. Fireballs ignite timber and powder. Siege and Magic bombs stay armed after landing. ' +
     'With its ammunition selected, click the firing crew’s half or press Space for that crew to activate its charge. ' +
     'A Siege bomb blasts outward. The 110-gold Magic bomb pulls pieces inward, then erupts with 20% more reach and force than the Siege bomb. ' +
-    'Guard countershots can split stones and set off explosive charges early.</li>' +
+    'Watch for the defenders drawing their crossbows. A bolt can knock a stone off course, split it, or set off an explosive charge early.</li>' +
     '<li><b>Point to aim. Click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
-    'Aim up and inward from the sling. Distance sets power. The two crews reload independently. On touchscreens, a tap aims and fires. ' +
+    'Point at a reachable target to send the dotted arc through it. The outlined crew will fire. The two crews reload independently. On touchscreens, a tap aims and fires. ' +
     'Use A or D to choose a crew, ← and → for power, ↑ and ↓ for angle, and Space to fire. ' +
     'The first seven number-row keys select ammunition (1–7 or +ěščřžý on a Czech keyboard). Zoom and drag to inspect the keep.</li>' +
     '<li><b>Use the terrain and weather.</b> A grazing stone skips off steel and loses speed against timber. ' +
@@ -419,29 +478,31 @@ function showHelp() {
 }
 $('help-button').addEventListener('click', showHelp);
 $('victory-new').addEventListener('click', () => newFortress(sim.difficulty));
-$('victory-retry').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed, sim.level.version));
+$('victory-retry').addEventListener('click', restartFortress);
 function showReport() {
   victoryRecorded = true;
   const cost = sim.winningCost;
-  const key = scoreKey();
+  const key = fortressKey('.');
   const record = !bests[key] || cost < bests[key];
   if (record) {
     bests[key] = cost;
     store(scoreTable, Object.fromEntries(Object.entries(bests).slice(-200)));
   }
   track('game_end', { result: 'win', score: cost, duration_seconds: Math.round(sim.time) });
-  const title = sim.level.name + ' has fallen';
+  const title = 'Fortress has fallen';
   $('victory-title').textContent = title;
   $('victory-cost').textContent = cost + ' gold';
   $('victory-par').textContent = 'Par ' + sim.level.par;
   $('victory-best').textContent = record ? 'New best' : 'Best ' + bests[key];
   $('mission').hidden = true;
   $('victory-report').hidden = false;
-  $('objective').textContent = 'Siege won for ' + cost + ' gold. Keep firing or start a new fortress.';
+  $('objective').hidden = true;
+  $('objective').textContent = 'Best siege · ' + bests[key] + ' gold';
   $('announcement').textContent = title + '. Winning cost ' + cost + ' gold. You can keep firing.';
   camera.invalidate();
 }
 $('dismiss-victory').addEventListener('click', () => {
+  $('objective').hidden = false;
   $('victory-report').hidden = true;
   $('mission').hidden = false;
   camera.invalidate();
@@ -461,6 +522,7 @@ fullscreen.addEventListener('click', async () => {
 document.addEventListener('fullscreenchange', () => {
   fullscreen.title = document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen';
   fullscreen.setAttribute('aria-label', fullscreen.title);
+  fullscreen.querySelector('span').textContent = fullscreen.title;
 });
 
 document.addEventListener('keydown', (event) => {
@@ -528,6 +590,7 @@ function tick(now) {
     if (sim.level.gust) updateWind(sim.wind);
     const events = sim.drainEvents();
     const view = camera.update(sim, events, dt, reduced.matches);
+    if (heldPointer) aimThrough(heldPointer.x, heldPointer.y, sim.level.gust ? Math.floor(sim.weatherTick / 6) * 6 : 0);
     audio.play(events, sim, view, clock);
     renderer.draw(sim, {
       ...settings,
@@ -551,7 +614,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('hashchange', () => {
   if (!ready) return;
   const next = readFortress();
-  requestFortress(next.size, next.seed, next.version);
+  requestFortress(next.size, next.seed, next.version, next.style);
 });
 
 function activateSound(event) {
@@ -590,7 +653,7 @@ async function boot() {
     );
     await camera.prepareSkies(landscapes);
     const entry = location.hash && location.hash !== initialHash ? readFortress() : initial;
-    if (entry !== initial) sim.loadLevel(entry.size, entry.seed, entry.version);
+    if (entry !== initial) sim.loadLevel(entry.size, entry.seed, entry.version, entry.style ?? 'random');
     enterFortress(sim);
     ready = true;
     document.querySelector('main').inert = false;

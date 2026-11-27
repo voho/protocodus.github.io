@@ -6,25 +6,48 @@ const { Body } = Matter;
 
 // Isolate one sentry's line of sight. The production guard AI and the actual
 // projectile bodies still handle aiming, obstruction, interception and splitting.
-function intercept(seed, ammo, { wall = false, range = 140 } = {}) {
-  const sim = new FortressSimulation('medium', seed);
+function intercept(seed, ammo, { wall = false, range = 140, dodge = false, blockAfter = false, version = 2 } = {}) {
+  const sim = new FortressSimulation('medium', seed, version);
   const guard = [...sim.guards][0];
   for (const e of sim.bodies) if (e !== guard) sim.remove(e);
   Body.setPosition(guard.body, { x: 360, y: 130 });
   Body.setAngle(guard.body, 0);
   Body.setVelocity(guard.body, { x: 0, y: 0 });
+  Body.setStatic(guard.body, true);
   if (wall) sim.add('block', 'stone', 300, 128, 12, 75, 'masonry', { isStatic: true });
   assert.ok(sim.fire(ammo, 36, 70));
   const [shot] = sim.projectiles;
   Body.setPosition(shot.body, { x: 350 - range, y: 128 });
+  Body.setVelocity(shot.body, { x: 3.5, y: 0 });
   sim.time = 0.25;
   sim.ticks = 30;
   sim.defend();
   assert.equal(sim.events.filter((e) => e.type === 'guard-shot').length, 0, 'Guards take time to aim');
-  sim.time = 0.4;
-  sim.ticks = 48;
-  sim.defend();
-  return { sim, shot, flash: sim.events.find((e) => e.type === 'guard-shot') };
+  if (!wall) assert.equal(guard.drawStartedAt, sim.time);
+  for (let tick = 1; tick <= 20 && !sim.guardBolts.length; tick++) {
+    sim.time = 0.25 + tick / 120;
+    sim.ticks = 30 + tick;
+    sim.defend();
+  }
+  const flash = sim.events.find((e) => e.type === 'guard-shot');
+  const releaseTick = sim.ticks;
+  let hitTick;
+  if (flash) {
+    assert.ok(flash.projectile && sim.guardBolts.length === 1);
+    assert.ok(sim.projectiles.has(shot) && shot.flightPath, 'Launching a bolt leaves the incoming shot intact');
+    const bolt = sim.guardBolts[0];
+    assert.ok(Math.hypot(bolt.x - flash.x, bolt.y - flash.y) < 0.01);
+    if (dodge) Body.setVelocity(shot.body, { x: 2, y: 9 });
+    if (blockAfter) sim.add('block', 'wood', 300, 128, 12, 75, 'beam', { isStatic: true });
+    sim.update(1 / 120);
+    assert.ok(sim.guardBolts.includes(bolt) && bolt.x < flash.x - 2 && sim.entities.has(shot.id));
+    for (let i = 0; i < 80 && sim.guardBolts.length; i++) {
+      sim.update(1 / 120);
+      if (hitTick === undefined && (!sim.entities.has(shot.id) || !shot.flightPath)) hitTick = sim.ticks;
+    }
+    assert.equal(sim.guardBolts.length, 0, 'A spent bolt leaves the simulation');
+  }
+  return { sim, shot, flash, releaseTick, hitTick };
 }
 
 const split = intercept(1, 'big-stone');
@@ -49,8 +72,16 @@ assert.equal(warded.sim.armedBomb('magic-bomb'), warded.shot, 'An intercepted Ma
 assert.ok(!warded.sim.events.some((e) => e.type === 'implosion'));
 const covered = intercept(1, 'big-stone', { wall: true });
 assert.ok(!covered.flash && covered.shot.flightPath);
-const miss = intercept(47, 'small-stone', { range: 300 });
+const historical = intercept(1, 'big-stone', { version: 1 });
+assert.ok(historical.flash && !historical.sim.entities.has(historical.shot.id),
+  'Original keep links also show a travelling bolt before the recorded countershot lands');
+assert.ok(historical.releaseTick < 48 && historical.hitTick === 48,
+  'On saved original keeps the visible bolt arrives on the historical interception tick');
+const miss = intercept(47, 'small-stone', { range: 300, dodge: true });
 assert.ok(miss.flash && miss.shot.flightPath && miss.sim.projectiles.has(miss.shot));
+const screened = intercept(1, 'big-stone', { blockAfter: true });
+assert.ok(screened.flash && screened.shot.flightPath && screened.sim.projectiles.has(screened.shot),
+  'A wall that enters the bolt’s path after release intercepts it');
 
 function hitSample(material) {
   const sim = new FortressSimulation('small', 2);

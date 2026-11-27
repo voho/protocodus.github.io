@@ -456,13 +456,6 @@ export function createEffects() {
       eruption(e, e.type === 'fireburst');
       return;
     }
-    if (e.type === 'guard-shot') {
-      const streak = particle('tracer', e.x, e.y, 0, 0, 1.1, reduced ? 0.075 : 0.12);
-      streak.endX = e.endX;
-      streak.endY = e.endY;
-      if (!reduced) puff(e.x, e.y, 4.5, true);
-      return;
-    }
     if (e.blast && (e.type === 'damage' || e.type === 'fracture')) {
       blastBreak(e, material, energy);
       return;
@@ -1021,20 +1014,11 @@ export function createEffects() {
     }
     for (let i = 0; i < particleCount; i++) {
       const p = particles[(particleStart + i) % MAX_PARTICLES];
-      if (p.kind !== 'tracer' && !visible(p.x, p.y, p.size * 1.8 + 8)) continue;
+      if (!visible(p.x, p.y, p.size * 1.8 + 8)) continue;
       const age = p.age / p.life,
         opacity = clamp((1 - age) * 2, 0, 1);
       ctx.globalAlpha = opacity;
-      if (p.kind === 'tracer') {
-        ctx.globalAlpha = 1 - age;
-        ctx.strokeStyle = '#ffdc82';
-        ctx.lineWidth = 0.95;
-        ctx.beginPath();
-        ctx.moveTo(p.x + (p.endX - p.x) * age, p.y + (p.endY - p.y) * age);
-        ctx.lineTo(p.endX, p.endY);
-        ctx.stroke();
-        glow(ctx, hot, p.x, p.y, 5 * (1 - age));
-      } else if (p.kind === 'wick') {
+      if (p.kind === 'wick') {
         const residual = fade(1 - age);
         ctx.globalAlpha = residual * 0.55;
         glow(ctx, firelight, p.x, p.y - 2, 24 * residual);

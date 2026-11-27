@@ -50,6 +50,8 @@ The browser selects a 1600 × 640 WebP or a 3840 × 1536 WebP assembled from tho
 
 ## Moving fortress artwork
 
+`orc-crossbow.webp` uses the original orc as reference for three painted shooting sequences, aimed level, upward and downward. The atlas contains draw, aim and release frames at 13 elevations, with matching soft shadows and a shared foot position. The renderer mirrors the frames for the opposite flank.
+
 `castle-facades.webp` contains four wall panels created for Fortress with the built-in OpenAI image generator. The casement, slate arrow slit, shuttered brickwork and rose window are graded for each time of day during startup. Open galleries leave the landscape visible between the load-bearing piers.
 
 The built-in ImageGen tool produced seven transparent hand-painted sprite sheets with upper-left lighting and front-facing or side-on silhouettes. Their trimmed, alpha-masked cutouts share the optimized `fortress-atlas.webp` texture. The world renderer selects phase lighting and the appropriate pose or material at runtime.

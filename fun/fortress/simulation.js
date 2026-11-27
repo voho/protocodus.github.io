@@ -1,6 +1,6 @@
 import Matter from './vendor/matter.min.js';
 import { roofVertices, selectRoofs } from './roofs.js';
-import { planArchitecture } from './architecture.js';
+import { FORTRESS_STYLES, planArchitecture } from './architecture.js';
 import { createGuardDefense, splitShot } from './guard-fire.js';
 import { addGuardRig, balanceGuards, removeGuardRig, wakeGuardRig } from './guard-rig.js';
 
@@ -81,7 +81,7 @@ function terrainShoulder(points, start, end, targetY) {
 
 export const LAYOUT_VERSION = 2;
 
-export function generateLevel(difficulty, seed, version = LAYOUT_VERSION) {
+export function generateLevel(difficulty, seed, version = LAYOUT_VERSION, style = 'random') {
   const small = difficulty === 'small',
     large = difficulty === 'large';
   const index = small ? 0 : large ? 4 : 2;
@@ -107,7 +107,7 @@ export function generateLevel(difficulty, seed, version = LAYOUT_VERSION) {
   const crown = clamp(Math.floor((bays - crownWidth) / 2) + integer(-1, 1), 1, bays - crownWidth - 1);
   const eaves = () => large ? integer(4, 6) : small ? integer(1, 2) : integer(2, 3);
   const leftEave = eaves(), rightEave = eaves();
-  const architecture = version === 1 ? null : planArchitecture(seededRandom(seed ^ 0xc17ade1), spans, peak);
+  const architecture = version === 1 ? null : planArchitecture(seededRandom(seed ^ 0xc17ade1), spans, peak, style);
   const heights = architecture?.heights ?? spans.map((_, bay) => {
     const fromLeft = crown - bay, fromRight = bay - (crown + crownWidth - 1);
     if (fromLeft <= 0 && fromRight <= 0) return peak;
@@ -217,13 +217,16 @@ const clamp = (v, min, max) => Math.max(min, Math.min(v, max));
 const ammoById = new Map(AMMO.map((ammo) => [ammo.id, ammo]));
 
 
-function launchVelocity(angle, power, ammo, large = false) {
-  const radians = (clamp(angle, 5, 85) * Math.PI) / 180;
-  const draw = clamp(power, 1, 100);
+function launchSpeed(draw, large) {
   // The large-fortress engine has a longer draw for clearing the rear keep.
   // A progressive boost at full extension preserves short, precise low shots.
   const reserve = large ? 270 * (Math.max(0, draw - 70) / 30) ** 2 : 0;
-  const speed = (250 + 6.1 * draw + reserve) * (ammo?.launchScale ?? 1);
+  return 250 + 6.1 * draw + reserve;
+}
+
+function launchVelocity(angle, power, ammo, large = false) {
+  const radians = (clamp(angle, 5, 85) * Math.PI) / 180;
+  const speed = launchSpeed(clamp(power, 1, 100), large) * (ammo?.launchScale ?? 1);
   return { x: Math.cos(radians) * speed, y: -Math.sin(radians) * speed };
 }
 
@@ -404,13 +407,13 @@ function touchingHeatSource(a, b) {
 }
 
 export class FortressSimulation {
-  constructor(difficulty = 'small', seed = newSeed(), version = LAYOUT_VERSION) {
-    this.loadLevel(difficulty, seed, version);
+  constructor(difficulty = 'small', seed = newSeed(), version = LAYOUT_VERSION, style = 'random') {
+    this.loadLevel(difficulty, seed, version, style);
   }
 
   loadLevel(difficulty = this.difficulty, seed = difficulty === this.difficulty ? this.seed : newSeed(),
-            version = this.level?.version ?? LAYOUT_VERSION) {
-    const builder = this.buildLevel(difficulty, seed, version);
+            version = this.level?.version ?? LAYOUT_VERSION, style = this.styleChoice ?? 'random') {
+    const builder = this.buildLevel(difficulty, seed, version, style);
     let step;
     do step = builder.next(); while (!step.done);
     return step.value;
@@ -418,12 +421,12 @@ export class FortressSimulation {
 
   // Drive the identical generator a few steps per idle frame when preparing a
   // new siege. A separate simulation owns all collision pairs and callbacks.
-  static *prepareLevel(difficulty, seed, version = LAYOUT_VERSION) {
+  static *prepareLevel(difficulty, seed, version = LAYOUT_VERSION, style = 'random') {
     const sim = Object.create(FortressSimulation.prototype);
-    if (yield* sim.buildLevel(difficulty, seed, version)) return sim;
+    if (yield* sim.buildLevel(difficulty, seed, version, style)) return sim;
   }
 
-  *buildLevel(difficulty, seed, version) {
+  *buildLevel(difficulty, seed, version, style) {
     if (!DIFFICULTIES.some((size) => size.id === difficulty)) return false;
     if (this.engine) {
       Events.off(this.engine);
@@ -432,7 +435,8 @@ export class FortressSimulation {
     }
     this.difficulty = difficulty;
     this.seed = seed >>> 0 || 1;
-    const level = (this.level = generateLevel(difficulty, this.seed, version));
+    this.styleChoice = version !== 1 && FORTRESS_STYLES.includes(style) ? style : 'random';
+    const level = (this.level = generateLevel(difficulty, this.seed, version, this.styleChoice));
     this.themeIndex = level.themeIndex;
     this.terrain = level.terrain;
     this.terrainVersion = 0;
@@ -1144,6 +1148,57 @@ export class FortressSimulation {
     return y + ammo.radius < this.terrainHeight(x) ? y : Infinity;
   }
 
+  aimForPoint(ammoId, x, y) {
+    const ammo = ammoById.get(ammoId);
+    const origin = this.release, direction = this.side === 'left' ? 1 : -1;
+    x = clamp(x, WORLD.minX, WORLD.maxX);
+    y = Math.min(y, this.terrainHeight(x) - ammo.radius - 0.6);
+    const dx = (x - origin.x) * direction, dy = y - origin.y;
+    const large = this.difficulty === 'large', scale = ammo.launchScale ?? 1;
+    const minSpeed = launchSpeed(25, large) * scale, maxSpeed = launchSpeed(100, large) * scale;
+    const degrees = 180 / Math.PI;
+    const preferred = clamp(Math.atan2(-dy, Math.max(1, dx)) * degrees + 22, 12, 75);
+    const drift = this.forecastDrift();
+    let best;
+    // For a given arrival time, undo wind and gravity to find the required launch velocity.
+    // Project it onto the legal draw and elevation limits so distant targets get the nearest arc.
+    const search = (avoidTerrain) => {
+      let score = Infinity;
+      const sample = (tick) => {
+        const t = STEP * tick, i = Math.floor(tick);
+        const windX = drift ? drift[i] + (tick - i) * ((drift[i + 1] ?? drift[i]) - drift[i])
+          : 0.5 * this.level.wind * t * (t + STEP);
+        const down = 0.5 * GRAVITY * t * (t + STEP);
+        const vx = (dx - windX * direction) / t, up = (down - dy) / t;
+        const angle = clamp(Math.atan2(up, vx) * degrees, 12, 75);
+        const cos = Math.cos(angle / degrees), sin = Math.sin(angle / degrees);
+        const speed = clamp(vx * cos + up * sin, minSpeed, maxSpeed);
+        const miss = Math.hypot(t * speed * cos + direction * windX - dx, down - t * speed * sin - dy);
+        const cost = miss + Math.abs(angle - preferred) * 0.012;
+        if (cost >= score) return;
+        const rawSpeed = speed / scale, extra = rawSpeed - launchSpeed(70, large);
+        // Invert the extra quadratic draw of the large catapults above 70%.
+        const power = large && extra > 0 ? 70 + 2 * extra / (6.1 + Math.sqrt(6.1 ** 2 + 1.2 * extra))
+          : (rawSpeed - 250) / 6.1;
+        if (avoidTerrain && !Number.isFinite(this.heightAt(ammoId, angle, power, x))) return;
+        score = cost;
+        best = { angle, power, tick };
+      };
+      for (const angle of [12, 75]) for (const speed of [minSpeed, maxSpeed]) {
+        const t = flightTime(dx, speed * Math.cos(angle / degrees), direction * this.level.wind, drift, direction);
+        if (t > 0 && t <= FORECAST_STEPS * STEP) sample(t / STEP);
+      }
+      for (let tick = 1; tick <= FORECAST_STEPS; tick += 6) sample(tick);
+      for (const spacing of [1, 0.125, 0.015625]) {
+        const center = best.tick;
+        for (let i = -7; i <= 7; i++) sample(clamp(center + i * spacing, 0.01, FORECAST_STEPS));
+      }
+    };
+    search(false);
+    if (dx > 0 && !Number.isFinite(this.heightAt(ammoId, best.angle, best.power, x))) search(true);
+    return { angle: Math.round(best.angle * 100) / 100, power: Math.round(best.power * 100) / 100 };
+  }
+
   trajectory(ammoId, angle, power) {
     const ammo = ammoById.get(ammoId);
     if (!ammo || !Number.isFinite(angle) || !Number.isFinite(power)) return [];
@@ -1230,6 +1285,7 @@ export class FortressSimulation {
     if (
       this.projectiles.size !== this.remoteBombs.size ||
       this.implosions.length ||
+      this.guardBolts.length ||
       this.work.size ||
       (!this.orcsRemaining && !this.cleared)
     )
@@ -1268,7 +1324,7 @@ export class FortressSimulation {
       }
       Engine.update(this.engine, STEP * 1000);
       this.resolveDamage();
-      this.defend();
+      this.defend(STEP);
       this.updateTorches();
       if (this.ticks % 12 === 0) {
         this.checkLoads();

@@ -18,7 +18,7 @@ function fitBounds(box, width, height) {
 }
 
 // Exact critically damped spring, with a capped driving distance for long pans.
-function glide(axis, target, frequency, speed, dt) {
+export function glide(axis, target, frequency, speed, dt) {
   const limit = (2 * speed) / frequency;
   const distance = clamp(axis.value - target, -limit, limit);
   const impulse = axis.velocity + frequency * distance;

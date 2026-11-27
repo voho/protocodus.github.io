@@ -48,6 +48,12 @@ try {
   const battlefield = page.locator('#battlefield');
   const sound = page.locator('#sound-button');
   const player = page.locator('#soundtrack');
+  const gameToggle = page.getByRole('button', { name: 'Game menu' });
+  async function gameOption(button) {
+    if (await page.locator('#game-options').isHidden()) await gameToggle.click();
+    await page.locator(button).click();
+    if (await page.locator('#game-options').isVisible() && await page.locator('dialog[open]').count() === 0) await gameToggle.click();
+  }
   async function switchFortress(button) {
     await page.locator(button).click();
     await page.locator('main[aria-busy="true"]').waitFor({ state: 'detached' });
@@ -58,9 +64,23 @@ try {
   await prepared();
   assert.match(page.url(), /#small\/7$/);
   assert.deepEqual(await page.locator('#fort-size option').allTextContents(), ['Small', 'Medium', 'Large']);
+  const style = page.getByRole('combobox', { name: 'Fortress style' });
+  const styles = ['random', 'linked-towers', 'gatehouse', 'pillar-hall', 'stair-tower', 'curtain-keep', 'spire', 'citadel'];
+  assert.deepEqual(await page.locator('#fort-style option').evaluateAll((options) => options.map((o) => o.value)), styles);
+  assert.equal(await page.locator('#fort-style').inputValue(), 'random', 'An existing seed opens with random generation selected');
   assert.equal(await sound.getAttribute('aria-pressed'), 'true');
+  assert.ok(await page.locator('#game-options').isHidden());
+  assert.ok(await page.locator('#siege-console').isVisible());
   assert.ok(await player.evaluate((p) => p.paused));
   assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width: 1440, height: 900 });
+  await gameToggle.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await gameToggle.getAttribute('aria-expanded'), 'true');
+  await page.keyboard.press('Tab');
+  assert.ok(await page.locator('#game-options').evaluate((menu) => menu.contains(document.activeElement)));
+  await page.keyboard.press('Escape');
+  assert.ok(await gameToggle.evaluate((button) => button === document.activeElement));
+  assert.equal(await gameToggle.getAttribute('aria-expanded'), 'false');
 
   function fieldProjection() {
     return battlefield.evaluate(async (canvas) => {
@@ -69,34 +89,43 @@ try {
       return [a, d, e, f];
     });
   }
-  async function aimFromSling(angle, radius, expectedPower, side = 'left') {
-    const point = await battlefield.evaluate(async (canvas, { angle, radius, side }) => {
-      const { WORLD } = await import('./simulation.js');
-      const origin = side === 'left' ? WORLD.release : WORLD.rightRelease;
-      const direction = side === 'left' ? 1 : -1;
-      const radians = angle * Math.PI / 180;
-      const world = new DOMPoint(origin.x + direction * radius * Math.cos(radians), origin.y - radius * Math.sin(radians));
-      const pixel = world.matrixTransform(canvas.getContext('2d').getTransform());
+  const reference = await page.evaluateHandle(async () => {
+    const { FortressSimulation } = await import('./simulation.js');
+    return new FortressSimulation('small', 7, 1);
+  });
+  async function aimAtReachablePoint(angle, power, range, side = 'left') {
+    const target = await reference.evaluate((sim, { angle, power, range, side }) => {
+      sim.selectSide(side);
+      const x = sim.release.x + (side === 'left' ? range : -range);
+      return { x, y: sim.heightAt('small-stone', angle, power, x) };
+    }, { angle, power, range, side });
+    const point = await battlefield.evaluate((canvas, target) => {
+      const pixel = new DOMPoint(target.x, target.y).matrixTransform(canvas.getContext('2d').getTransform());
       const rect = canvas.getBoundingClientRect();
       return { x: rect.x + pixel.x * rect.width / canvas.width, y: rect.y + pixel.y * rect.height / canvas.height };
-    }, { angle, radius, side });
+    }, target);
     await page.mouse.move(point.x, point.y);
     assert.equal(await battlefield.getAttribute('data-side'), side);
-    assert.equal(await page.locator('#angle').inputValue(), String(angle));
-    assert.equal(await page.locator('#power').inputValue(), String(expectedPower));
+    const controls = { angle: Number(await page.locator('#angle').inputValue()), power: Number(await page.locator('#power').inputValue()) };
+    const miss = await reference.evaluate((sim, { target, controls }) =>
+      Math.abs(sim.heightAt('small-stone', controls.angle, controls.power, target.x) - target.y), { target, controls });
+    assert.ok(miss < 3, `The ${side} crew’s launch passes through the pointer (miss ${miss.toFixed(2)} world units)`);
   }
-  await aimFromSling(32, 160, 50);
+  await aimAtReachablePoint(32, 70, 190);
   const startingView = await fieldProjection();
-  await aimFromSling(32, 160, 50, 'right');
+  await aimAtReachablePoint(32, 70, 190, 'right');
   await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'right');
   assert.deepEqual(await fieldProjection(), startingView, 'Switching crews by mouse preserves the overview');
   assert.ok((await page.locator('#aim-hint').boundingBox()).x > 720, 'The mouse firing hint follows the right crew');
-  await aimFromSling(32, 256, 80);
-  await aimFromSling(52, 256, 80);
+  await aimAtReachablePoint(32, 80, 280);
+  await aimAtReachablePoint(52, 80, 320);
   const hint = page.locator('#aim-hint');
   await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'left');
   assert.ok((await hint.boundingBox()).x < 320, 'The mouse firing hint returns to the left crew');
   assert.equal(await hint.textContent(), 'Click to fire');
+  await page.locator('#angle').fill('52');
+  await page.locator('#power').fill('80');
+  await battlefield.focus();
   await page.keyboard.press('ArrowLeft');
   assert.deepEqual([await page.locator('#angle').inputValue(), await page.locator('#power').inputValue()], ['52', '79']);
   await page.keyboard.press('ArrowUp');
@@ -117,20 +146,23 @@ try {
   assert.equal(await spent.textContent(), '0', 'Ammunition shortcuts select without firing');
   await page.evaluate(() => new Promise(requestAnimationFrame));
   assert.match(await hint.textContent(), /Space to fire/);
-  await aimFromSling(47, 224, 70);
+  await aimAtReachablePoint(47, 70, 260);
   assert.equal(await hint.textContent(), 'Click to fire');
-  await page.locator('#zoom-in').click();
+  await gameOption('#zoom-in');
   await page.waitForFunction(() => document.getElementById('zoom-fit').textContent === '135%');
   await page.evaluate(() => new Promise(requestAnimationFrame));
-  await aimFromSling(32, 160, 50);
+  await aimAtReachablePoint(32, 70, 190);
   const manualView = await fieldProjection();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.keyboard.press('d');
   assert.equal(await battlefield.getAttribute('data-side'), 'right');
-  assert.deepEqual(await fieldProjection(), manualView, 'Keyboard crew selection retains a zoomed view');
+  const afterCrewChange = await fieldProjection();
+  assert.ok(Math.abs(afterCrewChange[0] - manualView[0]) < 0.15 &&
+    Math.abs(afterCrewChange[2] - manualView[2]) < 90, 'Switching crews avoids a sudden pan or zoom');
   await page.mouse.move(350, 420);
   assert.equal(await battlefield.getAttribute('data-side'), 'left');
-  assert.deepEqual(await fieldProjection(), manualView, 'Returning to the left crew preserves the zoom and pan');
-  await page.locator('#zoom-fit').click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await gameOption('#zoom-fit');
 
   // The rest of this siege, its soundtrack and fresh forts in other realms must
   // work from the prepared session even with the network completely disconnected.
@@ -157,11 +189,11 @@ try {
     }, src);
   }
   assert.equal(trackURLs.size, 3);
-  await page.locator('#help-button').click();
+  await gameOption('#help-button');
   assert.ok(await player.evaluate((p) => p.paused));
   await page.locator('#close-dialog').click();
   await page.waitForFunction(() => !document.querySelector('audio').paused);
-  await sound.click();
+  await gameOption('#sound-button');
   assert.equal(await sound.getAttribute('aria-pressed'), 'false');
   assert.ok(await player.evaluate((p) => p.paused));
   await battlefield.click({ position: { x: 850, y: 470 } });
@@ -225,14 +257,8 @@ try {
   for (const choice of ['medium', 'large', 'small']) {
     await size.selectOption(choice);
     await page.waitForFunction((choice) => location.hash.startsWith('#' + choice + '/'), choice);
-    const layout = await page.evaluate(async () => {
-      const [, seed, version] = location.hash.slice(1).split('/');
-      if (version !== 'v2') throw new Error('A new fortress must use the current generator');
-      const { generateLevel } = await import('./simulation.js');
-      return generateLevel(document.querySelector('#fort-size').value, parseInt(seed, 36)).sections[0].style;
-    });
-    assert.equal(await page.locator('#size-label').textContent(),
-      choice[0].toUpperCase() + choice.slice(1) + ' ' + layout.replaceAll('-', ' '));
+    assert.match(new URL(page.url()).hash, /^#\w+\/[a-z0-9]+\/v2$/);
+    assert.equal(await style.inputValue(), 'random', 'Size changes keep Random selected');
     assert.equal(await spent.textContent(), '0');
     const first = page.url();
     await switchFortress('#new-button');
@@ -241,11 +267,27 @@ try {
     await switchFortress('#restart-button');
     assert.equal(page.url(), second);
   }
+  await style.selectOption('linked-towers');
+  await page.waitForFunction(() => /^#small\/[a-z0-9]+\/v2\/linked-towers$/.test(location.hash));
+  const linked = page.url();
+  await switchFortress('#restart-button');
+  assert.equal(page.url(), linked, 'A retry restores the chosen architecture and seed');
+  await switchFortress('#new-button');
+  assert.notEqual(page.url(), linked);
+  assert.match(new URL(page.url()).hash, /^#small\/[a-z0-9]+\/v2\/linked-towers$/);
+  await size.selectOption('medium');
+  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v2\/linked-towers$/.test(location.hash));
+  await page.evaluate(() => { location.hash = 'medium/6/v2/spire'; });
+  await page.waitForFunction(() => document.querySelector('#fort-style').value === 'spire' &&
+    !document.querySelector('main[aria-busy]'));
+  await style.selectOption('random');
+  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v2$/.test(location.hash));
+
   // A late idle slice from a superseded size must never replace the requested seed.
   await size.selectOption('large');
   await page.evaluate(() => { location.hash = 'medium/6'; });
-  await page.waitForFunction(() => location.hash === '#medium/6' &&
-    document.querySelector('#size-label').textContent === 'Medium fortress' && !document.querySelector('main[aria-busy]'));
+  await page.waitForFunction(() => location.hash === '#medium/6' && document.querySelector('#fort-size').value === 'medium' &&
+    document.querySelector('#fort-style').value === 'random' && !document.querySelector('main[aria-busy]'));
   for (const [seed, weather] of [['e', 'storm'], ['9', 'snow'], ['b', 'rain']]) {
     await page.evaluate((seed) => { location.hash = 'large/' + seed; }, seed);
     await page.waitForFunction((weather) =>
@@ -263,7 +305,7 @@ try {
   assert.equal(await sound.getAttribute('aria-pressed'), 'false', 'Mute survives a reload');
   await page.keyboard.press('1');
   assert.ok(await player.evaluate((p) => p.paused), 'A gameplay gesture respects stored mute');
-  await sound.click();
+  await gameOption('#sound-button');
   await page.waitForFunction(() => !document.querySelector('audio').paused);
   await page.evaluate(() => {
     location.hash = 'small/1';
@@ -343,9 +385,9 @@ try {
   assert.doesNotMatch(page.url(), /#small\/1$/);
   assert.doesNotMatch(await page.locator('#objective').textContent(), /Best siege/);
 
-  await page.locator('#zoom-in').click();
+  await gameOption('#zoom-in');
   assert.equal(await page.locator('#zoom-fit').textContent(), '135%');
-  await page.locator('#zoom-fit').click();
+  await gameOption('#zoom-fit');
   await page.locator('#fold-controls').click();
   assert.equal(await page.locator('#siege-console').isVisible(), false);
   assert.equal(await hint.isVisible(), true);
@@ -375,29 +417,24 @@ try {
       return left.x >= 0 && right.x <= canvas.width && left.y > 0 && left.y < canvas.height;
     }), 'The overview includes both catapult crews');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width);
-    assert.ok(await page.locator('.tools').evaluate((nav) => {
-      const score = document.querySelector('.briefing').getBoundingClientRect();
-      const buttons = Array.from(nav.querySelectorAll('select, button')).filter((button) => !button.hidden);
-      const boxes = buttons.map((button) => button.getBoundingClientRect());
-      return boxes.every((rect, i) => rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth &&
-        rect.bottom <= score.top && boxes.every((other, j) => i === j || rect.right <= other.left ||
-          rect.left >= other.right || rect.bottom <= other.top || rect.top >= other.bottom));
-    }), 'Every top toolbar control fits above the score and has its own hit area');
-    assert.ok(
-      await page.locator('.ammo').evaluateAll((cards) =>
-        cards.every((card) => {
-          const rect = card.getBoundingClientRect(),
-            name = card.querySelector('.ammo-name').getBoundingClientRect();
-          return name.left >= rect.left && name.right <= rect.right;
-        }),
-      ),
-      'All seven ammunition names fit their controls',
-    );
-    const button = await page.locator('#fire-button').boundingBox();
-    assert.ok(button.x >= 0 && button.x + button.width <= width + 1 && button.y + button.height <= height);
-    const state = await page.locator('#state').boundingBox();
-    assert.ok(state.y + state.height <= button.y + 1 && Math.abs(state.x + state.width / 2 - button.x - button.width / 2) < 2,
-      'Readiness is centered above the fire button');
+    const hud = page.locator('#hud');
+    const panels = hud.locator('#game-menu, #siege-menu');
+    assert.equal(await panels.count(), 2);
+    assert.ok(await hud.evaluate((header) => {
+      const r = header.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= Math.max(150, innerHeight * 0.39);
+    }), 'The game and firing controls leave the battlefield below the compact top HUD');
+    assert.ok(await unobstructed(hud.locator('select, button, input')), 'Every visible tactical control has a reachable hit target');
+    const [sizeRect, styleRect] = await Promise.all([size.boundingBox(), style.boundingBox()]);
+    assert.ok(sizeRect.x + sizeRect.width <= styleRect.x + 1 && Math.abs(sizeRect.y - styleRect.y) <= 5,
+      'The style choice is alongside the size at every screen width');
+    assert.ok(await battlefield.evaluate((canvas) => [0.1, 0.5, 0.9].every((x) =>
+      document.elementFromPoint(innerWidth * x, innerHeight - 8) === canvas)),
+      'The bottom of the field remains playable from either crew');
+    await gameToggle.click();
+    assert.ok(await unobstructed(page.locator('#game-options').locator('button, a')),
+      'Game options fit on screen and accept pointer input');
+    await gameToggle.click();
     if (width === 3840) {
       await page.waitForFunction(() => document.getElementById('scenery').naturalWidth === 3840);
       assert.equal(await page.locator('#panorama').evaluate((c) => c.height), 2160);
@@ -410,8 +447,10 @@ try {
   await checkFlankTerrain(page);
   await checkFireTransitions(page);
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
-  await phone.goto(origin + '/fun/fortress/#large/6');
+  await phone.goto(origin + '/fun/fortress/#large/6/v2/pillar-hall');
   await phone.locator('#preflight').waitFor({ state: 'hidden' });
+  assert.equal(await phone.getByRole('combobox', { name: 'Fortress style' }).inputValue(), 'pillar-hall',
+    'A shared style link restores the selected architecture on a fresh device');
   assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to fire');
   await phone.getByRole('button', { name: 'Siege bomb, 90 gold' }).tap();
   await phone.touchscreen.tap(240, 320);
@@ -428,11 +467,20 @@ try {
   assert.equal(await phone.locator('#spent').textContent(), '180', 'A tap on each side triggers only its crew’s airborne bomb');
   await phone.close();
   console.log(
-    'Fortress browser checks passed: material audio and stereo positioning, saved mute, offline play, playlist rotation through victory, volleys, seed-specific bests, mobile and native 4K.',
+    'Fortress browser checks passed: compact top menus, style selection and seeded retries, pointer trajectories, stereo audio, offline play, volleys, mobile and native 4K.',
   );
 } finally {
   await browser?.close();
   await new Promise((done) => server.close(done));
+}
+
+async function unobstructed(controls) {
+  return controls.evaluateAll((items) => items.filter((el) => el.getClientRects().length).every((el) => {
+    const r = el.getBoundingClientRect();
+    const under = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight &&
+      (el.contains(under) || el.labels && Array.from(el.labels).some((label) => label.contains(under)));
+  }));
 }
 
 async function checkAimGuide(page) {
@@ -451,22 +499,29 @@ async function checkAimGuide(page) {
       sim.selectSide(side);
       renderer.draw(sim, { ...frame, aiming: false });
       const baseline = read();
-      renderer.draw(sim, frame);
-      const guide = read();
-      let near = Infinity, far = -Infinity;
-      for (let i = 0; i < guide.length; i += 4) {
-        if (Math.abs(guide[i] - baseline[i]) < 45 && Math.abs(guide[i + 3] - baseline[i + 3]) < 45) continue;
-        const x = view.x + (i / 4 % canvas.width) * view.width / canvas.width;
-        const downrange = (x - sim.release.x) * (side === 'left' ? 1 : -1);
-        near = Math.min(near, downrange);
-        far = Math.max(far, downrange);
+      const direction = side === 'left' ? 1 : -1;
+      function paintedRange(options) {
+        renderer.draw(sim, options);
+        const pixels = read();
+        let near = Infinity, far = -Infinity;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (Math.abs(pixels[i] - baseline[i]) < 45 && Math.abs(pixels[i + 3] - baseline[i + 3]) < 45) continue;
+          const x = view.x + (i / 4 % canvas.width) * view.width / canvas.width;
+          const downrange = (x - sim.release.x) * direction;
+          near = Math.min(near, downrange);
+          far = Math.max(far, downrange);
+        }
+        return { near, far };
       }
-      return { near, far };
+      const ordinary = paintedRange(frame);
+      const pointed = paintedRange({ ...frame, aimTargetX: sim.release.x + 850 * direction });
+      return { ordinary, pointed };
     });
   });
-  for (const { near, far } of spans) {
+  for (const { ordinary: { near, far }, pointed } of spans) {
     assert.ok(Math.abs(near) < 12, 'The visible guide begins at the selected sling');
     assert.ok(far > 490 && far < 810, 'The extended guide projects inward from that crew alone');
+    assert.ok(pointed.far > 810 && pointed.far < 870, 'A distant pointer extends the painted guide to its target');
   }
 }
 

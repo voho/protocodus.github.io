@@ -1,7 +1,7 @@
 import { drawRoof, prepareRoofArt } from './roofs.js';
 import { createEffects } from './effects.js';
 import { createWeatherEffects } from './weather-effects.js';
-import { sprite, sampleSprite, sampleGuard, spriteReady, prepareSprites } from './sprites.js';
+import { sprite, sampleSprite, sampleGuard, drawGuardShadow, drawCrossbowPose, crossbowTip, spriteReady, prepareSprites, drawCatapultOutline, materialFace } from './sprites.js';
 import { paintTerrain } from './terrain.js';
 import { chamberStyle, facadeStyles, paintFacade, prepareFacadeArt } from './facades.js';
 
@@ -750,17 +750,17 @@ function drawMasonry(ctx, b) {
   const pick = (n) => stones[(b.id * 11 + n * 3) % stones.length];
   if (b.detail === 'column') {
     const collar = h * 0.13, inset = w * 0.075;
-    sprite(ctx, 'limestone', x + inset, y + collar, w - inset * 2, h - collar * 2);
+    materialFace(ctx, 'limestone', x + inset, y + collar, w - inset * 2, h - collar * 2);
     ctx.fillStyle = '#3a39364a';
     ctx.fillRect(x + w * 0.68, y + collar, w * 0.06, h - collar * 2);
     ctx.fillStyle = '#fff1c943';
     ctx.fillRect(x + w * 0.21, y + collar, w * 0.045, h - collar * 2);
-    sprite(ctx, pick(1), x, y, w, collar + 0.25);
-    sprite(ctx, pick(2), x, y + h - collar, w, collar);
+    materialFace(ctx, pick(1), x, y, w, collar + 0.25);
+    materialFace(ctx, pick(2), x, y + h - collar, w, collar);
     return;
   }
   if (b.detail === 'curtain' || b.detail === 'battlement' || b.detail === 'banner' || b.detail === 'watch') {
-    sprite(ctx, pick(0), x, y, w, h);
+    materialFace(ctx, pick(0), x, y, w, h);
     return;
   }
   const courses = h > 25 ? 2 : 1;
@@ -771,12 +771,7 @@ function drawMasonry(ctx, b) {
     for (let i = 0; i < count; i++) {
       const pos = x + i * blockWidth;
       const py = y + row * rowHeight;
-      if ((row + i + b.id) % 3 === 0) {
-        ctx.save();
-        ctx.transform(-1, 0, 0, 1, pos + blockWidth, py);
-        sprite(ctx, pick(row + i), 0, 0, blockWidth + 0.1, rowHeight + 0.12);
-        ctx.restore();
-      } else sprite(ctx, pick(row + i), pos, py, blockWidth + 0.1, rowHeight + 0.12);
+      materialFace(ctx, pick(row + i), pos, py, blockWidth + 0.1, rowHeight + 0.12);
     }
   }
 }
@@ -964,22 +959,19 @@ function drawBlock(ctx, b, time, wind) {
       const n = 10;
       for (let i = 0; i < n; i++) {
         const offset = Math.sin(((i + 0.5) * Math.PI) / n) * b.bend * Math.min(length * 0.065, 4);
-        sampleSprite(
+        materialFace(
           ctx,
           'steel',
-          i / n,
-          0,
-          1 / n,
-          1,
           -length / 2 + (i * length) / n,
           -thickness / 2 + offset,
           length / n + 0.15,
           thickness,
+          i / n, 0, 1 / n, 1,
         );
       }
     } else {
       if (b.material === 'glass') ctx.globalAlpha = 0.89;
-      sprite(ctx, b.material, -length / 2, -thickness / 2, length, thickness);
+      materialFace(ctx, b.material, -length / 2, -thickness / 2, length, thickness);
     }
     ctx.restore();
   }
@@ -1034,7 +1026,7 @@ function drawBlockDepth(ctx, b) {
   ctx.fill(paths.bottom);
 }
 
-const fragmentBase = { wood: '#9d7952', steel: '#667985', glass: '#8ec8c7', stone: '#a79c8b' };
+const fragmentBase = { wood: '#b17949', steel: '#617a8c', glass: '#64bbc149', stone: '#a69f90' };
 function drawFragment(ctx, b) {
   const points = b.vertices;
   if (!points?.length) return;
@@ -1061,18 +1053,8 @@ function drawFragment(ctx, b) {
   ctx.clip(paths.shape);
   const w = b.width,
     h = b.height;
-  sampleSprite(
-    ctx,
-    b.material,
-    0.2 + (b.id % 9) / 45,
-    0.14,
-    0.45,
-    0.69,
-    -w * 0.6,
-    -h * 0.6,
-    w * 1.2,
-    h * 1.2,
-  );
+  materialFace(ctx, b.material, -w * 0.6, -h * 0.6, w * 1.2, h * 1.2,
+    0.2 + (b.id % 9) / 45, 0.14, 0.45, 0.69);
   ctx.strokeStyle = fractureRim[b.material];
   ctx.lineWidth = 0.8;
   ctx.lineCap = 'butt';
@@ -1091,7 +1073,7 @@ function drawTorch(ctx, b) {
   line(ctx, '#b9a684', 0.8, -2.3, -7, 2.1, -7);
 }
 
-function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact) {
+function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact, active, distant) {
   const recoil =
     !reduced && recovery < 0.54 ? Math.sin((Math.PI * recovery) / 0.54) * (1 - recovery / 0.54) * 2.7 : 0;
   ctx.save();
@@ -1101,7 +1083,6 @@ function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact)
     baseY = 293,
     baseW = 158,
     baseH = GROUND - baseY;
-  sprite(ctx, 'chassis', baseX, baseY, baseW, baseH);
   const pivotX = baseX + baseW * 0.487,
     pivotY = baseY + baseH * 0.084;
   const armW = Math.hypot(160 - pivotX, 326 - pivotY) / 0.6205,
@@ -1114,6 +1095,19 @@ function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact)
       ? -Math.sin(((recovery / 0.16) * Math.PI) / 2) * 1.15
       : -Math.pow((1 - recovery) / 0.84, 2) * 1.15;
   const theta = rest + flick;
+  const armX = -armW * 0.307, armY = -armH * 0.378;
+  if (active) {
+    // Both rims sit behind both sprites, so the arm crossing the chassis
+    // doesn't put a bright seam through the middle of the machine.
+    ctx.save();
+    ctx.globalAlpha *= reduced ? 0.88 : 0.77 + Math.sin(time * 2.5) * 0.19;
+    drawCatapultOutline(ctx, 'chassis', baseX, baseY, baseW, baseH, distant);
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(theta);
+    drawCatapultOutline(ctx, 'arm', armX, armY, armW, armH, distant);
+    ctx.restore();
+  }
+  sprite(ctx, 'chassis', baseX, baseY, baseW, baseH);
   const slingX = pivotX + cupX * Math.cos(theta) - cupY * Math.sin(theta);
   const slingY = pivotY + cupX * Math.sin(theta) + cupY * Math.cos(theta);
   line(ctx, '#594a34', 1.4, 165, 344, (165 + slingX) * 0.5 + 1, (344 + slingY) * 0.5 + 2, slingX, slingY + 2);
@@ -1131,7 +1125,7 @@ function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact)
   ctx.save();
   ctx.translate(pivotX, pivotY);
   ctx.rotate(theta);
-  sprite(ctx, 'arm', -armW * 0.307, -armH * 0.378, armW, armH);
+  sprite(ctx, 'arm', armX, armY, armW, armH);
   ellipse(ctx, '#93723e', 0, 0, 2.0, 2);
   ellipse(ctx, '#ecce8c', -0.55, -0.6, 0.85, 0.8);
   ctx.restore();
@@ -1162,43 +1156,60 @@ function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact)
     sprite(ctx, role, 198 - width * 0.5, GROUND - height, width, height);
 }
 
-function prepareTrajectory(ctx, points) {
+function prepareTrajectory(ctx, points, targetX) {
   if (points.length < 2) return null;
   const start = points[0], path = new Path2D();
   path.moveTo(start.x, start.y);
-  // Show the opening arc. After this, collisions with moving masonry can change the shot.
-  let remaining = 800, endX = start.x;
+  const direction = Math.sign(points[1].x - start.x);
+  const targeted = (targetX - start.x) * direction > 0;
+  let remaining = targeted ? Infinity : 800, endX = start.x;
   for (let i = 1; i < points.length && remaining > 0; i++) {
     const a = points[i - 1], b = points[i];
     const dx = b.x - a.x, dy = b.y - a.y;
     const length = Math.hypot(dx, dy);
     if (!length) continue;
-    const part = Math.min(1, remaining / length);
+    const reached = targeted && dx * direction > 0 && (b.x - targetX) * direction >= 0;
+    const part = reached ? clamp((targetX - a.x) / dx, 0, 1) : Math.min(1, remaining / length);
     endX = a.x + dx * part;
     path.lineTo(endX, a.y + dy * part);
+    if (reached) break;
     remaining -= length;
   }
   const outline = ctx.createLinearGradient(start.x, 0, endX, 0);
   outline.addColorStop(0, '#352b20ee');
   outline.addColorStop(0.65, '#352b20d9');
-  outline.addColorStop(1, '#352b2000');
+  outline.addColorStop(1, targeted ? '#352b20bb' : '#352b2000');
   const gold = ctx.createLinearGradient(start.x, 0, endX, 0);
   gold.addColorStop(0, '#fff2cb');
   gold.addColorStop(0.65, '#ffdc91');
-  gold.addColorStop(1, '#ffdc9100');
+  gold.addColorStop(1, targeted ? '#ffdc91dd' : '#ffdc9100');
   return { path, outline, gold };
 }
 
 function drawTrajectory(ctx, guide, pixel, recovery) {
   if (!guide) return;
-  // Both strokes follow the same dash pattern. The dark rim stays visible on snow and bright skies.
   ctx.save();
-  ctx.globalAlpha = 0.44 + 0.56 * recovery;
+  const opacity = 0.44 + 0.56 * recovery;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.setLineDash([2.8 * pixel, 9 * pixel]);
-  ctx.lineWidth = 4 * pixel;
   ctx.strokeStyle = guide.outline;
+  // Feather the offset shadow in screen pixels, reusing the cached dashed path
+  // and its end fade. This avoids a full-arc blur surface on each 4K frame.
+  ctx.save();
+  ctx.translate(0.6 * pixel, 1.8 * pixel);
+  ctx.globalAlpha = opacity * 0.09;
+  ctx.lineWidth = 10.5 * pixel;
+  ctx.stroke(guide.path);
+  ctx.globalAlpha = opacity * 0.16;
+  ctx.lineWidth = 7.8 * pixel;
+  ctx.stroke(guide.path);
+  ctx.globalAlpha = opacity * 0.29;
+  ctx.lineWidth = 5.7 * pixel;
+  ctx.stroke(guide.path);
+  ctx.restore();
+  ctx.globalAlpha = opacity;
+  ctx.lineWidth = 4 * pixel;
   ctx.stroke(guide.path);
   ctx.lineWidth = 1.9 * pixel;
   ctx.strokeStyle = guide.gold;
@@ -1216,6 +1227,23 @@ function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime) {
   const w = b.width * (1.21 + 0.43 * tiny);
   const h = b.height * (1.16 + 0.32 * tiny) * (alerted ? 0.91 : 1);
   const foot = b.rig ? 19.5 : b.height / 2;
+  const age = shotTime - (b.firedAt ?? -Infinity);
+  const drawing = b.drawingBolt;
+  const recovery = age >= 0 && age < 0.44;
+  if ((drawing || recovery) && Math.abs(b.angle) < 0.65) {
+    const aim = b.gunAngle - b.angle;
+    const facing = Math.cos(aim) < 0 ? -1 : 1;
+    const frame = drawing ? (shotTime - b.drawStartedAt < 0.065 ? 0 : 1)
+      : age < 0.15 ? 2 : age < 0.28 ? 1 : 0;
+    ctx.save();
+    ctx.translate(0, foot);
+    ctx.scale(facing, 1);
+    const pitch = Math.atan2(Math.sin(aim), Math.abs(Math.cos(aim)));
+    drawCrossbowPose(ctx, reduced ? 1 : frame, pitch, b.height * (1.18 + 0.31 * tiny));
+    ctx.restore();
+    return;
+  }
+  drawGuardShadow(ctx, pose, -w / 2, foot - h, w, h);
   if (b.rig && !b.rig.resting) {
     const c = Math.cos(b.angle), s = Math.sin(b.angle);
     for (let i = 0; i < 2; i++) {
@@ -1232,19 +1260,42 @@ function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime) {
     sampleGuard(ctx, pose, overview, 0, 0, 1, 0.71, -w / 2, foot - h, w, h * 0.71);
   } else sampleGuard(ctx, pose, overview, 0, 0, 1, 1, -w / 2, foot - h, w, h);
 
-  const age = shotTime - (b.firedAt ?? -Infinity);
-  const firing = age >= 0 && age < 0.72;
-  const aiming = firing || (b.aimingUntil !== undefined && shotTime <= b.aimingUntil);
-  const direction = aiming ? b.gunAngle : Math.PI * 0.78;
-  const side = Math.cos(direction) < 0 ? -1 : 1;
-  ctx.save();
-  ctx.translate(side * 8.2, aiming ? -2.1 : 1);
-  ctx.rotate(aiming ? direction - b.angle : direction);
-  if (firing && !reduced) ctx.translate(-2 * Math.exp(-age * 17), 0);
-  line(ctx, '#352c25', 3.5, -1.7, 0, 6.6, 0);
-  line(ctx, '#c8bc90', 1.3, -1.4, -0.65, 6.5, -0.65);
-  line(ctx, '#594637', 2.3, -1, 0, -1.9, -2.9 * side);
-  ctx.restore();
+
+}
+
+function drawGuardBolts(ctx, sim, reduced, screenScale) {
+  for (const bolt of sim.guardBolts || []) {
+    ctx.save();
+    ctx.translate(bolt.x, bolt.y);
+    const angle = Math.atan2(bolt.dirY, bolt.dirX);
+    const travel = Math.max(0, sim.time - bolt.born) * bolt.speed;
+    if (travel < 36) {
+      const guard = sim.entities.get(bolt.guardId);
+      if (guard) {
+        const aim = angle - guard.angle, facing = Math.cos(aim) < 0 ? -1 : 1;
+        const pitch = Math.atan2(Math.sin(aim), Math.abs(Math.cos(aim)));
+        const [tipX, tipY] = crossbowTip(pitch, reduced);
+        const tiny = clamp((38 - guard.height * screenScale) / 28, 0, 1);
+        const unit = guard.height * (1.18 + 0.31 * tiny) / 268;
+        const x = facing * tipX * unit, y = (guard.rig ? 19.5 : guard.height / 2) + tipY * unit;
+        const c = Math.cos(guard.angle), s = Math.sin(guard.angle);
+        const originX = bolt.x - travel * bolt.dirX, originY = bolt.y - travel * bolt.dirY;
+        const fade = (1 - travel / 36) ** 2;
+        ctx.translate(fade * clamp(guard.x + c * x - s * y - originX, -28, 28),
+          fade * clamp(guard.y + s * x + c * y - originY, -28, 28));
+      }
+    }
+    ctx.rotate(angle);
+    // The short draw offset has faded completely once the bolt clears its shooter.
+    const scale = Math.min(1.65, Math.max(1, 0.9 / screenScale));
+    ctx.scale(scale, scale);
+    if (!reduced) line(ctx, '#e6cb8b85', 1.6, -22, 0, -5, 0);
+    line(ctx, '#29271e', 2.8, -12, 0, -1, 0);
+    line(ctx, '#dcb679', 1.1, -12, -0.3, -1, -0.3);
+    polygon(ctx, '#b65e46', [-13, -2.1, -8, -1.5, -6.7, 0, -11.5, 0]);
+    polygon(ctx, '#ece4ca', [-4.5, -1.6, 0, 0, -4.8, 1.5]);
+    ctx.restore();
+  }
 }
 
 const DEFAULT_VIEW = { x: 0, y: 0, width: WIDTH, height: HEIGHT };
@@ -1385,19 +1436,8 @@ export function createRenderer(canvas) {
       // The cached chassis, arm and crew artwork share this local cup position.
       ctx.translate(-160, -326);
       drawCatapult(ctx, ammo, ambientTime, recovery, recovery === 1,
-        sim.themeIndex ?? sim.levelIndex, reducedMotion, state.shadows.contact);
+        sim.themeIndex ?? sim.levelIndex, reducedMotion, state.shadows.contact, side === sim.side, cssW / view.width < 0.65);
       ctx.restore();
-    }
-    if (options.aiming !== false) {
-      // A gust changes the upcoming arc even while the pointer stays still.
-      const windFrame = sim.level?.gust ? Math.floor(sim.weatherTick / 6) : 0;
-      const key = [sim.side, ammo, angle, power, windFrame].join('/');
-      if (state.aimKey !== key) {
-        state.aimKey = key;
-        state.aim = prepareTrajectory(ctx, sim.trajectory(ammo, angle, power));
-      }
-      const pixel = view.width / cssW * clamp(cssW / 1600, 1, 1.65);
-      drawTrajectory(ctx, state.aim, pixel, sim.recovery(sim.side));
     }
     drawRooms(ctx, state, sim, bodies, ambientTime, wind);
     state.stairFloors ||= bodies.filter((b) => b.stairs);
@@ -1430,7 +1470,9 @@ export function createRenderer(canvas) {
         (b.y + cameraY) * scaleY,
       );
 
-      if ((b.kind === 'orc' || b.kind === 'barrel') && b.body.speed < 0.4 && Math.abs(b.angle) < 0.4) {
+      if (b.kind === 'orc' && b.body.speed < 0.6 && Math.abs(b.angle) < 0.4) {
+        ctx.drawImage(state.shadows.contact, -b.width * 0.76, b.rig ? 16.7 : b.height * 0.39, b.width * 1.7, b.height * 0.24);
+      } else if (b.kind === 'barrel' && b.body.speed < 0.4 && Math.abs(b.angle) < 0.4) {
         ctx.drawImage(
           state.shadows.contact,
           -b.width * 0.62,
@@ -1448,6 +1490,18 @@ export function createRenderer(canvas) {
       else drawBlock(ctx, b, ambientTime, wind);
     }
     ctx.restore();
+    drawGuardBolts(ctx, sim, reducedMotion, cssW / view.width);
+    if (options.aiming !== false) {
+      // A gust changes the upcoming arc even while the pointer stays still.
+      const windFrame = sim.level?.gust ? Math.floor(sim.weatherTick / 6) : 0;
+      const key = [sim.side, ammo, angle, power, options.aimTargetX, windFrame, sim.terrainVersion].join('/');
+      if (state.aimKey !== key) {
+        state.aimKey = key;
+        state.aim = prepareTrajectory(ctx, sim.trajectory(ammo, angle, power), options.aimTargetX);
+      }
+      const pixel = view.width / cssW * clamp(cssW / 1600, 1, 1.65);
+      drawTrajectory(ctx, state.aim, pixel, sim.recovery(sim.side));
+    }
     weather.drawAir(ctx, sim, bodies, view, t, reducedMotion, wind, cssW, true);
     effects.drawFront(ctx);
     ctx.restore();

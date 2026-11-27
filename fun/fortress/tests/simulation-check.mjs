@@ -1,6 +1,7 @@
 // Run with node fun/fortress/tests/simulation-check.mjs.
 import assert from 'node:assert/strict';
 import { AMMO, DIFFICULTIES, FortressSimulation, generateLevel, THEMES, WORLD } from '../simulation.js';
+import { FORTRESS_STYLES } from '../architecture.js';
 import Matter from '../vendor/matter.min.js';
 import './guard-check.mjs';
 import './roof-check.mjs';
@@ -97,6 +98,11 @@ for (const [index, size] of DIFFICULTIES.entries()) {
   }
   assert.equal(profiles.size, 400, 'All sampled seeds have distinct castles');
   assert.equal(styleSeeds.size, 7, 'Every difficulty builds all seven architectural plans');
+  for (const style of FORTRESS_STYLES) {
+    const chosen = generateLevel(size.id, 73, 2, style);
+    assert.equal(chosen.sections[0].style, style, 'One seed can build every requested style');
+    assert.deepEqual(generateLevel(size.id, 73, 2, style), chosen);
+  }
   assert.equal(themes.size, THEMES.length);
   for (const [style, seed] of styleSeeds) {
     const castle = new FortressSimulation(size.id, seed);
@@ -322,6 +328,24 @@ for (const seed of [1, 4, 12, 75, 12345, 54123]) {
 }
 
 // The aim preview agrees with the launched body at different display refresh rates.
+for (const [size, seed] of [['small', 1], ['large', 14]]) {
+  const sim = new FortressSimulation(size, seed);
+  for (const side of ['left', 'right']) {
+    sim.selectSide(side);
+    for (const ammo of AMMO) {
+      for (const [angle, power] of [[12, 25], [47, 95]]) {
+        const path = sim.trajectory(ammo.id, angle, power);
+        const point = path[Math.floor(path.length * 0.43)];
+        const aim = sim.aimForPoint(ammo.id, point.x, point.y);
+        assert.ok(Math.abs(sim.heightAt(ammo.id, aim.angle, aim.power, point.x) - point.y) < 1,
+          'The selected projectile crosses a reachable cursor using the crew’s current wind and draw');
+      }
+      const far = sim.aimForPoint(ammo.id, sim.release.x + (side === 'left' ? 1 : -1) * 900, -4800);
+      assert.ok(far.angle >= 12 && far.angle <= 75 && far.power >= 25 && far.power <= 100,
+        'Out-of-range aim gives the closest available shot within the controls');
+    }
+  }
+}
 for (const fps of [30, 120]) {
   for (const ammo of AMMO)
     for (const seed of [1, 2]) {

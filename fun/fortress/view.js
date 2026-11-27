@@ -1,4 +1,4 @@
-import { createShotCamera } from './camera-follow.js';
+import { createShotCamera, glide } from './camera-follow.js';
 import { WORLD } from './simulation.js';
 
 // The camera and the pointer share a projection. The physics world stays the same size at every zoom.
@@ -14,13 +14,14 @@ const tones = {
   night: ['#313958', '#546981', '#434c66'],
 };
 
-export function createView(field, panorama, source, dock) {
+export function createView(field, panorama, source, hud) {
   const painting = document.createElement('canvas');
   const ctx = painting.getContext('2d', { alpha: false });
   const display = panorama.getContext('2d', { alpha: false });
   const atmosphericSkies = new WeakMap();
   const shotCamera = createShotCamera();
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let crewPan = null, hintDirty = true;
   let zoomFrom = null,
     zoomTime = 0;
   const minus = document.getElementById('zoom-out'),
@@ -56,26 +57,26 @@ export function createView(field, panorama, source, dock) {
   function measure() {
     width = field.clientWidth || 1;
     height = field.clientHeight || 1;
-    const topOfDock = dock.getBoundingClientRect().top;
-    const bottom = Math.max(24, height - topOfDock + 18);
-    const preferred = height - bottom;
-    const floorY = Math.min(height * 0.81, Math.max(height * 0.48, preferred));
-    const minTop = height < 510 ? 60 : 115;
-    const briefing = document.querySelector('.briefing').getBoundingClientRect();
-    safeTop = Math.min(height * 0.48, briefing.bottom + 12);
-    safeBottom = Math.max(safeTop + 30, topOfDock - 13);
-    const top = Math.max(minTop, safeTop);
-    fitScale = Math.min(width / WIDTH, Math.max(0.04, (floorY - top) / crestRise));
+    // Measure the persistent HUD strip. Its floating menus can be opened
+    // without interrupting an aim or moving the world behind the pointer.
+    safeTop = clamp(hud.getBoundingClientRect().bottom - field.getBoundingClientRect().top + 8,
+      0, Math.max(0, height - 36));
+    safeBottom = Math.max(safeTop + 1, height - 6);
+    const usableHeight = safeBottom - safeTop;
+    const floorY = safeBottom - Math.min(96, usableHeight * 0.12);
+    fitScale = Math.min(width / WIDTH, Math.max(0.04, (floorY - safeTop) / crestRise));
     const scale = fitScale * stops[zoom];
     const w = width / scale,
       h = height / scale;
     const x = w >= WIDTH ? MIDFIELD - w / 2 : clamp(center - w / 2, WORLD.minX, WORLD.maxX - w);
     const changed = screenGround !== floorY;
     screenGround = floorY;
+    if (base.width !== w) crewPan = null;
     base = { x, y: GROUND - floorY / scale - lift, width: w, height: h };
     center = x + w / 2;
     view = zoomFrom || base;
     geometryDirty = false;
+    hintDirty = true;
     artDirty ||= changed || lastPaintW !== width || lastPaintH !== height;
     needsPresent = true;
     minus.disabled = zoom === 0;
@@ -83,7 +84,6 @@ export function createView(field, panorama, source, dock) {
     readout = Math.round(stops[zoom] * 100);
     fit.textContent = readout + '%';
     field.dataset.zoomed = String(zoom > 0);
-    document.documentElement.style.setProperty('--dock-top-gap', Math.max(8, height - topOfDock + 9) + 'px');
   }
   function paint() {
     const ratio = Math.min(devicePixelRatio || 1, 3840 / width, 2560 / height);
@@ -219,6 +219,17 @@ export function createView(field, panorama, source, dock) {
       needsPresent = true;
     }
     if (sim) {
+      if (crewPan) {
+        const half = base.width / 2;
+        if (reduced) crewPan.value = crewPan.target;
+        else glide(crewPan, crewPan.target, 1.85, 0.15 * base.width, dt);
+        center = clamp(crewPan.value, WORLD.minX + half, WORLD.maxX - half);
+        if (Math.abs(center - crewPan.target) < 0.35 && (reduced || Math.abs(crewPan.velocity) < 1)) {
+          center = crewPan.target;
+          crewPan = null;
+        }
+        base = { ...base, x: center - half };
+      }
       if (events.some((e) => e.type === 'launch')) manualDuringShot = false;
       let manualView = base;
       const easingZoom = zoomFrom && !reduced;
@@ -254,7 +265,7 @@ export function createView(field, panorama, source, dock) {
       needsPresent ||= moved;
       view = next;
       const side = sim.side || 'left';
-      if (moved || needsPresent || hint.dataset.side !== side) {
+      if (moved || hintDirty || hint.dataset.side !== side) {
         const sling = sim.level.catapults[side], direction = side === 'right' ? -1 : 1;
         const x = (sling.x - direction * 75 - view.x) * width / view.width;
         const y = (sling.y - 49 - view.y) * height / view.height;
@@ -262,6 +273,7 @@ export function createView(field, panorama, source, dock) {
         hint.style.setProperty('--launcher-x', x.toFixed(1) + 'px');
         hint.style.setProperty('--launcher-y', (y - 4).toFixed(1) + 'px');
         hint.toggleAttribute('data-outside', x < 0 || x > width || y < safeTop + 16 || y > safeBottom);
+        hintDirty = false;
       }
     }
     if (needsPresent) present();
@@ -276,6 +288,7 @@ export function createView(field, panorama, source, dock) {
     };
   }
   function zoomTo(index, about = focusX) {
+    crewPan = null;
     update();
     manualDuringShot = true;
     const next = clamp(index, 0, stops.length - 1);
@@ -316,6 +329,7 @@ export function createView(field, panorama, source, dock) {
     if (!p) return;
     if (Math.hypot(e.clientX - p.originX, e.clientY - p.originY) > 6) moved = true;
     if (zoom && moved && pointers.size === 1) {
+      crewPan = null;
       zoomFrom = null;
       center -= ((e.clientX - p.x) * view.width) / width;
       const roofLift = crestRise - (screenGround - safeTop) / (fitScale * stops[zoom]) + 24;
@@ -334,10 +348,21 @@ export function createView(field, panorama, source, dock) {
     geometryDirty = true;
   });
   observer.observe(field);
-  observer.observe(dock);
+  observer.observe(hud);
   return {
     update,
     target,
+    selectCrew(launcherX) {
+      if (!zoom || base.width >= WIDTH) return;
+      const half = base.width / 2;
+      const inside = half - Math.min(half * 0.35, Math.max(64, base.width * 0.075));
+      const target = clamp(clamp(center, launcherX - inside, launcherX + inside),
+        WORLD.minX + half, WORLD.maxX - half);
+      if (!crewPan && target === center) return;
+      // Reversing a switch preserves momentum. Only move as far as the new crew
+      // needs, leaving the shot camera free to widen the view for a crossfire.
+      crewPan = { value: center, velocity: crewPan?.velocity ?? 0, target };
+    },
     dragged: () => moved,
     async prepareSkies(images) {
       // The blurred, desaturated sky is shared by every phase and seed. Bake it
@@ -368,6 +393,7 @@ export function createView(field, panorama, source, dock) {
         source = image;
       }
       shotCamera.reset();
+      crewPan = null;
       zoomFrom = null;
       manualDuringShot = false;
       focusX = sections[0].center;

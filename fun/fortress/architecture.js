@@ -11,8 +11,9 @@ const plans = {
 };
 export const FORTRESS_STYLES = Object.keys(plans);
 
-export function planArchitecture(random, spans, peak) {
-  const style = FORTRESS_STYLES[Math.floor(random() * FORTRESS_STYLES.length)];
+export function planArchitecture(random, spans, peak, requestedStyle) {
+  const style = FORTRESS_STYLES.includes(requestedStyle)
+    ? requestedStyle : FORTRESS_STYLES[Math.floor(random() * FORTRESS_STYLES.length)];
   const bands = plans[style];
   const weights = bands.map(([, frontage]) => frontage * (0.8 + random() * 0.4));
   const counts = bands.map(() => 1);
