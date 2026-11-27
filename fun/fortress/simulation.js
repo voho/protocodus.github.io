@@ -1,4 +1,6 @@
 import Matter from './vendor/matter.min.js';
+import { roofVertices, selectRoofs } from './roofs.js';
+import { planArchitecture } from './architecture.js';
 import { createGuardDefense, splitShot } from './guard-fire.js';
 import { addGuardRig, balanceGuards, removeGuardRig, wakeGuardRig } from './guard-rig.js';
 
@@ -12,6 +14,7 @@ const terrainStart = { x: -1000, y: WORLD.ground };
 const terrainEnd = { x: 2200, y: WORLD.ground };
 
 const RELOAD_SECONDS = 0.2;
+const SIEGE_BLAST_RADIUS = 205;
 
 export const AMMO = [
   { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012 },
@@ -26,10 +29,11 @@ export const AMMO = [
     radius: 19,
     density: 0.012,
     launchScale: 0.74,
-    blast: 205,
+    blast: SIEGE_BLAST_RADIUS,
     remote: true,
   },
-  { id: 'magic-bomb', name: 'Magic bomb', cost: 75, radius: 13, density: 0.006, implosionRadius: 168, remote: true },
+  { id: 'magic-bomb', name: 'Magic bomb', cost: 110, radius: 13, density: 0.006, implosionRadius: 168,
+    burstRadius: SIEGE_BLAST_RADIUS * 1.2, remote: true },
 ].map((ammo) => ({ ...ammo, reload: RELOAD_SECONDS }));
 
 export const DIFFICULTIES = [
@@ -75,7 +79,9 @@ function terrainShoulder(points, start, end, targetY) {
   return last.y + rise;
 }
 
-export function generateLevel(difficulty, seed) {
+export const LAYOUT_VERSION = 2;
+
+export function generateLevel(difficulty, seed, version = LAYOUT_VERSION) {
   const small = difficulty === 'small',
     large = difficulty === 'large';
   const index = small ? 0 : large ? 4 : 2;
@@ -92,24 +98,29 @@ export function generateLevel(difficulty, seed) {
   } : null;
   const random = seededRandom(seed ^ Math.imul(index + 1, 0x85ebca6b));
   const integer = (lo, hi) => lo + Math.floor(random() * (hi - lo + 1));
-  const bays = small ? integer(4, 5) : large ? integer(11, 12) : integer(7, 8);
+  const bays = small ? integer(4, 5) + (version === 1 ? 0 : 1) : large ? integer(11, 12) : integer(7, 8);
   const spans = Array.from({ length: bays }, () => integer(52, large ? 64 : 66));
-  const width = spans.reduce((sum, span) => sum + span, 0);
   const right = (large ? 1122 : small ? 980 : 1064) + integer(-16, 16);
-  const left = right - width, center = left + width / 2;
   const storey = large ? integer(47, 51) : integer(46, 52);
   const peak = large ? integer(10, 12) : small ? integer(3, 4) : integer(5, 7);
   const crownWidth = small ? integer(1, 2) : large ? integer(2, 4) : integer(2, 3);
   const crown = clamp(Math.floor((bays - crownWidth) / 2) + integer(-1, 1), 1, bays - crownWidth - 1);
   const eaves = () => large ? integer(4, 6) : small ? integer(1, 2) : integer(2, 3);
   const leftEave = eaves(), rightEave = eaves();
-  const heights = spans.map((_, bay) => {
+  const architecture = version === 1 ? null : planArchitecture(seededRandom(seed ^ 0xc17ade1), spans, peak);
+  const heights = architecture?.heights ?? spans.map((_, bay) => {
     const fromLeft = crown - bay, fromRight = bay - (crown + crownWidth - 1);
     if (fromLeft <= 0 && fromRight <= 0) return peak;
     const distance = Math.max(fromLeft, fromRight), depth = fromLeft > 0 ? crown : bays - crown - crownWidth;
     const eave = fromLeft > 0 ? leftEave : rightEave;
     return eave + Math.max(0, Math.round((peak - eave - 2) * (1 - distance / depth)));
   });
+  if (architecture) for (const [c, zone] of architecture.zones.entries()) {
+    if (zone === 'hall' || zone === 'gallery') spans[c] += 9;
+    else if (zone === 'stair' || zone === 'tower') spans[c] = Math.max(54, spans[c] - 4);
+  }
+  const width = spans.reduce((sum, span) => sum + span, 0);
+  const left = right - width, center = left + width / 2;
   const terrain = [{ x: WORLD.minX, y: WORLD.ground }];
   const hill = left - 24;
   const base = terrainShoulder(terrain, Math.max(208, hill - integer(105, 151)), hill,
@@ -118,14 +129,15 @@ export function generateLevel(difficulty, seed) {
   terrainShoulder(terrain, right + 25, WORLD.width, WORLD.ground);
   terrain.push({ x: WORLD.maxX, y: WORLD.ground });
 
-  const gate = integer(1, Math.max(1, crown));
-  const orcs = [[gate, 0], [crown + integer(0, crownWidth - 1), peak - integer(0, 1)]];
+  const gate = architecture?.gate ?? integer(1, Math.max(1, crown));
+  const crest = architecture?.stairBay ?? crown + integer(0, crownWidth - 1);
+  const orcs = [[gate, 0], [crest, heights[crest] - integer(0, 1)]];
   const barrels = [];
   // Distribute the rest of the garrison through the wings as well as the keep's crown.
   const guards = small ? 3 : large ? 11 : 6;
   for (let i = 0; orcs.length < guards; i++) {
     const bay = (integer(0, bays - 1) + i) % bays;
-    const row = integer(1, heights[bay]);
+    const row = integer(1 + (architecture?.openFloors[bay] || 0), heights[bay]);
     if (!orcs.some(([c, r]) => c === bay && r === row)) orcs.push([bay, row]);
   }
   const stores = small ? 2 : large ? 5 : 3;
@@ -136,6 +148,7 @@ export function generateLevel(difficulty, seed) {
       const bay = (startBay + next) % bays;
       for (let offset = 0; offset < heights[bay]; offset++) {
         const row = 1 + (first + offset - 1) % heights[bay];
+        if (architecture && row <= architecture.openFloors[bay]) continue;
         if (orcs.some(([c, r]) => c === bay && r === row) ||
             barrels.some(([c, r]) => c === bay && r === row)) continue;
         barrels.push([bay, row]);
@@ -144,8 +157,8 @@ export function generateLevel(difficulty, seed) {
     }
   }
   const ward = { left, center, base, spans, heights, storey, orcs, barrels, gate,
-    style: 'keep', pattern: integer(0, 30000) };
-  const rooms = heights.reduce((n, h) => n + h, 0);
+    style: 'keep', ...architecture, pattern: integer(0, 30000) };
+  const rooms = heights.reduce((n, h, bay) => n + h - (architecture?.openFloors[bay] || 0), 0);
   const par = 5 * Math.round(((small ? 50 : large ? 170 : 100) + rooms * 1.5) / 5);
   const angle = large ? 24 : 38;
   const dx = ward.left - WORLD.release.x,
@@ -166,6 +179,7 @@ export function generateLevel(difficulty, seed) {
   return {
     name: THEMES[themeIndex].name,
     difficulty,
+    version,
     themeIndex,
     seed,
     sections: [ward],
@@ -190,6 +204,8 @@ const TURF_ROLL = Math.exp(-2.4 * STEP);
 const GRAVITY = 680;
 const ROOF = 13;
 const MIN_BREAKABLE_RUBBLE_AREA = 65;
+const MAX_BLAST_DUST_AREA = 320;
+const BLAST_DUST_RESISTANCE = { glass: 0.55, stone: 1, wood: 1.75 };
 const MAX_RUBBLE_GENERATION = 2;
 const MATERIALS = {
   stone: { density: 0.0028, toughness: 10, bluntDamage: 0.7, friction: 0.76, skidFriction: 0.68, rebound: 0.27 },
@@ -388,12 +404,13 @@ function touchingHeatSource(a, b) {
 }
 
 export class FortressSimulation {
-  constructor(difficulty = 'small', seed = newSeed()) {
-    this.loadLevel(difficulty, seed);
+  constructor(difficulty = 'small', seed = newSeed(), version = LAYOUT_VERSION) {
+    this.loadLevel(difficulty, seed, version);
   }
 
-  loadLevel(difficulty = this.difficulty, seed = difficulty === this.difficulty ? this.seed : newSeed()) {
-    const builder = this.buildLevel(difficulty, seed);
+  loadLevel(difficulty = this.difficulty, seed = difficulty === this.difficulty ? this.seed : newSeed(),
+            version = this.level?.version ?? LAYOUT_VERSION) {
+    const builder = this.buildLevel(difficulty, seed, version);
     let step;
     do step = builder.next(); while (!step.done);
     return step.value;
@@ -401,12 +418,12 @@ export class FortressSimulation {
 
   // Drive the identical generator a few steps per idle frame when preparing a
   // new siege. A separate simulation owns all collision pairs and callbacks.
-  static *prepareLevel(difficulty, seed) {
+  static *prepareLevel(difficulty, seed, version = LAYOUT_VERSION) {
     const sim = Object.create(FortressSimulation.prototype);
-    if (yield* sim.buildLevel(difficulty, seed)) return sim;
+    if (yield* sim.buildLevel(difficulty, seed, version)) return sim;
   }
 
-  *buildLevel(difficulty, seed) {
+  *buildLevel(difficulty, seed, version) {
     if (!DIFFICULTIES.some((size) => size.id === difficulty)) return false;
     if (this.engine) {
       Events.off(this.engine);
@@ -415,7 +432,7 @@ export class FortressSimulation {
     }
     this.difficulty = difficulty;
     this.seed = seed >>> 0 || 1;
-    const level = (this.level = generateLevel(difficulty, this.seed));
+    const level = (this.level = generateLevel(difficulty, this.seed, version));
     this.themeIndex = level.themeIndex;
     this.terrain = level.terrain;
     this.terrainVersion = 0;
@@ -676,22 +693,27 @@ export class FortressSimulation {
     const stage = this.difficulty === 'large' ? 4 : this.difficulty === 'medium' ? 2 : 0;
     const highest = Math.max(...heights);
     const flagBay = heights.lastIndexOf(highest);
-    const stairBay = heights.indexOf(highest);
+    const stairBay = level.stairBay ?? heights.indexOf(highest);
+    const pitched = selectRoofs(level, flagBay);
+    const hasRoom = (bay, row) => heights[bay] > row && row >= (level.openFloors?.[bay] || 0);
     const block = (material, x, y, w, h, detail) => this.add('block', material, x, y, w, h, detail);
 
     for (let row = 0; row < highest; row++) {
       const base = level.base - row * storey;
       const roofY = base - storey + ROOF / 2;
       for (let c = 0; c < columns.length; c++) {
-        const leftRoom = heights[c - 1] > row,
-          rightRoom = heights[c] > row;
+        const leftRoom = hasRoom(c - 1, row), rightRoom = hasRoom(c, row);
         if (!leftRoom && !rightRoom) continue;
         const outer = !leftRoom || !rightRoom;
         let material = outer ? 'stone' : 'wood';
         if (!outer && (c + row + pattern) % 4 === 2) material = 'glass';
         if (stage >= 2 && (c * 3 + row + pattern) % 5 === 1) material = 'steel';
         if (outer && row > 0 && (c + pattern + row) % 3 === 1) material = 'wood';
-        const column = row > 0 && ((c + pattern) % 3 === 0 || (!stage && c === stairBay)) && row % 3 !== 2;
+        const zone = level.zones?.[rightRoom ? c : c - 1];
+        const column = row > 0 && (zone === 'hall' || ((c + pattern) % 3 === 0 || (!stage && c === stairBay)) && row % 3 !== 2);
+        if (zone === 'gallery' || zone === 'stair') material = row % 3 === 2 ? 'steel' : 'wood';
+        if (zone === 'wall' || level.style === 'citadel' && outer) material = 'stone';
+        if (level.style === 'spire' && zone === 'tower') material = !outer && row % 3 === 2 ? 'glass' : 'steel';
         if (row === 0 || column) material = 'stone';
         const h = storey - ROOF;
         if (material === 'stone') {
@@ -714,33 +736,39 @@ export class FortressSimulation {
           );
         }
       }
+      let supportingLintel;
       for (let c = 0; c < spans.length; c++) {
-        if (heights[c] <= row) continue;
-        const leftEnd = columns[c] - (heights[c - 1] > row ? -0.35 : 15);
+        if (!hasRoom(c, row)) continue;
+        const zone = level.zones?.[c];
+        const leftEnd = columns[c] - (hasRoom(c - 1, row) ? -0.35 : 15);
         const tieBay = c - ((c + row + pattern) % 3);
         const tied = stage >= 2 && row % 3 !== 2 && tieBay !== stairBay && tieBay + 1 !== stairBay &&
-          tieBay >= 0 && heights[tieBay] > row && heights[tieBay + 1] > row &&
+          tieBay >= 0 && hasRoom(tieBay, row) && hasRoom(tieBay + 1, row) &&
           (c === tieBay || c === tieBay + 1);
         const endBay = tied ? tieBay + 1 : c;
-        const rightEnd = columns[endBay + 1] + (heights[endBay + 1] > row ? -0.35 : 15);
+        const rightEnd = columns[endBay + 1] + (hasRoom(endBay + 1, row) ? -0.35 : 15);
         let material =
           stage >= 2 && (c + row + pattern) % 5 === 0 ? 'steel' : (c + row + pattern) % 3 === 0 ? 'stone' : 'wood';
         if (stage === 4 && heights[c] - row >= 3) material = 'stone';
+        if (zone === 'gallery' || zone === 'stair') material = 'wood';
+        if (zone === 'wall' || level.style === 'citadel') material = 'stone';
+        if (level.style === 'spire' && zone === 'tower') material = 'steel';
         // Deep galleries have a second load path from their lintels to the
         // floor. Leave occupied cells and the upper timberwork open.
-        const reinforced = row === 0 ? c !== level.gate :
-          stage && row < (stage === 4 ? 4 : 2) && c !== stairBay && (c + pattern) % 2 === 0;
+        const reinforced = row === 0 ? c !== level.gate : zone === 'wall' ||
+          zone !== 'gallery' && zone !== 'hall' && stage && row < (stage === 4 ? 4 : 2) && c !== stairBay && (c + pattern) % 2 === 0;
         if (reinforced &&
             !level.orcs.some(([bay, floor]) => bay === c && floor === row) &&
             !level.barrels.some(([bay, floor]) => bay === c && floor === row)) {
           const cx = (columns[c] + columns[c + 1]) / 2;
           const h = storey - ROOF;
-          if (row === 0) {
+          if (row === 0 || zone === 'wall') {
             const width = spans[c] - 32, course = h / 3;
-            block('stone', cx, base - course * 0.5, width, course, 'brickwork');
+            const bond = row === 0 ? 'brickwork' : 'wall-course';
+            block('stone', cx, base - course * 0.5, width, course, bond);
             for (const side of [-1, 1])
-              block('stone', cx + side * width / 4, base - course * 1.5, width / 2 - 0.3, course, 'brickwork');
-            block('stone', cx, base - course * 2.5, width, course, 'brickwork');
+              block('stone', cx + side * width / 4, base - course * 1.5, width / 2 - 0.3, course, bond);
+            block('stone', cx, base - course * 2.5, width, course, bond);
           } else {
             block('stone', cx, base - h * 0.25, 16, h * 0.5, 'buttress');
             block('stone', cx, base - h * 0.75, 13, h * 0.5, 'buttress');
@@ -760,9 +788,23 @@ export class FortressSimulation {
             ? 'girder'
             : material === 'stone' ? 'masonry' : 'beam',
         );
+        if (roof) supportingLintel = roof;
         if (roof && c === stairBay && row + 1 < heights[c]) roof.stairs = row % 2 ? 'left' : 'right';
         if (heights[c] !== row + 1) continue;
         const top = base - storey;
+        const cap = pitched.get(c);
+        if (cap) {
+          const height = Math.min(storey * 0.87, cap.width * (cap.type === 'tile' ? 0.43 : 0.57));
+          const x = columns[c] + cap.left + cap.width / 2;
+          const material = cap.type === 'tile' ? 'wood' : cap.type === 'copper' ? 'steel' : 'stone';
+          const piece = block(material, x, top - height / 3, cap.width, height, 'pitched-roof');
+          piece.roofType = cap.type;
+          piece.vertices = roofVertices(cap.width, height);
+          Body.setVertices(piece.body, piece.vertices);
+          // A two-bay tie is created with its first bay and also bears the second.
+          (supportingLintel.carried ??= []).push(piece);
+          continue;
+        }
         const occupied =
           level.orcs.some(([bay, floor]) => bay === c && floor === row + 1) ||
           level.barrels.some(([bay, floor]) => bay === c && floor === row + 1);
@@ -803,7 +845,7 @@ export class FortressSimulation {
     const mount = (left, right, count, pattern, minHeight) => {
       const hosts = bodies.filter(
         (e) =>
-          e.kind === 'block' &&
+          e.kind === 'block' && !e.roofType &&
           (e.material === 'stone' || e.material === 'steel') &&
           e.home.x >= left - 2 &&
           e.home.x <= right + 2 &&
@@ -1141,6 +1183,7 @@ export class FortressSimulation {
     if (ammo.remote) this.remoteBombs.add(e);
     e.flameRadius = ammo.flameRadius;
     e.implosionRadius = ammo.implosionRadius;
+    e.burstRadius = ammo.burstRadius;
     e.flightPath = this.trajectory(ammoId, angle, power);
     e.contacts = new Set();
     this.projectiles.add(e);
@@ -1405,7 +1448,7 @@ export class FortressSimulation {
     const threshold = MATERIALS[e.material].toughness * (1 - 0.68 * e.burn);
     if (energy < threshold * 0.32) return;
     this.damageBlock(e, (energy / threshold - 0.28) * 1.12, point);
-    if (e.material === 'steel' && !e.bend && e.damage > 0.25 && e.damage < 1) {
+    if (e.material === 'steel' && !e.roofType && !e.bend && e.damage > 0.25 && e.damage < 1) {
       e.bend = (point.x < e.body.position.x ? -1 : 1) * clamp(e.damage, 0.28, 0.85);
       this.work.add(e);
     }
@@ -1548,11 +1591,11 @@ export class FortressSimulation {
     this.remove(e);
   }
 
-  disintegrate(e, type) {
+  disintegrate(e, type, contact) {
     this.wakeWard(e.body.position.x);
     const size = Math.sqrt(e.width * e.height);
-    const dust = this.emit(type, e, clamp(size / 36, 0.2, 1));
-    Object.assign(dust, { id: e.id, size, width: e.width, height: e.height, angle: e.body.angle });
+    const dust = this.emit(type, e, clamp(size / 36, 0.2, 1), contact);
+    Object.assign(dust, e.body.position, { id: e.id, size, width: e.width, height: e.height, angle: e.body.angle });
     this.remove(e);
   }
 
@@ -1592,25 +1635,27 @@ export class FortressSimulation {
 
   explode(source) {
     this.wakeWard(source.body.position.x);
-    const origin = { ...source.body.position },
-      fireball = Boolean(source.flameRadius);
+    const origin = { ...source.body.position };
+    this.remove(source);
     if (source.implosionRadius) {
-      this.remove(source);
       const radius = source.implosionRadius;
       const twist = (this.blastRandom() - 0.5) * 0.16;
-      this.implosions.push({ ...origin, radius, twist, start: this.ticks, crushed: new Set() });
+      this.implosions.push({ ...origin, radius, burstRadius: source.burstRadius, twist, start: this.ticks, crushed: new Set() });
       this.events.push({ type: 'implosion', ...origin, material: source.material, radius, strength: 1 });
       return;
     }
-    const radius = source.flameRadius || source.blast || 125;
+    this.blastAt(origin, source.flameRadius || source.blast || 125, source.material,
+      source.kind === 'projectile', Boolean(source.flameRadius));
+  }
+
+  blastAt(origin, radius, material, fromProjectile, fireball = false) {
     this.events.push({
       type: fireball ? 'fireburst' : 'explosion',
-      ...origin,
+      x: origin.x, y: origin.y,
       radius,
-      material: source.material,
+      material,
       strength: fireball ? 1 : radius / 158,
     });
-    this.remove(source);
     // Snapshot what the wave can reach. A new fragment only meets a second wave
     // if another charge goes off. Nearby cover still protects the far side while it breaks.
     const targets = this.bodies.filter(({ body: { bounds } }) =>
@@ -1643,10 +1688,6 @@ export class FortressSimulation {
         this.extinguish(e);
         body = e.body;
       }
-      if (e.material === 'wood' || e.kind === 'barrel') {
-        e.heat = Math.min(1, e.heat + strength * heatTransmission * (fireball ? 1.65 : 1.05));
-        if (e.heat >= 0.69) this.ignite(e);
-      }
       const dx = body.position.x - origin.x,
         dy = body.position.y - origin.y;
       const len = Math.hypot(dx, dy) || 1,
@@ -1663,13 +1704,24 @@ export class FortressSimulation {
           Body.getAngularVelocity(body) + turn + (this.random() - 0.5) * strength * (fireball ? 0.03 : 0.1),
         );
       }
-      if (fireball) continue;
       const core = strength * strength * strength;
+      const shock = radius * 0.095 * core;
+      const resistance = !fireball && e.kind === 'fragment' && BLAST_DUST_RESISTANCE[e.material];
+      // Use polygon area so a thin shard powders more readily than a full brick.
+      if (resistance && body.area <= MAX_BLAST_DUST_AREA && shock >= resistance * (1.1 + 0.105 * Math.sqrt(body.area))) {
+        this.disintegrate(e, 'stone-dust', contact);
+        continue;
+      }
+      if (e.material === 'wood' || e.kind === 'barrel') {
+        e.heat = Math.min(1, e.heat + strength * heatTransmission * (fireball ? 1.65 : 1.05));
+        if (e.heat >= 0.69) this.ignite(e);
+      }
+      if (fireball) continue;
       if (e.kind === 'block') {
-        const damageScale = source.kind === 'projectile' ? 0.13 : 0.17;
+        const damageScale = fromProjectile ? 0.13 : 0.17;
         this.hit(e, radius * (strength * damageScale + core * 0.065), contact);
       } else if (e.kind === 'fragment' && e.material === 'stone') {
-        this.crackStone(e, radius * 0.095 * core, contact);
+        this.crackStone(e, shock, contact);
       } else if (e.kind === 'projectile' && (e.material === 'small-stone' || e.material === 'big-stone') &&
                  radius * core > e.radius * 3.1) {
         this.emit('fracture', e, strength, contact).material = 'stone';
@@ -1687,7 +1739,11 @@ export class FortressSimulation {
     // and their actual collisions carry the collapse into neighboring rooms.
     for (let i = this.implosions.length - 1; i >= 0; i--) {
       const field = this.implosions[i], age = this.ticks - field.start;
-      if (age > 42) { this.implosions.splice(i, 1); continue; }
+      if (age > 42) {
+        this.implosions.splice(i, 1);
+        this.blastAt(field, field.burstRadius, 'magic-bomb', true);
+        continue;
+      }
       if (age % 3 !== 1) continue;
       const pulse = Math.sin(Math.PI * (age + 2) / 45);
       for (const e of this.entities.values()) {
@@ -1735,7 +1791,9 @@ export class FortressSimulation {
       C = { x: w, y: h },
       D = { x: -w, y: h };
     let shapes;
-    if (e.material === 'wood' || e.material === 'steel') {
+    if (e.roofType) {
+      shapes = splitStone(e.vertices, { x: dx, y: dy });
+    } else if (e.material === 'wood' || e.material === 'steel') {
       if (w >= h) {
         const u = { x: dx - w * 0.1, y: -h },
           v = { x: dx + w * 0.1, y: h };

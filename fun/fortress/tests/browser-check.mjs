@@ -211,7 +211,7 @@ try {
   await page.keyboard.press('6');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   await page.keyboard.press('Space');
-  assert.equal(await spent.textContent(), '165', 'Both crews launched; each remote activated once for free');
+  assert.equal(await spent.textContent(), '200', 'Both crews launched; each remote activated once for free');
   await switchFortress('#restart-button');
   const fireball = page.getByRole('button', { name: 'Fireball, 45 gold' });
   assert.equal(await page.locator('.ammo').count(), 7);
@@ -225,10 +225,14 @@ try {
   for (const choice of ['medium', 'large', 'small']) {
     await size.selectOption(choice);
     await page.waitForFunction((choice) => location.hash.startsWith('#' + choice + '/'), choice);
-    assert.equal(
-      await page.locator('#size-label').textContent(),
-      choice[0].toUpperCase() + choice.slice(1) + ' fortress',
-    );
+    const layout = await page.evaluate(async () => {
+      const [, seed, version] = location.hash.slice(1).split('/');
+      if (version !== 'v2') throw new Error('A new fortress must use the current generator');
+      const { generateLevel } = await import('./simulation.js');
+      return generateLevel(document.querySelector('#fort-size').value, parseInt(seed, 36)).sections[0].style;
+    });
+    assert.equal(await page.locator('#size-label').textContent(),
+      choice[0].toUpperCase() + choice.slice(1) + ' ' + layout.replaceAll('-', ' '));
     assert.equal(await spent.textContent(), '0');
     const first = page.url();
     await switchFortress('#new-button');

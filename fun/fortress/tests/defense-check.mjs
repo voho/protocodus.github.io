@@ -136,6 +136,44 @@ for (const kind of ['block', 'fragment']) {
   assert.ok(warm.intact && warm.stone.damage === 0, 'A fireball does not crush stone');
 }
 
+// Start with actual irregular pieces from the same fractures that fill a fallen keep.
+const rubble = new FortressSimulation('small', 2);
+for (const e of rubble.bodies) rubble.remove(e);
+for (const [material, x, y] of [['stone', 317, 120], ['glass', 350, 91], ['wood', 368, 144]]) {
+  rubble.fracture(rubble.add('block', material, x, y, 27, 14, 'masonry'));
+}
+const chips = rubble.bodies.filter((e) => e.kind === 'fragment');
+assert.equal(chips.length, 10);
+const lastChip = rubble.add('fragment', 'stone', 350, 153, 6, 4, 'debris');
+lastChip.generation = 2;
+chips.push(lastChip);
+const distant = rubble.add('fragment', 'stone', 90, 120, 12, 8, 'debris');
+const exposed = rubble.add('fragment', 'stone', 281, 120, 12, 8, 'debris');
+const sheltered = rubble.add('fragment', 'stone', 419, 120, 12, 8, 'debris');
+const iron = rubble.add('fragment', 'steel', 330, 100, 12, 8, 'debris');
+const barrier = rubble.add('block', 'steel', 388, 120, 8, 68, 'girder', { isStatic: true });
+const lossBeforeBlast = rubble.lostWeight;
+rubble.drainEvents();
+assert.ok(rubble.fire('siege-bomb', 35, 65));
+const [charge] = rubble.projectiles;
+Body.setPosition(charge.body, { x: 350, y: 120 });
+assert.ok(rubble.detonateRemote('siege-bomb'));
+rubble.update(1 / 120);
+const dust = rubble.drainEvents().filter((e) => e.type === 'stone-dust' && e.blast);
+for (const chip of [...chips, exposed]) {
+  assert.ok(!rubble.entities.has(chip.id), 'An exposed chip leaves the physics world on detonation');
+  const plumes = dust.filter((e) => e.id === chip.id);
+  assert.equal(plumes.length, 1, 'Each pulverized chip emits one dust plume');
+  const [plume] = plumes;
+  assert.equal(plume.material, chip.material);
+  assert.ok((plume.x - 350) * plume.outX + (plume.y - 120) * plume.outY > 0, 'The plume travels out from the charge');
+}
+assert.ok(rubble.entities.has(sheltered.id), 'A steel wall shields a chip at the same range as an exposed one');
+assert.ok(rubble.entities.has(distant.id), 'Rubble beyond the wave survives');
+assert.ok(rubble.entities.has(iron.id), 'An exposed steel offcut remains physical');
+assert.equal(rubble.lostWeight, lossBeforeBlast + (barrier.destroyed ? barrier.weight : 0),
+  'Only destruction of the steel cover can add to the score');
+
 // A powder barrel beside the flight path can break a live shot before it lands.
 const powder = new FortressSimulation('small', 2);
 for (const e of powder.bodies) powder.remove(e);

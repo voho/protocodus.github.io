@@ -7,6 +7,7 @@ export function stormStrikeTime(seed, clock) {
 }
 
 const wrap = (v, width) => v - width * Math.floor(v / width);
+export const stormStrikePosition = (seed, clock) => 0.23 + wrap(seed * 0.31 + Math.floor(clock / 19) * 0.619, 0.54);
 const clamp = (v, low, high) => Math.max(low, Math.min(high, v));
 const smooth = (v) => v * v * (3 - 2 * v);
 
@@ -97,8 +98,7 @@ export function createWeatherEffects(skyLayer) {
       const age = clock - stormStrikeTime(sim.seed, clock);
       if (age >= 0 && age < 0.95) {
         const strength = smooth(Math.min(1, age / 0.17)) * (1 - age / 0.95) ** 1.65;
-        const slot = Math.floor(clock / 19);
-        const cx = view.x + view.width * (0.23 + wrap(sim.seed * 0.31 + slot * 0.619, 0.54));
+        const cx = view.x + view.width * stormStrikePosition(sim.seed, clock);
         const cy = view.y + height * 0.28;
         ctx.globalAlpha = strength * 0.77;
         ctx.drawImage(flash, cx - view.width * 0.42, cy - height * 0.54, view.width * 0.84, height * 1.08);

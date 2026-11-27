@@ -1,7 +1,9 @@
+import { drawRoof, prepareRoofArt } from './roofs.js';
 import { createEffects } from './effects.js';
 import { createWeatherEffects } from './weather-effects.js';
 import { sprite, sampleSprite, sampleGuard, spriteReady, prepareSprites } from './sprites.js';
 import { paintTerrain } from './terrain.js';
+import { chamberStyle, facadeStyles, paintFacade, prepareFacadeArt } from './facades.js';
 
 // All scene art uses world pixels, including the moving bodies and their fracture pieces.
 const WIDTH = 1200;
@@ -393,12 +395,10 @@ function prepareRooms(sim, bodies) {
         const left = leftStack[0],
           right = rightStack[0];
         if (!left || !right) continue;
-        const royal = section.style === 'keep' && row === section.heights[bay] - 1;
-        const style = royal
-          ? 'royal'
-          : roof.material === 'wood' && (bay + row) % 3 !== 1
-            ? 'timbered'
-            : 'gothic';
+        const occupied = section.orcs.some(([c, r]) => c === bay && r === row) ||
+          section.barrels.some(([c, r]) => c === bay && r === row);
+        const style = roof.stairs ? 'open' : chamberStyle(section, bay, row, occupied);
+        const royal = style === 'royal';
         rooms.push({
           roof,
           left,
@@ -411,7 +411,8 @@ function prepareRooms(sim, bodies) {
           offset: cx - home(roof).x,
           leftOffset: home(left).x - home(roof).x,
           rightOffset: home(right).x - home(roof).x,
-          tapestry: royal || (section.pattern + bay + row) % 4 === 0,
+          arch: royal || style === 'gothic' || style === 'timbered',
+          tapestry: royal || (style === 'gothic' && (section.pattern + bay) % 3 === 0),
           royal,
           grounding: row === 0 ? section.storey * section.heights[bay] : 0,
           broken: false,
@@ -557,6 +558,31 @@ function paintChamber(style, phase) {
   return canvas;
 }
 
+function paintGallery(balcony) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 336;
+  canvas.height = 228;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(3, 3);
+  for (const side of [0, 1]) {
+    ctx.save();
+    if (side) { ctx.translate(112, 0); ctx.scale(-1, 1); }
+    polygon(ctx, '#544333', [3, 1, 35, 1, 30, 5, 10, 23, 5, 23, 5, 16, 22, 3, 3, 4]);
+    line(ctx, '#b39568', 1.2, 6, 19, 26, 2);
+    ellipse(ctx, '#292d2c', 9, 17.5, 1.1, 1.1);
+    ctx.restore();
+  }
+  if (balcony) {
+    for (let x = 10; x < 112; x += 15) {
+      rect(ctx, '#4b4034', x, 59, 3.5, 17);
+      rect(ctx, '#9f8769', x, 59, 0.9, 17);
+    }
+    rect(ctx, '#4b3b32', 0, 57, 112, 4.2);
+    rect(ctx, '#ba9c72', 0, 57, 112, 1.1);
+  }
+  return canvas;
+}
+
 function drawGroundShadows(ctx, sim, bodies, shadows, rooms, view, minGround) {
   const { contact } = shadows;
   // A tall standing bay shades an area of turf that extends past its base.
@@ -658,7 +684,7 @@ function drawRooms(ctx, state, sim, bodies, time, wind) {
       width - 1,
       height - 1,
     );
-    sprite(ctx, room.style, leftEdge - 1, top - 2, width + 2, height + 2);
+    if (room.arch) sprite(ctx, room.style, leftEdge - 1, top - 2, width + 2, height + 2);
     ctx.drawImage(state.shadows.overhang, leftEdge, top, width, Math.min(16, height * 0.42));
     if (room.tapestry) tapestry(ctx, leftEdge + width * 0.23, top, time, room.royal, wind);
     ctx.restore();
@@ -900,6 +926,22 @@ function drawCharcoal(ctx, b, x, y, w, h) {
 function drawBlock(ctx, b, time, wind) {
   const w = b.width,
     h = b.height;
+  if (b.roofType) {
+    drawRoof(ctx, b);
+    if (b.damage > 0.18 || b.burn > 0.01) {
+      ctx.save();
+      ctx.beginPath();
+      for (const [index, point] of b.vertices.entries()) {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      }
+      ctx.closePath(); ctx.clip();
+      if (b.damage > 0.18) scar(ctx, b);
+      drawCharcoal(ctx, b, -w / 2, -2 * h / 3, w, h);
+      ctx.restore();
+    }
+    return;
+  }
   if (b.detail === 'banner') drawPennant(ctx, 0, -h / 2 + 1, time, b.id, wind);
   drawBlockDepth(ctx, b);
   if (!spriteReady()) {
@@ -1243,7 +1285,15 @@ export function createRenderer(canvas) {
       gothic: paintChamber('gothic', phase),
       timbered: paintChamber('timbered', phase),
       royal: paintChamber('royal', phase),
+      open: paintGallery(false),
+      balcony: paintGallery(true),
+      ...Object.fromEntries(facadeStyles.map((style) => [style, paintFacade(style, phase)])),
     };
+  }
+  async function prepareArchitecture() {
+    prepareRoofArt();
+    await prepareFacadeArt();
+    for (const phase of ['day', 'dawn', 'dusk', 'night']) prepareChambers(phase);
   }
   function prepare(sim, scenery, bodies) {
     const phase = sim.level?.phase || 'day';
@@ -1402,5 +1452,5 @@ export function createRenderer(canvas) {
     effects.drawFront(ctx);
     ctx.restore();
   }
-  return { draw, reset, prepare };
+  return { draw, reset, prepare, prepareArchitecture };
 }

@@ -50,6 +50,8 @@ The browser selects a 1600 × 640 WebP or a 3840 × 1536 WebP assembled from tho
 
 ## Moving fortress artwork
 
+`castle-facades.webp` contains four wall panels created for Fortress with the built-in OpenAI image generator. The casement, slate arrow slit, shuttered brickwork and rose window are graded for each time of day during startup. Open galleries leave the landscape visible between the load-bearing piers.
+
 The built-in ImageGen tool produced seven transparent hand-painted sprite sheets with upper-left lighting and front-facing or side-on silhouettes. Their trimmed, alpha-masked cutouts share the optimized `fortress-atlas.webp` texture. The world renderer selects phase lighting and the appropriate pose or material at runtime.
 
 | Sheet | Generation prompt |
@@ -75,3 +77,13 @@ The Magic bomb uses a generated illustration of a faceted amethyst orb in engrav
 ## Soundtrack
 
 The supplied recordings are *Fingers of Grey*, *Blood on the Rampart*, and *Before the Iron Gate*, in playlist order. The game versions in `music/` use 112 kbps stereo MP3 with a constant gain adjustment to approximately −30 LUFS integrated. This preserves their dynamics at a quiet level on mobile devices that lock media-element volume to the system setting. All three compressed tracks are buffered at startup and streamed from memory by the browser's media player.
+
+## Weather recordings
+
+The stereo weather excerpts in `weather/` are edited from CC0 field recordings. The two rain beds use equal-power loop crossfades. Each thunder clip keeps a separate strike and its natural decay so the game can place it at the visible lightning.
+
+| Game audio | Source recording |
+| --- | --- |
+| `rain.mp3` and the close rain in `downpour.mp3` | Ylmir, [Rain (loopable)](https://opengameart.org/content/rain-loopable), tracks 1 and 2 |
+| The rain behind `downpour.mp3`, `thunder-rift.mp3` and `thunder-roll.mp3` | SamuelGremaud, [THUNDERSTORM & RAIN](https://freesound.org/people/SamuelGremaud/sounds/429189/), recorded in Monieux, France |
+| `thunder-peal.mp3` | RyanKingArt, [Rain, Lightning, Thunderstorm](https://freesound.org/people/RyanKingArt/sounds/714582/) |

@@ -1,4 +1,4 @@
-import { stormStrikeTime } from './weather-effects.js';
+import { stormStrikePosition, stormStrikeTime } from './weather-effects.js';
 
 // The simulation supplies contact material, impact strength, and position. The
 // sound bank is generated locally and uses one playback voice per event.
@@ -21,6 +21,7 @@ const cues = {
   'stone-dust': [0.46, 0.14, 0],
   explosion: [1.18, 0.095, 3],
   barrel: [1.1, 0.095, 3],
+  'magic-release': [1.65, 0.095, 3],
   fireburst: [0.95, 0.08, 3],
   implosion: [0.82, 0.12, 3],
   thunder: [2.4, 2, 1],
@@ -34,6 +35,35 @@ const cues = {
 const materials = new Set(['stone', 'wood', 'glass', 'steel']);
 const variation = (amount) => 1 + (Math.random() * 2 - 1) * amount;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const rainLoops = {
+  rain: { seconds: 22, gain: 0.20, fallbackGain: 0.052 },
+  downpour: { seconds: 24, gain: 0.25, fallbackGain: 0.088 },
+};
+const thunderClips = ['thunder-rift', 'thunder-roll', 'thunder-peal'];
+const recordings = new Map();
+let weatherPreparation;
+
+function prepareWeather() {
+  if (!weatherPreparation) weatherPreparation = (async () => {
+    const Decoder = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+    if (!Decoder) return;
+    let decoder;
+    try {
+      decoder = new Decoder(2, 1, 44100);
+    } catch {
+      return;
+    }
+    await Promise.all([...Object.keys(rainLoops), ...thunderClips].map(async (name) => {
+      try {
+        const response = await fetch(new URL('./assets/weather/' + name + '.mp3', import.meta.url));
+        if (response.ok) recordings.set(name, await decoder.decodeAudioData(await response.arrayBuffer()));
+      } catch {
+        // A missing recording falls back to the locally synthesized weather bank.
+      }
+    }));
+  })();
+  return weatherPreparation;
+}
 
 function synthesize(sound) {
   const data = new Float32Array(Math.ceil(cues[sound][0] * RATE));
@@ -223,6 +253,7 @@ function synthesize(sound) {
       break;
     case 'explosion':
     case 'barrel':
+    case 'magic-release':
       ring(0.004, 0.63, 0.91, sound === 'barrel' ? 144 : 122, 34);
       ring(0.039, 0.59, 0.26, 96, 48, 0.013);
       grit(0, 0.105, 1.28, 890, 7800, 0.001, 2200);
@@ -231,6 +262,12 @@ function synthesize(sound) {
       if (sound === 'barrel') {
         cord(0.058, 192, 0.34, 0.21);
         tumble(0.101, 0.155, 5, 0.65, 308, 4200);
+      } else if (sound === 'magic-release') {
+        // A widening, bell-like chord hangs in the air after the pressure front.
+        for (const [at, frequency, gain] of [[0.065, 440, 0.23], [0.115, 660, 0.18], [0.18, 997, 0.11]]) {
+          ring(at, 1.28, gain, frequency * 0.96, frequency, 0.035);
+          ring(at + 0.045, 0.95, gain * 0.31, frequency * 2.01);
+        }
       } else tumble(0.208, 0.2, 5, 0.51, 355, 2900);
       break;
     case 'implosion': {
@@ -298,6 +335,7 @@ function effect({ type, material }) {
     return material === 'earth' ? 'earth-hit' : 'impact';
   }
   if (type === 'explosion' && material === 'barrel') return 'barrel';
+  if (type === 'explosion' && material === 'magic-bomb') return 'magic-release';
   return Object.hasOwn(cues, type) ? type : null;
 }
 
@@ -310,7 +348,7 @@ export function createAudio() {
   const samples = new Map(),
     nextTime = new Map(),
     active = new Map();
-  let ambience = null, nextWeatherCheck = 0, weatherScene = null, lastStrike = -Infinity;
+  let breeze = null, rain = null, nextWeatherCheck = 0, weatherScene = null, lastStrike = -Infinity;
 
   // Standalone AudioBuffers can be filled before the first user gesture.
   // Older browsers retain PCM and copy it into a playback buffer on first use.
@@ -347,6 +385,7 @@ export function createAudio() {
   function prepare() {
     if (!preparation) {
       preparation = (async () => {
+        const weather = prepareWeather();
         let deadline = performance.now() + 6;
         for (const sound of Object.keys(cues)) {
           const variants = materials.has(sound) ? 3 : 1;
@@ -358,6 +397,7 @@ export function createAudio() {
             }
           }
         }
+        await weather;
       })();
     }
     return preparation;
@@ -420,54 +460,101 @@ export function createAudio() {
     }
   }
 
+  function startWeatherLoop(name, now) {
+    const source = context.createBufferSource(), gain = context.createGain();
+    const recording = recordings.get(name);
+    source.buffer = recording || sampleFor('weather-noise', 0);
+    source.loop = true;
+    gain.gain.value = 0;
+    let filter;
+    if (recording) {
+      // Each edited bed has a quarter-second of matching audio on both sides
+      // of its join, including enough margin for MP3 decoder priming differences.
+      source.loopStart = 0.25;
+      source.loopEnd = source.loopStart + rainLoops[name].seconds;
+      source.connect(gain);
+    } else {
+      filter = context.createBiquadFilter();
+      filter.type = name === 'wind' ? 'lowpass' : 'highpass';
+      filter.frequency.value = name === 'wind' ? 260 : 2400;
+      filter.Q.value = 0.707;
+      source.connect(filter).connect(gain);
+    }
+    gain.connect(mix);
+    source.onended = () => {
+      source.disconnect();
+      filter?.disconnect();
+      gain.disconnect();
+    };
+    const length = recording ? rainLoops[name].seconds : source.buffer.duration;
+    source.start(now, source.loopStart + Math.random() * length);
+    return { source, filter, gain, name };
+  }
+
+  function fadeLoop(loop, now, fade) {
+    if (!loop) return;
+    loop.gain.gain.setTargetAtTime(0, now, fade);
+    loop.source.stop(now + 6 * fade);
+  }
+
+  function fadeThunder(now) {
+    for (const [source, voice] of active) {
+      if (voice.sound !== 'thunder') continue;
+      voice.gain.gain.setTargetAtTime(0, now, 0.035);
+      source.stop(now + 0.22);
+    }
+  }
+
   function pauseWeather() {
-    if (!ambience) return;
-    const { source, breeze, drops } = ambience;
+    if (!context) return;
     const now = context.currentTime;
-    breeze.gain.setTargetAtTime(0, now, 0.035);
-    drops.gain.setTargetAtTime(0, now, 0.035);
-    source.stop(now + 0.2);
-    ambience = null;
+    fadeLoop(breeze, now, 0.035);
+    fadeLoop(rain, now, 0.035);
+    fadeThunder(now);
+    rain = breeze = null;
     nextWeatherCheck = 0;
   }
 
   function weatherAudio(sim, clock, now) {
     if (weatherScene !== sim) {
+      if (weatherScene) fadeThunder(now);
       weatherScene = sim;
       lastStrike = -Infinity;
       nextWeatherCheck = 0;
     }
-    if (!sim.level.weather || now < nextWeatherCheck) return;
+    if (now < nextWeatherCheck) return;
     nextWeatherCheck = now + 0.22;
     const weather = sim.level.weather, wind = Math.abs(sim.wind ?? sim.level.wind ?? 0);
     const breezeLevel = Math.min(0.19, 0.0022 * Math.max(0, wind - 11));
-    const rainLevel = weather === 'storm' ? 0.088 : weather === 'rain' ? 0.052 : 0;
-    if (!breezeLevel && !rainLevel && !ambience) return;
-    if (!ambience) {
-      // One precomputed noise loop feeds a low wind band and the finer hiss of rain.
-      const source = context.createBufferSource();
-      source.buffer = sampleFor('weather-noise', 0);
-      source.loop = true;
-      const low = context.createBiquadFilter(), high = context.createBiquadFilter();
-      low.type = 'lowpass';
-      high.type = 'highpass';
-      high.frequency.value = 2400;
-      const breeze = context.createGain(), drops = context.createGain();
-      breeze.gain.value = drops.gain.value = 0;
-      source.connect(low).connect(breeze).connect(mix);
-      source.connect(high).connect(drops).connect(mix);
-      source.onended = () => { for (const node of [source, low, high, breeze, drops]) node.disconnect(); };
-      source.start();
-      ambience = { source, low, breeze, drops };
+    if (breezeLevel) {
+      breeze ??= startWeatherLoop('wind', now);
+      breeze.filter.frequency.setTargetAtTime(160 + 6 * wind, now, 0.38);
+      breeze.gain.gain.setTargetAtTime(breezeLevel, now, 0.44);
+    } else if (breeze) {
+      fadeLoop(breeze, now, 0.15);
+      breeze = null;
     }
-    ambience.low.frequency.setTargetAtTime(160 + 6 * wind, now, 0.38);
-    ambience.breeze.gain.setTargetAtTime(breezeLevel, now, 0.44);
-    ambience.drops.gain.setTargetAtTime(rainLevel, now, 0.34);
+
+    const bed = weather === 'storm' ? 'downpour' : weather === 'rain' ? 'rain' : null;
+    if (rain && rain.name !== bed) {
+      fadeLoop(rain, now, 0.22);
+      rain = null;
+    }
+    if (bed) {
+      rain ??= startWeatherLoop(bed, now);
+      const levels = rainLoops[bed];
+      const level = recordings.has(bed) ? levels.gain : levels.fallbackGain;
+      rain.gain.gain.setTargetAtTime(level * (1 + Math.min(0.16, wind * 0.002)), now, 0.34);
+    }
     if (weather === 'storm') {
       const strike = stormStrikeTime(sim.seed, clock), age = clock - strike;
-      if (age >= 1.1 && age < 1.8 && strike !== lastStrike) {
+      const distance = strike % 1;
+      const delay = 0.85 + distance * 1.7;
+      if (age >= delay && age < delay + 0.7 && strike !== lastStrike) {
         lastStrike = strike;
-        return { type: 'thunder', strength: 0.54 };
+        const index = (Math.floor(clock / 19) + (sim.seed >>> 0)) % thunderClips.length;
+        return { type: 'thunder', recording: thunderClips[index], screenX: stormStrikePosition(sim.seed, clock),
+          strength: 0.83 - 0.44 * distance };
       }
     }
   }
@@ -499,7 +586,8 @@ export function createAudio() {
       if (!sound) return;
       const isContact = event.type === 'impact' || event.type === 'damage' || event.type === 'fracture' ||
         event.type === 'burnout' || event.type === 'stone-dust';
-      const offset = sound === 'clear' ? 0 : (2 * ((event.x ?? left + width / 2) - left)) / width - 1;
+      const screenX = event.screenX ?? ((event.x ?? left + width / 2) - left) / width;
+      const offset = sound === 'clear' ? 0 : 2 * screenX - 1;
       const pan = clamp(offset * 0.94, -0.9, 0.9);
       // Adjacent blocks share their loudest hit. Separate parts of a collapse
       // can still sound simultaneously on opposite sides of the listener.
@@ -540,7 +628,7 @@ export function createAudio() {
       }
       const variant = materials.has(sound) ? Math.floor(Math.random() * 3) : 0;
       const source = context.createBufferSource();
-      source.buffer = sampleFor(sound, variant);
+      source.buffer = recordings.get(event.recording) || sampleFor(sound, variant);
       source.playbackRate.value = sound === 'clear' ? 1 : voice.pitch * variation(0.04);
       const gain = context.createGain();
       gain.gain.value = voice.gain;
@@ -552,7 +640,7 @@ export function createAudio() {
         if (sound === 'launch') pan.pan.linearRampToValueAtTime(Math.min(0.9, start + 0.48), now + 0.38);
         gain.connect(pan).connect(mix);
       } else gain.connect(mix);
-      active.set(source, { priority, gain });
+      active.set(source, { sound, priority, gain });
       source.onended = () => {
         active.delete(source);
         source.disconnect();

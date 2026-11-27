@@ -1,4 +1,4 @@
-import { AMMO, DIFFICULTIES, WORLD, FortressSimulation } from './simulation.js';
+import { AMMO, DIFFICULTIES, LAYOUT_VERSION, WORLD, FortressSimulation } from './simulation.js';
 import { createRenderer } from './renderer.js';
 import { createView } from './view.js';
 import { createAudio } from './audio.js';
@@ -14,7 +14,7 @@ const descriptions = [
   'A wide blast that can excavate the ground beneath a tower.',
   'A magical burst that sets timber and exposed powder stores alight.',
   'A slow, heavy charge. Click the firing crew’s half to detonate it. An orc can set it off in flight.',
-  'Stays armed after landing. Activate it to pull nearby pieces and supports inward.',
+  'Activate to draw pieces inward, then release a magical blast 20% stronger and wider than the Siege bomb’s.',
 ];
 const remoteAmmo = new Set(AMMO.filter((ammo) => ammo.remote).map((ammo) => ammo.id));
 const rollSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
@@ -26,16 +26,19 @@ function readFortress() {
     const n = /^[0-9a-z]{1,7}$/.test(word ?? '') ? parseInt(word, 36) : 0;
     return n > 0 && n <= 0xffffffff ? n : 0;
   };
-  if (size && parts.length === 1 && parseSeed(parts[0])) return { size, seed: parseSeed(parts[0]) };
+  if (size && parseSeed(parts[0])) {
+    if (parts.length === 1) return { size, seed: parseSeed(parts[0]), version: 1 };
+    if (parts.length === 2 && parts[1] === 'v2') return { size, seed: parseSeed(parts[0]), version: 2 };
+  }
   // Earlier prototype links carried five seeds. Use the seed of the selected fort.
   if (/^[1-5]$/.test(id) && parts.length === 5 && parseSeed(parts[+id - 1])) {
-    return { size: ['small', 'medium', 'medium', 'large', 'large'][+id - 1], seed: parseSeed(parts[+id - 1]) };
+    return { size: ['small', 'medium', 'medium', 'large', 'large'][+id - 1], seed: parseSeed(parts[+id - 1]), version: 1 };
   }
   const preferred = stored('size', 'small');
-  return { size: validSize(preferred) ? preferred : 'small', seed: rollSeed() };
+  return { size: validSize(preferred) ? preferred : 'small', seed: rollSeed(), version: LAYOUT_VERSION };
 }
 const initial = readFortress();
-let sim = new FortressSimulation(initial.size, initial.seed);
+let sim = new FortressSimulation(initial.size, initial.seed, initial.version);
 const camera = createView($('battlefield'), $('panorama'), $('scenery'), $('game-dock'));
 const renderer = createRenderer($('battlefield'));
 const audio = createAudio();
@@ -64,14 +67,14 @@ function store(key, value) {
   }
 }
 
-const scoreKey = () => sim.difficulty + '.' + sim.seed.toString(36);
+const scoreKey = () => sim.difficulty + '.' + sim.seed.toString(36) + (sim.level.version === 1 ? '' : '.v' + sim.level.version);
 // A seed from the earlier tower-chain generator represented a different battlefield.
 const scoreTable = 'keep-siege-bests';
 const savedBests = stored(scoreTable, {});
 const bests = Object.fromEntries(
   Object.entries(savedBests && typeof savedBests === 'object' ? savedBests : {})
     .filter(
-      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}$/.test(key) && Number.isInteger(value) && value > 0,
+      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}(\.v2)?$/.test(key) && Number.isInteger(value) && value > 0,
     )
     .slice(-200),
 );
@@ -262,10 +265,10 @@ const idle = window.requestIdleCallback?.bind(window) ||
   ((work) => setTimeout(() => work({ timeRemaining: () => 3, didTimeout: false }), 0));
 const cancelIdle = window.cancelIdleCallback?.bind(window) || clearTimeout;
 
-function reserve(size, seed) {
+function reserve(size, seed, version = LAYOUT_VERSION) {
   if (idleTicket) cancelIdle(idleTicket);
   idleTicket = 0;
-  nextFort = { size, seed, steps: FortressSimulation.prepareLevel(size, seed), world: null, requested: false };
+  nextFort = { size, seed, version, steps: FortressSimulation.prepareLevel(size, seed, version), world: null, requested: false };
 }
 
 function updateWind(wind) {
@@ -289,7 +292,9 @@ function enterFortress(world) {
   const level = sim.level;
   $('fort-size').value = size;
   const sizeName = DIFFICULTIES.find((item) => item.id === size).name;
-  $('size-label').textContent = sizeName + ' fortress';
+  const architecture = level.sections[0].style;
+  const layoutName = architecture === 'keep' ? 'fortress' : architecture.replaceAll('-', ' ');
+  $('size-label').textContent = sizeName + ' ' + layoutName;
   $('level-name').textContent = level.name;
   $('phase-label').textContent = level.phase;
   const weather = level.weather || 'clear';
@@ -301,7 +306,8 @@ function enterFortress(world) {
   document.body.dataset.phase = level.phase;
   camera.frame(level.phase, seed, landscapes[sim.themeIndex], level.sections);
   renderer.prepare(sim, landscapes[sim.themeIndex]);
-  $('announcement').textContent = level.name + ', ' + weather + ' at ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
+  $('announcement').textContent = level.name + ', ' + sizeName.toLowerCase() + ' ' + layoutName +
+    ', ' + weather + ' at ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
   lastAnnouncedOrcs = sim.stats.orcsRemaining;
   lastStats = '';
   clock = 0;
@@ -314,7 +320,7 @@ function enterFortress(world) {
   selectAmmo(0);
   syncHud();
   if (overlay.open) overlay.close();
-  const hash = '#' + size + '/' + seed.toString(36);
+  const hash = '#' + size + '/' + seed.toString(36) + (level.version === 1 ? '' : '/v' + level.version);
   if (hash !== location.hash) history.replaceState(null, '', hash);
   main.removeAttribute('aria-busy');
   reserve(size, rollSeed());
@@ -347,8 +353,8 @@ function battleInProgress() {
   return sim.shots > 0 && !sim.resting && !overlay.open;
 }
 
-function requestFortress(size, seed) {
-  if (!nextFort || nextFort.size !== size || nextFort.seed !== seed) reserve(size, seed);
+function requestFortress(size, seed, version = LAYOUT_VERSION) {
+  if (!nextFort || nextFort.size !== size || nextFort.seed !== seed || nextFort.version !== version) reserve(size, seed, version);
   if (nextFort.world) {
     enterFortress(nextFort.world);
     return;
@@ -364,7 +370,7 @@ function newFortress(size) {
   requestFortress(size, seed);
 }
 $('fort-size').addEventListener('change', (event) => newFortress(event.target.value));
-$('restart-button').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed));
+$('restart-button').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed, sim.level.version));
 $('new-button').addEventListener('click', () => newFortress($('fort-size').value));
 $('fold-controls').addEventListener('click', () => {
   const folded = document.body.classList.toggle('controls-folded');
@@ -395,7 +401,7 @@ function showHelp() {
     '<ol><li><b>Choose a shot.</b> Each crew can fire again after 0.2 seconds with any ammunition. ' +
     'Bombs dig craters. Fireballs ignite timber and powder. Siege and Magic bombs stay armed after landing. ' +
     'With its ammunition selected, click the firing crew’s half or press Space for that crew to activate its charge. ' +
-    'A Siege bomb blasts outward. A Magic bomb pulls nearby pieces inward. ' +
+    'A Siege bomb blasts outward. The 110-gold Magic bomb pulls pieces inward, then erupts with 20% more reach and force than the Siege bomb. ' +
     'Guard countershots can split stones and set off explosive charges early.</li>' +
     '<li><b>Point to aim. Click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
     'Aim up and inward from the sling. Distance sets power. The two crews reload independently. On touchscreens, a tap aims and fires. ' +
@@ -413,7 +419,7 @@ function showHelp() {
 }
 $('help-button').addEventListener('click', showHelp);
 $('victory-new').addEventListener('click', () => newFortress(sim.difficulty));
-$('victory-retry').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed));
+$('victory-retry').addEventListener('click', () => requestFortress(sim.difficulty, sim.seed, sim.level.version));
 function showReport() {
   victoryRecorded = true;
   const cost = sim.winningCost;
@@ -545,7 +551,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('hashchange', () => {
   if (!ready) return;
   const next = readFortress();
-  requestFortress(next.size, next.seed);
+  requestFortress(next.size, next.seed, next.version);
 });
 
 function activateSound(event) {
@@ -569,6 +575,7 @@ async function boot() {
       audio,
       music,
       async () => {
+        await renderer.prepareArchitecture();
         // Pre-bake each lighting grade at the scales available through this camera.
         const longest = Math.max(innerWidth, innerHeight, screen.width, screen.height);
         const maxScale = (Math.min(3840, longest * (devicePixelRatio || 1)) * 2.5) / WORLD.width;
@@ -583,7 +590,7 @@ async function boot() {
     );
     await camera.prepareSkies(landscapes);
     const entry = location.hash && location.hash !== initialHash ? readFortress() : initial;
-    if (entry !== initial) sim.loadLevel(entry.size, entry.seed);
+    if (entry !== initial) sim.loadLevel(entry.size, entry.seed, entry.version);
     enterFortress(sim);
     ready = true;
     document.querySelector('main').inert = false;

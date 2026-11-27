@@ -214,6 +214,11 @@ export function createEffects() {
     ],
     true,
   );
+  const powder = {
+    stone: dust,
+    glass: lightSprite([[0, '#d0e7e19c'], [0.6, '#a9c7c05e'], [1, '#add6cf00']], true),
+    wood: lightSprite([[0, '#b18b64b5'], [0.6, '#97775b66'], [1, '#aa8c6600']], true),
+  };
   const soot = lightSprite(
     [
       [0, '#494040a6'],
@@ -314,13 +319,15 @@ export function createEffects() {
   }
 
   function eruption(e, magical) {
-    const radius = clamp(e.radius ?? 95, 38, 215);
+    const arcane = e.material === 'magic-bomb';
+    const radius = clamp(e.radius ?? 95, 38, 260);
     const flash = flashes[nextFlash];
     nextFlash = (nextFlash + 1) % flashes.length;
     flash.x = e.x;
     flash.y = e.y;
     flash.radius = radius;
     flash.magical = magical;
+    flash.arcane = arcane;
     flash.start = time;
     flash.end = time + (magical ? 0.68 : 0.55);
     kick(magical ? 1.6 : 2.2 + radius / 39, e.x);
@@ -382,7 +389,8 @@ export function createEffects() {
         Math.sin(a) * speed - 16,
         0.9 + random() * 2.2,
         0.33 + random() * 0.72,
-        splinter ? fragmentColors.wood[i % 3] : fragmentColors.steel[i % 3],
+        arcane ? ['#edcaff', '#b0f7fb', '#c7a4ff'][i % 3]
+          : splinter ? fragmentColors.wood[i % 3] : fragmentColors.steel[i % 3],
       );
     }
   }
@@ -411,6 +419,7 @@ export function createEffects() {
 
   let blastChipBudget = 0;
   let blastFractureBudget = 0;
+  let powderBudget = 0;
   function blastBreak(e, material, energy) {
     const fractured = e.type === 'fracture';
     const count = Math.min(fractured ? blastFractureBudget : blastChipBudget,
@@ -473,6 +482,17 @@ export function createEffects() {
       return;
     }
     if (e.type === 'stone-dust') {
+      if (e.blast) {
+        const count = Math.min(powderBudget, reduced ? 1 : 3);
+        powderBudget -= count;
+        for (let i = 0; i < count; i++) {
+          const speed = 22 + random() * 42, spread = (random() - 0.5) * 42;
+          const vx = e.outX * speed - e.outY * spread, vy = e.outY * speed + e.outX * spread;
+          particle('powder', e.x, e.y, vx, Math.min(vy, 8) - 11,
+            clamp(e.size * (0.65 + random() * 0.45), 6, 24), 0.48 + random() * 0.46, material);
+        }
+        return;
+      }
       // The smallest chips leave a short pale wisp as the last grit disperses.
       particle('dust', e.x, e.y, wind * 0.3, -3, clamp(e.width * 0.55, 3, 8), 0.85);
       return;
@@ -645,6 +665,7 @@ export function createEffects() {
     // Keep the explosion plume visible even when an entire wall breaks in one frame.
     blastChipBudget = reduced ? 4 : 14;
     blastFractureBudget = reduced ? 12 : 64;
+    powderBudget = reduced ? 10 : 42;
     for (const event of events) burst(event);
     if (!newFrame) return;
     const airDrag = Math.exp(-dt * 1.4);
@@ -670,7 +691,7 @@ export function createEffects() {
           p.vx *= 0.7;
         }
       }
-      if (p.kind === 'dust' || p.kind === 'smoke' || p.kind === 'soot') {
+      if (p.kind === 'dust' || p.kind === 'powder' || p.kind === 'smoke' || p.kind === 'soot') {
         p.vx = p.vx * airDrag + wind * 1.8 * (1 - airDrag);
         p.vy -= dt * (p.kind === 'soot' ? 12 : 4);
       } else if (p.kind === 'ash') {
@@ -782,13 +803,13 @@ export function createEffects() {
       const flashOpacity = fade(age / 0.055) * (1 - age) ** (light.magical ? 1.5 : 2.8);
       const reach = light.radius * (0.94 + Math.sqrt(age) * 0.58);
       ctx.globalAlpha = flashOpacity * (0.48 + exposure * 0.35) * (front ? 0.77 : 1) * (reduced ? 0.44 : 1);
-      glow(ctx, firelight, light.x, light.y - age * 7, reach);
+      glow(ctx, light.arcane ? violet : firelight, light.x, light.y - age * 7, reach);
       if (!front) {
         const ground = surfaceY(light.x);
         const land = clamp(1 - Math.abs(ground - light.y) / reach, 0, 1);
         if (land > 0.12) {
           ctx.globalAlpha *= land;
-          glow(ctx, hot, light.x, ground + 1, reach * 0.78, reach * 0.095);
+          glow(ctx, light.arcane ? violet : hot, light.x, ground + 1, reach * 0.78, reach * 0.095);
         }
       }
     }
@@ -802,7 +823,7 @@ export function createEffects() {
       if (!light.magical && !reduced) {
         const r = Math.max(0.1, light.radius * (0.07 + (1 - (1 - age) ** 3) * 0.92));
         ctx.globalAlpha = (1 - age) ** 2.4 * 0.7;
-        ctx.strokeStyle = '#ffedae';
+        ctx.strokeStyle = light.arcane ? '#ddbcff' : '#ffedae';
         ctx.lineWidth = 0.6 + (1 - age) * 1.75;
         ctx.beginPath();
         ctx.arc(light.x, light.y, r, 0, TAU);
@@ -817,7 +838,7 @@ export function createEffects() {
       }
       if (age < 0.4) {
         ctx.globalAlpha = fade(age / 0.05) * (1 - age / 0.4) * (reduced ? 0.38 : 0.92);
-        glow(ctx, hot, light.x, light.y, light.radius * (light.magical ? 0.31 : 0.38));
+        glow(ctx, light.arcane ? violet : hot, light.x, light.y, light.radius * (light.magical ? 0.31 : 0.38));
       }
     }
   }
@@ -1048,8 +1069,8 @@ export function createEffects() {
         const size = p.size * (0.5 + Math.sqrt(age) * 1.15);
         ctx.globalAlpha = Math.min(age * 4, 1) * (1 - age) * 0.81;
         glow(ctx, soot, p.x, p.y, size, size * 1.05);
-      } else if (p.kind === 'dust' || p.kind === 'smoke' || p.kind === 'poof') {
-        const sprite = p.kind === 'dust' ? dust : p.kind === 'smoke' ? smoke : magic;
+      } else if (p.kind === 'dust' || p.kind === 'powder' || p.kind === 'smoke' || p.kind === 'poof') {
+        const sprite = p.kind === 'powder' ? powder[p.color] : p.kind === 'dust' ? dust : p.kind === 'smoke' ? smoke : magic;
         ctx.globalAlpha = fade(age / 0.16) * (1 - age) * (p.kind === 'poof' ? 1 : 0.64);
         const size = p.size * (0.48 + Math.sqrt(age) * 1.05);
         glow(ctx, sprite, p.x, p.y, size, size * (p.kind === 'poof' ? 1 : 0.86));

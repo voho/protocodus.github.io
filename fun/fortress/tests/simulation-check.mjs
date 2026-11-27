@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { AMMO, DIFFICULTIES, FortressSimulation, generateLevel, THEMES, WORLD } from '../simulation.js';
 import Matter from '../vendor/matter.min.js';
 import './guard-check.mjs';
+import './roof-check.mjs';
 
 function advance(sim, frames) {
   for (let i = 0; i < frames; i++) sim.update(1 / 60);
@@ -21,6 +22,7 @@ const replays = {
   small: [
     { seed: 1, shots: [['big-bomb', 30, 94]] },
     { seed: 12345, shots: [['small-bomb', 65, 100]] },
+    { version: 2, seed: 2, shots: [['big-bomb', 30, 94]] },
   ],
   medium: [
     { seed: 1, shots: [
@@ -31,6 +33,7 @@ const replays = {
       ['small-bomb', 50, 100],
     ] },
     { seed: 12345, shots: [['small-stone', 45, 88], ['small-bomb', 25, 80]] },
+    { version: 2, seed: 35, shots: [['small-bomb', 50, 94], ['small-bomb', 52, 95, 'right']] },
   ],
   large: [
     { seed: 52, shots: flankBombardment },
@@ -46,6 +49,7 @@ const phases = new Set();
 for (const [index, size] of DIFFICULTIES.entries()) {
   const themes = new Set();
   const profiles = new Set();
+  const styleSeeds = new Map();
   for (let seed = 1; seed <= 400; seed++) {
     const level = generateLevel(size.id, seed);
     phases.add(level.phase);
@@ -68,6 +72,14 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     assert.equal(level.sections.length, 1, 'The fortress occupies one connected keep');
     assert.equal(level.walls.length, 0);
     const [keep] = level.sections;
+    assert.equal(keep.zones.length, keep.spans.length);
+    assert.equal(keep.heights[keep.stairBay], Math.max(...keep.heights));
+    if (keep.style === 'linked-towers') {
+      const link = keep.gate;
+      assert.equal(keep.zones[link], 'gallery');
+      assert.ok(keep.openFloors[link] > 0 && keep.heights[link] <= Math.min(keep.heights[link - 1], keep.heights[link + 1]));
+    }
+    if (!styleSeeds.has(keep.style)) styleSeeds.set(keep.style, seed);
     assert.ok(keep.spans.length >= [3, 5, 9][index] && keep.heights.length === keep.spans.length);
     assert.ok(keep.spans.every((width) => width > 0) && keep.heights.every((floors) => floors >= 1));
     assert.ok(Math.max(...keep.heights) >= [2, 4, 9][index], 'The keep has upper chambers');
@@ -75,6 +87,7 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     const cells = [...keep.orcs, ...keep.barrels];
     assert.ok(cells.every(([bay, floor]) => floor >= 0 && floor <= keep.heights[bay]),
       'Every guard and powder store has a floor to stand on');
+    assert.ok(cells.every(([bay, floor]) => floor === 0 || floor > keep.openFloors[bay]));
     assert.equal(new Set(cells.map((cell) => cell.join('/'))).size, cells.length,
       'Guards and powder stores occupy separate rooms');
     assert.ok(keep.orcs.some(([bay, row]) => row === 0 && bay > 0 && bay < keep.spans.length - 1),
@@ -83,9 +96,43 @@ for (const [index, size] of DIFFICULTIES.entries()) {
       'A guard also occupies an upper gallery');
   }
   assert.equal(profiles.size, 400, 'All sampled seeds have distinct castles');
+  assert.equal(styleSeeds.size, 7, 'Every difficulty builds all seven architectural plans');
   assert.equal(themes.size, THEMES.length);
-  for (const { seed, shots, endings } of replays[size.id]) {
-    const sim = new FortressSimulation(size.id, seed);
+  for (const [style, seed] of styleSeeds) {
+    const castle = new FortressSimulation(size.id, seed);
+    const [ward] = castle.level.sections;
+    const label = size.name + ' ' + style + ' seed ' + seed;
+    const blocks = castle.bodies.filter((e) => e.kind === 'block').map((e) => e.body);
+    let edge = ward.left;
+    for (const [bay, span] of ward.spans.entries()) {
+      const x = edge + span / 2;
+      const roof = ward.base - ward.heights[bay] * ward.storey;
+      assert.ok(Matter.Query.ray(blocks, { x, y: roof - 3 }, { x, y: roof + 8 }).length,
+        label + ' retains the roof of bay ' + bay + ' after settling');
+      if (ward.openFloors[bay]) {
+        assert.equal(Matter.Query.ray(blocks, { x, y: ward.base - 2 },
+          { x, y: ward.base - ward.storey * ward.openFloors[bay] }).length, 0,
+          label + ' leaves a real passage below its raised gallery');
+      }
+      edge += span;
+    }
+    if (style === 'pillar-hall') {
+      assert.ok(castle.bodies.filter((e) => e.detail === 'column' && e.material === 'stone' && e.height > ward.storey / 2).length >= 2,
+        label + ' uses full-height breakable stone piers in the hall');
+    }
+    const start = castle.bodies.map((e) => [e, e.x, e.y]);
+    assert.ok(castle.fire('small-stone', 75, 25));
+    castle.remove([...castle.projectiles][0]);
+    advance(castle, 720);
+    assert.equal(castle.orcsRemaining, castle.orcsTotal, label + ' safely supports its guards');
+    assert.equal(castle.stats.destruction, 0, label + ' stands without bombardment');
+    for (const [e, x, y] of start) {
+      assert.ok(castle.entities.has(e.id) && Math.hypot(e.x - x, e.y - y) < 2,
+        label + ' keeps ' + e.detail + ' on its original support');
+    }
+  }
+  for (const { seed, shots, endings, version = 1 } of replays[size.id]) {
+    const sim = new FortressSimulation(size.id, seed, version);
     const generated = sim.level;
     const initial = sim.bodies.map((b) => [b, b.x, b.y]);
     const lit = sim.torches.length;
@@ -96,7 +143,7 @@ for (const [index, size] of DIFFICULTIES.entries()) {
         generated.sections[0].spans.reduce((sum, width) => sum + width, 0) / 2,
         'The garrison has light at both ends of the keep');
     }
-    assert.deepEqual(generateLevel(size.id, seed), generated);
+    assert.deepEqual(generateLevel(size.id, seed, version), generated);
 
     // Check both sides of each terrain segment against the actual collision mesh.
     for (let x = WORLD.minX + 8; x < WORLD.maxX; x += 9) {
@@ -491,8 +538,8 @@ assert.equal(moved.torch.lit, false);
 assert.equal(moved.torch.body.isStatic, false);
 assert.equal(moved.sim.events.filter((e) => e.type === 'extinguish').length, 1);
 
-// A real shot sends wood against a sconce inside a generated fortress.
-const liveFire = new FortressSimulation('small', 2);
+// This recorded shot sends timber against a sconce in the original small/2 keep.
+const liveFire = new FortressSimulation('small', 2, 1);
 liveFire.fire('small-stone', 38, 92);
 let ember;
 for (let frame = 0; frame < 240 && !ember; frame++) {
@@ -580,6 +627,13 @@ assert.ok(!impactImplosion.detonateRemote('magic-bomb'));
 assert.equal(impactImplosion.events.filter((e) => e.type === 'implosion').length, 1);
 assert.equal(impactImplosion.terrainVersion, 0);
 assert.ok(!impactImplosion.events.some((e) => e.type === 'fireburst' || e.type === 'explosion'));
+advance(impactImplosion, 21);
+assert.equal(impactImplosion.events.filter((e) => e.type === 'explosion').length, 0);
+advance(impactImplosion, 1);
+const arcaneBursts = impactImplosion.events.filter((e) => e.type === 'explosion' && e.material === 'magic-bomb');
+assert.equal(arcaneBursts.length, 1);
+assert.equal(arcaneBursts[0].radius, AMMO.find((a) => a.id === 'siege-bomb').blast * 1.2);
+assert.equal(impactImplosion.terrainVersion, 1, 'The release excavates the ground beneath the resting orb');
 
 const well = lab();
 advance(well, 12);
@@ -595,7 +649,8 @@ assert.ok(pullLeft.x > 225 && pullRight.x < 375, 'The implosion draws pieces in 
 assert.equal(outside.x, 480, 'Distant rubble is outside the pull');
 advance(well, 35);
 assert.equal(well.implosions.length, 0, 'The pull expires after its core collapses');
-assert.ok(!pullLeft.burning && !pullRight.burning);
+assert.ok(outside.x > 480, 'The outward release reaches beyond the original pull');
+assert.equal(well.events.filter((e) => e.material === 'magic-bomb' && e.type === 'explosion').length, 1);
 const cleanFire = openGroundShot('fireball');
 assert.equal(cleanFire.events.filter((e) => e.type === 'fireburst').length, 1);
 assert.equal(cleanFire.terrainVersion, 0, 'The fireball trades excavation for sustained heat');
@@ -716,9 +771,9 @@ advance(charges, 25);
 assert.equal(charges.armedBomb(), charge, 'The other charge survives a nearby explosion');
 assert.ok(!charges.events.some((e) => e.type === 'implosion'));
 assert.ok(charges.detonateRemote('magic-bomb'));
-assert.equal(charges.stats.spent, 165, 'Activation costs no gold');
+assert.equal(charges.stats.spent, 200, 'The two charges cost 110 and 90 gold, including both stages');
 
-const magic = new FortressSimulation('small', 1);
+const magic = new FortressSimulation('small', 4);
 magic.fire('fireball', 38, 85);
 advance(magic, 500);
 assert.ok(magic.events.some((e) => e.type === 'ignite' && e.material === 'wood'));
@@ -743,5 +798,5 @@ powder.sim.add('barrel', 'barrel', 357, 374, 22, 30, 'powder');
 advance(powder.sim, 110);
 assert.ok(powder.sim.events.some((e) => e.type === 'explosion' && e.material === 'barrel'));
 console.log(
-  'Fortress passed seeded generation, six par replays, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure, falling rubble, fireball chains and post-victory destruction.',
+  'Fortress passed seeded generation, under-par replays on both layout versions, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure, falling rubble, fireball chains and post-victory destruction.',
 );
