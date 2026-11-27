@@ -13,7 +13,7 @@ const descriptions = [
   'A compact blast for breaking clustered supports.',
   'A wide blast that can excavate the ground beneath a tower.',
   'A magical burst that sets timber and exposed powder stores alight.',
-  'A slow, heavy charge. Click the field to detonate it. An orc can set it off in flight.',
+  'A slow, heavy charge. Click the firing crew’s half to detonate it. An orc can set it off in flight.',
   'Stays armed after landing. Activate it to pull nearby pieces and supports inward.',
 ];
 const remoteAmmo = new Set(AMMO.filter((ammo) => ammo.remote).map((ammo) => ammo.id));
@@ -160,10 +160,8 @@ function track(event, extra) {
 }
 function syncHud() {
   const s = sim.stats;
-  const selectedRemote = remoteAmmo.has(settings.ammo);
-  const remote = sim.armedBomb(selectedRemote ? settings.ammo : undefined);
-  const trigger = remote && selectedRemote;
-  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote?.material, !!trigger, sim.side, inputMode].join('/');
+  const remote = remoteAmmo.has(settings.ammo) && sim.armedBomb(settings.ammo, sim.side);
+  const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote?.material, sim.side, inputMode].join('/');
   if (key === lastStats) return;
   lastStats = key;
   $('orcs').textContent = s.orcsRemaining + ' / ' + s.orcsTotal;
@@ -172,20 +170,20 @@ function syncHud() {
   const state = $('state');
   const touch = inputMode === 'touch', keyboard = inputMode === 'keyboard';
   $('aim-hint').dataset.mode = inputMode;
-  const action = !s.ready ? 'Reloading' : keyboard ? 'Space to fire' : touch ? 'Double-tap to fire' : 'Double-click to fire';
+  const action = !s.ready ? 'Reloading' : keyboard ? 'Space to fire' : touch ? 'Tap to fire' : 'Click to fire';
   const verb = remote?.implosionRadius ? 'implode' : 'detonate';
   const detonate = (touch ? 'Tap to ' : 'Click to ') + verb;
   $('aim-hint').textContent = keyboard
-    ? (sim.side === 'left' ? 'Left crew' : 'Right crew') + ' · ← → Power · ↑ ↓ Angle · ' + (trigger ? 'Space to ' + verb : action)
+    ? (sim.side === 'left' ? 'Left crew' : 'Right crew') + ' · ← → Power · ↑ ↓ Angle · ' + (remote ? 'Space to ' + verb : action)
     : remote ? detonate : action;
   state.toggleAttribute('data-busy', !s.ready);
   state.toggleAttribute('data-won', s.orcsRemaining === 0);
   state.querySelector('span').textContent =
-    remote ? (keyboard && trigger ? 'Space to ' : touch ? 'Tap field to ' : 'Click field to ') + verb
+    remote ? (keyboard ? 'Space to ' : touch ? 'Tap field to ' : 'Click field to ') + verb
       : s.ready ? 'Ready to fire' : 'Reloading';
   const fireButton = $('fire-button');
-  fireButton.disabled = !s.ready && !trigger;
-  fireButton.querySelector('span').textContent = trigger ? (remote.implosionRadius ? 'Activate implosion' : 'Detonate bomb')
+  fireButton.disabled = !s.ready && !remote;
+  fireButton.querySelector('span').textContent = remote ? (remote.implosionRadius ? 'Activate implosion' : 'Detonate bomb')
     : s.ready ? 'Fire catapult' : 'Reloading';
   if (s.orcsRemaining !== lastAnnouncedOrcs) {
     $('announcement').textContent = s.orcsRemaining + ' orcs left. ' + s.destruction + '% of the fort destroyed.';
@@ -193,22 +191,17 @@ function syncHud() {
   }
 }
 
-function fire() {
+function primaryFire() {
   if (!ready || overlay.open) return;
+  if (remoteAmmo.has(settings.ammo) && sim.detonateRemote(settings.ammo, sim.side)) {
+    syncHud();
+    return;
+  }
   if (!sim.fire(settings.ammo, settings.angle, settings.power)) return;
   audio.unlock();
   if (soundOn) music.activate();
   if (sim.shots === 1) track('game_start', { action: 'fire' });
   syncHud();
-}
-function triggerBomb() {
-  if (!ready || overlay.open || !sim.detonateRemote(remoteAmmo.has(settings.ammo) ? settings.ammo : undefined)) return false;
-  syncHud();
-  return true;
-}
-function primaryFire() {
-  if (remoteAmmo.has(settings.ammo) && triggerBomb()) return;
-  fire();
 }
 $('fire-button').addEventListener('click', primaryFire);
 
@@ -242,9 +235,6 @@ function aimAt(event) {
   return true;
 }
 const field = $('battlefield');
-let previousTap = null;
-let lastTouch = -Infinity;
-let consumedClick = false;
 let mouseX, mouseY;
 function useInput(mode) {
   if (inputMode === mode) return;
@@ -261,27 +251,8 @@ document.addEventListener('pointermove', (event) => {
   if (event.target === field && !event.buttons) aimAt(event);
 });
 field.addEventListener('click', (event) => {
-  if (event.button !== 0 || camera.dragged() || event.timeStamp - lastTouch < 500) return;
-  if (event.detail <= 1) consumedClick = triggerBomb();
-  if (!consumedClick) aimAt(event);
-});
-field.addEventListener('dblclick', (event) => {
-  if (event.button !== 0 || camera.dragged() || consumedClick || event.timeStamp - lastTouch < 500) return;
-  event.preventDefault();
-  if (aimAt(event)) fire();
-});
-field.addEventListener('pointerup', (event) => {
-  if (event.pointerType !== 'touch') return;
-  lastTouch = event.timeStamp;
-  if (camera.dragged() || triggerBomb() || !aimAt(event)) {
-    previousTap = null;
-    return;
-  }
-  const point = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-  if (previousTap && point.t - previousTap.t < 340 && Math.hypot(point.x - previousTap.x, point.y - previousTap.y) < 24) {
-    fire();
-    previousTap = null;
-  } else previousTap = point;
+  if (event.button !== 0 || camera.dragged() || !aimAt(event)) return;
+  primaryFire();
 });
 
 let nextFort = null;
@@ -337,9 +308,6 @@ function enterFortress(world) {
   victoryRecorded = false;
   $('victory-report').hidden = true;
   $('mission').hidden = false;
-  previousTap = null;
-  consumedClick = false;
-  lastTouch = -Infinity;
   angles.value = level.aim?.angle ?? 38;
   powers.value = level.aim?.power ?? 75;
   updateSliders();
@@ -424,16 +392,18 @@ function showHelp() {
   $('dialog-body').innerHTML =
     '<div class="modal-kicker">' + icon('help') + 'Field guide</div><h2 id="dialog-title">How to play</h2>' +
     '<p>Defeat every orc for the least gold. Your score locks when the last orc falls. Keep firing, restart to beat your score, or generate another fortress.</p>' +
-    '<ol><li><b>Choose a shot.</b> Small stones reload quickly enough for a volley. Heavy stones and bombs take longer. ' +
+    '<ol><li><b>Choose a shot.</b> Each crew can fire again after 0.2 seconds with any ammunition. ' +
     'Bombs dig craters. Fireballs ignite timber and powder. Siege and Magic bombs stay armed after landing. ' +
-    'Click the field or press Space with the charge selected. A Siege bomb blasts outward. A Magic bomb pulls nearby pieces inward. ' +
+    'With its ammunition selected, click the firing crew’s half or press Space for that crew to activate its charge. ' +
+    'A Siege bomb blasts outward. A Magic bomb pulls nearby pieces inward. ' +
     'Guard countershots can split stones and set off explosive charges early.</li>' +
-    '<li><b>Point to aim. Double-click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
-    'Aim up and inward from the sling. Distance sets power. The two crews reload independently. On touchscreens, tap to aim and double-tap to fire. ' +
+    '<li><b>Point to aim. Click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
+    'Aim up and inward from the sling. Distance sets power. The two crews reload independently. On touchscreens, a tap aims and fires. ' +
     'Use A or D to choose a crew, ← and → for power, ↑ and ↓ for angle, and Space to fire. ' +
     'The first seven number-row keys select ammunition (1–7 or +ěščřžý on a Czech keyboard). Zoom and drag to inspect the keep.</li>' +
-    '<li><b>Use the terrain and weather.</b> Lob a shot over the hill or break a support. Glass shatters, fallen stone can break again, ' +
-    'and steel bends under load. Burning timber weakens and can ignite powder barrels. A fallen torch goes out. ' +
+    '<li><b>Use the terrain and weather.</b> A grazing stone skips off steel and loses speed against timber. ' +
+    'Glass shatters around the strike, fallen stone can break again, and overloaded steel bends. ' +
+    'Burning timber weakens and can ignite powder barrels. A fallen torch goes out. ' +
     'Rain puts out exposed fires. A roof can shelter burning timber. Check the wind before a high shot. ' +
     'Strong gusts can push a cracked support over.</li></ol>' +
     '<button class="primary-button" data-dismiss>Back to the siege</button>';
@@ -555,6 +525,7 @@ function tick(now) {
     audio.play(events, sim, view, clock);
     renderer.draw(sim, {
       ...settings,
+      aiming: !sim.armedBomb(settings.ammo, sim.side),
       time: clock,
       events,
       reducedMotion: reduced.matches,

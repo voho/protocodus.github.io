@@ -16,6 +16,7 @@ export function splitShot(sim, shot) {
     const piece = Bodies.fromVertices(x, y, [vertices], { frictionAir: 0, restitution: 0.12 });
     Body.setMass(piece, body.mass / 2);
     const chip = sim.add('projectile', 'stone', x, y, r * 1.72, r, 'split-shot', { radius: r * 0.85 }, piece);
+    chip.side = shot.side;
     chip.vertices = vertices;
     chip.contacts = new Set();
     chip.countered = true;

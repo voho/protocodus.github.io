@@ -11,12 +11,14 @@ export const WORLD = {
 const terrainStart = { x: -1000, y: WORLD.ground };
 const terrainEnd = { x: 2200, y: WORLD.ground };
 
+const RELOAD_SECONDS = 0.2;
+
 export const AMMO = [
-  { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012, reload: 0.15 },
-  { id: 'big-stone', name: 'Big stone', cost: 22, radius: 15, density: 0.013, reload: 0.375 },
-  { id: 'small-bomb', name: 'Small bomb', cost: 35, radius: 10, density: 0.009, blast: 103, reload: 0.6 },
-  { id: 'big-bomb', name: 'Big bomb', cost: 60, radius: 15, density: 0.012, blast: 158, reload: 0.925 },
-  { id: 'fireball', name: 'Fireball', cost: 45, radius: 11, density: 0.0027, flameRadius: 112, reload: 0.7 },
+  { id: 'small-stone', name: 'Small stone', cost: 10, radius: 9, density: 0.012 },
+  { id: 'big-stone', name: 'Big stone', cost: 22, radius: 15, density: 0.013 },
+  { id: 'small-bomb', name: 'Small bomb', cost: 35, radius: 10, density: 0.009, blast: 103 },
+  { id: 'big-bomb', name: 'Big bomb', cost: 60, radius: 15, density: 0.012, blast: 158 },
+  { id: 'fireball', name: 'Fireball', cost: 45, radius: 11, density: 0.0027, flameRadius: 112 },
   {
     id: 'siege-bomb',
     name: 'Siege bomb',
@@ -25,11 +27,10 @@ export const AMMO = [
     density: 0.012,
     launchScale: 0.74,
     blast: 205,
-    reload: 1.3,
     remote: true,
   },
-  { id: 'magic-bomb', name: 'Magic bomb', cost: 75, radius: 13, density: 0.006, implosionRadius: 168, reload: 1.05, remote: true },
-];
+  { id: 'magic-bomb', name: 'Magic bomb', cost: 75, radius: 13, density: 0.006, implosionRadius: 168, remote: true },
+].map((ammo) => ({ ...ammo, reload: RELOAD_SECONDS }));
 
 export const DIFFICULTIES = [
   { id: 'small', name: 'Small' },
@@ -181,6 +182,9 @@ export function generateLevel(difficulty, seed) {
 }
 
 const STEP = 1 / 120;
+const RELOAD_TICKS = Math.round(RELOAD_SECONDS / STEP);
+const FLIGHT_SAMPLE_TICKS = 6;
+export const FLIGHT_SAMPLE_SECONDS = STEP * FLIGHT_SAMPLE_TICKS;
 const FORECAST_STEPS = 600;
 const TURF_ROLL = Math.exp(-2.4 * STEP);
 const GRAVITY = 680;
@@ -188,10 +192,10 @@ const ROOF = 13;
 const MIN_BREAKABLE_RUBBLE_AREA = 65;
 const MAX_RUBBLE_GENERATION = 2;
 const MATERIALS = {
-  stone: { density: 0.0028, toughness: 10, bluntDamage: 0.7, friction: 0.76 },
-  wood: { density: 0.0011, toughness: 6.2, bluntDamage: 0.86, friction: 0.83 },
-  glass: { density: 0.0016, toughness: 2.8, bluntDamage: 1.22, friction: 0.66 },
-  steel: { density: 0.0038, toughness: 15, bluntDamage: 0.58, friction: 0.7 },
+  stone: { density: 0.0028, toughness: 10, bluntDamage: 0.7, friction: 0.76, skidFriction: 0.68, rebound: 0.27 },
+  wood: { density: 0.0011, toughness: 6.2, bluntDamage: 0.86, friction: 0.83, skidFriction: 0.78, rebound: 0.06 },
+  glass: { density: 0.0016, toughness: 2.8, bluntDamage: 1.22, friction: 0.66, skidFriction: 0.20, rebound: 0.12 },
+  steel: { density: 0.0038, toughness: 15, bluntDamage: 0.58, friction: 0.7, skidFriction: 0.24, rebound: 0.48 },
 };
 const clamp = (v, min, max) => Math.max(min, Math.min(v, max));
 const ammoById = new Map(AMMO.map((ammo) => [ammo.id, ammo]));
@@ -257,6 +261,12 @@ function pointOnBody(body, x, y) {
   const c = Math.cos(body.angle),
     s = Math.sin(body.angle);
   return { x: body.position.x + c * x - s * y, y: body.position.y + s * x + c * y };
+}
+
+function localPoint(body, point) {
+  const x = point.x - body.position.x, y = point.y - body.position.y;
+  const c = Math.cos(body.angle), s = Math.sin(body.angle);
+  return { x: x * c + y * s, y: y * c - x * s };
 }
 
 function pointVelocity(body, point) {
@@ -442,7 +452,7 @@ export class FortressSimulation {
     this.spent = 0;
     this.winningCost = null;
     this.side = 'left';
-    this.reloads = { left: { end: 0, duration: 1 }, right: { end: 0, duration: 1 } };
+    this.reloadEnd = { left: 0, right: 0 };
     this.clearAt = Infinity;
     this.cleared = false;
     this.buildTerrain();
@@ -1014,12 +1024,11 @@ export class FortressSimulation {
   }
 
   recovery(side) {
-    const reload = this.reloads[side];
-    return clamp(1 - (reload.end - this.ticks) / reload.duration, 0, 1);
+    return clamp(1 - (this.reloadEnd[side] - this.ticks) / RELOAD_TICKS, 0, 1);
   }
 
   get stats() {
-    const reloadRemaining = Math.max(0, this.reloads[this.side].end - this.ticks) * STEP;
+    const reloadRemaining = Math.max(0, this.reloadEnd[this.side] - this.ticks) * STEP;
     return {
       difficulty: this.difficulty,
       themeIndex: this.themeIndex,
@@ -1103,7 +1112,7 @@ export class FortressSimulation {
     const drift = this.forecastDrift();
     // Semi-implicit integration adds half a step of acceleration to the
     // continuous parabola. This matches the trajectory used by the solver.
-    for (let i = 0; i <= FORECAST_STEPS; i += 6) {
+    for (let i = 0; i <= FORECAST_STEPS; i += FLIGHT_SAMPLE_TICKS) {
       const t = i * STEP;
       const x = origin.x + direction * v.x * t + (drift ? drift[i] : 0.5 * this.level.wind * t * (t + STEP));
       const y = origin.y + v.y * t + 0.5 * GRAVITY * t * (t + STEP);
@@ -1127,6 +1136,7 @@ export class FortressSimulation {
       restitution: 0.19,
     });
     const e = this.add('projectile', ammo.id, x, y, r * 2, r * 2, 'shot', { radius: r }, body);
+    e.side = this.side;
     e.blast = ammo.blast;
     if (ammo.remote) this.remoteBombs.add(e);
     e.flameRadius = ammo.flameRadius;
@@ -1138,19 +1148,19 @@ export class FortressSimulation {
     Body.setAngularVelocity(body, direction * 0.075);
     this.shots++;
     this.spent += ammo.cost;
-    const reload = this.reloads[this.side];
-    reload.duration = Math.round(ammo.reload / STEP);
-    reload.end = this.ticks + reload.duration;
+    this.reloadEnd[this.side] = this.ticks + RELOAD_TICKS;
     this.emit('launch', e, 0.6).side = this.side;
     return true;
   }
 
-  armedBomb(ammoId) {
-    for (const bomb of this.remoteBombs) if (!ammoId || bomb.material === ammoId) return bomb;
+  armedBomb(ammoId, side) {
+    for (const bomb of this.remoteBombs) {
+      if ((!side || bomb.side === side) && (!ammoId || bomb.material === ammoId)) return bomb;
+    }
   }
 
-  detonateRemote(ammoId) {
-    const oldest = this.armedBomb(ammoId);
+  detonateRemote(ammoId, side) {
+    const oldest = this.armedBomb(ammoId, side);
     if (!oldest) return false;
     this.explode(oldest);
     return true;
@@ -1340,6 +1350,8 @@ export class FortressSimulation {
           // pushes a whole support more readily than it cuts through the stone.
           const bluntShot = other?.kind === 'projectile' && (!other.blast || this.remoteBombs.has(other));
           this.hit(e, energy * (bluntShot ? MATERIALS[e.material].bluntDamage : 1), contact);
+          if (e.material === 'glass' && e.damage >= 1 && other?.kind === 'projectile' && !e.glassHit)
+            e.glassHit = localPoint(e.body, contact);
         } else if (e.kind === 'fragment' && e.material === 'stone') {
           this.hitStoneFragment(e, other, otherBody, speed, contact);
         } else if (
@@ -1352,6 +1364,15 @@ export class FortressSimulation {
           (e.blast && !this.remoteBombs.has(e))
         ) {
           e.fuse = Math.min(e.fuse, this.time + (e.blast ? 0.025 : 0.13));
+        }
+        if (e.kind === 'projectile' && (e.material === 'small-stone' || e.material === 'big-stone' || e.detail === 'split-shot') &&
+            (other?.kind === 'block' || other?.kind === 'fragment')) {
+          // At shallow incidence the surface governs the skip. Give Matter
+          // the contact coefficients before it resolves linear and angular momentum.
+          const tangent = Math.abs((va.x - vb.x) * n.y - (va.y - vb.y) * n.x);
+          const graze = clamp(tangent / speed - 0.5, 0, 1), surface = MATERIALS[other.material];
+          pair.friction += (surface.skidFriction - pair.friction) * graze;
+          pair.restitution += (surface.rebound - pair.restitution) * graze;
         }
         if (speed > 2.5 && e.kind === 'projectile' && this.time - e.lastImpact > 0.18) {
           const impact = this.emit('impact', other || e, speed / 10, contact);
@@ -1376,9 +1397,7 @@ export class FortressSimulation {
   crackStone(e, shock, point) {
     if (e.body.area < MIN_BREAKABLE_RUBBLE_AREA || (e.generation || 0) >= MAX_RUBBLE_GENERATION ||
         shock < 2.8 + 5 / Math.sqrt(e.body.area) || (e.rockHit && e.rockHit.shock >= shock)) return;
-    const dx = point.x - e.body.position.x, dy = point.y - e.body.position.y;
-    const c = Math.cos(e.body.angle), s = Math.sin(e.body.angle);
-    e.rockHit = { x: dx * c + dy * s, y: dy * c - dx * s, shock, contact: point.blast ? point : null };
+    e.rockHit = { ...localPoint(e.body, point), shock, contact: point.blast ? point : null };
     this.work.add(e);
   }
 
@@ -1733,7 +1752,12 @@ export class FortressSimulation {
         ];
       }
     } else {
-      const hub = { x: dx, y: dy };
+      // A pane fans out from the strike, leaving short shards at the rim and
+      // long ones on its far side. Inset the origin so each shard has thickness.
+      const hub = e.glassHit ? {
+        x: clamp(e.glassHit.x + dx * 0.15, -w * 0.82, w * 0.82),
+        y: clamp(e.glassHit.y + dy * 0.15, -h * 0.82, h * 0.82),
+      } : { x: dx, y: dy };
       shapes = [
         [A, B, hub],
         [B, C, hub],

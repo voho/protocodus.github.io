@@ -268,11 +268,11 @@ export function createView(field, panorama, source, dock) {
     return view;
   }
   function target(clientX, clientY) {
-    update();
+    // A pointer event aims through the displayed frame, even if the next frame needs a layout update.
     const rect = field.getBoundingClientRect();
     return {
-      x: view.x + ((clientX - rect.left) * view.width) / width,
-      y: view.y + ((clientY - rect.top) * view.height) / height,
+      x: view.x + ((clientX - rect.left) * view.width) / rect.width,
+      y: view.y + ((clientY - rect.top) * view.height) / rect.height,
     };
   }
   function zoomTo(index, about = focusX) {

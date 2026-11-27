@@ -62,6 +62,13 @@ try {
   assert.ok(await player.evaluate((p) => p.paused));
   assert.deepEqual(await battlefield.boundingBox(), { x: 0, y: 0, width: 1440, height: 900 });
 
+  function fieldProjection() {
+    return battlefield.evaluate(async (canvas) => {
+      await new Promise(requestAnimationFrame);
+      const { a, d, e, f } = canvas.getContext('2d').getTransform();
+      return [a, d, e, f];
+    });
+  }
   async function aimFromSling(angle, radius, expectedPower, side = 'left') {
     const point = await battlefield.evaluate(async (canvas, { angle, radius, side }) => {
       const { WORLD } = await import('./simulation.js');
@@ -79,15 +86,17 @@ try {
     assert.equal(await page.locator('#power').inputValue(), String(expectedPower));
   }
   await aimFromSling(32, 160, 50);
+  const startingView = await fieldProjection();
   await aimFromSling(32, 160, 50, 'right');
   await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'right');
+  assert.deepEqual(await fieldProjection(), startingView, 'Switching crews by mouse preserves the overview');
   assert.ok((await page.locator('#aim-hint').boundingBox()).x > 720, 'The mouse firing hint follows the right crew');
   await aimFromSling(32, 256, 80);
   await aimFromSling(52, 256, 80);
   const hint = page.locator('#aim-hint');
   await page.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'left');
   assert.ok((await hint.boundingBox()).x < 320, 'The mouse firing hint returns to the left crew');
-  assert.equal(await hint.textContent(), 'Double-click to fire');
+  assert.equal(await hint.textContent(), 'Click to fire');
   await page.keyboard.press('ArrowLeft');
   assert.deepEqual([await page.locator('#angle').inputValue(), await page.locator('#power').inputValue()], ['52', '79']);
   await page.keyboard.press('ArrowUp');
@@ -109,11 +118,18 @@ try {
   await page.evaluate(() => new Promise(requestAnimationFrame));
   assert.match(await hint.textContent(), /Space to fire/);
   await aimFromSling(47, 224, 70);
-  assert.equal(await hint.textContent(), 'Double-click to fire');
+  assert.equal(await hint.textContent(), 'Click to fire');
   await page.locator('#zoom-in').click();
   await page.waitForFunction(() => document.getElementById('zoom-fit').textContent === '135%');
   await page.evaluate(() => new Promise(requestAnimationFrame));
   await aimFromSling(32, 160, 50);
+  const manualView = await fieldProjection();
+  await page.keyboard.press('d');
+  assert.equal(await battlefield.getAttribute('data-side'), 'right');
+  assert.deepEqual(await fieldProjection(), manualView, 'Keyboard crew selection retains a zoomed view');
+  await page.mouse.move(350, 420);
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  assert.deepEqual(await fieldProjection(), manualView, 'Returning to the left crew preserves the zoom and pan');
   await page.locator('#zoom-fit').click();
 
   // The rest of this siege, its soundtrack and fresh forts in other realms must
@@ -149,9 +165,7 @@ try {
   assert.equal(await sound.getAttribute('aria-pressed'), 'false');
   assert.ok(await player.evaluate((p) => p.paused));
   await battlefield.click({ position: { x: 850, y: 470 } });
-  assert.equal(await spent.textContent(), '0');
-  await battlefield.dblclick({ position: { x: 850, y: 470 } });
-  assert.equal(await spent.textContent(), '10', 'A double-click fires exactly one small stone');
+  assert.equal(await spent.textContent(), '10', 'One click fires one small stone');
   await page.locator('#fire-button').click();
   assert.equal(await spent.textContent(), '20');
   await switchFortress('#restart-button');
@@ -159,13 +173,23 @@ try {
   assert.equal(await spent.textContent(), '0');
 
   await page.keyboard.press('6');
-  await battlefield.dblclick({ position: { x: 800, y: 450 } });
-  assert.equal(await spent.textContent(), '90', 'Double-click launches one siege bomb');
+  await battlefield.click({ position: { x: 800, y: 450 } });
+  assert.equal(await spent.textContent(), '90', 'One click launches one siege bomb');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   assert.equal(await hint.textContent(), 'Click to detonate');
   await battlefield.click({ position: { x: 510, y: 360 } });
+  assert.equal(await spent.textContent(), '180', 'The other crew can launch the same ammo while the first charge is armed');
+  await page.keyboard.press('1');
+  await page.getByRole('button', { name: 'Fire catapult' }).waitFor();
+  await battlefield.click({ position: { x: 510, y: 360 } });
+  assert.equal(await spent.textContent(), '190', 'An armed charge leaves normal shots available after reloading');
+  await page.keyboard.press('6');
+  await battlefield.click({ position: { x: 510, y: 360 } });
   await page.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
-  assert.equal(await spent.textContent(), '90', 'Remote detonation costs no additional gold');
+  await page.keyboard.press('KeyD');
+  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+  await page.keyboard.press('Space');
+  assert.equal(await spent.textContent(), '190', 'Each crew activates its charge without additional gold');
   await switchFortress('#restart-button');
   await page.keyboard.press('7');
   await page.keyboard.press('KeyD');
@@ -178,9 +202,12 @@ try {
   await page.keyboard.press('Space');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   await page.keyboard.press('7');
-  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
-  await battlefield.click({ position: { x: 510, y: 360 } });
   assert.equal(await page.getByRole('button', { name: 'Activate implosion' }).count(), 0);
+  await page.keyboard.press('KeyD');
+  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
+  await battlefield.click({ position: { x: 920, y: 360 } });
+  assert.equal(await page.getByRole('button', { name: 'Activate implosion' }).count(), 0);
+  await page.keyboard.press('KeyA');
   await page.keyboard.press('6');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   await page.keyboard.press('Space');
@@ -318,7 +345,7 @@ try {
   await page.locator('#fold-controls').click();
   assert.equal(await page.locator('#siege-console').isVisible(), false);
   assert.equal(await hint.isVisible(), true);
-  assert.equal(await hint.textContent(), 'Double-click to fire');
+  assert.equal(await hint.textContent(), 'Click to fire');
   await page.locator('#fold-controls').click();
   for (const [width, height] of [
     [320, 700],
@@ -374,23 +401,27 @@ try {
   }
   assert.deepEqual(errors, []);
   await checkFortressAudio(page);
+  await checkAimGuide(page);
   await checkFallenTorch(page);
   await checkFlankTerrain(page);
   await checkFireTransitions(page);
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await phone.goto(origin + '/fun/fortress/#large/6');
   await phone.locator('#preflight').waitFor({ state: 'hidden' });
-  assert.equal(await phone.locator('#aim-hint').textContent(), 'Double-tap to fire');
+  assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to fire');
   await phone.getByRole('button', { name: 'Siege bomb, 90 gold' }).tap();
-  await phone.touchscreen.tap(240, 320);
   await phone.touchscreen.tap(240, 320);
   await phone.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   await phone.waitForFunction(() => document.querySelector('#aim-hint').dataset.side === 'right');
   assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to detonate');
   assert.equal(await phone.locator('#spent').textContent(), '90');
+  await phone.touchscreen.tap(145, 320);
+  assert.equal(await phone.locator('#spent').textContent(), '180', 'One tap fires the opposite loaded crew');
   await phone.touchscreen.tap(220, 320);
   await phone.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
-  assert.equal(await phone.locator('#spent').textContent(), '90', 'The third tap detonates the airborne bomb');
+  await phone.touchscreen.tap(145, 320);
+  assert.ok(!(await phone.locator('#state').textContent()).includes('detonate'));
+  assert.equal(await phone.locator('#spent').textContent(), '180', 'A tap on each side triggers only its crew’s airborne bomb');
   await phone.close();
   console.log(
     'Fortress browser checks passed: material audio and stereo positioning, saved mute, offline play, playlist rotation through victory, volleys, seed-specific bests, mobile and native 4K.',
@@ -398,6 +429,41 @@ try {
 } finally {
   await browser?.close();
   await new Promise((done) => server.close(done));
+}
+
+async function checkAimGuide(page) {
+  const spans = await page.evaluate(async () => {
+    const { createRenderer } = await import('./renderer.js');
+    const { FortressSimulation, WORLD } = await import('./simulation.js');
+    const sim = new FortressSimulation('small', 1);
+    for (const piece of sim.bodies) sim.remove(piece);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const renderer = createRenderer(canvas);
+    const view = { x: WORLD.minX, y: -230, width: WORLD.maxX - WORLD.minX, height: 696 };
+    const frame = { angle: 38, power: 87, time: 0, reducedMotion: true, scenery: {}, view };
+    const read = () => ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    return ['left', 'right'].map((side) => {
+      sim.selectSide(side);
+      renderer.draw(sim, { ...frame, aiming: false });
+      const baseline = read();
+      renderer.draw(sim, frame);
+      const guide = read();
+      let near = Infinity, far = -Infinity;
+      for (let i = 0; i < guide.length; i += 4) {
+        if (Math.abs(guide[i] - baseline[i]) < 45 && Math.abs(guide[i + 3] - baseline[i + 3]) < 45) continue;
+        const x = view.x + (i / 4 % canvas.width) * view.width / canvas.width;
+        const downrange = (x - sim.release.x) * (side === 'left' ? 1 : -1);
+        near = Math.min(near, downrange);
+        far = Math.max(far, downrange);
+      }
+      return { near, far };
+    });
+  });
+  for (const { near, far } of spans) {
+    assert.ok(Math.abs(near) < 12, 'The visible guide begins at the selected sling');
+    assert.ok(far > 490 && far < 810, 'The extended guide projects inward from that crew alone');
+  }
 }
 
 async function checkFallenTorch(page) {
@@ -420,6 +486,7 @@ async function checkFallenTorch(page) {
     };
     const frame = {
       time: 0,
+      aiming: false,
       reducedMotion: true,
       scenery: {},
       view: { x: 0, y: 0, width: 1200, height: 480 },

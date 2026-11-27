@@ -294,11 +294,12 @@ for (const fps of [30, 120]) {
 for (const ammo of AMMO) {
   const sim = new FortressSimulation('small', 2);
   assert.ok(sim.fire(ammo.id, 18, 60));
-  advance(sim, Math.round(ammo.reload * 60) - 1);
+  assert.equal(ammo.reload, 0.2);
+  for (let tick = 0; tick < 23; tick++) sim.update(1 / 120);
   assert.ok(!sim.fire('small-stone', 18, 60) && !sim.fire('big-bomb', 18, 60));
   assert.equal(sim.stats.spent, ammo.cost, 'Switching ammunition cannot bypass or extend the current reload');
-  advance(sim, 1);
-  assert.ok(sim.stats.ready && sim.stats.reloadRemaining === 0);
+  sim.update(1 / 120);
+  assert.ok(sim.stats.ready && sim.stats.reloadRemaining === 0, 'Every shot reloads on the 200 ms boundary');
   assert.ok(sim.fire('small-stone', 18, 60));
   if (ammo.id === 'small-stone') {
     const shots = sim.bodies.filter((b) => b.kind === 'projectile');
@@ -493,8 +494,11 @@ assert.equal(moved.sim.events.filter((e) => e.type === 'extinguish').length, 1);
 // A real shot sends wood against a sconce inside a generated fortress.
 const liveFire = new FortressSimulation('small', 2);
 liveFire.fire('small-stone', 38, 92);
-advance(liveFire, 175);
-const ember = liveFire.bodies.find((e) => e.material === 'wood' && e.burning);
+let ember;
+for (let frame = 0; frame < 240 && !ember; frame++) {
+  advance(liveFire, 1);
+  ember = liveFire.bodies.find((e) => e.material === 'wood' && e.burning);
+}
 assert.ok(ember, 'A falling timber ignites');
 const sconce = liveFire.torches
   .filter((t) => t.lit)
@@ -683,6 +687,22 @@ for (const shot of [fromLeft, fromRight]) {
   assert.ok(Math.hypot(shot.x - shot.flightPath[5].x, shot.y - shot.flightPath[5].y) < 0.1);
 }
 assert.equal(flanks.stats.spent, 20);
+
+const crews = new FortressSimulation('small', 1);
+assert.ok(crews.fire('siege-bomb', 60, 45));
+advance(crews, 6);
+crews.selectSide('right');
+assert.ok(crews.fire('siege-bomb', 60, 45), 'The other crew fires halfway through its partner’s reload');
+advance(crews, 6);
+assert.ok(!crews.fire('small-stone', 60, 45), 'The right crew still has 100 ms to reload');
+const leftBomb = crews.armedBomb('siege-bomb', 'left');
+assert.notEqual(crews.armedBomb('siege-bomb', 'right'), leftBomb);
+assert.ok(crews.detonateRemote('siege-bomb', 'right'));
+assert.equal(crews.armedBomb(), leftBomb, 'The right crew triggers its own charge even when the left one is older');
+crews.selectSide('left');
+assert.ok(crews.fire('small-stone', 60, 45), 'The left crew finished its own reload on schedule');
+assert.ok(crews.detonateRemote('siege-bomb', 'left'));
+assert.equal(crews.spent, 190);
 
 const charges = new FortressSimulation('small', 1);
 assert.ok(charges.fire('magic-bomb', 38, 55));

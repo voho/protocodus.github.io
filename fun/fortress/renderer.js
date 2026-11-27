@@ -1120,34 +1120,48 @@ function drawCatapult(ctx, ammo, time, recovery, ready, theme, reduced, contact)
     sprite(ctx, role, 198 - width * 0.5, GROUND - height, width, height);
 }
 
-function drawTrajectory(ctx, points) {
-  let travel = 0,
-    next = 19,
-    count = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1],
-      b = points[i],
-      dx = b.x - a.x,
-      dy = b.y - a.y,
-      segment = Math.hypot(dx, dy);
-    if (!segment) continue;
-    while (travel + segment >= next) {
-      const u = (next - travel) / segment,
-        x = a.x + dx * u,
-        y = a.y + dy * u,
-        r = 1.75 - count * 0.038;
-      ctx.globalAlpha = 0.84 - count * 0.024;
-      ellipse(ctx, '#514a39', x, y + 0.6, r + 0.5, r + 0.45);
-      ellipse(ctx, '#fcebc3', x, y, r, r);
-      next += 13.5 + count * 0.18;
-      if (++count >= 23) {
-        ctx.globalAlpha = 1;
-        return;
-      }
-    }
-    travel += segment;
+function prepareTrajectory(ctx, points) {
+  if (points.length < 2) return null;
+  const start = points[0], path = new Path2D();
+  path.moveTo(start.x, start.y);
+  // Show the opening arc. After this, collisions with moving masonry can change the shot.
+  let remaining = 800, endX = start.x;
+  for (let i = 1; i < points.length && remaining > 0; i++) {
+    const a = points[i - 1], b = points[i];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const length = Math.hypot(dx, dy);
+    if (!length) continue;
+    const part = Math.min(1, remaining / length);
+    endX = a.x + dx * part;
+    path.lineTo(endX, a.y + dy * part);
+    remaining -= length;
   }
-  ctx.globalAlpha = 1;
+  const outline = ctx.createLinearGradient(start.x, 0, endX, 0);
+  outline.addColorStop(0, '#352b20ee');
+  outline.addColorStop(0.65, '#352b20d9');
+  outline.addColorStop(1, '#352b2000');
+  const gold = ctx.createLinearGradient(start.x, 0, endX, 0);
+  gold.addColorStop(0, '#fff2cb');
+  gold.addColorStop(0.65, '#ffdc91');
+  gold.addColorStop(1, '#ffdc9100');
+  return { path, outline, gold };
+}
+
+function drawTrajectory(ctx, guide, pixel, recovery) {
+  if (!guide) return;
+  // Both strokes follow the same dash pattern. The dark rim stays visible on snow and bright skies.
+  ctx.save();
+  ctx.globalAlpha = 0.44 + 0.56 * recovery;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([2.8 * pixel, 9 * pixel]);
+  ctx.lineWidth = 4 * pixel;
+  ctx.strokeStyle = guide.outline;
+  ctx.stroke(guide.path);
+  ctx.lineWidth = 1.9 * pixel;
+  ctx.strokeStyle = guide.gold;
+  ctx.stroke(guide.path);
+  ctx.restore();
 }
 
 function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime) {
@@ -1210,7 +1224,7 @@ export function createRenderer(canvas) {
     terrainLayout: null,
     launchTime: -10,
     lastTime: null,
-    aim: [],
+    aim: null,
     aimKey: '',
   };
   function reset() {
@@ -1311,7 +1325,6 @@ export function createRenderer(canvas) {
     ambient(ctx, ambientTime, sim.themeIndex ?? sim.levelIndex);
     effects.drawBehind(ctx);
     const age = t - state.launchTime;
-    const stats = sim.stats;
     for (const side of launcherSides) {
       const sling = sim.level?.catapults?.[side];
       if (!sling || sling.x + 155 < view.x || sling.x - 155 > view.x + view.width) continue;
@@ -1325,15 +1338,16 @@ export function createRenderer(canvas) {
         sim.themeIndex ?? sim.levelIndex, reducedMotion, state.shadows.contact);
       ctx.restore();
     }
-    if (stats.ready) {
+    if (options.aiming !== false) {
       // A gust changes the upcoming arc even while the pointer stays still.
       const windFrame = sim.level?.gust ? Math.floor(sim.weatherTick / 6) : 0;
       const key = [sim.side, ammo, angle, power, windFrame].join('/');
       if (state.aimKey !== key) {
         state.aimKey = key;
-        state.aim = sim.trajectory(ammo, angle, power);
+        state.aim = prepareTrajectory(ctx, sim.trajectory(ammo, angle, power));
       }
-      drawTrajectory(ctx, state.aim);
+      const pixel = view.width / cssW * clamp(cssW / 1600, 1, 1.65);
+      drawTrajectory(ctx, state.aim, pixel, sim.recovery(sim.side));
     }
     drawRooms(ctx, state, sim, bodies, ambientTime, wind);
     state.stairFloors ||= bodies.filter((b) => b.stairs);

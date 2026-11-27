@@ -6,6 +6,16 @@ const dt = 1 / 60;
 const roomyScreen = { width: 1200, height: 675, top: 90, bottom: 590, fitScale: 1 };
 const overview = { x: 0, y: -60, width: 1200, height: 675 };
 
+function assertVisible(view, screen, x, y, radius = 0) {
+  const sx = (x - view.x) * screen.width / view.width;
+  const sy = (y - view.y) * screen.height / view.height;
+  const r = radius * screen.width / view.width;
+  assert.ok(
+    sx - r >= -0.01 && sx + r <= screen.width + 0.01 && sy - r >= screen.top - 0.01 && sy + r <= screen.bottom + 0.01,
+    'The complete projectile or impact must fit between the visible HUD edges',
+  );
+}
+
 // The whole low arc and its landing fit comfortably between the HUD edges.
 // Even a volley and repeated impacts should leave the player's framing alone.
 {
@@ -23,12 +33,91 @@ const overview = { x: 0, y: -60, width: 1200, height: 675 };
   assert.ok(sawImpact);
 }
 
+// The two low, full-power shots hit opposite walls well before the endpoints
+// of their terrain-only trajectory previews. The wider framing already fits
+// both flights. A closer manual zoom needs to widen just once to admit them.
+{
+  const screen = { ...roomyScreen, top: 40, bottom: 605 };
+  const centerX = (WORLD.release.x + WORLD.rightRelease.x) / 2;
+  const fullWidth = WORLD.rightRelease.x - WORLD.release.x + 92;
+  for (const width of [fullWidth, fullWidth / 2]) {
+    const base = {
+      x: centerX - width / 2, y: 158 - width * screen.height / screen.width / 2,
+      width, height: width * screen.height / screen.width,
+    };
+    const sim = new FortressSimulation('large', 6);
+    const camera = createShotCamera(), fixedCrew = createShotCamera();
+    for (const side of ['right', 'left', 'right']) {
+      sim.selectSide(side);
+      assert.deepEqual(camera.update(base, screen, sim, [], dt, false), base, 'Choosing a crew preserves the manual view');
+    }
+    const impacts = [], struckFlanks = new Set();
+    const secondLaunch = width === fullWidth ? 6 : 0;
+    let peakWidth = 0, overlap = false;
+    for (let frame = 0; frame < 175; frame++) {
+      if (frame === 0) {
+        sim.selectSide('left');
+        assert.ok(sim.fire('small-stone', 29, 100));
+      }
+      if (frame === secondLaunch) {
+        sim.selectSide('right');
+        assert.ok(sim.fire('small-stone', 29, 100));
+      }
+      sim.update(dt);
+      const events = sim.drainEvents();
+      sim.selectSide('left');
+      const unchangedSelection = fixedCrew.update(base, screen, sim, events, dt, false);
+      sim.selectSide(frame % 2 ? 'left' : 'right');
+      const view = camera.update(base, screen, sim, events, dt, false);
+      assert.deepEqual(view, unchangedSelection, 'Switching crews during the volley must not move the camera');
+      peakWidth = Math.max(peakWidth, view.width);
+      if (width === fullWidth) assert.deepEqual(view, base, 'A visible crossfire should leave the camera completely steady');
+      const shots = [...sim.projectiles].filter((shot) => !shot.body.isSleeping);
+      overlap ||= shots.filter((shot) => shot.lastImpact < 0).length >= 2;
+      for (const shot of shots) assertVisible(view, screen, shot.x, shot.y, shot.radius);
+      for (const event of events) {
+        if (event.type !== 'impact') continue;
+        impacts.push({ x: event.x, y: event.y, frame });
+        struckFlanks.add(event.x < centerX ? 'left' : 'right');
+      }
+      for (const hit of impacts) {
+        if (frame - hit.frame <= 30) assertVisible(view, screen, hit.x, hit.y, 5);
+      }
+    }
+    assert.ok(overlap && struckFlanks.size === 2, 'Both crews fire concurrently and land separate hits');
+    assert.ok(peakWidth <= fullWidth + 0.01, 'A clear view of both shots and their impacts needs no extra zoom out');
+    if (width < fullWidth) assert.ok(peakWidth > width, 'The close-up widens to fit projectiles on opposite flanks');
+  }
+}
+
 function velocity(previous, view) {
   return [
     (view.x + view.width / 2 - previous.x - previous.width / 2) / (overview.width * dt),
     (view.y + view.height / 2 - previous.y - previous.height / 2) / (overview.height * dt),
     Math.log(previous.width / view.width) / dt,
   ];
+}
+
+// The returning lob was in flight when the other crew hit. Keep the first
+// landing visible even after the usual impact linger would have expired.
+{
+  const screen = { width: 600, height: 380, top: 30, bottom: 350 };
+  const base = { x: 550, y: -80, width: 600, height: 380 };
+  const lob = { x: 850, y: 90, born: 0, radius: 12, lastImpact: -1, contacts: new Set(), body: { speed: 4 } };
+  const sim = { time: 0, projectiles: new Set([lob]) };
+  const camera = createShotCamera();
+  const first = { type: 'impact', x: 20, y: 220, size: 22 };
+  const second = { type: 'explosion', x: 1030, y: 180, radius: 120 };
+  for (let frame = 0; frame < 230; frame++) {
+    sim.time = frame * dt;
+    lob.x = 850 + Math.min(frame, 200) * 0.9;
+    if (frame === 200) sim.projectiles.clear();
+    const events = frame === 12 ? [first] : frame === 200 ? [second] : [];
+    const view = camera.update(base, screen, sim, events, dt, true);
+    if (frame >= 12) assertVisible(view, screen, first.x, first.y, first.size / 2);
+    if (frame < 200) assertVisible(view, screen, lob.x, lob.y, lob.radius);
+    else assertVisible(view, screen, second.x, second.y, second.radius * 0.3);
+  }
 }
 
 // A high arc needs more sky. Once the camera builds speed, interrupt the
@@ -76,10 +165,11 @@ for (const [width, height, top, bottom] of [
   const wards = generateLevel('large', 6).sections;
   const crestRise = Math.max(...wards.map((ward) =>
     WORLD.ground - ward.base + Math.max(...ward.heights) * ward.storey + 45));
-  const fitScale = Math.min(width / WORLD.width, (bottom - top) / crestRise);
+  const fieldWidth = WORLD.maxX - WORLD.minX;
+  const fitScale = Math.min(width / fieldWidth, (bottom - top) / crestRise);
   const screen = { width, height, top, bottom, fitScale };
   const base = {
-    x: (1200 - width / fitScale) / 2,
+    x: (WORLD.minX + WORLD.maxX - width / fitScale) / 2,
     y: 389 - bottom / fitScale,
     width: width / fitScale,
     height: height / fitScale,
@@ -92,20 +182,15 @@ for (const [width, height, top, bottom] of [
     let view = base,
       maxPanRate = 0,
       maxZoomRate = 0;
-    function visible(x, y, radius = 0) {
-      const sx = ((x - view.x) / view.width) * width;
-      const sy = ((y - view.y) / view.height) * height;
-      const r = (radius * width) / view.width;
-      assert.ok(
-        sx - r >= -0.01 && sx + r <= width + 0.01 && sy - r >= top - 0.01 && sy + r <= bottom + 0.01,
-        'The complete projectile/impact must fit between the visible HUD edges',
-      );
-    }
     for (let frame = 0; frame < 900; frame++) {
       // The two high arcs use the extended draw. The middle shot lands on the
       // approach and gives the camera a visible impact while the others fly.
       if (frame === 0 || frame === 20) assert.ok(sim.fire('small-stone', 70, 100));
-      if (frame === 10) assert.ok(sim.fire('small-stone', 25, 55));
+      if (frame === 10) {
+        sim.selectSide('right');
+        assert.ok(sim.fire('small-stone', 25, 55));
+        sim.selectSide('left');
+      }
       sim.update(dt);
       const events = sim.drainEvents();
       const previous = view;
@@ -116,9 +201,9 @@ for (const [width, height, top, bottom] of [
       maxPanRate = Math.max(maxPanRate, Math.hypot(dx, dy) / dt);
       maxZoomRate = Math.max(maxZoomRate, Math.log(previous.width / view.width) / dt);
       const shots = sim.bodies.filter((e) => e.kind === 'projectile' && e.lastImpact < 0 && !e.body.isSleeping);
-      for (const e of shots) visible(e.x, e.y, e.radius);
+      for (const e of shots) assertVisible(view, screen, e.x, e.y, e.radius);
       for (const impact of events.filter((e) => e.type === 'impact' || e.type === 'explosion')) {
-        visible(impact.x, impact.y);
+        assertVisible(view, screen, impact.x, impact.y);
         sawImpact = true;
       }
       concurrent = Math.max(concurrent, shots.length);
@@ -132,5 +217,5 @@ for (const [width, height, top, bottom] of [
   }
 }
 console.log(
-  'Fortress camera passed stationary volleys, smooth acceleration and coasting, projectile and impact visibility, return framing and reduced motion on three viewport sizes.',
+  'Fortress camera passed stationary crossfire, minimum volley zoom, smooth acceleration and coasting, projectile and impact visibility, return framing and reduced motion on three viewport sizes.',
 );

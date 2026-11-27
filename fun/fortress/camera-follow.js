@@ -1,4 +1,7 @@
 // Leave the player’s chosen framing alone until a flight needs more room.
+import { FLIGHT_SAMPLE_SECONDS } from './simulation.js';
+
+const leadSamples = Math.ceil(0.55 / FLIGHT_SAMPLE_SECONDS);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const bounds = () => ({ left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
 function include(box, left, right, top, bottom) {
@@ -31,37 +34,49 @@ function constrain(axis, low, high) {
 }
 
 export function createShotCamera() {
-  const flights = new WeakMap();
   const impacts = [];
   let pose, goal;
   let lastFlight = false;
   function update(base, screen, sim, events, dt, reduced) {
     const { width, height, top, bottom } = screen;
     const now = sim.time;
-    while (impacts.length && now - impacts[0].time > 2.5) impacts.shift();
     for (const e of events) {
-      if (e.type === 'impact' || e.type === 'explosion' || e.type === 'fireburst' || e.type === 'implosion')
-        impacts.push({ x: e.x, y: e.y, time: now });
+      if (e.type === 'impact' || e.type === 'explosion' || e.type === 'fireburst' || e.type === 'implosion') {
+        const radius = e.radius ? e.radius * 0.3 : Math.max(8, (e.size || 0) / 2);
+        impacts.push({ x: e.x, y: e.y, radius, time: now, until: now + 2.5 });
+      }
     }
     if (!sim.projectiles.size && !impacts.length && !pose) return base;
     const active = bounds();
     const corridor = bounds();
-    let flying = false;
+    let flying = false, oldestAirborne = Infinity;
     for (const shot of sim.projectiles) {
       if (shot.body.isSleeping || (shot.contacts.size && shot.body.speed < 0.8 && now - shot.lastImpact > 0.14))
         continue;
       circle(active, shot.x, shot.y, shot.radius + 3);
-      if (shot.lastImpact >= 0 || !shot.flightPath?.length || reduced) continue;
+      if (shot.lastImpact >= 0 || shot.contacts.size) continue;
+      oldestAirborne = Math.min(oldestAirborne, shot.born);
       flying = true;
-      let path = flights.get(shot);
-      if (!path) {
-        path = bounds();
-        for (const p of shot.flightPath) circle(path, p.x, p.y, shot.radius + 3);
-        flights.set(shot, path);
+      if (reduced || !shot.flightPath?.length) continue;
+      // The terrain forecast can pass through solid walls. Only lead the live
+      // projectile a short way, and discard samples it has already flown past.
+      const start = Math.floor((now - shot.born) / FLIGHT_SAMPLE_SECONDS) + 1;
+      const end = Math.min(shot.flightPath.length, start + leadSamples);
+      for (let i = start; i < end; i++) {
+        const p = shot.flightPath[i];
+        circle(corridor, p.x, p.y, shot.radius + 3);
       }
-      include(corridor, path.left, path.right, path.top, path.bottom);
     }
-    for (const p of impacts) circle(active, p.x, p.y, 8);
+    let kept = 0;
+    for (const p of impacts) {
+      // A low shot can land several seconds before the other crew's high lob.
+      // Keep that landing in frame until both hits have had time to register.
+      if (oldestAirborne <= p.time) p.until = Math.max(p.until, now + 0.6);
+      if (now > p.until) continue;
+      impacts[kept++] = p;
+      circle(active, p.x, p.y, p.radius);
+    }
+    impacts.length = kept;
     const tracking = active.left <= active.right;
     const homeScale = width / base.width;
     const homeX = base.x + base.width / 2, homeY = base.y + base.height / 2;

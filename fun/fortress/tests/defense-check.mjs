@@ -69,6 +69,26 @@ assert.equal(timber.fragments.length, 2, 'Wood parts along its grain');
 assert.ok(stone.post.damage < 1 && stone.post.x > 189, 'The masonry yields ground under the blow');
 assert.ok(steel.post.bend && steel.post.damage < stone.post.damage, 'Steel folds under the same shot');
 
+// Strike opposite ends of an angled pane. The short shards belong to the
+// struck end, even when the pane's local axes differ from the screen axes.
+for (const end of [-1, 1]) {
+  const sim = new FortressSimulation('small', 2);
+  for (const e of sim.bodies) sim.remove(e);
+  const pane = sim.add('block', 'glass', 380, 125, 16, 64, 'pane');
+  const angle = 0.6;
+  Body.setAngle(pane.body, angle);
+  sim.fire('small-stone', 35, 70);
+  const [stone] = sim.projectiles;
+  const c = Math.cos(angle), s = Math.sin(angle);
+  Body.setPosition(stone.body, { x: 380 - 25 * c - 22 * end * s, y: 125 - 25 * s + 22 * end * c });
+  Body.setVelocity(stone.body, { x: 12 * c, y: 12 * s });
+  for (let i = 0; i < 12 && sim.entities.has(pane.id); i++) sim.update(1 / 120);
+  const shards = sim.bodies.filter((b) => b.kind === 'fragment' && b.material === 'glass');
+  assert.equal(shards.length, 4);
+  const [near, far] = end < 0 ? [shards[0], shards[2]] : [shards[2], shards[0]];
+  assert.ok(near.body.area < far.body.area / 2, 'Glass fracture radiates from the contact point');
+}
+
 // Detonate from open air before any bodies touch. This separates blast damage
 // from the subsequent impact when a displaced stone hits a floor or wall.
 function blastStone(ammo, kind, gap, covered = false) {
@@ -159,4 +179,24 @@ const speeds = ['big-stone', 'siege-bomb'].map((id) => {
 });
 assert.ok(speeds[1].speed < speeds[0].speed * 0.8);
 assert.ok(speeds[1].momentum > speeds[0].momentum * 0.8, 'The slow siege bomb still carries a heavy impact');
+
+// Strike the same anchored face at the same shallow angle. Measuring the
+// actual outgoing body velocity exercises Matter's contact solver and spin.
+function skipOff(material) {
+  const sim = new FortressSimulation('small', 1);
+  for (const body of sim.bodies) sim.remove(body);
+  sim.add('block', material, 300, 250, 200, 16, 'surface', { isStatic: true });
+  assert.ok(sim.fire('small-stone', 21, 65));
+  const [shot] = sim.projectiles;
+  Body.setPosition(shot.body, { x: 250, y: 224 });
+  Body.setVelocity(shot.body, { x: 10, y: 5 });
+  for (let frame = 0; frame < 15 && shot.lastImpact < 0; frame++) sim.update(1 / 120);
+  assert.ok(shot.lastImpact >= 0);
+  return Body.getVelocity(shot.body);
+}
+const skip = Object.fromEntries(['wood', 'glass', 'stone', 'steel'].map((m) => [m, skipOff(m)]));
+assert.ok(-skip.steel.y > -skip.stone.y + 0.5 && -skip.stone.y > -skip.wood.y + 0.5,
+  'Hard steel kicks the stone up, masonry gives a lower bounce, and timber absorbs it');
+assert.ok(skip.steel.x > skip.wood.x + 0.5 && skip.glass.x > skip.stone.x + 0.5,
+  'A stone keeps more sideways speed against smooth faces');
 console.log('Fortress sentry countershots, material responses, blast-crushed stone and heavy siege-bomb flight passed.');
