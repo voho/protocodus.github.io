@@ -934,10 +934,6 @@ export function createEffects() {
     }
     ctx.restore();
   }
-  function roomBreak(x, y, width) {
-    if (reduced) return;
-    for (let i = 0; i < 3; i++) puff(x + (random() - 0.5) * width, y + random() * 10, 5 + random() * 4);
-  }
   function drawFront(ctx) {
     lights(ctx, true);
     const clock = reduced ? 0.3 : time;
@@ -1107,7 +1103,6 @@ export function createEffects() {
     update,
     drawBehind,
     drawFront,
-    roomBreak,
     getShake() {
       const age = time - shakeStart;
       const envelope = reduced ? 0 : shakePower * Math.exp(-age * 9);

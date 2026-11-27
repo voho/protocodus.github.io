@@ -14,10 +14,9 @@ const descriptions = [
   'A compact blast for breaking clustered supports.',
   'A wide blast that can excavate the ground beneath a tower.',
   'A magical burst that sets timber and exposed powder stores alight.',
-  'A slow, heavy charge. Click the firing crew’s half to detonate it. An orc can set it off in flight.',
-  'Activate to draw pieces inward, then release a magical blast 20% stronger and wider than the Siege bomb’s.',
+  'A slow, heavy charge. Your next battlefield click detonates it. An orc can set it off in flight.',
+  'Your next battlefield click starts an implosion, followed by a magical blast 20% stronger and wider than the Siege bomb’s.',
 ];
-const remoteAmmo = new Set(AMMO.filter((ammo) => ammo.remote).map((ammo) => ammo.id));
 const rollSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
 const validSize = (value) => DIFFICULTIES.some(({ id }) => id === value);
 function readFortress() {
@@ -29,9 +28,9 @@ function readFortress() {
   };
   if (size && parseSeed(parts[0])) {
     if (parts.length === 1) return { size, seed: parseSeed(parts[0]), version: 1 };
-    if (parts.length === 2 && parts[1] === 'v2') return { size, seed: parseSeed(parts[0]), version: 2 };
-    if (parts.length === 3 && parts[1] === 'v2' && FORTRESS_STYLES.includes(parts[2])) {
-      return { size, seed: parseSeed(parts[0]), version: 2, style: parts[2] };
+    if ((parts[1] === 'v2' || parts[1] === 'v3') &&
+        (parts.length === 2 || parts.length === 3 && FORTRESS_STYLES.includes(parts[2]))) {
+      return { size, seed: parseSeed(parts[0]), version: Number(parts[1].slice(1)), style: parts[2] };
     }
   }
   // Earlier prototype links carried five seeds. Use the seed of the selected fort.
@@ -83,7 +82,7 @@ const savedBests = stored(scoreTable, {});
 const bests = Object.fromEntries(
   Object.entries(savedBests && typeof savedBests === 'object' ? savedBests : {})
     .filter(
-      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}(\.v2(\.[a-z-]+)?)?$/.test(key) &&
+      ([key, value]) => /^(small|medium|large)\.[0-9a-z]{1,7}(\.v[23](\.[a-z-]+)?)?$/.test(key) &&
         Number.isInteger(value) && value > 0,
     )
     .slice(-200),
@@ -176,7 +175,7 @@ function track(event, extra) {
 }
 function syncHud() {
   const s = sim.stats;
-  const remote = remoteAmmo.has(settings.ammo) && sim.armedBomb(settings.ammo, sim.side);
+  const remote = sim.armedBomb();
   const key = [s.orcsRemaining, s.destruction, s.spent, s.ready, s.cleared, remote?.material, sim.side, inputMode].join('/');
   if (key === lastStats) return;
   lastStats = key;
@@ -192,7 +191,7 @@ function syncHud() {
   $('aim-hint').textContent = keyboard
     ? (sim.side === 'left' ? 'Left crew' : 'Right crew') + ' · ← → Power · ↑ ↓ Angle · ' + (remote ? 'Space to ' + verb : action)
     : remote ? detonate : action;
-  state.toggleAttribute('data-busy', !s.ready);
+  state.toggleAttribute('data-busy', !s.ready && !remote);
   state.toggleAttribute('data-won', s.orcsRemaining === 0);
   state.querySelector('span').textContent =
     remote ? (keyboard ? 'Space to ' : touch ? 'Tap field to ' : 'Click field to ') + verb
@@ -209,11 +208,13 @@ function syncHud() {
 
 function primaryFire() {
   if (!ready || overlay.open) return;
-  if (remoteAmmo.has(settings.ammo) && sim.detonateRemote(settings.ammo, sim.side)) {
+  if (sim.detonateRemote()) {
     syncHud();
     return;
   }
+  if (heldPointer) aimThrough(heldPointer.x, heldPointer.y, true);
   if (!sim.fire(settings.ammo, settings.angle, settings.power)) return;
+  if (sim.armedBomb()) clearPointerAim();
   audio.unlock();
   if (soundOn) music.activate();
   if (sim.shots === 1) track('game_start', { action: 'fire' });
@@ -222,20 +223,20 @@ function primaryFire() {
 $('fire-button').addEventListener('click', primaryFire);
 
 function chooseSide(side) {
-  if (sim.side === side) return;
-  sim.selectSide(side);
+  if (!sim.selectSide(side)) return;
   camera.selectCrew(sim.release.x);
   field.dataset.side = side;
   windBand = 0;
   updateWind(sim.wind);
   syncHud();
 }
-let heldPointer, lastAim;
+let heldPointer, lastAim, pressedCharge;
 function clearPointerAim() {
   heldPointer = lastAim = undefined;
   settings.aimTargetX = undefined;
 }
-function aimThrough(clientX, clientY, windTick) {
+function aimThrough(clientX, clientY, firing = false) {
+  const windTick = sim.level.gust ? (firing ? sim.weatherTick : sim.weatherTick - sim.weatherTick % 6) : 0;
   const { x, y } = camera.target(clientX, clientY);
   if (lastAim && lastAim.x === x && lastAim.y === y && lastAim.windTick === windTick &&
       lastAim.ammo === settings.ammo && lastAim.side === sim.side && lastAim.world === sim) return;
@@ -250,17 +251,27 @@ function aimThrough(clientX, clientY, windTick) {
   }
 }
 function aimAt(event) {
-  if (!ready || overlay.open) return false;
+  if (!ready || overlay.open || sim.armedBomb()) return;
   const fieldBounds = field.getBoundingClientRect();
-  chooseSide(event.clientX < fieldBounds.left + fieldBounds.width / 2 ? 'left' : 'right');
-  aimThrough(event.clientX, event.clientY, sim.level.gust ? sim.weatherTick : 0);
+  const side = event.clientX < fieldBounds.left + fieldBounds.width / 2 ? 'left' : 'right';
+  const newCrew = side !== sim.side;
+  chooseSide(side);
+  // Entering the field and changing crews give immediate feedback. During
+  // motion the frame loop solves the latest pointer sample once for display.
+  if (!heldPointer || newCrew || event.type === 'click') aimThrough(event.clientX, event.clientY, event.type === 'click');
   if (event.pointerType !== 'touch') heldPointer = { x: event.clientX, y: event.clientY };
-  return true;
+}
+function finishHoverAim() {
+  if (heldPointer) aimThrough(heldPointer.x, heldPointer.y);
+  heldPointer = undefined;
 }
 const field = $('battlefield');
 let mouseX, mouseY;
 function useInput(mode) {
-  if (mode === 'keyboard') clearPointerAim();
+  if (mode === 'keyboard') {
+    finishHoverAim();
+    clearPointerAim();
+  }
   if (inputMode === mode) return;
   inputMode = mode;
   if (ready) syncHud();
@@ -274,10 +285,20 @@ document.addEventListener('pointermove', (event) => {
   useInput('mouse');
   if (event.target === field && !event.buttons) aimAt(event);
 });
-field.addEventListener('pointerleave', () => { heldPointer = undefined; });
-field.addEventListener('pointerdown', () => { heldPointer = undefined; });
+field.addEventListener('pointerleave', finishHoverAim);
+field.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  heldPointer = undefined;
+  pressedCharge = sim.armedBomb();
+});
+field.addEventListener('pointercancel', () => { pressedCharge = undefined; });
 field.addEventListener('click', (event) => {
-  if (event.button !== 0 || camera.dragged() || !aimAt(event)) return;
+  const charge = pressedCharge;
+  pressedCharge = undefined;
+  if (event.button !== 0 || camera.dragged() || !ready || overlay.open) return;
+  // A defender can set off the charge between pointerdown and release.
+  if (charge && charge !== sim.armedBomb()) return;
+  aimAt(event);
   primaryFire();
 });
 
@@ -309,6 +330,7 @@ function updateWind(wind) {
 
 function enterFortress(world) {
   clearPointerAim();
+  pressedCharge = undefined;
   sim = world;
   field.dataset.side = sim.side;
   windBand = 0;
@@ -331,7 +353,10 @@ function enterFortress(world) {
   document.body.dataset.phase = level.phase;
   camera.frame(level.phase, seed, landscapes[sim.themeIndex], level.sections);
   renderer.prepare(sim, landscapes[sim.themeIndex]);
-  $('announcement').textContent = sizeName + ' ' + layoutName +
+  const composition = level.materialProfile === 'mixed' ? 'mixed materials' : 'mostly ' + level.materialProfile;
+  $('construction').hidden = !level.materialProfile;
+  $('construction-material').textContent = level.materialProfile ? composition[0].toUpperCase() + composition.slice(1) : '';
+  $('announcement').textContent = sizeName + ' ' + layoutName + (level.materialProfile ? ', ' + composition : '') +
     ', ' + weather + ' at ' + level.phase + '. ' + sim.stats.orcsTotal + ' orcs.';
   lastAnnouncedOrcs = sim.stats.orcsRemaining;
   lastStats = '';
@@ -459,7 +484,7 @@ function showHelp() {
     '<p>Defeat every orc for the least gold. Your score locks when the last orc falls. Keep firing, restart to beat your score, or generate another fortress.</p>' +
     '<ol><li><b>Choose a shot.</b> Each crew can fire again after 0.2 seconds with any ammunition. ' +
     'Bombs dig craters. Fireballs ignite timber and powder. Siege and Magic bombs stay armed after landing. ' +
-    'With its ammunition selected, click the firing crew’s half or press Space for that crew to activate its charge. ' +
+    'The firing crew stays selected until the charge goes off. Click either half of the field or press Space to activate it. ' +
     'A Siege bomb blasts outward. The 110-gold Magic bomb pulls pieces inward, then erupts with 20% more reach and force than the Siege bomb. ' +
     'Watch for the defenders drawing their crossbows. A bolt can knock a stone off course, split it, or set off an explosive charge early.</li>' +
     '<li><b>Point to aim. Click to fire.</b> The left half of the field aims the left catapult. The right half aims the right. ' +
@@ -470,7 +495,8 @@ function showHelp() {
     'Glass shatters around the strike, fallen stone can break again, and overloaded steel bends. ' +
     'Burning timber weakens and can ignite powder barrels. A fallen torch goes out. ' +
     'Rain puts out exposed fires. A roof can shelter burning timber. Check the wind before a high shot. ' +
-    'Strong gusts can push a cracked support over.</li></ol>' +
+    'Strong gusts can push a cracked support over. ' +
+    (sim.level.materialProfile ? 'Beams hold best where they meet posts squarely. Breaking or burning the post frees the beam.' : '') + '</li></ol>' +
     '<button class="primary-button" data-dismiss>Back to the siege</button>';
   overlay.showModal();
   syncMusicPause();
@@ -590,11 +616,11 @@ function tick(now) {
     if (sim.level.gust) updateWind(sim.wind);
     const events = sim.drainEvents();
     const view = camera.update(sim, events, dt, reduced.matches);
-    if (heldPointer) aimThrough(heldPointer.x, heldPointer.y, sim.level.gust ? Math.floor(sim.weatherTick / 6) * 6 : 0);
+    if (heldPointer) aimThrough(heldPointer.x, heldPointer.y);
     audio.play(events, sim, view, clock);
     renderer.draw(sim, {
       ...settings,
-      aiming: !sim.armedBomb(settings.ammo, sim.side),
+      aiming: !sim.armedBomb(),
       time: clock,
       events,
       reducedMotion: reduced.matches,
@@ -638,7 +664,6 @@ async function boot() {
       audio,
       music,
       async () => {
-        await renderer.prepareArchitecture();
         // Pre-bake each lighting grade at the scales available through this camera.
         const longest = Math.max(innerWidth, innerHeight, screen.width, screen.height);
         const maxScale = (Math.min(3840, longest * (devicePixelRatio || 1)) * 2.5) / WORLD.width;

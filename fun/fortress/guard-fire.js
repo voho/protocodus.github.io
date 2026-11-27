@@ -29,7 +29,11 @@ export function splitShot(sim, shot) {
 export function createGuardDefense(sim, blocksRay) {
   const bolts = sim.guardBolts = [];
   const boltSpeed = 1120;
-  let aiming = null, nextLook = 0;
+  const recovery = 2.6;
+  // Each approach to the new layouts has a watch. Older sieges share one
+  // firing cycle across the garrison to preserve their recorded shots.
+  const watches = (sim.level.version >= 3 ? ['left', 'right'] : [null])
+    .map(side => ({ side, aiming: null, nextLook: 0 }));
   let randomState = (sim.seed ^ 0xb83c62a9) >>> 0;
   const nextRandomState = () => (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
   function random() {
@@ -73,12 +77,15 @@ export function createGuardDefense(sim, blocksRay) {
     }
   }
 
-  function leadAngle(shot, muzzle, drawTime = 0) {
+  function leadAngle(guard, shot, muzzle, drawTime = 0) {
     const pos = shot.body.position, v = Body.getVelocity(shot.body);
     const vx = v.x * 60, vy = v.y * 60;
     const dx = pos.x - muzzle.x, dy = pos.y - muzzle.y;
-    const atRelease = Math.hypot(dx + vx * drawTime, dy + vy * drawTime + 340 * drawTime ** 2);
-    const t = drawTime + Math.min(0.24, atRelease / boltSpeed);
+    const distanceAt = t => Math.hypot(dx + vx * t, dy + vy * t + 340 * t ** 2);
+    let t = drawTime + Math.min(0.24, distanceAt(drawTime) / boltSpeed);
+    // Stones often pass above a field post during the draw. Recheck their
+    // distance at the projected meeting point before applying the usual scatter.
+    if (guard.exterior) t = drawTime + Math.min(0.3, distanceAt(t) / boltSpeed);
     return Math.atan2(dy + vy * t + 340 * t * t, dx + vx * t);
   }
 
@@ -127,10 +134,15 @@ export function createGuardDefense(sim, blocksRay) {
     Object.assign(sim.emit('guard-shot', guard, 0.62, muzzle), { projectile: true, dirX, dirY });
   }
 
-  return function defend(dt = 1 / 120) {
-    if (bolts.length) advanceBolts(dt);
+  function updateWatch(watch, dt) {
+    const { aiming } = watch;
     if (aiming && (!sim.projectiles.has(aiming.shot) || !sim.entities.has(aiming.guard.id))) {
       aiming.guard.drawingBolt = false;
+      if (watch.side) {
+        watch.aiming = null;
+        watch.nextLook = sim.time + 0.1;
+        return;
+      }
     }
     // Original keep links record their interception on the third 50 ms guard
     // tick. Release the visible bolt during the draw so it reaches that beat.
@@ -149,31 +161,33 @@ export function createGuardDefense(sim, blocksRay) {
         launch(guard, line.muzzle, angle, range, range / flight, true);
       }
     }
-    if (sim.ticks % 6 || sim.time < nextLook || !sim.projectiles.size || !sim.orcsRemaining) return;
+    if (sim.ticks % 6 || sim.time < watch.nextLook || !sim.projectiles.size || !sim.orcsRemaining) return;
     if (!aiming) {
-      nextLook = sim.time + 0.1;
+      watch.nextLook = sim.time + 0.1;
       for (const shot of sim.projectiles) {
-        if (shot.countered || shot.contacts.size || shot.lastImpact >= 0 || shot.body.speed < 2 ||
+        if ((watch.side && shot.side !== watch.side) ||
+            shot.countered || shot.contacts.size || shot.lastImpact >= 0 || shot.body.speed < 2 ||
             sim.time - shot.born < 0.18 || (sim.difficulty === 'small' && sim.shots % 3 !== 0)) continue;
         for (const guard of sim.guards) {
+          if (watch.side && (guard.drawingBolt || sim.time - (guard.firedAt ?? -Infinity) < recovery)) continue;
           const line = sight(guard, shot);
           if (!line) continue;
           shot.countered = true;
-          guard.gunAngle = leadAngle(shot, line.muzzle, 0.15);
+          guard.gunAngle = leadAngle(guard, shot, line.muzzle, 0.15);
           guard.drawStartedAt = sim.time;
           guard.drawingBolt = true;
           guard.aimingUntil = sim.time + 0.12;
-          aiming = { guard, shot };
-          nextLook = guard.aimingUntil;
+          watch.aiming = { guard, shot };
+          watch.nextLook = guard.aimingUntil;
           return;
         }
       }
       return;
     }
     const { guard, shot } = aiming;
-    aiming = null;
+    watch.aiming = null;
     guard.drawingBolt = false;
-    nextLook = sim.time + 2.6;
+    watch.nextLook = sim.time + recovery;
     if (!sim.entities.has(shot.id) || shot.contacts.size || shot.lastImpact >= 0) return;
     const line = sight(guard, shot);
     if (!line) return;
@@ -182,7 +196,12 @@ export function createGuardDefense(sim, blocksRay) {
       if (Math.abs(Math.sin(error)) * line.distance <= shot.radius) strike(shot);
       return;
     }
-    const angle = leadAngle(shot, line.muzzle) + error;
+    const angle = leadAngle(guard, shot, line.muzzle) + error;
     launch(guard, line.muzzle, angle, 380, boltSpeed);
+  }
+
+  return function defend(dt = 1 / 120) {
+    if (bolts.length) advanceBolts(dt);
+    for (const watch of watches) updateWatch(watch, dt);
   };
 }

@@ -24,6 +24,7 @@ const replays = {
     { seed: 1, shots: [['big-bomb', 30, 94]] },
     { seed: 12345, shots: [['small-bomb', 65, 100]] },
     { version: 2, seed: 2, shots: [['big-bomb', 30, 94]] },
+    { version: 3, seed: 2, shots: [['small-stone', 12.01, 37.47, 'right'], ['big-bomb', 30, 94]] },
   ],
   medium: [
     { seed: 1, shots: [
@@ -95,13 +96,24 @@ for (const [index, size] of DIFFICULTIES.entries()) {
       'The keep protects a guard inside its ground floor');
     assert.ok(keep.orcs.some(([, row]) => row >= Math.max(...keep.heights) - 1),
       'A guard also occupies an upper gallery');
+    const rightEdge = keep.left + keep.spans.reduce((sum, width) => sum + width, 0);
+    for (const side of ['left', 'right']) {
+      const posts = keep.outposts.filter((x) => side === 'left' ? x < keep.left : x > rightEdge);
+      assert.equal(posts.length, size.id === 'large' ? 2 : 1, 'Each catapult faces guards in the field');
+      assert.ok(posts.every((x) => x > level.catapults.left.x + 60 && x < level.catapults.right.x - 60),
+        'Field guards leave room to launch from either catapult');
+      assert.ok(posts.length === 1 || Math.abs(posts[0] - posts[1]) > 24,
+        'Two field guards have room to stand side by side');
+    }
+    assert.equal(keep.orcs.length + keep.outposts.length, [5, 10, 17][index],
+      'New defenders supplement the original garrison as the fortress grows');
   }
   assert.equal(profiles.size, 400, 'All sampled seeds have distinct castles');
   assert.equal(styleSeeds.size, 7, 'Every difficulty builds all seven architectural plans');
   for (const style of FORTRESS_STYLES) {
-    const chosen = generateLevel(size.id, 73, 2, style);
+    const chosen = generateLevel(size.id, 73, undefined, style);
     assert.equal(chosen.sections[0].style, style, 'One seed can build every requested style');
-    assert.deepEqual(generateLevel(size.id, 73, 2, style), chosen);
+    assert.deepEqual(generateLevel(size.id, 73, undefined, style), chosen);
   }
   assert.equal(themes.size, THEMES.length);
   for (const [style, seed] of styleSeeds) {
@@ -132,6 +144,25 @@ for (const [index, size] of DIFFICULTIES.entries()) {
     advance(castle, 720);
     assert.equal(castle.orcsRemaining, castle.orcsTotal, label + ' safely supports its guards');
     assert.equal(castle.stats.destruction, 0, label + ' stands without bombardment');
+    assert.equal(castle.stats.orcsTotal, castle.guards.size, label + ' counts every defender for victory');
+    const supports = [...castle.hills, ...blocks];
+    for (const side of ['left', 'right']) {
+      const outward = side === 'left' ? -1 : 1;
+      const sentries = [...castle.guards].filter((guard) => guard.exterior === side);
+      assert.equal(sentries.length, index + 1, label + ' has defenders facing ' + side);
+      for (const guard of sentries) {
+        assert.ok(guard.rig.grounded && Math.abs(guard.body.angle) < 0.18);
+        for (const { body } of guard.rig.legs) {
+          const { x } = body.position, y = body.bounds.max.y;
+          assert.ok(Matter.Query.ray(supports, { x, y: y - 2 }, { x, y: y + 2 }).length,
+            label + ' keeps both boots on physical ground or a parapet');
+        }
+        const muzzle = { x: guard.x + outward * 10, y: guard.y - 2 };
+        assert.ok([32, 80, 150].some((rise) => !Matter.Query.ray(supports, muzzle,
+          { x: muzzle.x + outward * 150, y: muzzle.y - rise }).length),
+          label + ' leaves an open shot toward the ' + side + ' approach');
+      }
+    }
     for (const [e, x, y] of start) {
       assert.ok(castle.entities.has(e.id) && Math.hypot(e.x - x, e.y - y) < 2,
         label + ' keeps ' + e.detail + ' on its original support');
@@ -140,6 +171,9 @@ for (const [index, size] of DIFFICULTIES.entries()) {
   for (const { seed, shots, endings, version = 1 } of replays[size.id]) {
     const sim = new FortressSimulation(size.id, seed, version);
     const generated = sim.level;
+    if (version < 3) {
+      assert.equal(sim.orcsTotal, [3, 6, 11][index], 'Saved keeps retain their original garrison');
+    }
     const initial = sim.bodies.map((b) => [b, b.x, b.y]);
     const lit = sim.torches.length;
     assert.ok(lit > 0);
@@ -370,7 +404,12 @@ for (const ammo of AMMO) {
   assert.ok(!sim.fire('small-stone', 18, 60) && !sim.fire('big-bomb', 18, 60));
   assert.equal(sim.stats.spent, ammo.cost, 'Switching ammunition cannot bypass or extend the current reload');
   sim.update(1 / 120);
-  assert.ok(sim.stats.ready && sim.stats.reloadRemaining === 0, 'Every shot reloads on the 200 ms boundary');
+  assert.equal(sim.stats.reloadRemaining, 0, 'Every shot reloads on the 200 ms boundary');
+  if (ammo.remote) {
+    assert.ok(!sim.stats.ready && !sim.fire('small-stone', 18, 60), 'A reloaded catapult still awaits detonation');
+    assert.ok(sim.detonateRemote());
+  }
+  assert.ok(sim.stats.ready);
   assert.ok(sim.fire('small-stone', 18, 60));
   if (ammo.id === 'small-stone') {
     const shots = sim.bodies.filter((b) => b.kind === 'projectile');
@@ -385,7 +424,11 @@ for (const ammo of AMMO) {
 const finish = new FortressSimulation('small', 1);
 finish.fire('small-stone', 75, 25);
 advance(finish, 24);
-for (const orc of finish.bodies.filter((b) => b.kind === 'orc')) finish.faint(orc);
+for (const orc of finish.guards) if (!orc.exterior) finish.faint(orc);
+advance(finish, 50);
+assert.equal(finish.stats.orcsRemaining, 2, 'The field guards remain after the keep is cleared');
+assert.ok(!finish.stats.cleared && finish.stats.winningCost === null);
+for (const orc of finish.guards) finish.faint(orc);
 assert.equal(finish.stats.destruction, 0);
 assert.equal(finish.stats.winningCost, 10, 'The last guard fixes the winning score immediately');
 assert.equal(finish.bodies.filter((b) => b.kind === 'orc').length, 0);
@@ -731,20 +774,13 @@ assert.equal(remote.terrainVersion, 0);
 assert.equal(remote.events.filter((e) => e.type === 'explosion' && e.material === 'siege-bomb').length, 1);
 advance(remote, 145);
 assert.ok(remote.fire('siege-bomb', 22, 28));
-const firstRemote = [...remote.remoteBombs][0];
+const landedBomb = remote.armedBomb();
 advance(remote, 970);
-assert.ok(remote.entities.has(firstRemote.id) && firstRemote.body.isSleeping, 'A landed remote survives cleanup');
-assert.ok(remote.fire('siege-bomb', 22, 28));
-const secondRemote = [...remote.remoteBombs][1];
-advance(remote, 190);
-assert.equal(remote.stats.remoteBombs, 2);
-assert.ok(remote.detonateSiegeBomb());
-advance(remote, 40);
-assert.ok(!remote.entities.has(firstRemote.id) && remote.entities.has(secondRemote.id));
-assert.equal(remote.stats.remoteBombs, 1, 'A nearby remote blast leaves the second bomb armed');
-assert.ok(remote.terrainVersion > 0 && remote.detonateSiegeBomb());
+assert.ok(remote.entities.has(landedBomb.id) && landedBomb.body.isSleeping, 'A landed remote survives cleanup');
+assert.ok(!remote.fire('siege-bomb', 22, 28) && !remote.selectSide('right'));
+assert.ok(remote.detonateRemote() && remote.terrainVersion > 0, 'The sleeping charge still detonates on command');
 assert.equal(remote.stats.remoteBombs, 0);
-assert.equal(remote.stats.spent, 270);
+assert.equal(remote.stats.spent, 180);
 
 // Each crew has its own reload and both incoming arcs feel the same world wind.
 const flanks = new FortressSimulation('large', 14);
@@ -767,35 +803,44 @@ for (const shot of [fromLeft, fromRight]) {
 }
 assert.equal(flanks.stats.spent, 20);
 
-const crews = new FortressSimulation('small', 1);
-assert.ok(crews.fire('siege-bomb', 60, 45));
-advance(crews, 6);
-crews.selectSide('right');
-assert.ok(crews.fire('siege-bomb', 60, 45), 'The other crew fires halfway through its partner’s reload');
-advance(crews, 6);
-assert.ok(!crews.fire('small-stone', 60, 45), 'The right crew still has 100 ms to reload');
-const leftBomb = crews.armedBomb('siege-bomb', 'left');
-assert.notEqual(crews.armedBomb('siege-bomb', 'right'), leftBomb);
-assert.ok(crews.detonateRemote('siege-bomb', 'right'));
-assert.equal(crews.armedBomb(), leftBomb, 'The right crew triggers its own charge even when the left one is older');
-crews.selectSide('left');
-assert.ok(crews.fire('small-stone', 60, 45), 'The left crew finished its own reload on schedule');
-assert.ok(crews.detonateRemote('siege-bomb', 'left'));
-assert.equal(crews.spent, 190);
+for (const [ammo, side, other] of [['siege-bomb', 'left', 'right'], ['magic-bomb', 'right', 'left']]) {
+  const crews = new FortressSimulation('small', 1);
+  crews.selectSide(side);
+  assert.ok(crews.fire(ammo, 60, 45));
+  assert.equal(crews.selectSide(other), false);
+  assert.equal(crews.side, side, 'The crew that launched the armed bomb retains control');
+  assert.equal(crews.armedBomb(ammo, side), crews.armedBomb());
+  assert.ok(!crews.detonateRemote(ammo, other));
+  assert.ok(crews.detonateRemote(), 'Activation is available immediately during reload');
+  assert.equal(crews.shots, 1);
+  assert.ok(!crews.detonateRemote(), 'One click consumes exactly one armed charge');
+  assert.ok(crews.selectSide(other) && crews.fire('small-stone', 60, 45), 'The other crew can fire after activation');
+  assert.ok(crews.selectSide(side) && !crews.stats.ready, 'Activating the charge preserves the launcher’s reload');
+}
 
 const charges = new FortressSimulation('small', 1);
-assert.ok(charges.fire('magic-bomb', 38, 55));
+assert.ok(charges.fire('big-bomb', 38, 55));
+const blast = [...charges.projectiles][0];
 charges.selectSide('right');
-assert.ok(charges.fire('siege-bomb', 38, 55));
+assert.ok(charges.fire('magic-bomb', 38, 55));
 const charge = charges.armedBomb('magic-bomb');
-Matter.Body.setPosition(charges.armedBomb('siege-bomb').body, { x: 320, y: 150 });
+Matter.Body.setPosition(blast.body, { x: 320, y: 150 });
 Matter.Body.setPosition(charge.body, { x: 347, y: 150 });
-assert.ok(charges.detonateSiegeBomb());
+charges.explode(blast);
 advance(charges, 25);
 assert.equal(charges.armedBomb(), charge, 'The other charge survives a nearby explosion');
 assert.ok(!charges.events.some((e) => e.type === 'implosion'));
 assert.ok(charges.detonateRemote('magic-bomb'));
-assert.equal(charges.stats.spent, 200, 'The two charges cost 110 and 90 gold, including both stages');
+assert.equal(charges.stats.spent, 170, 'Only the two launches incur an ammunition cost');
+
+const lost = new FortressSimulation('small', 1);
+assert.ok(lost.fire('magic-bomb', 38, 55));
+Matter.Body.setPosition(lost.armedBomb().body, { x: WORLD.minX - 100, y: 140 });
+advance(lost, 1);
+assert.ok(!lost.armedBomb() && lost.selectSide('right'), 'A charge that leaves the battlefield releases the crew');
+assert.ok(lost.fire('siege-bomb', 38, 55));
+lost.loadLevel();
+assert.ok(!lost.armedBomb() && lost.selectSide('right'), 'A fresh siege releases a previous charge');
 
 const magic = new FortressSimulation('small', 4);
 magic.fire('fireball', 38, 85);
@@ -822,5 +867,5 @@ powder.sim.add('barrel', 'barrel', 357, 374, 22, 30, 'powder');
 advance(powder.sim, 110);
 assert.ok(powder.sim.events.some((e) => e.type === 'explosion' && e.material === 'barrel'));
 console.log(
-  'Fortress passed seeded generation, under-par replays on both layout versions, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure, falling rubble, fireball chains and post-victory destruction.',
+  'Fortress passed seeded generation, exterior garrisons, under-par replays on all three layout versions, two-minute stability, smooth terrain, windy ballistics, reload, crater meshes, load failure, falling rubble, fireball chains and post-victory destruction.',
 );

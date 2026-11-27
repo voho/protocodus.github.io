@@ -98,6 +98,52 @@ function velocity(previous, view) {
   ];
 }
 
+// A shot that overshoots either flank or rises far above the battlements
+// shares the frame with the battlefield, even after only its impact remains.
+{
+  const screen = { width: 800, height: 400, top: 30, bottom: 375,
+    playBounds: { left: 0, right: 1100, top: 130, bottom: 320 } };
+  const base = { x: 150, y: -30, width: 800, height: 400 };
+  for (const reduced of [false, true]) {
+    const views = [];
+    for (const direction of [-1, 1]) {
+      const camera = createShotCamera();
+      const shot = { x: 550, y: 230, radius: 12, born: 0, contacts: new Set(), lastImpact: -1,
+        body: { speed: 4 } };
+      const sim = { time: 0, projectiles: new Set([shot]) };
+      let view;
+      for (let frame = 0; frame <= 900; frame++) {
+        sim.time = frame * dt;
+        let events = [];
+        if (frame <= 100) {
+          shot.x = 550 + frame * 10 * direction;
+          shot.y = 230 - 580 * Math.sin(Math.PI * frame / 110);
+        }
+        if (frame === 101) {
+          sim.projectiles.clear();
+          events = [{ type: 'explosion', x: shot.x, y: shot.y, radius: 36 }];
+        }
+        view = camera.update(base, screen, sim, events, dt, reduced);
+        if (frame === 0) assert.deepEqual(view, base, 'A visible shot leaves an already useful field view still');
+        if (frame <= 175) {
+          assertVisible(view, screen, shot.x, shot.y, 11);
+          assertVisible(view, screen, 550, 310);
+        }
+        if (frame === 61 || frame === 100) {
+          assert.ok(view.width > base.width, 'Tracking widens for the shot and lower keep together');
+          if (direction === -1) views.push(view);
+          else {
+            const mirror = views.shift();
+            assert.ok(Math.abs(mirror.width - view.width) < .01 &&
+              Math.abs(1100 - mirror.x - mirror.width - view.x) < .01);
+          }
+        }
+      }
+      assert.equal(view, base, 'The original field framing returns after the miss');
+    }
+  }
+}
+
 // The returning lob was in flight when the other crew hit. Keep the first
 // landing visible even after the usual impact linger would have expired.
 {
@@ -167,7 +213,9 @@ for (const [width, height, top, bottom] of [
     WORLD.ground - ward.base + Math.max(...ward.heights) * ward.storey + 45));
   const fieldWidth = WORLD.maxX - WORLD.minX;
   const fitScale = Math.min(width / fieldWidth, (bottom - top) / crestRise);
-  const screen = { width, height, top, bottom, fitScale };
+  const screen = { width, height, top, bottom, fitScale, playBounds: {
+    left: WORLD.minX, right: WORLD.maxX, top: WORLD.ground - crestRise, bottom: WORLD.ground,
+  } };
   const base = {
     x: (WORLD.minX + WORLD.maxX - width / fitScale) / 2,
     y: 389 - bottom / fitScale,

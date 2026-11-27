@@ -66,9 +66,12 @@ assert.equal(glance.sim.projectiles.size, 1);
 const premature = intercept(1, 'siege-bomb');
 assert.ok(premature.flash && premature.sim.events.some((e) => e.type === 'explosion'));
 assert.equal(premature.sim.remoteBombs.size, 0);
+assert.ok(premature.sim.selectSide('right') && premature.sim.fire('small-stone', 38, 55),
+  'A guard setting off the siege charge releases the other crew immediately');
 const warded = intercept(1, 'magic-bomb');
 assert.ok(warded.flash && warded.shot.flightPath === null);
 assert.equal(warded.sim.armedBomb('magic-bomb'), warded.shot, 'An intercepted Magic bomb stays armed');
+assert.ok(!warded.sim.selectSide('right'), 'Deflecting an armed Magic bomb leaves its firing crew in control');
 assert.ok(!warded.sim.events.some((e) => e.type === 'implosion'));
 const covered = intercept(1, 'big-stone', { wall: true });
 assert.ok(!covered.flash && covered.shot.flightPath);
@@ -220,16 +223,22 @@ assert.ok(Math.abs(shotMass - boulder.body.mass) < 0.001);
 assert.equal(powder.spent, 22, 'Split projectile pieces carry no additional charge');
 
 // The ground floor carries shared upper galleries on destructible piers and courses.
-for (const size of ['small', 'medium', 'large']) {
-  const keep = new FortressSimulation(size, 1);
+function checkFoundation(size, version) {
+  const keep = new FortressSimulation(size, 1, version);
   const [plan] = keep.level.sections;
   const blocks = keep.bodies.filter((e) => e.kind === 'block');
   const bricks = blocks.filter((e) => e.detail === 'brickwork');
   assert.ok(bricks.length >= (plan.spans.length - 1) * 3);
-  assert.ok(bricks.every((e) => !e.body.isStatic && e.material === 'stone' &&
-    e.y < plan.base && e.y > plan.base - plan.storey), 'The foundation uses real courses of masonry');
-  assert.ok(blocks.some((e) => e.detail === 'column' && e.material === 'stone' &&
-    e.height > e.width && !e.body.isStatic), 'A solid stone pier carries the upper gallery');
+  assert.ok(bricks.every((e) => !e.body.isStatic && e.y < plan.base && e.y > plan.base - plan.storey),
+    'The foundation uses real, destructible courses');
+  const columns = blocks.filter((e) => e.detail === 'column' && e.height > e.width && !e.body.isStatic);
+  if (version === 2) {
+    assert.ok(bricks.every((e) => e.material === 'stone') && columns.some((e) => e.material === 'stone'),
+      'The historical keep uses stone foundations and supporting piers');
+  } else {
+    assert.ok(columns.length > 0 && bricks.some((e) => e.material === 'stone' && e.body.bounds.max.y >= plan.base - 2),
+      'The new keep seats its physical piers and infill on stone footings');
+  }
   const stairs = blocks.filter((e) => e.stairs).sort((a, b) => b.y - a.y);
   assert.equal(stairs.length, Math.max(...plan.heights) - 1);
   for (const [i, flight] of stairs.entries()) {
@@ -238,6 +247,10 @@ for (const size of ['small', 'medium', 'large']) {
     if (i) assert.ok(Math.abs(stairs[i - 1].y - flight.y - plan.storey) < 2,
       'Each flight starts one floor above the previous one');
   }
+}
+for (const size of ['small', 'medium', 'large']) {
+  checkFoundation(size, 2);
+  checkFoundation(size, 3);
 }
 
 const speeds = ['big-stone', 'siege-bomb'].map((id) => {
@@ -268,4 +281,19 @@ assert.ok(-skip.steel.y > -skip.stone.y + 0.5 && -skip.stone.y > -skip.wood.y + 
   'Hard steel kicks the stone up, masonry gives a lower bounce, and timber absorbs it');
 assert.ok(skip.steel.x > skip.wood.x + 0.5 && skip.glass.x > skip.stone.x + 0.5,
   'A stone keeps more sideways speed against smooth faces');
+
+// Both gate approaches are under fire within a single sentry's reload time.
+const volley = new FortressSimulation('medium', 1, 3);
+const [ward] = volley.level.sections;
+const rightWall = ward.left + ward.spans.reduce((width, span) => width + span, 0);
+for (const [side, x] of [['left', ward.left], ['right', rightWall]]) {
+  volley.selectSide(side);
+  const aim = volley.aimForPoint('small-stone', x, ward.base - ward.storey);
+  assert.ok(volley.fire('small-stone', aim.angle, aim.power));
+  for (let frame = 0; frame < 15; frame++) volley.update(1 / 60);
+}
+for (let frame = 0; frame < 30; frame++) volley.update(1 / 60);
+const respondingFlanks = new Set([...volley.guards].filter(guard => guard.firedAt > 0).map(guard => guard.exterior));
+assert.ok(respondingFlanks.has('left') && respondingFlanks.has('right'),
+  'Each exterior watch can release its own bolt while the other watch reloads');
 console.log('Fortress sentry countershots, material responses, blast-crushed stone and heavy siege-bomb flight passed.');

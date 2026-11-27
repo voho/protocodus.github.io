@@ -17,6 +17,19 @@ function fitBounds(box, width, height) {
   return Math.min(width / Math.max(1, box.right - box.left), height / Math.max(1, box.bottom - box.top));
 }
 
+// Keep a strip of the player's visible battlefield in frame. A very high lob
+// or wide miss can then share the screen with the fort or its approach.
+function retainBattlefield(active, base, screen, scale, margin) {
+  const field = screen.playBounds;
+  const left = Math.max(field.left, base.x + margin / scale);
+  const right = Math.min(field.right, base.x + base.width - margin / scale);
+  const top = Math.max(field.top, base.y + screen.top / scale);
+  const bottom = Math.min(field.bottom, base.y + screen.bottom / scale);
+  if (right <= left || bottom <= top) return;
+  const inset = (right - left) / 3;
+  include(active, left + inset, right - inset, bottom - (bottom - top) * .25, bottom);
+}
+
 // Exact critically damped spring, with a capped driving distance for long pans.
 export function glide(axis, target, frequency, speed, dt) {
   const limit = (2 * speed) / frequency;
@@ -83,6 +96,7 @@ export function createShotCamera() {
     const margin = width * 0.018;
     const halfWidth = width / 2 - margin;
     const above = height / 2 - top, below = bottom - height / 2;
+    if (tracking && screen.playBounds) retainBattlefield(active, base, screen, homeScale, margin);
     if (reduced || !tracking || !goal) goal = { x: homeX, y: homeY, scale: homeScale };
     else if (!flying && lastFlight && pose) {
       // An early hit invalidates the predicted arc. Bleed off current velocity here.

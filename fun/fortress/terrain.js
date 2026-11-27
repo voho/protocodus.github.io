@@ -110,34 +110,38 @@ function drawStrata(ctx, image, sx, sourceY, sourceH, left, width, top, height) 
   }
 }
 
-// The panorama contains an unbroken soil cross-section. Inside a hole paint
-// the distant bank across that old shelf. A darker back wall descends from
-// the bank to the actual foreground rim. Everything moves with the terrain.
+// The panoramic painting ends at the original ground line. An irregular,
+// feathered far bank covers that line with exposed rock wherever the near
+// lip drops below it. Both its skyline and its strata use world coordinates.
 function paintPit(ctx, rim, image, sx, sy) {
   const left = rim[0].x,
     right = rim.at(-1).x,
     width = right - left;
   if (width < 0.15) return;
-  const lowest = Math.max(...rim.map((p) => p.y));
-  const depth = lowest - BASE;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(left, BASE - 1);
-  ctx.lineTo(right, BASE - 1);
+  ctx.moveTo(left, BASE);
+  for (const { x, y } of rim) {
+    const relief = 6 + 2.8 * Math.sin(x * 0.067) + 1.8 * Math.sin(x * 0.173 + 1.7);
+    ctx.lineTo(x, BASE - relief * clamp((y - BASE) / 20, 0, 1));
+  }
   for (let i = rim.length - 1; i >= 0; i--) ctx.lineTo(rim[i].x, rim[i].y + 1);
   ctx.closePath();
   ctx.clip();
-  drawStrata(ctx, image, sx, (BASE - 21) * sy, 19 * sy, left, width, BASE - 1.1, Math.max(2.5, depth * 0.34));
-  const back = rim.map((p) => ({ x: p.x, y: BASE - 0.8 + (p.y - BASE) * 0.18 }));
-  traceFace(ctx, back, lowest + 2);
-  ctx.clip();
-  drawStrata(ctx, image, sx, (BASE + 16) * sy, 63 * sy, left, width, BASE - 1, Math.max(3, depth + 4));
-  const shade = ctx.createLinearGradient(0, BASE - 1, 0, lowest + 1);
-  shade.addColorStop(0, 'rgba(27,28,31,.46)');
-  shade.addColorStop(0.46, 'rgba(30,27,31,.57)');
-  shade.addColorStop(1, 'rgba(20,22,29,.79)');
+  const top = BASE - 12, height = WORLD.height - top;
+  drawStrata(ctx, image, sx, (BASE + 15) * sy, 65 * sy, left, width, top, height);
+  const shade = ctx.createLinearGradient(0, top, 0, WORLD.height);
+  shade.addColorStop(0, 'rgba(64,56,55,.38)');
+  shade.addColorStop(0.46, 'rgba(30,27,31,.54)');
+  shade.addColorStop(1, 'rgba(20,22,29,.76)');
   ctx.fillStyle = shade;
-  ctx.fillRect(left, BASE - 1, width, depth + 3);
+  ctx.fillRect(left, top, width, height);
+  ctx.globalCompositeOperation = 'destination-out';
+  const haze = ctx.createLinearGradient(0, top, 0, BASE - 1);
+  haze.addColorStop(0, '#000');
+  haze.addColorStop(1, 'transparent');
+  ctx.fillStyle = haze;
+  ctx.fillRect(left, top, width, BASE - top);
   ctx.restore();
 }
 
@@ -152,7 +156,7 @@ export function paintTerrain(points, image, phase, previous, original = points) 
   const left = original[0].x,
     right = original.at(-1).x;
   const minY = Math.min(...original.map((p) => p.y)),
-    top = minY - 2;
+    top = Math.min(minY - 2, BASE - 12);
   const width = right - left,
     height = BOTTOM - top;
   const sx = image.naturalWidth / WORLD.width,
@@ -176,11 +180,15 @@ export function paintTerrain(points, image, phase, previous, original = points) 
   if (from >= to) return result;
   const ctx = canvas.getContext('2d');
   ctx.save();
-  ctx.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+  const pixelLeft = Math.floor((from - left) * scale), pixelRight = Math.ceil((to - left) * scale);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.beginPath();
-  ctx.rect(from, top, to - from, height);
+  ctx.rect(pixelLeft, 0, pixelRight - pixelLeft, h);
   ctx.clip();
-  ctx.clearRect(from, top, to - from, height);
+  ctx.clearRect(pixelLeft, 0, pixelRight - pixelLeft, h);
+  ctx.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+  from = left + pixelLeft / scale;
+  to = left + pixelRight / scale;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   for (const rim of belowShelf(points)) {
@@ -194,10 +202,14 @@ export function paintTerrain(points, image, phase, previous, original = points) 
     substrate = image.naturalHeight - shelf;
   // Strata run horizontally through the hill. Their texture stays anchored
   // to the original bedrock when an explosion cuts through the hilltop.
-  const oldBottom = BASE + 54;
-  drawStrata(ctx, image, sx, shelf + substrate * 0.15, substrate * 0.84, left, width, minY, oldBottom - minY);
-  drawStrata(ctx, image, sx, shelf + substrate * 0.46, substrate * 0.53, left, width,
-    oldBottom - 0.1, BOTTOM - oldBottom + 0.2);
+  const bandHeight = BASE + 54 - minY;
+  for (let y = minY, flip = false; y < BOTTOM; y += bandHeight, flip = !flip) {
+    ctx.save();
+    ctx.translate(0, flip ? y + bandHeight : y);
+    ctx.scale(1, flip ? -1 : 1);
+    drawStrata(ctx, image, sx, shelf + substrate * 0.15, substrate * 0.84, left, width, -0.2, bandHeight + 0.4);
+    ctx.restore();
+  }
 
   for (let i = 1; i < points.length; i++) {
     const p = points[i - 1],
@@ -227,27 +239,21 @@ export function paintTerrain(points, image, phase, previous, original = points) 
     }
     const coverage = clamp((1.2 - steep) / 0.55, 0, 1);
     if (!cut && coverage <= 0) continue;
-    const sampleW = Math.min(image.naturalWidth, span * sx);
-    const tile = Math.floor(center / WORLD.width);
-    const offset = center - tile * WORLD.width;
-    const capX = clamp((tile & 1 ? WORLD.width - offset : offset) * sx - sampleW / 2, 0, image.naturalWidth - sampleW);
     ctx.save();
     ctx.translate(p.x, p.y - 0.35);
     ctx.rotate(angle);
+    // Splitting one flat stretch into new physics segments must not resample
+    // the turf beyond the blast, including where it crosses a mirrored flank.
+    ctx.save();
+    ctx.scale(span / dx, 1);
+    ctx.translate(-p.x, 0);
+    const edge = .3 * dx / span;
+    drawStrata(ctx, image, sx, cut ? shelf + substrate * .32 : shelf - .9 * sy,
+      substrate * (cut ? .21 : .16), p.x - edge, dx + 2 * edge, 0, cut ? 7.3 : 3.7 + 5.8 * coverage);
+    ctx.restore();
     if (cut) {
       // Newly exposed rock has a broken mineral lip and loose chips, even
       // on a flat crater floor where healthy grass would otherwise return.
-      ctx.drawImage(
-        image,
-        capX,
-        shelf + substrate * 0.32,
-        sampleW,
-        substrate * 0.21,
-        -0.3,
-        0,
-        span + 0.6,
-        7.3,
-      );
       ctx.fillStyle = dy > 0 ? 'rgba(250,217,158,.49)' : 'rgba(226,195,145,.32)';
       ctx.fillRect(-0.25, 0.15, span + 0.5, 0.8);
       const start = Math.ceil(p.x / 4) * 4;
@@ -265,18 +271,6 @@ export function paintTerrain(points, image, phase, previous, original = points) 
         ctx.closePath();
         ctx.fill();
       }
-    } else {
-      ctx.drawImage(
-        image,
-        capX,
-        shelf - 0.9 * sy,
-        sampleW,
-        substrate * 0.16,
-        -0.26,
-        0,
-        span + 0.52,
-        3.7 + 5.8 * coverage,
-      );
     }
     ctx.restore();
   }

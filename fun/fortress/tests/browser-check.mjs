@@ -6,6 +6,7 @@ import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { checkFortressAudio } from './audio-check.mjs';
+import { checkOrcArt } from './orc-art-check.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const types = {
@@ -209,41 +210,49 @@ try {
   assert.equal(await spent.textContent(), '90', 'One click launches one siege bomb');
   await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   assert.equal(await hint.textContent(), 'Click to detonate');
-  await battlefield.click({ position: { x: 510, y: 360 } });
-  assert.equal(await spent.textContent(), '180', 'The other crew can launch the same ammo while the first charge is armed');
+  await page.mouse.move(510, 360);
+  assert.equal(await battlefield.getAttribute('data-side'), 'right', 'Crossing the field keeps the launching crew active');
+  assert.equal(await hint.textContent(), 'Click to detonate');
+  await page.keyboard.press('KeyA');
   await page.keyboard.press('1');
-  await page.getByRole('button', { name: 'Fire catapult' }).waitFor();
+  assert.equal(await battlefield.getAttribute('data-side'), 'right');
+  assert.match(await hint.textContent(), /Space to detonate/);
   await battlefield.click({ position: { x: 510, y: 360 } });
-  assert.equal(await spent.textContent(), '190', 'An armed charge leaves normal shots available after reloading');
-  await page.keyboard.press('6');
-  await battlefield.click({ position: { x: 510, y: 360 } });
-  await page.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
-  await page.keyboard.press('KeyD');
-  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
-  await page.keyboard.press('Space');
-  assert.equal(await spent.textContent(), '190', 'Each crew activates its charge without additional gold');
-  await switchFortress('#restart-button');
+  assert.equal(await spent.textContent(), '90', 'The next field click detonates and consumes no ammunition');
+  assert.equal(await page.getByRole('button', { name: 'Detonate bomb' }).count(), 0);
   await page.keyboard.press('7');
+  await battlefield.click({ position: { x: 510, y: 360 } });
+  assert.equal(await spent.textContent(), '200', 'The following click can launch from the opposite crew');
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  const implode = page.getByRole('button', { name: 'Activate implosion' });
+  await implode.waitFor();
+  await page.mouse.move(920, 360);
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  assert.equal(await hint.textContent(), 'Click to implode');
+  await page.keyboard.press('KeyD');
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  await page.keyboard.press('6');
+  assert.match(await hint.textContent(), /Space to implode/);
+  await battlefield.click({ position: { x: 920, y: 360 } });
+  assert.equal(await spent.textContent(), '200', 'An opposite-half click activates the airborne Magic bomb for free');
+  assert.equal(await implode.count(), 0);
   await page.keyboard.press('KeyD');
   assert.equal(await battlefield.getAttribute('data-side'), 'right');
-  await page.keyboard.press('Space');
-  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
-  await page.keyboard.press('KeyA');
-  await page.keyboard.press('6');
-  assert.equal(await battlefield.getAttribute('data-side'), 'left');
-  await page.keyboard.press('Space');
-  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
+
+  await switchFortress('#restart-button');
   await page.keyboard.press('7');
-  assert.equal(await page.getByRole('button', { name: 'Activate implosion' }).count(), 0);
-  await page.keyboard.press('KeyD');
-  await page.getByRole('button', { name: 'Activate implosion' }).waitFor();
-  await battlefield.click({ position: { x: 920, y: 360 } });
-  assert.equal(await page.getByRole('button', { name: 'Activate implosion' }).count(), 0);
-  await page.keyboard.press('KeyA');
-  await page.keyboard.press('6');
-  await page.getByRole('button', { name: 'Detonate bomb' }).waitFor();
   await page.keyboard.press('Space');
-  assert.equal(await spent.textContent(), '200', 'Both crews launched; each remote activated once for free');
+  await implode.waitFor();
+  await page.keyboard.press('KeyD');
+  await page.keyboard.press('Space');
+  assert.equal(await implode.count(), 0);
+  assert.equal(await spent.textContent(), '110', 'Space activates the last launch');
+  await page.keyboard.press('KeyD');
+  await page.keyboard.press('6');
+  await page.locator('#fire-button').click();
+  await page.getByRole('button', { name: 'Detonate bomb' }).click();
+  assert.equal(await spent.textContent(), '200', 'The Fire control activates the charge even during reload');
+  assert.equal(await page.getByRole('button', { name: 'Detonate bomb' }).count(), 0);
   await switchFortress('#restart-button');
   const fireball = page.getByRole('button', { name: 'Fireball, 45 gold' });
   assert.equal(await page.locator('.ammo').count(), 7);
@@ -257,7 +266,7 @@ try {
   for (const choice of ['medium', 'large', 'small']) {
     await size.selectOption(choice);
     await page.waitForFunction((choice) => location.hash.startsWith('#' + choice + '/'), choice);
-    assert.match(new URL(page.url()).hash, /^#\w+\/[a-z0-9]+\/v2$/);
+    assert.match(new URL(page.url()).hash, /^#\w+\/[a-z0-9]+\/v3$/);
     assert.equal(await style.inputValue(), 'random', 'Size changes keep Random selected');
     assert.equal(await spent.textContent(), '0');
     const first = page.url();
@@ -268,20 +277,22 @@ try {
     assert.equal(page.url(), second);
   }
   await style.selectOption('linked-towers');
-  await page.waitForFunction(() => /^#small\/[a-z0-9]+\/v2\/linked-towers$/.test(location.hash));
+  await page.waitForFunction(() => /^#small\/[a-z0-9]+\/v3\/linked-towers$/.test(location.hash));
   const linked = page.url();
+  assert.match(await page.locator('#construction-material').textContent(), /^(Mostly (wood|stone|steel|glass)|Mixed materials)$/);
   await switchFortress('#restart-button');
   assert.equal(page.url(), linked, 'A retry restores the chosen architecture and seed');
   await switchFortress('#new-button');
   assert.notEqual(page.url(), linked);
-  assert.match(new URL(page.url()).hash, /^#small\/[a-z0-9]+\/v2\/linked-towers$/);
+  assert.match(new URL(page.url()).hash, /^#small\/[a-z0-9]+\/v3\/linked-towers$/);
   await size.selectOption('medium');
-  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v2\/linked-towers$/.test(location.hash));
+  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v3\/linked-towers$/.test(location.hash));
   await page.evaluate(() => { location.hash = 'medium/6/v2/spire'; });
   await page.waitForFunction(() => document.querySelector('#fort-style').value === 'spire' &&
     !document.querySelector('main[aria-busy]'));
+  assert.equal(await page.locator('#construction').evaluate((row) => row.hidden), true);
   await style.selectOption('random');
-  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v2$/.test(location.hash));
+  await page.waitForFunction(() => /^#medium\/[a-z0-9]+\/v3$/.test(location.hash));
 
   // A late idle slice from a superseded size must never replace the requested seed.
   await size.selectOption('large');
@@ -294,6 +305,26 @@ try {
       document.body.dataset.weather === weather && document.querySelector('#weather-label').textContent === weather &&
       !document.querySelector('main[aria-busy]'), weather);
   }
+  // A sentry on this seed intercepts the right crew's first Siege bomb during flight.
+  await page.evaluate(() => { location.hash = 'medium/1/v3'; });
+  await page.waitForFunction(() => document.querySelector('#fort-size').value === 'medium' &&
+    !document.querySelector('main[aria-busy]'));
+  await page.mouse.move(510, 360);
+  await page.keyboard.press('KeyD');
+  await page.keyboard.press('6');
+  await page.locator('#angle').fill('40');
+  await page.locator('#power').fill('80');
+  await page.keyboard.press('Space');
+  const detonate = page.getByRole('button', { name: 'Detonate bomb' });
+  await detonate.waitFor();
+  await page.mouse.down();
+  await detonate.waitFor({ state: 'hidden', timeout: 5000 });
+  await page.mouse.up();
+  assert.equal(await spent.textContent(), '90', 'An interception during a detonation click consumes that click');
+  await page.keyboard.press('1');
+  await battlefield.click({ position: { x: 510, y: 360 } });
+  assert.equal(await battlefield.getAttribute('data-side'), 'left');
+  assert.equal(await spent.textContent(), '100', 'The other catapult is available after the interception');
   assert.deepEqual(
     requests,
     [],
@@ -311,7 +342,8 @@ try {
     location.hash = 'small/1';
   });
   await page.waitForFunction(() =>
-    document.querySelector('#wind-label').textContent.includes('Strong headwind'),
+    document.querySelector('#fort-size').value === 'small' && !document.querySelector('main[aria-busy]') &&
+      document.querySelector('#wind-label').textContent.includes('Strong headwind'),
   );
   // A low shot through the keep sets off its powder stores and clears the garrison.
   async function clearSmallKeep() {
@@ -442,9 +474,12 @@ try {
   }
   assert.deepEqual(errors, []);
   await checkFortressAudio(page);
+  await checkOrcArt(page);
   await checkAimGuide(page);
+  await checkOpenBay(page);
   await checkFallenTorch(page);
   await checkFlankTerrain(page);
+  await checkDeepSnowCuts(page);
   await checkFireTransitions(page);
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await phone.goto(origin + '/fun/fortress/#large/6/v2/pillar-hall');
@@ -459,12 +494,14 @@ try {
   assert.equal(await phone.locator('#aim-hint').textContent(), 'Tap to detonate');
   assert.equal(await phone.locator('#spent').textContent(), '90');
   await phone.touchscreen.tap(145, 320);
-  assert.equal(await phone.locator('#spent').textContent(), '180', 'One tap fires the opposite loaded crew');
-  await phone.touchscreen.tap(220, 320);
-  await phone.waitForFunction(() => !document.getElementById('state').textContent.includes('detonate'));
+  assert.equal(await phone.locator('#spent').textContent(), '90', 'An opposite-half tap activates the armed charge');
+  assert.equal(await phone.getByRole('button', { name: 'Detonate bomb' }).count(), 0);
   await phone.touchscreen.tap(145, 320);
-  assert.ok(!(await phone.locator('#state').textContent()).includes('detonate'));
-  assert.equal(await phone.locator('#spent').textContent(), '180', 'A tap on each side triggers only its crew’s airborne bomb');
+  assert.equal(await phone.locator('#spent').textContent(), '180', 'The following tap can use the loaded left crew');
+  assert.equal(await phone.locator('#battlefield').getAttribute('data-side'), 'left');
+  await phone.touchscreen.tap(220, 320);
+  assert.equal(await phone.getByRole('button', { name: 'Detonate bomb' }).count(), 0);
+  assert.equal(await phone.locator('#spent').textContent(), '180');
   await phone.close();
   console.log(
     'Fortress browser checks passed: compact top menus, style selection and seeded retries, pointer trajectories, stereo audio, offline play, volleys, mobile and native 4K.',
@@ -523,6 +560,45 @@ async function checkAimGuide(page) {
     assert.ok(far > 490 && far < 810, 'The extended guide projects inward from that crew alone');
     assert.ok(pointed.far > 810 && pointed.far < 870, 'A distant pointer extends the painted guide to its target');
   }
+}
+
+async function checkOpenBay(page) {
+  const samples = await page.evaluate(async () => {
+    const { createRenderer } = await import('./renderer.js');
+    const { FortressSimulation } = await import('./simulation.js');
+    const { default: Matter } = await import('./vendor/matter.min.js');
+    const sim = new FortressSimulation('small', 1);
+    for (const piece of sim.bodies) sim.remove(piece);
+    sim.level.sections = [{ left: 500, base: 278, spans: [92], heights: [1], storey: 78,
+      gate: 0, pattern: 0, orcs: [], barrels: [] }];
+    sim.level.phase = 'day';
+    sim.level.weather = 'clear';
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const renderer = createRenderer(canvas);
+    const frame = { aiming: false, reducedMotion: true, time: 0, scenery: {},
+      view: { x: 0, y: 0, width: 1200, height: 480 } };
+    function snapshot() {
+      renderer.draw(sim, frame);
+      const pixels = (x, y, w, h) => new Uint32Array(ctx.getImageData(x, y, w, h).data.buffer);
+      return { opening: pixels(524, 222, 42, 37), lintel: pixels(524, 202, 42, 8) };
+    }
+    const empty = snapshot();
+    const post = sim.add('block', 'wood', 500, 245, 18, 66, 'beam');
+    sim.add('block', 'wood', 592, 245, 18, 66, 'beam');
+    sim.add('block', 'stone', 546, 206, 110, 12, 'masonry');
+    renderer.reset();
+    const intact = snapshot();
+    Matter.Body.translate(post.body, { x: -20, y: 0 });
+    sim.sync(post);
+    const shifted = snapshot();
+    const changed = (a, b) => a.reduce((n, color, i) => n + (color !== b[i]), 0);
+    return { intact: changed(intact.opening, empty.opening), shifted: changed(shifted.opening, empty.opening),
+      lintel: changed(intact.lintel, empty.lintel) };
+  });
+  assert.equal(samples.intact, 0, 'The landscape remains visible through the gap between two supports');
+  assert.equal(samples.shifted, 0, 'A shifting support keeps that gap clear of decorative walls or dust');
+  assert.ok(samples.lintel > 280, 'The structural lintel still has a visible material face');
 }
 
 async function checkFallenTorch(page) {
@@ -621,6 +697,56 @@ async function checkFlankTerrain(page) {
     assert.ok(lip[3] > 235 && bedrock[3] > 235, 'Earth and rock textures cover the flank crater');
     assert.notDeepEqual(lip.slice(0, 3), bedrock.slice(0, 3));
   }
+}
+
+async function checkDeepSnowCuts(page) {
+  const result = await page.evaluate(async () => {
+    const { FortressSimulation } = await import('./simulation.js');
+    const { paintTerrain } = await import('./terrain.js');
+    const sim = new FortressSimulation('large', parseInt('hbprzc', 36), 3);
+    const snow = new Image();
+    snow.src = './assets/frostpeak-4k.webp';
+    await snow.decode();
+    const original = sim.terrain;
+    let patch = paintTerrain(original, snow, 'dusk');
+    for (const x of [160, 270, 220, 120, 300, 1180, 1120, 1210]) {
+      sim.excavate({ x, y: sim.terrainHeight(x) - 2 }, 210);
+      patch = paintTerrain(sim.terrain, snow, 'dusk', patch, original);
+    }
+    const full = paintTerrain(sim.terrain, snow, 'dusk', null, original);
+    const pixels = (p) => p.canvas.getContext('2d').getImageData(0, 0, p.canvas.width, p.canvas.height).data;
+    const a = pixels(patch), b = pixels(full);
+    let stale = 0;
+    for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 12) stale++;
+    function pixel(p, data, x, y) {
+      const col = Math.floor((x - p.left) * p.canvas.width / p.width);
+      const row = Math.floor((y - p.top) * p.canvas.height / p.height);
+      return data.subarray((row * p.canvas.width + col) * 4, (row * p.canvas.width + col) * 4 + 4);
+    }
+    let rim = 0, wall = 0, feather = 0;
+    for (let x = 100; x < 300; x++) {
+      rim += pixel(full, b, x, 391)[1];
+      wall += pixel(full, b, x, 410)[1];
+      const alpha = pixel(full, b, x, 385)[3];
+      if (alpha > 12 && alpha < 244) feather++;
+    }
+
+    // Contrasting rock bands expose any texture restart below a deep cut.
+    const strata = document.createElement('canvas');
+    strata.width = strata.naturalWidth = 1200;
+    strata.height = strata.naturalHeight = 480;
+    const ctx = strata.getContext('2d');
+    ctx.fillStyle = '#304070'; ctx.fillRect(0, 0, 1200, 480);
+    ctx.fillStyle = '#dba342'; ctx.fillRect(0, 460, 1200, 20);
+    const pad = [{ x: 0, y: 389 }, { x: 1200, y: 389 }];
+    const pit = [pad[0], { x: 500, y: 427 }, { x: 700, y: 427 }, pad[1]];
+    const earth = paintTerrain(pit, strata, 'day', null, pad), d = pixels(earth);
+    const seam = Math.abs(pixel(earth, d, 600, 442)[0] - pixel(earth, d, 600, 445)[0]);
+    return { stale, feather, seam, lipContrast: Math.abs(rim - wall) / 200 };
+  });
+  assert.ok(result.stale < 32, 'Incremental paints match a fresh cache across merged pits and both flanks');
+  assert.ok(result.feather > 55 && result.lipContrast < 28, 'Rock blends into the snowy landscape across the old shelf');
+  assert.ok(result.seam < 10, 'The deep rock band continues across the texture boundary');
 }
 
 async function checkFireTransitions(page) {

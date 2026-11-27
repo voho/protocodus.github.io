@@ -3,6 +3,8 @@ import { roofVertices, selectRoofs } from './roofs.js';
 import { FORTRESS_STYLES, planArchitecture } from './architecture.js';
 import { createGuardDefense, splitShot } from './guard-fire.js';
 import { addGuardRig, balanceGuards, removeGuardRig, wakeGuardRig } from './guard-rig.js';
+import { chooseMaterialProfile, planMaterials } from './material-profile.js';
+import { buildJoints, releaseJoint, updateJoints } from './joints.js';
 
 const { Bodies, Body, Composite, Engine, Events, Sleeping, Vertices } = Matter;
 
@@ -64,12 +66,13 @@ function newSeed() {
   return globalThis.crypto?.getRandomValues(new Uint32Array(1))[0] || (Math.random() * 4294967296) >>> 0 || 1;
 }
 
-// A smoothstep shoulder is horizontal where it meets either building pad.
-// Its maximum analytical grade is 1.5 * .4 = .6 (about 31 degrees).
+// Smoothstep shoulders meet the pads horizontally. The maximum grade is
+// 1.5 times the average grade (about 31 degrees with this limit).
+const SHOULDER_GRADE = 0.4;
 function terrainShoulder(points, start, end, targetY) {
   const last = points.at(-1),
     run = end - start;
-  const rise = clamp(targetY - last.y, -0.4 * run, 0.4 * run);
+  const rise = clamp(targetY - last.y, -SHOULDER_GRADE * run, SHOULDER_GRADE * run);
   if (start > last.x) points.push({ x: start, y: last.y });
   const segments = Math.abs(rise) < 1 ? 1 : 5;
   for (let n = 1; n <= segments; n++) {
@@ -79,7 +82,7 @@ function terrainShoulder(points, start, end, targetY) {
   return last.y + rise;
 }
 
-export const LAYOUT_VERSION = 2;
+export const LAYOUT_VERSION = 3;
 
 export function generateLevel(difficulty, seed, version = LAYOUT_VERSION, style = 'random') {
   const small = difficulty === 'small',
@@ -123,19 +126,27 @@ export function generateLevel(difficulty, seed, version = LAYOUT_VERSION, style 
   const left = right - width, center = left + width / 2;
   const terrain = [{ x: WORLD.minX, y: WORLD.ground }];
   const hill = left - 24;
-  const base = terrainShoulder(terrain, Math.max(208, hill - integer(105, 151)), hill,
+  const leftToe = Math.max(208, hill - integer(105, 151));
+  const base = terrainShoulder(terrain, leftToe, hill,
     WORLD.ground - integer(large ? 22 : 8, large ? 53 : 38));
   terrain.push({ x: right + 25, y: base });
-  terrainShoulder(terrain, right + 25, WORLD.width, WORLD.ground);
+  // Give both approaches a level stretch for the field guards to stand on.
+  const rightToe = version >= 3
+    ? Math.max(WORLD.width, right + 25 + Math.ceil((WORLD.ground - base) / SHOULDER_GRADE)) : WORLD.width;
+  terrainShoulder(terrain, right + 25, rightToe, WORLD.ground);
   terrain.push({ x: WORLD.maxX, y: WORLD.ground });
 
   const gate = architecture?.gate ?? integer(1, Math.max(1, crown));
   const crest = architecture?.stairBay ?? crown + integer(0, crownWidth - 1);
-  const orcs = [[gate, 0], [crest, heights[crest] - integer(0, 1)]];
+  const lookouts = version >= 3 && !small
+    ? [[0, heights[0], 'left'], [bays - 1, heights[bays - 1], 'right']] : [];
+  const crestRow = heights[crest] - integer(0, 1);
+  const crestOccupied = lookouts.some(([bay, row]) => bay === crest && row === crestRow);
+  const orcs = [[gate, 0], [crest, crestRow - (crestOccupied ? 1 : 0)], ...lookouts];
   const barrels = [];
   // Distribute the rest of the garrison through the wings as well as the keep's crown.
   const guards = small ? 3 : large ? 11 : 6;
-  for (let i = 0; orcs.length < guards; i++) {
+  for (let i = 0; orcs.length < guards + lookouts.length; i++) {
     const bay = (integer(0, bays - 1) + i) % bays;
     const row = integer(1 + (architecture?.openFloors[bay] || 0), heights[bay]);
     if (!orcs.some(([c, r]) => c === bay && r === row)) orcs.push([bay, row]);
@@ -158,8 +169,16 @@ export function generateLevel(difficulty, seed, version = LAYOUT_VERSION, style 
   }
   const ward = { left, center, base, spans, heights, storey, orcs, barrels, gate,
     style: 'keep', ...architecture, pattern: integer(0, 30000) };
+  if (version >= 3) {
+    const postRandom = seededRandom(seed ^ 0x3ca4d97);
+    const distance = (minimum) => minimum + Math.floor(postRandom() * 11);
+    const leftPost = leftToe - distance(22), rightPost = rightToe + distance(22);
+    ward.outposts = [leftPost, rightPost];
+    if (large) ward.outposts.push(leftPost - distance(49), rightPost + distance(49));
+  }
   const rooms = heights.reduce((n, h, bay) => n + h - (architecture?.openFloors[bay] || 0), 0);
-  const par = 5 * Math.round(((small ? 50 : large ? 170 : 100) + rooms * 1.5) / 5);
+  const extraGuards = lookouts.length + (ward.outposts?.length ?? 0);
+  const par = 5 * Math.round(((small ? 50 : large ? 170 : 100) + rooms * 1.5) / 5) + extraGuards * AMMO[0].cost;
   const angle = large ? 24 : 38;
   const dx = ward.left - WORLD.release.x,
     dy = ward.base - ward.storey * 0.77 - WORLD.release.y;
@@ -180,6 +199,7 @@ export function generateLevel(difficulty, seed, version = LAYOUT_VERSION, style 
     name: THEMES[themeIndex].name,
     difficulty,
     version,
+    ...(version >= 3 && { materialProfile: chooseMaterialProfile(seededRandom(seed ^ 0x734c17b5)) }),
     themeIndex,
     seed,
     sections: [ward],
@@ -371,6 +391,48 @@ function distanceToBody(e, point) {
   return Math.hypot(x, y);
 }
 
+// Reactions split between the two seats bracketing a load. A pier that
+// lines up with a bearing transfers its weight there without flexing a span.
+function transferWeight(piece, seats, carried, pressure) {
+  seats.sort((a, b) => a.x - b.x);
+  for (const seat of seats) {
+    seat.mass = 0;
+    seat.moment = 0;
+  }
+  let leftOverhang = 0, rightOverhang = 0;
+  const loads = pressure.get(piece.id) ?? [];
+  loads.push({ x: piece.body.position.x, mass: piece.body.mass });
+  for (const { x, mass } of loads) {
+    const next = seats.findIndex((seat) => seat.x >= x);
+    if (next < 0) {
+      const last = seats.at(-1);
+      last.mass += mass;
+      rightOverhang += mass * (x - last.x);
+    } else if (next === 0) {
+      seats[0].mass += mass;
+      leftOverhang += mass * (seats[0].x - x);
+    } else {
+      const left = seats[next - 1], right = seats[next];
+      const fraction = (x - left.x) / (right.x - left.x);
+      left.mass += mass * (1 - fraction);
+      right.mass += mass * fraction;
+      // Broad contact faces distribute a load over some of the clear span.
+      left.moment += 0.40 * mass * (x - left.x) * (1 - fraction);
+    }
+  }
+  let maximum = Math.max(leftOverhang, rightOverhang);
+  for (const seat of seats) {
+    maximum = Math.max(maximum, seat.moment);
+    if (!seat.e || !seat.mass) continue;
+    const key = seat.e.id;
+    carried.set(key, (carried.get(key) || 0) + seat.mass);
+    let below = pressure.get(key);
+    if (!below) pressure.set(key, below = []);
+    below.push({ x: seat.x, mass: seat.mass });
+  }
+  return maximum;
+}
+
 // Find the exposed face on a rotated plank or an irregular rubble outline.
 // A bounding box alone can put the hit in empty air beside a leaning beam.
 function blastContact(body, origin) {
@@ -404,6 +466,17 @@ function touchingHeatSource(a, b) {
     a.body.vertices.some((p) => distanceToBody(b, p) <= 2) ||
     b.body.vertices.some((p) => distanceToBody(a, p) <= 2)
   );
+}
+
+// Sources are entered in insertion order in each band their bounds can reach.
+// Looking up a target band keeps the same candidates as a full contact scan.
+function indexSpan(bands, start, end, piece, bandSize = 64) {
+  const last = Math.floor(end / bandSize);
+  for (let band = Math.floor(start / bandSize); band <= last; band++) {
+    let pieces = bands.get(band);
+    if (!pieces) bands.set(band, pieces = []);
+    pieces.push(piece);
+  }
 }
 
 export class FortressSimulation {
@@ -478,7 +551,21 @@ export class FortressSimulation {
     this.cleared = false;
     this.buildTerrain();
     yield* this.buildFort(level.sections[0]);
-    // Settle the mortar-free stacks before measuring displacement for scoring.
+    this.joints = new Set();
+    if (level.materialProfile) {
+      const blocks = this.bodies.filter((e) => e.kind === 'block');
+      const materials = planMaterials(blocks, level.sections[0], level.materialProfile, seededRandom(this.seed ^ 0x43b837ad));
+      for (const [e, material] of materials) {
+        if (e.material === material) continue;
+        e.material = material;
+        Body.setDensity(e.body, MATERIALS[material].density);
+        e.body.friction = MATERIALS[material].friction;
+      }
+      this.joints = buildJoints(blocks);
+      Events.on(this.engine, 'beforeUpdate', () => updateJoints(this.joints));
+      yield;
+    }
+    // Let the original load paths settle before measuring displacement for scoring.
     for (let i = 0; i < (difficulty === 'large' ? 300 : difficulty === 'medium' ? 230 : 90); i++) {
       Engine.update(this.engine, STEP * 1000);
       yield;
@@ -490,24 +577,34 @@ export class FortressSimulation {
       e.home = { ...e.body.position, angle: e.body.angle };
       this.sync(e);
     }
-    if (difficulty === 'large') {
+    if (difficulty === 'large' || level.version >= 3) {
       // Keep the initial bearing contacts, including pairs the solver has put
       // to sleep. A departing pier must wake its ceiling even after that pair expires.
       const pieces = this.bodies.filter((e) => e.kind !== 'torch');
+      const seatsByHeight = new Map();
+      for (const upper of pieces) {
+        const y = upper.body.bounds.max.y;
+        indexSpan(seatsByHeight, y - 2.5, y + 2.5, upper, 8);
+      }
       for (const lower of pieces) {
         if (lower.kind !== 'block') continue;
         const base = lower.body.bounds;
-        lower.carried = pieces.filter((upper) => {
+        const candidates = seatsByHeight.get(Math.floor(base.min.y / 8)) || [];
+        const seated = candidates.filter((upper) => {
           const top = upper.body.bounds;
           return upper !== lower && Math.abs(top.max.y - base.min.y) < 2.5 &&
             Math.min(base.max.x, top.max.x) - Math.max(base.min.x, top.min.x) > 1;
         });
+        if (difficulty === 'large') lower.carried = seated;
+        if (level.version >= 3) for (const upper of seated) {
+          if (upper.kind === 'block') (upper.originalSeats ??= []).push(lower);
+        }
       }
     }
     this.torches = [];
     this.mountTorches();
     this.defend = createGuardDefense(this, shieldsBlast);
-    this.orcsTotal = level.sections.reduce((sum, section) => sum + section.orcs.length, 0);
+    this.orcsTotal = this.guards.size;
     this.orcsRemaining = this.orcsTotal;
     Events.on(this.engine, 'collisionStart', (event) => this.collisions(event.pairs));
     Events.on(this.engine, 'collisionEnd', ({ pairs }) => {
@@ -827,8 +924,13 @@ export class FortressSimulation {
       }
       yield;
     }
-    for (const [c, row] of level.orcs) {
-      addGuardRig(this, (columns[c] + columns[c + 1]) / 2, level.base - row * storey);
+    for (const [c, row, flank] of level.orcs) {
+      const guard = addGuardRig(this, (columns[c] + columns[c + 1]) / 2, level.base - row * storey);
+      if (flank) guard.exterior = flank;
+    }
+    for (const x of level.outposts ?? []) {
+      const guard = addGuardRig(this, x, this.terrainHeight(x));
+      guard.exterior = x < left ? 'left' : 'right';
     }
     for (const [c, row] of level.barrels) {
       this.add(
@@ -862,11 +964,11 @@ export class FortressSimulation {
           const offset = side * (host.width / 2 + 4);
           const p = pointOnBody(host.body, offset, 2);
           const flame = { x: p.x, y: p.y - 8 };
-          if (this.torches.some((t) => Math.hypot(t.x - p.x, t.y - p.y) < 47)) continue;
+          if (this.torches.some((t) => (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < 47 ** 2)) continue;
           const clear = bodies.every(
             (e) =>
               e === host ||
-              Math.hypot(e.x - p.x, e.y - p.y) > 135 ||
+              (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > 135 ** 2 ||
               distanceToBody(e, flame) > (e.material === 'wood' || e.kind === 'barrel' ? 13 : 3),
           );
           if (!clear) continue;
@@ -949,19 +1051,28 @@ export class FortressSimulation {
     const bodies = this.bodies;
     const flames = this.torches.filter((e) => e.lit);
     const embers = bodies.filter((e) => e.burning && e.burn > 0.12);
+    let hotColumns;
+    if (embers.length > 8) {
+      hotColumns = new Map();
+      for (const source of embers) {
+        const { min, max } = source.body.bounds;
+        indexSpan(hotColumns, min.x - 2, max.x + 2, source);
+      }
+    }
     for (const e of bodies) {
       if (e.material !== 'wood' && e.kind !== 'barrel') continue;
       if (!e.burning) {
-        const heated =
-          flames.some((flame) => {
-            const reach = (e.width + e.height) / 2 + 6,
-              p = e.body.position;
-            return (
-              Math.abs(p.x - flame.flameX) < reach &&
-              Math.abs(p.y - flame.flameY) < reach &&
-              distanceToBody(e, { x: flame.flameX, y: flame.flameY }) < 6
-            );
-          }) || embers.some((source) => source !== e && touchingHeatSource(source, e));
+        let heated = flames.some((flame) => {
+          const reach = (e.width + e.height) / 2 + 6, p = e.body.position;
+          return Math.abs(p.x - flame.flameX) < reach && Math.abs(p.y - flame.flameY) < reach &&
+            distanceToBody(e, { x: flame.flameX, y: flame.flameY }) < 6;
+        });
+        if (!heated && hotColumns) {
+          const { min, max } = e.body.bounds;
+          for (let col = Math.floor(min.x / 64); !heated && col <= Math.floor(max.x / 64); col++) {
+            heated = hotColumns.get(col)?.some((source) => touchingHeatSource(source, e));
+          }
+        } else if (!heated) heated = embers.some((source) => touchingHeatSource(source, e));
         // A grazing contact cannot set a plank alight. Heat bleeds away when
         // it rolls clear; sustained contact heats a timber or powder barrel.
         e.heat = clamp(e.heat + (heated ? 0.1 - 0.15 * (e.wet || 0) : -0.16), 0, 1);
@@ -994,10 +1105,7 @@ export class FortressSimulation {
     if (!targets.length) return;
     for (const e of this.entities.values()) {
       if (e.kind !== 'block') continue;
-      for (let i = Math.floor(e.body.bounds.min.x / 64); i <= Math.floor(e.body.bounds.max.x / 64); i++) {
-        if (!columns.has(i)) columns.set(i, []);
-        columns.get(i).push(e);
-      }
+      indexSpan(columns, e.body.bounds.min.x, e.body.bounds.max.x, e);
     }
     const openSky = (target, x, y) => {
       const column = columns.get(Math.floor(x / 64));
@@ -1034,6 +1142,11 @@ export class FortressSimulation {
       }
       if (push) {
         const height = bounds.max.y - bounds.min.y;
+        // Grounded rubble that already resists this gust needs no windward
+        // visibility check through the rest of the collapsed wall.
+        const acceleration = (Math.abs(wind) - 26) * clamp(height * 0.055 / body.mass, 0.09, 3);
+        if (e.kind === 'fragment' && body.isSleeping && acceleration < GRAVITY * body.friction &&
+            bounds.max.y >= this.terrainHeight(p.x) - 0.5) continue;
         const start = { x: p.x - Math.sign(wind) * (90 + (bounds.max.x - bounds.min.x) / 2), y: p.y };
         let sheltered = false;
         for (let i = Math.floor(Math.min(start.x, p.x) / 64); i <= Math.floor(Math.max(start.x, p.x) / 64); i++) {
@@ -1043,12 +1156,6 @@ export class FortressSimulation {
           }
         }
         if (sheltered) continue;
-        // The force scales with exposed area. A light splinter drifts more
-        // than a stone of the same size, and tall cracked piers feel torque.
-        const acceleration = (Math.abs(wind) - 26) * clamp(height * 0.055 / body.mass, 0.09, 3);
-        // Wind below static friction cannot set grounded rubble sliding.
-        if (e.kind === 'fragment' && body.isSleeping && acceleration < GRAVITY * body.friction &&
-            bounds.max.y >= this.terrainHeight(p.x) - 0.5) continue;
         this.resumePhysics();
         if (body.isSleeping) Sleeping.set(body, false);
         Body.applyForce(body, { x: p.x, y: p.y - height * 0.22 },
@@ -1062,7 +1169,9 @@ export class FortressSimulation {
   }
 
   selectSide(side) {
-    if (side === 'left' || side === 'right') this.side = side;
+    if (side === this.side || (side !== 'left' && side !== 'right') || this.remoteBombs.size) return false;
+    this.side = side;
+    return true;
   }
 
   get release() {
@@ -1087,7 +1196,7 @@ export class FortressSimulation {
       destruction: Math.min(100, Math.round((100 * this.lostWeight) / this.totalWeight)),
       cleared: this.cleared,
       reloadRemaining,
-      ready: reloadRemaining === 0,
+      ready: reloadRemaining === 0 && this.remoteBombs.size === 0,
     };
   }
 
@@ -1258,9 +1367,9 @@ export class FortressSimulation {
   }
 
   detonateRemote(ammoId, side) {
-    const oldest = this.armedBomb(ammoId, side);
-    if (!oldest) return false;
-    this.explode(oldest);
+    const armed = this.armedBomb(ammoId, side);
+    if (!armed) return false;
+    this.explode(armed);
     return true;
   }
 
@@ -1529,8 +1638,14 @@ export class FortressSimulation {
   checkLoads() {
     // Propagate mass down the current contact graph. A beam's unsupported
     // span determines its bending moment after a pier is knocked away.
-    const supports = new Map(),
-      carried = new Map();
+    let supports;
+    for (const e of this.entities.values()) {
+      if (e.body.isSleeping && !e.burning) continue;
+      if (e.kind === 'orc' || (e.kind === 'block' && (e.material === 'wood' || e.material === 'steel'))) {
+        supports = new Map();
+        break;
+      }
+    }
     for (const pair of this.engine.pairs.list) {
       if (!pair.isActive || pair.isSensor || Math.abs(pair.collision.normal.y) < 0.64) continue;
       const { parentA: a, parentB: b, supports: contacts, supportCount } = pair.collision;
@@ -1554,19 +1669,41 @@ export class FortressSimulation {
         Body.setAngularVelocity(upper, Body.getAngularVelocity(upper) * 0.82);
         if (up.quietSamples >= 5) Sleeping.set(upper, true);
       }
+      // Loose ammunition may still roll while every load-sensitive member
+      // sleeps. Only rolling resistance is needed during those samples.
+      if (!supports) continue;
       const links = supports.get(up.id) || [];
       const x = supportCount === 2 ? (contacts[0].x + contacts[1].x) / 2 : contacts[0].x;
       links.push({ e: lower.plugin.fortress, x });
       supports.set(up.id, links);
     }
+    if (!supports) return;
+    const pressure = this.level.version >= 3 ? new Map() : null;
+    if (pressure) for (const e of this.entities.values()) {
+      if (!e.originalSeats || Math.abs(e.body.angle) > 0.08) continue;
+      const top = e.body.bounds;
+      let links = supports.get(e.id);
+      for (const lower of e.originalSeats) {
+        if (!this.entities.has(lower.id) || Math.abs(lower.body.angle) > 0.08) continue;
+        const seat = lower.body.bounds;
+        const left = Math.max(top.min.x, seat.min.x), right = Math.min(top.max.x, seat.max.x);
+        if (right - left < 1 || Math.abs(top.max.y - seat.min.y) > 2.5 || links?.some((p) => p.e === lower)) continue;
+        if (!links) supports.set(e.id, links = []);
+        links.push({ e: lower, x: (left + right) / 2 });
+      }
+    }
     if (!supports.size) return;
+    const carried = new Map();
     const byHeight = [];
     for (const e of this.entities.values()) if (supports.has(e.id)) byHeight.push(e);
     byHeight.sort((a, b) => a.body.position.y - b.body.position.y);
     for (const e of byHeight) {
       const load = carried.get(e.id) || 0,
         base = supports.get(e.id);
-      for (const support of base) {
+      if (pressure && e.body.isStatic) continue;
+      let moment;
+      if (pressure) moment = transferWeight(e, base, carried, pressure);
+      else for (const support of base) {
         if (support.e)
           carried.set(support.e.id, (carried.get(support.e.id) || 0) + (e.body.mass + load) / base.length);
       }
@@ -1582,17 +1719,20 @@ export class FortressSimulation {
         }
         continue;
       }
-      const middle = e.body.position.x;
-      const left = Math.min(...base.map((p) => p.x)),
-        right = Math.max(...base.map((p) => p.x));
-      const eccentricity = Math.max(0, left - middle, middle - right);
-      let span = e.width;
-      if (this.difficulty === 'large' && base.length > 1) {
+      let left = base[0].x;
+      if (!pressure) {
+        const middle = e.body.position.x;
         const seats = base.map((seat) => seat.x).sort((a, b) => a - b);
-        span = Math.max(seats[0] - (middle - e.width / 2), middle + e.width / 2 - seats.at(-1));
-        for (let i = 1; i < seats.length; i++) span = Math.max(span, seats[i] - seats[i - 1]);
+        left = seats[0];
+        const right = seats.at(-1);
+        const eccentricity = Math.max(0, left - middle, middle - right);
+        let span = e.width;
+        if (this.difficulty === 'large' && seats.length > 1) {
+          span = Math.max(left - (middle - e.width / 2), middle + e.width / 2 - right);
+          for (let i = 1; i < seats.length; i++) span = Math.max(span, seats[i] - seats[i - 1]);
+        }
+        moment = load * (0.09 * span * span / e.width + eccentricity);
       }
-      const moment = load * (0.09 * span * span / e.width + eccentricity);
       const capacity = e.height ** 2 * (e.material === 'steel' ? 2.25 : 1.05) * section;
       if (moment > capacity)
         this.hit(e, (0.33 + 0.12 * Math.min(3, moment / capacity)) * MATERIALS[e.material].toughness, {
@@ -1664,6 +1804,7 @@ export class FortressSimulation {
   remove(e) {
     this.resumePhysics();
 
+    if (e.joints) for (const joint of e.joints) releaseJoint(this.joints, joint);
     if (e.rig && this.guards.has(e)) removeGuardRig(this, e);
     if (e.kind === 'block' || e.kind === 'fragment') {
       if (e.carried) this.wakeBearings(e);

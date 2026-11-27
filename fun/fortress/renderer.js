@@ -1,9 +1,9 @@
+import { drawOrcPart, drawOrcBoot, crossbowTip, orcUnit, shootingPose } from './orc-art.js';
 import { drawRoof, prepareRoofArt } from './roofs.js';
 import { createEffects } from './effects.js';
 import { createWeatherEffects } from './weather-effects.js';
-import { sprite, sampleSprite, sampleGuard, drawGuardShadow, drawCrossbowPose, crossbowTip, spriteReady, prepareSprites, drawCatapultOutline, materialFace } from './sprites.js';
+import { sprite, sampleSprite, spriteReady, prepareSprites, drawCatapultOutline, materialFace } from './sprites.js';
 import { paintTerrain } from './terrain.js';
-import { chamberStyle, facadeStyles, paintFacade, prepareFacadeArt } from './facades.js';
 
 // All scene art uses world pixels, including the moving bodies and their fracture pieces.
 const WIDTH = 1200;
@@ -340,92 +340,8 @@ function drawPennant(ctx, x, y, time, seed, wind) {
   ctx.restore();
 }
 
-function tapestry(ctx, x, y, time, royal, wind) {
-  const width = 13,
-    height = 23,
-    strips = 5;
-  const breeze = clamp(wind / 24, -1, 1);
-  const bend = (u) =>
-    (2.3 * breeze * u +
-      Math.sin(time * (2 + Math.abs(breeze)) + x - u * 3) * (0.3 + 0.65 * Math.abs(breeze))) *
-    u;
-  for (let i = 0; i < strips; i++) {
-    const a = i / strips,
-      b = (i + 1) / strips,
-      dx = bend(a),
-      span = height / strips;
-    ctx.save();
-    ctx.transform(1, 0, (bend(b) - dx) / span, 1, x - width * 0.5 + dx, y + height * a);
-    sampleSprite(ctx, royal ? 'azure' : 'crimson', 0, a, 1, 1 / strips, 0, 0, width, span + 0.025);
-    ctx.restore();
-  }
-}
-
-function prepareRooms(sim, bodies) {
-  const roofs = bodies.filter((b) => b.kind === 'block' && b.width > 42 && b.height < 21);
-  const posts = bodies.filter(
-    (b) => b.kind === 'block' && b.width < 35 && ['masonry', 'column', 'beam', 'pane', 'girder'].includes(b.detail),
-  );
-  const home = (b) => b.home || b;
-  const rooms = [];
-  for (const section of sim.level?.sections || []) {
-    let x = section.left;
-    for (let bay = 0; bay < section.spans.length; bay++) {
-      const width = section.spans[bay],
-        cx = x + width / 2;
-      for (let row = 0; row < section.heights[bay]; row++) {
-        const top = section.base - (row + 1) * section.storey;
-        const roof = roofs.find((b) => {
-          if (Math.abs(home(b).y - top - b.height / 2) >= 4) return false;
-          if (b.detail === 'tie-beam') return Math.abs(home(b).x - cx) + width / 2 <= b.width / 2 + 1;
-          return Math.abs(home(b).x - cx) < 13;
-        });
-        if (!roof) continue;
-        const supportStack = (px) =>
-          posts
-            .filter(
-              (b) =>
-                Math.abs(home(b).x - px) < 3 &&
-                home(b).y > top + roof.height &&
-                home(b).y < top + section.storey,
-            )
-            .sort((a, b) => home(a).y - home(b).y);
-        const leftStack = supportStack(x),
-          rightStack = supportStack(x + width);
-        const left = leftStack[0],
-          right = rightStack[0];
-        if (!left || !right) continue;
-        const occupied = section.orcs.some(([c, r]) => c === bay && r === row) ||
-          section.barrels.some(([c, r]) => c === bay && r === row);
-        const style = roof.stairs ? 'open' : chamberStyle(section, bay, row, occupied);
-        const royal = style === 'royal';
-        rooms.push({
-          roof,
-          left,
-          right,
-          leftFoot: leftStack.at(-1),
-          rightFoot: rightStack.at(-1),
-          width,
-          height: section.storey - roof.height + 1,
-          style,
-          offset: cx - home(roof).x,
-          leftOffset: home(left).x - home(roof).x,
-          rightOffset: home(right).x - home(roof).x,
-          arch: royal || style === 'gothic' || style === 'timbered',
-          tapestry: royal || (style === 'gothic' && (section.pattern + bay) % 3 === 0),
-          royal,
-          grounding: row === 0 ? section.storey * section.heights[bay] : 0,
-          broken: false,
-        });
-      }
-      x += width;
-    }
-  }
-  return rooms;
-}
-
 // These soft shadows are stamped repeatedly, including under loose rubble.
-function buildShadows() {
+function buildContactShadow() {
   const contact = document.createElement('canvas');
   contact.width = 96;
   contact.height = 32;
@@ -440,198 +356,10 @@ function buildShadows() {
   c.fillStyle = floor;
   c.fillRect(0, 0, 32, 32);
 
-  const overhang = document.createElement('canvas');
-  overhang.width = 92;
-  overhang.height = 40;
-  const e = overhang.getContext('2d');
-  const penumbra = e.createLinearGradient(0, 0, 0, 40);
-  penumbra.addColorStop(0, 'rgba(24,23,23,.67)');
-  penumbra.addColorStop(0.24, 'rgba(28,26,25,.38)');
-  penumbra.addColorStop(0.68, 'rgba(30,28,26,.105)');
-  penumbra.addColorStop(1, 'rgba(30,28,26,0)');
-  rect(e, penumbra, 0, 0, 92, 40);
-  return { contact, overhang, rooms: {} };
+  return contact;
 }
 
-const chamberLight = {
-  day: [67, 67, 59],
-  dawn: [69, 61, 55],
-  dusk: [62, 56, 62],
-  night: [41, 46, 57],
-};
-
-// The back wall, slit window and diagonal beam of skylight sit behind the
-// painted front arch. Reuse these surfaces for every matching bay in a level.
-function paintChamber(style, phase) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 224;
-  canvas.height = 152;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(2, 2);
-  const [r, g, b] = chamberLight[phase] || chamberLight.day;
-  const color = (n) => `rgb(${r + n},${g + n},${b + n})`;
-  const rand = randomSequence(style === 'royal' ? 11 : style === 'gothic' ? 42 : 37);
-  rect(ctx, color(-20), 0, 0, 112, 76);
-  for (let row = 0; row < 7; row++) {
-    let x = row % 2 ? -7 : -20;
-    while (x < 112) {
-      const y = row * 10.8;
-      const width = 13 + rand() * 13;
-      const value = Math.floor(rand() * 12);
-      polygon(ctx, color(value), [
-        x + 1,
-        y + 0.5,
-        x + width - 1,
-        y + 0.25,
-        x + width,
-        y + 1.6,
-        x + width - 0.5,
-        y + 9.6,
-        x + 2,
-        y + 10,
-        x + 0.3,
-        y + 8.5,
-      ]);
-      line(ctx, color(value + 5), 0.55, x + 2, y + 1.3, x + width - 2, y + 1);
-      for (let i = 0; i < 5; i++) {
-        const dx = x + 2 + rand() * (width - 5),
-          dy = y + 2 + rand() * 5;
-        line(ctx, color(value + (i % 2 ? 2 : -3)), 0.42, dx, dy, dx + 1.6 + rand() * 3, dy - 0.45);
-      }
-      x += width;
-    }
-  }
-  const windows = style === 'royal' ? [54, 68] : style === 'timbered' ? [47] : [61];
-  const windowWidth = style === 'royal' ? 5.6 : 7.5;
-  const windowShape = (x, y, w, h) => {
-    ctx.beginPath();
-    ctx.moveTo(x - w / 2, y + h);
-    ctx.lineTo(x - w / 2, y + w * 0.62);
-    ctx.quadraticCurveTo(x - w * 0.46, y + w * 0.18, x, y);
-    ctx.quadraticCurveTo(x + w * 0.45, y + w * 0.18, x + w / 2, y + w * 0.62);
-    ctx.lineTo(x + w / 2, y + h);
-    ctx.closePath();
-  };
-  for (const x of windows) {
-    windowShape(x, 22, windowWidth + 5, 26);
-    ctx.fillStyle = color(-32);
-    ctx.fill();
-    windowShape(x + 0.8, 23, windowWidth, 22);
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    line(
-      ctx,
-      color(24),
-      1.1,
-      x + windowWidth / 2 + 1.5,
-      30,
-      x + windowWidth / 2 + 1.5,
-      45.7,
-      x - windowWidth / 2 + 0.8,
-      45.7,
-    );
-    const beam = ctx.createLinearGradient(0, 33, 0, 70);
-    beam.addColorStop(0, phase === 'night' ? 'rgba(136,170,205,.15)' : 'rgba(243,206,140,.22)');
-    beam.addColorStop(1, 'rgba(202,192,155,0)');
-    polygon(ctx, beam, [
-      x - windowWidth / 2 + 1,
-      45.8,
-      x + windowWidth / 2 + 1,
-      45.8,
-      x + 25,
-      67,
-      x + 11,
-      67,
-    ]);
-  }
-  // Side returns and the cast shadow beneath the lintel give the front piers depth.
-  polygon(ctx, 'rgba(14,19,22,.39)', [0, 0, 22, 12, 22, 63, 0, 76]);
-  polygon(ctx, 'rgba(17,21,23,.24)', [112, 0, 99, 12, 99, 63, 112, 76]);
-  polygon(ctx, 'rgba(23,24,24,.32)', [0, 76, 22, 63, 99, 63, 112, 76]);
-  const ceiling = ctx.createLinearGradient(0, 0, 0, 48);
-  ceiling.addColorStop(0, 'rgba(9,13,17,.84)');
-  ceiling.addColorStop(0.42, 'rgba(14,17,20,.44)');
-  ceiling.addColorStop(1, 'rgba(18,21,23,0)');
-  ctx.fillStyle = ceiling;
-  ctx.fillRect(0, 0, 112, 48);
-  return canvas;
-}
-
-function paintGallery(balcony) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 336;
-  canvas.height = 228;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(3, 3);
-  for (const side of [0, 1]) {
-    ctx.save();
-    if (side) { ctx.translate(112, 0); ctx.scale(-1, 1); }
-    polygon(ctx, '#544333', [3, 1, 35, 1, 30, 5, 10, 23, 5, 23, 5, 16, 22, 3, 3, 4]);
-    line(ctx, '#b39568', 1.2, 6, 19, 26, 2);
-    ellipse(ctx, '#292d2c', 9, 17.5, 1.1, 1.1);
-    ctx.restore();
-  }
-  if (balcony) {
-    for (let x = 10; x < 112; x += 15) {
-      rect(ctx, '#4b4034', x, 59, 3.5, 17);
-      rect(ctx, '#9f8769', x, 59, 0.9, 17);
-    }
-    rect(ctx, '#4b3b32', 0, 57, 112, 4.2);
-    rect(ctx, '#ba9c72', 0, 57, 112, 1.1);
-  }
-  return canvas;
-}
-
-function drawGroundShadows(ctx, sim, bodies, shadows, rooms, view, minGround) {
-  const { contact } = shadows;
-  // A tall standing bay shades an area of turf that extends past its base.
-  // Slice the soft penumbra along the collision profile so it follows ledges
-  // and crater rims. A displaced or broken foundation releases its shadow.
-  const sunHeight = sim.level.phase === 'dawn' || sim.level.phase === 'dusk' ? 0.34 : 0.22;
-  ctx.globalAlpha = sim.level.phase === 'night' ? 0.64 : 0.9;
-  for (const room of rooms || []) {
-    if (!room.grounding || room.broken || room.left.destroyed || room.right.destroyed || room.roof.destroyed)
-      continue;
-    const { leftFoot, rightFoot } = room;
-    if (
-      leftFoot.destroyed ||
-      rightFoot.destroyed ||
-      Math.abs(leftFoot.body.bounds.max.y - sim.terrainHeight(leftFoot.x)) > 6 ||
-      Math.abs(rightFoot.body.bounds.max.y - sim.terrainHeight(rightFoot.x)) > 6
-    )
-      continue;
-    const left = leftFoot.x - 6;
-    const width = room.width + 14 + Math.min(36, room.grounding * sunHeight);
-    const right = left + width;
-    if (right < view.x || left > view.x + view.width) continue;
-    for (let i = 1; i < sim.terrain.length; i++) {
-      const a = sim.terrain[i - 1],
-        b = sim.terrain[i];
-      if (a.x > right) break;
-      if (b.x <= left) continue;
-      const start = Math.max(a.x, left),
-        end = Math.min(b.x, right),
-        span = end - start;
-      if (span < 0.05) continue;
-      const slope = (b.y - a.y) / (b.x - a.x);
-      ctx.save();
-      ctx.transform(1, slope, 0, 1, start, a.y + slope * (start - a.x) - 2.2);
-      ctx.drawImage(
-        contact,
-        ((start - left) / width) * contact.width,
-        0,
-        (span / width) * contact.width,
-        contact.height,
-        0,
-        0,
-        span + 0.02,
-        10 + room.grounding * 0.034,
-      );
-      ctx.restore();
-    }
-  }
-  ctx.globalAlpha = 1;
+function drawGroundShadows(ctx, sim, bodies, contact, view, minGround) {
   for (const b of bodies) {
     if (
       b.kind === 'torch' ||
@@ -650,45 +378,6 @@ function drawGroundShadows(ctx, sim, bodies, shadows, rooms, view, minGround) {
     ctx.drawImage(contact, b.x - width * 0.43, floor - 3.1, width, 8.4);
   }
   ctx.globalAlpha = 1;
-}
-
-function drawRooms(ctx, state, sim, bodies, time, wind) {
-  if (!state.rooms) state.rooms = prepareRooms(sim, bodies);
-  for (const room of state.rooms) {
-    if (room.broken) continue;
-    const { roof, left, right, width, height } = room;
-    const separated =
-      roof.destroyed ||
-      left.destroyed ||
-      right.destroyed ||
-      Math.abs(left.x - roof.x - room.leftOffset) > 9 ||
-      Math.abs(right.x - roof.x - room.rightOffset) > 9 ||
-      Math.abs(roof.angle - left.angle) > 0.25 ||
-      Math.abs(roof.angle - right.angle) > 0.25 ||
-      left.y < roof.y ||
-      right.y < roof.y;
-    if (separated) {
-      room.broken = true;
-      state.effects.roomBreak(roof.x, roof.y + roof.height * 0.5, width, roof.material);
-      continue;
-    }
-    ctx.save();
-    ctx.translate(roof.x, roof.y);
-    ctx.rotate(roof.angle);
-    const top = roof.height / 2 - 1,
-      leftEdge = room.offset - width / 2;
-    ctx.drawImage(
-      state.shadows.rooms[sim.level.phase][room.style],
-      leftEdge + 0.5,
-      top,
-      width - 1,
-      height - 1,
-    );
-    if (room.arch) sprite(ctx, room.style, leftEdge - 1, top - 2, width + 2, height + 2);
-    ctx.drawImage(state.shadows.overhang, leftEdge, top, width, Math.min(16, height * 0.42));
-    if (room.tapestry) tapestry(ctx, leftEdge + width * 0.23, top, time, room.royal, wind);
-    ctx.restore();
-  }
 }
 
 const stones = ['limestone', 'stone', 'graystone', 'limestone', 'repaired', 'limestone', 'graystone'];
@@ -918,7 +607,7 @@ function drawCharcoal(ctx, b, x, y, w, h) {
   } else ctx.drawImage(charcoal, sx, sy, COAL_W, COAL_H, x, y, w, h);
 }
 
-function drawBlock(ctx, b, time, wind) {
+function drawBlock(ctx, b, time, wind, stamp) {
   const w = b.width,
     h = b.height;
   if (b.roofType) {
@@ -938,6 +627,14 @@ function drawBlock(ctx, b, time, wind) {
     return;
   }
   if (b.detail === 'banner') drawPennant(ctx, 0, -h / 2 + 1, time, b.id, wind);
+  if (stamp && !b.bend && !b.burn) drawStamp(ctx, stamp);
+  else drawBlockFace(ctx, b);
+  if (b.damage > 0.18) scar(ctx, b);
+  drawCharcoal(ctx, b, -w / 2, -h / 2, w, h);
+}
+
+function drawBlockFace(ctx, b) {
+  const w = b.width, h = b.height;
   drawBlockDepth(ctx, b);
   if (!spriteReady()) {
     rect(
@@ -975,8 +672,6 @@ function drawBlock(ctx, b, time, wind) {
     }
     ctx.restore();
   }
-  if (b.damage > 0.18) scar(ctx, b);
-  drawCharcoal(ctx, b, -w / 2, -h / 2, w, h);
 }
 
 // The cut ends and the shaded soffit behind each painted face move with the
@@ -1027,7 +722,7 @@ function drawBlockDepth(ctx, b) {
 }
 
 const fragmentBase = { wood: '#b17949', steel: '#617a8c', glass: '#64bbc149', stone: '#a69f90' };
-function drawFragment(ctx, b) {
+function drawFragmentFace(ctx, b) {
   const points = b.vertices;
   if (!points?.length) return;
   let paths = piecePaths.get(b);
@@ -1043,11 +738,6 @@ function drawFragment(ctx, b) {
     piecePaths.set(b, paths);
   }
   ctx.save();
-  if (b.dustProgress > 0) {
-    const dust = clamp(b.dustProgress, 0, 1);
-    ctx.globalAlpha *= 1 - dust * dust * (3 - 2 * dust);
-    ctx.scale(1 - dust * 0.18, 1 - dust * 0.18);
-  }
   ctx.fillStyle = fragmentBase[b.material] || '#908777';
   ctx.fill(paths.shape);
   ctx.clip(paths.shape);
@@ -1062,6 +752,78 @@ function drawFragment(ctx, b) {
   // The center of mass of a splinter can sit off-center in its bounding box.
   drawCharcoal(ctx, b, -w * 0.72, -h * 0.72, w * 1.44, h * 1.44);
   ctx.restore();
+}
+
+// One immutable image per batch of pieces. Each frame has a transparent gutter
+// so filtering its edges at an angle cannot pull in a neighbor's material.
+function bakePieces(batch, density) {
+  let x = 0, y = 0, rowHeight = 0, sheetWidth = 0;
+  const frames = [];
+  for (const { piece, stamp } of batch) {
+    let left = -piece.width / 2, top = -piece.height / 2;
+    let right = -left + 3.2, bottom = -top + 2.4; // beveled ends on intact blocks
+    if (piece.vertices) {
+      left = top = Infinity;
+      right = bottom = -Infinity;
+      for (const p of piece.vertices) {
+        left = Math.min(left, p.x);
+        top = Math.min(top, p.y);
+        right = Math.max(right, p.x);
+        bottom = Math.max(bottom, p.y);
+      }
+    }
+    left = Math.floor(left * density) - 2;
+    top = Math.floor(top * density) - 2;
+    const w = Math.ceil(right * density) - left + 2;
+    const h = Math.ceil(bottom * density) - top + 2;
+    if (w > 1024 || h > 1024) continue;
+    if (x && x + w > 1024) {
+      x = 0;
+      y += rowHeight;
+      rowHeight = 0;
+    }
+    if (y + h > 1024) continue;
+    frames.push({ piece, stamp, x, y, w, h, left: left / density, top: top / density });
+    sheetWidth = Math.max(sheetWidth, x + w);
+    x += w;
+    rowHeight = Math.max(rowHeight, h);
+  }
+  if (!frames.length) return;
+  let sheet = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(sheetWidth, y + rowHeight) : null;
+  let c = sheet?.getContext('2d');
+  if (!c) {
+    sheet = document.createElement('canvas');
+    sheet.width = sheetWidth;
+    sheet.height = y + rowHeight;
+    c = sheet.getContext('2d');
+  }
+  if (!c) return;
+  c.imageSmoothingQuality = 'high';
+  for (const { piece, x, y, left, top } of frames) {
+    c.setTransform(density, 0, 0, density, x - left * density, y - top * density);
+    if (piece.vertices) drawFragmentFace(c, piece);
+    else drawBlockFace(c, piece);
+  }
+  const image = sheet.transferToImageBitmap?.() ?? sheet;
+  for (const { stamp, x, y, w, h, left, top } of frames) {
+    Object.assign(stamp, { image, x, y, w, h, left, top, width: w / density, height: h / density });
+  }
+}
+
+function drawStamp(ctx, stamp) {
+  ctx.drawImage(stamp.image, stamp.x, stamp.y, stamp.w, stamp.h, stamp.left, stamp.top, stamp.width, stamp.height);
+}
+
+function drawFragment(ctx, b, stamp) {
+  const dust = clamp(b.dustProgress || 0, 0, 1);
+  if (dust) {
+    ctx.save();
+    ctx.globalAlpha *= 1 - dust * dust * (3 - 2 * dust);
+    ctx.scale(1 - dust * .18, 1 - dust * .18);
+  }
+  if (stamp && !b.burn) drawStamp(ctx, stamp);
+  else drawFragmentFace(ctx, b);
+  if (dust) ctx.restore();
 }
 
 function drawTorch(ctx, b) {
@@ -1217,50 +979,47 @@ function drawTrajectory(ctx, guide, pixel, recovery) {
   ctx.restore();
 }
 
-function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime) {
+function drawGuard(ctx, b, t, launchAge, reduced, screenScale, shotTime, keepCenter) {
   const reaction = 0.2 + Math.max(0, b.x - 500) * 0.00045 + (b.id % 3) * 0.03;
   const alerted = !reduced && launchAge > reaction && launchAge < reaction + 1.35;
   const gesture = !reduced && (t + b.id * 0.74) % 5.7 < 0.67;
-  const pose = alerted ? 'guard-action' : gesture ? 'guard-idle' : 'guard';
-  const overview = clamp((61 - b.height * screenScale) / 23, 0, 1);
-  const tiny = clamp((38 - b.height * screenScale) / 28, 0, 1);
-  const w = b.width * (1.21 + 0.43 * tiny);
-  const h = b.height * (1.16 + 0.32 * tiny) * (alerted ? 0.91 : 1);
+  let pose = alerted ? 2 : gesture ? 1 : 0;
   const foot = b.rig ? 19.5 : b.height / 2;
+  const aim = b.gunAngle - b.angle;
+  const watchingLeft = b.exterior ? b.exterior === 'left' : (b.home?.x ?? b.x) < keepCenter;
+  const facingLeft = Number.isFinite(b.gunAngle) ? Math.cos(b.gunAngle) < 0 : watchingLeft;
+  let facing = facingLeft ? -1 : 1;
   const age = shotTime - (b.firedAt ?? -Infinity);
-  const drawing = b.drawingBolt;
-  const recovery = age >= 0 && age < 0.44;
-  if ((drawing || recovery) && Math.abs(b.angle) < 0.65) {
-    const aim = b.gunAngle - b.angle;
-    const facing = Math.cos(aim) < 0 ? -1 : 1;
-    const frame = drawing ? (shotTime - b.drawStartedAt < 0.065 ? 0 : 1)
+  if ((b.drawingBolt || (age >= 0 && age < 0.44)) && Math.abs(b.angle) < 0.65) {
+    facing = Math.cos(aim) < 0 ? -1 : 1;
+    const frame = b.drawingBolt ? (shotTime - b.drawStartedAt < 0.065 ? 0 : 1)
       : age < 0.15 ? 2 : age < 0.28 ? 1 : 0;
-    ctx.save();
-    ctx.translate(0, foot);
-    ctx.scale(facing, 1);
-    const pitch = Math.atan2(Math.sin(aim), Math.abs(Math.cos(aim)));
-    drawCrossbowPose(ctx, reduced ? 1 : frame, pitch, b.height * (1.18 + 0.31 * tiny));
-    ctx.restore();
-    return;
+    pose = shootingPose(reduced ? 1 : frame, Math.atan2(Math.sin(aim), Math.abs(Math.cos(aim))));
   }
-  drawGuardShadow(ctx, pose, -w / 2, foot - h, w, h);
+  const unit = orcUnit(b.height, screenScale);
   if (b.rig && !b.rig.resting) {
     const c = Math.cos(b.angle), s = Math.sin(b.angle);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < b.rig.legs.length; i++) {
       const leg = b.rig.legs[i].body;
       const dx = leg.position.x - b.x, dy = leg.position.y - b.y;
       ctx.save();
       ctx.translate(c * dx + s * dy, c * dy - s * dx);
       ctx.rotate(leg.angle - b.angle);
-      const side = i ? 1 : -1;
-      sampleGuard(ctx, pose, overview, i * 0.5, 0.67, 0.5, 0.33,
-        side * (w * 0.25 - 6.2) - w * 0.25, -5.85, w * 0.5, 11.35);
+      ctx.translate(i ? -6.2 : 6.2, 5.5);
+      ctx.scale(facing, 1);
+      drawOrcBoot(ctx, facing > 0 ? i : 1 - i, unit);
       ctx.restore();
     }
-    sampleGuard(ctx, pose, overview, 0, 0, 1, 0.71, -w / 2, foot - h, w, h * 0.71);
-  } else sampleGuard(ctx, pose, overview, 0, 0, 1, 1, -w / 2, foot - h, w, h);
-
-
+  }
+  ctx.save();
+  ctx.translate(0, foot);
+  ctx.scale(facing, 1);
+  if (!b.rig || b.rig.resting) {
+    drawOrcBoot(ctx, 0, unit);
+    drawOrcBoot(ctx, 1, unit);
+  }
+  drawOrcPart(ctx, pose, unit);
+  ctx.restore();
 }
 
 function drawGuardBolts(ctx, sim, reduced, screenScale) {
@@ -1275,8 +1034,7 @@ function drawGuardBolts(ctx, sim, reduced, screenScale) {
         const aim = angle - guard.angle, facing = Math.cos(aim) < 0 ? -1 : 1;
         const pitch = Math.atan2(Math.sin(aim), Math.abs(Math.cos(aim)));
         const [tipX, tipY] = crossbowTip(pitch, reduced);
-        const tiny = clamp((38 - guard.height * screenScale) / 28, 0, 1);
-        const unit = guard.height * (1.18 + 0.31 * tiny) / 268;
+        const unit = orcUnit(guard.height, screenScale);
         const x = facing * tipX * unit, y = (guard.rig ? 19.5 : guard.height / 2) + tipY * unit;
         const c = Math.cos(guard.angle), s = Math.sin(guard.angle);
         const originX = bolt.x - travel * bolt.dirX, originY = bolt.y - travel * bolt.dirY;
@@ -1305,11 +1063,10 @@ export function createRenderer(canvas) {
   const effects = createEffects();
   const weather = createWeatherEffects(canvas.parentElement?.querySelector('#weather-sky'));
   charcoal ||= paintCharcoal();
+  prepareRoofArt();
   const backdrop = document.getElementById('scenery');
   const state = {
-    effects,
-    shadows: buildShadows(),
-    rooms: null,
+    contactShadow: buildContactShadow(),
     stairArt: paintStairs(),
     stairFloors: null,
     terrain: null,
@@ -1320,10 +1077,40 @@ export function createRenderer(canvas) {
     aim: null,
     aimKey: '',
   };
+  let stamps = new WeakMap(), stampPhase, stampDensity = 0;
+  const blockStamps = new Map(), pending = [];
+  function pieceStamp(b) {
+    let stamp = stamps.get(b);
+    if (!stamp) {
+      if (b.roofType || b.burn || b.bend || !spriteReady()) return;
+      if (b.kind === 'block') {
+        // Timbers and girders of equal dimensions share one face. Stone also
+        // depends on its masonry courses, carved collar and seeded stone color.
+        const variant = b.material === 'stone' ? b.detail + '/' + b.id % stones.length : '';
+        const key = b.material + '/' + b.width + '/' + b.height + '/' + variant;
+        stamp = blockStamps.get(key);
+        if (!stamp) {
+          stamp = {};
+          blockStamps.set(key, stamp);
+          const { id, material, detail, width, height } = b;
+          pending.push({ piece: { id, material, detail, width, height }, stamp });
+        }
+      } else {
+        if (!b.vertices?.length) return;
+        stamp = {};
+        pending.push({ piece: b, stamp });
+      }
+      stamps.set(b, stamp);
+    }
+    return stamp.image ? stamp : undefined;
+  }
   function reset() {
     weather.reset();
-    state.rooms = null;
     state.stairFloors = null;
+    stamps = new WeakMap();
+    blockStamps.clear();
+    pending.length = 0;
+    stampDensity = 0;
     state.terrain = null;
     state.terrainLayout = null;
     state.launchTime = -10;
@@ -1331,24 +1118,7 @@ export function createRenderer(canvas) {
     state.aimKey = '';
     effects.reset();
   }
-  function prepareChambers(phase) {
-    state.shadows.rooms[phase] = {
-      gothic: paintChamber('gothic', phase),
-      timbered: paintChamber('timbered', phase),
-      royal: paintChamber('royal', phase),
-      open: paintGallery(false),
-      balcony: paintGallery(true),
-      ...Object.fromEntries(facadeStyles.map((style) => [style, paintFacade(style, phase)])),
-    };
-  }
-  async function prepareArchitecture() {
-    prepareRoofArt();
-    await prepareFacadeArt();
-    for (const phase of ['day', 'dawn', 'dusk', 'night']) prepareChambers(phase);
-  }
-  function prepare(sim, scenery, bodies) {
-    const phase = sim.level?.phase || 'day';
-    if (!state.shadows.rooms[phase]) prepareChambers(phase);
+  function prepare(sim, scenery) {
     if (state.terrainSource === scenery && state.terrainLayout === sim.terrain && state.terrain) return;
     if (!scenery?.complete || !scenery.naturalWidth) return;
     state.terrain = paintTerrain(
@@ -1361,7 +1131,6 @@ export function createRenderer(canvas) {
     if (state.terrainLayout !== sim.terrain) state.aimKey = '';
     state.terrainSource = scenery;
     state.terrainLayout = sim.terrain;
-    if (!state.rooms) state.rooms = prepareRooms(sim, bodies || sim.bodies);
   }
   function draw(sim, options = {}) {
     const { angle = 43, power = 70, ammo = 'small-stone', reducedMotion = false } = options;
@@ -1380,8 +1149,22 @@ export function createRenderer(canvas) {
     const dt = state.lastTime == null ? 0 : clamp(t - state.lastTime, 0, 0.05);
     state.lastTime = t;
     const phase = sim.level?.phase || 'day';
-    if (!state.shadows.rooms[phase]) prepareChambers(phase);
     prepareSprites(phase, w / view.width);
+    const density = Math.min(6, Math.max(2, Math.ceil(w / view.width)));
+    if (density > stampDensity || phase !== stampPhase) {
+      stamps = new WeakMap();
+      blockStamps.clear();
+      pending.length = 0;
+      stampDensity = density;
+      stampPhase = phase;
+    }
+    // Limit paint work on impact frames. Newly broken pieces draw directly until
+    // their sheet is ready; a burst never has to build a whole tower of stamps.
+    if (pending.length) {
+      const batch = pending.splice(-16).filter(({ piece }) =>
+        !piece.vertices || ((!sim.entities || sim.entities.has(piece.id)) && !piece.burn));
+      bakePieces(batch, stampDensity);
+    }
     const events = options.events || [];
     for (const event of events) {
       if (event.type !== 'launch') continue;
@@ -1415,14 +1198,14 @@ export function createRenderer(canvas) {
     ctx.translate(shake.x, shake.y);
     const ambientTime = reducedMotion ? 0 : t;
     const scenery = options.scenery || backdrop;
-    prepare(sim, scenery, bodies);
+    prepare(sim, scenery);
     weather.drawSky(ctx, sim, view, t, reducedMotion, dt, wind);
     weather.drawAir(ctx, sim, bodies, view, t, reducedMotion, wind, cssW, false);
     if (state.terrain) {
       const g = state.terrain;
       ctx.drawImage(g.canvas, g.left, g.top, g.width, g.height);
     }
-    drawGroundShadows(ctx, sim, bodies, state.shadows, state.rooms, view, state.terrain?.top ?? GROUND - 90);
+    drawGroundShadows(ctx, sim, bodies, state.contactShadow, view, state.terrain?.top ?? GROUND - 90);
     ambient(ctx, ambientTime, sim.themeIndex ?? sim.levelIndex);
     effects.drawBehind(ctx);
     const age = t - state.launchTime;
@@ -1436,10 +1219,9 @@ export function createRenderer(canvas) {
       // The cached chassis, arm and crew artwork share this local cup position.
       ctx.translate(-160, -326);
       drawCatapult(ctx, ammo, ambientTime, recovery, recovery === 1,
-        sim.themeIndex ?? sim.levelIndex, reducedMotion, state.shadows.contact, side === sim.side, cssW / view.width < 0.65);
+        sim.themeIndex ?? sim.levelIndex, reducedMotion, state.contactShadow, side === sim.side, cssW / view.width < 0.65);
       ctx.restore();
     }
-    drawRooms(ctx, state, sim, bodies, ambientTime, wind);
     state.stairFloors ||= bodies.filter((b) => b.stairs);
     for (const floor of state.stairFloors) {
       if (!sim.entities.has(floor.id)) continue;
@@ -1471,23 +1253,24 @@ export function createRenderer(canvas) {
       );
 
       if (b.kind === 'orc' && b.body.speed < 0.6 && Math.abs(b.angle) < 0.4) {
-        ctx.drawImage(state.shadows.contact, -b.width * 0.76, b.rig ? 16.7 : b.height * 0.39, b.width * 1.7, b.height * 0.24);
+        ctx.drawImage(state.contactShadow, -b.width * 0.76, b.rig ? 16.7 : b.height * 0.39, b.width * 1.7, b.height * 0.24);
       } else if (b.kind === 'barrel' && b.body.speed < 0.4 && Math.abs(b.angle) < 0.4) {
         ctx.drawImage(
-          state.shadows.contact,
+          state.contactShadow,
           -b.width * 0.62,
           b.rig ? 17.5 : b.height * 0.41,
           b.width * 1.38,
           b.height * 0.18,
         );
       }
-      if (b.kind === 'orc') drawGuard(ctx, b, ambientTime, age, reducedMotion, cssW / view.width, sim.time);
+      if (b.kind === 'orc') drawGuard(ctx, b, ambientTime, age, reducedMotion, cssW / view.width, sim.time,
+        sim.level.sections?.[0]?.center ?? WIDTH / 2);
       else if (b.kind === 'barrel')
         sprite(ctx, 'keg', -b.width * 0.53, -b.height * 0.69, b.width * 1.06, b.height * 1.19);
       else if (b.kind === 'torch') drawTorch(ctx, b);
       else if (b.kind === 'projectile' && !b.vertices) drawAmmo(ctx, b.material, b.radius || b.width / 2, ambientTime, true);
-      else if (b.kind === 'fragment' || b.detail === 'split-shot') drawFragment(ctx, b);
-      else drawBlock(ctx, b, ambientTime, wind);
+      else if (b.kind === 'fragment' || b.detail === 'split-shot') drawFragment(ctx, b, pieceStamp(b));
+      else drawBlock(ctx, b, ambientTime, wind, pieceStamp(b));
     }
     ctx.restore();
     drawGuardBolts(ctx, sim, reducedMotion, cssW / view.width);
@@ -1506,5 +1289,5 @@ export function createRenderer(canvas) {
     effects.drawFront(ctx);
     ctx.restore();
   }
-  return { draw, reset, prepare, prepareArchitecture };
+  return { draw, reset, prepare };
 }

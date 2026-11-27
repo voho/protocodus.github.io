@@ -33,6 +33,10 @@ export function createView(field, panorama, source, hud) {
     lift = 0,
     view = { x: WORLD.minX, y: 0, width: WIDTH, height: 480 };
   let base = view;
+  let keepLeft = MIDFIELD, keepRight = MIDFIELD, inspecting = false;
+  let dragStartCenter;
+  let roofline = [];
+  let playBounds = { left: WORLD.minX, right: WORLD.maxX, top: GROUND - 335, bottom: GROUND };
   let manualDuringShot = false,
     readout = 0;
   let safeTop = 0,
@@ -54,6 +58,32 @@ export function createView(field, panorama, source, hud) {
     moved = false,
     focusX = MIDFIELD;
 
+  function panCenter(value, w) {
+    if (w >= WIDTH) return MIDFIELD;
+    const half = w / 2;
+    let left = WORLD.minX + half, right = WORLD.maxX - half;
+    if (inspecting) {
+      // A drag or wheel zoom inspects the castle. Keep at least a quarter of
+      // the viewport (or half a small keep) across its frontage at either end.
+      const frontage = Math.min(w / 4, (keepRight - keepLeft) / 2);
+      // A crew switch may already have framed a distant sling. The first
+      // drag can move back from it smoothly without jumping to the keep.
+      left = Math.max(left, Math.min(dragStartCenter ?? Infinity, keepLeft + frontage - half));
+      right = Math.min(right, Math.max(dragStartCenter ?? -Infinity, keepRight - frontage + half));
+    }
+    return clamp(value, left, right);
+  }
+
+  function highestInView(x, w) {
+    let top = WORLD.release.y - 58;
+    for (const roof of roofline) {
+      // Taller neighboring bays come into view gradually when dragging sideways.
+      const distance = Math.max(0, roof.left - x - w, x - roof.right);
+      top = Math.min(top, roof.top + distance);
+    }
+    return top;
+  }
+
   function measure() {
     width = field.clientWidth || 1;
     height = field.clientHeight || 1;
@@ -68,12 +98,14 @@ export function createView(field, panorama, source, hud) {
     const scale = fitScale * stops[zoom];
     const w = width / scale,
       h = height / scale;
-    const x = w >= WIDTH ? MIDFIELD - w / 2 : clamp(center - w / 2, WORLD.minX, WORLD.maxX - w);
+    center = panCenter(center, w);
+    const x = center - w / 2;
+    const maxLift = Math.max(0, GROUND - highestInView(x, w) - (floorY - safeTop) / scale);
+    lift = zoom ? clamp(lift, -Math.min(64, usableHeight * .12 / scale), maxLift) : 0;
     const changed = screenGround !== floorY;
     screenGround = floorY;
     if (base.width !== w) crewPan = null;
     base = { x, y: GROUND - floorY / scale - lift, width: w, height: h };
-    center = x + w / 2;
     view = zoomFrom || base;
     geometryDirty = false;
     hintDirty = true;
@@ -250,7 +282,7 @@ export function createView(field, panorama, source, hud) {
       if (reduced || zoomTime === 1) zoomFrom = null;
       const next = shotCamera.update(
         manualView,
-        { width, height, top: safeTop, bottom: safeBottom, fitScale },
+        { width, height, top: safeTop, bottom: safeBottom, fitScale, playBounds },
         sim,
         events,
         dt,
@@ -299,6 +331,8 @@ export function createView(field, panorama, source, hud) {
     const newWidth = width / (fitScale * stops[next]);
     center = about + (0.5 - position) * newWidth;
     zoom = next;
+    inspecting = zoom > 0;
+    dragStartCenter = undefined;
     if (!zoom) {
       center = MIDFIELD;
       lift = 0;
@@ -331,9 +365,13 @@ export function createView(field, panorama, source, hud) {
     if (zoom && moved && pointers.size === 1) {
       crewPan = null;
       zoomFrom = null;
-      center -= ((e.clientX - p.x) * view.width) / width;
-      const roofLift = crestRise - (screenGround - safeTop) / (fitScale * stops[zoom]) + 24;
-      lift = clamp(lift + ((e.clientY - p.y) * view.height) / height, -140, Math.max(120, roofLift));
+      if (!inspecting && Math.abs(e.clientX - p.originX) > 6) {
+        dragStartCenter = center;
+        inspecting = true;
+      }
+      center = panCenter(center - ((e.clientX - p.x) * view.width) / width, base.width);
+      if (dragStartCenter !== undefined) dragStartCenter = center;
+      lift += ((e.clientY - p.y) * view.height) / height;
       geometryDirty = true;
     }
     p.x = e.clientX;
@@ -361,6 +399,8 @@ export function createView(field, panorama, source, hud) {
       if (!crewPan && target === center) return;
       // Reversing a switch preserves momentum. Only move as far as the new crew
       // needs, leaving the shot camera free to widen the view for a crossfire.
+      inspecting = false;
+      dragStartCenter = undefined;
       crewPan = { value: center, velocity: crewPan?.velocity ?? 0, target };
     },
     dragged: () => moved,
@@ -399,9 +439,21 @@ export function createView(field, panorama, source, hud) {
       focusX = sections[0].center;
       phase = phaseName;
       seed = variant;
-      crestRise = Math.max(335, ...sections.map((ward) =>
-        GROUND - ward.base + Math.max(...ward.heights) * ward.storey + 45));
+      roofline = sections.flatMap((ward) => {
+        let left = ward.left;
+        return ward.spans.map((span, bay) => {
+          const roof = { left, right: left + span, top: ward.base - ward.heights[bay] * ward.storey - 45 };
+          left += span;
+          return roof;
+        });
+      });
+      keepLeft = Math.min(...roofline.map((roof) => roof.left));
+      keepRight = Math.max(...roofline.map((roof) => roof.right));
+      playBounds = { left: WORLD.minX, right: WORLD.maxX, top: Math.min(...roofline.map((roof) => roof.top)), bottom: GROUND };
+      crestRise = Math.max(335, GROUND - playBounds.top);
       zoom = 0;
+      inspecting = false;
+      dragStartCenter = undefined;
       lift = 0;
       center = MIDFIELD;
       geometryDirty = artDirty = true;
