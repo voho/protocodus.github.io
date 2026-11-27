@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+ <defs>
+  <linearGradient id="rim" x2=".7" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#fff0bf"/><stop offset=".33" stop-color="#c09855"/><stop offset=".68" stop-color="#f2cb83"/><stop offset="1" stop-color="#8e6335"/></linearGradient>
+  <linearGradient id="red" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#a45637"/><stop offset=".55" stop-color="#793d30"/><stop offset="1" stop-color="#4e302a"/></linearGradient>
+ </defs>
+ <path d="M2 3Q14 4 24 1q10 3 22 2v27q0 11-22 24Q2 41 2 30Z" fill="url(#rim)" stroke="#443021" stroke-width="1.5"/>
+ <path d="M5.5 6.4Q15 7 24 4.6q9 2.4 18.5 1.8v23Q42.5 39 24 50 5.5 39 5.5 29.4Z" fill="url(#red)" stroke="#704329"/>
+ <path d="M8 9q8 .3 16-1.8v39Q8 36.4 8 29Z" fill="#c37a45" opacity=".15"/>
+ <g fill="url(#rim)" stroke="#5f3c27" stroke-width=".8" stroke-linejoin="round">
+  <path d="M17 14h3v3h2v-4h4v4h2v-3h3v7h-2v10H19V21h-2z"/>
+  <path d="M9 19h3v3h2v-3h3v3h2v-3h2v8h-2v4h10v-4h-2v-8h3v3h2v-3h3v3h2v-3h2v8h-2v10H11V27H9z"/>
+  <path d="M10 36h28v3H10z"/>
+ </g>
+ <path d="M21 36v-4q0-2 3-4 3 2 3 4v4m-5-10v-3q0-1.7 2-2.6 2 1 2 2.6v3m-13 5v-4h2v4m17 0v-4h2v4" fill="#58422e"/>
+ <path d="M6 6.5q10 1 18-1.6M12 37h8m8 0h8" fill="none" stroke="#f7d697" stroke-width="1"/>
+</svg>

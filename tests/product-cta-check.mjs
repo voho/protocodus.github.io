@@ -6,7 +6,7 @@ import { browser } from './helpers/analytics-harness.mjs';
 
 const root = new URL('../', import.meta.url);
 const products = ['youknow', 'maremba', 'acustra', 'ceres', 'press78', 'aculele', 'respira', 'aculyre', 'lamer', 'acukoto', 'binaurel', 'remix', 'convretor', 'keyra', 'retra', 'electry', 'oregana', 'remit', 'unrest', 'reboot', 'riffle'];
-const games = ['alpen', 'ashline', 'bridger', 'meteora', 'puzzles', 'tyran'];
+const games = ['alpen', 'ashline', 'bridger', 'fortress', 'meteora', 'puzzles', 'tyran'];
 const fixedId = /^[a-z][a-z0-9_]*$/;
 const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
