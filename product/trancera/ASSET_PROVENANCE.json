@@ -1,0 +1,51 @@
+{
+ "product": "Trancera",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-28",
+  "build_version": "0.9.6f5",
+  "version_on_panel": "0.9.6f4",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.9.6f4 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6). Source 0.9.6f5 restyles them; its build is pending.",
+  "assets": [
+   {
+    "file": "trancera-rack-front.webp",
+    "sha256": "d3c36e37aaf0c69e87bf7d34a178fec6a53e2598afc85cdc3c133e47f59e3db9",
+    "source": "dist/Trancera_Front.png",
+    "source_sha256": "29a51f58b18b5affdf0447ef4181caac88b79fe25c95f032dadb4ccb7ad8e44e",
+    "pixels": [
+     1457,
+     1200
+    ]
+   },
+   {
+    "file": "trancera-rack-rear.webp",
+    "sha256": "027fec9b00c5403f3e5b9f05ce0e361d8af4a0408c28852038af2c106eee43a9",
+    "source": "dist/Trancera_Back.png",
+    "source_sha256": "bf86608e5b4d6c180fb56473bc864be4a0493310beb456cf10957958fc44f5ff",
+    "pixels": [
+     1457,
+     1200
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Trancera_Thumbnail_800.png",
+  "sha256": "0a7055bc8459b5f3eb31866f49de01332ed678ecafd57b3ac7a3abfb2a3aa8a2",
+  "source": "dist/Trancera_Thumbnail_800.png",
+  "source_sha256": "0a7055bc8459b5f3eb31866f49de01332ed678ecafd57b3ac7a3abfb2a3aa8a2",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "The Shop thumbnail on Rack main, copied unchanged."
+ },
+ "feature_sources": [
+  "Examples/Trancera/CHANGELOG.md",
+  "Examples/Trancera/SHOP.md"
+ ]
+}

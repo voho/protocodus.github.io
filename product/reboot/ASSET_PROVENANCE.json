@@ -2,19 +2,19 @@
  "product": "Reboot",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-20",
-  "build_version": "0.5.2d1",
-  "version_on_panel": "0.5.2d1",
+  "reviewed": "2026-11-28",
+  "build_version": "0.10.0f2",
+  "version_on_panel": "0.10.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99",
-  "note": "The 0.5.2d1 Broadcast Desk panel renders on Rack main (19280312, Examples/Reboot/Design/previews/), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6). Reboot has no panels in dist/; the 0.5.2d1 U45 is built from these.",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.10.0f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "reboot-rack-front.webp",
-    "sha256": "057835afb232e5eeedc79bc3542cd689768f69ee6ae2185c44a8c3a73c388df2",
-    "source": "Examples/Reboot/Design/previews/front_2x.png",
-    "source_sha256": "872ec911a71456da8f23ecb954cdbd2207a9f4d6544a9d8cfa94fe01b3490777",
+    "sha256": "0aedc6ebdbee8d08cd939fd7e5e06a86100ba531d7ab96cbd9de5f894205d2cd",
+    "source": "dist/Reboot_Front.png",
+    "source_sha256": "95536aa10c0e40652c5364aff5af07538bcf464cd8f9570864f38961097f90ed",
     "pixels": [
      1508,
      1104
@@ -22,9 +22,9 @@
    },
    {
     "file": "reboot-rack-rear.webp",
-    "sha256": "5cc108a1e26ab94b0a1e716e4d8d4cb03398489651c4027940940feb06cdc00c",
-    "source": "Examples/Reboot/Design/previews/back_2x.png",
-    "source_sha256": "995526449746056bb8fadb11e563f09f072b3e85d309b1b4b33ec0e3cebd901d",
+    "sha256": "33e761c03d63dc604fb1b3d23ee994eea9d5a9499f275a4f8b667ec31b677920",
+    "source": "dist/Reboot_Back.png",
+    "source_sha256": "0dda5cac02d96dd7a93033df7124d7fdd539d9c411dc5ca26a8f7fd7d7a41011",
     "pixels": [
      1508,
      1104
@@ -32,9 +32,9 @@
    }
   ],
   "earlier": {
-   "build_version": "0.4.0d2 (source; latest build 0.2.3f1)",
-   "version_on_panel": "0.4.0d2",
-   "source_commit": "ebbfa1be29a15aaca23048cfce179a0b64064947"
+   "build_version": "0.5.2d1",
+   "version_on_panel": "0.5.2d1",
+   "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99"
   }
  },
  "cover": {

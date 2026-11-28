@@ -188,38 +188,38 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Aculyre/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-18",
-  "build_version": "0.13.15f3",
+  "reviewed": "2026-11-28",
+  "build_version": "0.13.17f1",
+  "version_on_panel": "0.13.17f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
-  "note": "The 0.13.15f3 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session. The front is byte-identical to the image already shown and kept.",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.13.17f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "aculyre-rack-front.webp",
-    "sha256": "45cd9ca8361e079d73f389171ee6bbce605b514347b80fde1cd552a5d4338795",
+    "sha256": "542bc95f46f4f356d8f929979d74b167b622af0f9b1ae39a5f76842b37319737",
     "source": "dist/Aculyre_Front.png",
-    "source_sha256": "3e5492507c8bdeb4bc233998988c01ea0015e76f62f0949135a7ac4699eda1f6",
+    "source_sha256": "1ffcae1f3106932778997e5f418a477bfcc0cb8f8a4066287a89730908097fc8",
     "pixels": [
      1508,
-     828
+     966
     ]
    },
    {
     "file": "aculyre-rack-rear.webp",
-    "sha256": "f5abe08ea6f9b182239e21a886472ed874c8401f4c5b1a5ce316ba36ea95687a",
+    "sha256": "8617490ae4aa3817f24f82c6e36a2f28090c562b02a3bcad14f184c74e7fdecc",
     "source": "dist/Aculyre_Back.png",
-    "source_sha256": "2488dc214e467d4e3c9c9419981b2465df00c5c6b33d5029887fe0116f83eb0e",
+    "source_sha256": "d1a04026bfab1877e80169d4467ab4993b3fd2934875111ce4d7a56f162b1de8",
     "pixels": [
      1508,
-     828
+     966
     ]
    }
   ],
   "earlier": {
-   "build_version": "0.13.7d1",
-   "version_on_panel": "0.13.7d1",
-   "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69"
+   "build_version": "0.13.15f3",
+   "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
   }
  },
  "earlier_publication_check": {

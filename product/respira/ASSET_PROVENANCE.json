@@ -134,20 +134,19 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Respira/Design/Shop/realistic/layers.json"
  },
  "development_panels": {
-  "reviewed": "2026-11-22",
-  "build_version": "0.8.0f1",
-  "source_version": "0.8.0f2",
-  "version_on_panel": "0.8.0f2",
+  "reviewed": "2026-11-28",
+  "build_version": "0.10.0f1",
+  "version_on_panel": "0.10.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
-  "note": "Front panel stays byte-identical to dist/Respira_Front.png (0.7.2f1/0.8.0); rear panel comes from Examples/Respira/Docs/screenshots/back-2x.png (0.8.0f2 source, showing Room removed from the back) on Rack origin/main (487a12e5b), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6).",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.10.0f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "respira-rack-front.webp",
-    "sha256": "c170e624b0f0a7bddf6deeb0c48cf18e44d1a8d294be27895ca6ae544050da80",
+    "sha256": "01539f27195ce3f9d1b64a0acbe5de7b88e41b289cdac1d99a6eeb93bf83c864",
     "source": "dist/Respira_Front.png",
-    "source_sha256": "3a21278ed4c5f0290a84aac0517448ed669206375f9a9ac64ffb113637892e23",
+    "source_sha256": "e1cd21ca69f2c2519e9c3fea2400950cf19e733fac8c0ea50d3e95e00189c16e",
     "pixels": [
      1508,
      828
@@ -155,9 +154,9 @@
    },
    {
     "file": "respira-rack-rear.webp",
-    "sha256": "6afb6ac12455f0700ccb2525bdc151857e651e481acdd1e80933acad2b52e637",
-    "source": "Examples/Respira/Docs/screenshots/back-2x.png",
-    "source_sha256": "f1836d8d70c9f55da56bf26d8a070fc17dbc624a7f1fbef4de52440f0aabc5e4",
+    "sha256": "75ef32609f29bbd052684675f13a214629efcc1721d71b166d72ccc12a588666",
+    "source": "dist/Respira_Back.png",
+    "source_sha256": "1c28fd285492188292875ba49cb5bb4aac3c5e0449213931af478f2ca3ac704e",
     "pixels": [
      1508,
      828
@@ -165,8 +164,9 @@
    }
   ],
   "earlier": {
-   "build_version": "0.7.2f1",
-   "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99"
+   "build_version": "0.8.0f1",
+   "version_on_panel": "0.8.0f2",
+   "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc"
   }
  },
  "public_release": {

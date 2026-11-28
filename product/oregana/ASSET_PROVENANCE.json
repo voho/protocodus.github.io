@@ -1,20 +1,20 @@
 {
  "product": "Oregana",
- "availability": "in_development",
+ "availability": "published",
  "development_panels": {
-  "reviewed": "2026-11-22",
-  "build_version": "0.12.5f1",
-  "version_on_panel": "0.12.5f1",
+  "reviewed": "2026-11-28",
+  "build_version": "0.14.0f1",
+  "version_on_panel": "0.14.0f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
-  "note": "The 0.12.5f1 panels in dist/ on Rack origin/main (487a12e5b), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6).",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.14.0f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "oregana-rack-front.webp",
-    "sha256": "d77a5c0f02237cc44f983da7ec722cf59fb025a9e033ceddb53930258dc22312",
+    "sha256": "df3e22867e9c2d634ed20b75dbdd2d11529614472e7fbfa4cc5d03d933444bbf",
     "source": "dist/Oregana_Front.png",
-    "source_sha256": "6fb14ce7446cc6fccb5075f934ed33f4ffe51dc829322f231a212f68e815c1bb",
+    "source_sha256": "449b917834c970459b3dfa60ba39e60600d1d6004782bf03442bb78597272b99",
     "pixels": [
      1508,
      1104
@@ -22,9 +22,9 @@
    },
    {
     "file": "oregana-rack-rear.webp",
-    "sha256": "1ac55cf203063c8b35b39e1c595ee5ac559dcd156d6d8d8360e8100bdd847408",
+    "sha256": "d2b2cf610c24da0b61d37265789739262e054541dcd0a41fff8f6a236aab22c7",
     "source": "dist/Oregana_Back.png",
-    "source_sha256": "c9a2c0aa4b281e564a9efa51e8fe2030098a0f7b7c61551b06ffe67aca2f9ab5",
+    "source_sha256": "5de9b738a0cd90eb13bc32435b99e563b0f5b75ab060c2328523e64ed699ce91",
     "pixels": [
      1508,
      1104
@@ -32,8 +32,9 @@
    }
   ],
   "earlier": {
-   "build_version": "0.12.3f1",
-   "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99"
+   "build_version": "0.12.5f1",
+   "version_on_panel": "0.12.5f1",
+   "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc"
   }
  },
  "cover": {
@@ -57,5 +58,65 @@
   "Examples/Oregana/README.md",
   "Examples/Oregana/CHANGELOG.md",
   "protocodus/virtual-instrument-oregana README.md"
- ]
+ ],
+ "public_release": {
+  "version": "0.12.3",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/oregana-church-organ/",
+  "accepted_version": "0.12.3f1",
+  "accepted_version_basis": "The Shop article is 0.12.3 and 0.12.3f1 is its only build in Rack dist/; the Shop gallery panels print 0.12.5f1.",
+  "shop_release_date_field": "2026-11-24",
+  "verified_on": "2026-11-28"
+ },
+ "current_shop_gallery": {
+  "checked_on": "2026-11-28",
+  "version": "0.12.3",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/oregana-church-organ/",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
+  "assets": [
+   {
+    "file": "product/oregana/shop-front.webp",
+    "role": "front",
+    "sha256": "d77a5c0f02237cc44f983da7ec722cf59fb025a9e033ceddb53930258dc22312",
+    "dimensions": [
+     1508,
+     1104
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Front.png",
+    "source_sha256": "6fb14ce7446cc6fccb5075f934ed33f4ffe51dc829322f231a212f68e815c1bb"
+   },
+   {
+    "file": "product/oregana/shop-rear.webp",
+    "role": "rear",
+    "sha256": "1ac55cf203063c8b35b39e1c595ee5ac559dcd156d6d8d8360e8100bdd847408",
+    "dimensions": [
+     1508,
+     1104
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Back.png",
+    "source_sha256": "c9a2c0aa4b281e564a9efa51e8fe2030098a0f7b7c61551b06ffe67aca2f9ab5"
+   },
+   {
+    "file": "product/oregana/shop-cover.webp",
+    "role": "cover",
+    "sha256": "3d50366dff3f5f6ab43bd4121b354c59f0a95a47a20bc3426aa222fbf5e88cea",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34867/Oregana_Thumbnail_800.png",
+    "source_sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0"
+   },
+   {
+    "file": "product/oregana/Oregana_Thumbnail_800.png",
+    "role": "social",
+    "sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34867/Oregana_Thumbnail_800.png",
+    "source_sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0"
+   }
+  ]
+ }
 }

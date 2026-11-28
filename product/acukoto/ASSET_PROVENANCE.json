@@ -177,63 +177,73 @@
   "publish_on_approval": true
  },
  "public_release": {
-  "version": "0.25.16",
+  "version": "0.25.23",
   "url": "https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/",
-  "accepted_version": "0.25.16f1",
-  "accepted_version_basis": "The Shop shows only 0.25.16, and its gallery still prints 0.18.0d1; 0.25.16f1 is the last 0.25.16 build in Rack dist/, inferred, not read from the portal.",
+  "accepted_version": "0.25.23f2",
+  "accepted_version_basis": "The rear in the Shop gallery prints build 0.25.23f2.",
   "shop_release_date_field": "2026-11-12",
-  "verified_on": "2026-11-18"
+  "verified_on": "2026-11-28"
  },
  "current_shop_gallery": {
-  "checked_on": "2026-11-18",
-  "version": "0.25.16",
+  "checked_on": "2026-11-28",
+  "version": "0.25.23",
   "url": "https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/",
-  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow (libwebp 1.3.2, method 6); the cover PNG is copied byte for byte. The gallery panels are older than the Shop version: they print 0.18.0d1.",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
   "assets": [
    {
     "file": "product/acukoto/shop-front.webp",
     "role": "front",
-    "sha256": "feece060ac0c1a02b9aff8cb8d0659c63245200a30b3e033553af0f5dabe1cce",
+    "sha256": "b8e3a90333390f201ad6f6c36f20c2543858d94dd83ea2f89f55bcaab2ef2de2",
     "dimensions": [
      1508,
      828
     ],
     "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Front.png",
-    "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff"
+    "source_sha256": "6ed3dac0c1dcf6e46b0e92b5683923bfce26db2475e014344fc390cfbe4b3442"
    },
    {
     "file": "product/acukoto/shop-rear.webp",
     "role": "rear",
-    "sha256": "983f7aaf6649c5b69efe800ba07461145a506b1f9efd7f43086afa4e9d5d61a6",
+    "sha256": "2f1fab3deeabb37653fd4278c8308b6acf6a471b032785e84f77f4c4c9f966ea",
     "dimensions": [
      1508,
      828
     ],
     "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Back.png",
-    "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc"
+    "source_sha256": "2f48a3a8e97e703bacaec6321cf4f4ebca349dc30ca256be0bd38b874151b11c"
    },
    {
     "file": "product/acukoto/shop-cover.webp",
     "role": "cover",
-    "sha256": "c3f974da740cf7e535594e27923f75f9bbd7c28610e73ca849a998c42bf2e8f6",
+    "sha256": "dc25e5ee8f6fc72f7307b73ecdea42d7474bba2adb6c576dbad532e5db0b64fb",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
-    "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34870/Acukoto_Thumbnail_800.png",
+    "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780"
    },
    {
     "file": "product/acukoto/shop-cover.png",
     "role": "social",
-    "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+    "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
-    "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34870/Acukoto_Thumbnail_800.png",
+    "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780"
    }
   ]
- }
+ },
+ "earlier_public_releases": [
+  {
+   "version": "0.25.16",
+   "url": "https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/",
+   "accepted_version": "0.25.16f1",
+   "accepted_version_basis": "The Shop shows only 0.25.16, and its gallery still prints 0.18.0d1; 0.25.16f1 is the last 0.25.16 build in Rack dist/, inferred, not read from the portal.",
+   "shop_release_date_field": "2026-11-12",
+   "verified_on": "2026-11-18"
+  }
+ ]
 }

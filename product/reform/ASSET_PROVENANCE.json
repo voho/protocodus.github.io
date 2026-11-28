@@ -1,0 +1,39 @@
+{
+ "product": "Reform",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-28",
+  "build_version": "0.1.0d3",
+  "version_on_panel": "0.1.0d3",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The panel renderer’s 0.1.0d3 previews on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6). There is no Shop cover yet, so the front panel stands in for it.",
+  "assets": [
+   {
+    "file": "reform-rack-front.webp",
+    "sha256": "7d7873b25aece673115c60f163ccda7118947b1bdcedeadae53014b8313afb4d",
+    "source": "Examples/Reform/Design/previews/front_2x.png",
+    "source_sha256": "b89527cdaf9e8ee326d286d5fa24eb14f0d1fedd4f01ff820d279b7deb5523d0",
+    "pixels": [
+     1508,
+     414
+    ]
+   },
+   {
+    "file": "reform-rack-rear.webp",
+    "sha256": "8ab163ec43b5a0d802649dda81bb8cc41d65c3a709906aad41c3c0d34e326061",
+    "source": "Examples/Reform/Design/previews/back_2x.png",
+    "source_sha256": "4b3838f3d61da4a0dfc48bdb01cc1edccb04b4d73f08259e652656bacdd5f48f",
+    "pixels": [
+     1508,
+     414
+    ]
+   }
+  ]
+ },
+ "feature_sources": [
+  "Examples/Reform/README.md",
+  "Examples/Reform/CHANGELOG.md"
+ ]
+}

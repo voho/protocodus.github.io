@@ -5,6 +5,18 @@ the public [Protocodus catalog](https://www.reasonstudios.com/shop/browse/?devel
 and each listing. A developer-portal “released” row alone does not establish
 that a Shop page is public.
 
+## Public check — 28 November 2026
+
+Checked the public listings only. Fourteen products are public. New since
+20 November: Keyra 2.24.0 (`keyra-modelled-grand-piano`, Shop date 24
+November; its rear prints no build, 2.24.0f3 is inferred from Rack dist/) and
+Oregana 0.12.3 (`oregana-church-organ`, Shop date 24 November; the only 0.12.3
+build is 0.12.3f1, but the gallery shows the 0.12.5f1 panels). Updated pages:
+Acukoto 0.25.23 (rear prints 0.25.23f2), Aculele 0.4.70 (0.4.70f6), Acustra
+1.9.41 (1.9.41f2) and YouKnow 1.4.11 (accepted 1.4.11f4). Maremba stays 1.6.5
+with a new gallery whose rear prints 1.6.5f4. The Shop Released field keeps each
+product's first date, so the date an update went public is not recorded here.
+
 ## Public check — 20 November 2026
 
 Checked the public listings only. Twelve products are public: the ten below and

@@ -1,0 +1,51 @@
+{
+ "product": "Churech",
+ "availability": "in_development",
+ "development_panels": {
+  "reviewed": "2026-11-28",
+  "build_version": "0.15.2d6",
+  "version_on_panel": "0.15.2d6",
+  "source_repository": "protocodus/reason-rack-extensions",
+  "source_branch": "main",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.15.2d6 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
+  "assets": [
+   {
+    "file": "churech-rack-front.webp",
+    "sha256": "fa8917a9ff0eaa401b7d73488d019460c3f25ca05f55db258ff9f97f1933c673",
+    "source": "dist/Churech_Front.png",
+    "source_sha256": "4d5e6d17294c6bc70dcefe2b7559095330ab044ae52f7ae26226171b420db479",
+    "pixels": [
+     1508,
+     552
+    ]
+   },
+   {
+    "file": "churech-rack-rear.webp",
+    "sha256": "308467e9ea8217074638b52506492e49ceae094f3b0f31e50ed4f0215f768fac",
+    "source": "dist/Churech_Back.png",
+    "source_sha256": "2ddb0ddf0006616f25a0c5ea4fbb80da321f1f8da27e0e517ed3ee4870f9026f",
+    "pixels": [
+     1508,
+     552
+    ]
+   }
+  ]
+ },
+ "cover": {
+  "file": "Churech_Thumbnail_800.png",
+  "sha256": "5d318de5131e39516f0375a09b91ebbd85252b1d7a6a2fcb7a2d5baa27d4e48a",
+  "source": "dist/Churech_Thumbnail_800.png",
+  "source_sha256": "5d318de5131e39516f0375a09b91ebbd85252b1d7a6a2fcb7a2d5baa27d4e48a",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "pixels": [
+   800,
+   800
+  ],
+  "note": "The Shop thumbnail on Rack main, copied unchanged."
+ },
+ "feature_sources": [
+  "Examples/Churech/CHANGELOG.md",
+  "Examples/Churech/SHOP.md"
+ ]
+}

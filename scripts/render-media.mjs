@@ -10,7 +10,7 @@ for (const product of new Set([...media.videos, ...media.playlists].map(item => 
   const playlists = media.playlists.filter(item => item.product === product);
   const name = { youknow: 'YouKnow', press78: 'Press78', lamer: 'Lamer Degrader' }[product] || product[0].toUpperCase() + product.slice(1);
   const note = product === 'youknow' ? 'These V1 recordings demonstrate an earlier version of YouKnow.'
-    : ['keyra', 'oregana'].includes(product) ? 'Performances and walkthroughs from the instrument in development. The interface and sound may evolve before release.'
+    : ['keyra', 'oregana'].includes(product) ? 'Performances and walkthroughs recorded on development builds, so the sound can differ slightly from the Shop release.'
     : product === 'binaurel' ? 'Put on headphones to hear the movement, height and distance.'
     : '';
   const content = `    <!-- product-media:start -->

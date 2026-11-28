@@ -1,7 +1,7 @@
 {
  "product": "Keyra",
  "reviewed": "2026-11-03",
- "availability": "coming_soon",
+ "availability": "published",
  "source_version": "0.4.14d1",
  "source_repository": "protocodus/reason-rack-extensions",
  "assets": [
@@ -229,5 +229,65 @@
     ]
    }
   }
- ]
+ ],
+ "public_release": {
+  "version": "2.24.0",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/keyra-modelled-grand-piano/",
+  "accepted_version": "2.24.0f3",
+  "accepted_version_basis": "The Shop rear prints no build; 2.24.0f3 is the last 2.24.0 build in Rack dist/, inferred, not read from the portal.",
+  "shop_release_date_field": "2026-11-24",
+  "verified_on": "2026-11-28"
+ },
+ "current_shop_gallery": {
+  "checked_on": "2026-11-28",
+  "version": "2.24.0",
+  "url": "https://www.reasonstudios.com/shop/rack-extension/keyra-modelled-grand-piano/",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
+  "assets": [
+   {
+    "file": "product/keyra/shop-front.webp",
+    "role": "front",
+    "sha256": "011d600d3d15300dff0c10a3e8663e495109917be204ccbf5e667268a5d1759a",
+    "dimensions": [
+     1508,
+     690
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Front.png",
+    "source_sha256": "5b0191382a68cf94e93d5110c9ea1eea300cf108ad122eccd3602c4bd5538340"
+   },
+   {
+    "file": "product/keyra/shop-rear.webp",
+    "role": "rear",
+    "sha256": "e495423c632e817341f05abf0ee9f26b8af2efa216cc287d3ef510615dc98072",
+    "dimensions": [
+     1508,
+     690
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Back.png",
+    "source_sha256": "42dcf5e6bdacc70427bb00b1bc369a57db3622240a8887c266d3ce986a876285"
+   },
+   {
+    "file": "product/keyra/shop-cover.webp",
+    "role": "cover",
+    "sha256": "5ec3204e5e912756976f99bbad973a54a35403066e2a066753fe60afb64e42bf",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34866/Keyra_Thumbnail_800.png",
+    "source_sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a"
+   },
+   {
+    "file": "product/keyra/Keyra_Thumbnail_800.png",
+    "role": "social",
+    "sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a",
+    "dimensions": [
+     800,
+     800
+    ],
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34866/Keyra_Thumbnail_800.png",
+    "source_sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a"
+   }
+  ]
+ }
 }

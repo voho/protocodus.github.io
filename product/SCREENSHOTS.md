@@ -1,5 +1,14 @@
 # Product media and claim sources
 
+## Current verification — 28 November 2026
+
+Verified the live Reason Shop (`node scripts/catalog-live-check.mjs`, then every listing and gallery original), YouTube uploads and Rack `origin/main` `615582935`:
+
+- **Live Shop**: 14 listings. Keyra 2.24.0 and Oregana 0.12.3 are new and move to the published layout with their Shop galleries; Acukoto 0.25.23, Aculele 0.4.70, Acustra 1.9.41 and YouKnow 1.4.11 replace their earlier versions, and Maremba's gallery is replaced at 1.6.5. Gallery originals are converted to WebP quality 92, method 6 (Pillow 11.0.0); covers are copied byte for byte.
+- **Media**: seven new YouTube uploads added to `product/MEDIA.json` (Acustra, Acukoto, Aculele, Remit, Respira, and YouKnow with one Short); 38 videos and 6 playlists in all.
+- **Development panels** from `dist/` on Rack main: Acustra 1.9.65f1, Aculyre 0.13.17f1, Convretor 0.2.0f7, Electry 2.10.0f1, Oregana 0.14.0f1, Reboot 0.10.0f1, Remit 0.5.2f1, Respira 0.10.0f1 and Retra 0.8.0f5. Acukoto, Aculele and Maremba drop their separate development panels, as the Shop build is the latest build on main.
+- **New pages**: Churech 0.15.2d6 and Trancera (0.9.6f4 panels, source 0.9.6f5) from `dist/`, and Reform 0.1.0d3 from `Examples/Reform/Design/previews/` (no cover yet, so its card shows the front panel). Fires stays off the site.
+
 ## Current verification — 22 November 2026
 
 Verified live Reason Shop (`node scripts/catalog-live-check.mjs`), YouTube uploads, and committed repository snapshots (`reason-rack-extension` `origin/main` `487a12e5b`, `protocodus/riffle` (then under its earlier name) `origin/main` `04de60f`, `protocodus/virtual-instrument-youknow` `origin/main` v1.4.11; Fires omitted per `origin/main` removal `2b8f1b03f`):

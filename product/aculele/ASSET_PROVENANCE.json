@@ -208,63 +208,73 @@
   "submitted_on": "2026-11-06"
  },
  "public_release": {
-  "version": "0.4.64",
+  "version": "0.4.70",
   "url": "https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/",
-  "accepted_version": "0.4.64f2",
-  "accepted_version_basis": "Examples/Aculele/Docs/release/shop-copy.md records 0.4.64f2 as the build the owner published on 2026-11-17.",
+  "accepted_version": "0.4.70f6",
+  "accepted_version_basis": "The rear in the Shop gallery prints build 0.4.70f6.",
   "shop_release_date_field": "2026-11-17",
-  "verified_on": "2026-11-18"
+  "verified_on": "2026-11-28"
  },
  "current_shop_gallery": {
-  "checked_on": "2026-11-18",
-  "version": "0.4.64",
+  "checked_on": "2026-11-28",
+  "version": "0.4.70",
   "url": "https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/",
-  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow (libwebp 1.3.2, method 6); the cover PNG is copied byte for byte. The gallery panels are older than the Shop version: they print 0.4.39d1.",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
   "assets": [
    {
     "file": "product/aculele/shop-front.webp",
     "role": "front",
-    "sha256": "9cffc0b1693a05c5a18df37ca592b04838288ef92f2c1c5b6e700585c04ad415",
+    "sha256": "cc10aea680b6e504e39888321835d954dfbdf9ecae2c5bd4094bbf2328ecfe3d",
     "dimensions": [
      1508,
-     1104
+     1242
     ],
     "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Front.png",
-    "source_sha256": "578e327e027256648d53c629250c9ad66c405c2467a0b1c9f33d5f4230f3b41b"
+    "source_sha256": "fb65155b24456892d2cab2b9150d60031b2a4f822eeea39c9096d90129422fe6"
    },
    {
     "file": "product/aculele/shop-rear.webp",
     "role": "rear",
-    "sha256": "a87ffade418c0fb9e12b167c2d2670e018e6cfa8f0c1e00ea6b33306eb121a88",
+    "sha256": "a756888261a406eec246b27835ec5fd4dfaf751aee46caf7e21c3fa0a3d58650",
     "dimensions": [
      1508,
-     1104
+     1242
     ],
     "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Back.png",
-    "source_sha256": "c3b08d81f24d874f7585becec8d7cd900a55e5fd19ace0b9a5aa395d22bd9e72"
+    "source_sha256": "e169de671f761d2dcfe4fc8623c9a9873e78c245b79f9661f6cde6d832b69bb4"
    },
    {
     "file": "product/aculele/shop-cover.webp",
     "role": "cover",
-    "sha256": "207b7f9834a5698c86610ee477a0c841315095d9c7203608550f40b9bf6c93ea",
+    "sha256": "f0195ef52ebef7771b0350db1fd2485d8097002e2933d595211a9de72cb31e88",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
-    "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34869/Aculele_Thumbnail_800.png",
+    "source_sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73"
    },
    {
     "file": "product/aculele/shop-cover.png",
     "role": "social",
-    "sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0",
+    "sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
-    "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34869/Aculele_Thumbnail_800.png",
+    "source_sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73"
    }
   ]
- }
+ },
+ "earlier_public_releases": [
+  {
+   "version": "0.4.64",
+   "url": "https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/",
+   "accepted_version": "0.4.64f2",
+   "accepted_version_basis": "Examples/Aculele/Docs/release/shop-copy.md records 0.4.64f2 as the build the owner published on 2026-11-17.",
+   "shop_release_date_field": "2026-11-17",
+   "verified_on": "2026-11-18"
+  }
+ ]
 }

@@ -4,14 +4,12 @@
  "checked_on": "2026-10-28",
  "availability": "published",
  "public_release": {
-  "version": "1.9.0",
-  "first_released_on": "2026-10-20",
-  "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
-  "basis": "Version 1.9.0, its version history and 'Released: 2026-10-20' read from the public Shop page on 28 October 2026. The Shop keeps the first release date when the version changes, so 20 October 2026 is 1.3.2's date, not 1.9.0's.",
-  "accepted_version": "1.9.0d2",
-  "shop_release_date_field": "2026-10-20",
+  "version": "1.9.41",
   "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
-  "verified_on": "2026-11-06"
+  "accepted_version": "1.9.41f2",
+  "accepted_version_basis": "The rear in the Shop gallery prints build 1.9.41f2.",
+  "shop_release_date_field": "2026-10-20",
+  "verified_on": "2026-11-28"
  },
  "artwork_source": {
   "kind": "current_published_reason_shop_gallery",
@@ -295,70 +293,71 @@
   "style": "realistic: generated wood, instrument and corner layers recorded in Examples/Acustra/Design/Shop/realistic/layers.json"
  },
  "current_shop_gallery": {
-  "checked_on": "2026-11-06",
-  "version": "1.9.0",
+  "checked_on": "2026-11-28",
+  "version": "1.9.41",
   "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
   "assets": [
    {
     "file": "product/acustra/shop-front.webp",
     "role": "front",
-    "sha256": "3ef4dec73389c0c78ccaa844ebbc148d7831c66122fde19795ec64a95a3812d4",
+    "sha256": "3473424558788a92bdc1e7bde48054874d2ecd8085b98d57fd9861204ee44495",
     "dimensions": [
      1457,
      1200
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png",
-    "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
+    "source_sha256": "dc6ba501357191c73fe33043ea4ab4b86b216f0eeedc987f9d36958e91e5b6ce"
    },
    {
     "file": "product/acustra/shop-rear.webp",
     "role": "rear",
-    "sha256": "42de40f81950883fa2248f08adc0ae4aeab36d95c9ad131db404d58abd3da806",
+    "sha256": "1d679eba96fcc6152ed1f6f92fd14e0edb194393a3c6ff7b4580374348d09b82",
     "dimensions": [
      1457,
      1200
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png",
-    "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Back.png",
+    "source_sha256": "7c1ae1bd416a2205c8214a09dce14fc2c1a8ee9c83255efcf5805d105b608e5f"
    },
    {
     "file": "product/acustra/shop-cover.webp",
     "role": "cover",
-    "sha256": "763d14480b1ac877e82b9257f85306b148fa06a32af0255fe7670d92b25bc5f5",
+    "sha256": "09189efd24951e64b6cd764307edad90f568601c5f33ea900038bf4521bcdf27",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
-    "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34721/Acustra_Thumbnail_800.png",
+    "source_sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503"
    },
    {
     "file": "product/acustra/shop-cover.png",
     "role": "social",
-    "sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5",
+    "sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
-    "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34721/Acustra_Thumbnail_800.png",
+    "source_sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503"
    }
-  ],
-  "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  ]
  },
  "development_panels": {
-  "reviewed": "2026-11-18",
-  "build_version": "1.9.63f4",
+  "reviewed": "2026-11-28",
+  "build_version": "1.9.69f1",
+  "version_on_panel": "1.9.65f1",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e",
-  "note": "The 1.9.63f4 panels in dist/ on Rack main (8e7b3240), converted to WebP quality 92 at full size with Pillow (libwebp 1.3.2, method 6), as cwebp is not installed in this session. The front is byte-identical to the image already shown and kept.",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 1.9.65f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "acustra-rack-front.webp",
-    "sha256": "3473424558788a92bdc1e7bde48054874d2ecd8085b98d57fd9861204ee44495",
+    "sha256": "7e8288ff4f8fa851fe3d4c1da29f0a0cf6a947fab37c6aa9955ca60daab9b6f2",
     "source": "dist/Acustra_Front.png",
-    "source_sha256": "dc6ba501357191c73fe33043ea4ab4b86b216f0eeedc987f9d36958e91e5b6ce",
+    "source_sha256": "41cffa2195ad3351def39db1e735e51d129a6866306e9e176e00ca7ab05a8262",
     "pixels": [
      1457,
      1200
@@ -366,9 +365,9 @@
    },
    {
     "file": "acustra-rack-rear.webp",
-    "sha256": "8a60c1dfec568bb02eff90c999f4a1861b483ced726a672bce65ec8d2a9b96a4",
+    "sha256": "c7839735a00c608e582b3de411f56b65a7b125f4201a128cdea00788c208ca0b",
     "source": "dist/Acustra_Back.png",
-    "source_sha256": "c59c66cb56646d917aa91d1b9432207157bca9ed4386a1fe404c86ffc4350a51",
+    "source_sha256": "a277b5698408c339458365c3da9ba55d6f0c272d673c015f8d97bd09b4dcc2d5",
     "pixels": [
      1457,
      1200
@@ -376,12 +375,20 @@
    }
   ],
   "earlier": {
-   "build_version": "1.9.50d1",
-   "version_on_panel": "1.9.50d1",
-   "source_commit": "520dcfd100df7146a1b96cf7bbc081aff41def69"
-  },
-  "latest_source_version": "1.9.63f5",
-  "latest_source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
-  "latest_source_note": "1.9.63f5 on Rack origin/main (487a12e5b) converts the front Quality and Detune readouts to editable Remote displays; panel appearance is unchanged from 1.9.63f4."
- }
+   "build_version": "1.9.63f4",
+   "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
+  }
+ },
+ "earlier_public_releases": [
+  {
+   "version": "1.9.0",
+   "first_released_on": "2026-10-20",
+   "source_url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+   "basis": "Version 1.9.0, its version history and 'Released: 2026-10-20' read from the public Shop page on 28 October 2026. The Shop keeps the first release date when the version changes, so 20 October 2026 is 1.3.2's date, not 1.9.0's.",
+   "accepted_version": "1.9.0d2",
+   "shop_release_date_field": "2026-10-20",
+   "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
+   "verified_on": "2026-11-06"
+  }
+ ]
 }

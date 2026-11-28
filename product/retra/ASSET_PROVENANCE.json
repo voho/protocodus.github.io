@@ -2,19 +2,19 @@
  "product": "Retra",
  "availability": "in_development",
  "development_panels": {
-  "reviewed": "2026-11-22",
-  "build_version": "0.7.1f2",
-  "version_on_panel": "0.7.1f2",
+  "reviewed": "2026-11-28",
+  "build_version": "0.8.0f5",
+  "version_on_panel": "0.8.0f5",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
-  "note": "The 0.7.1f2 panels in dist/ on Rack origin/main (487a12e5b), converted to WebP quality 92 at full size with Pillow (libwebp 1.4.0, method 6).",
+  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
+  "note": "The 0.8.0f5 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
   "assets": [
    {
     "file": "retra-rack-front.webp",
-    "sha256": "cf857a91a24f5a6eefb3d2fb97e3eb4a4219ee639cef0bcc94fa97a64bc087aa",
+    "sha256": "b3826fb677892eeba0d01258de3f19e5eef1c4fd5bfe3d7b08b37d3d89488a64",
     "source": "dist/Retra_Front.png",
-    "source_sha256": "782c914312d5616ba98ccfb241c580c48202fa748220641519afbc09c33c4e94",
+    "source_sha256": "ab83dcd9861420f10ae553be210810dcd51beb6bfeb9660fc4d282a38caff2ce",
     "pixels": [
      1508,
      690
@@ -22,9 +22,9 @@
    },
    {
     "file": "retra-rack-rear.webp",
-    "sha256": "af4e6dfe890d4348ce1d5385b6e2d0e7a625285aba2e7f017f906e9a04c2782e",
+    "sha256": "ec63aa395aebdc2f09231665e66989cf370c8d8812ba353aba39e80a7680144d",
     "source": "dist/Retra_Back.png",
-    "source_sha256": "8cc0aa9999676dddff8eb32d546746cefb556e549eb50a6eaf5a950fcc1452ec",
+    "source_sha256": "99890b6b776aba9ba1e7942cfd2e610f8c7e007114e62edf52a2cc6ef9249f91",
     "pixels": [
      1508,
      690
@@ -32,8 +32,9 @@
    }
   ],
   "earlier": {
-   "build_version": "0.7.0f6",
-   "source_commit": "8e7b3240af2dc5068fc55f0f239db772c72ce06e"
+   "build_version": "0.7.1f2",
+   "version_on_panel": "0.7.1f2",
+   "source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc"
   }
  },
  "cover": {

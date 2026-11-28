@@ -32,7 +32,7 @@
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "macOS, Windows",
   "softwareRequirements": "Reason 14 or later",
-  "softwareVersion": "0.7.1f2",
+  "softwareVersion": "0.8.0f5",
   "author": {
     "@type": "Organization",
     "name": "Protocodus",
@@ -133,13 +133,13 @@
               <span class="product-status">In development</span>
               <a href="#listen" class="detail-link" data-analytics-cta="hero_listen" data-analytics-action="listen_demo">Hear it in action <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">Rack Extension in development. Latest build is 0.7.1f2 (21 November 2026); not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
+            <p class="availability-note">Rack Extension in development. Latest build is 0.8.0f5 (26 November 2026); not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="retra-rack-front.webp?v=cf857a91a24f" aria-label="View the Retra Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
-            <img src="retra-rack-front.webp?v=cf857a91a24f" width="1508" height="690" fetchpriority="high" decoding="async" alt="Retra Rack Extension front panel with eight reorderable stages (Distort, Player, Wobble, Loss, Noise, Amplifier, Speaker, Digital), slot steppers, Amount, Tone, Mix and Output">
-            <span class="shot-caption">Front panel · 0.7.1f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="retra-rack-front.webp?v=b3826fb67789" aria-label="View the Retra Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
+            <img src="retra-rack-front.webp?v=b3826fb67789" width="1508" height="690" fetchpriority="high" decoding="async" alt="Retra Rack Extension front panel with eight reorderable stages (Distort, Player, Wobble, Loss, Noise, Amplifier, Speaker, Digital), slot steppers, Amount, Tone, Mix and Output">
+            <span class="shot-caption">Front panel · 0.8.0f5 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -184,9 +184,9 @@
           <p class="lede">Switch individual stages and 1×/2×/4× analog oversampling while subtle per-channel component differences add organic width to mono sources on hardware stages.</p>
         </div>
         <figure class="shot">
-          <a class="screenshot-link" href="retra-rack-rear.webp?v=af4e6dfe890d" aria-label="View the Retra Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
-            <img src="retra-rack-rear.webp?v=af4e6dfe890d" width="1508" height="690" loading="lazy" decoding="async" alt="Retra Rack Extension rear panel with live eight-stage chain diagram, stereo I/O and 1×/2×/4× Quality switches">
-            <span class="shot-caption">Rear panel · 0.7.1f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="retra-rack-rear.webp?v=ec63aa395aeb" aria-label="View the Retra Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
+            <img src="retra-rack-rear.webp?v=ec63aa395aeb" width="1508" height="690" loading="lazy" decoding="async" alt="Retra Rack Extension rear panel with live eight-stage chain diagram, stereo I/O and 1×/2×/4× Quality switches">
+            <span class="shot-caption">Rear panel · 0.8.0f5 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -216,9 +216,25 @@
         <div class="head">
           <span class="tag">Rack Extension version history</span>
           <h2 class="title">Retra version history.</h2>
-          <p class="lede">In development for Reason; build 0.7.1f2 (21 November 2026) pairs audited DSP fixes and SIMD optimization with full Remote control mapping.</p>
+          <p class="lede">In development for Reason; build 0.8.0f5 (26 November 2026) turns the chain into eight slots, each choosing its own stage from a drop-down, with every control mappable with Remote.</p>
         </div>
         <div class="version-history">
+          <article data-development-version="0.8.0f5">
+            <h3>0.8.0f5 <span>Release candidate · 26 November 2026 · built</span></h3>
+            <p>Bigger round On keys, and a filler circle where a stage uses fewer knobs, so every card keeps four.</p>
+          </article>
+          <article data-development-version="0.8.0f4">
+            <h3>0.8.0f4 <span>Release candidate · 26 November 2026 · built</span></h3>
+            <p>Every slot control now appears under Edit Remote Override Mapping, whichever stage the slot holds.</p>
+          </article>
+          <article data-development-version="0.8.0f3">
+            <h3>0.8.0f3 <span>Release candidate · 25 November 2026</span></h3>
+            <p>A new device is silent in silence: the default patch’s tape hiss now follows the signal.</p>
+          </article>
+          <article data-development-version="0.8.0f1">
+            <h3>0.8.0f1 <span>Release candidate · 24 November 2026</span></h3>
+            <p>Eight slots instead of eight stages in an order: each card’s header is a drop-down of the eight stages and Empty, so every slot can be mapped with Remote and automated.</p>
+          </article>
           <article data-development-version="0.7.1f2">
             <h3>0.7.1f2 <span>Release candidate · 21 November 2026 · built</span></h3>
             <p>Makes every stage icon and circled slot-order number Remote-mappable alongside the six stage model fixes and SIMD optimization introduced in 0.7.1d1 (Static high-band stability at 44.1 kHz, Crush mono symmetry, clean Crackle clicks, accurate Vinyl RIAA/2×/4× treble and 1× top octave on Amplifier, Distort and Tape).</p>

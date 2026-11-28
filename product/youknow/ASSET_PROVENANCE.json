@@ -658,64 +658,65 @@
   }
  },
  "current_shop_gallery": {
-  "checked_on": "2026-11-06",
-  "version": "1.3.5",
+  "checked_on": "2026-11-28",
+  "version": "1.4.11",
   "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+  "note": "Shop gallery originals converted to WebP quality 92 at their full dimensions with Pillow 11.0.0 (method 6); the cover PNG is copied byte for byte.",
   "assets": [
    {
     "file": "product/youknow/shop-front.webp",
     "role": "front",
-    "sha256": "1cd0681d92da59375d5030dac28aa08d75effdaefd24e4229908c7f15f5c5177",
+    "sha256": "18d6dab5dd6d479c03f62400bddcce347c8df2c311bcd89b7741a9ed4ef2833f",
     "dimensions": [
      1600,
      1171
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png",
-    "source_sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Front.png",
+    "source_sha256": "0ead3b19703bf8ee0abe2b1a86a783124907919ea11ebb956e15995667d5f06d"
    },
    {
     "file": "product/youknow/shop-rear.webp",
     "role": "rear",
-    "sha256": "ecab6f0c8fb1d673e8d0ae9060b90fa1cd4e145684b87adb9d03321a27208fdb",
+    "sha256": "beb850cec082e7998788d8c66388414ec77b89b157948a871f00b96878dc369b",
     "dimensions": [
      1600,
      1171
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png",
-    "source_sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Back.png",
+    "source_sha256": "2686055db208c1a149a77c8f5edae06ab2c61ef534becbc287692caa56f64991"
    },
    {
     "file": "product/youknow/shop-cover.webp",
     "role": "cover",
-    "sha256": "8f0651ac9a6f9636fd2931c1230c2ba6f0cc6efbcdd93a73a04ad62c653f75c4",
+    "sha256": "42d68586ff6a30c31068bdd21df423d168cdc9d61dbb8cc7586c4b737e6ebf15",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
-    "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34720/YouKnow_1.4.11_Thumbnail_800.png",
+    "source_sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb"
    },
    {
     "file": "product/youknow/shop-cover.png",
     "role": "social",
-    "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+    "sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb",
     "dimensions": [
      800,
      800
     ],
-    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
-    "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+    "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34720/YouKnow_1.4.11_Thumbnail_800.png",
+    "source_sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb"
    }
-  ],
-  "note": "Published gallery originals converted to WebP at their complete original dimensions. Social cover PNG copied byte for byte. Earlier candidate assets are retained for provenance."
+  ]
  },
  "availability": "published",
  "public_release": {
-  "version": "1.3.5",
-  "accepted_version": "1.3.5f5",
-  "shop_release_date_field": "2026-10-05",
+  "version": "1.4.11",
   "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-  "verified_on": "2026-11-06"
+  "accepted_version": "1.4.11f4",
+  "accepted_version_basis": "Reason accepted build 1.4.11f4 (developer area, 2026-11-24); the Shop rear prints 1.4.11.",
+  "shop_release_date_field": "2026-10-05",
+  "verified_on": "2026-11-28"
  },
  "development_panels": {
   "reviewed": "2026-11-20",
@@ -755,5 +756,14 @@
   "latest_source_version": "1.4.11f5",
   "latest_source_commit": "487a12e5b05c7020747ef3998059aaf7069e24dc",
   "latest_source_note": "1.4.11f5 on Rack origin/main (487a12e5b) converts the eight front setting readouts to editable Remote displays; panel appearance is unchanged from 1.4.11f4."
- }
+ },
+ "earlier_public_releases": [
+  {
+   "version": "1.3.5",
+   "accepted_version": "1.3.5f5",
+   "shop_release_date_field": "2026-10-05",
+   "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
+   "verified_on": "2026-11-06"
+  }
+ ]
 }

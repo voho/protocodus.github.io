@@ -1,126 +1,126 @@
 {
-  "verified_at": "2026-11-22",
+  "verified_at": "2026-11-28",
   "developer_url": "https://www.reasonstudios.com/shop/browse/?developer=Protocodus",
   "products": [
     {
       "product": "acukoto",
       "title": "Acukoto Modelled Koto",
       "url": "https://www.reasonstudios.com/shop/rack-extension/acukoto-modelled-koto/",
-      "version": "0.25.16",
+      "version": "0.25.23",
       "release_date": "2026-11-12",
       "gallery": [
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Front.png.10000x10000_q85.webp",
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34870/Acukoto_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/acukoto/shop-front.webp",
           "role": "front",
-          "sha256": "feece060ac0c1a02b9aff8cb8d0659c63245200a30b3e033553af0f5dabe1cce",
+          "sha256": "b8e3a90333390f201ad6f6c36f20c2543858d94dd83ea2f89f55bcaab2ef2de2",
           "dimensions": [
             1508,
             828
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Front.png",
-          "source_sha256": "f12408e6702414fc73a6e690add641cc76a56d1a7aca1879073e44cc95988bff"
+          "source_sha256": "6ed3dac0c1dcf6e46b0e92b5683923bfce26db2475e014344fc390cfbe4b3442"
         },
         {
           "file": "product/acukoto/shop-rear.webp",
           "role": "rear",
-          "sha256": "983f7aaf6649c5b69efe800ba07461145a506b1f9efd7f43086afa4e9d5d61a6",
+          "sha256": "2f1fab3deeabb37653fd4278c8308b6acf6a471b032785e84f77f4c4c9f966ea",
           "dimensions": [
             1508,
             828
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acukoto/pictures/Acukoto_Back.png",
-          "source_sha256": "9e4b5b766e2b54f6a17e27ed3d7d76982f15fcfddac9c84550c2364db593befc"
+          "source_sha256": "2f48a3a8e97e703bacaec6321cf4f4ebca349dc30ca256be0bd38b874151b11c"
         },
         {
           "file": "product/acukoto/shop-cover.webp",
           "role": "cover",
-          "sha256": "c3f974da740cf7e535594e27923f75f9bbd7c28610e73ca849a998c42bf2e8f6",
+          "sha256": "dc25e5ee8f6fc72f7307b73ecdea42d7474bba2adb6c576dbad532e5db0b64fb",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
-          "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34870/Acukoto_Thumbnail_800.png",
+          "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780"
         },
         {
           "file": "product/acukoto/shop-cover.png",
           "role": "social",
-          "sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac",
+          "sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34541/Acukoto_Thumbnail_800.png",
-          "source_sha256": "7dcb404dcf91eb25b1db1d407185b87add6e5f4ea7bf0af27cd0e63583cbd6ac"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34870/Acukoto_Thumbnail_800.png",
+          "source_sha256": "ced6f938815f33177e5ec6e0912c6306794f0373f4d302356588712fa76c8780"
         }
       ],
-      "accepted_version": "0.25.16f1",
-      "accepted_version_basis": "The Shop shows only 0.25.16, and its gallery still prints 0.18.0d1; 0.25.16f1 is the last 0.25.16 build in Rack dist/, inferred, not read from the portal."
+      "accepted_version": "0.25.23f2",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 0.25.23f2."
     },
     {
       "product": "aculele",
       "title": "Aculele Modelled Ukulele",
       "url": "https://www.reasonstudios.com/shop/rack-extension/aculele-modelled-ukulele/",
-      "version": "0.4.64",
+      "version": "0.4.70",
       "release_date": "2026-11-17",
       "gallery": [
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Front.png.10000x10000_q85.webp",
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34869/Aculele_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/aculele/shop-front.webp",
           "role": "front",
-          "sha256": "9cffc0b1693a05c5a18df37ca592b04838288ef92f2c1c5b6e700585c04ad415",
+          "sha256": "cc10aea680b6e504e39888321835d954dfbdf9ecae2c5bd4094bbf2328ecfe3d",
           "dimensions": [
             1508,
-            1104
+            1242
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Front.png",
-          "source_sha256": "578e327e027256648d53c629250c9ad66c405c2467a0b1c9f33d5f4230f3b41b"
+          "source_sha256": "fb65155b24456892d2cab2b9150d60031b2a4f822eeea39c9096d90129422fe6"
         },
         {
           "file": "product/aculele/shop-rear.webp",
           "role": "rear",
-          "sha256": "a87ffade418c0fb9e12b167c2d2670e018e6cfa8f0c1e00ea6b33306eb121a88",
+          "sha256": "a756888261a406eec246b27835ec5fd4dfaf751aee46caf7e21c3fa0a3d58650",
           "dimensions": [
             1508,
-            1104
+            1242
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Aculele/pictures/Aculele_Back.png",
-          "source_sha256": "c3b08d81f24d874f7585becec8d7cd900a55e5fd19ace0b9a5aa395d22bd9e72"
+          "source_sha256": "e169de671f761d2dcfe4fc8623c9a9873e78c245b79f9661f6cde6d832b69bb4"
         },
         {
           "file": "product/aculele/shop-cover.webp",
           "role": "cover",
-          "sha256": "207b7f9834a5698c86610ee477a0c841315095d9c7203608550f40b9bf6c93ea",
+          "sha256": "f0195ef52ebef7771b0350db1fd2485d8097002e2933d595211a9de72cb31e88",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
-          "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34869/Aculele_Thumbnail_800.png",
+          "source_sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73"
         },
         {
           "file": "product/aculele/shop-cover.png",
           "role": "social",
-          "sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0",
+          "sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34535/Aculele_Thumbnail_800.png",
-          "source_sha256": "daa8961a8e05fcf2959dbe094b7242204ef6d8d9487e53fcde4dc61e680721c0"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34869/Aculele_Thumbnail_800.png",
+          "source_sha256": "2509926abb4916df53c65ebe11ec8ffcf5e7d05d336e6def23984e4b07a6aa73"
         }
       ],
-      "accepted_version": "0.4.64f2",
-      "accepted_version_basis": "Examples/Aculele/Docs/release/shop-copy.md records 0.4.64f2 as the build the owner published on 2026-11-17."
+      "accepted_version": "0.4.70f6",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 0.4.70f6."
     },
     {
       "product": "aculyre",
@@ -186,60 +186,61 @@
       "product": "acustra",
       "title": "Acustra Acoustic Guitar",
       "url": "https://www.reasonstudios.com/shop/rack-extension/acustra-acoustic-guitar/",
-      "version": "1.9.0",
+      "version": "1.9.41",
       "release_date": "2026-10-20",
       "gallery": [
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png.10000x10000_q85.webp",
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png.10000x10000_q85.webp"
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34721/Acustra_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/acustra/shop-front.webp",
           "role": "front",
-          "sha256": "3ef4dec73389c0c78ccaa844ebbc148d7831c66122fde19795ec64a95a3812d4",
+          "sha256": "3473424558788a92bdc1e7bde48054874d2ecd8085b98d57fd9861204ee44495",
           "dimensions": [
             1457,
             1200
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Front.png",
-          "source_sha256": "00540a447f168c05a44aec3e6de19e616ecacc14bff9170c0c3950acf533d557"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Front.png",
+          "source_sha256": "dc6ba501357191c73fe33043ea4ab4b86b216f0eeedc987f9d36958e91e5b6ce"
         },
         {
           "file": "product/acustra/shop-rear.webp",
           "role": "rear",
-          "sha256": "42de40f81950883fa2248f08adc0ae4aeab36d95c9ad131db404d58abd3da806",
+          "sha256": "1d679eba96fcc6152ed1f6f92fd14e0edb194393a3c6ff7b4580374348d09b82",
           "dimensions": [
             1457,
             1200
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_1.9.0_Back.png",
-          "source_sha256": "e6a56f5db075df05fd74624dbcbd2de58fa4ec0917782b440beafa8c44a9133a"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Acustra/pictures/Acustra_Back.png",
+          "source_sha256": "7c1ae1bd416a2205c8214a09dce14fc2c1a8ee9c83255efcf5805d105b608e5f"
         },
         {
           "file": "product/acustra/shop-cover.webp",
           "role": "cover",
-          "sha256": "763d14480b1ac877e82b9257f85306b148fa06a32af0255fe7670d92b25bc5f5",
+          "sha256": "09189efd24951e64b6cd764307edad90f568601c5f33ea900038bf4521bcdf27",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
-          "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34721/Acustra_Thumbnail_800.png",
+          "source_sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503"
         },
         {
           "file": "product/acustra/shop-cover.png",
           "role": "social",
-          "sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5",
+          "sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34225/Acustra_1.9.0_Thumbnail_800.png",
-          "source_sha256": "d58c1d9318ccec1622fd3c042b1c1e9e67b67a1d3f456ebd64ea16e4d865d7e5"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34721/Acustra_Thumbnail_800.png",
+          "source_sha256": "2649bffcabb5f6966851494f7a7810e7bc988436dcf50b76702455ec12d4c503"
         }
       ],
-      "accepted_version": "1.9.0d2"
+      "accepted_version": "1.9.41f2",
+      "accepted_version_basis": "The rear in the Shop gallery prints build 1.9.41f2."
     },
     {
       "product": "binaurel",
@@ -373,6 +374,67 @@
       "shop_page_published_on": "2026-11-05"
     },
     {
+      "product": "keyra",
+      "title": "Keyra Modelled Grand Piano",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/keyra-modelled-grand-piano/",
+      "version": "2.24.0",
+      "release_date": "2026-11-24",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Back.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Shop_Hero.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34866/Keyra_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/keyra/shop-front.webp",
+          "role": "front",
+          "sha256": "011d600d3d15300dff0c10a3e8663e495109917be204ccbf5e667268a5d1759a",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Front.png",
+          "source_sha256": "5b0191382a68cf94e93d5110c9ea1eea300cf108ad122eccd3602c4bd5538340"
+        },
+        {
+          "file": "product/keyra/shop-rear.webp",
+          "role": "rear",
+          "sha256": "e495423c632e817341f05abf0ee9f26b8af2efa216cc287d3ef510615dc98072",
+          "dimensions": [
+            1508,
+            690
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Keyra/pictures/Keyra_Back.png",
+          "source_sha256": "42dcf5e6bdacc70427bb00b1bc369a57db3622240a8887c266d3ce986a876285"
+        },
+        {
+          "file": "product/keyra/shop-cover.webp",
+          "role": "cover",
+          "sha256": "5ec3204e5e912756976f99bbad973a54a35403066e2a066753fe60afb64e42bf",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34866/Keyra_Thumbnail_800.png",
+          "source_sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a"
+        },
+        {
+          "file": "product/keyra/Keyra_Thumbnail_800.png",
+          "role": "social",
+          "sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34866/Keyra_Thumbnail_800.png",
+          "source_sha256": "1fcdfeb259e1fca1f3c23dd472f28be6a68438d460311622bd3af981a232fa2a"
+        }
+      ],
+      "accepted_version": "2.24.0f3",
+      "accepted_version_basis": "The Shop rear prints no build; 2.24.0f3 is the last 2.24.0 build in Rack dist/, inferred, not read from the portal."
+    },
+    {
       "product": "lamer",
       "title": "Lamer Degrader",
       "url": "https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/",
@@ -441,29 +503,29 @@
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Front.png.10000x10000_q85.webp",
         "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34868/Maremba_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/maremba/shop-front.webp",
           "role": "front",
-          "sha256": "7337c517221b7fea0a3e66a7a992f2694a5a7597789916fb23ec4b8eba9963ee",
+          "sha256": "15fafeac5d08b2baed01634c47e6bb7447396b5132deaf4a48545fa3bd637c5c",
           "dimensions": [
             1600,
             1171
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Front.png",
-          "source_sha256": "387105dc465370c64125ae85abf2a6dea2e7c9b1f8dd8154a0999fd64d9fcb8a"
+          "source_sha256": "015b8aaa4595cab83e2f1b21b756f40fffa2058a98da2f6c9bc103c293f79391"
         },
         {
           "file": "product/maremba/shop-rear.webp",
           "role": "rear",
-          "sha256": "ea75dd69f63fb4a6c83c72e325cd9e0ab5ef3b1f6559773afc34cf7d23dbd5ea",
+          "sha256": "fff43bb5db6ae4c0f019151e8025fde3f1962a8885e4c5607560fa649f9eda96",
           "dimensions": [
             1600,
             1171
           ],
           "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Maremba/pictures/Maremba_1.6.5_Back.png",
-          "source_sha256": "b3f56ea7a8310554d9a855ae1d97edae3abaa69fc95c713ab440743a4e54a522"
+          "source_sha256": "21e7626f4f4606a2d38651d92997f80c641ab5f6d3104b58520b0a8b8580ec33"
         },
         {
           "file": "product/maremba/shop-cover.webp",
@@ -473,7 +535,7 @@
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34868/Maremba_Thumbnail_800.png",
           "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
         },
         {
@@ -484,12 +546,72 @@
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34645/Maremba_1.6.5_Thumbnail_800.png",
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34868/Maremba_Thumbnail_800.png",
           "source_sha256": "abcf8f157b5355c81e3147f0a6e9ad8e4e59b2f300b3926740627a49d379a8ba"
         }
       ],
-      "accepted_version": "1.6.5f1",
-      "accepted_version_basis": "The rear in the Shop gallery prints build 1.6.5f1."
+      "accepted_version": "1.6.5f4",
+      "accepted_version_basis": "The rear in the Shop gallery, replaced on 24 November, prints build 1.6.5f4."
+    },
+    {
+      "product": "oregana",
+      "title": "Oregana Church Organ",
+      "url": "https://www.reasonstudios.com/shop/rack-extension/oregana-church-organ/",
+      "version": "0.12.3",
+      "release_date": "2026-11-24",
+      "gallery": [
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Back.png.10000x10000_q85.webp"
+      ],
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34867/Oregana_Thumbnail_800.png.228x228_q85.png",
+      "assets": [
+        {
+          "file": "product/oregana/shop-front.webp",
+          "role": "front",
+          "sha256": "d77a5c0f02237cc44f983da7ec722cf59fb025a9e033ceddb53930258dc22312",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Front.png",
+          "source_sha256": "6fb14ce7446cc6fccb5075f934ed33f4ffe51dc829322f231a212f68e815c1bb"
+        },
+        {
+          "file": "product/oregana/shop-rear.webp",
+          "role": "rear",
+          "sha256": "1ac55cf203063c8b35b39e1c595ee5ac559dcd156d6d8d8360e8100bdd847408",
+          "dimensions": [
+            1508,
+            1104
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.Oregana/pictures/Oregana_Back.png",
+          "source_sha256": "c9a2c0aa4b281e564a9efa51e8fe2030098a0f7b7c61551b06ffe67aca2f9ab5"
+        },
+        {
+          "file": "product/oregana/shop-cover.webp",
+          "role": "cover",
+          "sha256": "3d50366dff3f5f6ab43bd4121b354c59f0a95a47a20bc3426aa222fbf5e88cea",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34867/Oregana_Thumbnail_800.png",
+          "source_sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0"
+        },
+        {
+          "file": "product/oregana/Oregana_Thumbnail_800.png",
+          "role": "social",
+          "sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0",
+          "dimensions": [
+            800,
+            800
+          ],
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34867/Oregana_Thumbnail_800.png",
+          "source_sha256": "feabb8e3ca4d96ac659d85d3238d8739717e9de710ed7f2ad1a2eb95e15bdfc0"
+        }
+      ],
+      "accepted_version": "0.12.3f1",
+      "accepted_version_basis": "The Shop article is 0.12.3 and 0.12.3f1 is its only build in Rack dist/; the Shop gallery panels print 0.12.5f1."
     },
     {
       "product": "press78",
@@ -675,60 +797,61 @@
       "product": "youknow",
       "title": "YouKnow Circuit-Modelled Synth",
       "url": "https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/",
-      "version": "1.3.5",
+      "version": "1.4.11",
       "release_date": "2026-10-05",
       "gallery": [
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png.10000x10000_q85.webp",
-        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png.10000x10000_q85.webp"
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Front.png.10000x10000_q85.webp",
+        "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Back.png.10000x10000_q85.webp"
       ],
-      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png.228x228_q85.png",
+      "thumbnail_url": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34720/YouKnow_1.4.11_Thumbnail_800.png.228x228_q85.png",
       "assets": [
         {
           "file": "product/youknow/shop-front.webp",
           "role": "front",
-          "sha256": "1cd0681d92da59375d5030dac28aa08d75effdaefd24e4229908c7f15f5c5177",
+          "sha256": "18d6dab5dd6d479c03f62400bddcce347c8df2c311bcd89b7741a9ed4ef2833f",
           "dimensions": [
             1600,
             1171
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Front.png",
-          "source_sha256": "521c3aef4171b8065c85204afd0c481dfae48234155eda322d1d457f1e237bac"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Front.png",
+          "source_sha256": "0ead3b19703bf8ee0abe2b1a86a783124907919ea11ebb956e15995667d5f06d"
         },
         {
           "file": "product/youknow/shop-rear.webp",
           "role": "rear",
-          "sha256": "ecab6f0c8fb1d673e8d0ae9060b90fa1cd4e145684b87adb9d03321a27208fdb",
+          "sha256": "beb850cec082e7998788d8c66388414ec77b89b157948a871f00b96878dc369b",
           "dimensions": [
             1600,
             1171
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.3.5_Back.png",
-          "source_sha256": "3a67c6c6a95805e93b50e46d1ae56d976aa24676e2f848897534b123c00b45f3"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product/rae%3Acz.protocodus.YouKnow/pictures/YouKnow_1.4.11_Back.png",
+          "source_sha256": "2686055db208c1a149a77c8f5edae06ab2c61ef534becbc287692caa56f64991"
         },
         {
           "file": "product/youknow/shop-cover.webp",
           "role": "cover",
-          "sha256": "8f0651ac9a6f9636fd2931c1230c2ba6f0cc6efbcdd93a73a04ad62c653f75c4",
+          "sha256": "42d68586ff6a30c31068bdd21df423d168cdc9d61dbb8cc7586c4b737e6ebf15",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
-          "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34720/YouKnow_1.4.11_Thumbnail_800.png",
+          "source_sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb"
         },
         {
           "file": "product/youknow/shop-cover.png",
           "role": "social",
-          "sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86",
+          "sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb",
           "dimensions": [
             800,
             800
           ],
-          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34264/YouKnow_1.3.5_Thumbnail_800.png",
-          "source_sha256": "7217341d0b1b118d75ddedda78f11e46c0ce884fc418ba0f710c3d04a2055f86"
+          "source": "https://shop-20220407094725533500000002.s3.amazonaws.com/product_pictures/thumbnails/3622/34720/YouKnow_1.4.11_Thumbnail_800.png",
+          "source_sha256": "bfca4ee8d39f522c3bda1da9c91daffc5994962400d72026c0f4e6641db554bb"
         }
       ],
-      "accepted_version": "1.3.5f5"
+      "accepted_version": "1.4.11f4",
+      "accepted_version_basis": "Reason accepted build 1.4.11f4 (developer area, 2026-11-24); the Shop rear prints 1.4.11."
     }
   ],
   "unpublished": [],

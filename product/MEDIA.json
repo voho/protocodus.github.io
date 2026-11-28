@@ -1,5 +1,5 @@
 {
-  "verified_at": "2026-11-22",
+  "verified_at": "2026-11-28",
   "youtube_channel": "https://www.youtube.com/@protocodus",
   "soundcloud_profile": "https://soundcloud.com/protocodus",
   "videos": [
@@ -23,6 +23,13 @@
       "product": "oregana",
       "url": "https://www.youtube.com/watch?v=wVjUOdJ9s8E",
       "kind": "short"
+    },
+    {
+      "id": "5EZ7FFkIPhI",
+      "title": "Protocodus Remit 0.5.2f1 — 5 Vintage Digital Reverb Eras, Zero Static IRs (Real-Time 3D Simulation)",
+      "product": "remit",
+      "url": "https://www.youtube.com/watch?v=5EZ7FFkIPhI",
+      "kind": "video"
     },
     {
       "id": "PaVVmDOACO4",
@@ -50,6 +57,13 @@
       "title": "No Samples, Just Strings: A Minuet and Two Irish Jigs for Four Modelled Lyres (Protocodus Aculyre)",
       "product": "aculyre",
       "url": "https://www.youtube.com/watch?v=2UO5Jk-MAuU",
+      "kind": "video"
+    },
+    {
+      "id": "bUc5mIr8Qik",
+      "title": "Protocodus Respira 0.10.0 preview — New Feature: Type (One Physical Model, Four Accordions)",
+      "product": "respira",
+      "url": "https://www.youtube.com/watch?v=bUc5mIr8Qik",
       "kind": "video"
     },
     {
@@ -81,6 +95,13 @@
       "kind": "video"
     },
     {
+      "id": "o2WjmyBc1Fg",
+      "title": "4 Physical-Modelled Ukuleles Play Tarantella Napoletana — Aculele for Reason Rack",
+      "product": "aculele",
+      "url": "https://www.youtube.com/watch?v=o2WjmyBc1Fg",
+      "kind": "video"
+    },
+    {
       "id": "7rh4ti-U3T4",
       "title": "Tarantella napoletana for seven modelled ukuleles | Protocodus Aculele for Reason",
       "product": "aculele",
@@ -92,6 +113,13 @@
       "title": "Aloha ʻOe on a physically modelled ukulele | Protocodus Aculele for Reason",
       "product": "aculele",
       "url": "https://www.youtube.com/watch?v=m5cxwdFxrjY",
+      "kind": "video"
+    },
+    {
+      "id": "sGxRctkpc9E",
+      "title": "Sakura Sakura on a Physically Modelled Koto — Acukoto for Reason Rack",
+      "product": "acukoto",
+      "url": "https://www.youtube.com/watch?v=sGxRctkpc9E",
       "kind": "video"
     },
     {
@@ -148,6 +176,13 @@
       "title": "Physical Anatomy of a Single Piano Note (C3) in Protocodus Keyra",
       "product": "keyra",
       "url": "https://www.youtube.com/watch?v=V4ql65WKI84",
+      "kind": "video"
+    },
+    {
+      "id": "kaYTA5CkMb4",
+      "title": "Protocodus Acustra 1.9.68 — One Guitar, Every Way You Play It (Rack Extension for Reason)",
+      "product": "acustra",
+      "url": "https://www.youtube.com/watch?v=kaYTA5CkMb4",
       "kind": "video"
     },
     {
@@ -218,6 +253,20 @@
       "title": "csárdás #rackextension #reasonstudios #accordion #physicalmodeling",
       "product": "respira",
       "url": "https://www.youtube.com/watch?v=IahFLFOksb4",
+      "kind": "short"
+    },
+    {
+      "id": "DhHMUIn3Q_s",
+      "title": "YouKnow 1.4.11 – Circuit-Modelled 1984 Polysynth for Reason",
+      "product": "youknow",
+      "url": "https://www.youtube.com/watch?v=DhHMUIn3Q_s",
+      "kind": "video"
+    },
+    {
+      "id": "oFgi6h0BgcA",
+      "title": "This 1984 polysynth lives in your Reason rack #shorts",
+      "product": "youknow",
+      "url": "https://www.youtube.com/watch?v=oFgi6h0BgcA",
       "kind": "short"
     }
   ],

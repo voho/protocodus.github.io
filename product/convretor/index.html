@@ -32,7 +32,7 @@
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "macOS, Windows",
   "softwareRequirements": "Reason 14 or later",
-  "softwareVersion": "0.1.0f4",
+  "softwareVersion": "0.2.0f7",
   "author": {
     "@type": "Organization",
     "name": "Protocodus",
@@ -125,21 +125,21 @@
           <div class="instrument-intro">
             <span class="product-kicker">Audio to CV utility · Reason Rack Extension (in development)</span>
             <h1 class="hero-title">Convretor</h1>
-            <p class="hero-sub">Convert incoming audio into four scaled, invertible CV envelopes with input gain, high-pass and low-pass band focusing, and Peak/RMS detection.</p>
+            <p class="hero-sub">Turn audio into CV and gates: four scaled, invertible CV outputs through a filter band and an envelope follower, and a gate that opens on every hit.</p>
           </div>
           <div class="instrument-actions">
-            <ul class="instrument-facts" aria-label="Convretor highlights"><li>Four CV outputs</li><li>HP &amp; LP sidechain filters</li><li>3U utility</li></ul>
+            <ul class="instrument-facts" aria-label="Convretor highlights"><li>Four CV outputs &amp; a gate</li><li>Envelope follower</li><li>6, 12 or 24 dB filters</li></ul>
             <div class="hero-actions">
               <span class="product-status">In development</span>
               <a href="#details" class="detail-link" data-analytics-cta="hero_details" data-analytics-action="view_details">Explore Convretor <span aria-hidden="true">↓</span></a>
             </div>
-            <p class="availability-note">Rack Extension in development. Latest build is 0.1.0f4 (17 November 2026); not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
+            <p class="availability-note">Rack Extension in development. Latest build is 0.2.0f7 (27 November 2026); not yet in the Reason Shop. <a href="#versions" class="text-link" data-analytics-cta="hero_versions" data-analytics-action="view_versions">Version history</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="convretor-rack-front.webp?v=377f23246b1b" aria-label="View the Convretor Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
-            <img src="convretor-rack-front.webp?v=377f23246b1b" width="1508" height="414" fetchpriority="high" decoding="async" alt="Convretor Rack Extension 3U front panel with Gain, High-Pass, Low-Pass, Attack, Release, Mode and four Scale/Invert output meters">
-            <span class="shot-caption">Front panel · 0.1.0f4 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="convretor-rack-front.webp?v=566f9e35b90e" aria-label="View the Convretor Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
+            <img src="convretor-rack-front.webp?v=566f9e35b90e" width="1508" height="690" fetchpriority="high" decoding="async" alt="Convretor Rack Extension 3U front panel with Gain, High-Pass, Low-Pass, Attack, Release, Mode and four Scale/Invert output meters">
+            <span class="shot-caption">Front panel · 0.2.0f7 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -167,9 +167,9 @@
           <p class="lede">Send audio from a parallel spider split, track direct out or send bus into Convretor’s 3U rear panel and route CV 1–4 anywhere in your Combinator or rack.</p>
         </div>
         <figure class="shot">
-          <a class="screenshot-link" href="convretor-rack-rear.webp?v=603c6ef6785b" aria-label="View the Convretor Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
-            <img src="convretor-rack-rear.webp?v=603c6ef6785b" width="1508" height="414" loading="lazy" decoding="async" alt="Convretor 0.1.0f4 rear panel with stereo/mono audio input and four CV output jacks">
-            <span class="shot-caption">Rear panel · 0.1.0f4 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="convretor-rack-rear.webp?v=e3dacc787a67" aria-label="View the Convretor Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
+            <img src="convretor-rack-rear.webp?v=e3dacc787a67" width="1508" height="690" loading="lazy" decoding="async" alt="Convretor 0.1.0f4 rear panel with stereo/mono audio input and four CV output jacks">
+            <span class="shot-caption">Rear panel · 0.2.0f7 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -185,7 +185,7 @@
         <aside class="info-card compatibility" aria-label="Convretor requirements and availability">
           <h3>Requirements &amp; availability</h3>
           <dl class="platforms">
-            <div><dt>Format</dt><dd>Rack Extension for Reason · 3U</dd></div>
+            <div><dt>Format</dt><dd>Rack Extension for Reason · 5U</dd></div>
             <div><dt>Audio &amp; CV</dt><dd>Stereo/mono audio input, four CV outputs</dd></div>
             <div><dt>Availability</dt><dd>In development</dd></div>
           </dl>
@@ -198,9 +198,21 @@
         <div class="head">
           <span class="tag">Rack Extension version history</span>
           <h2 class="title">Convretor version history.</h2>
-          <p class="lede">In development for Reason; build 0.1.0f4 (17 November 2026) adds clear Scale captions and Remote checks.</p>
+          <p class="lede">In development for Reason; build 0.2.0f7 (27 November 2026) adds an envelope follower, 6, 12 and 24 dB filter slopes and a threshold gate output, on a new hardware-style front.</p>
         </div>
         <div class="version-history">
+          <article data-development-version="0.2.0f7">
+            <h3>0.2.0f7 <span>Release candidate · 27 November 2026</span></h3>
+            <p>A semi-realistic finish on the hardware front: powder-coated plate, printed sections, moulded knobs and keys, and domed LEDs.</p>
+          </article>
+          <article data-development-version="0.2.0f2 – 0.2.0f6">
+            <h3>0.2.0f2 – 0.2.0f6 <span>Release candidates · 27 November 2026</span></h3>
+            <p>Every control now moves without a click, the high pass comes before the low pass, and the front takes the look of Reason hardware, an ivory plate with printed sections.</p>
+          </article>
+          <article data-development-version="0.2.0f1">
+            <h3>0.2.0f1 <span>Release candidate · 27 November 2026</span></h3>
+            <p>An envelope follower with Attack and Release, filter slopes of 6, 12 or 24 dB per octave, and a threshold gate with a Gate CV output, a gate light and a Trigger key.</p>
+          </article>
           <article data-development-version="0.1.0f4">
             <h3>0.1.0f4 <span>Release candidate · 17 November 2026 · built</span></h3>
             <p>Captions all four Scale knobs (Scale 1–4) cleanly below the knobs and checks full Remote mapping coverage across every control.</p>
