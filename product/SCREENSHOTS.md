@@ -1,5 +1,13 @@
 # Product media and claim sources
 
+## Current verification — 28 November 2026, second pass
+
+Checked every product page against Rack `origin/main` `2370d406`: each device's `info.lua` version, `CHANGELOG.md`, `dist/<Name>-SHOP.md`, `dist/` panels and covers, and the Shop gallery panels for the version that is live. `dist/` panels are unchanged since `615582935`.
+
+- **Versions**: Reboot 0.10.0f3, Trancera 0.9.6f6 and Reform 0.1.0d12 are source on main with their builds pending; their pages show the panel renderer's previews from `Examples/<Name>/Design/previews/`, captioned as previews. Electry 2.11.2d1 and Acustra 1.9.69f1 are labelled source, since their newest U45s are 2.10.0f1 and 1.9.65f1.
+- **Covers**: Reboot, Electry, Retra and Convretor take the current `dist/<Name>_Thumbnail_800.png`, copied byte for byte. Published products keep their Shop covers.
+- **Copy**: feature lists, rack and requirements copy, meta descriptions, home cards and `llms.txt` lines rewritten from the Shop copy and the panels wherever they described controls, inputs, patches or rack heights the devices do not have. Claims about a newer build than the Shop's are marked with that build (for example Respira's four types in 0.10.0 builds, Remit's CV in 0.5 builds). Corrected among others: Acustra and Aculele are 9U; Respira 0.1.27 is 5U with Note and Gate CV and no Bellows CV; Lamer has no CV inputs; Unrest has no CV inputs; Convretor has one mono input and a gate output; YouKnow ships 128 patches and its CV inputs are Note, Gate, Cutoff, Resonance, Volume, Amp, Sub and Noise.
+
 ## Current verification — 28 November 2026
 
 Verified the live Reason Shop (`node scripts/catalog-live-check.mjs`, then every listing and gallery original), YouTube uploads and Rack `origin/main` `615582935`:

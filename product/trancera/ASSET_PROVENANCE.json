@@ -4,33 +4,38 @@
  "development_panels": {
   "reviewed": "2026-11-28",
   "build_version": "0.9.6f5",
-  "version_on_panel": "0.9.6f4",
+  "version_on_panel": "0.9.6f6",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
-  "note": "The 0.9.6f4 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6). Source 0.9.6f5 restyles them; its build is pending.",
+  "source_commit": "2370d406b81257336a16771072f288b7f636d76a",
+  "note": "The panel renderer's 0.9.6f6 previews (Examples/Trancera/Design/previews) on Rack origin/main (2370d406), converted to WebP quality 92 at full size with Pillow 13.0.0 (method 6). 0.9.6f6 is source only; its U45 build is pending, and dist/ still holds the 0.9.6f4 panels.",
   "assets": [
    {
     "file": "trancera-rack-front.webp",
-    "sha256": "d3c36e37aaf0c69e87bf7d34a178fec6a53e2598afc85cdc3c133e47f59e3db9",
-    "source": "dist/Trancera_Front.png",
-    "source_sha256": "29a51f58b18b5affdf0447ef4181caac88b79fe25c95f032dadb4ccb7ad8e44e",
+    "sha256": "a81a59c024df3b70dbcbca03134364b5bbf778ccd492e95b70f9effd142cbfc4",
+    "source": "Examples/Trancera/Design/previews/front_2x.png",
+    "source_sha256": "08dad67c157be0ed9c09314457663a952e37cb39bba88e093348656e012e604c",
     "pixels": [
-     1457,
-     1200
+     1508,
+     1242
     ]
    },
    {
     "file": "trancera-rack-rear.webp",
-    "sha256": "027fec9b00c5403f3e5b9f05ce0e361d8af4a0408c28852038af2c106eee43a9",
-    "source": "dist/Trancera_Back.png",
-    "source_sha256": "bf86608e5b4d6c180fb56473bc864be4a0493310beb456cf10957958fc44f5ff",
+    "sha256": "fd3b542773255f0a514487462d6b3831eab8dca0962dddb24b06a9a628968f65",
+    "source": "Examples/Trancera/Design/previews/back_2x.png",
+    "source_sha256": "08cf66e0af2f9f2c865f1fcdd079e1f4d829dcec06dc3e2bdd4ea455b844b2e7",
     "pixels": [
-     1457,
-     1200
+     1508,
+     1242
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "0.9.6f5",
+   "version_on_panel": "0.9.6f4",
+   "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f"
+  }
  },
  "cover": {
   "file": "Trancera_Thumbnail_800.png",

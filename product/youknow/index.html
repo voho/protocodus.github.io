@@ -182,10 +182,10 @@
           <p class="lede">Every voice runs the full signal chain—clock-driven oscillator, nonlinear filter and VCA, high-pass network and stereo BBD chorus—without sampled waveforms.</p>
         </div>
         <ul class="features">
-          <li><h3>Clocked DCO, sub &amp; noise</h3><p>Saw and PWM pulse waves alongside a square sub-oscillator and white noise, with persistent per-card component variation and 16′, 8′ and 4′ ranges.</p></li>
-          <li><h3>HPF &amp; self-oscillating VCF</h3><p>Four-position high-pass filter (including a bass boost at 0) into a resonant low-pass filter that saturates with level and self-oscillates cleanly at high resonance.</p></li>
-          <li><h3>Dual-mode BBD chorus</h3><p>Modes I, II and narrow I+II sweep clocked bucket-brigade delay lines with adjustable chorus hiss modeled after measured hardware boards.</p></li>
-          <li><h3>Voice architecture &amp; calibration</h3><p>Run 1 to 16 voices in Poly, Poly Unison or Mono Unison, adjust internal Component Variance and VCF trim, and track MIDI velocity cleanly.</p></li>
+          <li><h3>Clocked DCO, sub &amp; noise</h3><p>Saw and pulse waves in 16′, 8′ and 4′ ranges beside a square sub-oscillator and noise, with pulse width moved by the LFO or set by hand.</p></li>
+          <li><h3>HPF &amp; self-oscillating VCF</h3><p>A four-position high-pass filter, with a bass boost at 0, into a resonant low-pass filter with envelope polarity, LFO and keyboard tracking that self-oscillates at high resonance.</p></li>
+          <li><h3>Chorus I, II and I+II</h3><p>Bucket-brigade chorus whose sweep and hiss follow measurements of an original chorus board, with the hiss on its own slider.</p></li>
+          <li><h3>Voices, Unit Character &amp; Aging</h3><p>Six voices by default and up to 16, in Poly 1, Poly 2 or Unison, with glide and velocity. Unit Character varies component tolerances and saves with the patch; Aging adds service drift and noise.</p></li>
         </ul>
       </div>
     </section>
@@ -194,8 +194,8 @@
       <div class="wrap edition-layout">
         <div class="edition-copy">
           <span class="tag">In the rack</span>
-          <h2 class="title">CV modulation and circuit trims on the back.</h2>
-          <p class="lede">The 8U panel exposes dedicated horizontal slider groups in front and stereo outputs plus eight bipolar CV inputs on the rear (LFO Rate, DCO Pitch, PWM, VCF Cutoff, VCF Resonance, Env Decay, Chorus Depth and Chorus Hiss), alongside Circuit Rate and service trims.</p>
+          <h2 class="title">Eight CV inputs and the unit model on the back.</h2>
+          <p class="lede">Every section has its own row of sliders on the 8U front. The back holds Note, Gate, Cutoff, Resonance, Volume, Amp, Sub and Noise CV, the Left/Mono and Right outputs, Quality with 1x, 2x or 4x oversampling and Normal or Max circuit rate, Sync LFO, and Unit Character and Aging.</p>
           <p><a href="YouKnow_User_Manual.pdf?v=20261028-135" class="text-link" data-analytics-cta="user_manual" data-analytics-action="view_manual">Download the user manual (PDF) ↗</a></p>
         </div>
         <figure class="shot">
@@ -212,14 +212,14 @@
         <div>
           <span class="tag">Rack &amp; open-source native edition</span>
           <h2 class="title">Built for Reason, backed by an open-source DSP core.</h2>
-          <p class="lede">The Rack Extension ships with 100 factory patches in Shop 1.3.5 (128 patches in 1.4.11 builds). Its C++ circuit engine is also developed openly as the <a href="https://github.com/protocodus/virtual-instrument-youknow/blob/main/Docs/guide/user-guide.md" class="text-link" data-analytics-cta="native_user_guide" data-analytics-action="view_manual">open-source VST3, AU and CLAP edition</a> (currently v1.4.11; see <a href="https://github.com/protocodus/virtual-instrument-youknow#known-gaps" class="text-link" data-analytics-cta="known_gaps" data-analytics-action="view_details">known gaps</a> and <a href="https://github.com/protocodus/virtual-instrument-youknow#version-history" class="text-link" data-analytics-cta="native_history" data-analytics-action="view_versions">native changelog</a>).</p>
+          <p class="lede">The Rack Extension ships with 128 factory patches: 127 sounds from basses, brass and plucks to pads, strings, leads and effects, plus Init. Its C++ circuit engine is also developed openly as the <a href="https://github.com/protocodus/virtual-instrument-youknow/blob/main/Docs/guide/user-guide.md" class="text-link" data-analytics-cta="native_user_guide" data-analytics-action="view_manual">open-source VST3, AU and CLAP edition</a> (currently v1.4.11; see <a href="https://github.com/protocodus/virtual-instrument-youknow#known-gaps" class="text-link" data-analytics-cta="known_gaps" data-analytics-action="view_details">known gaps</a> and <a href="https://github.com/protocodus/virtual-instrument-youknow#version-history" class="text-link" data-analytics-cta="native_history" data-analytics-action="view_versions">native changelog</a>).</p>
         </div>
         <aside class="info-card compatibility" aria-label="YouKnow requirements and availability">
           <h3>Requirements &amp; availability</h3>
           <dl class="platforms">
             <div><dt>Format</dt><dd>Rack Extension for Reason · 8U</dd></div>
-            <div><dt>Audio &amp; CV</dt><dd>Stereo output, eight CV inputs</dd></div>
-            <div><dt>Patches</dt><dd>100 patches (Shop 1.3.5) · 128 patches (1.4.11 builds)</dd></div>
+            <div><dt>Audio &amp; CV</dt><dd>Stereo output, Note and Gate CV, six modulation CV inputs</dd></div>
+            <div><dt>Patches</dt><dd>128 patches</dd></div>
             <div><dt>Shop release</dt><dd>1.4.11 (first released 5 October 2026)<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/youknow-circuit-modelled-synth/?utm_source=protocodus.cz&amp;utm_medium=website&amp;utm_campaign=rack_extensions&amp;utm_content=release_shop" data-analytics-cta="release_shop" data-analytics-action="open_shop">Available in Reason Shop ↗</a></dd></div>
           </dl>
         </aside>

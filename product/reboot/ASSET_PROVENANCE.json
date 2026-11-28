@@ -4,17 +4,17 @@
  "development_panels": {
   "reviewed": "2026-11-28",
   "build_version": "0.10.0f2",
-  "version_on_panel": "0.10.0f1",
+  "version_on_panel": "0.10.0f3",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
-  "note": "The 0.10.0f1 panels in dist/ on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6).",
+  "source_commit": "2370d406b81257336a16771072f288b7f636d76a",
+  "note": "The panel renderer's 0.10.0f3 previews (Examples/Reboot/Design/previews) on Rack origin/main (2370d406), converted to WebP quality 92 at full size with Pillow 13.0.0 (method 6). 0.10.0f3 is source only; its U45 build is pending, and dist/ still holds the 0.10.0f1 panels.",
   "assets": [
    {
     "file": "reboot-rack-front.webp",
-    "sha256": "0aedc6ebdbee8d08cd939fd7e5e06a86100ba531d7ab96cbd9de5f894205d2cd",
-    "source": "dist/Reboot_Front.png",
-    "source_sha256": "95536aa10c0e40652c5364aff5af07538bcf464cd8f9570864f38961097f90ed",
+    "sha256": "8d92c5e0fe0e6debd3d1eaaeb3214d3b71d88802b395e66f3832986b4976cd35",
+    "source": "Examples/Reboot/Design/previews/front_2x.png",
+    "source_sha256": "f112e7f810308339eb39a2020e0f6875c6b1fd0764cf80c8a69c3f23484a86e8",
     "pixels": [
      1508,
      1104
@@ -22,9 +22,9 @@
    },
    {
     "file": "reboot-rack-rear.webp",
-    "sha256": "33e761c03d63dc604fb1b3d23ee994eea9d5a9499f275a4f8b667ec31b677920",
-    "source": "dist/Reboot_Back.png",
-    "source_sha256": "0dda5cac02d96dd7a93033df7124d7fdd539d9c411dc5ca26a8f7fd7d7a41011",
+    "sha256": "509b21d3aa060b825ea2deaf53217a4b00c951d977bbc5fad50b545732349d75",
+    "source": "Examples/Reboot/Design/previews/back_2x.png",
+    "source_sha256": "907a7188160e88bbd1d80a1a86f2b5fdb9df56f2e5d30c0295d3d502695fe03e",
     "pixels": [
      1508,
      1104
@@ -32,23 +32,22 @@
    }
   ],
   "earlier": {
-   "build_version": "0.5.2d1",
-   "version_on_panel": "0.5.2d1",
-   "source_commit": "1928031251cd92b4cbb80856a2a3af3c6c749c99"
+   "build_version": "0.10.0f2",
+   "version_on_panel": "0.10.0f1",
+   "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f"
   }
  },
  "cover": {
   "file": "Reboot_Thumbnail_800.png",
-  "sha256": "980d2aeb90e366a9972976c270d68238c76cb8ff15f52891a86e5008a21ab470",
+  "sha256": "3259755f7f279455d493a7322a620a439489d7d8d76524a37e2f42e7dcedde41",
   "pixels": [
    800,
    800
   ],
-  "source": "Composed for the website with a working copy of Tools/shop_covers/build_shop_covers.py from Rack main, given a Reboot entry (REBOOT in Inter Bold, RE dimmed, tagline Sound Chip Synth, ground #14171c) whose artwork is the panel kit's two machines, Examples/Reboot/Design/Kit/machine-handheld.png and machine-console.png. The device has no Shop thumbnail yet; nothing was added to the Rack repository.",
-  "kit_sha256": {
-   "machine-handheld.png": "95ff4c7b70258330b892a7b0f05c1a9cd1108b8728a4a732c1f727112e8d08a3",
-   "machine-console.png": "7de9498d48c9b0360fddd057df1c7d8efba5ecfa7e7f8f0f72074c46cd166112"
-  }
+  "source": "dist/Reboot_Thumbnail_800.png",
+  "source_sha256": "3259755f7f279455d493a7322a620a439489d7d8d76524a37e2f42e7dcedde41",
+  "source_commit": "2370d406b81257336a16771072f288b7f636d76a",
+  "note": "The Shop thumbnail on Rack main (built by Tools/shop_covers/build_shop_covers.py and named in dist/Reboot-SHOP.md), copied unchanged. It replaces the website-composed cover (sha256 980d2aeb90e3…) that stood in while the website had no Shop thumbnail."
  },
  "feature_sources": [
   "Examples/Reboot/README.md",

@@ -3,18 +3,18 @@
  "availability": "in_development",
  "development_panels": {
   "reviewed": "2026-11-28",
-  "build_version": "0.1.0d3",
-  "version_on_panel": "0.1.0d3",
+  "build_version": "0.1.0d10",
+  "version_on_panel": "0.1.0d12",
   "source_repository": "protocodus/reason-rack-extensions",
   "source_branch": "main",
-  "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f",
-  "note": "The panel renderer’s 0.1.0d3 previews on Rack origin/main (615582935), converted to WebP quality 92 at full size with Pillow 11.0.0 (method 6). There is no Shop cover yet, so the front panel stands in for it.",
+  "source_commit": "2370d406b81257336a16771072f288b7f636d76a",
+  "note": "The panel renderer's previews on Rack origin/main (2370d406), converted to WebP quality 92 at full size with Pillow 13.0.0 (method 6). The look is 0.1.0d9's with 0.1.0d6's Dynamics knob, as built in 0.1.0d10; the back prints 0.1.0d12. There is no Shop cover yet, so the front panel stands in for it.",
   "assets": [
    {
     "file": "reform-rack-front.webp",
-    "sha256": "7d7873b25aece673115c60f163ccda7118947b1bdcedeadae53014b8313afb4d",
+    "sha256": "6f00896f540429a8ec532e1b01b0e8256930a43a5e66e62d7c76c2aa30826cb4",
     "source": "Examples/Reform/Design/previews/front_2x.png",
-    "source_sha256": "b89527cdaf9e8ee326d286d5fa24eb14f0d1fedd4f01ff820d279b7deb5523d0",
+    "source_sha256": "9f5ccf151e4a5bb3a51ba93b3ea47144a0a0c9c9e4fcd3cc1c828a4afdff2628",
     "pixels": [
      1508,
      414
@@ -22,15 +22,20 @@
    },
    {
     "file": "reform-rack-rear.webp",
-    "sha256": "8ab163ec43b5a0d802649dda81bb8cc41d65c3a709906aad41c3c0d34e326061",
+    "sha256": "9a5f2957a4cebc42e733c7eee427e8a018c04284f8d9fe4f12260f73b8d0d602",
     "source": "Examples/Reform/Design/previews/back_2x.png",
-    "source_sha256": "4b3838f3d61da4a0dfc48bdb01cc1edccb04b4d73f08259e652656bacdd5f48f",
+    "source_sha256": "fc87deb06db95cd5e1028afaacbcb1e29768644c447748ce48e2db3b309f0c49",
     "pixels": [
      1508,
      414
     ]
    }
-  ]
+  ],
+  "earlier": {
+   "build_version": "0.1.0d3",
+   "version_on_panel": "0.1.0d3",
+   "source_commit": "615582935fa4d06540893ac7a9ab8abe24297f9f"
+  }
  },
  "feature_sources": [
   "Examples/Reform/README.md",

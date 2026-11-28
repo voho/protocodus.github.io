@@ -39,8 +39,16 @@
  },
  "cover": {
   "file": "Retra_Thumbnail_800.png",
-  "sha256": "90d73296b7f4f5a6c9bb0938758b8f5d17c04883a9fc465807eb7693e3447fe1",
-  "source": "dist/Retra_Thumbnail_800.png"
+  "sha256": "991d6dfd3f8047341e3ebb10c6ebdc92fef73f9caadb9475d0864dc7dc4bb8e3",
+  "source": "dist/Retra_Thumbnail_800.png",
+  "source_sha256": "991d6dfd3f8047341e3ebb10c6ebdc92fef73f9caadb9475d0864dc7dc4bb8e3",
+  "source_commit": "2370d406b81257336a16771072f288b7f636d76a",
+  "pixels": [
+   800,
+   800
+  ],
+  "reviewed": "2026-11-28",
+  "note": "Copied byte for byte from dist/Retra_Thumbnail_800.png on Rack origin/main (2370d406b); supersedes the cover 90d73296b7f4."
  },
  "feature_sources": [
   "dist/Retra-SHOP.md",

@@ -202,7 +202,7 @@
         <ul class="features">
           <li><h3>MP3 &amp; Ogg Vorbis</h3><p>Switch between stepped MP3 pre-echo/metallic shimmer and smoother Ogg Vorbis spectral smear from 256 down to 8 kbps.</p></li>
           <li><h3>Cascaded generation loss</h3><p>Repeat encoding 1 to 4 times in series to stack generational artifacts cleanly under one Mix knob.</p></li>
-          <li><h3>Tone &amp; crossfade</h3><p>Engage pre/post HP/LP filters, switch Bitrate Crossfade on for continuous bitrate automation (on the front in 1.0.1f3), and modulate Mix via CV.</p></li>
+          <li><h3>Filters &amp; crossfade</h3><p>Low-pass and high-pass filters shape what the encoder hears, and Bitrate Crossfade glides between bitrates for smooth automation at a higher CPU cost (on the back in 1.0.0, on the front in 1.0.1f3 builds).</p></li>
         </ul>
       </div>
     </section>
@@ -211,8 +211,8 @@
       <div class="wrap edition-layout">
         <div class="edition-copy">
           <span class="tag">In the rack</span>
-          <h2 class="title">2U effect with rear CV and mono fallback.</h2>
-          <p class="lede">Patch stereo or mono audio, modulate Mix via rear CV, and toggle Bitrate Crossfade cleanly without clicking through bitrate steps.</p>
+          <h2 class="title">2U effect with mono and stereo routing.</h2>
+          <p class="lede">Patch stereo or mono audio: one cable in gives mono or dual-mono out, two give stereo. The back holds the Bitrate Crossfade switch, which glides between bitrates instead of stepping through them. There are no CV inputs.</p>
         </div>
         <figure class="shot">
           <a class="screenshot-link" href="shop-rear.webp?v=2c578aba4de9" aria-label="View the Lamer Degrader Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
@@ -228,13 +228,13 @@
         <div>
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">Drop on a drum bus or synth channel.</h2>
-          <p class="lede">Automate Target Bitrate during a transition or stack two passes behind a parallel Mix blend to glue highs with lo-fi character.</p>
+          <p class="lede">Automate Bitrate through a transition, or stack two rounds under a parallel Mix blend for lo-fi character on a drum bus or synth channel.</p>
         </div>
         <aside class="info-card compatibility" aria-label="Lamer Degrader requirements and availability">
           <h3>Requirements &amp; availability</h3>
           <dl class="platforms">
             <div><dt>Format</dt><dd>Rack Extension for Reason · 2U</dd></div>
-            <div><dt>Audio &amp; CV</dt><dd>Stereo/mono I/O, Mix CV input</dd></div>
+            <div><dt>Audio &amp; CV</dt><dd>Stereo or mono in and out, no CV</dd></div>
             <div><dt>Codecs</dt><dd>MP3 &amp; Ogg Vorbis · 8–256 kbps · 1–4 passes</dd></div>
             <div><dt>Shop release</dt><dd>1.0.0 · released 21 October 2026<br><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/?utm_source=protocodus.cz&amp;utm_medium=website&amp;utm_campaign=rack_extensions&amp;utm_content=release_shop" data-analytics-cta="release_shop" data-analytics-action="open_shop">Available in Reason Shop ↗</a></dd></div>
           </dl>
@@ -270,7 +270,7 @@
           </article>
           <article data-release-version="1.0.0">
             <h3>1.0.0 <span>Current Reason Shop release · 21 October 2026</span></h3>
-            <p>Public Reason Shop launch featuring MP3 and Ogg Vorbis encoders, 1–4 cascaded passes, HP/LP filters and Mix CV.</p>
+            <p>Public Reason Shop launch featuring MP3 and Ogg Vorbis encoders, 1–4 cascaded passes, pre-encoder HP/LP filters and a Dry/Wet mix.</p>
           </article>
         </div>
         <p><a class="text-link" href="https://www.reasonstudios.com/shop/rack-extension/lamer-degrader/?utm_source=protocodus.cz&amp;utm_medium=website&amp;utm_campaign=rack_extensions&amp;utm_content=versions_shop" data-analytics-cta="versions_shop" data-analytics-action="open_shop">Open Lamer Degrader in the Reason Studios Shop ↗</a></p>

@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Unrest — Resonance Suppressor Rack Extension | Protocodus</title>
-  <meta name="description" content="Dynamic spectral resonance suppressor Rack Extension for Reason, in development: 32-band self-tuning equalizer, Stereo Balance L/M to R/S, external sidechain, analog output stages and 65 patches.">
+  <meta name="description" content="Self-tuning resonance suppressor for Reason: tracks harsh, whistling and boxy peaks and cuts only the excess, in zero phase or with a 32-band parametric EQ.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="Unrest — Resonance Suppressor Rack Extension | Protocodus">
-  <meta property="og:description" content="Dynamic spectral resonance suppressor Rack Extension for Reason, in development: 32-band self-tuning equalizer, Stereo Balance L/M to R/S, external sidechain, analog output stages and 65 patches.">
+  <meta property="og:description" content="Self-tuning resonance suppressor for Reason: tracks harsh, whistling and boxy peaks and cuts only the excess, in zero phase or with a 32-band parametric EQ.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Protocodus">
   <meta property="og:locale" content="en_US">
@@ -28,7 +28,7 @@
   "name": "Unrest",
   "url": "https://protocodus.cz/product/unrest/",
   "image": "https://protocodus.cz/product/unrest/Unrest_Thumbnail_800.png?v=0d706f44e9c2",
-  "description": "Dynamic spectral resonance suppressor Rack Extension for Reason, in development: 32-band self-tuning equalizer, Stereo Balance L/M to R/S, external sidechain, analog output stages and 65 patches.",
+  "description": "Self-tuning resonance suppressor for Reason: tracks harsh, whistling and boxy peaks and cuts only the excess, in zero phase or with a 32-band parametric EQ.",
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "macOS, Windows",
   "softwareRequirements": "Reason 14 or later",
@@ -45,7 +45,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Unrest — Resonance Suppressor Rack Extension | Protocodus">
-  <meta name="twitter:description" content="Dynamic spectral resonance suppressor Rack Extension for Reason, in development: 32-band self-tuning equalizer, Stereo Balance L/M to R/S, external sidechain, analog output stages and 65 patches.">
+  <meta name="twitter:description" content="Self-tuning resonance suppressor for Reason: tracks harsh, whistling and boxy peaks and cuts only the excess, in zero phase or with a 32-band parametric EQ.">
   <meta name="twitter:image" content="https://protocodus.cz/product/unrest/Unrest_Thumbnail_800.png?v=0d706f44e9c2">
   <meta name="twitter:image:alt" content="Unrest cover: a spiky teal spectrum carved by an amber suppression curve into a smooth ivory contour.">
   <script type="application/ld+json">
@@ -125,7 +125,7 @@
           <div class="instrument-intro">
             <span class="product-kicker">Resonance suppressor · Reason Rack Extension (in development)</span>
             <h1 class="hero-title">Unrest</h1>
-            <p class="hero-sub">Dynamic spectral soothing: isolates only harsh whistling peaks and boxy room modes while they happen, leaving steady tone and transients intact.</p>
+            <p class="hero-sub">A self-tuning resonance suppressor: it tracks narrow harsh, whistling or boxy peaks while they last and cuts only the excess, with zero-phase spectral cuts or a 32-band parametric EQ.</p>
           </div>
           <div class="instrument-actions">
             <ul class="instrument-facts" aria-label="Unrest highlights"><li>32-band EQ + Linear phase</li><li>L/R or M/S with Balance</li><li>65 factory patches</li></ul>
@@ -138,7 +138,7 @@
         </div>
         <figure class="shot hero-shot">
           <a class="screenshot-link" href="unrest-rack-front.webp?v=fbac38072f69" aria-label="View the Unrest Rack Extension front panel at full size" data-analytics-cta="front_panel" data-analytics-action="view_screenshot">
-            <img src="unrest-rack-front.webp?v=fbac38072f69" width="1508" height="1104" fetchpriority="high" decoding="async" alt="Unrest Rack Extension 8U front panel with live spectrum analyzer, Depth, Sharpness, Selectivity, Emphasis EQ nodes, Attack, Release, Mode (Normal/Ahead/Linear), Stereo Balance, Link and Output Character controls">
+            <img src="unrest-rack-front.webp?v=fbac38072f69" width="1508" height="1104" fetchpriority="high" decoding="async" alt="Unrest 1.0.0f2 front panel: Soft or Hard, Linear, Normal or Ahead, 1x, 2x or 4x, L/R or M/S with Independency and Balance, the spectrum and cut display with Sidechain and Delta listen, Strength, Sharpness, Resolution, Max cut, Attack, Release, Guard, Low cut, High cut, Tilt, the Off, Iron, Tube and Opto circuits with Drive, Mix and Output">
             <span class="shot-caption">Front panel · 1.0.0f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
@@ -150,13 +150,14 @@
         <div class="head">
           <span class="tag">Suppression</span>
           <h2 class="title">Cuts resonances, keeps the body of the track.</h2>
-          <p class="lede">Thirty-two self-tuning parametric EQ bands in Normal and Ahead modes—or linear-phase spectral suppression in Linear mode—track narrow build-ups across voice, drums, guitars or full mixes.</p>
+          <p class="lede">Its detector separates narrow standing resonances, whistling overtones and boxy build-up from the musical contour underneath, and cuts only the excess while it lasts, instead of leaving fixed notches behind after a note moves on.</p>
         </div>
         <ul class="features">
-          <li><h3>Normal, Ahead &amp; Linear modes</h3><p>Normal tracks dynamically with 0 ms minimum-phase EQ; Ahead previews look-ahead frames to catch sharp transients; Linear runs zero-phase overlap-add suppression with automatic PDC.</p></li>
-          <li><h3>Depth, Sharpness &amp; Selectivity</h3><p>Control cut depth, filter Q focus and sensitivity to solo whistled resonances vs broad harshness, shaped by draggable low/high shelves and two bell emphasis nodes.</p></li>
-          <li><h3>Stereo Balance &amp; Sidechain</h3><p>Switch L/R or Mid/Side, bias sensitivity continuously with Balance (−100% L/M to +100% R/S), cross-link channels or carve tracks from an external sidechain key.</p></li>
-          <li><h3>Delta listen &amp; output character</h3><p>Audit only the removed ringing via Delta, protect punch with a zero-pre-echo Hit gate, and finish with Clean, Iron, Tube or Opto level-matched stages.</p></li>
+          <li><h3>Linear, Normal &amp; Ahead</h3><p>Linear cuts in zero phase, 2048 samples late at 1x and compensated by Reason; Normal is a zero-delay 32-band self-tuning parametric EQ; Ahead looks 1024 samples ahead so a cut is in place when a hit arrives.</p></li>
+          <li><h3>Strength, Max cut &amp; Sharpness</h3><p>Strength sets how readily it cuts and Max cut how deep, from 1 to 36 dB. Sharpness narrows the cuts, Resolution sets how long they persist, and Soft or Hard picks gentle or surgical cutting.</p></li>
+          <li><h3>Timing, range &amp; Guard</h3><p>Attack and Release set how fast cuts engage and recover, Guard eases off on drum hits, plucks and consonants, and Low cut, High cut and Tilt keep the cutting where it belongs.</p></li>
+          <li><h3>Stereo, Sidechain &amp; Delta</h3><p>L/R or M/S with Independency from Link to Free and a Balance between the two; Sidechain lets another track steer the cuts, and Delta listen plays only what Unrest removes.</p></li>
+          <li><h3>Analog circuits, Mix &amp; Output</h3><p>Iron, Tube or Opto EQ circuits with Drive shape the active cuts and leave untouched audio clean; Mix blends delay-compensated dry audio back in and Output trims the level.</p></li>
         </ul>
       </div>
     </section>
@@ -165,12 +166,12 @@
       <div class="wrap edition-layout">
         <div class="edition-copy">
           <span class="tag">In the rack</span>
-          <h2 class="title">External sidechain and CV modulation on the rear.</h2>
-          <p class="lede">Patch stereo main audio, send a competing vocal or snare into Sidechain In, and modulate Depth, Sharpness, Selectivity, Balance or Emphasis Frequency via CV on the 8U rear panel.</p>
+          <h2 class="title">Main stereo pair and a sidechain on the back.</h2>
+          <p class="lede">Patch the main stereo pair in and out, and send a lead vocal or a snare into the stereo Sidechain inputs so it steers where the cuts land. A signal-flow drawing shows the detector, the dynamic EQ and the analog circuit. There are no CV inputs.</p>
         </div>
         <figure class="shot">
           <a class="screenshot-link" href="unrest-rack-rear.webp?v=c2bf0e16a3db" aria-label="View the Unrest Rack Extension rear panel at full size" data-analytics-cta="rear_panel" data-analytics-action="view_screenshot">
-            <img src="unrest-rack-rear.webp?v=c2bf0e16a3db" width="1508" height="1104" loading="lazy" decoding="async" alt="Unrest 1.0.0f2 rear panel showing Main stereo I/O, Sidechain inputs and five CV modulation jacks">
+            <img src="unrest-rack-rear.webp?v=c2bf0e16a3db" width="1508" height="1104" loading="lazy" decoding="async" alt="Unrest 1.0.0f2 rear panel with the signal flow, main stereo input and output, and stereo Sidechain inputs">
             <span class="shot-caption">Rear panel · 1.0.0f2 development build <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
@@ -181,15 +182,15 @@
       <div class="wrap workflow-layout">
         <div>
           <span class="tag">Reason Rack Extension</span>
-          <h2 class="title">Sixty-five patches across eight mix folders.</h2>
-          <p class="lede">Start from 16 root showcase presets or 48 specialized patches covering Vocals, Guitars, Drums, Synths, Piano &amp; Strings, Wind &amp; Brass, Mixing and Mastering.</p>
+          <h2 class="title">Sixty-five patches in eight folders.</h2>
+          <p class="lede">Init and 16 quick-start patches at the root, and 48 starter presets in Vocals, Drums, Guitars and Keys, Bass, Sidechain, Mix and Mastering, Surgical Rescue and Zero-Latency Live.</p>
         </div>
         <aside class="info-card compatibility" aria-label="Unrest requirements and availability">
           <h3>Requirements &amp; availability</h3>
           <dl class="platforms">
             <div><dt>Format</dt><dd>Rack Extension for Reason · 8U</dd></div>
-            <div><dt>Audio &amp; CV</dt><dd>Stereo main I/O, Sidechain In, five CV inputs, dynamic PDC</dd></div>
-            <div><dt>Patches</dt><dd>65 factory patches (Init + 16 showcase + 48 categorized)</dd></div>
+            <div><dt>Audio &amp; CV</dt><dd>Stereo main I/O, stereo Sidechain In, no CV; latency by mode, compensated by Reason</dd></div>
+            <div><dt>Patches</dt><dd>65 factory patches (Init, 16 quick-start, 48 in folders)</dd></div>
             <div><dt>Availability</dt><dd>In development</dd></div>
           </dl>
         </aside>
